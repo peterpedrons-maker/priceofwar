@@ -1,0 +1,43 @@
+er: poll opponent state while it’s their turn ────────────────
+  useEffect(() => {
+    if (gameMode !== 'Multiplayer' || !multiplayerGameId || startupPhase !== 'playing') return;
+    if (currentTurn !== 'npc') return;
+
+    let cancelled = false;
+    const poll = async () => {
+      while (!cancelled) {
+        await new Promise(r => setTimeout(r, 2000));
+        if (cancelled) break;
+        const game = await getGame(multiplayerGameId);
+        if (!game || cancelled) break;
+
+        const oppActive = isP1 ? 'p1' : 'p2'; // when it's p2's turn, active_player = 'p2', meaning p2 played and set it to p1
+        // We wait until active_player switches back to us
+        const myKey = isP1 ? 'p1' : 'p2';
+        if (game.active_player !== myKey) continue;
+
+        // Opponent finished their turn — apply their new board state
+        const oppSlotsKey = isP1 ? 'p2_slots' : 'p1_slots';
+        const oppHpKey    = isP1 ? 'p2_hp'    : 'p1_hp';
+        const oppManaKey  = isP1 ? 'p2_mana'  : 'p1_mana';
+        const myHpKeyPoll   = isP1 ? 'p1_hp'  : 'p2_hp';
+        const mySlotKeyPoll = isP1 ? 'p1_slots': 'p2_slots';
+
+        setNpcSlots(game[oppSlotsKey] ?? Array(13).fill(null));
+        setNpcHp(game[oppHpKey] ?? 20);
+        setNpcMana(game[oppManaKey] ?? 15);
+        // Apply damage the opponent dealt to us during their turn
+        if (game[myHpKeyPoll] !== undefined) setPlayerHp(game[myHpKeyPoll]);
+        if (game[mySlotKeyPoll]) setPlayerSlots(game[mySlotKeyPoll]);
+
+        // Handle game over from opponent side
+        if (game.status === 'finished') {
+          cancelled = true;
+          break;
+        }
+
+        setCurrentTurn('player');
+        setTurnNumber(game.turn_number ?? (turnNumber + 1));
+        break;
+      }
+    };
