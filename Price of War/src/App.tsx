@@ -972,7 +972,7 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
             setNpcMana(currentNpcMana);
             
             // Trigger AAA placement animation for NPC
-            audio.playDrop();
+            audio.playPlayCard();
             setJustPlacedNpcSlot(action.slotIndex);
             
             // More human-like pause between plays to let the effect shine
