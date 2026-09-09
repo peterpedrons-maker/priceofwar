@@ -1162,7 +1162,7 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
 
   if (!gameMode) {
     return (
-      <div className="relative w-full h-screen bg-zinc-950 text-white">
+      <div className="relative w-full h-dvh bg-zinc-950 text-white">
         <MainMenu onSelectMode={setGameMode} />
       </div>
     );
@@ -1170,7 +1170,7 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
 
   if ((gameMode === 'Quick Match' || gameMode === 'Campaign') && !selectedDeckId) {
     return (
-      <div className="relative w-full h-screen bg-zinc-950 text-white">
+      <div className="relative w-full h-dvh bg-zinc-950 text-white">
         <DeckSelectScreen
           customDeck={deck}
           onSelect={(id) => {
@@ -1220,7 +1220,7 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
   };
 
   const isMobile = windowSize.width < 768;
-  const boardScale = isMobile ? Math.min((windowSize.width - 20) / 1000, windowSize.height / 1400) : Math.min(windowSize.width / 1800, windowSize.height / 1400, 0.7) * 0.82;
+  const boardScale = isMobile ? Math.min((windowSize.width - 20) / 1400, windowSize.height / 1800) : Math.min(windowSize.width / 1600, windowSize.height / 2650, 0.7) * 0.82;
 
   const getSlotGridPos = (slot: number) => {
     if (slot <= 4) return { row: 0, col: slot };
@@ -2088,7 +2088,7 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
 
   return (
     <div 
-      className="relative w-full h-screen overflow-hidden flex flex-col items-center justify-center touch-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-zinc-950 to-black"
+      className="relative w-full h-dvh overflow-hidden flex flex-col items-center justify-center touch-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-zinc-950 to-black"
       style={{ perspective: '1200px' }}
       onClick={handleBackgroundClick}
     >
@@ -2561,7 +2561,7 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
         </div>
       </motion.div>
 
-      <div className="absolute -top-[6rem] md:-top-[9rem] inset-x-0 w-full flex flex-col justify-center items-center pointer-events-none z-[100] gap-2">
+      <div className="absolute -top-8 md:-top-[9rem] inset-x-0 w-full flex flex-col justify-center items-center pointer-events-none z-[100] gap-2">
         <div className="flex -space-x-12 md:-space-x-16">
           {npcHand.map((card, i) => {
             const mid = (npcHand.length - 1) / 2;
@@ -2807,8 +2807,8 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
                 </span>
 
                 {isPlayerTurn && (
-                  <motion.div 
-                    className="absolute -top-4 bg-black/80 px-3 py-1 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-widest text-amber-400 border border-amber-500/50 whitespace-nowrap"
+                  <motion.div
+                    className="absolute -top-4 right-0 md:right-auto max-w-[38vw] md:max-w-none bg-black/80 px-2 md:px-3 py-1 rounded-full text-center text-[7px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest text-amber-400 border border-amber-500/50"
                     animate={{ opacity: [0.8, 1, 0.8], y: [0, -2, 0] }}
                     transition={{ duration: 2, repeat: Infinity }}
                   >
@@ -2859,8 +2859,6 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
                 </defs>
               </svg>
             </div>
-
-// Button removed to keep board fully visible always
           </>
         );
       })()}

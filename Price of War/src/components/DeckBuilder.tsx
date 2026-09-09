@@ -101,7 +101,7 @@ export const DeckBuilder: React.FC<DeckBuilderProps> = ({ deck, defaultDeck, onS
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex flex-col w-full min-h-screen bg-zinc-950 text-white"
+      className="flex flex-col w-full min-h-dvh bg-zinc-950 text-white"
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 md:px-8 py-4 border-b border-zinc-800 bg-zinc-950/90 backdrop-blur-md sticky top-0 z-10">
