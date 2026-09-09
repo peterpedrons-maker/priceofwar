@@ -1,0 +1,1163 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
+import { Info, X, Sword, Zap, Users, Library } from 'lucide-react';
+import { subscribeToAuthChanges, logout } from './services/authService';
+import { AuthScreen } from './components/AuthScreen';
+import { User } from 'firebase/auth';
+import { playAiTurn, AiAction } from './services/aiService';
+
+export type CardData = {
+  id: string;
+  name: string;
+  atk: number;
+  hp: number;
+  cost: number;
+  art: string;
+  effect: string;
+  isDestroyed?: boolean;
+};
+
+const SlashEffect = () => (
+  <motion.div
+    initial={{ scale: 0, opacity: 1, rotateZ: -45 }}
+    animate={{ scale: [0, 2, 2.5], opacity: [1, 1, 0] }}
+    transition={{ duration: 0.2, ease: "easeOut" }}
+    className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none"
+  >
+    <div className="w-[200%] h-4 bg-white shadow-[0_0_30px_rgba(255,255,255,1)] rounded-full" />
+    <div className="absolute w-[200%] h-2 bg-red-500 shadow-[0_0_20px_rgba(239,68,68,1)] rounded-full" />
+  </motion.div>
+);
+
+const ExplosionEffect = () => (
+  <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
+    {/* Explosion */}
+    <motion.div
+      initial={{ scale: 0.5, opacity: 1 }}
+      animate={{ scale: 3, opacity: 0 }}
+      transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
+      className="absolute flex items-center justify-center"
+    >
+      <div className="w-32 h-32 bg-orange-500 rounded-full blur-xl mix-blend-screen" />
+      <div className="absolute w-24 h-24 bg-yellow-300 rounded-full blur-lg mix-blend-screen" />
+      <div className="absolute w-16 h-16 bg-white rounded-full blur-md mix-blend-screen" />
+    </motion.div>
+    {/* Particles */}
+    {[...Array(12)].map((_, i) => (
+      <motion.div
+        key={i}
+        className="absolute w-2 h-2 bg-yellow-400 rounded-full"
+        initial={{ x: 0, y: 0, scale: 1 }}
+        animate={{ 
+          x: (Math.random() - 0.5) * 300, 
+          y: (Math.random() - 0.5) * 300,
+          scale: 0,
+          opacity: 0
+        }}
+        transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
+      />
+    ))}
+  </div>
+);
+
+const ManaBadge = ({ value, className = "" }: { value: number, className?: string }) => (
+  <div className={`relative flex items-center justify-center ${className}`}>
+    <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full drop-shadow-md">
+      <polygon points="50,5 95,30 95,70 50,95 5,70 5,30" fill="#3b82f6" stroke="#1e3a8a" strokeWidth="6" strokeLinejoin="round" />
+      <polygon points="50,15 85,35 85,65 50,85 15,65 15,35" fill="none" stroke="#bfdbfe" strokeWidth="2" opacity="0.5" />
+    </svg>
+    <span className="relative z-10 text-white font-black drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] leading-none">{value}</span>
+  </div>
+);
+
+const AtkBadge = ({ value, className = "" }: { value: number, className?: string }) => (
+  <div className={`relative flex items-center justify-center ${className}`}>
+    <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full drop-shadow-md">
+      <path d="M20 80 L80 20 M20 20 L80 80" stroke="#4a4a4a" strokeWidth="12" strokeLinecap="round" />
+      <path d="M50 5 L85 20 L85 60 C85 80 50 95 50 95 C50 95 15 80 15 60 L15 20 Z" fill="#e4e4e7" stroke="#3f3f46" strokeWidth="8" strokeLinejoin="round" />
+    </svg>
+    <span className="relative z-10 text-zinc-900 font-black drop-shadow-[0_1px_1px_rgba(255,255,255,1)] leading-none">{value}</span>
+  </div>
+);
+
+const HpBadge = ({ value, className = "" }: { value: number, className?: string }) => (
+  <div className={`relative flex items-center justify-center ${className}`}>
+    <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full drop-shadow-md">
+      <path d="M50 90 C 50 90, 10 60, 10 30 C 10 10, 35 10, 50 30 C 65 10, 90 10, 90 30 C 90 60, 50 90, 50 90 Z" fill="#ef4444" stroke="#7f1d1d" strokeWidth="8" strokeLinejoin="round" />
+    </svg>
+    <span className="relative z-10 text-white font-black drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] leading-none">{value}</span>
+  </div>
+);
+
+const MOCK_DECK: CardData[] = [
+  { id: 'c1', name: 'Crimson Dragon', atk: 6, hp: 5, cost: 5, art: '', effect: 'Flying. Deals double damage to players.' },
+  { id: 'c2', name: 'Iron Knight', atk: 3, hp: 6, cost: 3, art: '', effect: 'Taunt. Protects adjacent allies.' },
+  { id: 'c3', name: 'Arcane Mage', atk: 4, hp: 2, cost: 4, art: '', effect: 'Spell Damage +2. Battlecry: Draw a card.' },
+  { id: 'c4', name: 'Forest Goblin', atk: 2, hp: 1, cost: 1, art: '', effect: 'Charge. Can attack immediately.' },
+  { id: 'c5', name: 'Stone Golem', atk: 4, hp: 8, cost: 6, art: '', effect: 'Cannot attack unless provoked.' },
+];
+
+const generateHand = (count: number) => {
+  return Array(count).fill(null).map((_, i) => ({
+    ...MOCK_DECK[Math.floor(Math.random() * MOCK_DECK.length)],
+    id: `hand_${Date.now()}_${i}`
+  }));
+};
+
+const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) => {
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const bgX = useTransform(mouseX, [-500, 500], [-20, 20]);
+  const bgY = useTransform(mouseY, [-500, 500], [-20, 20]);
+
+  const icons = {
+    'Campaign': Sword,
+    'Quick Match': Zap,
+    'Multiplayer': Users,
+    'My Deck': Library
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      onMouseMove={(e) => {
+        mouseX.set(e.clientX - window.innerWidth / 2);
+        mouseY.set(e.clientY - window.innerHeight / 2);
+      }}
+      className="flex flex-col items-center justify-center w-full h-full bg-zinc-950 text-white relative overflow-hidden"
+    >
+      {/* Animated Background with Parallax */}
+      <motion.div 
+        style={{ x: bgX, y: bgY }}
+        className="absolute -inset-20 bg-[radial-gradient(circle_at_center,rgba(49,46,129,0.3)_0%,rgba(0,0,0,1)_100%)] z-0"
+        animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0.8, 0.5] }}
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      <motion.h1 
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 100 }}
+        className="text-7xl font-black mb-16 text-transparent bg-clip-text bg-gradient-to-b from-indigo-300 to-indigo-600 drop-shadow-[0_0_15px_rgba(99,102,241,0.5)] z-10"
+      >
+        CARD BATTLE
+      </motion.h1>
+
+      <div className="flex flex-col gap-6 relative z-10">
+        {['Campaign', 'Quick Match', 'Multiplayer', 'My Deck'].map((mode, i) => {
+          const Icon = icons[mode as keyof typeof icons];
+          return (
+            <motion.button
+              key={mode}
+              whileHover={{ scale: 1.05, boxShadow: "0 0 20px rgba(99, 102, 241, 0.6)" }}
+              whileTap={{ scale: 0.95 }}
+              animate={{ boxShadow: ["0 0 10px rgba(99, 102, 241, 0.3)", "0 0 20px rgba(99, 102, 241, 0.6)", "0 0 10px rgba(99, 102, 241, 0.3)"] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              onClick={(e) => { e.stopPropagation(); onSelectMode(mode); }}
+              className="px-10 py-5 bg-zinc-900/80 hover:bg-indigo-950 rounded-xl text-2xl font-bold transition-all border-2 border-zinc-700 hover:border-indigo-500 shadow-lg flex items-center gap-4"
+            >
+              <Icon className="w-8 h-8" />
+              {mode}
+            </motion.button>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+};
+
+export default function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [gameMode, setGameMode] = useState<string | null>(null);
+  const [viewState, setViewState] = useState<'hand' | 'field' | 'draw'>('hand');
+  const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+
+  const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
+  const [currentTurn, setCurrentTurn] = useState<'player' | 'npc'>('player');
+  const [turnNumber, setTurnNumber] = useState(1);
+
+  const [playerHp, setPlayerHp] = useState(30);
+  const [npcHp, setNpcHp] = useState(30);
+  const [playerMana, setPlayerMana] = useState(10);
+  const [npcMana, setNpcMana] = useState(10);
+
+  const [hand, setHand] = useState<CardData[]>([]);
+  const [playerSlots, setPlayerSlots] = useState<(CardData | null)[]>(Array(12).fill(null));
+  const [npcSlots, setNpcSlots] = useState<(CardData | null)[]>(Array(12).fill(null));
+
+  const [selectedAttackerIndex, setSelectedAttackerIndex] = useState<number | null>(null);
+  const [detailedCard, setDetailedCard] = useState<CardData | null>(null);
+
+  const [isImpacting, setIsImpacting] = useState(false);
+  const [attackAnim, setAttackAnim] = useState<{ attackerIndex: number, targetIndex: number | 'avatar', isPlayerAttacking: boolean } | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 2000);
+  };
+
+  useEffect(() => {
+    const unsubscribe = subscribeToAuthChanges((user) => {
+      setUser(user);
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    // Initial draw
+    setHand(generateHand(5));
+    
+    // Mock NPC field
+    const mockNpcSlots = Array(12).fill(null);
+    mockNpcSlots[6] = MOCK_DECK[1]; // Iron Knight
+    mockNpcSlots[8] = MOCK_DECK[3]; // Forest Goblin
+    setNpcSlots(mockNpcSlots);
+  }, []);
+
+  useEffect(() => {
+    if (currentTurn === 'player') {
+      setPlayerMana(10);
+      if (turnNumber > 1) {
+        setViewState('draw');
+        setTimeout(() => {
+          setHand(prev => {
+            if (prev.length < 10) {
+              const newCard = {
+                ...MOCK_DECK[Math.floor(Math.random() * MOCK_DECK.length)],
+                id: `hand_${Date.now()}_${Math.random()}`
+              };
+              return [...prev, newCard];
+            }
+            return prev;
+          });
+          setViewState('hand');
+        }, 1200);
+      }
+    } else {
+      setNpcMana(10);
+      setViewState('field');
+    }
+  }, [currentTurn, turnNumber]);
+
+  useEffect(() => {
+    if (currentTurn === 'npc' && gameMode === 'Quick Match' && !isAnimating) {
+      const runAiTurn = async () => {
+        setIsAnimating(true);
+        const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, hand);
+        
+        let currentNpcSlots = [...npcSlots];
+        let currentPlayerSlots = [...playerSlots];
+        let currentNpcMana = npcMana;
+        let currentPlayerHp = playerHp;
+
+        for (const action of actions) {
+          if (action.type === 'play_card') {
+            currentNpcSlots[action.slotIndex] = action.card;
+            currentNpcMana -= action.card.cost;
+            setNpcSlots([...currentNpcSlots]);
+            setNpcMana(currentNpcMana);
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } else if (action.type === 'attack') {
+            setAttackAnim({ attackerIndex: action.attackerSlot, targetIndex: action.targetSlot, isPlayerAttacking: false });
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            setIsImpacting(true);
+            await new Promise(resolve => setTimeout(resolve, 200));
+            setIsImpacting(false);
+
+            const attacker = currentNpcSlots[action.attackerSlot];
+            if (!attacker) continue;
+
+            let hasDestroyed = false;
+
+            if (action.targetSlot === 'avatar') {
+              currentPlayerHp = Math.max(0, currentPlayerHp - attacker.atk);
+              setPlayerHp(currentPlayerHp);
+            } else {
+              const defender = currentPlayerSlots[action.targetSlot];
+              if (defender) {
+                const updatedAttacker = { ...attacker, hp: attacker.hp - defender.atk };
+                const updatedDefender = { ...defender, hp: defender.hp - attacker.atk };
+                
+                if (updatedAttacker.hp <= 0) {
+                  currentNpcSlots[action.attackerSlot] = { ...updatedAttacker, isDestroyed: true };
+                  hasDestroyed = true;
+                } else {
+                  currentNpcSlots[action.attackerSlot] = updatedAttacker;
+                }
+
+                if (updatedDefender.hp <= 0) {
+                  currentPlayerSlots[action.targetSlot] = { ...updatedDefender, isDestroyed: true };
+                  hasDestroyed = true;
+                } else {
+                  currentPlayerSlots[action.targetSlot] = updatedDefender;
+                }
+                
+                setNpcSlots([...currentNpcSlots]);
+                setPlayerSlots([...currentPlayerSlots]);
+              }
+            }
+            
+            setAttackAnim(null);
+            
+            if (hasDestroyed) {
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              currentNpcSlots = currentNpcSlots.map(c => c?.isDestroyed ? null : c);
+              currentPlayerSlots = currentPlayerSlots.map(c => c?.isDestroyed ? null : c);
+              setNpcSlots([...currentNpcSlots]);
+              setPlayerSlots([...currentPlayerSlots]);
+            } else {
+              await new Promise(resolve => setTimeout(resolve, 300));
+            }
+          }
+        }
+        
+        setCurrentTurn('player');
+        setTurnNumber(prev => prev + 1);
+        setIsAnimating(false);
+      };
+      
+      const timer = setTimeout(runAiTurn, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [currentTurn, gameMode]);
+
+  if (authLoading) {
+    return <div className="flex items-center justify-center h-screen bg-zinc-950 text-white">Loading...</div>;
+  }
+
+  if (!user) {
+    return <AuthScreen />;
+  }
+
+  if (!gameMode) {
+    return (
+      <div className="relative w-full h-screen bg-zinc-950 text-white">
+        <MainMenu onSelectMode={setGameMode} />
+        <button onClick={logout} className="absolute bottom-4 left-4 text-zinc-400 hover:underline z-50">Logout</button>
+      </div>
+    );
+  }
+
+  const isMobile = windowSize.width < 768;
+  const boardScale = isMobile ? Math.min(windowSize.width / 1100, windowSize.height / 1200) * 0.9 : Math.min(windowSize.width / 1600, 1);
+  const handScale = isMobile 
+    ? Math.min(0.85, (windowSize.width / (Math.max(4, hand.length) * 230)) * 0.95) 
+    : 1;
+
+  const handleCardClick = (index: number) => {
+    if (selectedCardIndex === index) {
+      // Deselect and return to hand view
+      setSelectedCardIndex(null);
+      setViewState('hand');
+    } else {
+      // Select and zoom out to field view
+      setSelectedCardIndex(index);
+      setViewState('field');
+      setSelectedAttackerIndex(null);
+    }
+  };
+
+  const handleSlotClick = (slotIndex: number) => {
+    if (selectedCardIndex !== null && !playerSlots[slotIndex]) {
+      const cardToPlay = hand[selectedCardIndex];
+      
+      if (playerMana >= cardToPlay.cost) {
+        setPlayerMana(prev => prev - cardToPlay.cost);
+        
+        // Remove from hand
+        const newHand = [...hand];
+        newHand.splice(selectedCardIndex, 1);
+        setHand(newHand);
+        
+        // Add to slot
+        const newSlots = [...playerSlots];
+        newSlots[slotIndex] = cardToPlay;
+        setPlayerSlots(newSlots);
+        
+        // Reset selection
+        setSelectedCardIndex(null);
+        setViewState('hand');
+      } else {
+        showToast("Not enough mana!");
+      }
+    } else if (selectedCardIndex === null && playerSlots[slotIndex]) {
+      // Select attacker
+      if (selectedAttackerIndex === slotIndex) {
+        setSelectedAttackerIndex(null);
+      } else {
+        setSelectedAttackerIndex(slotIndex);
+      }
+    }
+  };
+
+  const handleNpcSlotClick = async (slotIndex: number) => {
+    if (selectedAttackerIndex !== null && npcSlots[slotIndex] && !isAnimating) {
+      setIsAnimating(true);
+      setAttackAnim({ attackerIndex: selectedAttackerIndex, targetIndex: slotIndex, isPlayerAttacking: true });
+      
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      setIsImpacting(true);
+      await new Promise(resolve => setTimeout(resolve, 200));
+      setIsImpacting(false);
+      
+      const attacker = playerSlots[selectedAttackerIndex];
+      const defender = npcSlots[slotIndex];
+      
+      if (attacker && defender) {
+        const updatedAttacker = { ...attacker, hp: attacker.hp - defender.atk };
+        const updatedDefender = { ...defender, hp: defender.hp - attacker.atk };
+        
+        const newPlayerSlots = [...playerSlots];
+        const newNpcSlots = [...npcSlots];
+        
+        let hasDestroyed = false;
+
+        if (updatedAttacker.hp <= 0) {
+           newPlayerSlots[selectedAttackerIndex] = { ...updatedAttacker, isDestroyed: true };
+           hasDestroyed = true;
+        } else {
+           newPlayerSlots[selectedAttackerIndex] = updatedAttacker;
+        }
+
+        if (updatedDefender.hp <= 0) {
+           newNpcSlots[slotIndex] = { ...updatedDefender, isDestroyed: true };
+           hasDestroyed = true;
+        } else {
+           newNpcSlots[slotIndex] = updatedDefender;
+        }
+        
+        setPlayerSlots(newPlayerSlots);
+        setNpcSlots(newNpcSlots);
+        setSelectedAttackerIndex(null);
+        setAttackAnim(null);
+
+        if (hasDestroyed) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          setPlayerSlots(prev => prev.map(c => c?.isDestroyed ? null : c));
+          setNpcSlots(prev => prev.map(c => c?.isDestroyed ? null : c));
+        }
+      }
+      setIsAnimating(false);
+    }
+  };
+
+  const handleNpcAvatarClick = async () => {
+    if (selectedAttackerIndex !== null && !isAnimating) {
+      setIsAnimating(true);
+      setAttackAnim({ attackerIndex: selectedAttackerIndex, targetIndex: 'avatar', isPlayerAttacking: true });
+      
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      setIsImpacting(true);
+      await new Promise(resolve => setTimeout(resolve, 200));
+      setIsImpacting(false);
+      
+      const attacker = playerSlots[selectedAttackerIndex];
+      if (attacker) {
+        setNpcHp(prev => Math.max(0, prev - attacker.atk));
+        setSelectedAttackerIndex(null);
+        setAttackAnim(null);
+      }
+      setIsAnimating(false);
+    }
+  };
+
+  const handleBackgroundClick = () => {
+    if (viewState === 'field') {
+      setSelectedCardIndex(null);
+      setViewState('hand');
+    }
+  };
+
+  const getSelectedCardX = (index: number) => {
+    const cardWidth = 224; // w-56 = 14rem = 224px
+    const gap = isMobile ? 8 : 12; 
+    const totalWidth = hand.length * cardWidth + (hand.length - 1) * gap;
+    const startX = -totalWidth / 2 + cardWidth / 2;
+    const cardX = startX + index * (cardWidth + gap);
+    // On mobile move to bottom right, on desktop move it to the left to see the board
+    const targetX = isMobile ? (windowSize.width / 2 - 120) : (300 - windowSize.width / 2);
+    return targetX - cardX;
+  };
+
+  const getBoardAnimation = () => {
+    const baseAnim = {
+      rotateX: viewState === 'draw' ? 25 : isMobile ? (viewState === 'hand' ? 75 : 25) : (viewState === 'hand' ? 72 : 35),
+      rotateZ: viewState === 'draw' ? -5 : 0,
+      y: viewState === 'draw' ? -400 : isMobile ? (viewState === 'hand' ? 450 : 0) : (viewState === 'hand' ? 350 : -50),
+      x: viewState === 'draw' ? -350 : (viewState === 'field' && !isMobile ? 0 : 0),
+      z: viewState === 'draw' ? 300 : viewState === 'hand' ? 200 : (isMobile ? 50 : 50),
+      scale: viewState === 'draw' ? 1.1 * boardScale : (viewState === 'hand' ? 0.9 : (isMobile ? 1.0 : 0.85)) * boardScale,
+    };
+
+    if (attackAnim) {
+      const isPlayer = attackAnim.isPlayerAttacking;
+      const targetRotateX = isPlayer ? baseAnim.rotateX - 25 : baseAnim.rotateX + 25;
+      const targetY = isPlayer ? baseAnim.y + 250 : baseAnim.y - 250;
+      const targetZ = baseAnim.z + 300;
+      const targetScale = baseAnim.scale * 1.15;
+
+      if (isImpacting) {
+        return {
+          ...baseAnim,
+          rotateX: [targetRotateX, targetRotateX + 5, targetRotateX - 5, targetRotateX],
+          rotateZ: [baseAnim.rotateZ, baseAnim.rotateZ - 5, baseAnim.rotateZ + 5, baseAnim.rotateZ],
+          x: [baseAnim.x, baseAnim.x - 30, baseAnim.x + 30, baseAnim.x],
+          y: targetY,
+          z: targetZ,
+          scale: targetScale,
+          transition: { duration: 0.2 }
+        };
+      }
+
+      return {
+        ...baseAnim,
+        rotateX: targetRotateX,
+        y: targetY,
+        z: targetZ,
+        scale: targetScale,
+        transition: { duration: 0.4, ease: "easeInOut" }
+      };
+    }
+
+    return baseAnim;
+  };
+
+  return (
+    <div 
+      className="relative w-full h-screen bg-zinc-950 overflow-hidden flex flex-col items-center justify-center touch-none"
+      style={{ perspective: '1200px' }}
+      onClick={handleBackgroundClick}
+    >
+      {/* Background ambient light */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(30,30,60,0.8)_0%,rgba(0,0,0,1)_100%)] pointer-events-none" />
+
+      {/* 3D Board */}
+      <motion.div
+        className="w-[1000px] h-[1400px] grid grid-rows-2 gap-24 p-8 relative"
+        animate={getBoardAnimation()}
+        transition={{ duration: 0.8, ease: [0.32, 0.72, 0, 1] }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (selectedCardIndex !== null) {
+            setSelectedCardIndex(null);
+            setViewState('hand');
+          }
+          if (selectedAttackerIndex !== null) {
+            setSelectedAttackerIndex(null);
+          }
+        }}
+      >
+        {/* Board Grid Lines / Texture */}
+        <div className="absolute inset-0 border-4 border-indigo-900/40 bg-indigo-950/10 rounded-2xl shadow-[0_0_80px_rgba(49,46,129,0.3)] pointer-events-none" style={{ transform: 'translateZ(-1px)' }} />
+        
+        {/* Central Divider */}
+        <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.6)] -translate-y-1/2 rounded-full pointer-events-none" />
+
+        {/* NPC Field */}
+        <div className="flex flex-col gap-6 justify-start pt-4">
+          {/* Row 3 NPC (Back Row) */}
+          <div className="flex justify-center gap-16 items-center">
+            <CardSlot 
+              card={npcSlots[10]} 
+              onClick={() => handleNpcSlotClick(10)} 
+              onInfoClick={setDetailedCard} 
+              isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
+              isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 10}
+              attackDirection="down"
+            />
+            <div onClick={(e) => { e.stopPropagation(); handleNpcAvatarClick(); }} className="cursor-pointer pointer-events-auto relative">
+              <Avatar name="NPC" isActive={currentTurn === 'npc'} hp={npcHp} mana={npcMana} isMobile={isMobile} />
+              {isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 'avatar' && <SlashEffect />}
+            </div>
+            <CardSlot 
+              card={npcSlots[11]} 
+              onClick={() => handleNpcSlotClick(11)} 
+              onInfoClick={setDetailedCard} 
+              isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
+              isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 11}
+              attackDirection="down"
+            />
+          </div>
+          {/* Row 2 NPC (Middle Row) */}
+          <div className="flex justify-center gap-6">
+            {[5, 6, 7, 8, 9].map((i) => (
+              <CardSlot 
+                key={i} 
+                card={npcSlots[i]} 
+                onClick={() => handleNpcSlotClick(i)} 
+                onInfoClick={setDetailedCard} 
+                isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
+                isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
+                attackDirection="down"
+              />
+            ))}
+          </div>
+          {/* Row 1 NPC (Front Row) */}
+          <div className="flex justify-center gap-6">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <CardSlot 
+                key={i} 
+                card={npcSlots[i]} 
+                onClick={() => handleNpcSlotClick(i)} 
+                onInfoClick={setDetailedCard} 
+                isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
+                isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
+                attackDirection="down"
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Player Field */}
+        <div className="flex flex-col gap-6 justify-end pb-4 pointer-events-auto">
+          {/* Row 1 Player (Front Row) */}
+          <div className="flex justify-center gap-6">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <CardSlot 
+                key={i} 
+                card={playerSlots[i]} 
+                onClick={() => handleSlotClick(i)} 
+                isSelected={selectedAttackerIndex === i} 
+                onInfoClick={setDetailedCard} 
+                isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
+                isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
+                attackDirection="up"
+              />
+            ))}
+          </div>
+          {/* Row 2 Player (Middle Row) */}
+          <div className="flex justify-center gap-6">
+            {[5, 6, 7, 8, 9].map((i) => (
+              <CardSlot 
+                key={i} 
+                card={playerSlots[i]} 
+                onClick={() => handleSlotClick(i)} 
+                isSelected={selectedAttackerIndex === i} 
+                onInfoClick={setDetailedCard} 
+                isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
+                isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
+                attackDirection="up"
+              />
+            ))}
+          </div>
+          {/* Row 3 Player (Back Row) */}
+          <div className="flex justify-center gap-16 items-center">
+            <CardSlot 
+              card={playerSlots[10]} 
+              onClick={() => handleSlotClick(10)} 
+              isSelected={selectedAttackerIndex === 10} 
+              onInfoClick={setDetailedCard} 
+              isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
+              isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 10}
+              attackDirection="up"
+            />
+            <div className="relative">
+              <Avatar name="PLAYER" isPlayer isActive={currentTurn === 'player'} hp={playerHp} mana={playerMana} isMobile={isMobile} />
+              {isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 'avatar' && <SlashEffect />}
+            </div>
+            <CardSlot 
+              card={playerSlots[11]} 
+              onClick={() => handleSlotClick(11)} 
+              isSelected={selectedAttackerIndex === 11} 
+              onInfoClick={setDetailedCard} 
+              isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
+              isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 11}
+              attackDirection="up"
+            />
+          </div>
+        </div>
+
+        {/* Opponent Deck & Graveyard (On Board) */}
+        <div className="absolute -right-40 md:-right-64 top-12 flex flex-col gap-6 items-center z-40 pointer-events-none">
+          {/* Deck */}
+          <div className="w-24 md:w-36 h-32 md:h-48 border-2 border-[#8c7a5f] rounded-xl bg-[#4a3b2c] flex items-center justify-center shadow-[0_10px_20px_rgba(0,0,0,0.5)] relative">
+            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-x-1 translate-y-1 bg-[#3a2b1c] -z-10" />
+            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-x-2 translate-y-2 bg-[#2a1b0c] -z-20" />
+            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-x-3 translate-y-3 bg-[#1a0b00] -z-30" />
+            <div className="w-[80%] h-[85%] border border-[#8c7a5f]/50 rounded-lg flex items-center justify-center relative overflow-hidden">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.2)_0%,transparent_70%)]" />
+              <div className="w-8 h-8 md:w-12 md:h-12 opacity-50 bg-zinc-800 rounded-full border-2 border-[#8c7a5f]" />
+            </div>
+          </div>
+          {/* Graveyard */}
+          <div className="w-24 md:w-36 h-32 md:h-48 border-2 border-zinc-700 rounded-xl bg-zinc-900/80 flex items-center justify-center shadow-lg relative overflow-hidden">
+            <span className="text-zinc-600 font-mono text-xs md:text-sm uppercase tracking-widest rotate-90 opacity-50">Graveyard</span>
+          </div>
+        </div>
+
+        {/* Opponent Hand (Floating) */}
+        <div className="absolute top-[-150px] md:top-[-200px] left-1/2 -translate-x-1/2 flex gap-2 md:gap-3 pointer-events-none z-50" style={{ perspective: '1000px' }}>
+          {[...Array(5)].map((_, i) => (
+            <motion.div
+              key={`npc-hand-${i}`}
+              className="w-32 h-48 md:w-40 md:h-56 shrink-0 bg-[#c5b599] rounded-xl border-2 border-[#8c7a5f] relative shadow-2xl"
+              initial={{ y: -100, opacity: 0, rotateX: -20, rotateZ: (i - 2) * 5 }}
+              animate={{ 
+                y: [0, -10, 0], 
+                opacity: 1,
+                rotateX: -20,
+                rotateZ: (i - 2) * 5
+              }}
+              transition={{ 
+                y: { duration: 3, repeat: Infinity, ease: "easeInOut", delay: i * 0.2 },
+                opacity: { duration: 0.5, delay: i * 0.1 }
+              }}
+            >
+              {/* Card Back Design */}
+              <div className="absolute inset-2 border border-[#8c7a5f]/50 rounded-lg flex items-center justify-center bg-[#4a3b2c]">
+                <div className="w-8 h-8 bg-zinc-800 rounded-full border-2 border-[#d4af37] opacity-50" />
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Deck & Graveyard (On Board) */}
+        <div className="absolute -right-40 md:-right-64 bottom-12 flex flex-col gap-6 items-center z-40 pointer-events-auto">
+          {/* Graveyard */}
+          <div className="w-24 md:w-36 h-32 md:h-48 border-2 border-zinc-700 rounded-xl bg-zinc-900/80 flex items-center justify-center shadow-lg relative overflow-hidden">
+            <span className="text-zinc-600 font-mono text-xs md:text-sm uppercase tracking-widest rotate-90 opacity-50">Graveyard</span>
+          </div>
+          
+          {/* Deck */}
+          <motion.div 
+            className="w-24 md:w-36 h-32 md:h-48 border-2 border-[#8c7a5f] rounded-xl bg-[#4a3b2c] flex items-center justify-center shadow-[0_10px_20px_rgba(0,0,0,0.5)] relative group"
+          >
+            {/* Deck thickness effect */}
+            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-x-1 -translate-y-1 bg-[#3a2b1c] -z-10" />
+            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-x-2 -translate-y-2 bg-[#2a1b0c] -z-20" />
+            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-x-3 -translate-y-3 bg-[#1a0b00] -z-30" />
+            
+            {/* Card Back Design */}
+            <div className="w-[80%] h-[85%] border border-[#8c7a5f]/50 rounded-lg flex items-center justify-center relative overflow-hidden">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.2)_0%,transparent_70%)]" />
+              <div className="w-8 h-8 md:w-12 md:h-12 opacity-50 bg-zinc-800 rounded-full border-2 border-[#8c7a5f]" />
+            </div>
+
+            {/* Draw Animation Effect */}
+            <AnimatePresence>
+              {viewState === 'draw' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 0, z: 0, scale: 1 }}
+                  animate={{ opacity: [0, 1, 1, 0], y: 250, z: 200, scale: 2.5, rotateX: 20, rotateZ: 5 }}
+                  transition={{ duration: 1.2, ease: "easeOut" }}
+                  className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl bg-[#4a3b2c] flex items-center justify-center shadow-[0_0_40px_rgba(212,175,55,0.8)] z-50"
+                >
+                  <div className="w-[80%] h-[85%] border border-[#8c7a5f]/50 rounded-lg flex items-center justify-center relative overflow-hidden">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.4)_0%,transparent_70%)]" />
+                    <div className="w-8 h-8 md:w-12 md:h-12 bg-zinc-800 rounded-full border-2 border-[#d4af37]" />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </div>
+      </motion.div>
+
+      {/* Hand UI */}
+      <motion.div 
+        className="absolute inset-0 w-full h-full flex justify-center items-end pb-4 md:pb-6 pointer-events-none z-50"
+        animate={{
+          scale: handScale,
+          y: isMobile ? (viewState === 'field' ? 200 : 0) : (viewState === 'field' ? 220 : 0)
+        }}
+      >
+        <div className="flex gap-2 md:gap-3 pointer-events-none">
+          <AnimatePresence>
+            {hand.map((card, i) => (
+              <motion.div
+                layoutId={card.id}
+                key={card.id}
+                className={`w-56 h-80 shrink-0 bg-[#c5b599] rounded-xl cursor-pointer flex flex-col p-2 relative group border-2 border-[#8c7a5f] ${viewState === 'field' ? 'pointer-events-none' : 'pointer-events-auto'}`}
+                initial={{ 
+                  opacity: 0, 
+                  x: windowSize.width / 2, 
+                  y: 200, 
+                  scale: 0.5,
+                  rotateZ: 45
+                }}
+                animate={{
+                  opacity: viewState === 'field' && selectedCardIndex !== i ? 0.4 : 1,
+                  x: selectedCardIndex === i ? getSelectedCardX(i) : 0,
+                  y: selectedCardIndex === i 
+                    ? (isMobile ? 180 : -450) 
+                    : (viewState === 'field' ? (isMobile ? 150 : 150) : 0),
+                  scale: selectedCardIndex === i 
+                    ? (isMobile ? 0.6 : 1.8) 
+                    : (viewState === 'field' ? 0.6 : 1),
+                  rotateZ: 0,
+                  zIndex: selectedCardIndex === i ? 100 : 1,
+                  boxShadow: selectedCardIndex === i 
+                    ? "0 0 120px rgba(212, 175, 55, 0.95)" 
+                    : "0 10px 30px rgba(0,0,0,0.5)"
+                }}
+                whileHover={{
+                  y: selectedCardIndex === i ? (isMobile ? 60 : -220) : viewState === 'field' ? 120 : -20,
+                  scale: selectedCardIndex === i ? (isMobile ? 0.65 : 1.8) : 1.05,
+                  boxShadow: selectedCardIndex === i 
+                    ? "0 0 80px rgba(212, 175, 55, 0.8)" 
+                    : "0 0 25px rgba(212, 175, 55, 0.5)"
+                }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ 
+                  duration: 0.4, 
+                  ease: "easeOut",
+                  zIndex: { delay: selectedCardIndex === i ? 0 : 0.4 }
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCardClick(i);
+                }}
+              >
+                {/* Info Button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDetailedCard(card);
+                  }}
+                  className="absolute top-1 left-1 w-8 h-8 bg-blue-600/90 rounded-full border-2 border-blue-900 flex items-center justify-center shadow-md z-30 hover:bg-blue-500 transition-colors pointer-events-auto"
+                >
+                  <Info className="text-white w-5 h-5" />
+                </button>
+
+                {/* Full Card Art Background */}
+                {card.art ? (
+                  <img src={card.art} alt={card.name} className="absolute inset-0 w-full h-full object-cover z-0 rounded-xl" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="absolute inset-0 w-full h-full bg-zinc-800 flex items-center justify-center z-0 rounded-xl">
+                    <span className="text-xs text-zinc-600 font-mono italic uppercase opacity-50">No Art</span>
+                  </div>
+                )}
+
+                {/* Content Wrapper */}
+                <div className="absolute inset-0 z-10 pointer-events-none p-2 flex flex-col justify-between">
+                  {/* Top Section: Name and Cost */}
+                  <div className="relative flex items-start justify-between w-full">
+                    {/* Name */}
+                    <div className="flex-1 bg-black/50 backdrop-blur-sm border border-white/20 rounded-lg flex items-center px-3 py-1.5 shadow-sm mr-4">
+                      <span className="text-sm font-bold text-white uppercase tracking-tighter truncate drop-shadow-md">{card.name}</span>
+                    </div>
+                    {/* Gold Badge */}
+                    <ManaBadge value={card.cost} className="absolute -top-4 -right-4 w-12 h-12 text-xl z-20 drop-shadow-md" />
+                  </div>
+                  
+                  {/* Bottom Section: Effect, ATK, HP */}
+                  <div className="relative w-full flex flex-col items-center">
+                    {/* Text Box */}
+                    <div className="w-full bg-black/50 backdrop-blur-sm border border-white/20 rounded-lg p-3 shadow-sm flex items-center justify-center min-h-[5rem] mb-2">
+                      <p className="text-xs leading-snug text-white/90 font-medium text-center drop-shadow-md">{card.effect}</p>
+                    </div>
+                    
+                    {/* ATK Badge */}
+                    <AtkBadge value={card.atk} className="absolute -bottom-4 -left-4 w-12 h-12 text-xl z-20 drop-shadow-md" />
+                    
+                    {/* HP Badge */}
+                    <HpBadge value={card.hp} className="absolute -bottom-4 -right-4 w-12 h-12 text-xl z-20 drop-shadow-md" />
+                  </div>
+                </div>
+
+                {/* Selection Glow */}
+                {selectedCardIndex === i && (
+                  <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(212,175,55,0.6)] rounded-xl border-2 border-[#d4af37] pointer-events-none" />
+                )}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      </motion.div>
+
+
+
+      {/* Turn Indicator UI */}
+      <div className="absolute top-4 right-4 md:top-6 md:right-6 flex flex-col items-end gap-3 pointer-events-none z-50">
+        <motion.div 
+          className={`px-6 py-3 rounded-xl border-2 backdrop-blur-md font-black text-sm md:text-lg tracking-widest transition-colors flex items-center gap-3 shadow-2xl
+            ${currentTurn === 'player' 
+              ? 'bg-blue-900/80 border-blue-400 text-blue-200' 
+              : 'bg-red-900/80 border-red-500 text-red-200'}`}
+          animate={{
+            boxShadow: currentTurn === 'player'
+              ? ['0 0 10px rgba(59,130,246,0.5)', '0 0 30px rgba(59,130,246,0.8)', '0 0 10px rgba(59,130,246,0.5)']
+              : ['0 0 10px rgba(239,68,68,0.5)', '0 0 30px rgba(239,68,68,0.8)', '0 0 10px rgba(239,68,68,0.5)'],
+            scale: currentTurn === 'player' ? [1, 1.05, 1] : 1
+          }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          <div className={`w-4 h-4 rounded-full ${currentTurn === 'player' ? 'bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,1)]' : 'bg-red-500 shadow-[0_0_10px_rgba(248,113,113,1)]'} animate-pulse`} />
+          {currentTurn === 'player' ? "SEU TURNO" : "TURNO DO INIMIGO"}
+        </motion.div>
+        
+        {/* End Turn Button */}
+        <button 
+          className={`pointer-events-auto px-8 py-3 text-sm md:text-base font-black tracking-widest rounded-xl border-b-4 transition-all active:border-b-0 active:translate-y-1 ${
+            currentTurn === 'player'
+              ? 'bg-amber-500 hover:bg-amber-400 text-amber-950 border-amber-700 shadow-[0_4px_20px_rgba(245,158,11,0.4)]'
+              : 'bg-zinc-700 text-zinc-500 border-zinc-800 cursor-not-allowed'
+          }`}
+          onClick={(e) => { 
+            e.stopPropagation(); 
+            if (currentTurn === 'player') setCurrentTurn('npc'); 
+          }}
+          disabled={currentTurn !== 'player'}
+        >
+          ENCERRAR TURNO
+        </button>
+      </div>
+
+      {/* Camera Toggle Button */}
+      <div className="absolute top-4 left-4 md:top-6 md:left-6 z-50">
+        <button 
+          disabled={currentTurn === 'npc'}
+          className={`pointer-events-auto px-4 py-2 md:px-6 md:py-3 font-mono font-bold text-[10px] md:text-sm rounded-lg border backdrop-blur-md transition-all flex items-center gap-2 ${
+            currentTurn === 'npc'
+              ? 'bg-zinc-900/80 text-zinc-600 border-zinc-800 cursor-not-allowed'
+              : viewState === 'field' 
+                ? 'bg-emerald-900/80 text-emerald-300 border-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.6)]' 
+                : 'bg-black/60 text-zinc-400 border-zinc-600 hover:bg-zinc-800/60 hover:text-zinc-300'
+          }`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setViewState(prev => prev === 'hand' ? 'field' : 'hand');
+            setSelectedCardIndex(null);
+          }}
+        >
+          <div className={`w-2 h-2 rounded-full ${viewState === 'field' ? 'bg-emerald-400 animate-pulse shadow-[0_0_10px_rgba(52,211,153,1)]' : 'bg-zinc-600'}`} />
+          VISUALIZAR CAMPO
+        </button>
+      </div>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 bg-red-600/90 text-white font-bold rounded-full shadow-[0_0_20px_rgba(220,38,38,0.6)] border-2 border-red-400 pointer-events-none"
+          >
+            {toastMessage}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Detailed Card Modal */}
+      <AnimatePresence>
+        {detailedCard && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm pointer-events-auto"
+            onClick={() => setDetailedCard(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.8, y: 50 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.8, y: 50 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-sm aspect-[2/3] bg-[#c5b599] rounded-2xl flex flex-col p-4 border-4 border-[#8c7a5f] shadow-[0_0_100px_rgba(0,0,0,0.8)]"
+            >
+              <button
+                onClick={() => setDetailedCard(null)}
+                className="absolute -top-4 -left-4 w-10 h-10 bg-red-600 rounded-full border-2 border-red-900 flex items-center justify-center shadow-lg z-30 hover:bg-red-500 transition-colors pointer-events-auto"
+              >
+                <X className="text-white w-6 h-6" />
+              </button>
+
+              {/* Full Card Art Background */}
+              {detailedCard.art ? (
+                <img src={detailedCard.art} alt={detailedCard.name} className="absolute inset-0 w-full h-full object-cover z-0 rounded-2xl" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="absolute inset-0 w-full h-full bg-zinc-800 flex items-center justify-center z-0 rounded-2xl">
+                  <span className="text-sm text-zinc-600 font-mono italic uppercase opacity-50">No Art</span>
+                </div>
+              )}
+
+              {/* Content Wrapper */}
+              <div className="absolute inset-0 z-10 pointer-events-none p-4 flex flex-col justify-between">
+                {/* Top Section */}
+                <div className="relative flex items-start justify-between w-full">
+                  {/* Name */}
+                  <div className="flex-1 bg-black/50 backdrop-blur-sm border border-white/20 rounded-lg flex items-center px-4 py-2 shadow-sm mr-6">
+                    <span className="text-lg font-bold text-white uppercase tracking-tight truncate drop-shadow-md">{detailedCard.name}</span>
+                  </div>
+                  {/* Gold Badge */}
+                  <ManaBadge value={detailedCard.cost} className="absolute -top-6 -right-6 w-16 h-16 text-2xl z-20 drop-shadow-lg" />
+                </div>
+                
+                {/* Bottom Section */}
+                <div className="relative w-full flex flex-col items-center">
+                  {/* Description Area */}
+                  <div className="w-full bg-black/50 backdrop-blur-sm border border-white/20 rounded-lg p-4 shadow-sm flex items-center justify-center min-h-[6rem] mb-2">
+                    <p className="text-base leading-relaxed text-white/90 font-medium italic text-center drop-shadow-md">
+                      {detailedCard.effect}
+                    </p>
+                  </div>
+                  
+                  {/* ATK Badge */}
+                  <AtkBadge value={detailedCard.atk} className="absolute -bottom-6 -left-6 w-16 h-16 text-2xl z-20 drop-shadow-lg" />
+                  
+                  {/* HP Badge */}
+                  <HpBadge value={detailedCard.hp} className="absolute -bottom-6 -right-6 w-16 h-16 text-2xl z-20 drop-shadow-lg" />
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+const CardSlot = ({ 
+  onClick, onInfoClick, card, isSelected = false, 
+  isAttacking = false, isImpactingTarget = false, attackDirection = 'up' 
+}: { 
+  onClick?: () => void, onInfoClick?: (card: CardData) => void, card?: CardData | null, 
+  isSelected?: boolean, isAttacking?: boolean, isImpactingTarget?: boolean, attackDirection?: 'up' | 'down', key?: React.Key 
+}) => {
+  const attackY = attackDirection === 'up' ? -150 : 150;
+
+  return (
+    <motion.div 
+      onClick={(e) => {
+        if (onClick) {
+          e.stopPropagation();
+          onClick();
+        }
+      }}
+      className={`w-24 md:w-36 h-32 md:h-48 border-2 border-indigo-500/30 rounded-lg bg-black/50 flex items-center justify-center shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] transition-colors hover:border-indigo-400 hover:bg-indigo-900/40 hover:shadow-[0_0_30px_rgba(99,102,241,0.6)] group relative ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''}`}
+    >
+      {!card && (
+        <>
+          <div className="w-full h-full border border-indigo-500/20 rounded-md m-1 group-hover:border-indigo-400/50 transition-colors pointer-events-none" />
+          <div className="absolute inset-0 bg-indigo-500/0 group-hover:bg-indigo-500/20 transition-colors rounded-lg pointer-events-none" />
+        </>
+      )}
+      {card && !card.isDestroyed && (
+        <motion.div
+          layoutId={card.id}
+          animate={{
+            y: isAttacking ? attackY : 0,
+            z: isAttacking ? 100 : 0,
+            scale: isAttacking ? 1.2 : 1,
+            rotateX: isAttacking ? (attackDirection === 'up' ? 20 : -20) : 0,
+          }}
+          transition={{ duration: 0.3 }}
+          className="w-full h-full bg-[#c5b599] rounded-lg flex flex-col p-1 relative border-2 border-[#8c7a5f] shadow-lg"
+        >
+          {isImpactingTarget && <SlashEffect />}
+          
+          {/* Info Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onInfoClick) onInfoClick(card);
+            }}
+            className="absolute top-0.5 left-0.5 w-5 h-5 md:w-6 md:h-6 bg-blue-600/90 rounded-full border border-blue-900 flex items-center justify-center shadow-md z-30 hover:bg-blue-500 transition-colors pointer-events-auto"
+          >
+            <Info className="text-white w-3 h-3 md:w-4 md:h-4" />
+          </button>
+
+          {/* Full Card Art Background */}
+          {card.art ? (
+            <img src={card.art} alt={card.name} className="absolute inset-0 w-full h-full object-cover z-0 rounded-lg" referrerPolicy="no-referrer" />
+          ) : (
+            <div className="absolute inset-0 w-full h-full bg-zinc-800 flex items-center justify-center z-0 rounded-lg">
+              <span className="text-[8px] md:text-[10px] text-zinc-600 font-mono italic uppercase opacity-50">No Art</span>
+            </div>
+          )}
+
+          {/* Content Wrapper */}
+          <div className="absolute inset-0 z-10 pointer-events-none p-1 flex flex-col justify-between">
+            {/* Top Section */}
+            <div className="relative flex items-start justify-between w-full">
+              {/* Name Bar */}
+              <div className="flex-1 bg-black/50 backdrop-blur-sm border border-white/20 rounded flex items-center px-1.5 py-0.5 shadow-sm mr-2">
+                <span className="text-[7px] md:text-[9px] font-bold text-white uppercase tracking-tight truncate drop-shadow-md">{card.name}</span>
+              </div>
+              {/* Gold Badge */}
+              <ManaBadge value={card.cost} className="absolute -top-2 -right-2 w-6 h-6 md:w-8 md:h-8 text-[10px] md:text-xs z-20 drop-shadow-md" />
+            </div>
+            
+            {/* Bottom Section */}
+            <div className="relative w-full flex flex-col items-center">
+              {/* Description Area */}
+              <div className="w-full bg-black/50 backdrop-blur-sm border border-white/20 rounded p-1 shadow-sm flex items-center justify-center min-h-[2.5rem] mb-1">
+                <p className="text-[6px] md:text-[8px] leading-[1.1] md:leading-tight text-white/90 font-medium italic text-center drop-shadow-md">
+                  {card.effect}
+                </p>
+              </div>
+              
+              {/* ATK Badge */}
+              <AtkBadge value={card.atk} className="absolute -bottom-2 -left-2 w-6 h-6 md:w-8 md:h-8 text-[10px] md:text-xs z-20 drop-shadow-md" />
+              
+              {/* HP Badge */}
+              <HpBadge value={card.hp} className="absolute -bottom-2 -right-2 w-6 h-6 md:w-8 md:h-8 text-[10px] md:text-xs z-20 drop-shadow-md" />
+            </div>
+          </div>
+        </motion.div>
+      )}
+      {card && card.isDestroyed && (
+        <>
+          <motion.div
+            initial={{ scale: 1, opacity: 1, rotateZ: 0 }}
+            animate={{ 
+              scale: [1, 1.1, 0.8, 0], 
+              opacity: [1, 1, 0.5, 0], 
+              rotateZ: [0, -5, 5, -10, 10, 0],
+              filter: ["brightness(1)", "brightness(2)", "brightness(0.5)", "brightness(0)"]
+            }}
+            transition={{ duration: 0.8, ease: "easeInOut" }}
+            className="absolute inset-0 z-40 pointer-events-none"
+          >
+            <div className="w-full h-full bg-[#c5b599] rounded-lg border-2 border-[#8c7a5f] shadow-lg overflow-hidden grayscale">
+               {card.art ? (
+                 <img src={card.art} className="w-full h-full object-cover opacity-50" />
+               ) : (
+                 <div className="w-full h-full bg-zinc-800" />
+               )}
+            </div>
+          </motion.div>
+          <ExplosionEffect />
+        </>
+      )}
+    </motion.div>
+  );
+};
+
+const Avatar = ({ name, isPlayer = false, isActive = false, hp = 30, mana = 10, isMobile = false }: { name: string, isPlayer?: boolean, isActive?: boolean, hp?: number, mana?: number, isMobile?: boolean, key?: React.Key }) => (
+  <motion.div 
+    className={`relative flex flex-col items-center justify-center bg-gradient-to-b from-zinc-800 to-zinc-950 border-4 ${isActive ? (isPlayer ? 'border-blue-400 shadow-[0_0_40px_rgba(59,130,246,0.8)]' : 'border-red-500 shadow-[0_0_40px_rgba(239,68,68,0.8)]') : 'border-zinc-700 shadow-2xl'} rounded-t-full rounded-b-2xl ${isMobile ? 'w-24 h-32' : 'w-36 h-48'} transition-all`}
+  >
+    {/* Portrait Area */}
+    <div className="absolute inset-2 bg-gradient-to-br from-zinc-700 to-zinc-900 rounded-t-full rounded-b-xl overflow-hidden flex items-center justify-center border-2 border-zinc-600/50 shadow-inner">
+      <span className={`${isPlayer ? 'text-blue-300' : 'text-red-300'} font-black tracking-widest text-sm md:text-xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] uppercase text-center leading-tight`}>{name}</span>
+    </div>
+    
+    {/* Name Plate */}
+    <div className="absolute -bottom-3 bg-gradient-to-b from-zinc-800 to-black border-2 border-zinc-500 px-4 py-1 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.8)] z-10">
+      <span className="text-white font-black tracking-widest text-[8px] md:text-[10px] uppercase">{isPlayer ? 'HERÓI' : 'INIMIGO'}</span>
+    </div>
+
+    {/* HP Badge */}
+    <HpBadge value={hp} className="absolute -bottom-6 -right-6 w-12 h-12 md:w-16 md:h-16 text-xl md:text-3xl z-20 shadow-[0_0_15px_rgba(239,68,68,0.6)]" />
+    
+    {/* Mana Badge */}
+    <ManaBadge value={mana} className="absolute -bottom-6 -left-6 w-12 h-12 md:w-16 md:h-16 text-xl md:text-3xl z-20 shadow-[0_0_15px_rgba(59,130,246,0.6)]" />
+  </motion.div>
+);

@@ -1,0 +1,5 @@
+{
+  "name": "Forbidden Memories Clone",
+  "description": "A card game interface inspired by Yu-Gi-Oh! Forbidden Memories with dynamic 3D camera angles.",
+  "requestFramePermissions": []
+}
