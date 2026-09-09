@@ -7,7 +7,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CardData, CardType } from '../App';
 import cardTemplate from '../assets/template.png';
-import emboscadaTaticaTemplate from '../assets/template-emboscada-tatica.png';
 import emboscadaTemplate from '../assets/template-emboscada.png';
 
 // ---------------------------------------------------------------------------

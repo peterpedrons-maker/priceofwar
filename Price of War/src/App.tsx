@@ -8,7 +8,7 @@ import { MultiplayerLobby } from './components/MultiplayerLobby';
 import { AuthScreen } from './components/AuthScreen';
 import { CardFace, ManaBadge, AtkBadge, HpBadge } from './components/CardFace';
 import backplateImg from './assets/backplate.png';
-import { audio } from './services/audioService';
+import battlefieldBg from './assets/background.jpg';
 
 // ── Arte das cartas ─────────────────────────────────────────────────────────
 // Adicione arquivos em src/assets/cards/ com o nome base do id da carta.
@@ -866,7 +866,6 @@ export default function App() {
               deltaX = dRect.left - aRect.left + dRect.width / 2 - aRect.width / 2;
               deltaY = dRect.top  - aRect.top  + dRect.height / 2 - aRect.height / 2;
             }
-            audio.playAttack();
         setAttackAnim({
               attackerIndex: action.attackerIndex as number,
               targetIndex: action.type === 'attack_avatar' ? 'avatar' : action.targetIndex as number,
@@ -972,7 +971,6 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
             setNpcMana(currentNpcMana);
             
             // Trigger AAA placement animation for NPC
-            audio.playPlayCard();
             setJustPlacedNpcSlot(action.slotIndex);
             
             // More human-like pause between plays to let the effect shine
@@ -1034,7 +1032,6 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
               // Human-like pause before launching attack
               await new Promise(r => setTimeout(r, 600 + Math.random() * 500));
 
-              audio.playAttack();
         setAttackAnim({
                 attackerIndex: action.attackerSlot,
                 targetIndex: action.targetSlot,
@@ -1186,8 +1183,6 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
   }
 
   const handleJokenpo = (choice: 'pedra' | 'papel' | 'tesoura') => {
-    audio.init();
-    audio.playClick();
     if (jokenpoChoice) return; // prevent double-click during reveal
     setJokenpoChoice(choice);
     setJokenpoPhase('revealing');
@@ -1213,11 +1208,11 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
           setJokenpoPhase('choosing');
         }, 2200);
       } else if (playerWins) {
-        setJokenpoResult('win'); audio.playVictory();
+        setJokenpoResult('win');
         setCurrentTurn('player');
         setTimeout(() => setStartupPhase('drawing'), 2800);
       } else {
-        setJokenpoResult('lose'); audio.playDefeat();
+        setJokenpoResult('lose');
         setCurrentTurn('npc');
         setTimeout(() => setStartupPhase('drawing'), 2800);
       }
@@ -1259,7 +1254,6 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
 
   // Draw cards from pool into hand
   const drawCards = (count: number) => {
-    audio.playDrawCard();
     setPlayerDeck(prevDeck => {
       let currentDeck = [...prevDeck];
       // If deck is empty, reshape it from active pool (but no Generals)
@@ -1551,7 +1545,6 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
 
   // Funções Utilitárias para Regras de Tabuleiro
   const handleCardClick = (index: number) => {
-    audio.playClick();
     if (pendingAmbush) return; // Don't allow hand interaction during ambush window
     if (turnPhase !== 'command') {
       showToast("Você só pode jogar cartas na Fase de Comando!");
@@ -1848,13 +1841,12 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
         deltaY = dRect.top - aRect.top;
       }
 
-      audio.playAttack();
-        setAttackAnim({ 
-        attackerIndex: selectedAttackerIndex, 
-        targetIndex: slotIndex, 
-        isPlayerAttacking: true, 
-        deltaX, 
-        deltaY 
+        setAttackAnim({
+        attackerIndex: selectedAttackerIndex,
+        targetIndex: slotIndex,
+        isPlayerAttacking: true,
+        deltaX,
+        deltaY
       });
 
       // Wait for card to travel to target
@@ -1996,10 +1988,9 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
         deltaY = dRect.top - aRect.top + (dRect.height / 2) - (aRect.height / 2);
       }
 
-      audio.playAttack();
-        setAttackAnim({ 
-        attackerIndex: selectedAttackerIndex, 
-        targetIndex: 'avatar', 
+        setAttackAnim({
+        attackerIndex: selectedAttackerIndex,
+        targetIndex: 'avatar',
         isPlayerAttacking: true,
         deltaX,
         deltaY
@@ -2104,9 +2095,8 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
       {/* ── CENÁRIO DE FUNDO ── */}
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none opacity-50"
-        style={{ 
-          // Nova imagem de fundo medieval/fantasia de alta qualidade (Castelo/Ruínas na névoa)
-          backgroundImage: 'url("https://images.unsplash.com/photo-1533154683836-84ea7a0bc310?auto=format&fit=crop&q=80&w=2560")',
+        style={{
+          backgroundImage: `url(${battlefieldBg})`,
           filter: 'contrast(1.2) saturate(1.1)'
         }}
       />
@@ -2254,7 +2244,6 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
         >
           {/* Fundo Estelar Mágico e Nebulosa */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(30,20,10,1)_0%,rgba(0,0,0,1)_80%)]" />
-          <div className="absolute inset-0 opacity-[0.25] mix-blend-screen" style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=2094&auto=format&fit=crop")', backgroundSize: 'cover' }} />
 
           {/* Grid Cibernético / Etéreo */}
           <div 
@@ -2773,7 +2762,6 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
         const currentPhaseInfo = PHASE_META[turnPhase] ?? PHASE_META.command;
 
         const advancePhase = () => {
-          audio.playPhaseChange();
           if (currentTurn !== 'player') return;
           const nextIdx = currentPhaseIdx + 1;
           if (nextIdx < PHASE_ORDER.length) {
