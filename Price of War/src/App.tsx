@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { Info, X, Sword, Zap, Users, Library } from 'lucide-react';
-import { subscribeToAuthChanges, logout } from './services/authService';
-import { AuthScreen } from './components/AuthScreen';
-import { User } from 'firebase/auth';
 import { playAiTurn, AiAction } from './services/aiService';
 
 export type CardData = {
@@ -168,8 +165,6 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
 };
 
 export default function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
   const [gameMode, setGameMode] = useState<string | null>(null);
   const [viewState, setViewState] = useState<'hand' | 'field' | 'draw'>('hand');
   const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
@@ -199,14 +194,6 @@ export default function App() {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 2000);
   };
-
-  useEffect(() => {
-    const unsubscribe = subscribeToAuthChanges((user) => {
-      setUser(user);
-      setAuthLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     const handleResize = () => setWindowSize({ width: window.innerWidth, height: window.innerHeight });
@@ -333,19 +320,10 @@ export default function App() {
     }
   }, [currentTurn, gameMode]);
 
-  if (authLoading) {
-    return <div className="flex items-center justify-center h-screen bg-zinc-950 text-white">Loading...</div>;
-  }
-
-  if (!user) {
-    return <AuthScreen />;
-  }
-
   if (!gameMode) {
     return (
       <div className="relative w-full h-screen bg-zinc-950 text-white">
         <MainMenu onSelectMode={setGameMode} />
-        <button onClick={logout} className="absolute bottom-4 left-4 text-zinc-400 hover:underline z-50">Logout</button>
       </div>
     );
   }
