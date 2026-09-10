@@ -394,17 +394,30 @@ export default function App() {
   const npcDeckRef = useRef<HTMLDivElement>(null);
   // In-flight "card being pulled from the deck" overlays — plain screen-space elements
   // (like flyingCard below) so they read clearly regardless of the board's own scale,
-  // and so the camera never has to move to make a draw visible.
+  // and so the camera never has to move to make a draw visible. The player's own draws
+  // reveal (flip from back to face, like drawing in Yu-Gi-Oh/most anime) since they need
+  // to see what they got; the opponent's stay face-down the whole flight since their
+  // hand is hidden information.
   const [drawingCards, setDrawingCards] = useState<Array<{
     id: string; fromX: number; fromY: number; toX: number; toY: number;
+    hoverX: number; hoverY: number; card?: CardData; reveal: boolean; durationMs: number;
   }>>([]);
-  const DRAW_FLIGHT_MS = 380;
-  const spawnDrawFlight = (deckRef: React.RefObject<HTMLDivElement>, to: { x: number; y: number }) => {
+  const DRAW_FLIGHT_MS = 750; // player's draw: rise, flip face-up, settle toward the hand
+  const NPC_DRAW_FLIGHT_MS = 350; // opponent's draw: quick face-down hop, no reveal
+  const spawnDrawFlight = (
+    deckRef: React.RefObject<HTMLDivElement>,
+    to: { x: number; y: number },
+    opts: { card?: CardData; reveal: boolean; durationMs: number }
+  ) => {
     const rect = deckRef.current?.getBoundingClientRect();
     if (!rect) return;
     const id = `draw_${Date.now()}_${Math.random()}`;
-    setDrawingCards(prev => [...prev, { id, fromX: rect.left + rect.width / 2, fromY: rect.top + rect.height / 2, toX: to.x, toY: to.y }]);
-    setTimeout(() => setDrawingCards(prev => prev.filter(d => d.id !== id)), DRAW_FLIGHT_MS + 80);
+    const fromX = rect.left + rect.width / 2;
+    const fromY = rect.top + rect.height / 2;
+    const hoverX = (fromX + to.x) / 2;
+    const hoverY = Math.min(fromY, to.y) - 60;
+    setDrawingCards(prev => [...prev, { id, fromX, fromY, toX: to.x, toY: to.y, hoverX, hoverY, card: opts.card, reveal: opts.reveal, durationMs: opts.durationMs }]);
+    setTimeout(() => setDrawingCards(prev => prev.filter(d => d.id !== id)), opts.durationMs + 80);
   };
 
   const showToast = (msg: string) => {
@@ -441,18 +454,21 @@ export default function App() {
     }, 300);
 
     const DEAL_START = 900;
-    const DEAL_STEP = 550;
+    const DEAL_STEP = 820;
     for (let i = 0; i < 5; i++) {
       const t = DEAL_START + i * DEAL_STEP;
-      schedule(() => spawnDrawFlight(playerDeckRef, { x: windowSize.width / 2, y: windowSize.height - 140 }), t);
       schedule(() => {
-        setHand(prev => [...prev, {
+        const newCard = {
           ...MOCK_DECK[Math.floor(Math.random() * MOCK_DECK.length)],
           id: `hand_${Date.now()}_${i}_${Math.random()}`
-        }]);
-      }, t + DRAW_FLIGHT_MS);
-      schedule(() => spawnDrawFlight(npcDeckRef, { x: windowSize.width / 2, y: 140 }), t + 150);
-      schedule(() => setNpcHandRevealCount(prev => prev + 1), t + 150 + DRAW_FLIGHT_MS);
+        };
+        spawnDrawFlight(playerDeckRef, { x: windowSize.width / 2, y: windowSize.height - 140 }, { card: newCard, reveal: true, durationMs: DRAW_FLIGHT_MS });
+        schedule(() => setHand(prev => [...prev, newCard]), DRAW_FLIGHT_MS);
+      }, t);
+      schedule(() => {
+        spawnDrawFlight(npcDeckRef, { x: windowSize.width / 2, y: 140 }, { reveal: false, durationMs: NPC_DRAW_FLIGHT_MS });
+        schedule(() => setNpcHandRevealCount(prev => prev + 1), NPC_DRAW_FLIGHT_MS);
+      }, t + 150);
     }
   };
 
@@ -493,20 +509,13 @@ export default function App() {
   useEffect(() => {
     if (currentTurn === 'player') {
       setPlayerMana(10);
-      if (turnNumber > 1) {
-        spawnDrawFlight(playerDeckRef, { x: windowSize.width / 2, y: windowSize.height - 140 });
-        setTimeout(() => {
-          setHand(prev => {
-            if (prev.length < 10) {
-              const newCard = {
-                ...MOCK_DECK[Math.floor(Math.random() * MOCK_DECK.length)],
-                id: `hand_${Date.now()}_${Math.random()}`
-              };
-              return [...prev, newCard];
-            }
-            return prev;
-          });
-        }, DRAW_FLIGHT_MS);
+      if (turnNumber > 1 && hand.length < 10) {
+        const newCard = {
+          ...MOCK_DECK[Math.floor(Math.random() * MOCK_DECK.length)],
+          id: `hand_${Date.now()}_${Math.random()}`
+        };
+        spawnDrawFlight(playerDeckRef, { x: windowSize.width / 2, y: windowSize.height - 140 }, { card: newCard, reveal: true, durationMs: DRAW_FLIGHT_MS });
+        setTimeout(() => setHand(prev => [...prev, newCard]), DRAW_FLIGHT_MS);
       }
     } else {
       setNpcMana(10);
@@ -844,16 +853,24 @@ export default function App() {
     return targetX - cardX;
   };
 
+  // How far down the screen (0 = top, 1 = bottom) the previewed card centers on. Used
+  // to sit dead center at first, but that landed the (now much bigger) preview right on
+  // top of the player's own Retaguarda/Vanguarda slots — exactly the row they need to
+  // see to pick where to play it. Anchoring higher keeps it mostly over the opponent's
+  // side of the board instead, which the player isn't tapping into for this.
+  const PREVIEW_Y_FRACTION = 0.32;
   const getSelectedCardY = () => {
     if (!isMobile) return -490;
     // Empirically calibrated against the real rendered geometry (now that the hand tray
     // scales from a bottom-center origin — see the Hand UI wrapper below — its anchor
     // sits ~106px below the true bottom edge in local, pre-scale units, and the observed
     // lift comes out to ~94% of handScale rather than handScale exactly, likely from the
-    // tray's own translate+scale composition) so this lands the previewed card vertically
-    // centered on the real screen regardless of viewport height or hand size.
+    // tray's own translate+scale composition). Solving that same relationship for an
+    // arbitrary target screen position (instead of just dead center) keeps this correct
+    // regardless of viewport height or hand size.
     const liftScale = handScale * 0.94;
-    return -(windowSize.height / 2 + 106) / liftScale;
+    const targetAbsY = windowSize.height * PREVIEW_Y_FRACTION;
+    return (targetAbsY - windowSize.height - 106) / liftScale;
   };
 
   // Fan the hand out like a real card fan: a modest total spread, distributed evenly
@@ -1443,29 +1460,80 @@ export default function App() {
       {/* Drawing cards — a card visibly pulled off the on-board deck pile (player's or
           opponent's) and flown to the hand, in plain screen coordinates like flyingCard
           below. The camera never moves for this: it stays on the normal board view the
-          whole time, so this overlay is what actually sells "a card was drawn". */}
+          whole time. The player's own draw flips from card-back to card-face partway
+          through — like drawing in Yu-Gi-Oh or most anime — since they need to actually
+          see what they drew; the opponent's stays face-down the whole flight since their
+          hand is hidden information. */}
       <AnimatePresence>
-        {drawingCards.map(d => (
-          <motion.div
-            key={d.id}
-            initial={{ left: d.fromX - 32, top: d.fromY - 44, scale: 0.7, opacity: 0.9 }}
-            animate={{
-              left: [d.fromX - 32, d.toX - 32],
-              top: [d.fromY - 44, d.toY - 44],
-              scale: [0.7, 1.3, 1],
-              opacity: [0.9, 1, 0],
-            }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: DRAW_FLIGHT_MS / 1000, ease: "easeOut", times: [0, 0.65, 1] }}
-            style={{ position: 'fixed', zIndex: 400, width: 64, height: 88 }}
-            className="pointer-events-none border-2 border-[#8c7a5f] rounded-lg bg-[#4a3b2c] flex items-center justify-center shadow-[0_0_30px_rgba(212,175,55,0.75)]"
-          >
-            <div className="w-[75%] h-[75%] border border-[#8c7a5f]/50 rounded-md flex items-center justify-center relative overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.35)_0%,transparent_70%)]" />
-              <div className="w-5 h-5 bg-zinc-800 rounded-full border-2 border-[#d4af37]" />
-            </div>
-          </motion.div>
-        ))}
+        {drawingCards.map(d => {
+          const W = 96, H = 134;
+          const HALF_W = W / 2, HALF_H = H / 2;
+          const hoverScale = d.reveal ? 1.7 : 1.1;
+          const duration = d.durationMs / 1000;
+          const positionAnimate = d.reveal
+            ? {
+                left: [d.fromX - HALF_W, d.hoverX - HALF_W, d.hoverX - HALF_W, d.toX - HALF_W],
+                top: [d.fromY - HALF_H, d.hoverY - HALF_H, d.hoverY - HALF_H, d.toY - HALF_H],
+                scale: [0.6, hoverScale, hoverScale, 0.85],
+                opacity: [0.95, 1, 1, 0],
+                times: [0, 0.45, 0.75, 1],
+              }
+            : {
+                left: [d.fromX - HALF_W, d.toX - HALF_W],
+                top: [d.fromY - HALF_H, d.toY - HALF_H],
+                scale: [0.6, hoverScale, 0.85],
+                opacity: [0.95, 1, 0],
+              };
+          return (
+            <motion.div
+              key={d.id}
+              initial={{ left: d.fromX - HALF_W, top: d.fromY - HALF_H, scale: 0.6, opacity: 0.95 }}
+              animate={positionAnimate}
+              exit={{ opacity: 0 }}
+              transition={{ duration, ease: "easeOut" }}
+              style={{ position: 'fixed', zIndex: 400, width: W, height: H, perspective: 800 }}
+              className="pointer-events-none"
+            >
+              <motion.div
+                className="relative w-full h-full"
+                style={{ transformStyle: 'preserve-3d' }}
+                initial={{ rotateY: 0 }}
+                animate={d.reveal ? { rotateY: [0, 0, 180, 180] } : { rotateY: 0 }}
+                transition={d.reveal ? { duration, times: [0, 0.45, 0.7, 1], ease: "easeInOut" } : { duration: 0 }}
+              >
+                {/* Back face — card back design */}
+                <div
+                  className="absolute inset-0 border-2 border-[#8c7a5f] rounded-lg bg-[#4a3b2c] flex items-center justify-center shadow-[0_0_30px_rgba(212,175,55,0.75)]"
+                  style={{ backfaceVisibility: 'hidden' }}
+                >
+                  <div className="w-[75%] h-[75%] border border-[#8c7a5f]/50 rounded-md flex items-center justify-center relative overflow-hidden">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.35)_0%,transparent_70%)]" />
+                    <div className="w-5 h-5 bg-zinc-800 rounded-full border-2 border-[#d4af37]" />
+                  </div>
+                </div>
+
+                {/* Front face — the actual card, only rendered for the player's own reveal */}
+                {d.reveal && d.card && (
+                  <div
+                    className="absolute inset-0 border-2 border-[#5c4a30] rounded-lg bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] shadow-[0_0_30px_rgba(212,175,55,0.75)] overflow-hidden"
+                    style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                  >
+                    {d.card.art ? (
+                      <img src={d.card.art} alt={d.card.name} className="absolute inset-0 w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900 flex items-center justify-center">
+                        <div className="w-1/3 h-1/3 border border-zinc-500/40 rotate-45" />
+                      </div>
+                    )}
+                    <div className="absolute top-1 left-1 right-1 bg-gradient-to-b from-black/75 to-black/60 border border-amber-100/25 rounded px-1 py-0.5">
+                      <span className="text-[8px] font-bold text-white uppercase tracking-tight truncate block drop-shadow-md">{d.card.name}</span>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            </motion.div>
+          );
+        })}
       </AnimatePresence>
 
       {/* Flying card — plays from hand to the chosen board slot along real screen coordinates.
