@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { Info, X, Sword, Zap, Users, Library } from 'lucide-react';
+import { Info, X, Sword, Zap, Users, Library, ArrowUp } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
 
 export type CardType = 'Infantaria' | 'Cavalaria' | 'Arqueiro' | 'Artilharia' | 'General' | 'Relíquia' | 'Terreno' | 'Tática';
@@ -23,6 +23,22 @@ export type CardData = {
 //   10   = slot especial de Relíquia (ao lado do General)
 //   11   = slot especial de Terreno (ao lado do General)
 //   12   = General (fixo, colocado no início da partida — não vem da mão)
+
+export type SlotHint = 'primary' | 'secondary' | 'invalid';
+
+// Where a given card type can go, for the "where can I play this" indicators shown
+// while a card is being placed. 'primary' = its efficient spot, 'secondary' = allowed
+// but not ideal, 'invalid' = can't go there at all. This is a simple first pass —
+// most types just care about Vanguarda vs Retaguarda for now; per-type nuance (e.g.
+// archers preferring the backline) can refine this later.
+const getSlotHint = (cardType: CardType | undefined, slotIndex: number): SlotHint => {
+  if (slotIndex === 12) return 'invalid'; // General slot is fixed, never playable from hand
+  const isSpecialSlot = slotIndex === 10 || slotIndex === 11; // beside the General: Relíquia/Terreno only
+  const isFieldOnlyCard = cardType === 'Relíquia' || cardType === 'Terreno';
+  if (isSpecialSlot) return isFieldOnlyCard ? 'primary' : 'invalid';
+  if (isFieldOnlyCard) return 'invalid';
+  return slotIndex <= 4 ? 'primary' : 'secondary'; // Vanguarda (efficient) vs Retaguarda (less efficient)
+};
 const GENERAL_PLAYER: CardData = {
   id: 'general_player',
   name: 'Comandante Aldric',
@@ -116,6 +132,10 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
     <span className="relative z-10 text-white font-black drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] leading-none">{value}</span>
   </div>
 );
+
+// Placeholder for the board's full background art (to be an AI-generated battlefield
+// image later). Empty for now — the board renders a flat neutral surface instead.
+const BOARD_ART_URL = '';
 
 // Hand fan layout: cards spread across a modest total angle, center card slightly raised.
 const FAN_SPREAD_DEG = 26;
@@ -604,8 +624,10 @@ export default function App() {
   const getSelectedCardX = (index: number) => {
     const startX = -handTotalWidth / 2 + HAND_CARD_WIDTH / 2;
     const cardX = startX + index * HAND_CARD_STEP;
-    // On mobile move to bottom right, on desktop move it to the left to see the board
-    const targetX = isMobile ? (windowSize.width / 2 - 120) : (300 - windowSize.width / 2);
+    // Tuck the previewed card into a bottom corner while the player picks a slot — off
+    // to the side so the board (and its slot indicators) stay clear, but still fully
+    // on-screen so the player always knows what they're about to play.
+    const targetX = isMobile ? (windowSize.width / 2 - 130) : (-(windowSize.width / 2) + 150);
     return targetX - cardX;
   };
 
@@ -706,6 +728,12 @@ export default function App() {
     return baseAnim;
   };
 
+  // While the player is picking a slot for a previewed card, show a hint on every
+  // empty slot of their own field for where that card type can (and can't) go.
+  const previewedCard = viewState === 'field' && selectedCardIndex !== null ? hand[selectedCardIndex] : null;
+  const getPlayerSlotHint = (slotIndex: number): SlotHint | undefined =>
+    previewedCard && !playerSlots[slotIndex] ? getSlotHint(previewedCard.cardType, slotIndex) : undefined;
+
   return (
     <div 
       className="relative w-full h-dvh bg-zinc-950 overflow-hidden flex flex-col items-center justify-center touch-none"
@@ -732,14 +760,18 @@ export default function App() {
           }
         }}
       >
-        {/* Board Grid Lines / Texture */}
+        {/* Board Surface — a flat, neutral placeholder for now; drop BOARD_ART_URL in
+            later to swap in a full AI-generated battlefield image. */}
         <div
-          className="absolute inset-0 border-4 border-indigo-900/40 bg-indigo-950/10 rounded-2xl shadow-[0_0_80px_rgba(49,46,129,0.3)] pointer-events-none"
-          style={{
-            transform: 'translateZ(-1px)',
-            backgroundImage: 'repeating-linear-gradient(45deg, rgba(99,102,241,0.035) 0px, rgba(99,102,241,0.035) 2px, transparent 2px, transparent 40px)',
-          }}
-        />
+          className="absolute inset-0 border-4 border-stone-700/50 bg-[#2b2825] rounded-2xl shadow-[0_0_60px_rgba(0,0,0,0.5)] pointer-events-none overflow-hidden"
+          style={{ transform: 'translateZ(-1px)' }}
+        >
+          {BOARD_ART_URL ? (
+            <img src={BOARD_ART_URL} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.04)_0%,transparent_70%)]" />
+          )}
+        </div>
 
         {/* Central Divider */}
         <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-indigo-400/60 to-transparent shadow-[0_0_15px_rgba(99,102,241,0.6)] -translate-y-1/2 rounded-full pointer-events-none" />
@@ -823,6 +855,7 @@ export default function App() {
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
                 attackDirection="up"
+                hint={getPlayerSlotHint(i)}
               />
             ))}
           </div>
@@ -839,6 +872,7 @@ export default function App() {
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
                 attackDirection="up"
+                hint={getPlayerSlotHint(i)}
               />
             ))}
           </div>
@@ -853,6 +887,7 @@ export default function App() {
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 10}
               attackDirection="up"
+              hint={getPlayerSlotHint(10)}
             />
             <div className="relative">
               <CardSlot
@@ -874,6 +909,7 @@ export default function App() {
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 11}
               attackDirection="up"
+              hint={getPlayerSlotHint(11)}
             />
           </div>
         </div>
@@ -1000,11 +1036,14 @@ export default function App() {
                     ? (selectedCardIndex === i ? 1 : 0.4)
                     : (selectedCardIndex !== null && i > selectedCardIndex ? 0.3 : 1),
                   x: selectedCardIndex === i && viewState === 'field' ? getSelectedCardX(i) : 0,
+                  // While field-view is up, the hand tray itself drops down out of the way
+                  // (see the wrapper's own y below) — cancel that out here so the previewed
+                  // card stays parked at its normal resting height, just moved to a corner.
                   y: selectedCardIndex === i
-                    ? (viewState === 'field' ? (isMobile ? 180 : -450) : -40)
+                    ? (viewState === 'field' ? (isMobile ? -200 : -220) : -40)
                     : (viewState === 'field' ? (isMobile ? 150 : 150) : getFanLift(i)),
                   scale: selectedCardIndex === i
-                    ? (viewState === 'field' ? (isMobile ? 0.6 : 1.8) : 1.1)
+                    ? (viewState === 'field' ? 0.8 : 1.1)
                     : (viewState === 'field' ? 0.6 : 1),
                   rotateZ: selectedCardIndex === i || viewState === 'field' ? 0 : getFanRotation(i),
                   zIndex: selectedCardIndex === i ? 150 : i + 1,
@@ -1014,9 +1053,9 @@ export default function App() {
                 }}
                 whileHover={{
                   y: selectedCardIndex === i
-                    ? (viewState === 'field' ? (isMobile ? 60 : -220) : -40)
+                    ? (viewState === 'field' ? (isMobile ? -200 : -220) : -40)
                     : viewState === 'field' ? 120 : -20,
-                  scale: selectedCardIndex === i ? (viewState === 'field' ? (isMobile ? 0.65 : 1.8) : 1.1) : 1.05,
+                  scale: selectedCardIndex === i ? (viewState === 'field' ? 0.85 : 1.1) : 1.05,
                   boxShadow: selectedCardIndex === i
                     ? "0 0 80px rgba(212, 175, 55, 0.8)"
                     : "0 0 25px rgba(212, 175, 55, 0.5)"
@@ -1428,12 +1467,21 @@ export default function App() {
 
 const CardSlot = ({
   onClick, onInfoClick, card, isSelected = false,
-  isAttacking = false, isImpactingTarget = false, attackDirection = 'up'
+  isAttacking = false, isImpactingTarget = false, attackDirection = 'up', hint
 }: {
   onClick?: (el: HTMLElement) => void, onInfoClick?: (card: CardData) => void, card?: CardData | null,
-  isSelected?: boolean, isAttacking?: boolean, isImpactingTarget?: boolean, attackDirection?: 'up' | 'down', key?: React.Key
+  isSelected?: boolean, isAttacking?: boolean, isImpactingTarget?: boolean, attackDirection?: 'up' | 'down',
+  hint?: SlotHint, key?: React.Key
 }) => {
   const attackY = attackDirection === 'up' ? -150 : 150;
+
+  const hintClass = hint === 'invalid'
+    ? 'border-red-500/60 bg-red-950/30'
+    : hint === 'primary'
+      ? 'border-emerald-400/70 bg-emerald-500/10 shadow-[0_0_25px_rgba(52,211,153,0.5)]'
+      : hint === 'secondary'
+        ? 'border-amber-400/60 bg-amber-500/10 shadow-[0_0_18px_rgba(251,191,36,0.4)]'
+        : '';
 
   return (
     <motion.div
@@ -1443,9 +1491,29 @@ const CardSlot = ({
           onClick(e.currentTarget as HTMLElement);
         }
       }}
-      className={`w-24 md:w-36 h-32 md:h-48 border-2 border-indigo-500/30 rounded-lg bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.08)_0%,rgba(0,0,0,0.6)_75%)] flex items-center justify-center shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] transition-colors hover:border-indigo-400 hover:bg-indigo-900/40 hover:shadow-[0_0_30px_rgba(99,102,241,0.6)] group relative ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''}`}
+      className={`w-24 md:w-36 h-32 md:h-48 border-2 border-indigo-500/30 rounded-lg bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.08)_0%,rgba(0,0,0,0.6)_75%)] flex items-center justify-center shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] transition-colors hover:border-indigo-400 hover:bg-indigo-900/40 hover:shadow-[0_0_30px_rgba(99,102,241,0.6)] group relative ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass}`}
     >
-      {!card && (
+      {!card && hint && (
+        // Simple first-pass "where can this card go" indicator: a green arrow on its
+        // efficient spot, a dimmer amber arrow where it's allowed but not ideal, and a
+        // red X where it can't be placed at all. Can grow more nuanced per card type later.
+        <>
+          {hint === 'invalid' ? (
+            <X className="w-8 h-8 md:w-10 md:h-10 text-red-500/80 pointer-events-none" strokeWidth={3} />
+          ) : hint === 'primary' ? (
+            <motion.div
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
+              className="pointer-events-none"
+            >
+              <ArrowUp className="w-8 h-8 md:w-10 md:h-10 text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.9)]" strokeWidth={3} />
+            </motion.div>
+          ) : (
+            <ArrowUp className="w-7 h-7 md:w-8 md:h-8 text-amber-400/80 pointer-events-none" strokeWidth={3} />
+          )}
+        </>
+      )}
+      {!card && !hint && (
         <>
           <div className="w-[70%] h-[70%] border border-indigo-500/25 rotate-45 group-hover:border-indigo-400/60 group-hover:scale-110 transition-all pointer-events-none" />
           <div className="absolute inset-0 bg-indigo-500/0 group-hover:bg-indigo-500/20 transition-colors rounded-lg pointer-events-none" />
