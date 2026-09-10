@@ -396,8 +396,14 @@ export default function App() {
   // Board container is a fixed 1000x1400px canvas (see the 3D Board div below) that gets
   // scaled down to fit the real viewport — these divisors must match those exact dimensions.
   const boardScale = isMobile ? Math.min(windowSize.width / 1000, windowSize.height / 1400) * 0.9 : Math.min(windowSize.width / 1600, 1);
+  // Hand cards are a fixed 224px wide (w-56) with an 8px gap (gap-2) between them on mobile.
+  // Scale so the WHOLE hand always fits on screen — no floor, or large hands would overflow
+  // and get clipped past the screen edges (the outer container clips, it doesn't scroll).
+  const handCardWidth = 224;
+  const handGap = isMobile ? 8 : 12;
+  const handTotalWidth = hand.length > 0 ? hand.length * handCardWidth + (hand.length - 1) * handGap : handCardWidth;
   const handScale = isMobile
-    ? Math.min(0.85, Math.max(0.5, (windowSize.width - 20) / (Math.max(4, hand.length) * 230)))
+    ? Math.min(0.85, (windowSize.width - 16) / handTotalWidth)
     : 1;
 
   const handleCardClick = (index: number) => {
