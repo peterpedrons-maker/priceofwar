@@ -763,13 +763,14 @@ export default function App() {
 
   const getSelectedCardY = () => {
     if (!isMobile) return -490;
-    // Empirically calibrated against the real rendered geometry (the hand tray's bottom
-    // anchor sits ~90px above the true bottom edge in local, pre-scale units, and the
-    // observed lift comes out to ~92% of handScale rather than handScale exactly — likely
-    // from the tray's own translate+scale composition) so this lands the previewed card
-    // vertically centered on the real screen regardless of viewport height or hand size.
-    const liftScale = handScale * 0.92;
-    return (90 - windowSize.height / 2) / liftScale;
+    // Empirically calibrated against the real rendered geometry (now that the hand tray
+    // scales from a bottom-center origin — see the Hand UI wrapper below — its anchor
+    // sits ~106px below the true bottom edge in local, pre-scale units, and the observed
+    // lift comes out to ~94% of handScale rather than handScale exactly, likely from the
+    // tray's own translate+scale composition) so this lands the previewed card vertically
+    // centered on the real screen regardless of viewport height or hand size.
+    const liftScale = handScale * 0.94;
+    return -(windowSize.height / 2 + 106) / liftScale;
   };
 
   // Fan the hand out like a real card fan: a modest total spread, distributed evenly
@@ -1144,6 +1145,11 @@ export default function App() {
       {/* Hand UI */}
       <motion.div
         className="absolute inset-0 w-full h-full flex justify-center items-end pb-4 md:pb-6 pointer-events-none z-50"
+        // Anchor scaling at the bottom-center of the screen (instead of the default
+        // center) so shrinking the hand to fit (handScale) keeps it flush against the
+        // real bottom edge rather than pulling it up toward the middle of the screen,
+        // which used to leave a large empty gap below the cards on mobile.
+        style={{ transformOrigin: 'bottom center' }}
         animate={{
           scale: handScale,
           y: isMobile ? (viewState === 'field' ? 200 : 0) : (viewState === 'field' ? 220 : 0),
