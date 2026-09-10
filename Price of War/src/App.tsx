@@ -626,16 +626,37 @@ export default function App() {
     }
   };
 
+  // On mobile, the whole hand tray is itself scaled down by handScale (see above) to fit
+  // the fan on screen — since that scale is anchored at the tray's own center, it also
+  // shrinks how far any translate we apply actually moves a card on screen. Dividing our
+  // desired on-screen distance by handScale compensates, so these two helpers always land
+  // the previewed card at the same real screen position regardless of hand size/width.
+  const previewScaleFactor = isMobile ? handScale : 1;
+
   const getSelectedCardX = (index: number) => {
     const startX = -handTotalWidth / 2 + HAND_CARD_WIDTH / 2;
     const cardX = startX + index * HAND_CARD_STEP;
     // Tuck the previewed card right up against a side edge while the player picks a
     // slot, so it blocks as little of the board (and its slot indicators) as possible,
     // while staying fully on-screen so the player always knows what they're about to play.
-    const previewHalfWidth = (HAND_CARD_WIDTH * (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop)) / 2;
-    const edgeMargin = previewHalfWidth + 14;
-    const targetX = isMobile ? (windowSize.width / 2 - edgeMargin) : (-(windowSize.width / 2) + edgeMargin);
+    const previewHalfWidthOnScreen = (HAND_CARD_WIDTH * (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) * previewScaleFactor) / 2;
+    const edgeGap = 6;
+    const desiredAbsDelta = isMobile
+      ? (windowSize.width / 2 - edgeGap - previewHalfWidthOnScreen)
+      : (-(windowSize.width / 2) + edgeGap + previewHalfWidthOnScreen);
+    const targetX = desiredAbsDelta / previewScaleFactor;
     return targetX - cardX;
+  };
+
+  const getSelectedCardY = () => {
+    if (!isMobile) return -490;
+    // Empirically calibrated against the real rendered geometry (the hand tray's bottom
+    // anchor sits ~90px above the true bottom edge in local, pre-scale units, and the
+    // observed lift comes out to ~92% of handScale rather than handScale exactly — likely
+    // from the tray's own translate+scale composition) so this lands the previewed card
+    // vertically centered on the real screen regardless of viewport height or hand size.
+    const liftScale = handScale * 0.92;
+    return (90 - windowSize.height / 2) / liftScale;
   };
 
   // Fan the hand out like a real card fan: a modest total spread, distributed evenly
@@ -1043,12 +1064,11 @@ export default function App() {
                     ? (selectedCardIndex === i ? 1 : 0.4)
                     : (selectedCardIndex !== null && i > selectedCardIndex ? 0.3 : 1),
                   x: selectedCardIndex === i && viewState === 'field' ? getSelectedCardX(i) : 0,
-                  // While field-view is up, the hand tray itself drops down out of the way
-                  // (see the wrapper's own y below) — cancel that out and then some, so the
-                  // previewed card floats up alongside the board's own rows of cards rather
-                  // than sitting down at the hand's normal resting height.
+                  // Float the previewed card up near the vertical center of the real screen
+                  // instead of sitting down at the hand's normal resting height (see
+                  // getSelectedCardY above for how mobile's handScale is compensated for).
                   y: selectedCardIndex === i
-                    ? (viewState === 'field' ? (isMobile ? -260 : -380) : -40)
+                    ? (viewState === 'field' ? getSelectedCardY() : -40)
                     : (viewState === 'field' ? (isMobile ? 150 : 150) : getFanLift(i)),
                   scale: selectedCardIndex === i
                     ? (viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) : 1.1)
@@ -1061,7 +1081,7 @@ export default function App() {
                 }}
                 whileHover={{
                   y: selectedCardIndex === i
-                    ? (viewState === 'field' ? (isMobile ? -260 : -380) : -40)
+                    ? (viewState === 'field' ? getSelectedCardY() : -40)
                     : viewState === 'field' ? 120 : -20,
                   scale: selectedCardIndex === i ? (viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) + 0.05 : 1.1) : 1.05,
                   boxShadow: selectedCardIndex === i
