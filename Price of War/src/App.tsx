@@ -140,7 +140,7 @@ const BOARD_ART_URL = '';
 // How big the previewed card renders while parked in the corner during slot selection.
 // Kept smaller on mobile since the board there fills nearly the full screen width,
 // leaving much less clear side margin to tuck the card into.
-const FIELD_PREVIEW_SCALE = { mobile: 0.5, desktop: 0.8 };
+const FIELD_PREVIEW_SCALE = { mobile: 0.58, desktop: 0.85 };
 
 // Hand fan layout: cards spread across a modest total angle, center card slightly raised.
 const FAN_SPREAD_DEG = 26;
@@ -1044,10 +1044,11 @@ export default function App() {
                     : (selectedCardIndex !== null && i > selectedCardIndex ? 0.3 : 1),
                   x: selectedCardIndex === i && viewState === 'field' ? getSelectedCardX(i) : 0,
                   // While field-view is up, the hand tray itself drops down out of the way
-                  // (see the wrapper's own y below) — cancel that out here so the previewed
-                  // card stays parked at its normal resting height, just moved to a corner.
+                  // (see the wrapper's own y below) — cancel that out and then some, so the
+                  // previewed card floats up alongside the board's own rows of cards rather
+                  // than sitting down at the hand's normal resting height.
                   y: selectedCardIndex === i
-                    ? (viewState === 'field' ? (isMobile ? -200 : -220) : -40)
+                    ? (viewState === 'field' ? (isMobile ? -260 : -380) : -40)
                     : (viewState === 'field' ? (isMobile ? 150 : 150) : getFanLift(i)),
                   scale: selectedCardIndex === i
                     ? (viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) : 1.1)
@@ -1060,7 +1061,7 @@ export default function App() {
                 }}
                 whileHover={{
                   y: selectedCardIndex === i
-                    ? (viewState === 'field' ? (isMobile ? -200 : -220) : -40)
+                    ? (viewState === 'field' ? (isMobile ? -260 : -380) : -40)
                     : viewState === 'field' ? 120 : -20,
                   scale: selectedCardIndex === i ? (viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) + 0.05 : 1.1) : 1.05,
                   boxShadow: selectedCardIndex === i
