@@ -122,6 +122,9 @@ const FAN_SPREAD_DEG = 20;
 const FAN_LIFT_PX = 14;
 const HAND_CARD_WIDTH = 224; // w-56
 const HAND_CARD_HEIGHT = 320; // h-80
+// Cards overlap like a real hand of cards instead of sitting apart with a gap —
+// each card only advances this much past the previous one.
+const HAND_CARD_STEP = HAND_CARD_WIDTH * 0.5;
 
 const MOCK_DECK: CardData[] = [
   { id: 'c1', name: 'Crimson Dragon', atk: 6, hp: 5, cost: 5, art: '', effect: 'Flying. Deals double damage to players.', cardType: 'Cavalaria' },
@@ -406,8 +409,7 @@ export default function App() {
   // is wider than their flat width — account for that tilt or the fan's edge cards clip.
   // Scale so the WHOLE hand always fits on screen — no floor, or large hands would overflow
   // and get clipped past the screen edges (the outer container clips, it doesn't scroll).
-  const handGap = isMobile ? 8 : 12;
-  const handTotalWidth = hand.length > 0 ? hand.length * HAND_CARD_WIDTH + (hand.length - 1) * handGap : HAND_CARD_WIDTH;
+  const handTotalWidth = hand.length > 0 ? HAND_CARD_WIDTH + (hand.length - 1) * HAND_CARD_STEP : HAND_CARD_WIDTH;
   const handFanMaxAngleRad = (FAN_SPREAD_DEG / 2) * (Math.PI / 180);
   const handFanExtraWidth = hand.length > 1 ? HAND_CARD_HEIGHT * Math.sin(handFanMaxAngleRad) : 0;
   const handScale = isMobile
@@ -545,11 +547,8 @@ export default function App() {
   };
 
   const getSelectedCardX = (index: number) => {
-    const cardWidth = 224; // w-56 = 14rem = 224px
-    const gap = isMobile ? 8 : 12; 
-    const totalWidth = hand.length * cardWidth + (hand.length - 1) * gap;
-    const startX = -totalWidth / 2 + cardWidth / 2;
-    const cardX = startX + index * (cardWidth + gap);
+    const startX = -handTotalWidth / 2 + HAND_CARD_WIDTH / 2;
+    const cardX = startX + index * HAND_CARD_STEP;
     // On mobile move to bottom right, on desktop move it to the left to see the board
     const targetX = isMobile ? (windowSize.width / 2 - 120) : (300 - windowSize.width / 2);
     return targetX - cardX;
@@ -871,21 +870,24 @@ export default function App() {
           y: isMobile ? (viewState === 'field' ? 200 : 0) : (viewState === 'field' ? 220 : 0)
         }}
       >
-        <div className="flex gap-2 md:gap-3 pointer-events-none">
+        <div className="flex pointer-events-none">
           <AnimatePresence>
             {hand.map((card, i) => (
               <motion.div
                 layoutId={card.id}
                 key={card.id}
                 className={`w-56 h-80 shrink-0 bg-[#c5b599] rounded-xl cursor-pointer flex flex-col p-2 relative group border-2 border-[#8c7a5f] ${viewState === 'field' ? 'pointer-events-none' : 'pointer-events-auto'}`}
-                initial={{ 
-                  opacity: 0, 
-                  x: windowSize.width / 2, 
-                  y: 200, 
+                initial={{
+                  opacity: 0,
+                  x: windowSize.width / 2,
+                  y: 200,
                   scale: 0.5,
                   rotateZ: 45
                 }}
-                style={{ transformOrigin: 'bottom center' }}
+                style={{
+                  transformOrigin: 'bottom center',
+                  marginLeft: i === 0 ? 0 : HAND_CARD_STEP - HAND_CARD_WIDTH,
+                }}
                 animate={{
                   opacity: viewState === 'field' && selectedCardIndex !== i ? 0.4 : 1,
                   x: selectedCardIndex === i ? getSelectedCardX(i) : 0,
@@ -896,7 +898,7 @@ export default function App() {
                     ? (isMobile ? 0.6 : 1.8)
                     : (viewState === 'field' ? 0.6 : 1),
                   rotateZ: selectedCardIndex === i || viewState === 'field' ? 0 : getFanRotation(i),
-                  zIndex: selectedCardIndex === i ? 100 : 1,
+                  zIndex: selectedCardIndex === i ? 100 : i + 1,
                   boxShadow: selectedCardIndex === i
                     ? "0 0 120px rgba(212, 175, 55, 0.95)"
                     : "0 10px 30px rgba(0,0,0,0.5)"
