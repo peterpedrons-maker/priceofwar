@@ -304,6 +304,10 @@ export default function App() {
   const [hand, setHand] = useState<CardData[]>([]);
   const [playerSlots, setPlayerSlots] = useState<(CardData | null)[]>(Array(13).fill(null));
   const [npcSlots, setNpcSlots] = useState<(CardData | null)[]>(Array(13).fill(null));
+  // How many of the opponent's 5 face-down starting cards have been "dealt" so far,
+  // during the match-intro sequence (see startMatchIntro) — mirrors the player's own
+  // staggered opening draw so both sides visibly receive their hand at match start.
+  const [npcHandRevealCount, setNpcHandRevealCount] = useState(0);
 
   const [selectedAttackerIndex, setSelectedAttackerIndex] = useState<number | null>(null);
   const [detailedCard, setDetailedCard] = useState<CardData | null>(null);
@@ -392,7 +396,49 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Pending timers for the match-intro sequence (see startMatchIntro) — tracked so a
+  // fresh resetGame (e.g. backing out to the menu and starting a new match right away)
+  // can cancel any that haven't fired yet instead of letting a stale sequence land on
+  // top of the new match.
+  const matchIntroTimeoutsRef = useRef<number[]>([]);
+
+  // Brings both Generals onto the board, then deals both starting hands (5 cards each)
+  // with a staggered "drawn from the deck" beat — the player's own draw-animation
+  // viewState for their hand, and incrementally revealing the opponent's face-down
+  // hand for theirs — so the match visibly begins instead of the board and both hands
+  // just appearing fully set up the instant the match starts.
+  const startMatchIntro = () => {
+    const schedule = (fn: () => void, delay: number) => {
+      const id = window.setTimeout(fn, delay);
+      matchIntroTimeoutsRef.current.push(id);
+    };
+
+    schedule(() => {
+      setPlayerSlots(prev => { const next = [...prev]; next[12] = GENERAL_PLAYER; return next; });
+      setNpcSlots(prev => { const next = [...prev]; next[12] = GENERAL_NPC; return next; });
+    }, 300);
+
+    const DEAL_START = 900;
+    const DEAL_STEP = 550;
+    const DRAW_ANIM_MS = 500;
+    for (let i = 0; i < 5; i++) {
+      const t = DEAL_START + i * DEAL_STEP;
+      schedule(() => setViewState('draw'), t);
+      schedule(() => {
+        setHand(prev => [...prev, {
+          ...MOCK_DECK[Math.floor(Math.random() * MOCK_DECK.length)],
+          id: `hand_${Date.now()}_${i}_${Math.random()}`
+        }]);
+        setViewState('hand');
+      }, t + DRAW_ANIM_MS);
+      schedule(() => setNpcHandRevealCount(prev => prev + 1), t + 200);
+    }
+  };
+
   const resetGame = () => {
+    matchIntroTimeoutsRef.current.forEach(clearTimeout);
+    matchIntroTimeoutsRef.current = [];
+
     setGameOverWinner(null);
     setCurrentTurn('player');
     setTurnNumber(1);
@@ -402,19 +448,16 @@ export default function App() {
     setSelectedAttackerIndex(null);
     setViewState('hand');
 
-    setHand(generateHand(5));
+    // Start from a clean, empty board and hand — startMatchIntro (above) brings the
+    // Generals and both starting hands on with a visible entrance. Each side's General
+    // is the only thing that belongs on the board at kickoff; no other cards should be
+    // there until actually played.
+    setHand([]);
+    setNpcHandRevealCount(0);
+    setPlayerSlots(Array(13).fill(null));
+    setNpcSlots(Array(13).fill(null));
 
-    // Place each side's General in their fixed slot (12)
-    const mockPlayerSlots = Array(13).fill(null);
-    mockPlayerSlots[12] = GENERAL_PLAYER;
-    setPlayerSlots(mockPlayerSlots);
-
-    // Mock NPC field
-    const mockNpcSlots = Array(13).fill(null);
-    mockNpcSlots[6] = MOCK_DECK[1]; // Iron Knight
-    mockNpcSlots[8] = MOCK_DECK[3]; // Forest Goblin
-    mockNpcSlots[12] = GENERAL_NPC;
-    setNpcSlots(mockNpcSlots);
+    startMatchIntro();
   };
 
   useEffect(() => {
@@ -1095,23 +1138,25 @@ export default function App() {
           </div>
         </div>
 
-        {/* Opponent Hand (Floating) */}
+        {/* Opponent Hand (Floating) — revealed one at a time during the match-intro
+            deal (see npcHandRevealCount / startMatchIntro), each card sliding in from
+            roughly where the opponent's deck sits, so drawing their opening hand is
+            visibly happening rather than the hand just appearing fully formed. */}
         <div className="absolute top-[-150px] md:top-[-200px] left-1/2 -translate-x-1/2 flex gap-2 md:gap-3 pointer-events-none z-50" style={{ perspective: '1000px' }}>
-          {[...Array(5)].map((_, i) => (
+          {[...Array(npcHandRevealCount)].map((_, i) => (
             <motion.div
               key={`npc-hand-${i}`}
               className="w-32 h-48 md:w-40 md:h-56 shrink-0 bg-[#c5b599] rounded-xl border-2 border-[#8c7a5f] relative shadow-2xl"
-              initial={{ y: -100, opacity: 0, rotateX: -20, rotateZ: (i - 2) * 5 }}
-              animate={{ 
-                y: [0, -10, 0], 
+              initial={{ x: 260, y: 40, opacity: 0, rotateX: -20, rotateZ: (i - 2) * 5 + 20, scale: 0.7 }}
+              animate={{
+                x: 0,
+                y: 0,
                 opacity: 1,
                 rotateX: -20,
-                rotateZ: (i - 2) * 5
+                rotateZ: (i - 2) * 5,
+                scale: 1,
               }}
-              transition={{ 
-                y: { duration: 3, repeat: Infinity, ease: "easeInOut", delay: i * 0.2 },
-                opacity: { duration: 0.5, delay: i * 0.1 }
-              }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
             >
               {/* Card Back Design */}
               <div className="absolute inset-2 border border-[#8c7a5f]/50 rounded-lg flex items-center justify-center bg-[#4a3b2c]">
@@ -1385,8 +1430,8 @@ export default function App() {
       </div>
 
       {/* Flying card — plays from hand to the chosen board slot along real screen coordinates.
-          Flies up to a large "presentation" size, pauses (Hearthstone-style), wobbles and dips
-          with a bit of organic life, then drops in hard with an overshoot/settle impact bounce. */}
+          Rises to a large "presentation" size above the slot, holds briefly, then descends
+          straight down into place. Kept simple on purpose: no wobble, dip, or shake. */}
       <AnimatePresence>
         {flyingCard && (() => {
           // Keep the box at the card's real intrinsic size (same as the hand card's own
@@ -1402,8 +1447,7 @@ export default function App() {
           const hoverScale = Math.min(3, Math.max(0.8, 190 / flyingCard.fromW));
           const hoverX = flyingCard.toX;
           const hoverY = flyingCard.toY - 70;
-          const dipY = hoverY + 16; // small "gathering" dip just before the drop
-          const times = [0, 0.34, 0.5, 0.62, 0.72, 0.86, 0.94, 1];
+          const times = [0, 0.55, 0.7, 1];
           return (
             <motion.div
               initial={{
@@ -1412,28 +1456,17 @@ export default function App() {
                 width: HAND_CARD_WIDTH,
                 height: HAND_CARD_HEIGHT,
                 scale: startScale,
-                rotate: 0,
               }}
               animate={{
-                left: [
-                  flyingCard.fromX - HALF_W, hoverX - HALF_W, hoverX - HALF_W, hoverX - HALF_W,
-                  hoverX - HALF_W, flyingCard.toX - HALF_W, flyingCard.toX - HALF_W, flyingCard.toX - HALF_W,
-                ],
-                top: [
-                  flyingCard.fromY - HALF_H, hoverY - HALF_H, hoverY - HALF_H, hoverY - HALF_H,
-                  dipY - HALF_H, flyingCard.toY - HALF_H, flyingCard.toY - HALF_H, flyingCard.toY - HALF_H,
-                ],
+                // Rise up to the hover presentation, hold there, then drop straight down.
+                left: [flyingCard.fromX - HALF_W, hoverX - HALF_W, hoverX - HALF_W, flyingCard.toX - HALF_W],
+                top: [flyingCard.fromY - HALF_H, hoverY - HALF_H, hoverY - HALF_H, flyingCard.toY - HALF_H],
                 width: HAND_CARD_WIDTH,
                 height: HAND_CARD_HEIGHT,
-                // Hold, breathe, dip in anticipation, then slam down with an overshoot before settling.
-                scale: [
-                  startScale, startScale * hoverScale, startScale * hoverScale * 1.03, startScale * hoverScale * 0.94,
-                  startScale * hoverScale * 0.9, endScale * 1.2, endScale * 0.96, endScale,
-                ],
-                rotate: [0, 0, 4, -3, 1, 2, -1, 0],
+                scale: [startScale, startScale * hoverScale, startScale * hoverScale, endScale],
                 times,
               }}
-              transition={{ duration: 1.15, ease: ["easeOut", "easeInOut", "easeIn", "easeIn", "easeIn", "easeOut", "easeInOut"] }}
+              transition={{ duration: 0.95, ease: ["easeOut", "linear", "easeIn"] }}
               onAnimationComplete={() => {
                 setPlayerSlots(prev => {
                   const next = [...prev];
@@ -1749,13 +1782,19 @@ const CardSlot = ({
       )}
       {card && !card.isDestroyed && (
         <motion.div
+          key={card.id}
+          // A card arriving in a slot (a General at match start, an AI or opponent
+          // play) should visibly appear, not just pop into existence — a quick
+          // scale/drop-in with a touch of overshoot reads as it "landing" here.
+          initial={{ opacity: 0, scale: 0.4, y: -24 }}
           animate={{
+            opacity: 1,
             y: isAttacking ? attackY : 0,
             z: isAttacking ? 100 : 0,
             scale: isAttacking ? 1.2 : 1,
             rotateX: isAttacking ? (attackDirection === 'up' ? 20 : -20) : 0,
           }}
-          transition={{ duration: 0.3 }}
+          transition={{ duration: 0.3, scale: { type: "spring", stiffness: 400, damping: 15 } }}
           className="w-full h-full bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-lg flex flex-col p-1 relative border-2 border-[#5c4a30] shadow-lg"
           style={{ boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.45), 0 4px 10px rgba(0,0,0,0.5)' }}
         >
