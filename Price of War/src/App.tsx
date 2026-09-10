@@ -244,6 +244,8 @@ export default function App() {
   // Holds the camera's zoomed-in focus for a brief moment after the card lands,
   // so the placement reads clearly before the view eases back to normal.
   const [cameraSettling, setCameraSettling] = useState<{ slotIndex: number } | null>(null);
+  // A brief flash/ring burst at the screen position where a played card just landed.
+  const [impactBurst, setImpactBurst] = useState<{ x: number; y: number } | null>(null);
   const handCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const showToast = (msg: string) => {
@@ -633,13 +635,30 @@ export default function App() {
       const rowFocus = slot <= 4 ? 1 : slot <= 9 ? 0.55 : 0.2; // Vanguarda is farthest from the hand, General row is closest
       const panX = (2 - col) * (isMobile ? 16 : 22);
       const panY = rowFocus * (isMobile ? 90 : 65);
+      const focusedX = baseAnim.x + panX;
+      const focusedY = baseAnim.y - panY;
+      const focusedScale = baseAnim.scale * 1.15;
+      const focusedRotateX = baseAnim.rotateX - 8;
+
+      if (cameraSettling) {
+        // The card just landed — a quick shake on top of the same focused view.
+        return {
+          ...baseAnim,
+          x: [focusedX - 10, focusedX + 8, focusedX - 4, focusedX],
+          y: [focusedY + 8, focusedY - 6, focusedY + 3, focusedY],
+          scale: focusedScale,
+          rotateX: focusedRotateX,
+          transition: { duration: 0.3, ease: "easeOut" }
+        };
+      }
+
       return {
         ...baseAnim,
-        x: baseAnim.x + panX,
-        y: baseAnim.y - panY,
-        scale: baseAnim.scale * 1.15,
-        rotateX: baseAnim.rotateX - 8,
-        transition: { duration: flyingCard ? 0.55 : 0.3, ease: "easeInOut" }
+        x: focusedX,
+        y: focusedY,
+        scale: focusedScale,
+        rotateX: focusedRotateX,
+        transition: { duration: 0.5, ease: "easeOut" }
       };
     }
 
@@ -1128,8 +1147,8 @@ export default function App() {
       </div>
 
       {/* Flying card — plays from hand to the chosen board slot along real screen coordinates.
-          Pauses hovering at a large "presentation" size above the slot first (Hearthstone-style)
-          before dropping into place, instead of flying straight there in one motion. */}
+          Flies up to a large "presentation" size, pauses (Hearthstone-style), wobbles and dips
+          with a bit of organic life, then drops in hard with an overshoot/settle impact bounce. */}
       <AnimatePresence>
         {flyingCard && (() => {
           const halfW = flyingCard.fromW / 2;
@@ -1138,6 +1157,8 @@ export default function App() {
           const hoverScale = Math.min(3, Math.max(0.8, 190 / flyingCard.fromW));
           const hoverX = flyingCard.toX;
           const hoverY = flyingCard.toY - 70;
+          const dipY = hoverY + 16; // small "gathering" dip just before the drop
+          const times = [0, 0.34, 0.5, 0.62, 0.72, 0.86, 0.94, 1];
           return (
             <motion.div
               initial={{
@@ -1146,22 +1167,34 @@ export default function App() {
                 width: flyingCard.fromW,
                 height: flyingCard.fromH,
                 scale: 1,
+                rotate: 0,
               }}
               animate={{
-                left: [flyingCard.fromX - halfW, hoverX - halfW, hoverX - halfW, flyingCard.toX - halfW],
-                top: [flyingCard.fromY - halfH, hoverY - halfH, hoverY - halfH, flyingCard.toY - halfH],
+                left: [
+                  flyingCard.fromX - halfW, hoverX - halfW, hoverX - halfW, hoverX - halfW,
+                  hoverX - halfW, flyingCard.toX - halfW, flyingCard.toX - halfW, flyingCard.toX - halfW,
+                ],
+                top: [
+                  flyingCard.fromY - halfH, hoverY - halfH, hoverY - halfH, hoverY - halfH,
+                  dipY - halfH, flyingCard.toY - halfH, flyingCard.toY - halfH, flyingCard.toY - halfH,
+                ],
                 width: flyingCard.fromW,
                 height: flyingCard.fromH,
-                scale: [1, hoverScale, hoverScale, finalScale],
-                times: [0, 0.5, 0.78, 1],
+                // Hold, breathe, dip in anticipation, then slam down with an overshoot before settling.
+                scale: [1, hoverScale, hoverScale * 1.03, hoverScale * 0.94, hoverScale * 0.9, finalScale * 1.2, finalScale * 0.96, finalScale],
+                rotate: [0, 0, 4, -3, 1, 2, -1, 0],
+                times,
               }}
-              transition={{ duration: 0.95, ease: ["easeOut", "easeInOut", "easeIn"] }}
+              transition={{ duration: 1.15, ease: ["easeOut", "easeInOut", "easeIn", "easeIn", "easeIn", "easeOut", "easeInOut"] }}
               onAnimationComplete={() => {
                 setPlayerSlots(prev => {
                   const next = [...prev];
                   next[flyingCard.slotIndex] = flyingCard.card;
                   return next;
                 });
+                // Impact burst + brief camera shake right as the card lands.
+                setImpactBurst({ x: flyingCard.toX, y: flyingCard.toY });
+                setTimeout(() => setImpactBurst(null), 450);
                 // Keep the camera's zoomed focus on the slot for a beat before easing back.
                 setCameraSettling({ slotIndex: flyingCard.slotIndex });
                 setFlyingCard(null);
@@ -1179,6 +1212,33 @@ export default function App() {
             </motion.div>
           );
         })()}
+      </AnimatePresence>
+
+      {/* Impact burst — a quick flash + expanding ring where the card just landed */}
+      <AnimatePresence>
+        {impactBurst && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            animate={{ opacity: 0 }}
+            transition={{ duration: 0.45 }}
+            style={{ position: 'fixed', left: impactBurst.x, top: impactBurst.y, zIndex: 499 }}
+            className="pointer-events-none -translate-x-1/2 -translate-y-1/2"
+          >
+            <motion.div
+              initial={{ scale: 0.2, opacity: 0.9 }}
+              animate={{ scale: 2.2, opacity: 0 }}
+              transition={{ duration: 0.45, ease: "easeOut" }}
+              className="absolute -inset-10 rounded-full border-4 border-amber-300"
+              style={{ boxShadow: '0 0 30px rgba(252,211,77,0.8)' }}
+            />
+            <motion.div
+              initial={{ scale: 0.3, opacity: 0.9 }}
+              animate={{ scale: 1.6, opacity: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="absolute -inset-6 rounded-full bg-amber-200/60 blur-md"
+            />
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* Toast Notification */}
