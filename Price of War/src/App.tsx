@@ -118,8 +118,8 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
 );
 
 // Hand fan layout: cards spread across a modest total angle, center card slightly raised.
-const FAN_SPREAD_DEG = 20;
-const FAN_LIFT_PX = 14;
+const FAN_SPREAD_DEG = 26;
+const FAN_LIFT_PX = 20;
 const HAND_CARD_WIDTH = 224; // w-56
 const HAND_CARD_HEIGHT = 320; // h-80
 // Cards overlap like a real hand of cards instead of sitting apart with a gap —
@@ -236,6 +236,10 @@ export default function App() {
   // on-screen positions (getBoundingClientRect), since the hand sits in a flat layer while the
   // board is a heavily 3D-transformed one — Framer Motion's automatic layoutId animation can't
   // reconcile the two, so this animates plain 2D screen coordinates instead.
+  // The camera zooms toward the target slot BEFORE the card starts flying, so that by the
+  // time we measure the slot's real screen position the board has already stopped moving —
+  // otherwise the zoom/pan mid-flight makes the card land visibly offset from the real slot.
+  const [preZoomSlot, setPreZoomSlot] = useState<{ slotIndex: number } | null>(null);
   const [flyingCard, setFlyingCard] = useState<{
     card: CardData; slotIndex: number;
     fromX: number; fromY: number; fromW: number; fromH: number;
@@ -478,6 +482,10 @@ export default function App() {
 
       setPlayerMana(prev => prev - cardToPlay.cost);
 
+      // Capture the hand card's current position now, before it's removed from the DOM.
+      const fromEl = handCardRefs.current[cardToPlay.id];
+      const fromRect = fromEl?.getBoundingClientRect();
+
       // Remove from hand right away...
       const newHand = [...hand];
       newHand.splice(selectedCardIndex, 1);
@@ -485,25 +493,27 @@ export default function App() {
       setSelectedCardIndex(null);
       setViewState('hand');
 
-      // ...and animate it flying to the chosen slot using real screen coordinates.
-      // It only actually lands in playerSlots once the flight animation completes
-      // (see the flyingCard overlay's onAnimationComplete below).
-      const fromEl = handCardRefs.current[cardToPlay.id];
-      const fromRect = fromEl?.getBoundingClientRect();
-      const toRect = slotEl?.getBoundingClientRect();
-      if (fromRect && toRect) {
-        setFlyingCard({
-          card: cardToPlay,
-          slotIndex,
-          fromX: fromRect.left + fromRect.width / 2,
-          fromY: fromRect.top + fromRect.height / 2,
-          fromW: fromRect.width,
-          fromH: fromRect.height,
-          toX: toRect.left + toRect.width / 2,
-          toY: toRect.top + toRect.height / 2,
-          toW: toRect.width,
-          toH: toRect.height,
-        });
+      if (fromRect && slotEl) {
+        // First, let the camera zoom/pan toward the slot and settle — only once it has
+        // stopped moving do we measure the slot's real on-screen position and start the
+        // card's flight, so the landing spot doesn't drift out from under it mid-flight.
+        setPreZoomSlot({ slotIndex });
+        setTimeout(() => {
+          const toRect = slotEl.getBoundingClientRect();
+          setPreZoomSlot(null);
+          setFlyingCard({
+            card: cardToPlay,
+            slotIndex,
+            fromX: fromRect.left + fromRect.width / 2,
+            fromY: fromRect.top + fromRect.height / 2,
+            fromW: fromRect.width,
+            fromH: fromRect.height,
+            toX: toRect.left + toRect.width / 2,
+            toY: toRect.top + toRect.height / 2,
+            toW: toRect.width,
+            toH: toRect.height,
+          });
+        }, 520);
       } else {
         // Couldn't measure a position (shouldn't normally happen) — place instantly.
         const newSlots = [...playerSlots];
@@ -629,8 +639,8 @@ export default function App() {
 
     // Camera follows a card being played, zooming in toward the slot it's headed for —
     // a Yu-Gi-Oh Forbidden Memories-style summon camera — then eases back once it lands.
-    if (flyingCard || cameraSettling) {
-      const slot = (flyingCard ?? cameraSettling)!.slotIndex;
+    if (preZoomSlot || flyingCard || cameraSettling) {
+      const slot = (preZoomSlot ?? flyingCard ?? cameraSettling)!.slotIndex;
       const col = slot <= 9 ? slot % 5 : 2; // 10/11/12 (Relíquia/Terreno/General) sit near center
       const rowFocus = slot <= 4 ? 1 : slot <= 9 ? 0.55 : 0.2; // Vanguarda is farthest from the hand, General row is closest
       const panX = (2 - col) * (isMobile ? 16 : 22);
@@ -704,6 +714,7 @@ export default function App() {
     >
       {/* Background ambient light */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(30,30,60,0.8)_0%,rgba(0,0,0,1)_100%)] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_40%,rgba(80,60,140,0.15)_0%,transparent_60%)] pointer-events-none" />
 
       {/* 3D Board */}
       <motion.div
@@ -722,10 +733,17 @@ export default function App() {
         }}
       >
         {/* Board Grid Lines / Texture */}
-        <div className="absolute inset-0 border-4 border-indigo-900/40 bg-indigo-950/10 rounded-2xl shadow-[0_0_80px_rgba(49,46,129,0.3)] pointer-events-none" style={{ transform: 'translateZ(-1px)' }} />
-        
+        <div
+          className="absolute inset-0 border-4 border-indigo-900/40 bg-indigo-950/10 rounded-2xl shadow-[0_0_80px_rgba(49,46,129,0.3)] pointer-events-none"
+          style={{
+            transform: 'translateZ(-1px)',
+            backgroundImage: 'repeating-linear-gradient(45deg, rgba(99,102,241,0.035) 0px, rgba(99,102,241,0.035) 2px, transparent 2px, transparent 40px)',
+          }}
+        />
+
         {/* Central Divider */}
-        <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.6)] -translate-y-1/2 rounded-full pointer-events-none" />
+        <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-indigo-400/60 to-transparent shadow-[0_0_15px_rgba(99,102,241,0.6)] -translate-y-1/2 rounded-full pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 w-5 h-5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-2 border-indigo-400/70 bg-indigo-950 shadow-[0_0_20px_rgba(99,102,241,0.8)] pointer-events-none" />
 
         {/* NPC Field */}
         <div className="flex flex-col gap-6 justify-start pt-4">
@@ -954,7 +972,7 @@ export default function App() {
           y: isMobile ? (viewState === 'field' ? 200 : 0) : (viewState === 'field' ? 220 : 0),
           // Hidden while a card is flying to the board (and briefly after, while the camera
           // settles) so the rest of the hand doesn't clutter the summon animation.
-          opacity: (flyingCard || cameraSettling) ? 0 : 1,
+          opacity: (preZoomSlot || flyingCard || cameraSettling) ? 0 : 1,
         }}
         transition={{ opacity: { duration: 0.15 } }}
       >
@@ -965,7 +983,7 @@ export default function App() {
                 layoutId={card.id}
                 key={card.id}
                 ref={(el) => { handCardRefs.current[card.id] = el; }}
-                className={`w-56 h-80 shrink-0 bg-[#c5b599] rounded-xl cursor-pointer flex flex-col p-2 relative group border-2 border-[#8c7a5f] ${viewState === 'field' ? 'pointer-events-none' : 'pointer-events-auto'}`}
+                className={`w-56 h-80 shrink-0 bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-xl cursor-pointer flex flex-col p-2 relative group border-2 border-[#5c4a30] ${viewState === 'field' ? 'pointer-events-none' : 'pointer-events-auto'}`}
                 initial={{
                   opacity: 0,
                   x: windowSize.width / 2,
@@ -991,8 +1009,8 @@ export default function App() {
                   rotateZ: selectedCardIndex === i || viewState === 'field' ? 0 : getFanRotation(i),
                   zIndex: selectedCardIndex === i ? 150 : i + 1,
                   boxShadow: selectedCardIndex === i
-                    ? "0 0 120px rgba(212, 175, 55, 0.95)"
-                    : "0 10px 30px rgba(0,0,0,0.5)"
+                    ? "inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 120px rgba(212, 175, 55, 0.95)"
+                    : "inset 0 0 0 1px rgba(212,175,55,0.45), 0 10px 30px rgba(0,0,0,0.5)"
                 }}
                 whileHover={{
                   y: selectedCardIndex === i
@@ -1029,8 +1047,8 @@ export default function App() {
                 {card.art ? (
                   <img src={card.art} alt={card.name} className="absolute inset-0 w-full h-full object-cover z-0 rounded-xl" referrerPolicy="no-referrer" />
                 ) : (
-                  <div className="absolute inset-0 w-full h-full bg-zinc-800 flex items-center justify-center z-0 rounded-xl">
-                    <span className="text-xs text-zinc-600 font-mono italic uppercase opacity-50">No Art</span>
+                  <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900 flex items-center justify-center z-0 rounded-xl">
+                    <div className="w-1/3 h-1/3 border border-zinc-500/40 rotate-45" />
                   </div>
                 )}
 
@@ -1039,17 +1057,17 @@ export default function App() {
                   {/* Top Section: Name and Cost */}
                   <div className="relative flex items-start justify-between w-full">
                     {/* Name */}
-                    <div className="flex-1 bg-black/50 backdrop-blur-sm border border-white/20 rounded-lg flex items-center px-3 py-1.5 shadow-sm mr-4">
+                    <div className="flex-1 bg-gradient-to-b from-black/75 to-black/60 border border-amber-100/25 rounded-lg flex items-center px-3 py-1.5 shadow-sm mr-4">
                       <span className="text-sm font-bold text-white uppercase tracking-tighter truncate drop-shadow-md">{card.name}</span>
                     </div>
                     {/* Gold Badge */}
                     <ManaBadge value={card.cost} className="absolute -top-4 -right-4 w-12 h-12 text-xl z-20 drop-shadow-md" />
                   </div>
-                  
+
                   {/* Bottom Section: Effect, ATK, HP */}
                   <div className="relative w-full flex flex-col items-center">
                     {/* Text Box */}
-                    <div className="w-full bg-black/50 backdrop-blur-sm border border-white/20 rounded-lg p-3 shadow-sm flex items-center justify-center min-h-[5rem] mb-2">
+                    <div className="w-full bg-gradient-to-b from-black/60 to-black/75 border border-amber-100/25 rounded-lg p-3 shadow-sm flex items-center justify-center min-h-[5rem] mb-2">
                       <p className="text-xs leading-snug text-white/90 font-medium text-center drop-shadow-md">{card.effect}</p>
                     </div>
                     
@@ -1195,16 +1213,16 @@ export default function App() {
                 });
                 // Impact burst + brief camera shake right as the card lands.
                 setImpactBurst({ x: flyingCard.toX, y: flyingCard.toY });
-                setTimeout(() => setImpactBurst(null), 650);
+                setTimeout(() => setImpactBurst(null), 780);
                 // Keep the camera's zoomed focus on the slot for a beat before easing back.
                 setCameraSettling({ slotIndex: flyingCard.slotIndex });
                 setFlyingCard(null);
                 setTimeout(() => setCameraSettling(null), 300);
               }}
               style={{ position: 'fixed', zIndex: 500, transformOrigin: 'center center' }}
-              className="pointer-events-none bg-[#c5b599] rounded-xl flex flex-col p-2 relative border-2 border-[#8c7a5f] shadow-[0_0_40px_rgba(212,175,55,0.6)]"
+              className="pointer-events-none bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-xl flex flex-col p-2 relative border-2 border-[#5c4a30] shadow-[0_0_40px_rgba(212,175,55,0.6)]"
             >
-              <div className="w-full bg-black/50 border border-white/20 rounded-lg flex items-center justify-center px-1 py-1.5 text-center">
+              <div className="w-full bg-gradient-to-b from-black/75 to-black/60 border border-amber-100/25 rounded-lg flex items-center justify-center px-1 py-1.5 text-center">
                 <span className="text-[9px] font-bold text-white uppercase tracking-tighter leading-tight">{flyingCard.card.name}</span>
               </div>
               <ManaBadge value={flyingCard.card.cost} className="absolute -top-4 -right-4 w-10 h-10 text-lg z-20" />
@@ -1222,7 +1240,7 @@ export default function App() {
           <motion.div
             initial={{ opacity: 1 }}
             animate={{ opacity: 0 }}
-            transition={{ duration: 0.55 }}
+            transition={{ duration: 0.75 }}
             style={{ position: 'fixed', left: impactBurst.x, top: impactBurst.y, zIndex: 499 }}
             className="pointer-events-none -translate-x-1/2 -translate-y-1/2"
           >
@@ -1274,6 +1292,25 @@ export default function App() {
                   transition={{ duration: 0.45, ease: "easeOut" }}
                   className="absolute top-1/2 left-1/2 w-2 h-2 -ml-1 -mt-1 rounded-full bg-amber-300"
                   style={{ boxShadow: '0 0 8px rgba(252,211,77,0.9)' }}
+                />
+              );
+            })}
+            {/* Dust puffs kicked up off the field */}
+            {Array.from({ length: 6 }).map((_, i) => {
+              const angle = (i / 6) * Math.PI * 2 + 0.4;
+              const dist = 26 + (i % 2) * 10;
+              return (
+                <motion.div
+                  key={`dust-${i}`}
+                  initial={{ x: 0, y: 4, opacity: 0.55, scale: 0.4 }}
+                  animate={{
+                    x: Math.cos(angle) * dist,
+                    y: Math.sin(angle) * dist * 0.5 - 22,
+                    opacity: 0,
+                    scale: 1.6,
+                  }}
+                  transition={{ duration: 0.6, ease: "easeOut", delay: 0.03 * i }}
+                  className="absolute top-1/2 left-1/2 w-4 h-4 -ml-2 -mt-2 rounded-full bg-[#c9b48a] blur-[3px]"
                 />
               );
             })}
@@ -1335,7 +1372,7 @@ export default function App() {
               exit={{ scale: 0.8, y: 50 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-sm aspect-[2/3] bg-[#c5b599] rounded-2xl flex flex-col p-4 border-4 border-[#8c7a5f] shadow-[0_0_100px_rgba(0,0,0,0.8)]"
+              className="relative w-full max-w-sm aspect-[2/3] bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-2xl flex flex-col p-4 border-4 border-[#5c4a30] shadow-[0_0_100px_rgba(0,0,0,0.8)]"
             >
               <button
                 onClick={() => setDetailedCard(null)}
@@ -1348,8 +1385,8 @@ export default function App() {
               {detailedCard.art ? (
                 <img src={detailedCard.art} alt={detailedCard.name} className="absolute inset-0 w-full h-full object-cover z-0 rounded-2xl" referrerPolicy="no-referrer" />
               ) : (
-                <div className="absolute inset-0 w-full h-full bg-zinc-800 flex items-center justify-center z-0 rounded-2xl">
-                  <span className="text-sm text-zinc-600 font-mono italic uppercase opacity-50">No Art</span>
+                <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900 flex items-center justify-center z-0 rounded-2xl">
+                  <div className="w-1/4 h-1/4 border border-zinc-500/40 rotate-45" />
                 </div>
               )}
 
@@ -1358,17 +1395,17 @@ export default function App() {
                 {/* Top Section */}
                 <div className="relative flex items-start justify-between w-full">
                   {/* Name */}
-                  <div className="flex-1 bg-black/50 backdrop-blur-sm border border-white/20 rounded-lg flex items-center px-4 py-2 shadow-sm mr-6">
+                  <div className="flex-1 bg-gradient-to-b from-black/75 to-black/60 border border-amber-100/25 rounded-lg flex items-center px-4 py-2 shadow-sm mr-6">
                     <span className="text-lg font-bold text-white uppercase tracking-tight truncate drop-shadow-md">{detailedCard.name}</span>
                   </div>
                   {/* Gold Badge */}
                   <ManaBadge value={detailedCard.cost} className="absolute -top-6 -right-6 w-16 h-16 text-2xl z-20 drop-shadow-lg" />
                 </div>
-                
+
                 {/* Bottom Section */}
                 <div className="relative w-full flex flex-col items-center">
                   {/* Description Area */}
-                  <div className="w-full bg-black/50 backdrop-blur-sm border border-white/20 rounded-lg p-4 shadow-sm flex items-center justify-center min-h-[6rem] mb-2">
+                  <div className="w-full bg-gradient-to-b from-black/60 to-black/75 border border-amber-100/25 rounded-lg p-4 shadow-sm flex items-center justify-center min-h-[6rem] mb-2">
                     <p className="text-base leading-relaxed text-white/90 font-medium italic text-center drop-shadow-md">
                       {detailedCard.effect}
                     </p>
@@ -1406,11 +1443,11 @@ const CardSlot = ({
           onClick(e.currentTarget as HTMLElement);
         }
       }}
-      className={`w-24 md:w-36 h-32 md:h-48 border-2 border-indigo-500/30 rounded-lg bg-black/50 flex items-center justify-center shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] transition-colors hover:border-indigo-400 hover:bg-indigo-900/40 hover:shadow-[0_0_30px_rgba(99,102,241,0.6)] group relative ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''}`}
+      className={`w-24 md:w-36 h-32 md:h-48 border-2 border-indigo-500/30 rounded-lg bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.08)_0%,rgba(0,0,0,0.6)_75%)] flex items-center justify-center shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] transition-colors hover:border-indigo-400 hover:bg-indigo-900/40 hover:shadow-[0_0_30px_rgba(99,102,241,0.6)] group relative ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''}`}
     >
       {!card && (
         <>
-          <div className="w-full h-full border border-indigo-500/20 rounded-md m-1 group-hover:border-indigo-400/50 transition-colors pointer-events-none" />
+          <div className="w-[70%] h-[70%] border border-indigo-500/25 rotate-45 group-hover:border-indigo-400/60 group-hover:scale-110 transition-all pointer-events-none" />
           <div className="absolute inset-0 bg-indigo-500/0 group-hover:bg-indigo-500/20 transition-colors rounded-lg pointer-events-none" />
         </>
       )}
@@ -1423,7 +1460,8 @@ const CardSlot = ({
             rotateX: isAttacking ? (attackDirection === 'up' ? 20 : -20) : 0,
           }}
           transition={{ duration: 0.3 }}
-          className="w-full h-full bg-[#c5b599] rounded-lg flex flex-col p-1 relative border-2 border-[#8c7a5f] shadow-lg"
+          className="w-full h-full bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-lg flex flex-col p-1 relative border-2 border-[#5c4a30] shadow-lg"
+          style={{ boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.45), 0 4px 10px rgba(0,0,0,0.5)' }}
         >
           {isImpactingTarget && <SlashEffect />}
           
@@ -1442,8 +1480,8 @@ const CardSlot = ({
           {card.art ? (
             <img src={card.art} alt={card.name} className="absolute inset-0 w-full h-full object-cover z-0 rounded-lg" referrerPolicy="no-referrer" />
           ) : (
-            <div className="absolute inset-0 w-full h-full bg-zinc-800 flex items-center justify-center z-0 rounded-lg">
-              <span className="text-[8px] md:text-[10px] text-zinc-600 font-mono italic uppercase opacity-50">No Art</span>
+            <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900 flex items-center justify-center z-0 rounded-lg">
+              <div className="w-1/3 h-1/3 border border-zinc-500/40 rotate-45" />
             </div>
           )}
 
@@ -1452,17 +1490,17 @@ const CardSlot = ({
             {/* Top Section */}
             <div className="relative flex items-start justify-between w-full">
               {/* Name Bar */}
-              <div className="flex-1 bg-black/50 backdrop-blur-sm border border-white/20 rounded flex items-center px-1.5 py-0.5 shadow-sm mr-2">
+              <div className="flex-1 bg-gradient-to-b from-black/75 to-black/60 border border-amber-100/25 rounded flex items-center px-1.5 py-0.5 shadow-sm mr-2">
                 <span className="text-[7px] md:text-[9px] font-bold text-white uppercase tracking-tight truncate drop-shadow-md">{card.name}</span>
               </div>
               {/* Gold Badge */}
               <ManaBadge value={card.cost} className="absolute -top-2 -right-2 w-6 h-6 md:w-8 md:h-8 text-[10px] md:text-xs z-20 drop-shadow-md" />
             </div>
-            
+
             {/* Bottom Section */}
             <div className="relative w-full flex flex-col items-center">
               {/* Description Area */}
-              <div className="w-full bg-black/50 backdrop-blur-sm border border-white/20 rounded p-1 shadow-sm flex items-center justify-center min-h-[2.5rem] mb-1">
+              <div className="w-full bg-gradient-to-b from-black/60 to-black/75 border border-amber-100/25 rounded p-1 shadow-sm flex items-center justify-center min-h-[2.5rem] mb-1">
                 <p className="text-[6px] md:text-[8px] leading-[1.1] md:leading-tight text-white/90 font-medium italic text-center drop-shadow-md">
                   {card.effect}
                 </p>
