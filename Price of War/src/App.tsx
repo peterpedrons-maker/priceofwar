@@ -385,6 +385,29 @@ export default function App() {
   const [impactBurst, setImpactBurst] = useState<{ x: number; y: number } | null>(null);
   const handCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
+  const isMobile = windowSize.width < 768;
+  // Board container is a fixed 1000x1400px canvas (see the 3D Board div below) that gets
+  // scaled down to fit the real viewport — these divisors must match those exact dimensions.
+  const boardScale = isMobile ? Math.min(windowSize.width / 1000, windowSize.height / 1400) * 1.05 : Math.min(windowSize.width / 1600, 1);
+  // Hand cards are fanned out (see getFanRotation below), so the outer cards' bounding box
+  // is wider than their flat width — account for that tilt or the fan's edge cards clip.
+  // Scale so the WHOLE hand always fits on screen — no floor, or large hands would overflow
+  // and get clipped past the screen edges (the outer container clips, it doesn't scroll).
+  const handTotalWidth = hand.length > 0 ? HAND_CARD_WIDTH + (hand.length - 1) * HAND_CARD_STEP : HAND_CARD_WIDTH;
+  const handFanMaxAngleRad = (FAN_SPREAD_DEG / 2) * (Math.PI / 180);
+  const handFanExtraWidth = hand.length > 1 ? HAND_CARD_HEIGHT * Math.sin(handFanMaxAngleRad) : 0;
+  const handScale = isMobile
+    ? Math.min(0.85, (windowSize.width - 16) / (handTotalWidth + handFanExtraWidth))
+    : 1;
+  // Kept in sync so code running inside timers set up once at match start (which close
+  // over stale state values from that render) can still read the current hand/handScale.
+  // Declared here (rather than nearer their only other use, further down) because this
+  // whole component returns early for the menu screen below — hooks can't come after that.
+  const handRef = useRef(hand);
+  useEffect(() => { handRef.current = hand; }, [hand]);
+  const handScaleRef = useRef(handScale);
+  useEffect(() => { handScaleRef.current = handScale; }, [handScale]);
+
   // Real on-board deck piles — used both as the visual anchor for the card-draw
   // flight below and as the thing the player actually looks at on the table. Kept as
   // refs so we can read their true, on-screen position (getBoundingClientRect already
@@ -404,6 +427,12 @@ export default function App() {
   }>>([]);
   const DRAW_FLIGHT_MS = 750; // player's draw: rise, flip face-up, settle toward the hand
   const NPC_DRAW_FLIGHT_MS = 350; // opponent's draw: quick face-down hop, no reveal
+  // Card ids that just arrived via a draw flight — the hand-card entrance animation
+  // skips its own "dealt in from off-screen" slide for these, so the card the player
+  // sees leaving the deck is the SAME continuous card that settles into their hand,
+  // instead of that overlay vanishing and an unrelated second entrance playing for what
+  // reads as an entirely different card.
+  const justDrawnIdsRef = useRef<Set<string>>(new Set());
   const spawnDrawFlight = (
     deckRef: React.RefObject<HTMLDivElement>,
     to: { x: number; y: number },
@@ -418,6 +447,23 @@ export default function App() {
     const hoverY = Math.min(fromY, to.y) - 60;
     setDrawingCards(prev => [...prev, { id, fromX, fromY, toX: to.x, toY: to.y, hoverX, hoverY, card: opts.card, reveal: opts.reveal, durationMs: opts.durationMs }]);
     setTimeout(() => setDrawingCards(prev => prev.filter(d => d.id !== id)), opts.durationMs + 80);
+  };
+  // Where a newly drawn card should land: right next to the last real hand card (or the
+  // tray's own resting spot if the hand is still empty) — an approximation of the new
+  // card's actual fan slot, close enough that the flight's landing point and the real
+  // hand card's resting spot read as the same place instead of two unrelated ones. Reads
+  // through refs (not the hand/handScale state directly) because this is called from
+  // inside timers set up once at match start (startMatchIntro) — a closure over the
+  // state variables themselves would keep seeing the hand as it was at that moment.
+  const getHandArrivalPoint = () => {
+    const currentHand = handRef.current;
+    const lastId = currentHand.length > 0 ? currentHand[currentHand.length - 1].id : null;
+    const lastEl = lastId ? handCardRefs.current[lastId] : null;
+    if (lastEl) {
+      const r = lastEl.getBoundingClientRect();
+      return { x: r.left + r.width / 2 + (HAND_CARD_STEP - HAND_CARD_WIDTH) * handScaleRef.current, y: r.top + r.height / 2 };
+    }
+    return { x: windowSize.width / 2, y: windowSize.height - 140 };
   };
 
   const showToast = (msg: string) => {
@@ -462,8 +508,11 @@ export default function App() {
           ...MOCK_DECK[Math.floor(Math.random() * MOCK_DECK.length)],
           id: `hand_${Date.now()}_${i}_${Math.random()}`
         };
-        spawnDrawFlight(playerDeckRef, { x: windowSize.width / 2, y: windowSize.height - 140 }, { card: newCard, reveal: true, durationMs: DRAW_FLIGHT_MS });
-        schedule(() => setHand(prev => [...prev, newCard]), DRAW_FLIGHT_MS);
+        spawnDrawFlight(playerDeckRef, getHandArrivalPoint(), { card: newCard, reveal: true, durationMs: DRAW_FLIGHT_MS });
+        schedule(() => {
+          justDrawnIdsRef.current.add(newCard.id);
+          setHand(prev => [...prev, newCard]);
+        }, DRAW_FLIGHT_MS);
       }, t);
       schedule(() => {
         spawnDrawFlight(npcDeckRef, { x: windowSize.width / 2, y: 140 }, { reveal: false, durationMs: NPC_DRAW_FLIGHT_MS });
@@ -514,8 +563,11 @@ export default function App() {
           ...MOCK_DECK[Math.floor(Math.random() * MOCK_DECK.length)],
           id: `hand_${Date.now()}_${Math.random()}`
         };
-        spawnDrawFlight(playerDeckRef, { x: windowSize.width / 2, y: windowSize.height - 140 }, { card: newCard, reveal: true, durationMs: DRAW_FLIGHT_MS });
-        setTimeout(() => setHand(prev => [...prev, newCard]), DRAW_FLIGHT_MS);
+        spawnDrawFlight(playerDeckRef, getHandArrivalPoint(), { card: newCard, reveal: true, durationMs: DRAW_FLIGHT_MS });
+        setTimeout(() => {
+          justDrawnIdsRef.current.add(newCard.id);
+          setHand(prev => [...prev, newCard]);
+        }, DRAW_FLIGHT_MS);
       }
     } else {
       setNpcMana(10);
@@ -630,21 +682,6 @@ export default function App() {
       </div>
     );
   }
-
-  const isMobile = windowSize.width < 768;
-  // Board container is a fixed 1000x1400px canvas (see the 3D Board div below) that gets
-  // scaled down to fit the real viewport — these divisors must match those exact dimensions.
-  const boardScale = isMobile ? Math.min(windowSize.width / 1000, windowSize.height / 1400) * 1.05 : Math.min(windowSize.width / 1600, 1);
-  // Hand cards are fanned out (see getFanRotation below), so the outer cards' bounding box
-  // is wider than their flat width — account for that tilt or the fan's edge cards clip.
-  // Scale so the WHOLE hand always fits on screen — no floor, or large hands would overflow
-  // and get clipped past the screen edges (the outer container clips, it doesn't scroll).
-  const handTotalWidth = hand.length > 0 ? HAND_CARD_WIDTH + (hand.length - 1) * HAND_CARD_STEP : HAND_CARD_WIDTH;
-  const handFanMaxAngleRad = (FAN_SPREAD_DEG / 2) * (Math.PI / 180);
-  const handFanExtraWidth = hand.length > 1 ? HAND_CARD_HEIGHT * Math.sin(handFanMaxAngleRad) : 0;
-  const handScale = isMobile
-    ? Math.min(0.85, (windowSize.width - 16) / (handTotalWidth + handFanExtraWidth))
-    : 1;
 
   const handleCardClick = (index: number) => {
     if (viewState === 'field') return; // hand cards are non-interactive once zoomed to the board
@@ -1269,13 +1306,15 @@ export default function App() {
                 key={card.id}
                 ref={(el) => { handCardRefs.current[card.id] = el; }}
                 className={`w-56 h-80 shrink-0 bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-xl cursor-pointer flex flex-col p-2 relative group border-2 border-[#5c4a30] ${viewState === 'field' ? 'pointer-events-none' : 'pointer-events-auto'}`}
-                initial={{
-                  opacity: 0,
-                  x: windowSize.width / 2,
-                  y: 200,
-                  scale: 0.5,
-                  rotateZ: 45
-                }}
+                // A card that just flew in off the deck (see drawingCards/justDrawnIdsRef)
+                // mounts already sitting at its resting fan spot instead of playing this
+                // generic "dealt in from off-screen" slide — that overlay already WAS this
+                // card's arrival; replaying a second, unrelated entrance on top of it is
+                // exactly what read as two independent cards instead of one continuous one.
+                initial={justDrawnIdsRef.current.has(card.id)
+                  ? { opacity: 1, x: 0, y: getFanLift(i), scale: 1, rotateZ: getFanRotation(i) }
+                  : { opacity: 0, x: windowSize.width / 2, y: 200, scale: 0.5, rotateZ: 45 }
+                }
                 style={{
                   transformOrigin: 'bottom center',
                   marginLeft: i === 0 ? 0 : HAND_CARD_STEP - HAND_CARD_WIDTH,
