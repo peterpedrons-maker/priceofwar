@@ -232,6 +232,63 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
   );
 };
 
+const InstallPrompt = ({
+  kind, onInstall, onDismiss
+}: {
+  kind: 'native' | 'ios', onInstall: () => void, onDismiss: () => void
+}) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/80 pointer-events-auto"
+  >
+    <motion.div
+      initial={{ scale: 0.9, y: 20 }}
+      animate={{ scale: 1, y: 0 }}
+      exit={{ scale: 0.9, y: 20 }}
+      className="w-full max-w-xs bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-2xl border-2 border-[#5c4a30] shadow-2xl p-6 flex flex-col items-center gap-4 text-center"
+      style={{ boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.45), 0 10px 40px rgba(0,0,0,0.6)' }}
+    >
+      <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-[#5c4a30] shadow-lg shrink-0">
+        <img src={`${import.meta.env.BASE_URL}icon-192.png`} alt="" className="w-full h-full object-cover" />
+      </div>
+      <h2 className="text-lg font-black uppercase tracking-wide text-[#2a2117]">Instale o Price of War</h2>
+      {kind === 'native' ? (
+        <>
+          <p className="text-sm text-[#4a3b2c]">Jogue em tela cheia, sem as barras do navegador. Instale o app no seu aparelho.</p>
+          <div className="flex gap-3 w-full">
+            <button
+              onClick={onDismiss}
+              className="flex-1 px-4 py-2 rounded-full border-2 border-[#5c4a30] text-[#4a3b2c] font-bold text-sm hover:bg-black/5 transition-colors"
+            >
+              Agora não
+            </button>
+            <button
+              onClick={onInstall}
+              className="flex-1 px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm shadow-lg transition-colors"
+            >
+              Instalar
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="text-sm text-[#4a3b2c]">
+            Toque em <strong>Compartilhar</strong> e depois em <strong>"Adicionar à Tela de Início"</strong> para jogar em tela cheia, sem as barras do navegador.
+          </p>
+          <button
+            onClick={onDismiss}
+            className="px-6 py-2 rounded-full border-2 border-[#5c4a30] text-[#4a3b2c] font-bold text-sm hover:bg-black/5 transition-colors"
+          >
+            Entendi
+          </button>
+        </>
+      )}
+    </motion.div>
+  </motion.div>
+);
+
 export default function App() {
   const [gameMode, setGameMode] = useState<string | null>(null);
   const [viewState, setViewState] = useState<'hand' | 'field' | 'draw'>('hand');
@@ -256,6 +313,53 @@ export default function App() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [gameOverWinner, setGameOverWinner] = useState<'player' | 'npc' | null>(null);
+
+  // Prompt to install the game as an app (standalone, no browser chrome) — since it's
+  // played almost entirely on phones, that extra screen space matters. Shown every time
+  // the game is opened in a regular browser tab (never persisted as "don't show again").
+  const [installPromptKind, setInstallPromptKind] = useState<'native' | 'ios' | null>(null);
+  const deferredInstallPromptRef = useRef<any>(null);
+
+  useEffect(() => {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || (window.navigator as any).standalone === true;
+    if (isStandalone) return;
+
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    if (isIOS) {
+      // iOS Safari has no beforeinstallprompt API — there's nothing to defer, so show
+      // manual "Add to Home Screen" instructions right away.
+      setInstallPromptKind('ios');
+      return;
+    }
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      deferredInstallPromptRef.current = e;
+      setInstallPromptKind('native');
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    const handleAppInstalled = () => {
+      deferredInstallPromptRef.current = null;
+      setInstallPromptKind(null);
+    };
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    const promptEvent = deferredInstallPromptRef.current;
+    if (!promptEvent) return;
+    promptEvent.prompt();
+    await promptEvent.userChoice;
+    deferredInstallPromptRef.current = null;
+    setInstallPromptKind(null);
+  };
 
   // Flight animation for a card being played from hand onto a board slot: computed from real
   // on-screen positions (getBoundingClientRect), since the hand sits in a flat layer while the
@@ -442,6 +546,15 @@ export default function App() {
     return (
       <div className="relative w-full h-dvh bg-zinc-950 text-white">
         <MainMenu onSelectMode={startGame} />
+        <AnimatePresence>
+          {installPromptKind && (
+            <InstallPrompt
+              kind={installPromptKind}
+              onInstall={handleInstallClick}
+              onDismiss={() => setInstallPromptKind(null)}
+            />
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -1396,6 +1509,17 @@ export default function App() {
           >
             {toastMessage}
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Install-as-app prompt */}
+      <AnimatePresence>
+        {installPromptKind && (
+          <InstallPrompt
+            kind={installPromptKind}
+            onInstall={handleInstallClick}
+            onDismiss={() => setInstallPromptKind(null)}
+          />
         )}
       </AnimatePresence>
 
