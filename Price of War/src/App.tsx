@@ -3,6 +3,8 @@ import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/re
 import { Info, X, Sword, Zap, Users, Library } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
 
+export type CardType = 'Infantaria' | 'Cavalaria' | 'Arqueiro' | 'Artilharia' | 'General' | 'Relíquia' | 'Terreno' | 'Tática';
+
 export type CardData = {
   id: string;
   name: string;
@@ -11,7 +13,36 @@ export type CardData = {
   cost: number;
   art: string;
   effect: string;
+  cardType?: CardType;
   isDestroyed?: boolean;
+};
+
+// Slot layout per side (13 slots):
+//   0-4  = Vanguarda (frontline, 5 columns)
+//   5-9  = Retaguarda (backline, 5 columns)
+//   10   = slot especial de Relíquia (ao lado do General)
+//   11   = slot especial de Terreno (ao lado do General)
+//   12   = General (fixo, colocado no início da partida — não vem da mão)
+const GENERAL_PLAYER: CardData = {
+  id: 'general_player',
+  name: 'Comandante Aldric',
+  atk: 0,
+  hp: 20,
+  cost: 0,
+  art: '',
+  effect: 'O comandante do seu exército. Se ele cair em batalha, você perde a guerra.',
+  cardType: 'General',
+};
+
+const GENERAL_NPC: CardData = {
+  id: 'general_npc',
+  name: 'Comandante Inimigo',
+  atk: 0,
+  hp: 20,
+  cost: 0,
+  art: '',
+  effect: 'O comandante do exército inimigo. Derrote-o para vencer a guerra.',
+  cardType: 'General',
 };
 
 const SlashEffect = () => (
@@ -87,11 +118,14 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
 );
 
 const MOCK_DECK: CardData[] = [
-  { id: 'c1', name: 'Crimson Dragon', atk: 6, hp: 5, cost: 5, art: '', effect: 'Flying. Deals double damage to players.' },
-  { id: 'c2', name: 'Iron Knight', atk: 3, hp: 6, cost: 3, art: '', effect: 'Taunt. Protects adjacent allies.' },
-  { id: 'c3', name: 'Arcane Mage', atk: 4, hp: 2, cost: 4, art: '', effect: 'Spell Damage +2. Battlecry: Draw a card.' },
-  { id: 'c4', name: 'Forest Goblin', atk: 2, hp: 1, cost: 1, art: '', effect: 'Charge. Can attack immediately.' },
-  { id: 'c5', name: 'Stone Golem', atk: 4, hp: 8, cost: 6, art: '', effect: 'Cannot attack unless provoked.' },
+  { id: 'c1', name: 'Crimson Dragon', atk: 6, hp: 5, cost: 5, art: '', effect: 'Flying. Deals double damage to players.', cardType: 'Cavalaria' },
+  { id: 'c2', name: 'Iron Knight', atk: 3, hp: 6, cost: 3, art: '', effect: 'Taunt. Protects adjacent allies.', cardType: 'Infantaria' },
+  { id: 'c3', name: 'Arcane Mage', atk: 4, hp: 2, cost: 4, art: '', effect: 'Spell Damage +2. Battlecry: Draw a card.', cardType: 'Artilharia' },
+  { id: 'c4', name: 'Forest Goblin', atk: 2, hp: 1, cost: 1, art: '', effect: 'Charge. Can attack immediately.', cardType: 'Infantaria' },
+  { id: 'c5', name: 'Stone Golem', atk: 4, hp: 8, cost: 6, art: '', effect: 'Cannot attack unless provoked.', cardType: 'Infantaria' },
+  { id: 'c6', name: 'Arqueiro Élfico', atk: 3, hp: 2, cost: 2, art: '', effect: 'Ataca à distância a partir da Retaguarda.', cardType: 'Arqueiro' },
+  { id: 'c7', name: 'Relicário Sagrado', atk: 0, hp: 3, cost: 3, art: '', effect: 'Relíquia. Ocupa o slot especial ao lado do General.', cardType: 'Relíquia' },
+  { id: 'c8', name: 'Trincheira', atk: 0, hp: 5, cost: 2, art: '', effect: 'Terreno. Ocupa o slot especial ao lado do General.', cardType: 'Terreno' },
 ];
 
 const generateHand = (count: number) => {
@@ -173,22 +207,21 @@ export default function App() {
   const [currentTurn, setCurrentTurn] = useState<'player' | 'npc'>('player');
   const [turnNumber, setTurnNumber] = useState(1);
 
-  const [playerHp, setPlayerHp] = useState(30);
-  const [npcHp, setNpcHp] = useState(30);
   const [playerMana, setPlayerMana] = useState(10);
   const [npcMana, setNpcMana] = useState(10);
 
   const [hand, setHand] = useState<CardData[]>([]);
-  const [playerSlots, setPlayerSlots] = useState<(CardData | null)[]>(Array(12).fill(null));
-  const [npcSlots, setNpcSlots] = useState<(CardData | null)[]>(Array(12).fill(null));
+  const [playerSlots, setPlayerSlots] = useState<(CardData | null)[]>(Array(13).fill(null));
+  const [npcSlots, setNpcSlots] = useState<(CardData | null)[]>(Array(13).fill(null));
 
   const [selectedAttackerIndex, setSelectedAttackerIndex] = useState<number | null>(null);
   const [detailedCard, setDetailedCard] = useState<CardData | null>(null);
 
   const [isImpacting, setIsImpacting] = useState(false);
-  const [attackAnim, setAttackAnim] = useState<{ attackerIndex: number, targetIndex: number | 'avatar', isPlayerAttacking: boolean } | null>(null);
+  const [attackAnim, setAttackAnim] = useState<{ attackerIndex: number, targetIndex: number, isPlayerAttacking: boolean } | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [gameOverWinner, setGameOverWinner] = useState<'player' | 'npc' | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -201,16 +234,39 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  useEffect(() => {
-    // Initial draw
+  const resetGame = () => {
+    setGameOverWinner(null);
+    setCurrentTurn('player');
+    setTurnNumber(1);
+    setPlayerMana(10);
+    setNpcMana(10);
+    setSelectedCardIndex(null);
+    setSelectedAttackerIndex(null);
+    setViewState('hand');
+
     setHand(generateHand(5));
-    
+
+    // Place each side's General in their fixed slot (12)
+    const mockPlayerSlots = Array(13).fill(null);
+    mockPlayerSlots[12] = GENERAL_PLAYER;
+    setPlayerSlots(mockPlayerSlots);
+
     // Mock NPC field
-    const mockNpcSlots = Array(12).fill(null);
+    const mockNpcSlots = Array(13).fill(null);
     mockNpcSlots[6] = MOCK_DECK[1]; // Iron Knight
     mockNpcSlots[8] = MOCK_DECK[3]; // Forest Goblin
+    mockNpcSlots[12] = GENERAL_NPC;
     setNpcSlots(mockNpcSlots);
+  };
+
+  useEffect(() => {
+    resetGame();
   }, []);
+
+  const startGame = (mode: string) => {
+    resetGame();
+    setGameMode(mode);
+  };
 
   useEffect(() => {
     if (currentTurn === 'player') {
@@ -238,7 +294,7 @@ export default function App() {
   }, [currentTurn, turnNumber]);
 
   useEffect(() => {
-    if (currentTurn === 'npc' && gameMode === 'Quick Match' && !isAnimating) {
+    if (currentTurn === 'npc' && gameMode === 'Quick Match' && !isAnimating && !gameOverWinner) {
       const runAiTurn = async () => {
         setIsAnimating(true);
         const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, hand);
@@ -246,10 +302,12 @@ export default function App() {
         let currentNpcSlots = [...npcSlots];
         let currentPlayerSlots = [...playerSlots];
         let currentNpcMana = npcMana;
-        let currentPlayerHp = playerHp;
+        let playerGeneralFell = false;
 
         for (const action of actions) {
           if (action.type === 'play_card') {
+            // General (12) is fixed at game start; Relíquia/Terreno slots (10/11) are off-limits to the AI's generic minions
+            if (action.slotIndex >= 10) continue;
             currentNpcSlots[action.slotIndex] = action.card;
             currentNpcMana -= action.card.cost;
             setNpcSlots([...currentNpcSlots]);
@@ -258,7 +316,7 @@ export default function App() {
           } else if (action.type === 'attack') {
             setAttackAnim({ attackerIndex: action.attackerSlot, targetIndex: action.targetSlot, isPlayerAttacking: false });
             await new Promise(resolve => setTimeout(resolve, 300));
-            
+
             setIsImpacting(true);
             await new Promise(resolve => setTimeout(resolve, 200));
             setIsImpacting(false);
@@ -268,36 +326,36 @@ export default function App() {
 
             let hasDestroyed = false;
 
-            if (action.targetSlot === 'avatar') {
-              currentPlayerHp = Math.max(0, currentPlayerHp - attacker.atk);
-              setPlayerHp(currentPlayerHp);
-            } else {
-              const defender = currentPlayerSlots[action.targetSlot];
-              if (defender) {
-                const updatedAttacker = { ...attacker, hp: attacker.hp - defender.atk };
-                const updatedDefender = { ...defender, hp: defender.hp - attacker.atk };
-                
-                if (updatedAttacker.hp <= 0) {
-                  currentNpcSlots[action.attackerSlot] = { ...updatedAttacker, isDestroyed: true };
-                  hasDestroyed = true;
-                } else {
-                  currentNpcSlots[action.attackerSlot] = updatedAttacker;
-                }
+            const defender = currentPlayerSlots[action.targetSlot];
+            if (defender) {
+              const updatedAttacker = { ...attacker, hp: attacker.hp - defender.atk };
+              const updatedDefender = { ...defender, hp: defender.hp - attacker.atk };
 
-                if (updatedDefender.hp <= 0) {
-                  currentPlayerSlots[action.targetSlot] = { ...updatedDefender, isDestroyed: true };
-                  hasDestroyed = true;
-                } else {
-                  currentPlayerSlots[action.targetSlot] = updatedDefender;
-                }
-                
-                setNpcSlots([...currentNpcSlots]);
-                setPlayerSlots([...currentPlayerSlots]);
+              if (updatedAttacker.hp <= 0) {
+                currentNpcSlots[action.attackerSlot] = { ...updatedAttacker, isDestroyed: true };
+                hasDestroyed = true;
+              } else {
+                currentNpcSlots[action.attackerSlot] = updatedAttacker;
               }
+
+              if (updatedDefender.hp <= 0) {
+                currentPlayerSlots[action.targetSlot] = { ...updatedDefender, isDestroyed: true };
+                hasDestroyed = true;
+                if (updatedDefender.cardType === 'General') {
+                  playerGeneralFell = true;
+                }
+              } else {
+                currentPlayerSlots[action.targetSlot] = updatedDefender;
+              }
+
+              setNpcSlots([...currentNpcSlots]);
+              setPlayerSlots([...currentPlayerSlots]);
             }
-            
+
             setAttackAnim(null);
-            
+
+            if (playerGeneralFell) break;
+
             if (hasDestroyed) {
               await new Promise(resolve => setTimeout(resolve, 1000));
               currentNpcSlots = currentNpcSlots.map(c => c?.isDestroyed ? null : c);
@@ -309,7 +367,13 @@ export default function App() {
             }
           }
         }
-        
+
+        if (playerGeneralFell) {
+          setGameOverWinner('npc');
+          setIsAnimating(false);
+          return;
+        }
+
         setCurrentTurn('player');
         setTurnNumber(prev => prev + 1);
         setIsAnimating(false);
@@ -318,20 +382,22 @@ export default function App() {
       const timer = setTimeout(runAiTurn, 1000);
       return () => clearTimeout(timer);
     }
-  }, [currentTurn, gameMode]);
+  }, [currentTurn, gameMode, gameOverWinner]);
 
   if (!gameMode) {
     return (
-      <div className="relative w-full h-screen bg-zinc-950 text-white">
-        <MainMenu onSelectMode={setGameMode} />
+      <div className="relative w-full h-dvh bg-zinc-950 text-white">
+        <MainMenu onSelectMode={startGame} />
       </div>
     );
   }
 
   const isMobile = windowSize.width < 768;
-  const boardScale = isMobile ? Math.min(windowSize.width / 1100, windowSize.height / 1200) * 0.9 : Math.min(windowSize.width / 1600, 1);
-  const handScale = isMobile 
-    ? Math.min(0.85, (windowSize.width / (Math.max(4, hand.length) * 230)) * 0.95) 
+  // Board container is a fixed 1000x1400px canvas (see the 3D Board div below) that gets
+  // scaled down to fit the real viewport — these divisors must match those exact dimensions.
+  const boardScale = isMobile ? Math.min(windowSize.width / 1000, windowSize.height / 1400) * 0.9 : Math.min(windowSize.width / 1600, 1);
+  const handScale = isMobile
+    ? Math.min(0.85, Math.max(0.5, (windowSize.width - 20) / (Math.max(4, hand.length) * 230)))
     : 1;
 
   const handleCardClick = (index: number) => {
@@ -348,9 +414,25 @@ export default function App() {
   };
 
   const handleSlotClick = (slotIndex: number) => {
+    if (gameOverWinner) return;
     if (selectedCardIndex !== null && !playerSlots[slotIndex]) {
       const cardToPlay = hand[selectedCardIndex];
-      
+
+      // Slot 12 is the fixed General slot — never played from hand.
+      if (slotIndex === 12) {
+        showToast("O General não pode ser substituído!");
+        return;
+      }
+      // Slots 10/11 are the special slots beside the General — Relíquia/Terreno only.
+      if ((slotIndex === 10 || slotIndex === 11) && cardToPlay.cardType !== 'Relíquia' && cardToPlay.cardType !== 'Terreno') {
+        showToast("Esse slot é só para Relíquia ou Terreno!");
+        return;
+      }
+      if (slotIndex <= 9 && (cardToPlay.cardType === 'Relíquia' || cardToPlay.cardType === 'Terreno')) {
+        showToast("Relíquia/Terreno só pode ir no slot especial ao lado do General!");
+        return;
+      }
+
       if (playerMana >= cardToPlay.cost) {
         setPlayerMana(prev => prev - cardToPlay.cost);
         
@@ -381,6 +463,7 @@ export default function App() {
   };
 
   const handleNpcSlotClick = async (slotIndex: number) => {
+    if (gameOverWinner) return;
     if (selectedAttackerIndex !== null && npcSlots[slotIndex] && !isAnimating) {
       setIsAnimating(true);
       setAttackAnim({ attackerIndex: selectedAttackerIndex, targetIndex: slotIndex, isPlayerAttacking: true });
@@ -410,44 +493,31 @@ export default function App() {
            newPlayerSlots[selectedAttackerIndex] = updatedAttacker;
         }
 
+        let npcGeneralFell = false;
         if (updatedDefender.hp <= 0) {
            newNpcSlots[slotIndex] = { ...updatedDefender, isDestroyed: true };
            hasDestroyed = true;
+           if (updatedDefender.cardType === 'General') npcGeneralFell = true;
         } else {
            newNpcSlots[slotIndex] = updatedDefender;
         }
-        
+
         setPlayerSlots(newPlayerSlots);
         setNpcSlots(newNpcSlots);
         setSelectedAttackerIndex(null);
         setAttackAnim(null);
+
+        if (npcGeneralFell) {
+          setGameOverWinner('player');
+          setIsAnimating(false);
+          return;
+        }
 
         if (hasDestroyed) {
           await new Promise(resolve => setTimeout(resolve, 1000));
           setPlayerSlots(prev => prev.map(c => c?.isDestroyed ? null : c));
           setNpcSlots(prev => prev.map(c => c?.isDestroyed ? null : c));
         }
-      }
-      setIsAnimating(false);
-    }
-  };
-
-  const handleNpcAvatarClick = async () => {
-    if (selectedAttackerIndex !== null && !isAnimating) {
-      setIsAnimating(true);
-      setAttackAnim({ attackerIndex: selectedAttackerIndex, targetIndex: 'avatar', isPlayerAttacking: true });
-      
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      setIsImpacting(true);
-      await new Promise(resolve => setTimeout(resolve, 200));
-      setIsImpacting(false);
-      
-      const attacker = playerSlots[selectedAttackerIndex];
-      if (attacker) {
-        setNpcHp(prev => Math.max(0, prev - attacker.atk));
-        setSelectedAttackerIndex(null);
-        setAttackAnim(null);
       }
       setIsAnimating(false);
     }
@@ -516,7 +586,7 @@ export default function App() {
 
   return (
     <div 
-      className="relative w-full h-screen bg-zinc-950 overflow-hidden flex flex-col items-center justify-center touch-none"
+      className="relative w-full h-dvh bg-zinc-950 overflow-hidden flex flex-col items-center justify-center touch-none"
       style={{ perspective: '1200px' }}
       onClick={handleBackgroundClick}
     >
@@ -547,30 +617,38 @@ export default function App() {
 
         {/* NPC Field */}
         <div className="flex flex-col gap-6 justify-start pt-4">
-          {/* Row 3 NPC (Back Row) */}
+          {/* General row (fixed) + Relíquia/Terreno slots */}
           <div className="flex justify-center gap-16 items-center">
-            <CardSlot 
-              card={npcSlots[10]} 
-              onClick={() => handleNpcSlotClick(10)} 
-              onInfoClick={setDetailedCard} 
+            <CardSlot
+              card={npcSlots[10]}
+              onClick={() => handleNpcSlotClick(10)}
+              onInfoClick={setDetailedCard}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 10}
               attackDirection="down"
             />
-            <div onClick={(e) => { e.stopPropagation(); handleNpcAvatarClick(); }} className="cursor-pointer pointer-events-auto relative">
-              <Avatar name="NPC" isActive={currentTurn === 'npc'} hp={npcHp} mana={npcMana} isMobile={isMobile} />
-              {isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 'avatar' && <SlashEffect />}
+            <div className="relative">
+              <CardSlot
+                card={npcSlots[12]}
+                onClick={() => handleNpcSlotClick(12)}
+                onInfoClick={setDetailedCard}
+                isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
+                isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 12}
+                attackDirection="down"
+              />
+              <ManaBadge value={npcMana} className="absolute -top-3 -left-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
             </div>
-            <CardSlot 
-              card={npcSlots[11]} 
-              onClick={() => handleNpcSlotClick(11)} 
-              onInfoClick={setDetailedCard} 
+            <CardSlot
+              card={npcSlots[11]}
+              onClick={() => handleNpcSlotClick(11)}
+              onInfoClick={setDetailedCard}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 11}
               attackDirection="down"
             />
           </div>
-          {/* Row 2 NPC (Middle Row) */}
+          {/* Retaguarda NPC (Backline) */}
+          <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mb-3">Retaguarda</div>
           <div className="flex justify-center gap-6">
             {[5, 6, 7, 8, 9].map((i) => (
               <CardSlot 
@@ -584,14 +662,15 @@ export default function App() {
               />
             ))}
           </div>
-          {/* Row 1 NPC (Front Row) */}
+          {/* Vanguarda NPC (Frontline) */}
+          <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mb-3">Vanguarda</div>
           <div className="flex justify-center gap-6">
             {[0, 1, 2, 3, 4].map((i) => (
-              <CardSlot 
-                key={i} 
-                card={npcSlots[i]} 
-                onClick={() => handleNpcSlotClick(i)} 
-                onInfoClick={setDetailedCard} 
+              <CardSlot
+                key={i}
+                card={npcSlots[i]}
+                onClick={() => handleNpcSlotClick(i)}
+                onInfoClick={setDetailedCard}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
                 attackDirection="down"
@@ -602,56 +681,66 @@ export default function App() {
 
         {/* Player Field */}
         <div className="flex flex-col gap-6 justify-end pb-4 pointer-events-auto">
-          {/* Row 1 Player (Front Row) */}
+          {/* Vanguarda Player (Frontline) */}
           <div className="flex justify-center gap-6">
             {[0, 1, 2, 3, 4].map((i) => (
-              <CardSlot 
-                key={i} 
-                card={playerSlots[i]} 
-                onClick={() => handleSlotClick(i)} 
-                isSelected={selectedAttackerIndex === i} 
-                onInfoClick={setDetailedCard} 
+              <CardSlot
+                key={i}
+                card={playerSlots[i]}
+                onClick={() => handleSlotClick(i)}
+                isSelected={selectedAttackerIndex === i}
+                onInfoClick={setDetailedCard}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
                 attackDirection="up"
               />
             ))}
           </div>
-          {/* Row 2 Player (Middle Row) */}
+          <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mt-3">Vanguarda</div>
+          {/* Retaguarda Player (Backline) */}
           <div className="flex justify-center gap-6">
             {[5, 6, 7, 8, 9].map((i) => (
-              <CardSlot 
-                key={i} 
-                card={playerSlots[i]} 
-                onClick={() => handleSlotClick(i)} 
-                isSelected={selectedAttackerIndex === i} 
-                onInfoClick={setDetailedCard} 
+              <CardSlot
+                key={i}
+                card={playerSlots[i]}
+                onClick={() => handleSlotClick(i)}
+                isSelected={selectedAttackerIndex === i}
+                onInfoClick={setDetailedCard}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
                 attackDirection="up"
               />
             ))}
           </div>
-          {/* Row 3 Player (Back Row) */}
+          <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mt-3">Retaguarda</div>
+          {/* General row (fixed) + Relíquia/Terreno slots */}
           <div className="flex justify-center gap-16 items-center">
-            <CardSlot 
-              card={playerSlots[10]} 
-              onClick={() => handleSlotClick(10)} 
-              isSelected={selectedAttackerIndex === 10} 
-              onInfoClick={setDetailedCard} 
+            <CardSlot
+              card={playerSlots[10]}
+              onClick={() => handleSlotClick(10)}
+              isSelected={selectedAttackerIndex === 10}
+              onInfoClick={setDetailedCard}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 10}
               attackDirection="up"
             />
             <div className="relative">
-              <Avatar name="PLAYER" isPlayer isActive={currentTurn === 'player'} hp={playerHp} mana={playerMana} isMobile={isMobile} />
-              {isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 'avatar' && <SlashEffect />}
+              <CardSlot
+                card={playerSlots[12]}
+                onClick={() => handleSlotClick(12)}
+                isSelected={selectedAttackerIndex === 12}
+                onInfoClick={setDetailedCard}
+                isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
+                isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 12}
+                attackDirection="up"
+              />
+              <ManaBadge value={playerMana} className="absolute -top-3 -left-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
             </div>
-            <CardSlot 
-              card={playerSlots[11]} 
-              onClick={() => handleSlotClick(11)} 
-              isSelected={selectedAttackerIndex === 11} 
-              onInfoClick={setDetailedCard} 
+            <CardSlot
+              card={playerSlots[11]}
+              onClick={() => handleSlotClick(11)}
+              isSelected={selectedAttackerIndex === 11}
+              onInfoClick={setDetailedCard}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 11}
               attackDirection="up"
@@ -931,6 +1020,30 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Game Over Overlay — the General has fallen */}
+      <AnimatePresence>
+        {gameOverWinner && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-[300] flex flex-col items-center justify-center gap-6 bg-black/90 pointer-events-auto"
+          >
+            <h1 className={`text-4xl md:text-6xl font-black uppercase tracking-widest drop-shadow-[0_0_20px_rgba(0,0,0,0.8)] ${gameOverWinner === 'player' ? 'text-emerald-400' : 'text-red-500'}`}>
+              {gameOverWinner === 'player' ? 'Vitória!' : 'Derrota!'}
+            </h1>
+            <p className="text-zinc-300 text-sm md:text-base text-center max-w-xs">
+              {gameOverWinner === 'player' ? 'O General inimigo caiu em batalha.' : 'Seu General caiu em batalha.'}
+            </p>
+            <button
+              onClick={() => setGameMode(null)}
+              className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-full font-black uppercase tracking-widest text-white shadow-[0_0_30px_rgba(99,102,241,0.6)] transition-colors"
+            >
+              Voltar ao Menu
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Detailed Card Modal */}
       <AnimatePresence>
         {detailedCard && (
@@ -1118,24 +1231,3 @@ const CardSlot = ({
   );
 };
 
-const Avatar = ({ name, isPlayer = false, isActive = false, hp = 30, mana = 10, isMobile = false }: { name: string, isPlayer?: boolean, isActive?: boolean, hp?: number, mana?: number, isMobile?: boolean, key?: React.Key }) => (
-  <motion.div 
-    className={`relative flex flex-col items-center justify-center bg-gradient-to-b from-zinc-800 to-zinc-950 border-4 ${isActive ? (isPlayer ? 'border-blue-400 shadow-[0_0_40px_rgba(59,130,246,0.8)]' : 'border-red-500 shadow-[0_0_40px_rgba(239,68,68,0.8)]') : 'border-zinc-700 shadow-2xl'} rounded-t-full rounded-b-2xl ${isMobile ? 'w-24 h-32' : 'w-36 h-48'} transition-all`}
-  >
-    {/* Portrait Area */}
-    <div className="absolute inset-2 bg-gradient-to-br from-zinc-700 to-zinc-900 rounded-t-full rounded-b-xl overflow-hidden flex items-center justify-center border-2 border-zinc-600/50 shadow-inner">
-      <span className={`${isPlayer ? 'text-blue-300' : 'text-red-300'} font-black tracking-widest text-sm md:text-xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] uppercase text-center leading-tight`}>{name}</span>
-    </div>
-    
-    {/* Name Plate */}
-    <div className="absolute -bottom-3 bg-gradient-to-b from-zinc-800 to-black border-2 border-zinc-500 px-4 py-1 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.8)] z-10">
-      <span className="text-white font-black tracking-widest text-[8px] md:text-[10px] uppercase">{isPlayer ? 'HERÓI' : 'INIMIGO'}</span>
-    </div>
-
-    {/* HP Badge */}
-    <HpBadge value={hp} className="absolute -bottom-6 -right-6 w-12 h-12 md:w-16 md:h-16 text-xl md:text-3xl z-20 shadow-[0_0_15px_rgba(239,68,68,0.6)]" />
-    
-    {/* Mana Badge */}
-    <ManaBadge value={mana} className="absolute -bottom-6 -left-6 w-12 h-12 md:w-16 md:h-16 text-xl md:text-3xl z-20 shadow-[0_0_15px_rgba(59,130,246,0.6)]" />
-  </motion.div>
-);
