@@ -417,16 +417,22 @@ export default function App() {
     : 1;
 
   const handleCardClick = (index: number) => {
+    if (viewState === 'field') return; // hand cards are non-interactive once zoomed to the board
     if (selectedCardIndex === index) {
-      // Deselect and return to hand view
+      // Tapped the already-previewed card again — cancel the preview
       setSelectedCardIndex(null);
-      setViewState('hand');
     } else {
-      // Select and zoom out to field view
+      // First tap: bring the card to the front of the overlapping fan and show
+      // the "Jogar Carta" button, without leaving the hand view yet. This lets
+      // the player read a card that's normally covered by the ones in front of it.
       setSelectedCardIndex(index);
-      setViewState('field');
       setSelectedAttackerIndex(null);
     }
+  };
+
+  const handlePlayCardButtonClick = () => {
+    // Only now do we zoom out to the board so the player can pick a slot.
+    setViewState('field');
   };
 
   const handleSlotClick = (slotIndex: number) => {
@@ -543,6 +549,9 @@ export default function App() {
     if (viewState === 'field') {
       setSelectedCardIndex(null);
       setViewState('hand');
+    } else if (selectedCardIndex !== null) {
+      // Tapped away while a card was only previewed (Jogar Carta not pressed yet) — cancel it
+      setSelectedCardIndex(null);
     }
   };
 
@@ -889,25 +898,29 @@ export default function App() {
                   marginLeft: i === 0 ? 0 : HAND_CARD_STEP - HAND_CARD_WIDTH,
                 }}
                 animate={{
-                  opacity: viewState === 'field' && selectedCardIndex !== i ? 0.4 : 1,
-                  x: selectedCardIndex === i ? getSelectedCardX(i) : 0,
+                  opacity: viewState === 'field'
+                    ? (selectedCardIndex === i ? 1 : 0.4)
+                    : (selectedCardIndex !== null && i > selectedCardIndex ? 0.3 : 1),
+                  x: selectedCardIndex === i && viewState === 'field' ? getSelectedCardX(i) : 0,
                   y: selectedCardIndex === i
-                    ? (isMobile ? 180 : -450)
+                    ? (viewState === 'field' ? (isMobile ? 180 : -450) : -40)
                     : (viewState === 'field' ? (isMobile ? 150 : 150) : getFanLift(i)),
                   scale: selectedCardIndex === i
-                    ? (isMobile ? 0.6 : 1.8)
+                    ? (viewState === 'field' ? (isMobile ? 0.6 : 1.8) : 1.1)
                     : (viewState === 'field' ? 0.6 : 1),
                   rotateZ: selectedCardIndex === i || viewState === 'field' ? 0 : getFanRotation(i),
-                  zIndex: selectedCardIndex === i ? 100 : i + 1,
+                  zIndex: selectedCardIndex === i ? 150 : i + 1,
                   boxShadow: selectedCardIndex === i
                     ? "0 0 120px rgba(212, 175, 55, 0.95)"
                     : "0 10px 30px rgba(0,0,0,0.5)"
                 }}
                 whileHover={{
-                  y: selectedCardIndex === i ? (isMobile ? 60 : -220) : viewState === 'field' ? 120 : -20,
-                  scale: selectedCardIndex === i ? (isMobile ? 0.65 : 1.8) : 1.05,
-                  boxShadow: selectedCardIndex === i 
-                    ? "0 0 80px rgba(212, 175, 55, 0.8)" 
+                  y: selectedCardIndex === i
+                    ? (viewState === 'field' ? (isMobile ? 60 : -220) : -40)
+                    : viewState === 'field' ? 120 : -20,
+                  scale: selectedCardIndex === i ? (viewState === 'field' ? (isMobile ? 0.65 : 1.8) : 1.1) : 1.05,
+                  boxShadow: selectedCardIndex === i
+                    ? "0 0 80px rgba(212, 175, 55, 0.8)"
                     : "0 0 25px rgba(212, 175, 55, 0.5)"
                 }}
                 whileTap={{ scale: 0.95 }}
@@ -971,6 +984,22 @@ export default function App() {
                 {/* Selection Glow */}
                 {selectedCardIndex === i && (
                   <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(212,175,55,0.6)] rounded-xl border-2 border-[#d4af37] pointer-events-none" />
+                )}
+
+                {/* "Jogar Carta" menu — shown on first tap, before zooming to the board */}
+                {selectedCardIndex === i && viewState === 'hand' && (
+                  <motion.button
+                    initial={{ opacity: 0, y: 8, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.9 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePlayCardButtonClick();
+                    }}
+                    className="absolute -top-5 left-1/2 -translate-x-1/2 z-40 px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(16,185,129,0.7)] border-2 border-emerald-400 pointer-events-auto whitespace-nowrap"
+                  >
+                    Jogar Carta
+                  </motion.button>
                 )}
               </motion.div>
             ))}
