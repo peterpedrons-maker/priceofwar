@@ -593,8 +593,13 @@ export default function App() {
     setViewState('field');
   };
 
+  // True for the whole hand-off from "card selected" to "card landed on the board" — the
+  // camera pre-zoom, the flight itself, and the brief settle afterward. Used to ignore
+  // stray clicks that would otherwise cancel the card's selection mid-transition.
+  const isCardInFlightTransition = !!(preZoomSlot || flyingCard || cameraSettling);
+
   const handleSlotClick = (slotIndex: number, slotEl?: HTMLElement) => {
-    if (gameOverWinner) return;
+    if (gameOverWinner || isCardInFlightTransition) return;
     if (selectedCardIndex !== null && !playerSlots[slotIndex]) {
       const cardToPlay = hand[selectedCardIndex];
 
@@ -620,40 +625,54 @@ export default function App() {
 
       setPlayerMana(prev => prev - cardToPlay.cost);
 
-      // Capture the hand card's current position now, before it's removed from the DOM.
       const fromEl = handCardRefs.current[cardToPlay.id];
       const fromRect = fromEl?.getBoundingClientRect();
 
-      // Remove from hand right away...
-      const newHand = [...hand];
-      newHand.splice(selectedCardIndex, 1);
-      setHand(newHand);
-      setSelectedCardIndex(null);
-      setViewState('hand');
-
       if (fromRect && slotEl) {
-        // First, let the camera zoom/pan toward the slot and settle — only once it has
+        // Let the camera zoom/pan toward the slot and settle first — only once it has
         // stopped moving do we measure the slot's real on-screen position and start the
         // card's flight, so the landing spot doesn't drift out from under it mid-flight.
+        // Crucially, the card stays selected and visible in its floating preview spot for
+        // this whole hold — we don't touch the hand yet, so it never disappears.
         setPreZoomSlot({ slotIndex });
         setTimeout(() => {
+          // Re-measure the card's own rect too, right before handing off to the flying
+          // overlay, in case anything shifted during the hold.
+          const latestFromRect = fromEl.getBoundingClientRect();
           const toRect = slotEl.getBoundingClientRect();
           setPreZoomSlot(null);
           setFlyingCard({
             card: cardToPlay,
             slotIndex,
-            fromX: fromRect.left + fromRect.width / 2,
-            fromY: fromRect.top + fromRect.height / 2,
-            fromW: fromRect.width,
-            fromH: fromRect.height,
+            fromX: latestFromRect.left + latestFromRect.width / 2,
+            fromY: latestFromRect.top + latestFromRect.height / 2,
+            fromW: latestFromRect.width,
+            fromH: latestFromRect.height,
             toX: toRect.left + toRect.width / 2,
             toY: toRect.top + toRect.height / 2,
             toW: toRect.width,
             toH: toRect.height,
           });
+          // Only now remove the card from the hand and clear the selection — the flying
+          // overlay takes over in this exact same update, so there's no frame where the
+          // card isn't rendered anywhere.
+          setHand(prevHand => {
+            const idx = prevHand.findIndex(c => c.id === cardToPlay.id);
+            if (idx === -1) return prevHand;
+            const next = [...prevHand];
+            next.splice(idx, 1);
+            return next;
+          });
+          setSelectedCardIndex(null);
+          setViewState('hand');
         }, 520);
       } else {
         // Couldn't measure a position (shouldn't normally happen) — place instantly.
+        const newHand = [...hand];
+        newHand.splice(selectedCardIndex, 1);
+        setHand(newHand);
+        setSelectedCardIndex(null);
+        setViewState('hand');
         const newSlots = [...playerSlots];
         newSlots[slotIndex] = cardToPlay;
         setPlayerSlots(newSlots);
@@ -730,6 +749,7 @@ export default function App() {
   };
 
   const handleBackgroundClick = () => {
+    if (isCardInFlightTransition) return; // don't cancel a card mid hand-off to the board
     if (viewState === 'field') {
       setSelectedCardIndex(null);
       setViewState('hand');
@@ -893,6 +913,7 @@ export default function App() {
         transition={{ duration: 0.8, ease: [0.32, 0.72, 0, 1] }}
         onClick={(e) => {
           e.stopPropagation();
+          if (isCardInFlightTransition) return; // don't cancel a card mid hand-off to the board
           if (selectedCardIndex !== null) {
             setSelectedCardIndex(null);
             setViewState('hand');
@@ -1153,9 +1174,12 @@ export default function App() {
         animate={{
           scale: handScale,
           y: isMobile ? (viewState === 'field' ? 200 : 0) : (viewState === 'field' ? 220 : 0),
-          // Hidden while a card is flying to the board (and briefly after, while the camera
-          // settles) so the rest of the hand doesn't clutter the summon animation.
-          opacity: (preZoomSlot || flyingCard || cameraSettling) ? 0 : 1,
+          // Hidden once the card is actually flying to the board (and briefly after, while
+          // the camera settles) so the rest of the hand doesn't clutter the summon
+          // animation. NOT hidden during the camera's pre-zoom hold, though — the selected
+          // card is still sitting right here in its floating preview spot and must stay
+          // visible the whole time, with no gap before the flying overlay takes over.
+          opacity: (flyingCard || cameraSettling) ? 0 : 1,
         }}
         transition={{ opacity: { duration: 0.15 } }}
       >
@@ -1218,13 +1242,16 @@ export default function App() {
                   handleCardClick(i);
                 }}
               >
-                {/* Info Button */}
+                {/* Info Button — only actually clickable while still browsing the hand.
+                    Once past "Jogar Carta" it sits over the board (see the floating
+                    preview position), and pointer-events-auto here would otherwise keep
+                    intercepting taps meant for whatever board slot is underneath it. */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setDetailedCard(card);
                   }}
-                  className="absolute top-1 left-1 w-8 h-8 bg-blue-600/90 rounded-full border-2 border-blue-900 flex items-center justify-center shadow-md z-30 hover:bg-blue-500 transition-colors pointer-events-auto"
+                  className={`absolute top-1 left-1 w-8 h-8 bg-blue-600/90 rounded-full border-2 border-blue-900 flex items-center justify-center shadow-md z-30 hover:bg-blue-500 transition-colors ${viewState === 'field' ? 'pointer-events-none' : 'pointer-events-auto'}`}
                 >
                   <Info className="text-white w-5 h-5" />
                 </button>
@@ -1342,6 +1369,7 @@ export default function App() {
           }`}
           onClick={(e) => {
             e.stopPropagation();
+            if (isCardInFlightTransition) return; // don't cancel a card mid hand-off to the board
             setViewState(prev => prev === 'hand' ? 'field' : 'hand');
             setSelectedCardIndex(null);
           }}
@@ -1356,9 +1384,16 @@ export default function App() {
           with a bit of organic life, then drops in hard with an overshoot/settle impact bounce. */}
       <AnimatePresence>
         {flyingCard && (() => {
-          const halfW = flyingCard.fromW / 2;
-          const halfH = flyingCard.fromH / 2;
-          const finalScale = flyingCard.toW / flyingCard.fromW;
+          // Keep the box at the card's real intrinsic size (same as the hand card's own
+          // w-56 h-80) and do ALL resizing through the scale transform, exactly like the
+          // hand card does. Setting literal width/height to the small on-screen pixel
+          // size (as this used to) breaks the content's own layout — a min-h-[5rem] text
+          // box and full-size badges don't fit inside a ~100px-tall box, so everything
+          // overflowed and badges flew off far outside the card.
+          const HALF_W = HAND_CARD_WIDTH / 2;
+          const HALF_H = HAND_CARD_HEIGHT / 2;
+          const startScale = flyingCard.fromW / HAND_CARD_WIDTH;
+          const endScale = flyingCard.toW / HAND_CARD_WIDTH;
           const hoverScale = Math.min(3, Math.max(0.8, 190 / flyingCard.fromW));
           const hoverX = flyingCard.toX;
           const hoverY = flyingCard.toY - 70;
@@ -1367,26 +1402,29 @@ export default function App() {
           return (
             <motion.div
               initial={{
-                left: flyingCard.fromX - halfW,
-                top: flyingCard.fromY - halfH,
-                width: flyingCard.fromW,
-                height: flyingCard.fromH,
-                scale: 1,
+                left: flyingCard.fromX - HALF_W,
+                top: flyingCard.fromY - HALF_H,
+                width: HAND_CARD_WIDTH,
+                height: HAND_CARD_HEIGHT,
+                scale: startScale,
                 rotate: 0,
               }}
               animate={{
                 left: [
-                  flyingCard.fromX - halfW, hoverX - halfW, hoverX - halfW, hoverX - halfW,
-                  hoverX - halfW, flyingCard.toX - halfW, flyingCard.toX - halfW, flyingCard.toX - halfW,
+                  flyingCard.fromX - HALF_W, hoverX - HALF_W, hoverX - HALF_W, hoverX - HALF_W,
+                  hoverX - HALF_W, flyingCard.toX - HALF_W, flyingCard.toX - HALF_W, flyingCard.toX - HALF_W,
                 ],
                 top: [
-                  flyingCard.fromY - halfH, hoverY - halfH, hoverY - halfH, hoverY - halfH,
-                  dipY - halfH, flyingCard.toY - halfH, flyingCard.toY - halfH, flyingCard.toY - halfH,
+                  flyingCard.fromY - HALF_H, hoverY - HALF_H, hoverY - HALF_H, hoverY - HALF_H,
+                  dipY - HALF_H, flyingCard.toY - HALF_H, flyingCard.toY - HALF_H, flyingCard.toY - HALF_H,
                 ],
-                width: flyingCard.fromW,
-                height: flyingCard.fromH,
+                width: HAND_CARD_WIDTH,
+                height: HAND_CARD_HEIGHT,
                 // Hold, breathe, dip in anticipation, then slam down with an overshoot before settling.
-                scale: [1, hoverScale, hoverScale * 1.03, hoverScale * 0.94, hoverScale * 0.9, finalScale * 1.2, finalScale * 0.96, finalScale],
+                scale: [
+                  startScale, startScale * hoverScale, startScale * hoverScale * 1.03, startScale * hoverScale * 0.94,
+                  startScale * hoverScale * 0.9, endScale * 1.2, endScale * 0.96, endScale,
+                ],
                 rotate: [0, 0, 4, -3, 1, 2, -1, 0],
                 times,
               }}
@@ -1405,15 +1443,42 @@ export default function App() {
                 setFlyingCard(null);
                 setTimeout(() => setCameraSettling(null), 300);
               }}
-              style={{ position: 'fixed', zIndex: 500, transformOrigin: 'center center' }}
-              className="pointer-events-none bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-xl flex flex-col p-2 relative border-2 border-[#5c4a30] shadow-[0_0_40px_rgba(212,175,55,0.6)]"
+              style={{
+                position: 'fixed', zIndex: 500, transformOrigin: 'center center',
+                boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 40px rgba(212,175,55,0.6)',
+              }}
+              // Same frame, art, and layout as the hand card it came from — it should read
+              // as the exact same card the whole time, not switch to a simplified design.
+              className="pointer-events-none bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-xl flex flex-col p-2 relative border-2 border-[#5c4a30]"
             >
-              <div className="w-full bg-gradient-to-b from-black/75 to-black/60 border border-amber-100/25 rounded-lg flex items-center justify-center px-1 py-1.5 text-center">
-                <span className="text-[9px] font-bold text-white uppercase tracking-tighter leading-tight">{flyingCard.card.name}</span>
+              <div className="absolute top-1 left-1 w-8 h-8 bg-blue-600/90 rounded-full border-2 border-blue-900 flex items-center justify-center shadow-md z-30">
+                <Info className="text-white w-5 h-5" />
               </div>
-              <ManaBadge value={flyingCard.card.cost} className="absolute -top-4 -right-4 w-10 h-10 text-lg z-20" />
-              <AtkBadge value={flyingCard.card.atk} className="absolute -bottom-4 -left-4 w-10 h-10 text-lg z-20" />
-              <HpBadge value={flyingCard.card.hp} className="absolute -bottom-4 -right-4 w-10 h-10 text-lg z-20" />
+
+              {flyingCard.card.art ? (
+                <img src={flyingCard.card.art} alt={flyingCard.card.name} className="absolute inset-0 w-full h-full object-cover z-0 rounded-xl" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900 flex items-center justify-center z-0 rounded-xl">
+                  <div className="w-1/3 h-1/3 border border-zinc-500/40 rotate-45" />
+                </div>
+              )}
+
+              <div className="absolute inset-0 z-10 p-2 flex flex-col justify-between">
+                <div className="relative flex items-start justify-between w-full">
+                  <div className="flex-1 bg-gradient-to-b from-black/75 to-black/60 border border-amber-100/25 rounded-lg flex items-center px-3 py-1.5 shadow-sm mr-4">
+                    <span className="text-sm font-bold text-white uppercase tracking-tighter truncate drop-shadow-md">{flyingCard.card.name}</span>
+                  </div>
+                  <ManaBadge value={flyingCard.card.cost} className="absolute -top-4 -right-4 w-12 h-12 text-xl z-20 drop-shadow-md" />
+                </div>
+
+                <div className="relative w-full flex flex-col items-center">
+                  <div className="w-full bg-gradient-to-b from-black/60 to-black/75 border border-amber-100/25 rounded-lg p-3 shadow-sm flex items-center justify-center min-h-[5rem] mb-2">
+                    <p className="text-xs leading-snug text-white/90 font-medium text-center drop-shadow-md">{flyingCard.card.effect}</p>
+                  </div>
+                  <AtkBadge value={flyingCard.card.atk} className="absolute -bottom-4 -left-4 w-12 h-12 text-xl z-20 drop-shadow-md" />
+                  <HpBadge value={flyingCard.card.hp} className="absolute -bottom-4 -right-4 w-12 h-12 text-xl z-20 drop-shadow-md" />
+                </div>
+              </div>
             </motion.div>
           );
         })()}
