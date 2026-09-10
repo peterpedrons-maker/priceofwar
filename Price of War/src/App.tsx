@@ -241,6 +241,9 @@ export default function App() {
     fromX: number; fromY: number; fromW: number; fromH: number;
     toX: number; toY: number; toW: number; toH: number;
   } | null>(null);
+  // Holds the camera's zoomed-in focus for a brief moment after the card lands,
+  // so the placement reads clearly before the view eases back to normal.
+  const [cameraSettling, setCameraSettling] = useState<{ slotIndex: number } | null>(null);
   const handCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const showToast = (msg: string) => {
@@ -621,6 +624,24 @@ export default function App() {
       z: viewState === 'draw' ? 300 : (isMobile ? 50 : 50),
       scale: (viewState === 'draw' ? 1.1 : (isMobile ? 1.0 : 0.85)) * boardScale,
     };
+
+    // Camera follows a card being played, zooming in toward the slot it's headed for —
+    // a Yu-Gi-Oh Forbidden Memories-style summon camera — then eases back once it lands.
+    if (flyingCard || cameraSettling) {
+      const slot = (flyingCard ?? cameraSettling)!.slotIndex;
+      const col = slot <= 9 ? slot % 5 : 2; // 10/11/12 (Relíquia/Terreno/General) sit near center
+      const rowFocus = slot <= 4 ? 1 : slot <= 9 ? 0.55 : 0.2; // Vanguarda is farthest from the hand, General row is closest
+      const panX = (2 - col) * (isMobile ? 16 : 22);
+      const panY = rowFocus * (isMobile ? 90 : 65);
+      return {
+        ...baseAnim,
+        x: baseAnim.x + panX,
+        y: baseAnim.y - panY,
+        scale: baseAnim.scale * 1.15,
+        rotateX: baseAnim.rotateX - 8,
+        transition: { duration: 0.45, ease: "easeInOut" }
+      };
+    }
 
     if (attackAnim) {
       const isPlayer = attackAnim.isPlayerAttacking;
@@ -1126,7 +1147,10 @@ export default function App() {
                 next[flyingCard.slotIndex] = flyingCard.card;
                 return next;
               });
+              // Keep the camera's zoomed focus on the slot for a beat before easing back.
+              setCameraSettling({ slotIndex: flyingCard.slotIndex });
               setFlyingCard(null);
+              setTimeout(() => setCameraSettling(null), 350);
             }}
             style={{ position: 'fixed', zIndex: 500, transformOrigin: 'center center' }}
             className="pointer-events-none bg-[#c5b599] rounded-xl flex flex-col p-2 relative border-2 border-[#8c7a5f] shadow-[0_0_40px_rgba(212,175,55,0.6)]"
