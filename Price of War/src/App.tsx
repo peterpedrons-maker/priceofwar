@@ -956,8 +956,8 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
 
             const col = action.slotIndex % 5;
             const row = action.slotIndex < 5 ? 0 : (action.slotIndex < 10 ? 1 : 2);
-            const slotX = window.innerWidth * 0.5 + (col - 2) * 110 - 45;
-            const slotY = window.innerHeight * (0.5 - row * 0.1) - 64;
+            const slotX = window.innerWidth * 0.5 + (col - 2) * 110 * boardScale - 45;
+            const slotY = window.innerHeight * (0.5 - row * 0.1 * boardScale) - 64;
             setFloatingCard({ from: { ...npcHandPos }, to: { x: slotX, y: slotY }, isNpc: true, key: Date.now() });
             
             // Human-like pause while AI decides and card "travels"
@@ -1242,8 +1242,8 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
       y: (posOther.row - posThis.row) * rowStep,
     };
   };
-  const handScale = isMobile 
-    ? Math.min(0.85, (windowSize.width / (Math.max(4, hand.length) * 230)) * 0.95) 
+  const handScale = isMobile
+    ? Math.min(0.85, Math.max(0.5, (windowSize.width - 20) / (Math.max(4, hand.length) * 130)))
     : 1;
 
   // ── EFFECT RESOLUTION HELPERS ─────────────────────────────────────────
@@ -2604,7 +2604,10 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
           y: isMobile ? 20 : 0
         }}
       >
-        <div className="flex gap-4 justify-center flex-1 mx-auto relative h-[260px]">
+        <div
+          className="flex gap-4 justify-center flex-1 mx-auto relative h-[260px]"
+          style={{ transform: `scale(${handScale})`, transformOrigin: 'bottom center' }}
+        >
           <AnimatePresence>
             {hand.map((card, i) => {
               const mid = (hand.length - 1) / 2;
