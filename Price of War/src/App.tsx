@@ -641,14 +641,15 @@ export default function App() {
       const focusedRotateX = baseAnim.rotateX - 8;
 
       if (cameraSettling) {
-        // The card just landed — a quick shake on top of the same focused view.
+        // The card just landed — a sharp shake on top of the same focused view, plus a
+        // quick extra punch-in on the zoom for a stronger felt impact.
         return {
           ...baseAnim,
-          x: [focusedX - 10, focusedX + 8, focusedX - 4, focusedX],
-          y: [focusedY + 8, focusedY - 6, focusedY + 3, focusedY],
-          scale: focusedScale,
+          x: [focusedX - 18, focusedX + 14, focusedX - 8, focusedX + 4, focusedX],
+          y: [focusedY + 14, focusedY - 10, focusedY + 6, focusedY - 2, focusedY],
+          scale: [focusedScale * 1.06, focusedScale * 0.98, focusedScale],
           rotateX: focusedRotateX,
-          transition: { duration: 0.3, ease: "easeOut" }
+          transition: { duration: 0.32, ease: "easeOut" }
         };
       }
 
@@ -1194,7 +1195,7 @@ export default function App() {
                 });
                 // Impact burst + brief camera shake right as the card lands.
                 setImpactBurst({ x: flyingCard.toX, y: flyingCard.toY });
-                setTimeout(() => setImpactBurst(null), 450);
+                setTimeout(() => setImpactBurst(null), 650);
                 // Keep the camera's zoomed focus on the slot for a beat before easing back.
                 setCameraSettling({ slotIndex: flyingCard.slotIndex });
                 setFlyingCard(null);
@@ -1214,29 +1215,68 @@ export default function App() {
         })()}
       </AnimatePresence>
 
-      {/* Impact burst — a quick flash + expanding ring where the card just landed */}
+      {/* Impact burst — flash, double shockwave, radiating sparks and a ground shadow pulse
+          where the card just landed. */}
       <AnimatePresence>
         {impactBurst && (
           <motion.div
             initial={{ opacity: 1 }}
             animate={{ opacity: 0 }}
-            transition={{ duration: 0.45 }}
+            transition={{ duration: 0.55 }}
             style={{ position: 'fixed', left: impactBurst.x, top: impactBurst.y, zIndex: 499 }}
             className="pointer-events-none -translate-x-1/2 -translate-y-1/2"
           >
+            {/* Ground shadow pulse — a flattened ring suggesting weight hitting the field */}
             <motion.div
-              initial={{ scale: 0.2, opacity: 0.9 }}
-              animate={{ scale: 2.2, opacity: 0 }}
-              transition={{ duration: 0.45, ease: "easeOut" }}
-              className="absolute -inset-10 rounded-full border-4 border-amber-300"
+              initial={{ scaleX: 0.3, scaleY: 0.1, opacity: 0.7 }}
+              animate={{ scaleX: 2.4, scaleY: 0.5, opacity: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="absolute -inset-8 rounded-full bg-black/70 blur-sm"
+            />
+            {/* Bright core flash */}
+            <motion.div
+              initial={{ scale: 0.1, opacity: 1 }}
+              animate={{ scale: 1.4, opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="absolute -inset-4 rounded-full bg-white"
+              style={{ boxShadow: '0 0 40px 10px rgba(255,255,255,0.95)' }}
+            />
+            {/* Inner glow */}
+            <motion.div
+              initial={{ scale: 0.3, opacity: 0.95 }}
+              animate={{ scale: 1.8, opacity: 0 }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
+              className="absolute -inset-7 rounded-full bg-amber-200/70 blur-md"
+            />
+            {/* Two staggered shockwave rings */}
+            <motion.div
+              initial={{ scale: 0.2, opacity: 1 }}
+              animate={{ scale: 1.6, opacity: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="absolute -inset-6 rounded-full border-4 border-amber-300"
               style={{ boxShadow: '0 0 30px rgba(252,211,77,0.8)' }}
             />
             <motion.div
-              initial={{ scale: 0.3, opacity: 0.9 }}
-              animate={{ scale: 1.6, opacity: 0 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-              className="absolute -inset-6 rounded-full bg-amber-200/60 blur-md"
+              initial={{ scale: 0.2, opacity: 0.9 }}
+              animate={{ scale: 2.1, opacity: 0 }}
+              transition={{ duration: 0.55, ease: "easeOut", delay: 0.08 }}
+              className="absolute -inset-6 rounded-full border-2 border-orange-200"
             />
+            {/* Radiating sparks */}
+            {Array.from({ length: 10 }).map((_, i) => {
+              const angle = (i / 10) * Math.PI * 2;
+              const dist = 38;
+              return (
+                <motion.div
+                  key={i}
+                  initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+                  animate={{ x: Math.cos(angle) * dist, y: Math.sin(angle) * dist, opacity: 0, scale: 0.3 }}
+                  transition={{ duration: 0.45, ease: "easeOut" }}
+                  className="absolute top-1/2 left-1/2 w-2 h-2 -ml-1 -mt-1 rounded-full bg-amber-300"
+                  style={{ boxShadow: '0 0 8px rgba(252,211,77,0.9)' }}
+                />
+              );
+            })}
           </motion.div>
         )}
       </AnimatePresence>
