@@ -2109,7 +2109,7 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
         const resultColor = jokenpoResult === 'win' ? 'text-green-400' : jokenpoResult === 'lose' ? 'text-red-400' : 'text-yellow-300';
         const resultMsg = jokenpoResult === 'win' ? '⚔️ Vitória! Você começa primeiro!' : jokenpoResult === 'lose' ? '⚡ Derrota! Oponente começa primeiro!' : '🔄 Empate! Tentem novamente.';
         return (
-          <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-black/90 backdrop-blur-md pointer-events-auto">
+          <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-black/90 pointer-events-auto">
             {/* Ambient glow */}
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.08)_0%,transparent_70%)] pointer-events-none" />
 
@@ -2822,7 +2822,7 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
             </div>
 
             {/* PLAYER GOLD TRAY (bottom-right) */}
-            <div className="absolute bottom-4 right-4 md:bottom-8 md:right-8 z-40 bg-zinc-900/80 backdrop-blur-md px-4 py-3 rounded-xl border-2 border-amber-700/80 shadow-[0_4px_15px_rgba(0,0,0,0.8)] pointer-events-none flex items-center gap-3">
+            <div className="absolute bottom-4 right-4 md:bottom-8 md:right-8 z-40 bg-zinc-900/95 px-4 py-3 rounded-xl border-2 border-amber-700/80 shadow-[0_4px_15px_rgba(0,0,0,0.8)] pointer-events-none flex items-center gap-3">
               <div className="flex flex-col items-end">
                 <span className="text-[10px] font-black tracking-widest uppercase text-amber-200/70">Ouro</span>
                 <span className="font-mono text-3xl md:text-4xl font-bold text-white drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]">{playerMana}</span>
@@ -2842,7 +2842,7 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
             </div>
 
             {/* ENEMY GOLD TRAY (upper-right) */}
-            <div className="absolute top-4 right-4 md:top-8 md:right-8 z-40 bg-zinc-900/80 backdrop-blur-md px-3 py-2 rounded-xl border-2 border-red-700/80 shadow-[0_4px_15px_rgba(0,0,0,0.8)] pointer-events-none flex items-center gap-2 transform origin-top-right scale-85 md:scale-100">
+            <div className="absolute top-4 right-4 md:top-8 md:right-8 z-40 bg-zinc-900/95 px-3 py-2 rounded-xl border-2 border-red-700/80 shadow-[0_4px_15px_rgba(0,0,0,0.8)] pointer-events-none flex items-center gap-2 transform origin-top-right scale-85 md:scale-100">
               <div className="flex flex-col items-end">
                 <span className="text-[10px] font-black tracking-widest uppercase text-red-200/70">
                   {gameMode === 'Multiplayer' && opponentUsername ? opponentUsername : 'Inimigo'}
@@ -3105,7 +3105,7 @@ const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, npcHand, getValid
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
           >
-            <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px]" />
+            <div className="absolute inset-0 bg-black/65" />
             <motion.div
               className="relative flex flex-col items-center gap-4"
               initial={{ scale: 0.4, y: -60, opacity: 0, rotate: -8 }}
@@ -3556,7 +3556,7 @@ const CardSlot = ({
       style={{ zIndex: isSelected ? 50 : 1 }}
     >
       {!card && (
-          <div className="absolute inset-0 rounded-[10px] border border-[#8c7a5f]/15 bg-black/40 group-hover:bg-black/20 transition-all duration-300 pointer-events-none shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] backdrop-blur-sm flex items-center justify-center overflow-hidden">
+          <div className="absolute inset-0 rounded-[10px] border border-[#8c7a5f]/15 bg-black/60 group-hover:bg-black/40 transition-all duration-300 pointer-events-none shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] flex items-center justify-center overflow-hidden">
             <div className="w-[50%] h-[50%] rounded-full border border-[#d4af37]/5 opacity-20 group-hover:opacity-100 group-hover:border-[#d4af37]/40 group-hover:shadow-[0_0_15px_rgba(212,175,55,0.3)] transition-all duration-500 ease-out" />
             <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#d4af37]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           </div>
