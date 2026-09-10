@@ -639,7 +639,7 @@ export default function App() {
         y: baseAnim.y - panY,
         scale: baseAnim.scale * 1.15,
         rotateX: baseAnim.rotateX - 8,
-        transition: { duration: 0.45, ease: "easeInOut" }
+        transition: { duration: flyingCard ? 0.55 : 0.3, ease: "easeInOut" }
       };
     }
 
@@ -927,12 +927,16 @@ export default function App() {
       </motion.div>
 
       {/* Hand UI */}
-      <motion.div 
+      <motion.div
         className="absolute inset-0 w-full h-full flex justify-center items-end pb-4 md:pb-6 pointer-events-none z-50"
         animate={{
           scale: handScale,
-          y: isMobile ? (viewState === 'field' ? 200 : 0) : (viewState === 'field' ? 220 : 0)
+          y: isMobile ? (viewState === 'field' ? 200 : 0) : (viewState === 'field' ? 220 : 0),
+          // Hidden while a card is flying to the board (and briefly after, while the camera
+          // settles) so the rest of the hand doesn't clutter the summon animation.
+          opacity: (flyingCard || cameraSettling) ? 0 : 1,
         }}
+        transition={{ opacity: { duration: 0.15 } }}
       >
         <div className="flex pointer-events-none">
           <AnimatePresence>
@@ -1123,46 +1127,58 @@ export default function App() {
         </button>
       </div>
 
-      {/* Flying card — plays from hand to the chosen board slot along real screen coordinates */}
+      {/* Flying card — plays from hand to the chosen board slot along real screen coordinates.
+          Pauses hovering at a large "presentation" size above the slot first (Hearthstone-style)
+          before dropping into place, instead of flying straight there in one motion. */}
       <AnimatePresence>
-        {flyingCard && (
-          <motion.div
-            initial={{
-              left: flyingCard.fromX - flyingCard.fromW / 2,
-              top: flyingCard.fromY - flyingCard.fromH / 2,
-              width: flyingCard.fromW,
-              height: flyingCard.fromH,
-            }}
-            animate={{
-              left: flyingCard.toX - flyingCard.fromW / 2,
-              top: flyingCard.toY - flyingCard.fromH / 2,
-              width: flyingCard.fromW,
-              height: flyingCard.fromH,
-              scale: flyingCard.toW / flyingCard.fromW,
-            }}
-            transition={{ duration: 0.45, ease: "easeInOut" }}
-            onAnimationComplete={() => {
-              setPlayerSlots(prev => {
-                const next = [...prev];
-                next[flyingCard.slotIndex] = flyingCard.card;
-                return next;
-              });
-              // Keep the camera's zoomed focus on the slot for a beat before easing back.
-              setCameraSettling({ slotIndex: flyingCard.slotIndex });
-              setFlyingCard(null);
-              setTimeout(() => setCameraSettling(null), 350);
-            }}
-            style={{ position: 'fixed', zIndex: 500, transformOrigin: 'center center' }}
-            className="pointer-events-none bg-[#c5b599] rounded-xl flex flex-col p-2 relative border-2 border-[#8c7a5f] shadow-[0_0_40px_rgba(212,175,55,0.6)]"
-          >
-            <div className="flex-1 bg-black/50 border border-white/20 rounded-lg flex items-center px-3 py-1.5 mr-4">
-              <span className="text-sm font-bold text-white uppercase tracking-tighter truncate">{flyingCard.card.name}</span>
-            </div>
-            <ManaBadge value={flyingCard.card.cost} className="absolute -top-4 -right-4 w-10 h-10 text-lg z-20" />
-            <AtkBadge value={flyingCard.card.atk} className="absolute -bottom-4 -left-4 w-10 h-10 text-lg z-20" />
-            <HpBadge value={flyingCard.card.hp} className="absolute -bottom-4 -right-4 w-10 h-10 text-lg z-20" />
-          </motion.div>
-        )}
+        {flyingCard && (() => {
+          const halfW = flyingCard.fromW / 2;
+          const halfH = flyingCard.fromH / 2;
+          const finalScale = flyingCard.toW / flyingCard.fromW;
+          const hoverScale = Math.min(3, Math.max(0.8, 190 / flyingCard.fromW));
+          const hoverX = flyingCard.toX;
+          const hoverY = flyingCard.toY - 70;
+          return (
+            <motion.div
+              initial={{
+                left: flyingCard.fromX - halfW,
+                top: flyingCard.fromY - halfH,
+                width: flyingCard.fromW,
+                height: flyingCard.fromH,
+                scale: 1,
+              }}
+              animate={{
+                left: [flyingCard.fromX - halfW, hoverX - halfW, hoverX - halfW, flyingCard.toX - halfW],
+                top: [flyingCard.fromY - halfH, hoverY - halfH, hoverY - halfH, flyingCard.toY - halfH],
+                width: flyingCard.fromW,
+                height: flyingCard.fromH,
+                scale: [1, hoverScale, hoverScale, finalScale],
+                times: [0, 0.5, 0.78, 1],
+              }}
+              transition={{ duration: 0.95, ease: ["easeOut", "easeInOut", "easeIn"] }}
+              onAnimationComplete={() => {
+                setPlayerSlots(prev => {
+                  const next = [...prev];
+                  next[flyingCard.slotIndex] = flyingCard.card;
+                  return next;
+                });
+                // Keep the camera's zoomed focus on the slot for a beat before easing back.
+                setCameraSettling({ slotIndex: flyingCard.slotIndex });
+                setFlyingCard(null);
+                setTimeout(() => setCameraSettling(null), 300);
+              }}
+              style={{ position: 'fixed', zIndex: 500, transformOrigin: 'center center' }}
+              className="pointer-events-none bg-[#c5b599] rounded-xl flex flex-col p-2 relative border-2 border-[#8c7a5f] shadow-[0_0_40px_rgba(212,175,55,0.6)]"
+            >
+              <div className="w-full bg-black/50 border border-white/20 rounded-lg flex items-center justify-center px-1 py-1.5 text-center">
+                <span className="text-[9px] font-bold text-white uppercase tracking-tighter leading-tight">{flyingCard.card.name}</span>
+              </div>
+              <ManaBadge value={flyingCard.card.cost} className="absolute -top-4 -right-4 w-10 h-10 text-lg z-20" />
+              <AtkBadge value={flyingCard.card.atk} className="absolute -bottom-4 -left-4 w-10 h-10 text-lg z-20" />
+              <HpBadge value={flyingCard.card.hp} className="absolute -bottom-4 -right-4 w-10 h-10 text-lg z-20" />
+            </motion.div>
+          );
+        })()}
       </AnimatePresence>
 
       {/* Toast Notification */}
