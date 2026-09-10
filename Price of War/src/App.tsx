@@ -562,7 +562,7 @@ export default function App() {
   const isMobile = windowSize.width < 768;
   // Board container is a fixed 1000x1400px canvas (see the 3D Board div below) that gets
   // scaled down to fit the real viewport — these divisors must match those exact dimensions.
-  const boardScale = isMobile ? Math.min(windowSize.width / 1000, windowSize.height / 1400) * 0.9 : Math.min(windowSize.width / 1600, 1);
+  const boardScale = isMobile ? Math.min(windowSize.width / 1000, windowSize.height / 1400) * 1.05 : Math.min(windowSize.width / 1600, 1);
   // Hand cards are fanned out (see getFanRotation below), so the outer cards' bounding box
   // is wider than their flat width — account for that tilt or the fan's edge cards clip.
   // Scale so the WHOLE hand always fits on screen — no floor, or large hands would overflow
