@@ -117,6 +117,12 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
   </div>
 );
 
+// Hand fan layout: cards spread across a modest total angle, center card slightly raised.
+const FAN_SPREAD_DEG = 20;
+const FAN_LIFT_PX = 14;
+const HAND_CARD_WIDTH = 224; // w-56
+const HAND_CARD_HEIGHT = 320; // h-80
+
 const MOCK_DECK: CardData[] = [
   { id: 'c1', name: 'Crimson Dragon', atk: 6, hp: 5, cost: 5, art: '', effect: 'Flying. Deals double damage to players.', cardType: 'Cavalaria' },
   { id: 'c2', name: 'Iron Knight', atk: 3, hp: 6, cost: 3, art: '', effect: 'Taunt. Protects adjacent allies.', cardType: 'Infantaria' },
@@ -396,14 +402,16 @@ export default function App() {
   // Board container is a fixed 1000x1400px canvas (see the 3D Board div below) that gets
   // scaled down to fit the real viewport — these divisors must match those exact dimensions.
   const boardScale = isMobile ? Math.min(windowSize.width / 1000, windowSize.height / 1400) * 0.9 : Math.min(windowSize.width / 1600, 1);
-  // Hand cards are a fixed 224px wide (w-56) with an 8px gap (gap-2) between them on mobile.
+  // Hand cards are fanned out (see getFanRotation below), so the outer cards' bounding box
+  // is wider than their flat width — account for that tilt or the fan's edge cards clip.
   // Scale so the WHOLE hand always fits on screen — no floor, or large hands would overflow
   // and get clipped past the screen edges (the outer container clips, it doesn't scroll).
-  const handCardWidth = 224;
   const handGap = isMobile ? 8 : 12;
-  const handTotalWidth = hand.length > 0 ? hand.length * handCardWidth + (hand.length - 1) * handGap : handCardWidth;
+  const handTotalWidth = hand.length > 0 ? hand.length * HAND_CARD_WIDTH + (hand.length - 1) * handGap : HAND_CARD_WIDTH;
+  const handFanMaxAngleRad = (FAN_SPREAD_DEG / 2) * (Math.PI / 180);
+  const handFanExtraWidth = hand.length > 1 ? HAND_CARD_HEIGHT * Math.sin(handFanMaxAngleRad) : 0;
   const handScale = isMobile
-    ? Math.min(0.85, (windowSize.width - 16) / handTotalWidth)
+    ? Math.min(0.85, (windowSize.width - 16) / (handTotalWidth + handFanExtraWidth))
     : 1;
 
   const handleCardClick = (index: number) => {
@@ -545,6 +553,21 @@ export default function App() {
     // On mobile move to bottom right, on desktop move it to the left to see the board
     const targetX = isMobile ? (windowSize.width / 2 - 120) : (300 - windowSize.width / 2);
     return targetX - cardX;
+  };
+
+  // Fan the hand out like a real card fan: a modest total spread, distributed evenly
+  // across however many cards are in hand, with the center card slightly raised.
+  const getFanRotation = (index: number) => {
+    if (hand.length <= 1) return 0;
+    const mid = (hand.length - 1) / 2;
+    const step = FAN_SPREAD_DEG / (hand.length - 1);
+    return (index - mid) * step;
+  };
+  const getFanLift = (index: number) => {
+    if (hand.length <= 1) return 0;
+    const mid = (hand.length - 1) / 2;
+    const normalized = mid === 0 ? 0 : (index - mid) / mid;
+    return normalized * normalized * FAN_LIFT_PX;
   };
 
   const getBoardAnimation = () => {
@@ -862,19 +885,20 @@ export default function App() {
                   scale: 0.5,
                   rotateZ: 45
                 }}
+                style={{ transformOrigin: 'bottom center' }}
                 animate={{
                   opacity: viewState === 'field' && selectedCardIndex !== i ? 0.4 : 1,
                   x: selectedCardIndex === i ? getSelectedCardX(i) : 0,
-                  y: selectedCardIndex === i 
-                    ? (isMobile ? 180 : -450) 
-                    : (viewState === 'field' ? (isMobile ? 150 : 150) : 0),
-                  scale: selectedCardIndex === i 
-                    ? (isMobile ? 0.6 : 1.8) 
+                  y: selectedCardIndex === i
+                    ? (isMobile ? 180 : -450)
+                    : (viewState === 'field' ? (isMobile ? 150 : 150) : getFanLift(i)),
+                  scale: selectedCardIndex === i
+                    ? (isMobile ? 0.6 : 1.8)
                     : (viewState === 'field' ? 0.6 : 1),
-                  rotateZ: 0,
+                  rotateZ: selectedCardIndex === i || viewState === 'field' ? 0 : getFanRotation(i),
                   zIndex: selectedCardIndex === i ? 100 : 1,
-                  boxShadow: selectedCardIndex === i 
-                    ? "0 0 120px rgba(212, 175, 55, 0.95)" 
+                  boxShadow: selectedCardIndex === i
+                    ? "0 0 120px rgba(212, 175, 55, 0.95)"
                     : "0 10px 30px rgba(0,0,0,0.5)"
                 }}
                 whileHover={{
