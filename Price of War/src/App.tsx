@@ -137,6 +137,11 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
 // image later). Empty for now — the board renders a flat neutral surface instead.
 const BOARD_ART_URL = '';
 
+// How big the previewed card renders while parked in the corner during slot selection.
+// Kept smaller on mobile since the board there fills nearly the full screen width,
+// leaving much less clear side margin to tuck the card into.
+const FIELD_PREVIEW_SCALE = { mobile: 0.5, desktop: 0.8 };
+
 // Hand fan layout: cards spread across a modest total angle, center card slightly raised.
 const FAN_SPREAD_DEG = 26;
 const FAN_LIFT_PX = 20;
@@ -624,10 +629,12 @@ export default function App() {
   const getSelectedCardX = (index: number) => {
     const startX = -handTotalWidth / 2 + HAND_CARD_WIDTH / 2;
     const cardX = startX + index * HAND_CARD_STEP;
-    // Tuck the previewed card into a bottom corner while the player picks a slot — off
-    // to the side so the board (and its slot indicators) stay clear, but still fully
-    // on-screen so the player always knows what they're about to play.
-    const targetX = isMobile ? (windowSize.width / 2 - 130) : (-(windowSize.width / 2) + 150);
+    // Tuck the previewed card right up against a side edge while the player picks a
+    // slot, so it blocks as little of the board (and its slot indicators) as possible,
+    // while staying fully on-screen so the player always knows what they're about to play.
+    const previewHalfWidth = (HAND_CARD_WIDTH * (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop)) / 2;
+    const edgeMargin = previewHalfWidth + 14;
+    const targetX = isMobile ? (windowSize.width / 2 - edgeMargin) : (-(windowSize.width / 2) + edgeMargin);
     return targetX - cardX;
   };
 
@@ -1043,7 +1050,7 @@ export default function App() {
                     ? (viewState === 'field' ? (isMobile ? -200 : -220) : -40)
                     : (viewState === 'field' ? (isMobile ? 150 : 150) : getFanLift(i)),
                   scale: selectedCardIndex === i
-                    ? (viewState === 'field' ? 0.8 : 1.1)
+                    ? (viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) : 1.1)
                     : (viewState === 'field' ? 0.6 : 1),
                   rotateZ: selectedCardIndex === i || viewState === 'field' ? 0 : getFanRotation(i),
                   zIndex: selectedCardIndex === i ? 150 : i + 1,
@@ -1055,7 +1062,7 @@ export default function App() {
                   y: selectedCardIndex === i
                     ? (viewState === 'field' ? (isMobile ? -200 : -220) : -40)
                     : viewState === 'field' ? 120 : -20,
-                  scale: selectedCardIndex === i ? (viewState === 'field' ? 0.85 : 1.1) : 1.05,
+                  scale: selectedCardIndex === i ? (viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) + 0.05 : 1.1) : 1.05,
                   boxShadow: selectedCardIndex === i
                     ? "0 0 80px rgba(212, 175, 55, 0.8)"
                     : "0 0 25px rgba(212, 175, 55, 0.5)"
