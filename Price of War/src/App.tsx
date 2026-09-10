@@ -1187,7 +1187,12 @@ export default function App() {
           <AnimatePresence>
             {hand.map((card, i) => (
               <motion.div
-                layoutId={card.id}
+                // No layoutId here: it would make Framer Motion auto-animate this card's
+                // layout position with its own internal spring on ANY re-render that
+                // shifts its computed position even slightly (e.g. when unrelated sibling
+                // state like cameraSettling/impactBurst toggles) — fighting our own
+                // explicit animate/transition below and causing a visible re-bounce each
+                // time. key alone is enough for React to keep reusing this same DOM node.
                 key={card.id}
                 ref={(el) => { handCardRefs.current[card.id] = el; }}
                 className={`w-56 h-80 shrink-0 bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-xl cursor-pointer flex flex-col p-2 relative group border-2 border-[#5c4a30] ${viewState === 'field' ? 'pointer-events-none' : 'pointer-events-auto'}`}
