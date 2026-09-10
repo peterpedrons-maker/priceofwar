@@ -433,20 +433,38 @@ export default function App() {
   // instead of that overlay vanishing and an unrelated second entrance playing for what
   // reads as an entirely different card.
   const justDrawnIdsRef = useRef<Set<string>>(new Set());
+  // A shuffled draw pile, reshuffled from MOCK_DECK once exhausted — draws come from here
+  // instead of a plain random pick so the same card can't turn up twice in a row purely
+  // by chance (with only 10 card types and a 5-card opening hand, picking WITH
+  // replacement made an immediate repeat likely on almost every match, which read as the
+  // game "swapping" a card for another copy of itself rather than dealing a fresh one).
+  const deckQueueRef = useRef<CardData[]>([]);
+  const drawFromDeck = (): CardData => {
+    if (deckQueueRef.current.length === 0) {
+      deckQueueRef.current = [...MOCK_DECK].sort(() => Math.random() - 0.5);
+    }
+    const card = deckQueueRef.current.shift()!;
+    return { ...card, id: `hand_${Date.now()}_${Math.random()}` };
+  };
   const spawnDrawFlight = (
     deckRef: React.RefObject<HTMLDivElement>,
     to: { x: number; y: number },
     opts: { card?: CardData; reveal: boolean; durationMs: number }
   ) => {
     const rect = deckRef.current?.getBoundingClientRect();
-    if (!rect) return;
+    if (!rect) return null;
     const id = `draw_${Date.now()}_${Math.random()}`;
     const fromX = rect.left + rect.width / 2;
     const fromY = rect.top + rect.height / 2;
     const hoverX = (fromX + to.x) / 2;
     const hoverY = Math.min(fromY, to.y) - 60;
     setDrawingCards(prev => [...prev, { id, fromX, fromY, toX: to.x, toY: to.y, hoverX, hoverY, card: opts.card, reveal: opts.reveal, durationMs: opts.durationMs }]);
-    setTimeout(() => setDrawingCards(prev => prev.filter(d => d.id !== id)), opts.durationMs + 80);
+    // Deliberately no auto-cleanup timer here: the caller removes this exact id in the
+    // SAME callback that commits the real card (see the schedule() calls below). A
+    // separate cleanup timer used to run ~80ms after the real card had already appeared,
+    // so for that stretch the fading flight overlay and the settled hand card were both
+    // on screen at once — reading as the card flickering into a duplicate of itself.
+    return id;
   };
   // Where a newly drawn card should land: right next to the last real hand card (or the
   // tray's own resting spot if the hand is still empty) — an approximation of the new
@@ -504,19 +522,23 @@ export default function App() {
     for (let i = 0; i < 5; i++) {
       const t = DEAL_START + i * DEAL_STEP;
       schedule(() => {
-        const newCard = {
-          ...MOCK_DECK[Math.floor(Math.random() * MOCK_DECK.length)],
-          id: `hand_${Date.now()}_${i}_${Math.random()}`
-        };
-        spawnDrawFlight(playerDeckRef, getHandArrivalPoint(), { card: newCard, reveal: true, durationMs: DRAW_FLIGHT_MS });
+        const newCard = drawFromDeck();
+        const flightId = spawnDrawFlight(playerDeckRef, getHandArrivalPoint(), { card: newCard, reveal: true, durationMs: DRAW_FLIGHT_MS });
         schedule(() => {
+          // Remove the flight overlay in the exact same tick the real card is committed —
+          // any gap between the two (even a deliberate short one) shows both on screen at
+          // once and reads as the card flickering into a duplicate of itself.
+          if (flightId) setDrawingCards(prev => prev.filter(d => d.id !== flightId));
           justDrawnIdsRef.current.add(newCard.id);
           setHand(prev => [...prev, newCard]);
         }, DRAW_FLIGHT_MS);
       }, t);
       schedule(() => {
-        spawnDrawFlight(npcDeckRef, { x: windowSize.width / 2, y: 140 }, { reveal: false, durationMs: NPC_DRAW_FLIGHT_MS });
-        schedule(() => setNpcHandRevealCount(prev => prev + 1), NPC_DRAW_FLIGHT_MS);
+        const flightId = spawnDrawFlight(npcDeckRef, { x: windowSize.width / 2, y: 140 }, { reveal: false, durationMs: NPC_DRAW_FLIGHT_MS });
+        schedule(() => {
+          if (flightId) setDrawingCards(prev => prev.filter(d => d.id !== flightId));
+          setNpcHandRevealCount(prev => prev + 1);
+        }, NPC_DRAW_FLIGHT_MS);
       }, t + 150);
     }
   };
@@ -524,6 +546,7 @@ export default function App() {
   const resetGame = () => {
     matchIntroTimeoutsRef.current.forEach(clearTimeout);
     matchIntroTimeoutsRef.current = [];
+    deckQueueRef.current = [];
 
     setGameOverWinner(null);
     setCurrentTurn('player');
@@ -559,12 +582,10 @@ export default function App() {
     if (currentTurn === 'player') {
       setPlayerMana(10);
       if (turnNumber > 1 && hand.length < 10) {
-        const newCard = {
-          ...MOCK_DECK[Math.floor(Math.random() * MOCK_DECK.length)],
-          id: `hand_${Date.now()}_${Math.random()}`
-        };
-        spawnDrawFlight(playerDeckRef, getHandArrivalPoint(), { card: newCard, reveal: true, durationMs: DRAW_FLIGHT_MS });
+        const newCard = drawFromDeck();
+        const flightId = spawnDrawFlight(playerDeckRef, getHandArrivalPoint(), { card: newCard, reveal: true, durationMs: DRAW_FLIGHT_MS });
         setTimeout(() => {
+          if (flightId) setDrawingCards(prev => prev.filter(d => d.id !== flightId));
           justDrawnIdsRef.current.add(newCard.id);
           setHand(prev => [...prev, newCard]);
         }, DRAW_FLIGHT_MS);
