@@ -291,7 +291,7 @@ const InstallPrompt = ({
 
 export default function App() {
   const [gameMode, setGameMode] = useState<string | null>(null);
-  const [viewState, setViewState] = useState<'hand' | 'field' | 'draw'>('hand');
+  const [viewState, setViewState] = useState<'hand' | 'field'>('hand');
   const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
   const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
@@ -385,6 +385,28 @@ export default function App() {
   const [impactBurst, setImpactBurst] = useState<{ x: number; y: number } | null>(null);
   const handCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
+  // Real on-board deck piles — used both as the visual anchor for the card-draw
+  // flight below and as the thing the player actually looks at on the table. Kept as
+  // refs so we can read their true, on-screen position (getBoundingClientRect already
+  // resolves the board's 3D transform) whenever a draw happens, instead of hardcoding
+  // coordinates that would drift if the board layout ever changes.
+  const playerDeckRef = useRef<HTMLDivElement>(null);
+  const npcDeckRef = useRef<HTMLDivElement>(null);
+  // In-flight "card being pulled from the deck" overlays — plain screen-space elements
+  // (like flyingCard below) so they read clearly regardless of the board's own scale,
+  // and so the camera never has to move to make a draw visible.
+  const [drawingCards, setDrawingCards] = useState<Array<{
+    id: string; fromX: number; fromY: number; toX: number; toY: number;
+  }>>([]);
+  const DRAW_FLIGHT_MS = 380;
+  const spawnDrawFlight = (deckRef: React.RefObject<HTMLDivElement>, to: { x: number; y: number }) => {
+    const rect = deckRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const id = `draw_${Date.now()}_${Math.random()}`;
+    setDrawingCards(prev => [...prev, { id, fromX: rect.left + rect.width / 2, fromY: rect.top + rect.height / 2, toX: to.x, toY: to.y }]);
+    setTimeout(() => setDrawingCards(prev => prev.filter(d => d.id !== id)), DRAW_FLIGHT_MS + 80);
+  };
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 2000);
@@ -420,18 +442,17 @@ export default function App() {
 
     const DEAL_START = 900;
     const DEAL_STEP = 550;
-    const DRAW_ANIM_MS = 500;
     for (let i = 0; i < 5; i++) {
       const t = DEAL_START + i * DEAL_STEP;
-      schedule(() => setViewState('draw'), t);
+      schedule(() => spawnDrawFlight(playerDeckRef, { x: windowSize.width / 2, y: windowSize.height - 140 }), t);
       schedule(() => {
         setHand(prev => [...prev, {
           ...MOCK_DECK[Math.floor(Math.random() * MOCK_DECK.length)],
           id: `hand_${Date.now()}_${i}_${Math.random()}`
         }]);
-        setViewState('hand');
-      }, t + DRAW_ANIM_MS);
-      schedule(() => setNpcHandRevealCount(prev => prev + 1), t + 200);
+      }, t + DRAW_FLIGHT_MS);
+      schedule(() => spawnDrawFlight(npcDeckRef, { x: windowSize.width / 2, y: 140 }), t + 150);
+      schedule(() => setNpcHandRevealCount(prev => prev + 1), t + 150 + DRAW_FLIGHT_MS);
     }
   };
 
@@ -473,7 +494,7 @@ export default function App() {
     if (currentTurn === 'player') {
       setPlayerMana(10);
       if (turnNumber > 1) {
-        setViewState('draw');
+        spawnDrawFlight(playerDeckRef, { x: windowSize.width / 2, y: windowSize.height - 140 });
         setTimeout(() => {
           setHand(prev => {
             if (prev.length < 10) {
@@ -485,8 +506,7 @@ export default function App() {
             }
             return prev;
           });
-          setViewState('hand');
-        }, 1200);
+        }, DRAW_FLIGHT_MS);
       }
     } else {
       setNpcMana(10);
@@ -854,14 +874,16 @@ export default function App() {
   const getBoardAnimation = () => {
     // The board stays visible at all times — like looking down at a table with the
     // hand of cards held up in front of it — instead of tilting away out of view
-    // while browsing the hand. Only the one-off draw animation gets a distinct camera.
+    // while browsing the hand. Drawing a card never moves the camera either: it plays
+    // out as a card visibly flying off the on-board deck pile (see drawingCards) while
+    // the view stays put.
     const baseAnim = {
-      rotateX: viewState === 'draw' ? 25 : (isMobile ? 25 : 35),
-      rotateZ: viewState === 'draw' ? -5 : 0,
-      y: viewState === 'draw' ? -400 : (isMobile ? 0 : -50),
-      x: viewState === 'draw' ? -350 : 0,
-      z: viewState === 'draw' ? 300 : (isMobile ? 50 : 50),
-      scale: (viewState === 'draw' ? 1.1 : (isMobile ? 1.0 : 0.85)) * boardScale,
+      rotateX: isMobile ? 25 : 35,
+      rotateZ: 0,
+      y: isMobile ? 0 : -50,
+      x: 0,
+      z: isMobile ? 50 : 50,
+      scale: (isMobile ? 1.0 : 0.85) * boardScale,
     };
 
     // Camera follows a card being played, zooming in toward the slot it's headed for —
@@ -1120,10 +1142,12 @@ export default function App() {
           </div>
         </div>
 
-        {/* Opponent Deck & Graveyard (On Board) */}
-        <div className="absolute -right-40 md:-right-64 top-12 flex flex-col gap-6 items-center z-40 pointer-events-none">
+        {/* Opponent Deck & Graveyard (On Board) — kept inside the board's own canvas
+            (not past its right edge) so it's actually visible under the normal, fixed
+            camera used at all times, including while a card is being drawn. */}
+        <div className="absolute right-4 md:right-8 top-12 flex flex-col gap-6 items-center z-40 pointer-events-none">
           {/* Deck */}
-          <div className="w-24 md:w-36 h-32 md:h-48 border-2 border-[#8c7a5f] rounded-xl bg-[#4a3b2c] flex items-center justify-center shadow-[0_10px_20px_rgba(0,0,0,0.5)] relative">
+          <div ref={npcDeckRef} className="w-24 md:w-36 h-32 md:h-48 border-2 border-[#8c7a5f] rounded-xl bg-[#4a3b2c] flex items-center justify-center shadow-[0_10px_20px_rgba(0,0,0,0.5)] relative">
             <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-x-1 translate-y-1 bg-[#3a2b1c] -z-10" />
             <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-x-2 translate-y-2 bg-[#2a1b0c] -z-20" />
             <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-x-3 translate-y-3 bg-[#1a0b00] -z-30" />
@@ -1166,44 +1190,31 @@ export default function App() {
           ))}
         </div>
 
-        {/* Deck & Graveyard (On Board) */}
-        <div className="absolute -right-40 md:-right-64 bottom-12 flex flex-col gap-6 items-center z-40 pointer-events-auto">
+        {/* Deck & Graveyard (On Board) — same reasoning as the opponent's: kept inside
+            the canvas, on the right side of the player's own field, so it's visible
+            under the normal camera at all times (see drawingCards for the actual draw
+            animation, a screen-space overlay that flies off this deck). */}
+        <div className="absolute right-4 md:right-8 bottom-12 flex flex-col gap-6 items-center z-40 pointer-events-auto">
           {/* Graveyard */}
           <div className="w-24 md:w-36 h-32 md:h-48 border-2 border-zinc-700 rounded-xl bg-zinc-900/80 flex items-center justify-center shadow-lg relative overflow-hidden">
             <span className="text-zinc-600 font-mono text-xs md:text-sm uppercase tracking-widest rotate-90 opacity-50">Graveyard</span>
           </div>
-          
+
           {/* Deck */}
-          <motion.div 
+          <motion.div
+            ref={playerDeckRef}
             className="w-24 md:w-36 h-32 md:h-48 border-2 border-[#8c7a5f] rounded-xl bg-[#4a3b2c] flex items-center justify-center shadow-[0_10px_20px_rgba(0,0,0,0.5)] relative group"
           >
             {/* Deck thickness effect */}
             <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-x-1 -translate-y-1 bg-[#3a2b1c] -z-10" />
             <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-x-2 -translate-y-2 bg-[#2a1b0c] -z-20" />
             <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-x-3 -translate-y-3 bg-[#1a0b00] -z-30" />
-            
+
             {/* Card Back Design */}
             <div className="w-[80%] h-[85%] border border-[#8c7a5f]/50 rounded-lg flex items-center justify-center relative overflow-hidden">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.2)_0%,transparent_70%)]" />
               <div className="w-8 h-8 md:w-12 md:h-12 opacity-50 bg-zinc-800 rounded-full border-2 border-[#8c7a5f]" />
             </div>
-
-            {/* Draw Animation Effect */}
-            <AnimatePresence>
-              {viewState === 'draw' && (
-                <motion.div
-                  initial={{ opacity: 0, y: 0, z: 0, scale: 1 }}
-                  animate={{ opacity: [0, 1, 1, 0], y: 250, z: 200, scale: 2.5, rotateX: 20, rotateZ: 5 }}
-                  transition={{ duration: 1.2, ease: "easeOut" }}
-                  className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl bg-[#4a3b2c] flex items-center justify-center shadow-[0_0_40px_rgba(212,175,55,0.8)] z-50"
-                >
-                  <div className="w-[80%] h-[85%] border border-[#8c7a5f]/50 rounded-lg flex items-center justify-center relative overflow-hidden">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.4)_0%,transparent_70%)]" />
-                    <div className="w-8 h-8 md:w-12 md:h-12 bg-zinc-800 rounded-full border-2 border-[#d4af37]" />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </motion.div>
         </div>
       </motion.div>
@@ -1428,6 +1439,34 @@ export default function App() {
           VISUALIZAR CAMPO
         </button>
       </div>
+
+      {/* Drawing cards — a card visibly pulled off the on-board deck pile (player's or
+          opponent's) and flown to the hand, in plain screen coordinates like flyingCard
+          below. The camera never moves for this: it stays on the normal board view the
+          whole time, so this overlay is what actually sells "a card was drawn". */}
+      <AnimatePresence>
+        {drawingCards.map(d => (
+          <motion.div
+            key={d.id}
+            initial={{ left: d.fromX - 32, top: d.fromY - 44, scale: 0.7, opacity: 0.9 }}
+            animate={{
+              left: [d.fromX - 32, d.toX - 32],
+              top: [d.fromY - 44, d.toY - 44],
+              scale: [0.7, 1.3, 1],
+              opacity: [0.9, 1, 0],
+            }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: DRAW_FLIGHT_MS / 1000, ease: "easeOut", times: [0, 0.65, 1] }}
+            style={{ position: 'fixed', zIndex: 400, width: 64, height: 88 }}
+            className="pointer-events-none border-2 border-[#8c7a5f] rounded-lg bg-[#4a3b2c] flex items-center justify-center shadow-[0_0_30px_rgba(212,175,55,0.75)]"
+          >
+            <div className="w-[75%] h-[75%] border border-[#8c7a5f]/50 rounded-md flex items-center justify-center relative overflow-hidden">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.35)_0%,transparent_70%)]" />
+              <div className="w-5 h-5 bg-zinc-800 rounded-full border-2 border-[#d4af37]" />
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
 
       {/* Flying card — plays from hand to the chosen board slot along real screen coordinates.
           Rises to a large "presentation" size above the slot, holds briefly, then descends
