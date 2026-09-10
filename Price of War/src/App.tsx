@@ -137,10 +137,10 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
 // image later). Empty for now — the board renders a flat neutral surface instead.
 const BOARD_ART_URL = '';
 
-// How big the previewed card renders while parked in the corner during slot selection.
-// Kept smaller on mobile since the board there fills nearly the full screen width,
-// leaving much less clear side margin to tuck the card into.
-const FIELD_PREVIEW_SCALE = { mobile: 0.58, desktop: 0.85 };
+// How big the previewed card renders while parked at the edge during slot selection.
+// The game is played almost entirely on phones, so legibility there matters more than
+// avoiding every last bit of overlap with the board.
+const FIELD_PREVIEW_SCALE = { mobile: 0.78, desktop: 0.95 };
 
 // Hand fan layout: cards spread across a modest total angle, center card slightly raised.
 const FAN_SPREAD_DEG = 26;
