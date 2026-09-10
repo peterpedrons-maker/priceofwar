@@ -211,6 +211,7 @@ export const CardFace: React.FC<CardFaceProps> = ({
               className="w-full h-full object-cover"
               style={{ filter: 'contrast(1.1) saturate(1.2) brightness(1.05)' }}
               referrerPolicy="no-referrer"
+              decoding="async"
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-[#3a1b00] to-[#1a0b00] flex items-center justify-center">
@@ -225,6 +226,7 @@ export const CardFace: React.FC<CardFaceProps> = ({
         src={templateImg}
         alt=""
         aria-hidden
+        decoding="async"
         className="absolute z-[3] pointer-events-none max-w-none origin-center"
         style={{
           width: '122%',
