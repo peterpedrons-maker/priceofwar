@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { Info, X, Sword, Zap, Users, Library } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
@@ -232,6 +232,17 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [gameOverWinner, setGameOverWinner] = useState<'player' | 'npc' | null>(null);
 
+  // Flight animation for a card being played from hand onto a board slot: computed from real
+  // on-screen positions (getBoundingClientRect), since the hand sits in a flat layer while the
+  // board is a heavily 3D-transformed one — Framer Motion's automatic layoutId animation can't
+  // reconcile the two, so this animates plain 2D screen coordinates instead.
+  const [flyingCard, setFlyingCard] = useState<{
+    card: CardData; slotIndex: number;
+    fromX: number; fromY: number; fromW: number; fromH: number;
+    toX: number; toY: number; toW: number; toH: number;
+  } | null>(null);
+  const handCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 2000);
@@ -435,7 +446,7 @@ export default function App() {
     setViewState('field');
   };
 
-  const handleSlotClick = (slotIndex: number) => {
+  const handleSlotClick = (slotIndex: number, slotEl?: HTMLElement) => {
     if (gameOverWinner) return;
     if (selectedCardIndex !== null && !playerSlots[slotIndex]) {
       const cardToPlay = hand[selectedCardIndex];
@@ -455,24 +466,44 @@ export default function App() {
         return;
       }
 
-      if (playerMana >= cardToPlay.cost) {
-        setPlayerMana(prev => prev - cardToPlay.cost);
-        
-        // Remove from hand
-        const newHand = [...hand];
-        newHand.splice(selectedCardIndex, 1);
-        setHand(newHand);
-        
-        // Add to slot
+      if (playerMana < cardToPlay.cost) {
+        showToast("Not enough mana!");
+        return;
+      }
+
+      setPlayerMana(prev => prev - cardToPlay.cost);
+
+      // Remove from hand right away...
+      const newHand = [...hand];
+      newHand.splice(selectedCardIndex, 1);
+      setHand(newHand);
+      setSelectedCardIndex(null);
+      setViewState('hand');
+
+      // ...and animate it flying to the chosen slot using real screen coordinates.
+      // It only actually lands in playerSlots once the flight animation completes
+      // (see the flyingCard overlay's onAnimationComplete below).
+      const fromEl = handCardRefs.current[cardToPlay.id];
+      const fromRect = fromEl?.getBoundingClientRect();
+      const toRect = slotEl?.getBoundingClientRect();
+      if (fromRect && toRect) {
+        setFlyingCard({
+          card: cardToPlay,
+          slotIndex,
+          fromX: fromRect.left + fromRect.width / 2,
+          fromY: fromRect.top + fromRect.height / 2,
+          fromW: fromRect.width,
+          fromH: fromRect.height,
+          toX: toRect.left + toRect.width / 2,
+          toY: toRect.top + toRect.height / 2,
+          toW: toRect.width,
+          toH: toRect.height,
+        });
+      } else {
+        // Couldn't measure a position (shouldn't normally happen) — place instantly.
         const newSlots = [...playerSlots];
         newSlots[slotIndex] = cardToPlay;
         setPlayerSlots(newSlots);
-        
-        // Reset selection
-        setSelectedCardIndex(null);
-        setViewState('hand');
-      } else {
-        showToast("Not enough mana!");
       }
     } else if (selectedCardIndex === null && playerSlots[slotIndex]) {
       // Select attacker
@@ -579,13 +610,16 @@ export default function App() {
   };
 
   const getBoardAnimation = () => {
+    // The board stays visible at all times — like looking down at a table with the
+    // hand of cards held up in front of it — instead of tilting away out of view
+    // while browsing the hand. Only the one-off draw animation gets a distinct camera.
     const baseAnim = {
-      rotateX: viewState === 'draw' ? 25 : isMobile ? (viewState === 'hand' ? 75 : 25) : (viewState === 'hand' ? 72 : 35),
+      rotateX: viewState === 'draw' ? 25 : (isMobile ? 25 : 35),
       rotateZ: viewState === 'draw' ? -5 : 0,
-      y: viewState === 'draw' ? -400 : isMobile ? (viewState === 'hand' ? 450 : 0) : (viewState === 'hand' ? 350 : -50),
-      x: viewState === 'draw' ? -350 : (viewState === 'field' && !isMobile ? 0 : 0),
-      z: viewState === 'draw' ? 300 : viewState === 'hand' ? 200 : (isMobile ? 50 : 50),
-      scale: viewState === 'draw' ? 1.1 * boardScale : (viewState === 'hand' ? 0.9 : (isMobile ? 1.0 : 0.85)) * boardScale,
+      y: viewState === 'draw' ? -400 : (isMobile ? 0 : -50),
+      x: viewState === 'draw' ? -350 : 0,
+      z: viewState === 'draw' ? 300 : (isMobile ? 50 : 50),
+      scale: (viewState === 'draw' ? 1.1 : (isMobile ? 1.0 : 0.85)) * boardScale,
     };
 
     if (attackAnim) {
@@ -724,7 +758,7 @@ export default function App() {
               <CardSlot
                 key={i}
                 card={playerSlots[i]}
-                onClick={() => handleSlotClick(i)}
+                onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
                 onInfoClick={setDetailedCard}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
@@ -740,7 +774,7 @@ export default function App() {
               <CardSlot
                 key={i}
                 card={playerSlots[i]}
-                onClick={() => handleSlotClick(i)}
+                onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
                 onInfoClick={setDetailedCard}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
@@ -754,7 +788,7 @@ export default function App() {
           <div className="flex justify-center gap-16 items-center">
             <CardSlot
               card={playerSlots[10]}
-              onClick={() => handleSlotClick(10)}
+              onClick={(el) => handleSlotClick(10, el)}
               isSelected={selectedAttackerIndex === 10}
               onInfoClick={setDetailedCard}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
@@ -764,7 +798,7 @@ export default function App() {
             <div className="relative">
               <CardSlot
                 card={playerSlots[12]}
-                onClick={() => handleSlotClick(12)}
+                onClick={(el) => handleSlotClick(12, el)}
                 isSelected={selectedAttackerIndex === 12}
                 onInfoClick={setDetailedCard}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
@@ -775,7 +809,7 @@ export default function App() {
             </div>
             <CardSlot
               card={playerSlots[11]}
-              onClick={() => handleSlotClick(11)}
+              onClick={(el) => handleSlotClick(11, el)}
               isSelected={selectedAttackerIndex === 11}
               onInfoClick={setDetailedCard}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
@@ -885,6 +919,7 @@ export default function App() {
               <motion.div
                 layoutId={card.id}
                 key={card.id}
+                ref={(el) => { handCardRefs.current[card.id] = el; }}
                 className={`w-56 h-80 shrink-0 bg-[#c5b599] rounded-xl cursor-pointer flex flex-col p-2 relative group border-2 border-[#8c7a5f] ${viewState === 'field' ? 'pointer-events-none' : 'pointer-events-auto'}`}
                 initial={{
                   opacity: 0,
@@ -1067,6 +1102,45 @@ export default function App() {
         </button>
       </div>
 
+      {/* Flying card — plays from hand to the chosen board slot along real screen coordinates */}
+      <AnimatePresence>
+        {flyingCard && (
+          <motion.div
+            initial={{
+              left: flyingCard.fromX - flyingCard.fromW / 2,
+              top: flyingCard.fromY - flyingCard.fromH / 2,
+              width: flyingCard.fromW,
+              height: flyingCard.fromH,
+            }}
+            animate={{
+              left: flyingCard.toX - flyingCard.fromW / 2,
+              top: flyingCard.toY - flyingCard.fromH / 2,
+              width: flyingCard.fromW,
+              height: flyingCard.fromH,
+              scale: flyingCard.toW / flyingCard.fromW,
+            }}
+            transition={{ duration: 0.45, ease: "easeInOut" }}
+            onAnimationComplete={() => {
+              setPlayerSlots(prev => {
+                const next = [...prev];
+                next[flyingCard.slotIndex] = flyingCard.card;
+                return next;
+              });
+              setFlyingCard(null);
+            }}
+            style={{ position: 'fixed', zIndex: 500, transformOrigin: 'center center' }}
+            className="pointer-events-none bg-[#c5b599] rounded-xl flex flex-col p-2 relative border-2 border-[#8c7a5f] shadow-[0_0_40px_rgba(212,175,55,0.6)]"
+          >
+            <div className="flex-1 bg-black/50 border border-white/20 rounded-lg flex items-center px-3 py-1.5 mr-4">
+              <span className="text-sm font-bold text-white uppercase tracking-tighter truncate">{flyingCard.card.name}</span>
+            </div>
+            <ManaBadge value={flyingCard.card.cost} className="absolute -top-4 -right-4 w-10 h-10 text-lg z-20" />
+            <AtkBadge value={flyingCard.card.atk} className="absolute -bottom-4 -left-4 w-10 h-10 text-lg z-20" />
+            <HpBadge value={flyingCard.card.hp} className="absolute -bottom-4 -right-4 w-10 h-10 text-lg z-20" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Toast Notification */}
       <AnimatePresence>
         {toastMessage && (
@@ -1175,21 +1249,21 @@ export default function App() {
   );
 }
 
-const CardSlot = ({ 
-  onClick, onInfoClick, card, isSelected = false, 
-  isAttacking = false, isImpactingTarget = false, attackDirection = 'up' 
-}: { 
-  onClick?: () => void, onInfoClick?: (card: CardData) => void, card?: CardData | null, 
-  isSelected?: boolean, isAttacking?: boolean, isImpactingTarget?: boolean, attackDirection?: 'up' | 'down', key?: React.Key 
+const CardSlot = ({
+  onClick, onInfoClick, card, isSelected = false,
+  isAttacking = false, isImpactingTarget = false, attackDirection = 'up'
+}: {
+  onClick?: (el: HTMLElement) => void, onInfoClick?: (card: CardData) => void, card?: CardData | null,
+  isSelected?: boolean, isAttacking?: boolean, isImpactingTarget?: boolean, attackDirection?: 'up' | 'down', key?: React.Key
 }) => {
   const attackY = attackDirection === 'up' ? -150 : 150;
 
   return (
-    <motion.div 
+    <motion.div
       onClick={(e) => {
         if (onClick) {
           e.stopPropagation();
-          onClick();
+          onClick(e.currentTarget as HTMLElement);
         }
       }}
       className={`w-24 md:w-36 h-32 md:h-48 border-2 border-indigo-500/30 rounded-lg bg-black/50 flex items-center justify-center shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] transition-colors hover:border-indigo-400 hover:bg-indigo-900/40 hover:shadow-[0_0_30px_rgba(99,102,241,0.6)] group relative ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''}`}
@@ -1202,7 +1276,6 @@ const CardSlot = ({
       )}
       {card && !card.isDestroyed && (
         <motion.div
-          layoutId={card.id}
           animate={{
             y: isAttacking ? attackY : 0,
             z: isAttacking ? 100 : 0,
