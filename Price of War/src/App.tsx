@@ -140,7 +140,7 @@ const BOARD_ART_URL = '';
 // How big the previewed card renders while parked at the edge during slot selection.
 // The game is played almost entirely on phones, so legibility there matters more than
 // avoiding every last bit of overlap with the board.
-const FIELD_PREVIEW_SCALE = { mobile: 0.78, desktop: 0.95 };
+const FIELD_PREVIEW_SCALE = { mobile: 0.95, desktop: 0.95 };
 
 // Hand fan layout: cards spread across a modest total angle, center card slightly raised.
 const FAN_SPREAD_DEG = 26;
@@ -912,12 +912,12 @@ export default function App() {
     return targetX - cardX;
   };
 
-  // How far down the screen (0 = top, 1 = bottom) the previewed card centers on. Used
-  // to sit dead center at first, but that landed the (now much bigger) preview right on
-  // top of the player's own Retaguarda/Vanguarda slots — exactly the row they need to
-  // see to pick where to play it. Anchoring higher keeps it mostly over the opponent's
-  // side of the board instead, which the player isn't tapping into for this.
-  const PREVIEW_Y_FRACTION = 0.32;
+  // How far down the screen (0 = top, 1 = bottom) the previewed card centers on.
+  // Anchored near the vertical middle of the screen (just above dead center) so it
+  // reads as centered rather than pinned up near the top bar, while still mostly
+  // clearing the player's own Retaguarda/Vanguarda slots below it — the row they
+  // need to see to pick where to play the card.
+  const PREVIEW_Y_FRACTION = 0.45;
   const getSelectedCardY = () => {
     if (!isMobile) return -490;
     // Empirically calibrated against the real rendered geometry (now that the hand tray
