@@ -1284,7 +1284,7 @@ export default function App() {
           }}
         >
           <motion.div
-            className="relative w-[190px] h-11 md:w-[230px] md:h-[53px] cursor-pointer"
+            className="relative w-[235px] h-[54px] md:w-[290px] md:h-[66px] cursor-pointer"
             style={{ transformStyle: 'preserve-3d' }}
             animate={{ rotateX: currentTurn === 'player' ? 0 : 180 }}
             transition={{ duration: 0.6, ease: "easeInOut" }}
@@ -1310,7 +1310,7 @@ export default function App() {
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
               />
               <div className="absolute inset-0 flex items-center justify-center pl-[24%] pr-[6%]">
-                <span className="flex items-center gap-1.5 font-black text-[10px] md:text-xs tracking-wide text-zinc-900">
+                <span className="flex items-center gap-1.5 font-black text-xs md:text-sm tracking-wide text-zinc-900">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-700 animate-pulse shrink-0" />
                   SEU TURNO
                 </span>
@@ -1332,7 +1332,7 @@ export default function App() {
                 style={{ filter: 'sepia(1) saturate(6) hue-rotate(-50deg) brightness(0.85) drop-shadow(0 0 6px rgba(239,68,68,0.7))' }}
               />
               <div className="absolute inset-0 flex items-center justify-center pl-[24%] pr-[6%]">
-                <span className="flex items-center gap-1.5 font-black text-[9px] md:text-[11px] tracking-wide text-red-950">
+                <span className="flex items-center gap-1.5 font-black text-[10px] md:text-xs tracking-wide text-red-950">
                   <span className="w-1.5 h-1.5 rounded-full bg-red-700 animate-pulse shrink-0" />
                   TURNO DO ADVERSÁRIO
                 </span>
