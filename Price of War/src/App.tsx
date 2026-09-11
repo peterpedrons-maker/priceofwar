@@ -408,31 +408,14 @@ export default function App() {
   const handScaleRef = useRef(handScale);
   useEffect(() => { handScaleRef.current = handScale; }, [handScale]);
 
-  // Real on-board deck piles — used both as the visual anchor for the card-draw
-  // flight below and as the thing the player actually looks at on the table. Kept as
-  // refs so we can read their true, on-screen position (getBoundingClientRect already
-  // resolves the board's 3D transform) whenever a draw happens, instead of hardcoding
-  // coordinates that would drift if the board layout ever changes.
+  // Real on-board deck piles — the thing the player actually looks at on the table, and
+  // the anchor a newly drawn card's own arrival animation starts from (see
+  // computeDrawOrigin). Kept as refs so we can read their true, on-screen position
+  // (getBoundingClientRect already resolves the board's 3D transform) whenever a draw
+  // happens, instead of hardcoding coordinates that would drift if the layout changes.
   const playerDeckRef = useRef<HTMLDivElement>(null);
   const npcDeckRef = useRef<HTMLDivElement>(null);
-  // In-flight "card being pulled from the deck" overlays — plain screen-space elements
-  // (like flyingCard below) so they read clearly regardless of the board's own scale,
-  // and so the camera never has to move to make a draw visible. The player's own draws
-  // reveal (flip from back to face, like drawing in Yu-Gi-Oh/most anime) since they need
-  // to see what they got; the opponent's stay face-down the whole flight since their
-  // hand is hidden information.
-  const [drawingCards, setDrawingCards] = useState<Array<{
-    id: string; fromX: number; fromY: number; toX: number; toY: number;
-    hoverX: number; hoverY: number; card?: CardData; reveal: boolean; durationMs: number;
-  }>>([]);
-  const DRAW_FLIGHT_MS = 750; // player's draw: rise, flip face-up, settle toward the hand
-  const NPC_DRAW_FLIGHT_MS = 350; // opponent's draw: quick face-down hop, no reveal
-  // Card ids that just arrived via a draw flight — the hand-card entrance animation
-  // skips its own "dealt in from off-screen" slide for these, so the card the player
-  // sees leaving the deck is the SAME continuous card that settles into their hand,
-  // instead of that overlay vanishing and an unrelated second entrance playing for what
-  // reads as an entirely different card.
-  const justDrawnIdsRef = useRef<Set<string>>(new Set());
+  const DRAW_FLIGHT_MS = 750; // how long a newly drawn card takes to travel from the deck and flip face-up in hand
   // A shuffled draw pile, reshuffled from MOCK_DECK once exhausted — draws come from here
   // instead of a plain random pick so the same card can't turn up twice in a row purely
   // by chance (with only 10 card types and a 5-card opening hand, picking WITH
@@ -445,26 +428,6 @@ export default function App() {
     }
     const card = deckQueueRef.current.shift()!;
     return { ...card, id: `hand_${Date.now()}_${Math.random()}` };
-  };
-  const spawnDrawFlight = (
-    deckRef: React.RefObject<HTMLDivElement>,
-    to: { x: number; y: number },
-    opts: { card?: CardData; reveal: boolean; durationMs: number }
-  ) => {
-    const rect = deckRef.current?.getBoundingClientRect();
-    if (!rect) return null;
-    const id = `draw_${Date.now()}_${Math.random()}`;
-    const fromX = rect.left + rect.width / 2;
-    const fromY = rect.top + rect.height / 2;
-    const hoverX = (fromX + to.x) / 2;
-    const hoverY = Math.min(fromY, to.y) - 60;
-    setDrawingCards(prev => [...prev, { id, fromX, fromY, toX: to.x, toY: to.y, hoverX, hoverY, card: opts.card, reveal: opts.reveal, durationMs: opts.durationMs }]);
-    // Deliberately no auto-cleanup timer here: the caller removes this exact id in the
-    // SAME callback that commits the real card (see the schedule() calls below). A
-    // separate cleanup timer used to run ~80ms after the real card had already appeared,
-    // so for that stretch the fading flight overlay and the settled hand card were both
-    // on screen at once — reading as the card flickering into a duplicate of itself.
-    return id;
   };
   // Where a newly drawn card should land: right next to the last real hand card (or the
   // tray's own resting spot if the hand is still empty) — an approximation of the new
@@ -482,6 +445,52 @@ export default function App() {
       return { x: r.left + r.width / 2 + (HAND_CARD_STEP - HAND_CARD_WIDTH) * handScaleRef.current, y: r.top + r.height / 2 };
     }
     return { x: windowSize.width / 2, y: windowSize.height - 140 };
+  };
+  // Fan the hand out like a real card fan: a modest total spread, distributed evenly
+  // across however many cards are in hand, with the center card slightly raised.
+  // totalOverride lets code compute what a card's fan spot WILL be before it's actually
+  // in the hand array yet (see computeDrawOrigin) — normal rendering just omits it and
+  // uses the hand's current length. Declared here (rather than down with the rest of the
+  // render-time helpers) so computeDrawOrigin below can call it without a forward
+  // reference — a plain function is safe to call from a deferred timer either way, but
+  // referencing one declared later in the same component is still a temporal-dead-zone
+  // error at the moment this function is DEFINED, since JS evaluates default parameter
+  // and closure bindings eagerly for const declarations in source order.
+  const getFanRotation = (index: number, totalOverride?: number) => {
+    const total = totalOverride ?? hand.length;
+    if (total <= 1) return 0;
+    const mid = (total - 1) / 2;
+    const step = FAN_SPREAD_DEG / (total - 1);
+    return (index - mid) * step;
+  };
+  const getFanLift = (index: number, totalOverride?: number) => {
+    const total = totalOverride ?? hand.length;
+    if (total <= 1) return 0;
+    const mid = (total - 1) / 2;
+    const normalized = mid === 0 ? 0 : (index - mid) / mid;
+    return normalized * normalized * FAN_LIFT_PX;
+  };
+  // A newly drawn hand card's OWN initial x/y/scale (in the same local, pre-handScale
+  // units its normal resting animate already uses — see the hand card's `initial` below)
+  // so it starts sitting right at the real on-board deck and animates itself into its
+  // fan slot, flipping face-up along the way. This card is the ONLY element involved
+  // start to finish — no separate flight overlay that then hands off to a different real
+  // card, which is what used to read as the card "turning into a different game element"
+  // partway through, no matter how well the handoff was timed.
+  const drawOriginsRef = useRef<Record<string, { x: number; y: number; scale: number }>>({});
+  const computeDrawOrigin = (deckRef: React.RefObject<HTMLDivElement>, index: number) => {
+    const rect = deckRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    const arrival = getHandArrivalPoint();
+    const scale = handScaleRef.current;
+    const restLift = getFanLift(index, index + 1);
+    const deckX = rect.left + rect.width / 2;
+    const deckY = rect.top + rect.height / 2;
+    return {
+      x: (deckX - arrival.x) / scale,
+      y: restLift + (deckY - arrival.y) / scale,
+      scale: Math.max(0.2, rect.width / (HAND_CARD_WIDTH * scale)),
+    };
   };
 
   const showToast = (msg: string) => {
@@ -523,23 +532,11 @@ export default function App() {
       const t = DEAL_START + i * DEAL_STEP;
       schedule(() => {
         const newCard = drawFromDeck();
-        const flightId = spawnDrawFlight(playerDeckRef, getHandArrivalPoint(), { card: newCard, reveal: true, durationMs: DRAW_FLIGHT_MS });
-        schedule(() => {
-          // Remove the flight overlay in the exact same tick the real card is committed —
-          // any gap between the two (even a deliberate short one) shows both on screen at
-          // once and reads as the card flickering into a duplicate of itself.
-          if (flightId) setDrawingCards(prev => prev.filter(d => d.id !== flightId));
-          justDrawnIdsRef.current.add(newCard.id);
-          setHand(prev => [...prev, newCard]);
-        }, DRAW_FLIGHT_MS);
+        const origin = computeDrawOrigin(playerDeckRef, handRef.current.length);
+        if (origin) drawOriginsRef.current[newCard.id] = origin;
+        setHand(prev => [...prev, newCard]);
       }, t);
-      schedule(() => {
-        const flightId = spawnDrawFlight(npcDeckRef, { x: windowSize.width / 2, y: 140 }, { reveal: false, durationMs: NPC_DRAW_FLIGHT_MS });
-        schedule(() => {
-          if (flightId) setDrawingCards(prev => prev.filter(d => d.id !== flightId));
-          setNpcHandRevealCount(prev => prev + 1);
-        }, NPC_DRAW_FLIGHT_MS);
-      }, t + 150);
+      schedule(() => setNpcHandRevealCount(prev => prev + 1), t + 400);
     }
   };
 
@@ -583,12 +580,9 @@ export default function App() {
       setPlayerMana(10);
       if (turnNumber > 1 && hand.length < 10) {
         const newCard = drawFromDeck();
-        const flightId = spawnDrawFlight(playerDeckRef, getHandArrivalPoint(), { card: newCard, reveal: true, durationMs: DRAW_FLIGHT_MS });
-        setTimeout(() => {
-          if (flightId) setDrawingCards(prev => prev.filter(d => d.id !== flightId));
-          justDrawnIdsRef.current.add(newCard.id);
-          setHand(prev => [...prev, newCard]);
-        }, DRAW_FLIGHT_MS);
+        const origin = computeDrawOrigin(playerDeckRef, hand.length);
+        if (origin) drawOriginsRef.current[newCard.id] = origin;
+        setHand(prev => [...prev, newCard]);
       }
     } else {
       setNpcMana(10);
@@ -933,25 +927,13 @@ export default function App() {
 
   // Fan the hand out like a real card fan: a modest total spread, distributed evenly
   // across however many cards are in hand, with the center card slightly raised.
-  const getFanRotation = (index: number) => {
-    if (hand.length <= 1) return 0;
-    const mid = (hand.length - 1) / 2;
-    const step = FAN_SPREAD_DEG / (hand.length - 1);
-    return (index - mid) * step;
-  };
-  const getFanLift = (index: number) => {
-    if (hand.length <= 1) return 0;
-    const mid = (hand.length - 1) / 2;
-    const normalized = mid === 0 ? 0 : (index - mid) / mid;
-    return normalized * normalized * FAN_LIFT_PX;
-  };
 
   const getBoardAnimation = () => {
     // The board stays visible at all times — like looking down at a table with the
     // hand of cards held up in front of it — instead of tilting away out of view
-    // while browsing the hand. Drawing a card never moves the camera either: it plays
-    // out as a card visibly flying off the on-board deck pile (see drawingCards) while
-    // the view stays put.
+    // while browsing the hand. Drawing a card never moves the camera either: the new
+    // hand card animates itself in from the on-board deck pile (see computeDrawOrigin)
+    // while the view stays put.
     const baseAnim = {
       rotateX: isMobile ? 25 : 35,
       rotateZ: 0,
@@ -1267,8 +1249,8 @@ export default function App() {
 
         {/* Deck & Graveyard (On Board) — same reasoning as the opponent's: kept inside
             the canvas, on the right side of the player's own field, so it's visible
-            under the normal camera at all times (see drawingCards for the actual draw
-            animation, a screen-space overlay that flies off this deck). */}
+            under the normal camera at all times (see computeDrawOrigin for how a drawn
+            hand card animates itself in from this exact spot). */}
         <div className="absolute right-4 md:right-8 bottom-12 flex flex-col gap-6 items-center z-40 pointer-events-auto">
           {/* Graveyard */}
           <div className="w-24 md:w-36 h-32 md:h-48 border-2 border-zinc-700 rounded-xl bg-zinc-900/80 flex items-center justify-center shadow-lg relative overflow-hidden">
@@ -1316,7 +1298,9 @@ export default function App() {
       >
         <div className="flex pointer-events-none">
           <AnimatePresence>
-            {hand.map((card, i) => (
+            {hand.map((card, i) => {
+              const origin = drawOriginsRef.current[card.id];
+              return (
               <motion.div
                 // No layoutId here: it would make Framer Motion auto-animate this card's
                 // layout position with its own internal spring on ANY re-render that
@@ -1326,18 +1310,19 @@ export default function App() {
                 // time. key alone is enough for React to keep reusing this same DOM node.
                 key={card.id}
                 ref={(el) => { handCardRefs.current[card.id] = el; }}
-                className={`w-56 h-80 shrink-0 bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-xl cursor-pointer flex flex-col p-2 relative group border-2 border-[#5c4a30] ${viewState === 'field' ? 'pointer-events-none' : 'pointer-events-auto'}`}
-                // A card that just flew in off the deck (see drawingCards/justDrawnIdsRef)
-                // mounts already sitting at its resting fan spot instead of playing this
-                // generic "dealt in from off-screen" slide — that overlay already WAS this
-                // card's arrival; replaying a second, unrelated entrance on top of it is
-                // exactly what read as two independent cards instead of one continuous one.
-                initial={justDrawnIdsRef.current.has(card.id)
-                  ? { opacity: 1, x: 0, y: getFanLift(i), scale: 1, rotateZ: getFanRotation(i) }
-                  : { opacity: 0, x: windowSize.width / 2, y: 200, scale: 0.5, rotateZ: 45 }
+                className={`w-56 h-80 shrink-0 cursor-pointer relative group ${viewState === 'field' ? 'pointer-events-none' : 'pointer-events-auto'}`}
+                // A freshly drawn card (see computeDrawOrigin) mounts sitting right at the
+                // real on-board deck's position/size and animates itself — this same
+                // element, start to finish — into its fan slot below, flipping from its
+                // back face to its front face along the way (see the 3D flip wrapper
+                // inside). Nothing hands off to a different element partway through.
+                initial={origin
+                  ? { opacity: 1, x: origin.x, y: origin.y, scale: origin.scale, rotateZ: 0, rotateY: 0 }
+                  : { opacity: 1, x: 0, y: getFanLift(i), scale: 1, rotateZ: getFanRotation(i), rotateY: 180 }
                 }
                 style={{
                   transformOrigin: 'bottom center',
+                  transformStyle: 'preserve-3d',
                   marginLeft: i === 0 ? 0 : HAND_CARD_STEP - HAND_CARD_WIDTH,
                 }}
                 animate={{
@@ -1355,6 +1340,10 @@ export default function App() {
                     ? (viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) : 1.1)
                     : (viewState === 'field' ? 0.6 : 1),
                   rotateZ: selectedCardIndex === i || viewState === 'field' ? 0 : getFanRotation(i),
+                  // Always the resting "face up" angle — only the initial value (see
+                  // `initial` above) differs for a freshly drawn card, so it flips from
+                  // back to front once, on the way in, instead of ever flipping back.
+                  rotateY: 180,
                   zIndex: selectedCardIndex === i ? 150 : i + 1,
                   boxShadow: selectedCardIndex === i
                     ? "inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 120px rgba(212, 175, 55, 0.95)"
@@ -1370,88 +1359,119 @@ export default function App() {
                     : "0 0 25px rgba(212, 175, 55, 0.5)"
                 }}
                 whileTap={{ scale: 0.95 }}
-                transition={{ 
-                  duration: 0.4, 
+                // A freshly drawn card gets a slower transition (matching the full travel
+                // time from the deck) and a delayed rotateY so it flips face-up right near
+                // the end of the trip, not gradually the whole way. Cleared via
+                // onAnimationComplete once that first arrival finishes, so every later
+                // interaction (hover, selection, the fan reflowing for the next card) goes
+                // back to the normal snappy transition.
+                transition={{
+                  duration: origin ? DRAW_FLIGHT_MS / 1000 : 0.4,
                   ease: "easeOut",
-                  zIndex: { delay: selectedCardIndex === i ? 0 : 0.4 }
+                  zIndex: { delay: selectedCardIndex === i ? 0 : 0.4 },
+                  ...(origin ? { rotateY: { delay: DRAW_FLIGHT_MS * 0.55 / 1000, duration: DRAW_FLIGHT_MS * 0.4 / 1000, ease: "easeInOut" } } : {}),
                 }}
+                onAnimationComplete={() => { delete drawOriginsRef.current[card.id]; }}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleCardClick(i);
                 }}
               >
-                {/* Info Button — only actually clickable while still browsing the hand.
-                    Once past "Jogar Carta" it sits over the board (see the floating
-                    preview position), and pointer-events-auto here would otherwise keep
-                    intercepting taps meant for whatever board slot is underneath it. */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDetailedCard(card);
-                  }}
-                  className={`absolute top-1 left-1 w-8 h-8 bg-blue-600/90 rounded-full border-2 border-blue-900 flex items-center justify-center shadow-md z-30 hover:bg-blue-500 transition-colors ${viewState === 'field' ? 'pointer-events-none' : 'pointer-events-auto'}`}
+                {/* Back face — plain card-back design, shown while rotateY is near 0 (see
+                    the outer div's initial/animate above). backfaceVisibility hides this
+                    once the card has flipped past 90°, leaving the front face below. */}
+                <div
+                  className="absolute inset-0 rounded-xl border-2 border-[#8c7a5f] bg-[#4a3b2c] flex items-center justify-center shadow-[0_10px_20px_rgba(0,0,0,0.5)]"
+                  style={{ backfaceVisibility: 'hidden' }}
                 >
-                  <Info className="text-white w-5 h-5" />
-                </button>
-
-                {/* Full Card Art Background */}
-                {card.art ? (
-                  <img src={card.art} alt={card.name} className="absolute inset-0 w-full h-full object-cover z-0 rounded-xl" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900 flex items-center justify-center z-0 rounded-xl">
-                    <div className="w-1/3 h-1/3 border border-zinc-500/40 rotate-45" />
-                  </div>
-                )}
-
-                {/* Content Wrapper */}
-                <div className="absolute inset-0 z-10 pointer-events-none p-2 flex flex-col justify-between">
-                  {/* Top Section: Name and Cost */}
-                  <div className="relative flex items-start justify-between w-full">
-                    {/* Name */}
-                    <div className="flex-1 bg-gradient-to-b from-black/75 to-black/60 border border-amber-100/25 rounded-lg flex items-center px-3 py-1.5 shadow-sm mr-4">
-                      <span className="text-sm font-bold text-white uppercase tracking-tighter truncate drop-shadow-md">{card.name}</span>
-                    </div>
-                    {/* Gold Badge */}
-                    <ManaBadge value={card.cost} className="absolute -top-4 -right-4 w-12 h-12 text-xl z-20 drop-shadow-md" />
-                  </div>
-
-                  {/* Bottom Section: Effect, ATK, HP */}
-                  <div className="relative w-full flex flex-col items-center">
-                    {/* Text Box */}
-                    <div className="w-full bg-gradient-to-b from-black/60 to-black/75 border border-amber-100/25 rounded-lg p-3 shadow-sm flex items-center justify-center min-h-[5rem] mb-2">
-                      <p className="text-xs leading-snug text-white/90 font-medium text-center drop-shadow-md">{card.effect}</p>
-                    </div>
-                    
-                    {/* ATK Badge */}
-                    <AtkBadge value={card.atk} className="absolute -bottom-4 -left-4 w-12 h-12 text-xl z-20 drop-shadow-md" />
-                    
-                    {/* HP Badge */}
-                    <HpBadge value={card.hp} className="absolute -bottom-4 -right-4 w-12 h-12 text-xl z-20 drop-shadow-md" />
+                  <div className="w-[75%] h-[75%] border border-[#8c7a5f]/50 rounded-lg flex items-center justify-center relative overflow-hidden">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.3)_0%,transparent_70%)]" />
+                    <div className="w-10 h-10 bg-zinc-800 rounded-full border-2 border-[#d4af37]" />
                   </div>
                 </div>
 
-                {/* Selection Glow */}
-                {selectedCardIndex === i && (
-                  <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(212,175,55,0.6)] rounded-xl border-2 border-[#d4af37] pointer-events-none" />
-                )}
-
-                {/* "Jogar Carta" menu — shown on first tap, before zooming to the board */}
-                {selectedCardIndex === i && viewState === 'hand' && (
-                  <motion.button
-                    initial={{ opacity: 0, y: 8, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.9 }}
+                {/* Front face — the real card, pre-rotated 180° so it reads upright once
+                    the outer flip reaches its rest angle. Carries the card's own visible
+                    background/border (moved off the outer div, which now only handles
+                    position/flip) so it looks identical to before once fully face up. */}
+                <div
+                  className="absolute inset-0 rounded-xl border-2 border-[#5c4a30] bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f]"
+                  style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                >
+                  {/* Info Button — only actually clickable while still browsing the hand.
+                      Once past "Jogar Carta" it sits over the board (see the floating
+                      preview position), and pointer-events-auto here would otherwise keep
+                      intercepting taps meant for whatever board slot is underneath it. */}
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handlePlayCardButtonClick();
+                      setDetailedCard(card);
                     }}
-                    className="absolute -top-5 left-1/2 -translate-x-1/2 z-40 px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(16,185,129,0.7)] border-2 border-emerald-400 pointer-events-auto whitespace-nowrap"
+                    className={`absolute top-1 left-1 w-8 h-8 bg-blue-600/90 rounded-full border-2 border-blue-900 flex items-center justify-center shadow-md z-30 hover:bg-blue-500 transition-colors ${viewState === 'field' ? 'pointer-events-none' : 'pointer-events-auto'}`}
                   >
-                    Jogar Carta
-                  </motion.button>
-                )}
+                    <Info className="text-white w-5 h-5" />
+                  </button>
+
+                  {/* Full Card Art Background */}
+                  {card.art ? (
+                    <img src={card.art} alt={card.name} className="absolute inset-0 w-full h-full object-cover z-0 rounded-xl" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900 flex items-center justify-center z-0 rounded-xl">
+                      <div className="w-1/3 h-1/3 border border-zinc-500/40 rotate-45" />
+                    </div>
+                  )}
+
+                  {/* Content Wrapper */}
+                  <div className="absolute inset-0 z-10 pointer-events-none p-2 flex flex-col justify-between">
+                    {/* Top Section: Name and Cost */}
+                    <div className="relative flex items-start justify-between w-full">
+                      {/* Name */}
+                      <div className="flex-1 bg-gradient-to-b from-black/75 to-black/60 border border-amber-100/25 rounded-lg flex items-center px-3 py-1.5 shadow-sm mr-4">
+                        <span className="text-sm font-bold text-white uppercase tracking-tighter truncate drop-shadow-md">{card.name}</span>
+                      </div>
+                      {/* Gold Badge */}
+                      <ManaBadge value={card.cost} className="absolute -top-4 -right-4 w-12 h-12 text-xl z-20 drop-shadow-md" />
+                    </div>
+
+                    {/* Bottom Section: Effect, ATK, HP */}
+                    <div className="relative w-full flex flex-col items-center">
+                      {/* Text Box */}
+                      <div className="w-full bg-gradient-to-b from-black/60 to-black/75 border border-amber-100/25 rounded-lg p-3 shadow-sm flex items-center justify-center min-h-[5rem] mb-2">
+                        <p className="text-xs leading-snug text-white/90 font-medium text-center drop-shadow-md">{card.effect}</p>
+                      </div>
+
+                      {/* ATK Badge */}
+                      <AtkBadge value={card.atk} className="absolute -bottom-4 -left-4 w-12 h-12 text-xl z-20 drop-shadow-md" />
+
+                      {/* HP Badge */}
+                      <HpBadge value={card.hp} className="absolute -bottom-4 -right-4 w-12 h-12 text-xl z-20 drop-shadow-md" />
+                    </div>
+                  </div>
+
+                  {/* Selection Glow */}
+                  {selectedCardIndex === i && (
+                    <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(212,175,55,0.6)] rounded-xl border-2 border-[#d4af37] pointer-events-none" />
+                  )}
+
+                  {/* "Jogar Carta" menu — shown on first tap, before zooming to the board */}
+                  {selectedCardIndex === i && viewState === 'hand' && (
+                    <motion.button
+                      initial={{ opacity: 0, y: 8, scale: 0.9 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.9 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePlayCardButtonClick();
+                      }}
+                      className="absolute -top-5 left-1/2 -translate-x-1/2 z-40 px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(16,185,129,0.7)] border-2 border-emerald-400 pointer-events-auto whitespace-nowrap"
+                    >
+                      Jogar Carta
+                    </motion.button>
+                  )}
+                </div>
               </motion.div>
-            ))}
+              );
+            })}
           </AnimatePresence>
         </div>
       </motion.div>
@@ -1516,85 +1536,6 @@ export default function App() {
           VISUALIZAR CAMPO
         </button>
       </div>
-
-      {/* Drawing cards — a card visibly pulled off the on-board deck pile (player's or
-          opponent's) and flown to the hand, in plain screen coordinates like flyingCard
-          below. The camera never moves for this: it stays on the normal board view the
-          whole time. The player's own draw flips from card-back to card-face partway
-          through — like drawing in Yu-Gi-Oh or most anime — since they need to actually
-          see what they drew; the opponent's stays face-down the whole flight since their
-          hand is hidden information. */}
-      <AnimatePresence>
-        {drawingCards.map(d => {
-          const W = 96, H = 134;
-          const HALF_W = W / 2, HALF_H = H / 2;
-          const hoverScale = d.reveal ? 1.7 : 1.1;
-          const duration = d.durationMs / 1000;
-          const positionAnimate = d.reveal
-            ? {
-                left: [d.fromX - HALF_W, d.hoverX - HALF_W, d.hoverX - HALF_W, d.toX - HALF_W],
-                top: [d.fromY - HALF_H, d.hoverY - HALF_H, d.hoverY - HALF_H, d.toY - HALF_H],
-                scale: [0.6, hoverScale, hoverScale, 0.85],
-                opacity: [0.95, 1, 1, 0],
-                times: [0, 0.45, 0.75, 1],
-              }
-            : {
-                left: [d.fromX - HALF_W, d.toX - HALF_W],
-                top: [d.fromY - HALF_H, d.toY - HALF_H],
-                scale: [0.6, hoverScale, 0.85],
-                opacity: [0.95, 1, 0],
-              };
-          return (
-            <motion.div
-              key={d.id}
-              initial={{ left: d.fromX - HALF_W, top: d.fromY - HALF_H, scale: 0.6, opacity: 0.95 }}
-              animate={positionAnimate}
-              exit={{ opacity: 0 }}
-              transition={{ duration, ease: "easeOut" }}
-              style={{ position: 'fixed', zIndex: 400, width: W, height: H, perspective: 800 }}
-              className="pointer-events-none"
-            >
-              <motion.div
-                className="relative w-full h-full"
-                style={{ transformStyle: 'preserve-3d' }}
-                initial={{ rotateY: 0 }}
-                animate={d.reveal ? { rotateY: [0, 0, 180, 180] } : { rotateY: 0 }}
-                transition={d.reveal ? { duration, times: [0, 0.45, 0.7, 1], ease: "easeInOut" } : { duration: 0 }}
-              >
-                {/* Back face — card back design */}
-                <div
-                  className="absolute inset-0 border-2 border-[#8c7a5f] rounded-lg bg-[#4a3b2c] flex items-center justify-center shadow-[0_0_30px_rgba(212,175,55,0.75)]"
-                  style={{ backfaceVisibility: 'hidden' }}
-                >
-                  <div className="w-[75%] h-[75%] border border-[#8c7a5f]/50 rounded-md flex items-center justify-center relative overflow-hidden">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.35)_0%,transparent_70%)]" />
-                    <div className="w-5 h-5 bg-zinc-800 rounded-full border-2 border-[#d4af37]" />
-                  </div>
-                </div>
-
-                {/* Front face — the actual card, only rendered for the player's own reveal */}
-                {d.reveal && d.card && (
-                  <div
-                    className="absolute inset-0 border-2 border-[#5c4a30] rounded-lg bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] shadow-[0_0_30px_rgba(212,175,55,0.75)] overflow-hidden"
-                    style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
-                  >
-                    {d.card.art ? (
-                      <img src={d.card.art} alt={d.card.name} className="absolute inset-0 w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    ) : (
-                      <div className="absolute inset-0 bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900 flex items-center justify-center">
-                        <div className="w-1/3 h-1/3 border border-zinc-500/40 rotate-45" />
-                      </div>
-                    )}
-                    <div className="absolute top-1 left-1 right-1 bg-gradient-to-b from-black/75 to-black/60 border border-amber-100/25 rounded px-1 py-0.5">
-                      <span className="text-[8px] font-bold text-white uppercase tracking-tight truncate block drop-shadow-md">{d.card.name}</span>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            </motion.div>
-          );
-        })}
-      </AnimatePresence>
 
       {/* Flying card — plays from hand to the chosen board slot along real screen coordinates.
           Rises to a large "presentation" size above the slot, holds briefly, then descends
