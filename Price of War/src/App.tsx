@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { Info, X, Sword, Zap, Users, Library, ArrowUp, ArrowDown } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
+import boardArtImage from './assets/board-art.webp';
 
 export type CardType = 'Infantaria' | 'Cavalaria' | 'Arqueiro' | 'Artilharia' | 'General' | 'Relíquia' | 'Terreno' | 'Tática';
 
@@ -227,9 +228,8 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
   </div>
 );
 
-// Placeholder for the board's full background art (to be an AI-generated battlefield
-// image later). Empty for now — the board renders a flat neutral surface instead.
-const BOARD_ART_URL = '';
+// The board's full background art — an AI-generated battlefield image.
+const BOARD_ART_URL = boardArtImage;
 
 // How big the previewed card renders while parked at the edge during slot selection.
 // The game is played almost entirely on phones, so legibility there matters more than
@@ -1240,8 +1240,7 @@ export default function App() {
           }
         }}
       >
-        {/* Board Surface — a flat, neutral placeholder for now; drop BOARD_ART_URL in
-            later to swap in a full AI-generated battlefield image. */}
+        {/* Board Surface — the AI-generated battlefield art (see BOARD_ART_URL). */}
         <div
           className="absolute inset-0 border-4 border-stone-700/50 bg-[#2b2825] rounded-2xl shadow-[0_0_60px_rgba(0,0,0,0.5)] pointer-events-none overflow-hidden"
           style={{ transform: 'translateZ(-1px)' }}
