@@ -638,6 +638,24 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // On mobile, window.innerHeight at the very first paint often doesn't match the real
+  // settled viewport yet (the browser's own URL bar is still on screen and collapses a
+  // moment later), which fires a resize -> windowSize update -> boardScale change right
+  // as a match starts. Since the board's own transform animates smoothly (see the 3D
+  // board's transition below), that correction used to play out as a real, visible 0.8s
+  // glide of the WHOLE board — deck included — overlapping the opening deal's very
+  // first draw and making the card's start point (measured mid-glide) land in a
+  // slightly wrong spot, as if it hadn't come from the deck at all. Suppressing the
+  // smooth transition for a brief settle window after a match starts makes any such
+  // correction snap instantly instead of visibly animating, so by the time the deal's
+  // first card measures the deck it's already sitting at its true final position.
+  const [viewportSettled, setViewportSettled] = useState(false);
+  useEffect(() => {
+    if (!gameMode) { setViewportSettled(false); return; }
+    const t = window.setTimeout(() => setViewportSettled(true), 500);
+    return () => window.clearTimeout(t);
+  }, [gameMode]);
+
   // Pending timers for the match-intro sequence (see startMatchIntro) — tracked so a
   // fresh resetGame (e.g. backing out to the menu and starting a new match right away)
   // can cancel any that haven't fired yet instead of letting a stale sequence land on
@@ -660,7 +678,10 @@ export default function App() {
       setNpcSlots(prev => { const next = [...prev]; next[12] = GENERAL_NPC; return next; });
     }, 300);
 
-    const DEAL_START = 900;
+    // Kept comfortably past the 500ms viewport-settle window above (see
+    // viewportSettled) so the deck's on-screen position is already final, not still
+    // correcting itself, by the time the first card's flight measures it.
+    const DEAL_START = 1300;
     const DEAL_STEP = 820;
     for (let i = 0; i < 5; i++) {
       const t = DEAL_START + i * DEAL_STEP;
@@ -886,6 +907,32 @@ export default function App() {
   const validAttackTargets = selectedAttackerIndex !== null
     ? getValidAttackTargets(selectedAttackerIndex, playerSlots, npcSlots)
     : new Set<number>();
+
+  // A "conducting line" from the selected attacker to every occupied enemy slot — green
+  // and flowing for a reachable target, dim red for one that's blocked/out of range —
+  // so the lane-blocking rule reads as an obvious line on the board, not just an arrow
+  // or a border color the player has to notice on their own. Uses real on-screen
+  // positions (via the slotId DOM ids) rather than board-local coordinates because the
+  // two ends live in a 3D-tilted board and need to line up exactly as rendered.
+  const attackLines: { x1: number; y1: number; x2: number; y2: number; valid: boolean }[] = [];
+  if (selectedAttackerIndex !== null) {
+    const fromEl = document.getElementById(`player-${selectedAttackerIndex}`);
+    if (fromEl) {
+      const fromRect = fromEl.getBoundingClientRect();
+      const from = { x: fromRect.left + fromRect.width / 2, y: fromRect.top + fromRect.height / 2 };
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].forEach(i => {
+        if (!npcSlots[i]) return;
+        const toEl = document.getElementById(`npc-${i}`);
+        if (!toEl) return;
+        const toRect = toEl.getBoundingClientRect();
+        attackLines.push({
+          x1: from.x, y1: from.y,
+          x2: toRect.left + toRect.width / 2, y2: toRect.top + toRect.height / 2,
+          valid: validAttackTargets.has(i),
+        });
+      });
+    }
+  }
 
   const handleSlotClick = (slotIndex: number, slotEl?: HTMLElement) => {
     if (gameOverWinner || isCardInFlightTransition) return;
@@ -1180,7 +1227,7 @@ export default function App() {
       <motion.div
         className="w-[1000px] h-[1400px] grid grid-rows-2 gap-24 p-8 relative"
         animate={getBoardAnimation()}
-        transition={{ duration: 0.8, ease: [0.32, 0.72, 0, 1] }}
+        transition={{ duration: viewportSettled ? 0.8 : 0, ease: [0.32, 0.72, 0, 1] }}
         onClick={(e) => {
           e.stopPropagation();
           if (isCardInFlightTransition) return; // don't cancel a card mid hand-off to the board
@@ -1261,6 +1308,7 @@ export default function App() {
           {/* General row (fixed) + Relíquia/Terreno slots */}
           <div className="flex justify-center gap-16 items-center">
             <CardSlot
+              slotId="npc-10"
               card={npcSlots[10]}
               onClick={() => handleNpcSlotClick(10)}
               onInfoClick={setDetailedCard}
@@ -1272,6 +1320,7 @@ export default function App() {
             />
             <div className="relative">
               <CardSlot
+                slotId="npc-12"
                 card={npcSlots[12]}
                 onClick={() => handleNpcSlotClick(12)}
                 onInfoClick={setDetailedCard}
@@ -1284,6 +1333,7 @@ export default function App() {
               <ManaBadge value={npcMana} className="absolute -top-3 -left-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
             </div>
             <CardSlot
+              slotId="npc-11"
               card={npcSlots[11]}
               onClick={() => handleNpcSlotClick(11)}
               onInfoClick={setDetailedCard}
@@ -1300,6 +1350,7 @@ export default function App() {
             {[5, 6, 7, 8, 9].map((i) => (
               <CardSlot
                 key={i}
+                slotId={`npc-${i}`}
                 card={npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
                 onInfoClick={setDetailedCard}
@@ -1317,6 +1368,7 @@ export default function App() {
             {[0, 1, 2, 3, 4].map((i) => (
               <CardSlot
                 key={i}
+                slotId={`npc-${i}`}
                 card={npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
                 onInfoClick={setDetailedCard}
@@ -1337,6 +1389,7 @@ export default function App() {
             {[0, 1, 2, 3, 4].map((i) => (
               <CardSlot
                 key={i}
+                slotId={`player-${i}`}
                 card={playerSlots[i]}
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
@@ -1354,6 +1407,7 @@ export default function App() {
             {[5, 6, 7, 8, 9].map((i) => (
               <CardSlot
                 key={i}
+                slotId={`player-${i}`}
                 card={playerSlots[i]}
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
@@ -1369,6 +1423,7 @@ export default function App() {
           {/* General row (fixed) + Relíquia/Terreno slots */}
           <div className="flex justify-center gap-16 items-center">
             <CardSlot
+              slotId="player-10"
               card={playerSlots[10]}
               onClick={(el) => handleSlotClick(10, el)}
               isSelected={selectedAttackerIndex === 10}
@@ -1380,6 +1435,7 @@ export default function App() {
             />
             <div className="relative">
               <CardSlot
+                slotId="player-12"
                 card={playerSlots[12]}
                 onClick={(el) => handleSlotClick(12, el)}
                 isSelected={selectedAttackerIndex === 12}
@@ -1391,6 +1447,7 @@ export default function App() {
               <ManaBadge value={playerMana} className="absolute -top-3 -left-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
             </div>
             <CardSlot
+              slotId="player-11"
               card={playerSlots[11]}
               onClick={(el) => handleSlotClick(11, el)}
               isSelected={selectedAttackerIndex === 11}
@@ -1427,18 +1484,20 @@ export default function App() {
             npcHand, revealed one at a time during the match-intro deal (see
             startMatchIntro) and again whenever the AI draws for its turn, each card
             sliding in from roughly where the opponent's deck sits (now on the LEFT —
-            see the deck block below). The player never sees what's actually in it. */}
+            see the deck block below). The player never sees what's actually in it.
+            Standing upright (no rotateX tilt) — as if the opponent were holding them
+            facing the player across the table — rather than reclined backward, which
+            read as oddly skewed/lying-down instead of a normal held hand of cards. */}
         <div className="absolute top-[-150px] md:top-[-200px] left-1/2 -translate-x-1/2 flex gap-2 md:gap-3 pointer-events-none z-50" style={{ perspective: '1000px' }}>
           {[...Array(npcHand.length)].map((_, i) => (
             <motion.div
               key={`npc-hand-${i}`}
               className="w-32 h-48 md:w-40 md:h-56 shrink-0 bg-[#c5b599] rounded-xl border-2 border-[#8c7a5f] relative shadow-2xl"
-              initial={{ x: -260, y: 40, opacity: 0, rotateX: -20, rotateZ: (i - 2) * 5 - 20, scale: 0.7 }}
+              initial={{ x: -260, y: 40, opacity: 0, rotateZ: (i - 2) * 5 - 20, scale: 0.7 }}
               animate={{
                 x: 0,
                 y: 0,
                 opacity: 1,
-                rotateX: -20,
                 rotateZ: (i - 2) * 5,
                 scale: 1,
               }}
@@ -1919,6 +1978,39 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Attack Targeting Lines — drawn in real viewport coordinates (not board-local
+          ones) since the board itself is 3D-tilted; see attackLines above. */}
+      {attackLines.length > 0 && (
+        <svg className="fixed inset-0 z-40 pointer-events-none" width="100%" height="100%">
+          {attackLines.map((line, idx) => (
+            line.valid ? (
+              <motion.line
+                key={idx}
+                x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2}
+                stroke="#34d399"
+                strokeWidth={3}
+                strokeLinecap="round"
+                strokeDasharray="10 8"
+                initial={{ strokeDashoffset: 0 }}
+                animate={{ strokeDashoffset: -18 }}
+                transition={{ duration: 0.5, repeat: Infinity, ease: "linear" }}
+                style={{ filter: 'drop-shadow(0 0 4px rgba(52,211,153,0.9))' }}
+              />
+            ) : (
+              <line
+                key={idx}
+                x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2}
+                stroke="#ef4444"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeDasharray="4 6"
+                opacity={0.55}
+              />
+            )
+          ))}
+        </svg>
+      )}
+
       {/* Toast Notification */}
       <AnimatePresence>
         {toastMessage && (
@@ -2084,7 +2176,7 @@ export default function App() {
 const CardSlot = ({
   onClick, onInfoClick, card, isSelected = false,
   isAttacking = false, isImpactingTarget = false, attackDirection = 'up', hint,
-  isValidAttackTarget = false, isInvalidAttackTarget = false
+  isValidAttackTarget = false, isInvalidAttackTarget = false, slotId
 }: {
   onClick?: (el: HTMLElement) => void, onInfoClick?: (card: CardData) => void, card?: CardData | null,
   isSelected?: boolean, isAttacking?: boolean, isImpactingTarget?: boolean, attackDirection?: 'up' | 'down',
@@ -2094,7 +2186,11 @@ const CardSlot = ({
   // dimmed/grayed look on an occupied slot that's blocked or out of the attacker's
   // lane — so the lane-blocking rule reads as a visible board state, not a rejected
   // click the player has to guess at.
-  isValidAttackTarget?: boolean, isInvalidAttackTarget?: boolean
+  isValidAttackTarget?: boolean, isInvalidAttackTarget?: boolean,
+  // A stable DOM id (e.g. "player-3", "npc-12") so the targeting-line overlay can find
+  // this exact slot's on-screen position via getBoundingClientRect, without needing a
+  // forwarded ref on every one of the 26 slots on the board.
+  slotId?: string
 }) => {
   const attackY = attackDirection === 'up' ? -150 : 150;
 
@@ -2108,6 +2204,7 @@ const CardSlot = ({
 
   return (
     <motion.div
+      id={slotId}
       onClick={(e) => {
         if (onClick) {
           e.stopPropagation();
