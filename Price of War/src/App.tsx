@@ -177,13 +177,16 @@ const ExplosionEffect = () => (
   </div>
 );
 
+// A gold coin, not a mana crystal — Ouro is the game's resource (see the turn-start
+// effect above for how it accumulates), so its badge is styled to match: a coin face
+// instead of Hearthstone's blue hexagon.
 const ManaBadge = ({ value, className = "" }: { value: number, className?: string }) => (
   <div className={`relative flex items-center justify-center ${className}`}>
     <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full drop-shadow-md">
-      <polygon points="50,5 95,30 95,70 50,95 5,70 5,30" fill="#3b82f6" stroke="#1e3a8a" strokeWidth="6" strokeLinejoin="round" />
-      <polygon points="50,15 85,35 85,65 50,85 15,65 15,35" fill="none" stroke="#bfdbfe" strokeWidth="2" opacity="0.5" />
+      <circle cx="50" cy="50" r="46" fill="#d4af37" stroke="#7a4a00" strokeWidth="6" />
+      <circle cx="50" cy="50" r="36" fill="none" stroke="#fff3c4" strokeWidth="2.5" opacity="0.6" />
     </svg>
-    <span className="relative z-10 text-white font-black drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] leading-none">{value}</span>
+    <span className="relative z-10 text-amber-950 font-black drop-shadow-[0_1px_1px_rgba(255,243,196,0.5)] leading-none">{value}</span>
   </div>
 );
 
@@ -740,7 +743,12 @@ export default function App() {
 
   useEffect(() => {
     if (currentTurn === 'player') {
-      setPlayerMana(10);
+      // Ouro (gold) is a persistent economy, not a Hearthstone-style mana crystal that
+      // refills to a fixed amount every turn: it starts at 10, sits still through turns
+      // 1-2, then grows by +4 every turn from turn 3 onward with no upper cap — and
+      // whatever wasn't spent carries over. So a big play can be saved up for instead
+      // of always being locked to what a single turn's allowance affords.
+      if (turnNumber >= 3) setPlayerMana(prev => prev + 4);
       // The NPC's turn forces viewState to 'field' (zoomed out to watch it play), which
       // leaves the hand tray dimmed and pushed down off-screen (see the Hand UI's own
       // animate below) — nothing ever brought it back once play returned to the
@@ -753,7 +761,7 @@ export default function App() {
         setHand(prev => [...prev, newCard]);
       }
     } else {
-      setNpcMana(10);
+      if (turnNumber >= 3) setNpcMana(prev => prev + 4);
       setViewState('field');
       if (turnNumber > 1 && npcHand.length < 10) {
         setNpcHand(prev => [...prev, drawFromNpcDeck()]);
@@ -960,7 +968,7 @@ export default function App() {
       }
 
       if (playerMana < cardToPlay.cost) {
-        showToast("Not enough mana!");
+        showToast("Ouro insuficiente!");
         return;
       }
 
