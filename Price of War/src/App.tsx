@@ -1317,12 +1317,11 @@ export default function App() {
                 // back face to its front face along the way (see the 3D flip wrapper
                 // inside). Nothing hands off to a different element partway through.
                 initial={origin
-                  ? { opacity: 1, x: origin.x, y: origin.y, scale: origin.scale, rotateZ: 0, rotateY: 0 }
-                  : { opacity: 1, x: 0, y: getFanLift(i), scale: 1, rotateZ: getFanRotation(i), rotateY: 180 }
+                  ? { opacity: 1, x: origin.x, y: origin.y, scale: origin.scale, rotateZ: 0 }
+                  : { opacity: 1, x: 0, y: getFanLift(i), scale: 1, rotateZ: getFanRotation(i) }
                 }
                 style={{
                   transformOrigin: 'bottom center',
-                  transformStyle: 'preserve-3d',
                   marginLeft: i === 0 ? 0 : HAND_CARD_STEP - HAND_CARD_WIDTH,
                 }}
                 animate={{
@@ -1340,10 +1339,6 @@ export default function App() {
                     ? (viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) : 1.1)
                     : (viewState === 'field' ? 0.6 : 1),
                   rotateZ: selectedCardIndex === i || viewState === 'field' ? 0 : getFanRotation(i),
-                  // Always the resting "face up" angle — only the initial value (see
-                  // `initial` above) differs for a freshly drawn card, so it flips from
-                  // back to front once, on the way in, instead of ever flipping back.
-                  rotateY: 180,
                   zIndex: selectedCardIndex === i ? 150 : i + 1,
                   boxShadow: selectedCardIndex === i
                     ? "inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 120px rgba(212, 175, 55, 0.95)"
@@ -1359,17 +1354,18 @@ export default function App() {
                     : "0 0 25px rgba(212, 175, 55, 0.5)"
                 }}
                 whileTap={{ scale: 0.95 }}
-                // A freshly drawn card gets a slower transition (matching the full travel
-                // time from the deck) and a delayed rotateY so it flips face-up right near
-                // the end of the trip, not gradually the whole way. Cleared via
-                // onAnimationComplete once that first arrival finishes, so every later
-                // interaction (hover, selection, the fan reflowing for the next card) goes
-                // back to the normal snappy transition.
+                // A freshly drawn card gets a slower transition, matching the full travel
+                // time from the deck (the flip itself is a separate, nested rotateY — see
+                // below — kept off this element entirely: composing a Z-axis fan rotation
+                // with a Y-axis flip on the SAME transform mirrors the fan rotation once
+                // the flip passes 90°, which is what made settled cards look crooked).
+                // Cleared via onAnimationComplete once that first arrival finishes, so
+                // every later interaction (hover, selection, the fan reflowing for the
+                // next card) goes back to the normal snappy transition.
                 transition={{
                   duration: origin ? DRAW_FLIGHT_MS / 1000 : 0.4,
                   ease: "easeOut",
                   zIndex: { delay: selectedCardIndex === i ? 0 : 0.4 },
-                  ...(origin ? { rotateY: { delay: DRAW_FLIGHT_MS * 0.55 / 1000, duration: DRAW_FLIGHT_MS * 0.4 / 1000, ease: "easeInOut" } } : {}),
                 }}
                 onAnimationComplete={() => { delete drawOriginsRef.current[card.id]; }}
                 onClick={(e) => {
@@ -1377,27 +1373,45 @@ export default function App() {
                   handleCardClick(i);
                 }}
               >
-                {/* Back face — plain card-back design, shown while rotateY is near 0 (see
-                    the outer div's initial/animate above). backfaceVisibility hides this
-                    once the card has flipped past 90°, leaving the front face below. */}
-                <div
-                  className="absolute inset-0 rounded-xl border-2 border-[#8c7a5f] bg-[#4a3b2c] flex items-center justify-center shadow-[0_10px_20px_rgba(0,0,0,0.5)]"
-                  style={{ backfaceVisibility: 'hidden' }}
-                >
-                  <div className="w-[75%] h-[75%] border border-[#8c7a5f]/50 rounded-lg flex items-center justify-center relative overflow-hidden">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.3)_0%,transparent_70%)]" />
-                    <div className="w-10 h-10 bg-zinc-800 rounded-full border-2 border-[#d4af37]" />
-                  </div>
-                </div>
+                {/* The 3D flip lives on its own dedicated element, nested inside the outer
+                    div above — never combined with that div's rotateZ (the fan angle).
+                    Composing a Z rotation and a Y rotation on the SAME transform mirrors
+                    the Z rotation once the Y flip passes 90° (each subsequent rotation
+                    applies in the already-rotated local frame), which is exactly what was
+                    making settled cards render crooked: every card's fan angle was being
+                    flipped left-right once it finished turning face up. */}
+                <div className="absolute inset-0" style={{ perspective: 1000 }}>
+                  <motion.div
+                    className="relative w-full h-full"
+                    style={{ transformStyle: 'preserve-3d' }}
+                    initial={{ rotateY: origin ? 0 : 180 }}
+                    animate={{ rotateY: 180 }}
+                    transition={origin
+                      ? { delay: DRAW_FLIGHT_MS * 0.55 / 1000, duration: DRAW_FLIGHT_MS * 0.4 / 1000, ease: "easeInOut" }
+                      : { duration: 0 }
+                    }
+                  >
+                    {/* Back face — plain card-back design, shown while rotateY is near 0.
+                        backfaceVisibility hides this once flipped past 90°, leaving the
+                        front face below. */}
+                    <div
+                      className="absolute inset-0 rounded-xl border-2 border-[#8c7a5f] bg-[#4a3b2c] flex items-center justify-center shadow-[0_10px_20px_rgba(0,0,0,0.5)]"
+                      style={{ backfaceVisibility: 'hidden' }}
+                    >
+                      <div className="w-[75%] h-[75%] border border-[#8c7a5f]/50 rounded-lg flex items-center justify-center relative overflow-hidden">
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.3)_0%,transparent_70%)]" />
+                        <div className="w-10 h-10 bg-zinc-800 rounded-full border-2 border-[#d4af37]" />
+                      </div>
+                    </div>
 
-                {/* Front face — the real card, pre-rotated 180° so it reads upright once
-                    the outer flip reaches its rest angle. Carries the card's own visible
-                    background/border (moved off the outer div, which now only handles
-                    position/flip) so it looks identical to before once fully face up. */}
-                <div
-                  className="absolute inset-0 rounded-xl border-2 border-[#5c4a30] bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f]"
-                  style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
-                >
+                    {/* Front face — the real card, pre-rotated 180° so it reads upright
+                        once this wrapper reaches its rest angle. Carries the card's own
+                        visible background/border (moved off the outer div, which now only
+                        handles position/fan) so it looks identical to before once face up. */}
+                    <div
+                      className="absolute inset-0 rounded-xl border-2 border-[#5c4a30] bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f]"
+                      style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                    >
                   {/* Info Button — only actually clickable while still browsing the hand.
                       Once past "Jogar Carta" it sits over the board (see the floating
                       preview position), and pointer-events-auto here would otherwise keep
@@ -1468,6 +1482,8 @@ export default function App() {
                       Jogar Carta
                     </motion.button>
                   )}
+                    </div>
+                  </motion.div>
                 </div>
               </motion.div>
               );
