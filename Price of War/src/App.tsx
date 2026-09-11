@@ -1310,7 +1310,12 @@ export default function App() {
                 // time. key alone is enough for React to keep reusing this same DOM node.
                 key={card.id}
                 ref={(el) => { handCardRefs.current[card.id] = el; }}
-                className={`w-56 h-80 shrink-0 cursor-pointer relative group ${viewState === 'field' ? 'pointer-events-none' : 'pointer-events-auto'}`}
+                // rounded-xl here (even though this element has no visible background of
+                // its own — that's on the front/back faces nested inside) matters because
+                // the animate/whileHover boxShadow below is applied to THIS element; without
+                // matching rounding, that shadow rendered as a sharp-cornered rectangle
+                // sitting visibly behind the actual rounded card, especially obvious mid-flip.
+                className={`w-56 h-80 shrink-0 cursor-pointer relative group rounded-xl ${viewState === 'field' ? 'pointer-events-none' : 'pointer-events-auto'}`}
                 // A freshly drawn card (see computeDrawOrigin) mounts sitting right at the
                 // real on-board deck's position/size and animates itself — this same
                 // element, start to finish — into its fan slot below, flipping from its
