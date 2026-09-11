@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/re
 import { Info, X, Sword, Zap, Users, Library, ArrowUp, ArrowDown } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
 import boardInteriorImage from './assets/board-interior.webp';
+import swordTurnButtonImage from './assets/sword-turn-button.webp';
 
 export type CardType = 'Infantaria' | 'Cavalaria' | 'Arqueiro' | 'Artilharia' | 'General' | 'Relíquia' | 'Terreno' | 'Tática';
 
@@ -1271,7 +1272,9 @@ export default function App() {
             now always on screen. It's a single flippable plaque: "SEU TURNO" is itself
             the end-turn button (tap it to pass), and it flips (like a name plate on a
             board game) to "TURNO DO ADVERSÁRIO" while it's not the player's turn, then
-            flips back on its own once the NPC's turn ends. */}
+            flips back on its own once the NPC's turn ends. The flip rotates around the
+            horizontal axis (rotateX, top-over-bottom) rather than the vertical one, so
+            it reads as tipping toward the viewer instead of swiveling side to side. */}
         <div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 pointer-events-auto"
           style={{ perspective: 600 }}
@@ -1281,33 +1284,45 @@ export default function App() {
           }}
         >
           <motion.div
-            className="relative w-32 h-12 md:w-36 md:h-14 cursor-pointer"
+            className="relative w-[190px] h-11 md:w-[230px] md:h-[53px] cursor-pointer"
             style={{ transformStyle: 'preserve-3d' }}
-            animate={{ rotateY: currentTurn === 'player' ? 0 : 180 }}
+            animate={{ rotateX: currentTurn === 'player' ? 0 : 180 }}
             transition={{ duration: 0.6, ease: "easeInOut" }}
             whileTap={currentTurn === 'player' ? { scale: 0.94 } : undefined}
           >
-            {/* Front face — SEU TURNO (the actionable "pass turn" face) */}
+            {/* Front face — SEU TURNO, rendered as a sword lying on the divider (the
+                actionable "pass turn" face). The text sits over the blade, offset past
+                the hilt (which occupies the left ~22% of the image). */}
             <motion.div
-              className="absolute inset-0 rounded-xl border-b-4 border-amber-700 bg-amber-500 text-amber-950 flex items-center justify-center gap-2 font-black text-[11px] md:text-sm tracking-widest shadow-[0_4px_20px_rgba(245,158,11,0.4)]"
+              className="absolute inset-0"
               style={{ backfaceVisibility: 'hidden' }}
               animate={{
-                boxShadow: currentTurn === 'player'
-                  ? ['0 4px 20px rgba(245,158,11,0.4)', '0 4px 30px rgba(245,158,11,0.8)', '0 4px 20px rgba(245,158,11,0.4)']
-                  : '0 4px 20px rgba(245,158,11,0.4)'
+                filter: currentTurn === 'player'
+                  ? ['drop-shadow(0 0 4px rgba(245,158,11,0.5))', 'drop-shadow(0 0 10px rgba(245,158,11,0.9))', 'drop-shadow(0 0 4px rgba(245,158,11,0.5))']
+                  : 'drop-shadow(0 0 4px rgba(245,158,11,0.5))'
               }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              <div className="w-2.5 h-2.5 rounded-full bg-amber-950/70 animate-pulse" />
-              SEU TURNO
+              <img
+                src={swordTurnButtonImage}
+                alt=""
+                draggable={false}
+                className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+              />
+              <div className="absolute inset-0 flex items-center justify-center pl-[24%] pr-[6%]">
+                <span className="flex items-center gap-1.5 font-black text-[10px] md:text-xs tracking-wide text-zinc-900">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-700 animate-pulse shrink-0" />
+                  SEU TURNO
+                </span>
+              </div>
             </motion.div>
 
             {/* Back face — TURNO DO ADVERSÁRIO (not actionable) */}
             <div
-              className="absolute inset-0 rounded-xl border-2 border-red-500 bg-red-900/90 text-red-200 flex items-center justify-center gap-2 font-black text-[11px] md:text-sm tracking-widest cursor-not-allowed"
-              style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+              className="absolute inset-0 rounded-xl border-2 border-red-500 bg-red-900/90 text-red-200 flex items-center justify-center gap-2 font-black text-[10px] md:text-xs tracking-wide cursor-not-allowed"
+              style={{ backfaceVisibility: 'hidden', transform: 'rotateX(180deg)' }}
             >
-              <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_10px_rgba(248,113,113,1)] animate-pulse" />
+              <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(248,113,113,1)] animate-pulse" />
               TURNO DO ADVERSÁRIO
             </div>
           </motion.div>
