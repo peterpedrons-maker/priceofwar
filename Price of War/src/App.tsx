@@ -393,9 +393,15 @@ export default function App() {
   // is wider than their flat width — account for that tilt or the fan's edge cards clip.
   // Scale so the WHOLE hand always fits on screen — no floor, or large hands would overflow
   // and get clipped past the screen edges (the outer container clips, it doesn't scroll).
-  const handTotalWidth = hand.length > 0 ? HAND_CARD_WIDTH + (hand.length - 1) * HAND_CARD_STEP : HAND_CARD_WIDTH;
+  // Sized against a fixed reference count (not the hand's actual current length) so cards
+  // stay the SAME size while dealing the opening hand (1 card growing to 5) instead of
+  // visibly shrinking card by card as each new one arrives — it only starts shrinking
+  // further once the hand genuinely grows past a normal opening hand's size.
+  const HAND_SCALE_REFERENCE_COUNT = 5;
+  const handScaleCount = Math.max(hand.length, HAND_SCALE_REFERENCE_COUNT);
+  const handTotalWidth = handScaleCount > 0 ? HAND_CARD_WIDTH + (handScaleCount - 1) * HAND_CARD_STEP : HAND_CARD_WIDTH;
   const handFanMaxAngleRad = (FAN_SPREAD_DEG / 2) * (Math.PI / 180);
-  const handFanExtraWidth = hand.length > 1 ? HAND_CARD_HEIGHT * Math.sin(handFanMaxAngleRad) : 0;
+  const handFanExtraWidth = handScaleCount > 1 ? HAND_CARD_HEIGHT * Math.sin(handFanMaxAngleRad) : 0;
   const handScale = isMobile
     ? Math.min(0.85, (windowSize.width - 16) / (handTotalWidth + handFanExtraWidth))
     : 1;
@@ -1250,8 +1256,13 @@ export default function App() {
         {/* Deck & Graveyard (On Board) — same reasoning as the opponent's: kept inside
             the canvas, on the right side of the player's own field, so it's visible
             under the normal camera at all times (see computeDrawOrigin for how a drawn
-            hand card animates itself in from this exact spot). */}
-        <div className="absolute right-4 md:right-8 bottom-12 flex flex-col gap-6 items-center z-40 pointer-events-auto">
+            hand card animates itself in from this exact spot). Needs a much bigger inset
+            than the opponent's identical block: the board is tilted (rotateX), so the
+            player's row — nearer the "camera", at the bottom of the perspective — projects
+            onto a proportionally WIDER slice of the screen than the opponent's row up top.
+            The same right-4 the opponent uses left most of this block past the real right
+            edge of the viewport on a phone, i.e. invisible rather than merely crowded. */}
+        <div className="absolute right-36 md:right-8 bottom-40 flex flex-col gap-6 items-center z-40 pointer-events-auto">
           {/* Graveyard */}
           <div className="w-24 md:w-36 h-32 md:h-48 border-2 border-zinc-700 rounded-xl bg-zinc-900/80 flex items-center justify-center shadow-lg relative overflow-hidden">
             <span className="text-zinc-600 font-mono text-xs md:text-sm uppercase tracking-widest rotate-90 opacity-50">Graveyard</span>
