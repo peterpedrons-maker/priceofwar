@@ -1310,12 +1310,7 @@ export default function App() {
                 // time. key alone is enough for React to keep reusing this same DOM node.
                 key={card.id}
                 ref={(el) => { handCardRefs.current[card.id] = el; }}
-                // rounded-xl here (even though this element has no visible background of
-                // its own — that's on the front/back faces nested inside) matters because
-                // the animate/whileHover boxShadow below is applied to THIS element; without
-                // matching rounding, that shadow rendered as a sharp-cornered rectangle
-                // sitting visibly behind the actual rounded card, especially obvious mid-flip.
-                className={`w-56 h-80 shrink-0 cursor-pointer relative group rounded-xl ${viewState === 'field' ? 'pointer-events-none' : 'pointer-events-auto'}`}
+                className={`w-56 h-80 shrink-0 cursor-pointer relative group ${viewState === 'field' ? 'pointer-events-none' : 'pointer-events-auto'}`}
                 // A freshly drawn card (see computeDrawOrigin) mounts sitting right at the
                 // real on-board deck's position/size and animates itself — this same
                 // element, start to finish — into its fan slot below, flipping from its
@@ -1345,18 +1340,17 @@ export default function App() {
                     : (viewState === 'field' ? 0.6 : 1),
                   rotateZ: selectedCardIndex === i || viewState === 'field' ? 0 : getFanRotation(i),
                   zIndex: selectedCardIndex === i ? 150 : i + 1,
-                  boxShadow: selectedCardIndex === i
-                    ? "inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 120px rgba(212, 175, 55, 0.95)"
-                    : "inset 0 0 0 1px rgba(212,175,55,0.45), 0 10px 30px rgba(0,0,0,0.5)"
+                  // boxShadow lives on the front face now (see below), not here: a shadow
+                  // on THIS element is a flat 2D box that doesn't perspective-foreshorten
+                  // the way the nested 3D-rotated card does, so during the flip it kept
+                  // rendering as a separate, undistorted rounded-rectangle ghost sitting
+                  // behind the actual (already turning, narrower-looking) card.
                 }}
                 whileHover={{
                   y: selectedCardIndex === i
                     ? (viewState === 'field' ? getSelectedCardY() : -40)
                     : viewState === 'field' ? 120 : -20,
                   scale: selectedCardIndex === i ? (viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) + 0.05 : 1.1) : 1.05,
-                  boxShadow: selectedCardIndex === i
-                    ? "0 0 80px rgba(212, 175, 55, 0.8)"
-                    : "0 0 25px rgba(212, 175, 55, 0.5)"
                 }}
                 whileTap={{ scale: 0.95 }}
                 // A freshly drawn card gets a slower transition, matching the full travel
@@ -1412,10 +1406,25 @@ export default function App() {
                     {/* Front face — the real card, pre-rotated 180° so it reads upright
                         once this wrapper reaches its rest angle. Carries the card's own
                         visible background/border (moved off the outer div, which now only
-                        handles position/fan) so it looks identical to before once face up. */}
-                    <div
+                        handles position/fan) so it looks identical to before once face up.
+                        The selection/idle glow also lives here now (not on the outer div)
+                        so it's part of the same 3D-rotated surface as the card itself,
+                        instead of a flat 2D shadow that stayed undistorted while the actual
+                        card was still perspective-foreshortened mid-flip. */}
+                    <motion.div
                       className="absolute inset-0 rounded-xl border-2 border-[#5c4a30] bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f]"
                       style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                      animate={{
+                        boxShadow: selectedCardIndex === i
+                          ? "inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 120px rgba(212, 175, 55, 0.95)"
+                          : "inset 0 0 0 1px rgba(212,175,55,0.45), 0 10px 30px rgba(0,0,0,0.5)"
+                      }}
+                      whileHover={{
+                        boxShadow: selectedCardIndex === i
+                          ? "0 0 80px rgba(212, 175, 55, 0.8)"
+                          : "0 0 25px rgba(212, 175, 55, 0.5)"
+                      }}
+                      transition={{ duration: 0.4, ease: "easeOut" }}
                     >
                   {/* Info Button — only actually clickable while still browsing the hand.
                       Once past "Jogar Carta" it sits over the board (see the floating
@@ -1487,7 +1496,7 @@ export default function App() {
                       Jogar Carta
                     </motion.button>
                   )}
-                    </div>
+                    </motion.div>
                   </motion.div>
                 </div>
               </motion.div>
