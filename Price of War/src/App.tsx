@@ -904,9 +904,10 @@ export default function App() {
     // while staying fully on-screen so the player always knows what they're about to play.
     const previewHalfWidthOnScreen = (HAND_CARD_WIDTH * (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) * previewScaleFactor) / 2;
     const edgeGap = 6;
-    const desiredAbsDelta = isMobile
-      ? (windowSize.width / 2 - edgeGap - previewHalfWidthOnScreen)
-      : (-(windowSize.width / 2) + edgeGap + previewHalfWidthOnScreen);
+    // Tucked to the LEFT edge on both mobile and desktop: the right side of the board
+    // now holds the player's own deck + graveyard, so parking the preview there would
+    // sit it right on top of them.
+    const desiredAbsDelta = -(windowSize.width / 2) + edgeGap + previewHalfWidthOnScreen;
     const targetX = desiredAbsDelta / previewScaleFactor;
     return targetX - cardX;
   };
@@ -1229,14 +1230,15 @@ export default function App() {
 
         {/* Opponent Hand (Floating) — revealed one at a time during the match-intro
             deal (see npcHandRevealCount / startMatchIntro), each card sliding in from
-            roughly where the opponent's deck sits, so drawing their opening hand is
-            visibly happening rather than the hand just appearing fully formed. */}
+            roughly where the opponent's deck sits (now on the LEFT — see the deck
+            block below), so drawing their opening hand is visibly happening rather
+            than the hand just appearing fully formed. */}
         <div className="absolute top-[-150px] md:top-[-200px] left-1/2 -translate-x-1/2 flex gap-2 md:gap-3 pointer-events-none z-50" style={{ perspective: '1000px' }}>
           {[...Array(npcHandRevealCount)].map((_, i) => (
             <motion.div
               key={`npc-hand-${i}`}
               className="w-32 h-48 md:w-40 md:h-56 shrink-0 bg-[#c5b599] rounded-xl border-2 border-[#8c7a5f] relative shadow-2xl"
-              initial={{ x: 260, y: 40, opacity: 0, rotateX: -20, rotateZ: (i - 2) * 5 + 20, scale: 0.7 }}
+              initial={{ x: -260, y: 40, opacity: 0, rotateX: -20, rotateZ: (i - 2) * 5 - 20, scale: 0.7 }}
               animate={{
                 x: 0,
                 y: 0,
