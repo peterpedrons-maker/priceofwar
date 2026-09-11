@@ -1102,11 +1102,11 @@ export default function App() {
           </div>
           {/* Retaguarda NPC (Backline) */}
           <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mb-3">Retaguarda</div>
-          <div className="flex justify-center gap-6">
+          <div className="flex justify-center gap-1 md:gap-6">
             {[5, 6, 7, 8, 9].map((i) => (
-              <CardSlot 
-                key={i} 
-                card={npcSlots[i]} 
+              <CardSlot
+                key={i}
+                card={npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)} 
                 onInfoClick={setDetailedCard} 
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
@@ -1117,7 +1117,7 @@ export default function App() {
           </div>
           {/* Vanguarda NPC (Frontline) */}
           <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mb-3">Vanguarda</div>
-          <div className="flex justify-center gap-6">
+          <div className="flex justify-center gap-1 md:gap-6">
             {[0, 1, 2, 3, 4].map((i) => (
               <CardSlot
                 key={i}
@@ -1135,7 +1135,7 @@ export default function App() {
         {/* Player Field */}
         <div className="flex flex-col gap-6 justify-end pb-4 pointer-events-auto">
           {/* Vanguarda Player (Frontline) */}
-          <div className="flex justify-center gap-6">
+          <div className="flex justify-center gap-1 md:gap-6">
             {[0, 1, 2, 3, 4].map((i) => (
               <CardSlot
                 key={i}
@@ -1152,7 +1152,7 @@ export default function App() {
           </div>
           <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mt-3">Vanguarda</div>
           {/* Retaguarda Player (Backline) */}
-          <div className="flex justify-center gap-6">
+          <div className="flex justify-center gap-1 md:gap-6">
             {[5, 6, 7, 8, 9].map((i) => (
               <CardSlot
                 key={i}
