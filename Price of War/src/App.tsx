@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { Info, X, Sword, Zap, Users, Library, ArrowUp, ArrowDown } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
-import boardArtImage from './assets/board-art.webp';
 
 export type CardType = 'Infantaria' | 'Cavalaria' | 'Arqueiro' | 'Artilharia' | 'General' | 'Relíquia' | 'Terreno' | 'Tática';
 
@@ -228,8 +227,12 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
   </div>
 );
 
-// The board's full background art — an AI-generated battlefield image.
-const BOARD_ART_URL = boardArtImage;
+// The board's art comes as two separate images: one for the playing surface
+// itself (inside the bordered board frame) and one for the space around it
+// (outside the frame, filling the rest of the screen). Empty for now — the
+// game renders flat neutral placeholders instead until real art is dropped in.
+const BOARD_INTERIOR_ART_URL = '';
+const BOARD_EXTERIOR_ART_URL = '';
 
 // How big the previewed card renders while parked at the edge during slot selection.
 // The game is played almost entirely on phones, so legibility there matters more than
@@ -1219,6 +1222,12 @@ export default function App() {
       style={{ perspective: '1200px' }}
       onClick={handleBackgroundClick}
     >
+      {/* Exterior — the space around the board (see BOARD_EXTERIOR_ART_URL); falls
+          back to the plain dark gradient below when no art has been dropped in yet. */}
+      {BOARD_EXTERIOR_ART_URL && (
+        <img src={BOARD_EXTERIOR_ART_URL} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+      )}
+
       {/* Background ambient light */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(30,30,60,0.8)_0%,rgba(0,0,0,1)_100%)] pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_40%,rgba(80,60,140,0.15)_0%,transparent_60%)] pointer-events-none" />
@@ -1240,13 +1249,14 @@ export default function App() {
           }
         }}
       >
-        {/* Board Surface — the AI-generated battlefield art (see BOARD_ART_URL). */}
+        {/* Board Surface — the playing-surface art, inside the bordered frame (see
+            BOARD_INTERIOR_ART_URL). */}
         <div
           className="absolute inset-0 border-4 border-stone-700/50 bg-[#2b2825] rounded-2xl shadow-[0_0_60px_rgba(0,0,0,0.5)] pointer-events-none overflow-hidden"
           style={{ transform: 'translateZ(-1px)' }}
         >
-          {BOARD_ART_URL ? (
-            <img src={BOARD_ART_URL} alt="" className="w-full h-full object-cover" />
+          {BOARD_INTERIOR_ART_URL ? (
+            <img src={BOARD_INTERIOR_ART_URL} alt="" className="w-full h-full object-cover" />
           ) : (
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.04)_0%,transparent_70%)]" />
           )}
@@ -1525,9 +1535,15 @@ export default function App() {
           the board didn't work — the board never opts into transform-style:
           preserve-3d, so a child's own 3D scene gets flattened before the board's
           rotation is applied to it, and the counter-rotation has no visible effect.
-          Living outside the tilted subtree entirely sidesteps that. */}
+          Living outside the tilted subtree entirely sidesteps that — but it also
+          means this hand no longer inherits the board's own scale-down (see
+          baseAnim.scale in getBoardAnimation), so without correcting for that it
+          renders at full, unscaled card size instead of sitting small and "far
+          away" like the rest of the opponent's side of the table. Reapplying that
+          same scale factor here keeps it the same size it always was. */}
       <div
-        className="absolute top-[6%] md:top-[8%] left-1/2 -translate-x-1/2 flex gap-2 md:gap-3 pointer-events-none z-50"
+        className="absolute top-[2%] md:top-[4%] left-1/2 -translate-x-1/2 flex gap-2 md:gap-3 pointer-events-none z-50"
+        style={{ transform: `scale(${(isMobile ? 1.0 : 0.85) * boardScale})`, transformOrigin: 'top center' }}
       >
         {[...Array(npcHand.length)].map((_, i) => (
           <motion.div
