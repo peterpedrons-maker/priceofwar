@@ -633,6 +633,11 @@ export default function App() {
   useEffect(() => {
     if (currentTurn === 'player') {
       setPlayerMana(10);
+      // The NPC's turn forces viewState to 'field' (zoomed out to watch it play), which
+      // leaves the hand tray dimmed and pushed down off-screen (see the Hand UI's own
+      // animate below) — nothing ever brought it back once play returned to the
+      // player, so the hand looked like it had vanished. Bring it back to 'hand' here.
+      setViewState('hand');
       if (turnNumber > 1 && hand.length < 10) {
         const newCard = drawFromDeck();
         const origin = computeDrawOrigin(playerDeckRef, hand.length);
