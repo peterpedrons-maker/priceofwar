@@ -1480,37 +1480,6 @@ export default function App() {
           <GraveyardPile cards={npcGraveyard} />
         </div>
 
-        {/* Opponent Hand (Floating) — one face-down card back per card actually in
-            npcHand, revealed one at a time during the match-intro deal (see
-            startMatchIntro) and again whenever the AI draws for its turn, each card
-            sliding in from roughly where the opponent's deck sits (now on the LEFT —
-            see the deck block below). The player never sees what's actually in it.
-            Standing upright (no rotateX tilt) — as if the opponent were holding them
-            facing the player across the table — rather than reclined backward, which
-            read as oddly skewed/lying-down instead of a normal held hand of cards. */}
-        <div className="absolute top-[-150px] md:top-[-200px] left-1/2 -translate-x-1/2 flex gap-2 md:gap-3 pointer-events-none z-50" style={{ perspective: '1000px' }}>
-          {[...Array(npcHand.length)].map((_, i) => (
-            <motion.div
-              key={`npc-hand-${i}`}
-              className="w-32 h-48 md:w-40 md:h-56 shrink-0 bg-[#c5b599] rounded-xl border-2 border-[#8c7a5f] relative shadow-2xl"
-              initial={{ x: -260, y: 40, opacity: 0, rotateZ: (i - 2) * 5 - 20, scale: 0.7 }}
-              animate={{
-                x: 0,
-                y: 0,
-                opacity: 1,
-                rotateZ: (i - 2) * 5,
-                scale: 1,
-              }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
-            >
-              {/* Card Back Design */}
-              <div className="absolute inset-2 border border-[#8c7a5f]/50 rounded-lg flex items-center justify-center bg-[#4a3b2c]">
-                <div className="w-8 h-8 bg-zinc-800 rounded-full border-2 border-[#d4af37] opacity-50" />
-              </div>
-            </motion.div>
-          ))}
-        </div>
-
         {/* Deck & Graveyard (On Board) — kept inside the canvas, on the RIGHT side of
             the player's own field (the opponent's mirrors it on the left, so the two
             sit on diagonally opposite corners), so it's visible under the normal
@@ -1544,6 +1513,44 @@ export default function App() {
           </motion.div>
         </div>
       </motion.div>
+
+      {/* Opponent Hand (Floating) — one face-down card back per card actually in
+          npcHand, revealed one at a time during the match-intro deal (see
+          startMatchIntro) and again whenever the AI draws for its turn, each card
+          sliding in from roughly where the opponent's deck sits (on the LEFT side of
+          the board). The player never sees what's actually in it. This lives as a
+          sibling of the 3D board rather than inside it: the board's own motion.div
+          carries a rotateX tilt (see baseAnim in getBoardAnimation) that every card
+          lying flat on its surface should inherit, but this hand floats above the
+          table facing the player and needs to stay upright. A counter-rotateX inside
+          the board didn't work — the board never opts into transform-style:
+          preserve-3d, so a child's own 3D scene gets flattened before the board's
+          rotation is applied to it, and the counter-rotation has no visible effect.
+          Living outside the tilted subtree entirely sidesteps that. */}
+      <div
+        className="absolute top-[6%] md:top-[8%] left-1/2 -translate-x-1/2 flex gap-2 md:gap-3 pointer-events-none z-50"
+      >
+        {[...Array(npcHand.length)].map((_, i) => (
+          <motion.div
+            key={`npc-hand-${i}`}
+            className="w-32 h-48 md:w-40 md:h-56 shrink-0 bg-[#c5b599] rounded-xl border-2 border-[#8c7a5f] relative shadow-2xl"
+            initial={{ x: -260, y: 40, opacity: 0, rotateZ: (i - 2) * 5 - 20, scale: 0.7 }}
+            animate={{
+              x: 0,
+              y: 0,
+              opacity: 1,
+              rotateZ: (i - 2) * 5,
+              scale: 1,
+            }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+          >
+            {/* Card Back Design */}
+            <div className="absolute inset-2 border border-[#8c7a5f]/50 rounded-lg flex items-center justify-center bg-[#4a3b2c]">
+              <div className="w-8 h-8 bg-zinc-800 rounded-full border-2 border-[#d4af37] opacity-50" />
+            </div>
+          </motion.div>
+        ))}
+      </div>
 
       {/* Hand UI */}
       <motion.div
@@ -1978,33 +1985,32 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Attack Targeting Lines — drawn in real viewport coordinates (not board-local
-          ones) since the board itself is 3D-tilted; see attackLines above. */}
+      {/* Attack Targeting Lines — a thin, mostly-just-a-hint line (à la Yu-Gi-Oh GX Tag
+          Force) rather than a bold effect: it only needs to make clear a connection
+          exists, not shout about it. Drawn in real viewport coordinates (not
+          board-local ones) since the board itself is 3D-tilted; see attackLines
+          above. */}
       {attackLines.length > 0 && (
         <svg className="fixed inset-0 z-40 pointer-events-none" width="100%" height="100%">
           {attackLines.map((line, idx) => (
             line.valid ? (
-              <motion.line
+              <line
                 key={idx}
                 x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2}
                 stroke="#34d399"
-                strokeWidth={3}
+                strokeWidth={1}
                 strokeLinecap="round"
-                strokeDasharray="10 8"
-                initial={{ strokeDashoffset: 0 }}
-                animate={{ strokeDashoffset: -18 }}
-                transition={{ duration: 0.5, repeat: Infinity, ease: "linear" }}
-                style={{ filter: 'drop-shadow(0 0 4px rgba(52,211,153,0.9))' }}
+                opacity={0.75}
+                style={{ filter: 'drop-shadow(0 0 2px rgba(52,211,153,0.7))' }}
               />
             ) : (
               <line
                 key={idx}
                 x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2}
                 stroke="#ef4444"
-                strokeWidth={2}
+                strokeWidth={1}
                 strokeLinecap="round"
-                strokeDasharray="4 6"
-                opacity={0.55}
+                opacity={0.4}
               />
             )
           ))}
