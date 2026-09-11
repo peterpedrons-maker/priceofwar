@@ -114,6 +114,29 @@ const ManaBadge = ({ value, className = "" }: { value: number, className?: strin
   </div>
 );
 
+// The on-board Graveyard pile — an empty placeholder box until a card actually dies,
+// then it shows the most recently destroyed card's name plus a count badge, so cards
+// leaving the field via combat visibly end up somewhere instead of just vanishing.
+const GraveyardPile = ({ cards }: { cards: CardData[] }) => (
+  <div className="w-24 md:w-36 h-32 md:h-48 border-2 border-zinc-700 rounded-xl bg-zinc-900/80 flex items-center justify-center shadow-lg relative overflow-hidden">
+    {cards.length === 0 ? (
+      <span className="text-zinc-600 font-mono text-xs md:text-sm uppercase tracking-widest rotate-90 opacity-50">Graveyard</span>
+    ) : (
+      <>
+        <div className="absolute inset-1 border border-zinc-700 rounded-lg bg-zinc-800/50 translate-x-1 translate-y-1 -z-10" />
+        <div className="absolute inset-1 border border-zinc-700 rounded-lg bg-zinc-800/30 translate-x-2 translate-y-2 -z-20" />
+        <div className="w-[85%] h-[90%] border border-zinc-600 rounded-lg bg-zinc-800 flex flex-col items-center justify-center gap-1 p-1 text-center">
+          <span className="text-zinc-300 font-bold text-[9px] md:text-xs leading-tight px-1">{cards[cards.length - 1].name}</span>
+          <span className="text-zinc-500 font-mono text-[7px] md:text-[9px] uppercase tracking-widest">Cemitério</span>
+        </div>
+        <span className="absolute top-1 right-1 md:top-2 md:right-2 bg-red-900/90 border border-red-500 text-red-200 text-[9px] md:text-xs font-black rounded-full w-5 h-5 md:w-6 md:h-6 flex items-center justify-center">
+          {cards.length}
+        </span>
+      </>
+    )}
+  </div>
+);
+
 const AtkBadge = ({ value, className = "" }: { value: number, className?: string }) => (
   <div className={`relative flex items-center justify-center ${className}`}>
     <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full drop-shadow-md">
@@ -309,6 +332,11 @@ export default function App() {
   const [npcHand, setNpcHand] = useState<CardData[]>([]);
   const [playerSlots, setPlayerSlots] = useState<(CardData | null)[]>(Array(13).fill(null));
   const [npcSlots, setNpcSlots] = useState<(CardData | null)[]>(Array(13).fill(null));
+  // Cards that have died in combat, per side — shown in the on-board Graveyard pile
+  // (see GraveyardPile) so a destroyed card visibly ends up somewhere instead of just
+  // disappearing after its destruction animation plays out.
+  const [playerGraveyard, setPlayerGraveyard] = useState<CardData[]>([]);
+  const [npcGraveyard, setNpcGraveyard] = useState<CardData[]>([]);
 
   const [selectedAttackerIndex, setSelectedAttackerIndex] = useState<number | null>(null);
   const [detailedCard, setDetailedCard] = useState<CardData | null>(null);
@@ -587,6 +615,8 @@ export default function App() {
     setNpcHand([]);
     setPlayerSlots(Array(13).fill(null));
     setNpcSlots(Array(13).fill(null));
+    setPlayerGraveyard([]);
+    setNpcGraveyard([]);
 
     startMatchIntro();
   };
@@ -686,6 +716,10 @@ export default function App() {
 
             if (hasDestroyed) {
               await new Promise(resolve => setTimeout(resolve, 1000));
+              const destroyedNpcCards = currentNpcSlots.filter((c): c is CardData => !!c?.isDestroyed);
+              const destroyedPlayerCards = currentPlayerSlots.filter((c): c is CardData => !!c?.isDestroyed);
+              if (destroyedNpcCards.length) setNpcGraveyard(g => [...g, ...destroyedNpcCards]);
+              if (destroyedPlayerCards.length) setPlayerGraveyard(g => [...g, ...destroyedPlayerCards]);
               currentNpcSlots = currentNpcSlots.map(c => c?.isDestroyed ? null : c);
               currentPlayerSlots = currentPlayerSlots.map(c => c?.isDestroyed ? null : c);
               setNpcSlots([...currentNpcSlots]);
@@ -895,6 +929,10 @@ export default function App() {
 
         if (hasDestroyed) {
           await new Promise(resolve => setTimeout(resolve, 1000));
+          const destroyedPlayerCards = newPlayerSlots.filter((c): c is CardData => !!c?.isDestroyed);
+          const destroyedNpcCards = newNpcSlots.filter((c): c is CardData => !!c?.isDestroyed);
+          if (destroyedPlayerCards.length) setPlayerGraveyard(g => [...g, ...destroyedPlayerCards]);
+          if (destroyedNpcCards.length) setNpcGraveyard(g => [...g, ...destroyedNpcCards]);
           setPlayerSlots(prev => prev.map(c => c?.isDestroyed ? null : c));
           setNpcSlots(prev => prev.map(c => c?.isDestroyed ? null : c));
         }
@@ -1011,36 +1049,10 @@ export default function App() {
       };
     }
 
-    if (attackAnim) {
-      const isPlayer = attackAnim.isPlayerAttacking;
-      const targetRotateX = isPlayer ? baseAnim.rotateX - 25 : baseAnim.rotateX + 25;
-      const targetY = isPlayer ? baseAnim.y + 250 : baseAnim.y - 250;
-      const targetZ = baseAnim.z + 300;
-      const targetScale = baseAnim.scale * 1.15;
-
-      if (isImpacting) {
-        return {
-          ...baseAnim,
-          rotateX: [targetRotateX, targetRotateX + 5, targetRotateX - 5, targetRotateX],
-          rotateZ: [baseAnim.rotateZ, baseAnim.rotateZ - 5, baseAnim.rotateZ + 5, baseAnim.rotateZ],
-          x: [baseAnim.x, baseAnim.x - 30, baseAnim.x + 30, baseAnim.x],
-          y: targetY,
-          z: targetZ,
-          scale: targetScale,
-          transition: { duration: 0.2 }
-        };
-      }
-
-      return {
-        ...baseAnim,
-        rotateX: targetRotateX,
-        y: targetY,
-        z: targetZ,
-        scale: targetScale,
-        transition: { duration: 0.4, ease: "easeInOut" }
-      };
-    }
-
+    // Combat no longer moves the camera at all (it used to zoom/tilt/shake toward
+    // whichever side was attacking) — the board now stays put like it does the rest
+    // of the time, and only the attacking card itself lunges at its target (see
+    // CardSlot's isAttacking/attackY), the way Hearthstone does it.
     return baseAnim;
   };
 
@@ -1294,9 +1306,7 @@ export default function App() {
             </div>
           </div>
           {/* Graveyard */}
-          <div className="w-24 md:w-36 h-32 md:h-48 border-2 border-zinc-700 rounded-xl bg-zinc-900/80 flex items-center justify-center shadow-lg relative overflow-hidden">
-            <span className="text-zinc-600 font-mono text-xs md:text-sm uppercase tracking-widest rotate-90 opacity-50">Graveyard</span>
-          </div>
+          <GraveyardPile cards={npcGraveyard} />
         </div>
 
         {/* Opponent Hand (Floating) — one face-down card back per card actually in
@@ -1341,9 +1351,7 @@ export default function App() {
             invisible rather than merely crowded. */}
         <div className="absolute right-36 md:right-8 bottom-40 flex flex-col gap-6 items-center z-40 pointer-events-auto">
           {/* Graveyard */}
-          <div className="w-24 md:w-36 h-32 md:h-48 border-2 border-zinc-700 rounded-xl bg-zinc-900/80 flex items-center justify-center shadow-lg relative overflow-hidden">
-            <span className="text-zinc-600 font-mono text-xs md:text-sm uppercase tracking-widest rotate-90 opacity-50">Graveyard</span>
-          </div>
+          <GraveyardPile cards={playerGraveyard} />
 
           {/* Deck */}
           <motion.div
