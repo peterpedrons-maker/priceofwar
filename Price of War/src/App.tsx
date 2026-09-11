@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { Info, X, Sword, Zap, Users, Library, ArrowUp } from 'lucide-react';
+import { Info, X, Sword, Zap, Users, Library, ArrowUp, ArrowDown } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
 
 export type CardType = 'Infantaria' | 'Cavalaria' | 'Arqueiro' | 'Artilharia' | 'General' | 'Relíquia' | 'Terreno' | 'Tática';
@@ -411,6 +411,10 @@ export default function App() {
 
   const [selectedAttackerIndex, setSelectedAttackerIndex] = useState<number | null>(null);
   const [detailedCard, setDetailedCard] = useState<CardData | null>(null);
+  // A brief, bigger callout for whichever card was just played — mainly for the
+  // opponent's plays, which otherwise happen inside a small board slot that's easy to
+  // miss on a phone. Player's own plays already get a large preview during selection.
+  const [announcedCard, setAnnouncedCard] = useState<{ card: CardData, side: 'player' | 'npc' } | null>(null);
 
   const [isImpacting, setIsImpacting] = useState(false);
   const [attackAnim, setAttackAnim] = useState<{ attackerIndex: number, targetIndex: number, isPlayerAttacking: boolean } | null>(null);
@@ -621,6 +625,13 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 2000);
   };
 
+  const announceCardPlayRef = useRef<number | null>(null);
+  const announceCardPlay = (card: CardData, side: 'player' | 'npc') => {
+    if (announceCardPlayRef.current) window.clearTimeout(announceCardPlayRef.current);
+    setAnnouncedCard({ card, side });
+    announceCardPlayRef.current = window.setTimeout(() => setAnnouncedCard(null), 1400);
+  };
+
   useEffect(() => {
     const handleResize = () => setWindowSize({ width: window.innerWidth, height: window.innerHeight });
     window.addEventListener('resize', handleResize);
@@ -742,11 +753,16 @@ export default function App() {
           if (action.type === 'play_card') {
             // General (12) is fixed at game start; Relíquia/Terreno slots (10/11) are off-limits to the AI's generic minions
             if (action.slotIndex >= 10) continue;
+            // Show the card big in the corner and pause on it for a beat BEFORE it lands
+            // on the board — the opponent used to slap cards down almost instantly, too
+            // fast to read on a small phone screen, and this fixes both problems at once.
+            announceCardPlay(action.card, 'npc');
+            await new Promise(resolve => setTimeout(resolve, 1000));
             currentNpcSlots[action.slotIndex] = action.card;
             currentNpcMana -= action.card.cost;
             setNpcSlots([...currentNpcSlots]);
             setNpcMana(currentNpcMana);
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 700));
           } else if (action.type === 'attack') {
             setAttackAnim({ attackerIndex: action.attackerSlot, targetIndex: action.targetSlot, isPlayerAttacking: false });
             await new Promise(resolve => setTimeout(resolve, 300));
@@ -1917,6 +1933,49 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Card Play Announcement — a bigger, clearer preview of whichever card the
+          opponent just played, since the actual board slot is small on a phone and
+          easy to miss what landed there. Tucked in the corner (the top-right HUD spot
+          freed up when the old turn indicator moved onto the board) rather than dead
+          center so it doesn't block the board while it's showing. */}
+      <AnimatePresence>
+        {announcedCard && (
+          <motion.div
+            key={announcedCard.card.id}
+            initial={{ opacity: 0, scale: 0.6, x: 40 }}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            exit={{ opacity: 0, scale: 0.7 }}
+            transition={{ type: "spring", damping: 22, stiffness: 260 }}
+            className="fixed top-20 right-3 md:top-24 md:right-6 z-[200] pointer-events-none flex flex-col items-end gap-1.5"
+          >
+            <span className={`px-3 py-1 rounded-full text-[10px] md:text-xs font-black uppercase tracking-widest shadow-md ${
+              announcedCard.side === 'npc' ? 'bg-red-900/90 text-red-200 border border-red-500' : 'bg-blue-900/90 text-blue-200 border border-blue-400'
+            }`}>
+              {announcedCard.side === 'npc' ? 'Adversário jogou' : 'Você jogou'}
+            </span>
+            <div className="relative w-32 h-44 md:w-40 md:h-56 bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-xl border-2 border-[#5c4a30] shadow-[0_10px_40px_rgba(0,0,0,0.7)] overflow-hidden">
+              {announcedCard.card.art ? (
+                <img src={announcedCard.card.art} alt={announcedCard.card.name} className="absolute inset-0 w-full h-full object-cover z-0" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900 flex items-center justify-center z-0">
+                  <div className="w-1/4 h-1/4 border border-zinc-500/40 rotate-45" />
+                </div>
+              )}
+              <div className="absolute inset-0 z-10 p-1.5 flex flex-col justify-between">
+                <div className="bg-gradient-to-b from-black/80 to-black/60 border border-amber-100/25 rounded-md px-2 py-1">
+                  <span className="text-[9px] md:text-[11px] font-bold text-white uppercase tracking-tight truncate block drop-shadow-md">{announcedCard.card.name}</span>
+                </div>
+                <ManaBadge value={announcedCard.card.cost} className="absolute -top-2 -right-2 w-7 h-7 md:w-9 md:h-9 text-[10px] md:text-xs z-20 drop-shadow-md" />
+                <div className="flex justify-between">
+                  <AtkBadge value={announcedCard.card.atk} className="w-7 h-7 md:w-9 md:h-9 text-[10px] md:text-xs drop-shadow-md" />
+                  <HpBadge value={announcedCard.card.hp} className="w-7 h-7 md:w-9 md:h-9 text-[10px] md:text-xs drop-shadow-md" />
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Install-as-app prompt */}
       <AnimatePresence>
         {installPromptKind && (
@@ -2082,6 +2141,26 @@ const CardSlot = ({
           <div className="w-[70%] h-[70%] border border-indigo-500/25 rotate-45 group-hover:border-indigo-400/60 group-hover:scale-110 transition-all pointer-events-none" />
           <div className="absolute inset-0 bg-indigo-500/0 group-hover:bg-indigo-500/20 transition-colors rounded-lg pointer-events-none" />
         </>
+      )}
+      {/* Attack targeting indicators — while the player has an attacker selected, a
+          bouncing green arrow points down at every enemy slot it can actually reach
+          (see getValidAttackTargets), and a red X marks an occupied enemy slot that's
+          blocked or out of range (on top of the dimmed/grayed-out card itself), so the
+          lane-blocking rule reads as something the player can SEE, not just a click
+          that silently fails. */}
+      {isValidAttackTarget && (
+        <motion.div
+          animate={{ y: [0, 6, 0] }}
+          transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute -top-7 md:-top-9 left-1/2 -translate-x-1/2 pointer-events-none z-30"
+        >
+          <ArrowDown className="w-7 h-7 md:w-9 md:h-9 text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,1)]" strokeWidth={3.5} />
+        </motion.div>
+      )}
+      {isInvalidAttackTarget && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+          <X className="w-9 h-9 md:w-11 md:h-11 text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.9)]" strokeWidth={3.5} />
+        </div>
       )}
       {card && !card.isDestroyed && (
         <motion.div
