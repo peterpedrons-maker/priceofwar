@@ -1167,7 +1167,7 @@ export default function App() {
       // board was always fully visible while the player's own end ran off past the
       // hand UI at the bottom. A shallower angle (closer to a top-down Hearthstone-
       // style view) keeps both ends reading at a similar scale.
-      rotateX: isMobile ? 14 : 20,
+      rotateX: isMobile ? 8 : 12,
       rotateZ: 0,
       y: isMobile ? 0 : -50,
       x: 0,
@@ -1528,14 +1528,14 @@ export default function App() {
             the player's own field (the opponent's mirrors it on the left, so the two
             sit on diagonally opposite corners), so it's visible under the normal
             camera at all times (see computeDrawOrigin for how a drawn hand card
-            animates itself in from this exact spot). Needs a much bigger inset than
-            the opponent's block on its side: the board is tilted (rotateX), so the
-            player's row — nearer the "camera", at the bottom of the perspective —
-            projects onto a proportionally WIDER slice of the screen than the
-            opponent's row up top. The same small inset the opponent uses left most
-            of this block past the real right edge of the viewport on a phone, i.e.
-            invisible rather than merely crowded. */}
-        <div className="absolute right-36 md:right-8 bottom-40 flex flex-col gap-6 items-center z-40 pointer-events-auto">
+            animates itself in from this exact spot). Used to need a much bigger inset
+            than the opponent's block on its side, back when the board's steep tilt
+            made the player's nearer row project onto a proportionally wider slice of
+            the screen — now that the tilt is much shallower (see baseAnim.rotateX in
+            getBoardAnimation), that large offset just crowded this block into the
+            Retaguarda slots next to it, so it's back to a small inset matching the
+            opponent's. */}
+        <div className="absolute right-16 md:right-8 bottom-16 flex flex-col gap-6 items-center z-40 pointer-events-auto">
           {/* Graveyard */}
           <GraveyardPile cards={playerGraveyard} />
 
@@ -2280,7 +2280,7 @@ const CardSlot = ({
           onClick(e.currentTarget as HTMLElement);
         }
       }}
-      className={`w-24 md:w-36 h-32 md:h-48 border-2 border-indigo-500/30 rounded-lg bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.08)_0%,rgba(0,0,0,0.6)_75%)] flex items-center justify-center shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] transition-colors hover:border-indigo-400 hover:bg-indigo-900/40 hover:shadow-[0_0_30px_rgba(99,102,241,0.6)] group relative ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass} ${isValidAttackTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''}`}
+      className={`w-24 md:w-36 h-32 md:h-48 border-[3px] border-indigo-400/70 rounded-lg bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.16)_0%,rgba(0,0,0,0.78)_75%)] flex items-center justify-center shadow-[inset_0_0_20px_rgba(0,0,0,0.85),0_0_10px_rgba(0,0,0,0.6)] transition-colors hover:border-indigo-300 hover:bg-indigo-900/40 hover:shadow-[0_0_30px_rgba(99,102,241,0.6)] group relative ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass} ${isValidAttackTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''}`}
     >
       {!card && hint && (
         // Simple first-pass "where can this card go" indicator: a green arrow on its
