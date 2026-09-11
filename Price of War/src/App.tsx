@@ -1161,7 +1161,13 @@ export default function App() {
     // hand card animates itself in from the on-board deck pile (see computeDrawOrigin)
     // while the view stays put.
     const baseAnim = {
-      rotateX: isMobile ? 25 : 35,
+      // Flattened from the original 25/35deg: a steep tilt makes the board's near
+      // (player) edge occupy far more screen height than its far (opponent) edge —
+      // the perspective foreshortening is asymmetric — so the opponent's end of the
+      // board was always fully visible while the player's own end ran off past the
+      // hand UI at the bottom. A shallower angle (closer to a top-down Hearthstone-
+      // style view) keeps both ends reading at a similar scale.
+      rotateX: isMobile ? 14 : 20,
       rotateZ: 0,
       y: isMobile ? 0 : -50,
       x: 0,
