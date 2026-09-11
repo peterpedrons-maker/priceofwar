@@ -302,12 +302,13 @@ export default function App() {
   const [npcMana, setNpcMana] = useState(10);
 
   const [hand, setHand] = useState<CardData[]>([]);
+  // The opponent's actual hand of real cards — it plays from this on its turn (see
+  // playAiTurn) instead of conjuring a placeholder card out of nowhere. The face-down
+  // card backs shown above the board (see npcHand.length below) are just its length;
+  // the player never sees what's actually in it.
+  const [npcHand, setNpcHand] = useState<CardData[]>([]);
   const [playerSlots, setPlayerSlots] = useState<(CardData | null)[]>(Array(13).fill(null));
   const [npcSlots, setNpcSlots] = useState<(CardData | null)[]>(Array(13).fill(null));
-  // How many of the opponent's 5 face-down starting cards have been "dealt" so far,
-  // during the match-intro sequence (see startMatchIntro) — mirrors the player's own
-  // staggered opening draw so both sides visibly receive their hand at match start.
-  const [npcHandRevealCount, setNpcHandRevealCount] = useState(0);
 
   const [selectedAttackerIndex, setSelectedAttackerIndex] = useState<number | null>(null);
   const [detailedCard, setDetailedCard] = useState<CardData | null>(null);
@@ -413,6 +414,13 @@ export default function App() {
   useEffect(() => { handRef.current = hand; }, [hand]);
   const handScaleRef = useRef(handScale);
   useEffect(() => { handScaleRef.current = handScale; }, [handScale]);
+  // The AI-turn effect (below) fires on the same currentTurn change as the redraw
+  // effect that hands the NPC its per-turn card — reading npcHand directly there would
+  // close over the pre-redraw value, since that update lands in a later render this
+  // effect's own dependencies don't re-trigger on. A ref side-steps that: it's updated
+  // synchronously enough that the AI turn, even scheduled moments later, sees the draw.
+  const npcHandRef = useRef(npcHand);
+  useEffect(() => { npcHandRef.current = npcHand; }, [npcHand]);
 
   // Real on-board deck piles — the thing the player actually looks at on the table, and
   // the anchor a newly drawn card's own arrival animation starts from (see
@@ -434,6 +442,16 @@ export default function App() {
     }
     const card = deckQueueRef.current.shift()!;
     return { ...card, id: `hand_${Date.now()}_${Math.random()}` };
+  };
+  // The opponent's own independent shuffled draw pile — same mechanism as the
+  // player's, kept separate so the two sides don't deplete/reshuffle one shared queue.
+  const npcDeckQueueRef = useRef<CardData[]>([]);
+  const drawFromNpcDeck = (): CardData => {
+    if (npcDeckQueueRef.current.length === 0) {
+      npcDeckQueueRef.current = [...MOCK_DECK].sort(() => Math.random() - 0.5);
+    }
+    const card = npcDeckQueueRef.current.shift()!;
+    return { ...card, id: `npc_hand_${Date.now()}_${Math.random()}` };
   };
   // Where a newly drawn card should land: right next to the last real hand card (or the
   // tray's own resting spot if the hand is still empty) — an approximation of the new
@@ -542,7 +560,7 @@ export default function App() {
         if (origin) drawOriginsRef.current[newCard.id] = origin;
         setHand(prev => [...prev, newCard]);
       }, t);
-      schedule(() => setNpcHandRevealCount(prev => prev + 1), t + 400);
+      schedule(() => setNpcHand(prev => [...prev, drawFromNpcDeck()]), t + 400);
     }
   };
 
@@ -550,6 +568,7 @@ export default function App() {
     matchIntroTimeoutsRef.current.forEach(clearTimeout);
     matchIntroTimeoutsRef.current = [];
     deckQueueRef.current = [];
+    npcDeckQueueRef.current = [];
 
     setGameOverWinner(null);
     setCurrentTurn('player');
@@ -565,7 +584,7 @@ export default function App() {
     // is the only thing that belongs on the board at kickoff; no other cards should be
     // there until actually played.
     setHand([]);
-    setNpcHandRevealCount(0);
+    setNpcHand([]);
     setPlayerSlots(Array(13).fill(null));
     setNpcSlots(Array(13).fill(null));
 
@@ -593,6 +612,9 @@ export default function App() {
     } else {
       setNpcMana(10);
       setViewState('field');
+      if (turnNumber > 1 && npcHand.length < 10) {
+        setNpcHand(prev => [...prev, drawFromNpcDeck()]);
+      }
     }
   }, [currentTurn, turnNumber]);
 
@@ -600,8 +622,11 @@ export default function App() {
     if (currentTurn === 'npc' && gameMode === 'Quick Match' && !isAnimating && !gameOverWinner) {
       const runAiTurn = async () => {
         setIsAnimating(true);
-        const { actions } = playAiTurn(npcSlots, playerSlots, npcMana, hand);
-        
+        const { actions, playedCardIds } = playAiTurn(npcSlots, playerSlots, npcMana, npcHandRef.current);
+        if (playedCardIds.length > 0) {
+          setNpcHand(prev => prev.filter(c => !playedCardIds.includes(c.id)));
+        }
+
         let currentNpcSlots = [...npcSlots];
         let currentPlayerSlots = [...playerSlots];
         let currentNpcMana = npcMana;
@@ -1274,13 +1299,13 @@ export default function App() {
           </div>
         </div>
 
-        {/* Opponent Hand (Floating) — revealed one at a time during the match-intro
-            deal (see npcHandRevealCount / startMatchIntro), each card sliding in from
-            roughly where the opponent's deck sits (now on the LEFT — see the deck
-            block below), so drawing their opening hand is visibly happening rather
-            than the hand just appearing fully formed. */}
+        {/* Opponent Hand (Floating) — one face-down card back per card actually in
+            npcHand, revealed one at a time during the match-intro deal (see
+            startMatchIntro) and again whenever the AI draws for its turn, each card
+            sliding in from roughly where the opponent's deck sits (now on the LEFT —
+            see the deck block below). The player never sees what's actually in it. */}
         <div className="absolute top-[-150px] md:top-[-200px] left-1/2 -translate-x-1/2 flex gap-2 md:gap-3 pointer-events-none z-50" style={{ perspective: '1000px' }}>
-          {[...Array(npcHandRevealCount)].map((_, i) => (
+          {[...Array(npcHand.length)].map((_, i) => (
             <motion.div
               key={`npc-hand-${i}`}
               className="w-32 h-48 md:w-40 md:h-56 shrink-0 bg-[#c5b599] rounded-xl border-2 border-[#8c7a5f] relative shadow-2xl"
