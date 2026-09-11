@@ -1206,14 +1206,16 @@ export default function App() {
         </div>
 
         {/* Opponent Deck & Graveyard (On Board) — kept inside the board's own canvas
-            (not past its right edge) so it's actually visible under the normal, fixed
-            camera used at all times, including while a card is being drawn. */}
-        <div className="absolute right-4 md:right-8 top-12 flex flex-col gap-6 items-center z-40 pointer-events-none">
+            (not past its edge) so it's actually visible under the normal, fixed camera
+            used at all times, including while a card is being drawn. Mirrored to the
+            LEFT (the player's own deck sits on the right) so the two decks sit on
+            diagonally opposite corners instead of stacked in the same column. */}
+        <div className="absolute left-4 md:left-8 top-12 flex flex-col gap-6 items-center z-40 pointer-events-none">
           {/* Deck */}
           <div ref={npcDeckRef} className="w-24 md:w-36 h-32 md:h-48 border-2 border-[#8c7a5f] rounded-xl bg-[#4a3b2c] flex items-center justify-center shadow-[0_10px_20px_rgba(0,0,0,0.5)] relative">
-            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-x-1 translate-y-1 bg-[#3a2b1c] -z-10" />
-            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-x-2 translate-y-2 bg-[#2a1b0c] -z-20" />
-            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-x-3 translate-y-3 bg-[#1a0b00] -z-30" />
+            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-y-1 bg-[#3a2b1c] -z-10" />
+            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-y-2 bg-[#2a1b0c] -z-20" />
+            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-y-3 bg-[#1a0b00] -z-30" />
             <div className="w-[80%] h-[85%] border border-[#8c7a5f]/50 rounded-lg flex items-center justify-center relative overflow-hidden">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.2)_0%,transparent_70%)]" />
               <div className="w-8 h-8 md:w-12 md:h-12 opacity-50 bg-zinc-800 rounded-full border-2 border-[#8c7a5f]" />
@@ -1253,15 +1255,17 @@ export default function App() {
           ))}
         </div>
 
-        {/* Deck & Graveyard (On Board) — same reasoning as the opponent's: kept inside
-            the canvas, on the right side of the player's own field, so it's visible
-            under the normal camera at all times (see computeDrawOrigin for how a drawn
-            hand card animates itself in from this exact spot). Needs a much bigger inset
-            than the opponent's identical block: the board is tilted (rotateX), so the
-            player's row — nearer the "camera", at the bottom of the perspective — projects
-            onto a proportionally WIDER slice of the screen than the opponent's row up top.
-            The same right-4 the opponent uses left most of this block past the real right
-            edge of the viewport on a phone, i.e. invisible rather than merely crowded. */}
+        {/* Deck & Graveyard (On Board) — kept inside the canvas, on the RIGHT side of
+            the player's own field (the opponent's mirrors it on the left, so the two
+            sit on diagonally opposite corners), so it's visible under the normal
+            camera at all times (see computeDrawOrigin for how a drawn hand card
+            animates itself in from this exact spot). Needs a much bigger inset than
+            the opponent's block on its side: the board is tilted (rotateX), so the
+            player's row — nearer the "camera", at the bottom of the perspective —
+            projects onto a proportionally WIDER slice of the screen than the
+            opponent's row up top. The same small inset the opponent uses left most
+            of this block past the real right edge of the viewport on a phone, i.e.
+            invisible rather than merely crowded. */}
         <div className="absolute right-36 md:right-8 bottom-40 flex flex-col gap-6 items-center z-40 pointer-events-auto">
           {/* Graveyard */}
           <div className="w-24 md:w-36 h-32 md:h-48 border-2 border-zinc-700 rounded-xl bg-zinc-900/80 flex items-center justify-center shadow-lg relative overflow-hidden">
@@ -1274,9 +1278,9 @@ export default function App() {
             className="w-24 md:w-36 h-32 md:h-48 border-2 border-[#8c7a5f] rounded-xl bg-[#4a3b2c] flex items-center justify-center shadow-[0_10px_20px_rgba(0,0,0,0.5)] relative group"
           >
             {/* Deck thickness effect */}
-            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-x-1 -translate-y-1 bg-[#3a2b1c] -z-10" />
-            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-x-2 -translate-y-2 bg-[#2a1b0c] -z-20" />
-            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-x-3 -translate-y-3 bg-[#1a0b00] -z-30" />
+            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-y-1 bg-[#3a2b1c] -z-10" />
+            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-y-2 bg-[#2a1b0c] -z-20" />
+            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-y-3 bg-[#1a0b00] -z-30" />
 
             {/* Card Back Design */}
             <div className="w-[80%] h-[85%] border border-[#8c7a5f]/50 rounded-lg flex items-center justify-center relative overflow-hidden">
