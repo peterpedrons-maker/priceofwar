@@ -1317,13 +1317,26 @@ export default function App() {
               </div>
             </motion.div>
 
-            {/* Back face — TURNO DO ADVERSÁRIO (not actionable) */}
+            {/* Back face — TURNO DO ADVERSÁRIO (not actionable). Same sword image as the
+                front face (tinted red, since it's a CSS filter on the same asset) so the
+                plaque always reads as "the sword", never reverting to a plain box. */}
             <div
-              className="absolute inset-0 rounded-xl border-2 border-red-500 bg-red-900/90 text-red-200 flex items-center justify-center gap-2 font-black text-[10px] md:text-xs tracking-wide cursor-not-allowed"
+              className="absolute inset-0 cursor-not-allowed"
               style={{ backfaceVisibility: 'hidden', transform: 'rotateX(180deg)' }}
             >
-              <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(248,113,113,1)] animate-pulse" />
-              TURNO DO ADVERSÁRIO
+              <img
+                src={swordTurnButtonImage}
+                alt=""
+                draggable={false}
+                className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+                style={{ filter: 'sepia(1) saturate(6) hue-rotate(-50deg) brightness(0.85) drop-shadow(0 0 6px rgba(239,68,68,0.7))' }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center pl-[24%] pr-[6%]">
+                <span className="flex items-center gap-1.5 font-black text-[9px] md:text-[11px] tracking-wide text-red-950">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-700 animate-pulse shrink-0" />
+                  TURNO DO ADVERSÁRIO
+                </span>
+              </div>
             </div>
           </motion.div>
         </div>
@@ -1371,7 +1384,7 @@ export default function App() {
           </div>
           {/* Retaguarda NPC (Backline) */}
           <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mb-3">Retaguarda</div>
-          <div className="flex justify-center gap-1 md:gap-6">
+          <div className="flex justify-center gap-3 md:gap-6">
             {[5, 6, 7, 8, 9].map((i) => (
               <CardSlot
                 key={i}
@@ -1389,7 +1402,7 @@ export default function App() {
           </div>
           {/* Vanguarda NPC (Frontline) */}
           <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mb-3">Vanguarda</div>
-          <div className="flex justify-center gap-1 md:gap-6">
+          <div className="flex justify-center gap-3 md:gap-6">
             {[0, 1, 2, 3, 4].map((i) => (
               <CardSlot
                 key={i}
@@ -1410,7 +1423,7 @@ export default function App() {
         {/* Player Field */}
         <div className="flex flex-col gap-6 justify-end pb-4 pointer-events-auto">
           {/* Vanguarda Player (Frontline) */}
-          <div className="flex justify-center gap-1 md:gap-6">
+          <div className="flex justify-center gap-3 md:gap-6">
             {[0, 1, 2, 3, 4].map((i) => (
               <CardSlot
                 key={i}
@@ -1428,7 +1441,7 @@ export default function App() {
           </div>
           <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mt-3">Vanguarda</div>
           {/* Retaguarda Player (Backline) */}
-          <div className="flex justify-center gap-1 md:gap-6">
+          <div className="flex justify-center gap-3 md:gap-6">
             {[5, 6, 7, 8, 9].map((i) => (
               <CardSlot
                 key={i}
@@ -1558,20 +1571,32 @@ export default function App() {
           away" like the rest of the opponent's side of the table. Reapplying that
           same scale factor here keeps it the same size it always was. */}
       <div
-        className="absolute top-[2%] md:top-[4%] left-1/2 -translate-x-1/2 flex gap-2 md:gap-3 pointer-events-none z-50"
+        className="absolute top-[2%] md:top-[4%] left-1/2 -translate-x-1/2 flex pointer-events-none z-50"
         style={{ transform: `scale(${(isMobile ? 1.0 : 0.85) * boardScale})`, transformOrigin: 'top center' }}
       >
-        {[...Array(npcHand.length)].map((_, i) => (
+        {[...Array(npcHand.length)].map((_, i) => {
+          // Same fan technique as the player's own hand (see getFanRotation/getFanLift
+          // and HAND_CARD_STEP below): overlapping cards via a negative margin, rotated
+          // and lifted outward from the center, instead of a flat evenly-gapped row —
+          // otherwise this reads as a straight strip of tilted cards, not a hand fan.
+          const npcCardWidth = isMobile ? 128 : 160;
+          const npcCardStep = npcCardWidth * 0.5;
+          return (
           <motion.div
             key={`npc-hand-${i}`}
             className="w-32 h-48 md:w-40 md:h-56 shrink-0 bg-[#c5b599] rounded-xl border-2 border-[#8c7a5f] relative shadow-2xl"
-            initial={{ x: -260, y: 40, opacity: 0, rotateZ: (i - 2) * 5 - 20, scale: 0.7 }}
+            style={{
+              transformOrigin: 'top center',
+              marginLeft: i === 0 ? 0 : npcCardStep - npcCardWidth,
+            }}
+            initial={{ x: -260, y: 40, opacity: 0, rotateZ: getFanRotation(i, npcHand.length) - 20, scale: 0.7 }}
             animate={{
               x: 0,
-              y: 0,
+              y: getFanLift(i, npcHand.length),
               opacity: 1,
-              rotateZ: (i - 2) * 5,
+              rotateZ: getFanRotation(i, npcHand.length),
               scale: 1,
+              zIndex: i + 1,
             }}
             transition={{ duration: 0.4, ease: "easeOut" }}
           >
@@ -1580,7 +1605,8 @@ export default function App() {
               <div className="w-8 h-8 bg-zinc-800 rounded-full border-2 border-[#d4af37] opacity-50" />
             </div>
           </motion.div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Hand UI */}
