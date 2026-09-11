@@ -39,6 +39,77 @@ const getSlotHint = (cardType: CardType | undefined, slotIndex: number): SlotHin
   if (isFieldOnlyCard) return 'invalid';
   return slotIndex <= 4 ? 'primary' : 'secondary'; // Vanguarda (efficient) vs Retaguarda (less efficient)
 };
+
+// Lane-based combat targeting — ported from an earlier, fully-art version of this
+// project (see git history: commit 8a3d7b8, later reverted for being too broken to
+// keep) so the tactical rules survive even though that build didn't. Each side has 5
+// lanes (columns 0-4): a Vanguarda (front) slot and a Retaguarda (back) slot per lane,
+// plus a center lane holding the General (col 2) and the two special slots beside it
+// (10 at col 1, 11 at col 3).
+const isFrontline = (slotIndex: number) => slotIndex >= 0 && slotIndex <= 4;
+const isBackline = (slotIndex: number) => slotIndex >= 5 && slotIndex <= 9;
+const getLaneCol = (slotIndex: number) => {
+  if (isFrontline(slotIndex)) return slotIndex;
+  if (isBackline(slotIndex)) return slotIndex - 5;
+  return -1; // General/Relíquia/Terreno don't occupy a lane themselves
+};
+
+const getValidAttackTargets = (
+  attackerIndex: number,
+  attackerSlots: (CardData | null)[],
+  enemySlots: (CardData | null)[]
+): Set<number> => {
+  const validTargets = new Set<number>();
+  const attacker = attackerSlots[attackerIndex];
+  if (!attacker) return validTargets;
+
+  // The General/Relíquia/Terreno don't initiate attacks.
+  const attackerCol = getLaneCol(attackerIndex);
+  if (attackerCol === -1) return validTargets;
+
+  // Infantaria posted in the Retaguarda doesn't attack at all — a positioning
+  // trade-off for whatever defensive perk it gets back there.
+  if (attacker.cardType === 'Infantaria' && isBackline(attackerIndex)) return validTargets;
+
+  // A non-ranged attacker with an enemy directly in front (same lane, enemy
+  // Vanguarda) is FORCED to target only that card — no reaching past it. Ranged
+  // units (Arqueiro/Artilharia) ignore this and can always consider all 3 lanes.
+  const isRanged = attacker.cardType === 'Arqueiro' || attacker.cardType === 'Artilharia';
+  const directFrontalEnemy = !isRanged && !!enemySlots[attackerCol];
+  const scanCols = directFrontalEnemy
+    ? [attackerCol]
+    : [attackerCol - 1, attackerCol, attackerCol + 1].filter(c => c >= 0 && c <= 4);
+
+  scanCols.forEach(col => {
+    const frontIdx = col;
+    const backIdx = col + 5;
+    if (enemySlots[frontIdx]) {
+      validTargets.add(frontIdx);
+    } else if (enemySlots[backIdx]) {
+      // The Retaguarda card in this lane is only reachable while its own
+      // Vanguarda is empty.
+      validTargets.add(backIdx);
+    }
+  });
+
+  // Center lane (General at col 2, the two special slots at col 1/3): reachable
+  // only when the attacker's scan angle includes that column AND the whole lane
+  // leading to it (front + back) is completely clear of blockers.
+  const centerLane: { col: number; target: number }[] = [
+    { col: 1, target: 10 },
+    { col: 2, target: 12 },
+    { col: 3, target: 11 },
+  ];
+  centerLane.forEach(({ col, target }) => {
+    if (!enemySlots[target]) return;
+    if (!scanCols.includes(col)) return;
+    const isPathClear = !enemySlots[col] && !enemySlots[col + 5];
+    if (isPathClear) validTargets.add(target);
+  });
+
+  return validTargets;
+};
+
 const GENERAL_PLAYER: CardData = {
   id: 'general_player',
   name: 'Comandante Aldric',
@@ -657,7 +728,7 @@ export default function App() {
     if (currentTurn === 'npc' && gameMode === 'Quick Match' && !isAnimating && !gameOverWinner) {
       const runAiTurn = async () => {
         setIsAnimating(true);
-        const { actions, playedCardIds } = playAiTurn(npcSlots, playerSlots, npcMana, npcHandRef.current);
+        const { actions, playedCardIds } = playAiTurn(npcSlots, playerSlots, npcMana, npcHandRef.current, getValidAttackTargets);
         if (playedCardIds.length > 0) {
           setNpcHand(prev => prev.filter(c => !playedCardIds.includes(c.id)));
         }
@@ -792,6 +863,14 @@ export default function App() {
   // stray clicks that would otherwise cancel the card's selection mid-transition.
   const isCardInFlightTransition = !!(preZoomSlot || flyingCard || cameraSettling);
 
+  // Which of the opponent's slots the currently-selected attacker can actually reach
+  // (see getValidAttackTargets) — a plain per-render computation rather than a Hook
+  // (this component conditionally returns early above for the main menu, so anything
+  // declared here can't be a Hook call without breaking React's rules-of-hooks).
+  const validAttackTargets = selectedAttackerIndex !== null
+    ? getValidAttackTargets(selectedAttackerIndex, playerSlots, npcSlots)
+    : new Set<number>();
+
   const handleSlotClick = (slotIndex: number, slotEl?: HTMLElement) => {
     if (gameOverWinner || isCardInFlightTransition) return;
     if (selectedCardIndex !== null && !playerSlots[slotIndex]) {
@@ -884,6 +963,10 @@ export default function App() {
   const handleNpcSlotClick = async (slotIndex: number) => {
     if (gameOverWinner) return;
     if (selectedAttackerIndex !== null && npcSlots[slotIndex] && !isAnimating) {
+      if (!validAttackTargets.has(slotIndex)) {
+        showToast("Alvo fora de alcance — tem uma carta bloqueando o caminho!");
+        return;
+      }
       setIsAnimating(true);
       setAttackAnim({ attackerIndex: selectedAttackerIndex, targetIndex: slotIndex, isPlayerAttacking: true });
       
@@ -1168,6 +1251,8 @@ export default function App() {
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 10}
               attackDirection="down"
+              isValidAttackTarget={validAttackTargets.has(10)}
+              isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(10) && !!npcSlots[10]}
             />
             <div className="relative">
               <CardSlot
@@ -1177,6 +1262,8 @@ export default function App() {
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 12}
                 attackDirection="down"
+                isValidAttackTarget={validAttackTargets.has(12)}
+                isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(12)}
               />
               <ManaBadge value={npcMana} className="absolute -top-3 -left-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
             </div>
@@ -1187,6 +1274,8 @@ export default function App() {
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 11}
               attackDirection="down"
+              isValidAttackTarget={validAttackTargets.has(11)}
+              isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(11) && !!npcSlots[11]}
             />
           </div>
           {/* Retaguarda NPC (Backline) */}
@@ -1196,11 +1285,13 @@ export default function App() {
               <CardSlot
                 key={i}
                 card={npcSlots[i]}
-                onClick={() => handleNpcSlotClick(i)} 
-                onInfoClick={setDetailedCard} 
+                onClick={() => handleNpcSlotClick(i)}
+                onInfoClick={setDetailedCard}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
                 attackDirection="down"
+                isValidAttackTarget={validAttackTargets.has(i)}
+                isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(i) && !!npcSlots[i]}
               />
             ))}
           </div>
@@ -1216,6 +1307,8 @@ export default function App() {
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
                 attackDirection="down"
+                isValidAttackTarget={validAttackTargets.has(i)}
+                isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(i) && !!npcSlots[i]}
               />
             ))}
           </div>
@@ -1931,11 +2024,18 @@ export default function App() {
 
 const CardSlot = ({
   onClick, onInfoClick, card, isSelected = false,
-  isAttacking = false, isImpactingTarget = false, attackDirection = 'up', hint
+  isAttacking = false, isImpactingTarget = false, attackDirection = 'up', hint,
+  isValidAttackTarget = false, isInvalidAttackTarget = false
 }: {
   onClick?: (el: HTMLElement) => void, onInfoClick?: (card: CardData) => void, card?: CardData | null,
   isSelected?: boolean, isAttacking?: boolean, isImpactingTarget?: boolean, attackDirection?: 'up' | 'down',
-  hint?: SlotHint, key?: React.Key
+  hint?: SlotHint, key?: React.Key,
+  // Shown on the opponent's slots while the player has an attacker selected: a green
+  // glow on anything actually reachable this turn (see getValidAttackTargets), a
+  // dimmed/grayed look on an occupied slot that's blocked or out of the attacker's
+  // lane — so the lane-blocking rule reads as a visible board state, not a rejected
+  // click the player has to guess at.
+  isValidAttackTarget?: boolean, isInvalidAttackTarget?: boolean
 }) => {
   const attackY = attackDirection === 'up' ? -150 : 150;
 
@@ -1955,7 +2055,7 @@ const CardSlot = ({
           onClick(e.currentTarget as HTMLElement);
         }
       }}
-      className={`w-24 md:w-36 h-32 md:h-48 border-2 border-indigo-500/30 rounded-lg bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.08)_0%,rgba(0,0,0,0.6)_75%)] flex items-center justify-center shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] transition-colors hover:border-indigo-400 hover:bg-indigo-900/40 hover:shadow-[0_0_30px_rgba(99,102,241,0.6)] group relative ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass}`}
+      className={`w-24 md:w-36 h-32 md:h-48 border-2 border-indigo-500/30 rounded-lg bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.08)_0%,rgba(0,0,0,0.6)_75%)] flex items-center justify-center shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] transition-colors hover:border-indigo-400 hover:bg-indigo-900/40 hover:shadow-[0_0_30px_rgba(99,102,241,0.6)] group relative ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass} ${isValidAttackTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''}`}
     >
       {!card && hint && (
         // Simple first-pass "where can this card go" indicator: a green arrow on its
