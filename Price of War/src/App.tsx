@@ -1067,7 +1067,53 @@ export default function App() {
 
         {/* Central Divider */}
         <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-indigo-400/60 to-transparent shadow-[0_0_15px_rgba(99,102,241,0.6)] -translate-y-1/2 rounded-full pointer-events-none" />
-        <div className="absolute top-1/2 left-1/2 w-5 h-5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-2 border-indigo-400/70 bg-indigo-950 shadow-[0_0_20px_rgba(99,102,241,0.8)] pointer-events-none" />
+
+        {/* Turn Plaque / End Turn Button — sits right on the divider like a physical
+            marker on the table instead of a floating HUD overlay, since the board is
+            now always on screen. It's a single flippable plaque: "SEU TURNO" is itself
+            the end-turn button (tap it to pass), and it flips (like a name plate on a
+            board game) to "TURNO DO ADVERSÁRIO" while it's not the player's turn, then
+            flips back on its own once the NPC's turn ends. */}
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 pointer-events-auto"
+          style={{ perspective: 600 }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (currentTurn === 'player') setCurrentTurn('npc');
+          }}
+        >
+          <motion.div
+            className="relative w-32 h-12 md:w-36 md:h-14 cursor-pointer"
+            style={{ transformStyle: 'preserve-3d' }}
+            animate={{ rotateY: currentTurn === 'player' ? 0 : 180 }}
+            transition={{ duration: 0.6, ease: "easeInOut" }}
+            whileTap={currentTurn === 'player' ? { scale: 0.94 } : undefined}
+          >
+            {/* Front face — SEU TURNO (the actionable "pass turn" face) */}
+            <motion.div
+              className="absolute inset-0 rounded-xl border-b-4 border-amber-700 bg-amber-500 text-amber-950 flex items-center justify-center gap-2 font-black text-[11px] md:text-sm tracking-widest shadow-[0_4px_20px_rgba(245,158,11,0.4)]"
+              style={{ backfaceVisibility: 'hidden' }}
+              animate={{
+                boxShadow: currentTurn === 'player'
+                  ? ['0 4px 20px rgba(245,158,11,0.4)', '0 4px 30px rgba(245,158,11,0.8)', '0 4px 20px rgba(245,158,11,0.4)']
+                  : '0 4px 20px rgba(245,158,11,0.4)'
+              }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <div className="w-2.5 h-2.5 rounded-full bg-amber-950/70 animate-pulse" />
+              SEU TURNO
+            </motion.div>
+
+            {/* Back face — TURNO DO ADVERSÁRIO (not actionable) */}
+            <div
+              className="absolute inset-0 rounded-xl border-2 border-red-500 bg-red-900/90 text-red-200 flex items-center justify-center gap-2 font-black text-[11px] md:text-sm tracking-widest cursor-not-allowed"
+              style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+            >
+              <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_10px_rgba(248,113,113,1)] animate-pulse" />
+              TURNO DO ADVERSÁRIO
+            </div>
+          </motion.div>
+        </div>
 
         {/* NPC Field */}
         <div className="flex flex-col gap-6 justify-start pt-4">
@@ -1524,42 +1570,6 @@ export default function App() {
       </motion.div>
 
 
-
-      {/* Turn Indicator UI */}
-      <div className="absolute top-4 right-4 md:top-6 md:right-6 flex flex-col items-end gap-3 pointer-events-none z-50">
-        <motion.div 
-          className={`px-6 py-3 rounded-xl border-2 backdrop-blur-md font-black text-sm md:text-lg tracking-widest transition-colors flex items-center gap-3 shadow-2xl
-            ${currentTurn === 'player' 
-              ? 'bg-blue-900/80 border-blue-400 text-blue-200' 
-              : 'bg-red-900/80 border-red-500 text-red-200'}`}
-          animate={{
-            boxShadow: currentTurn === 'player'
-              ? ['0 0 10px rgba(59,130,246,0.5)', '0 0 30px rgba(59,130,246,0.8)', '0 0 10px rgba(59,130,246,0.5)']
-              : ['0 0 10px rgba(239,68,68,0.5)', '0 0 30px rgba(239,68,68,0.8)', '0 0 10px rgba(239,68,68,0.5)'],
-            scale: currentTurn === 'player' ? [1, 1.05, 1] : 1
-          }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          <div className={`w-4 h-4 rounded-full ${currentTurn === 'player' ? 'bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,1)]' : 'bg-red-500 shadow-[0_0_10px_rgba(248,113,113,1)]'} animate-pulse`} />
-          {currentTurn === 'player' ? "SEU TURNO" : "TURNO DO INIMIGO"}
-        </motion.div>
-        
-        {/* End Turn Button */}
-        <button 
-          className={`pointer-events-auto px-8 py-3 text-sm md:text-base font-black tracking-widest rounded-xl border-b-4 transition-all active:border-b-0 active:translate-y-1 ${
-            currentTurn === 'player'
-              ? 'bg-amber-500 hover:bg-amber-400 text-amber-950 border-amber-700 shadow-[0_4px_20px_rgba(245,158,11,0.4)]'
-              : 'bg-zinc-700 text-zinc-500 border-zinc-800 cursor-not-allowed'
-          }`}
-          onClick={(e) => { 
-            e.stopPropagation(); 
-            if (currentTurn === 'player') setCurrentTurn('npc'); 
-          }}
-          disabled={currentTurn !== 'player'}
-        >
-          ENCERRAR TURNO
-        </button>
-      </div>
 
       {/* Camera Toggle Button */}
       <div className="absolute top-4 left-4 md:top-6 md:left-6 z-50">
