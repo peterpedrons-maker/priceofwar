@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { Info, X, Sword, Zap, Users, Library, ArrowUp, ArrowDown } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
+import boardInteriorImage from './assets/board-interior.webp';
 
 export type CardType = 'Infantaria' | 'Cavalaria' | 'Arqueiro' | 'Artilharia' | 'General' | 'Relíquia' | 'Terreno' | 'Tática';
 
@@ -231,7 +232,7 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
 // itself (inside the bordered board frame) and one for the space around it
 // (outside the frame, filling the rest of the screen). Empty for now — the
 // game renders flat neutral placeholders instead until real art is dropped in.
-const BOARD_INTERIOR_ART_URL = '';
+const BOARD_INTERIOR_ART_URL = boardInteriorImage;
 const BOARD_EXTERIOR_ART_URL = '';
 
 // How big the previewed card renders while parked at the edge during slot selection.
