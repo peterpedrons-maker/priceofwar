@@ -1629,14 +1629,14 @@ export default function App() {
             diagonally opposite corners instead of stacked in the same column. */}
         <div className="absolute left-4 md:left-8 top-12 flex flex-col gap-6 items-center z-40 pointer-events-none">
           {/* Deck */}
-          <div ref={npcDeckRef} className="w-24 md:w-36 h-32 md:h-48 rounded-xl relative shadow-[0_10px_20px_rgba(0,0,0,0.5)] overflow-hidden" style={{ backgroundColor: '#140400' }}>
+          <div ref={npcDeckRef} className="w-24 md:w-36 h-32 md:h-48 rounded-xl relative shadow-[0_10px_20px_rgba(0,0,0,0.5)] overflow-hidden" style={{ backgroundColor: '#a36929' }}>
             <div className="absolute inset-0 rounded-xl translate-y-1 bg-black/40 -z-10" />
             <div className="absolute inset-0 rounded-xl translate-y-2 bg-black/30 -z-20" />
             <div className="absolute inset-0 rounded-xl translate-y-3 bg-black/20 -z-30" />
             <img
               src={cardBackplateImage}
               alt=""
-              className="absolute inset-0 w-full h-full object-cover rounded-xl pointer-events-none select-none"
+              className="absolute inset-0 w-full h-full object-fill rounded-xl pointer-events-none select-none"
               draggable={false}
             />
           </div>
@@ -1663,7 +1663,7 @@ export default function App() {
           <motion.div
             ref={playerDeckRef}
             className="w-24 md:w-36 h-32 md:h-48 rounded-xl relative shadow-[0_10px_20px_rgba(0,0,0,0.5)] group overflow-hidden"
-            style={{ backgroundColor: '#140400' }}
+            style={{ backgroundColor: '#a36929' }}
           >
             {/* Deck thickness effect */}
             <div className="absolute inset-0 rounded-xl translate-y-1 bg-black/40 -z-10" />
@@ -1674,7 +1674,7 @@ export default function App() {
             <img
               src={cardBackplateImage}
               alt=""
-              className="absolute inset-0 w-full h-full object-cover rounded-xl pointer-events-none select-none"
+              className="absolute inset-0 w-full h-full object-fill rounded-xl pointer-events-none select-none"
               draggable={false}
             />
           </motion.div>
@@ -1717,7 +1717,7 @@ export default function App() {
             style={{
               transformOrigin: 'top center',
               marginLeft: i === 0 ? 0 : npcCardStep - npcCardWidth,
-              backgroundColor: '#140400',
+              backgroundColor: '#a36929',
             }}
             initial={{ x: -260, y: 40, opacity: 0, rotateZ: getFanRotation(i, npcHand.length) - 20, scale: 0.7 }}
             animate={{
@@ -1734,7 +1734,7 @@ export default function App() {
             <img
               src={cardBackplateImage}
               alt=""
-              className="absolute inset-0 w-full h-full object-cover rounded-xl pointer-events-none select-none"
+              className="absolute inset-0 w-full h-full object-fill rounded-xl pointer-events-none select-none"
               draggable={false}
             />
           </motion.div>
@@ -1861,12 +1861,12 @@ export default function App() {
                         front face below. */}
                     <div
                       className="absolute inset-0 rounded-xl overflow-hidden shadow-[0_10px_20px_rgba(0,0,0,0.5)]"
-                      style={{ backfaceVisibility: 'hidden', backgroundColor: '#140400' }}
+                      style={{ backfaceVisibility: 'hidden', backgroundColor: '#a36929' }}
                     >
                       <img
                         src={cardBackplateImage}
                         alt=""
-                        className="absolute inset-0 w-full h-full object-cover rounded-xl pointer-events-none select-none"
+                        className="absolute inset-0 w-full h-full object-fill rounded-xl pointer-events-none select-none"
                         draggable={false}
                       />
                     </div>
