@@ -92,7 +92,60 @@ imagem como base pra uma versão Full Art também.
 
 ---
 
-## 2. Moldura Full Art (dourada) — referência de layout
+## 2. Comandante Aurelion, Mestre da Formação — Full Art
+
+**Carta:** General do Deck Capitão (ATK 0 / HP 20 / custo 0)
+**Estilo:** Full Art · **Status:** pronto pra gerar
+**Importante — proporção:** essa janela é **retrato**, não paisagem — o
+oposto da versão Padrão. Proporção largura:altura de **~0,72:1** (mais
+alta do que larga). Se o seu gerador aceita um parâmetro de proporção
+separado do texto do prompt (ex.: `--ar 5:7` no Midjourney, ou escolher
+"portrait"/retrato em outras ferramentas), configure isso ANTES de gerar —
+descrever "retrato" só no texto não é confiável o bastante. Se precisar de
+um tamanho exato em pixels, use algo como **1024×1424** ou **900×1250**.
+
+```
+Legendary hero portrait, ultra-epic fantasy trading-card full-art
+illustration of a battle-hardened human army commander, tall vertical
+portrait composition filling the entire frame from head to boots, dynamic
+low-angle hero shot looking slightly upward at the subject, the commander
+standing atop a shattered stone battlement with one gauntleted fist thrust
+triumphantly into the sky, radiant golden energy crackling around the
+raised fist, the other hand gripping an ornate greatsword driven
+point-down into cracked stone at his feet, an immense tattered
+crimson-and-gold cape billowing dramatically behind him and trailing
+toward the edges of the frame, ornate gold-trimmed heavy plate armor with
+intricate engraved filigree catching the light, layered depth
+composition: a sharp in-focus hero filling most of the vertical frame in
+the foreground, a vast army of spear-and-shield infantry marching in
+formation far below in the midground, and towering fortress spires and a
+colossal shattered banner silhouetted against a churning sky in the
+background, dramatic storm clouds parting overhead to unleash a single
+beam of golden sunlight directly onto the commander like a divine
+spotlight, swirling embers, dust and torn banner fragments caught in the
+wind crossing between the depth layers, extremely detailed rendering —
+individual rivets and battle-worn scratches in the armor plating,
+embroidered thread texture in the cape fabric, windswept hair and beard,
+sharp specular highlights on polished gold and steel, painted in the
+hyper-detailed epic style of premium full-art trading cards (Pokémon TCG
+full-art / Legends of Runeterra legendary-tier quality), rich saturated
+color palette of gold, crimson and stormy steel blue, powerful sense of
+scale and grandeur, tall vertical portrait aspect ratio (approximately
+0.72:1 width to height, noticeably taller than wide), composition
+designed to fill a tall card frame edge-to-edge with no empty margins at
+the top or bottom, no text, no card frame, no border, no watermark
+```
+
+**Notas:** essa é a MESMA carta do prompt 1/1b, mas pensada do zero pra
+janela vertical grande da moldura Full Art (item 3 abaixo), não um recorte
+da versão Padrão — corpo inteiro visível de cima a baixo, pose bem mais
+dinâmica/heroica (punho erguido com energia, capa enorme tomando conta do
+quadro, exército embaixo) pra aproveitar o espaço vertical e parecer
+"mais épica" de verdade, em vez de uma cena horizontal só esticada.
+
+---
+
+## 3. Moldura Full Art (dourada) — referência de layout
 
 **Arquivo:** [`reference/full-art-frame-gold-v1.png`](./reference/full-art-frame-gold-v1.png)
 **Status:** moldura salva · aguardando uma carta de referência já ilustrada
