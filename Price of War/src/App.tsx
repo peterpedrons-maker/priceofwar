@@ -1636,8 +1636,7 @@ export default function App() {
             <img
               src={cardBackplateImage}
               alt=""
-              className="absolute rounded-xl pointer-events-none select-none"
-              style={{ width: '126%', height: '133%', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
+              className="absolute inset-0 w-full h-full object-cover rounded-xl pointer-events-none select-none"
               draggable={false}
             />
           </div>
@@ -1675,8 +1674,7 @@ export default function App() {
             <img
               src={cardBackplateImage}
               alt=""
-              className="absolute rounded-xl pointer-events-none select-none"
-              style={{ width: '126%', height: '133%', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
+              className="absolute inset-0 w-full h-full object-cover rounded-xl pointer-events-none select-none"
               draggable={false}
             />
           </motion.div>
@@ -1736,8 +1734,7 @@ export default function App() {
             <img
               src={cardBackplateImage}
               alt=""
-              className="absolute rounded-xl pointer-events-none select-none"
-              style={{ width: '126%', height: '133%', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
+              className="absolute inset-0 w-full h-full object-cover rounded-xl pointer-events-none select-none"
               draggable={false}
             />
           </motion.div>
@@ -1869,8 +1866,7 @@ export default function App() {
                       <img
                         src={cardBackplateImage}
                         alt=""
-                        className="absolute rounded-xl pointer-events-none select-none"
-                        style={{ width: '126%', height: '133%', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
+                        className="absolute inset-0 w-full h-full object-cover rounded-xl pointer-events-none select-none"
                         draggable={false}
                       />
                     </div>
