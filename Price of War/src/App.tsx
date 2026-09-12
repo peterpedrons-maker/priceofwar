@@ -4,6 +4,8 @@ import { Info, X, Sword, Zap, Users, Library, ArrowUp, ArrowDown } from 'lucide-
 import { playAiTurn, AiAction } from './services/aiService';
 import boardInteriorImage from './assets/board-interior.webp';
 import swordTurnButtonImage from './assets/sword-turn-button.webp';
+import cardTemplateImage from './assets/card-template.webp';
+import cardBackplateImage from './assets/card-backplate.webp';
 
 export type CardType = 'Infantaria' | 'Cavalaria' | 'Arqueiro' | 'Artilharia' | 'General' | 'Relíquia' | 'Terreno' | 'Tática';
 
@@ -231,6 +233,114 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
     <span className="relative z-10 text-white font-black drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] leading-none">{value}</span>
   </div>
 );
+
+// A plain gradient-gold number with a strong drop shadow and no background shape —
+// unlike AtkBadge/HpBadge/ManaBadge above, this is used INSIDE CardFace, where the
+// imported card-template artwork already draws its own coin/blade/shield emblem at
+// each of these exact spots; this just fills in the number on top of it.
+const GoldNumber = ({ value, className = "" }: { value: number, className?: string }) => (
+  <span
+    className={`font-black leading-none ${className}`}
+    style={{
+      fontFamily: "'Cinzel', serif",
+      background: 'linear-gradient(180deg, #FFFFFF 0%, #FDE08B 30%, #D4AF37 60%, #AA7200 100%)',
+      WebkitBackgroundClip: 'text',
+      WebkitTextFillColor: 'transparent',
+      filter: 'drop-shadow(0 2px 2px rgba(0,0,0,1)) drop-shadow(0 0 4px rgba(0,0,0,0.8))',
+    }}
+  >
+    {value}
+  </span>
+);
+
+// CardFace — the shared visual for every place a card's front actually renders (hand,
+// board slot, detail modal, the flying/announced overlays): the card-template artwork
+// as the frame, the card's own art sitting in the template's cutout window, and the
+// name/cost/type/effect/atk/hp positioned at the exact percentages the template was
+// painted for. Ported from an earlier full-art version of this project (see
+// card-template.webp / card-backplate.webp) — the template image and these
+// coordinates are a matched pair, not independently adjustable.
+const CARD_FACE_VARIANTS = {
+  hand:  { name: 'text-sm',                    effect: 'text-[11px]',             type: 'text-[10px]',              stat: 'text-xl' },
+  field: { name: 'text-[7px] md:text-[9px]',   effect: 'text-[6px] md:text-[8px]', type: 'text-[6px] md:text-[8px]', stat: 'text-[11px] md:text-sm' },
+  modal: { name: 'text-lg',                    effect: 'text-base',                type: 'text-sm',                  stat: 'text-2xl' },
+  popup: { name: 'text-[9px] md:text-[11px]',  effect: 'text-[7px] md:text-[8px]', type: 'text-[7px] md:text-[8px]', stat: 'text-xs md:text-sm' },
+} as const;
+
+const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof typeof CARD_FACE_VARIANTS }) => {
+  const v = CARD_FACE_VARIANTS[variant];
+  return (
+    <>
+      {/* Art + frame share one oversized, shifted coordinate space because the template
+          art itself has an ambient glow bleeding past the card's real edges. Both
+          layers use the exact same box so the art aligns perfectly with the
+          template's transparent cutout window. */}
+      <div
+        className="absolute pointer-events-none"
+        style={{ width: '122%', height: '145.5%', top: '50%', left: '50%', transform: 'translate(-50%, -46%)' }}
+      >
+        <div className="absolute overflow-hidden" style={{ left: '11.52%', top: '17.64%', width: '76.95%', height: '31.83%' }}>
+          {card.art ? (
+            <img src={card.art} alt={card.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900" />
+          )}
+        </div>
+        <img src={cardTemplateImage} alt="" aria-hidden className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
+      </div>
+
+      <div className="absolute inset-0 z-10 pointer-events-none">
+        {/* Name */}
+        <div className="absolute flex items-center justify-center px-1 overflow-hidden" style={{ top: '0%', left: '12%', right: '22%', height: '8%' }}>
+          <span
+            className={`${v.name} font-bold uppercase tracking-tight truncate w-full text-center`}
+            style={{ fontFamily: "'Marcellus', serif", color: card.cardType === 'Relíquia' ? '#FFD700' : '#FDE08B', textShadow: '0 2px 2px rgba(0,0,0,1), 0 0 5px rgba(139,69,19,0.8)' }}
+          >
+            {card.name}
+          </span>
+        </div>
+
+        {/* Cost (Ouro) — mapped to the template's round cutout, top-right */}
+        <div className="absolute flex items-center justify-center" style={{ left: '92%', top: '2.5%', transform: 'translate(-50%, -50%)' }}>
+          <GoldNumber value={card.cost} className={v.stat} />
+        </div>
+
+        {/* Card type — the gold ribbon between art and rules text */}
+        {card.cardType && (
+          <div className="absolute flex items-center justify-center px-1 overflow-hidden" style={{ top: '56%', left: '12%', right: '12%', height: '7%' }}>
+            <span
+              className={`${v.type} font-black uppercase tracking-widest truncate w-full text-center`}
+              style={{
+                fontFamily: "'Cinzel Decorative', serif",
+                color: card.cardType === 'Relíquia' ? '#FFD700' : card.cardType === 'Terreno' ? '#86EFAC' : '#FDE08B',
+                textShadow: '0 2px 2px rgba(0,0,0,1)',
+              }}
+            >
+              {card.cardType}
+            </span>
+          </div>
+        )}
+
+        {/* Effect — the parchment text area */}
+        <div className="absolute flex items-center justify-center p-1 overflow-hidden" style={{ top: '64%', bottom: '10%', left: '11%', right: '11%' }}>
+          <p className={`${v.effect} text-[#0d0901] font-semibold text-center leading-tight`} style={{ fontFamily: "'Playfair Display', serif" }}>
+            {card.effect}
+          </p>
+        </div>
+
+        {/* ATK — blade emblem, bottom-left */}
+        <div className="absolute flex items-center justify-center" style={{ left: '1%', bottom: '-2%', width: '20%', height: '13%' }}>
+          <GoldNumber value={card.atk} className={v.stat} />
+        </div>
+
+        {/* HP — heart emblem, bottom-right */}
+        <div className="absolute flex items-center justify-center" style={{ right: '0%', bottom: '-2%', width: '20%', height: '13%' }}>
+          <GoldNumber value={card.hp} className={v.stat} />
+        </div>
+      </div>
+    </>
+  );
+};
 
 // The board's art comes as two separate images: one for the playing surface
 // itself (inside the bordered board frame) and one for the space around it
@@ -1519,14 +1629,11 @@ export default function App() {
             diagonally opposite corners instead of stacked in the same column. */}
         <div className="absolute left-4 md:left-8 top-12 flex flex-col gap-6 items-center z-40 pointer-events-none">
           {/* Deck */}
-          <div ref={npcDeckRef} className="w-24 md:w-36 h-32 md:h-48 border-2 border-[#8c7a5f] rounded-xl bg-[#4a3b2c] flex items-center justify-center shadow-[0_10px_20px_rgba(0,0,0,0.5)] relative">
-            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-y-1 bg-[#3a2b1c] -z-10" />
-            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-y-2 bg-[#2a1b0c] -z-20" />
-            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-y-3 bg-[#1a0b00] -z-30" />
-            <div className="w-[80%] h-[85%] border border-[#8c7a5f]/50 rounded-lg flex items-center justify-center relative overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.2)_0%,transparent_70%)]" />
-              <div className="w-8 h-8 md:w-12 md:h-12 opacity-50 bg-zinc-800 rounded-full border-2 border-[#8c7a5f]" />
-            </div>
+          <div ref={npcDeckRef} className="w-24 md:w-36 h-32 md:h-48 rounded-xl relative shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
+            <div className="absolute inset-0 rounded-xl translate-y-1 bg-black/40 -z-10" />
+            <div className="absolute inset-0 rounded-xl translate-y-2 bg-black/30 -z-20" />
+            <div className="absolute inset-0 rounded-xl translate-y-3 bg-black/20 -z-30" />
+            <img src={cardBackplateImage} alt="" className="w-full h-full object-cover rounded-xl" draggable={false} />
           </div>
           {/* Graveyard */}
           <GraveyardPile cards={npcGraveyard} />
@@ -1550,18 +1657,15 @@ export default function App() {
           {/* Deck */}
           <motion.div
             ref={playerDeckRef}
-            className="w-24 md:w-36 h-32 md:h-48 border-2 border-[#8c7a5f] rounded-xl bg-[#4a3b2c] flex items-center justify-center shadow-[0_10px_20px_rgba(0,0,0,0.5)] relative group"
+            className="w-24 md:w-36 h-32 md:h-48 rounded-xl relative shadow-[0_10px_20px_rgba(0,0,0,0.5)] group"
           >
             {/* Deck thickness effect */}
-            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-y-1 bg-[#3a2b1c] -z-10" />
-            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-y-2 bg-[#2a1b0c] -z-20" />
-            <div className="absolute inset-0 border-2 border-[#8c7a5f] rounded-xl translate-y-3 bg-[#1a0b00] -z-30" />
+            <div className="absolute inset-0 rounded-xl translate-y-1 bg-black/40 -z-10" />
+            <div className="absolute inset-0 rounded-xl translate-y-2 bg-black/30 -z-20" />
+            <div className="absolute inset-0 rounded-xl translate-y-3 bg-black/20 -z-30" />
 
             {/* Card Back Design */}
-            <div className="w-[80%] h-[85%] border border-[#8c7a5f]/50 rounded-lg flex items-center justify-center relative overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.2)_0%,transparent_70%)]" />
-              <div className="w-8 h-8 md:w-12 md:h-12 opacity-50 bg-zinc-800 rounded-full border-2 border-[#8c7a5f]" />
-            </div>
+            <img src={cardBackplateImage} alt="" className="w-full h-full object-cover rounded-xl" draggable={false} />
           </motion.div>
         </div>
       </motion.div>
@@ -1615,9 +1719,7 @@ export default function App() {
             transition={{ duration: 0.4, ease: "easeOut" }}
           >
             {/* Card Back Design */}
-            <div className="absolute inset-2 border border-[#8c7a5f]/50 rounded-lg flex items-center justify-center bg-[#4a3b2c]">
-              <div className="w-8 h-8 bg-zinc-800 rounded-full border-2 border-[#d4af37] opacity-50" />
-            </div>
+            <img src={cardBackplateImage} alt="" className="absolute inset-0 w-full h-full object-cover rounded-xl" draggable={false} />
           </motion.div>
           );
         })}
@@ -1741,13 +1843,10 @@ export default function App() {
                         backfaceVisibility hides this once flipped past 90°, leaving the
                         front face below. */}
                     <div
-                      className="absolute inset-0 rounded-xl border-2 border-[#8c7a5f] bg-[#4a3b2c] flex items-center justify-center shadow-[0_10px_20px_rgba(0,0,0,0.5)]"
+                      className="absolute inset-0 rounded-xl overflow-hidden shadow-[0_10px_20px_rgba(0,0,0,0.5)]"
                       style={{ backfaceVisibility: 'hidden' }}
                     >
-                      <div className="w-[75%] h-[75%] border border-[#8c7a5f]/50 rounded-lg flex items-center justify-center relative overflow-hidden">
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.3)_0%,transparent_70%)]" />
-                        <div className="w-10 h-10 bg-zinc-800 rounded-full border-2 border-[#d4af37]" />
-                      </div>
+                      <img src={cardBackplateImage} alt="" className="w-full h-full object-cover" draggable={false} />
                     </div>
 
                     {/* Front face — the real card, pre-rotated 180° so it reads upright
@@ -1787,41 +1886,7 @@ export default function App() {
                     <Info className="text-white w-5 h-5" />
                   </button>
 
-                  {/* Full Card Art Background */}
-                  {card.art ? (
-                    <img src={card.art} alt={card.name} className="absolute inset-0 w-full h-full object-cover z-0 rounded-xl" referrerPolicy="no-referrer" />
-                  ) : (
-                    <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900 flex items-center justify-center z-0 rounded-xl">
-                      <div className="w-1/3 h-1/3 border border-zinc-500/40 rotate-45" />
-                    </div>
-                  )}
-
-                  {/* Content Wrapper */}
-                  <div className="absolute inset-0 z-10 pointer-events-none p-2 flex flex-col justify-between">
-                    {/* Top Section: Name and Cost */}
-                    <div className="relative flex items-start justify-between w-full">
-                      {/* Name */}
-                      <div className="flex-1 bg-gradient-to-b from-black/75 to-black/60 border border-amber-100/25 rounded-lg flex items-center px-3 py-1.5 shadow-sm mr-4">
-                        <span className="text-sm font-bold text-white uppercase tracking-tighter truncate drop-shadow-md">{card.name}</span>
-                      </div>
-                      {/* Gold Badge */}
-                      <ManaBadge value={card.cost} className="absolute -top-4 -right-4 w-12 h-12 text-xl z-20 drop-shadow-md" />
-                    </div>
-
-                    {/* Bottom Section: Effect, ATK, HP */}
-                    <div className="relative w-full flex flex-col items-center">
-                      {/* Text Box */}
-                      <div className="w-full bg-gradient-to-b from-black/60 to-black/75 border border-amber-100/25 rounded-lg p-3 shadow-sm flex items-center justify-center min-h-[5rem] mb-2">
-                        <p className="text-xs leading-snug text-white/90 font-medium text-center drop-shadow-md">{card.effect}</p>
-                      </div>
-
-                      {/* ATK Badge */}
-                      <AtkBadge value={card.atk} className="absolute -bottom-4 -left-4 w-12 h-12 text-xl z-20 drop-shadow-md" />
-
-                      {/* HP Badge */}
-                      <HpBadge value={card.hp} className="absolute -bottom-4 -right-4 w-12 h-12 text-xl z-20 drop-shadow-md" />
-                    </div>
-                  </div>
+                  <CardFace card={card} variant="hand" />
 
                   {/* Selection Glow */}
                   {selectedCardIndex === i && (
@@ -1936,36 +2001,13 @@ export default function App() {
               }}
               // Same frame, art, and layout as the hand card it came from — it should read
               // as the exact same card the whole time, not switch to a simplified design.
-              className="pointer-events-none bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-xl flex flex-col p-2 relative border-2 border-[#5c4a30]"
+              className="pointer-events-none rounded-xl flex flex-col p-2 relative"
             >
               <div className="absolute top-1 left-1 w-8 h-8 bg-blue-600/90 rounded-full border-2 border-blue-900 flex items-center justify-center shadow-md z-30">
                 <Info className="text-white w-5 h-5" />
               </div>
 
-              {flyingCard.card.art ? (
-                <img src={flyingCard.card.art} alt={flyingCard.card.name} className="absolute inset-0 w-full h-full object-cover z-0 rounded-xl" referrerPolicy="no-referrer" />
-              ) : (
-                <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900 flex items-center justify-center z-0 rounded-xl">
-                  <div className="w-1/3 h-1/3 border border-zinc-500/40 rotate-45" />
-                </div>
-              )}
-
-              <div className="absolute inset-0 z-10 p-2 flex flex-col justify-between">
-                <div className="relative flex items-start justify-between w-full">
-                  <div className="flex-1 bg-gradient-to-b from-black/75 to-black/60 border border-amber-100/25 rounded-lg flex items-center px-3 py-1.5 shadow-sm mr-4">
-                    <span className="text-sm font-bold text-white uppercase tracking-tighter truncate drop-shadow-md">{flyingCard.card.name}</span>
-                  </div>
-                  <ManaBadge value={flyingCard.card.cost} className="absolute -top-4 -right-4 w-12 h-12 text-xl z-20 drop-shadow-md" />
-                </div>
-
-                <div className="relative w-full flex flex-col items-center">
-                  <div className="w-full bg-gradient-to-b from-black/60 to-black/75 border border-amber-100/25 rounded-lg p-3 shadow-sm flex items-center justify-center min-h-[5rem] mb-2">
-                    <p className="text-xs leading-snug text-white/90 font-medium text-center drop-shadow-md">{flyingCard.card.effect}</p>
-                  </div>
-                  <AtkBadge value={flyingCard.card.atk} className="absolute -bottom-4 -left-4 w-12 h-12 text-xl z-20 drop-shadow-md" />
-                  <HpBadge value={flyingCard.card.hp} className="absolute -bottom-4 -right-4 w-12 h-12 text-xl z-20 drop-shadow-md" />
-                </div>
-              </div>
+              <CardFace card={flyingCard.card} variant="hand" />
             </motion.div>
           );
         })()}
@@ -2122,24 +2164,8 @@ export default function App() {
             }`}>
               {announcedCard.side === 'npc' ? 'Adversário jogou' : 'Você jogou'}
             </span>
-            <div className="relative w-32 h-44 md:w-40 md:h-56 bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-xl border-2 border-[#5c4a30] shadow-[0_10px_40px_rgba(0,0,0,0.7)] overflow-hidden">
-              {announcedCard.card.art ? (
-                <img src={announcedCard.card.art} alt={announcedCard.card.name} className="absolute inset-0 w-full h-full object-cover z-0" referrerPolicy="no-referrer" />
-              ) : (
-                <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900 flex items-center justify-center z-0">
-                  <div className="w-1/4 h-1/4 border border-zinc-500/40 rotate-45" />
-                </div>
-              )}
-              <div className="absolute inset-0 z-10 p-1.5 flex flex-col justify-between">
-                <div className="bg-gradient-to-b from-black/80 to-black/60 border border-amber-100/25 rounded-md px-2 py-1">
-                  <span className="text-[9px] md:text-[11px] font-bold text-white uppercase tracking-tight truncate block drop-shadow-md">{announcedCard.card.name}</span>
-                </div>
-                <ManaBadge value={announcedCard.card.cost} className="absolute -top-2 -right-2 w-7 h-7 md:w-9 md:h-9 text-[10px] md:text-xs z-20 drop-shadow-md" />
-                <div className="flex justify-between">
-                  <AtkBadge value={announcedCard.card.atk} className="w-7 h-7 md:w-9 md:h-9 text-[10px] md:text-xs drop-shadow-md" />
-                  <HpBadge value={announcedCard.card.hp} className="w-7 h-7 md:w-9 md:h-9 text-[10px] md:text-xs drop-shadow-md" />
-                </div>
-              </div>
+            <div className="relative w-32 h-44 md:w-40 md:h-56 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.7)] overflow-hidden">
+              <CardFace card={announcedCard.card} variant="popup" />
             </div>
           </motion.div>
         )}
@@ -2196,7 +2222,7 @@ export default function App() {
               exit={{ scale: 0.8, y: 50 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-sm aspect-[2/3] bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-2xl flex flex-col p-4 border-4 border-[#5c4a30] shadow-[0_0_100px_rgba(0,0,0,0.8)]"
+              className="relative w-full max-w-sm aspect-[2/3] rounded-2xl flex flex-col p-4 shadow-[0_0_100px_rgba(0,0,0,0.8)]"
             >
               <button
                 onClick={() => setDetailedCard(null)}
@@ -2205,43 +2231,7 @@ export default function App() {
                 <X className="text-white w-6 h-6" />
               </button>
 
-              {/* Full Card Art Background */}
-              {detailedCard.art ? (
-                <img src={detailedCard.art} alt={detailedCard.name} className="absolute inset-0 w-full h-full object-cover z-0 rounded-2xl" referrerPolicy="no-referrer" />
-              ) : (
-                <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900 flex items-center justify-center z-0 rounded-2xl">
-                  <div className="w-1/4 h-1/4 border border-zinc-500/40 rotate-45" />
-                </div>
-              )}
-
-              {/* Content Wrapper */}
-              <div className="absolute inset-0 z-10 pointer-events-none p-4 flex flex-col justify-between">
-                {/* Top Section */}
-                <div className="relative flex items-start justify-between w-full">
-                  {/* Name */}
-                  <div className="flex-1 bg-gradient-to-b from-black/75 to-black/60 border border-amber-100/25 rounded-lg flex items-center px-4 py-2 shadow-sm mr-6">
-                    <span className="text-lg font-bold text-white uppercase tracking-tight truncate drop-shadow-md">{detailedCard.name}</span>
-                  </div>
-                  {/* Gold Badge */}
-                  <ManaBadge value={detailedCard.cost} className="absolute -top-6 -right-6 w-16 h-16 text-2xl z-20 drop-shadow-lg" />
-                </div>
-
-                {/* Bottom Section */}
-                <div className="relative w-full flex flex-col items-center">
-                  {/* Description Area */}
-                  <div className="w-full bg-gradient-to-b from-black/60 to-black/75 border border-amber-100/25 rounded-lg p-4 shadow-sm flex items-center justify-center min-h-[6rem] mb-2">
-                    <p className="text-base leading-relaxed text-white/90 font-medium italic text-center drop-shadow-md">
-                      {detailedCard.effect}
-                    </p>
-                  </div>
-                  
-                  {/* ATK Badge */}
-                  <AtkBadge value={detailedCard.atk} className="absolute -bottom-6 -left-6 w-16 h-16 text-2xl z-20 drop-shadow-lg" />
-                  
-                  {/* HP Badge */}
-                  <HpBadge value={detailedCard.hp} className="absolute -bottom-6 -right-6 w-16 h-16 text-2xl z-20 drop-shadow-lg" />
-                </div>
-              </div>
+              <CardFace card={detailedCard} variant="modal" />
             </motion.div>
           </motion.div>
         )}
@@ -2351,11 +2341,10 @@ const CardSlot = ({
             rotateX: isAttacking ? (attackDirection === 'up' ? 20 : -20) : 0,
           }}
           transition={{ duration: 0.3, scale: { type: "spring", stiffness: 400, damping: 15 } }}
-          className="w-full h-full bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-lg flex flex-col p-1 relative border-2 border-[#5c4a30] shadow-lg"
-          style={{ boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.45), 0 4px 10px rgba(0,0,0,0.5)' }}
+          className="w-full h-full rounded-lg flex flex-col p-1 relative overflow-hidden"
         >
           {isImpactingTarget && <SlashEffect />}
-          
+
           {/* Info Button */}
           <button
             onClick={(e) => {
@@ -2367,43 +2356,7 @@ const CardSlot = ({
             <Info className="text-white w-3 h-3 md:w-4 md:h-4" />
           </button>
 
-          {/* Full Card Art Background */}
-          {card.art ? (
-            <img src={card.art} alt={card.name} className="absolute inset-0 w-full h-full object-cover z-0 rounded-lg" referrerPolicy="no-referrer" />
-          ) : (
-            <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900 flex items-center justify-center z-0 rounded-lg">
-              <div className="w-1/3 h-1/3 border border-zinc-500/40 rotate-45" />
-            </div>
-          )}
-
-          {/* Content Wrapper */}
-          <div className="absolute inset-0 z-10 pointer-events-none p-1 flex flex-col justify-between">
-            {/* Top Section */}
-            <div className="relative flex items-start justify-between w-full">
-              {/* Name Bar */}
-              <div className="flex-1 bg-gradient-to-b from-black/75 to-black/60 border border-amber-100/25 rounded flex items-center px-1.5 py-0.5 shadow-sm mr-2">
-                <span className="text-[7px] md:text-[9px] font-bold text-white uppercase tracking-tight truncate drop-shadow-md">{card.name}</span>
-              </div>
-              {/* Gold Badge */}
-              <ManaBadge value={card.cost} className="absolute -top-2 -right-2 w-6 h-6 md:w-8 md:h-8 text-[10px] md:text-xs z-20 drop-shadow-md" />
-            </div>
-
-            {/* Bottom Section */}
-            <div className="relative w-full flex flex-col items-center">
-              {/* Description Area */}
-              <div className="w-full bg-gradient-to-b from-black/60 to-black/75 border border-amber-100/25 rounded p-1 shadow-sm flex items-center justify-center min-h-[2.5rem] mb-1">
-                <p className="text-[6px] md:text-[8px] leading-[1.1] md:leading-tight text-white/90 font-medium italic text-center drop-shadow-md">
-                  {card.effect}
-                </p>
-              </div>
-              
-              {/* ATK Badge */}
-              <AtkBadge value={card.atk} className="absolute -bottom-2 -left-2 w-6 h-6 md:w-8 md:h-8 text-[10px] md:text-xs z-20 drop-shadow-md" />
-              
-              {/* HP Badge */}
-              <HpBadge value={card.hp} className="absolute -bottom-2 -right-2 w-6 h-6 md:w-8 md:h-8 text-[10px] md:text-xs z-20 drop-shadow-md" />
-            </div>
-          </div>
+          <CardFace card={card} variant="field" />
         </motion.div>
       )}
       {card && card.isDestroyed && (
