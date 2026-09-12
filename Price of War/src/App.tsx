@@ -5,9 +5,11 @@ import { playAiTurn, AiAction } from './services/aiService';
 import boardInteriorImage from './assets/board-interior.webp';
 import swordTurnButtonImage from './assets/sword-turn-button.webp';
 import cardTemplateImage from './assets/card-template.webp';
+import cardTemplateSilverImage from './assets/card-template-silver.webp';
+import cardTemplateChampagneImage from './assets/card-template-champagne.webp';
 import cardBackplateImage from './assets/card-backplate.webp';
 
-export type CardType = 'Infantaria' | 'Cavalaria' | 'Arqueiro' | 'Artilharia' | 'General' | 'Relíquia' | 'Terreno' | 'Tática';
+export type CardType = 'Infantaria' | 'Cavalaria' | 'Arqueiro' | 'Artilharia' | 'General' | 'Relíquia' | 'Terreno' | 'Tática' | 'Emboscada';
 
 export type CardData = {
   id: string;
@@ -114,27 +116,8 @@ const getValidAttackTargets = (
   return validTargets;
 };
 
-const GENERAL_PLAYER: CardData = {
-  id: 'general_player',
-  name: 'Comandante Aldric',
-  atk: 0,
-  hp: 20,
-  cost: 0,
-  art: '',
-  effect: 'O comandante do seu exército. Se ele cair em batalha, você perde a guerra.',
-  cardType: 'General',
-};
-
-const GENERAL_NPC: CardData = {
-  id: 'general_npc',
-  name: 'Comandante Inimigo',
-  atk: 0,
-  hp: 20,
-  cost: 0,
-  art: '',
-  effect: 'O comandante do exército inimigo. Derrote-o para vencer a guerra.',
-  cardType: 'General',
-};
+// Both Generals now come from whichever deck each side is playing (see DECKS
+// below) — picked at match start in resetGame, not fixed constants like before.
 
 const SlashEffect = () => (
   <motion.div
@@ -302,8 +285,23 @@ const CARD_FACE_VARIANTS = {
   popup: { name: 'text-xs md:text-sm',         effect: 'text-[11px] md:text-[13px]', type: 'text-[9px] md:text-[11px]', stat: 'text-sm md:text-base' },
 } as const;
 
+// Which physical card-stock a type is printed on. The gold frame has the
+// ATK/HP emblem pair baked into its art; the silver and champagne frames don't —
+// they carry a single decorative emblem instead, since Tática/Terreno/Emboscada
+// cards mostly resolve their effect immediately rather than sitting in combat
+// with real stats. Ported from the same full-art commit as the gold frame
+// (see card-template.webp) — card-template-silver.webp and
+// card-template-champagne.webp are that commit's other two frame variants.
+const NO_STAT_TYPES = new Set<CardType>(['Tática', 'Terreno', 'Emboscada']);
+const templateForType = (cardType?: CardType) => {
+  if (cardType === 'Tática' || cardType === 'Terreno') return cardTemplateSilverImage;
+  if (cardType === 'Emboscada') return cardTemplateChampagneImage;
+  return cardTemplateImage;
+};
+
 const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof typeof CARD_FACE_VARIANTS }) => {
   const v = CARD_FACE_VARIANTS[variant];
+  const showStats = !NO_STAT_TYPES.has(card.cardType as CardType);
   return (
     <>
       {/* Art + frame share one oversized, shifted coordinate space because the template
@@ -321,7 +319,7 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
             <div className="w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900" />
           )}
         </div>
-        <img src={cardTemplateImage} alt="" aria-hidden className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
+        <img src={templateForType(card.cardType)} alt="" aria-hidden className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
       </div>
 
       <div className="absolute inset-0 z-10 pointer-events-none">
@@ -366,15 +364,17 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
           </p>
         </div>
 
-        {/* ATK — blade emblem, bottom-left */}
-        <div className="absolute flex items-center justify-center" style={{ left: '1%', bottom: '-2%', width: '20%', height: '13%' }}>
-          <GoldNumber value={card.atk} className={v.stat} />
-        </div>
-
-        {/* HP — heart emblem, bottom-right */}
-        <div className="absolute flex items-center justify-center" style={{ right: '0%', bottom: '-2%', width: '20%', height: '13%' }}>
-          <GoldNumber value={card.hp} className={v.stat} />
-        </div>
+        {/* ATK/HP — blade + heart emblems, only on the gold frame (see NO_STAT_TYPES) */}
+        {showStats && (
+          <>
+            <div className="absolute flex items-center justify-center" style={{ left: '1%', bottom: '-2%', width: '20%', height: '13%' }}>
+              <GoldNumber value={card.atk} className={v.stat} />
+            </div>
+            <div className="absolute flex items-center justify-center" style={{ right: '0%', bottom: '-2%', width: '20%', height: '13%' }}>
+              <GoldNumber value={card.hp} className={v.stat} />
+            </div>
+          </>
+        )}
       </div>
     </>
   );
@@ -401,23 +401,121 @@ const HAND_CARD_HEIGHT = 320; // h-80
 // each card only advances this much past the previous one.
 const HAND_CARD_STEP = HAND_CARD_WIDTH * 0.5;
 
-const MOCK_DECK: CardData[] = [
-  { id: 'c1', name: 'Crimson Dragon', atk: 6, hp: 5, cost: 5, art: '', effect: 'Flying. Deals double damage to players.', cardType: 'Cavalaria' },
-  { id: 'c2', name: 'Iron Knight', atk: 3, hp: 6, cost: 3, art: '', effect: 'Taunt. Protects adjacent allies.', cardType: 'Infantaria' },
-  { id: 'c3', name: 'Arcane Mage', atk: 4, hp: 2, cost: 4, art: '', effect: 'Spell Damage +2. Battlecry: Draw a card.', cardType: 'Artilharia' },
-  { id: 'c4', name: 'Forest Goblin', atk: 2, hp: 1, cost: 1, art: '', effect: 'Charge. Can attack immediately.', cardType: 'Infantaria' },
-  { id: 'c5', name: 'Stone Golem', atk: 4, hp: 8, cost: 6, art: '', effect: 'Cannot attack unless provoked.', cardType: 'Infantaria' },
-  { id: 'c6', name: 'Arqueiro Élfico', atk: 3, hp: 2, cost: 2, art: '', effect: 'Ataca à distância a partir da Retaguarda.', cardType: 'Arqueiro' },
-  { id: 'c7', name: 'Relicário Sagrado', atk: 0, hp: 3, cost: 3, art: '', effect: 'Relíquia. Ocupa o slot especial ao lado do General.', cardType: 'Relíquia' },
-  { id: 'c8', name: 'Trincheira', atk: 0, hp: 5, cost: 2, art: '', effect: 'Terreno. Ocupa o slot especial ao lado do General.', cardType: 'Terreno' },
+// ── DECK CAPITÃO ────────────────────────────────────────────────────────────
+// Ported from the earlier full-art version of this project (commit 8a3d7b8,
+// constant DECK_1) — its own General, Criaturas, Táticas, Emboscadas, one
+// Relíquia and two Terrenos. Effect text carries over as flavor only for now:
+// none of these abilities (move, buff, reorganize...) actually run yet, same
+// as "Taunt"/"Charge"/"Flying" on the placeholder cards this replaces.
+const DECK_CAPITAO: CardData[] = [
+  { id: 'gen1', name: 'Comandante Aurelion, Mestre da Formação', atk: 0, hp: 20, cost: 0, art: '', effect: 'Após Remanejamento: até 2 unidades que se moveram ganham +1/+1 no próximo combate. Passiva: unidades adjacentes recebem -1 de dano.', cardType: 'General' },
+
+  // Criaturas (27)
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_tactical_soldier_${i}`, name: 'Soldado Tático', atk: 3, hp: 3, cost: 2, art: '', effect: 'Troca com aliado adjacente no fim do turno.', cardType: 'Infantaria' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_line_squire_${i}`, name: 'Escudeiro de Linha', atk: 2, hp: 4, cost: 2, art: '', effect: 'Protege unidades atrás.', cardType: 'Infantaria' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_formation_captain_${i}`, name: 'Capitão de Formação', atk: 3, hp: 4, cost: 3, art: '', effect: 'Ao mover: adjacentes +1 ATK.', cardType: 'Infantaria' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_scout_${i}`, name: 'Batedor', atk: 1, hp: 2, cost: 1, art: '', effect: 'Move após combate.', cardType: 'Infantaria' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_control_lancer_${i}`, name: 'Lanceiro de Controle', atk: 3, hp: 2, cost: 2, art: '', effect: 'Inimigos adjacentes -1 ATK.', cardType: 'Infantaria' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_tactical_knight_${i}`, name: 'Cavaleiro Tático', atk: 4, hp: 4, cost: 3, art: '', effect: 'Troca com qualquer aliado na linha.', cardType: 'Cavalaria' })),
+  ...Array(3).fill(null).map((_, i): CardData => ({ id: `c_veteran_${i}`, name: 'Veterano de Guerra', atk: 4, hp: 3, cost: 3, art: '', effect: '+2 ATK na coluna 3.', cardType: 'Infantaria' })),
+
+  // Táticas (20)
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `t_reform_lines_${i}`, name: 'Reformar Linhas', atk: 0, hp: 0, cost: 2, art: '', effect: 'Reorganiza até 3 unidades.', cardType: 'Tática' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `t_coordinated_advance_${i}`, name: 'Avanço Coordenado', atk: 0, hp: 0, cost: 2, art: '', effect: 'Após mover: +2 ATK.', cardType: 'Tática' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `t_quick_reposition_${i}`, name: 'Reposicionamento Rápido', atk: 0, hp: 0, cost: 1, art: '', effect: 'Move inimigo 1 slot.', cardType: 'Tática' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `t_closed_line_${i}`, name: 'Linha Fechada', atk: 0, hp: 0, cost: 2, art: '', effect: 'Adjacentes recebem menos dano.', cardType: 'Tática' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `t_retreat_order_${i}`, name: 'Ordem de Retirada', atk: 0, hp: 0, cost: 2, art: '', effect: 'Move para a Retaguarda + cura.', cardType: 'Tática' })),
+
+  // Emboscadas (12)
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `a_instant_block_${i}`, name: 'Bloqueio Instantâneo', atk: 0, hp: 0, cost: 2, art: '', effect: 'Cancela ataque se houver adjacente.', cardType: 'Emboscada' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `a_counter_maneuver_${i}`, name: 'Contra-Manobra', atk: 0, hp: 0, cost: 3, art: '', effect: 'Troca posições durante o ataque.', cardType: 'Emboscada' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `a_broken_formation_${i}`, name: 'Formação Quebrada', atk: 0, hp: 0, cost: 2, art: '', effect: 'Move inimigo aleatoriamente.', cardType: 'Emboscada' })),
+
+  // Relíquia (1)
+  { id: 'relic_banner_0', name: 'Estandarte da Legião', atk: 0, hp: 5, cost: 3, art: '', effect: 'Permanente. Todas as unidades aliadas ganham +1 ATK enquanto esta relíquia estiver no campo.', cardType: 'Relíquia' },
+
+  // Terrenos (2)
+  { id: 'terrain_fortress_0', name: 'Fortaleza de Pedra', atk: 0, hp: 8, cost: 3, art: '', effect: 'Permanente. Unidades aliadas na Retaguarda recebem -1 de dano de ataques inimigos.', cardType: 'Terreno' },
+  { id: 'terrain_swamp_0', name: 'Pântano Maldito', atk: 0, hp: 6, cost: 2, art: '', effect: 'Permanente. Unidades inimigas na Vanguarda sofrem -1 ATK enquanto este terreno estiver no campo.', cardType: 'Terreno' },
 ];
 
-const generateHand = (count: number) => {
-  return Array(count).fill(null).map((_, i) => ({
-    ...MOCK_DECK[Math.floor(Math.random() * MOCK_DECK.length)],
-    id: `hand_${Date.now()}_${i}`
-  }));
-};
+// ── DECK CARDEAL PEDRO ──────────────────────────────────────────────────────
+// Ported from the same commit (constant DECK_CARDEAL). Every card there had
+// its own unique ability keyed by `effectKey` (heal, draw, summon, buff on
+// equip...) — none of that runs yet, same flavor-text-only scope as above.
+// Three of the old commit's card types don't exist in this game's CardType
+// union: Leve and Plebeu fold into Infantaria (they're stat-bearing frontline
+// bodies same as any other Infantaria card), and Armamento (equipment) folds
+// into Tática (a 0/0 card whose whole point is its one-time effect).
+const DECK_CARDEAL: CardData[] = [
+  { id: 'cardeal_gen', name: 'Cardeal Pedro', atk: 0, hp: 20, cost: 0, art: '', effect: 'Fase Principal: cure 1 HP em um soldado aliado. Pague 1 ouro para curar 3 HP em vez disso.', cardType: 'General' },
+  { id: 'cardeal_relic', name: 'Cálice da Vida', atk: 0, hp: 5, cost: 3, art: '', effect: 'Permanente. Permite que o General Cardeal Pedro use sua habilidade duas vezes por turno.', cardType: 'Relíquia' },
+
+  // Plebeus → Infantaria
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `cardeal_fiel_${i}`, name: 'Multidão de Fiéis', atk: 0, hp: 3, cost: 1, art: '', effect: '—', cardType: 'Infantaria' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_comerciante_${i}`, name: 'Comerciante das Cruzadas', atk: 1, hp: 1, cost: 1, art: '', effect: 'Uma vez por turno: veja as 2 cartas do topo do deck. Adicione 1 à mão e coloque a outra no fundo.', cardType: 'Infantaria' })),
+
+  // Infantaria
+  { id: 'cardeal_espiao', name: 'Espião Sabotador', atk: 1, hp: 2, cost: 1, art: '', effect: 'Na Vanguarda: impede Emboscadas inimigas. Se o General aliado receber dano, no próximo turno não poderá usar sua habilidade.', cardType: 'Infantaria' },
+  { id: 'cardeal_fanatico', name: 'Soldado Fanático', atk: 1, hp: 2, cost: 1, art: '', effect: 'Ao atacar: se o General inimigo for de tipo oposto, ganha +2 ATK.', cardType: 'Infantaria' },
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_aprendiz_${i}`, name: 'Aprendiz de Infantaria', atk: 0, hp: 2, cost: 1, art: '', effect: 'Ao ser curado: recebe +1 ATK permanente.', cardType: 'Infantaria' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_vigia_${i}`, name: 'Vigia de Mantimentos', atk: 2, hp: 3, cost: 2, art: '', effect: 'Uma vez por turno: se você tiver menos de 2 cartas na mão, compre até ficar com 2.', cardType: 'Infantaria' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_inf_treinada_${i}`, name: 'Infantaria Treinada', atk: 3, hp: 5, cost: 2, art: '', effect: '—', cardType: 'Infantaria' })),
+
+  // Cavaleiros
+  ...Array(3).fill(null).map((_, i): CardData => ({ id: `cardeal_jorge_${i}`, name: 'Jorge, o Lanceiro', atk: 4, hp: 6, cost: 3, art: '', effect: 'Ao atacar a Vanguarda: causa 2 de dano à unidade na Retaguarda da mesma coluna.', cardType: 'Cavalaria' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_hosp_${i}`, name: 'Hospitalário', atk: 2, hp: 4, cost: 2, art: '', effect: 'Uma vez por turno: cure 1 HP de um aliado e cause 1 de dano a um inimigo na Vanguarda.', cardType: 'Cavalaria' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_nobre_${i}`, name: 'Nobre Religioso', atk: 4, hp: 5, cost: 3, art: '', effect: 'Ao entrar em campo: invoca Soldados Leais (1 ATK / 2 HP) nos slots adjacentes livres da mesma fileira.', cardType: 'Cavalaria' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `cardeal_cavaleiro_${i}`, name: 'Cavaleiro Branco', atk: 5, hp: 7, cost: 3, art: '', effect: '—', cardType: 'Cavalaria' })),
+  { id: 'cardeal_lider', name: 'Líder de Esquadrão', atk: 5, hp: 5, cost: 3, art: '', effect: 'Na Vanguarda: Infantaria e Arqueiros aliados ganham +1 ATK e +1 HP durante o combate.', cardType: 'Cavalaria' },
+
+  // Arqueiros
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_arq_pro_${i}`, name: 'Arqueiro Profissional', atk: 1, hp: 4, cost: 2, art: '', effect: 'Pode atacar duas vezes por rodada.', cardType: 'Arqueiro' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_atirador_${i}`, name: 'Atirador Influente', atk: 1, hp: 3, cost: 2, art: '', effect: 'Ao ir ao cemitério: compre 3 cartas.', cardType: 'Arqueiro' })),
+
+  // Táticas de dano
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_trabuco_${i}`, name: 'Trabuco', atk: 0, hp: 0, cost: 3, art: '', effect: 'Causa 2 de dano a TODAS as unidades inimigas.', cardType: 'Tática' })),
+  ...Array(3).fill(null).map((_, i): CardData => ({ id: `cardeal_catapulta_${i}`, name: 'Catapulta', atk: 0, hp: 0, cost: 2, art: '', effect: 'Escolha uma fileira inimiga. Todas as unidades naquela fileira recebem 2 de dano.', cardType: 'Tática' })),
+  { id: 'cardeal_balesta', name: 'Balesta', atk: 0, hp: 0, cost: 1, art: '', effect: 'Causa 3 de dano a uma unidade inimiga à sua escolha.', cardType: 'Tática' },
+
+  // Armamentos → Tática
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_armadura_${i}`, name: 'Armadura Pesada', atk: 0, hp: 0, cost: 1, art: '', effect: 'Infantaria equipada recebe +2 HP.', cardType: 'Tática' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_corcelete_${i}`, name: 'Corcelete', atk: 0, hp: 0, cost: 1, art: '', effect: 'Arqueiro, Plebeu ou Infantaria equipada recebe +1 HP.', cardType: 'Tática' })),
+  { id: 'cardeal_flecha', name: 'Flecha Envenenada', atk: 0, hp: 0, cost: 1, art: '', effect: 'Arqueiro equipado recebe +1 ATK.', cardType: 'Tática' },
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_espada_${i}`, name: 'Espada Longa', atk: 0, hp: 0, cost: 1, art: '', effect: 'Cavalaria, Infantaria ou Plebeu equipado recebe +2 ATK.', cardType: 'Tática' })),
+
+  // Emboscadas
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_forcas_${i}`, name: 'Forças Secretas', atk: 0, hp: 0, cost: 1, art: '', effect: 'Durante um ataque inimigo: um soldado aliado recebe +2 ATK e +1 HP até o fim do turno.', cardType: 'Emboscada' })),
+
+  // Táticas de utilidade
+  { id: 'cardeal_soldado_retorna', name: 'O Soldado Retorna', atk: 0, hp: 0, cost: 1, art: '', effect: 'Adicione um soldado do cemitério à sua mão.', cardType: 'Tática' },
+  { id: 'cardeal_busca_graal', name: 'Busca pelo Santo Graal', atk: 0, hp: 0, cost: 1, art: '', effect: 'Adicione uma carta de Terreno ou Relíquia do deck à sua mão.', cardType: 'Tática' },
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_nova_tatica_${i}`, name: 'Nova Tática', atk: 0, hp: 0, cost: 1, art: '', effect: 'Adicione uma carta de Tática do deck à sua mão.', cardType: 'Tática' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_esc_dedo_${i}`, name: 'Escolher a Dedo', atk: 0, hp: 0, cost: 1, art: '', effect: 'Adicione um soldado do deck à sua mão.', cardType: 'Tática' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_esc_tropas_${i}`, name: 'Escolher Tropas', atk: 0, hp: 0, cost: 1, art: '', effect: 'Veja as 4 cartas do topo. Adicione 2 à mão e coloque 2 no fundo do deck.', cardType: 'Tática' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_impostos_${i}`, name: 'Aumento de Impostos', atk: 0, hp: 0, cost: 0, art: '', effect: 'Ganhe 1 ouro adicional neste turno.', cardType: 'Tática' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_reuniao_${i}`, name: 'Reunião de Fiéis', atk: 0, hp: 0, cost: 2, art: '', effect: 'Invoque do deck até 2 soldados com 0 ATK para slots livres na Vanguarda. Embaralhe o deck.', cardType: 'Tática' })),
+];
+
+// The playable pool each side actually draws from during a match — the General
+// isn't a draw, it's placed straight onto the board at kickoff (see resetGame).
+const DECKS = {
+  capitao: {
+    id: 'capitao' as const,
+    name: 'Deck Capitão',
+    description: 'Infantaria disciplinada e reformação tática.',
+    general: DECK_CAPITAO.find(c => c.cardType === 'General')!,
+    pool: DECK_CAPITAO.filter(c => c.cardType !== 'General'),
+  },
+  cardeal: {
+    id: 'cardeal' as const,
+    name: 'Deck Cardeal Pedro',
+    description: 'Fé e ferro — cura, invocações e emboscadas sagradas.',
+    general: DECK_CARDEAL.find(c => c.cardType === 'General')!,
+    pool: DECK_CARDEAL.filter(c => c.cardType !== 'General'),
+  },
+} as const;
+type DeckId = keyof typeof DECKS;
 
 const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) => {
   const mouseX = useMotionValue(0);
@@ -539,8 +637,52 @@ const InstallPrompt = ({
   </motion.div>
 );
 
+// Shown right after tapping "Quick Match" — picking a deck here is what decides
+// which General and card pool the player gets; the AI always takes the other
+// deck (see resetGame), so every match pits the two against each other.
+const DeckPickerModal = ({ onSelect, onClose }: { onSelect: (deckId: DeckId) => void, onClose: () => void }) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/80 pointer-events-auto"
+    onClick={onClose}
+  >
+    <motion.div
+      initial={{ scale: 0.9, y: 20 }}
+      animate={{ scale: 1, y: 0 }}
+      exit={{ scale: 0.9, y: 20 }}
+      onClick={(e) => e.stopPropagation()}
+      className="w-full max-w-sm flex flex-col gap-4"
+    >
+      <h2 className="text-center text-xl font-black uppercase tracking-wide text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">Escolha seu Deck</h2>
+      {Object.values(DECKS).map((deck) => (
+        <motion.button
+          key={deck.id}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => onSelect(deck.id)}
+          className="text-left bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-2xl border-2 border-[#5c4a30] shadow-2xl p-5 flex flex-col gap-1"
+          style={{ boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.45), 0 10px 40px rgba(0,0,0,0.6)' }}
+        >
+          <span className="text-lg font-black uppercase tracking-wide text-[#2a2117]">{deck.name}</span>
+          <span className="text-xs font-bold text-[#5c4a30]">General: {deck.general.name}</span>
+          <span className="text-sm text-[#4a3b2c] mt-1">{deck.description}</span>
+          <span className="text-[11px] text-[#6b5636] mt-1 uppercase tracking-wide">{deck.pool.length + 1} cartas</span>
+        </motion.button>
+      ))}
+      <button onClick={onClose} className="mx-auto mt-1 px-4 py-2 text-sm text-zinc-300 hover:text-white transition-colors">
+        Cancelar
+      </button>
+    </motion.div>
+  </motion.div>
+);
+
 export default function App() {
   const [gameMode, setGameMode] = useState<string | null>(null);
+  // Quick Match asks which deck to play before actually starting the match —
+  // see DECKS above and the DeckPickerModal rendered in the !gameMode branch.
+  const [deckPickerOpen, setDeckPickerOpen] = useState(false);
   const [viewState, setViewState] = useState<'hand' | 'field'>('hand');
   const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
@@ -689,15 +831,26 @@ export default function App() {
   const playerDeckRef = useRef<HTMLDivElement>(null);
   const npcDeckRef = useRef<HTMLDivElement>(null);
   const DRAW_FLIGHT_MS = 750; // how long a newly drawn card takes to travel from the deck and flip face-up in hand
-  // A shuffled draw pile, reshuffled from MOCK_DECK once exhausted — draws come from here
-  // instead of a plain random pick so the same card can't turn up twice in a row purely
-  // by chance (with only 10 card types and a 5-card opening hand, picking WITH
-  // replacement made an immediate repeat likely on almost every match, which read as the
-  // game "swapping" a card for another copy of itself rather than dealing a fresh one).
+  // Which deck's pool each side is currently drawing from — set in resetGame from
+  // the deck chosen at the Quick Match picker, so this can't just be a constant
+  // anymore now that there are two real decks instead of one shared card pool.
+  const playerDeckPoolRef = useRef<readonly CardData[]>(DECKS.capitao.pool);
+  const npcDeckPoolRef = useRef<readonly CardData[]>(DECKS.cardeal.pool);
+  // Each side's General comes from the same chosen deck as its draw pool — set
+  // alongside it in resetGame instead of the fixed GENERAL_PLAYER/GENERAL_NPC
+  // constants this replaced.
+  const generalPlayerRef = useRef<CardData>(DECKS.capitao.general);
+  const generalNpcRef = useRef<CardData>(DECKS.cardeal.general);
+  // A shuffled draw pile, reshuffled from the active deck once exhausted — draws
+  // come from here instead of a plain random pick so the same card can't turn up
+  // twice in a row purely by chance (with only 10 card types and a 5-card opening
+  // hand, picking WITH replacement made an immediate repeat likely on almost every
+  // match, which read as the game "swapping" a card for another copy of itself
+  // rather than dealing a fresh one).
   const deckQueueRef = useRef<CardData[]>([]);
   const drawFromDeck = (): CardData => {
     if (deckQueueRef.current.length === 0) {
-      deckQueueRef.current = [...MOCK_DECK].sort(() => Math.random() - 0.5);
+      deckQueueRef.current = [...playerDeckPoolRef.current].sort(() => Math.random() - 0.5);
     }
     const card = deckQueueRef.current.shift()!;
     return { ...card, id: `hand_${Date.now()}_${Math.random()}` };
@@ -707,7 +860,7 @@ export default function App() {
   const npcDeckQueueRef = useRef<CardData[]>([]);
   const drawFromNpcDeck = (): CardData => {
     if (npcDeckQueueRef.current.length === 0) {
-      npcDeckQueueRef.current = [...MOCK_DECK].sort(() => Math.random() - 0.5);
+      npcDeckQueueRef.current = [...npcDeckPoolRef.current].sort(() => Math.random() - 0.5);
     }
     const card = npcDeckQueueRef.current.shift()!;
     return { ...card, id: `npc_hand_${Date.now()}_${Math.random()}` };
@@ -830,8 +983,8 @@ export default function App() {
     };
 
     schedule(() => {
-      setPlayerSlots(prev => { const next = [...prev]; next[12] = GENERAL_PLAYER; return next; });
-      setNpcSlots(prev => { const next = [...prev]; next[12] = GENERAL_NPC; return next; });
+      setPlayerSlots(prev => { const next = [...prev]; next[12] = generalPlayerRef.current; return next; });
+      setNpcSlots(prev => { const next = [...prev]; next[12] = generalNpcRef.current; return next; });
     }, 300);
 
     // Kept comfortably past the 500ms viewport-settle window above (see
@@ -851,9 +1004,17 @@ export default function App() {
     }
   };
 
-  const resetGame = () => {
+  // deckId is which deck the PLAYER picked at the Quick Match screen; the AI
+  // always plays the other one, so every match shows both decks in action.
+  const resetGame = (deckId: DeckId = 'capitao') => {
     matchIntroTimeoutsRef.current.forEach(clearTimeout);
     matchIntroTimeoutsRef.current = [];
+
+    const npcDeckId: DeckId = deckId === 'capitao' ? 'cardeal' : 'capitao';
+    playerDeckPoolRef.current = DECKS[deckId].pool;
+    npcDeckPoolRef.current = DECKS[npcDeckId].pool;
+    generalPlayerRef.current = DECKS[deckId].general;
+    generalNpcRef.current = DECKS[npcDeckId].general;
     deckQueueRef.current = [];
     npcDeckQueueRef.current = [];
 
@@ -884,8 +1045,8 @@ export default function App() {
     resetGame();
   }, []);
 
-  const startGame = (mode: string) => {
-    resetGame();
+  const startGame = (mode: string, deckId?: DeckId) => {
+    resetGame(deckId);
     setGameMode(mode);
   };
 
@@ -1023,7 +1184,18 @@ export default function App() {
   if (!gameMode) {
     return (
       <div className="relative w-full h-dvh bg-zinc-950 text-white">
-        <MainMenu onSelectMode={startGame} />
+        <MainMenu onSelectMode={(mode) => {
+          if (mode === 'Quick Match') setDeckPickerOpen(true);
+          else startGame(mode);
+        }} />
+        <AnimatePresence>
+          {deckPickerOpen && (
+            <DeckPickerModal
+              onSelect={(deckId) => { setDeckPickerOpen(false); startGame('Quick Match', deckId); }}
+              onClose={() => setDeckPickerOpen(false)}
+            />
+          )}
+        </AnimatePresence>
         <AnimatePresence>
           {installPromptKind && (
             <InstallPrompt
