@@ -261,10 +261,10 @@ const GoldNumber = ({ value, className = "" }: { value: number, className?: stri
 // card-template.webp / card-backplate.webp) — the template image and these
 // coordinates are a matched pair, not independently adjustable.
 const CARD_FACE_VARIANTS = {
-  hand:  { name: 'text-sm',                    effect: 'text-[13px]',              type: 'text-[10px]',              stat: 'text-xl' },
+  hand:  { name: 'text-base',                  effect: 'text-[15px]',              type: 'text-[11px]',              stat: 'text-xl' },
   field: { name: 'text-[7px] md:text-[9px]',   effect: 'text-[6px] md:text-[8px]', type: 'text-[6px] md:text-[8px]', stat: 'text-[11px] md:text-sm' },
-  modal: { name: 'text-lg',                    effect: 'text-lg',                  type: 'text-sm',                  stat: 'text-2xl' },
-  popup: { name: 'text-[9px] md:text-[11px]',  effect: 'text-[8px] md:text-[10px]', type: 'text-[7px] md:text-[8px]', stat: 'text-xs md:text-sm' },
+  modal: { name: 'text-xl',                    effect: 'text-xl',                  type: 'text-base',                stat: 'text-2xl' },
+  popup: { name: 'text-[10px] md:text-xs',     effect: 'text-[9px] md:text-[11px]', type: 'text-[8px] md:text-[9px]', stat: 'text-xs md:text-sm' },
 } as const;
 
 const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof typeof CARD_FACE_VARIANTS }) => {
@@ -323,7 +323,7 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
 
         {/* Effect — the parchment text area */}
         <div className="absolute flex items-center justify-center p-1 overflow-hidden" style={{ top: '64%', bottom: '10%', left: '11%', right: '11%' }}>
-          <p className={`${v.effect} text-[#0d0901] font-semibold text-center leading-tight`} style={{ fontFamily: "'EB Garamond', serif" }}>
+          <p className={`${v.effect} text-[#0d0901] font-semibold text-center leading-tight`} style={{ fontFamily: "'Crimson Pro', serif" }}>
             {card.effect}
           </p>
         </div>
@@ -1637,7 +1637,7 @@ export default function App() {
               src={cardBackplateImage}
               alt=""
               className="absolute rounded-xl pointer-events-none select-none"
-              style={{ width: '122%', height: '145.5%', top: '50%', left: '50%', transform: 'translate(-50%, -46%)' }}
+              style={{ width: '126%', height: '133%', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
               draggable={false}
             />
           </div>
@@ -1676,7 +1676,7 @@ export default function App() {
               src={cardBackplateImage}
               alt=""
               className="absolute rounded-xl pointer-events-none select-none"
-              style={{ width: '122%', height: '145.5%', top: '50%', left: '50%', transform: 'translate(-50%, -46%)' }}
+              style={{ width: '126%', height: '133%', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
               draggable={false}
             />
           </motion.div>
@@ -1737,7 +1737,7 @@ export default function App() {
               src={cardBackplateImage}
               alt=""
               className="absolute rounded-xl pointer-events-none select-none"
-              style={{ width: '122%', height: '145.5%', top: '50%', left: '50%', transform: 'translate(-50%, -46%)' }}
+              style={{ width: '126%', height: '133%', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
               draggable={false}
             />
           </motion.div>
@@ -1870,7 +1870,7 @@ export default function App() {
                         src={cardBackplateImage}
                         alt=""
                         className="absolute rounded-xl pointer-events-none select-none"
-                        style={{ width: '122%', height: '145.5%', top: '50%', left: '50%', transform: 'translate(-50%, -46%)' }}
+                        style={{ width: '126%', height: '133%', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
                         draggable={false}
                       />
                     </div>
