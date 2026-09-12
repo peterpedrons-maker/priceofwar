@@ -296,10 +296,10 @@ const CardBack = ({ offset = 0, brightness = 1, shadow = false }: {
 // card-template.webp / card-backplate.webp) — the template image and these
 // coordinates are a matched pair, not independently adjustable.
 const CARD_FACE_VARIANTS = {
-  hand:  { name: 'text-base',                  effect: 'text-[15px]',              type: 'text-[11px]',              stat: 'text-xl' },
-  field: { name: 'text-[7px] md:text-[9px]',   effect: 'text-[6px] md:text-[8px]', type: 'text-[6px] md:text-[8px]', stat: 'text-[11px] md:text-sm' },
-  modal: { name: 'text-xl',                    effect: 'text-xl',                  type: 'text-base',                stat: 'text-2xl' },
-  popup: { name: 'text-[10px] md:text-xs',     effect: 'text-[9px] md:text-[11px]', type: 'text-[8px] md:text-[9px]', stat: 'text-xs md:text-sm' },
+  hand:  { name: 'text-lg',                    effect: 'text-[17px]',              type: 'text-[13px]',              stat: 'text-2xl' },
+  field: { name: 'text-[8px] md:text-[10px]',  effect: 'text-[7px] md:text-[9px]', type: 'text-[7px] md:text-[9px]', stat: 'text-xs md:text-base' },
+  modal: { name: 'text-2xl',                   effect: 'text-2xl',                 type: 'text-lg',                  stat: 'text-3xl' },
+  popup: { name: 'text-xs md:text-sm',         effect: 'text-[11px] md:text-[13px]', type: 'text-[9px] md:text-[11px]', stat: 'text-sm md:text-base' },
 } as const;
 
 const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof typeof CARD_FACE_VARIANTS }) => {
@@ -328,8 +328,11 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
         {/* Name */}
         <div className="absolute flex items-center justify-center px-1 overflow-hidden" style={{ top: '0%', left: '12%', right: '22%', height: '8%' }}>
           <span
+            // The name plate and type ribbon are pale parchment, so the text on them is
+            // dark ink, not gold — light-on-light was the reason they were hard to read.
+            // The highlight underneath gives it the engraved-into-the-plate look.
             className={`${v.name} font-bold uppercase tracking-tight truncate w-full text-center`}
-            style={{ fontFamily: "'Cinzel', serif", color: card.cardType === 'Relíquia' ? '#FFD700' : '#FDE08B', textShadow: '0 2px 2px rgba(0,0,0,1), 0 0 5px rgba(139,69,19,0.8)' }}
+            style={{ fontFamily: "'Cinzel', serif", color: '#2a1605', textShadow: '0 1px 0 rgba(255,243,206,0.55)' }}
           >
             {card.name}
           </span>
@@ -346,9 +349,9 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
             <span
               className={`${v.type} font-black uppercase tracking-widest truncate w-full text-center`}
               style={{
-                fontFamily: "'Cinzel Decorative', serif",
-                color: card.cardType === 'Relíquia' ? '#FFD700' : card.cardType === 'Terreno' ? '#86EFAC' : '#FDE08B',
-                textShadow: '0 2px 2px rgba(0,0,0,1)',
+                fontFamily: "'Cinzel', serif",
+                color: card.cardType === 'Relíquia' ? '#6b3f00' : card.cardType === 'Terreno' ? '#17502a' : '#3a2408',
+                textShadow: '0 1px 0 rgba(255,243,206,0.55)',
               }}
             >
               {card.cardType}
@@ -1443,7 +1446,7 @@ export default function App() {
           }}
         >
           <motion.div
-            className="relative w-[235px] h-[54px] md:w-[290px] md:h-[66px] cursor-pointer"
+            className="relative w-[340px] h-[78px] md:w-[420px] md:h-[96px] cursor-pointer"
             style={{ transformStyle: 'preserve-3d' }}
             animate={{ rotateX: currentTurn === 'player' ? 0 : 180 }}
             transition={{ duration: 0.6, ease: "easeInOut" }}
@@ -1469,8 +1472,8 @@ export default function App() {
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
               />
               <div className="absolute inset-0 flex items-center justify-center pl-[24%] pr-[6%]">
-                <span className="flex items-center gap-1.5 font-black text-xs md:text-sm tracking-wide text-zinc-900">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-700 animate-pulse shrink-0" />
+                <span className="flex items-center gap-2 font-black text-base md:text-lg tracking-wide text-zinc-900">
+                  <span className="w-2 h-2 rounded-full bg-amber-700 animate-pulse shrink-0" />
                   SEU TURNO
                 </span>
               </div>
@@ -1491,8 +1494,8 @@ export default function App() {
                 style={{ filter: 'sepia(1) saturate(6) hue-rotate(-50deg) brightness(0.85) drop-shadow(0 0 6px rgba(239,68,68,0.7))' }}
               />
               <div className="absolute inset-0 flex items-center justify-center pl-[24%] pr-[6%]">
-                <span className="flex items-center gap-1.5 font-black text-[10px] md:text-xs tracking-wide text-red-950">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-700 animate-pulse shrink-0" />
+                <span className="flex items-center gap-2 font-black text-sm md:text-base tracking-wide text-red-950">
+                  <span className="w-2 h-2 rounded-full bg-red-700 animate-pulse shrink-0" />
                   TURNO DO ADVERSÁRIO
                 </span>
               </div>
