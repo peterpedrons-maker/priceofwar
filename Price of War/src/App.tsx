@@ -294,7 +294,7 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
         <div className="absolute flex items-center justify-center px-1 overflow-hidden" style={{ top: '0%', left: '12%', right: '22%', height: '8%' }}>
           <span
             className={`${v.name} font-bold uppercase tracking-tight truncate w-full text-center`}
-            style={{ fontFamily: "'Marcellus', serif", color: card.cardType === 'Relíquia' ? '#FFD700' : '#FDE08B', textShadow: '0 2px 2px rgba(0,0,0,1), 0 0 5px rgba(139,69,19,0.8)' }}
+            style={{ fontFamily: "'Cinzel', serif", color: card.cardType === 'Relíquia' ? '#FFD700' : '#FDE08B', textShadow: '0 2px 2px rgba(0,0,0,1), 0 0 5px rgba(139,69,19,0.8)' }}
           >
             {card.name}
           </span>
@@ -323,7 +323,7 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
 
         {/* Effect — the parchment text area */}
         <div className="absolute flex items-center justify-center p-1 overflow-hidden" style={{ top: '64%', bottom: '10%', left: '11%', right: '11%' }}>
-          <p className={`${v.effect} text-[#0d0901] font-semibold text-center leading-tight`} style={{ fontFamily: "'Playfair Display', serif" }}>
+          <p className={`${v.effect} text-[#0d0901] font-semibold text-center leading-tight`} style={{ fontFamily: "'EB Garamond', serif" }}>
             {card.effect}
           </p>
         </div>
@@ -1629,11 +1629,11 @@ export default function App() {
             diagonally opposite corners instead of stacked in the same column. */}
         <div className="absolute left-4 md:left-8 top-12 flex flex-col gap-6 items-center z-40 pointer-events-none">
           {/* Deck */}
-          <div ref={npcDeckRef} className="w-24 md:w-36 h-32 md:h-48 rounded-xl relative shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
+          <div ref={npcDeckRef} className="w-24 md:w-36 h-32 md:h-48 rounded-xl relative shadow-[0_10px_20px_rgba(0,0,0,0.5)] overflow-hidden" style={{ backgroundColor: '#140400' }}>
             <div className="absolute inset-0 rounded-xl translate-y-1 bg-black/40 -z-10" />
             <div className="absolute inset-0 rounded-xl translate-y-2 bg-black/30 -z-20" />
             <div className="absolute inset-0 rounded-xl translate-y-3 bg-black/20 -z-30" />
-            <img src={cardBackplateImage} alt="" className="w-full h-full object-cover rounded-xl" draggable={false} />
+            <img src={cardBackplateImage} alt="" className="w-full h-full object-contain rounded-xl" draggable={false} />
           </div>
           {/* Graveyard */}
           <GraveyardPile cards={npcGraveyard} />
@@ -1657,7 +1657,8 @@ export default function App() {
           {/* Deck */}
           <motion.div
             ref={playerDeckRef}
-            className="w-24 md:w-36 h-32 md:h-48 rounded-xl relative shadow-[0_10px_20px_rgba(0,0,0,0.5)] group"
+            className="w-24 md:w-36 h-32 md:h-48 rounded-xl relative shadow-[0_10px_20px_rgba(0,0,0,0.5)] group overflow-hidden"
+            style={{ backgroundColor: '#140400' }}
           >
             {/* Deck thickness effect */}
             <div className="absolute inset-0 rounded-xl translate-y-1 bg-black/40 -z-10" />
@@ -1665,7 +1666,7 @@ export default function App() {
             <div className="absolute inset-0 rounded-xl translate-y-3 bg-black/20 -z-30" />
 
             {/* Card Back Design */}
-            <img src={cardBackplateImage} alt="" className="w-full h-full object-cover rounded-xl" draggable={false} />
+            <img src={cardBackplateImage} alt="" className="w-full h-full object-contain rounded-xl" draggable={false} />
           </motion.div>
         </div>
       </motion.div>
@@ -1702,10 +1703,11 @@ export default function App() {
           return (
           <motion.div
             key={`npc-hand-${i}`}
-            className="w-32 h-48 md:w-40 md:h-56 shrink-0 bg-[#c5b599] rounded-xl border-2 border-[#8c7a5f] relative shadow-2xl"
+            className="w-32 h-48 md:w-40 md:h-56 shrink-0 rounded-xl border-2 border-[#8c7a5f] relative shadow-2xl overflow-hidden"
             style={{
               transformOrigin: 'top center',
               marginLeft: i === 0 ? 0 : npcCardStep - npcCardWidth,
+              backgroundColor: '#140400',
             }}
             initial={{ x: -260, y: 40, opacity: 0, rotateZ: getFanRotation(i, npcHand.length) - 20, scale: 0.7 }}
             animate={{
@@ -1719,7 +1721,7 @@ export default function App() {
             transition={{ duration: 0.4, ease: "easeOut" }}
           >
             {/* Card Back Design */}
-            <img src={cardBackplateImage} alt="" className="absolute inset-0 w-full h-full object-cover rounded-xl" draggable={false} />
+            <img src={cardBackplateImage} alt="" className="absolute inset-0 w-full h-full object-contain rounded-xl" draggable={false} />
           </motion.div>
           );
         })}
@@ -1844,21 +1846,20 @@ export default function App() {
                         front face below. */}
                     <div
                       className="absolute inset-0 rounded-xl overflow-hidden shadow-[0_10px_20px_rgba(0,0,0,0.5)]"
-                      style={{ backfaceVisibility: 'hidden' }}
+                      style={{ backfaceVisibility: 'hidden', backgroundColor: '#140400' }}
                     >
-                      <img src={cardBackplateImage} alt="" className="w-full h-full object-cover" draggable={false} />
+                      <img src={cardBackplateImage} alt="" className="w-full h-full object-contain" draggable={false} />
                     </div>
 
                     {/* Front face — the real card, pre-rotated 180° so it reads upright
-                        once this wrapper reaches its rest angle. Carries the card's own
-                        visible background/border (moved off the outer div, which now only
-                        handles position/fan) so it looks identical to before once face up.
-                        The selection/idle glow also lives here now (not on the outer div)
-                        so it's part of the same 3D-rotated surface as the card itself,
-                        instead of a flat 2D shadow that stayed undistorted while the actual
-                        card was still perspective-foreshortened mid-flip. */}
+                        once this wrapper reaches its rest angle. No background/border of
+                        its own: CardFace's template art draws the entire frame, so this is
+                        just a positioning shell. The selection/idle glow lives here (not on
+                        the outer div) so it's part of the same 3D-rotated surface as the
+                        card itself, instead of a flat 2D shadow that stayed undistorted
+                        while the actual card was still perspective-foreshortened mid-flip. */}
                     <motion.div
-                      className="absolute inset-0 rounded-xl border-2 border-[#5c4a30] bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f]"
+                      className="absolute inset-0 rounded-xl"
                       style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
                       animate={{
                         boxShadow: selectedCardIndex === i
@@ -2260,6 +2261,13 @@ const CardSlot = ({
   slotId?: string
 }) => {
   const attackY = attackDirection === 'up' ? -150 : 150;
+  // The opponent sits across the table, so their own cards should face THEM, not the
+  // player — a 180° turn on the card's content only (not the slot, the info button,
+  // or the attack-target arrows), same as how a real card would be laid on their side
+  // of the table. Derived from the slotId naming convention ("npc-3" vs "player-3")
+  // rather than a prop, since every one of the 26 CardSlot call sites already passes
+  // one and threading a whole new boolean through each would be pure repetition.
+  const isOpponentSlot = slotId?.startsWith('npc-') ?? false;
 
   const hintClass = hint === 'invalid'
     ? 'border-red-500/60 bg-red-950/30'
@@ -2278,7 +2286,7 @@ const CardSlot = ({
           onClick(e.currentTarget as HTMLElement);
         }
       }}
-      className={`w-24 md:w-36 h-32 md:h-48 border-[3px] border-indigo-400/70 rounded-lg bg-transparent flex items-center justify-center transition-colors hover:border-indigo-300 hover:bg-indigo-500/10 hover:shadow-[0_0_30px_rgba(99,102,241,0.6)] group relative ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass} ${isValidAttackTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''}`}
+      className={`w-24 md:w-36 h-32 md:h-48 rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-indigo-400/70 hover:border-indigo-300 hover:bg-indigo-500/10 hover:shadow-[0_0_30px_rgba(99,102,241,0.6)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass} ${isValidAttackTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''}`}
     >
       {!card && hint && (
         // Simple first-pass "where can this card go" indicator: a green arrow on its
@@ -2332,13 +2340,14 @@ const CardSlot = ({
           // A card arriving in a slot (a General at match start, an AI or opponent
           // play) should visibly appear, not just pop into existence — a quick
           // scale/drop-in with a touch of overshoot reads as it "landing" here.
-          initial={{ opacity: 0, scale: 0.4, y: -24 }}
+          initial={{ opacity: 0, scale: 0.4, y: -24, rotate: isOpponentSlot ? 180 : 0 }}
           animate={{
             opacity: 1,
             y: isAttacking ? attackY : 0,
             z: isAttacking ? 100 : 0,
             scale: isAttacking ? 1.2 : 1,
             rotateX: isAttacking ? (attackDirection === 'up' ? 20 : -20) : 0,
+            rotate: isOpponentSlot ? 180 : 0,
           }}
           transition={{ duration: 0.3, scale: { type: "spring", stiffness: 400, damping: 15 } }}
           className="w-full h-full rounded-lg flex flex-col p-1 relative overflow-hidden"

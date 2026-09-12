@@ -1,0 +1,44 @@
+/* Self-hosted card fonts — the game previously linked these from Google Fonts at
+   runtime, which meant a slow or blocked connection (or an ad-blocker) left every
+   card rendering in a generic fallback serif. Bundling the actual font files means
+   they load from the same place as everything else and never silently fail. */
+
+@font-face {
+  font-family: 'Cinzel';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('./assets/fonts/cinzel-regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Cinzel Decorative';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./assets/fonts/cinzel-decorative-700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Cinzel Decorative';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url('./assets/fonts/cinzel-decorative-900.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'EB Garamond';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./assets/fonts/eb-garamond-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'EB Garamond';
+  font-style: italic;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./assets/fonts/eb-garamond-500-italic.woff2') format('woff2');
+}
