@@ -253,6 +253,41 @@ const GoldNumber = ({ value, className = "" }: { value: number, className?: stri
   </span>
 );
 
+// CardBack — the card back, wherever a face-down card renders (both deck piles, the
+// opponent's hand, the flip a drawn card does on its way into yours).
+//
+// The artwork's outline is not a rectangle: red ribbons flare past the frame's sides and
+// a carved spire juts out top and bottom. So the image is sized for the frame's straight
+// BODY to fill the card's slot exactly (the body covers 80.5% x 73.9% of the source, hence
+// these percentages) and those flourishes are left to spill past it — which means every
+// container rendering this has to stay transparent and must NOT clip, or the overhang is
+// sheared off and a box shows up around the card. Same reason the shadow is a drop-shadow
+// and not a box-shadow: it has to follow the card's real silhouette, not a rectangle.
+const CardBack = ({ offset = 0, brightness = 1, shadow = false }: {
+  offset?: number, brightness?: number, shadow?: boolean
+}) => {
+  const filters = [
+    brightness !== 1 ? `brightness(${brightness})` : '',
+    shadow ? 'drop-shadow(0 5px 9px rgba(0,0,0,0.55))' : '',
+  ].filter(Boolean).join(' ');
+  return (
+    <img
+      src={cardBackplateImage}
+      alt=""
+      className="absolute pointer-events-none select-none max-w-none"
+      style={{
+        width: '124.5%',
+        height: '135.3%',
+        top: '50%',
+        left: '50%',
+        transform: `translate(-50%, -50.7%)${offset ? ` translate(${offset}px, ${offset}px)` : ''}`,
+        filter: filters || undefined,
+      }}
+      draggable={false}
+    />
+  );
+};
+
 // CardFace — the shared visual for every place a card's front actually renders (hand,
 // board slot, detail modal, the flying/announced overlays): the card-template artwork
 // as the frame, the card's own art sitting in the template's cutout window, and the
@@ -1629,16 +1664,13 @@ export default function App() {
             diagonally opposite corners instead of stacked in the same column. */}
         <div className="absolute left-4 md:left-8 top-12 flex flex-col gap-6 items-center z-40 pointer-events-none">
           {/* Deck */}
-          <div ref={npcDeckRef} className="w-24 md:w-36 h-32 md:h-48 rounded-xl relative shadow-[0_10px_20px_rgba(0,0,0,0.5)] overflow-hidden" style={{ backgroundColor: '#a36929' }}>
-            <div className="absolute inset-0 rounded-xl translate-y-1 bg-black/40 -z-10" />
-            <div className="absolute inset-0 rounded-xl translate-y-2 bg-black/30 -z-20" />
-            <div className="absolute inset-0 rounded-xl translate-y-3 bg-black/20 -z-30" />
-            <img
-              src={cardBackplateImage}
-              alt=""
-              className="absolute inset-0 w-full h-full object-fill rounded-xl pointer-events-none select-none"
-              draggable={false}
-            />
+          {/* The stack's thickness is dimmed copies of the card itself, offset behind the
+              top one — a plain dark rectangle would read as a box around a card whose
+              outline isn't rectangular (see CardBack). */}
+          <div ref={npcDeckRef} className="w-24 md:w-36 h-32 md:h-48 relative">
+            <CardBack offset={6} brightness={0.3} />
+            <CardBack offset={3} brightness={0.55} />
+            <CardBack shadow />
           </div>
           {/* Graveyard */}
           <GraveyardPile cards={npcGraveyard} />
@@ -1662,21 +1694,12 @@ export default function App() {
           {/* Deck */}
           <motion.div
             ref={playerDeckRef}
-            className="w-24 md:w-36 h-32 md:h-48 rounded-xl relative shadow-[0_10px_20px_rgba(0,0,0,0.5)] group overflow-hidden"
-            style={{ backgroundColor: '#a36929' }}
+            className="w-24 md:w-36 h-32 md:h-48 relative group"
           >
-            {/* Deck thickness effect */}
-            <div className="absolute inset-0 rounded-xl translate-y-1 bg-black/40 -z-10" />
-            <div className="absolute inset-0 rounded-xl translate-y-2 bg-black/30 -z-20" />
-            <div className="absolute inset-0 rounded-xl translate-y-3 bg-black/20 -z-30" />
-
-            {/* Card Back Design */}
-            <img
-              src={cardBackplateImage}
-              alt=""
-              className="absolute inset-0 w-full h-full object-fill rounded-xl pointer-events-none select-none"
-              draggable={false}
-            />
+            {/* Deck thickness effect — dimmed copies of the card, not dark rectangles */}
+            <CardBack offset={6} brightness={0.3} />
+            <CardBack offset={3} brightness={0.55} />
+            <CardBack shadow />
           </motion.div>
         </div>
       </motion.div>
@@ -1713,11 +1736,10 @@ export default function App() {
           return (
           <motion.div
             key={`npc-hand-${i}`}
-            className="w-32 h-48 md:w-40 md:h-56 shrink-0 rounded-xl border-2 border-[#8c7a5f] relative shadow-2xl overflow-hidden"
+            className="w-32 h-48 md:w-40 md:h-56 shrink-0 relative"
             style={{
               transformOrigin: 'top center',
               marginLeft: i === 0 ? 0 : npcCardStep - npcCardWidth,
-              backgroundColor: '#a36929',
             }}
             initial={{ x: -260, y: 40, opacity: 0, rotateZ: getFanRotation(i, npcHand.length) - 20, scale: 0.7 }}
             animate={{
@@ -1731,12 +1753,7 @@ export default function App() {
             transition={{ duration: 0.4, ease: "easeOut" }}
           >
             {/* Card Back Design */}
-            <img
-              src={cardBackplateImage}
-              alt=""
-              className="absolute inset-0 w-full h-full object-fill rounded-xl pointer-events-none select-none"
-              draggable={false}
-            />
+            <CardBack shadow />
           </motion.div>
           );
         })}
@@ -1860,15 +1877,10 @@ export default function App() {
                         backfaceVisibility hides this once flipped past 90°, leaving the
                         front face below. */}
                     <div
-                      className="absolute inset-0 rounded-xl overflow-hidden shadow-[0_10px_20px_rgba(0,0,0,0.5)]"
-                      style={{ backfaceVisibility: 'hidden', backgroundColor: '#a36929' }}
+                      className="absolute inset-0"
+                      style={{ backfaceVisibility: 'hidden' }}
                     >
-                      <img
-                        src={cardBackplateImage}
-                        alt=""
-                        className="absolute inset-0 w-full h-full object-fill rounded-xl pointer-events-none select-none"
-                        draggable={false}
-                      />
+                      <CardBack shadow />
                     </div>
 
                     {/* Front face — the real card, pre-rotated 180° so it reads upright
@@ -2185,7 +2197,9 @@ export default function App() {
             }`}>
               {announcedCard.side === 'npc' ? 'Adversário jogou' : 'Você jogou'}
             </span>
-            <div className="relative w-32 h-44 md:w-40 md:h-56 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.7)] overflow-hidden">
+            {/* No clipping, and a drop-shadow rather than a box-shadow: the card frame's
+                outline isn't a rectangle (wings and spires stick out past it). */}
+            <div className="relative w-32 h-44 md:w-40 md:h-56" style={{ filter: 'drop-shadow(0 10px 18px rgba(0,0,0,0.7))' }}>
               <CardFace card={announcedCard.card} variant="popup" />
             </div>
           </motion.div>
@@ -2370,7 +2384,7 @@ const CardSlot = ({
             rotate: isOpponentSlot ? 180 : 0,
           }}
           transition={{ duration: 0.3, scale: { type: "spring", stiffness: 400, damping: 15 } }}
-          className="w-full h-full rounded-lg flex flex-col p-1 relative overflow-hidden"
+          className="w-full h-full rounded-lg flex flex-col p-1 relative"
         >
           {isImpactingTarget && <SlashEffect />}
 
