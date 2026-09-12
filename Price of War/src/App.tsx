@@ -261,10 +261,10 @@ const GoldNumber = ({ value, className = "" }: { value: number, className?: stri
 // card-template.webp / card-backplate.webp) — the template image and these
 // coordinates are a matched pair, not independently adjustable.
 const CARD_FACE_VARIANTS = {
-  hand:  { name: 'text-sm',                    effect: 'text-[11px]',             type: 'text-[10px]',              stat: 'text-xl' },
+  hand:  { name: 'text-sm',                    effect: 'text-[13px]',              type: 'text-[10px]',              stat: 'text-xl' },
   field: { name: 'text-[7px] md:text-[9px]',   effect: 'text-[6px] md:text-[8px]', type: 'text-[6px] md:text-[8px]', stat: 'text-[11px] md:text-sm' },
-  modal: { name: 'text-lg',                    effect: 'text-base',                type: 'text-sm',                  stat: 'text-2xl' },
-  popup: { name: 'text-[9px] md:text-[11px]',  effect: 'text-[7px] md:text-[8px]', type: 'text-[7px] md:text-[8px]', stat: 'text-xs md:text-sm' },
+  modal: { name: 'text-lg',                    effect: 'text-lg',                  type: 'text-sm',                  stat: 'text-2xl' },
+  popup: { name: 'text-[9px] md:text-[11px]',  effect: 'text-[8px] md:text-[10px]', type: 'text-[7px] md:text-[8px]', stat: 'text-xs md:text-sm' },
 } as const;
 
 const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof typeof CARD_FACE_VARIANTS }) => {
@@ -1633,7 +1633,13 @@ export default function App() {
             <div className="absolute inset-0 rounded-xl translate-y-1 bg-black/40 -z-10" />
             <div className="absolute inset-0 rounded-xl translate-y-2 bg-black/30 -z-20" />
             <div className="absolute inset-0 rounded-xl translate-y-3 bg-black/20 -z-30" />
-            <img src={cardBackplateImage} alt="" className="w-full h-full object-contain rounded-xl" draggable={false} />
+            <img
+              src={cardBackplateImage}
+              alt=""
+              className="absolute rounded-xl pointer-events-none select-none"
+              style={{ width: '122%', height: '145.5%', top: '50%', left: '50%', transform: 'translate(-50%, -46%)' }}
+              draggable={false}
+            />
           </div>
           {/* Graveyard */}
           <GraveyardPile cards={npcGraveyard} />
@@ -1666,7 +1672,13 @@ export default function App() {
             <div className="absolute inset-0 rounded-xl translate-y-3 bg-black/20 -z-30" />
 
             {/* Card Back Design */}
-            <img src={cardBackplateImage} alt="" className="w-full h-full object-contain rounded-xl" draggable={false} />
+            <img
+              src={cardBackplateImage}
+              alt=""
+              className="absolute rounded-xl pointer-events-none select-none"
+              style={{ width: '122%', height: '145.5%', top: '50%', left: '50%', transform: 'translate(-50%, -46%)' }}
+              draggable={false}
+            />
           </motion.div>
         </div>
       </motion.div>
@@ -1721,7 +1733,13 @@ export default function App() {
             transition={{ duration: 0.4, ease: "easeOut" }}
           >
             {/* Card Back Design */}
-            <img src={cardBackplateImage} alt="" className="absolute inset-0 w-full h-full object-contain rounded-xl" draggable={false} />
+            <img
+              src={cardBackplateImage}
+              alt=""
+              className="absolute rounded-xl pointer-events-none select-none"
+              style={{ width: '122%', height: '145.5%', top: '50%', left: '50%', transform: 'translate(-50%, -46%)' }}
+              draggable={false}
+            />
           </motion.div>
           );
         })}
@@ -1848,7 +1866,13 @@ export default function App() {
                       className="absolute inset-0 rounded-xl overflow-hidden shadow-[0_10px_20px_rgba(0,0,0,0.5)]"
                       style={{ backfaceVisibility: 'hidden', backgroundColor: '#140400' }}
                     >
-                      <img src={cardBackplateImage} alt="" className="w-full h-full object-contain" draggable={false} />
+                      <img
+                        src={cardBackplateImage}
+                        alt=""
+                        className="absolute rounded-xl pointer-events-none select-none"
+                        style={{ width: '122%', height: '145.5%', top: '50%', left: '50%', transform: 'translate(-50%, -46%)' }}
+                        draggable={false}
+                      />
                     </div>
 
                     {/* Front face — the real card, pre-rotated 180° so it reads upright
