@@ -49,6 +49,49 @@ borda da imagem, já que a moldura cobre uma faixa fina ao redor.
 
 ---
 
+## 1b. Comandante Aurelion, Mestre da Formação — Padrão (alta fidelidade)
+
+**Carta:** General do Deck Capitão (ATK 0 / HP 20 / custo 0)
+**Estilo:** Padrão · **Status:** pronto pra gerar
+**Diferença pro prompt 1:** muito mais detalhado, com sensação de
+profundidade/3D (câmera em ângulo baixo, primeiro plano/meio/fundo bem
+separados) em vez de uma pintura "chapada" — no estilo de cartas full art
+de TCG como Pokémon, onde a ilustração parece ter perspectiva de verdade.
+
+```
+Ultra-detailed fantasy trading card illustration of a battle-hardened human
+army commander, dynamic low-angle three-quarter hero shot (camera looking
+slightly upward at the subject), ornate gold-trimmed heavy plate armor with
+intricate engraved filigree, a flowing tattered crimson-and-gold cape
+caught mid-motion by the wind, one gauntleted fist raised high as if
+directing troop formations below, the other hand resting on an ornate
+greatsword planted into cracked stone ground, strong sense of depth and
+three-dimensionality rather than a flat illustration: a sharp in-focus
+subject in the foreground, a softly blurred army of spear-and-shield
+infantry marching in formation in the midground, and a glowing golden
+sunrise breaking through dramatic storm clouds in the background,
+atmospheric haze separating each depth layer, drifting dust and embers
+catching the light as they cross between the layers, extremely detailed
+rendering — individual scratches and dents in the armor plating, woven
+texture in the cape fabric, strands of windswept hair, reflective specular
+highlights on polished metal, a subtle warm glow where light rakes across
+the gold trim, painted in the hyper-detailed style of premium trading card
+game full-art illustrations (Pokémon TCG full-art / Legends of Runeterra
+epic-tier quality), rich saturated color palette of gold, crimson and
+steel blue, cinematic rim lighting separating the subject from the
+background, shot as if on an 85mm lens with shallow depth of field to
+reinforce the illusion of real depth, ultra high detail, masterpiece
+quality, no text, no card frame, no border, no watermark
+```
+
+**Notas:** mesma proporção ~16:10 do prompt 1 (ainda é pra versão Padrão,
+não Full Art) — a diferença aqui é só o nível de detalhe e a sensação de
+profundidade/perspectiva pedida no prompt. Se o resultado ficar bom demais
+pra caber numa janela pequena, vale considerar reaproveitar essa mesma
+imagem como base pra uma versão Full Art também.
+
+---
+
 ## 2. Moldura Full Art (dourada) — referência de layout
 
 **Arquivo:** [`reference/full-art-frame-gold-v1.png`](./reference/full-art-frame-gold-v1.png)
