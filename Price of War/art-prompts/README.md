@@ -145,12 +145,11 @@ quadro, exército embaixo) pra aproveitar o espaço vertical e parecer
 
 ---
 
-## 3b. Superfície do Tabuleiro — Arenito Iluminado por Tochas
+## 3b. Superfície do Tabuleiro — Arenito Iluminado por Tochas (versão anterior)
 
-**Arquivo:** `src/assets/board-interior.webp` (recortado de 768×1376 pra
-768×1075 pra bater com a proporção do tabuleiro, ~0,71:1) · **Referência
-original:** [`reference/board-interior-sandstone-v1.png`](./reference/board-interior-sandstone-v1.png)
-· **Estilo:** cenário/ambiente · **Status:** gerado e já integrado no jogo
+**Arquivo:** substituído — ver 3b-v2 logo abaixo pra versão atualmente em jogo
+· **Referência original:** [`reference/board-interior-sandstone-v1.png`](./reference/board-interior-sandstone-v1.png)
+· **Estilo:** cenário/ambiente · **Status:** substituído
 
 A arte atual do tabuleiro é uma pedra cinza-azulada com entalhes de runas —
 bonita, mas fria demais pra combinar com as molduras das cartas (douradas,
@@ -196,6 +195,27 @@ nos cantos superiores foram pedidas de propósito: a ideia é usar exatamente
 essas posições de luz também como referência pra a direção da sombra
 dinâmica das cartas no tabuleiro (mais claro perto do centro/tochas, sombra
 mais longa quanto mais a carta estiver "de costas" pra elas).
+
+---
+
+## 3b-v2. Superfície do Tabuleiro — Pátio com Portões (versão em jogo)
+
+**Arquivo:** `src/assets/board-interior.webp` (848×1264, feito por fora do
+Grimório — sem prompt documentado aqui) · **Referência:**
+[`reference/board-interior-gateway-v1.png`](./reference/board-interior-gateway-v1.png)
+· **Estilo:** cenário/ambiente · **Status:** integrado no jogo
+
+Substitui a versão 3b acima. Em vez de uma mesa isolada cercada de pedra
+lisa, esse tabuleiro é um pátio de castelo com um portão/passagem real no
+topo e embaixo — cada um com tochas e estandartes (vermelho no topo,
+adversário; azul embaixo, jogador) — em vez do trono que tinha ali antes
+(removido: a IA que gerou a imagem sempre desenhava os dois tronos virados
+pro mesmo lado, sem se encarar, e não teve jeito de corrigir só por
+prompt). O General agora fica centralizado bem na passagem/portão; Relíquia
+e Terreno ficam nas laterais, na mesma altura, em frente aos muros que
+flanqueiam o portão — ver o bloco "General/Relíquia/Terreno" em `App.tsx`
+(posicionamento por porcentagem, não mais uma fileira flex, já que os
+muros/portão não são um espaçamento uniforme).
 
 ---
 

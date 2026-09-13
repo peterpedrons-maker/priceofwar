@@ -2445,9 +2445,16 @@ export default function App() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(70,52,34,0.75)_0%,rgba(15,10,6,1)_100%)] pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_40%,rgba(180,120,50,0.12)_0%,transparent_60%)] pointer-events-none" />
 
-      {/* 3D Board */}
+      {/* 3D Board — flex-shrink-0 matters here: the root container above is a flex
+          column, and this box's own explicit 1250px height is taller than most real
+          viewports, so without it the browser's own flex layout was quietly shrinking
+          this all the way down to viewport height BEFORE the boardScale transform
+          below ever got applied — a second, uncontrolled scale-down stacked on top of
+          the real one, which threw off both the object-cover crop on the board art
+          (cropping away far more than intended) and any percentage-based positioning
+          inside this box (resolved against the shrunk box, not the real 1000x1250). */}
       <motion.div
-        className="w-[1000px] h-[1250px] grid grid-rows-2 gap-12 p-8 relative"
+        className="w-[1000px] h-[1250px] shrink-0 grid grid-rows-2 gap-12 p-8 relative"
         animate={getBoardAnimation()}
         transition={{ duration: viewportSettled ? 0.8 : 0, ease: [0.32, 0.72, 0, 1] }}
         onClick={(e) => {
@@ -2611,50 +2618,108 @@ export default function App() {
           </motion.div>
         </div>
 
+        {/* NPC General/Relíquia/Terreno — the new board art (see BOARD_INTERIOR_ART_URL)
+            has an actual gateway passage at the top and bottom instead of open floor,
+            so the General now stands centered in that passage instead of in a tight
+            row squeezed between Relíquia/Terreno. Those two move out to stand in front
+            of the side walls flanking the gate instead — same row (all three share one
+            top%), just spread horizontally, rather than the flex row with a fixed gap
+            this used to be (the walls, and how wide the gate itself is, aren't
+            expressible as a flex gap). A second, lower row for just Relíquia/Terreno
+            was the first attempt, but there isn't enough vertical room between the
+            gate and the Vanguarda row for two separate rows without them overlapping —
+            see the board's fixed 1250-tall canvas. */}
+        <div className="absolute" style={{ left: '50%', top: '10%', transform: 'translate(-50%, -50%)' }}>
+          <CardSlot
+            slotId="npc-12"
+            card={npcSlots[12]}
+            onClick={() => handleNpcSlotClick(12)}
+            onInfoClick={setDetailedCard}
+            shockActive={boardShock}
+            isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
+            isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 12}
+            attackDirection="down"
+            isValidAttackTarget={validAttackTargets.has(12)}
+            isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(12)}
+          />
+          <ManaBadge value={npcMana} className="absolute -top-3 -left-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
+        </div>
+        <div className="absolute" style={{ left: '17%', top: '10%', transform: 'translate(-50%, -50%)' }}>
+          <CardSlot
+            slotId="npc-10"
+            card={npcSlots[10]}
+            onClick={() => handleNpcSlotClick(10)}
+            onInfoClick={setDetailedCard}
+            shockActive={boardShock}
+            isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
+            isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 10}
+            attackDirection="down"
+            isValidAttackTarget={validAttackTargets.has(10)}
+            isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(10) && !!npcSlots[10]}
+          />
+        </div>
+        <div className="absolute" style={{ left: '83%', top: '10%', transform: 'translate(-50%, -50%)' }}>
+          <CardSlot
+            slotId="npc-11"
+            card={npcSlots[11]}
+            onClick={() => handleNpcSlotClick(11)}
+            onInfoClick={setDetailedCard}
+            shockActive={boardShock}
+            isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
+            isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 11}
+            attackDirection="down"
+            isValidAttackTarget={validAttackTargets.has(11)}
+            isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(11) && !!npcSlots[11]}
+          />
+        </div>
+
+        {/* Player General/Relíquia/Terreno — mirrors the NPC block above at the
+            bottom gate instead of the top one. */}
+        <div className="absolute" style={{ left: '50%', top: '90%', transform: 'translate(-50%, -50%)' }}>
+          <CardSlot
+            slotId="player-12"
+            card={playerSlots[12]}
+            onClick={(el) => handleSlotClick(12, el)}
+            isSelected={selectedAttackerIndex === 12}
+            onInfoClick={setDetailedCard}
+            shockActive={boardShock}
+            isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
+            isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 12}
+            attackDirection="up"
+          />
+          <ManaBadge value={playerMana} className="absolute -top-3 -left-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
+        </div>
+        <div className="absolute pointer-events-auto" style={{ left: '17%', top: '90%', transform: 'translate(-50%, -50%)' }}>
+          <CardSlot
+            slotId="player-10"
+            card={playerSlots[10]}
+            onClick={(el) => handleSlotClick(10, el)}
+            isSelected={selectedAttackerIndex === 10}
+            onInfoClick={setDetailedCard}
+            shockActive={boardShock}
+            isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
+            isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 10}
+            attackDirection="up"
+            hint={getPlayerSlotHint(10)}
+          />
+        </div>
+        <div className="absolute pointer-events-auto" style={{ left: '83%', top: '90%', transform: 'translate(-50%, -50%)' }}>
+          <CardSlot
+            slotId="player-11"
+            card={playerSlots[11]}
+            onClick={(el) => handleSlotClick(11, el)}
+            isSelected={selectedAttackerIndex === 11}
+            onInfoClick={setDetailedCard}
+            shockActive={boardShock}
+            isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
+            isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 11}
+            attackDirection="up"
+            hint={getPlayerSlotHint(11)}
+          />
+        </div>
+
         {/* NPC Field */}
         <div className="flex flex-col gap-6 justify-start pt-4">
-          {/* General row (fixed) + Relíquia/Terreno slots */}
-          <div className="flex justify-center gap-16 items-center">
-            <CardSlot
-              slotId="npc-10"
-              card={npcSlots[10]}
-              onClick={() => handleNpcSlotClick(10)}
-              onInfoClick={setDetailedCard}
-              shockActive={boardShock}
-              isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
-              isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 10}
-              attackDirection="down"
-              isValidAttackTarget={validAttackTargets.has(10)}
-              isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(10) && !!npcSlots[10]}
-            />
-            <div className="relative">
-              <CardSlot
-                slotId="npc-12"
-                card={npcSlots[12]}
-                onClick={() => handleNpcSlotClick(12)}
-                onInfoClick={setDetailedCard}
-              shockActive={boardShock}
-                isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
-                isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 12}
-                attackDirection="down"
-                isValidAttackTarget={validAttackTargets.has(12)}
-                isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(12)}
-              />
-              <ManaBadge value={npcMana} className="absolute -top-3 -left-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
-            </div>
-            <CardSlot
-              slotId="npc-11"
-              card={npcSlots[11]}
-              onClick={() => handleNpcSlotClick(11)}
-              onInfoClick={setDetailedCard}
-              shockActive={boardShock}
-              isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
-              isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 11}
-              attackDirection="down"
-              isValidAttackTarget={validAttackTargets.has(11)}
-              isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(11) && !!npcSlots[11]}
-            />
-          </div>
           {/* Retaguarda NPC (Backline) */}
           <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mb-3">Retaguarda</div>
           <div className="flex justify-center gap-3 md:gap-6">
@@ -2741,47 +2806,6 @@ export default function App() {
             ))}
           </div>
           <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mt-3">Retaguarda</div>
-          {/* General row (fixed) + Relíquia/Terreno slots */}
-          <div className="flex justify-center gap-16 items-center">
-            <CardSlot
-              slotId="player-10"
-              card={playerSlots[10]}
-              onClick={(el) => handleSlotClick(10, el)}
-              isSelected={selectedAttackerIndex === 10}
-              onInfoClick={setDetailedCard}
-              shockActive={boardShock}
-              isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
-              isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 10}
-              attackDirection="up"
-              hint={getPlayerSlotHint(10)}
-            />
-            <div className="relative">
-              <CardSlot
-                slotId="player-12"
-                card={playerSlots[12]}
-                onClick={(el) => handleSlotClick(12, el)}
-                isSelected={selectedAttackerIndex === 12}
-                onInfoClick={setDetailedCard}
-              shockActive={boardShock}
-                isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
-                isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 12}
-                attackDirection="up"
-              />
-              <ManaBadge value={playerMana} className="absolute -top-3 -left-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
-            </div>
-            <CardSlot
-              slotId="player-11"
-              card={playerSlots[11]}
-              onClick={(el) => handleSlotClick(11, el)}
-              isSelected={selectedAttackerIndex === 11}
-              onInfoClick={setDetailedCard}
-              shockActive={boardShock}
-              isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
-              isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 11}
-              attackDirection="up"
-              hint={getPlayerSlotHint(11)}
-            />
-          </div>
         </div>
 
         {/* Opponent Deck & Graveyard (On Board) — kept inside the board's own canvas
