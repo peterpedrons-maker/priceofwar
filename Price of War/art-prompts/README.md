@@ -269,11 +269,12 @@ parte não é o que o jogador deve olhar, é só o que evita a sensação de
 
 ## 3d. Arte Única de Tela Inteira — Campo de Batalha Épico (substitui 3b-v2 + 3c)
 
-**Vai em:** tanto `BOARD_INTERIOR_ART_URL` quanto `BOARD_EXTERIOR_ART_URL`
-em `src/App.tsx` — ou, mais provavelmente, substitui os dois por uma única
-imagem de tela cheia (aí a caixa com moldura do tabuleiro vira só uma
-"janela" transparente por cima dela, sem borda própria) · **Estilo:**
-cenário/ambiente · **Status:** pronto pra gerar
+**Arquivo:** `src/assets/board-battlefield.webp` (feito por fora do Grimório
+a partir deste prompt) · **Referência:**
+[`reference/board-battlefield-v1.png`](./reference/board-battlefield-v1.png)
+· Vai em `BOARD_EXTERIOR_ART_URL` (`src/App.tsx`) — `BOARD_INTERIOR_ART_URL`
+ficou vazio, a caixa do tabuleiro virou só uma janela transparente por cima
+desta arte · **Estilo:** cenário/ambiente · **Status:** integrado no jogo
 
 A 3b-v2 (pátio com portões, só a mesa) e a 3c (câmara vazia ao redor, nunca
 chegou a ser gerada) eram pensadas como duas artes separadas que
@@ -359,6 +360,114 @@ provavelmente vira a arte de tela cheia (`BOARD_EXTERIOR_ART_URL`), com a
 caixa do tabuleiro perdendo a própria borda/moldura pra virar só uma
 janela por cima dela — mas isso é um ajuste de código pra depois, não
 precisa decidir antes de gerar a arte.
+
+---
+
+## 3e. Marcador do General — Estandarte de Comando
+
+**Vai em:** um elemento próprio, posicionado em cima do campo de batalha
+(3d) exatamente no slot do General (`npc-12`/`player-12` em `App.tsx`),
+tanto no topo quanto embaixo · **Estilo:** elemento/ícone de zona ·
+**Status:** pronto pra gerar
+
+Ideia da vez: em vez de pedir tudo numa arte só (o que gerou os problemas
+de general flutuando, relíquia/terreno encostando em parede etc.), criar
+cada elemento funcional do tabuleiro (General, Cemitério, Deck) como uma
+peça separada, pequena, isolada num fundo liso fácil de recortar, e
+posicionar por cima do campo de batalha liso — daí qualquer ajuste de
+posição é só mexer numa porcentagem no código, não precisa gerar arte de
+novo. Esse aqui marca onde o General fica: um pequeno pedestal/base de
+comando, sem cor de time (a mesma peça serve pros dois lados — o vermelho/
+azul já vem das bandeiras no fundo).
+
+```
+Top-down game icon illustration of a small commander's command platform: a
+low circular stone dais built directly into trampled battlefield dirt, with
+a single tall wooden banner pole planted dead center flying a plain,
+weathered cloth pennant (no heraldry, no color, no crest — kept neutral so
+this same piece works for either army), a pair of crossed ceremonial spears
+resting against the base, and a couple of small unlit lanterns at the
+platform's edge. Isolated game asset on a flat, solid mid-gray background
+(no scene, no other elements, no ground texture bleeding past the edges of
+the platform itself) so it can be cleanly cut out and placed on top of
+other art. Same painterly medieval-fantasy tabletop game style as the rest
+of the set (Gwent / Yu-Gi-Oh Forbidden Memories quality), warm torchlit
+color grading (amber/orange highlights, matching a night battlefield),
+straight-down top-view camera, no text, no UI, no watermark, roughly square
+composition with the platform centered and comfortably inset from all four
+edges
+```
+
+**Notas:** pedi fundo "liso cinza-médio sólido" em vez de "transparente"
+de propósito — geradores de imagem raramente entendem transparência de
+verdade (a maioria "inventa" um fundo xadrez ou branco em vez de canal
+alpha real), então um fundo sólido e uniforme é bem mais fácil de recortar
+depois (remoção de fundo por cor sólida, ou uma ferramenta de recorte
+automático) do que tentar pedir "transparente" e não conseguir. Pedi
+"quadrado, centralizado, com respiro nas bordas" pra sobrar margem de
+corte sem cortar a peça em si.
+
+---
+
+## 3f. Marcador do Cemitério — Pilha de Armas Quebradas
+
+**Vai em:** um elemento próprio, posicionado em cima do campo de batalha
+(3d) no lugar do botão/zona "GRAVEYARD" em `App.tsx` (hoje só um retângulo
+escuro com texto) · **Estilo:** elemento/ícone de zona · **Status:** pronto
+pra gerar
+
+```
+Top-down game icon illustration of a small pile of broken battlefield
+debris marking a graveyard/discard zone: a few cracked and broken sword
+blades and a splintered shield stuck upright in the dirt at angles, a torn
+scrap of banner cloth caught underneath them, a light scattering of ash
+and a couple of dying embers still glowing faintly among the debris, no
+skulls or bones, no color-coded heraldry (neutral, usable for either
+army's discard pile). Isolated game asset on a flat, solid mid-gray
+background (no scene, no ground texture bleeding past the pile's own
+edges) so it can be cleanly cut out and placed on top of other art. Same
+painterly medieval-fantasy tabletop game style as the rest of the set
+(Gwent / Yu-Gi-Oh Forbidden Memories quality), warm torchlit color grading
+matching a night battlefield, straight-down top-view camera, no text, no
+UI, no watermark, roughly square composition with the pile centered and
+comfortably inset from all four edges
+```
+
+**Notas:** mesma lógica de fundo sólido do prompt do General (3e), pelo
+mesmo motivo — mais fácil de recortar depois. Evitei caveira/ossos de
+propósito (o cemitério aqui é mais "monte de equipamento destruído em
+campo de batalha" do que um cemitério literal, pra combinar com o cenário
+novo).
+
+---
+
+## 3g. Marcador do Deck — Baú de Suprimentos
+
+**Vai em:** um elemento próprio, posicionado em cima do campo de batalha
+(3d) no lugar do ícone de deck em `App.tsx` (hoje um retângulo com o logo
+do jogo) · **Estilo:** elemento/ícone de zona · **Status:** pronto pra
+gerar
+
+```
+Top-down game icon illustration of a small closed wooden supply chest
+reinforced with dark iron bands and corner fittings, sitting directly on
+trampled battlefield dirt, with a stack of a few rolled parchment scrolls
+tied with cord leaning against one side, no color-coded heraldry (neutral,
+usable for either army's deck). Isolated game asset on a flat, solid
+mid-gray background (no scene, no ground texture bleeding past the chest's
+own edges) so it can be cleanly cut out and placed on top of other art.
+Same painterly medieval-fantasy tabletop game style as the rest of the set
+(Gwent / Yu-Gi-Oh Forbidden Memories quality), warm torchlit color grading
+matching a night battlefield, straight-down top-view camera, no text, no
+UI, no watermark, roughly square composition with the chest centered and
+comfortably inset from all four edges
+```
+
+**Notas:** mesma lógica de fundo sólido dos dois prompts acima. Se
+preferir algo menos "baú de tesouro" e mais "baralho de verdade", dá pra
+trocar a primeira frase por algo tipo "a neat stack of aged playing cards
+bound with a leather strap" — mantive baú porque combina mais com o clima
+de acampamento militar do campo de batalha.
 
 ---
 
