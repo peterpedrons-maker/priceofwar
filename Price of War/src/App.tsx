@@ -1661,13 +1661,12 @@ export default function App() {
     // hand card animates itself in from the on-board deck pile (see computeDrawOrigin)
     // while the view stays put.
     const baseAnim = {
-      // Flattened from the original 25/35deg: a steep tilt makes the board's near
-      // (player) edge occupy far more screen height than its far (opponent) edge —
-      // the perspective foreshortening is asymmetric — so the opponent's end of the
-      // board was always fully visible while the player's own end ran off past the
-      // hand UI at the bottom. A shallower angle (closer to a top-down Hearthstone-
-      // style view) keeps both ends reading at a similar scale.
-      rotateX: isMobile ? 8 : 12,
+      // Flattened all the way to a true top-down view (was 25/35deg originally, then
+      // 8/12deg): any tilt at all makes the board's near (player) edge occupy more
+      // screen height than its far (opponent) edge and the two rows of slots read as
+      // different sizes — a straight-down Hearthstone-style view keeps every slot the
+      // same size and shape, easier to scan at a glance on a small phone screen.
+      rotateX: 0,
       rotateZ: 0,
       y: isMobile ? 0 : -50,
       x: 0,
@@ -1686,7 +1685,9 @@ export default function App() {
       const focusedX = baseAnim.x + panX;
       const focusedY = baseAnim.y - panY;
       const focusedScale = baseAnim.scale * 1.15;
-      const focusedRotateX = baseAnim.rotateX - 8;
+      // Clamped at 0 — with the base view already flat, tilting further "back" would
+      // just look like the board leaning away from the player during the zoom.
+      const focusedRotateX = Math.max(0, baseAnim.rotateX - 8);
 
       if (cameraSettling) {
         // The card just landed — a sharp shake on top of the same focused view, plus a
