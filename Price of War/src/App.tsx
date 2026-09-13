@@ -20,6 +20,11 @@ export type CardData = {
   effect: string;
   cardType?: CardType;
   isDestroyed?: boolean;
+  // A handful of the most iconic cards (the Generals, for now — see DECK_CAPITAO/
+  // DECK_CARDEAL) are marked as the "full art, legendary-weight" tier. Playing one
+  // makes the whole board react (see triggerFullArtReaction): a stronger camera
+  // shake and every other card on the field flinches, like a big finisher landing.
+  isFullArt?: boolean;
 };
 
 // Slot layout per side (13 slots):
@@ -464,7 +469,7 @@ const DECK_CAPITAO: CardData[] = [
   ...Array(4).fill(null).map((_, i): CardData => ({ id: `a_broken_formation_${i}`, name: 'Formação Quebrada', atk: 0, hp: 0, cost: 2, art: '', effect: 'Move inimigo aleatoriamente.', cardType: 'Emboscada' })),
 
   // Relíquia (1)
-  { id: 'relic_banner_0', name: 'Estandarte da Legião', atk: 0, hp: 5, cost: 3, art: '', effect: 'Permanente. Todas as unidades aliadas ganham +1 ATK enquanto esta relíquia estiver no campo.', cardType: 'Relíquia' },
+  { id: 'relic_banner_0', name: 'Estandarte da Legião', atk: 0, hp: 5, cost: 3, art: '', effect: 'Permanente. Todas as unidades aliadas ganham +1 ATK enquanto esta relíquia estiver no campo.', cardType: 'Relíquia', isFullArt: true },
 
   // Terrenos (2)
   { id: 'terrain_fortress_0', name: 'Fortaleza de Pedra', atk: 0, hp: 8, cost: 3, art: '', effect: 'Permanente. Unidades aliadas na Retaguarda recebem -1 de dano de ataques inimigos.', cardType: 'Terreno' },
@@ -481,7 +486,7 @@ const DECK_CAPITAO: CardData[] = [
 // into Tática (a 0/0 card whose whole point is its one-time effect).
 const DECK_CARDEAL: CardData[] = [
   { id: 'cardeal_gen', name: 'Cardeal Pedro', atk: 0, hp: 20, cost: 0, art: '', effect: 'Fase Principal: cure 1 HP em um soldado aliado. Pague 1 ouro para curar 3 HP em vez disso.', cardType: 'General' },
-  { id: 'cardeal_relic', name: 'Cálice da Vida', atk: 0, hp: 5, cost: 3, art: '', effect: 'Permanente. Permite que o General Cardeal Pedro use sua habilidade duas vezes por turno.', cardType: 'Relíquia' },
+  { id: 'cardeal_relic', name: 'Cálice da Vida', atk: 0, hp: 5, cost: 3, art: '', effect: 'Permanente. Permite que o General Cardeal Pedro use sua habilidade duas vezes por turno.', cardType: 'Relíquia', isFullArt: true },
 
   // Plebeus → Infantaria
   ...Array(4).fill(null).map((_, i): CardData => ({ id: `cardeal_fiel_${i}`, name: 'Multidão de Fiéis', atk: 0, hp: 3, cost: 1, art: '', effect: '—', cardType: 'Infantaria' })),
@@ -840,7 +845,16 @@ export default function App() {
   // so the placement reads clearly before the view eases back to normal.
   const [cameraSettling, setCameraSettling] = useState<{ slotIndex: number } | null>(null);
   // A brief flash/ring burst at the screen position where a played card just landed.
-  const [impactBurst, setImpactBurst] = useState<{ x: number; y: number } | null>(null);
+  const [impactBurst, setImpactBurst] = useState<{ x: number; y: number; big?: boolean } | null>(null);
+  // A "full art" card (see CardData.isFullArt) landing makes the whole board react —
+  // a stronger camera shake (see getBoardAnimation's cameraSettling branch) and every
+  // other card on the field flinches (see CardSlot's shockActive). Just a boolean pulse:
+  // true for one beat, then back to false.
+  const [boardShock, setBoardShock] = useState(false);
+  const triggerFullArtReaction = () => {
+    setBoardShock(true);
+    setTimeout(() => setBoardShock(false), 500);
+  };
   const handCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const isMobile = windowSize.width < 768;
@@ -1676,8 +1690,17 @@ export default function App() {
 
       if (cameraSettling) {
         // The card just landed — a sharp shake on top of the same focused view, plus a
-        // quick extra punch-in on the zoom for a stronger felt impact.
-        return {
+        // quick extra punch-in on the zoom for a stronger felt impact. A full-art card
+        // (see boardShock/triggerFullArtReaction) gets a noticeably bigger, longer
+        // version of the same shake instead of a separate effect.
+        return boardShock ? {
+          ...baseAnim,
+          x: [focusedX - 32, focusedX + 26, focusedX - 18, focusedX + 11, focusedX - 5, focusedX],
+          y: [focusedY + 26, focusedY - 20, focusedY + 13, focusedY - 7, focusedY + 3, focusedY],
+          scale: [focusedScale * 1.12, focusedScale * 0.93, focusedScale * 1.04, focusedScale],
+          rotateX: focusedRotateX,
+          transition: { duration: 0.5, ease: "easeOut" }
+        } : {
           ...baseAnim,
           x: [focusedX - 18, focusedX + 14, focusedX - 8, focusedX + 4, focusedX],
           y: [focusedY + 14, focusedY - 10, focusedY + 6, focusedY - 2, focusedY],
@@ -1759,6 +1782,24 @@ export default function App() {
               bit heavier at the edges than dead center, so the middle stays readable
               while the corners recede. */}
           <div className="absolute inset-0 bg-black/35 bg-[radial-gradient(ellipse_at_center,transparent_30%,rgba(0,0,0,0.35)_100%)]" />
+          {/* Torchlight — warm amber glows in the far corners, gently flickering out of
+              sync with each other, so the table reads as firelit rather than just tinted.
+              Same corner positions the new board-art prompt (see art-prompts/README.md,
+              "Superfície do Tabuleiro") asks for, so this keeps working once that art
+              lands — and the eventual per-card dynamic shadow direction should point away
+              from these same two points. */}
+          <motion.div
+            className="absolute -top-10 -left-10 w-72 h-72 rounded-full pointer-events-none mix-blend-screen"
+            style={{ background: 'radial-gradient(circle, rgba(255,170,60,0.55) 0%, rgba(255,120,30,0.2) 40%, transparent 70%)' }}
+            animate={{ opacity: [0.7, 1, 0.75, 0.95, 0.7], scale: [1, 1.05, 0.98, 1.03, 1] }}
+            transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.div
+            className="absolute -top-10 -right-10 w-72 h-72 rounded-full pointer-events-none mix-blend-screen"
+            style={{ background: 'radial-gradient(circle, rgba(255,170,60,0.55) 0%, rgba(255,120,30,0.2) 40%, transparent 70%)' }}
+            animate={{ opacity: [0.9, 0.65, 1, 0.8, 0.9], scale: [1, 0.97, 1.04, 1, 1] }}
+            transition={{ duration: 4.1, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
+          />
         </div>
 
         {/* Central Divider */}
@@ -1895,6 +1936,7 @@ export default function App() {
               card={npcSlots[10]}
               onClick={() => handleNpcSlotClick(10)}
               onInfoClick={setDetailedCard}
+              shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 10}
               attackDirection="down"
@@ -1907,6 +1949,7 @@ export default function App() {
                 card={npcSlots[12]}
                 onClick={() => handleNpcSlotClick(12)}
                 onInfoClick={setDetailedCard}
+              shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 12}
                 attackDirection="down"
@@ -1920,6 +1963,7 @@ export default function App() {
               card={npcSlots[11]}
               onClick={() => handleNpcSlotClick(11)}
               onInfoClick={setDetailedCard}
+              shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 11}
               attackDirection="down"
@@ -1937,6 +1981,7 @@ export default function App() {
                 card={npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
                 onInfoClick={setDetailedCard}
+              shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
                 attackDirection="down"
@@ -1955,6 +2000,7 @@ export default function App() {
                 card={npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
                 onInfoClick={setDetailedCard}
+              shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
                 attackDirection="down"
@@ -1977,6 +2023,7 @@ export default function App() {
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
                 onInfoClick={setDetailedCard}
+              shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
                 attackDirection="up"
@@ -1998,6 +2045,7 @@ export default function App() {
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
                 onInfoClick={setDetailedCard}
+              shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
                 attackDirection="up"
@@ -2017,6 +2065,7 @@ export default function App() {
               onClick={(el) => handleSlotClick(10, el)}
               isSelected={selectedAttackerIndex === 10}
               onInfoClick={setDetailedCard}
+              shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 10}
               attackDirection="up"
@@ -2029,6 +2078,7 @@ export default function App() {
                 onClick={(el) => handleSlotClick(12, el)}
                 isSelected={selectedAttackerIndex === 12}
                 onInfoClick={setDetailedCard}
+              shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 12}
                 attackDirection="up"
@@ -2041,6 +2091,7 @@ export default function App() {
               onClick={(el) => handleSlotClick(11, el)}
               isSelected={selectedAttackerIndex === 11}
               onInfoClick={setDetailedCard}
+              shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 11}
               attackDirection="up"
@@ -2416,13 +2467,17 @@ export default function App() {
                   next[flyingCard.slotIndex] = flyingCard.card;
                   return next;
                 });
-                // Impact burst + brief camera shake right as the card lands.
-                setImpactBurst({ x: flyingCard.toX, y: flyingCard.toY });
-                setTimeout(() => setImpactBurst(null), 780);
+                // Impact burst + brief camera shake right as the card lands. A full-art
+                // card (see CardData.isFullArt) gets the bigger version of both, plus
+                // makes every other card on the board flinch (see triggerFullArtReaction).
+                const big = !!flyingCard.card.isFullArt;
+                setImpactBurst({ x: flyingCard.toX, y: flyingCard.toY, big });
+                setTimeout(() => setImpactBurst(null), big ? 950 : 780);
+                if (big) triggerFullArtReaction();
                 // Keep the camera's zoomed focus on the slot for a beat before easing back.
                 setCameraSettling({ slotIndex: flyingCard.slotIndex });
                 setFlyingCard(null);
-                setTimeout(() => setCameraSettling(null), 300);
+                setTimeout(() => setCameraSettling(null), big ? 500 : 300);
               }}
               style={{
                 position: 'fixed', zIndex: 500, transformOrigin: 'center center',
@@ -2445,86 +2500,104 @@ export default function App() {
       {/* Impact burst — flash, double shockwave, radiating sparks and a ground shadow pulse
           where the card just landed. */}
       <AnimatePresence>
-        {impactBurst && (
-          <motion.div
-            initial={{ opacity: 1 }}
-            animate={{ opacity: 0 }}
-            transition={{ duration: 0.75 }}
-            style={{ position: 'fixed', left: impactBurst.x, top: impactBurst.y, zIndex: 499 }}
-            className="pointer-events-none -translate-x-1/2 -translate-y-1/2"
-          >
-            {/* Ground shadow pulse — a flattened ring suggesting weight hitting the field */}
+        {impactBurst && (() => {
+          const big = !!impactBurst.big;
+          const mult = big ? 1.6 : 1;
+          // Real dust, not sparkle: dry earth tones, no glow/blur, and an actual arc —
+          // kicked up fast, then gravity pulls each speck back down as it fades, instead
+          // of just floating outward and dissolving. Twice the count on a full-art land.
+          const dustCount = big ? 22 : 12;
+          const dustTones = ['#8a7a5f', '#71614a', '#a3906d', '#5c5040', '#96835f'];
+          return (
             <motion.div
-              initial={{ scaleX: 0.3, scaleY: 0.1, opacity: 0.7 }}
-              animate={{ scaleX: 2.4, scaleY: 0.5, opacity: 0 }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
-              className="absolute -inset-8 rounded-full bg-black/70 blur-sm"
-            />
-            {/* Bright core flash */}
-            <motion.div
-              initial={{ scale: 0.1, opacity: 1 }}
-              animate={{ scale: 1.4, opacity: 0 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="absolute -inset-4 rounded-full bg-white"
-              style={{ boxShadow: '0 0 40px 10px rgba(255,255,255,0.95)' }}
-            />
-            {/* Inner glow */}
-            <motion.div
-              initial={{ scale: 0.3, opacity: 0.95 }}
-              animate={{ scale: 1.8, opacity: 0 }}
-              transition={{ duration: 0.35, ease: "easeOut" }}
-              className="absolute -inset-7 rounded-full bg-amber-200/70 blur-md"
-            />
-            {/* Two staggered shockwave rings */}
-            <motion.div
-              initial={{ scale: 0.2, opacity: 1 }}
-              animate={{ scale: 1.6, opacity: 0 }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
-              className="absolute -inset-6 rounded-full border-4 border-amber-300"
-              style={{ boxShadow: '0 0 30px rgba(252,211,77,0.8)' }}
-            />
-            <motion.div
-              initial={{ scale: 0.2, opacity: 0.9 }}
-              animate={{ scale: 2.1, opacity: 0 }}
-              transition={{ duration: 0.55, ease: "easeOut", delay: 0.08 }}
-              className="absolute -inset-6 rounded-full border-2 border-orange-200"
-            />
-            {/* Radiating sparks */}
-            {Array.from({ length: 10 }).map((_, i) => {
-              const angle = (i / 10) * Math.PI * 2;
-              const dist = 38;
-              return (
-                <motion.div
-                  key={i}
-                  initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
-                  animate={{ x: Math.cos(angle) * dist, y: Math.sin(angle) * dist, opacity: 0, scale: 0.3 }}
-                  transition={{ duration: 0.45, ease: "easeOut" }}
-                  className="absolute top-1/2 left-1/2 w-2 h-2 -ml-1 -mt-1 rounded-full bg-amber-300"
-                  style={{ boxShadow: '0 0 8px rgba(252,211,77,0.9)' }}
-                />
-              );
-            })}
-            {/* Dust puffs kicked up off the field */}
-            {Array.from({ length: 6 }).map((_, i) => {
-              const angle = (i / 6) * Math.PI * 2 + 0.4;
-              const dist = 26 + (i % 2) * 10;
-              return (
-                <motion.div
-                  key={`dust-${i}`}
-                  initial={{ x: 0, y: 4, opacity: 0.55, scale: 0.4 }}
-                  animate={{
-                    x: Math.cos(angle) * dist,
-                    y: Math.sin(angle) * dist * 0.5 - 22,
-                    opacity: 0,
-                    scale: 1.6,
-                  }}
-                  transition={{ duration: 0.6, ease: "easeOut", delay: 0.03 * i }}
-                  className="absolute top-1/2 left-1/2 w-4 h-4 -ml-2 -mt-2 rounded-full bg-[#c9b48a] blur-[3px]"
-                />
-              );
-            })}
-          </motion.div>
-        )}
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 0 }}
+              transition={{ duration: big ? 0.95 : 0.75 }}
+              style={{ position: 'fixed', left: impactBurst.x, top: impactBurst.y, zIndex: 499 }}
+              className="pointer-events-none -translate-x-1/2 -translate-y-1/2"
+            >
+              {/* Ground shadow pulse — a flattened ring suggesting weight hitting the field */}
+              <motion.div
+                initial={{ scaleX: 0.3, scaleY: 0.1, opacity: 0.7 }}
+                animate={{ scaleX: 2.4 * mult, scaleY: 0.5 * mult, opacity: 0 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className="absolute -inset-8 rounded-full bg-black/70 blur-sm"
+              />
+              {/* Bright core flash */}
+              <motion.div
+                initial={{ scale: 0.1, opacity: 1 }}
+                animate={{ scale: 1.4 * mult, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="absolute -inset-4 rounded-full bg-white"
+                style={{ boxShadow: '0 0 40px 10px rgba(255,255,255,0.95)' }}
+              />
+              {/* Inner glow */}
+              <motion.div
+                initial={{ scale: 0.3, opacity: 0.95 }}
+                animate={{ scale: 1.8 * mult, opacity: 0 }}
+                transition={{ duration: 0.35, ease: "easeOut" }}
+                className="absolute -inset-7 rounded-full bg-amber-200/70 blur-md"
+              />
+              {/* Two staggered shockwave rings */}
+              <motion.div
+                initial={{ scale: 0.2, opacity: 1 }}
+                animate={{ scale: 1.6 * mult, opacity: 0 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className="absolute -inset-6 rounded-full border-4 border-amber-300"
+                style={{ boxShadow: '0 0 30px rgba(252,211,77,0.8)' }}
+              />
+              <motion.div
+                initial={{ scale: 0.2, opacity: 0.9 }}
+                animate={{ scale: 2.1 * mult, opacity: 0 }}
+                transition={{ duration: 0.55, ease: "easeOut", delay: 0.08 }}
+                className="absolute -inset-6 rounded-full border-2 border-orange-200"
+              />
+              {/* Radiating sparks */}
+              {Array.from({ length: big ? 16 : 10 }).map((_, i) => {
+                const n = big ? 16 : 10;
+                const angle = (i / n) * Math.PI * 2;
+                const dist = 38 * mult;
+                return (
+                  <motion.div
+                    key={i}
+                    initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+                    animate={{ x: Math.cos(angle) * dist, y: Math.sin(angle) * dist, opacity: 0, scale: 0.3 }}
+                    transition={{ duration: 0.45, ease: "easeOut" }}
+                    className="absolute top-1/2 left-1/2 w-2 h-2 -ml-1 -mt-1 rounded-full bg-amber-300"
+                    style={{ boxShadow: '0 0 8px rgba(252,211,77,0.9)' }}
+                  />
+                );
+              })}
+              {/* Real dust kicked up off the field — dry, matte earth-tone specks that
+                  arc up and then actually fall back down as they fade, not glowing motes
+                  that just float outward (see dustTones above). */}
+              {Array.from({ length: dustCount }).map((_, i) => {
+                const angle = (i / dustCount) * Math.PI * 2 + (i % 2) * 0.25;
+                const outDist = (22 + (i % 5) * 9) * mult;
+                const peakLift = (14 + (i % 4) * 7) * mult;
+                const size = 2 + (i % 3) * 1.5;
+                const tone = dustTones[i % dustTones.length];
+                return (
+                  <motion.div
+                    key={`dust-${i}`}
+                    initial={{ x: 0, y: 2, opacity: 0.9, scale: 0.7 }}
+                    animate={{
+                      // Kicked outward and up first (the "puff"), then gravity wins and it
+                      // drifts back down while fading — a real arc, not a straight float.
+                      x: [0, Math.cos(angle) * outDist * 0.6, Math.cos(angle) * outDist],
+                      y: [2, -peakLift, Math.sin(angle) * outDist * 0.2 + peakLift * 0.5],
+                      opacity: [0.9, 0.8, 0],
+                      scale: [0.7, 1, 0.8],
+                    }}
+                    transition={{ duration: 0.55 + (i % 3) * 0.15, ease: "easeOut", delay: 0.015 * i }}
+                    className="absolute top-1/2 left-1/2 rounded-full"
+                    style={{ width: size, height: size, marginLeft: -size / 2, marginTop: -size / 2, backgroundColor: tone }}
+                  />
+                );
+              })}
+            </motion.div>
+          );
+        })()}
       </AnimatePresence>
 
       {/* Attack Targeting Lines — a thin, mostly-just-a-hint line (à la Yu-Gi-Oh GX Tag
@@ -2725,6 +2798,7 @@ const CardSlot = ({
   isAttacking = false, isImpactingTarget = false, attackDirection = 'up', hint,
   isValidAttackTarget = false, isInvalidAttackTarget = false, slotId,
   isMoverSelected = false, isValidMoveTarget = false, hasMoved = false,
+  shockActive = false,
 }: {
   onClick?: (el: HTMLElement) => void, onInfoClick?: (card: CardData) => void, card?: CardData | null,
   isSelected?: boolean, isAttacking?: boolean, isImpactingTarget?: boolean, attackDirection?: 'up' | 'down',
@@ -2743,6 +2817,9 @@ const CardSlot = ({
   // a unit picked up to move, the adjacent slots it can move/swap into, and a unit
   // that already used its reposition this turn (dimmed, still clickable to inspect).
   isMoverSelected?: boolean, isValidMoveTarget?: boolean, hasMoved?: boolean,
+  // True for one brief pulse whenever a full-art card lands anywhere on the board (see
+  // CardData.isFullArt / triggerFullArtReaction) — every occupied slot flinches at once.
+  shockActive?: boolean,
 }) => {
   const attackY = attackDirection === 'up' ? -150 : 150;
   // The opponent sits across the table, so their own cards should face THEM, not the
@@ -2827,13 +2904,24 @@ const CardSlot = ({
           initial={{ opacity: 0, scale: 0.4, y: -24, rotate: isOpponentSlot ? 180 : 0 }}
           animate={{
             opacity: 1,
-            y: isAttacking ? attackY : 0,
+            // A full-art card landing elsewhere on the board makes this one flinch —
+            // a quick up-down jolt, like the table itself shook (see shockActive).
+            y: isAttacking ? attackY : (shockActive ? [0, -14, 2, 0] : 0),
             z: isAttacking ? 100 : 0,
             scale: isAttacking ? 1.2 : 1,
             rotateX: isAttacking ? (attackDirection === 'up' ? 20 : -20) : 0,
             rotate: isOpponentSlot ? 180 : 0,
           }}
-          transition={{ duration: 0.3, scale: { type: "spring", stiffness: 400, damping: 15 } }}
+          transition={{
+            duration: 0.3,
+            scale: { type: "spring", stiffness: 400, damping: 15 },
+            y: shockActive ? { duration: 0.4, ease: "easeOut" } : undefined,
+          }}
+          // A resting card gets a two-layer shadow: a tight, hard-edged sliver right
+          // behind it (reads as the card's own physical thickness/cardstock edge) plus
+          // a softer, further-offset one (ambient contact shadow) — together they're
+          // what was making every card look like a flat, weightless sheet of paper.
+          style={{ filter: 'drop-shadow(1.5px 2.5px 0 rgba(0,0,0,0.5)) drop-shadow(0 7px 9px rgba(0,0,0,0.4))' }}
           className="w-full h-full rounded-lg flex flex-col p-1 relative"
         >
           {isImpactingTarget && <SlashEffect />}

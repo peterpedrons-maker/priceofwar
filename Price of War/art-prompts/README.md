@@ -145,6 +145,59 @@ quadro, exército embaixo) pra aproveitar o espaço vertical e parecer
 
 ---
 
+## 3b. Superfície do Tabuleiro — Arenito Iluminado por Tochas
+
+**Arquivo atual:** `src/assets/board-interior.webp` (864×1216, proporção
+~0,71:1, retrato) · **Estilo:** cenário/ambiente · **Status:** pronto pra
+gerar
+
+A arte atual do tabuleiro é uma pedra cinza-azulada com entalhes de runas —
+bonita, mas fria demais pra combinar com as molduras das cartas (douradas,
+prateadas e champanhe, todas em tons quentes de pergaminho), e clara
+demais: as cartas em cima dela ficam com pouco contraste, difícil de
+identificar rápido durante o jogo. Esse prompt troca a pedra fria por um
+arenito/calcário quente (o mesmo espírito da arena de duelo do Yu-Gi-Oh
+Forbidden Memories de PS1) e acrescenta iluminação de tochas — pensada pra
+já servir de referência visual pras sombras dinâmicas das cartas (ambas
+"iluminadas" pela mesma fonte de luz quente vinda de cima/dos cantos).
+
+```
+Top-down flat-lay photograph of an ancient medieval fantasy stone duel
+table, carved from warm sandstone and pale limestone rather than cold gray
+rock — a rich honey-tan and weathered-cream color palette throughout, the
+same warm parchment family as gold-trimmed heraldic banners, not a blue or
+gray stone. The surface is deeply carved with an ornate symmetrical rune
+circle and battle-sigil engravings, worn smooth in places by centuries of
+use, fine cracks and a light scattering of sand and dust in the grooves.
+Warm torchlight spills in from just outside the frame at the upper-left
+and upper-right corners, casting soft flickering amber pools of light and
+long, soft-edged shadows across the stone — the lighting is warm firelight
+(amber/orange, ~2000K), not cold moonlight or magic-blue glow. The very
+center of the table, where the game pieces sit, is the brightest, most
+evenly and clearly lit area, gently vignetting into deeper warm shadow
+toward the four edges/corners of the frame, so objects placed in the
+middle read with strong contrast against the stone. Subtle atmospheric
+haze and a few drifting dust motes catch the torchlight. Painterly digital
+illustration in the style of a premium medieval-fantasy tabletop game
+(Gwent / Yu-Gi-Oh Forbidden Memories duel arena quality), extremely
+detailed stone texture, no characters, no cards, no UI, no text, no
+watermark, straight-down top-view perspective (camera looking directly
+down at the table, no tilt), tall vertical portrait orientation
+```
+
+**Notas:** proporção ~0,71:1 (retrato, mais alto que largo — mesma
+proporção do arquivo atual). Pedi explicitamente a câmera "reta, direto de
+cima" porque a gente também está considerando tirar a inclinação 3D do
+tabuleiro no jogo (ver decisão em separado) — se a gente mantiver alguma
+inclinação, essa mesma imagem ainda funciona, só com um pouco de
+perspectiva "de graça" vindo do ângulo em que ela for exibida. As tochas
+nos cantos superiores foram pedidas de propósito: a ideia é usar exatamente
+essas posições de luz também como referência pra a direção da sombra
+dinâmica das cartas no tabuleiro (mais claro perto do centro/tochas, sombra
+mais longa quanto mais a carta estiver "de costas" pra elas).
+
+---
+
 ## 3. Moldura Full Art (dourada) — referência de layout
 
 **Arquivo:** [`reference/full-art-frame-gold-v1.png`](./reference/full-art-frame-gold-v1.png)
