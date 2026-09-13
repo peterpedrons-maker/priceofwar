@@ -30,6 +30,11 @@ export type CardData = {
   // next time this exact card instance attacks or defends (see getEffectiveAtk and
   // the combat resolution blocks' own pendingCombatBonus.hp handling).
   pendingCombatBonus?: { atk: number; hp: number };
+  // A permanent stack of "-1 damage taken" stamps — currently only granted by
+  // Linha Fechada (see resolveOwnTacticTarget) to whoever was adjacent to the
+  // chosen unit at cast time. Read in getIncomingDamageReduction alongside the
+  // General/Fortaleza aura checks.
+  dmgReduction?: number;
 };
 
 // Slot layout per side (13 slots):
@@ -223,6 +228,8 @@ const getIncomingDamageReduction = (ownIndex: number, ownSlots: (CardData | null
   if ((ownIndex === 10 || ownIndex === 11) && isAliveAt(ownSlots, 12, 'Comandante Aurelion, Mestre da Formação')) reduction += 1;
   // Fortaleza de Pedra (Terreno, own slot 11): own Retaguarda takes -1 damage.
   if (isBackline(ownIndex) && isAliveAt(ownSlots, 11, 'Fortaleza de Pedra')) reduction += 1;
+  // Linha Fechada: a permanent per-unit stamp (see resolveOwnTacticTarget), not an aura.
+  reduction += ownSlots[ownIndex]?.dmgReduction ?? 0;
   return reduction;
 };
 
@@ -353,6 +360,26 @@ const resolveAmbushEffect = (
   const nextDefenderSlots = [...defenderSlots];
   if (buffed) nextDefenderSlots[defenderIndex] = buffed;
   return { attackerSlots, defenderSlots: nextDefenderSlots, defenderIndex, defender: buffed, cancelled: false };
+};
+
+// The 4 Deck Capitão Táticas that resolve by picking a target on the board
+// instead of just sitting there as an inert 0/0 card — see handlePlayCardButtonClick
+// (which puts the game into "pick a target" mode instead of the normal slot-placement
+// flow) and resolveOwnTacticTarget/resolveEnemyTacticTarget (which actually apply the
+// effect once a target is clicked). Reformar Linhas isn't here: it doesn't target
+// anything, it just grants bonus reposition moves immediately (see bonusRepositions).
+export type TacticTargetKind = 'avanco_coordenado' | 'reposicionamento_rapido' | 'linha_fechada' | 'ordem_retirada';
+const TARGETABLE_TACTICS: Record<string, TacticTargetKind> = {
+  'Avanço Coordenado': 'avanco_coordenado',
+  'Reposicionamento Rápido': 'reposicionamento_rapido',
+  'Linha Fechada': 'linha_fechada',
+  'Ordem de Retirada': 'ordem_retirada',
+};
+const TACTIC_TARGET_PROMPTS: Record<TacticTargetKind, string> = {
+  avanco_coordenado: 'Escolha uma unidade sua que já se moveu neste turno.',
+  reposicionamento_rapido: 'Escolha uma unidade inimiga para deslocar.',
+  linha_fechada: 'Escolha uma unidade sua — os aliados ao lado dela recebem menos dano.',
+  ordem_retirada: 'Escolha uma unidade sua na Vanguarda.',
 };
 
 // Both Generals now come from whichever deck each side is playing (see DECKS
@@ -935,6 +962,18 @@ export default function App() {
   // gets one reposition action per own turn, then it's locked until the next one.
   const [movedSlots, setMovedSlots] = useState<Set<number>>(new Set());
   const [selectedMoverIndex, setSelectedMoverIndex] = useState<number | null>(null);
+  // Reformar Linhas: extra reposition moves for this Preparação, usable even on a
+  // unit that already moved (bypassing the movedSlots gate) — see handleSlotClick.
+  const [bonusRepositions, setBonusRepositions] = useState(0);
+  // A Tática card that's been played and is now waiting for the player to click its
+  // target on the board (see TARGETABLE_TACTICS / resolveOwnTacticTarget /
+  // resolveEnemyTacticTarget) — the card is already out of hand and mana already
+  // spent by this point, same as a normal card that's mid-flight to a slot.
+  const [pendingTacticAction, setPendingTacticAction] = useState<{ card: CardData; kind: TacticTargetKind } | null>(null);
+  // Batedor: "Move após combate" — the slot it's standing in right after it survives
+  // an attack, so handleSlotClick can grant it exactly one free reposition even
+  // though it's the Batalha phase (see the reposition branch's own phase check).
+  const [batedorFreeMove, setBatedorFreeMove] = useState<number | null>(null);
 
   const [playerMana, setPlayerMana] = useState(10);
   const [npcMana, setNpcMana] = useState(10);
@@ -1311,6 +1350,9 @@ export default function App() {
     setTurnPhase('preparacao');
     setMovedSlots(new Set());
     setSelectedMoverIndex(null);
+    setBonusRepositions(0);
+    setPendingTacticAction(null);
+    setBatedorFreeMove(null);
     setAmbushPrompt(null);
     setPlayerMana(10);
     setNpcMana(10);
@@ -1359,6 +1401,8 @@ export default function App() {
       setTurnPhase('preparacao');
       setMovedSlots(new Set());
       setSelectedMoverIndex(null);
+      setBonusRepositions(0);
+      setBatedorFreeMove(null);
       if (turnNumber > 1 && hand.length < 10) {
         const newCard = drawFromDeck();
         const origin = computeDrawOrigin(playerDeckRef, hand.length);
@@ -1562,6 +1606,38 @@ export default function App() {
   };
 
   const handlePlayCardButtonClick = () => {
+    const card = hand[selectedCardIndex!];
+    if (playerMana < card.cost) {
+      showToast("Ouro insuficiente!");
+      return;
+    }
+
+    // Reformar Linhas: no target to pick, it just grants bonus reposition moves —
+    // resolve it immediately instead of zooming to the board for nothing.
+    if (card.name === 'Reformar Linhas') {
+      setPlayerMana(prev => prev - card.cost);
+      setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
+      setPlayerGraveyard(g => [...g, card]);
+      setBonusRepositions(prev => prev + 3);
+      setSelectedCardIndex(null);
+      showToast('Reformar Linhas: +3 reposicionamentos bônus neste turno!');
+      return;
+    }
+
+    // The other 4 targetable Táticas (see TARGETABLE_TACTICS) — commit to playing
+    // the card now (same as any other card, mana spent and out of hand), then wait
+    // for the player to click its target instead of a slot to place it in.
+    const kind = TARGETABLE_TACTICS[card.name];
+    if (kind) {
+      setPlayerMana(prev => prev - card.cost);
+      setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
+      setPendingTacticAction({ card, kind });
+      setSelectedCardIndex(null);
+      setViewState('field');
+      showToast(TACTIC_TARGET_PROMPTS[kind]);
+      return;
+    }
+
     // Only now do we zoom out to the board so the player can pick a slot.
     setViewState('field');
   };
@@ -1643,10 +1719,87 @@ export default function App() {
     return chosen;
   };
 
+  // Resolves Avanço Coordenado / Linha Fechada / Ordem de Retirada once the player
+  // clicks their target on their OWN board (see pendingTacticAction). Reposicionamento
+  // Rápido targets the enemy board instead — see resolveEnemyTacticTarget.
+  const resolveOwnTacticTarget = (slotIndex: number) => {
+    if (!pendingTacticAction || pendingTacticAction.kind === 'reposicionamento_rapido') return;
+    const { card, kind } = pendingTacticAction;
+    const target = playerSlots[slotIndex];
+
+    if (kind === 'avanco_coordenado') {
+      if (slotIndex > 9 || !target) { showToast('Escolha uma unidade sua no campo.'); return; }
+      if (!movedSlots.has(slotIndex)) { showToast('Essa unidade não se moveu neste turno.'); return; }
+      setPlayerSlots(prev => {
+        const next = [...prev];
+        next[slotIndex] = { ...next[slotIndex]!, atk: next[slotIndex]!.atk + 2 };
+        return next;
+      });
+      showToast(`${target.name} recebeu +2 ATK!`);
+    } else if (kind === 'linha_fechada') {
+      if (slotIndex > 9 || !target) { showToast('Escolha uma unidade sua no campo.'); return; }
+      setPlayerSlots(prev => {
+        const next = [...prev];
+        for (let j = 0; j <= 9; j++) {
+          if (areSlotsAdjacent(slotIndex, j) && next[j]) {
+            next[j] = { ...next[j]!, dmgReduction: (next[j]!.dmgReduction ?? 0) + 1 };
+          }
+        }
+        return next;
+      });
+      showToast('Linha Fechada: aliados adjacentes recebem menos dano!');
+    } else if (kind === 'ordem_retirada') {
+      if (!isFrontline(slotIndex) || !target) { showToast('Escolha uma unidade sua na Vanguarda.'); return; }
+      const backIndex = slotIndex + 5;
+      if (playerSlots[backIndex]) { showToast('A Retaguarda dessa coluna já está ocupada.'); return; }
+      setPlayerSlots(prev => {
+        const next = [...prev];
+        next[backIndex] = { ...next[slotIndex]!, hp: next[slotIndex]!.hp + 2 };
+        next[slotIndex] = null;
+        return next;
+      });
+      showToast(`${target.name} recuou para a Retaguarda e recuperou 2 HP!`);
+    }
+
+    setPlayerGraveyard(g => [...g, card]);
+    setPendingTacticAction(null);
+    setViewState('hand');
+  };
+
+  // Resolves Reposicionamento Rápido once the player clicks the enemy unit to
+  // displace — the only Deck Capitão Tática that targets the opponent's board.
+  const resolveEnemyTacticTarget = (slotIndex: number) => {
+    if (!pendingTacticAction || pendingTacticAction.kind !== 'reposicionamento_rapido') return;
+    const { card } = pendingTacticAction;
+    if (slotIndex > 9 || !npcSlots[slotIndex]) { showToast('Escolha uma unidade inimiga no campo.'); return; }
+    const emptyAdjacent = [slotIndex - 1, slotIndex + 1, slotIndex - 5, slotIndex + 5]
+      .filter(j => areSlotsAdjacent(slotIndex, j) && !npcSlots[j]);
+    if (emptyAdjacent.length > 0) {
+      const dest = emptyAdjacent[Math.floor(Math.random() * emptyAdjacent.length)];
+      setNpcSlots(prev => {
+        const next = [...prev];
+        next[dest] = next[slotIndex];
+        next[slotIndex] = null;
+        return next;
+      });
+      showToast('Reposicionamento Rápido: unidade inimiga deslocada!');
+    } else {
+      showToast('Não havia slot livre adjacente para deslocar a unidade.');
+    }
+    setPlayerGraveyard(g => [...g, card]);
+    setPendingTacticAction(null);
+    setViewState('hand');
+  };
+
   const handleSlotClick = (slotIndex: number, slotEl?: HTMLElement) => {
     if (gameOverWinner || isCardInFlightTransition) return;
 
-    if (turnPhase === 'preparacao' && selectedCardIndex === null) {
+    if (pendingTacticAction) { resolveOwnTacticTarget(slotIndex); return; }
+
+    // Batedor's free post-combat move (see batedorFreeMove) opens this same
+    // reposition flow even during Batalha, but only for that one exact unit.
+    const isBatedorFreeMove = batedorFreeMove !== null;
+    if ((turnPhase === 'preparacao' || isBatedorFreeMove) && selectedCardIndex === null) {
       // Reposition — only while no hand card is mid-selection (if one is, a click on
       // an empty slot means "play it here", handled below). Only Vanguarda/Retaguarda
       // units reposition — General/Relíquia/Terreno (10-12) are fixed, same as
@@ -1657,7 +1810,16 @@ export default function App() {
       }
       if (selectedMoverIndex === null) {
         if (!playerSlots[slotIndex]) return;
-        if (movedSlots.has(slotIndex)) { showToast("Essa unidade já se reposicionou nesse turno."); return; }
+        if (isBatedorFreeMove && slotIndex !== batedorFreeMove) {
+          showToast("Só dá pra mover o Batedor que acabou de atacar.");
+          return;
+        }
+        // Reformar Linhas' bonus moves (see bonusRepositions) let an already-moved
+        // unit be picked back up anyway.
+        if (!isBatedorFreeMove && movedSlots.has(slotIndex) && bonusRepositions <= 0) {
+          showToast("Essa unidade já se reposicionou nesse turno.");
+          return;
+        }
         setSelectedMoverIndex(slotIndex);
         return;
       }
@@ -1665,10 +1827,11 @@ export default function App() {
       if (!canReposition(playerSlots[selectedMoverIndex], selectedMoverIndex, slotIndex)) {
         // Clicking a different one of your own (unmoved) units re-selects it instead
         // of just failing — reads nicer than forcing a deselect first.
-        if (playerSlots[slotIndex] && !movedSlots.has(slotIndex)) { setSelectedMoverIndex(slotIndex); return; }
+        if (!isBatedorFreeMove && playerSlots[slotIndex] && !movedSlots.has(slotIndex)) { setSelectedMoverIndex(slotIndex); return; }
         showToast("Só dá pra reposicionar para um slot adjacente!");
         return;
       }
+      const wasAlreadyMoved = movedSlots.has(selectedMoverIndex);
       const mover = playerSlots[selectedMoverIndex];
       const occupant = playerSlots[slotIndex];
       const newSlots = [...playerSlots];
@@ -1677,13 +1840,20 @@ export default function App() {
       // Capitão de Formação: "Ao mover: adjacentes +1 ATK" — a permanent stamp on
       // whoever ends up next to its new position.
       setPlayerSlots(applyFormationCaptainBuff(newSlots, slotIndex));
+      setSelectedMoverIndex(null);
+
+      if (isBatedorFreeMove) {
+        setBatedorFreeMove(null);
+        showToast("Batedor se reposicionou após o combate!");
+        return;
+      }
       setMovedSlots(prev => {
         const next = new Set(prev);
         next.add(selectedMoverIndex!);
         next.add(slotIndex);
         return next;
       });
-      setSelectedMoverIndex(null);
+      if (wasAlreadyMoved) setBonusRepositions(prev => Math.max(0, prev - 1));
       return;
     }
     if (selectedCardIndex !== null && !playerSlots[slotIndex]) {
@@ -1779,6 +1949,7 @@ export default function App() {
 
   const handleNpcSlotClick = async (slotIndex: number) => {
     if (gameOverWinner) return;
+    if (pendingTacticAction) { resolveEnemyTacticTarget(slotIndex); return; }
     if (selectedAttackerIndex !== null && npcSlots[slotIndex] && !isAnimating) {
       if (!validAttackTargets.has(slotIndex)) {
         showToast("Alvo fora de alcance — tem uma carta bloqueando o caminho!");
@@ -1841,6 +2012,10 @@ export default function App() {
             hasDestroyed = true;
           } else {
             newPlayerSlots[selectedAttackerIndex] = updatedAttacker;
+            // Batedor: "Move após combate" — a free reposition right after it lands
+            // an attack and survives, even though Batalha doesn't normally allow
+            // moving (see handleSlotClick's own isBatedorFreeMove bypass).
+            if (attacker.name === 'Batedor') setBatedorFreeMove(selectedAttackerIndex);
           }
 
           if (updatedDefender.hp <= 0) {
@@ -1879,6 +2054,16 @@ export default function App() {
 
   const handleBackgroundClick = () => {
     if (isCardInFlightTransition) return; // don't cancel a card mid hand-off to the board
+    if (pendingTacticAction) {
+      // The card's mana/hand cost is already spent (see handlePlayCardButtonClick) —
+      // tapping away without picking a target just fizzles it into the graveyard
+      // instead of leaving the player stuck if they change their mind or have no
+      // valid target.
+      setPlayerGraveyard(g => [...g, pendingTacticAction.card]);
+      setPendingTacticAction(null);
+      setViewState('hand');
+      return;
+    }
     if (viewState === 'field') {
       setSelectedCardIndex(null);
       setViewState('hand');
