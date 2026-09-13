@@ -116,17 +116,23 @@ const getValidAttackTargets = (
   return validTargets;
 };
 
-// Turn phases — ported from the earlier full-art version (commit 8a3d7b8): a turn is
-// split into Reposicionar (move/swap units), Comando (play cards) and Batalha (attack).
-// Battle doesn't unlock until turn 3, same as that version, so the opening turns are
-// purely about setting up a formation before anyone can fight. Draw isn't a player-facing
-// phase here — it already happens automatically at turn start (see the currentTurn effect).
-export type TurnPhase = 'reposicionar' | 'comando' | 'batalha';
+// Turn phases — a turn is split into Preparação (both play cards from hand AND
+// reposition units, in any order) and Batalha (attack). Battle doesn't unlock until
+// turn 3 (ported from the earlier full-art version, commit 8a3d7b8), so the opening
+// turns are purely about setting up a formation before anyone can fight. Draw isn't a
+// player-facing phase here — it already happens automatically at turn start (see the
+// currentTurn effect).
+//
+// Reposicionar and Comando started out as separate, strictly-ordered phases, but that
+// forced players through an empty "nothing to reposition yet" step before they could
+// even play a card — annoying busywork with no upside on most turns. Merging them
+// means the only real phase gate left is the meaningful one: no attacking before
+// you've had a turn or two to set up (see phasesForTurn).
+export type TurnPhase = 'preparacao' | 'batalha';
 const phasesForTurn = (turn: number): TurnPhase[] =>
-  turn >= 3 ? ['reposicionar', 'comando', 'batalha'] : ['reposicionar', 'comando'];
+  turn >= 3 ? ['preparacao', 'batalha'] : ['preparacao'];
 const PHASE_LABELS: Record<TurnPhase, string> = {
-  reposicionar: 'Reposicionar',
-  comando: 'Comando',
+  preparacao: 'Preparação',
   batalha: 'Batalha',
 };
 
@@ -718,7 +724,7 @@ export default function App() {
   const [turnNumber, setTurnNumber] = useState(1);
   // Which part of the player's own turn they're in — see TurnPhase above. The AI's
   // turn doesn't use this; it just plays/attacks directly via playAiTurn.
-  const [turnPhase, setTurnPhase] = useState<TurnPhase>('reposicionar');
+  const [turnPhase, setTurnPhase] = useState<TurnPhase>('preparacao');
   // Slots (0-9) that have already moved/swapped this reposition phase — each unit
   // gets one reposition action per own turn, then it's locked until the next one.
   const [movedSlots, setMovedSlots] = useState<Set<number>>(new Set());
@@ -1072,7 +1078,7 @@ export default function App() {
     setGameOverWinner(null);
     setCurrentTurn('player');
     setTurnNumber(1);
-    setTurnPhase('reposicionar');
+    setTurnPhase('preparacao');
     setMovedSlots(new Set());
     setSelectedMoverIndex(null);
     setAmbushPrompt(null);
@@ -1118,9 +1124,9 @@ export default function App() {
       // animate below) — nothing ever brought it back once play returned to the
       // player, so the hand looked like it had vanished. Bring it back to 'hand' here.
       setViewState('hand');
-      // Fresh turn, fresh phase cycle — back to Reposicionar and every unit's move
+      // Fresh turn, fresh phase cycle — back to Preparação and every unit's move
       // available again.
-      setTurnPhase('reposicionar');
+      setTurnPhase('preparacao');
       setMovedSlots(new Set());
       setSelectedMoverIndex(null);
       if (turnNumber > 1 && hand.length < 10) {
@@ -1274,8 +1280,8 @@ export default function App() {
 
   const handleCardClick = (index: number) => {
     if (viewState === 'field') return; // hand cards are non-interactive once zoomed to the board
-    if (turnPhase !== 'comando') {
-      showToast("Jogar cartas só na fase de Comando!");
+    if (turnPhase !== 'preparacao') {
+      showToast("Jogar cartas só na fase de Preparação!");
       return;
     }
     if (selectedCardIndex === index) {
@@ -1309,14 +1315,20 @@ export default function App() {
     : new Set<number>();
 
   // Which slots (0-9) the currently-selected mover can reposition into this
-  // Reposicionar phase — an empty adjacent slot, or an adjacent ally to swap with.
+  // Preparação phase — an empty adjacent slot, or an adjacent ally to swap with.
   const validMoveTargets = selectedMoverIndex !== null
     ? new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => areSlotsAdjacent(selectedMoverIndex, i)))
     : new Set<number>();
 
+  // Most turns (1-2) have exactly one phase, so the plaque just reads "SEU TURNO" like
+  // it always has — tapping it ends the turn directly, no extra step. Only from turn 3
+  // on, when Batalha exists as a second phase, does it briefly show a named transition
+  // ("AVANÇAR: BATALHA") before settling back to "SEU TURNO" for the actual end-turn tap.
   const activePhases = phasesForTurn(turnNumber);
   const isLastPhaseOfTurn = activePhases[activePhases.length - 1] === turnPhase;
-  const turnButtonLabel = isLastPhaseOfTurn ? 'FINALIZAR TURNO' : 'AVANÇAR FASE';
+  const turnButtonLabel = isLastPhaseOfTurn
+    ? 'SEU TURNO'
+    : `AVANÇAR: ${PHASE_LABELS[activePhases[activePhases.indexOf(turnPhase) + 1]].toUpperCase()}`;
 
   // A "conducting line" from the selected attacker to every occupied enemy slot — green
   // and flowing for a reachable target, dim red for one that's blocked/out of range —
@@ -1371,9 +1383,11 @@ export default function App() {
   const handleSlotClick = (slotIndex: number, slotEl?: HTMLElement) => {
     if (gameOverWinner || isCardInFlightTransition) return;
 
-    if (turnPhase === 'reposicionar') {
-      // Only Vanguarda/Retaguarda units reposition — General/Relíquia/Terreno (10-12)
-      // are fixed, same as everywhere else in this file.
+    if (turnPhase === 'preparacao' && selectedCardIndex === null) {
+      // Reposition — only while no hand card is mid-selection (if one is, a click on
+      // an empty slot means "play it here", handled below). Only Vanguarda/Retaguarda
+      // units reposition — General/Relíquia/Terreno (10-12) are fixed, same as
+      // everywhere else in this file.
       if (slotIndex > 9) {
         if (playerSlots[slotIndex]) showToast("Essa carta não pode ser reposicionada.");
         return;
@@ -1746,16 +1760,17 @@ export default function App() {
         {/* Central Divider */}
         <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-indigo-400/60 to-transparent shadow-[0_0_15px_rgba(99,102,241,0.6)] -translate-y-1/2 rounded-full pointer-events-none" />
 
-        {/* Turn Plaque / Phase-Advance Button — sits right on the divider like a physical
-            marker on the table instead of a floating HUD overlay, since the board is
-            now always on screen. It's a single flippable plaque: tapping it advances
-            through the turn's phases (see TurnPhase/PHASE_LABELS) — "AVANÇAR FASE" on
-            every phase but the last, "FINALIZAR TURNO" on the last one, which is what
-            actually passes the turn — and it flips (like a name plate on a board game)
-            to "TURNO DO ADVERSÁRIO" while it's not the player's turn, then flips back on
-            its own once the NPC's turn ends. The flip rotates around the horizontal axis
-            (rotateX, top-over-bottom) rather than the vertical one, so it reads as
-            tipping toward the viewer instead of swiveling side to side. */}
+        {/* Turn Plaque — sits right on the divider like a physical marker on the table
+            instead of a floating HUD overlay, since the board is now always on screen.
+            Most turns it's exactly what it always was: "SEU TURNO", tap to pass. Only
+            from turn 3 on, when Batalha exists as a second phase, does tapping it once
+            first slide in "AVANÇAR: BATALHA" (see turnButtonLabel) — a real phase change,
+            not just an end-turn — before the label settles back to "SEU TURNO" for the
+            tap that actually passes the turn. It also flips (like a name plate on a
+            board game) to "TURNO DO ADVERSÁRIO" while it's not the player's turn, then
+            flips back on its own once the NPC's turn ends. That flip rotates around the
+            horizontal axis (rotateX, top-over-bottom) rather than the vertical one, so
+            it reads as tipping toward the viewer instead of swiveling side to side. */}
         <div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 pointer-events-auto"
           style={{ perspective: 600 }}
@@ -1773,7 +1788,9 @@ export default function App() {
             }
           }}
         >
-          {currentTurn === 'player' && (
+          {/* Only shown once there's actually more than one phase this turn (turn 3+) —
+              on the common single-phase turns it'd just be clutter stating the obvious. */}
+          {currentTurn === 'player' && activePhases.length > 1 && (
             <div className="absolute -top-7 md:-top-8 left-1/2 -translate-x-1/2 z-10 px-3 py-0.5 rounded-full bg-zinc-950/80 border border-amber-500/50 text-[10px] md:text-xs font-black tracking-widest text-amber-300 uppercase whitespace-nowrap">
               Fase: {PHASE_LABELS[turnPhase]}
             </div>
@@ -1804,11 +1821,24 @@ export default function App() {
                 draggable={false}
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
               />
-              <div className="absolute inset-0 flex items-center justify-center pl-[24%] pr-[6%]">
-                <span className="flex items-center gap-2 font-black text-base md:text-lg tracking-wide text-zinc-900">
-                  <span className="w-2 h-2 rounded-full bg-amber-700 animate-pulse shrink-0" />
-                  {turnButtonLabel}
-                </span>
+              <div className="absolute inset-0 flex items-center justify-center pl-[24%] pr-[6%] overflow-hidden">
+                {/* The label itself slides/fades on every phase change (see turnButtonLabel)
+                    instead of just snapping — a small "the button just did something" cue
+                    on top of the tap-scale, since a phase change is a real state change,
+                    not just passing the turn. */}
+                <AnimatePresence mode="wait">
+                  <motion.span
+                    key={turnButtonLabel}
+                    initial={{ x: 18, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={{ x: -18, opacity: 0 }}
+                    transition={{ duration: 0.22, ease: "easeOut" }}
+                    className="flex items-center gap-2 font-black text-base md:text-lg tracking-wide text-zinc-900 whitespace-nowrap"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-amber-700 animate-pulse shrink-0" />
+                    {turnButtonLabel}
+                  </motion.span>
+                </AnimatePresence>
               </div>
             </motion.div>
 
@@ -2685,7 +2715,7 @@ const CardSlot = ({
   // this exact slot's on-screen position via getBoundingClientRect, without needing a
   // forwarded ref on every one of the 26 slots on the board.
   slotId?: string,
-  // Reposicionar-phase equivalents of isSelected/isValidAttackTarget/(already acted) —
+  // Preparação-phase equivalents of isSelected/isValidAttackTarget/(already acted) —
   // a unit picked up to move, the adjacent slots it can move/swap into, and a unit
   // that already used its reposition this turn (dimmed, still clickable to inspect).
   isMoverSelected?: boolean, isValidMoveTarget?: boolean, hasMoved?: boolean,
