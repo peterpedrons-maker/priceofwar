@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { Info, X, Sword, Zap, Users, Library, ArrowUp, ArrowDown } from 'lucide-react';
+import { Info, X, Sword, Zap, Users, Library, ArrowUp, ArrowDown, Lock } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
 import boardInteriorImage from './assets/board-interior.webp';
-import swordTurnButtonImage from './assets/sword-turn-button.webp';
 import cardTemplateImage from './assets/card-template.webp';
 import cardTemplateSilverImage from './assets/card-template-silver.webp';
 import cardTemplateChampagneImage from './assets/card-template-champagne.webp';
@@ -1755,6 +1754,11 @@ export default function App() {
           ) : (
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.04)_0%,transparent_70%)]" />
           )}
+          {/* The board art itself is quite bright/pale, which made cards hard to pick out
+              on top of it. A flat code-only darkening tint (no new art asset needed) — a
+              bit heavier at the edges than dead center, so the middle stays readable
+              while the corners recede. */}
+          <div className="absolute inset-0 bg-black/35 bg-[radial-gradient(ellipse_at_center,transparent_30%,rgba(0,0,0,0.35)_100%)]" />
         </div>
 
         {/* Central Divider */}
@@ -1788,80 +1792,96 @@ export default function App() {
             }
           }}
         >
-          {/* Only shown once there's actually more than one phase this turn (turn 3+) —
-              on the common single-phase turns it'd just be clutter stating the obvious. */}
-          {currentTurn === 'player' && activePhases.length > 1 && (
-            <div className="absolute -top-7 md:-top-8 left-1/2 -translate-x-1/2 z-10 px-3 py-0.5 rounded-full bg-zinc-950/80 border border-amber-500/50 text-[10px] md:text-xs font-black tracking-widest text-amber-300 uppercase whitespace-nowrap">
-              Fase: {PHASE_LABELS[turnPhase]}
+          {/* Phase tracker — always visible on the player's turn (Yu-Gi-Oh-style: every
+              phase the game has shown at once, not just the current one named in
+              isolation), so it's always clear what's coming, not just what's active.
+              Preparação/Batalha are the only two phases that exist; Batalha shows locked
+              (with a padlock) until turn 3, then behaves like a normal step. */}
+          {currentTurn === 'player' && (
+            <div className="absolute -top-7 md:-top-8 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1">
+              {(['preparacao', 'batalha'] as TurnPhase[]).map((p, idx) => {
+                const isLocked = p === 'batalha' && turnNumber < 3;
+                const isCurrent = turnPhase === p;
+                return (
+                  <React.Fragment key={p}>
+                    {idx > 0 && <div className="w-2 h-px bg-zinc-600" />}
+                    <div
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] md:text-[10px] font-black tracking-widest uppercase whitespace-nowrap transition-colors ${
+                        isCurrent
+                          ? 'bg-amber-500 border-amber-300 text-zinc-950 shadow-[0_0_10px_rgba(245,158,11,0.7)]'
+                          : isLocked
+                            ? 'bg-zinc-950/80 border-zinc-700 text-zinc-600'
+                            : 'bg-zinc-950/80 border-zinc-600 text-zinc-400'
+                      }`}
+                    >
+                      {isLocked && <Lock className="w-2.5 h-2.5" strokeWidth={3} />}
+                      {PHASE_LABELS[p]}
+                    </div>
+                  </React.Fragment>
+                );
+              })}
             </div>
           )}
           <motion.div
-            className="relative w-[340px] h-[78px] md:w-[420px] md:h-[96px] cursor-pointer"
+            className="relative w-[230px] h-[62px] md:w-[280px] md:h-[74px]"
             style={{ transformStyle: 'preserve-3d' }}
             animate={{ rotateX: currentTurn === 'player' ? 0 : 180 }}
             transition={{ duration: 0.6, ease: "easeInOut" }}
             whileTap={currentTurn === 'player' ? { scale: 0.94 } : undefined}
           >
-            {/* Front face — SEU TURNO, rendered as a sword lying on the divider (the
-                actionable "pass turn" face). The text sits over the blade, offset past
-                the hilt (which occupies the left ~22% of the image). */}
+            {/* Front face — SEU TURNO. A plain code-built button for now (a proper
+                illustrated one is planned later) rather than the sword artwork this used
+                to be: a simple gradient pill with a pressed-3D bottom edge, pulsing while
+                it's actually the player's turn. */}
             <motion.div
-              className="absolute inset-0"
+              className="absolute inset-0 rounded-full cursor-pointer flex items-center justify-center gap-2 overflow-hidden
+                bg-gradient-to-b from-amber-300 via-amber-500 to-amber-700
+                border-2 border-amber-200
+                shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_5px_0_rgba(120,53,15,0.9),0_8px_16px_rgba(0,0,0,0.5)]"
               style={{ backfaceVisibility: 'hidden' }}
               animate={{
-                filter: currentTurn === 'player'
-                  ? ['drop-shadow(0 0 4px rgba(245,158,11,0.5))', 'drop-shadow(0 0 10px rgba(245,158,11,0.9))', 'drop-shadow(0 0 4px rgba(245,158,11,0.5))']
-                  : 'drop-shadow(0 0 4px rgba(245,158,11,0.5))'
+                boxShadow: currentTurn === 'player'
+                  ? [
+                      'inset 0 1px 0 rgba(255,255,255,0.6), 0 5px 0 rgba(120,53,15,0.9), 0 0 10px rgba(245,158,11,0.5)',
+                      'inset 0 1px 0 rgba(255,255,255,0.6), 0 5px 0 rgba(120,53,15,0.9), 0 0 26px rgba(245,158,11,0.95)',
+                      'inset 0 1px 0 rgba(255,255,255,0.6), 0 5px 0 rgba(120,53,15,0.9), 0 0 10px rgba(245,158,11,0.5)',
+                    ]
+                  : 'inset 0 1px 0 rgba(255,255,255,0.6), 0 5px 0 rgba(120,53,15,0.9), 0 0 10px rgba(245,158,11,0.5)'
               }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              <img
-                src={swordTurnButtonImage}
-                alt=""
-                draggable={false}
-                className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
-              />
-              <div className="absolute inset-0 flex items-center justify-center pl-[24%] pr-[6%] overflow-hidden">
-                {/* The label itself slides/fades on every phase change (see turnButtonLabel)
-                    instead of just snapping — a small "the button just did something" cue
-                    on top of the tap-scale, since a phase change is a real state change,
-                    not just passing the turn. */}
-                <AnimatePresence mode="wait">
-                  <motion.span
-                    key={turnButtonLabel}
-                    initial={{ x: 18, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    exit={{ x: -18, opacity: 0 }}
-                    transition={{ duration: 0.22, ease: "easeOut" }}
-                    className="flex items-center gap-2 font-black text-base md:text-lg tracking-wide text-zinc-900 whitespace-nowrap"
-                  >
-                    <span className="w-2 h-2 rounded-full bg-amber-700 animate-pulse shrink-0" />
-                    {turnButtonLabel}
-                  </motion.span>
-                </AnimatePresence>
-              </div>
+              {/* The label itself slides/fades on every phase change (see turnButtonLabel)
+                  instead of just snapping — a small "the button just did something" cue
+                  on top of the tap-scale, since a phase change is a real state change,
+                  not just passing the turn. */}
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={turnButtonLabel}
+                  initial={{ x: 18, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: -18, opacity: 0 }}
+                  transition={{ duration: 0.22, ease: "easeOut" }}
+                  className="flex items-center gap-2 font-black text-sm md:text-base tracking-wide text-zinc-900 whitespace-nowrap"
+                >
+                  <span className="w-2 h-2 rounded-full bg-amber-900 animate-pulse shrink-0" />
+                  {turnButtonLabel}
+                </motion.span>
+              </AnimatePresence>
             </motion.div>
 
-            {/* Back face — TURNO DO ADVERSÁRIO (not actionable). Same sword image as the
-                front face (tinted red, since it's a CSS filter on the same asset) so the
-                plaque always reads as "the sword", never reverting to a plain box. */}
+            {/* Back face — TURNO DO ADVERSÁRIO (not actionable). Same button shape, dull
+                red/stone tones and no pulse, so it clearly reads as "not yours right now". */}
             <div
-              className="absolute inset-0 cursor-not-allowed"
+              className="absolute inset-0 rounded-full cursor-not-allowed flex items-center justify-center
+                bg-gradient-to-b from-zinc-500 via-zinc-600 to-zinc-800
+                border-2 border-red-900/60
+                shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_5px_0_rgba(30,10,10,0.9),0_8px_16px_rgba(0,0,0,0.5)]"
               style={{ backfaceVisibility: 'hidden', transform: 'rotateX(180deg)' }}
             >
-              <img
-                src={swordTurnButtonImage}
-                alt=""
-                draggable={false}
-                className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
-                style={{ filter: 'sepia(1) saturate(6) hue-rotate(-50deg) brightness(0.85) drop-shadow(0 0 6px rgba(239,68,68,0.7))' }}
-              />
-              <div className="absolute inset-0 flex items-center justify-center pl-[24%] pr-[6%]">
-                <span className="flex items-center gap-2 font-black text-sm md:text-base tracking-wide text-red-950">
-                  <span className="w-2 h-2 rounded-full bg-red-700 animate-pulse shrink-0" />
-                  TURNO DO ADVERSÁRIO
-                </span>
-              </div>
+              <span className="flex items-center gap-2 font-black text-xs md:text-sm tracking-wide text-red-100">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+                TURNO DO ADVERSÁRIO
+              </span>
             </div>
           </motion.div>
         </div>
@@ -2182,7 +2202,11 @@ export default function App() {
                 animate={{
                   opacity: viewState === 'field'
                     ? (selectedCardIndex === i ? 1 : 0.4)
-                    : (selectedCardIndex !== null && i > selectedCardIndex ? 0.3 : 1),
+                    // Dim every OTHER card in hand, not just the ones after it in the fan —
+                    // dimming only "i > selectedCardIndex" left earlier cards sitting at full
+                    // opacity right behind/beside the enlarged selected card, poking out as
+                    // a stray, undimmed card edge.
+                    : (selectedCardIndex !== null && i !== selectedCardIndex ? 0.3 : 1),
                   x: selectedCardIndex === i && viewState === 'field' ? getSelectedCardX(i) : 0,
                   // Float the previewed card up near the vertical center of the real screen
                   // instead of sitting down at the hand's normal resting height (see
