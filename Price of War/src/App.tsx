@@ -1735,20 +1735,26 @@ export default function App() {
     previewedCard && !playerSlots[slotIndex] ? getSlotHint(previewedCard.cardType, slotIndex) : undefined;
 
   return (
-    <div 
-      className="relative w-full h-dvh bg-zinc-950 overflow-hidden flex flex-col items-center justify-center touch-none"
+    <div
+      className="relative w-full h-dvh bg-[#140f0a] overflow-hidden flex flex-col items-center justify-center touch-none"
       style={{ perspective: '1200px' }}
       onClick={handleBackgroundClick}
     >
-      {/* Exterior — the space around the board (see BOARD_EXTERIOR_ART_URL); falls
-          back to the plain dark gradient below when no art has been dropped in yet. */}
+      {/* Exterior — the space around the board (see BOARD_EXTERIOR_ART_URL), now that
+          the flat top-down camera (see getBoardAnimation) leaves a visible strip of it
+          above/below the board — right where the hand of cards floats — instead of
+          just a sliver at the tilted edges. Falls back to the plain dark gradient below
+          when no art has been dropped in yet; that fallback is now a dim warm brown
+          (matching the new sandstone board, see art-prompts/README.md) instead of the
+          old cold indigo/black, so it reads as "the same dim stone chamber continuing
+          off past the table" rather than a jarring void behind the hand. */}
       {BOARD_EXTERIOR_ART_URL && (
         <img src={BOARD_EXTERIOR_ART_URL} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
       )}
 
       {/* Background ambient light */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(30,30,60,0.8)_0%,rgba(0,0,0,1)_100%)] pointer-events-none" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_40%,rgba(80,60,140,0.15)_0%,transparent_60%)] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(70,52,34,0.75)_0%,rgba(15,10,6,1)_100%)] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_40%,rgba(180,120,50,0.12)_0%,transparent_60%)] pointer-events-none" />
 
       {/* 3D Board */}
       <motion.div

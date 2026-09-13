@@ -199,6 +199,54 @@ mais longa quanto mais a carta estiver "de costas" pra elas).
 
 ---
 
+## 3c. Fundo de Tela (Exterior) — Câmara de Pedra ao Redor da Mesa
+
+**Vai em:** `BOARD_EXTERIOR_ART_URL` em `src/App.tsx` (hoje vazio — cai num
+degradê marrom escuro liso enquanto isso) · **Estilo:** cenário/ambiente ·
+**Status:** pronto pra gerar
+
+Depois de deixar a câmera do tabuleiro 100% reta (sem inclinação 3D), sobra
+uma faixa visível de tela acima e abaixo da mesa — bem onde a mão do
+jogador fica flutuando — que hoje é só um degradê escuro liso. A ideia
+aqui é o oposto da arte da mesa (item 3b): em vez de chamar atenção, essa
+arte precisa ser **calma e neutra**, pra não competir com as cartas da mão
+em cima dela nem com a mesa (que é a parte "bonita" que o jogador realmente
+olha durante a partida) — mas ainda parecendo a MESMA sala de pedra
+continuando por trás, não um fundo genérico qualquer.
+
+```
+Full-screen tall portrait background of a dim, quiet stone chamber
+continuing beyond a ritual duel table, same warm sandstone/limestone
+material and honey-tan color family as the table itself, but plain and
+calm rather than a scene focal point: a smooth, mostly unadorned stone
+floor and soft out-of-focus stone walls, only a few faint, sparse rune
+markings (nowhere near as dense or detailed as the table's central carved
+circle), no strong shapes or subjects to draw the eye. Even, dim, slightly
+desaturated ambient torchlight — the same warm amber firelight family as
+the table's lighting, but noticeably darker and lower-contrast here, so
+objects placed on top of this background (cards, UI) stand out easily
+against it. Soft vignette, darkest at the very top and bottom edges of the
+frame. A very subtle, soft-focus hint of the stone circle's outer ring
+motif may bleed in faintly near the vertical center of the image (where it
+will sit behind the table), but the top quarter and bottom quarter of the
+image — the parts that stay visible on screen — should read as calm,
+low-detail stone with nothing important happening in them. Painterly
+digital illustration, same medieval-fantasy tabletop style as the duel
+table (Gwent / Yu-Gi-Oh Forbidden Memories quality), no characters, no
+cards, no UI, no text, no watermark, very tall vertical portrait
+orientation (safe to generate taller than a typical phone screen — it
+gets center-cropped to fit)
+```
+
+**Notas:** essa imagem cobre a tela inteira (não só o tabuleiro), então
+gere bem alta/vertical — algo como 1080×2400 ou mais alto — já que o jogo
+corta ela pelo centro pra caber em qualquer proporção de celular
+(`object-cover`). O pedido de "calmo, sem detalhe" é de propósito: essa
+parte não é o que o jogador deve olhar, é só o que evita a sensação de
+"vazio preto" atrás da mão de cartas.
+
+---
+
 ## 3. Moldura Full Art (dourada) — referência de layout
 
 **Arquivo:** [`reference/full-art-frame-gold-v1.png`](./reference/full-art-frame-gold-v1.png)
