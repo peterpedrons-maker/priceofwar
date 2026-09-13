@@ -2628,7 +2628,12 @@ export default function App() {
             expressible as a flex gap). A second, lower row for just Relíquia/Terreno
             was the first attempt, but there isn't enough vertical room between the
             gate and the Vanguarda row for two separate rows without them overlapping —
-            see the board's fixed 1250-tall canvas. */}
+            see the board's fixed 1250-tall canvas. Pulling Relíquia/Terreno in further
+            horizontally (to sit right next to the gate's own torches, per a hand-drawn
+            reference) was tried and reverted: at 17%/83% they already sit as close to
+            center as they can without their slot box overlapping the Vanguarda/
+            Retaguarda block's own outer column (which spans roughly 24%-76% of the
+            board width) — moving in another few points collides with column 0/4. */}
         <div className="absolute" style={{ left: '50%', top: '10%', transform: 'translate(-50%, -50%)' }}>
           <CardSlot
             slotId="npc-12"
