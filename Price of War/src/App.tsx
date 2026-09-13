@@ -1827,19 +1827,31 @@ export default function App() {
         {/* Central Divider */}
         <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-indigo-400/60 to-transparent shadow-[0_0_15px_rgba(99,102,241,0.6)] -translate-y-1/2 rounded-full pointer-events-none" />
 
-        {/* Turn Plaque — sits right on the divider like a physical marker on the table
-            instead of a floating HUD overlay, since the board is now always on screen.
-            Most turns it's exactly what it always was: "SEU TURNO", tap to pass. Only
-            from turn 3 on, when Batalha exists as a second phase, does tapping it once
-            first slide in "AVANÇAR: BATALHA" (see turnButtonLabel) — a real phase change,
-            not just an end-turn — before the label settles back to "SEU TURNO" for the
-            tap that actually passes the turn. It also flips (like a name plate on a
-            board game) to "TURNO DO ADVERSÁRIO" while it's not the player's turn, then
-            flips back on its own once the NPC's turn ends. That flip rotates around the
+        {/* Turn Plaque — sits on the divider like a physical marker on the table, off to
+            the side rather than dead-center: centered, it was the single biggest thing
+            eating into the gap between the two fields, and it doesn't need to be in
+            the middle to be noticed. Anchored to the right (clear of both the player's
+            own deck/graveyard, which sit in the bottom-right corner, not the vertical
+            center, and the row of Vanguarda slots, which stop well short of the
+            board's edge — see the field flex containers' own width). Most turns it's
+            exactly what it always was: "SEU TURNO", tap to pass. Only from turn 3 on,
+            when Batalha exists as a second phase, does tapping it once first slide in
+            "AVANÇAR: BATALHA" (see turnButtonLabel) — a real phase change, not just an
+            end-turn — before the label settles back to "SEU TURNO" for the tap that
+            actually passes the turn. It also flips (like a name plate on a board game)
+            to "TURNO DO ADVERSÁRIO" while it's not the player's turn, then flips back
+            on its own once the NPC's turn ends. That flip rotates around the
             horizontal axis (rotateX, top-over-bottom) rather than the vertical one, so
             it reads as tipping toward the viewer instead of swiveling side to side. */}
         <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 pointer-events-auto"
+          // The board's own fixed 1000px-wide canvas renders quite a bit wider than the
+          // real viewport on phones (it's deliberately overscaled — see boardScale's
+          // *1.05 and the z-translate in baseAnim — so there's no gap at the screen
+          // edge), which means a small inset here isn't actually a small inset once
+          // it's mapped back onto the real, narrower screen: right-6 left the (wider)
+          // phase-tracker row above the button clipped clean off the right edge.
+          // right-24 clears it with real margin to spare.
+          className="absolute top-1/2 -translate-y-1/2 right-24 md:right-16 z-40 pointer-events-auto"
           style={{ perspective: 600 }}
           onClick={(e) => {
             e.stopPropagation();
@@ -2188,12 +2200,17 @@ export default function App() {
           away" like the rest of the opponent's side of the table. Reapplying that
           same scale factor here keeps it the same size it always was. */}
       <div
-        // Pushed down clear of the "Visualizar Campo" toggle (absolute top-4/top-6,
-        // left-4/left-6 — see Camera Toggle Button below): at the old top-[2%] the
-        // opponent's fanned cards, which are centered and span most of the screen's
-        // width, actually overlapped that button's top-left corner on phones.
-        className="absolute top-[9%] md:top-[7%] left-1/2 -translate-x-1/2 flex pointer-events-none z-40"
-        style={{ transform: `scale(${(isMobile ? 1.0 : 0.85) * boardScale})`, transformOrigin: 'top center' }}
+        // Pushed up so only about the bottom half of each card actually shows — the
+        // opponent doesn't need to be legible (the player never sees their hand
+        // anyway, see the plain card backs below), just present, so tucking half of
+        // it off the top edge reads as "cards in hand" without spending as much
+        // real screen height on it as a fully on-screen fan would.
+        className="absolute left-1/2 -translate-x-1/2 flex pointer-events-none z-40"
+        style={{
+          top: `${-((isMobile ? 192 : 224) * (isMobile ? 1.0 : 0.85) * boardScale) / 2}px`,
+          transform: `scale(${(isMobile ? 1.0 : 0.85) * boardScale})`,
+          transformOrigin: 'top center',
+        }}
       >
         {[...Array(npcHand.length)].map((_, i) => {
           // Same fan technique as the player's own hand (see getFanRotation/getFanLift
@@ -2221,8 +2238,16 @@ export default function App() {
             }}
             transition={{ duration: 0.4, ease: "easeOut" }}
           >
-            {/* Card Back Design */}
-            <CardBack shadow />
+            {/* Card Back Design — flipped 180° around its OWN center (a separate inner
+                wrapper, not folded into the fan's rotateZ above, which pivots around
+                'top center': a 180° turn around THAT pivot would relocate the whole
+                card to the opposite side of the pivot point instead of just flipping
+                it in place). The opponent's board cards already face them (see
+                CardSlot's isOpponentSlot flip), so their hand should too, rather than
+                presenting right-side-up to the player the way their own hand does. */}
+            <div style={{ transform: 'rotate(180deg)', transformOrigin: 'center center', width: '100%', height: '100%', position: 'relative' }}>
+              <CardBack shadow />
+            </div>
           </motion.div>
           );
         })}
@@ -2426,28 +2451,11 @@ export default function App() {
 
 
 
-      {/* Camera Toggle Button */}
-      <div className="absolute top-4 left-4 md:top-6 md:left-6 z-50">
-        <button 
-          disabled={currentTurn === 'npc'}
-          className={`pointer-events-auto px-4 py-2 md:px-6 md:py-3 font-mono font-bold text-[10px] md:text-sm rounded-lg border backdrop-blur-md transition-all flex items-center gap-2 ${
-            currentTurn === 'npc'
-              ? 'bg-zinc-900/80 text-zinc-600 border-zinc-800 cursor-not-allowed'
-              : viewState === 'field' 
-                ? 'bg-emerald-900/80 text-emerald-300 border-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.6)]' 
-                : 'bg-black/60 text-zinc-400 border-zinc-600 hover:bg-zinc-800/60 hover:text-zinc-300'
-          }`}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (isCardInFlightTransition) return; // don't cancel a card mid hand-off to the board
-            setViewState(prev => prev === 'hand' ? 'field' : 'hand');
-            setSelectedCardIndex(null);
-          }}
-        >
-          <div className={`w-2 h-2 rounded-full ${viewState === 'field' ? 'bg-emerald-400 animate-pulse shadow-[0_0_10px_rgba(52,211,153,1)]' : 'bg-zinc-600'}`} />
-          VISUALIZAR CAMPO
-        </button>
-      </div>
+      {/* The manual "Visualizar Campo" toggle that used to live here was removed — it
+          only duplicated what already happens automatically the moment a card is
+          actually played (see handlePlayCardButtonClick, which sets viewState to
+          'field' itself), so it was one more thing sitting in the corner without a
+          real job, plus it was colliding with the opponent's hand fan up there. */}
 
       {/* Flying card — plays from hand to the chosen board slot along real screen coordinates.
           Rises to a large "presentation" size above the slot, holds briefly, then descends
