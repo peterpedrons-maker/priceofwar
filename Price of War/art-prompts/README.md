@@ -147,9 +147,10 @@ quadro, exército embaixo) pra aproveitar o espaço vertical e parecer
 
 ## 3b. Superfície do Tabuleiro — Arenito Iluminado por Tochas
 
-**Arquivo atual:** `src/assets/board-interior.webp` (864×1216, proporção
-~0,71:1, retrato) · **Estilo:** cenário/ambiente · **Status:** pronto pra
-gerar
+**Arquivo:** `src/assets/board-interior.webp` (recortado de 768×1376 pra
+768×1075 pra bater com a proporção do tabuleiro, ~0,71:1) · **Referência
+original:** [`reference/board-interior-sandstone-v1.png`](./reference/board-interior-sandstone-v1.png)
+· **Estilo:** cenário/ambiente · **Status:** gerado e já integrado no jogo
 
 A arte atual do tabuleiro é uma pedra cinza-azulada com entalhes de runas —
 bonita, mas fria demais pra combinar com as molduras das cartas (douradas,
