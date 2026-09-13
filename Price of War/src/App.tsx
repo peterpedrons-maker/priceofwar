@@ -858,9 +858,18 @@ export default function App() {
   const handCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const isMobile = windowSize.width < 768;
-  // Board container is a fixed 1000x1400px canvas (see the 3D Board div below) that gets
+  // Board container is a fixed 1000x1250px canvas (see the 3D Board div below) that gets
   // scaled down to fit the real viewport — these divisors must match those exact dimensions.
-  const boardScale = isMobile ? Math.min(windowSize.width / 1000, windowSize.height / 1400) * 1.05 : Math.min(windowSize.width / 1600, 1);
+  // Was 1400 tall: each half (NPC/player field) only needs ~484px for its general row +
+  // two label+slot rows, but grid-rows-2 split the old 1400px evenly into 620px halves,
+  // leaving ~136px of dead space sitting unused right next to the center divider on each
+  // side — on top of the gap itself. Since this is a fixed-width-bound layout on phones
+  // (width is almost always the tighter constraint, see the isMobile branch below), that
+  // wasted height didn't make anything bigger — it just showed up as pure empty margin
+  // above/below the whole board, squeezing the floating hand trays into less real screen
+  // space than they needed. Trimming it to 1250 keeps the turn button/phase-tracker area
+  // comfortably clear of the nearest slot rows while giving the hands ~150px more room.
+  const boardScale = isMobile ? Math.min(windowSize.width / 1000, windowSize.height / 1250) * 1.05 : Math.min(windowSize.width / 1600, 1);
   // Hand cards are fanned out (see getFanRotation below), so the outer cards' bounding box
   // is wider than their flat width — account for that tilt or the fan's edge cards clip.
   // Scale so the WHOLE hand always fits on screen — no floor, or large hands would overflow
@@ -874,8 +883,14 @@ export default function App() {
   const handTotalWidth = handScaleCount > 0 ? HAND_CARD_WIDTH + (handScaleCount - 1) * HAND_CARD_STEP : HAND_CARD_WIDTH;
   const handFanMaxAngleRad = (FAN_SPREAD_DEG / 2) * (Math.PI / 180);
   const handFanExtraWidth = handScaleCount > 1 ? HAND_CARD_HEIGHT * Math.sin(handFanMaxAngleRad) : 0;
+  // The 0.88 safety factor accounts for what the width-only math above doesn't: the fan's
+  // rotation also pushes each card's TOP edge higher (a rotated rectangle's bounding box
+  // is taller than the flat card, not just wider) and the outer cards get lifted further
+  // down via getFanLift — without this margin, real devices measured the fan's outer/edge
+  // cards clipping past the bottom (and, on the widest hands, the left/right) screen edges
+  // instead of just sitting snugly inside them.
   const handScale = isMobile
-    ? Math.min(0.85, (windowSize.width - 16) / (handTotalWidth + handFanExtraWidth))
+    ? Math.min(0.85, (windowSize.width - 32) / (handTotalWidth + handFanExtraWidth)) * 0.88
     : 1;
   // Kept in sync so code running inside timers set up once at match start (which close
   // over stale state values from that render) can still read the current hand/handScale.
@@ -1758,7 +1773,7 @@ export default function App() {
 
       {/* 3D Board */}
       <motion.div
-        className="w-[1000px] h-[1400px] grid grid-rows-2 gap-24 p-8 relative"
+        className="w-[1000px] h-[1250px] grid grid-rows-2 gap-12 p-8 relative"
         animate={getBoardAnimation()}
         transition={{ duration: viewportSettled ? 0.8 : 0, ease: [0.32, 0.72, 0, 1] }}
         onClick={(e) => {
@@ -2173,7 +2188,11 @@ export default function App() {
           away" like the rest of the opponent's side of the table. Reapplying that
           same scale factor here keeps it the same size it always was. */}
       <div
-        className="absolute top-[2%] md:top-[4%] left-1/2 -translate-x-1/2 flex pointer-events-none z-50"
+        // Pushed down clear of the "Visualizar Campo" toggle (absolute top-4/top-6,
+        // left-4/left-6 — see Camera Toggle Button below): at the old top-[2%] the
+        // opponent's fanned cards, which are centered and span most of the screen's
+        // width, actually overlapped that button's top-left corner on phones.
+        className="absolute top-[9%] md:top-[7%] left-1/2 -translate-x-1/2 flex pointer-events-none z-40"
         style={{ transform: `scale(${(isMobile ? 1.0 : 0.85) * boardScale})`, transformOrigin: 'top center' }}
       >
         {[...Array(npcHand.length)].map((_, i) => {
@@ -2211,7 +2230,7 @@ export default function App() {
 
       {/* Hand UI */}
       <motion.div
-        className="absolute inset-0 w-full h-full flex justify-center items-end pb-4 md:pb-6 pointer-events-none z-50"
+        className="absolute inset-0 w-full h-full flex justify-center items-end pb-12 md:pb-6 pointer-events-none z-50"
         // Anchor scaling at the bottom-center of the screen (instead of the default
         // center) so shrinking the hand to fit (handScale) keeps it flush against the
         // real bottom edge rather than pulling it up toward the middle of the screen,
