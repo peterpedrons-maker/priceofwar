@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { Info, X, Sword, Zap, Users, Library, ArrowUp, ArrowDown, Lock } from 'lucide-react';
+import { Info, X, Sword, Zap, Users, Library, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
 import boardInteriorImage from './assets/board-interior.webp';
 import cardTemplateImage from './assets/card-template.webp';
@@ -25,6 +25,11 @@ export type CardData = {
   // makes the whole board react (see triggerFullArtReaction): a stronger camera
   // shake and every other card on the field flinches, like a big finisher landing.
   isFullArt?: boolean;
+  // A one-time "+X ATK/+X HP in its next combat" bonus — currently only granted by
+  // Comandante Aurelion's active ability (see grantAurelionBuff) — consumed the
+  // next time this exact card instance attacks or defends (see getEffectiveAtk and
+  // the combat resolution blocks' own pendingCombatBonus.hp handling).
+  pendingCombatBonus?: { atk: number; hp: number };
 };
 
 // Slot layout per side (13 slots):
@@ -151,6 +156,203 @@ const areSlotsAdjacent = (a: number, b: number) => {
   const dr = Math.abs(getMoveRow(a) - getMoveRow(b));
   const dc = Math.abs(getMoveCol(a) - getMoveCol(b));
   return dr + dc === 1;
+};
+
+// ── Deck Capitão mechanics ──────────────────────────────────────────────────
+// Every card's `effect` string used to be flavor text only — none of it actually
+// ran. This block gives Deck Capitão's abilities real behavior. Matched by
+// `name` rather than `id`: drawFromDeck/drawFromNpcDeck stamp every drawn card
+// with a fresh random id (`hand_<timestamp>_<random>`) to keep React keys and
+// draw-animation bookkeeping unique per copy, which means the deck array's own
+// descriptive ids (e.g. 'c_tactical_soldier_0') don't survive onto the board —
+// only `name` does, and it's identical across every copy of a given card, so
+// it's the stable thing to key off. Deck Cardeal Pedro's much larger and more
+// varied set of abilities (healing, card draw, summon-on-play, equip-style
+// buffs, deck/graveyard search) needs its own new subsystems (equipment
+// attachment, reveal-and-choose UI for draws/searches) this pass doesn't build
+// — those are still flavor-text-only, same as before. A few Capitão abilities
+// are ALSO left as flavor-only where they need a kind of UI this pass doesn't
+// add either (a free-standing "pick a unit and buff/move it" targeting mode for
+// a Tática card): Reformar Linhas, Avanço Coordenado, Reposicionamento Rápido,
+// Linha Fechada, Ordem de Retirada, and Batedor's "move after combat" (there's
+// no post-Batalha phase to move again in — see phasesForTurn — so this would
+// need a real phase-system change, not just a targeting UI). Escudeiro de
+// Linha's "Protege unidades atrás" needs nothing new: getValidAttackTargets
+// already blocks a lane's Retaguarda card from being attacked while its own
+// Vanguarda is occupied, for any unit, so this is already generically true.
+
+// Is the named card alive and on the field at this exact slot? Used for every
+// singleton (General/Relíquia/Terreno) aura check below.
+const isAliveAt = (slots: (CardData | null)[], index: number, name: string) =>
+  slots[index]?.name === name && !slots[index]?.isDestroyed;
+
+// A unit's ATK after every static Deck Capitão aura that touches it, plus any
+// one-time "next combat" bonus it's currently holding (see pendingCombatBonus —
+// granted by Comandante Aurelion's active below). Called from both combat
+// resolution paths (handleNpcSlotClick and the AI turn loop) for whichever side
+// is attacking or defending — auras are computed from board state, not stored,
+// so they always reflect what's alive on the field right now.
+const getEffectiveAtk = (
+  card: CardData,
+  ownIndex: number,
+  ownSlots: (CardData | null)[],
+  enemySlots: (CardData | null)[]
+): number => {
+  let atk = card.atk + (card.pendingCombatBonus?.atk ?? 0);
+  // Estandarte da Legião (Relíquia, own slot 10): all allies +1 ATK.
+  if (isAliveAt(ownSlots, 10, 'Estandarte da Legião')) atk += 1;
+  // Veterano de Guerra: +2 ATK to itself while standing in column index 2
+  // ("coluna 3", 1-indexed) — a positional self-buff, not an aura on others.
+  if (card.name === 'Veterano de Guerra' && getLaneCol(ownIndex) === 2) atk += 2;
+  // Lanceiro de Controle: the enemy unit directly facing its lane (same slot
+  // index, mirrored across the board) gets -1 ATK while the Lanceiro is alive.
+  const facingEnemy = enemySlots[ownIndex];
+  if (facingEnemy && !facingEnemy.isDestroyed && facingEnemy.name === 'Lanceiro de Controle') atk -= 1;
+  // Pântano Maldito (Terreno, enemy's own slot 11): enemy Vanguarda -1 ATK.
+  if (isFrontline(ownIndex) && isAliveAt(enemySlots, 11, 'Pântano Maldito')) atk -= 1;
+  return Math.max(0, atk);
+};
+
+// How much incoming damage a slot's occupant shrugs off before it's subtracted
+// from HP — Comandante Aurelion's passive and Fortaleza de Pedra, both flat -1
+// reductions that stack if somehow both apply.
+const getIncomingDamageReduction = (ownIndex: number, ownSlots: (CardData | null)[]): number => {
+  let reduction = 0;
+  // Comandante Aurelion passive: units adjacent to the General (the Relíquia/
+  // Terreno slots on either side of him) take -1 damage.
+  if ((ownIndex === 10 || ownIndex === 11) && isAliveAt(ownSlots, 12, 'Comandante Aurelion, Mestre da Formação')) reduction += 1;
+  // Fortaleza de Pedra (Terreno, own slot 11): own Retaguarda takes -1 damage.
+  if (isBackline(ownIndex) && isAliveAt(ownSlots, 11, 'Fortaleza de Pedra')) reduction += 1;
+  return reduction;
+};
+
+// Comandante Aurelion's active: "Após Remanejamento, até 2 unidades que se
+// moveram ganham +1/+1 no próximo combate." Called once, right as Preparação
+// ends (see the turn button's onClick) — tags up to 2 of this turn's movedSlots
+// with a one-time bonus, consumed (see getEffectiveAtk / the combat blocks'
+// pendingCombatBonus.hp handling) the next time that unit actually fights.
+// NPC-side is out of scope: aiService.ts never repositions its own units (see
+// its Relíquia/Terreno skip), so movedSlots-style tracking has nothing to read
+// there even if the AI ends up playing this same deck (see resetGame).
+const grantAurelionBuff = (slots: (CardData | null)[], moved: Set<number>): (CardData | null)[] => {
+  if (!isAliveAt(slots, 12, 'Comandante Aurelion, Mestre da Formação') || moved.size === 0) return slots;
+  const targets = [...moved].filter(i => slots[i]).slice(0, 2);
+  if (targets.length === 0) return slots;
+  const next = [...slots];
+  targets.forEach(i => { next[i] = { ...next[i]!, pendingCombatBonus: { atk: 1, hp: 1 } }; });
+  return next;
+};
+
+// Capitão de Formação: "Ao mover: adjacentes +1 ATK." Called right after a
+// reposition move lands (see handleSlotClick) — a permanent stat stamp on
+// whoever was standing next to its NEW position, not a recomputed aura, so the
+// buff persists even if the Capitão later moves away or dies.
+const applyFormationCaptainBuff = (slots: (CardData | null)[], moverNewIndex: number): (CardData | null)[] => {
+  const mover = slots[moverNewIndex];
+  if (!mover || mover.name !== 'Capitão de Formação') return slots;
+  const next = [...slots];
+  for (let j = 0; j <= 9; j++) {
+    if (areSlotsAdjacent(moverNewIndex, j) && next[j]) {
+      next[j] = { ...next[j]!, atk: next[j]!.atk + 1 };
+    }
+  }
+  return next;
+};
+
+// Soldado Tático: "Troca com aliado adjacente no fim do turno." Runs for
+// whichever side's turn just ended (see the turn button's onClick and the AI
+// turn loop's own end) — every Soldado Tático still on the Vanguarda/Retaguarda
+// grid swaps with one adjacent ally, if it has one. A slot only takes part in one
+// swap per pass so two adjacent Soldados don't bounce back and forth.
+const applyEndOfTurnSwaps = (slots: (CardData | null)[]): (CardData | null)[] => {
+  const next = [...slots];
+  const settled = new Set<number>();
+  for (let i = 0; i <= 9; i++) {
+    if (settled.has(i)) continue;
+    const card = next[i];
+    if (!card || card.name !== 'Soldado Tático') continue;
+    const partner = [i - 1, i + 1, i - 5, i + 5].find(j => areSlotsAdjacent(i, j) && next[j] && !settled.has(j));
+    if (partner !== undefined) {
+      [next[i], next[partner]] = [next[partner], next[i]];
+      settled.add(i);
+      settled.add(partner);
+    }
+  }
+  return next;
+};
+
+// Cavaleiro Tático: "Troca com qualquer aliado na linha" — its own reposition
+// range is the whole Vanguarda or Retaguarda row it's standing in, not just the
+// orthogonal-neighbor rule every other unit uses (see areSlotsAdjacent). Shared
+// by the move-target highlight (validMoveTargets) and the actual move's own
+// validity check (handleSlotClick) so both agree on what's legal.
+const canReposition = (moverCard: CardData | null, from: number, to: number): boolean => {
+  if (!moverCard || from === to) return false;
+  if (moverCard.name === 'Cavaleiro Tático') return getMoveRow(from) === getMoveRow(to);
+  return areSlotsAdjacent(from, to);
+};
+
+// Which specific effect a chosen Emboscada card performs when activated,
+// replacing the old one-size-fits-all "+2/+2 to the defender" placeholder now
+// that Deck Capitão's three Emboscadas have actual written mechanics. Any
+// Emboscada without a case here (Deck Cardeal's "Forças Secretas" isn't wired
+// yet) still gets that original generic buff as a fallback.
+const resolveAmbushEffect = (
+  ambushCard: CardData,
+  attackerSlots: (CardData | null)[],
+  attackerIndex: number,
+  defenderSlots: (CardData | null)[],
+  defenderIndex: number
+): {
+  attackerSlots: (CardData | null)[];
+  defenderSlots: (CardData | null)[];
+  defenderIndex: number;
+  defender: CardData | null;
+  cancelled: boolean;
+} => {
+  const defender = defenderSlots[defenderIndex];
+
+  // Bloqueio Instantâneo: cancels the attack outright if the defender has an
+  // adjacent ally to lean on — no damage to either side.
+  if (ambushCard.name === 'Bloqueio Instantâneo') {
+    const hasAdjacentAlly = defenderIndex <= 9 &&
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(j => areSlotsAdjacent(defenderIndex, j) && defenderSlots[j]);
+    return { attackerSlots, defenderSlots, defenderIndex, defender, cancelled: hasAdjacentAlly };
+  }
+
+  // Contra-Manobra: swaps the defender out for an adjacent ally, who takes the
+  // hit in their place.
+  if (ambushCard.name === 'Contra-Manobra') {
+    if (defenderIndex <= 9) {
+      const partner = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].find(j => areSlotsAdjacent(defenderIndex, j) && defenderSlots[j]);
+      if (partner !== undefined) {
+        const nextDefenderSlots = [...defenderSlots];
+        [nextDefenderSlots[defenderIndex], nextDefenderSlots[partner]] = [nextDefenderSlots[partner], nextDefenderSlots[defenderIndex]];
+        return { attackerSlots, defenderSlots: nextDefenderSlots, defenderIndex: partner, defender: nextDefenderSlots[partner], cancelled: false };
+      }
+    }
+    return { attackerSlots, defenderSlots, defenderIndex, defender, cancelled: false };
+  }
+
+  // Formação Quebrada: yanks the ATTACKER to a random empty slot on their own
+  // side, so the attack never lands.
+  if (ambushCard.name === 'Formação Quebrada') {
+    const emptySlots = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => i !== attackerIndex && !attackerSlots[i]);
+    const nextAttackerSlots = [...attackerSlots];
+    if (emptySlots.length > 0) {
+      const target = emptySlots[Math.floor(Math.random() * emptySlots.length)];
+      nextAttackerSlots[target] = nextAttackerSlots[attackerIndex];
+      nextAttackerSlots[attackerIndex] = null;
+    }
+    return { attackerSlots: nextAttackerSlots, defenderSlots, defenderIndex, defender, cancelled: true };
+  }
+
+  // Fallback — the original generic buff, for any Emboscada without its own
+  // case yet (e.g. Deck Cardeal's "Forças Secretas").
+  const buffed = defender ? { ...defender, atk: defender.atk + 2, hp: defender.hp + 2 } : null;
+  const nextDefenderSlots = [...defenderSlots];
+  if (buffed) nextDefenderSlots[defenderIndex] = buffed;
+  return { attackerSlots, defenderSlots: nextDefenderSlots, defenderIndex, defender: buffed, cancelled: false };
 };
 
 // Both Generals now come from whichever deck each side is playing (see DECKS
@@ -1214,28 +1416,55 @@ export default function App() {
             let hasDestroyed = false;
 
             let defender = currentPlayerSlots[action.targetSlot];
+            let targetSlot = action.targetSlot;
             if (defender) {
               const ambushCard = await maybeActivatePlayerAmbush(attacker, defender);
-              if (ambushCard) defender = { ...defender, atk: defender.atk + 2, hp: defender.hp + 2 };
-
-              const updatedAttacker = { ...attacker, hp: attacker.hp - defender.atk };
-              const updatedDefender = { ...defender, hp: defender.hp - attacker.atk };
-
-              if (updatedAttacker.hp <= 0) {
-                currentNpcSlots[action.attackerSlot] = { ...updatedAttacker, isDestroyed: true };
-                hasDestroyed = true;
-              } else {
-                currentNpcSlots[action.attackerSlot] = updatedAttacker;
+              let cancelled = false;
+              if (ambushCard) {
+                const resolved = resolveAmbushEffect(ambushCard, currentNpcSlots, action.attackerSlot, currentPlayerSlots, action.targetSlot);
+                currentNpcSlots = resolved.attackerSlots;
+                currentPlayerSlots = resolved.defenderSlots;
+                targetSlot = resolved.defenderIndex;
+                defender = resolved.defender;
+                cancelled = resolved.cancelled;
+                setNpcSlots([...currentNpcSlots]);
+                setPlayerSlots([...currentPlayerSlots]);
               }
 
-              if (updatedDefender.hp <= 0) {
-                currentPlayerSlots[action.targetSlot] = { ...updatedDefender, isDestroyed: true };
-                hasDestroyed = true;
-                if (updatedDefender.cardType === 'General') {
-                  playerGeneralFell = true;
+              if (!cancelled && defender) {
+                const attackerAtk = getEffectiveAtk(attacker, action.attackerSlot, currentNpcSlots, currentPlayerSlots);
+                const defenderAtk = getEffectiveAtk(defender, targetSlot, currentPlayerSlots, currentNpcSlots);
+                const attackerReduction = getIncomingDamageReduction(action.attackerSlot, currentNpcSlots);
+                const defenderReduction = getIncomingDamageReduction(targetSlot, currentPlayerSlots);
+                const attackerHpBonus = attacker.pendingCombatBonus?.hp ?? 0;
+                const defenderHpBonus = defender.pendingCombatBonus?.hp ?? 0;
+                const updatedAttacker = {
+                  ...attacker,
+                  hp: attacker.hp + attackerHpBonus - Math.max(0, defenderAtk - attackerReduction),
+                  pendingCombatBonus: undefined,
+                };
+                const updatedDefender = {
+                  ...defender,
+                  hp: defender.hp + defenderHpBonus - Math.max(0, attackerAtk - defenderReduction),
+                  pendingCombatBonus: undefined,
+                };
+
+                if (updatedAttacker.hp <= 0) {
+                  currentNpcSlots[action.attackerSlot] = { ...updatedAttacker, isDestroyed: true };
+                  hasDestroyed = true;
+                } else {
+                  currentNpcSlots[action.attackerSlot] = updatedAttacker;
                 }
-              } else {
-                currentPlayerSlots[action.targetSlot] = updatedDefender;
+
+                if (updatedDefender.hp <= 0) {
+                  currentPlayerSlots[targetSlot] = { ...updatedDefender, isDestroyed: true };
+                  hasDestroyed = true;
+                  if (updatedDefender.cardType === 'General') {
+                    playerGeneralFell = true;
+                  }
+                } else {
+                  currentPlayerSlots[targetSlot] = updatedDefender;
+                }
               }
 
               setNpcSlots([...currentNpcSlots]);
@@ -1267,6 +1496,14 @@ export default function App() {
           setIsAnimating(false);
           return;
         }
+
+        // The NPC's own turn just ended too — same Soldado Tático end-of-turn swap
+        // as the player's side (see applyEndOfTurnSwaps), in case the AI ends up
+        // playing Deck Capitão this match (see resetGame). Aurelion's active isn't
+        // mirrored here: it only fires off actual repositioning, and the AI never
+        // repositions its own units (see the Relíquia/Terreno skip above).
+        currentNpcSlots = applyEndOfTurnSwaps(currentNpcSlots);
+        setNpcSlots([...currentNpcSlots]);
 
         setCurrentTurn('player');
         setTurnNumber(prev => prev + 1);
@@ -1344,8 +1581,9 @@ export default function App() {
 
   // Which slots (0-9) the currently-selected mover can reposition into this
   // Preparação phase — an empty adjacent slot, or an adjacent ally to swap with.
+  // Cavaleiro Tático gets the whole row instead (see canReposition).
   const validMoveTargets = selectedMoverIndex !== null
-    ? new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => areSlotsAdjacent(selectedMoverIndex, i)))
+    ? new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => canReposition(playerSlots[selectedMoverIndex!], selectedMoverIndex!, i)))
     : new Set<number>();
 
   // Most turns (1-2) have exactly one phase, so the plaque just reads "SEU TURNO" like
@@ -1354,9 +1592,6 @@ export default function App() {
   // ("AVANÇAR: BATALHA") before settling back to "SEU TURNO" for the actual end-turn tap.
   const activePhases = phasesForTurn(turnNumber);
   const isLastPhaseOfTurn = activePhases[activePhases.length - 1] === turnPhase;
-  const turnButtonLabel = isLastPhaseOfTurn
-    ? 'SEU TURNO'
-    : `AVANÇAR: ${PHASE_LABELS[activePhases[activePhases.indexOf(turnPhase) + 1]].toUpperCase()}`;
 
   // A "conducting line" from the selected attacker to every occupied enemy slot — green
   // and flowing for a reachable target, dim red for one that's blocked/out of range —
@@ -1427,7 +1662,7 @@ export default function App() {
         return;
       }
       if (selectedMoverIndex === slotIndex) { setSelectedMoverIndex(null); return; }
-      if (!areSlotsAdjacent(selectedMoverIndex, slotIndex)) {
+      if (!canReposition(playerSlots[selectedMoverIndex], selectedMoverIndex, slotIndex)) {
         // Clicking a different one of your own (unmoved) units re-selects it instead
         // of just failing — reads nicer than forcing a deselect first.
         if (playerSlots[slotIndex] && !movedSlots.has(slotIndex)) { setSelectedMoverIndex(slotIndex); return; }
@@ -1439,7 +1674,9 @@ export default function App() {
       const newSlots = [...playerSlots];
       newSlots[selectedMoverIndex] = occupant ?? null; // moving into empty, or swapping
       newSlots[slotIndex] = mover;
-      setPlayerSlots(newSlots);
+      // Capitão de Formação: "Ao mover: adjacentes +1 ATK" — a permanent stamp on
+      // whoever ends up next to its new position.
+      setPlayerSlots(applyFormationCaptainBuff(newSlots, slotIndex));
       setMovedSlots(prev => {
         const next = new Set(prev);
         next.add(selectedMoverIndex!);
@@ -1558,33 +1795,61 @@ export default function App() {
       
       const attacker = playerSlots[selectedAttackerIndex];
       let defender = npcSlots[slotIndex];
+      let targetSlot = slotIndex;
 
       if (attacker && defender) {
         const ambushCard = await maybeActivateNpcAmbush(attacker, defender);
-        if (ambushCard) defender = { ...defender, atk: defender.atk + 2, hp: defender.hp + 2 };
-
-        const updatedAttacker = { ...attacker, hp: attacker.hp - defender.atk };
-        const updatedDefender = { ...defender, hp: defender.hp - attacker.atk };
-        
-        const newPlayerSlots = [...playerSlots];
-        const newNpcSlots = [...npcSlots];
-        
-        let hasDestroyed = false;
-
-        if (updatedAttacker.hp <= 0) {
-           newPlayerSlots[selectedAttackerIndex] = { ...updatedAttacker, isDestroyed: true };
-           hasDestroyed = true;
-        } else {
-           newPlayerSlots[selectedAttackerIndex] = updatedAttacker;
+        let attackerSlotsAfterAmbush: (CardData | null)[] = playerSlots;
+        let defenderSlotsAfterAmbush: (CardData | null)[] = npcSlots;
+        let cancelled = false;
+        if (ambushCard) {
+          const resolved = resolveAmbushEffect(ambushCard, playerSlots, selectedAttackerIndex, npcSlots, slotIndex);
+          attackerSlotsAfterAmbush = resolved.attackerSlots;
+          defenderSlotsAfterAmbush = resolved.defenderSlots;
+          targetSlot = resolved.defenderIndex;
+          defender = resolved.defender;
+          cancelled = resolved.cancelled;
         }
 
+        const newPlayerSlots = [...attackerSlotsAfterAmbush];
+        const newNpcSlots = [...defenderSlotsAfterAmbush];
+
+        let hasDestroyed = false;
         let npcGeneralFell = false;
-        if (updatedDefender.hp <= 0) {
-           newNpcSlots[slotIndex] = { ...updatedDefender, isDestroyed: true };
-           hasDestroyed = true;
-           if (updatedDefender.cardType === 'General') npcGeneralFell = true;
-        } else {
-           newNpcSlots[slotIndex] = updatedDefender;
+
+        if (!cancelled && defender) {
+          const attackerAtk = getEffectiveAtk(attacker, selectedAttackerIndex, newPlayerSlots, newNpcSlots);
+          const defenderAtk = getEffectiveAtk(defender, targetSlot, newNpcSlots, newPlayerSlots);
+          const attackerReduction = getIncomingDamageReduction(selectedAttackerIndex, newPlayerSlots);
+          const defenderReduction = getIncomingDamageReduction(targetSlot, newNpcSlots);
+          const attackerHpBonus = attacker.pendingCombatBonus?.hp ?? 0;
+          const defenderHpBonus = defender.pendingCombatBonus?.hp ?? 0;
+
+          const updatedAttacker = {
+            ...attacker,
+            hp: attacker.hp + attackerHpBonus - Math.max(0, defenderAtk - attackerReduction),
+            pendingCombatBonus: undefined,
+          };
+          const updatedDefender = {
+            ...defender,
+            hp: defender.hp + defenderHpBonus - Math.max(0, attackerAtk - defenderReduction),
+            pendingCombatBonus: undefined,
+          };
+
+          if (updatedAttacker.hp <= 0) {
+            newPlayerSlots[selectedAttackerIndex] = { ...updatedAttacker, isDestroyed: true };
+            hasDestroyed = true;
+          } else {
+            newPlayerSlots[selectedAttackerIndex] = updatedAttacker;
+          }
+
+          if (updatedDefender.hp <= 0) {
+            newNpcSlots[targetSlot] = { ...updatedDefender, isDestroyed: true };
+            hasDestroyed = true;
+            if (updatedDefender.cardType === 'General') npcGeneralFell = true;
+          } else {
+            newNpcSlots[targetSlot] = updatedDefender;
+          }
         }
 
         setPlayerSlots(newPlayerSlots);
@@ -1827,31 +2092,18 @@ export default function App() {
         {/* Central Divider */}
         <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-indigo-400/60 to-transparent shadow-[0_0_15px_rgba(99,102,241,0.6)] -translate-y-1/2 rounded-full pointer-events-none" />
 
-        {/* Turn Plaque — sits on the divider like a physical marker on the table, off to
-            the side rather than dead-center: centered, it was the single biggest thing
-            eating into the gap between the two fields, and it doesn't need to be in
-            the middle to be noticed. Anchored to the right (clear of both the player's
-            own deck/graveyard, which sit in the bottom-right corner, not the vertical
-            center, and the row of Vanguarda slots, which stop well short of the
-            board's edge — see the field flex containers' own width). Most turns it's
-            exactly what it always was: "SEU TURNO", tap to pass. Only from turn 3 on,
-            when Batalha exists as a second phase, does tapping it once first slide in
-            "AVANÇAR: BATALHA" (see turnButtonLabel) — a real phase change, not just an
-            end-turn — before the label settles back to "SEU TURNO" for the tap that
-            actually passes the turn. It also flips (like a name plate on a board game)
-            to "TURNO DO ADVERSÁRIO" while it's not the player's turn, then flips back
-            on its own once the NPC's turn ends. That flip rotates around the
-            horizontal axis (rotateX, top-over-bottom) rather than the vertical one, so
-            it reads as tipping toward the viewer instead of swiveling side to side. */}
+        {/* Turn Button — a small circular tap target on the divider, off to the side,
+            NOT the wide pill this used to be: that pill (and the wide horizontal
+            phase-tracker row above it) was big enough to actually sit on top of the
+            Vanguarda slots next to it. A plain icon (▶ to pass/advance, an hourglass
+            while it's not your turn) says everything a small circle can say — the
+            full "SEU TURNO"/"AVANÇAR: BATALHA"/"TURNO DO ADVERSÁRIO" text doesn't fit
+            here anymore, but the always-visible phase tracker (now a narrow vertical
+            stack of two short labels, not a wide horizontal row) still spells out
+            which phase is which. Flips (like a coin) between an amber "your turn"
+            face and a dull gray "not your turn" face. */}
         <div
-          // The board's own fixed 1000px-wide canvas renders quite a bit wider than the
-          // real viewport on phones (it's deliberately overscaled — see boardScale's
-          // *1.05 and the z-translate in baseAnim — so there's no gap at the screen
-          // edge), which means a small inset here isn't actually a small inset once
-          // it's mapped back onto the real, narrower screen: right-6 left the (wider)
-          // phase-tracker row above the button clipped clean off the right edge.
-          // right-24 clears it with real margin to spare.
-          className="absolute top-1/2 -translate-y-1/2 right-24 md:right-16 z-40 pointer-events-auto"
+          className="absolute top-1/2 -translate-y-1/2 right-16 md:right-16 z-40 pointer-events-auto flex flex-col items-center gap-2"
           style={{ perspective: 600 }}
           onClick={(e) => {
             e.stopPropagation();
@@ -1859,6 +2111,13 @@ export default function App() {
             setSelectedCardIndex(null);
             setSelectedAttackerIndex(null);
             setSelectedMoverIndex(null);
+            // Preparação is ending — this is "Após Remanejamento" for Comandante
+            // Aurelion (see grantAurelionBuff) and Soldado Tático's end-of-turn swap,
+            // whether that means advancing into Batalha or, on an early turn with no
+            // Batalha yet, ending the turn outright.
+            if (turnPhase === 'preparacao') {
+              setPlayerSlots(prev => applyEndOfTurnSwaps(grantAurelionBuff(prev, movedSlots)));
+            }
             if (isLastPhaseOfTurn) {
               setCurrentTurn('npc');
             } else {
@@ -1870,26 +2129,27 @@ export default function App() {
           {/* Phase tracker — always visible on the player's turn (Yu-Gi-Oh-style: every
               phase the game has shown at once, not just the current one named in
               isolation), so it's always clear what's coming, not just what's active.
-              Preparação/Batalha are the only two phases that exist; Batalha shows locked
-              (with a padlock) until turn 3, then behaves like a normal step. */}
+              Stacked vertically (not a wide horizontal row anymore) so the whole
+              turn-button cluster stays narrow enough to actually clear the board's
+              slots instead of sitting on top of them. */}
           {currentTurn === 'player' && (
-            <div className="absolute -top-7 md:-top-8 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1">
+            <div className="flex flex-col items-center gap-1">
               {(['preparacao', 'batalha'] as TurnPhase[]).map((p, idx) => {
                 const isLocked = p === 'batalha' && turnNumber < 3;
                 const isCurrent = turnPhase === p;
                 return (
                   <React.Fragment key={p}>
-                    {idx > 0 && <div className="w-2 h-px bg-zinc-600" />}
+                    {idx > 0 && <div className="w-px h-1.5 bg-zinc-600" />}
                     <div
-                      className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] md:text-[10px] font-black tracking-widest uppercase whitespace-nowrap transition-colors ${
+                      className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[7px] md:text-[8px] font-black tracking-wide uppercase whitespace-nowrap transition-colors ${
                         isCurrent
-                          ? 'bg-amber-500 border-amber-300 text-zinc-950 shadow-[0_0_10px_rgba(245,158,11,0.7)]'
+                          ? 'bg-amber-500 border-amber-300 text-zinc-950 shadow-[0_0_8px_rgba(245,158,11,0.7)]'
                           : isLocked
                             ? 'bg-zinc-950/80 border-zinc-700 text-zinc-600'
                             : 'bg-zinc-950/80 border-zinc-600 text-zinc-400'
                       }`}
                     >
-                      {isLocked && <Lock className="w-2.5 h-2.5" strokeWidth={3} />}
+                      {isLocked && <Lock className="w-2 h-2" strokeWidth={3} />}
                       {PHASE_LABELS[p]}
                     </div>
                   </React.Fragment>
@@ -1898,65 +2158,46 @@ export default function App() {
             </div>
           )}
           <motion.div
-            className="relative w-[230px] h-[62px] md:w-[280px] md:h-[74px]"
+            className="relative w-14 h-14 md:w-16 md:h-16"
             style={{ transformStyle: 'preserve-3d' }}
             animate={{ rotateX: currentTurn === 'player' ? 0 : 180 }}
             transition={{ duration: 0.6, ease: "easeInOut" }}
-            whileTap={currentTurn === 'player' ? { scale: 0.94 } : undefined}
+            whileTap={currentTurn === 'player' ? { scale: 0.9 } : undefined}
           >
-            {/* Front face — SEU TURNO. A plain code-built button for now (a proper
-                illustrated one is planned later) rather than the sword artwork this used
-                to be: a simple gradient pill with a pressed-3D bottom edge, pulsing while
-                it's actually the player's turn. */}
+            {/* Front face — tap to pass/advance. A plain code-built circle for now (a
+                proper illustrated one is planned later), pulsing while it's actually
+                the player's turn. */}
             <motion.div
-              className="absolute inset-0 rounded-full cursor-pointer flex items-center justify-center gap-2 overflow-hidden
+              className="absolute inset-0 rounded-full cursor-pointer flex items-center justify-center overflow-hidden
                 bg-gradient-to-b from-amber-300 via-amber-500 to-amber-700
                 border-2 border-amber-200
-                shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_5px_0_rgba(120,53,15,0.9),0_8px_16px_rgba(0,0,0,0.5)]"
+                shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_4px_0_rgba(120,53,15,0.9),0_6px_12px_rgba(0,0,0,0.5)]"
               style={{ backfaceVisibility: 'hidden' }}
               animate={{
                 boxShadow: currentTurn === 'player'
                   ? [
-                      'inset 0 1px 0 rgba(255,255,255,0.6), 0 5px 0 rgba(120,53,15,0.9), 0 0 10px rgba(245,158,11,0.5)',
-                      'inset 0 1px 0 rgba(255,255,255,0.6), 0 5px 0 rgba(120,53,15,0.9), 0 0 26px rgba(245,158,11,0.95)',
-                      'inset 0 1px 0 rgba(255,255,255,0.6), 0 5px 0 rgba(120,53,15,0.9), 0 0 10px rgba(245,158,11,0.5)',
+                      'inset 0 1px 0 rgba(255,255,255,0.6), 0 4px 0 rgba(120,53,15,0.9), 0 0 8px rgba(245,158,11,0.5)',
+                      'inset 0 1px 0 rgba(255,255,255,0.6), 0 4px 0 rgba(120,53,15,0.9), 0 0 20px rgba(245,158,11,0.95)',
+                      'inset 0 1px 0 rgba(255,255,255,0.6), 0 4px 0 rgba(120,53,15,0.9), 0 0 8px rgba(245,158,11,0.5)',
                     ]
-                  : 'inset 0 1px 0 rgba(255,255,255,0.6), 0 5px 0 rgba(120,53,15,0.9), 0 0 10px rgba(245,158,11,0.5)'
+                  : 'inset 0 1px 0 rgba(255,255,255,0.6), 0 4px 0 rgba(120,53,15,0.9), 0 0 8px rgba(245,158,11,0.5)'
               }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              {/* The label itself slides/fades on every phase change (see turnButtonLabel)
-                  instead of just snapping — a small "the button just did something" cue
-                  on top of the tap-scale, since a phase change is a real state change,
-                  not just passing the turn. */}
-              <AnimatePresence mode="wait">
-                <motion.span
-                  key={turnButtonLabel}
-                  initial={{ x: 18, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: -18, opacity: 0 }}
-                  transition={{ duration: 0.22, ease: "easeOut" }}
-                  className="flex items-center gap-2 font-black text-sm md:text-base tracking-wide text-zinc-900 whitespace-nowrap"
-                >
-                  <span className="w-2 h-2 rounded-full bg-amber-900 animate-pulse shrink-0" />
-                  {turnButtonLabel}
-                </motion.span>
-              </AnimatePresence>
+              <ChevronRight className="w-6 h-6 md:w-7 md:h-7 text-zinc-900" strokeWidth={3} />
             </motion.div>
 
-            {/* Back face — TURNO DO ADVERSÁRIO (not actionable). Same button shape, dull
-                red/stone tones and no pulse, so it clearly reads as "not yours right now". */}
+            {/* Back face — opponent's turn (not actionable). Same circle, dull
+                red/stone tones and an hourglass instead of the arrow, so it clearly
+                reads as "not yours right now". */}
             <div
               className="absolute inset-0 rounded-full cursor-not-allowed flex items-center justify-center
                 bg-gradient-to-b from-zinc-500 via-zinc-600 to-zinc-800
                 border-2 border-red-900/60
-                shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_5px_0_rgba(30,10,10,0.9),0_8px_16px_rgba(0,0,0,0.5)]"
+                shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_4px_0_rgba(30,10,10,0.9),0_6px_12px_rgba(0,0,0,0.5)]"
               style={{ backfaceVisibility: 'hidden', transform: 'rotateX(180deg)' }}
             >
-              <span className="flex items-center gap-2 font-black text-xs md:text-sm tracking-wide text-red-100">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
-                TURNO DO ADVERSÁRIO
-              </span>
+              <Hourglass className="w-5 h-5 md:w-6 md:h-6 text-red-200" strokeWidth={2.5} />
             </div>
           </motion.div>
         </div>
