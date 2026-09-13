@@ -116,6 +116,33 @@ const getValidAttackTargets = (
   return validTargets;
 };
 
+// Turn phases — ported from the earlier full-art version (commit 8a3d7b8): a turn is
+// split into Reposicionar (move/swap units), Comando (play cards) and Batalha (attack).
+// Battle doesn't unlock until turn 3, same as that version, so the opening turns are
+// purely about setting up a formation before anyone can fight. Draw isn't a player-facing
+// phase here — it already happens automatically at turn start (see the currentTurn effect).
+export type TurnPhase = 'reposicionar' | 'comando' | 'batalha';
+const phasesForTurn = (turn: number): TurnPhase[] =>
+  turn >= 3 ? ['reposicionar', 'comando', 'batalha'] : ['reposicionar', 'comando'];
+const PHASE_LABELS: Record<TurnPhase, string> = {
+  reposicionar: 'Reposicionar',
+  comando: 'Comando',
+  batalha: 'Batalha',
+};
+
+// Reposition adjacency — only Vanguarda/Retaguarda slots (0-9) take part; the
+// General/Relíquia/Terreno slots (10-12) are fixed, same as everywhere else they're
+// special-cased in this file. A 2-row x 5-column grid, orthogonal adjacency only
+// (no diagonals), matching the old version's grid-distance rule.
+const getMoveRow = (slotIndex: number) => (slotIndex <= 4 ? 0 : 1);
+const getMoveCol = (slotIndex: number) => (slotIndex <= 4 ? slotIndex : slotIndex - 5);
+const areSlotsAdjacent = (a: number, b: number) => {
+  if (a < 0 || a > 9 || b < 0 || b > 9 || a === b) return false;
+  const dr = Math.abs(getMoveRow(a) - getMoveRow(b));
+  const dc = Math.abs(getMoveCol(a) - getMoveCol(b));
+  return dr + dc === 1;
+};
+
 // Both Generals now come from whichever deck each side is playing (see DECKS
 // below) — picked at match start in resetGame, not fixed constants like before.
 
@@ -689,6 +716,13 @@ export default function App() {
   const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
   const [currentTurn, setCurrentTurn] = useState<'player' | 'npc'>('player');
   const [turnNumber, setTurnNumber] = useState(1);
+  // Which part of the player's own turn they're in — see TurnPhase above. The AI's
+  // turn doesn't use this; it just plays/attacks directly via playAiTurn.
+  const [turnPhase, setTurnPhase] = useState<TurnPhase>('reposicionar');
+  // Slots (0-9) that have already moved/swapped this reposition phase — each unit
+  // gets one reposition action per own turn, then it's locked until the next one.
+  const [movedSlots, setMovedSlots] = useState<Set<number>>(new Set());
+  const [selectedMoverIndex, setSelectedMoverIndex] = useState<number | null>(null);
 
   const [playerMana, setPlayerMana] = useState(10);
   const [npcMana, setNpcMana] = useState(10);
@@ -719,6 +753,23 @@ export default function App() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [gameOverWinner, setGameOverWinner] = useState<'player' | 'npc' | null>(null);
+
+  // Emboscada (ambush) interrupt — ported/generalized from the old full-art version's
+  // trap-card system: whenever EITHER side is about to take a hit, if the DEFENDING
+  // side has an Emboscada card in hand, combat pauses so that card can be activated
+  // before damage lands. Works both ways now (the old version only paused for the
+  // human defending; here the AI gets the same reactive option, decided by a simple
+  // heuristic instead of a modal — see maybeActivatePlayerAmbush/maybeActivateNpcAmbush).
+  // No per-card effectKeys exist yet (none of the Emboscada cards' flavor text is wired
+  // to real logic, same as every other card right now), so activating any of them
+  // applies one generic reactive buff (+2 ATK / +2 HP to the unit being attacked) —
+  // a placeholder in the same spirit as the rest of the deck's flavor-only effects.
+  const [ambushPrompt, setAmbushPrompt] = useState<{
+    defenderName: string;
+    attackerName: string;
+    options: CardData[];
+    resolve: (chosen: CardData | null) => void;
+  } | null>(null);
 
   // Prompt to install the game as an app (standalone, no browser chrome) — since it's
   // played almost entirely on phones, that extra screen space matters. Shown every time
@@ -1021,6 +1072,10 @@ export default function App() {
     setGameOverWinner(null);
     setCurrentTurn('player');
     setTurnNumber(1);
+    setTurnPhase('reposicionar');
+    setMovedSlots(new Set());
+    setSelectedMoverIndex(null);
+    setAmbushPrompt(null);
     setPlayerMana(10);
     setNpcMana(10);
     setSelectedCardIndex(null);
@@ -1063,6 +1118,11 @@ export default function App() {
       // animate below) — nothing ever brought it back once play returned to the
       // player, so the hand looked like it had vanished. Bring it back to 'hand' here.
       setViewState('hand');
+      // Fresh turn, fresh phase cycle — back to Reposicionar and every unit's move
+      // available again.
+      setTurnPhase('reposicionar');
+      setMovedSlots(new Set());
+      setSelectedMoverIndex(null);
       if (turnNumber > 1 && hand.length < 10) {
         const newCard = drawFromDeck();
         const origin = computeDrawOrigin(playerDeckRef, hand.length);
@@ -1119,8 +1179,11 @@ export default function App() {
 
             let hasDestroyed = false;
 
-            const defender = currentPlayerSlots[action.targetSlot];
+            let defender = currentPlayerSlots[action.targetSlot];
             if (defender) {
+              const ambushCard = await maybeActivatePlayerAmbush(attacker, defender);
+              if (ambushCard) defender = { ...defender, atk: defender.atk + 2, hp: defender.hp + 2 };
+
               const updatedAttacker = { ...attacker, hp: attacker.hp - defender.atk };
               const updatedDefender = { ...defender, hp: defender.hp - attacker.atk };
 
@@ -1211,6 +1274,10 @@ export default function App() {
 
   const handleCardClick = (index: number) => {
     if (viewState === 'field') return; // hand cards are non-interactive once zoomed to the board
+    if (turnPhase !== 'comando') {
+      showToast("Jogar cartas só na fase de Comando!");
+      return;
+    }
     if (selectedCardIndex === index) {
       // Tapped the already-previewed card again — cancel the preview
       setSelectedCardIndex(null);
@@ -1241,6 +1308,16 @@ export default function App() {
     ? getValidAttackTargets(selectedAttackerIndex, playerSlots, npcSlots)
     : new Set<number>();
 
+  // Which slots (0-9) the currently-selected mover can reposition into this
+  // Reposicionar phase — an empty adjacent slot, or an adjacent ally to swap with.
+  const validMoveTargets = selectedMoverIndex !== null
+    ? new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => areSlotsAdjacent(selectedMoverIndex, i)))
+    : new Set<number>();
+
+  const activePhases = phasesForTurn(turnNumber);
+  const isLastPhaseOfTurn = activePhases[activePhases.length - 1] === turnPhase;
+  const turnButtonLabel = isLastPhaseOfTurn ? 'FINALIZAR TURNO' : 'AVANÇAR FASE';
+
   // A "conducting line" from the selected attacker to every occupied enemy slot — green
   // and flowing for a reachable target, dim red for one that's blocked/out of range —
   // so the lane-blocking rule reads as an obvious line on the board, not just an arrow
@@ -1267,8 +1344,69 @@ export default function App() {
     }
   }
 
+  // Player is defending: pause and let them choose (or decline) via the ambush modal.
+  const maybeActivatePlayerAmbush = (attacker: CardData, defender: CardData): Promise<CardData | null> => {
+    const options = handRef.current.filter(c => c.cardType === 'Emboscada');
+    if (options.length === 0) return Promise.resolve(null);
+    return new Promise(resolve => {
+      setAmbushPrompt({ defenderName: defender.name, attackerName: attacker.name, options, resolve });
+    });
+  };
+
+  // AI is defending: no UI, just a simple heuristic — activate if the hit would
+  // otherwise destroy the unit. Always picks the first Emboscada card it's holding.
+  const maybeActivateNpcAmbush = async (attacker: CardData, defender: CardData): Promise<CardData | null> => {
+    const options = npcHandRef.current.filter(c => c.cardType === 'Emboscada');
+    if (options.length === 0) return null;
+    const wouldDie = defender.hp - attacker.atk <= 0;
+    if (!wouldDie) return null;
+    const chosen = options[0];
+    await new Promise(resolve => setTimeout(resolve, 500));
+    setNpcHand(prev => prev.filter(c => c.id !== chosen.id));
+    setNpcGraveyard(g => [...g, chosen]);
+    showToast(`O oponente ativou uma Emboscada: ${chosen.name}!`);
+    return chosen;
+  };
+
   const handleSlotClick = (slotIndex: number, slotEl?: HTMLElement) => {
     if (gameOverWinner || isCardInFlightTransition) return;
+
+    if (turnPhase === 'reposicionar') {
+      // Only Vanguarda/Retaguarda units reposition — General/Relíquia/Terreno (10-12)
+      // are fixed, same as everywhere else in this file.
+      if (slotIndex > 9) {
+        if (playerSlots[slotIndex]) showToast("Essa carta não pode ser reposicionada.");
+        return;
+      }
+      if (selectedMoverIndex === null) {
+        if (!playerSlots[slotIndex]) return;
+        if (movedSlots.has(slotIndex)) { showToast("Essa unidade já se reposicionou nesse turno."); return; }
+        setSelectedMoverIndex(slotIndex);
+        return;
+      }
+      if (selectedMoverIndex === slotIndex) { setSelectedMoverIndex(null); return; }
+      if (!areSlotsAdjacent(selectedMoverIndex, slotIndex)) {
+        // Clicking a different one of your own (unmoved) units re-selects it instead
+        // of just failing — reads nicer than forcing a deselect first.
+        if (playerSlots[slotIndex] && !movedSlots.has(slotIndex)) { setSelectedMoverIndex(slotIndex); return; }
+        showToast("Só dá pra reposicionar para um slot adjacente!");
+        return;
+      }
+      const mover = playerSlots[selectedMoverIndex];
+      const occupant = playerSlots[slotIndex];
+      const newSlots = [...playerSlots];
+      newSlots[selectedMoverIndex] = occupant ?? null; // moving into empty, or swapping
+      newSlots[slotIndex] = mover;
+      setPlayerSlots(newSlots);
+      setMovedSlots(prev => {
+        const next = new Set(prev);
+        next.add(selectedMoverIndex!);
+        next.add(slotIndex);
+        return next;
+      });
+      setSelectedMoverIndex(null);
+      return;
+    }
     if (selectedCardIndex !== null && !playerSlots[slotIndex]) {
       const cardToPlay = hand[selectedCardIndex];
 
@@ -1347,7 +1485,11 @@ export default function App() {
         setPlayerSlots(newSlots);
       }
     } else if (selectedCardIndex === null && playerSlots[slotIndex]) {
-      // Select attacker
+      // Select attacker — only once Batalha has unlocked (turn 3+).
+      if (turnPhase !== 'batalha') {
+        showToast(turnNumber < 3 ? "A fase de Batalha só libera a partir do turno 3." : "Só dá pra atacar na fase de Batalha!");
+        return;
+      }
       if (selectedAttackerIndex === slotIndex) {
         setSelectedAttackerIndex(null);
       } else {
@@ -1373,9 +1515,12 @@ export default function App() {
       setIsImpacting(false);
       
       const attacker = playerSlots[selectedAttackerIndex];
-      const defender = npcSlots[slotIndex];
-      
+      let defender = npcSlots[slotIndex];
+
       if (attacker && defender) {
+        const ambushCard = await maybeActivateNpcAmbush(attacker, defender);
+        if (ambushCard) defender = { ...defender, atk: defender.atk + 2, hp: defender.hp + 2 };
+
         const updatedAttacker = { ...attacker, hp: attacker.hp - defender.atk };
         const updatedDefender = { ...defender, hp: defender.hp - attacker.atk };
         
@@ -1601,22 +1746,38 @@ export default function App() {
         {/* Central Divider */}
         <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-indigo-400/60 to-transparent shadow-[0_0_15px_rgba(99,102,241,0.6)] -translate-y-1/2 rounded-full pointer-events-none" />
 
-        {/* Turn Plaque / End Turn Button — sits right on the divider like a physical
+        {/* Turn Plaque / Phase-Advance Button — sits right on the divider like a physical
             marker on the table instead of a floating HUD overlay, since the board is
-            now always on screen. It's a single flippable plaque: "SEU TURNO" is itself
-            the end-turn button (tap it to pass), and it flips (like a name plate on a
-            board game) to "TURNO DO ADVERSÁRIO" while it's not the player's turn, then
-            flips back on its own once the NPC's turn ends. The flip rotates around the
-            horizontal axis (rotateX, top-over-bottom) rather than the vertical one, so
-            it reads as tipping toward the viewer instead of swiveling side to side. */}
+            now always on screen. It's a single flippable plaque: tapping it advances
+            through the turn's phases (see TurnPhase/PHASE_LABELS) — "AVANÇAR FASE" on
+            every phase but the last, "FINALIZAR TURNO" on the last one, which is what
+            actually passes the turn — and it flips (like a name plate on a board game)
+            to "TURNO DO ADVERSÁRIO" while it's not the player's turn, then flips back on
+            its own once the NPC's turn ends. The flip rotates around the horizontal axis
+            (rotateX, top-over-bottom) rather than the vertical one, so it reads as
+            tipping toward the viewer instead of swiveling side to side. */}
         <div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 pointer-events-auto"
           style={{ perspective: 600 }}
           onClick={(e) => {
             e.stopPropagation();
-            if (currentTurn === 'player') setCurrentTurn('npc');
+            if (currentTurn !== 'player') return;
+            setSelectedCardIndex(null);
+            setSelectedAttackerIndex(null);
+            setSelectedMoverIndex(null);
+            if (isLastPhaseOfTurn) {
+              setCurrentTurn('npc');
+            } else {
+              const idx = activePhases.indexOf(turnPhase);
+              setTurnPhase(activePhases[idx + 1]);
+            }
           }}
         >
+          {currentTurn === 'player' && (
+            <div className="absolute -top-7 md:-top-8 left-1/2 -translate-x-1/2 z-10 px-3 py-0.5 rounded-full bg-zinc-950/80 border border-amber-500/50 text-[10px] md:text-xs font-black tracking-widest text-amber-300 uppercase whitespace-nowrap">
+              Fase: {PHASE_LABELS[turnPhase]}
+            </div>
+          )}
           <motion.div
             className="relative w-[340px] h-[78px] md:w-[420px] md:h-[96px] cursor-pointer"
             style={{ transformStyle: 'preserve-3d' }}
@@ -1646,7 +1807,7 @@ export default function App() {
               <div className="absolute inset-0 flex items-center justify-center pl-[24%] pr-[6%]">
                 <span className="flex items-center gap-2 font-black text-base md:text-lg tracking-wide text-zinc-900">
                   <span className="w-2 h-2 rounded-full bg-amber-700 animate-pulse shrink-0" />
-                  SEU TURNO
+                  {turnButtonLabel}
                 </span>
               </div>
             </motion.div>
@@ -1770,6 +1931,9 @@ export default function App() {
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
                 attackDirection="up"
                 hint={getPlayerSlotHint(i)}
+                isMoverSelected={selectedMoverIndex === i}
+                isValidMoveTarget={validMoveTargets.has(i)}
+                hasMoved={movedSlots.has(i)}
               />
             ))}
           </div>
@@ -1788,6 +1952,9 @@ export default function App() {
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
                 attackDirection="up"
                 hint={getPlayerSlotHint(i)}
+                isMoverSelected={selectedMoverIndex === i}
+                isValidMoveTarget={validMoveTargets.has(i)}
+                hasMoved={movedSlots.has(i)}
               />
             ))}
           </div>
@@ -2446,6 +2613,55 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Emboscada (ambush) interrupt — pauses combat so the defending player can react
+          with a trap card before damage lands. See maybeActivatePlayerAmbush. */}
+      <AnimatePresence>
+        {ambushPrompt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm pointer-events-auto"
+          >
+            <motion.div
+              initial={{ scale: 0.85, y: 30 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.85, y: 30 }}
+              transition={{ type: "spring", damping: 22, stiffness: 280 }}
+              className="relative w-full max-w-sm rounded-2xl border-2 border-amber-500/70 bg-zinc-900 p-5 shadow-[0_0_60px_rgba(0,0,0,0.9)]"
+            >
+              <p className="text-center text-red-400 font-black uppercase tracking-widest text-xs mb-1">Emboscada disponível!</p>
+              <p className="text-center text-white text-sm mb-4">
+                {ambushPrompt.attackerName} está atacando {ambushPrompt.defenderName}. Ativar uma carta de Emboscada antes do combate?
+              </p>
+              <div className="flex flex-col gap-2">
+                {ambushPrompt.options.map(card => (
+                  <button
+                    key={card.id}
+                    onClick={() => {
+                      setHand(prev => prev.filter(c => c.id !== card.id));
+                      setPlayerGraveyard(g => [...g, card]);
+                      showToast(`Emboscada ativada: ${card.name}!`);
+                      ambushPrompt.resolve(card);
+                      setAmbushPrompt(null);
+                    }}
+                    className="w-full px-4 py-2.5 rounded-lg bg-gradient-to-b from-amber-500 to-amber-700 text-zinc-900 font-bold text-sm hover:from-amber-400 hover:to-amber-600 transition-colors"
+                  >
+                    Ativar: {card.name}
+                  </button>
+                ))}
+                <button
+                  onClick={() => { ambushPrompt.resolve(null); setAmbushPrompt(null); }}
+                  className="w-full px-4 py-2.5 rounded-lg bg-zinc-700 text-white font-bold text-sm hover:bg-zinc-600 transition-colors mt-1"
+                >
+                  Não ativar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -2453,7 +2669,8 @@ export default function App() {
 const CardSlot = ({
   onClick, onInfoClick, card, isSelected = false,
   isAttacking = false, isImpactingTarget = false, attackDirection = 'up', hint,
-  isValidAttackTarget = false, isInvalidAttackTarget = false, slotId
+  isValidAttackTarget = false, isInvalidAttackTarget = false, slotId,
+  isMoverSelected = false, isValidMoveTarget = false, hasMoved = false,
 }: {
   onClick?: (el: HTMLElement) => void, onInfoClick?: (card: CardData) => void, card?: CardData | null,
   isSelected?: boolean, isAttacking?: boolean, isImpactingTarget?: boolean, attackDirection?: 'up' | 'down',
@@ -2467,7 +2684,11 @@ const CardSlot = ({
   // A stable DOM id (e.g. "player-3", "npc-12") so the targeting-line overlay can find
   // this exact slot's on-screen position via getBoundingClientRect, without needing a
   // forwarded ref on every one of the 26 slots on the board.
-  slotId?: string
+  slotId?: string,
+  // Reposicionar-phase equivalents of isSelected/isValidAttackTarget/(already acted) —
+  // a unit picked up to move, the adjacent slots it can move/swap into, and a unit
+  // that already used its reposition this turn (dimmed, still clickable to inspect).
+  isMoverSelected?: boolean, isValidMoveTarget?: boolean, hasMoved?: boolean,
 }) => {
   const attackY = attackDirection === 'up' ? -150 : 150;
   // The opponent sits across the table, so their own cards should face THEM, not the
@@ -2495,7 +2716,7 @@ const CardSlot = ({
           onClick(e.currentTarget as HTMLElement);
         }
       }}
-      className={`w-24 md:w-36 h-32 md:h-48 rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-indigo-400/70 hover:border-indigo-300 hover:bg-indigo-500/10 hover:shadow-[0_0_30px_rgba(99,102,241,0.6)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass} ${isValidAttackTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''}`}
+      className={`w-24 md:w-36 h-32 md:h-48 rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-indigo-400/70 hover:border-indigo-300 hover:bg-indigo-500/10 hover:shadow-[0_0_30px_rgba(99,102,241,0.6)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass} ${isValidAttackTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${isMoverSelected ? 'ring-4 ring-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.7)]' : ''} ${isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''}`}
     >
       {!card && hint && (
         // Simple first-pass "where can this card go" indicator: a green arrow on its
