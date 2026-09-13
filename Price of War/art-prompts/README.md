@@ -203,7 +203,7 @@ mais longa quanto mais a carta estiver "de costas" pra elas).
 **Arquivo:** `src/assets/board-interior.webp` (848×1264, feito por fora do
 Grimório — sem prompt documentado aqui) · **Referência:**
 [`reference/board-interior-gateway-v1.png`](./reference/board-interior-gateway-v1.png)
-· **Estilo:** cenário/ambiente · **Status:** integrado no jogo
+· **Estilo:** cenário/ambiente · **Status:** substituído — ver 3d logo abaixo
 
 Substitui a versão 3b acima. Em vez de uma mesa isolada cercada de pedra
 lisa, esse tabuleiro é um pátio de castelo com um portão/passagem real no
@@ -223,7 +223,7 @@ muros/portão não são um espaçamento uniforme).
 
 **Vai em:** `BOARD_EXTERIOR_ART_URL` em `src/App.tsx` (hoje vazio — cai num
 degradê marrom escuro liso enquanto isso) · **Estilo:** cenário/ambiente ·
-**Status:** pronto pra gerar
+**Status:** substituído — ver 3d logo abaixo
 
 Depois de deixar a câmera do tabuleiro 100% reta (sem inclinação 3D), sobra
 uma faixa visível de tela acima e abaixo da mesa — bem onde a mão do
@@ -264,6 +264,101 @@ corta ela pelo centro pra caber em qualquer proporção de celular
 (`object-cover`). O pedido de "calmo, sem detalhe" é de propósito: essa
 parte não é o que o jogador deve olhar, é só o que evita a sensação de
 "vazio preto" atrás da mão de cartas.
+
+---
+
+## 3d. Arte Única de Tela Inteira — Campo de Batalha Épico (substitui 3b-v2 + 3c)
+
+**Vai em:** tanto `BOARD_INTERIOR_ART_URL` quanto `BOARD_EXTERIOR_ART_URL`
+em `src/App.tsx` — ou, mais provavelmente, substitui os dois por uma única
+imagem de tela cheia (aí a caixa com moldura do tabuleiro vira só uma
+"janela" transparente por cima dela, sem borda própria) · **Estilo:**
+cenário/ambiente · **Status:** pronto pra gerar
+
+A 3b-v2 (pátio com portões, só a mesa) e a 3c (câmara vazia ao redor, nunca
+chegou a ser gerada) eram pensadas como duas artes separadas que
+precisavam combinar visualmente uma com a outra — mesma pedra, mesma luz,
+bordas que emendassem sem costura visível. Na prática isso nunca ficou bom
+o suficiente (general "flutuando" sobre a paisagem vista pelo portão,
+relíquia/terreno encostando nas paredes, e a integração das duas peças
+seguia parecendo remendada). Esse prompt pede a cena inteira como um único
+desenho contínuo, sem costura nenhuma pra acertar depois — e também troca
+o cenário: em vez de um pátio de castelo (achado fraco demais), agora é um
+campo de batalha à noite, com fogueiras/braseiros e estandartes fincados no
+chão marcando o "limite" de cada lado, no lugar dos portões de pedra.
+
+```
+Full-screen, single continuous top-down illustration of an epic medieval
+fantasy battlefield at night, tall vertical portrait spanning the entire
+frame edge-to-edge — one seamless scene from the very top edge to the very
+bottom edge, not two separate pieces to be joined later.
+
+At the very top edge of the frame: the enemy's front line, marked by a row
+of tall red heraldic banners (a golden lion crest on dark red cloth)
+planted firmly in the ground alongside two blazing iron war-braziers on
+poles. Just beyond this line, low in the frame and soft-focus, a distant
+hint of their war camp — silhouetted tents, a few distant bonfires, faint
+smoke rising — small and atmospheric, not a place a card could stand.
+
+At the very bottom edge of the frame, mirroring the top exactly in scale,
+distance and composition: an identical front line of blue heraldic
+banners and blazing war-braziers — this is the player's side, with its
+own distant camp glimpsed beyond it.
+
+Between the two front lines, filling the entire vertical middle of the
+frame, a wide stretch of open battlefield ground — trampled dirt and
+scorched, patchy grass, with only sparse, small battle debris (a few
+broken arrows, scattered embers, faint scorch marks) kept clearly away
+from the center. This middle area must be deliberately plain, flat, and
+uncluttered across the bulk of its width and height — no large debris, no
+craters, no bodies, no characters or creatures anywhere — because rows of
+playing cards will be placed directly on top of this art in a game.
+Specifically leave clearly solid, flat, readable ground: immediately in
+front of each side's banner line (so a card standing there reads as
+standing on solid ground, not lost against the distant camp), and across
+the full width of the battlefield between the two front lines (enough
+open ground for two more full rows of cards on each side, stacked between
+each front line and the battlefield's center).
+
+Keep both the left and right edges of the frame relatively calm and open
+too — distant darkness, a few far-off silhouetted banners or spear tips at
+the very edge of visibility, but no large foreground objects — so cards
+placed near the battlefield's left/right edges read as standing in open
+ground, not overlapping scenery.
+
+Warm firelight (amber/orange, ~2000K) from the four braziers is the
+dominant light source against the dark night sky, casting long dramatic
+shadows and flickering pools of light across the ground, brightest near
+the vertical center of the battlefield and fading into deeper shadow
+toward the far edges and corners of the frame. A few embers and drifting
+smoke catch the light. Painterly digital illustration, premium
+medieval-fantasy tabletop game quality (Gwent / Yu-Gi-Oh Forbidden
+Memories duel arena, dramatic war-epic atmosphere), extremely detailed
+ground texture and fabric on the banners, no characters, no cards, no UI,
+no text, no watermark, straight-down top-view camera (looking directly
+down, no tilt, no perspective distortion), very tall vertical portrait
+orientation — generate noticeably taller than a typical phone screen
+(roughly 1080×2600 or taller) so it can be safely center-cropped to fit
+any phone aspect ratio without losing either front line
+```
+
+**Notas:** a instrução "não são duas peças a serem combinadas depois" é
+proposital — é exatamente o problema que a divisão 3b-v2/3c criava. Troquei
+o portão de pedra por uma linha de estandartes + braseiros porque um campo
+de batalha aberto não tem "portões" de verdade, mas ainda precisava de
+algo que marcasse claramente onde cada lado começa, desse a cor de time
+(vermelho/azul) e a luz quente — os braseiros fazem esse papel. Mantive os
+mesmos 3 pontos "seguros" pedidos na versão anterior (em frente a cada
+linha de frente, e nas duas fileiras entre elas, e margem nas laterais)
+porque foram exatamente os pontos que ficaram ruins nas tentativas
+anteriores: General em cima de cenário, e Relíquia/Terreno encostando em
+alguma coisa. Gerar bem mais alto que a tela (proporção sugerida
+~1080×2600+) dá margem pro corte central (`object-cover`) sem cortar
+nenhuma das duas linhas de frente. Depois de gerada, essa imagem
+provavelmente vira a arte de tela cheia (`BOARD_EXTERIOR_ART_URL`), com a
+caixa do tabuleiro perdendo a própria borda/moldura pra virar só uma
+janela por cima dela — mas isso é um ajuste de código pra depois, não
+precisa decidir antes de gerar a arte.
 
 ---
 

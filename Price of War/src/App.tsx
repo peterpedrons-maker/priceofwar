@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { Info, X, Sword, Zap, Users, Library, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
-import boardInteriorImage from './assets/board-interior.webp';
+import boardBattlefieldImage from './assets/board-battlefield.webp';
 import cardTemplateImage from './assets/card-template.webp';
 import cardTemplateSilverImage from './assets/card-template-silver.webp';
 import cardTemplateChampagneImage from './assets/card-template-champagne.webp';
@@ -753,12 +753,15 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
   );
 };
 
-// The board's art comes as two separate images: one for the playing surface
-// itself (inside the bordered board frame) and one for the space around it
-// (outside the frame, filling the rest of the screen). Empty for now — the
-// game renders flat neutral placeholders instead until real art is dropped in.
-const BOARD_INTERIOR_ART_URL = boardInteriorImage;
-const BOARD_EXTERIOR_ART_URL = '';
+// The board art used to be two separate images — one for the playing surface
+// inside the bordered board frame, one for the space around it — that had to
+// visually match up at the seam. That never worked well (see art-prompts/
+// README.md, "3d"), so it's now a single full-screen battlefield image (both
+// front lines AND the ground between them, top to bottom) rendered as the
+// EXTERIOR only; the interior board frame below has no image or border of
+// its own anymore, just a transparent window onto this same background.
+const BOARD_INTERIOR_ART_URL = '';
+const BOARD_EXTERIOR_ART_URL = boardBattlefieldImage;
 
 // How big the previewed card renders while parked at the edge during slot selection.
 // The game is played almost entirely on phones, so legibility there matters more than
@@ -2441,9 +2444,20 @@ export default function App() {
         <img src={BOARD_EXTERIOR_ART_URL} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
       )}
 
-      {/* Background ambient light */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(70,52,34,0.75)_0%,rgba(15,10,6,1)_100%)] pointer-events-none" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_40%,rgba(180,120,50,0.12)_0%,transparent_60%)] pointer-events-none" />
+      {/* Background ambient light — the heavy version below was tuned as a total
+          fallback for when there was no exterior art at all (a flat void), so it's
+          only rendered in that case now; with the real battlefield art in place it
+          was dark/opaque enough to hide almost the entire image. A much lighter
+          vignette still applies on top of real art, just for edge falloff. */}
+      {!BOARD_EXTERIOR_ART_URL && (
+        <>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(70,52,34,0.75)_0%,rgba(15,10,6,1)_100%)] pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_40%,rgba(180,120,50,0.12)_0%,transparent_60%)] pointer-events-none" />
+        </>
+      )}
+      {BOARD_EXTERIOR_ART_URL && (
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.45)_100%)] pointer-events-none" />
+      )}
 
       {/* 3D Board — flex-shrink-0 matters here: the root container above is a flex
           column, and this box's own explicit 1250px height is taller than most real
@@ -2469,40 +2483,24 @@ export default function App() {
           }
         }}
       >
-        {/* Board Surface — the playing-surface art, inside the bordered frame (see
-            BOARD_INTERIOR_ART_URL). */}
+        {/* Board Surface — used to be its own bordered frame with its own art
+            (BOARD_INTERIOR_ART_URL), cropped separately from the exterior
+            background and stitched together at the seam. That's gone now: the
+            single full-screen battlefield image (BOARD_EXTERIOR_ART_URL, see
+            above) already covers this whole area, so this is just a plain
+            darkening tint for card contrast — no border, no background image,
+            no shape of its own — floating transparently over that background. */}
         <div
-          className="absolute inset-0 border-4 border-stone-700/50 bg-[#2b2825] rounded-2xl shadow-[0_0_60px_rgba(0,0,0,0.5)] pointer-events-none overflow-hidden"
+          className="absolute inset-0 pointer-events-none"
           style={{ transform: 'translateZ(-1px)' }}
         >
-          {BOARD_INTERIOR_ART_URL ? (
-            <img src={BOARD_INTERIOR_ART_URL} alt="" className="w-full h-full object-cover" />
-          ) : (
+          {!BOARD_EXTERIOR_ART_URL && (
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.04)_0%,transparent_70%)]" />
           )}
-          {/* The board art itself is quite bright/pale, which made cards hard to pick out
-              on top of it. A flat code-only darkening tint (no new art asset needed) — a
-              bit heavier at the edges than dead center, so the middle stays readable
-              while the corners recede. */}
-          <div className="absolute inset-0 bg-black/35 bg-[radial-gradient(ellipse_at_center,transparent_30%,rgba(0,0,0,0.35)_100%)]" />
-          {/* Torchlight — warm amber glows in the far corners, gently flickering out of
-              sync with each other, so the table reads as firelit rather than just tinted.
-              Same corner positions the new board-art prompt (see art-prompts/README.md,
-              "Superfície do Tabuleiro") asks for, so this keeps working once that art
-              lands — and the eventual per-card dynamic shadow direction should point away
-              from these same two points. */}
-          <motion.div
-            className="absolute -top-10 -left-10 w-72 h-72 rounded-full pointer-events-none mix-blend-screen"
-            style={{ background: 'radial-gradient(circle, rgba(255,170,60,0.55) 0%, rgba(255,120,30,0.2) 40%, transparent 70%)' }}
-            animate={{ opacity: [0.7, 1, 0.75, 0.95, 0.7], scale: [1, 1.05, 0.98, 1.03, 1] }}
-            transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}
-          />
-          <motion.div
-            className="absolute -top-10 -right-10 w-72 h-72 rounded-full pointer-events-none mix-blend-screen"
-            style={{ background: 'radial-gradient(circle, rgba(255,170,60,0.55) 0%, rgba(255,120,30,0.2) 40%, transparent 70%)' }}
-            animate={{ opacity: [0.9, 0.65, 1, 0.8, 0.9], scale: [1, 0.97, 1.04, 1, 1] }}
-            transition={{ duration: 4.1, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
-          />
+          {/* Light darkening tint for card contrast — much lighter than the old
+              version since this art is already a dim night scene, not a bright
+              stone table. */}
+          <div className="absolute inset-0 bg-black/10 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.2)_100%)]" />
         </div>
 
         {/* Central Divider */}
@@ -2618,113 +2616,58 @@ export default function App() {
           </motion.div>
         </div>
 
-        {/* NPC General/Relíquia/Terreno — the new board art (see BOARD_INTERIOR_ART_URL)
-            has an actual gateway passage at the top and bottom instead of open floor,
-            so the General now stands centered in that passage instead of in a tight
-            row squeezed between Relíquia/Terreno. Those two move out to stand in front
-            of the side walls flanking the gate instead — same row (all three share one
-            top%), just spread horizontally, rather than the flex row with a fixed gap
-            this used to be (the walls, and how wide the gate itself is, aren't
-            expressible as a flex gap). A second, lower row for just Relíquia/Terreno
-            was the first attempt, but there isn't enough vertical room between the
-            gate and the Vanguarda row for two separate rows without them overlapping —
-            see the board's fixed 1250-tall canvas. Pulling Relíquia/Terreno in further
-            horizontally (to sit right next to the gate's own torches, per a hand-drawn
-            reference) was tried and reverted: at 17%/83% they already sit as close to
-            center as they can without their slot box overlapping the Vanguarda/
-            Retaguarda block's own outer column (which spans roughly 24%-76% of the
-            board width) — moving in another few points collides with column 0/4. */}
-        <div className="absolute" style={{ left: '50%', top: '10%', transform: 'translate(-50%, -50%)' }}>
-          <CardSlot
-            slotId="npc-12"
-            card={npcSlots[12]}
-            onClick={() => handleNpcSlotClick(12)}
-            onInfoClick={setDetailedCard}
-            shockActive={boardShock}
-            isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
-            isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 12}
-            attackDirection="down"
-            isValidAttackTarget={validAttackTargets.has(12)}
-            isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(12)}
-          />
-          <ManaBadge value={npcMana} className="absolute -top-3 -left-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
-        </div>
-        <div className="absolute" style={{ left: '17%', top: '10%', transform: 'translate(-50%, -50%)' }}>
-          <CardSlot
-            slotId="npc-10"
-            card={npcSlots[10]}
-            onClick={() => handleNpcSlotClick(10)}
-            onInfoClick={setDetailedCard}
-            shockActive={boardShock}
-            isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
-            isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 10}
-            attackDirection="down"
-            isValidAttackTarget={validAttackTargets.has(10)}
-            isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(10) && !!npcSlots[10]}
-          />
-        </div>
-        <div className="absolute" style={{ left: '83%', top: '10%', transform: 'translate(-50%, -50%)' }}>
-          <CardSlot
-            slotId="npc-11"
-            card={npcSlots[11]}
-            onClick={() => handleNpcSlotClick(11)}
-            onInfoClick={setDetailedCard}
-            shockActive={boardShock}
-            isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
-            isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 11}
-            attackDirection="down"
-            isValidAttackTarget={validAttackTargets.has(11)}
-            isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(11) && !!npcSlots[11]}
-          />
-        </div>
-
-        {/* Player General/Relíquia/Terreno — mirrors the NPC block above at the
-            bottom gate instead of the top one. */}
-        <div className="absolute" style={{ left: '50%', top: '90%', transform: 'translate(-50%, -50%)' }}>
-          <CardSlot
-            slotId="player-12"
-            card={playerSlots[12]}
-            onClick={(el) => handleSlotClick(12, el)}
-            isSelected={selectedAttackerIndex === 12}
-            onInfoClick={setDetailedCard}
-            shockActive={boardShock}
-            isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
-            isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 12}
-            attackDirection="up"
-          />
-          <ManaBadge value={playerMana} className="absolute -top-3 -left-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
-        </div>
-        <div className="absolute pointer-events-auto" style={{ left: '17%', top: '90%', transform: 'translate(-50%, -50%)' }}>
-          <CardSlot
-            slotId="player-10"
-            card={playerSlots[10]}
-            onClick={(el) => handleSlotClick(10, el)}
-            isSelected={selectedAttackerIndex === 10}
-            onInfoClick={setDetailedCard}
-            shockActive={boardShock}
-            isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
-            isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 10}
-            attackDirection="up"
-            hint={getPlayerSlotHint(10)}
-          />
-        </div>
-        <div className="absolute pointer-events-auto" style={{ left: '83%', top: '90%', transform: 'translate(-50%, -50%)' }}>
-          <CardSlot
-            slotId="player-11"
-            card={playerSlots[11]}
-            onClick={(el) => handleSlotClick(11, el)}
-            isSelected={selectedAttackerIndex === 11}
-            onInfoClick={setDetailedCard}
-            shockActive={boardShock}
-            isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
-            isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 11}
-            attackDirection="up"
-            hint={getPlayerSlotHint(11)}
-          />
-        </div>
-
-        {/* NPC Field */}
-        <div className="flex flex-col gap-6 justify-start pt-4">
+        {/* NPC Field — reverted back to the pre-gateway-art flex layout (three real
+            rows: General/Relíquia/Terreno, then Retaguarda, then Vanguarda), per the
+            user's explicit ask: the absolute-positioned single-row version above
+            (see git history) put General/Relíquia/Terreno at almost the same board
+            depth as Retaguarda, so it visually read as only two rows instead of three.
+            The new gateway art sits behind this as a background image and isn't
+            pixel-aligned to these rows anymore — the user prioritized the old,
+            functionally-clear 3-row layout over exact alignment with the art's gate
+            opening/torches. */}
+        <div className="flex flex-col gap-6 justify-start pt-16">
+          {/* General row (fixed) + Relíquia/Terreno slots */}
+          <div className="flex justify-center gap-8 items-center">
+            <CardSlot
+              slotId="npc-10"
+              card={npcSlots[10]}
+              onClick={() => handleNpcSlotClick(10)}
+              onInfoClick={setDetailedCard}
+              shockActive={boardShock}
+              isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
+              isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 10}
+              attackDirection="down"
+              isValidAttackTarget={validAttackTargets.has(10)}
+              isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(10) && !!npcSlots[10]}
+            />
+            <div className="relative">
+              <CardSlot
+                slotId="npc-12"
+                card={npcSlots[12]}
+                onClick={() => handleNpcSlotClick(12)}
+                onInfoClick={setDetailedCard}
+              shockActive={boardShock}
+                isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
+                isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 12}
+                attackDirection="down"
+                isValidAttackTarget={validAttackTargets.has(12)}
+                isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(12)}
+              />
+              <ManaBadge value={npcMana} className="absolute -top-3 -left-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
+            </div>
+            <CardSlot
+              slotId="npc-11"
+              card={npcSlots[11]}
+              onClick={() => handleNpcSlotClick(11)}
+              onInfoClick={setDetailedCard}
+              shockActive={boardShock}
+              isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
+              isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 11}
+              attackDirection="down"
+              isValidAttackTarget={validAttackTargets.has(11)}
+              isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(11) && !!npcSlots[11]}
+            />
+          </div>
           {/* Retaguarda NPC (Backline) */}
           <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mb-3">Retaguarda</div>
           <div className="flex justify-center gap-3 md:gap-6">
@@ -2765,8 +2708,8 @@ export default function App() {
           </div>
         </div>
 
-        {/* Player Field */}
-        <div className="flex flex-col gap-6 justify-end pb-4 pointer-events-auto">
+        {/* Player Field — mirrors the NPC block above (see comment there). */}
+        <div className="flex flex-col gap-6 justify-end pb-16 pointer-events-auto">
           {/* Vanguarda Player (Frontline) */}
           <div className="flex justify-center gap-3 md:gap-6">
             {[0, 1, 2, 3, 4].map((i) => (
@@ -2811,6 +2754,47 @@ export default function App() {
             ))}
           </div>
           <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mt-3">Retaguarda</div>
+          {/* General row (fixed) + Relíquia/Terreno slots */}
+          <div className="flex justify-center gap-8 items-center">
+            <CardSlot
+              slotId="player-10"
+              card={playerSlots[10]}
+              onClick={(el) => handleSlotClick(10, el)}
+              isSelected={selectedAttackerIndex === 10}
+              onInfoClick={setDetailedCard}
+              shockActive={boardShock}
+              isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
+              isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 10}
+              attackDirection="up"
+              hint={getPlayerSlotHint(10)}
+            />
+            <div className="relative">
+              <CardSlot
+                slotId="player-12"
+                card={playerSlots[12]}
+                onClick={(el) => handleSlotClick(12, el)}
+                isSelected={selectedAttackerIndex === 12}
+                onInfoClick={setDetailedCard}
+              shockActive={boardShock}
+                isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
+                isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 12}
+                attackDirection="up"
+              />
+              <ManaBadge value={playerMana} className="absolute -top-3 -left-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
+            </div>
+            <CardSlot
+              slotId="player-11"
+              card={playerSlots[11]}
+              onClick={(el) => handleSlotClick(11, el)}
+              isSelected={selectedAttackerIndex === 11}
+              onInfoClick={setDetailedCard}
+              shockActive={boardShock}
+              isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
+              isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 11}
+              attackDirection="up"
+              hint={getPlayerSlotHint(11)}
+            />
+          </div>
         </div>
 
         {/* Opponent Deck & Graveyard (On Board) — kept inside the board's own canvas
