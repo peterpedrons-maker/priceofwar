@@ -9,6 +9,19 @@ export type AiAction =
 // lane-blocking rules instead of the AI having its own, possibly-diverging copy.
 type ValidTargetsFn = (attackerIndex: number, attackerSlots: (CardData | null)[], enemySlots: (CardData | null)[]) => Set<number>;
 
+// Táticas that resolve by picking a target on the board (see App.tsx's
+// pendingTacticAction/resolveOwnTacticTarget/resolveEnemyTacticTarget) instead of
+// just sitting there as an inert 0/0 card. The AI has no targeting logic for any of
+// these yet — placing one on the board the way a normal creature gets played would
+// just waste it as dead weight taking up a slot, so it's simplest and safest to
+// leave them in the AI's hand entirely (same category of limitation as the
+// Relíquia/Terreno skip below) rather than have the AI actively hurt itself.
+const AI_UNSUPPORTED_TACTICS = new Set([
+  'Reformar Linhas', 'Avanço Coordenado', 'Reposicionamento Rápido', 'Linha Fechada', 'Ordem de Retirada',
+  'Balesta', 'Catapulta', 'Armadura Pesada', 'Corcelete', 'Flecha Envenenada', 'Espada Longa',
+  'O Soldado Retorna', 'Busca pelo Santo Graal', 'Nova Tática', 'Escolher a Dedo', 'Escolher Tropas', 'Reunião de Fiéis',
+]);
+
 export const playAiTurn = (
   npcSlots: (CardData | null)[],
   playerSlots: (CardData | null)[],
@@ -28,6 +41,7 @@ export const playAiTurn = (
   // (10/11); the AI skips those for now and only plays regular units.
   for (const card of npcHand) {
     if (card.cardType === 'Relíquia' || card.cardType === 'Terreno') continue;
+    if (AI_UNSUPPORTED_TACTICS.has(card.name)) continue;
     if (card.cost > currentNpcMana) continue;
     const emptySlots = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => currentNpcSlots[i] === null);
     if (emptySlots.length === 0) break; // board is full, no point checking the rest of the hand

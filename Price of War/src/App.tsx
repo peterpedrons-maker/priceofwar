@@ -215,6 +215,9 @@ const getEffectiveAtk = (
   if (facingEnemy && !facingEnemy.isDestroyed && facingEnemy.name === 'Lanceiro de Controle') atk -= 1;
   // Pântano Maldito (Terreno, enemy's own slot 11): enemy Vanguarda -1 ATK.
   if (isFrontline(ownIndex) && isAliveAt(enemySlots, 11, 'Pântano Maldito')) atk -= 1;
+  // Líder de Esquadrão (Deck Cardeal): +1 ATK for allied Infantaria/Arqueiro
+  // while it's standing in the Vanguarda (see hasLiderBuff below).
+  if (hasLiderBuff(card, ownSlots)) atk += 1;
   return Math.max(0, atk);
 };
 
@@ -354,8 +357,16 @@ const resolveAmbushEffect = (
     return { attackerSlots: nextAttackerSlots, defenderSlots, defenderIndex, defender, cancelled: true };
   }
 
-  // Fallback — the original generic buff, for any Emboscada without its own
-  // case yet (e.g. Deck Cardeal's "Forças Secretas").
+  // Forças Secretas (Deck Cardeal): +2 ATK / +1 HP — same shape as the generic
+  // fallback below but +1 HP, not +2, so it gets its own exact case.
+  if (ambushCard.name === 'Forças Secretas') {
+    const buffed = defender ? { ...defender, atk: defender.atk + 2, hp: defender.hp + 1 } : null;
+    const nextDefenderSlots = [...defenderSlots];
+    if (buffed) nextDefenderSlots[defenderIndex] = buffed;
+    return { attackerSlots, defenderSlots: nextDefenderSlots, defenderIndex, defender: buffed, cancelled: false };
+  }
+
+  // Fallback — the original generic buff, for any Emboscada without its own case.
   const buffed = defender ? { ...defender, atk: defender.atk + 2, hp: defender.hp + 2 } : null;
   const nextDefenderSlots = [...defenderSlots];
   if (buffed) nextDefenderSlots[defenderIndex] = buffed;
@@ -368,18 +379,114 @@ const resolveAmbushEffect = (
 // flow) and resolveOwnTacticTarget/resolveEnemyTacticTarget (which actually apply the
 // effect once a target is clicked). Reformar Linhas isn't here: it doesn't target
 // anything, it just grants bonus reposition moves immediately (see bonusRepositions).
-export type TacticTargetKind = 'avanco_coordenado' | 'reposicionamento_rapido' | 'linha_fechada' | 'ordem_retirada';
+export type TacticTargetKind =
+  | 'avanco_coordenado' | 'reposicionamento_rapido' | 'linha_fechada' | 'ordem_retirada'
+  | 'balesta' | 'catapulta' | 'equip_armadura' | 'equip_corcelete' | 'equip_flecha' | 'equip_espada';
 const TARGETABLE_TACTICS: Record<string, TacticTargetKind> = {
   'Avanço Coordenado': 'avanco_coordenado',
   'Reposicionamento Rápido': 'reposicionamento_rapido',
   'Linha Fechada': 'linha_fechada',
   'Ordem de Retirada': 'ordem_retirada',
+  'Balesta': 'balesta',
+  'Catapulta': 'catapulta',
+  'Armadura Pesada': 'equip_armadura',
+  'Corcelete': 'equip_corcelete',
+  'Flecha Envenenada': 'equip_flecha',
+  'Espada Longa': 'equip_espada',
 };
 const TACTIC_TARGET_PROMPTS: Record<TacticTargetKind, string> = {
   avanco_coordenado: 'Escolha uma unidade sua que já se moveu neste turno.',
   reposicionamento_rapido: 'Escolha uma unidade inimiga para deslocar.',
   linha_fechada: 'Escolha uma unidade sua — os aliados ao lado dela recebem menos dano.',
   ordem_retirada: 'Escolha uma unidade sua na Vanguarda.',
+  balesta: 'Escolha uma unidade inimiga para causar 3 de dano.',
+  catapulta: 'Escolha uma fileira inimiga (clique em qualquer slot dela).',
+  equip_armadura: 'Escolha uma Infantaria sua para equipar (+2 HP).',
+  equip_corcelete: 'Escolha um Arqueiro ou Infantaria sua para equipar (+1 HP).',
+  equip_flecha: 'Escolha um Arqueiro seu para equipar (+1 ATK).',
+  equip_espada: 'Escolha uma Cavalaria ou Infantaria sua para equipar (+2 ATK).',
+};
+// Which own-board card types each equipment Tática accepts.
+const EQUIP_ALLOWED_TYPES: Record<string, CardType[]> = {
+  equip_armadura: ['Infantaria'],
+  equip_corcelete: ['Arqueiro', 'Infantaria'],
+  equip_flecha: ['Arqueiro'],
+  equip_espada: ['Cavalaria', 'Infantaria'],
+};
+
+// ── Deck Cardeal Pedro mechanics ─────────────────────────────────────────────
+// A first pass at this deck's own abilities — much larger and more varied than
+// Deck Capitão's (healing, card draw, summon-on-play, equip-style buffs,
+// deck/graveyard search), so this covers what's tractable without a brand new
+// subsystem: direct-damage Táticas, the 4 equipment cards (reused as a permanent
+// stat stamp via the same targeting flow as Deck Capitão's Táticas, not a real
+// attach/detach system), Nobre Religioso's summon-on-play, Líder de Esquadrão's
+// aura, Jorge o Lanceiro's splash damage, and Forças Secretas' exact ambush
+// effect. Left as flavor-only, same as before: Cardeal Pedro's own heal ability
+// + Cálice da Vida (needs a UI affordance for "activate the General" that doesn't
+// exist yet), the once-per-turn conditional abilities (Comerciante das Cruzadas,
+// Vigia de Mantimentos), the reveal/search/graveyard-pick Táticas (O Soldado
+// Retorna, Busca pelo Santo Graal, Nova Tática, Escolher a Dedo, Escolher
+// Tropas, Reunião de Fiéis — all need a "look at N cards, choose" UI), Espião
+// Sabotador and Soldado Fanático (both hinge on a "General type" concept the
+// game doesn't model), Aprendiz de Infantaria (needs Cardeal Pedro's heal to
+// exist first), Atirador Influente's death-trigger draw, and Arqueiro
+// Profissional's double-attack (the game doesn't track "already attacked this
+// turn" for anyone yet, so this would need that groundwork first, not just its
+// own case). The AI doesn't know how to pick a target for the ones that need
+// one — see AI_UNSUPPORTED_TACTICS in aiService.ts, which leaves them in its
+// hand rather than wasting them as an inert placed card.
+
+// Applies flat damage to one slot, same simple "hp minus damage, destroyed at 0"
+// rule combat uses — but for effects (Trabuco/Catapulta/Balesta/Jorge's splash)
+// that hit a slot directly rather than through the normal attacker-vs-defender
+// exchange. Returns the updated slots array and, if something died, that card
+// (already flagged) for the caller to push onto the graveyard.
+const applyDamageToSlot = (
+  slots: (CardData | null)[],
+  index: number,
+  amount: number
+): { slots: (CardData | null)[]; destroyed: CardData | null } => {
+  const card = slots[index];
+  if (!card) return { slots, destroyed: null };
+  const next = [...slots];
+  const newHp = card.hp - amount;
+  if (newHp <= 0) {
+    next[index] = null;
+    return { slots: next, destroyed: { ...card, hp: newHp, isDestroyed: true } };
+  }
+  next[index] = { ...card, hp: newHp };
+  return { slots: next, destroyed: null };
+};
+
+// Líder de Esquadrão: "Na Vanguarda: Infantaria e Arqueiros aliados ganham +1 ATK
+// e +1 HP durante o combate." A positional aura (must itself be standing in the
+// Vanguarda) — the ATK half is folded into getEffectiveAtk below; the HP half is
+// its own helper since it's added directly to HP in the combat blocks (same spot
+// pendingCombatBonus.hp applies), not a damage-reduction value.
+const hasLiderBuff = (card: CardData, ownSlots: (CardData | null)[]): boolean => {
+  if (card.cardType !== 'Infantaria' && card.cardType !== 'Arqueiro') return false;
+  return [0, 1, 2, 3, 4].some(i => {
+    const c = ownSlots[i];
+    return c && !c.isDestroyed && c.name === 'Líder de Esquadrão';
+  });
+};
+const getAuraCombatHpBonus = (card: CardData, ownSlots: (CardData | null)[]): number =>
+  hasLiderBuff(card, ownSlots) ? 1 : 0;
+
+// Nobre Religioso: "Ao entrar em campo: invoca Soldados Leais (1 ATK / 2 HP) nos
+// slots adjacentes livres da mesma fileira." Called right after ANY card lands on
+// a slot (player or AI) — a no-op unless that card is actually Nobre Religioso.
+const applyNobreReligiosoSummon = (slots: (CardData | null)[], placedIndex: number): (CardData | null)[] => {
+  const placed = slots[placedIndex];
+  if (!placed || placed.name !== 'Nobre Religioso' || placedIndex > 9) return slots;
+  const next = [...slots];
+  [placedIndex - 1, placedIndex + 1].forEach(j => {
+    if (areSlotsAdjacent(placedIndex, j) && !next[j]) {
+      next[j] = { id: `soldado_leal_${Date.now()}_${j}`, name: 'Soldado Leal', atk: 1, hp: 2, cost: 0, art: '', effect: '', cardType: 'Infantaria' };
+    }
+  });
+  return next;
 };
 
 // Both Generals now come from whichever deck each side is playing (see DECKS
@@ -1442,6 +1549,9 @@ export default function App() {
             announceCardPlay(action.card, 'npc');
             await new Promise(resolve => setTimeout(resolve, 1000));
             currentNpcSlots[action.slotIndex] = action.card;
+            // Nobre Religioso: "Ao entrar em campo: invoca Soldados Leais..." —
+            // applies regardless of which side plays it.
+            currentNpcSlots = applyNobreReligiosoSummon(currentNpcSlots, action.slotIndex);
             currentNpcMana -= action.card.cost;
             setNpcSlots([...currentNpcSlots]);
             setNpcMana(currentNpcMana);
@@ -1480,8 +1590,8 @@ export default function App() {
                 const defenderAtk = getEffectiveAtk(defender, targetSlot, currentPlayerSlots, currentNpcSlots);
                 const attackerReduction = getIncomingDamageReduction(action.attackerSlot, currentNpcSlots);
                 const defenderReduction = getIncomingDamageReduction(targetSlot, currentPlayerSlots);
-                const attackerHpBonus = attacker.pendingCombatBonus?.hp ?? 0;
-                const defenderHpBonus = defender.pendingCombatBonus?.hp ?? 0;
+                const attackerHpBonus = (attacker.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(attacker, currentNpcSlots);
+                const defenderHpBonus = (defender.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(defender, currentPlayerSlots);
                 const updatedAttacker = {
                   ...attacker,
                   hp: attacker.hp + attackerHpBonus - Math.max(0, defenderAtk - attackerReduction),
@@ -1508,6 +1618,18 @@ export default function App() {
                   }
                 } else {
                   currentPlayerSlots[targetSlot] = updatedDefender;
+                }
+
+                // Jorge, o Lanceiro: "Ao atacar a Vanguarda: causa 2 de dano à
+                // unidade na Retaguarda da mesma coluna." A splash side-effect,
+                // independent of whether the main target survived.
+                if (attacker.name === 'Jorge, o Lanceiro' && isFrontline(targetSlot) && currentPlayerSlots[targetSlot + 5]) {
+                  const splash = applyDamageToSlot(currentPlayerSlots, targetSlot + 5, 2);
+                  currentPlayerSlots = splash.slots;
+                  if (splash.destroyed) {
+                    setPlayerGraveyard(g => [...g, splash.destroyed!]);
+                    hasDestroyed = true;
+                  }
                 }
               }
 
@@ -1624,6 +1746,42 @@ export default function App() {
       return;
     }
 
+    // Aumento de Impostos (Deck Cardeal): immediate, no target.
+    if (card.name === 'Aumento de Impostos') {
+      setPlayerMana(prev => prev - card.cost + 1);
+      setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
+      setPlayerGraveyard(g => [...g, card]);
+      setSelectedCardIndex(null);
+      showToast('Aumento de Impostos: +1 ouro neste turno!');
+      return;
+    }
+
+    // Trabuco (Deck Cardeal): "Causa 2 de dano a TODAS as unidades inimigas" —
+    // immediate AOE, no target to pick. Hits every enemy creature/General (0-9,
+    // 12) — the Relíquia/Terreno slots (10/11) aren't "unidades".
+    if (card.name === 'Trabuco') {
+      setPlayerMana(prev => prev - card.cost);
+      setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
+      setPlayerGraveyard(g => [...g, card]);
+      setSelectedCardIndex(null);
+      let nextNpcSlots = [...npcSlots];
+      const destroyed: CardData[] = [];
+      let npcGeneralFell = false;
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12].forEach(i => {
+        const result = applyDamageToSlot(nextNpcSlots, i, 2);
+        nextNpcSlots = result.slots;
+        if (result.destroyed) {
+          destroyed.push(result.destroyed);
+          if (result.destroyed.cardType === 'General') npcGeneralFell = true;
+        }
+      });
+      setNpcSlots(nextNpcSlots);
+      if (destroyed.length) setNpcGraveyard(g => [...g, ...destroyed]);
+      showToast('Trabuco: 2 de dano a todas as unidades inimigas!');
+      if (npcGeneralFell) setGameOverWinner('player');
+      return;
+    }
+
     // The other 4 targetable Táticas (see TARGETABLE_TACTICS) — commit to playing
     // the card now (same as any other card, mana spent and out of hand), then wait
     // for the player to click its target instead of a slot to place it in.
@@ -1723,8 +1881,9 @@ export default function App() {
   // clicks their target on their OWN board (see pendingTacticAction). Reposicionamento
   // Rápido targets the enemy board instead — see resolveEnemyTacticTarget.
   const resolveOwnTacticTarget = (slotIndex: number) => {
-    if (!pendingTacticAction || pendingTacticAction.kind === 'reposicionamento_rapido') return;
+    if (!pendingTacticAction) return;
     const { card, kind } = pendingTacticAction;
+    if (kind === 'reposicionamento_rapido' || kind === 'balesta' || kind === 'catapulta') return;
     const target = playerSlots[slotIndex];
 
     if (kind === 'avanco_coordenado') {
@@ -1759,6 +1918,23 @@ export default function App() {
         return next;
       });
       showToast(`${target.name} recuou para a Retaguarda e recuperou 2 HP!`);
+    } else if (kind === 'equip_armadura' || kind === 'equip_corcelete' || kind === 'equip_flecha' || kind === 'equip_espada') {
+      // Deck Cardeal's 4 "Armamento" Táticas — not a real attach/detach system,
+      // just a permanent stat stamp on a unit of the right type, same mechanism
+      // as Linha Fechada's dmgReduction stamp.
+      const allowedTypes = EQUIP_ALLOWED_TYPES[kind];
+      if (slotIndex > 9 || !target || !target.cardType || !allowedTypes.includes(target.cardType)) {
+        showToast(`Escolha uma unidade do tipo certo: ${allowedTypes.join(' ou ')}.`);
+        return;
+      }
+      const atkBonus = kind === 'equip_flecha' ? 1 : kind === 'equip_espada' ? 2 : 0;
+      const hpBonus = kind === 'equip_armadura' ? 2 : kind === 'equip_corcelete' ? 1 : 0;
+      setPlayerSlots(prev => {
+        const next = [...prev];
+        next[slotIndex] = { ...next[slotIndex]!, atk: next[slotIndex]!.atk + atkBonus, hp: next[slotIndex]!.hp + hpBonus };
+        return next;
+      });
+      showToast(`${target.name} equipado: ${card.name}!`);
     }
 
     setPlayerGraveyard(g => [...g, card]);
@@ -1769,23 +1945,55 @@ export default function App() {
   // Resolves Reposicionamento Rápido once the player clicks the enemy unit to
   // displace — the only Deck Capitão Tática that targets the opponent's board.
   const resolveEnemyTacticTarget = (slotIndex: number) => {
-    if (!pendingTacticAction || pendingTacticAction.kind !== 'reposicionamento_rapido') return;
-    const { card } = pendingTacticAction;
-    if (slotIndex > 9 || !npcSlots[slotIndex]) { showToast('Escolha uma unidade inimiga no campo.'); return; }
-    const emptyAdjacent = [slotIndex - 1, slotIndex + 1, slotIndex - 5, slotIndex + 5]
-      .filter(j => areSlotsAdjacent(slotIndex, j) && !npcSlots[j]);
-    if (emptyAdjacent.length > 0) {
-      const dest = emptyAdjacent[Math.floor(Math.random() * emptyAdjacent.length)];
-      setNpcSlots(prev => {
-        const next = [...prev];
-        next[dest] = next[slotIndex];
-        next[slotIndex] = null;
-        return next;
+    if (!pendingTacticAction) return;
+    const { card, kind } = pendingTacticAction;
+    if (kind !== 'reposicionamento_rapido' && kind !== 'balesta' && kind !== 'catapulta') return;
+
+    if (kind === 'reposicionamento_rapido') {
+      if (slotIndex > 9 || !npcSlots[slotIndex]) { showToast('Escolha uma unidade inimiga no campo.'); return; }
+      const emptyAdjacent = [slotIndex - 1, slotIndex + 1, slotIndex - 5, slotIndex + 5]
+        .filter(j => areSlotsAdjacent(slotIndex, j) && !npcSlots[j]);
+      if (emptyAdjacent.length > 0) {
+        const dest = emptyAdjacent[Math.floor(Math.random() * emptyAdjacent.length)];
+        setNpcSlots(prev => {
+          const next = [...prev];
+          next[dest] = next[slotIndex];
+          next[slotIndex] = null;
+          return next;
+        });
+        showToast('Reposicionamento Rápido: unidade inimiga deslocada!');
+      } else {
+        showToast('Não havia slot livre adjacente para deslocar a unidade.');
+      }
+    } else if (kind === 'balesta') {
+      if (slotIndex > 9 || !npcSlots[slotIndex]) { showToast('Escolha uma unidade inimiga no campo.'); return; }
+      const result = applyDamageToSlot(npcSlots, slotIndex, 3);
+      setNpcSlots(result.slots);
+      if (result.destroyed) {
+        setNpcGraveyard(g => [...g, result.destroyed!]);
+        if (result.destroyed.cardType === 'General') setGameOverWinner('player');
+      }
+      showToast('Balesta: 3 de dano causado!');
+    } else if (kind === 'catapulta') {
+      if (slotIndex > 9) { showToast('Escolha uma fileira inimiga (Vanguarda ou Retaguarda).'); return; }
+      const row = getMoveRow(slotIndex) === 0 ? [0, 1, 2, 3, 4] : [5, 6, 7, 8, 9];
+      let nextNpcSlots = [...npcSlots];
+      const destroyed: CardData[] = [];
+      let npcGeneralFell = false;
+      row.forEach(i => {
+        const result = applyDamageToSlot(nextNpcSlots, i, 2);
+        nextNpcSlots = result.slots;
+        if (result.destroyed) {
+          destroyed.push(result.destroyed);
+          if (result.destroyed.cardType === 'General') npcGeneralFell = true;
+        }
       });
-      showToast('Reposicionamento Rápido: unidade inimiga deslocada!');
-    } else {
-      showToast('Não havia slot livre adjacente para deslocar a unidade.');
+      setNpcSlots(nextNpcSlots);
+      if (destroyed.length) setNpcGraveyard(g => [...g, ...destroyed]);
+      if (npcGeneralFell) setGameOverWinner('player');
+      showToast('Catapulta: 2 de dano em toda a fileira!');
     }
+
     setPlayerGraveyard(g => [...g, card]);
     setPendingTacticAction(null);
     setViewState('hand');
@@ -1931,7 +2139,7 @@ export default function App() {
         setViewState('hand');
         const newSlots = [...playerSlots];
         newSlots[slotIndex] = cardToPlay;
-        setPlayerSlots(newSlots);
+        setPlayerSlots(applyNobreReligiosoSummon(newSlots, slotIndex));
       }
     } else if (selectedCardIndex === null && playerSlots[slotIndex]) {
       // Select attacker — only once Batalha has unlocked (turn 3+).
@@ -1993,8 +2201,8 @@ export default function App() {
           const defenderAtk = getEffectiveAtk(defender, targetSlot, newNpcSlots, newPlayerSlots);
           const attackerReduction = getIncomingDamageReduction(selectedAttackerIndex, newPlayerSlots);
           const defenderReduction = getIncomingDamageReduction(targetSlot, newNpcSlots);
-          const attackerHpBonus = attacker.pendingCombatBonus?.hp ?? 0;
-          const defenderHpBonus = defender.pendingCombatBonus?.hp ?? 0;
+          const attackerHpBonus = (attacker.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(attacker, newPlayerSlots);
+          const defenderHpBonus = (defender.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(defender, newNpcSlots);
 
           const updatedAttacker = {
             ...attacker,
@@ -2024,6 +2232,22 @@ export default function App() {
             if (updatedDefender.cardType === 'General') npcGeneralFell = true;
           } else {
             newNpcSlots[targetSlot] = updatedDefender;
+          }
+
+          // Jorge, o Lanceiro: "Ao atacar a Vanguarda: causa 2 de dano à unidade
+          // na Retaguarda da mesma coluna." A splash side-effect, independent of
+          // whether the main target survived.
+          const splashTarget = attacker.name === 'Jorge, o Lanceiro' && isFrontline(targetSlot) ? newNpcSlots[targetSlot + 5] : null;
+          if (splashTarget) {
+            const splashHp = splashTarget.hp - 2;
+            if (splashHp <= 0) {
+              newNpcSlots[targetSlot + 5] = null;
+              setNpcGraveyard(g => [...g, { ...splashTarget, hp: splashHp, isDestroyed: true }]);
+              hasDestroyed = true;
+              if (splashTarget.cardType === 'General') npcGeneralFell = true;
+            } else {
+              newNpcSlots[targetSlot + 5] = { ...splashTarget, hp: splashHp };
+            }
           }
         }
 
@@ -2925,7 +3149,8 @@ export default function App() {
                 setPlayerSlots(prev => {
                   const next = [...prev];
                   next[flyingCard.slotIndex] = flyingCard.card;
-                  return next;
+                  // Nobre Religioso: "Ao entrar em campo: invoca Soldados Leais..."
+                  return applyNobreReligiosoSummon(next, flyingCard.slotIndex);
                 });
                 // Impact burst + brief camera shake right as the card lands. A full-art
                 // card (see CardData.isFullArt) gets the bigger version of both, plus
