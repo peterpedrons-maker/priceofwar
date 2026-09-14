@@ -956,9 +956,14 @@ const HAND_CARD_STEP = HAND_CARD_WIDTH * 0.5;
 // ── DECK CAPITÃO ────────────────────────────────────────────────────────────
 // Ported from the earlier full-art version of this project (commit 8a3d7b8,
 // constant DECK_1) — its own General, Criaturas, Táticas, Emboscadas, one
-// Relíquia and two Terrenos. Effect text carries over as flavor only for now:
-// none of these abilities (move, buff, reorganize...) actually run yet, same
-// as "Taunt"/"Charge"/"Flying" on the placeholder cards this replaces.
+// Relíquia and two Terrenos. Every ability here is wired up now (move/swap
+// rules, the +1/-1 ATK auras, the reposition Táticas, the 3 Emboscadas —
+// search this file for each card's name to find its logic). The one gap is
+// the AI: it doesn't reposition units at all, so the move-triggered
+// abilities (Capitão de Formação, Batedor, Cavaleiro Tático's wider swap,
+// Aurelion's own active ability) only ever fire for the player, and the
+// targeted Táticas are left in the AI's hand entirely (see
+// AI_UNSUPPORTED_TACTICS in aiService.ts) rather than risk it wasting them.
 const DECK_CAPITAO: CardData[] = [
   { id: 'gen1', name: 'Comandante Aurelion, Mestre da Formação', atk: 0, hp: 20, cost: 0, art: '', effect: 'Após Remanejamento: até 2 unidades que se moveram ganham +1/+1 no próximo combate. Passiva: unidades adjacentes recebem -1 de dano.', cardType: 'General' },
 
@@ -967,7 +972,7 @@ const DECK_CAPITAO: CardData[] = [
   ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_line_squire_${i}`, name: 'Escudeiro de Linha', atk: 2, hp: 4, cost: 2, art: '', effect: 'Protege unidades atrás.', cardType: 'Infantaria' })),
   ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_formation_captain_${i}`, name: 'Capitão de Formação', atk: 3, hp: 4, cost: 3, art: '', effect: 'Ao mover: adjacentes +1 ATK.', cardType: 'Infantaria' })),
   ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_scout_${i}`, name: 'Batedor', atk: 1, hp: 2, cost: 1, art: '', effect: 'Move após combate.', cardType: 'Infantaria' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_control_lancer_${i}`, name: 'Lanceiro de Controle', atk: 3, hp: 2, cost: 2, art: '', effect: 'Inimigos adjacentes -1 ATK.', cardType: 'Infantaria' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_control_lancer_${i}`, name: 'Lanceiro de Controle', atk: 3, hp: 2, cost: 2, art: '', effect: 'Inimigo à sua frente recebe -1 ATK.', cardType: 'Infantaria' })),
   ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_tactical_knight_${i}`, name: 'Cavaleiro Tático', atk: 4, hp: 4, cost: 3, art: '', effect: 'Troca com qualquer aliado na linha.', cardType: 'Cavalaria' })),
   ...Array(3).fill(null).map((_, i): CardData => ({ id: `c_veteran_${i}`, name: 'Veterano de Guerra', atk: 4, hp: 3, cost: 3, art: '', effect: '+2 ATK na coluna 3.', cardType: 'Infantaria' })),
 

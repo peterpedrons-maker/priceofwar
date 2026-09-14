@@ -20,6 +20,12 @@ const AI_UNSUPPORTED_TACTICS = new Set([
   'Reformar Linhas', 'Avanço Coordenado', 'Reposicionamento Rápido', 'Linha Fechada', 'Ordem de Retirada',
   'Balesta', 'Catapulta', 'Armadura Pesada', 'Corcelete', 'Flecha Envenenada', 'Espada Longa',
   'O Soldado Retorna', 'Busca pelo Santo Graal', 'Nova Tática', 'Escolher a Dedo', 'Escolher Tropas', 'Reunião de Fiéis',
+  // Trabuco and Aumento de Impostos don't need a board target, but they still resolve
+  // through the same play-card handler as every targeted Tática above (not the plain
+  // "place a creature" path) — without this exclusion the AI was placing them as inert
+  // 0/0 board occupants instead of ever triggering their effect, permanently wasting
+  // both the card and the slot it sat in.
+  'Trabuco', 'Aumento de Impostos',
 ]);
 
 // Emboscada cards only ever resolve via the ambush interrupt (see maybeActivateNpcAmbush
