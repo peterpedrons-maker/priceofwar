@@ -859,10 +859,12 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
 // inside the bordered board frame, one for the space around it — that had to
 // visually match up at the seam. That never worked well (see art-prompts/
 // README.md, "3d"), so it's now a single full-screen battlefield image (both
-// front lines AND the ground between them, top to bottom) rendered as the
-// EXTERIOR only; the interior board frame below has no image or border of
-// its own anymore, just a transparent window onto this same background.
-const BOARD_INTERIOR_ART_URL = '';
+// front lines AND the ground between them, top to bottom); the interior board
+// frame has no image, border, or darkening tint of its own anymore, just a
+// transparent window onto this same background (see the "3D Board" comment
+// further down — its own separate tint used to make that box read as visibly
+// darker than the rest of the art, like a leftover seam from the old two-image
+// split, even though there's nothing left to seam against).
 const BOARD_EXTERIOR_ART_URL = boardBattlefieldImage;
 
 // How big the previewed card renders while parked at the edge during slot selection.
@@ -2791,26 +2793,6 @@ export default function App() {
           }
         }}
       >
-        {/* Board Surface — used to be its own bordered frame with its own art
-            (BOARD_INTERIOR_ART_URL), cropped separately from the exterior
-            background and stitched together at the seam. That's gone now: the
-            single full-screen battlefield image (BOARD_EXTERIOR_ART_URL, see
-            above) already covers this whole area, so this is just a plain
-            darkening tint for card contrast — no border, no background image,
-            no shape of its own — floating transparently over that background. */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{ transform: 'translateZ(-1px)' }}
-        >
-          {!BOARD_EXTERIOR_ART_URL && (
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.04)_0%,transparent_70%)]" />
-          )}
-          {/* Light darkening tint for card contrast — much lighter than the old
-              version since this art is already a dim night scene, not a bright
-              stone table. */}
-          <div className="absolute inset-0 bg-black/10 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.2)_100%)]" />
-        </div>
-
         {/* Central Divider */}
         <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-indigo-400/60 to-transparent shadow-[0_0_15px_rgba(99,102,241,0.6)] -translate-y-1/2 rounded-full pointer-events-none" />
 
