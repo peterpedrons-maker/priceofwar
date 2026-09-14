@@ -1018,15 +1018,17 @@ Art opcional, ver 5.10b) · **Status:** pronto pra gerar
 
 ```
 WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a heroic
-mounted knight lancer inspired by Saint George, gleaming white-and-gold
-plate armor, riding a powerful white warhorse at full charge down a narrow
-gorge road flanked by jagged dark rock walls, a long lance couched and
-leveled dead ahead, a white cape marked with a red cross whipping behind
-him. In the rocky shadow of the gorge wall to one side, the coiled,
-half-glimpsed silhouette of a slain dragon's ribcage juts from the stone —
-old bones, not a threat, just a haunting detail hinting at his legend.
-Dust and loose scree kick up from the warhorse's hooves, dramatic warm
-side-lighting from a low sun at the mouth of the gorge ahead throwing long
+mounted knight lancer, a real war veteran rather than a legendary figure,
+gleaming white-and-gold plate armor bearing real battle scuffs, riding a
+powerful white warhorse at full charge down a narrow gorge road flanked
+by jagged dark rock walls, a long lance couched and leveled dead ahead, a
+white cape marked with a red cross whipping behind him. In the rocky
+shadow of the gorge wall to one side, the grounded wreckage of a past
+skirmish — a shattered supply cart, a broken wagon wheel and a scatter of
+snapped spears half-buried in scree — hints at real fighting having
+passed through here before, nothing supernatural about it. Dust and
+loose scree kick up from the warhorse's hooves, dramatic warm side-
+lighting from a low sun at the mouth of the gorge ahead throwing long
 shadows back toward the viewer. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism, warm palette of white, gold and
 crimson against cold gray rock, dynamic diagonal charging composition
 through a canyon, cinematic medium-wide shot with horse and rider fully
@@ -1043,25 +1045,26 @@ gerar
 
 ```
 TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic Magic: The Gathering-quality fantasy
-trading-card full-art illustration of the same heroic knight lancer
-inspired by Saint George, but a completely different quiet moment than
-his battlefield charge: standing dismounted and still atop a windswept
-hilltop at sunrise, his lance driven point-down into the earth beside him,
-one gauntleted hand resting on the massive bleached skull of a slain
-dragon half-buried in the grass at his feet — the legend's aftermath, not
-its action. His white-and-gold armor and cape are calm and undisturbed by
-wind for once, catching the soft pink-gold light of dawn. His warhorse
-grazes peacefully a short distance behind him. Layered depth composition:
-the knight and dragon skull sharp in the foreground filling most of the
-vertical frame, his resting horse in the midground, a vast, peaceful
-sunrise valley stretching out below the hilltop in the background.
-Drifting mist rises from the valley floor between the depth layers.
-Extremely detailed rendering — engraved filigree in the armor, weathered
-bone texture on the massive skull, dew on the grass, soft specular
-highlights on polished gold. Loose, expressive painterly impressionism with visible confident brushstrokes, closer to classical oil-painting concept art than crisp digital rendering. Rich palette of soft dawn pink, gold and
-white, powerful sense of quiet triumph and legend, composition designed to
-fill a tall card frame edge-to-edge with no empty margins at top or
-bottom, no text, no card frame, no border, no watermark
+trading-card full-art illustration of the same heroic knight lancer, but
+a completely different quiet moment than his battlefield charge: standing
+dismounted and still atop a windswept hilltop at sunrise, his lance driven
+point-down into the earth beside him, one gauntleted hand resting on the
+planted lance's haft while the other holds a captured enemy banner
+folded over his forearm — the real aftermath of a real battle, not
+legend. His white-and-gold armor and cape are calm and undisturbed by wind
+for once, catching the soft pink-gold light of dawn, a few fresh dents and
+scratches from the fight still visible on the plate. His warhorse grazes
+peacefully a short distance behind him. Layered depth composition: the
+knight sharp in the foreground filling most of the vertical frame, his
+resting horse in the midground, a vast, peaceful sunrise valley
+stretching out below the hilltop in the background. Drifting mist rises
+from the valley floor between the depth layers. Extremely detailed
+rendering — engraved filigree in the armor, woven fabric texture in the
+captured banner, dew on the grass, soft specular highlights on polished
+gold. Loose, expressive painterly impressionism with visible confident brushstrokes, closer to classical oil-painting concept art than crisp digital rendering. Rich palette of soft dawn pink, gold and
+white, powerful sense of quiet triumph after real battle, composition
+designed to fill a tall card frame edge-to-edge with no empty margins at
+top or bottom, no text, no card frame, no border, no watermark
 ```
 
 ---
