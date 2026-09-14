@@ -473,12 +473,14 @@ de acampamento militar do campo de batalha.
 
 ## 4. Tela de Início — Fundo Épico
 
-**Vai em:** fundo de tela cheia da tela de início (`MainMenu` em `App.tsx`,
-hoje só um degradê roxo/preto genérico) · **Referência:**
-[`reference/start-screen-mockup-v1.png`](./reference/start-screen-mockup-v1.png)
-(mockup completo feito pelo usuário numa outra IA — usado só como guia de
-estilo/composição, não pra recortar) · **Estilo:** cenário/ambiente ·
-**Status:** pronto pra gerar
+**Arquivo:** `src/assets/start-screen-bg.webp` (feito pelo usuário a partir
+deste prompt, paisagem 1287×816 — funciona bem cortado pra retrato de
+celular via `object-cover`, o castelo já fica bem centralizado) ·
+**Referência:** [`reference/start-screen-bg-v1.png`](./reference/start-screen-bg-v1.png)
+e o mockup completo em [`reference/start-screen-mockup-v1.png`](./reference/start-screen-mockup-v1.png)
+(esse último feito pelo usuário numa outra IA — usado só como guia de
+estilo/composição) · **Estilo:** cenário/ambiente · **Status:** integrado
+no jogo
 
 Divisão em blocos pra tela de início (fundo, painel, botão, logo — cada um
 uma imagem separada, isolada, do mesmo jeito que os marcadores de zona),
@@ -530,7 +532,9 @@ cima dela.
 
 **Vai em:** painel/moldura que envolve a lista de botões do menu (hoje só
 uma coluna flutuando sem fundo próprio) · **Estilo:** elemento/ícone de UI
-· **Status:** pronto pra gerar
+· **Status:** não usado — os botões (4c) acabaram ficando bons direto
+sobre o fundo (4), sem precisar de um painel por trás; prompt continua
+aqui caso a gente queira revisitar
 
 ```
 Top-down-neutral game UI icon illustration of an ornate vertical wooden
@@ -556,9 +560,13 @@ pode ter sombra/gravura pesada ali ou os botões ficam ilegíveis.
 
 ## 4c. Tela de Início — Botão Personalizado
 
-**Vai em:** textura reutilizada nos 4 botões do menu (Campanha, Partida
-Rápida, Multiplayer, Meu Deck) — um só arquivo, usado 4 vezes ·
-**Estilo:** elemento/ícone de UI · **Status:** pronto pra gerar
+**Arquivo:** `src/assets/button-plaque.webp` (recortado do maior de vários
+tamanhos que a IA do usuário gerou de uma vez — os outros tamanhos foram
+descartados, é só redimensionar este mesmo arquivo por CSS se algum botão
+precisar ser maior/menor) · **Vai em:** textura reutilizada nos 4 botões
+do menu (Campanha, Partida Rápida, Multiplayer, Meu Deck) — um só arquivo,
+usado 4 vezes · **Estilo:** elemento/ícone de UI · **Status:** integrado
+no jogo
 
 ```
 Top-down-neutral game UI icon illustration of a single ornate horizontal
@@ -577,15 +585,20 @@ readable wherever it's placed on top
 
 **Notas:** mesmo arquivo serve pros 4 botões do menu — não precisa gerar
 um pra cada. "Sem texto" é de propósito: o nome de cada modo (Campanha,
-Partida Rápida etc.) é renderizado por cima em código, com a fonte Cinzel
-que o jogo já usa, não pintado na imagem.
+Partida Rápida etc.) é renderizado por cima em código, não pintado na
+imagem — e acabou usando uma fonte bold/reta (não a serifada Cinzel do
+resto do jogo) com preenchimento creme e contorno escuro, pra bater com
+o mockup de referência do usuário (ver 4, `start-screen-mockup-v1.png`).
 
 ---
 
 ## 4d. Tela de Início — Logo/Emblema
 
 **Vai em:** emblema decorativo acima do nome do jogo, na tela de início ·
-**Estilo:** elemento/ícone de UI · **Status:** pronto pra gerar
+**Estilo:** elemento/ícone de UI · **Status:** substituído — ver a nota em
+"3d"/seção do logo: o verso da carta (`card-backplate.webp`) já trazia um
+brasão idêntico com "PRICE OF WAR — FAITH AND FIRE" pintado nele, então
+o usuário recortou aquele em vez de gerar um novo
 
 ```
 Top-down-neutral heraldic emblem illustration: an ornate engraved bronze
@@ -609,6 +622,28 @@ propósito: o nome "PRICE OF WAR" é renderizado em código (fonte Cinzel,
 já usada nos outros textos do jogo) por baixo ou por cima do emblema, não
 pintado na imagem — texto pintado por geradores de imagem quase sempre
 sai com letras erradas/ilegíveis.
+
+---
+
+## 4d-v2. Tela de Início — Logo (recortado do verso da carta)
+
+**Arquivo:** `src/assets/logo-price-of-war.webp` (recorte com fundo
+magenta removido — feito pelo usuário numa outra IA a partir do próprio
+`card-backplate.webp`, não gerado do zero) · **Vai em:** topo da tela de
+início (`MainMenu`) · **Estilo:** elemento/ícone de UI · **Status:**
+integrado no jogo
+
+Acontece que o verso da carta (item "CardBack" em `App.tsx`,
+`card-backplate.webp`) já trazia um brasão completo pintado nele — leão,
+espadas cruzadas, "PRICE OF WAR" e a faixa "FAITH AND FIRE" — então em vez
+de gerar um logo novo do zero (prompt 4d acima), o usuário recortou esse
+emblema direto da arte existente com fundo magenta (mais fácil de
+remover que o pergaminho/moldura reais do verso da carta, que têm
+vinheta/gradiente e não são uma cor sólida) e mandou pra integrar.
+
+**Notas:** essa é a arte que efetivamente está no jogo — o prompt 4d fica
+registrado só como alternativa caso um dia se queira um logo desenhado do
+zero em vez de reaproveitar o brasão da carta.
 
 ---
 

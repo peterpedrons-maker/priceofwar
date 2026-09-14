@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { Info, X, Sword, Zap, Users, Library, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass } from 'lucide-react';
+import { Info, X, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
+import logoImage from './assets/logo-price-of-war.webp';
+import startScreenBgImage from './assets/start-screen-bg.webp';
+import buttonPlaqueImage from './assets/button-plaque.webp';
 import cardTemplateImage from './assets/card-template.webp';
 import cardTemplateSilverImage from './assets/card-template-silver.webp';
 import cardTemplateChampagneImage from './assets/card-template-champagne.webp';
@@ -893,21 +896,49 @@ const DECKS = {
 } as const;
 type DeckId = keyof typeof DECKS;
 
+// A single gold plaque texture (see art-prompts/README.md "4c" and
+// button-plaque.webp — cropped from the user's own generated reference sheet,
+// specifically the largest of several sizes it came in, per their instruction to
+// resize ONE image via code rather than keep multiple generated variants) reused
+// for every menu button below. Sizing differences between buttons (e.g. Quick
+// Match reading as the "primary" action) are a later code-only change if wanted,
+// not a reason to generate more image variants.
+const MenuButton = ({ label, onClick, className = '' }: {
+  label: string, onClick: (e: React.MouseEvent) => void, className?: string
+}) => (
+  <motion.button
+    whileHover={{ scale: 1.04 }}
+    whileTap={{ scale: 0.97 }}
+    onClick={onClick}
+    className={`relative w-full ${className}`}
+    style={{ aspectRatio: '831 / 177' }}
+  >
+    <img src={buttonPlaqueImage} alt="" className="absolute inset-0 w-full h-full pointer-events-none select-none drop-shadow-[0_6px_10px_rgba(0,0,0,0.5)]" draggable={false} />
+    {/* Text style matches the user's own reference mockup exactly (see
+        art-prompts/reference/start-screen-mockup-v1.png): plain cream/off-white
+        fill with a dark engraved outline, no icon — a bold condensed sans rather
+        than the Cinzel serif used elsewhere, since that's what the reference
+        actually uses for button labels (Cinzel stays on the logo/headings). */}
+    <span
+      className="absolute inset-0 flex items-center justify-center font-black uppercase tracking-wide text-base md:text-xl"
+      style={{
+        color: '#f3e3c3',
+        textShadow: '-1px -1px 0 #2a1608, 1px -1px 0 #2a1608, -1px 1px 0 #2a1608, 1px 1px 0 #2a1608, 0 2px 3px rgba(0,0,0,0.6)',
+      }}
+    >
+      {label}
+    </span>
+  </motion.button>
+);
+
 const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) => {
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
-  const bgX = useTransform(mouseX, [-500, 500], [-20, 20]);
-  const bgY = useTransform(mouseY, [-500, 500], [-20, 20]);
-
-  const icons = {
-    'Campaign': Sword,
-    'Quick Match': Zap,
-    'Multiplayer': Users,
-    'My Deck': Library
-  };
+  const bgX = useTransform(mouseX, [-500, 500], [-8, 8]);
+  const bgY = useTransform(mouseY, [-500, 500], [-8, 8]);
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       onMouseMove={(e) => {
@@ -916,41 +947,42 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
       }}
       className="flex flex-col items-center justify-center w-full h-full bg-zinc-950 text-white relative overflow-hidden"
     >
-      {/* Animated Background with Parallax */}
-      <motion.div 
+      {/* Background — a besieged castle at dusk (art-prompts/README.md "4"),
+          generated landscape but reads well cropped to a phone's portrait screen
+          via object-cover (the castle sits naturally near center). A subtle
+          mouse-parallax drift on the image itself, and a bottom-heavy dark
+          gradient so the menu buttons stay legible over busy sky/cloud detail. */}
+      <motion.img
+        src={startScreenBgImage}
+        alt=""
         style={{ x: bgX, y: bgY }}
-        className="absolute -inset-20 bg-[radial-gradient(circle_at_center,rgba(49,46,129,0.3)_0%,rgba(0,0,0,1)_100%)] z-0"
-        animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0.8, 0.5] }}
-        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute -inset-2 w-[calc(100%+16px)] h-[calc(100%+16px)] object-cover z-0 pointer-events-none select-none"
+        draggable={false}
       />
+      <div className="absolute inset-0 z-0 bg-gradient-to-b from-black/10 via-black/40 to-black/85" />
 
-      <motion.h1 
-        initial={{ y: -100, opacity: 0 }}
+      {/* Logo — cropped straight out of the card back's own emblem (see
+          card-backplate.webp / art-prompts/README.md "4d"): that art already had a
+          fully-lettered "PRICE OF WAR — FAITH AND FIRE" crest painted into it, so
+          there was no need to generate a whole separate logo asset. */}
+      <motion.img
+        src={logoImage}
+        alt="Price of War — Faith and Fire"
+        initial={{ y: -60, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", stiffness: 100 }}
-        className="text-7xl font-black mb-16 text-transparent bg-clip-text bg-gradient-to-b from-indigo-300 to-indigo-600 drop-shadow-[0_0_15px_rgba(99,102,241,0.5)] z-10"
-      >
-        CARD BATTLE
-      </motion.h1>
+        className="w-[85vw] max-w-md mb-10 z-10 select-none pointer-events-none drop-shadow-[0_0_35px_rgba(212,175,55,0.35)]"
+        draggable={false}
+      />
 
-      <div className="flex flex-col gap-6 relative z-10">
-        {['Campaign', 'Quick Match', 'Multiplayer', 'My Deck'].map((mode, i) => {
-          const Icon = icons[mode as keyof typeof icons];
-          return (
-            <motion.button
-              key={mode}
-              whileHover={{ scale: 1.05, boxShadow: "0 0 20px rgba(99, 102, 241, 0.6)" }}
-              whileTap={{ scale: 0.95 }}
-              animate={{ boxShadow: ["0 0 10px rgba(99, 102, 241, 0.3)", "0 0 20px rgba(99, 102, 241, 0.6)", "0 0 10px rgba(99, 102, 241, 0.3)"] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              onClick={(e) => { e.stopPropagation(); onSelectMode(mode); }}
-              className="px-10 py-5 bg-zinc-900/80 hover:bg-indigo-950 rounded-xl text-2xl font-bold transition-all border-2 border-zinc-700 hover:border-indigo-500 shadow-lg flex items-center gap-4"
-            >
-              <Icon className="w-8 h-8" />
-              {mode}
-            </motion.button>
-          );
-        })}
+      <div className="flex flex-col gap-4 relative z-10 w-[85vw] max-w-sm">
+        {['Campaign', 'Quick Match', 'Multiplayer', 'My Deck'].map((mode) => (
+          <MenuButton
+            key={mode}
+            label={mode}
+            onClick={(e) => { e.stopPropagation(); onSelectMode(mode); }}
+          />
+        ))}
       </div>
     </motion.div>
   );
