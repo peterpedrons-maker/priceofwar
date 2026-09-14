@@ -427,6 +427,11 @@ const EQUIP_ALLOWED_TYPES: Record<string, CardType[]> = {
   equip_espada: ['Cavalaria', 'Infantaria'],
 };
 
+// What "um soldado" means across the reveal/search Táticas below (O Soldado
+// Retorna, Escolher a Dedo, Reunião de Fiéis) — any regular unit, not a
+// General/Relíquia/Terreno/Tática/Emboscada.
+const SOLDIER_TYPES: CardType[] = ['Infantaria', 'Cavalaria', 'Arqueiro', 'Artilharia'];
+
 // ── Deck Cardeal Pedro mechanics ─────────────────────────────────────────────
 // A first pass at this deck's own abilities — much larger and more varied than
 // Deck Capitão's (healing, card draw, summon-on-play, equip-style buffs,
@@ -1268,6 +1273,22 @@ export default function App() {
   // pendingTacticAction above.
   const [pendingGeneralHeal, setPendingGeneralHeal] = useState<{ amount: number } | null>(null);
 
+  // The reveal/search Táticas (O Soldado Retorna, Busca pelo Santo Graal, Nova
+  // Tática, Escolher a Dedo, Escolher Tropas, Reunião de Fiéis) all boil down to
+  // the same shape: show the player a set of candidate cards and let them pick
+  // one (or a couple), then do something with the pick(s) — see openCardPicker
+  // and its call sites in handlePlayCardButtonClick.
+  const [cardPicker, setCardPicker] = useState<{
+    title: string;
+    options: CardData[];
+    maxPicks: number;
+    selected: CardData[];
+    onConfirm: (picked: CardData[]) => void;
+  } | null>(null);
+  const openCardPicker = (title: string, options: CardData[], maxPicks: number, onConfirm: (picked: CardData[]) => void) => {
+    setCardPicker({ title, options, maxPicks, selected: [], onConfirm });
+  };
+
   const [playerMana, setPlayerMana] = useState(10);
   const [npcMana, setNpcMana] = useState(10);
 
@@ -2019,6 +2040,147 @@ export default function App() {
       return;
     }
 
+    // O Soldado Retorna: reclaim one soldier from your own graveyard.
+    if (card.name === 'O Soldado Retorna') {
+      const candidates = playerGraveyard.filter(c => SOLDIER_TYPES.includes(c.cardType as CardType));
+      if (candidates.length === 0) {
+        setSelectedCardIndex(null);
+        showToast('Não há soldados no cemitério.');
+        return;
+      }
+      setPlayerMana(prev => prev - card.cost);
+      setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
+      setSelectedCardIndex(null);
+      openCardPicker('Escolha um soldado do cemitério para adicionar à mão', candidates, 1, (picked) => {
+        const chosen = picked[0];
+        setPlayerGraveyard(g => g.filter(c => c.id !== chosen.id).concat(card));
+        setHand(prev => [...prev, { ...chosen, id: `hand_${Date.now()}_${Math.random()}`, isDestroyed: undefined }]);
+        setCardPicker(null);
+        showToast(`${chosen.name} voltou para sua mão!`);
+      });
+      return;
+    }
+
+    // Busca pelo Santo Graal: search the deck for a Terreno or Relíquia.
+    if (card.name === 'Busca pelo Santo Graal') {
+      const candidates = playerDeckPoolRef.current.filter(c => c.cardType === 'Terreno' || c.cardType === 'Relíquia');
+      if (candidates.length === 0) {
+        setSelectedCardIndex(null);
+        showToast('Não há Terreno ou Relíquia no deck.');
+        return;
+      }
+      setPlayerMana(prev => prev - card.cost);
+      setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
+      setSelectedCardIndex(null);
+      openCardPicker('Escolha uma carta de Terreno ou Relíquia do deck', candidates, 1, (picked) => {
+        const chosen = picked[0];
+        setHand(prev => [...prev, { ...chosen, id: `hand_${Date.now()}_${Math.random()}` }]);
+        setPlayerGraveyard(g => [...g, card]);
+        setCardPicker(null);
+        showToast(`${chosen.name} adicionada à mão!`);
+      });
+      return;
+    }
+
+    // Nova Tática: search the deck for any Tática.
+    if (card.name === 'Nova Tática') {
+      const candidates = playerDeckPoolRef.current.filter(c => c.cardType === 'Tática');
+      if (candidates.length === 0) {
+        setSelectedCardIndex(null);
+        showToast('Não há Táticas no deck.');
+        return;
+      }
+      setPlayerMana(prev => prev - card.cost);
+      setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
+      setSelectedCardIndex(null);
+      openCardPicker('Escolha uma Tática do deck para adicionar à mão', candidates, 1, (picked) => {
+        const chosen = picked[0];
+        setHand(prev => [...prev, { ...chosen, id: `hand_${Date.now()}_${Math.random()}` }]);
+        setPlayerGraveyard(g => [...g, card]);
+        setCardPicker(null);
+        showToast(`${chosen.name} adicionada à mão!`);
+      });
+      return;
+    }
+
+    // Escolher a Dedo: search the deck for any soldier.
+    if (card.name === 'Escolher a Dedo') {
+      const candidates = playerDeckPoolRef.current.filter(c => SOLDIER_TYPES.includes(c.cardType as CardType));
+      if (candidates.length === 0) {
+        setSelectedCardIndex(null);
+        showToast('Não há soldados no deck.');
+        return;
+      }
+      setPlayerMana(prev => prev - card.cost);
+      setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
+      setSelectedCardIndex(null);
+      openCardPicker('Escolha um soldado do deck para adicionar à mão', candidates, 1, (picked) => {
+        const chosen = picked[0];
+        setHand(prev => [...prev, { ...chosen, id: `hand_${Date.now()}_${Math.random()}` }]);
+        setPlayerGraveyard(g => [...g, card]);
+        setCardPicker(null);
+        showToast(`${chosen.name} adicionada à mão!`);
+      });
+      return;
+    }
+
+    // Escolher Tropas: reveal the real top 4 of the deck (not just the pool —
+    // this one actually cares about draw order), keep 2, bottom 2.
+    if (card.name === 'Escolher Tropas') {
+      if (deckQueueRef.current.length < 4) {
+        deckQueueRef.current = [...deckQueueRef.current, ...[...playerDeckPoolRef.current].sort(() => Math.random() - 0.5)];
+      }
+      const revealed = deckQueueRef.current.splice(0, 4);
+      setPlayerMana(prev => prev - card.cost);
+      setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
+      setSelectedCardIndex(null);
+      openCardPicker('Veja as 4 cartas do topo — escolha 2 para a mão', revealed, 2, (picked) => {
+        const pickedIds = new Set(picked.map(c => c.id));
+        const leftovers = revealed.filter(c => !pickedIds.has(c.id));
+        deckQueueRef.current = [...deckQueueRef.current, ...leftovers];
+        setHand(prev => [...prev, ...picked.map(c => ({ ...c, id: `hand_${Date.now()}_${Math.random()}` }))]);
+        setPlayerGraveyard(g => [...g, card]);
+        setCardPicker(null);
+        showToast(`${picked.length} carta(s) adicionada(s) à mão!`);
+      });
+      return;
+    }
+
+    // Reunião de Fiéis: summon up to 2 zero-ATK soldiers straight from the deck
+    // into empty Vanguarda slots, then shuffle.
+    if (card.name === 'Reunião de Fiéis') {
+      const candidates = playerDeckPoolRef.current.filter(c => SOLDIER_TYPES.includes(c.cardType as CardType) && c.atk === 0);
+      const emptyVanguarda = [0, 1, 2, 3, 4].filter(i => !playerSlots[i]);
+      if (candidates.length === 0 || emptyVanguarda.length === 0) {
+        setSelectedCardIndex(null);
+        showToast(candidates.length === 0 ? 'Não há soldados de 0 ATK no deck.' : 'Não há slots livres na Vanguarda.');
+        return;
+      }
+      setPlayerMana(prev => prev - card.cost);
+      setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
+      setSelectedCardIndex(null);
+      openCardPicker(
+        `Escolha até ${Math.min(2, emptyVanguarda.length)} soldado(s) de 0 ATK para invocar na Vanguarda`,
+        candidates,
+        Math.min(2, emptyVanguarda.length),
+        (picked) => {
+          setPlayerSlots(prev => {
+            const next = [...prev];
+            picked.forEach((chosen, i) => {
+              const slot = emptyVanguarda[i];
+              if (slot !== undefined) next[slot] = { ...chosen, id: `hand_${Date.now()}_${Math.random()}_${i}` };
+            });
+            return next;
+          });
+          deckQueueRef.current = [...playerDeckPoolRef.current].sort(() => Math.random() - 0.5);
+          setPlayerGraveyard(g => [...g, card]);
+          setCardPicker(null);
+          showToast(`${picked.length} soldado(s) invocado(s)! Deck embaralhado.`);
+        }
+      );
+      return;
+    }
+
     // Emboscada cards have no placement behavior at all — they only resolve via the
     // ambush interrupt when the OPPONENT attacks (see maybeActivatePlayerAmbush).
     // Dropping one on the board like a creature would just waste it as an inert 0/0
@@ -2266,6 +2428,19 @@ export default function App() {
     setPlayerGraveyard(g => [...g, card]);
     setPendingTacticAction(null);
     setViewState('hand');
+  };
+
+  // Toggles one option in/out of the current cardPicker selection — used by the
+  // multi-pick cases (Escolher Tropas, Reunião de Fiéis); single-pick cases resolve
+  // immediately on tap instead (see the cardPicker modal below) and never call this.
+  const toggleCardPickerSelection = (option: CardData) => {
+    setCardPicker(prev => {
+      if (!prev) return prev;
+      const already = prev.selected.some(c => c.id === option.id);
+      if (already) return { ...prev, selected: prev.selected.filter(c => c.id !== option.id) };
+      if (prev.selected.length >= prev.maxPicks) return prev; // already at the cap
+      return { ...prev, selected: [...prev.selected, option] };
+    });
   };
 
   // Commits to activating the General's ability with a chosen cost/amount (the first
@@ -3785,6 +3960,60 @@ export default function App() {
             >
               Voltar ao Menu
             </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Card Picker — the reveal/search Táticas (O Soldado Retorna, Busca pelo Santo
+          Graal, Nova Tática, Escolher a Dedo, Escolher Tropas, Reunião de Fiéis) all
+          resolve through this: a set of real candidate cards the game found (in the
+          graveyard, the deck's pool, or the actual top of the deck), tap one to pick
+          it. Multi-pick cases (maxPicks > 1) toggle a selection and need an explicit
+          confirm instead of resolving on the first tap. */}
+      <AnimatePresence>
+        {cardPicker && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[220] flex flex-col items-center justify-center gap-4 p-4 bg-black/80 backdrop-blur-sm pointer-events-auto"
+          >
+            <p className="text-center text-amber-400 font-black uppercase tracking-wide text-sm max-w-xs drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+              {cardPicker.title}
+            </p>
+            <div className="flex gap-3 overflow-x-auto max-w-full px-2 py-2">
+              {cardPicker.options.map(opt => {
+                const isSelected = cardPicker.selected.some(c => c.id === opt.id);
+                return (
+                  <motion.div
+                    key={opt.id}
+                    initial={{ scale: 0.85, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="flex flex-col items-center gap-2 shrink-0"
+                    onClick={() => {
+                      if (cardPicker.maxPicks === 1) {
+                        cardPicker.onConfirm([opt]);
+                      } else {
+                        toggleCardPickerSelection(opt);
+                      }
+                    }}
+                  >
+                    <div className={`relative w-32 aspect-[2/3] rounded-xl ${isSelected ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''}`}>
+                      <CardFace card={opt} variant="hand" />
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+            {cardPicker.maxPicks > 1 && (
+              <button
+                onClick={() => cardPicker.onConfirm(cardPicker.selected)}
+                disabled={cardPicker.selected.length === 0}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(16,185,129,0.7)] border-2 border-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
+              >
+                Confirmar ({cardPicker.selected.length}/{cardPicker.maxPicks})
+              </button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
