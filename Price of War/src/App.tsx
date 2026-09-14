@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { Info, X, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass } from 'lucide-react';
+import { Info, X, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass, Sparkles } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
@@ -429,20 +429,25 @@ const EQUIP_ALLOWED_TYPES: Record<string, CardType[]> = {
 // stat stamp via the same targeting flow as Deck Capitão's Táticas, not a real
 // attach/detach system), Nobre Religioso's summon-on-play, Líder de Esquadrão's
 // aura, Jorge o Lanceiro's splash damage, and Forças Secretas' exact ambush
-// effect. Left as flavor-only, same as before: Cardeal Pedro's own heal ability
-// + Cálice da Vida (needs a UI affordance for "activate the General" that doesn't
-// exist yet), the once-per-turn conditional abilities (Comerciante das Cruzadas,
-// Vigia de Mantimentos), the reveal/search/graveyard-pick Táticas (O Soldado
-// Retorna, Busca pelo Santo Graal, Nova Tática, Escolher a Dedo, Escolher
-// Tropas, Reunião de Fiéis — all need a "look at N cards, choose" UI), Espião
-// Sabotador and Soldado Fanático (both hinge on a "General type" concept the
-// game doesn't model), Aprendiz de Infantaria (needs Cardeal Pedro's heal to
-// exist first), Atirador Influente's death-trigger draw, and Arqueiro
-// Profissional's double-attack (the game doesn't track "already attacked this
-// turn" for anyone yet, so this would need that groundwork first, not just its
-// own case). The AI doesn't know how to pick a target for the ones that need
-// one — see AI_UNSUPPORTED_TACTICS in aiService.ts, which leaves them in its
-// hand rather than wasting them as an inert placed card.
+// effect. Cardeal Pedro's own heal ability + Cálice da Vida and Aprendiz de
+// Infantaria's "Ao ser curado" trigger are now wired too — see the
+// generalAbilityPrompt/pendingGeneralHeal state, activateGeneralHeal/
+// resolveGeneralHeal, and playerGeneralAbilityAvailable's "you may activate
+// this" prompt on the General slot (Yu-Gi-Oh-style: the game itself notices
+// the ability is usable and surfaces it, rather than it just sitting there as
+// unusable flavor text). Still left as flavor-only: the once-per-turn
+// conditional abilities (Comerciante das Cruzadas, Vigia de Mantimentos,
+// Hospitalário's own creature-side heal+damage), the reveal/search/
+// graveyard-pick Táticas (O Soldado Retorna, Busca pelo Santo Graal, Nova
+// Tática, Escolher a Dedo, Escolher Tropas, Reunião de Fiéis — all need a
+// "look at N cards, choose" UI), Espião Sabotador and Soldado Fanático (both
+// hinge on a "General type" concept the game doesn't model), Atirador
+// Influente's death-trigger draw, and Arqueiro Profissional's double-attack
+// (the game doesn't track "already attacked this turn" for anyone yet, so
+// this would need that groundwork first, not just its own case). The AI
+// doesn't know how to pick a target for the ones that need one — see
+// AI_UNSUPPORTED_TACTICS in aiService.ts, which leaves them in its hand
+// rather than wasting them as an inert placed card.
 
 // Applies flat damage to one slot, same simple "hp minus damage, destroyed at 0"
 // rule combat uses — but for effects (Trabuco/Catapulta/Balesta/Jorge's splash)
@@ -1224,6 +1229,26 @@ export default function App() {
   // though it's the Batalha phase (see the reposition branch's own phase check).
   const [batedorFreeMove, setBatedorFreeMove] = useState<number | null>(null);
 
+  // ── General activatable abilities (Yu-Gi-Oh-style "you may activate this" prompt) ──
+  // Cardeal Pedro's "Fase Principal: cure 1 HP em um soldado aliado. Pague 1 ouro
+  // para curar 3 HP em vez disso." used to be pure flavor text with no way to trigger
+  // it at all. Instead of hardcoding just this one ability, this is meant to read as
+  // the general shape a card game like this needs: the game itself notices the
+  // General has an available Fase-Principal effect and surfaces it (a glowing prompt
+  // on the General, see the CardSlot call sites below) rather than the player having
+  // to already know it's there. generalAbilityUses resets every player turn (see the
+  // currentTurn === 'player' effect) and caps at 1, or 2 while Cálice da Vida sits in
+  // the Relíquia slot (see getGeneralAbilityMaxUses).
+  const [playerGeneralAbilityUses, setPlayerGeneralAbilityUses] = useState(0);
+  const [npcGeneralAbilityUses, setNpcGeneralAbilityUses] = useState(0);
+  // "Ativar habilidade?" — the first prompt, offering the free vs. paid variant (or
+  // just a plain activate/cancel for an ability with no cost choice).
+  const [generalAbilityPrompt, setGeneralAbilityPrompt] = useState<{ kind: 'cardeal_heal' } | null>(null);
+  // Set once the player has committed to activating and chosen an amount — now
+  // waiting for them to click the actual ally to heal, same two-step shape as
+  // pendingTacticAction above.
+  const [pendingGeneralHeal, setPendingGeneralHeal] = useState<{ amount: number } | null>(null);
+
   const [playerMana, setPlayerMana] = useState(10);
   const [npcMana, setNpcMana] = useState(10);
 
@@ -1603,6 +1628,10 @@ export default function App() {
     setPendingTacticAction(null);
     setBatedorFreeMove(null);
     setAmbushPrompt(null);
+    setPlayerGeneralAbilityUses(0);
+    setNpcGeneralAbilityUses(0);
+    setGeneralAbilityPrompt(null);
+    setPendingGeneralHeal(null);
     setPlayerMana(10);
     setNpcMana(10);
     setSelectedCardIndex(null);
@@ -1652,6 +1681,7 @@ export default function App() {
       setSelectedMoverIndex(null);
       setBonusRepositions(0);
       setBatedorFreeMove(null);
+      setPlayerGeneralAbilityUses(0);
       if (turnNumber > 1 && hand.length < 10) {
         const newCard = drawFromDeck();
         const origin = computeDrawOrigin(playerDeckRef, hand.length);
@@ -1661,6 +1691,7 @@ export default function App() {
     } else {
       if (turnNumber >= 3) setNpcMana(prev => prev + 4);
       setViewState('field');
+      setNpcGeneralAbilityUses(0);
       if (turnNumber > 1 && npcHand.length < 10) {
         setNpcHand(prev => [...prev, drawFromNpcDeck()]);
       }
@@ -1680,6 +1711,37 @@ export default function App() {
         let currentPlayerSlots = [...playerSlots];
         let currentNpcMana = npcMana;
         let playerGeneralFell = false;
+
+        // Cardeal Pedro's General ability (see resolveGeneralHeal/GENERAL_ABILITIES
+        // below for the player-facing version of the exact same rule) has no target
+        // to pick for the AI — it just always heals its currently weakest ally,
+        // spending gold for the bigger heal whenever it can afford to. Mirrors the
+        // player's own once-or-twice-per-turn cap (Cálice da Vida) instead of a
+        // separate, potentially more generous rule for the opponent.
+        if (currentNpcSlots[12]?.name === 'Cardeal Pedro') {
+          const maxUses = currentNpcSlots[10]?.name === 'Cálice da Vida' ? 2 : 1;
+          let usesThisTurn = 0;
+          while (usesThisTurn < maxUses) {
+            const allyIndices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => currentNpcSlots[i]);
+            if (allyIndices.length === 0) break;
+            const weakest = allyIndices.reduce((a, b) => currentNpcSlots[a]!.hp <= currentNpcSlots[b]!.hp ? a : b);
+            const payGold = currentNpcMana >= 1;
+            const healAmount = payGold ? 3 : 1;
+            if (payGold) currentNpcMana -= 1;
+            let healed = { ...currentNpcSlots[weakest]!, hp: currentNpcSlots[weakest]!.hp + healAmount };
+            // Aprendiz de Infantaria: "Ao ser curado: recebe +1 ATK permanente."
+            if (healed.name === 'Aprendiz de Infantaria') healed = { ...healed, atk: healed.atk + 1 };
+            currentNpcSlots[weakest] = healed;
+            usesThisTurn++;
+          }
+          if (usesThisTurn > 0) {
+            setNpcGeneralAbilityUses(usesThisTurn);
+            setNpcSlots([...currentNpcSlots]);
+            setNpcMana(currentNpcMana);
+            showToast(`O oponente usou a habilidade do General (${usesThisTurn}x)!`);
+            await new Promise(resolve => setTimeout(resolve, 700));
+          }
+        }
 
         for (const action of actions) {
           if (action.type === 'play_card') {
@@ -1987,6 +2049,19 @@ export default function App() {
   const activePhases = phasesForTurn(turnNumber);
   const isLastPhaseOfTurn = activePhases[activePhases.length - 1] === turnPhase;
 
+  // Cálice da Vida (Relíquia, the slot-10 special slot) lets Cardeal Pedro's General
+  // ability fire twice per turn instead of once — see GENERAL_ABILITIES below.
+  const playerGeneralAbilityMaxUses = playerSlots[10]?.name === 'Cálice da Vida' ? 2 : 1;
+  // Whether the player's own General has an activatable Fase-Principal ability ready
+  // right now — drives the glowing prompt icon on the General slot (see CardSlot's
+  // showAbilityPrompt call sites). Requires an actual ally on the board to heal;
+  // otherwise there's nothing to target and the prompt would just dead-end.
+  const playerGeneralAbilityAvailable =
+    playerSlots[12]?.name === 'Cardeal Pedro' && !playerSlots[12]?.isDestroyed &&
+    currentTurn === 'player' && turnPhase === 'preparacao' &&
+    playerGeneralAbilityUses < playerGeneralAbilityMaxUses &&
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => playerSlots[i]);
+
   // A "conducting line" from the selected attacker to every occupied enemy slot — green
   // and flowing for a reachable target, dim red for one that's blocked/out of range —
   // so the lane-blocking rule reads as an obvious line on the board, not just an arrow
@@ -2159,10 +2234,41 @@ export default function App() {
     setViewState('hand');
   };
 
+  // Commits to activating the General's ability with a chosen cost/amount (the first
+  // "Ativar habilidade?" step — see generalAbilityPrompt's modal below) and opens
+  // targeting for the actual ally to heal, same two-step shape as a targetable Tática.
+  const activateGeneralHeal = (amount: number, cost: number) => {
+    if (cost > 0) setPlayerMana(prev => prev - cost);
+    setPlayerGeneralAbilityUses(prev => prev + 1);
+    setPendingGeneralHeal({ amount });
+    setGeneralAbilityPrompt(null);
+    showToast('Escolha um soldado aliado para curar.');
+  };
+
+  // Resolves the heal once the player clicks their chosen ally (see pendingGeneralHeal
+  // above and its dispatch at the top of handleSlotClick).
+  const resolveGeneralHeal = (slotIndex: number) => {
+    if (!pendingGeneralHeal) return;
+    const target = playerSlots[slotIndex];
+    if (slotIndex > 9 || !target) { showToast('Escolha um soldado aliado no campo.'); return; }
+    const amount = pendingGeneralHeal.amount;
+    setPlayerSlots(prev => {
+      const next = [...prev];
+      let healed = { ...next[slotIndex]!, hp: next[slotIndex]!.hp + amount };
+      // Aprendiz de Infantaria: "Ao ser curado: recebe +1 ATK permanente."
+      if (healed.name === 'Aprendiz de Infantaria') healed = { ...healed, atk: healed.atk + 1 };
+      next[slotIndex] = healed;
+      return next;
+    });
+    showToast(`${target.name} recuperou ${amount} HP!`);
+    setPendingGeneralHeal(null);
+  };
+
   const handleSlotClick = (slotIndex: number, slotEl?: HTMLElement) => {
     if (gameOverWinner || isCardInFlightTransition) return;
 
     if (pendingTacticAction) { resolveOwnTacticTarget(slotIndex); return; }
+    if (pendingGeneralHeal) { resolveGeneralHeal(slotIndex); return; }
 
     // Batedor's free post-combat move (see batedorFreeMove) opens this same
     // reposition flow even during Batalha, but only for that one exact unit.
@@ -2450,6 +2556,14 @@ export default function App() {
       setPlayerGraveyard(g => [...g, pendingTacticAction.card]);
       setPendingTacticAction(null);
       setViewState('hand');
+      return;
+    }
+    if (pendingGeneralHeal) {
+      // Same reasoning as pendingTacticAction above: the activation (and any gold
+      // cost) is already committed, so backing out here just wastes it rather than
+      // refunding — otherwise there'd be no real cost to peeking at the board first.
+      showToast('Habilidade desperdiçada — nenhum alvo escolhido.');
+      setPendingGeneralHeal(null);
       return;
     }
     if (viewState === 'field') {
@@ -2942,6 +3056,23 @@ export default function App() {
                 attackDirection="up"
               />
               <ManaBadge value={playerMana} className="absolute -top-3 -left-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
+              {/* Yu-Gi-Oh-style "you may activate this" prompt — the game itself
+                  notices the General has a usable Fase-Principal ability right now
+                  (see playerGeneralAbilityAvailable) and surfaces it here instead of
+                  it just being unusable flavor text on the card. */}
+              {playerGeneralAbilityAvailable && (
+                <motion.button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setGeneralAbilityPrompt({ kind: 'cardeal_heal' });
+                  }}
+                  animate={{ scale: [1, 1.15, 1] }}
+                  transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute -top-3 -right-3 w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-b from-amber-400 to-amber-600 border-2 border-amber-200 flex items-center justify-center shadow-[0_0_18px_rgba(251,191,36,0.8)] z-20 pointer-events-auto"
+                >
+                  <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-amber-950" />
+                </motion.button>
+              )}
             </div>
             <CardSlot
               slotId="player-11"
@@ -3639,6 +3770,56 @@ export default function App() {
                 ))}
                 <button
                   onClick={() => { ambushPrompt.resolve(null); setAmbushPrompt(null); }}
+                  className="w-full px-4 py-2.5 rounded-lg bg-zinc-700 text-white font-bold text-sm hover:bg-zinc-600 transition-colors mt-1"
+                >
+                  Não ativar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* "Ativar habilidade?" — the General's own Fase-Principal effect, offered the
+          moment it's actually usable (see playerGeneralAbilityAvailable) instead of
+          requiring the player to already know it exists. Same visual language as the
+          Emboscada prompt above: read what it does, then choose how (or whether) to
+          use it. */}
+      <AnimatePresence>
+        {generalAbilityPrompt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm pointer-events-auto"
+          >
+            <motion.div
+              initial={{ scale: 0.85, y: 30 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.85, y: 30 }}
+              transition={{ type: "spring", damping: 22, stiffness: 280 }}
+              className="relative w-full max-w-sm rounded-2xl border-2 border-amber-500/70 bg-zinc-900 p-5 shadow-[0_0_60px_rgba(0,0,0,0.9)]"
+            >
+              <p className="text-center text-amber-400 font-black uppercase tracking-widest text-xs mb-1">Habilidade disponível!</p>
+              <p className="text-center text-white text-sm mb-4">
+                Cardeal Pedro pode curar um soldado aliado agora. Como deseja ativar?
+              </p>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => activateGeneralHeal(1, 0)}
+                  className="w-full px-4 py-2.5 rounded-lg bg-gradient-to-b from-amber-500 to-amber-700 text-zinc-900 font-bold text-sm hover:from-amber-400 hover:to-amber-600 transition-colors"
+                >
+                  Curar 1 HP (grátis)
+                </button>
+                <button
+                  onClick={() => activateGeneralHeal(3, 1)}
+                  disabled={playerMana < 1}
+                  className="w-full px-4 py-2.5 rounded-lg bg-gradient-to-b from-amber-500 to-amber-700 text-zinc-900 font-bold text-sm hover:from-amber-400 hover:to-amber-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:from-amber-500 disabled:hover:to-amber-700"
+                >
+                  Pagar 1 ouro: curar 3 HP
+                </button>
+                <button
+                  onClick={() => setGeneralAbilityPrompt(null)}
                   className="w-full px-4 py-2.5 rounded-lg bg-zinc-700 text-white font-bold text-sm hover:bg-zinc-600 transition-colors mt-1"
                 >
                   Não ativar
