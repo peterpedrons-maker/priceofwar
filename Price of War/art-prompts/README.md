@@ -29,6 +29,24 @@ atacando, a Full Art dele não repete a mesma investida vista de outro
 batalha, um close num detalhe específico, etc.). Todos os pares abaixo já
 seguem essa regra.
 
+**Variedade de estilo pictórico:** cartas de TCG de verdade (Magic,
+Yu-Gi-Oh) não usam sempre a mesma técnica de pintura — misturam realismo
+quase fotográfico, ilustração estilizada/gráfica, pinceladas soltas e
+impressionistas, e até elementos semi-abstratos (diagramas, símbolos
+brilhantes) dentro de cenas realistas. Pra não ficar tudo com a mesma cara
+de "pintura digital genérica", cada prompt abaixo pede deliberadamente uma
+abordagem diferente, escolhida pelo clima da cena — por exemplo: cenas de
+ação/ataque tendem a pedir estilização gráfica ousada (mais perto da
+energia de uma carta de monstro de Yu-Gi-Oh); cenas noturnas/furtivas
+pedem realismo cinematográfico de contraste forte; momentos
+tranquilos/emocionais pedem pincelada solta e impressionista; cartas de
+tática/magia/efeito abstrato pedem uma mistura semi-abstrata com
+elementos gráficos/diagramáticos brilhantes junto da cena real; relíquias
+e cartas antigas pedem um traço mais gráfico inspirado em manuscritos
+iluminados e gravuras; still-lifes de equipamento pedem realismo macro
+hiper-detalhado. Isso é uma camada a mais de variedade além do cenário/
+ângulo de cada carta (já tratado acima).
+
 Os prompts abaixo estão em inglês (é o que os geradores de imagem
 respondem melhor), com as notas em português.
 
@@ -777,7 +795,7 @@ a startled dove cross between the depth layers. Extremely detailed
 rendering — engraved filigree in the armor, individually rendered
 embroidered gold thread in the mantle, weathered stone texture on the
 cathedral steps, a long white beard catching the golden light, soft
-specular highlights on polished gold. Rich warm palette of white, gold and
+specular highlights on polished gold. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism. Rich warm palette of white, gold and
 deep crimson, powerful sense of scale and reverence, composition designed
 to fill a tall card frame edge-to-edge with no empty margins at top or
 bottom, no text, no card frame, no border, no watermark
@@ -811,7 +829,7 @@ glimpse of open dusk sky through the ruined roof in the background.
 Drifting motes of golden light and dust float upward through the whole
 scene. Extremely detailed engraved metal texture, cracked marble grain,
 moss and lichen detail on the stonework, reflective specular highlights on
-the gold. Rich warm palette of gold, white and deep crimson, powerful
+the gold. Graphic, high-contrast illustrative rendering inspired by illuminated manuscripts and engraved relic art, bold linework over painted color rather than soft photographic shading. Rich warm palette of gold, white and deep crimson, powerful
 sense of quiet reverence and sacred power, composition designed to fill a
 tall card frame edge-to-edge with no empty margins at top or bottom, no
 characters, no text, no card frame, no border, no watermark
@@ -841,8 +859,7 @@ fear mixed with fierce faith. A worn stone marker carved with a cross
 stands beside them, half-sunk in mud, small offerings of wildflowers at
 its base. Fog rolls low across the ground behind them, distant campfires
 of the main army barely visible as blurred orange smudges in the deep
-background. Painterly brushwork in the style of premium Magic: The
-Gathering card art, low warm lantern-light contrasted against cold blue
+background. Loose, expressive painterly impressionism with visible confident brushstrokes, closer to classical oil-painting concept art than crisp digital rendering, low warm lantern-light contrasted against cold blue
 night fog, rich texture in the worn cloth and weathered stone, medium-wide
 shot with the whole group visible, cinematic low-angle composition,
 landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no
@@ -866,8 +883,7 @@ a small cross pendant. Behind him, stacked crates, coiled rope and a
 half-open sack of grain crowd the tent's interior, a folded map of the
 front lines pinned to the canvas wall. Warm amber lamplight pools on the
 scrolls and his face, the tent's canvas walls glowing faintly from a
-campfire just outside. Painterly brushwork in the style of premium Magic:
-The Gathering card art, rich texture in aged parchment and worn leather,
+campfire just outside. Cinematic, near-photographic chiaroscuro rendering with deep dramatic shadow and razor-sharp highlight, closer to a film still than a painting, rich texture in aged parchment and worn leather,
 intimate interior composition (unlike the open-battlefield scenes
 elsewhere in this set), warm palette of amber lamplight, cream parchment
 and worn leather brown, medium shot fully visible, landscape orientation
@@ -892,8 +908,7 @@ Below him, framed through a gap in the trees, a cluster of distant enemy
 campfires glows small and orange in a valley shrouded in mist — the thing
 he's watching. Cold blue-gray moonlight rakes across the fog and tree
 bark, sharply contrasted against the tiny warm enemy fires far below,
-his own silhouette almost lost in shadow. Painterly brushwork in the style
-of premium Magic: The Gathering card art, muted nocturnal palette of
+his own silhouette almost lost in shadow. Cinematic, near-photographic chiaroscuro rendering with deep dramatic shadow and razor-sharp highlight, closer to a film still than a painting, muted nocturnal palette of
 charcoal, deep forest green and cold moonlight blue with small warm
 accents, elevated vantage-point composition looking down into the valley,
 cinematic wide shot, landscape orientation (about 1600×1000px, wider than
@@ -916,8 +931,7 @@ with fanatical fervor, mouth open mid battle-cry. Flames from the burning
 crop race along the ground behind him in jagged orange lines, throwing his
 silhouette forward in stark hard-edged light, sparks and burning chaff
 whipping past in the wind of his own charge. Distant, blurred enemy
-banners are just visible through the smoke ahead of him. Painterly
-brushwork in the style of premium Magic: The Gathering card art, intense
+banners are just visible through the smoke ahead of him. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism, intense
 high-contrast palette of fire orange, soot black and dull crimson,
 dynamic low diagonal action composition emphasizing forward momentum,
 cinematic wide shot, landscape orientation (about 1600×1000px, wider than
@@ -941,8 +955,7 @@ shadow of an unseen older mentor stretches across the ground in front of
 him from just outside the frame, implying guidance without showing the
 teacher. Low golden morning light rakes sideways across the training yard,
 catching dust kicked up from the dirt floor, a stack of spare wooden
-weapons leaning against a fence post in the blurred background. Painterly
-brushwork in the style of premium Magic: The Gathering card art, soft warm
+weapons leaning against a fence post in the blurred background. Loose, expressive painterly impressionism with visible confident brushstrokes, closer to classical oil-painting concept art than crisp digital rendering, soft warm
 dawn palette of gold, cream and pale steel blue, intimate low
 ground-level composition, landscape orientation (about 1600×1000px, wider
 than tall), no text, no card frame, no border, no watermark
@@ -965,8 +978,7 @@ dark horizon. Below him, more crates and barrels marked with a small cross
 sigil stretch off into moonlit shadow, a sleeping camp of tents barely
 visible beyond. Cold silver moonlight washes the background while his own
 lantern-light is the only warm source, throwing a long dramatic shadow
-down the crate stack. Painterly brushwork in the style of premium Magic:
-The Gathering card art, high-contrast nocturnal palette of lantern amber
+down the crate stack. Cinematic, near-photographic chiaroscuro rendering with deep dramatic shadow and razor-sharp highlight, closer to a film still than a painting, high-contrast nocturnal palette of lantern amber
 against moonlit blue-gray, elevated vantage composition looking slightly
 down and across the camp, landscape orientation (about 1600×1000px, wider
 than tall), no text, no card frame, no border, no watermark
@@ -988,8 +1000,7 @@ between them against a bright overcast sky, one soldier's determined face
 visible peering down between two shields directly above the camera. Dust
 and a few loose straws drift down between the shields, backlit by the sky
 beyond. The formation's discipline itself is the subject rather than any
-one soldier — an unbroken wall of white, gold and crimson livery. Painterly
-brushwork in the style of premium Magic: The Gathering card art, dramatic
+one soldier — an unbroken wall of white, gold and crimson livery. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism, dramatic
 extreme low-angle perspective distortion, bright overcast palette of
 white, gold and steel gray, cinematic wide shot, landscape orientation
 (about 1600×1000px, wider than tall), no text, no card frame, no border,
@@ -1016,8 +1027,7 @@ half-glimpsed silhouette of a slain dragon's ribcage juts from the stone —
 old bones, not a threat, just a haunting detail hinting at his legend.
 Dust and loose scree kick up from the warhorse's hooves, dramatic warm
 side-lighting from a low sun at the mouth of the gorge ahead throwing long
-shadows back toward the viewer. Painterly brushwork in the style of
-premium Magic: The Gathering card art, warm palette of white, gold and
+shadows back toward the viewer. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism, warm palette of white, gold and
 crimson against cold gray rock, dynamic diagonal charging composition
 through a canyon, cinematic medium-wide shot with horse and rider fully
 visible, landscape orientation (about 1600×1000px, wider than tall), no
@@ -1048,7 +1058,7 @@ sunrise valley stretching out below the hilltop in the background.
 Drifting mist rises from the valley floor between the depth layers.
 Extremely detailed rendering — engraved filigree in the armor, weathered
 bone texture on the massive skull, dew on the grass, soft specular
-highlights on polished gold. Rich palette of soft dawn pink, gold and
+highlights on polished gold. Loose, expressive painterly impressionism with visible confident brushstrokes, closer to classical oil-painting concept art than crisp digital rendering. Rich palette of soft dawn pink, gold and
 white, powerful sense of quiet triumph and legend, composition designed to
 fill a tall card frame edge-to-edge with no empty margins at top or
 bottom, no text, no card frame, no border, no watermark
@@ -1072,8 +1082,7 @@ soft healing light pressed to the man's shoulder, his own lance planted
 upright in the ground beside them like a marker. Long shadows stretch
 across the field in the fading orange light, distant campfires just
 beginning to flicker on the horizon. A quieter, more sorrowful moment than
-the charging knights elsewhere in this set. Painterly brushwork in the
-style of premium Magic: The Gathering card art, warm dusk palette of
+the charging knights elsewhere in this set. Loose, expressive painterly impressionism with visible confident brushstrokes, closer to classical oil-painting concept art than crisp digital rendering, warm dusk palette of
 amber, white and soft red fading into cool shadow, intimate ground-level
 composition, landscape orientation (about 1600×1000px, wider than tall),
 no text, no card frame, no border, no watermark
@@ -1096,8 +1105,7 @@ from the drifting ground mist as if freshly summoned, golden light
 pooling around their feet, seen from the noble's elevated vantage rather
 than up close. Banner-bearers flank his horse at the hilltop's edge,
 their standards snapping in the wind. Wide sweeping vista composition
-emphasizing scale and distance rather than a close portrait. Painterly
-brushwork in the style of premium Magic: The Gathering card art, rich
+emphasizing scale and distance rather than a close portrait. Semi-abstract illustration blending a grounded realistic scene with glowing geometric/runic diagram elements woven directly into the image, part painting part magical schematic, rich
 palette of gold, white and crimson against a cool misty valley below,
 dynamic elevated wide shot, landscape orientation (about 1600×1000px,
 wider than tall), no text, no card frame, no border, no watermark
@@ -1127,7 +1135,7 @@ a small stained-glass window glowing faintly with moonlight in the
 background. Drifting motes of candlelight and mist cross between the depth
 layers. Extremely detailed rendering — engraved filigree in the armor,
 wax pooling on the shrine's candles, soft specular highlights on polished
-gold. Rich palette of warm candle-gold against deep chapel shadow,
+gold. Semi-abstract illustration blending a grounded realistic scene with glowing geometric/runic diagram elements woven directly into the image, part painting part magical schematic. Rich palette of warm candle-gold against deep chapel shadow,
 powerful sense of quiet devotion rather than command, composition designed
 to fill a tall card frame edge-to-edge with no empty margins at top or
 bottom, no text, no card frame, no border, no watermark
@@ -1150,7 +1158,7 @@ wreathed in a faint holy white-gold glow that cuts through the gray rain.
 Rain streaks the whole scene, lightning flashing on the horizon
 silhouetting distant battlements, water droplets caught mid-air around the
 horse's churning legs. Heroic confident pose undimmed by the storm.
-Painterly brushwork in the style of premium Magic: The Gathering card art,
+Cinematic, near-photographic chiaroscuro rendering with deep dramatic shadow and razor-sharp highlight, closer to a film still than a painting,
 cool stormy palette of slate gray and rain-blue cut through by the knight's
 own warm white-gold glow, dynamic river-crossing composition, cinematic
 medium-wide shot with horse and rider fully visible, landscape orientation
@@ -1181,8 +1189,11 @@ clear, peaceful blue sky finally breaking after the storm in the
 background. A single white feather drifts down between the depth layers.
 Extremely detailed rendering — engraved plate armor catching clean
 sunlight, individual strands of his horse's mane where it stands quietly
-behind him, soft specular highlights on polished steel and gold. Rich
-palette of clear sky blue, white and gold, powerful sense of solemn
+behind him, soft specular highlights on polished steel and gold. Loose,
+expressive painterly impressionism with visible confident brushstrokes,
+closer to classical oil-painting concept art than crisp digital
+rendering. Rich palette of clear sky blue, white and gold, powerful sense
+of solemn
 victory and peace, composition designed to fill a tall card frame edge-to
 -edge with no empty margins at top or bottom, no text, no card frame, no
 border, no watermark
@@ -1204,8 +1215,7 @@ and archers around him turn back to rally at the sight of it. Below the
 bridge, a river choked with debris and drifting smoke; behind him, the
 bridge's far arch has already crumbled into the water, giving the whole
 scene the tension of a last stand at a chokepoint. Embers drift past from
-a burning wagon nearby. Painterly brushwork in the style of premium Magic:
-The Gathering card art, high-tension palette of smoke gray, gold and
+a burning wagon nearby. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism, high-tension palette of smoke gray, gold and
 crimson, dynamic wide siege-bridge composition, cinematic medium-wide shot
 with horse and rider fully visible, landscape orientation (about
 1600×1000px, wider than tall), no text, no card frame, no border, no
@@ -1233,7 +1243,7 @@ cheering infantry charging alongside him in the midground, a bright open
 sunrise horizon in the background. Dust and sunlit motes cross between the
 depth layers. Extremely detailed rendering — polished undamaged armor,
 embroidered banner fabric streaming in the wind, sharp specular highlights
-on gold trim. Rich palette of golden sunrise, crimson and white, powerful
+on gold trim. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism. Rich palette of golden sunrise, crimson and white, powerful
 sense of unstoppable momentum and morale, composition designed to fill a
 tall card frame edge-to-edge with no empty margins at top or bottom, no
 text, no card frame, no border, no watermark
@@ -1258,7 +1268,7 @@ over practical leather armor, a full quiver of bolts at his hip, focused
 intense expression lit from one side by the low sun. Through the broken
 window frame beside him, a dizzying view down onto a distant battlefield
 sprawls below, tiny figures and banners barely visible in the haze.
-Painterly brushwork in the style of premium Magic: The Gathering card art,
+Cinematic, near-photographic chiaroscuro rendering with deep dramatic shadow and razor-sharp highlight, closer to a film still than a painting,
 warm palette of gold, cream and steel gray against a hazy pale sky far
 below, dramatic elevated interior-to-exterior composition, cinematic wide
 shot, landscape orientation (about 1600×1000px, wider than tall), no text,
@@ -1281,8 +1291,7 @@ draw on the bowstring, calm patient expression contrasting with the
 battlefield scenes elsewhere in this set — a quiet legacy-passing moment
 rather than combat. Worn but well-kept gear, a row of spent arrows already
 stuck in a straw target downrange, long warm shadows stretching across the
-grass. Painterly brushwork in the style of premium Magic: The Gathering
-card art, warm golden-hour palette of amber, cream and soft green, intimate
+grass. Loose, expressive painterly impressionism with visible confident brushstrokes, closer to classical oil-painting concept art than crisp digital rendering, warm golden-hour palette of amber, cream and soft green, intimate
 low ground-level composition emphasizing the two figures together, wide
 shot fully visible, landscape orientation (about 1600×1000px, wider than
 tall), no text, no card frame, no border, no watermark
@@ -1306,8 +1315,7 @@ whips upward against a dawn sky, crusader soldiers below straining at
 ropes and bracing against the machine's recoil, seen tiny and foreshortened
 from this extreme vantage. A distant fortified enemy gatehouse looms on
 the horizon, the trebuchet's true target. Dust, splinters and sparks
-fly close to camera. Painterly brushwork in the style of premium Magic:
-The Gathering card art, warm palette of gold, wood brown and fire orange
+fly close to camera. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism, warm palette of gold, wood brown and fire orange
 against a pale dawn sky, extreme dynamic point-of-view composition unlike
 any other siege weapon in this set, cinematic wide shot, landscape
 orientation (about 1600×1000px, wider than tall), no text, no card frame,
@@ -1336,7 +1344,7 @@ of night battlefield in the midground, the massive distant fireball and
 lit clouds dominating the upper background. Sparks and embers drift high
 in the sky between the depth layers. Extremely detailed rendering —
 individually rendered distant embers and smoke tendrils, silhouette detail
-on the watching soldiers' armor rims. Rich palette of deep night blue-
+on the watching soldiers' armor rims. Cinematic, near-photographic chiaroscuro rendering with deep dramatic shadow and razor-sharp highlight, closer to a film still than a painting. Rich palette of deep night blue-
 black and blazing fire orange, powerful sense of awe and scale from a
 safe distance, composition designed to fill a tall card frame edge-to-edge
 with no empty margins at top or bottom, no text, no card frame, no border,
@@ -1359,8 +1367,7 @@ enemy soldiers atop a stone gatehouse. Unlike the trebuchet's tight close-
 up power shot elsewhere in this set, this is a wide, populated battlefield
 vista — mud, tents, spare ammunition stacked in pyramids, banners planted
 in the ground, a whole army's energy captured in one frame. Bright midday
-sun casts short hard shadows. Painterly brushwork in the style of premium
-Magic: The Gathering card art, warm palette of gold, wood brown and stone
+sun casts short hard shadows. Painterly digital realism in the style of premium Magic: The Gathering card art (Legends of Runeterra splash-art quality), warm palette of gold, wood brown and stone
 gray under bright daylight, dynamic wide vista composition, cinematic wide
 shot, landscape orientation (about 1600×1000px, wider than tall), no text,
 no card frame, no border, no watermark
@@ -1382,8 +1389,7 @@ moon's face toward a distant, unseen target. Only two crusader crew
 members are visible, small and quiet beside the machine, bracing the frame
 after release — a solitary, moodier scene than the busy daytime siege
 camps elsewhere in this set. Cold silver moonlight defines every edge,
-taut ropes still vibrating from the shot. Painterly brushwork in the style
-of premium Magic: The Gathering card art, high-contrast nocturnal palette
+taut ropes still vibrating from the shot. Semi-abstract illustration blending a grounded realistic scene with glowing geometric/runic diagram elements woven directly into the image, part painting part magical schematic, high-contrast nocturnal palette
 of deep indigo and silver moonlight with a single warm bolt-trail, stark
 silhouette composition, cinematic wide shot, landscape orientation (about
 1600×1000px, wider than tall), no text, no card frame, no border, no
@@ -1407,8 +1413,7 @@ cuirass, gauntlets and a closed great helm all catching warm flickering
 candlelight from a nearby iron candelabra, faint engraved cross motifs on
 the breastplate, old tapestries depicting past crusades hanging on the
 stone wall behind it, dust motes drifting through the candlelight. A
-polished shield leans against the stand's base. Painterly brushwork in
-the style of premium Magic: The Gathering card art, warm palette of white,
+polished shield leans against the stand's base. Hyperreal macro product-photography-level realism, every material surface rendered with tack-sharp physically-based detail, warm palette of white,
 gold and deep candlelit shadow, intimate interior still-life composition,
 medium shot with the full armor stand visible, landscape orientation
 (about 1600×1000px, wider than tall), no text, no card frame, no border,
@@ -1431,8 +1436,7 @@ swaying slightly, the campfire's orange glow catching the polished metal
 from below — a casual field-camp setting, deliberately different from the
 formal candlelit armory of the heavier armor piece in this set. A
 bedroll and a half-eaten meal sit nearby, implying a soldier just stepped
-away. Painterly brushwork in the style of premium Magic: The Gathering
-card art, warm palette of campfire orange, steel gray and dusk purple,
+away. Hyperreal macro product-photography-level realism, every material surface rendered with tack-sharp physically-based detail, warm palette of campfire orange, steel gray and dusk purple,
 outdoor still-life composition, medium shot with the rack visible,
 landscape orientation (about 1600×1000px, wider than tall), no text, no
 card frame, no border, no watermark
@@ -1453,8 +1457,7 @@ green poison that drips slowly onto the cloth below, faint toxic vapor
 curling off the tip and catching a shaft of dim torchlight from one side —
 the poison's own glow acting as a second light source against the
 otherwise near-black background. Fletching feathers rendered in sharp
-individual detail. Painterly brushwork in the style of premium Magic: The
-Gathering card art, palette of near-black cloth, gold fletching and toxic
+individual detail. Hyperreal macro product-photography-level realism, every material surface rendered with tack-sharp physically-based detail, palette of near-black cloth, gold fletching and toxic
 green glow, extreme macro close-up composition, landscape orientation
 (about 1600×1000px, wider than tall), no text, no card frame, no border,
 no watermark
@@ -1475,8 +1478,7 @@ the blade itself catching a faint warm holy glow along its edge that
 seems to come from within the metal rather than reflected light, dew
 beading on the crossguard, soft mist curling around the base of the blade
 at ground level. Intricate engravings near the guard just catching the
-first sunlight. Painterly brushwork in the style of premium Magic: The
-Gathering card art, palette of steel, gold and dawn-lit mist, outdoor
+first sunlight. Hyperreal macro product-photography-level realism, every material surface rendered with tack-sharp physically-based detail, palette of steel, gold and dawn-lit mist, outdoor
 close-up composition (contrasting with the indoor candlelit still-lifes
 elsewhere in this set), landscape orientation (about 1600×1000px, wider
 than tall), no text, no card frame, no border, no watermark
@@ -1499,8 +1501,7 @@ lit by a single shaft of light spilling through a hole in the collapsed
 roof above them, about to spring out to reinforce an ally under attack
 just beyond the chapel's shattered doorway. Ivy creeps over the fallen
 stonework around them, a broken statue of a saint watching over the
-hiding place. Painterly brushwork in the style of premium Magic: The
-Gathering card art, warm palette of gold light against cool ruined-stone
+hiding place. Cinematic, near-photographic chiaroscuro rendering with deep dramatic shadow and razor-sharp highlight, closer to a film still than a painting, warm palette of gold light against cool ruined-stone
 shadow, tense interior-ambush composition unlike the open-field ambushes
 elsewhere in this set, medium-wide shot with the group visible, landscape
 orientation (about 1600×1000px, wider than tall), no text, no card frame,
@@ -1524,8 +1525,7 @@ cemetery hill, warm holy light lifting the ghostly figure back upright as
 if returning to the ranks, a handful of fellow soldiers kneeling in
 reverent awe at the base of the hill, their lanterns the only other light
 source. Rows of simpler grave markers stretch away into the misty dusk
-background, implying this is one of many such graves. Painterly brushwork
-in the style of premium Magic: The Gathering card art, warm palette of
+background, implying this is one of many such graves. Semi-abstract illustration blending a grounded realistic scene with glowing geometric/runic diagram elements woven directly into the image, part painting part magical schematic, warm palette of
 gold and translucent white against deep dusk blue mist, elevated hillside
 composition, medium-wide shot fully visible, landscape orientation (about
 1600×1000px, wider than tall), no text, no card frame, no border, no
@@ -1554,7 +1554,7 @@ midground, a bright dawn sky and the camp's banners in the background.
 Sunlit dust and drifting fading motes of the last of his ghostly glow
 cross between the depth layers. Extremely detailed rendering — genuine
 emotion in the faces, weathered reunited armor, sharp specular highlights
-in the bright dawn light. Rich palette of warm gold sunrise, white and
+in the bright dawn light. Loose, expressive painterly impressionism with visible confident brushstrokes, closer to classical oil-painting concept art than crisp digital rendering. Rich palette of warm gold sunrise, white and
 soft red, powerful sense of joy and homecoming rather than solemn
 resurrection, composition designed to fill a tall card frame edge-to-edge
 with no empty margins at top or bottom, no text, no card frame, no border,
@@ -1576,8 +1576,7 @@ light atop an ancient stone pedestal deep within, reachable down a short
 flight of worn stone steps he's only just descended. Roots and vines have
 grown through cracks in the shrine's ceiling, a single beam of sunlight
 piercing down from above to strike the Grail directly. Dust motes hang
-thick in the shaft of light. Painterly brushwork in the style of premium
-Magic: The Gathering card art, warm palette of gold, cream stone and soft
+thick in the shaft of light. Graphic, high-contrast illustrative rendering inspired by illuminated manuscripts and engraved relic art, bold linework over painted color rather than soft photographic shading, warm palette of gold, cream stone and soft
 white light against deep underground shadow, dramatic descending-steps
 composition, medium shot fully visible, landscape orientation (about
 1600×1000px, wider than tall), no text, no card frame, no border, no
@@ -1600,8 +1599,7 @@ several crusader officers lean in around the table studying it intently,
 their faces lit from below by the map table's ring of candles. Rolled
 scrolls, an inkwell and a compass rest at the map's corners. Warm
 candlelight is the only light source, deep shadow pooling in the corners
-of the tent. Painterly brushwork in the style of premium Magic: The
-Gathering card art, warm palette of amber candlelight, parchment cream and
+of the tent. Painterly digital realism in the style of premium Magic: The Gathering card art (Legends of Runeterra splash-art quality), warm palette of amber candlelight, parchment cream and
 gold, elevated interior composition, medium-wide shot fully visible,
 landscape orientation (about 1600×1000px, wider than tall), no text, no
 card frame, no border, no watermark
@@ -1621,8 +1619,7 @@ at rigid attention along a castle courtyard wall, torches mounted between
 them casting alternating pools of warm light and shadow down the line,
 stopping to point decisively at one specific soldier who straightens with
 pride as the torchlight catches him. The rest of the line stands in
-disciplined shadow, waiting. Painterly brushwork in the style of premium
-Magic: The Gathering card art, high-contrast palette of torch-gold pools
+disciplined shadow, waiting. Cinematic, near-photographic chiaroscuro rendering with deep dramatic shadow and razor-sharp highlight, closer to a film still than a painting, high-contrast palette of torch-gold pools
 against deep night shadow, dramatic repeating-light composition down the
 line, medium-wide shot fully visible, landscape orientation (about
 1600×1000px, wider than tall), no text, no card frame, no border, no
@@ -1643,8 +1640,7 @@ on a dew-covered parade ground at dawn, thick low mist swirling around
 their boots, closely comparing two of them side by side with a critical
 eye while the rest wait calmly in the mist behind. Pale gold dawn light
 breaks low across the field, throwing long thin shadows across the wet
-grass. Painterly brushwork in the style of premium Magic: The Gathering
-card art, warm palette of gold, white and pale misty blue, atmospheric
+grass. Loose, expressive painterly impressionism with visible confident brushstrokes, closer to classical oil-painting concept art than crisp digital rendering, warm palette of gold, white and pale misty blue, atmospheric
 low-mist dawn composition, medium-wide shot fully visible, landscape
 orientation (about 1600×1000px, wider than tall), no text, no card frame,
 no border, no watermark
@@ -1664,8 +1660,7 @@ wooden desk inside a cramped supply tent, an open ledger covered in tally
 marks, a heavy iron-banded coin chest half-open beside him spilling more
 coins onto the desk, a small cross pendant swinging from his neck as he
 leans forward. A single candle in a dish throws warm flickering light
-across the coins, making them glint individually. Painterly brushwork in
-the style of premium Magic: The Gathering card art, warm palette of gold
+across the coins, making them glint individually. Hyperreal macro product-photography-level realism, every material surface rendered with tack-sharp physically-based detail, warm palette of gold
 coin shine, candle amber and worn wood brown, intimate cluttered-desk
 composition, medium shot fully visible, landscape orientation (about
 1600×1000px, wider than tall), no text, no card frame, no border, no
@@ -1689,8 +1684,7 @@ beginning to be lit throughout the crowd as evening falls. The
 architecture of the town — narrow streets, tiled roofs, a small chapel bell
 tower — frames the gathering from above, giving a genuine sense of a whole
 town answering a call, distinct from the smaller, close-up group scenes
-elsewhere in this set. Painterly brushwork in the style of premium Magic:
-The Gathering card art, warm palette of gold, torch-orange and dusky
+elsewhere in this set. Painterly digital realism in the style of premium Magic: The Gathering card art (Legends of Runeterra splash-art quality), warm palette of gold, torch-orange and dusky
 blue-violet sky, dramatic elevated wide-vista composition, landscape
 orientation (about 1600×1000px, wider than tall), no text, no card frame,
 no border, no watermark
@@ -1750,7 +1744,7 @@ smoke-streaked sky in the background. Drifting embers and dust motes cross
 between the depth layers. Extremely detailed rendering — engraved ironwork
 on the pole, embroidered gold thread in the banner cloth, splintered wood
 texture on the wrecked siege engine, reflective specular highlights on
-the lion finial. Rich palette of crimson, gold and steel gray, powerful
+the lion finial. Graphic, high-contrast illustrative rendering inspired by illuminated manuscripts and engraved relic art, bold linework over painted color rather than soft photographic shading. Rich palette of crimson, gold and steel gray, powerful
 sense of authority and hard-won victory, composition designed to fill a
 tall card frame edge-to-edge with no empty margins at top or bottom, no
 characters, no text, no card frame, no border, no watermark
@@ -1775,8 +1769,7 @@ the other as they trade places in the line without breaking stride. Rows
 of identically-drilled soldiers hold their positions in sharp formation in
 the blurred background, a drill sergeant's raised flag visible at the
 yard's edge. Warm dusty daylight, low golden sun raking across the packed
-earth. Painterly brushwork in the style of premium Magic: The Gathering
-card art, warm palette of crimson, gold and steel gray, dynamic crossing-
+earth. Painterly digital realism in the style of premium Magic: The Gathering card art (Legends of Runeterra splash-art quality), warm palette of crimson, gold and steel gray, dynamic crossing-
 motion composition, medium-wide shot fully visible, landscape orientation
 (about 1600×1000px, wider than tall), no text, no card frame, no border,
 no watermark
@@ -1797,8 +1790,7 @@ shield toward a sky full of incoming arrows frozen mid-fall, several
 already stuck harmlessly in the shield's face. Between his planted boots,
 partially visible, two younger soldiers crouch low in the shelter of his
 shadow, safe behind him. Warm dusty daylight breaks around the shield's
-edge in bright rim-light. Painterly brushwork in the style of premium
-Magic: The Gathering card art, warm palette of crimson, gold and steel
+edge in bright rim-light. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism, warm palette of crimson, gold and steel
 gray against a bright sky, extreme low protective-angle composition,
 landscape orientation (about 1600×1000px, wider than tall), no text, no
 card frame, no border, no watermark
@@ -1820,7 +1812,7 @@ moving hand and rippling into the soldiers he passes, their postures
 visibly straightening as the shimmer touches them. Orderly ranks
 reorganize in his wake, dust kicked up by fast footwork. Warm low sunset
 light throws his motion-blurred silhouette long across the field.
-Painterly brushwork in the style of premium Magic: The Gathering card art,
+Semi-abstract illustration blending a grounded realistic scene with glowing geometric/runic diagram elements woven directly into the image, part painting part magical schematic,
 warm palette of crimson, gold and steel gray with a magical golden motion
 -trail accent, dynamic mid-motion composition, medium-wide shot fully
 visible, landscape orientation (about 1600×1000px, wider than tall), no
@@ -1848,7 +1840,7 @@ the vertical frame, the whole disciplined army arrayed in formation far
 below in the midground, a wide dawn battlefield vista in the background.
 Drifting morning mist crosses between the depth layers. Extremely detailed
 rendering — engraved plate-and-mail armor, windswept cape fabric, sharp
-specular highlights on polished steel and gold. Rich palette of dawn gold,
+specular highlights on polished steel and gold. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism. Rich palette of dawn gold,
 crimson and steel gray, powerful sense of overview and command, composition
 designed to fill a tall card frame edge-to-edge with no empty margins at
 top or bottom, no text, no card frame, no border, no watermark
@@ -1870,7 +1862,7 @@ rope for balance, already glancing toward the far cliff where his next
 position waits. Below the bridge, a black chasm drops away into nothing;
 above, a clear star-filled night sky. Cold moonlight is the only light
 source, throwing his running silhouette sharp against the pale rock.
-Painterly brushwork in the style of premium Magic: The Gathering card art,
+Cinematic, near-photographic chiaroscuro rendering with deep dramatic shadow and razor-sharp highlight, closer to a film still than a painting,
 cool nocturnal palette of moonlit silver-blue with small warm accents on
 his crimson cloak, dynamic diagonal action composition over a dizzying
 drop, landscape orientation (about 1600×1000px, wider than tall), no text,
@@ -1892,8 +1884,7 @@ full width of the passage between two sheer rock walls — a literal
 chokepoint made visible. A single enemy soldier is pressed back hard
 against the spear's tip at the very edge of the frame, unable to pass. Cold
 wind-blown snow drifts through the pass, dramatic side lighting from a low
-sun breaking between the peaks. Painterly brushwork in the style of
-premium Magic: The Gathering card art, warm palette of crimson, gold and
+sun breaking between the peaks. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism, warm palette of crimson, gold and
 steel gray against cold gray-white mountain rock, tight symmetrical
 chokepoint composition, landscape orientation (about 1600×1000px, wider
 than tall), no text, no card frame, no border, no watermark
@@ -1914,8 +1905,7 @@ visible arc of churned-up dust and torn grass across the ground behind
 them — the repositioning itself rendered as a visible path, not just
 implied motion. A disciplined cavalry line waits in formation at the arc's
 far end, exactly where he's headed. Long warm shadows stretch across the
-plain from the low sun. Painterly brushwork in the style of premium Magic:
-The Gathering card art, warm palette of crimson, gold and steel gray,
+plain from the low sun. Painterly digital realism in the style of premium Magic: The Gathering card art (Legends of Runeterra splash-art quality), warm palette of crimson, gold and steel gray,
 dynamic wide-arc turning composition, cinematic medium-wide shot with
 horse and rider fully visible, landscape orientation (about 1600×1000px,
 wider than tall), no text, no card frame, no border, no watermark
@@ -1942,7 +1932,7 @@ frame, the wrecked barricade and battle chaos in the midground, smoke and
 a hazy battlefield in the background. Sparks and drifting embers from the
 burning wagon cross between the depth layers. Extremely detailed rendering
 — engraved plate armor, individual mane strands caught in the leap, sharp
-specular highlights on polished steel and gold. Rich palette of crimson,
+specular highlights on polished steel and gold. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism. Rich palette of crimson,
 gold and steel gray lit by fire-orange from the wreckage, powerful sense
 of daring and obstacle-crossing, composition designed to fill a tall card
 frame edge-to-edge with no empty margins at top or bottom, no text, no
@@ -1965,7 +1955,7 @@ third, deepest trench line while the two lines ahead of him are visibly
 emptier and more battered, debris and arrows raining down past him
 unheeded. A notched sword held low and ready, weathered confident
 expression. Dust and faint smoke drift across the whole cross-section.
-Painterly brushwork in the style of premium Magic: The Gathering card art,
+Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism,
 warm palette of crimson, gold and steel gray, unusual layered cross-
 section composition that makes the "third line" concept literal, landscape
 orientation (about 1600×1000px, wider than tall), no text, no card frame,
@@ -1995,7 +1985,7 @@ fire in the midground, dark tents and a starry night sky in the
 background. Drifting sparks from the fire cross between the depth layers.
 Extremely detailed rendering — battle-worn scratches and dents in the
 resting armor, weathered scarred face lit warmly from below, individual
-sparks rising from the campfire. Rich palette of firelight orange against
+sparks rising from the campfire. Loose, expressive painterly impressionism with visible confident brushstrokes, closer to classical oil-painting concept art than crisp digital rendering. Rich palette of firelight orange against
 deep night blue, powerful sense of legacy and quiet mentorship rather than
 combat, composition designed to fill a tall card frame edge-to-edge with
 no empty margins at top or bottom, no text, no card frame, no border, no
@@ -2018,8 +2008,7 @@ gold soldiers each mid-motion shifting to a new position at once as if a
 giant unseen hand were rearranging pieces on a board, glowing golden
 tactical lines connecting their start and end points like a living map
 overlaid on the real battlefield, banners and orderly ranks around them
-holding still while these three move. Warm dusty daylight. Painterly
-brushwork in the style of premium Magic: The Gathering card art, warm
+holding still while these three move. Warm dusty daylight. Semi-abstract illustration blending a grounded realistic scene with glowing geometric/runic diagram elements woven directly into the image, part painting part magical schematic, warm
 palette of crimson, gold and steel gray with glowing golden tactical-line
 overlay, dynamic steep-angle composition with all three soldiers and their
 paths visible, landscape orientation (about 1600×1000px, wider than
@@ -2049,7 +2038,7 @@ the midground, the full battlefield with its rivers, roads and enemy
 lines tiny in the distant background far below. Drifting cloud shadow
 crosses between the depth layers. Extremely detailed rendering — tiny
 individually posed soldier figures, glowing line segments, terrain texture
-seen from above. Rich palette of crimson, gold and steel gray with a
+seen from above. Semi-abstract illustration blending a grounded realistic scene with glowing geometric/runic diagram elements woven directly into the image, part painting part magical schematic. Rich palette of crimson, gold and steel gray with a
 network of golden light, powerful sense of grand strategy and scale,
 composition designed to fill a tall card frame edge-to-edge with no empty
 margins at top or bottom, no text, no card frame, no border, no watermark
@@ -2069,8 +2058,7 @@ through a shallow river ford at night, torches held high throwing warm
 light and long reflections across the dark water, a faint golden glow of
 gathering momentum building around their weapons and shields as they
 march forward as one unbroken line. Splashing water catches the torchlight
-around their boots. Painterly brushwork in the style of premium Magic:
-The Gathering card art, warm torch-gold against cool night-water blue,
+around their boots. Cinematic, near-photographic chiaroscuro rendering with deep dramatic shadow and razor-sharp highlight, closer to a film still than a painting, warm torch-gold against cool night-water blue,
 wide symmetrical advancing-line composition, landscape orientation (about
 1600×1000px, wider than tall), no text, no card frame, no border, no
 watermark
@@ -2090,8 +2078,7 @@ soldier stumbling sideways off the edge of a narrow wooden plank bridge
 over a rocky ravine, the enemy's arms windmilling for balance right at
 the plank's edge, dust and splinters kicked up at the point of impact.
 The danger of the drop below adds real stakes to what would otherwise be
-a simple shove. Dramatic midday light. Painterly brushwork in the style of
-premium Magic: The Gathering card art, warm palette of crimson, gold and
+a simple shove. Dramatic midday light. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism, warm palette of crimson, gold and
 steel gray against a rocky ravine backdrop, dynamic edge-of-danger
 composition, medium shot with both figures visible, landscape orientation
 (about 1600×1000px, wider than tall), no text, no card frame, no border,
@@ -2112,8 +2099,7 @@ exact instant a heavy boulder slams into the interlocked shields, sparks
 and splinters exploding outward from the point of impact, the shields
 visibly flexing but holding, soldiers braced hard behind them with gritted
 teeth. Dust and debris fill the air around the impact. Dramatic side
-lighting catches the moment of collision. Painterly brushwork in the style
-of premium Magic: The Gathering card art, warm palette of crimson, gold
+lighting catches the moment of collision. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism, warm palette of crimson, gold
 and steel gray with a bright flash of impact sparks, extreme close-up
 impact composition, landscape orientation (about 1600×1000px, wider than
 tall), no text, no card frame, no border, no watermark
@@ -2133,8 +2119,7 @@ field by a comrade, a faint warm healing light trailing behind them like a
 slow-fading comet tail across the mist, marking the path they've walked.
 Other retreating soldiers with torches move in the same direction further
 back, guiding the way to safety. Cold blue fog dominates the scene, cut
-only by the warm trailing light and distant torches. Painterly brushwork
-in the style of premium Magic: The Gathering card art, cool nocturnal
+only by the warm trailing light and distant torches. Loose, expressive painterly impressionism with visible confident brushstrokes, closer to classical oil-painting concept art than crisp digital rendering, cool nocturnal
 palette of fog-blue with a warm healing-light accent trail, atmospheric
 wide retreat composition, landscape orientation (about 1600×1000px, wider
 than tall), no text, no card frame, no border, no watermark
@@ -2156,8 +2141,7 @@ an incoming arrow just inches from a comrade's startled face behind him,
 the arrowhead visibly splintering against the shield's rim, sparks and
 wood fragments frozen mid-spray, both soldiers' expressions caught in that
 exact instant of near-miss tension. Shallow depth of field blurs the
-battlefield behind them into streaks of motion. Painterly brushwork in the
-style of premium Magic: The Gathering card art, warm palette of crimson,
+battlefield behind them into streaks of motion. Cinematic, near-photographic chiaroscuro rendering with deep dramatic shadow and razor-sharp highlight, closer to a film still than a painting, warm palette of crimson,
 gold and steel gray with a bright flash at the point of impact, extreme
 close-up freeze-frame composition, landscape orientation (about
 1600×1000px, wider than tall), no text, no card frame, no border, no
@@ -2179,7 +2163,7 @@ side — dodging an incoming attack by swapping places at the last possible
 moment, sharp motion-blur trails showing their swap, an enemy's blade
 passing harmlessly through empty air exactly where one of them used to
 stand. Shafts of light cut through gaps in the ruined ceiling above.
-Painterly brushwork in the style of premium Magic: The Gathering card art,
+Semi-abstract illustration blending a grounded realistic scene with glowing geometric/runic diagram elements woven directly into the image, part painting part magical schematic,
 warm palette of crimson, gold and steel gray against cool ruined-stone
 shadow, dynamic tight-corridor swap composition, medium-wide shot with
 both figures visible, landscape orientation (about 1600×1000px, wider
@@ -2208,7 +2192,7 @@ clashing soldiers filling the midground on all sides, a smoky battlefield
 sky in the background. Drifting dust and sparks cross between the depth
 layers. Extremely detailed rendering — engraved armor, individual motion-
 trail particles, varied armor and poses in the surrounding melee crowd.
-Rich palette of crimson, gold and steel gray, powerful sense of a
+Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism. Rich palette of crimson, gold and steel gray, powerful sense of a
 precision trick executed amid total chaos, composition designed to fill a
 tall card frame edge-to-edge with no empty margins at top or bottom, no
 text, no card frame, no border, no watermark
@@ -2230,8 +2214,7 @@ every direction like a small explosion, his formation-mates behind him
 frozen mid-step in confusion as the order breaks apart. A crimson-and-gold
 soldier's silhouette is barely visible at the very edge of the frame
 having triggered the disruption. Dramatic radial motion-blur emphasizes
-the chaos. Painterly brushwork in the style of premium Magic: The
-Gathering card art, high-energy palette of dust ochre, crimson and steel
+the chaos. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism, high-energy palette of dust ochre, crimson and steel
 gray, dynamic radial chaos composition unlike any other card in this set,
 landscape orientation (about 1600×1000px, wider than tall), no text, no
 card frame, no border, no watermark
@@ -2254,8 +2237,7 @@ arrows and spear-tips visibly stuck harmlessly in the rampart's outer
 stone face like a pincushion — visual proof of the protection it provides.
 A crimson-and-gold banner mounted atop catches the wind. Warm dusty
 daylight on the exposed side, cool shadow in the sheltered lee where the
-soldiers rest. Painterly brushwork in the style of premium Magic: The
-Gathering card art, warm palette of stone gray, crimson and gold, unusual
+soldiers rest. Graphic, high-contrast illustrative rendering inspired by illuminated manuscripts and engraved relic art, bold linework over painted color rather than soft photographic shading, warm palette of stone gray, crimson and gold, unusual
 cutaway cross-section composition, wide shot with the rampart and
 sheltered soldiers both visible, landscape orientation (about 1600×1000px,
 wider than tall), no text, no card frame, no border, no watermark
@@ -2283,7 +2265,7 @@ oil along the battlements in the midground, a smoke-and-fire-lit night sky
 in the background. Sparks and burning debris cross between the depth
 layers. Extremely detailed rendering — weathered stone texture lit by
 firelight, individual streaks of flaming arrows, the oil's glinting
-surface as it falls. Rich palette of deep night blue-black cut by intense
+surface as it falls. Cinematic, near-photographic chiaroscuro rendering with deep dramatic shadow and razor-sharp highlight, closer to a film still than a painting. Rich palette of deep night blue-black cut by intense
 fire orange, powerful sense of active desperate defense rather than quiet
 protection, composition designed to fill a tall card frame edge-to-edge
 with no empty margins at top or bottom, no text, no card frame, no border,
@@ -2305,7 +2287,7 @@ green will-o'-the-wisp lights floating just above the mire — the only
 light source, deliberately eerie and "wrong" compared to every other warm
 -lit card in this set — their glow reflected in the black standing water
 as the soldiers' boots sink deeper. Dim overcast twilight sky above.
-Painterly brushwork in the style of premium Magic: The Gathering card art,
+Semi-abstract illustration blending a grounded realistic scene with glowing geometric/runic diagram elements woven directly into the image, part painting part magical schematic,
 unsettling palette of murky green witch-light, dark mud brown and pale
 sickly mist, wide shot with the swamp and mired soldiers visible, landscape
 orientation (about 1600×1000px, wider than tall), no text, no card frame,
