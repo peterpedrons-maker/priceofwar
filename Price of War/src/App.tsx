@@ -441,24 +441,32 @@ const SOLDIER_TYPES: CardType[] = ['Infantaria', 'Cavalaria', 'Arqueiro', 'Artil
 // attach/detach system), Nobre Religioso's summon-on-play, Líder de Esquadrão's
 // aura, Jorge o Lanceiro's splash damage, and Forças Secretas' exact ambush
 // effect. Cardeal Pedro's own heal ability + Cálice da Vida and Aprendiz de
-// Infantaria's "Ao ser curado" trigger are now wired too — see the
+// Infantaria's "Ao ser curado" trigger are wired too — see the
 // generalAbilityPrompt/pendingGeneralHeal state, activateGeneralHeal/
 // resolveGeneralHeal, and playerGeneralAbilityAvailable's "you may activate
 // this" prompt on the General slot (Yu-Gi-Oh-style: the game itself notices
 // the ability is usable and surfaces it, rather than it just sitting there as
-// unusable flavor text). Still left as flavor-only: the once-per-turn
-// conditional abilities (Comerciante das Cruzadas, Vigia de Mantimentos,
-// Hospitalário's own creature-side heal+damage), the reveal/search/
-// graveyard-pick Táticas (O Soldado Retorna, Busca pelo Santo Graal, Nova
-// Tática, Escolher a Dedo, Escolher Tropas, Reunião de Fiéis — all need a
-// "look at N cards, choose" UI), Espião Sabotador and Soldado Fanático (both
-// hinge on a "General type" concept the game doesn't model), Atirador
-// Influente's death-trigger draw, and Arqueiro Profissional's double-attack
-// (the game doesn't track "already attacked this turn" for anyone yet, so
-// this would need that groundwork first, not just its own case). The AI
-// doesn't know how to pick a target for the ones that need one — see
-// AI_UNSUPPORTED_TACTICS in aiService.ts, which leaves them in its hand
-// rather than wasting them as an inert placed card.
+// unusable flavor text). The same prompt pattern now also covers Comerciante
+// das Cruzadas and Hospitalário (see getPlayerCreatureAbilityKind and their
+// activate/resolve functions) — a per-card Sparkles button on their own board
+// slot instead of only the General's. Vigia de Mantimentos is a passive
+// version of the same "once per turn" idea, piggybacked on the turn-start draw
+// effect instead of a button. Espião Sabotador and Soldado Fanático's "General
+// type" text is handled pragmatically, not with a real faction system — see
+// hasEspiaoInVanguarda/hasEspiaoOnBoard and the Soldado Fanático comment at its
+// attack-time ATK bonus. Atirador Influente's death-trigger draw is hooked into
+// every withEquippedWeapons call site (see drawForAtiradorInfluente). Arqueiro
+// Profissional's double-attack introduced the game's first "already attacked
+// this turn" tracking (playerAttackCounts, reset every player turn; the AI
+// just queues two attack actions for it in aiService.ts) — every other unit
+// implicitly caps at 1 via the same mechanism now (getMaxAttacksPerTurn).
+// Still left as flavor-only: the reveal/search/graveyard-pick Táticas (O
+// Soldado Retorna, Busca pelo Santo Graal, Nova Tática, Escolher a Dedo,
+// Escolher Tropas, Reunião de Fiéis are actually already wired — see
+// openCardPicker call sites — so nothing here is left un-wired for lack of a
+// picker UI anymore). The AI doesn't know how to pick a target for the
+// targeted Táticas — see AI_UNSUPPORTED_TACTICS in aiService.ts, which leaves
+// them in its hand rather than wasting them as an inert placed card.
 
 // Any Armamento cards riding along on a unit (see equippedWeapons/CardData) go to
 // the graveyard together with it when it dies — nothing strips them off first, so
@@ -503,6 +511,21 @@ const hasLiderBuff = (card: CardData, ownSlots: (CardData | null)[]): boolean =>
 };
 const getAuraCombatHpBonus = (card: CardData, ownSlots: (CardData | null)[]): number =>
   hasLiderBuff(card, ownSlots) ? 1 : 0;
+
+// Espião Sabotador: "Na Vanguarda: impede Emboscadas inimigas." — checked from the
+// ATTACKING side (see maybeActivatePlayerAmbush/maybeActivateNpcAmbush) to see
+// through the DEFENDER's Emboscada, so this only ever looks at slots 0-4.
+const hasEspiaoInVanguarda = (slots: (CardData | null)[]): boolean =>
+  [0, 1, 2, 3, 4].some(i => slots[i] && !slots[i]?.isDestroyed && slots[i]?.name === 'Espião Sabotador');
+// Espião Sabotador's other half ("Se o General aliado receber dano...") cares about
+// it being anywhere on the board, not specifically the Vanguarda — see the General
+// damage checks in handleNpcSlotClick and the AI turn loop.
+const hasEspiaoOnBoard = (slots: (CardData | null)[]): boolean =>
+  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => slots[i] && !slots[i]?.isDestroyed && slots[i]?.name === 'Espião Sabotador');
+
+// Arqueiro Profissional: "Pode atacar duas vezes por rodada." Every other unit
+// still only gets one swing per turn (see playerAttackCounts/handleSlotClick).
+const getMaxAttacksPerTurn = (card: CardData): number => card.name === 'Arqueiro Profissional' ? 2 : 1;
 
 // Nobre Religioso: "Ao entrar em campo: invoca Soldados Leais (1 ATK / 2 HP) nos
 // slots adjacentes livres da mesma fileira." Called right after ANY card lands on
@@ -1074,6 +1097,18 @@ const DECKS = {
 } as const;
 type DeckId = keyof typeof DECKS;
 
+// Hospitalário's "cure 1 HP de um aliado" only makes sense targeting someone who's
+// actually hurt — but CardData has no separate max-HP field, hp IS current HP (see
+// resolveGeneralHeal, which has no such restriction and just heals whatever's
+// clicked). So "damaged" is derived here instead: a card's starting HP is whatever
+// its own deck-pool entry says, looked up by name (first match — every copy of a
+// given card shares the same base stats).
+const BASE_HP_BY_NAME: Record<string, number> = {};
+[...DECK_CAPITAO, ...DECK_CARDEAL].forEach(c => {
+  if (!(c.name in BASE_HP_BY_NAME)) BASE_HP_BY_NAME[c.name] = c.hp;
+});
+const isCardDamaged = (card: CardData): boolean => card.hp < (BASE_HP_BY_NAME[card.name] ?? card.hp);
+
 // Display-only Portuguese labels for the main menu buttons — the mode strings
 // themselves ('Quick Match' etc.) stay in English since they're also used as
 // identifiers (gameMode comparisons, onSelectMode), not just display text.
@@ -1332,6 +1367,56 @@ export default function App() {
   // pendingTacticAction above.
   const [pendingGeneralHeal, setPendingGeneralHeal] = useState<{ amount: number } | null>(null);
 
+  // Espião Sabotador's "Se o General aliado receber dano, no próximo turno não
+  // poderá usar sua habilidade." pendingPlayerGeneralAbilityBlock/
+  // pendingNpcGeneralAbilityBlock are set the moment that side's General takes
+  // damage while a living Espião Sabotador is on their own board (see the damage
+  // checks in handleNpcSlotClick and the AI turn loop). The "...BlockedThisTurn"
+  // pair is what actually gates the ability and is deliberately a ref, not
+  // state: it's flipped on inside the currentTurn-start effect (copied from the
+  // pending flag above, which is then cleared) and needs to already read as
+  // updated to the AI-turn-runner effect that fires in that very same
+  // currentTurn-change pass — a state update made by one effect isn't visible to
+  // a sibling effect's closure until a further render, but a ref mutation is
+  // immediate. playerGeneralAbilityAvailable below reads it straight off the ref
+  // at render time for the same reason; it still catches every real change
+  // because the same effect that flips it always also calls other setState
+  // (e.g. setPlayerGeneralAbilityUses(0)) that forces the next render anyway.
+  const [pendingPlayerGeneralAbilityBlock, setPendingPlayerGeneralAbilityBlock] = useState(false);
+  const [pendingNpcGeneralAbilityBlock, setPendingNpcGeneralAbilityBlock] = useState(false);
+  const playerGeneralAbilityBlockedThisTurnRef = useRef(false);
+  const npcGeneralAbilityBlockedThisTurnRef = useRef(false);
+
+  // Comerciante das Cruzadas ("Uma vez por turno: veja as 2 cartas do topo do
+  // deck...") and Hospitalário ("Uma vez por turno: cure 1 HP...") — the same
+  // Yu-Gi-Oh-style on-board prompt as the General's own ability above, just keyed
+  // per-card instead of only the General slot (see getPlayerCreatureAbilityKind).
+  // Tracks card INSTANCE ids (stable while a card sits on the board) rather than
+  // names, since both cards have 2 copies that could be on the field at once, each
+  // usable independently. Resets every player turn (see the currentTurn effect).
+  const [playerActivatedAbilityIds, setPlayerActivatedAbilityIds] = useState<Set<string>>(new Set());
+  // Hospitalário's two independent halves (heal an ally, then damage an enemy
+  // Vanguarda unit) — same two-step "commit, then click a target" shape as
+  // pendingGeneralHeal, except it can move straight to 'damage' without ever
+  // showing 'heal' (see activateHospitalario) when there's no damaged ally to
+  // heal, so the card isn't wasted just because the heal half has no target.
+  const [pendingHospitalario, setPendingHospitalario] = useState<{ step: 'heal' | 'damage' } | null>(null);
+
+  // Arqueiro Profissional's "Pode atacar duas vezes por rodada" is the game's
+  // first case of any unit attacking more than once a turn, which means this is
+  // also the game's first "already attacked this turn" tracker — every other
+  // unit is implicitly capped at 1 through the exact same map (see
+  // getMaxAttacksPerTurn). Keyed by slot index rather than card id: a slot that's
+  // attacked once and then had its occupant swapped out via a reposition mid-turn
+  // is an edge case this doesn't try to chase — Batalha-phase repositioning is
+  // already restricted to Batedor's one free move (see batedorFreeMove) so it's
+  // not really reachable in practice. Reset every player turn (see the
+  // currentTurn effect). The AI's own attacks aren't tracked here at all — it
+  // never lets a unit swing more than aiService.ts's own per-unit loop already
+  // decides (see playAiTurn's Arqueiro Profissional case), so it never needs to
+  // consult this.
+  const [playerAttackCounts, setPlayerAttackCounts] = useState<Record<number, number>>({});
+
   // The reveal/search Táticas (O Soldado Retorna, Busca pelo Santo Graal, Nova
   // Tática, Escolher a Dedo, Escolher Tropas, Reunião de Fiéis) all boil down to
   // the same shape: show the player a set of candidate cards and let them pick
@@ -1564,6 +1649,25 @@ export default function App() {
     const card = npcDeckQueueRef.current.shift()!;
     return { ...card, id: `npc_hand_${Date.now()}_${Math.random()}` };
   };
+
+  // Atirador Influente: "Ao ir ao cemitério: compre 3 cartas." Called from every
+  // "push these destroyed cards onto the graveyard" call site (the same ones
+  // withEquippedWeapons already touches — see its own comment), so it fires
+  // whether the player's or the NPC's copy is the one that died. Takes the raw
+  // (pre-withEquippedWeapons) destroyed list since an equipped weapon can never
+  // itself be named 'Atirador Influente'. No hand-size cap — same as every other
+  // draw in this game (drawFromDeck/drawFromNpcDeck have none either).
+  const drawForAtiradorInfluente = (destroyedCards: CardData[], isPlayerOwner: boolean) => {
+    const count = destroyedCards.filter(c => c.name === 'Atirador Influente').length;
+    for (let i = 0; i < count * 3; i++) {
+      if (isPlayerOwner) {
+        setHand(prev => [...prev, drawFromDeck()]);
+      } else {
+        setNpcHand(prev => [...prev, drawFromNpcDeck()]);
+      }
+    }
+  };
+
   // Where a newly drawn card should land: right next to the last real hand card (or the
   // tray's own resting spot if the hand is still empty) — an approximation of the new
   // card's actual fan slot, close enough that the flight's landing point and the real
@@ -1781,18 +1885,46 @@ export default function App() {
       setBonusRepositions(0);
       setBatedorFreeMove(null);
       setPlayerGeneralAbilityUses(0);
+      // See pendingPlayerGeneralAbilityBlock's own comment for why this is a ref,
+      // not state: playerGeneralAbilityAvailable reads it straight off at render
+      // time, and a ref mutation (unlike a sibling setState call made in this same
+      // effect) is visible on the very next render this effect's own other
+      // setState calls already force.
+      playerGeneralAbilityBlockedThisTurnRef.current = pendingPlayerGeneralAbilityBlock;
+      if (pendingPlayerGeneralAbilityBlock) setPendingPlayerGeneralAbilityBlock(false);
+      setPlayerActivatedAbilityIds(new Set());
+      setPlayerAttackCounts({});
       if (turnNumber > 1 && hand.length < 10) {
         const newCard = drawFromDeck();
         const origin = computeDrawOrigin(playerDeckRef, hand.length);
         if (origin) drawOriginsRef.current[newCard.id] = origin;
         setHand(prev => [...prev, newCard]);
       }
+      // Vigia de Mantimentos: "Uma vez por turno: se você tiver menos de 2 cartas
+      // na mão, compre até ficar com 2." A passive check (no button, unlike
+      // Comerciante das Cruzadas/Hospitalário) piggybacked on this same
+      // once-per-turn-start effect instead of a separate per-turn guard.
+      if ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => playerSlots[i] && !playerSlots[i]?.isDestroyed && playerSlots[i]?.name === 'Vigia de Mantimentos')) {
+        setHand(prev => prev.length >= 2 ? prev : [...prev, ...Array.from({ length: 2 - prev.length }, () => drawFromDeck())]);
+      }
     } else {
       if (turnNumber >= 3) setNpcMana(prev => prev + 4);
       setViewState('field');
       setNpcGeneralAbilityUses(0);
+      // Same ref-not-state reasoning as the player branch above, but here it's
+      // load-bearing for a different reason: the AI-turn-runner effect below
+      // fires in this exact same currentTurn-change pass, and its closure would
+      // otherwise still see the pre-update value if this were plain state (a
+      // sibling effect's setState isn't visible to another effect's closure
+      // until a further render — a ref mutation is immediate).
+      npcGeneralAbilityBlockedThisTurnRef.current = pendingNpcGeneralAbilityBlock;
+      if (pendingNpcGeneralAbilityBlock) setPendingNpcGeneralAbilityBlock(false);
       if (turnNumber > 1 && npcHand.length < 10) {
         setNpcHand(prev => [...prev, drawFromNpcDeck()]);
+      }
+      // Vigia de Mantimentos, NPC side — same passive check as the player's own above.
+      if ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => npcSlots[i] && !npcSlots[i]?.isDestroyed && npcSlots[i]?.name === 'Vigia de Mantimentos')) {
+        setNpcHand(prev => prev.length >= 2 ? prev : [...prev, ...Array.from({ length: 2 - prev.length }, () => drawFromNpcDeck())]);
       }
     }
   }, [currentTurn, turnNumber]);
@@ -1817,7 +1949,9 @@ export default function App() {
         // spending gold for the bigger heal whenever it can afford to. Mirrors the
         // player's own once-or-twice-per-turn cap (Cálice da Vida) instead of a
         // separate, potentially more generous rule for the opponent.
-        if (currentNpcSlots[12]?.name === 'Cardeal Pedro') {
+        // Espião Sabotador: blocked for exactly the turn after the General took
+        // damage (see npcGeneralAbilityBlockedThisTurnRef's own comment above).
+        if (currentNpcSlots[12]?.name === 'Cardeal Pedro' && !npcGeneralAbilityBlockedThisTurnRef.current) {
           const maxUses = currentNpcSlots[10]?.name === 'Cálice da Vida' ? 2 : 1;
           let usesThisTurn = 0;
           while (usesThisTurn < maxUses) {
@@ -1841,6 +1975,52 @@ export default function App() {
             await new Promise(resolve => setTimeout(resolve, 700));
           }
         }
+
+        // Comerciante das Cruzadas / Hospitalário: the same once-per-turn creature
+        // abilities as the player's own copies (see activateComercianteDasCruzadas/
+        // activateHospitalario below), just auto-run with no UI — every living copy
+        // on the NPC's board fires once, same as the player only ever gets one
+        // activation per copy per turn.
+        for (let i = 0; i <= 9; i++) {
+          const ownedCard = currentNpcSlots[i];
+          if (!ownedCard || ownedCard.isDestroyed) continue;
+          if (ownedCard.name === 'Comerciante das Cruzadas') {
+            if (npcDeckQueueRef.current.length < 2) {
+              npcDeckQueueRef.current = [...npcDeckQueueRef.current, ...[...npcDeckPoolRef.current].sort(() => Math.random() - 0.5)];
+            }
+            const revealed = npcDeckQueueRef.current.splice(0, 2);
+            if (revealed.length > 0) {
+              // Not real strategy, just a simple heuristic: prefer an actual
+              // creature over a 0/0 Tática/Emboscada, otherwise take the first.
+              const creatureIdx = revealed.findIndex(c => c.cardType !== 'Tática' && c.cardType !== 'Emboscada');
+              const pickIdx = creatureIdx !== -1 ? creatureIdx : 0;
+              const chosen = revealed[pickIdx];
+              const leftovers = revealed.filter((_, idx) => idx !== pickIdx);
+              npcDeckQueueRef.current = [...npcDeckQueueRef.current, ...leftovers];
+              setNpcHand(prev => [...prev, { ...chosen, id: `npc_hand_${Date.now()}_${Math.random()}` }]);
+            }
+          } else if (ownedCard.name === 'Hospitalário') {
+            const allyIndices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(j => currentNpcSlots[j] && !currentNpcSlots[j]!.isDestroyed && isCardDamaged(currentNpcSlots[j]!));
+            if (allyIndices.length > 0) {
+              const weakest = allyIndices.reduce((a, b) => currentNpcSlots[a]!.hp <= currentNpcSlots[b]!.hp ? a : b);
+              let healed = { ...currentNpcSlots[weakest]!, hp: currentNpcSlots[weakest]!.hp + 1 };
+              if (healed.name === 'Aprendiz de Infantaria') healed = { ...healed, atk: healed.atk + 1 };
+              currentNpcSlots[weakest] = healed;
+            }
+            const enemyVanguardaIndices = [0, 1, 2, 3, 4].filter(j => currentPlayerSlots[j] && !currentPlayerSlots[j]!.isDestroyed);
+            if (enemyVanguardaIndices.length > 0) {
+              const dmgTarget = enemyVanguardaIndices[Math.floor(Math.random() * enemyVanguardaIndices.length)];
+              const dmg = applyDamageToSlot(currentPlayerSlots, dmgTarget, 1);
+              currentPlayerSlots = dmg.slots;
+              if (dmg.destroyed) {
+                setPlayerGraveyard(g => [...g, ...withEquippedWeapons([dmg.destroyed!])]);
+                drawForAtiradorInfluente([dmg.destroyed], true);
+              }
+            }
+          }
+        }
+        setNpcSlots([...currentNpcSlots]);
+        setPlayerSlots([...currentPlayerSlots]);
 
         for (const action of actions) {
           if (action.type === 'play_card') {
@@ -1875,7 +2055,7 @@ export default function App() {
             let defender = currentPlayerSlots[action.targetSlot];
             let targetSlot = action.targetSlot;
             if (defender) {
-              const ambushCard = await maybeActivatePlayerAmbush(attacker, defender);
+              const ambushCard = await maybeActivatePlayerAmbush(attacker, defender, currentNpcSlots);
               let cancelled = false;
               if (ambushCard) {
                 const resolved = resolveAmbushEffect(ambushCard, currentNpcSlots, action.attackerSlot, currentPlayerSlots, action.targetSlot);
@@ -1889,12 +2069,24 @@ export default function App() {
               }
 
               if (!cancelled && defender) {
-                const attackerAtk = getEffectiveAtk(attacker, action.attackerSlot, currentNpcSlots, currentPlayerSlots);
+                let attackerAtk = getEffectiveAtk(attacker, action.attackerSlot, currentNpcSlots, currentPlayerSlots);
+                // Soldado Fanático — see the exact same check (and its comment) in
+                // handleNpcSlotClick above; this is the AI-side mirror of it.
+                if (attacker.name === 'Soldado Fanático' && currentPlayerSlots[12] && currentPlayerSlots[12]?.name !== 'Cardeal Pedro') attackerAtk += 2;
                 const defenderAtk = getEffectiveAtk(defender, targetSlot, currentPlayerSlots, currentNpcSlots);
                 const attackerReduction = getIncomingDamageReduction(action.attackerSlot, currentNpcSlots);
                 const defenderReduction = getIncomingDamageReduction(targetSlot, currentPlayerSlots);
                 const attackerHpBonus = (attacker.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(attacker, currentNpcSlots);
                 const defenderHpBonus = (defender.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(defender, currentPlayerSlots);
+                const damageToDefender = Math.max(0, attackerAtk - defenderReduction);
+
+                // Espião Sabotador — see the exact same check (and its comment) in
+                // handleNpcSlotClick above; here the DEFENDER's side is the player.
+                if (targetSlot === 12 && damageToDefender > 0 && hasEspiaoOnBoard(currentPlayerSlots)) {
+                  setPendingPlayerGeneralAbilityBlock(true);
+                  showToast('Espião Sabotador: a habilidade do seu General foi bloqueada no seu próximo turno!');
+                }
+
                 const updatedAttacker = {
                   ...attacker,
                   hp: attacker.hp + attackerHpBonus - Math.max(0, defenderAtk - attackerReduction),
@@ -1902,7 +2094,7 @@ export default function App() {
                 };
                 const updatedDefender = {
                   ...defender,
-                  hp: defender.hp + defenderHpBonus - Math.max(0, attackerAtk - defenderReduction),
+                  hp: defender.hp + defenderHpBonus - damageToDefender,
                   pendingCombatBonus: undefined,
                 };
 
@@ -1931,6 +2123,7 @@ export default function App() {
                   currentPlayerSlots = splash.slots;
                   if (splash.destroyed) {
                     setPlayerGraveyard(g => [...g, ...withEquippedWeapons([splash.destroyed!])]);
+                    drawForAtiradorInfluente([splash.destroyed], true);
                     hasDestroyed = true;
                   }
                 }
@@ -1948,8 +2141,14 @@ export default function App() {
               await new Promise(resolve => setTimeout(resolve, 1000));
               const destroyedNpcCards = currentNpcSlots.filter((c): c is CardData => !!c?.isDestroyed);
               const destroyedPlayerCards = currentPlayerSlots.filter((c): c is CardData => !!c?.isDestroyed);
-              if (destroyedNpcCards.length) setNpcGraveyard(g => [...g, ...withEquippedWeapons(destroyedNpcCards)]);
-              if (destroyedPlayerCards.length) setPlayerGraveyard(g => [...g, ...withEquippedWeapons(destroyedPlayerCards)]);
+              if (destroyedNpcCards.length) {
+                setNpcGraveyard(g => [...g, ...withEquippedWeapons(destroyedNpcCards)]);
+                drawForAtiradorInfluente(destroyedNpcCards, false);
+              }
+              if (destroyedPlayerCards.length) {
+                setPlayerGraveyard(g => [...g, ...withEquippedWeapons(destroyedPlayerCards)]);
+                drawForAtiradorInfluente(destroyedPlayerCards, true);
+              }
               currentNpcSlots = currentNpcSlots.map(c => c?.isDestroyed ? null : c);
               currentPlayerSlots = currentPlayerSlots.map(c => c?.isDestroyed ? null : c);
               setNpcSlots([...currentNpcSlots]);
@@ -2079,7 +2278,10 @@ export default function App() {
         }
       });
       setNpcSlots(nextNpcSlots);
-      if (destroyed.length) setNpcGraveyard(g => [...g, ...withEquippedWeapons(destroyed)]);
+      if (destroyed.length) {
+        setNpcGraveyard(g => [...g, ...withEquippedWeapons(destroyed)]);
+        drawForAtiradorInfluente(destroyed, false);
+      }
       showToast('Trabuco: 2 de dano a todas as unidades inimigas!');
       if (npcGeneralFell) setGameOverWinner('player');
       return;
@@ -2300,7 +2502,24 @@ export default function App() {
     playerSlots[12]?.name === 'Cardeal Pedro' && !playerSlots[12]?.isDestroyed &&
     currentTurn === 'player' && turnPhase === 'preparacao' &&
     playerGeneralAbilityUses < playerGeneralAbilityMaxUses &&
+    // Espião Sabotador: blocked for exactly the one turn following the General
+    // taking damage (see playerGeneralAbilityBlockedThisTurnRef's own comment).
+    !playerGeneralAbilityBlockedThisTurnRef.current &&
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => playerSlots[i]);
+
+  // Comerciante das Cruzadas / Hospitalário: which once-per-turn creature ability
+  // (if any) is available to activate on this exact player slot right now — same
+  // "you may activate this" shape as playerGeneralAbilityAvailable above, just
+  // per-card instead of only the General (see the Sparkles button rendered next
+  // to each of these below, and activateComercianteDasCruzadas/activateHospitalario).
+  const getPlayerCreatureAbilityKind = (slotIndex: number): 'comerciante' | 'hospitalario' | null => {
+    if (currentTurn !== 'player' || turnPhase !== 'preparacao') return null;
+    const card = playerSlots[slotIndex];
+    if (!card || card.isDestroyed || playerActivatedAbilityIds.has(card.id)) return null;
+    if (card.name === 'Comerciante das Cruzadas') return 'comerciante';
+    if (card.name === 'Hospitalário') return 'hospitalario';
+    return null;
+  };
 
   // A "conducting line" from the selected attacker to every occupied enemy slot — green
   // and flowing for a reachable target, dim red for one that's blocked/out of range —
@@ -2333,7 +2552,13 @@ export default function App() {
   // branch in the hand render below), not a separate modal, so the player keeps seeing
   // their whole hand while deciding. This toast is just the "why did my hand just pop
   // up" context, since that part has nowhere else to live.
-  const maybeActivatePlayerAmbush = (attacker: CardData, defender: CardData): Promise<CardData | null> => {
+  const maybeActivatePlayerAmbush = (attacker: CardData, defender: CardData, attackerSlots: (CardData | null)[]): Promise<CardData | null> => {
+    // Espião Sabotador: "Na Vanguarda: impede Emboscadas inimigas." The DEFENDER
+    // here is the player — this card has to be read on the ATTACKER's (the NPC's)
+    // side to matter, since it's the attacker's own Espião that "sees through"
+    // the defender's ambush. Easy to get backwards: it does NOT protect whoever
+    // it's standing in front of on defense, only whoever it's attacking WITH.
+    if (hasEspiaoInVanguarda(attackerSlots)) return Promise.resolve(null);
     const options = handRef.current.filter(c => c.cardType === 'Emboscada');
     if (options.length === 0) return Promise.resolve(null);
     showToast(`${attacker.name} está atacando ${defender.name} — ativar Emboscada?`);
@@ -2344,7 +2569,11 @@ export default function App() {
 
   // AI is defending: no UI, just a simple heuristic — activate if the hit would
   // otherwise destroy the unit. Always picks the first Emboscada card it's holding.
-  const maybeActivateNpcAmbush = async (attacker: CardData, defender: CardData): Promise<CardData | null> => {
+  const maybeActivateNpcAmbush = async (attacker: CardData, defender: CardData, attackerSlots: (CardData | null)[]): Promise<CardData | null> => {
+    // Same rule as maybeActivatePlayerAmbush above, mirrored: the player is
+    // attacking here, so it's the PLAYER's own Espião Sabotador (not the NPC's,
+    // even though the NPC is the one defending) that blocks the NPC's Emboscada.
+    if (hasEspiaoInVanguarda(attackerSlots)) return null;
     const options = npcHandRef.current.filter(c => c.cardType === 'Emboscada');
     if (options.length === 0) return null;
     const wouldDie = defender.hp - attacker.atk <= 0;
@@ -2461,6 +2690,7 @@ export default function App() {
       setNpcSlots(result.slots);
       if (result.destroyed) {
         setNpcGraveyard(g => [...g, ...withEquippedWeapons([result.destroyed!])]);
+        drawForAtiradorInfluente([result.destroyed], false);
         if (result.destroyed.cardType === 'General') setGameOverWinner('player');
       }
       showToast('Balesta: 3 de dano causado!');
@@ -2479,7 +2709,10 @@ export default function App() {
         }
       });
       setNpcSlots(nextNpcSlots);
-      if (destroyed.length) setNpcGraveyard(g => [...g, ...withEquippedWeapons(destroyed)]);
+      if (destroyed.length) {
+        setNpcGraveyard(g => [...g, ...withEquippedWeapons(destroyed)]);
+        drawForAtiradorInfluente(destroyed, false);
+      }
       if (npcGeneralFell) setGameOverWinner('player');
       showToast('Catapulta: 2 de dano em toda a fileira!');
     }
@@ -2532,11 +2765,96 @@ export default function App() {
     setPendingGeneralHeal(null);
   };
 
+  // Comerciante das Cruzadas: "Uma vez por turno: veja as 2 cartas do topo do
+  // deck. Adicione 1 à mão e coloque a outra no fundo." Same reveal-then-choose
+  // shape as Escolher Tropas above (see openCardPicker there), just N=2/keep=1
+  // and triggered from the card's own on-board prompt instead of a hand Tática.
+  const activateComercianteDasCruzadas = (card: CardData) => {
+    setPlayerActivatedAbilityIds(prev => new Set(prev).add(card.id));
+    if (deckQueueRef.current.length < 2) {
+      deckQueueRef.current = [...deckQueueRef.current, ...[...playerDeckPoolRef.current].sort(() => Math.random() - 0.5)];
+    }
+    const revealed = deckQueueRef.current.splice(0, 2);
+    openCardPicker('Comerciante das Cruzadas: veja as 2 cartas do topo — escolha 1 para a mão', revealed, 1, (picked) => {
+      const chosen = picked[0];
+      const other = revealed.find(c => c.id !== chosen.id);
+      if (other) deckQueueRef.current = [...deckQueueRef.current, other];
+      setHand(prev => [...prev, { ...chosen, id: `hand_${Date.now()}_${Math.random()}` }]);
+      setCardPicker(null);
+      showToast(`${chosen.name} adicionada à mão!`);
+    });
+  };
+
+  // Hospitalário: "Uma vez por turno: cure 1 HP de um aliado e cause 1 de dano a
+  // um inimigo na Vanguarda." Two independent halves, each with its own target
+  // (see pendingHospitalario/resolveHospitalarioHeal/resolveHospitalarioDamage) —
+  // starts on whichever half actually has a target so a fully-healthy board (or
+  // an empty enemy Vanguarda) never wastes the whole activation.
+  const activateHospitalario = (card: CardData) => {
+    setPlayerActivatedAbilityIds(prev => new Set(prev).add(card.id));
+    const hasDamagedAlly = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => playerSlots[i] && !playerSlots[i]?.isDestroyed && isCardDamaged(playerSlots[i]!));
+    if (hasDamagedAlly) {
+      setPendingHospitalario({ step: 'heal' });
+      showToast('Hospitalário: escolha um aliado ferido para curar 1 HP.');
+      return;
+    }
+    const hasEnemyVanguarda = [0, 1, 2, 3, 4].some(i => npcSlots[i] && !npcSlots[i]?.isDestroyed);
+    if (hasEnemyVanguarda) {
+      setPendingHospitalario({ step: 'damage' });
+      showToast('Hospitalário: escolha um inimigo na Vanguarda para causar 1 de dano.');
+    } else {
+      showToast('Hospitalário: nenhum alvo disponível para nenhuma das duas metades.');
+    }
+  };
+
+  // Resolves Hospitalário's heal half once the player clicks their own board (see
+  // pendingHospitalario's dispatch at the top of handleSlotClick).
+  const resolveHospitalarioHeal = (slotIndex: number) => {
+    if (!pendingHospitalario) return;
+    const target = playerSlots[slotIndex];
+    if (slotIndex > 9 || !target || !isCardDamaged(target)) { showToast('Escolha um aliado ferido no campo.'); return; }
+    setPlayerSlots(prev => {
+      const next = [...prev];
+      let healed = { ...next[slotIndex]!, hp: next[slotIndex]!.hp + 1 };
+      // Aprendiz de Infantaria: "Ao ser curado: recebe +1 ATK permanente."
+      if (healed.name === 'Aprendiz de Infantaria') healed = { ...healed, atk: healed.atk + 1 };
+      next[slotIndex] = healed;
+      return next;
+    });
+    showToast(`${target.name} recuperou 1 HP!`);
+    const hasEnemyVanguarda = [0, 1, 2, 3, 4].some(i => npcSlots[i] && !npcSlots[i]?.isDestroyed);
+    if (hasEnemyVanguarda) {
+      setPendingHospitalario({ step: 'damage' });
+      showToast('Hospitalário: escolha um inimigo na Vanguarda para causar 1 de dano.');
+    } else {
+      setPendingHospitalario(null);
+    }
+  };
+
+  // Resolves Hospitalário's damage half once the player clicks the enemy board
+  // (see pendingHospitalario's dispatch at the top of handleNpcSlotClick).
+  const resolveHospitalarioDamage = (slotIndex: number) => {
+    if (!pendingHospitalario) return;
+    if (!isFrontline(slotIndex) || !npcSlots[slotIndex] || npcSlots[slotIndex]?.isDestroyed) {
+      showToast('Escolha um inimigo na Vanguarda.');
+      return;
+    }
+    const result = applyDamageToSlot(npcSlots, slotIndex, 1);
+    setNpcSlots(result.slots);
+    if (result.destroyed) {
+      setNpcGraveyard(g => [...g, ...withEquippedWeapons([result.destroyed!])]);
+      drawForAtiradorInfluente([result.destroyed], false);
+    }
+    showToast('Hospitalário causou 1 de dano!');
+    setPendingHospitalario(null);
+  };
+
   const handleSlotClick = (slotIndex: number, slotEl?: HTMLElement) => {
     if (gameOverWinner || isCardInFlightTransition) return;
 
     if (pendingTacticAction) { resolveOwnTacticTarget(slotIndex); return; }
     if (pendingGeneralHeal) { resolveGeneralHeal(slotIndex); return; }
+    if (pendingHospitalario?.step === 'heal') { resolveHospitalarioHeal(slotIndex); return; }
 
     // Batedor's free post-combat move (see batedorFreeMove) opens this same
     // reposition flow even during Batalha, but only for that one exact unit.
@@ -2681,6 +2999,13 @@ export default function App() {
         showToast(turnNumber < 3 ? "A fase de Batalha só libera a partir do turno 3." : "Só dá pra atacar na fase de Batalha!");
         return;
       }
+      // Arqueiro Profissional gets 2 attacks this turn; every other unit gets 1
+      // (see getMaxAttacksPerTurn/playerAttackCounts).
+      const usedAttacks = playerAttackCounts[slotIndex] ?? 0;
+      if (usedAttacks >= getMaxAttacksPerTurn(playerSlots[slotIndex]!)) {
+        showToast("Essa unidade já atacou neste turno.");
+        return;
+      }
       if (selectedAttackerIndex === slotIndex) {
         setSelectedAttackerIndex(null);
       } else {
@@ -2696,6 +3021,7 @@ export default function App() {
   const handleNpcSlotClick = async (slotIndex: number) => {
     if (gameOverWinner) return;
     if (pendingTacticAction) { resolveEnemyTacticTarget(slotIndex); return; }
+    if (pendingHospitalario?.step === 'damage') { resolveHospitalarioDamage(slotIndex); return; }
     if (selectedAttackerIndex !== null && npcSlots[slotIndex] && !isAnimating) {
       if (!validAttackTargets.has(slotIndex)) {
         showToast("Alvo fora de alcance — tem uma carta bloqueando o caminho!");
@@ -2715,7 +3041,7 @@ export default function App() {
       let targetSlot = slotIndex;
 
       if (attacker && defender) {
-        const ambushCard = await maybeActivateNpcAmbush(attacker, defender);
+        const ambushCard = await maybeActivateNpcAmbush(attacker, defender, playerSlots);
         let attackerSlotsAfterAmbush: (CardData | null)[] = playerSlots;
         let defenderSlotsAfterAmbush: (CardData | null)[] = npcSlots;
         let cancelled = false;
@@ -2735,12 +3061,28 @@ export default function App() {
         let npcGeneralFell = false;
 
         if (!cancelled && defender) {
-          const attackerAtk = getEffectiveAtk(attacker, selectedAttackerIndex, newPlayerSlots, newNpcSlots);
+          let attackerAtk = getEffectiveAtk(attacker, selectedAttackerIndex, newPlayerSlots, newNpcSlots);
+          // Soldado Fanático: "Ao atacar: se o General inimigo for de tipo oposto,
+          // ganha +2 ATK." The game has no real General-faction/type concept — with
+          // only 2 decks existing today, "tipo oposto" is simplified to "the enemy
+          // General isn't Cardeal Pedro" (this card only exists in Deck Cardeal, so
+          // its "opposite type" enemy is always Deck Capitão's General in practice).
+          // Revisit this exact check if a third deck/General is ever added.
+          if (attacker.name === 'Soldado Fanático' && newNpcSlots[12] && newNpcSlots[12]?.name !== 'Cardeal Pedro') attackerAtk += 2;
           const defenderAtk = getEffectiveAtk(defender, targetSlot, newNpcSlots, newPlayerSlots);
           const attackerReduction = getIncomingDamageReduction(selectedAttackerIndex, newPlayerSlots);
           const defenderReduction = getIncomingDamageReduction(targetSlot, newNpcSlots);
           const attackerHpBonus = (attacker.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(attacker, newPlayerSlots);
           const defenderHpBonus = (defender.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(defender, newNpcSlots);
+          const damageToDefender = Math.max(0, attackerAtk - defenderReduction);
+
+          // Espião Sabotador: "Se o General aliado receber dano, no próximo turno
+          // não poderá usar sua habilidade." Checked on the DEFENDER's (NPC's) own
+          // side, since it's their own General and their own Espião.
+          if (targetSlot === 12 && damageToDefender > 0 && hasEspiaoOnBoard(newNpcSlots)) {
+            setPendingNpcGeneralAbilityBlock(true);
+            showToast('Espião Sabotador: a habilidade do General inimigo foi bloqueada no próximo turno dele!');
+          }
 
           const updatedAttacker = {
             ...attacker,
@@ -2749,7 +3091,7 @@ export default function App() {
           };
           const updatedDefender = {
             ...defender,
-            hp: defender.hp + defenderHpBonus - Math.max(0, attackerAtk - defenderReduction),
+            hp: defender.hp + defenderHpBonus - damageToDefender,
             pendingCombatBonus: undefined,
           };
 
@@ -2781,6 +3123,7 @@ export default function App() {
             if (splashHp <= 0) {
               newNpcSlots[targetSlot + 5] = null;
               setNpcGraveyard(g => [...g, ...withEquippedWeapons([{ ...splashTarget, hp: splashHp, isDestroyed: true }])]);
+              drawForAtiradorInfluente([splashTarget], false);
               hasDestroyed = true;
               if (splashTarget.cardType === 'General') npcGeneralFell = true;
             } else {
@@ -2791,6 +3134,10 @@ export default function App() {
 
         setPlayerSlots(newPlayerSlots);
         setNpcSlots(newNpcSlots);
+        // Arqueiro Profissional / getMaxAttacksPerTurn — recorded even if the
+        // attacker didn't survive or the attack was ambush-cancelled; either way
+        // it "attacked" this turn and the slot is either gone or spent.
+        setPlayerAttackCounts(prev => ({ ...prev, [selectedAttackerIndex]: (prev[selectedAttackerIndex] ?? 0) + 1 }));
         setSelectedAttackerIndex(null);
         setAttackAnim(null);
 
@@ -2804,8 +3151,14 @@ export default function App() {
           await new Promise(resolve => setTimeout(resolve, 1000));
           const destroyedPlayerCards = newPlayerSlots.filter((c): c is CardData => !!c?.isDestroyed);
           const destroyedNpcCards = newNpcSlots.filter((c): c is CardData => !!c?.isDestroyed);
-          if (destroyedPlayerCards.length) setPlayerGraveyard(g => [...g, ...withEquippedWeapons(destroyedPlayerCards)]);
-          if (destroyedNpcCards.length) setNpcGraveyard(g => [...g, ...withEquippedWeapons(destroyedNpcCards)]);
+          if (destroyedPlayerCards.length) {
+            setPlayerGraveyard(g => [...g, ...withEquippedWeapons(destroyedPlayerCards)]);
+            drawForAtiradorInfluente(destroyedPlayerCards, true);
+          }
+          if (destroyedNpcCards.length) {
+            setNpcGraveyard(g => [...g, ...withEquippedWeapons(destroyedNpcCards)]);
+            drawForAtiradorInfluente(destroyedNpcCards, false);
+          }
           setPlayerSlots(prev => prev.map(c => c?.isDestroyed ? null : c));
           setNpcSlots(prev => prev.map(c => c?.isDestroyed ? null : c));
         }
@@ -2832,6 +3185,13 @@ export default function App() {
       // refunding — otherwise there'd be no real cost to peeking at the board first.
       showToast('Habilidade desperdiçada — nenhum alvo escolhido.');
       setPendingGeneralHeal(null);
+      return;
+    }
+    if (pendingHospitalario) {
+      // Same reasoning again — the card is already marked used (see
+      // activateHospitalario) whether or not either half actually lands.
+      showToast('Hospitalário desperdiçado — nenhum alvo escolhido.');
+      setPendingHospitalario(null);
       return;
     }
     if (viewState === 'field') {
@@ -3259,9 +3619,11 @@ export default function App() {
         <div className="flex flex-col gap-6 justify-end pb-16 pointer-events-auto">
           {/* Vanguarda Player (Frontline) */}
           <div className="flex justify-center gap-3 md:gap-6">
-            {[0, 1, 2, 3, 4].map((i) => (
+            {[0, 1, 2, 3, 4].map((i) => {
+              const creatureAbilityKind = getPlayerCreatureAbilityKind(i);
+              return (
+              <div key={i} className="relative">
               <CardSlot
-                key={i}
                 slotId={`player-${i}`}
                 card={playerSlots[i]}
                 onClick={(el) => handleSlotClick(i, el)}
@@ -3276,14 +3638,36 @@ export default function App() {
                 isValidMoveTarget={validMoveTargets.has(i)}
                 hasMoved={movedSlots.has(i)}
               />
-            ))}
+              {/* Comerciante das Cruzadas / Hospitalário: same Yu-Gi-Oh-style
+                  "you may activate this" Sparkles prompt as the General's own
+                  ability (see playerGeneralAbilityAvailable above), just on
+                  this card's own slot instead of only the General's. */}
+              {creatureAbilityKind && (
+                <motion.button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (creatureAbilityKind === 'comerciante') activateComercianteDasCruzadas(playerSlots[i]!);
+                    else activateHospitalario(playerSlots[i]!);
+                  }}
+                  animate={{ scale: [1, 1.15, 1] }}
+                  transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute -top-2 -right-2 w-6 h-6 md:w-8 md:h-8 rounded-full bg-gradient-to-b from-amber-400 to-amber-600 border-2 border-amber-200 flex items-center justify-center shadow-[0_0_14px_rgba(251,191,36,0.8)] z-20 pointer-events-auto"
+                >
+                  <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-amber-950" />
+                </motion.button>
+              )}
+              </div>
+              );
+            })}
           </div>
           <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mt-3">Vanguarda</div>
           {/* Retaguarda Player (Backline) */}
           <div className="flex justify-center gap-3 md:gap-6">
-            {[5, 6, 7, 8, 9].map((i) => (
+            {[5, 6, 7, 8, 9].map((i) => {
+              const creatureAbilityKind = getPlayerCreatureAbilityKind(i);
+              return (
+              <div key={i} className="relative">
               <CardSlot
-                key={i}
                 slotId={`player-${i}`}
                 card={playerSlots[i]}
                 onClick={(el) => handleSlotClick(i, el)}
@@ -3298,7 +3682,23 @@ export default function App() {
                 isValidMoveTarget={validMoveTargets.has(i)}
                 hasMoved={movedSlots.has(i)}
               />
-            ))}
+              {creatureAbilityKind && (
+                <motion.button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (creatureAbilityKind === 'comerciante') activateComercianteDasCruzadas(playerSlots[i]!);
+                    else activateHospitalario(playerSlots[i]!);
+                  }}
+                  animate={{ scale: [1, 1.15, 1] }}
+                  transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute -top-2 -right-2 w-6 h-6 md:w-8 md:h-8 rounded-full bg-gradient-to-b from-amber-400 to-amber-600 border-2 border-amber-200 flex items-center justify-center shadow-[0_0_14px_rgba(251,191,36,0.8)] z-20 pointer-events-auto"
+                >
+                  <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-amber-950" />
+                </motion.button>
+              )}
+              </div>
+              );
+            })}
           </div>
           <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mt-3">Retaguarda</div>
           {/* General row (fixed) + Relíquia/Terreno slots */}

@@ -86,6 +86,15 @@ export const playAiTurn = (
     const targetsArr = Array.from(targets);
     const target = targets.has(12) ? 12 : targetsArr[Math.floor(Math.random() * targetsArr.length)];
     actions.push({ type: 'attack', attackerSlot: i, targetSlot: target });
+    // Arqueiro Profissional: "Pode atacar duas vezes por rodada." Queued right
+    // away against this same pre-combat snapshot, same as every other AI attack
+    // decision here — not re-evaluated against the board state after the first
+    // attack actually lands (App.tsx's runAiTurn resolves both against whatever
+    // the board looks like when each one is actually processed).
+    if (attacker.name === 'Arqueiro Profissional') {
+      const target2 = targets.has(12) ? 12 : targetsArr[Math.floor(Math.random() * targetsArr.length)];
+      actions.push({ type: 'attack', attackerSlot: i, targetSlot: target2 });
+    }
   }
 
   return { actions, playedCardIds };
