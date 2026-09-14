@@ -624,20 +624,57 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
 // unlike AtkBadge/HpBadge/ManaBadge above, this is used INSIDE CardFace, where the
 // imported card-template artwork already draws its own coin/blade/shield emblem at
 // each of these exact spots; this just fills in the number on top of it.
-const GoldNumber = ({ value, className = "" }: { value: number, className?: string }) => (
-  <span
-    className={`font-black leading-none ${className}`}
-    style={{
-      fontFamily: "'Cinzel', serif",
-      background: 'linear-gradient(180deg, #FFFFFF 0%, #FDE08B 30%, #D4AF37 60%, #AA7200 100%)',
-      WebkitBackgroundClip: 'text',
-      WebkitTextFillColor: 'transparent',
-      filter: 'drop-shadow(0 2px 2px rgba(0,0,0,1)) drop-shadow(0 0 4px rgba(0,0,0,0.8))',
-    }}
-  >
-    {value}
-  </span>
-);
+//
+// Self-fitting like FitText below: CardFace renders at several very different
+// pixel sizes (a 224px-wide hand card, a small board slot, a 128px card-picker
+// option, ...) sharing the same className-driven base font size, so a fixed
+// size that looks right on one overflows its coin/blade/heart badge on a
+// smaller one. This measures its own box and shrinks (never grows past the
+// base size) exactly enough to always fit, on any container size.
+const GoldNumber = ({ value, className = "" }: { value: number, className?: string }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const textEl = textRef.current;
+    if (!container || !textEl) return;
+    const fit = () => {
+      textEl.style.transform = 'scale(1)';
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      const scaleW = containerWidth > 0 && textEl.scrollWidth > containerWidth ? containerWidth / textEl.scrollWidth : 1;
+      const scaleH = containerHeight > 0 && textEl.scrollHeight > containerHeight ? containerHeight / textEl.scrollHeight : 1;
+      textEl.style.transform = `scale(${Math.min(scaleW, scaleH)})`;
+    };
+    fit();
+    document.fonts?.ready?.then(fit);
+    const ro = new ResizeObserver(fit);
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [value]);
+
+  return (
+    <div ref={containerRef} className="w-full h-full flex items-center justify-center overflow-hidden">
+      <span
+        ref={textRef}
+        className={`font-black leading-none ${className}`}
+        style={{
+          fontFamily: "'Cinzel', serif",
+          background: 'linear-gradient(180deg, #FFFFFF 0%, #FDE08B 30%, #D4AF37 60%, #AA7200 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          filter: 'drop-shadow(0 2px 2px rgba(0,0,0,1)) drop-shadow(0 0 4px rgba(0,0,0,0.8))',
+          display: 'inline-block',
+          whiteSpace: 'nowrap',
+          transformOrigin: 'center',
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+};
 
 // CardBack — the card back, wherever a face-down card renders (both deck piles, the
 // opponent's hand, the flip a drawn card does on its way into yours).
@@ -757,8 +794,13 @@ const FitText = ({ text, className, style }: { text: string, className?: string,
 // "Após Remanejamento: até 2 unidades... Passiva: unidades adjacentes recebem -1 de
 // dano.") used to just get sliced off by the box's overflow-hidden once it ran past
 // its fixed height. Text already wraps to the container's width on its own, so this
-// only needs to shrink uniformly when the wrapped block runs taller than its box —
-// never past the base font size, same as FitText.
+// grows to fill the box when there's room to spare (a short effect used to always
+// render at the same small base size, leaving a lot of visibly empty parchment
+// below it) and still shrinks exactly as before when the wrapped block runs
+// taller than its box. Unlike FitText's plain CSS-transform scale (fine for a
+// single line), this changes the real font-size and lets the browser re-wrap at
+// each candidate size — a transform-scale big enough to fill vertical space would
+// also stretch each already-wrapped line past the box horizontally.
 const FitEffectText = ({ text, className, style }: { text: string, className?: string, style?: React.CSSProperties }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLParagraphElement>(null);
@@ -768,11 +810,21 @@ const FitEffectText = ({ text, className, style }: { text: string, className?: s
     const textEl = textRef.current;
     if (!container || !textEl) return;
     const fit = () => {
-      textEl.style.transform = 'scale(1)';
       const containerHeight = container.clientHeight;
-      const textHeight = textEl.scrollHeight;
-      const scale = textHeight > containerHeight && textHeight > 0 ? containerHeight / textHeight : 1;
-      textEl.style.transform = `scale(${scale})`;
+      if (containerHeight <= 0) return;
+      textEl.style.fontSize = '';
+      const baseFontSize = parseFloat(window.getComputedStyle(textEl).fontSize);
+      if (!baseFontSize) return;
+      // Binary search the largest multiplier of the base font size (capped above
+      // 1x so short text fills more of the box, capped below it for long text)
+      // whose real wrapped height still fits.
+      let lo = 0.3, hi = 1.6;
+      for (let i = 0; i < 12; i++) {
+        const mid = (lo + hi) / 2;
+        textEl.style.fontSize = `${baseFontSize * mid}px`;
+        if (textEl.scrollHeight <= containerHeight) lo = mid; else hi = mid;
+      }
+      textEl.style.fontSize = `${baseFontSize * lo}px`;
     };
     fit();
     document.fonts?.ready?.then(fit);
@@ -783,7 +835,7 @@ const FitEffectText = ({ text, className, style }: { text: string, className?: s
 
   return (
     <div ref={containerRef} className="w-full h-full flex items-center justify-center overflow-hidden">
-      <p ref={textRef} className={className} style={{ ...style, margin: 0, transformOrigin: 'center' }}>
+      <p ref={textRef} className={className} style={{ ...style, margin: 0 }}>
         {text}
       </p>
     </div>
@@ -827,8 +879,10 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
           />
         </div>
 
-        {/* Cost (Ouro) — mapped to the template's round cutout, top-right */}
-        <div className="absolute flex items-center justify-center" style={{ left: '92%', top: '2.5%', transform: 'translate(-50%, -50%)' }}>
+        {/* Cost (Ouro) — mapped to the template's round cutout, top-right. Explicit
+            width/height (not just left/top) so GoldNumber above has a real box to
+            measure itself against and shrink to fit, same as the ATK/HP badges below. */}
+        <div className="absolute flex items-center justify-center" style={{ left: '92%', top: '2.5%', width: '16%', height: '9%', transform: 'translate(-50%, -50%)' }}>
           <GoldNumber value={card.cost} className={v.stat} />
         </div>
 
