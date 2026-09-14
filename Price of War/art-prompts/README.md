@@ -695,6 +695,27 @@ mágica), cruzes e símbolos de fé, cavaleiros com mantos sobre a armadura no
 estilo Hospitalário/Templário. Onde fizer sentido, os prompts abaixo pedem
 essa mesma paleta e iconografia pra tudo ficar com cara do mesmo baralho.
 
+**Cartas com Full Art alternativa:** além do General e da Relíquia (que só
+existem em Full Art), separei as cartas do resto do baralho que teoricamente
+pesam mais na estratégia — pra essas, quem quiser pode gerar as duas
+versões (Padrão normal E Full Art) e escolher qual usar no jogo, do mesmo
+jeito que um TCG de verdade trata uma carta rara/de destaque: a versão
+"comum" continua funcionando igual, a Full Art é só uma opção mais bonita
+pra ela. Critério usado pra escolher essas cartas (excluindo o General, que
+já é sempre Full Art):
+
+- **Cavaleiro Branco** — a maior estatística pura de criatura do baralho (5/7) e o próprio arquétipo "cavaleiro branco" do deck.
+- **Jorge, o Lanceiro** — a única carta com nome próprio de Cavalaria do baralho, com efeito de combate forte.
+- **Nobre Religioso** — efeito de maior impacto no tabuleiro (invoca 2 unidades de graça).
+- **Líder de Esquadrão** — cópia única no deck (não tem 2ª/3ª cópia) e o único efeito de "lorde" (buff em massa).
+- **Trabuco** — a Tática de maior alcance de dano (atinge todos os inimigos), a "finalizadora" do baralho.
+- **O Soldado Retorna** — cópia única, e a carta que melhor resume o tema do baralho (fé + retorno/ressurreição).
+
+Cada uma dessas seis tem sua entrada normal (Padrão) abaixo, seguida de uma
+entrada extra "Full Art" logo em seguida. Todas as outras 25 cartas seguem
+só a versão Padrão mesmo — se no futuro você quiser Full Art de mais
+alguma, é só pedir.
+
 ### General
 
 #### 5.1. Cardeal Pedro
@@ -915,8 +936,8 @@ watermark
 
 #### 5.10. Jorge, o Lanceiro
 
-**Carta:** Cavalaria (ATK 4 / HP 6 / custo 3) · **Estilo:** Padrão ·
-**Status:** pronto pra gerar
+**Carta:** Cavalaria (ATK 4 / HP 6 / custo 3) · **Estilo:** Padrão (+ Full
+Art opcional, ver 5.10b) · **Status:** pronto pra gerar
 
 ```
 Epic fantasy digital painting of a heroic mounted knight lancer inspired
@@ -929,6 +950,38 @@ card game (Hearthstone / Legends of Runeterra quality), warm palette of
 white, gold and crimson, dynamic medium-wide shot with horse and rider
 fully visible, cinematic composition, landscape orientation, no text, no
 card frame, no border, no watermark
+```
+
+---
+
+#### 5.10b. Jorge, o Lanceiro — Full Art
+
+**Carta:** a mesma acima · **Estilo:** Full Art · **Status:** pronto pra
+gerar
+
+```
+Legendary hero portrait, ultra-epic fantasy trading-card full-art
+illustration of a heroic mounted knight lancer inspired by Saint George,
+tall vertical portrait filling the entire frame, dynamic low-angle shot of
+a powerful white warhorse rearing mid-charge with the knight leaning
+forward, gleaming white-and-gold plate armor, a long lance couched and
+leveled straight toward the viewer, a huge white cape marked with a red
+cross billowing up and filling much of the frame behind him, at his
+horse's hooves the faint silhouette of a slain dragon coiled in the dust — 
+a subtle nod to the Saint George legend, not the focus of the shot. Layered
+depth composition: horse and rider sharp in the foreground filling most of
+the vertical frame, a blurred line of charging allied cavalry in the
+midground, a golden dawn sky breaking through storm clouds in the
+background. Drifting dust and embers cross between the depth layers.
+Extremely detailed rendering — engraved filigree in the armor, individual
+mane and cape fabric strands, sharp specular highlights on polished gold
+and steel, painted in the hyper-detailed epic style of premium full-art
+trading cards (Pokémon TCG full-art / Legends of Runeterra legendary-tier
+quality), rich palette of white, gold and crimson, powerful sense of scale
+and momentum, tall vertical portrait aspect ratio (approximately 0.72:1
+width to height), composition designed to fill a tall card frame
+edge-to-edge with no empty margins at top or bottom, no text, no card
+frame, no border, no watermark
 ```
 
 ---
@@ -955,8 +1008,8 @@ text, no card frame, no border, no watermark
 
 #### 5.12. Nobre Religioso
 
-**Carta:** Cavalaria (ATK 4 / HP 5 / custo 3) · **Estilo:** Padrão ·
-**Status:** pronto pra gerar
+**Carta:** Cavalaria (ATK 4 / HP 5 / custo 3) · **Estilo:** Padrão (+ Full
+Art opcional, ver 5.12b) · **Status:** pronto pra gerar
 
 ```
 Epic fantasy digital painting of a richly armored noble crusader lord on
@@ -973,10 +1026,41 @@ border, no watermark
 
 ---
 
+#### 5.12b. Nobre Religioso — Full Art
+
+**Carta:** a mesma acima · **Estilo:** Full Art · **Status:** pronto pra
+gerar
+
+```
+Legendary hero portrait, ultra-epic fantasy trading-card full-art
+illustration of a richly armored noble crusader lord on horseback, tall
+vertical portrait filling the entire frame, dynamic low-angle hero shot,
+ornate gold-trimmed plate armor with elaborate engraved religious heraldry
+on his tabard, one gauntleted arm thrust upward in a commanding gesture as
+radiant golden light descends around his horse, and within that light
+several loyal soldiers materialize kneeling then rising to their feet as
+if freshly summoned into service. Layered depth composition: the lord and
+his horse sharp in the foreground filling most of the vertical frame, the
+newly-summoned soldiers rising around him in the midground still
+half-transparent with light, tall white-and-gold banners and a golden dusk
+sky in the background. Drifting motes of golden light cross between the
+depth layers. Extremely detailed rendering — engraved filigree in the
+armor, individual mane strands, sharp specular highlights on polished
+gold, painted in the hyper-detailed epic style of premium full-art trading
+cards (Pokémon TCG full-art / Legends of Runeterra legendary-tier
+quality), rich palette of gold, white and crimson, powerful sense of scale
+and command, tall vertical portrait aspect ratio (approximately 0.72:1
+width to height), composition designed to fill a tall card frame
+edge-to-edge with no empty margins at top or bottom, no text, no card
+frame, no border, no watermark
+```
+
+---
+
 #### 5.13. Cavaleiro Branco
 
-**Carta:** Cavalaria (ATK 5 / HP 7 / custo 3) · **Estilo:** Padrão ·
-**Status:** pronto pra gerar
+**Carta:** Cavalaria (ATK 5 / HP 7 / custo 3) · **Estilo:** Padrão (+ Full
+Art opcional, ver 5.13b) · **Status:** pronto pra gerar
 
 ```
 Epic fantasy digital painting of the archetypal White Knight, a powerful
@@ -993,10 +1077,40 @@ frame, no border, no watermark
 
 ---
 
+#### 5.13b. Cavaleiro Branco — Full Art
+
+**Carta:** a mesma acima · **Estilo:** Full Art · **Status:** pronto pra
+gerar
+
+```
+Legendary hero portrait, ultra-epic fantasy trading-card full-art
+illustration of the archetypal White Knight, tall vertical portrait
+filling the entire frame, dynamic low-angle shot of a powerful white
+warhorse rearing on its hind legs mid battlefield charge, the knight in
+gleaming full white-and-gold plate armor with almost no ornamentation
+beyond a simple engraved cross, sword raised high overhead wreathed in
+brilliant holy white-gold energy that flares outward, heroic confident
+pose. Layered depth composition: horse and rider sharp in the foreground
+filling most of the vertical frame, a blurred line of allied infantry
+charging behind in the midground, dramatic dawn sky breaking through storm
+clouds in the background. Drifting embers and dust cross between the
+depth layers. Extremely detailed rendering — engraved plate armor,
+individual mane strands, sharp specular highlights on polished gold and
+steel, painted in the hyper-detailed epic style of premium full-art
+trading cards (Pokémon TCG full-art / Legends of Runeterra legendary-tier
+quality), rich palette of white, gold and pale crimson, powerful sense of
+scale and heroism, tall vertical portrait aspect ratio (approximately
+0.72:1 width to height), composition designed to fill a tall card frame
+edge-to-edge with no empty margins at top or bottom, no text, no card
+frame, no border, no watermark
+```
+
+---
+
 #### 5.14. Líder de Esquadrão
 
-**Carta:** Cavalaria (ATK 5 / HP 5 / custo 3) · **Estilo:** Padrão ·
-**Status:** pronto pra gerar
+**Carta:** Cavalaria (ATK 5 / HP 5 / custo 3) · **Estilo:** Padrão (+ Full
+Art opcional, ver 5.14b) · **Status:** pronto pra gerar
 
 ```
 Epic fantasy digital painting of a mounted crusader squad captain rallying
@@ -1008,6 +1122,35 @@ card game (Hearthstone / Legends of Runeterra quality), warm palette of
 gold, white and crimson, dynamic medium-wide shot with horse and rider
 fully visible, cinematic composition, landscape orientation, no text, no
 card frame, no border, no watermark
+```
+
+---
+
+#### 5.14b. Líder de Esquadrão — Full Art
+
+**Carta:** a mesma acima · **Estilo:** Full Art · **Status:** pronto pra
+gerar
+
+```
+Legendary hero portrait, ultra-epic fantasy trading-card full-art
+illustration of a mounted crusader squad captain rallying his troops, tall
+vertical portrait filling the entire frame, dynamic low-angle hero shot on
+horseback, gold-trimmed battle-worn armor, one arm raised high thrusting a
+huge white-and-gold banner upward so its cloth fills much of the top of
+the vertical frame, snapping dramatically in the wind. Layered depth
+composition: the captain and horse sharp in the foreground filling the
+lower half of the frame, a crowd of infantry and archers looking up at him
+with renewed resolve in the midground, a warm golden late-afternoon sky
+glowing behind the banner in the background. Drifting embers and loose
+banner threads cross between the depth layers. Extremely detailed
+rendering — engraved battle-worn armor, embroidered banner fabric, sharp
+specular highlights on gold trim, painted in the hyper-detailed epic style
+of premium full-art trading cards (Pokémon TCG full-art / Legends of
+Runeterra legendary-tier quality), rich palette of gold, white and
+crimson, powerful sense of scale and inspiration, tall vertical portrait
+aspect ratio (approximately 0.72:1 width to height), composition designed
+to fill a tall card frame edge-to-edge with no empty margins at top or
+bottom, no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1056,8 +1199,8 @@ frame, no border, no watermark
 
 #### 5.17. Trabuco
 
-**Carta:** Tática (custo 3) · **Estilo:** Padrão · **Status:** pronto pra
-gerar
+**Carta:** Tática (custo 3) · **Estilo:** Padrão (+ Full Art opcional, ver
+5.17b) · **Status:** pronto pra gerar
 
 ```
 Epic fantasy digital painting of a massive wooden trebuchet siege engine
@@ -1070,6 +1213,36 @@ painterly brushwork in the style of a premium collectible card game
 brown and fire orange, dynamic wide shot with the whole machine visible,
 cinematic composition, landscape orientation, no text, no card frame, no
 border, no watermark
+```
+
+---
+
+#### 5.17b. Trabuco — Full Art
+
+**Carta:** a mesma acima · **Estilo:** Full Art · **Status:** pronto pra
+gerar
+
+```
+Ultra-epic fantasy trading-card full-art illustration of a massive wooden
+trebuchet siege engine at the exact moment of launch, tall vertical
+portrait filling the entire frame, camera positioned low and close to the
+machine's base looking sharply upward along its arm as it whips
+diagonally through the frame, a huge flaming payload just releasing from
+the sling and arcing up out of the top of the frame trailing fire and
+smoke, crusader soldiers in white-and-gold bracing against the machine's
+recoil at its base. Layered depth composition: the trebuchet's massive
+wooden frame and crew sharp in the foreground filling most of the vertical
+frame, a distant enemy encampment glimpsed far below in the midground, a
+dramatic dawn sky streaked with smoke in the background. Sparks, splinters
+and embers cross between the depth layers. Extremely detailed rendering —
+weathered wood grain, taut straining ropes, individual embers in the
+flaming payload, painted in the hyper-detailed epic style of premium
+full-art trading cards (Pokémon TCG full-art / Legends of Runeterra
+legendary-tier quality), rich palette of gold, wood brown and fire orange,
+powerful sense of scale and impact, tall vertical portrait aspect ratio
+(approximately 0.72:1 width to height), composition designed to fill a
+tall card frame edge-to-edge with no empty margins at top or bottom, no
+text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1214,8 +1387,8 @@ watermark
 
 #### 5.25. O Soldado Retorna
 
-**Carta:** Tática (custo 1) · **Estilo:** Padrão · **Status:** pronto pra
-gerar
+**Carta:** Tática (custo 1) · **Estilo:** Padrão (+ Full Art opcional, ver
+5.25b) · **Status:** pronto pra gerar
 
 ```
 Epic fantasy digital painting of a fallen soldier's translucent
@@ -1227,6 +1400,36 @@ a premium collectible card game (Hearthstone / Legends of Runeterra
 quality), warm palette of gold, translucent white and deep dusk blue,
 medium-wide shot fully visible, cinematic composition, landscape
 orientation, no text, no card frame, no border, no watermark
+```
+
+---
+
+#### 5.25b. O Soldado Retorna — Full Art
+
+**Carta:** a mesma acima · **Estilo:** Full Art · **Status:** pronto pra
+gerar
+
+```
+Ultra-epic fantasy trading-card full-art illustration of a fallen
+soldier's spirit returning to the ranks, tall vertical portrait filling
+the entire frame, dynamic low-angle shot of a translucent golden-white
+ghostly figure rising fully upright from a simple battlefield grave marked
+by a planted sword and helm, one hand still ghostly and dissolving into
+light, the other already solidifying back into flesh and armor, warm holy
+light pouring upward around him like a pillar filling much of the vertical
+frame. Layered depth composition: the rising spirit sharp in the
+foreground filling most of the frame, a handful of fellow soldiers kneeling
+in reverent awe in the midground, a deep dusk battlefield sky in the
+background. Drifting motes of golden light cross between the depth
+layers. Extremely detailed rendering — translucent light effects on the
+spectral half of the figure, engraved detail on the solidifying armor,
+painted in the hyper-detailed epic style of premium full-art trading cards
+(Pokémon TCG full-art / Legends of Runeterra legendary-tier quality), rich
+palette of gold, translucent white and deep dusk blue, powerful sense of
+reverence and rebirth, tall vertical portrait aspect ratio (approximately
+0.72:1 width to height), composition designed to fill a tall card frame
+edge-to-edge with no empty margins at top or bottom, no text, no card
+frame, no border, no watermark
 ```
 
 ---
