@@ -1243,7 +1243,11 @@ export default function App() {
   const [npcGeneralAbilityUses, setNpcGeneralAbilityUses] = useState(0);
   // "Ativar habilidade?" — the first prompt, offering the free vs. paid variant (or
   // just a plain activate/cancel for an ability with no cost choice).
-  const [generalAbilityPrompt, setGeneralAbilityPrompt] = useState<{ kind: 'cardeal_heal' } | null>(null);
+  // `confirmed` splits this into the two Yu-Gi-Oh-style steps: first a plain "activate
+  // this effect?" yes/no on the card itself, and only once the player says yes does
+  // the card's own cost/amount choice show up (see activateGeneralHeal) — instead of
+  // dumping both decisions on the player at once.
+  const [generalAbilityPrompt, setGeneralAbilityPrompt] = useState<{ kind: 'cardeal_heal', confirmed: boolean } | null>(null);
   // Set once the player has committed to activating and chosen an amount — now
   // waiting for them to click the actual ally to heal, same two-step shape as
   // pendingTacticAction above.
@@ -2088,10 +2092,15 @@ export default function App() {
     }
   }
 
-  // Player is defending: pause and let them choose (or decline) via the ambush modal.
+  // Player is defending: pause and let them choose (or decline) — the actual prompt UI
+  // lives right on the eligible card(s) in the hand fan (see the "isAmbushCandidate"
+  // branch in the hand render below), not a separate modal, so the player keeps seeing
+  // their whole hand while deciding. This toast is just the "why did my hand just pop
+  // up" context, since that part has nowhere else to live.
   const maybeActivatePlayerAmbush = (attacker: CardData, defender: CardData): Promise<CardData | null> => {
     const options = handRef.current.filter(c => c.cardType === 'Emboscada');
     if (options.length === 0) return Promise.resolve(null);
+    showToast(`${attacker.name} está atacando ${defender.name} — ativar Emboscada?`);
     return new Promise(resolve => {
       setAmbushPrompt({ defenderName: defender.name, attackerName: attacker.name, options, resolve });
     });
@@ -2621,7 +2630,14 @@ export default function App() {
   // Fan the hand out like a real card fan: a modest total spread, distributed evenly
   // across however many cards are in hand, with the center card slightly raised.
 
-  const getBoardAnimation = () => {
+  // `baseScaleOverride` lets the background art layer (see boardAnim/artAnim below)
+  // share this exact same camera logic without also inheriting boardScale — that
+  // responsive fit-to-viewport factor only makes sense for the 1000x1250 board box,
+  // not for a full-viewport object-cover image that already fills the screen on its
+  // own. Passing 1 there means "fully covering" is the resting state, and the zoom
+  // multipliers below (1.15, the shake sequences, etc.) apply as ratios on top of
+  // that instead of on top of the board's own fit-to-screen scale.
+  const getBoardAnimation = (baseScaleOverride?: number) => {
     // The board stays visible at all times — like looking down at a table with the
     // hand of cards held up in front of it — instead of tilting away out of view
     // while browsing the hand. Drawing a card never moves the camera either: the new
@@ -2638,7 +2654,7 @@ export default function App() {
       y: isMobile ? 0 : -50,
       x: 0,
       z: isMobile ? 50 : 50,
-      scale: (isMobile ? 1.0 : 0.85) * boardScale,
+      scale: baseScaleOverride ?? (isMobile ? 1.0 : 0.85) * boardScale,
     };
 
     // Camera follows a card being played, zooming in toward the slot it's headed for —
@@ -2701,6 +2717,21 @@ export default function App() {
   const getPlayerSlotHint = (slotIndex: number): SlotHint | undefined =>
     previewedCard && !playerSlots[slotIndex] ? getSlotHint(previewedCard.cardType, slotIndex) : undefined;
 
+  // Computed once and shared by both the background art layer below and the board's
+  // own motion.div (see the "3D Board" comment further down) — the "summon camera"
+  // zoom/pan toward a played card used to only apply to the board's own transparent
+  // tint layer, since the battlefield art lived in a separate, untransformed <img>
+  // outside of it: the slots would zoom in while the actual art underneath stayed
+  // completely still, looking like the camera was zooming into an empty demarcated
+  // box. Both layers are centered on the same point in the viewport, so animating
+  // them off the same x/y/rotateX and a matching *ratio* of zoom keeps the art and
+  // the board moving in lockstep — artAnim passes baseScaleOverride=1 so the art's
+  // own full-viewport coverage isn't ALSO shrunk by the board's boardScale fit
+  // factor, which doesn't apply to it at all.
+  const boardAnim = getBoardAnimation();
+  const artAnim = getBoardAnimation(1);
+  const boardTransition = { duration: viewportSettled ? 0.8 : 0, ease: [0.32, 0.72, 0, 1] as const };
+
   return (
     <div
       className="relative w-full h-dvh bg-[#140f0a] overflow-hidden flex flex-col items-center justify-center touch-none"
@@ -2715,24 +2746,26 @@ export default function App() {
           (matching the new sandstone board, see art-prompts/README.md) instead of the
           old cold indigo/black, so it reads as "the same dim stone chamber continuing
           off past the table" rather than a jarring void behind the hand. */}
-      {BOARD_EXTERIOR_ART_URL && (
-        <img src={BOARD_EXTERIOR_ART_URL} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
-      )}
+      <motion.div className="absolute inset-0" animate={artAnim} transition={boardTransition}>
+        {BOARD_EXTERIOR_ART_URL && (
+          <img src={BOARD_EXTERIOR_ART_URL} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+        )}
 
-      {/* Background ambient light — the heavy version below was tuned as a total
-          fallback for when there was no exterior art at all (a flat void), so it's
-          only rendered in that case now; with the real battlefield art in place it
-          was dark/opaque enough to hide almost the entire image. A much lighter
-          vignette still applies on top of real art, just for edge falloff. */}
-      {!BOARD_EXTERIOR_ART_URL && (
-        <>
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(70,52,34,0.75)_0%,rgba(15,10,6,1)_100%)] pointer-events-none" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_40%,rgba(180,120,50,0.12)_0%,transparent_60%)] pointer-events-none" />
-        </>
-      )}
-      {BOARD_EXTERIOR_ART_URL && (
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.45)_100%)] pointer-events-none" />
-      )}
+        {/* Background ambient light — the heavy version below was tuned as a total
+            fallback for when there was no exterior art at all (a flat void), so it's
+            only rendered in that case now; with the real battlefield art in place it
+            was dark/opaque enough to hide almost the entire image. A much lighter
+            vignette still applies on top of real art, just for edge falloff. */}
+        {!BOARD_EXTERIOR_ART_URL && (
+          <>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(70,52,34,0.75)_0%,rgba(15,10,6,1)_100%)] pointer-events-none" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_40%,rgba(180,120,50,0.12)_0%,transparent_60%)] pointer-events-none" />
+          </>
+        )}
+        {BOARD_EXTERIOR_ART_URL && (
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.45)_100%)] pointer-events-none" />
+        )}
+      </motion.div>
 
       {/* 3D Board — flex-shrink-0 matters here: the root container above is a flex
           column, and this box's own explicit 1250px height is taller than most real
@@ -2744,8 +2777,8 @@ export default function App() {
           inside this box (resolved against the shrunk box, not the real 1000x1250). */}
       <motion.div
         className="w-[1000px] h-[1250px] shrink-0 grid grid-rows-2 gap-12 p-8 relative"
-        animate={getBoardAnimation()}
-        transition={{ duration: viewportSettled ? 0.8 : 0, ease: [0.32, 0.72, 0, 1] }}
+        animate={boardAnim}
+        transition={boardTransition}
         onClick={(e) => {
           e.stopPropagation();
           if (isCardInFlightTransition) return; // don't cancel a card mid hand-off to the board
@@ -3064,7 +3097,7 @@ export default function App() {
                 <motion.button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setGeneralAbilityPrompt({ kind: 'cardeal_heal' });
+                    setGeneralAbilityPrompt({ kind: 'cardeal_heal', confirmed: false });
                   }}
                   animate={{ scale: [1, 1.15, 1] }}
                   transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
@@ -3232,6 +3265,13 @@ export default function App() {
           <AnimatePresence>
             {hand.map((card, i) => {
               const origin = drawOriginsRef.current[card.id];
+              // An Emboscada card the player can react with right now (see
+              // maybeActivatePlayerAmbush) — gets the exact same "floating preview"
+              // treatment as a manually selected card below, so the ambush prompt
+              // reads as this specific card in the player's hand standing out, not a
+              // separate screen replacing the hand.
+              const isAmbushCandidate = ambushPrompt?.options.some(o => o.id === card.id) ?? false;
+              const isFocused = selectedCardIndex === i || isAmbushCandidate;
               return (
               <motion.div
                 // No layoutId here: it would make Framer Motion auto-animate this card's
@@ -3258,24 +3298,24 @@ export default function App() {
                 }}
                 animate={{
                   opacity: viewState === 'field'
-                    ? (selectedCardIndex === i ? 1 : 0.4)
+                    ? (isFocused ? 1 : 0.4)
                     // Dim every OTHER card in hand, not just the ones after it in the fan —
                     // dimming only "i > selectedCardIndex" left earlier cards sitting at full
                     // opacity right behind/beside the enlarged selected card, poking out as
                     // a stray, undimmed card edge.
-                    : (selectedCardIndex !== null && i !== selectedCardIndex ? 0.3 : 1),
-                  x: selectedCardIndex === i && viewState === 'field' ? getSelectedCardX(i) : 0,
+                    : ((selectedCardIndex !== null || ambushPrompt) && !isFocused ? 0.3 : 1),
+                  x: isFocused && viewState === 'field' ? getSelectedCardX(i) : 0,
                   // Float the previewed card up near the vertical center of the real screen
                   // instead of sitting down at the hand's normal resting height (see
                   // getSelectedCardY above for how mobile's handScale is compensated for).
-                  y: selectedCardIndex === i
+                  y: isFocused
                     ? (viewState === 'field' ? getSelectedCardY() : -40)
                     : (viewState === 'field' ? (isMobile ? 150 : 150) : getFanLift(i)),
-                  scale: selectedCardIndex === i
+                  scale: isFocused
                     ? (viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) : 1.1)
                     : (viewState === 'field' ? 0.6 : 1),
-                  rotateZ: selectedCardIndex === i || viewState === 'field' ? 0 : getFanRotation(i),
-                  zIndex: selectedCardIndex === i ? 150 : i + 1,
+                  rotateZ: isFocused || viewState === 'field' ? 0 : getFanRotation(i),
+                  zIndex: isFocused ? 150 : i + 1,
                   // boxShadow lives on the front face now (see below), not here: a shadow
                   // on THIS element is a flat 2D box that doesn't perspective-foreshorten
                   // the way the nested 3D-rotated card does, so during the flip it kept
@@ -3283,10 +3323,10 @@ export default function App() {
                   // behind the actual (already turning, narrower-looking) card.
                 }}
                 whileHover={{
-                  y: selectedCardIndex === i
+                  y: isFocused
                     ? (viewState === 'field' ? getSelectedCardY() : -40)
                     : viewState === 'field' ? 120 : -20,
-                  scale: selectedCardIndex === i ? (viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) + 0.05 : 1.1) : 1.05,
+                  scale: isFocused ? (viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) + 0.05 : 1.1) : 1.05,
                 }}
                 whileTap={{ scale: 0.95 }}
                 // A freshly drawn card gets a slower transition, matching the full travel
@@ -3300,11 +3340,16 @@ export default function App() {
                 transition={{
                   duration: origin ? DRAW_FLIGHT_MS / 1000 : 0.4,
                   ease: "easeOut",
-                  zIndex: { delay: selectedCardIndex === i ? 0 : 0.4 },
+                  zIndex: { delay: isFocused ? 0 : 0.4 },
                 }}
                 onAnimationComplete={() => { delete drawOriginsRef.current[card.id]; }}
                 onClick={(e) => {
                   e.stopPropagation();
+                  // An ambush interrupt isn't the normal "pick a card to play" flow —
+                  // tapping the highlighted card here shouldn't fall into handleCardClick's
+                  // own selection logic (which would just bounce off the Preparação-phase
+                  // check anyway, but with an unrelated toast).
+                  if (ambushPrompt) return;
                   handleCardClick(i);
                 }}
               >
@@ -3347,12 +3392,12 @@ export default function App() {
                       className="absolute inset-0 rounded-xl"
                       style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
                       animate={{
-                        boxShadow: selectedCardIndex === i
+                        boxShadow: isFocused
                           ? "inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 120px rgba(212, 175, 55, 0.95)"
                           : "inset 0 0 0 1px rgba(212,175,55,0.45), 0 10px 30px rgba(0,0,0,0.5)"
                       }}
                       whileHover={{
-                        boxShadow: selectedCardIndex === i
+                        boxShadow: isFocused
                           ? "0 0 80px rgba(212, 175, 55, 0.8)"
                           : "0 0 25px rgba(212, 175, 55, 0.5)"
                       }}
@@ -3374,9 +3419,11 @@ export default function App() {
 
                   <CardFace card={card} variant="hand" />
 
-                  {/* Selection Glow */}
-                  {selectedCardIndex === i && (
-                    <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(212,175,55,0.6)] rounded-xl border-2 border-[#d4af37] pointer-events-none" />
+                  {/* Selection Glow — red for an Emboscada interrupt (matches the old
+                      "Emboscada disponível!" warning color), gold for a normal
+                      hand-card selection. */}
+                  {isFocused && (
+                    <div className={`absolute inset-0 rounded-xl border-2 pointer-events-none ${isAmbushCandidate ? 'shadow-[inset_0_0_30px_rgba(239,68,68,0.6)] border-[#ef4444]' : 'shadow-[inset_0_0_30px_rgba(212,175,55,0.6)] border-[#d4af37]'}`} />
                   )}
 
                   {/* "Jogar Carta" menu — shown on first tap, before zooming to the board */}
@@ -3393,6 +3440,43 @@ export default function App() {
                     >
                       Jogar Carta
                     </motion.button>
+                  )}
+
+                  {/* Emboscada interrupt — "here's the card, activate it or not?" anchored
+                      right on the eligible card itself instead of a separate dialog, so
+                      the rest of the hand stays visible the whole time (see
+                      maybeActivatePlayerAmbush). */}
+                  {isAmbushCandidate && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.9 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.9 }}
+                      className="absolute -top-5 left-1/2 -translate-x-1/2 z-40 flex gap-2 pointer-events-auto whitespace-nowrap"
+                    >
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setHand(prev => prev.filter(c => c.id !== card.id));
+                          setPlayerGraveyard(g => [...g, card]);
+                          showToast(`Emboscada ativada: ${card.name}!`);
+                          ambushPrompt!.resolve(card);
+                          setAmbushPrompt(null);
+                        }}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(16,185,129,0.7)] border-2 border-emerald-400"
+                      >
+                        Ativar
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          ambushPrompt!.resolve(null);
+                          setAmbushPrompt(null);
+                        }}
+                        className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(0,0,0,0.6)] border-2 border-zinc-500"
+                      >
+                        Não
+                      </button>
+                    </motion.div>
                   )}
                     </motion.div>
                   </motion.div>
@@ -3731,104 +3815,72 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Emboscada (ambush) interrupt — pauses combat so the defending player can react
-          with a trap card before damage lands. See maybeActivatePlayerAmbush. */}
+      {/* "Ativar habilidade?" — the General's own Fase-Principal effect, offered
+          Yu-Gi-Oh-style: the card floats up in the exact same tucked-aside "selected
+          card" spot a hand card gets when picked to be played (see getSelectedCardX/Y
+          and the hand render above), with a plain ativar/não first — only once the
+          player says yes does the card's own cost choice (grátis vs. pago) show up,
+          instead of dumping both decisions on the player in one screen. */}
       <AnimatePresence>
-        {ambushPrompt && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm pointer-events-auto"
+        {generalAbilityPrompt && playerSlots[12] && (
+          <div
+            className="fixed z-[210] left-2 md:left-6 pointer-events-none"
+            style={{ top: '45%', transform: 'translateY(-50%)' }}
           >
             <motion.div
-              initial={{ scale: 0.85, y: 30 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.85, y: 30 }}
+              initial={{ scale: 0.85, opacity: 0 }}
+              animate={{ scale: isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop, opacity: 1 }}
+              exit={{ scale: 0.85, opacity: 0 }}
               transition={{ type: "spring", damping: 22, stiffness: 280 }}
-              className="relative w-full max-w-sm rounded-2xl border-2 border-amber-500/70 bg-zinc-900 p-5 shadow-[0_0_60px_rgba(0,0,0,0.9)]"
+              style={{ transformOrigin: 'center left' }}
+              className="relative w-56 h-80 pointer-events-auto"
             >
-              <p className="text-center text-red-400 font-black uppercase tracking-widest text-xs mb-1">Emboscada disponível!</p>
-              <p className="text-center text-white text-sm mb-4">
-                {ambushPrompt.attackerName} está atacando {ambushPrompt.defenderName}. Ativar uma carta de Emboscada antes do combate?
-              </p>
-              <div className="flex flex-col gap-2">
-                {ambushPrompt.options.map(card => (
+              <CardFace card={playerSlots[12]!} variant="hand" />
+              <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(212,175,55,0.6)] rounded-xl border-2 border-[#d4af37] pointer-events-none" />
+
+              {!generalAbilityPrompt.confirmed ? (
+                <div className="absolute -top-5 left-1/2 -translate-x-1/2 z-40 flex gap-2 whitespace-nowrap">
                   <button
-                    key={card.id}
-                    onClick={() => {
-                      setHand(prev => prev.filter(c => c.id !== card.id));
-                      setPlayerGraveyard(g => [...g, card]);
-                      showToast(`Emboscada ativada: ${card.name}!`);
-                      ambushPrompt.resolve(card);
-                      setAmbushPrompt(null);
-                    }}
-                    className="w-full px-4 py-2.5 rounded-lg bg-gradient-to-b from-amber-500 to-amber-700 text-zinc-900 font-bold text-sm hover:from-amber-400 hover:to-amber-600 transition-colors"
+                    onClick={() => setGeneralAbilityPrompt(prev => prev ? { ...prev, confirmed: true } : prev)}
+                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(16,185,129,0.7)] border-2 border-emerald-400"
                   >
-                    Ativar: {card.name}
+                    Ativar
                   </button>
-                ))}
-                <button
-                  onClick={() => { ambushPrompt.resolve(null); setAmbushPrompt(null); }}
-                  className="w-full px-4 py-2.5 rounded-lg bg-zinc-700 text-white font-bold text-sm hover:bg-zinc-600 transition-colors mt-1"
-                >
-                  Não ativar
-                </button>
-              </div>
+                  <button
+                    onClick={() => setGeneralAbilityPrompt(null)}
+                    className="px-5 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(0,0,0,0.6)] border-2 border-zinc-500"
+                  >
+                    Não ativar
+                  </button>
+                </div>
+              ) : (
+                <div className="absolute -top-5 left-1/2 -translate-x-1/2 z-40 flex flex-col gap-1.5 items-center whitespace-nowrap">
+                  <button
+                    onClick={() => activateGeneralHeal(1, 0)}
+                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-[11px] uppercase tracking-wider shadow-[0_4px_16px_rgba(16,185,129,0.7)] border-2 border-emerald-400"
+                  >
+                    Curar 1 HP (grátis)
+                  </button>
+                  <button
+                    onClick={() => activateGeneralHeal(3, 1)}
+                    disabled={playerMana < 1}
+                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-[11px] uppercase tracking-wider shadow-[0_4px_16px_rgba(16,185,129,0.7)] border-2 border-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
+                  >
+                    Pagar 1 ouro: curar 3 HP
+                  </button>
+                  <button
+                    onClick={() => setGeneralAbilityPrompt(null)}
+                    className="px-4 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded-full text-white font-black text-[11px] uppercase tracking-wider shadow-[0_4px_16px_rgba(0,0,0,0.6)] border-2 border-zinc-500"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )}
             </motion.div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
-      {/* "Ativar habilidade?" — the General's own Fase-Principal effect, offered the
-          moment it's actually usable (see playerGeneralAbilityAvailable) instead of
-          requiring the player to already know it exists. Same visual language as the
-          Emboscada prompt above: read what it does, then choose how (or whether) to
-          use it. */}
-      <AnimatePresence>
-        {generalAbilityPrompt && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm pointer-events-auto"
-          >
-            <motion.div
-              initial={{ scale: 0.85, y: 30 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.85, y: 30 }}
-              transition={{ type: "spring", damping: 22, stiffness: 280 }}
-              className="relative w-full max-w-sm rounded-2xl border-2 border-amber-500/70 bg-zinc-900 p-5 shadow-[0_0_60px_rgba(0,0,0,0.9)]"
-            >
-              <p className="text-center text-amber-400 font-black uppercase tracking-widest text-xs mb-1">Habilidade disponível!</p>
-              <p className="text-center text-white text-sm mb-4">
-                Cardeal Pedro pode curar um soldado aliado agora. Como deseja ativar?
-              </p>
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={() => activateGeneralHeal(1, 0)}
-                  className="w-full px-4 py-2.5 rounded-lg bg-gradient-to-b from-amber-500 to-amber-700 text-zinc-900 font-bold text-sm hover:from-amber-400 hover:to-amber-600 transition-colors"
-                >
-                  Curar 1 HP (grátis)
-                </button>
-                <button
-                  onClick={() => activateGeneralHeal(3, 1)}
-                  disabled={playerMana < 1}
-                  className="w-full px-4 py-2.5 rounded-lg bg-gradient-to-b from-amber-500 to-amber-700 text-zinc-900 font-bold text-sm hover:from-amber-400 hover:to-amber-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:from-amber-500 disabled:hover:to-amber-700"
-                >
-                  Pagar 1 ouro: curar 3 HP
-                </button>
-                <button
-                  onClick={() => setGeneralAbilityPrompt(null)}
-                  className="w-full px-4 py-2.5 rounded-lg bg-zinc-700 text-white font-bold text-sm hover:bg-zinc-600 transition-colors mt-1"
-                >
-                  Não ativar
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
