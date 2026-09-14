@@ -711,33 +711,30 @@ marcadas como tal em cada entrada.
 
 ## Deck Cardeal Pedro
 
-**Identidade visual do deck** (pra manter consistência entre as 31
-cartas): uma ordem militar-religiosa cruzada — branco, dourado e
-vermelho-carmesim, luz quente e dourada de caráter "sagrado" (não azulada/
-mágica), cruzes e símbolos de fé, cavaleiros com mantos sobre a armadura no
-estilo Hospitalário/Templário. Onde fizer sentido, os prompts abaixo pedem
-essa mesma paleta e iconografia pra tudo ficar com cara do mesmo baralho.
+**Identidade visual do deck:** uma ordem militar-religiosa cruzada — branco,
+dourado e vermelho-carmesim, luz quente e dourada de caráter "sagrado" (não
+azulada/mágica), cruzes e símbolos de fé, cavaleiros com mantos sobre a
+armadura no estilo Hospitalário/Templário.
+
+**Nível de detalhe e unicidade (reescrito):** os prompts abaixo foram
+reescritos pra parar de compartilhar a mesma composição genérica ("um
+soldado parado num campo poeirento") — cada carta agora tem seu próprio
+CENÁRIO específico (uma ponte, uma torre, um acampamento à noite, um
+pátio de treino, uma floresta com neblina...), seu próprio ÂNGULO DE
+CÂMERA (baixo/heroico, aéreo, ao nível do chão, por trás de um obstáculo...)
+e sua própria AÇÃO/MOMENTO específico, no nível de detalhe pictórico de
+Magic: The Gathering — camada de primeiro plano nítida, meio-campo e fundo
+com narrativa visual própria, iluminação dramática específica pra cada
+cena, texturas de material descritas (metal arranhado, tecido bordado,
+pedra rachada, etc.), não só "pintura fantasia de um soldado". Todos ainda
+compartilham a mesma paleta/identidade do baralho (branco, dourado,
+carmesim, luz quente sagrada), mas nenhuma cena se repete.
 
 **Cartas com Full Art alternativa:** além do General e da Relíquia (que só
-existem em Full Art), separei as cartas do resto do baralho que teoricamente
-pesam mais na estratégia — pra essas, quem quiser pode gerar as duas
-versões (Padrão normal E Full Art) e escolher qual usar no jogo, do mesmo
-jeito que um TCG de verdade trata uma carta rara/de destaque: a versão
-"comum" continua funcionando igual, a Full Art é só uma opção mais bonita
-pra ela. Critério usado pra escolher essas cartas (excluindo o General, que
-já é sempre Full Art):
-
-- **Cavaleiro Branco** — a maior estatística pura de criatura do baralho (5/7) e o próprio arquétipo "cavaleiro branco" do deck.
-- **Jorge, o Lanceiro** — a única carta com nome próprio de Cavalaria do baralho, com efeito de combate forte.
-- **Nobre Religioso** — efeito de maior impacto no tabuleiro (invoca 2 unidades de graça).
-- **Líder de Esquadrão** — cópia única no deck (não tem 2ª/3ª cópia) e o único efeito de "lorde" (buff em massa).
-- **Trabuco** — a Tática de maior alcance de dano (atinge todos os inimigos), a "finalizadora" do baralho.
-- **O Soldado Retorna** — cópia única, e a carta que melhor resume o tema do baralho (fé + retorno/ressurreição).
-
-Cada uma dessas seis tem sua entrada normal (Padrão) abaixo, seguida de uma
-entrada extra "Full Art" logo em seguida. Todas as outras 25 cartas seguem
-só a versão Padrão mesmo — se no futuro você quiser Full Art de mais
-alguma, é só pedir.
+existem em Full Art), estas seis ganham uma versão Full Art opcional além
+da Padrão: Jorge o Lanceiro, Nobre Religioso, Cavaleiro Branco, Líder de
+Esquadrão, Trabuco, O Soldado Retorna — critério nos comentários originais
+mantido (estatística/raridade/impacto na estratégia).
 
 ### General
 
@@ -747,38 +744,35 @@ alguma, é só pedir.
 **Status:** pronto pra gerar
 
 ```
-TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic fantasy trading-card full-art
-illustration of an elderly but powerfully built warrior-cardinal, tall
-vertical portrait composition filling the entire frame from head to
-boots, dynamic low-angle hero shot looking slightly upward at the
-subject. He wears ornate white-and-gold clerical plate armor fused with a
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic Magic: The Gathering-quality fantasy
+trading-card full-art illustration of an elderly but powerfully built
+warrior-cardinal standing on the shattered steps of a half-ruined cathedral
+at dusk, tall vertical portrait filling the entire frame, dynamic low-angle
+hero shot looking slightly upward at the subject so he towers over the
+viewer. He wears ornate white-and-gold clerical plate armor fused with a
 priest's vestments — a long white mantle trimmed in gold over the
 breastplate, a tall ceremonial gold mitre-shaped helm, a heavy jeweled
-cross hanging on his chest. In one hand he grips a massive gold warhammer
-shaped like an inverted cross planted into the ground; the other hand is
-raised, palm open, radiating warm healing golden light that spills
-downward like sunlight through his fingers. His expression is serene but
-resolute — a healer and a warrior at once. Layered depth composition: the
-cardinal sharp and in focus filling most of the frame, a blurred row of
-white-and-gold banners and kneeling wounded soldiers being healed by his
-light in the midground, and a glowing cathedral-like ruin silhouetted
-against a golden dusk sky in the background. Drifting motes of holy light
-cross between the depth layers. Extremely detailed rendering — engraved
-filigree in the armor, embroidered gold thread in the mantle, a long white
-beard, soft specular highlights on polished gold, painted in the
-hyper-detailed epic style of premium full-art trading cards (Pokémon TCG
-full-art / Legends of Runeterra legendary-tier quality), rich warm palette
-of white, gold and deep crimson, powerful sense of scale and reverence,
-tall vertical portrait aspect ratio (approximately 0.72:1 width to
-height, noticeably taller than wide), composition designed to fill a tall
-card frame edge-to-edge with no empty margins at top or bottom, no text,
-no card frame, no border, no watermark
+cross hanging on a thick chain. In one hand he grips a massive gold
+warhammer shaped like an inverted cross, its head resting on a cracked
+marble step; the other hand is raised, palm open, radiating warm healing
+golden light that spills downward like liquid sunlight onto a kneeling,
+wounded young soldier just below him whose armor is catching that same
+glow. His expression is serene but resolute — a healer and a warrior at
+once, deep creases of age around his eyes. Layered depth composition: the
+cardinal and the kneeling soldier sharp in the foreground, a row of
+white-and-gold banners and more wounded men waiting their turn in the
+softly blurred midground, and the cathedral's broken stained-glass rose
+window glowing amber behind him in the background, sky bruised purple and
+orange at dusk. Drifting motes of holy light and a few loose feathers from
+a startled dove cross between the depth layers. Extremely detailed
+rendering — engraved filigree in the armor, individually rendered
+embroidered gold thread in the mantle, weathered stone texture on the
+cathedral steps, a long white beard catching the golden light, soft
+specular highlights on polished gold. Rich warm palette of white, gold and
+deep crimson, powerful sense of scale and reverence, composition designed
+to fill a tall card frame edge-to-edge with no empty margins at top or
+bottom, no text, no card frame, no border, no watermark
 ```
-
-**Notas:** contraponto direto do Comandante Aurelion (Deck Capitão) — ele é
-força/formação militar pura, o Cardeal Pedro é fé/cura com poder militar
-por trás dela; por isso a luz dourada saindo da mão em vez de uma arma
-erguida como pose principal.
 
 ---
 
@@ -790,32 +784,33 @@ erguida como pose principal.
 **Status:** pronto pra gerar
 
 ```
-TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary relic portrait, ultra-epic fantasy trading-card full-art
-illustration of an ornate golden chalice resting on a carved stone altar,
-tall vertical portrait composition filling the entire frame. The chalice
-overflows with glowing liquid light instead of wine — warm golden-white
-radiance spilling gently down its sides and pooling on the altar like
-liquid sunlight, faint wisps of holy light rising from the surface like
-steam. The cup itself is heavily engraved with cross motifs and filigree,
-inlaid with small red gemstones. Layered depth composition: the chalice
-sharp and in focus filling the lower two-thirds of the frame, soft
-out-of-focus stone archways and hanging white-and-gold banners in the
-midground, and tall stained-glass-like windows glowing with warm light in
-the background. Drifting motes of golden light float upward through the
-whole scene. Extremely detailed engraved metal texture, reflective
-specular highlights on the gold, painted in the hyper-detailed epic style
-of premium full-art trading cards (Pokémon TCG full-art / Legends of
-Runeterra legendary-tier quality), rich warm palette of gold, white and
-deep crimson, powerful sense of reverence and sacred power, tall vertical
-portrait aspect ratio (approximately 0.72:1 width to height — about 1024×1424px or 900×1250px), composition
-designed to fill a tall card frame edge-to-edge with no empty margins at
-top or bottom, no characters, no text, no card frame, no border, no
-watermark
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary relic portrait, ultra-epic Magic: The Gathering-quality fantasy
+trading-card full-art illustration of an ornate golden chalice resting on
+a cracked marble altar inside a roofless, moss-eaten chapel ruin, tall
+vertical portrait filling the entire frame. A single shaft of late
+-afternoon sunlight cuts down through a gap in the collapsed ceiling,
+landing exactly on the chalice, which overflows with glowing liquid light
+instead of wine — warm golden-white radiance spilling gently down its
+sides and pooling on the altar like liquid sunlight, faint wisps of holy
+light rising from the surface like steam. The cup itself is heavily
+engraved with cross motifs and filigree, inlaid with small red gemstones,
+a fine crack running down one side that the light seems to be healing.
+Layered depth composition: the chalice sharp and in focus filling the
+lower half of the frame, ivy-choked broken archways and a fallen,
+weathered statue of a saint in the softly blurred midground, and a
+glimpse of open dusk sky through the ruined roof in the background.
+Drifting motes of golden light and dust float upward through the whole
+scene. Extremely detailed engraved metal texture, cracked marble grain,
+moss and lichen detail on the stonework, reflective specular highlights on
+the gold. Rich warm palette of gold, white and deep crimson, powerful
+sense of quiet reverence and sacred power, composition designed to fill a
+tall card frame edge-to-edge with no empty margins at top or bottom, no
+characters, no text, no card frame, no border, no watermark
 ```
 
-**Notas:** é uma relíquia-objeto, não um personagem — segue a mesma lógica
-do Estandarte da Legião (Deck Capitão), que também é Full Art sem
-figura central, só o objeto em destaque.
+**Notas:** relíquia-objeto num cenário de capela em ruínas — diferente do
+altar "limpo" da versão anterior, agora com uma história visual própria
+(teto desabado, estátua caída) em vez de um fundo genérico.
 
 ---
 
@@ -827,15 +822,22 @@ figura central, só o objeto em destaque.
 **Status:** pronto pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a small huddled group of devout peasant
-pilgrims thrown into a holy war, wearing simple travel-worn robes rather
-than armor, clutching wooden holy symbols, walking staffs and improvised
-farm-tool weapons, faces showing fear mixed with fierce faith, standing
-together shoulder to shoulder on a battlefield at dawn, warm golden light
-breaking through clouds behind them, painterly brushwork in the style of a
-premium collectible card game (Hearthstone / Legends of Runeterra
-quality), warm palette of cream, gold and dusty crimson, medium-wide shot
-with the whole group visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a small
+huddled group of devout peasant pilgrims gathered around a humble roadside
+shrine at the edge of a muddy encampment at night, thrown into a holy war
+with no real weapons — simple travel-worn robes rather than armor, a few
+clutching crude wooden holy symbols, one holding up a guttering lantern
+that casts the only warm light in the scene, faces lit from below showing
+fear mixed with fierce faith. A worn stone marker carved with a cross
+stands beside them, half-sunk in mud, small offerings of wildflowers at
+its base. Fog rolls low across the ground behind them, distant campfires
+of the main army barely visible as blurred orange smudges in the deep
+background. Painterly brushwork in the style of premium Magic: The
+Gathering card art, low warm lantern-light contrasted against cold blue
+night fog, rich texture in the worn cloth and weathered stone, medium-wide
+shot with the whole group visible, cinematic low-angle composition,
+landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no
+watermark
 ```
 
 ---
@@ -846,15 +848,22 @@ with the whole group visible, cinematic composition, landscape orientation (abou
 **Status:** pronto pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a shrewd crusade quartermaster-merchant,
-practical leather and cloth robes with a small cross pendant, a satchel of
-rolled maps and scrolls slung over one shoulder, holding up two cards or
-scrolls to compare them with a calculating half-smile, standing at the
-edge of a supply camp with tents and crates behind him, warm dawn light,
-painterly brushwork in the style of a premium collectible card game
-(Hearthstone / Legends of Runeterra quality), warm palette of gold, cream
-and worn leather brown, medium shot fully visible, cinematic composition,
-landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a shrewd
+crusade quartermaster-merchant inside a cramped supply tent lit by a
+single hanging oil lamp, two unrolled scrolls of parchment weighted flat
+on a crate in front of him, one hand hovering over each as he compares
+them with a calculating half-smile, practical leather and cloth robes with
+a small cross pendant. Behind him, stacked crates, coiled rope and a
+half-open sack of grain crowd the tent's interior, a folded map of the
+front lines pinned to the canvas wall. Warm amber lamplight pools on the
+scrolls and his face, the tent's canvas walls glowing faintly from a
+campfire just outside. Painterly brushwork in the style of premium Magic:
+The Gathering card art, rich texture in aged parchment and worn leather,
+intimate interior composition (unlike the open-battlefield scenes
+elsewhere in this set), warm palette of amber lamplight, cream parchment
+and worn leather brown, medium shot fully visible, landscape orientation
+(about 1600×1000px, wider than tall), no text, no card frame, no border,
+no watermark
 ```
 
 ---
@@ -865,16 +874,21 @@ landscape orientation (about 1600×1000px, wider than tall), no text, no card fr
 **Status:** pronto pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a hooded crusade spy and saboteur,
-dark practical cloth robes over light armor with a hidden cross pendant
-just visible at the collar, crouched low behind battlefield cover, one
-hand raised in a silent "wait" signal, a curved dagger held ready in the
-other, sharp watchful eyes scanning for enemy ambushes, dim warm torchlight
-from off-frame, painterly brushwork in the style of a premium collectible
-card game (Hearthstone / Legends of Runeterra quality), muted palette of
-charcoal, dark crimson and gold accents, medium shot fully visible,
-cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no
-border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a hooded
+crusade spy crouched motionless behind a moss-covered fallen log at the
+edge of a dense, fog-choked forest at night, a hidden cross pendant just
+visible at the collar of his dark practical cloth robes, one hand raised
+in a silent "wait" signal, the other resting on a sheathed curved dagger.
+Below him, framed through a gap in the trees, a cluster of distant enemy
+campfires glows small and orange in a valley shrouded in mist — the thing
+he's watching. Cold blue-gray moonlight rakes across the fog and tree
+bark, sharply contrasted against the tiny warm enemy fires far below,
+his own silhouette almost lost in shadow. Painterly brushwork in the style
+of premium Magic: The Gathering card art, muted nocturnal palette of
+charcoal, deep forest green and cold moonlight blue with small warm
+accents, elevated vantage-point composition looking down into the valley,
+cinematic wide shot, landscape orientation (about 1600×1000px, wider than
+tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -885,15 +899,20 @@ border, no watermark
 **Status:** pronto pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a wild-eyed religious zealot soldier
-charging into battle, simple mismatched armor over crusade robes, eyes
-blazing with fanatical fervor, swinging a heavy spiked mace overhead,
-mouth open mid-battle-cry, dust and embers kicked up around his feet, warm
-dramatic backlighting, painterly brushwork in the style of a premium
-collectible card game (Hearthstone / Legends of Runeterra quality), warm
-palette of crimson, gold and soot-black, dynamic medium shot fully
-visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card
-frame, no border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a wild-eyed
+religious zealot soldier sprinting across a burning wheat field at night,
+mismatched scavenged armor over crusade robes, a lit torch gripped in one
+fist and a heavy spiked mace raised overhead in the other, eyes blazing
+with fanatical fervor, mouth open mid battle-cry. Flames from the burning
+crop race along the ground behind him in jagged orange lines, throwing his
+silhouette forward in stark hard-edged light, sparks and burning chaff
+whipping past in the wind of his own charge. Distant, blurred enemy
+banners are just visible through the smoke ahead of him. Painterly
+brushwork in the style of premium Magic: The Gathering card art, intense
+high-contrast palette of fire orange, soot black and dull crimson,
+dynamic low diagonal action composition emphasizing forward momentum,
+cinematic wide shot, landscape orientation (about 1600×1000px, wider than
+tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -904,14 +923,20 @@ frame, no border, no watermark
 **Status:** pronto pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a very young trainee crusader soldier,
-ill-fitting hand-me-down armor a size too big, gripping a sword with both
-hands in an earnest but slightly awkward stance, determined nervous
-expression, an older soldier's cloak draped over his shoulders, standing
-at the edge of a training yard at dawn, warm soft light, painterly
-brushwork in the style of a premium collectible card game (Hearthstone /
-Legends of Runeterra quality), warm palette of gold, cream and soft steel
-blue, medium shot fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a very
+young trainee crusader in a dusty outdoor training yard at dawn, wooden
+practice dummies and hanging straw targets around him, ill-fitting
+hand-me-down armor a size too big, gripping a wooden practice sword with
+both hands in an earnest but slightly awkward two-handed stance. The long
+shadow of an unseen older mentor stretches across the ground in front of
+him from just outside the frame, implying guidance without showing the
+teacher. Low golden morning light rakes sideways across the training yard,
+catching dust kicked up from the dirt floor, a stack of spare wooden
+weapons leaning against a fence post in the blurred background. Painterly
+brushwork in the style of premium Magic: The Gathering card art, soft warm
+dawn palette of gold, cream and pale steel blue, intimate low
+ground-level composition, landscape orientation (about 1600×1000px, wider
+than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -922,14 +947,20 @@ blue, medium shot fully visible, cinematic composition, landscape orientation (a
 **Status:** pronto pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of an alert crusade quartermaster-guard
-standing watch over stacked supply crates and barrels marked with a cross
-sigil, practical leather armor, spear held ready at his side, scanning the
-horizon at dusk, torchlight flickering nearby, painterly brushwork in the
-style of a premium collectible card game (Hearthstone / Legends of
-Runeterra quality), warm palette of amber, gold and worn wood brown,
-medium shot fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall),
-no text, no card frame, no border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of an alert
+crusade quartermaster-guard standing atop a tall stack of supply crates
+and grain sacks in the dead of night, a lantern held high in one hand
+casting a warm pool of light, a spear resting against his shoulder,
+counting sacks with a tally stick in his other hand while scanning the
+dark horizon. Below him, more crates and barrels marked with a small cross
+sigil stretch off into moonlit shadow, a sleeping camp of tents barely
+visible beyond. Cold silver moonlight washes the background while his own
+lantern-light is the only warm source, throwing a long dramatic shadow
+down the crate stack. Painterly brushwork in the style of premium Magic:
+The Gathering card art, high-contrast nocturnal palette of lantern amber
+against moonlit blue-gray, elevated vantage composition looking slightly
+down and across the camp, landscape orientation (about 1600×1000px, wider
+than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -940,15 +971,20 @@ no text, no card frame, no border, no watermark
 **Status:** pronto pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a disciplined veteran crusader foot
-soldier in matching white-and-gold livery over solid plate armor, a tall
-kite shield bearing a red cross and a spear held at a steady guard stance,
-calm confident veteran expression, standing in formation on a battlefield
-at dawn, warm golden light, painterly brushwork in the style of a premium
-collectible card game (Hearthstone / Legends of Runeterra quality), warm
-palette of white, gold and crimson, medium shot fully visible, cinematic
-composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no
-watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting shot from a
+dramatic worm's-eye ground-level angle looking almost straight up through
+a tight, disciplined crusader shield wall — rows of white-and-gold kite
+shields overlapping like scales directly overhead, spear-points bristling
+between them against a bright overcast sky, one soldier's determined face
+visible peering down between two shields directly above the camera. Dust
+and a few loose straws drift down between the shields, backlit by the sky
+beyond. The formation's discipline itself is the subject rather than any
+one soldier — an unbroken wall of white, gold and crimson livery. Painterly
+brushwork in the style of premium Magic: The Gathering card art, dramatic
+extreme low-angle perspective distortion, bright overcast palette of
+white, gold and steel gray, cinematic wide shot, landscape orientation
+(about 1600×1000px, wider than tall), no text, no card frame, no border,
+no watermark
 ```
 
 ---
@@ -961,16 +997,22 @@ watermark
 Art opcional, ver 5.10b) · **Status:** pronto pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a heroic mounted knight lancer inspired
-by Saint George, gleaming white-and-gold plate armor, riding a powerful
-white warhorse at full charge, a long lance couched and leveled, a white
-cape marked with a red cross billowing behind him, dynamic diagonal
-charging composition, dust kicked up by the horse's hooves, dramatic warm
-backlighting, painterly brushwork in the style of a premium collectible
-card game (Hearthstone / Legends of Runeterra quality), warm palette of
-white, gold and crimson, dynamic medium-wide shot with horse and rider
-fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no
-card frame, no border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a heroic
+mounted knight lancer inspired by Saint George, gleaming white-and-gold
+plate armor, riding a powerful white warhorse at full charge down a narrow
+gorge road flanked by jagged dark rock walls, a long lance couched and
+leveled dead ahead, a white cape marked with a red cross whipping behind
+him. In the rocky shadow of the gorge wall to one side, the coiled,
+half-glimpsed silhouette of a slain dragon's ribcage juts from the stone —
+old bones, not a threat, just a haunting detail hinting at his legend.
+Dust and loose scree kick up from the warhorse's hooves, dramatic warm
+side-lighting from a low sun at the mouth of the gorge ahead throwing long
+shadows back toward the viewer. Painterly brushwork in the style of
+premium Magic: The Gathering card art, warm palette of white, gold and
+crimson against cold gray rock, dynamic diagonal charging composition
+through a canyon, cinematic medium-wide shot with horse and rider fully
+visible, landscape orientation (about 1600×1000px, wider than tall), no
+text, no card frame, no border, no watermark
 ```
 
 ---
@@ -981,28 +1023,27 @@ card frame, no border, no watermark
 gerar
 
 ```
-TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic fantasy trading-card full-art
-illustration of a heroic mounted knight lancer inspired by Saint George,
-tall vertical portrait filling the entire frame, dynamic low-angle shot of
-a powerful white warhorse rearing mid-charge with the knight leaning
-forward, gleaming white-and-gold plate armor, a long lance couched and
-leveled straight toward the viewer, a huge white cape marked with a red
-cross billowing up and filling much of the frame behind him, at his
-horse's hooves the faint silhouette of a slain dragon coiled in the dust — 
-a subtle nod to the Saint George legend, not the focus of the shot. Layered
-depth composition: horse and rider sharp in the foreground filling most of
-the vertical frame, a blurred line of charging allied cavalry in the
-midground, a golden dawn sky breaking through storm clouds in the
-background. Drifting dust and embers cross between the depth layers.
-Extremely detailed rendering — engraved filigree in the armor, individual
-mane and cape fabric strands, sharp specular highlights on polished gold
-and steel, painted in the hyper-detailed epic style of premium full-art
-trading cards (Pokémon TCG full-art / Legends of Runeterra legendary-tier
-quality), rich palette of white, gold and crimson, powerful sense of scale
-and momentum, tall vertical portrait aspect ratio (approximately 0.72:1
-width to height), composition designed to fill a tall card frame
-edge-to-edge with no empty margins at top or bottom, no text, no card
-frame, no border, no watermark
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic Magic: The Gathering-quality fantasy
+trading-card full-art illustration of a heroic mounted knight lancer
+inspired by Saint George, tall vertical portrait filling the entire frame,
+dynamic low-angle shot of a powerful white warhorse rearing mid-charge at
+the mouth of a narrow rocky gorge, the knight leaning forward in
+gleaming white-and-gold plate armor, a long lance couched and leveled
+straight toward the viewer, a huge white cape marked with a red cross
+billowing up and filling much of the frame behind him. At the base of the
+gorge wall beside the horse's hooves, a bleached dragon ribcage juts half
+-buried from the rock — old bones from his legend, not a present threat.
+Layered depth composition: horse and rider sharp in the foreground filling
+most of the vertical frame, jagged canyon walls closing in on either side
+in the midground, a golden dawn sky breaking through the gorge's mouth far
+ahead in the background. Drifting dust and loose scree cross between the
+depth layers. Extremely detailed rendering — engraved filigree in the
+armor, individual mane and cape fabric strands, weathered bone texture on
+the dragon ribcage, sharp specular highlights on polished gold and steel.
+Rich palette of white, gold and crimson against cold gray stone, powerful
+sense of scale and momentum, composition designed to fill a tall card
+frame edge-to-edge with no empty margins at top or bottom, no text, no
+card frame, no border, no watermark
 ```
 
 ---
@@ -1013,16 +1054,21 @@ frame, no border, no watermark
 **Status:** pronto pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a mounted knight-healer inspired by the
-Knights Hospitaller, white mantle bearing a red cross worn over plate
-armor, riding a calm white horse, one hand holding the reins and a lance,
-the other hand glowing faintly with soft healing light reaching toward an
-unseen wounded ally off-frame, gentle compassionate expression contrasting
-with his armor, warm dawn light, painterly brushwork in the style of a
-premium collectible card game (Hearthstone / Legends of Runeterra
-quality), warm palette of white, gold and soft red, medium shot with horse
-and rider fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no
-text, no card frame, no border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a mounted
+knight-healer inspired by the Knights Hospitaller, kneeling beside his
+calm white horse in a quiet field strewn with the aftermath of battle at
+dusk — broken shields and spent arrows half-sunk in trampled grass, a
+white mantle bearing a red cross draped over his plate armor. He leans
+over a wounded soldier lying in the grass, one hand glowing faintly with
+soft healing light pressed to the man's shoulder, his own lance planted
+upright in the ground beside them like a marker. Long shadows stretch
+across the field in the fading orange light, distant campfires just
+beginning to flicker on the horizon. A quieter, more sorrowful moment than
+the charging knights elsewhere in this set. Painterly brushwork in the
+style of premium Magic: The Gathering card art, warm dusk palette of
+amber, white and soft red fading into cool shadow, intimate ground-level
+composition, landscape orientation (about 1600×1000px, wider than tall),
+no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1033,16 +1079,20 @@ text, no card frame, no border, no watermark
 Art opcional, ver 5.12b) · **Status:** pronto pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a richly armored noble crusader lord on
-horseback, ornate gold-trimmed plate armor with elaborate religious
-heraldry on his tabard, one arm raised in a commanding gesture rallying a
-small group of loyal soldiers who kneel and rise around his horse as if
-just called into service, banner-bearers flanking him, warm golden light,
-painterly brushwork in the style of a premium collectible card game
-(Hearthstone / Legends of Runeterra quality), rich palette of gold, white
-and crimson, dynamic medium-wide shot with horse and rider fully visible,
-cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no
-border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a richly
+armored noble crusader lord on horseback atop a windswept hilltop
+overlooking a misty valley at dawn, ornate gold-trimmed plate armor with
+elaborate religious heraldry on his tabard, one arm raised in a commanding
+gesture. Down in the valley below, small figures of loyal soldiers rise
+from the drifting ground mist as if freshly summoned, golden light
+pooling around their feet, seen from the noble's elevated vantage rather
+than up close. Banner-bearers flank his horse at the hilltop's edge,
+their standards snapping in the wind. Wide sweeping vista composition
+emphasizing scale and distance rather than a close portrait. Painterly
+brushwork in the style of premium Magic: The Gathering card art, rich
+palette of gold, white and crimson against a cool misty valley below,
+dynamic elevated wide shot, landscape orientation (about 1600×1000px,
+wider than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1053,27 +1103,24 @@ border, no watermark
 gerar
 
 ```
-TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic fantasy trading-card full-art
-illustration of a richly armored noble crusader lord on horseback, tall
-vertical portrait filling the entire frame, dynamic low-angle hero shot,
-ornate gold-trimmed plate armor with elaborate engraved religious heraldry
-on his tabard, one gauntleted arm thrust upward in a commanding gesture as
-radiant golden light descends around his horse, and within that light
-several loyal soldiers materialize kneeling then rising to their feet as
-if freshly summoned into service. Layered depth composition: the lord and
-his horse sharp in the foreground filling most of the vertical frame, the
-newly-summoned soldiers rising around him in the midground still
-half-transparent with light, tall white-and-gold banners and a golden dusk
-sky in the background. Drifting motes of golden light cross between the
-depth layers. Extremely detailed rendering — engraved filigree in the
-armor, individual mane strands, sharp specular highlights on polished
-gold, painted in the hyper-detailed epic style of premium full-art trading
-cards (Pokémon TCG full-art / Legends of Runeterra legendary-tier
-quality), rich palette of gold, white and crimson, powerful sense of scale
-and command, tall vertical portrait aspect ratio (approximately 0.72:1
-width to height), composition designed to fill a tall card frame
-edge-to-edge with no empty margins at top or bottom, no text, no card
-frame, no border, no watermark
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic Magic: The Gathering-quality fantasy
+trading-card full-art illustration of a richly armored noble crusader lord
+on horseback atop a windswept hilltop, tall vertical portrait filling the
+entire frame, dynamic low-angle hero shot, ornate gold-trimmed plate armor
+with elaborate engraved religious heraldry on his tabard, one gauntleted
+arm thrust upward in a commanding gesture as radiant golden light spills
+down the hillside below him. Layered depth composition: the lord and his
+rearing horse sharp in the foreground filling most of the vertical frame,
+loyal soldiers rising from drifting mist partway down the hill in the
+midground, still half-transparent with light, a vast misty valley and
+golden dawn sky filling the background far below. Drifting motes of golden
+light and mist cross between the depth layers. Extremely detailed
+rendering — engraved filigree in the armor, individual mane strands,
+windswept banner fabric, sharp specular highlights on polished gold. Rich
+palette of gold, white and crimson, powerful sense of scale and divine
+command, composition designed to fill a tall card frame edge-to-edge with
+no empty margins at top or bottom, no text, no card frame, no border, no
+watermark
 ```
 
 ---
@@ -1084,16 +1131,21 @@ frame, no border, no watermark
 Art opcional, ver 5.13b) · **Status:** pronto pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of the archetypal White Knight, a powerful
-mounted knight in gleaming full white-and-gold plate armor with almost no
-ornamentation beyond a simple engraved cross, riding a strong white
-warhorse, sword raised high and wreathed in a faint holy white-gold glow,
-heroic confident pose, warm dramatic backlighting silhouetting horse and
-rider, painterly brushwork in the style of a premium collectible card game
-(Hearthstone / Legends of Runeterra quality), warm palette of white, gold
-and pale crimson, dynamic medium-wide shot with horse and rider fully
-visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card
-frame, no border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of the
+archetypal White Knight fording a shallow river at the height of a
+downpour, a powerful white warhorse throwing up sheets of spray with each
+stride, the knight in gleaming full white-and-gold plate armor with almost
+no ornamentation beyond a simple engraved cross, sword raised high and
+wreathed in a faint holy white-gold glow that cuts through the gray rain.
+Rain streaks the whole scene, lightning flashing on the horizon
+silhouetting distant battlements, water droplets caught mid-air around the
+horse's churning legs. Heroic confident pose undimmed by the storm.
+Painterly brushwork in the style of premium Magic: The Gathering card art,
+cool stormy palette of slate gray and rain-blue cut through by the knight's
+own warm white-gold glow, dynamic river-crossing composition, cinematic
+medium-wide shot with horse and rider fully visible, landscape orientation
+(about 1600×1000px, wider than tall), no text, no card frame, no border,
+no watermark
 ```
 
 ---
@@ -1104,26 +1156,23 @@ frame, no border, no watermark
 gerar
 
 ```
-TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic fantasy trading-card full-art
-illustration of the archetypal White Knight, tall vertical portrait
-filling the entire frame, dynamic low-angle shot of a powerful white
-warhorse rearing on its hind legs mid battlefield charge, the knight in
-gleaming full white-and-gold plate armor with almost no ornamentation
-beyond a simple engraved cross, sword raised high overhead wreathed in
-brilliant holy white-gold energy that flares outward, heroic confident
-pose. Layered depth composition: horse and rider sharp in the foreground
-filling most of the vertical frame, a blurred line of allied infantry
-charging behind in the midground, dramatic dawn sky breaking through storm
-clouds in the background. Drifting embers and dust cross between the
-depth layers. Extremely detailed rendering — engraved plate armor,
-individual mane strands, sharp specular highlights on polished gold and
-steel, painted in the hyper-detailed epic style of premium full-art
-trading cards (Pokémon TCG full-art / Legends of Runeterra legendary-tier
-quality), rich palette of white, gold and pale crimson, powerful sense of
-scale and heroism, tall vertical portrait aspect ratio (approximately
-0.72:1 width to height), composition designed to fill a tall card frame
-edge-to-edge with no empty margins at top or bottom, no text, no card
-frame, no border, no watermark
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic Magic: The Gathering-quality fantasy
+trading-card full-art illustration of the archetypal White Knight fording
+a rain-swollen river, tall vertical portrait filling the entire frame,
+dynamic low-angle shot of his warhorse rearing as it crashes through
+the current, sheets of spray thrown up around them, the knight in gleaming
+full white-and-gold plate armor, sword raised high overhead wreathed in
+brilliant holy white-gold energy cutting through the gray downpour.
+Layered depth composition: horse and rider sharp in the foreground filling
+most of the vertical frame, rain-lashed riverbanks in the midground,
+distant lightning-lit battlements silhouetted on the horizon in the
+background. Rain streaks and water droplets cross between the depth
+layers, caught mid-air. Extremely detailed rendering — engraved plate
+armor slick with rain, individual mane strands, sharp specular highlights
+on wet polished steel and gold. Rich palette of storm gray and rain-blue
+cut by warm white-gold light, powerful sense of scale and defiance,
+composition designed to fill a tall card frame edge-to-edge with no empty
+margins at top or bottom, no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1134,15 +1183,20 @@ frame, no border, no watermark
 Art opcional, ver 5.14b) · **Status:** pronto pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a mounted crusader squad captain rallying
-troops, gold-trimmed armor slightly battle-worn, raising a tall
-white-and-gold banner high with one arm while a small group of infantry
-and archers look up at him with renewed resolve nearby, warm golden late
-afternoon light, painterly brushwork in the style of a premium collectible
-card game (Hearthstone / Legends of Runeterra quality), warm palette of
-gold, white and crimson, dynamic medium-wide shot with horse and rider
-fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no
-card frame, no border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a mounted
+crusader squad captain rallying troops atop a battered, half-collapsed
+stone bridge under siege, gold-trimmed armor scorched and dented, raising
+a tall white-and-gold banner high with one arm while retreating infantry
+and archers around him turn back to rally at the sight of it. Below the
+bridge, a river choked with debris and drifting smoke; behind him, the
+bridge's far arch has already crumbled into the water, giving the whole
+scene the tension of a last stand at a chokepoint. Embers drift past from
+a burning wagon nearby. Painterly brushwork in the style of premium Magic:
+The Gathering card art, high-tension palette of smoke gray, gold and
+crimson, dynamic wide siege-bridge composition, cinematic medium-wide shot
+with horse and rider fully visible, landscape orientation (about
+1600×1000px, wider than tall), no text, no card frame, no border, no
+watermark
 ```
 
 ---
@@ -1153,25 +1207,23 @@ card frame, no border, no watermark
 gerar
 
 ```
-TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic fantasy trading-card full-art
-illustration of a mounted crusader squad captain rallying his troops, tall
-vertical portrait filling the entire frame, dynamic low-angle hero shot on
-horseback, gold-trimmed battle-worn armor, one arm raised high thrusting a
-huge white-and-gold banner upward so its cloth fills much of the top of
-the vertical frame, snapping dramatically in the wind. Layered depth
-composition: the captain and horse sharp in the foreground filling the
-lower half of the frame, a crowd of infantry and archers looking up at him
-with renewed resolve in the midground, a warm golden late-afternoon sky
-glowing behind the banner in the background. Drifting embers and loose
-banner threads cross between the depth layers. Extremely detailed
-rendering — engraved battle-worn armor, embroidered banner fabric, sharp
-specular highlights on gold trim, painted in the hyper-detailed epic style
-of premium full-art trading cards (Pokémon TCG full-art / Legends of
-Runeterra legendary-tier quality), rich palette of gold, white and
-crimson, powerful sense of scale and inspiration, tall vertical portrait
-aspect ratio (approximately 0.72:1 width to height — about 1024×1424px or 900×1250px), composition designed
-to fill a tall card frame edge-to-edge with no empty margins at top or
-bottom, no text, no card frame, no border, no watermark
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic Magic: The Gathering-quality fantasy
+trading-card full-art illustration of a mounted crusader squad captain
+rallying his troops atop a besieged stone bridge, tall vertical portrait
+filling the entire frame, dynamic low-angle hero shot on horseback, gold
+-trimmed battle-scorched armor, one arm raised high thrusting a huge white
+-and-gold banner upward so its cloth fills much of the top of the vertical
+frame, snapping violently in the wind. Layered depth composition: the
+captain and horse sharp in the foreground filling the lower half of the
+frame, retreating soldiers turning back to rally around him in the
+midground, the bridge's crumbled far arch and a smoke-choked river far
+below in the background. Drifting embers and torn banner threads cross
+between the depth layers. Extremely detailed rendering — scorched battle
+-worn armor, embroidered banner fabric, sharp specular highlights on gold
+trim. Rich palette of smoke gray, gold and crimson, powerful sense of
+scale and last-stand tension, composition designed to fill a tall card
+frame edge-to-edge with no empty margins at top or bottom, no text, no
+card frame, no border, no watermark
 ```
 
 ---
@@ -1184,15 +1236,20 @@ bottom, no text, no card frame, no border, no watermark
 **Status:** pronto pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a highly skilled crusader crossbowman
-mid-action, already reloading a second bolt with practiced speed just as
-the first one flies off-frame, white-and-gold tabard over practical
-leather armor, a full quiver of bolts at his hip, focused intense
-expression, warm dawn light, painterly brushwork in the style of a premium
-collectible card game (Hearthstone / Legends of Runeterra quality), warm
-palette of gold, cream and steel gray, dynamic medium shot fully visible,
-cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no
-border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting shot from a
+dramatic aerial vantage angle, looking out from inside a shattered stone
+watchtower's topmost window ledge where a skilled crusader crossbowman
+kneels, already reloading a second bolt with practiced speed just as the
+first one flies off toward unseen targets far below. White-and-gold tabard
+over practical leather armor, a full quiver of bolts at his hip, focused
+intense expression lit from one side by the low sun. Through the broken
+window frame beside him, a dizzying view down onto a distant battlefield
+sprawls below, tiny figures and banners barely visible in the haze.
+Painterly brushwork in the style of premium Magic: The Gathering card art,
+warm palette of gold, cream and steel gray against a hazy pale sky far
+below, dramatic elevated interior-to-exterior composition, cinematic wide
+shot, landscape orientation (about 1600×1000px, wider than tall), no text,
+no card frame, no border, no watermark
 ```
 
 ---
@@ -1203,15 +1260,19 @@ border, no watermark
 **Status:** pronto pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a veteran crusader archer with a weathered,
-wise face and graying hair, worn but well-kept gear, standing with calm
-composure while drawing his bow, a few younger soldiers visible in the
-soft-focus background looking toward him with visible respect and
-inspiration, warm late-afternoon light, painterly brushwork in the style
-of a premium collectible card game (Hearthstone / Legends of Runeterra
-quality), warm palette of amber, cream and steel gray, medium shot fully
-visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card
-frame, no border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a veteran
+crusader archer with a weathered, wise face and graying hair, kneeling
+behind a much younger apprentice archer at a quiet practice range at
+golden hour, his own weathered hands gently adjusting the boy's grip and
+draw on the bowstring, calm patient expression contrasting with the
+battlefield scenes elsewhere in this set — a quiet legacy-passing moment
+rather than combat. Worn but well-kept gear, a row of spent arrows already
+stuck in a straw target downrange, long warm shadows stretching across the
+grass. Painterly brushwork in the style of premium Magic: The Gathering
+card art, warm golden-hour palette of amber, cream and soft green, intimate
+low ground-level composition emphasizing the two figures together, wide
+shot fully visible, landscape orientation (about 1600×1000px, wider than
+tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1224,16 +1285,20 @@ frame, no border, no watermark
 5.17b) · **Status:** pronto pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a massive wooden trebuchet siege engine
-mid-launch on a battlefield at dawn, its long arm whipping upward and
-hurling a flaming payload high across the sky toward a distant enemy line,
-crusader soldiers in white-and-gold operating the machine and bracing
-against the recoil, dust and splinters flying, dramatic warm light,
-painterly brushwork in the style of a premium collectible card game
-(Hearthstone / Legends of Runeterra quality), warm palette of gold, wood
-brown and fire orange, dynamic wide shot with the whole machine visible,
-cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no
-border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting shot from a
+dizzying point-of-view mounted directly in the sling of a massive wooden
+trebuchet siege engine at the exact instant of release, the flaming
+payload just leaving the sling and hurtling toward the viewer as the arm
+whips upward against a dawn sky, crusader soldiers below straining at
+ropes and bracing against the machine's recoil, seen tiny and foreshortened
+from this extreme vantage. A distant fortified enemy gatehouse looms on
+the horizon, the trebuchet's true target. Dust, splinters and sparks
+fly close to camera. Painterly brushwork in the style of premium Magic:
+The Gathering card art, warm palette of gold, wood brown and fire orange
+against a pale dawn sky, extreme dynamic point-of-view composition unlike
+any other siege weapon in this set, cinematic wide shot, landscape
+orientation (about 1600×1000px, wider than tall), no text, no card frame,
+no border, no watermark
 ```
 
 ---
@@ -1244,26 +1309,23 @@ border, no watermark
 gerar
 
 ```
-TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Ultra-epic fantasy trading-card full-art illustration of a massive wooden
-trebuchet siege engine at the exact moment of launch, tall vertical
-portrait filling the entire frame, camera positioned low and close to the
-machine's base looking sharply upward along its arm as it whips
-diagonally through the frame, a huge flaming payload just releasing from
-the sling and arcing up out of the top of the frame trailing fire and
-smoke, crusader soldiers in white-and-gold bracing against the machine's
-recoil at its base. Layered depth composition: the trebuchet's massive
-wooden frame and crew sharp in the foreground filling most of the vertical
-frame, a distant enemy encampment glimpsed far below in the midground, a
-dramatic dawn sky streaked with smoke in the background. Sparks, splinters
-and embers cross between the depth layers. Extremely detailed rendering —
-weathered wood grain, taut straining ropes, individual embers in the
-flaming payload, painted in the hyper-detailed epic style of premium
-full-art trading cards (Pokémon TCG full-art / Legends of Runeterra
-legendary-tier quality), rich palette of gold, wood brown and fire orange,
-powerful sense of scale and impact, tall vertical portrait aspect ratio
-(approximately 0.72:1 width to height), composition designed to fill a
-tall card frame edge-to-edge with no empty margins at top or bottom, no
-text, no card frame, no border, no watermark
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Ultra-epic Magic: The Gathering-quality fantasy trading-card full-art
+illustration of a massive wooden trebuchet siege engine at the exact
+moment of launch, tall vertical portrait filling the entire frame, camera
+positioned low and close to the machine's base looking sharply upward
+along its arm as it whips diagonally through the frame, a huge flaming
+payload just releasing from the sling and arcing up out of the top of the
+frame trailing fire and smoke, crusader soldiers in white-and-gold bracing
+against the machine's recoil at its base. Layered depth composition: the
+trebuchet's massive wooden frame and crew sharp in the foreground filling
+most of the vertical frame, a distant fortified enemy gatehouse glimpsed
+far below in the midground, a dramatic dawn sky streaked with smoke in
+the background. Sparks, splinters and embers cross between the depth
+layers. Extremely detailed rendering — weathered wood grain, taut
+straining ropes, individual embers in the flaming payload. Rich palette of
+gold, wood brown and fire orange, powerful sense of scale and impact,
+composition designed to fill a tall card frame edge-to-edge with no empty
+margins at top or bottom, no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1274,15 +1336,19 @@ text, no card frame, no border, no watermark
 gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a compact wooden catapult siege engine
-firing on a battlefield at dawn, its throwing arm caught mid-swing
-launching a heavy stone payload toward one specific row of distant enemy
-soldiers, crusader crew bracing the frame, dust kicked up around its base,
-warm dramatic light, painterly brushwork in the style of a premium
-collectible card game (Hearthstone / Legends of Runeterra quality), warm
-palette of gold, wood brown and stone gray, dynamic wide shot with the
-whole machine visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no
-text, no card frame, no border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a wide,
+bustling daytime siege camp, several crusader soldiers cheering and waving
+as a compact wooden catapult mid-camp fires its throwing arm, launching a
+heavy stone payload in a clean arc toward one specific distant row of
+enemy soldiers atop a stone gatehouse. Unlike the trebuchet's tight close-
+up power shot elsewhere in this set, this is a wide, populated battlefield
+vista — mud, tents, spare ammunition stacked in pyramids, banners planted
+in the ground, a whole army's energy captured in one frame. Bright midday
+sun casts short hard shadows. Painterly brushwork in the style of premium
+Magic: The Gathering card art, warm palette of gold, wood brown and stone
+gray under bright daylight, dynamic wide vista composition, cinematic wide
+shot, landscape orientation (about 1600×1000px, wider than tall), no text,
+no card frame, no border, no watermark
 ```
 
 ---
@@ -1293,14 +1359,20 @@ text, no card frame, no border, no watermark
 gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a massive mounted ballista, a
-giant crossbow on a wooden frame, firing a single enormous bolt with
-precise force directly toward the viewer/a chosen distant target, crusader
-crew bracing the frame after release, sparks and tension visible in the
-taut ropes, dramatic warm light, painterly brushwork in the style of a
-premium collectible card game (Hearthstone / Legends of Runeterra
-quality), warm palette of gold, wood brown and steel gray, dynamic wide
-shot with the whole machine visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a single
+massive mounted ballista standing alone atop a moonlit ridge at night, a
+giant crossbow on a wooden frame, silhouetted starkly against a huge full
+moon low on the horizon as it fires one enormous bolt directly across the
+moon's face toward a distant, unseen target. Only two crusader crew
+members are visible, small and quiet beside the machine, bracing the frame
+after release — a solitary, moodier scene than the busy daytime siege
+camps elsewhere in this set. Cold silver moonlight defines every edge,
+taut ropes still vibrating from the shot. Painterly brushwork in the style
+of premium Magic: The Gathering card art, high-contrast nocturnal palette
+of deep indigo and silver moonlight with a single warm bolt-trail, stark
+silhouette composition, cinematic wide shot, landscape orientation (about
+1600×1000px, wider than tall), no text, no card frame, no border, no
+watermark
 ```
 
 ---
@@ -1313,14 +1385,19 @@ shot with the whole machine visible, cinematic composition, landscape orientatio
 pronto pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting, a still-life illustration of an ornate suit
-of heavy white-and-gold full plate armor standing empty on a wooden
-display stand in a quiet armory, cuirass, gauntlets and a closed great
-helm all catching warm torchlight, faint engraved cross motifs on the
-breastplate, dust motes drifting in the light, painterly brushwork in the
-style of a premium collectible card game (Hearthstone / Legends of
-Runeterra quality), warm palette of white, gold and deep shadow, medium
-shot with the full armor stand visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting, a rich still
+-life illustration of an ornate suit of heavy white-and-gold full plate
+armor standing on a wooden display stand inside a candlelit stone armory,
+cuirass, gauntlets and a closed great helm all catching warm flickering
+candlelight from a nearby iron candelabra, faint engraved cross motifs on
+the breastplate, old tapestries depicting past crusades hanging on the
+stone wall behind it, dust motes drifting through the candlelight. A
+polished shield leans against the stand's base. Painterly brushwork in
+the style of premium Magic: The Gathering card art, warm palette of white,
+gold and deep candlelit shadow, intimate interior still-life composition,
+medium shot with the full armor stand visible, landscape orientation
+(about 1600×1000px, wider than tall), no text, no card frame, no border,
+no watermark
 ```
 
 ---
@@ -1331,14 +1408,19 @@ shot with the full armor stand visible, cinematic composition, landscape orienta
 pronto pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting, a still-life illustration of a lighter
-gold-trimmed steel breastplate resting on a wooden armor stand in a quiet
-armory, simpler and less ornate than full plate, leather straps hanging
-loose, warm torchlight catching the polished metal, painterly brushwork in
-the style of a premium collectible card game (Hearthstone / Legends of
-Runeterra quality), warm palette of steel gray, gold and warm brown,
-medium shot with the breastplate stand visible, cinematic composition,
-landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting, a still-life
+illustration of a lighter gold-trimmed steel breastplate hanging from a
+crude wooden weapon rack planted in the dirt beside a crackling outdoor
+campfire at dusk, simpler and less ornate than full plate, leather straps
+swaying slightly, the campfire's orange glow catching the polished metal
+from below — a casual field-camp setting, deliberately different from the
+formal candlelit armory of the heavier armor piece in this set. A
+bedroll and a half-eaten meal sit nearby, implying a soldier just stepped
+away. Painterly brushwork in the style of premium Magic: The Gathering
+card art, warm palette of campfire orange, steel gray and dusk purple,
+outdoor still-life composition, medium shot with the rack visible,
+landscape orientation (about 1600×1000px, wider than tall), no text, no
+card frame, no border, no watermark
 ```
 
 ---
@@ -1349,15 +1431,18 @@ landscape orientation (about 1600×1000px, wider than tall), no text, no card fr
 pronto pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting, a close still-life illustration of a single
-ornate crossbow bolt resting on a dark cloth, its tip coated in a sickly
-glowing green poison that drips slowly, faint toxic vapor curling off the
-tip, dramatic dim torchlight with the poison itself as a secondary light
-source, painterly brushwork in the style of a premium collectible card
-game (Hearthstone / Legends of Runeterra quality), palette of dark cloth
-black, gold fletching and toxic green, close-up shot with the whole bolt
-visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card
-frame, no border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting, an extreme
+close-up macro still-life of a single ornate crossbow bolt resting across
+two crossed daggers on a dark cloth, its tip coated in a sickly glowing
+green poison that drips slowly onto the cloth below, faint toxic vapor
+curling off the tip and catching a shaft of dim torchlight from one side —
+the poison's own glow acting as a second light source against the
+otherwise near-black background. Fletching feathers rendered in sharp
+individual detail. Painterly brushwork in the style of premium Magic: The
+Gathering card art, palette of near-black cloth, gold fletching and toxic
+green glow, extreme macro close-up composition, landscape orientation
+(about 1600×1000px, wider than tall), no text, no card frame, no border,
+no watermark
 ```
 
 ---
@@ -1368,14 +1453,18 @@ frame, no border, no watermark
 pronto pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting, a close still-life illustration of an
-ornate blessed longsword laid across a velvet cloth, a cross-shaped gold
-hilt, the blade itself catching a faint warm holy glow along its edge,
-intricate engravings near the guard, dramatic warm torchlight, painterly
-brushwork in the style of a premium collectible card game (Hearthstone /
-Legends of Runeterra quality), palette of steel, gold and deep crimson
-velvet, close-up shot with the whole sword visible, cinematic composition,
-landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting, a close still
+-life illustration of an ornate blessed longsword driven point-down into
+a moss-covered stone slab outdoors at dawn, a cross-shaped gold hilt,
+the blade itself catching a faint warm holy glow along its edge that
+seems to come from within the metal rather than reflected light, dew
+beading on the crossguard, soft mist curling around the base of the blade
+at ground level. Intricate engravings near the guard just catching the
+first sunlight. Painterly brushwork in the style of premium Magic: The
+Gathering card art, palette of steel, gold and dawn-lit mist, outdoor
+close-up composition (contrasting with the indoor candlelit still-lifes
+elsewhere in this set), landscape orientation (about 1600×1000px, wider
+than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1388,16 +1477,19 @@ landscape orientation (about 1600×1000px, wider than tall), no text, no card fr
 pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a small group of crusader reinforcements
-hidden in wait behind rocks and fallen banners at the edge of a
-battlefield, weapons drawn and ready, tense alert expressions, about to
-spring out to reinforce an ally under attack, dim dawn light with a hint
-of warm light breaking through where they're about to charge into,
-painterly brushwork in the style of a premium collectible card game
-(Hearthstone / Legends of Runeterra quality), warm palette of gold, dusty
-brown and crimson, medium-wide shot with the group visible, cinematic
-composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no
-watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a small
+group of crusader reinforcements hidden in the shadows of a ruined
+chapel's broken pillars, weapons drawn and ready, tense alert expressions
+lit by a single shaft of light spilling through a hole in the collapsed
+roof above them, about to spring out to reinforce an ally under attack
+just beyond the chapel's shattered doorway. Ivy creeps over the fallen
+stonework around them, a broken statue of a saint watching over the
+hiding place. Painterly brushwork in the style of premium Magic: The
+Gathering card art, warm palette of gold light against cool ruined-stone
+shadow, tense interior-ambush composition unlike the open-field ambushes
+elsewhere in this set, medium-wide shot with the group visible, landscape
+orientation (about 1600×1000px, wider than tall), no text, no card frame,
+no border, no watermark
 ```
 
 ---
@@ -1410,14 +1502,19 @@ watermark
 5.25b) · **Status:** pronto pra gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a fallen soldier's translucent
-golden-white spirit rising from a simple battlefield grave marked by a
-planted sword and helm, warm holy light lifting the ghostly figure back
-upright as if returning to the ranks, other soldiers watching in reverent
-awe nearby, dusk battlefield setting, painterly brushwork in the style of
-a premium collectible card game (Hearthstone / Legends of Runeterra
-quality), warm palette of gold, translucent white and deep dusk blue,
-medium-wide shot fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a fallen
+soldier's translucent golden-white spirit rising from a simple battlefield
+grave marked by a planted sword and helm at the edge of a quiet moonlit
+cemetery hill, warm holy light lifting the ghostly figure back upright as
+if returning to the ranks, a handful of fellow soldiers kneeling in
+reverent awe at the base of the hill, their lanterns the only other light
+source. Rows of simpler grave markers stretch away into the misty dusk
+background, implying this is one of many such graves. Painterly brushwork
+in the style of premium Magic: The Gathering card art, warm palette of
+gold and translucent white against deep dusk blue mist, elevated hillside
+composition, medium-wide shot fully visible, landscape orientation (about
+1600×1000px, wider than tall), no text, no card frame, no border, no
+watermark
 ```
 
 ---
@@ -1428,26 +1525,24 @@ medium-wide shot fully visible, cinematic composition, landscape orientation (ab
 gerar
 
 ```
-TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Ultra-epic fantasy trading-card full-art illustration of a fallen
-soldier's spirit returning to the ranks, tall vertical portrait filling
-the entire frame, dynamic low-angle shot of a translucent golden-white
-ghostly figure rising fully upright from a simple battlefield grave marked
-by a planted sword and helm, one hand still ghostly and dissolving into
-light, the other already solidifying back into flesh and armor, warm holy
-light pouring upward around him like a pillar filling much of the vertical
-frame. Layered depth composition: the rising spirit sharp in the
-foreground filling most of the frame, a handful of fellow soldiers kneeling
-in reverent awe in the midground, a deep dusk battlefield sky in the
-background. Drifting motes of golden light cross between the depth
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Ultra-epic Magic: The Gathering-quality fantasy trading-card full-art
+illustration of a fallen soldier's spirit returning to the ranks, tall
+vertical portrait filling the entire frame, dynamic low-angle shot of a
+translucent golden-white ghostly figure rising fully upright from a simple
+grave on a moonlit cemetery hillside, one hand still ghostly and
+dissolving into light, the other already solidifying back into flesh and
+armor, warm holy light pouring upward around him like a pillar filling
+much of the vertical frame. Layered depth composition: the rising spirit
+sharp in the foreground filling most of the frame, rows of simpler grave
+markers receding down the hillside in the midground, a deep misty dusk sky
+in the background. Drifting motes of golden light cross between the depth
 layers. Extremely detailed rendering — translucent light effects on the
 spectral half of the figure, engraved detail on the solidifying armor,
-painted in the hyper-detailed epic style of premium full-art trading cards
-(Pokémon TCG full-art / Legends of Runeterra legendary-tier quality), rich
-palette of gold, translucent white and deep dusk blue, powerful sense of
-reverence and rebirth, tall vertical portrait aspect ratio (approximately
-0.72:1 width to height), composition designed to fill a tall card frame
-edge-to-edge with no empty margins at top or bottom, no text, no card
-frame, no border, no watermark
+weathered stone texture on the grave markers. Rich palette of gold,
+translucent white and deep dusk blue, powerful sense of reverence and
+rebirth, composition designed to fill a tall card frame edge-to-edge with
+no empty margins at top or bottom, no text, no card frame, no border, no
+watermark
 ```
 
 ---
@@ -1458,13 +1553,19 @@ frame, no border, no watermark
 gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a lone knight reaching toward the
-legendary Holy Grail, glowing with soft radiant light atop an ancient
-stone pedestal inside a crumbling sunlit shrine, awe and reverence on his
-face, dust motes catching the divine light, painterly brushwork in the
-style of a premium collectible card game (Hearthstone / Legends of
-Runeterra quality), warm palette of gold, cream stone and soft white
-light, medium shot fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a lone
+knight kneeling in awe at the threshold of a sun-drenched, half-collapsed
+underground shrine, the legendary Holy Grail glowing with soft radiant
+light atop an ancient stone pedestal deep within, reachable down a short
+flight of worn stone steps he's only just descended. Roots and vines have
+grown through cracks in the shrine's ceiling, a single beam of sunlight
+piercing down from above to strike the Grail directly. Dust motes hang
+thick in the shaft of light. Painterly brushwork in the style of premium
+Magic: The Gathering card art, warm palette of gold, cream stone and soft
+white light against deep underground shadow, dramatic descending-steps
+composition, medium shot fully visible, landscape orientation (about
+1600×1000px, wider than tall), no text, no card frame, no border, no
+watermark
 ```
 
 ---
@@ -1475,13 +1576,18 @@ light, medium shot fully visible, cinematic composition, landscape orientation (
 gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a war council scene, a cardinal-commander
-unrolling a fresh battle plan across a wooden map table inside a candlelit
-command tent, a few crusader officers leaning in around him studying it
-intently, warm candlelight, painterly brushwork in the style of a premium
-collectible card game (Hearthstone / Legends of Runeterra quality), warm
-palette of amber candlelight, parchment cream and gold, medium-wide shot
-fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a war
+council scene shot from a high corner angle looking down over a wooden map
+table inside a candlelit command tent, a cardinal-commander's hand
+pinning a carved wooden marker onto a hand-drawn battlefield map while
+several crusader officers lean in around the table studying it intently,
+their faces lit from below by the map table's ring of candles. Rolled
+scrolls, an inkwell and a compass rest at the map's corners. Warm
+candlelight is the only light source, deep shadow pooling in the corners
+of the tent. Painterly brushwork in the style of premium Magic: The
+Gathering card art, warm palette of amber candlelight, parchment cream and
+gold, elevated interior composition, medium-wide shot fully visible,
+landscape orientation (about 1600×1000px, wider than tall), no text, no
 card frame, no border, no watermark
 ```
 
@@ -1493,14 +1599,18 @@ card frame, no border, no watermark
 gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a crusader officer walking down a line of
-standing soldiers at attention, stopping to point decisively at one
-specific soldier who straightens up with pride at being chosen, warm dawn
-light across the formation, painterly brushwork in the style of a premium
-collectible card game (Hearthstone / Legends of Runeterra quality), warm
-palette of gold, white and cream, medium-wide shot fully visible,
-cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no
-border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a torchlit
+night muster, a crusader officer walking down a line of soldiers standing
+at rigid attention along a castle courtyard wall, torches mounted between
+them casting alternating pools of warm light and shadow down the line,
+stopping to point decisively at one specific soldier who straightens with
+pride as the torchlight catches him. The rest of the line stands in
+disciplined shadow, waiting. Painterly brushwork in the style of premium
+Magic: The Gathering card art, high-contrast palette of torch-gold pools
+against deep night shadow, dramatic repeating-light composition down the
+line, medium-wide shot fully visible, landscape orientation (about
+1600×1000px, wider than tall), no text, no card frame, no border, no
+watermark
 ```
 
 ---
@@ -1511,14 +1621,17 @@ border, no watermark
 gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a crusader captain inspecting a short
-row of assembled soldiers standing at attention at dawn, closely comparing
-two of them side by side with a critical eye, the rest waiting calmly at
-attention nearby, warm morning light, painterly brushwork in the style of
-a premium collectible card game (Hearthstone / Legends of Runeterra
-quality), warm palette of gold, white and pale blue dawn sky, medium-wide
-shot fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text,
-no card frame, no border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a crusader
+captain inspecting a short row of assembled soldiers standing at attention
+on a dew-covered parade ground at dawn, thick low mist swirling around
+their boots, closely comparing two of them side by side with a critical
+eye while the rest wait calmly in the mist behind. Pale gold dawn light
+breaks low across the field, throwing long thin shadows across the wet
+grass. Painterly brushwork in the style of premium Magic: The Gathering
+card art, warm palette of gold, white and pale misty blue, atmospheric
+low-mist dawn composition, medium-wide shot fully visible, landscape
+orientation (about 1600×1000px, wider than tall), no text, no card frame,
+no border, no watermark
 ```
 
 ---
@@ -1529,13 +1642,18 @@ no card frame, no border, no watermark
 gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a crusade treasurer counting stacks of
-gold coins by candlelight at a small wooden desk inside a supply tent, an
-open ledger and a heavy coin chest beside him, a small cross pendant
-around his neck, warm candlelight, painterly brushwork in the style of a
-premium collectible card game (Hearthstone / Legends of Runeterra
-quality), warm palette of gold coin shine, candle amber and worn wood
-brown, medium shot fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a crusade
+treasurer counting stacks of gold coins by candlelight at a cluttered
+wooden desk inside a cramped supply tent, an open ledger covered in tally
+marks, a heavy iron-banded coin chest half-open beside him spilling more
+coins onto the desk, a small cross pendant swinging from his neck as he
+leans forward. A single candle in a dish throws warm flickering light
+across the coins, making them glint individually. Painterly brushwork in
+the style of premium Magic: The Gathering card art, warm palette of gold
+coin shine, candle amber and worn wood brown, intimate cluttered-desk
+composition, medium shot fully visible, landscape orientation (about
+1600×1000px, wider than tall), no text, no card frame, no border, no
+watermark
 ```
 
 ---
@@ -1546,15 +1664,20 @@ brown, medium shot fully visible, cinematic composition, landscape orientation (
 gerar
 
 ```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a crowd of humble faithful pilgrims and
-villagers converging toward a raised white-and-gold banner planted in a
-town square, answering a call to arms, hands raised or clutching holy
-symbols, mixed expressions of fear and determination, warm late-afternoon
-light, painterly brushwork in the style of a premium collectible card game
-(Hearthstone / Legends of Runeterra quality), warm palette of gold, cream
-and dusty crimson, wide shot with the gathering crowd visible, cinematic
-composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no
-watermark
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting shot from a
+high rooftop vantage looking down over a crowded stone town square at
+dusk, a sea of humble faithful pilgrims and villagers converging from
+every side street toward a single raised white-and-gold banner planted in
+the square's center, hands raised or clutching holy symbols, torches
+beginning to be lit throughout the crowd as evening falls. The
+architecture of the town — narrow streets, tiled roofs, a small chapel bell
+tower — frames the gathering from above, giving a genuine sense of a whole
+town answering a call, distinct from the smaller, close-up group scenes
+elsewhere in this set. Painterly brushwork in the style of premium Magic:
+The Gathering card art, warm palette of gold, torch-orange and dusky
+blue-violet sky, dramatic elevated wide-vista composition, landscape
+orientation (about 1600×1000px, wider than tall), no text, no card frame,
+no border, no watermark
 ```
 
 ## Deck Capitão
