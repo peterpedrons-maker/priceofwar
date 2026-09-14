@@ -3577,7 +3577,7 @@ const CardSlot = ({
           onClick(e.currentTarget as HTMLElement);
         }
       }}
-      className={`w-24 md:w-36 h-32 md:h-48 rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-indigo-400/70 hover:border-indigo-300 hover:bg-indigo-500/10 hover:shadow-[0_0_30px_rgba(99,102,241,0.6)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass} ${isValidAttackTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${isMoverSelected ? 'ring-4 ring-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.7)]' : ''} ${isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''}`}
+      className={`w-24 md:w-36 h-32 md:h-48 rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass} ${isValidAttackTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${isMoverSelected ? 'ring-4 ring-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.7)]' : ''} ${isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''}`}
     >
       {!card && hint && (
         // Simple first-pass "where can this card go" indicator: a green arrow on its
@@ -3601,8 +3601,8 @@ const CardSlot = ({
       )}
       {!card && !hint && (
         <>
-          <div className="w-[70%] h-[70%] border border-indigo-500/25 rotate-45 group-hover:border-indigo-400/60 group-hover:scale-110 transition-all pointer-events-none" />
-          <div className="absolute inset-0 bg-indigo-500/0 group-hover:bg-indigo-500/20 transition-colors rounded-lg pointer-events-none" />
+          <div className="w-[70%] h-[70%] border border-[#e8dcc0]/20 rotate-45 group-hover:border-[#e8dcc0]/50 group-hover:scale-110 transition-all pointer-events-none" />
+          <div className="absolute inset-0 bg-[#e8dcc0]/0 group-hover:bg-[#e8dcc0]/15 transition-colors rounded-lg pointer-events-none" />
         </>
       )}
       {/* Attack targeting indicators — while the player has an attacker selected, a
