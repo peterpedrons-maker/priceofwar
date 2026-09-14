@@ -22,12 +22,20 @@ const AI_UNSUPPORTED_TACTICS = new Set([
   'O Soldado Retorna', 'Busca pelo Santo Graal', 'Nova Tática', 'Escolher a Dedo', 'Escolher Tropas', 'Reunião de Fiéis',
 ]);
 
+// Emboscada cards only ever resolve via the ambush interrupt (see maybeActivateNpcAmbush
+// in App.tsx, which already reads straight from npcHand whenever the player attacks) —
+// they're never "played" onto the board like a creature. Skipping them here for the exact
+// same reason as AI_UNSUPPORTED_TACTICS above: placing one would waste it as an inert 0/0
+// body instead of leaving it in hand for its real trigger.
+const isEmboscada = (card: CardData) => card.cardType === 'Emboscada';
+
 export const playAiTurn = (
   npcSlots: (CardData | null)[],
   playerSlots: (CardData | null)[],
   npcMana: number,
   npcHand: CardData[],
-  getValidAttackTargets: ValidTargetsFn
+  getValidAttackTargets: ValidTargetsFn,
+  turnNumber: number
 ): { actions: AiAction[]; playedCardIds: string[] } => {
   const actions: AiAction[] = [];
   const playedCardIds: string[] = [];
@@ -41,6 +49,7 @@ export const playAiTurn = (
   // (10/11); the AI skips those for now and only plays regular units.
   for (const card of npcHand) {
     if (card.cardType === 'Relíquia' || card.cardType === 'Terreno') continue;
+    if (isEmboscada(card)) continue;
     if (AI_UNSUPPORTED_TACTICS.has(card.name)) continue;
     if (card.cost > currentNpcMana) continue;
     const emptySlots = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => currentNpcSlots[i] === null);
@@ -54,9 +63,15 @@ export const playAiTurn = (
     currentNpcMana -= card.cost;
   }
 
-  // 2. Attack — each NPC minion swings at whatever it can actually reach given the
-  // lane-blocking rules (see getValidAttackTargets), preferring the General when it's
-  // exposed, otherwise a random valid target.
+  // 2. Attack — mirrors the player's own "Batalha only unlocks from turn 3 onward"
+  // restriction (see handleSlotClick's turnPhase !== 'batalha' check in App.tsx):
+  // without this, the AI could freely swing on turns 1-2 while the player couldn't,
+  // a lopsided head start that isn't part of the actual rules.
+  if (turnNumber < 3) return { actions, playedCardIds };
+
+  // Each NPC minion swings at whatever it can actually reach given the lane-blocking
+  // rules (see getValidAttackTargets), preferring the General when it's exposed,
+  // otherwise a random valid target.
   for (let i = 0; i <= 9; i++) {
     const attacker = currentNpcSlots[i];
     if (!attacker || attacker.atk <= 0) continue;

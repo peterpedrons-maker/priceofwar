@@ -56,6 +56,10 @@ export type SlotHint = 'primary' | 'secondary' | 'invalid';
 // archers preferring the backline) can refine this later.
 const getSlotHint = (cardType: CardType | undefined, slotIndex: number): SlotHint => {
   if (slotIndex === 12) return 'invalid'; // General slot is fixed, never playable from hand
+  // Emboscada cards only resolve via the ambush interrupt (see maybeActivatePlayerAmbush)
+  // and Táticas either resolve immediately or via their own on-board targeting flow (see
+  // TARGETABLE_TACTICS) — neither is ever dropped onto a slot like a creature.
+  if (cardType === 'Emboscada' || cardType === 'Tática') return 'invalid';
   const isSpecialSlot = slotIndex === 10 || slotIndex === 11; // beside the General: Relíquia/Terreno only
   const isFieldOnlyCard = cardType === 'Relíquia' || cardType === 'Terreno';
   if (isSpecialSlot) return isFieldOnlyCard ? 'primary' : 'invalid';
@@ -725,6 +729,44 @@ const FitText = ({ text, className, style }: { text: string, className?: string,
   );
 };
 
+// Same idea as FitText but for the effect-text box, which wraps across several lines
+// instead of staying on one — a long ability description (e.g. Comandante Aurelion's
+// "Após Remanejamento: até 2 unidades... Passiva: unidades adjacentes recebem -1 de
+// dano.") used to just get sliced off by the box's overflow-hidden once it ran past
+// its fixed height. Text already wraps to the container's width on its own, so this
+// only needs to shrink uniformly when the wrapped block runs taller than its box —
+// never past the base font size, same as FitText.
+const FitEffectText = ({ text, className, style }: { text: string, className?: string, style?: React.CSSProperties }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLParagraphElement>(null);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const textEl = textRef.current;
+    if (!container || !textEl) return;
+    const fit = () => {
+      textEl.style.transform = 'scale(1)';
+      const containerHeight = container.clientHeight;
+      const textHeight = textEl.scrollHeight;
+      const scale = textHeight > containerHeight && textHeight > 0 ? containerHeight / textHeight : 1;
+      textEl.style.transform = `scale(${scale})`;
+    };
+    fit();
+    document.fonts?.ready?.then(fit);
+    const ro = new ResizeObserver(fit);
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [text]);
+
+  return (
+    <div ref={containerRef} className="w-full h-full flex items-center justify-center overflow-hidden">
+      <p ref={textRef} className={className} style={{ ...style, margin: 0, transformOrigin: 'center' }}>
+        {text}
+      </p>
+    </div>
+  );
+};
+
 const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof typeof CARD_FACE_VARIANTS }) => {
   const v = CARD_FACE_VARIANTS[variant];
   const showStats = !NO_STAT_TYPES.has(card.cardType as CardType);
@@ -784,10 +826,12 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
         )}
 
         {/* Effect — the parchment text area */}
-        <div className="absolute flex items-center justify-center p-1 overflow-hidden" style={{ top: '64%', bottom: '10%', left: '11%', right: '11%' }}>
-          <p className={`${v.effect} text-[#0d0901] font-semibold text-center leading-tight`} style={{ fontFamily: "'Crimson Pro', serif" }}>
-            {card.effect}
-          </p>
+        <div className="absolute p-1" style={{ top: '64%', bottom: '10%', left: '11%', right: '11%' }}>
+          <FitEffectText
+            text={card.effect}
+            className={`${v.effect} text-[#0d0901] font-semibold text-center leading-tight`}
+            style={{ fontFamily: "'Crimson Pro', serif" }}
+          />
         </div>
 
         {/* ATK/HP — blade + heart emblems, only on the gold frame (see NO_STAT_TYPES) */}
@@ -1627,7 +1671,7 @@ export default function App() {
     if (currentTurn === 'npc' && gameMode === 'Quick Match' && !isAnimating && !gameOverWinner) {
       const runAiTurn = async () => {
         setIsAnimating(true);
-        const { actions, playedCardIds } = playAiTurn(npcSlots, playerSlots, npcMana, npcHandRef.current, getValidAttackTargets);
+        const { actions, playedCardIds } = playAiTurn(npcSlots, playerSlots, npcMana, npcHandRef.current, getValidAttackTargets, turnNumber);
         if (playedCardIds.length > 0) {
           setNpcHand(prev => prev.filter(c => !playedCardIds.includes(c.id)));
         }
@@ -1891,6 +1935,24 @@ export default function App() {
       setSelectedCardIndex(null);
       setViewState('field');
       showToast(TACTIC_TARGET_PROMPTS[kind]);
+      return;
+    }
+
+    // Emboscada cards have no placement behavior at all — they only resolve via the
+    // ambush interrupt when the OPPONENT attacks (see maybeActivatePlayerAmbush).
+    // Dropping one on the board like a creature would just waste it as an inert 0/0
+    // body forever, so keep it in hand instead.
+    if (card.cardType === 'Emboscada') {
+      setSelectedCardIndex(null);
+      showToast('Emboscadas ativam sozinhas quando você é atacado — mantenha na mão.');
+      return;
+    }
+    // Any other Tática reaching this point isn't handled by the immediate/targetable
+    // branches above, meaning it has no implemented effect yet (see the Deck Cardeal
+    // mechanics note above this component) — same reasoning as Emboscada.
+    if (card.cardType === 'Tática') {
+      setSelectedCardIndex(null);
+      showToast('Essa Tática ainda não pode ser jogada.');
       return;
     }
 
@@ -2250,6 +2312,10 @@ export default function App() {
       } else {
         setSelectedAttackerIndex(slotIndex);
       }
+    } else if (selectedCardIndex !== null && playerSlots[slotIndex]) {
+      // A card is selected for placement but this slot is already occupied — used to
+      // be a silent no-op with no feedback at all.
+      showToast("Esse slot já está ocupado!");
     }
   };
 
