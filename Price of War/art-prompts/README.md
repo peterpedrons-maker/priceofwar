@@ -666,3 +666,674 @@ também e escrevo os dois prompts pra essa mesma carta: um pra versão
 Padrão (janela pequena, item 1 acima) e um pra versão Full Art (janela
 grande, usando essa proporção ~0,72:1 e a composição dessa referência como
 guia de estilo).
+
+---
+
+# Cartas por Deck
+
+A partir daqui os prompts ficam organizados por deck, um card do jogo por
+entrada. **Fluxo de trabalho:** assim que você me mandar a arte pronta de
+uma carta (ou avisar que já gerou), eu removo a entrada dela daqui — o
+prompt já cumpriu seu papel e só ocuparia espaço à toa depois disso. Então
+esta lista sempre mostra só o que ainda falta gerar; conforme cada deck for
+sendo preenchido, a seção dele vai encolhendo até sumir.
+
+Todo card aqui é **Padrão** (moldura pequena, paisagem ~16:10) e usa a
+moldura dourada (Infantaria/Cavalaria/Arqueiro/Relíquia), a prata
+(Tática/Terreno) ou a champanhe (Emboscada) — a cor da moldura é só
+cosmética no jogo, não muda o prompt da arte em si. As duas exceções desse
+deck são o **General** e a **Relíquia**, que são Full Art (moldura
+dourada, janela grande retrato ~0,72:1, ver item 3 acima) — marcadas como
+tal em cada entrada.
+
+## Deck Cardeal Pedro
+
+**Identidade visual do deck** (pra manter consistência entre as 31
+cartas): uma ordem militar-religiosa cruzada — branco, dourado e
+vermelho-carmesim, luz quente e dourada de caráter "sagrado" (não azulada/
+mágica), cruzes e símbolos de fé, cavaleiros com mantos sobre a armadura no
+estilo Hospitalário/Templário. Onde fizer sentido, os prompts abaixo pedem
+essa mesma paleta e iconografia pra tudo ficar com cara do mesmo baralho.
+
+### General
+
+#### 5.1. Cardeal Pedro
+
+**Carta:** General (ATK 0 / HP 20 / custo 0) · **Estilo:** Full Art ·
+**Status:** pronto pra gerar
+
+```
+Legendary hero portrait, ultra-epic fantasy trading-card full-art
+illustration of an elderly but powerfully built warrior-cardinal, tall
+vertical portrait composition filling the entire frame from head to
+boots, dynamic low-angle hero shot looking slightly upward at the
+subject. He wears ornate white-and-gold clerical plate armor fused with a
+priest's vestments — a long white mantle trimmed in gold over the
+breastplate, a tall ceremonial gold mitre-shaped helm, a heavy jeweled
+cross hanging on his chest. In one hand he grips a massive gold warhammer
+shaped like an inverted cross planted into the ground; the other hand is
+raised, palm open, radiating warm healing golden light that spills
+downward like sunlight through his fingers. His expression is serene but
+resolute — a healer and a warrior at once. Layered depth composition: the
+cardinal sharp and in focus filling most of the frame, a blurred row of
+white-and-gold banners and kneeling wounded soldiers being healed by his
+light in the midground, and a glowing cathedral-like ruin silhouetted
+against a golden dusk sky in the background. Drifting motes of holy light
+cross between the depth layers. Extremely detailed rendering — engraved
+filigree in the armor, embroidered gold thread in the mantle, a long white
+beard, soft specular highlights on polished gold, painted in the
+hyper-detailed epic style of premium full-art trading cards (Pokémon TCG
+full-art / Legends of Runeterra legendary-tier quality), rich warm palette
+of white, gold and deep crimson, powerful sense of scale and reverence,
+tall vertical portrait aspect ratio (approximately 0.72:1 width to
+height, noticeably taller than wide), composition designed to fill a tall
+card frame edge-to-edge with no empty margins at top or bottom, no text,
+no card frame, no border, no watermark
+```
+
+**Notas:** contraponto direto do Comandante Aurelion (Deck Capitão) — ele é
+força/formação militar pura, o Cardeal Pedro é fé/cura com poder militar
+por trás dela; por isso a luz dourada saindo da mão em vez de uma arma
+erguida como pose principal.
+
+---
+
+### Relíquia
+
+#### 5.2. Cálice da Vida
+
+**Carta:** Relíquia (ATK 0 / HP 5 / custo 3) · **Estilo:** Full Art ·
+**Status:** pronto pra gerar
+
+```
+Legendary relic portrait, ultra-epic fantasy trading-card full-art
+illustration of an ornate golden chalice resting on a carved stone altar,
+tall vertical portrait composition filling the entire frame. The chalice
+overflows with glowing liquid light instead of wine — warm golden-white
+radiance spilling gently down its sides and pooling on the altar like
+liquid sunlight, faint wisps of holy light rising from the surface like
+steam. The cup itself is heavily engraved with cross motifs and filigree,
+inlaid with small red gemstones. Layered depth composition: the chalice
+sharp and in focus filling the lower two-thirds of the frame, soft
+out-of-focus stone archways and hanging white-and-gold banners in the
+midground, and tall stained-glass-like windows glowing with warm light in
+the background. Drifting motes of golden light float upward through the
+whole scene. Extremely detailed engraved metal texture, reflective
+specular highlights on the gold, painted in the hyper-detailed epic style
+of premium full-art trading cards (Pokémon TCG full-art / Legends of
+Runeterra legendary-tier quality), rich warm palette of gold, white and
+deep crimson, powerful sense of reverence and sacred power, tall vertical
+portrait aspect ratio (approximately 0.72:1 width to height), composition
+designed to fill a tall card frame edge-to-edge with no empty margins at
+top or bottom, no characters, no text, no card frame, no border, no
+watermark
+```
+
+**Notas:** é uma relíquia-objeto, não um personagem — segue a mesma lógica
+do Estandarte da Legião (Deck Capitão), que também é Full Art sem
+figura central, só o objeto em destaque.
+
+---
+
+### Infantaria
+
+#### 5.3. Multidão de Fiéis
+
+**Carta:** Infantaria (ATK 0 / HP 3 / custo 1) · **Estilo:** Padrão ·
+**Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of a small huddled group of devout peasant
+pilgrims thrown into a holy war, wearing simple travel-worn robes rather
+than armor, clutching wooden holy symbols, walking staffs and improvised
+farm-tool weapons, faces showing fear mixed with fierce faith, standing
+together shoulder to shoulder on a battlefield at dawn, warm golden light
+breaking through clouds behind them, painterly brushwork in the style of a
+premium collectible card game (Hearthstone / Legends of Runeterra
+quality), warm palette of cream, gold and dusty crimson, medium-wide shot
+with the whole group visible, cinematic composition, landscape
+orientation, no text, no card frame, no border, no watermark
+```
+
+---
+
+#### 5.4. Comerciante das Cruzadas
+
+**Carta:** Infantaria (ATK 1 / HP 1 / custo 1) · **Estilo:** Padrão ·
+**Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of a shrewd crusade quartermaster-merchant,
+practical leather and cloth robes with a small cross pendant, a satchel of
+rolled maps and scrolls slung over one shoulder, holding up two cards or
+scrolls to compare them with a calculating half-smile, standing at the
+edge of a supply camp with tents and crates behind him, warm dawn light,
+painterly brushwork in the style of a premium collectible card game
+(Hearthstone / Legends of Runeterra quality), warm palette of gold, cream
+and worn leather brown, medium shot fully visible, cinematic composition,
+landscape orientation, no text, no card frame, no border, no watermark
+```
+
+---
+
+#### 5.5. Espião Sabotador
+
+**Carta:** Infantaria (ATK 1 / HP 2 / custo 1) · **Estilo:** Padrão ·
+**Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of a hooded crusade spy and saboteur,
+dark practical cloth robes over light armor with a hidden cross pendant
+just visible at the collar, crouched low behind battlefield cover, one
+hand raised in a silent "wait" signal, a curved dagger held ready in the
+other, sharp watchful eyes scanning for enemy ambushes, dim warm torchlight
+from off-frame, painterly brushwork in the style of a premium collectible
+card game (Hearthstone / Legends of Runeterra quality), muted palette of
+charcoal, dark crimson and gold accents, medium shot fully visible,
+cinematic composition, landscape orientation, no text, no card frame, no
+border, no watermark
+```
+
+---
+
+#### 5.6. Soldado Fanático
+
+**Carta:** Infantaria (ATK 1 / HP 2 / custo 1) · **Estilo:** Padrão ·
+**Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of a wild-eyed religious zealot soldier
+charging into battle, simple mismatched armor over crusade robes, eyes
+blazing with fanatical fervor, swinging a heavy spiked mace overhead,
+mouth open mid-battle-cry, dust and embers kicked up around his feet, warm
+dramatic backlighting, painterly brushwork in the style of a premium
+collectible card game (Hearthstone / Legends of Runeterra quality), warm
+palette of crimson, gold and soot-black, dynamic medium shot fully
+visible, cinematic composition, landscape orientation, no text, no card
+frame, no border, no watermark
+```
+
+---
+
+#### 5.7. Aprendiz de Infantaria
+
+**Carta:** Infantaria (ATK 0 / HP 2 / custo 1) · **Estilo:** Padrão ·
+**Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of a very young trainee crusader soldier,
+ill-fitting hand-me-down armor a size too big, gripping a sword with both
+hands in an earnest but slightly awkward stance, determined nervous
+expression, an older soldier's cloak draped over his shoulders, standing
+at the edge of a training yard at dawn, warm soft light, painterly
+brushwork in the style of a premium collectible card game (Hearthstone /
+Legends of Runeterra quality), warm palette of gold, cream and soft steel
+blue, medium shot fully visible, cinematic composition, landscape
+orientation, no text, no card frame, no border, no watermark
+```
+
+---
+
+#### 5.8. Vigia de Mantimentos
+
+**Carta:** Infantaria (ATK 2 / HP 3 / custo 2) · **Estilo:** Padrão ·
+**Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of an alert crusade quartermaster-guard
+standing watch over stacked supply crates and barrels marked with a cross
+sigil, practical leather armor, spear held ready at his side, scanning the
+horizon at dusk, torchlight flickering nearby, painterly brushwork in the
+style of a premium collectible card game (Hearthstone / Legends of
+Runeterra quality), warm palette of amber, gold and worn wood brown,
+medium shot fully visible, cinematic composition, landscape orientation,
+no text, no card frame, no border, no watermark
+```
+
+---
+
+#### 5.9. Infantaria Treinada
+
+**Carta:** Infantaria (ATK 3 / HP 5 / custo 2) · **Estilo:** Padrão ·
+**Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of a disciplined veteran crusader foot
+soldier in matching white-and-gold livery over solid plate armor, a tall
+kite shield bearing a red cross and a spear held at a steady guard stance,
+calm confident veteran expression, standing in formation on a battlefield
+at dawn, warm golden light, painterly brushwork in the style of a premium
+collectible card game (Hearthstone / Legends of Runeterra quality), warm
+palette of white, gold and crimson, medium shot fully visible, cinematic
+composition, landscape orientation, no text, no card frame, no border, no
+watermark
+```
+
+---
+
+### Cavalaria
+
+#### 5.10. Jorge, o Lanceiro
+
+**Carta:** Cavalaria (ATK 4 / HP 6 / custo 3) · **Estilo:** Padrão ·
+**Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of a heroic mounted knight lancer inspired
+by Saint George, gleaming white-and-gold plate armor, riding a powerful
+white warhorse at full charge, a long lance couched and leveled, a white
+cape marked with a red cross billowing behind him, dynamic diagonal
+charging composition, dust kicked up by the horse's hooves, dramatic warm
+backlighting, painterly brushwork in the style of a premium collectible
+card game (Hearthstone / Legends of Runeterra quality), warm palette of
+white, gold and crimson, dynamic medium-wide shot with horse and rider
+fully visible, cinematic composition, landscape orientation, no text, no
+card frame, no border, no watermark
+```
+
+---
+
+#### 5.11. Hospitalário
+
+**Carta:** Cavalaria (ATK 2 / HP 4 / custo 2) · **Estilo:** Padrão ·
+**Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of a mounted knight-healer inspired by the
+Knights Hospitaller, white mantle bearing a red cross worn over plate
+armor, riding a calm white horse, one hand holding the reins and a lance,
+the other hand glowing faintly with soft healing light reaching toward an
+unseen wounded ally off-frame, gentle compassionate expression contrasting
+with his armor, warm dawn light, painterly brushwork in the style of a
+premium collectible card game (Hearthstone / Legends of Runeterra
+quality), warm palette of white, gold and soft red, medium shot with horse
+and rider fully visible, cinematic composition, landscape orientation, no
+text, no card frame, no border, no watermark
+```
+
+---
+
+#### 5.12. Nobre Religioso
+
+**Carta:** Cavalaria (ATK 4 / HP 5 / custo 3) · **Estilo:** Padrão ·
+**Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of a richly armored noble crusader lord on
+horseback, ornate gold-trimmed plate armor with elaborate religious
+heraldry on his tabard, one arm raised in a commanding gesture rallying a
+small group of loyal soldiers who kneel and rise around his horse as if
+just called into service, banner-bearers flanking him, warm golden light,
+painterly brushwork in the style of a premium collectible card game
+(Hearthstone / Legends of Runeterra quality), rich palette of gold, white
+and crimson, dynamic medium-wide shot with horse and rider fully visible,
+cinematic composition, landscape orientation, no text, no card frame, no
+border, no watermark
+```
+
+---
+
+#### 5.13. Cavaleiro Branco
+
+**Carta:** Cavalaria (ATK 5 / HP 7 / custo 3) · **Estilo:** Padrão ·
+**Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of the archetypal White Knight, a powerful
+mounted knight in gleaming full white-and-gold plate armor with almost no
+ornamentation beyond a simple engraved cross, riding a strong white
+warhorse, sword raised high and wreathed in a faint holy white-gold glow,
+heroic confident pose, warm dramatic backlighting silhouetting horse and
+rider, painterly brushwork in the style of a premium collectible card game
+(Hearthstone / Legends of Runeterra quality), warm palette of white, gold
+and pale crimson, dynamic medium-wide shot with horse and rider fully
+visible, cinematic composition, landscape orientation, no text, no card
+frame, no border, no watermark
+```
+
+---
+
+#### 5.14. Líder de Esquadrão
+
+**Carta:** Cavalaria (ATK 5 / HP 5 / custo 3) · **Estilo:** Padrão ·
+**Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of a mounted crusader squad captain rallying
+troops, gold-trimmed armor slightly battle-worn, raising a tall
+white-and-gold banner high with one arm while a small group of infantry
+and archers look up at him with renewed resolve nearby, warm golden late
+afternoon light, painterly brushwork in the style of a premium collectible
+card game (Hearthstone / Legends of Runeterra quality), warm palette of
+gold, white and crimson, dynamic medium-wide shot with horse and rider
+fully visible, cinematic composition, landscape orientation, no text, no
+card frame, no border, no watermark
+```
+
+---
+
+### Arqueiros
+
+#### 5.15. Arqueiro Profissional
+
+**Carta:** Arqueiro (ATK 1 / HP 4 / custo 2) · **Estilo:** Padrão ·
+**Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of a highly skilled crusader crossbowman
+mid-action, already reloading a second bolt with practiced speed just as
+the first one flies off-frame, white-and-gold tabard over practical
+leather armor, a full quiver of bolts at his hip, focused intense
+expression, warm dawn light, painterly brushwork in the style of a premium
+collectible card game (Hearthstone / Legends of Runeterra quality), warm
+palette of gold, cream and steel gray, dynamic medium shot fully visible,
+cinematic composition, landscape orientation, no text, no card frame, no
+border, no watermark
+```
+
+---
+
+#### 5.16. Atirador Influente
+
+**Carta:** Arqueiro (ATK 1 / HP 3 / custo 2) · **Estilo:** Padrão ·
+**Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of a veteran crusader archer with a weathered,
+wise face and graying hair, worn but well-kept gear, standing with calm
+composure while drawing his bow, a few younger soldiers visible in the
+soft-focus background looking toward him with visible respect and
+inspiration, warm late-afternoon light, painterly brushwork in the style
+of a premium collectible card game (Hearthstone / Legends of Runeterra
+quality), warm palette of amber, cream and steel gray, medium shot fully
+visible, cinematic composition, landscape orientation, no text, no card
+frame, no border, no watermark
+```
+
+---
+
+### Táticas de dano
+
+#### 5.17. Trabuco
+
+**Carta:** Tática (custo 3) · **Estilo:** Padrão · **Status:** pronto pra
+gerar
+
+```
+Epic fantasy digital painting of a massive wooden trebuchet siege engine
+mid-launch on a battlefield at dawn, its long arm whipping upward and
+hurling a flaming payload high across the sky toward a distant enemy line,
+crusader soldiers in white-and-gold operating the machine and bracing
+against the recoil, dust and splinters flying, dramatic warm light,
+painterly brushwork in the style of a premium collectible card game
+(Hearthstone / Legends of Runeterra quality), warm palette of gold, wood
+brown and fire orange, dynamic wide shot with the whole machine visible,
+cinematic composition, landscape orientation, no text, no card frame, no
+border, no watermark
+```
+
+---
+
+#### 5.18. Catapulta
+
+**Carta:** Tática (custo 2) · **Estilo:** Padrão · **Status:** pronto pra
+gerar
+
+```
+Epic fantasy digital painting of a compact wooden catapult siege engine
+firing on a battlefield at dawn, its throwing arm caught mid-swing
+launching a heavy stone payload toward one specific row of distant enemy
+soldiers, crusader crew bracing the frame, dust kicked up around its base,
+warm dramatic light, painterly brushwork in the style of a premium
+collectible card game (Hearthstone / Legends of Runeterra quality), warm
+palette of gold, wood brown and stone gray, dynamic wide shot with the
+whole machine visible, cinematic composition, landscape orientation, no
+text, no card frame, no border, no watermark
+```
+
+---
+
+#### 5.19. Balesta
+
+**Carta:** Tática (custo 1) · **Estilo:** Padrão · **Status:** pronto pra
+gerar
+
+```
+Epic fantasy digital painting of a massive mounted ballista, a
+giant crossbow on a wooden frame, firing a single enormous bolt with
+precise force directly toward the viewer/a chosen distant target, crusader
+crew bracing the frame after release, sparks and tension visible in the
+taut ropes, dramatic warm light, painterly brushwork in the style of a
+premium collectible card game (Hearthstone / Legends of Runeterra
+quality), warm palette of gold, wood brown and steel gray, dynamic wide
+shot with the whole machine visible, cinematic composition, landscape
+orientation, no text, no card frame, no border, no watermark
+```
+
+---
+
+### Armamentos (equipáveis)
+
+#### 5.20. Armadura Pesada
+
+**Carta:** Tática/Armamento (custo 1) · **Estilo:** Padrão · **Status:**
+pronto pra gerar
+
+```
+Epic fantasy digital painting, a still-life illustration of an ornate suit
+of heavy white-and-gold full plate armor standing empty on a wooden
+display stand in a quiet armory, cuirass, gauntlets and a closed great
+helm all catching warm torchlight, faint engraved cross motifs on the
+breastplate, dust motes drifting in the light, painterly brushwork in the
+style of a premium collectible card game (Hearthstone / Legends of
+Runeterra quality), warm palette of white, gold and deep shadow, medium
+shot with the full armor stand visible, cinematic composition, landscape
+orientation, no text, no card frame, no border, no watermark
+```
+
+---
+
+#### 5.21. Corcelete
+
+**Carta:** Tática/Armamento (custo 1) · **Estilo:** Padrão · **Status:**
+pronto pra gerar
+
+```
+Epic fantasy digital painting, a still-life illustration of a lighter
+gold-trimmed steel breastplate resting on a wooden armor stand in a quiet
+armory, simpler and less ornate than full plate, leather straps hanging
+loose, warm torchlight catching the polished metal, painterly brushwork in
+the style of a premium collectible card game (Hearthstone / Legends of
+Runeterra quality), warm palette of steel gray, gold and warm brown,
+medium shot with the breastplate stand visible, cinematic composition,
+landscape orientation, no text, no card frame, no border, no watermark
+```
+
+---
+
+#### 5.22. Flecha Envenenada
+
+**Carta:** Tática/Armamento (custo 1) · **Estilo:** Padrão · **Status:**
+pronto pra gerar
+
+```
+Epic fantasy digital painting, a close still-life illustration of a single
+ornate crossbow bolt resting on a dark cloth, its tip coated in a sickly
+glowing green poison that drips slowly, faint toxic vapor curling off the
+tip, dramatic dim torchlight with the poison itself as a secondary light
+source, painterly brushwork in the style of a premium collectible card
+game (Hearthstone / Legends of Runeterra quality), palette of dark cloth
+black, gold fletching and toxic green, close-up shot with the whole bolt
+visible, cinematic composition, landscape orientation, no text, no card
+frame, no border, no watermark
+```
+
+---
+
+#### 5.23. Espada Longa
+
+**Carta:** Tática/Armamento (custo 1) · **Estilo:** Padrão · **Status:**
+pronto pra gerar
+
+```
+Epic fantasy digital painting, a close still-life illustration of an
+ornate blessed longsword laid across a velvet cloth, a cross-shaped gold
+hilt, the blade itself catching a faint warm holy glow along its edge,
+intricate engravings near the guard, dramatic warm torchlight, painterly
+brushwork in the style of a premium collectible card game (Hearthstone /
+Legends of Runeterra quality), palette of steel, gold and deep crimson
+velvet, close-up shot with the whole sword visible, cinematic composition,
+landscape orientation, no text, no card frame, no border, no watermark
+```
+
+---
+
+### Emboscadas
+
+#### 5.24. Forças Secretas
+
+**Carta:** Emboscada (custo 1) · **Estilo:** Padrão · **Status:** pronto
+pra gerar
+
+```
+Epic fantasy digital painting of a small group of crusader reinforcements
+hidden in wait behind rocks and fallen banners at the edge of a
+battlefield, weapons drawn and ready, tense alert expressions, about to
+spring out to reinforce an ally under attack, dim dawn light with a hint
+of warm light breaking through where they're about to charge into,
+painterly brushwork in the style of a premium collectible card game
+(Hearthstone / Legends of Runeterra quality), warm palette of gold, dusty
+brown and crimson, medium-wide shot with the group visible, cinematic
+composition, landscape orientation, no text, no card frame, no border, no
+watermark
+```
+
+---
+
+### Táticas de utilidade
+
+#### 5.25. O Soldado Retorna
+
+**Carta:** Tática (custo 1) · **Estilo:** Padrão · **Status:** pronto pra
+gerar
+
+```
+Epic fantasy digital painting of a fallen soldier's translucent
+golden-white spirit rising from a simple battlefield grave marked by a
+planted sword and helm, warm holy light lifting the ghostly figure back
+upright as if returning to the ranks, other soldiers watching in reverent
+awe nearby, dusk battlefield setting, painterly brushwork in the style of
+a premium collectible card game (Hearthstone / Legends of Runeterra
+quality), warm palette of gold, translucent white and deep dusk blue,
+medium-wide shot fully visible, cinematic composition, landscape
+orientation, no text, no card frame, no border, no watermark
+```
+
+---
+
+#### 5.26. Busca pelo Santo Graal
+
+**Carta:** Tática (custo 1) · **Estilo:** Padrão · **Status:** pronto pra
+gerar
+
+```
+Epic fantasy digital painting of a lone knight reaching toward the
+legendary Holy Grail, glowing with soft radiant light atop an ancient
+stone pedestal inside a crumbling sunlit shrine, awe and reverence on his
+face, dust motes catching the divine light, painterly brushwork in the
+style of a premium collectible card game (Hearthstone / Legends of
+Runeterra quality), warm palette of gold, cream stone and soft white
+light, medium shot fully visible, cinematic composition, landscape
+orientation, no text, no card frame, no border, no watermark
+```
+
+---
+
+#### 5.27. Nova Tática
+
+**Carta:** Tática (custo 1) · **Estilo:** Padrão · **Status:** pronto pra
+gerar
+
+```
+Epic fantasy digital painting of a war council scene, a cardinal-commander
+unrolling a fresh battle plan across a wooden map table inside a candlelit
+command tent, a few crusader officers leaning in around him studying it
+intently, warm candlelight, painterly brushwork in the style of a premium
+collectible card game (Hearthstone / Legends of Runeterra quality), warm
+palette of amber candlelight, parchment cream and gold, medium-wide shot
+fully visible, cinematic composition, landscape orientation, no text, no
+card frame, no border, no watermark
+```
+
+---
+
+#### 5.28. Escolher a Dedo
+
+**Carta:** Tática (custo 1) · **Estilo:** Padrão · **Status:** pronto pra
+gerar
+
+```
+Epic fantasy digital painting of a crusader officer walking down a line of
+standing soldiers at attention, stopping to point decisively at one
+specific soldier who straightens up with pride at being chosen, warm dawn
+light across the formation, painterly brushwork in the style of a premium
+collectible card game (Hearthstone / Legends of Runeterra quality), warm
+palette of gold, white and cream, medium-wide shot fully visible,
+cinematic composition, landscape orientation, no text, no card frame, no
+border, no watermark
+```
+
+---
+
+#### 5.29. Escolher Tropas
+
+**Carta:** Tática (custo 1) · **Estilo:** Padrão · **Status:** pronto pra
+gerar
+
+```
+Epic fantasy digital painting of a crusader captain inspecting a short
+row of assembled soldiers standing at attention at dawn, closely comparing
+two of them side by side with a critical eye, the rest waiting calmly at
+attention nearby, warm morning light, painterly brushwork in the style of
+a premium collectible card game (Hearthstone / Legends of Runeterra
+quality), warm palette of gold, white and pale blue dawn sky, medium-wide
+shot fully visible, cinematic composition, landscape orientation, no text,
+no card frame, no border, no watermark
+```
+
+---
+
+#### 5.30. Aumento de Impostos
+
+**Carta:** Tática (custo 0) · **Estilo:** Padrão · **Status:** pronto pra
+gerar
+
+```
+Epic fantasy digital painting of a crusade treasurer counting stacks of
+gold coins by candlelight at a small wooden desk inside a supply tent, an
+open ledger and a heavy coin chest beside him, a small cross pendant
+around his neck, warm candlelight, painterly brushwork in the style of a
+premium collectible card game (Hearthstone / Legends of Runeterra
+quality), warm palette of gold coin shine, candle amber and worn wood
+brown, medium shot fully visible, cinematic composition, landscape
+orientation, no text, no card frame, no border, no watermark
+```
+
+---
+
+#### 5.31. Reunião de Fiéis
+
+**Carta:** Tática (custo 2) · **Estilo:** Padrão · **Status:** pronto pra
+gerar
+
+```
+Epic fantasy digital painting of a crowd of humble faithful pilgrims and
+villagers converging toward a raised white-and-gold banner planted in a
+town square, answering a call to arms, hands raised or clutching holy
+symbols, mixed expressions of fear and determination, warm late-afternoon
+light, painterly brushwork in the style of a premium collectible card game
+(Hearthstone / Legends of Runeterra quality), warm palette of gold, cream
+and dusty crimson, wide shot with the gathering crowd visible, cinematic
+composition, landscape orientation, no text, no card frame, no border, no
+watermark
+```
