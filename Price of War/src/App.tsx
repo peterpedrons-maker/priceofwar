@@ -38,6 +38,12 @@ export type CardData = {
   // chosen unit at cast time. Read in getIncomingDamageReduction alongside the
   // General/Fortaleza aura checks.
   dmgReduction?: number;
+  // The explicit exception to "Táticas are single-use and never sit on the board":
+  // an Armamento (Armadura Pesada/Corcelete/Flecha Envenenada/Espada Longa) doesn't
+  // go to the graveyard when used — it stays equipped, rendered as a card peeking
+  // out from behind this one (see CardSlot), until this unit dies (see
+  // graveyardWithEquipment, which sends any equipped weapons along with it).
+  equippedWeapons?: CardData[];
 };
 
 // Slot layout per side (13 slots):
@@ -448,6 +454,13 @@ const EQUIP_ALLOWED_TYPES: Record<string, CardType[]> = {
 // doesn't know how to pick a target for the ones that need one — see
 // AI_UNSUPPORTED_TACTICS in aiService.ts, which leaves them in its hand
 // rather than wasting them as an inert placed card.
+
+// Any Armamento cards riding along on a unit (see equippedWeapons/CardData) go to
+// the graveyard together with it when it dies — nothing strips them off first, so
+// every "push these destroyed cards onto the graveyard" site needs to expand
+// through this rather than pushing the destroyed unit alone.
+const withEquippedWeapons = (cards: CardData[]): CardData[] =>
+  cards.flatMap(c => (c.equippedWeapons?.length ? [c, ...c.equippedWeapons] : [c]));
 
 // Applies flat damage to one slot, same simple "hp minus damage, destroyed at 0"
 // rule combat uses — but for effects (Trabuco/Catapulta/Balesta/Jorge's splash)
@@ -1837,7 +1850,7 @@ export default function App() {
                   const splash = applyDamageToSlot(currentPlayerSlots, targetSlot + 5, 2);
                   currentPlayerSlots = splash.slots;
                   if (splash.destroyed) {
-                    setPlayerGraveyard(g => [...g, splash.destroyed!]);
+                    setPlayerGraveyard(g => [...g, ...withEquippedWeapons([splash.destroyed!])]);
                     hasDestroyed = true;
                   }
                 }
@@ -1855,8 +1868,8 @@ export default function App() {
               await new Promise(resolve => setTimeout(resolve, 1000));
               const destroyedNpcCards = currentNpcSlots.filter((c): c is CardData => !!c?.isDestroyed);
               const destroyedPlayerCards = currentPlayerSlots.filter((c): c is CardData => !!c?.isDestroyed);
-              if (destroyedNpcCards.length) setNpcGraveyard(g => [...g, ...destroyedNpcCards]);
-              if (destroyedPlayerCards.length) setPlayerGraveyard(g => [...g, ...destroyedPlayerCards]);
+              if (destroyedNpcCards.length) setNpcGraveyard(g => [...g, ...withEquippedWeapons(destroyedNpcCards)]);
+              if (destroyedPlayerCards.length) setPlayerGraveyard(g => [...g, ...withEquippedWeapons(destroyedPlayerCards)]);
               currentNpcSlots = currentNpcSlots.map(c => c?.isDestroyed ? null : c);
               currentPlayerSlots = currentPlayerSlots.map(c => c?.isDestroyed ? null : c);
               setNpcSlots([...currentNpcSlots]);
@@ -1986,7 +1999,7 @@ export default function App() {
         }
       });
       setNpcSlots(nextNpcSlots);
-      if (destroyed.length) setNpcGraveyard(g => [...g, ...destroyed]);
+      if (destroyed.length) setNpcGraveyard(g => [...g, ...withEquippedWeapons(destroyed)]);
       showToast('Trabuco: 2 de dano a todas as unidades inimigas!');
       if (npcGeneralFell) setGameOverWinner('player');
       return;
@@ -2165,9 +2178,10 @@ export default function App() {
       });
       showToast(`${target.name} recuou para a Retaguarda e recuperou 2 HP!`);
     } else if (kind === 'equip_armadura' || kind === 'equip_corcelete' || kind === 'equip_flecha' || kind === 'equip_espada') {
-      // Deck Cardeal's 4 "Armamento" Táticas — not a real attach/detach system,
-      // just a permanent stat stamp on a unit of the right type, same mechanism
-      // as Linha Fechada's dmgReduction stamp.
+      // Deck Cardeal's 4 "Armamento" Táticas — the one explicit exception to
+      // "Táticas are single-use and go straight to the graveyard": an equipped
+      // weapon stays in play, visually stacked behind the unit it's on (see
+      // CardSlot), until that unit dies (see graveyardWithEquipment).
       const allowedTypes = EQUIP_ALLOWED_TYPES[kind];
       if (slotIndex > 9 || !target || !target.cardType || !allowedTypes.includes(target.cardType)) {
         showToast(`Escolha uma unidade do tipo certo: ${allowedTypes.join(' ou ')}.`);
@@ -2177,10 +2191,19 @@ export default function App() {
       const hpBonus = kind === 'equip_armadura' ? 2 : kind === 'equip_corcelete' ? 1 : 0;
       setPlayerSlots(prev => {
         const next = [...prev];
-        next[slotIndex] = { ...next[slotIndex]!, atk: next[slotIndex]!.atk + atkBonus, hp: next[slotIndex]!.hp + hpBonus };
+        const equipped = next[slotIndex]!;
+        next[slotIndex] = {
+          ...equipped,
+          atk: equipped.atk + atkBonus,
+          hp: equipped.hp + hpBonus,
+          equippedWeapons: [...(equipped.equippedWeapons ?? []), card],
+        };
         return next;
       });
       showToast(`${target.name} equipado: ${card.name}!`);
+      setPendingTacticAction(null);
+      setViewState('hand');
+      return;
     }
 
     setPlayerGraveyard(g => [...g, card]);
@@ -2216,7 +2239,7 @@ export default function App() {
       const result = applyDamageToSlot(npcSlots, slotIndex, 3);
       setNpcSlots(result.slots);
       if (result.destroyed) {
-        setNpcGraveyard(g => [...g, result.destroyed!]);
+        setNpcGraveyard(g => [...g, ...withEquippedWeapons([result.destroyed!])]);
         if (result.destroyed.cardType === 'General') setGameOverWinner('player');
       }
       showToast('Balesta: 3 de dano causado!');
@@ -2235,7 +2258,7 @@ export default function App() {
         }
       });
       setNpcSlots(nextNpcSlots);
-      if (destroyed.length) setNpcGraveyard(g => [...g, ...destroyed]);
+      if (destroyed.length) setNpcGraveyard(g => [...g, ...withEquippedWeapons(destroyed)]);
       if (npcGeneralFell) setGameOverWinner('player');
       showToast('Catapulta: 2 de dano em toda a fileira!');
     }
@@ -2523,7 +2546,7 @@ export default function App() {
             const splashHp = splashTarget.hp - 2;
             if (splashHp <= 0) {
               newNpcSlots[targetSlot + 5] = null;
-              setNpcGraveyard(g => [...g, { ...splashTarget, hp: splashHp, isDestroyed: true }]);
+              setNpcGraveyard(g => [...g, ...withEquippedWeapons([{ ...splashTarget, hp: splashHp, isDestroyed: true }])]);
               hasDestroyed = true;
               if (splashTarget.cardType === 'General') npcGeneralFell = true;
             } else {
@@ -2547,8 +2570,8 @@ export default function App() {
           await new Promise(resolve => setTimeout(resolve, 1000));
           const destroyedPlayerCards = newPlayerSlots.filter((c): c is CardData => !!c?.isDestroyed);
           const destroyedNpcCards = newNpcSlots.filter((c): c is CardData => !!c?.isDestroyed);
-          if (destroyedPlayerCards.length) setPlayerGraveyard(g => [...g, ...destroyedPlayerCards]);
-          if (destroyedNpcCards.length) setNpcGraveyard(g => [...g, ...destroyedNpcCards]);
+          if (destroyedPlayerCards.length) setPlayerGraveyard(g => [...g, ...withEquippedWeapons(destroyedPlayerCards)]);
+          if (destroyedNpcCards.length) setNpcGraveyard(g => [...g, ...withEquippedWeapons(destroyedNpcCards)]);
           setPlayerSlots(prev => prev.map(c => c?.isDestroyed ? null : c));
           setNpcSlots(prev => prev.map(c => c?.isDestroyed ? null : c));
         }
@@ -3999,6 +4022,22 @@ const CardSlot = ({
           className="w-full h-full rounded-lg flex flex-col p-1 relative"
         >
           {isImpactingTarget && <SlashEffect />}
+
+          {/* Equipped Armamentos — the one Tática exception that doesn't discard to
+              the graveyard on use (see equippedWeapons/withEquippedWeapons): instead
+              it stays attached, peeking out from behind this card like a real stacked
+              equip card, until this unit dies (equippedWeapons rides along with it to
+              the graveyard then). Rendered before the CardFace below so it sits
+              underneath in paint order, each one offset a little further out. */}
+          {card.equippedWeapons?.map((weapon, wi) => (
+            <div
+              key={weapon.id}
+              className="absolute inset-0 rounded-lg pointer-events-none"
+              style={{ transform: `translate(${9 + wi * 6}px, ${9 + wi * 6}px) scale(0.9)` }}
+            >
+              <CardFace card={weapon} variant="field" />
+            </div>
+          ))}
 
           {/* Info Button */}
           <button
