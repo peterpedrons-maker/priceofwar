@@ -23,6 +23,29 @@ As imagens de referência que forem enviadas ficam salvas em
 Os prompts abaixo estão em inglês (é o que os geradores de imagem
 respondem melhor), com as notas em português.
 
+**⚠️ Sobre orientação/resolução saindo errada:** se alguma arte está saindo
+em paisagem quando devia ser retrato (ou vice-versa), a causa quase sempre
+é confiar só no texto do prompt pra isso — a maioria dos geradores de
+imagem ignora ou "esquece" a orientação pedida em texto quando não recebe
+também um parâmetro de proporção/resolução separado, e muitos acabam
+caindo de volta pra paisagem ou quadrado por padrão. Pra cada carta
+abaixo:
+
+- **Padrão** (a maioria das cartas): paisagem ~16:10. Se seu gerador tiver
+  um campo de proporção/resolução separado do texto (Midjourney `--ar
+  16:10`, um seletor de "landscape"/paisagem, ou um campo de largura×altura
+  em pixels), configure algo como **1600×1000** ou **1280×800** ANTES de
+  gerar — não dependa só da palavra "landscape orientation" no fim do
+  prompt.
+- **Full Art**: retrato ~0,72:1 (mais alto que largo). Configure algo como
+  `--ar 5:7` no Midjourney, ou **1024×1424** / **900×1250** em pixels — de
+  novo, antes de gerar, não só no texto.
+
+Se o seu gerador não tem esse tipo de campo separado (só aceita texto),
+tente colocar a proporção/resolução desejada bem no INÍCIO do prompt (ex.:
+"Vertical portrait image, 1024×1424, ...") em vez de só no fim — alguns
+modelos dão mais peso ao que vem primeiro.
+
 ---
 
 ## 1. Comandante Aurelion, Mestre da Formação — Padrão
@@ -31,7 +54,7 @@ respondem melhor), com as notas em português.
 **Estilo:** Padrão · **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a battle-hardened human army commander in
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a battle-hardened human army commander in
 ornate gold-trimmed plate armor, standing on a stone battlefield rampart at
 dawn, one gauntleted hand raised as if directing troop formations below, a
 tattered crimson-and-gold banner whipping in the wind behind him, storm
@@ -40,7 +63,7 @@ lighting, painterly brushwork in the style of a premium collectible card
 game (Hearthstone / Legends of Runeterra quality), rich warm color palette
 of gold, crimson and steel blue, medium-wide shot with the commander
 centered and fully visible from head to boots, cinematic composition,
-landscape orientation, no text, no card frame, no border, no watermark
+landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
 ```
 
 **Notas:** proporção ~16:10 (paisagem larga e baixa, não um retrato — a
@@ -59,7 +82,7 @@ separados) em vez de uma pintura "chapada" — no estilo de cartas full art
 de TCG como Pokémon, onde a ilustração parece ter perspectiva de verdade.
 
 ```
-Ultra-detailed fantasy trading card illustration of a battle-hardened human
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Ultra-detailed fantasy trading card illustration of a battle-hardened human
 army commander, dynamic low-angle three-quarter hero shot (camera looking
 slightly upward at the subject), ornate gold-trimmed heavy plate armor with
 intricate engraved filigree, a flowing tattered crimson-and-gold cape
@@ -105,7 +128,7 @@ descrever "retrato" só no texto não é confiável o bastante. Se precisar de
 um tamanho exato em pixels, use algo como **1024×1424** ou **900×1250**.
 
 ```
-Legendary hero portrait, ultra-epic fantasy trading-card full-art
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic fantasy trading-card full-art
 illustration of a battle-hardened human army commander, tall vertical
 portrait composition filling the entire frame from head to boots, dynamic
 low-angle hero shot looking slightly upward at the subject, the commander
@@ -724,7 +747,7 @@ alguma, é só pedir.
 **Status:** pronto pra gerar
 
 ```
-Legendary hero portrait, ultra-epic fantasy trading-card full-art
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic fantasy trading-card full-art
 illustration of an elderly but powerfully built warrior-cardinal, tall
 vertical portrait composition filling the entire frame from head to
 boots, dynamic low-angle hero shot looking slightly upward at the
@@ -767,7 +790,7 @@ erguida como pose principal.
 **Status:** pronto pra gerar
 
 ```
-Legendary relic portrait, ultra-epic fantasy trading-card full-art
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary relic portrait, ultra-epic fantasy trading-card full-art
 illustration of an ornate golden chalice resting on a carved stone altar,
 tall vertical portrait composition filling the entire frame. The chalice
 overflows with glowing liquid light instead of wine — warm golden-white
@@ -784,7 +807,7 @@ specular highlights on the gold, painted in the hyper-detailed epic style
 of premium full-art trading cards (Pokémon TCG full-art / Legends of
 Runeterra legendary-tier quality), rich warm palette of gold, white and
 deep crimson, powerful sense of reverence and sacred power, tall vertical
-portrait aspect ratio (approximately 0.72:1 width to height), composition
+portrait aspect ratio (approximately 0.72:1 width to height — about 1024×1424px or 900×1250px), composition
 designed to fill a tall card frame edge-to-edge with no empty margins at
 top or bottom, no characters, no text, no card frame, no border, no
 watermark
@@ -804,7 +827,7 @@ figura central, só o objeto em destaque.
 **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a small huddled group of devout peasant
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a small huddled group of devout peasant
 pilgrims thrown into a holy war, wearing simple travel-worn robes rather
 than armor, clutching wooden holy symbols, walking staffs and improvised
 farm-tool weapons, faces showing fear mixed with fierce faith, standing
@@ -812,8 +835,7 @@ together shoulder to shoulder on a battlefield at dawn, warm golden light
 breaking through clouds behind them, painterly brushwork in the style of a
 premium collectible card game (Hearthstone / Legends of Runeterra
 quality), warm palette of cream, gold and dusty crimson, medium-wide shot
-with the whole group visible, cinematic composition, landscape
-orientation, no text, no card frame, no border, no watermark
+with the whole group visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -824,7 +846,7 @@ orientation, no text, no card frame, no border, no watermark
 **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a shrewd crusade quartermaster-merchant,
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a shrewd crusade quartermaster-merchant,
 practical leather and cloth robes with a small cross pendant, a satchel of
 rolled maps and scrolls slung over one shoulder, holding up two cards or
 scrolls to compare them with a calculating half-smile, standing at the
@@ -832,7 +854,7 @@ edge of a supply camp with tents and crates behind him, warm dawn light,
 painterly brushwork in the style of a premium collectible card game
 (Hearthstone / Legends of Runeterra quality), warm palette of gold, cream
 and worn leather brown, medium shot fully visible, cinematic composition,
-landscape orientation, no text, no card frame, no border, no watermark
+landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -843,7 +865,7 @@ landscape orientation, no text, no card frame, no border, no watermark
 **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a hooded crusade spy and saboteur,
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a hooded crusade spy and saboteur,
 dark practical cloth robes over light armor with a hidden cross pendant
 just visible at the collar, crouched low behind battlefield cover, one
 hand raised in a silent "wait" signal, a curved dagger held ready in the
@@ -851,7 +873,7 @@ other, sharp watchful eyes scanning for enemy ambushes, dim warm torchlight
 from off-frame, painterly brushwork in the style of a premium collectible
 card game (Hearthstone / Legends of Runeterra quality), muted palette of
 charcoal, dark crimson and gold accents, medium shot fully visible,
-cinematic composition, landscape orientation, no text, no card frame, no
+cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no
 border, no watermark
 ```
 
@@ -863,14 +885,14 @@ border, no watermark
 **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a wild-eyed religious zealot soldier
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a wild-eyed religious zealot soldier
 charging into battle, simple mismatched armor over crusade robes, eyes
 blazing with fanatical fervor, swinging a heavy spiked mace overhead,
 mouth open mid-battle-cry, dust and embers kicked up around his feet, warm
 dramatic backlighting, painterly brushwork in the style of a premium
 collectible card game (Hearthstone / Legends of Runeterra quality), warm
 palette of crimson, gold and soot-black, dynamic medium shot fully
-visible, cinematic composition, landscape orientation, no text, no card
+visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card
 frame, no border, no watermark
 ```
 
@@ -882,15 +904,14 @@ frame, no border, no watermark
 **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a very young trainee crusader soldier,
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a very young trainee crusader soldier,
 ill-fitting hand-me-down armor a size too big, gripping a sword with both
 hands in an earnest but slightly awkward stance, determined nervous
 expression, an older soldier's cloak draped over his shoulders, standing
 at the edge of a training yard at dawn, warm soft light, painterly
 brushwork in the style of a premium collectible card game (Hearthstone /
 Legends of Runeterra quality), warm palette of gold, cream and soft steel
-blue, medium shot fully visible, cinematic composition, landscape
-orientation, no text, no card frame, no border, no watermark
+blue, medium shot fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -901,13 +922,13 @@ orientation, no text, no card frame, no border, no watermark
 **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of an alert crusade quartermaster-guard
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of an alert crusade quartermaster-guard
 standing watch over stacked supply crates and barrels marked with a cross
 sigil, practical leather armor, spear held ready at his side, scanning the
 horizon at dusk, torchlight flickering nearby, painterly brushwork in the
 style of a premium collectible card game (Hearthstone / Legends of
 Runeterra quality), warm palette of amber, gold and worn wood brown,
-medium shot fully visible, cinematic composition, landscape orientation,
+medium shot fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall),
 no text, no card frame, no border, no watermark
 ```
 
@@ -919,14 +940,14 @@ no text, no card frame, no border, no watermark
 **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a disciplined veteran crusader foot
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a disciplined veteran crusader foot
 soldier in matching white-and-gold livery over solid plate armor, a tall
 kite shield bearing a red cross and a spear held at a steady guard stance,
 calm confident veteran expression, standing in formation on a battlefield
 at dawn, warm golden light, painterly brushwork in the style of a premium
 collectible card game (Hearthstone / Legends of Runeterra quality), warm
 palette of white, gold and crimson, medium shot fully visible, cinematic
-composition, landscape orientation, no text, no card frame, no border, no
+composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no
 watermark
 ```
 
@@ -940,7 +961,7 @@ watermark
 Art opcional, ver 5.10b) · **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a heroic mounted knight lancer inspired
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a heroic mounted knight lancer inspired
 by Saint George, gleaming white-and-gold plate armor, riding a powerful
 white warhorse at full charge, a long lance couched and leveled, a white
 cape marked with a red cross billowing behind him, dynamic diagonal
@@ -948,7 +969,7 @@ charging composition, dust kicked up by the horse's hooves, dramatic warm
 backlighting, painterly brushwork in the style of a premium collectible
 card game (Hearthstone / Legends of Runeterra quality), warm palette of
 white, gold and crimson, dynamic medium-wide shot with horse and rider
-fully visible, cinematic composition, landscape orientation, no text, no
+fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no
 card frame, no border, no watermark
 ```
 
@@ -960,7 +981,7 @@ card frame, no border, no watermark
 gerar
 
 ```
-Legendary hero portrait, ultra-epic fantasy trading-card full-art
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic fantasy trading-card full-art
 illustration of a heroic mounted knight lancer inspired by Saint George,
 tall vertical portrait filling the entire frame, dynamic low-angle shot of
 a powerful white warhorse rearing mid-charge with the knight leaning
@@ -992,7 +1013,7 @@ frame, no border, no watermark
 **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a mounted knight-healer inspired by the
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a mounted knight-healer inspired by the
 Knights Hospitaller, white mantle bearing a red cross worn over plate
 armor, riding a calm white horse, one hand holding the reins and a lance,
 the other hand glowing faintly with soft healing light reaching toward an
@@ -1000,7 +1021,7 @@ unseen wounded ally off-frame, gentle compassionate expression contrasting
 with his armor, warm dawn light, painterly brushwork in the style of a
 premium collectible card game (Hearthstone / Legends of Runeterra
 quality), warm palette of white, gold and soft red, medium shot with horse
-and rider fully visible, cinematic composition, landscape orientation, no
+and rider fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no
 text, no card frame, no border, no watermark
 ```
 
@@ -1012,7 +1033,7 @@ text, no card frame, no border, no watermark
 Art opcional, ver 5.12b) · **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a richly armored noble crusader lord on
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a richly armored noble crusader lord on
 horseback, ornate gold-trimmed plate armor with elaborate religious
 heraldry on his tabard, one arm raised in a commanding gesture rallying a
 small group of loyal soldiers who kneel and rise around his horse as if
@@ -1020,7 +1041,7 @@ just called into service, banner-bearers flanking him, warm golden light,
 painterly brushwork in the style of a premium collectible card game
 (Hearthstone / Legends of Runeterra quality), rich palette of gold, white
 and crimson, dynamic medium-wide shot with horse and rider fully visible,
-cinematic composition, landscape orientation, no text, no card frame, no
+cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no
 border, no watermark
 ```
 
@@ -1032,7 +1053,7 @@ border, no watermark
 gerar
 
 ```
-Legendary hero portrait, ultra-epic fantasy trading-card full-art
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic fantasy trading-card full-art
 illustration of a richly armored noble crusader lord on horseback, tall
 vertical portrait filling the entire frame, dynamic low-angle hero shot,
 ornate gold-trimmed plate armor with elaborate engraved religious heraldry
@@ -1063,7 +1084,7 @@ frame, no border, no watermark
 Art opcional, ver 5.13b) · **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of the archetypal White Knight, a powerful
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of the archetypal White Knight, a powerful
 mounted knight in gleaming full white-and-gold plate armor with almost no
 ornamentation beyond a simple engraved cross, riding a strong white
 warhorse, sword raised high and wreathed in a faint holy white-gold glow,
@@ -1071,7 +1092,7 @@ heroic confident pose, warm dramatic backlighting silhouetting horse and
 rider, painterly brushwork in the style of a premium collectible card game
 (Hearthstone / Legends of Runeterra quality), warm palette of white, gold
 and pale crimson, dynamic medium-wide shot with horse and rider fully
-visible, cinematic composition, landscape orientation, no text, no card
+visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card
 frame, no border, no watermark
 ```
 
@@ -1083,7 +1104,7 @@ frame, no border, no watermark
 gerar
 
 ```
-Legendary hero portrait, ultra-epic fantasy trading-card full-art
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic fantasy trading-card full-art
 illustration of the archetypal White Knight, tall vertical portrait
 filling the entire frame, dynamic low-angle shot of a powerful white
 warhorse rearing on its hind legs mid battlefield charge, the knight in
@@ -1113,14 +1134,14 @@ frame, no border, no watermark
 Art opcional, ver 5.14b) · **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a mounted crusader squad captain rallying
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a mounted crusader squad captain rallying
 troops, gold-trimmed armor slightly battle-worn, raising a tall
 white-and-gold banner high with one arm while a small group of infantry
 and archers look up at him with renewed resolve nearby, warm golden late
 afternoon light, painterly brushwork in the style of a premium collectible
 card game (Hearthstone / Legends of Runeterra quality), warm palette of
 gold, white and crimson, dynamic medium-wide shot with horse and rider
-fully visible, cinematic composition, landscape orientation, no text, no
+fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no
 card frame, no border, no watermark
 ```
 
@@ -1132,7 +1153,7 @@ card frame, no border, no watermark
 gerar
 
 ```
-Legendary hero portrait, ultra-epic fantasy trading-card full-art
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic fantasy trading-card full-art
 illustration of a mounted crusader squad captain rallying his troops, tall
 vertical portrait filling the entire frame, dynamic low-angle hero shot on
 horseback, gold-trimmed battle-worn armor, one arm raised high thrusting a
@@ -1148,7 +1169,7 @@ specular highlights on gold trim, painted in the hyper-detailed epic style
 of premium full-art trading cards (Pokémon TCG full-art / Legends of
 Runeterra legendary-tier quality), rich palette of gold, white and
 crimson, powerful sense of scale and inspiration, tall vertical portrait
-aspect ratio (approximately 0.72:1 width to height), composition designed
+aspect ratio (approximately 0.72:1 width to height — about 1024×1424px or 900×1250px), composition designed
 to fill a tall card frame edge-to-edge with no empty margins at top or
 bottom, no text, no card frame, no border, no watermark
 ```
@@ -1163,14 +1184,14 @@ bottom, no text, no card frame, no border, no watermark
 **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a highly skilled crusader crossbowman
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a highly skilled crusader crossbowman
 mid-action, already reloading a second bolt with practiced speed just as
 the first one flies off-frame, white-and-gold tabard over practical
 leather armor, a full quiver of bolts at his hip, focused intense
 expression, warm dawn light, painterly brushwork in the style of a premium
 collectible card game (Hearthstone / Legends of Runeterra quality), warm
 palette of gold, cream and steel gray, dynamic medium shot fully visible,
-cinematic composition, landscape orientation, no text, no card frame, no
+cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no
 border, no watermark
 ```
 
@@ -1182,14 +1203,14 @@ border, no watermark
 **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a veteran crusader archer with a weathered,
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a veteran crusader archer with a weathered,
 wise face and graying hair, worn but well-kept gear, standing with calm
 composure while drawing his bow, a few younger soldiers visible in the
 soft-focus background looking toward him with visible respect and
 inspiration, warm late-afternoon light, painterly brushwork in the style
 of a premium collectible card game (Hearthstone / Legends of Runeterra
 quality), warm palette of amber, cream and steel gray, medium shot fully
-visible, cinematic composition, landscape orientation, no text, no card
+visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card
 frame, no border, no watermark
 ```
 
@@ -1203,7 +1224,7 @@ frame, no border, no watermark
 5.17b) · **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a massive wooden trebuchet siege engine
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a massive wooden trebuchet siege engine
 mid-launch on a battlefield at dawn, its long arm whipping upward and
 hurling a flaming payload high across the sky toward a distant enemy line,
 crusader soldiers in white-and-gold operating the machine and bracing
@@ -1211,7 +1232,7 @@ against the recoil, dust and splinters flying, dramatic warm light,
 painterly brushwork in the style of a premium collectible card game
 (Hearthstone / Legends of Runeterra quality), warm palette of gold, wood
 brown and fire orange, dynamic wide shot with the whole machine visible,
-cinematic composition, landscape orientation, no text, no card frame, no
+cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no
 border, no watermark
 ```
 
@@ -1223,7 +1244,7 @@ border, no watermark
 gerar
 
 ```
-Ultra-epic fantasy trading-card full-art illustration of a massive wooden
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Ultra-epic fantasy trading-card full-art illustration of a massive wooden
 trebuchet siege engine at the exact moment of launch, tall vertical
 portrait filling the entire frame, camera positioned low and close to the
 machine's base looking sharply upward along its arm as it whips
@@ -1253,14 +1274,14 @@ text, no card frame, no border, no watermark
 gerar
 
 ```
-Epic fantasy digital painting of a compact wooden catapult siege engine
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a compact wooden catapult siege engine
 firing on a battlefield at dawn, its throwing arm caught mid-swing
 launching a heavy stone payload toward one specific row of distant enemy
 soldiers, crusader crew bracing the frame, dust kicked up around its base,
 warm dramatic light, painterly brushwork in the style of a premium
 collectible card game (Hearthstone / Legends of Runeterra quality), warm
 palette of gold, wood brown and stone gray, dynamic wide shot with the
-whole machine visible, cinematic composition, landscape orientation, no
+whole machine visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no
 text, no card frame, no border, no watermark
 ```
 
@@ -1272,15 +1293,14 @@ text, no card frame, no border, no watermark
 gerar
 
 ```
-Epic fantasy digital painting of a massive mounted ballista, a
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a massive mounted ballista, a
 giant crossbow on a wooden frame, firing a single enormous bolt with
 precise force directly toward the viewer/a chosen distant target, crusader
 crew bracing the frame after release, sparks and tension visible in the
 taut ropes, dramatic warm light, painterly brushwork in the style of a
 premium collectible card game (Hearthstone / Legends of Runeterra
 quality), warm palette of gold, wood brown and steel gray, dynamic wide
-shot with the whole machine visible, cinematic composition, landscape
-orientation, no text, no card frame, no border, no watermark
+shot with the whole machine visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1293,15 +1313,14 @@ orientation, no text, no card frame, no border, no watermark
 pronto pra gerar
 
 ```
-Epic fantasy digital painting, a still-life illustration of an ornate suit
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting, a still-life illustration of an ornate suit
 of heavy white-and-gold full plate armor standing empty on a wooden
 display stand in a quiet armory, cuirass, gauntlets and a closed great
 helm all catching warm torchlight, faint engraved cross motifs on the
 breastplate, dust motes drifting in the light, painterly brushwork in the
 style of a premium collectible card game (Hearthstone / Legends of
 Runeterra quality), warm palette of white, gold and deep shadow, medium
-shot with the full armor stand visible, cinematic composition, landscape
-orientation, no text, no card frame, no border, no watermark
+shot with the full armor stand visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1312,14 +1331,14 @@ orientation, no text, no card frame, no border, no watermark
 pronto pra gerar
 
 ```
-Epic fantasy digital painting, a still-life illustration of a lighter
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting, a still-life illustration of a lighter
 gold-trimmed steel breastplate resting on a wooden armor stand in a quiet
 armory, simpler and less ornate than full plate, leather straps hanging
 loose, warm torchlight catching the polished metal, painterly brushwork in
 the style of a premium collectible card game (Hearthstone / Legends of
 Runeterra quality), warm palette of steel gray, gold and warm brown,
 medium shot with the breastplate stand visible, cinematic composition,
-landscape orientation, no text, no card frame, no border, no watermark
+landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1330,14 +1349,14 @@ landscape orientation, no text, no card frame, no border, no watermark
 pronto pra gerar
 
 ```
-Epic fantasy digital painting, a close still-life illustration of a single
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting, a close still-life illustration of a single
 ornate crossbow bolt resting on a dark cloth, its tip coated in a sickly
 glowing green poison that drips slowly, faint toxic vapor curling off the
 tip, dramatic dim torchlight with the poison itself as a secondary light
 source, painterly brushwork in the style of a premium collectible card
 game (Hearthstone / Legends of Runeterra quality), palette of dark cloth
 black, gold fletching and toxic green, close-up shot with the whole bolt
-visible, cinematic composition, landscape orientation, no text, no card
+visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card
 frame, no border, no watermark
 ```
 
@@ -1349,14 +1368,14 @@ frame, no border, no watermark
 pronto pra gerar
 
 ```
-Epic fantasy digital painting, a close still-life illustration of an
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting, a close still-life illustration of an
 ornate blessed longsword laid across a velvet cloth, a cross-shaped gold
 hilt, the blade itself catching a faint warm holy glow along its edge,
 intricate engravings near the guard, dramatic warm torchlight, painterly
 brushwork in the style of a premium collectible card game (Hearthstone /
 Legends of Runeterra quality), palette of steel, gold and deep crimson
 velvet, close-up shot with the whole sword visible, cinematic composition,
-landscape orientation, no text, no card frame, no border, no watermark
+landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1369,7 +1388,7 @@ landscape orientation, no text, no card frame, no border, no watermark
 pra gerar
 
 ```
-Epic fantasy digital painting of a small group of crusader reinforcements
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a small group of crusader reinforcements
 hidden in wait behind rocks and fallen banners at the edge of a
 battlefield, weapons drawn and ready, tense alert expressions, about to
 spring out to reinforce an ally under attack, dim dawn light with a hint
@@ -1377,7 +1396,7 @@ of warm light breaking through where they're about to charge into,
 painterly brushwork in the style of a premium collectible card game
 (Hearthstone / Legends of Runeterra quality), warm palette of gold, dusty
 brown and crimson, medium-wide shot with the group visible, cinematic
-composition, landscape orientation, no text, no card frame, no border, no
+composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no
 watermark
 ```
 
@@ -1391,15 +1410,14 @@ watermark
 5.25b) · **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a fallen soldier's translucent
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a fallen soldier's translucent
 golden-white spirit rising from a simple battlefield grave marked by a
 planted sword and helm, warm holy light lifting the ghostly figure back
 upright as if returning to the ranks, other soldiers watching in reverent
 awe nearby, dusk battlefield setting, painterly brushwork in the style of
 a premium collectible card game (Hearthstone / Legends of Runeterra
 quality), warm palette of gold, translucent white and deep dusk blue,
-medium-wide shot fully visible, cinematic composition, landscape
-orientation, no text, no card frame, no border, no watermark
+medium-wide shot fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1410,7 +1428,7 @@ orientation, no text, no card frame, no border, no watermark
 gerar
 
 ```
-Ultra-epic fantasy trading-card full-art illustration of a fallen
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Ultra-epic fantasy trading-card full-art illustration of a fallen
 soldier's spirit returning to the ranks, tall vertical portrait filling
 the entire frame, dynamic low-angle shot of a translucent golden-white
 ghostly figure rising fully upright from a simple battlefield grave marked
@@ -1440,14 +1458,13 @@ frame, no border, no watermark
 gerar
 
 ```
-Epic fantasy digital painting of a lone knight reaching toward the
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a lone knight reaching toward the
 legendary Holy Grail, glowing with soft radiant light atop an ancient
 stone pedestal inside a crumbling sunlit shrine, awe and reverence on his
 face, dust motes catching the divine light, painterly brushwork in the
 style of a premium collectible card game (Hearthstone / Legends of
 Runeterra quality), warm palette of gold, cream stone and soft white
-light, medium shot fully visible, cinematic composition, landscape
-orientation, no text, no card frame, no border, no watermark
+light, medium shot fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1458,13 +1475,13 @@ orientation, no text, no card frame, no border, no watermark
 gerar
 
 ```
-Epic fantasy digital painting of a war council scene, a cardinal-commander
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a war council scene, a cardinal-commander
 unrolling a fresh battle plan across a wooden map table inside a candlelit
 command tent, a few crusader officers leaning in around him studying it
 intently, warm candlelight, painterly brushwork in the style of a premium
 collectible card game (Hearthstone / Legends of Runeterra quality), warm
 palette of amber candlelight, parchment cream and gold, medium-wide shot
-fully visible, cinematic composition, landscape orientation, no text, no
+fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no
 card frame, no border, no watermark
 ```
 
@@ -1476,13 +1493,13 @@ card frame, no border, no watermark
 gerar
 
 ```
-Epic fantasy digital painting of a crusader officer walking down a line of
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a crusader officer walking down a line of
 standing soldiers at attention, stopping to point decisively at one
 specific soldier who straightens up with pride at being chosen, warm dawn
 light across the formation, painterly brushwork in the style of a premium
 collectible card game (Hearthstone / Legends of Runeterra quality), warm
 palette of gold, white and cream, medium-wide shot fully visible,
-cinematic composition, landscape orientation, no text, no card frame, no
+cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no
 border, no watermark
 ```
 
@@ -1494,13 +1511,13 @@ border, no watermark
 gerar
 
 ```
-Epic fantasy digital painting of a crusader captain inspecting a short
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a crusader captain inspecting a short
 row of assembled soldiers standing at attention at dawn, closely comparing
 two of them side by side with a critical eye, the rest waiting calmly at
 attention nearby, warm morning light, painterly brushwork in the style of
 a premium collectible card game (Hearthstone / Legends of Runeterra
 quality), warm palette of gold, white and pale blue dawn sky, medium-wide
-shot fully visible, cinematic composition, landscape orientation, no text,
+shot fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text,
 no card frame, no border, no watermark
 ```
 
@@ -1512,14 +1529,13 @@ no card frame, no border, no watermark
 gerar
 
 ```
-Epic fantasy digital painting of a crusade treasurer counting stacks of
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a crusade treasurer counting stacks of
 gold coins by candlelight at a small wooden desk inside a supply tent, an
 open ledger and a heavy coin chest beside him, a small cross pendant
 around his neck, warm candlelight, painterly brushwork in the style of a
 premium collectible card game (Hearthstone / Legends of Runeterra
 quality), warm palette of gold coin shine, candle amber and worn wood
-brown, medium shot fully visible, cinematic composition, landscape
-orientation, no text, no card frame, no border, no watermark
+brown, medium shot fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1530,14 +1546,14 @@ orientation, no text, no card frame, no border, no watermark
 gerar
 
 ```
-Epic fantasy digital painting of a crowd of humble faithful pilgrims and
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a crowd of humble faithful pilgrims and
 villagers converging toward a raised white-and-gold banner planted in a
 town square, answering a call to arms, hands raised or clutching holy
 symbols, mixed expressions of fear and determination, warm late-afternoon
 light, painterly brushwork in the style of a premium collectible card game
 (Hearthstone / Legends of Runeterra quality), warm palette of gold, cream
 and dusty crimson, wide shot with the gathering crowd visible, cinematic
-composition, landscape orientation, no text, no card frame, no border, no
+composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no
 watermark
 ```
 
@@ -1578,7 +1594,7 @@ Aurelion, Mestre da Formação) — nada pra fazer aqui.
 **Status:** pronto pra gerar
 
 ```
-Legendary relic portrait, ultra-epic fantasy trading-card full-art
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary relic portrait, ultra-epic fantasy trading-card full-art
 illustration of an ornate legion war-standard planted firmly in
 battle-scarred ground, tall vertical portrait composition filling the
 entire frame. The standard's pole is dark iron topped with a gleaming
@@ -1615,14 +1631,14 @@ objeto-relíquia em si que é o "herói" da imagem, igual ao Cálice da Vida
 **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a disciplined crimson-and-gold infantry
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a disciplined crimson-and-gold infantry
 soldier caught mid-step in tight battlefield formation, glancing sideways
 at the comrade beside him as if about to trade places in the line, sturdy
 practical plate-and-mail armor, a tall battlefield with orderly ranks
 visible behind him, warm dusty daylight, painterly brushwork in the style
 of a premium collectible card game (Hearthstone / Legends of Runeterra
 quality), warm palette of crimson, gold and steel gray, medium shot fully
-visible, cinematic composition, landscape orientation, no text, no card
+visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card
 frame, no border, no watermark
 ```
 
@@ -1634,14 +1650,14 @@ frame, no border, no watermark
 **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a sturdy crimson-and-gold squire raising
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a sturdy crimson-and-gold squire raising
 a tall reinforced tower shield to protect the soldiers standing just
 behind him, braced wide stance, determined protective expression, a
 disciplined battle line visible at his back, warm dusty daylight,
 painterly brushwork in the style of a premium collectible card game
 (Hearthstone / Legends of Runeterra quality), warm palette of crimson,
 gold and steel gray, medium shot fully visible, cinematic composition,
-landscape orientation, no text, no card frame, no border, no watermark
+landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1652,14 +1668,14 @@ landscape orientation, no text, no card frame, no border, no watermark
 Full Art opcional, ver 6.4b) · **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a crimson-and-gold formation captain
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a crimson-and-gold formation captain
 mid-stride through the battle line, one arm raised in a sharp coordinated
 advance signal, nearby soldiers visibly straightening up and gaining
 resolve as he passes, orderly ranks reorganizing behind him, warm dusty
 daylight, painterly brushwork in the style of a premium collectible card
 game (Hearthstone / Legends of Runeterra quality), warm palette of
 crimson, gold and steel gray, medium-wide shot fully visible, cinematic
-composition, landscape orientation, no text, no card frame, no border, no
+composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no
 watermark
 ```
 
@@ -1671,7 +1687,7 @@ watermark
 gerar
 
 ```
-Legendary hero portrait, ultra-epic fantasy trading-card full-art
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic fantasy trading-card full-art
 illustration of a crimson-and-gold formation captain, tall vertical
 portrait filling the entire frame, dynamic low-angle hero shot mid-stride
 through the battle line, one arm thrust out in a sharp commanding gesture,
@@ -1699,13 +1715,13 @@ frame, no border, no watermark
 **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a light, agile crimson-and-gold scout
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a light, agile crimson-and-gold scout
 soldier crouched low and ready to dash, minimal armor built for speed
 rather than protection, already glancing toward his next position on the
 battlefield, warm dusty daylight, painterly brushwork in the style of a
 premium collectible card game (Hearthstone / Legends of Runeterra
 quality), warm palette of crimson, gold and steel gray, medium shot fully
-visible, cinematic composition, landscape orientation, no text, no card
+visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card
 frame, no border, no watermark
 ```
 
@@ -1717,14 +1733,13 @@ frame, no border, no watermark
 **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a crimson-and-gold spearman holding a
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a crimson-and-gold spearman holding a
 long spear braced horizontally to control the space in front of him,
 intimidating wide-legged stance keeping enemies at bay, disciplined
 battlefield formation visible behind him, warm dusty daylight, painterly
 brushwork in the style of a premium collectible card game (Hearthstone /
 Legends of Runeterra quality), warm palette of crimson, gold and steel
-gray, medium shot fully visible, cinematic composition, landscape
-orientation, no text, no card frame, no border, no watermark
+gray, medium shot fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1735,15 +1750,14 @@ orientation, no text, no card frame, no border, no watermark
 Art opcional, ver 6.7b) · **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a mounted tactical knight in
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a mounted tactical knight in
 crimson-and-gold armor wheeling his warhorse sharply mid-maneuver to
 reposition along the battle line, dynamic turning motion with dust kicked
 up under the horse's hooves, disciplined cavalry formation visible behind
 him, warm dusty daylight, painterly brushwork in the style of a premium
 collectible card game (Hearthstone / Legends of Runeterra quality), warm
 palette of crimson, gold and steel gray, dynamic medium-wide shot with
-horse and rider fully visible, cinematic composition, landscape
-orientation, no text, no card frame, no border, no watermark
+horse and rider fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1754,7 +1768,7 @@ orientation, no text, no card frame, no border, no watermark
 gerar
 
 ```
-Legendary hero portrait, ultra-epic fantasy trading-card full-art
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic fantasy trading-card full-art
 illustration of a mounted tactical knight in crimson-and-gold armor, tall
 vertical portrait filling the entire frame, dynamic low-angle shot of his
 warhorse caught mid-wheel, front legs off the ground as it turns sharply
@@ -1782,14 +1796,14 @@ bottom, no text, no card frame, no border, no watermark
 Full Art opcional, ver 6.8b) · **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a grizzled war veteran in battle-scarred
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a grizzled war veteran in battle-scarred
 crimson-and-gold armor, standing resolute at the deepest point of the
 battle line, weathered confident expression, a notched sword held
 low and ready, dust and faint smoke drifting past him, warm dusty
 daylight, painterly brushwork in the style of a premium collectible card
 game (Hearthstone / Legends of Runeterra quality), warm palette of
 crimson, gold and steel gray, medium shot fully visible, cinematic
-composition, landscape orientation, no text, no card frame, no border, no
+composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no
 watermark
 ```
 
@@ -1801,7 +1815,7 @@ watermark
 gerar
 
 ```
-Legendary hero portrait, ultra-epic fantasy trading-card full-art
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic fantasy trading-card full-art
 illustration of a grizzled war veteran in battle-scarred crimson-and-gold
 armor, tall vertical portrait filling the entire frame, dynamic low-angle
 hero shot, standing resolute with a notched sword held low and ready,
@@ -1831,14 +1845,14 @@ text, no card frame, no border, no watermark
 6.9b) · **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting, a tactical overhead-tinged battlefield
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting, a tactical overhead-tinged battlefield
 scene of three crimson-and-gold soldiers shifting position at once as if
 directed by an unseen commander, motion-blur trails showing each one's
 path to a new spot in the formation, banners and orderly ranks around
 them, warm dusty daylight, painterly brushwork in the style of a premium
 collectible card game (Hearthstone / Legends of Runeterra quality), warm
 palette of crimson, gold and steel gray, wide shot with all three soldiers
-visible, cinematic composition, landscape orientation, no text, no card
+visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card
 frame, no border, no watermark
 ```
 
@@ -1850,7 +1864,7 @@ frame, no border, no watermark
 gerar
 
 ```
-Ultra-epic fantasy trading-card full-art illustration of a battlefield
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Ultra-epic fantasy trading-card full-art illustration of a battlefield
 reformation in progress, tall vertical portrait filling the entire frame,
 three crimson-and-gold soldiers caught mid-motion shifting to new
 positions in the formation, glowing golden motion-trails tracing each
@@ -1876,14 +1890,13 @@ bottom, no text, no card frame, no border, no watermark
 gerar
 
 ```
-Epic fantasy digital painting of a tight line of crimson-and-gold infantry
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a tight line of crimson-and-gold infantry
 advancing together in perfect lockstep, weapons raised, a faint golden
 glow of gathering momentum building around their weapons and shields as
 they march forward as one, warm dusty daylight, painterly brushwork in the
 style of a premium collectible card game (Hearthstone / Legends of
 Runeterra quality), warm palette of crimson, gold and steel gray, wide
-shot with the whole line visible, cinematic composition, landscape
-orientation, no text, no card frame, no border, no watermark
+shot with the whole line visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1894,13 +1907,13 @@ orientation, no text, no card frame, no border, no watermark
 gerar
 
 ```
-Epic fantasy digital painting of a crimson-and-gold soldier shoving an
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a crimson-and-gold soldier shoving an
 enemy soldier off balance and out of position with a sharp shield-bash,
 the enemy stumbling sideways mid-motion, dust kicked up at their feet,
 warm dusty daylight, painterly brushwork in the style of a premium
 collectible card game (Hearthstone / Legends of Runeterra quality), warm
 palette of crimson, gold and steel gray, dynamic medium shot with both
-figures visible, cinematic composition, landscape orientation, no text, no
+figures visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no
 card frame, no border, no watermark
 ```
 
@@ -1912,14 +1925,14 @@ card frame, no border, no watermark
 gerar
 
 ```
-Epic fantasy digital painting of a tight crimson-and-gold shield wall,
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a tight crimson-and-gold shield wall,
 several soldiers locking their shields together edge to edge as one solid
 barrier, bracing together against an incoming blow, sparks and dust
 flying off the shields at the point of impact, warm dusty daylight,
 painterly brushwork in the style of a premium collectible card game
 (Hearthstone / Legends of Runeterra quality), warm palette of crimson,
 gold and steel gray, wide shot with the whole shield wall visible,
-cinematic composition, landscape orientation, no text, no card frame, no
+cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no
 border, no watermark
 ```
 
@@ -1931,14 +1944,14 @@ border, no watermark
 gerar
 
 ```
-Epic fantasy digital painting of a wounded crimson-and-gold soldier being
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a wounded crimson-and-gold soldier being
 pulled back from the front line by a comrade's steady grip on his arm,
 retreating together toward the safety of the rear ranks, a faint warm
 healing light glowing softly around the wound, dusty battlefield at
 dusk, painterly brushwork in the style of a premium collectible card game
 (Hearthstone / Legends of Runeterra quality), warm palette of crimson,
 gold and steel gray, medium shot with both figures visible, cinematic
-composition, landscape orientation, no text, no card frame, no border, no
+composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no
 watermark
 ```
 
@@ -1952,14 +1965,14 @@ watermark
 pra gerar
 
 ```
-Epic fantasy digital painting of a crimson-and-gold soldier suddenly
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a crimson-and-gold soldier suddenly
 stepping in front of an ally at the last possible instant, shield raised
 just in time to intercept a blow meant for the ally behind him, sparks
 flying off the shield at the moment of impact, dramatic dusty daylight,
 painterly brushwork in the style of a premium collectible card game
 (Hearthstone / Legends of Runeterra quality), warm palette of crimson,
 gold and steel gray, dynamic medium shot with both figures visible,
-cinematic composition, landscape orientation, no text, no card frame, no
+cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no
 border, no watermark
 ```
 
@@ -1971,7 +1984,7 @@ border, no watermark
 ver 6.15b) · **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of two crimson-and-gold soldiers trading
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of two crimson-and-gold soldiers trading
 positions in a blurred instant mid-combat, dodging an incoming attack by
 swapping places at the last possible moment, motion-blur trails showing
 their swap, an enemy's blade or blow passing harmlessly through where one
@@ -1979,7 +1992,7 @@ of them used to stand, dramatic dusty daylight, painterly brushwork in the
 style of a premium collectible card game (Hearthstone / Legends of
 Runeterra quality), warm palette of crimson, gold and steel gray, dynamic
 medium-wide shot with both figures visible, cinematic composition,
-landscape orientation, no text, no card frame, no border, no watermark
+landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1990,7 +2003,7 @@ landscape orientation, no text, no card frame, no border, no watermark
 gerar
 
 ```
-Ultra-epic fantasy trading-card full-art illustration of two
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Ultra-epic fantasy trading-card full-art illustration of two
 crimson-and-gold soldiers trading positions in a blurred instant
 mid-combat, tall vertical portrait filling the entire frame, dynamic
 low-angle shot capturing the exact moment of the swap — both soldiers
@@ -2018,14 +2031,14 @@ bottom, no text, no card frame, no border, no watermark
 pra gerar
 
 ```
-Epic fantasy digital painting of an enemy soldier's formation breaking
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of an enemy soldier's formation breaking
 apart in chaos, one enemy stumbling and being knocked sideways out of
 position amid drifting smoke and confusion, a crimson-and-gold soldier's
 weapon or shield visible at the edge of frame having just caused the
 disruption, dramatic dusty daylight, painterly brushwork in the style of a
 premium collectible card game (Hearthstone / Legends of Runeterra
 quality), warm palette of crimson, gold and steel gray, dynamic medium
-shot fully visible, cinematic composition, landscape orientation, no text,
+shot fully visible, cinematic composition, landscape orientation (about 1600×1000px, wider than tall), no text,
 no card frame, no border, no watermark
 ```
 
@@ -2039,14 +2052,14 @@ no card frame, no border, no watermark
 ver 6.17b) · **Status:** pronto pra gerar
 
 ```
-Epic fantasy digital painting of a sturdy fortified stone rampart section
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a sturdy fortified stone rampart section
 protecting a row of soldiers standing behind it, thick weathered
 battlements with a crimson-and-gold banner mounted atop, soldiers visible
 sheltering just behind the wall, warm dusty daylight, painterly brushwork
 in the style of a premium collectible card game (Hearthstone / Legends of
 Runeterra quality), warm palette of stone gray, crimson and gold, wide
 shot with the rampart and soldiers visible, cinematic composition,
-landscape orientation, no text, no card frame, no border, no watermark
+landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -2057,7 +2070,7 @@ landscape orientation, no text, no card frame, no border, no watermark
 gerar
 
 ```
-Ultra-epic fantasy trading-card full-art illustration of a massive
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Ultra-epic fantasy trading-card full-art illustration of a massive
 fortified stone rampart, tall vertical portrait filling the entire frame,
 dynamic low-angle shot looking up along the towering weathered
 battlements, a crimson-and-gold banner mounted at the top snapping in the
@@ -2071,7 +2084,7 @@ cracks and moss patches, embroidered banner fabric, painted in the
 hyper-detailed epic style of premium full-art trading cards (Pokémon TCG
 full-art / Legends of Runeterra legendary-tier quality), rich palette of
 stone gray, crimson and gold, powerful sense of scale and protection, tall
-vertical portrait aspect ratio (approximately 0.72:1 width to height),
+vertical portrait aspect ratio (approximately 0.72:1 width to height — about 1024×1424px or 900×1250px),
 composition designed to fill a tall card frame edge-to-edge with no empty
 margins at top or bottom, no text, no card frame, no border, no watermark
 ```
@@ -2084,7 +2097,7 @@ margins at top or bottom, no text, no card frame, no border, no watermark
 gerar
 
 ```
-Epic fantasy digital painting of a cursed, murky swampland bogging down a
+WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic fantasy digital painting of a cursed, murky swampland bogging down a
 row of enemy soldiers standing in it, withered blackened plants and thick
 low-hanging fog, an eerie sickly green-tinged mire clinging to their legs
 and weapons, dim overcast light breaking the game's usual warm palette on
@@ -2092,7 +2105,7 @@ purpose here to feel wrong/cursed, painterly brushwork in the style of a
 premium collectible card game (Hearthstone / Legends of Runeterra
 quality), palette of murky green, dark mud brown and pale sickly mist,
 wide shot with the swamp and soldiers visible, cinematic composition,
-landscape orientation, no text, no card frame, no border, no watermark
+landscape orientation (about 1600×1000px, wider than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
