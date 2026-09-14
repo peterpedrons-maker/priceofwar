@@ -557,7 +557,7 @@ const ManaBadge = ({ value, className = "" }: { value: number, className?: strin
 const GraveyardPile = ({ cards }: { cards: CardData[] }) => (
   <div className="w-24 md:w-36 h-32 md:h-48 border-2 border-zinc-700 rounded-xl bg-zinc-900/80 flex items-center justify-center shadow-lg relative overflow-hidden">
     {cards.length === 0 ? (
-      <span className="text-zinc-600 font-mono text-xs md:text-sm uppercase tracking-widest rotate-90 opacity-50">Graveyard</span>
+      <span className="text-zinc-600 font-mono text-xs md:text-sm uppercase tracking-widest rotate-90 opacity-50">Cemitério</span>
     ) : (
       <>
         <div className="absolute inset-1 border border-zinc-700 rounded-lg bg-zinc-800/50 translate-x-1 translate-y-1 -z-10" />
@@ -946,6 +946,16 @@ const DECKS = {
 } as const;
 type DeckId = keyof typeof DECKS;
 
+// Display-only Portuguese labels for the main menu buttons — the mode strings
+// themselves ('Quick Match' etc.) stay in English since they're also used as
+// identifiers (gameMode comparisons, onSelectMode), not just display text.
+const MODE_LABELS_PT: Record<string, string> = {
+  'Campaign': 'Campanha',
+  'Quick Match': 'Partida Rápida',
+  'Multiplayer': 'Multijogador',
+  'My Deck': 'Meu Deck',
+};
+
 // A single gold plaque texture (see art-prompts/README.md "4c" and
 // button-plaque.webp — cropped from the user's own generated reference sheet,
 // specifically the largest of several sizes it came in, per their instruction to
@@ -1026,10 +1036,13 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
       />
 
       <div className="flex flex-col gap-4 relative z-10 w-[85vw] max-w-sm">
-        {['Campaign', 'Quick Match', 'Multiplayer', 'My Deck'].map((mode) => (
+        {/* The mode identifiers themselves (used in onSelectMode/gameMode comparisons
+            elsewhere) stay in English — only the label actually shown is translated,
+            so this doesn't need to touch any of the logic keyed off those strings. */}
+        {(['Campaign', 'Quick Match', 'Multiplayer', 'My Deck'] as const).map((mode) => (
           <MenuButton
             key={mode}
-            label={mode}
+            label={MODE_LABELS_PT[mode]}
             onClick={(e) => { e.stopPropagation(); onSelectMode(mode); }}
           />
         ))}
