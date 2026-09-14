@@ -471,6 +471,130 @@ de acampamento militar do campo de batalha.
 
 ---
 
+## 4. Tela de Início — Fundo Épico
+
+**Vai em:** fundo de tela cheia da tela de início (`MainMenu` em `App.tsx`,
+hoje só um degradê roxo/preto genérico) · **Estilo:** cenário/ambiente ·
+**Status:** pronto pra gerar
+
+Divisão em blocos pra tela de início (fundo, painel, botão, logo — cada um
+uma imagem separada, isolada, do mesmo jeito que os marcadores de zona):
+diferente do tabuleiro (que precisa de chão liso pras cartas encostarem),
+aqui a arte pode ser bem mais cinematográfica — é uma tela de boas-vindas,
+não uma superfície funcional.
+
+```
+Ultra-detailed epic fantasy digital painting for a game's title screen: a
+vast medieval battlefield vista at dusk, seen from a slight elevation, two
+opposing armies' banners (red heraldic lion-crest banners on one side, blue
+on the other) planted in long rows facing each other across a wide field
+in the far distance, tiny in scale against the landscape. Between them, a
+lone silhouetted stone castle keep on a distant hill catches the last
+golden light. Dramatic storm clouds are parting overhead, a single shaft
+of warm golden sunlight breaking through onto the center of the
+battlefield, deep blue-violet shadow everywhere else. Scattered embers and
+a few birds catch the light in the middle distance for scale. Painterly
+digital illustration, premium fantasy card-game quality (Gwent / Legends
+of Runeterra key-art tier), rich saturated palette of gold, crimson,
+steel-blue and deep violet, strong sense of scale and grandeur, tall
+vertical portrait orientation filling a phone screen edge to edge, no
+characters in the foreground, no text, no UI, no watermark, no logo
+```
+
+**Notas:** diferente do fundo do tabuleiro (3d), aqui não existe restrição
+de "deixar chão livre" — é só a tela de boas-vindas, então pode (e deve)
+ser mais dramática/cinematográfica. Pedi retrato bem vertical porque cobre
+a tela toda atrás do painel do menu (4b) e do logo (4d), que entram por
+cima dela.
+
+---
+
+## 4b. Tela de Início — Painel do Menu
+
+**Vai em:** painel/moldura que envolve a lista de botões do menu (hoje só
+uma coluna flutuando sem fundo próprio) · **Estilo:** elemento/ícone de UI
+· **Status:** pronto pra gerar
+
+```
+Top-down-neutral game UI icon illustration of an ornate vertical wooden
+tablet/panel reinforced with aged bronze corner fittings and rivets, a
+subtle engraved rope-and-vine border running just inside its edge, meant
+to hold a vertical list of menu buttons on top of it. Isolated game UI
+asset on a flat, solid mid-gray background (no scene, no other elements)
+so it can be cleanly cut out and used as a UI panel background. Same
+painterly medieval-fantasy game style as the rest of the set (Gwent /
+Yu-Gi-Oh Forbidden Memories menu quality), warm torchlit color grading
+(amber highlights on the bronze fittings), no text, no buttons drawn on
+it, no watermark, tall vertical rectangle composition (roughly 2:3,
+taller than wide) with generous flat, evenly-lit surface area in the
+middle for UI content to sit on top of
+```
+
+**Notas:** mesma lógica de fundo sólido dos marcadores de zona (3e) — mais
+fácil de recortar. Pedi "superfície plana e bem iluminada no meio" de
+propósito: é onde os botões (4c) e o texto vão ficar por cima, então não
+pode ter sombra/gravura pesada ali ou os botões ficam ilegíveis.
+
+---
+
+## 4c. Tela de Início — Botão Personalizado
+
+**Vai em:** textura reutilizada nos 4 botões do menu (Campanha, Partida
+Rápida, Multiplayer, Meu Deck) — um só arquivo, usado 4 vezes ·
+**Estilo:** elemento/ícone de UI · **Status:** pronto pra gerar
+
+```
+Top-down-neutral game UI icon illustration of a single ornate horizontal
+button plaque: a wide rounded rectangular bar carved from aged bronze and
+dark wood, with a thin engraved gold trim border and a small stylized
+flame or gem accent at the left end. Isolated game UI asset on a flat,
+solid mid-gray background (no scene, no other elements) so it can be
+cleanly cut out and reused as a button background. Same painterly
+medieval-fantasy game style as the rest of the set (Gwent / Yu-Gi-Oh
+Forbidden Memories menu quality), warm torchlit color grading, no text
+baked into it (text/icon get added separately in code), no watermark,
+wide horizontal rectangle composition (roughly 4:1, much wider than
+tall), flat and evenly lit across the whole surface so text stays
+readable wherever it's placed on top
+```
+
+**Notas:** mesmo arquivo serve pros 4 botões do menu — não precisa gerar
+um pra cada. "Sem texto" é de propósito: o nome de cada modo (Campanha,
+Partida Rápida etc.) é renderizado por cima em código, com a fonte Cinzel
+que o jogo já usa, não pintado na imagem.
+
+---
+
+## 4d. Tela de Início — Logo/Emblema
+
+**Vai em:** emblema decorativo acima do nome do jogo, na tela de início ·
+**Estilo:** elemento/ícone de UI · **Status:** pronto pra gerar
+
+```
+Top-down-neutral heraldic emblem illustration: an ornate engraved bronze
+and gold medallion crest, a shield at its center bearing a rearing lion
+sigil (the same lion heraldry used on the battlefield's banners), flanked
+by two crossed swords behind the shield, the whole emblem wreathed by a
+carved laurel-and-banner ribbon border. Isolated game UI asset on a flat,
+solid mid-gray background (no scene, no other elements) so it can be
+cleanly cut out and placed over other art. Same painterly medieval-fantasy
+game style as the rest of the set (Gwent / Yu-Gi-Oh Forbidden Memories
+quality), warm torchlit color grading, richly detailed engraved metal
+texture, dramatic rim lighting, no text, no watermark, roughly square
+composition with the emblem centered and comfortably inset from all four
+edges
+```
+
+**Notas:** pedi o mesmo brasão do leão que já aparece nas bandeiras do
+campo de batalha (3d), pra manter a identidade visual do jogo consistente
+— é o "escudo" da facção do jogador, não um símbolo novo. Sem texto de
+propósito: o nome "PRICE OF WAR" é renderizado em código (fonte Cinzel,
+já usada nos outros textos do jogo) por baixo ou por cima do emblema, não
+pintado na imagem — texto pintado por geradores de imagem quase sempre
+sai com letras erradas/ilegíveis.
+
+---
+
 ## 3. Moldura Full Art (dourada) — referência de layout
 
 **Arquivo:** [`reference/full-art-frame-gold-v1.png`](./reference/full-art-frame-gold-v1.png)
