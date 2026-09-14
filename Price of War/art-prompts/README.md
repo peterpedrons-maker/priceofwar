@@ -474,31 +474,48 @@ de acampamento militar do campo de batalha.
 ## 4. Tela de Início — Fundo Épico
 
 **Vai em:** fundo de tela cheia da tela de início (`MainMenu` em `App.tsx`,
-hoje só um degradê roxo/preto genérico) · **Estilo:** cenário/ambiente ·
+hoje só um degradê roxo/preto genérico) · **Referência:**
+[`reference/start-screen-mockup-v1.png`](./reference/start-screen-mockup-v1.png)
+(mockup completo feito pelo usuário numa outra IA — usado só como guia de
+estilo/composição, não pra recortar) · **Estilo:** cenário/ambiente ·
 **Status:** pronto pra gerar
 
 Divisão em blocos pra tela de início (fundo, painel, botão, logo — cada um
-uma imagem separada, isolada, do mesmo jeito que os marcadores de zona):
-diferente do tabuleiro (que precisa de chão liso pras cartas encostarem),
-aqui a arte pode ser bem mais cinematográfica — é uma tela de boas-vindas,
-não uma superfície funcional.
+uma imagem separada, isolada, do mesmo jeito que os marcadores de zona),
+construída **por etapa**: primeiro o fundo sozinho, depois os botões, só
+então o menu clicável de verdade por cima — diferente do tabuleiro (que
+precisa de chão liso pras cartas encostarem), aqui a arte pode ser bem
+mais cinematográfica, é uma tela de boas-vindas, não uma superfície
+funcional.
+
+O mockup de referência mostra uma cena bem mais "no chão" e próxima do que
+o prompt original (que era uma vista elevada, exércitos minúsculos ao
+longe): fumaça e brasas em primeiro plano, um castelo pegando fogo mais
+perto, lanças/bandeiras bem próximas da câmera nas duas bordas, um pôr do
+sol dramático furando as nuvens. O prompt abaixo já foi ajustado pra essa
+composição.
 
 ```
-Ultra-detailed epic fantasy digital painting for a game's title screen: a
-vast medieval battlefield vista at dusk, seen from a slight elevation, two
-opposing armies' banners (red heraldic lion-crest banners on one side, blue
-on the other) planted in long rows facing each other across a wide field
-in the far distance, tiny in scale against the landscape. Between them, a
-lone silhouetted stone castle keep on a distant hill catches the last
-golden light. Dramatic storm clouds are parting overhead, a single shaft
-of warm golden sunlight breaking through onto the center of the
-battlefield, deep blue-violet shadow everywhere else. Scattered embers and
-a few birds catch the light in the middle distance for scale. Painterly
-digital illustration, premium fantasy card-game quality (Gwent / Legends
-of Runeterra key-art tier), rich saturated palette of gold, crimson,
-steel-blue and deep violet, strong sense of scale and grandeur, tall
-vertical portrait orientation filling a phone screen edge to edge, no
-characters in the foreground, no text, no UI, no watermark, no logo
+Ultra-detailed epic fantasy digital painting for a game's title screen,
+key-art quality: a besieged medieval castle burning at dusk, seen from
+ground level at a respectful distance — close enough to feel the scale
+and danger, not a tiny distant silhouette. The castle's towers rise
+right-of-center against a dramatic, turbulent dusk sky, thick storm
+clouds breaking apart to let a single warm shaft of golden-orange
+sunlight spill through low on the horizon. Dark smoke billows up from
+part of the castle and from a burning structure in the middle distance,
+drifting across the sky. In the immediate foreground, tall spear-mounted
+banner poles with tattered cloth banners stand close to the camera on
+both the left and right edges of the frame, partially cropped by the
+frame itself, silhouetted dark against the bright horizon. Scattered
+glowing embers and a few drifting sparks float through the whole scene,
+especially thick in the lower half of the frame. Deep blue-violet shadow
+in the foreground ground and figures, warm gold/orange light dominating
+the sky and castle. Painterly digital illustration, premium fantasy game
+title-screen quality (League of Legends / Total War loading-screen key
+art tier), rich cinematic contrast between cool shadow and warm light,
+tall vertical portrait orientation filling a phone screen edge to edge,
+no characters, no readable text, no UI, no watermark, no logo
 ```
 
 **Notas:** diferente do fundo do tabuleiro (3d), aqui não existe restrição
