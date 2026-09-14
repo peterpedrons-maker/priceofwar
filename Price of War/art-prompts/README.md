@@ -681,10 +681,10 @@ sendo preenchido, a seção dele vai encolhendo até sumir.
 Todo card aqui é **Padrão** (moldura pequena, paisagem ~16:10) e usa a
 moldura dourada (Infantaria/Cavalaria/Arqueiro/Relíquia), a prata
 (Tática/Terreno) ou a champanhe (Emboscada) — a cor da moldura é só
-cosmética no jogo, não muda o prompt da arte em si. As duas exceções desse
-deck são o **General** e a **Relíquia**, que são Full Art (moldura
-dourada, janela grande retrato ~0,72:1, ver item 3 acima) — marcadas como
-tal em cada entrada.
+cosmética no jogo, não muda o prompt da arte em si. As duas exceções em
+cada deck são o **General** e a **Relíquia**, que são sempre Full Art
+(moldura dourada, janela grande retrato ~0,72:1, ver item 3 acima) —
+marcadas como tal em cada entrada.
 
 ## Deck Cardeal Pedro
 
@@ -1540,3 +1540,560 @@ and dusty crimson, wide shot with the gathering crowd visible, cinematic
 composition, landscape orientation, no text, no card frame, no border, no
 watermark
 ```
+
+## Deck Capitão
+
+**Identidade visual do deck** (pra manter consistência com o General
+Comandante Aurelion, que já tinha seus próprios prompts — itens 1/1b/2 lá
+em cima): um exército profissional disciplinado, sem tom religioso —
+carmesim, dourado e cinza-aço, o mesmo brasão do leão rampante que já
+aparece nas bandeiras do campo de batalha (item 3d) e no logo do jogo
+(4d-v2). Diferente do Cardeal Pedro (fé e cura), esse baralho é sobre
+formação e movimento tático, então vários prompts abaixo mostram unidades
+literalmente no meio de uma reformação/manobra, não paradas.
+
+**Cartas com Full Art alternativa:** mesmo critério usado no Deck Cardeal
+Pedro — além do General (já coberto acima) e da Relíquia (que só existe em
+Full Art, igual ao Cálice da Vida), separei mais seis cartas que pesam
+mais na identidade/estratégia do baralho pra ganharem uma versão Full Art
+opcional:
+
+- **Cavaleiro Tático** — a maior estatística pura de criatura do baralho (4/4).
+- **Capitão de Formação** — a unidade cujo efeito mais resume o tema do baralho (buffa aliados ao se mover).
+- **Veterano de Guerra** — só tem 3 cópias no deck (todo o resto de criatura tem 4) e empata no maior ATK.
+- **Reformar Linhas** — a Tática mais parecida com a própria habilidade do General ("reorganiza até 3 unidades" ecoa o "Remanejamento" dele).
+- **Contra-Manobra** — a Emboscada mais cara e com o efeito mais vistoso (troca de posição no meio do ataque).
+- **Fortaleza de Pedra** — cópia única, e o Terreno com maior HP (a defesa mais "grande" do baralho).
+
+### General
+
+Já coberto pelos itens **1**, **1b** e **2** lá em cima (Comandante
+Aurelion, Mestre da Formação) — nada pra fazer aqui.
+
+### Relíquia
+
+#### 6.1. Estandarte da Legião
+
+**Carta:** Relíquia (ATK 0 / HP 5 / custo 3) · **Estilo:** Full Art ·
+**Status:** pronto pra gerar
+
+```
+Legendary relic portrait, ultra-epic fantasy trading-card full-art
+illustration of an ornate legion war-standard planted firmly in
+battle-scarred ground, tall vertical portrait composition filling the
+entire frame. The standard's pole is dark iron topped with a gleaming
+gold rearing-lion finial, a heavy crimson-and-gold banner cloth hanging
+from it and rippling gently, radiating a warm golden aura that visibly
+empowers the ground and air around it — faint golden light lines pulsing
+outward like a heartbeat. Layered depth composition: the standard sharp
+and in focus filling most of the frame, blurred rows of disciplined
+soldiers standing taller and more resolute within its glow in the
+midground, a dusty battlefield and steel-gray sky in the background.
+Drifting embers and dust motes cross between the depth layers. Extremely
+detailed rendering — engraved ironwork on the pole, embroidered gold
+thread in the banner cloth, reflective specular highlights on the lion
+finial, painted in the hyper-detailed epic style of premium full-art
+trading cards (Pokémon TCG full-art / Legends of Runeterra legendary-tier
+quality), rich palette of crimson, gold and steel gray, powerful sense of
+authority and inspiration, tall vertical portrait aspect ratio
+(approximately 0.72:1 width to height), composition designed to fill a
+tall card frame edge-to-edge with no empty margins at top or bottom, no
+characters, no text, no card frame, no border, no watermark
+```
+
+**Notas:** mesma lógica do Estandarte não ter um personagem central — é o
+objeto-relíquia em si que é o "herói" da imagem, igual ao Cálice da Vida
+(item 5.2) no outro deck.
+
+---
+
+### Criaturas
+
+#### 6.2. Soldado Tático
+
+**Carta:** Infantaria (ATK 3 / HP 3 / custo 2) · **Estilo:** Padrão ·
+**Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of a disciplined crimson-and-gold infantry
+soldier caught mid-step in tight battlefield formation, glancing sideways
+at the comrade beside him as if about to trade places in the line, sturdy
+practical plate-and-mail armor, a tall battlefield with orderly ranks
+visible behind him, warm dusty daylight, painterly brushwork in the style
+of a premium collectible card game (Hearthstone / Legends of Runeterra
+quality), warm palette of crimson, gold and steel gray, medium shot fully
+visible, cinematic composition, landscape orientation, no text, no card
+frame, no border, no watermark
+```
+
+---
+
+#### 6.3. Escudeiro de Linha
+
+**Carta:** Infantaria (ATK 2 / HP 4 / custo 2) · **Estilo:** Padrão ·
+**Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of a sturdy crimson-and-gold squire raising
+a tall reinforced tower shield to protect the soldiers standing just
+behind him, braced wide stance, determined protective expression, a
+disciplined battle line visible at his back, warm dusty daylight,
+painterly brushwork in the style of a premium collectible card game
+(Hearthstone / Legends of Runeterra quality), warm palette of crimson,
+gold and steel gray, medium shot fully visible, cinematic composition,
+landscape orientation, no text, no card frame, no border, no watermark
+```
+
+---
+
+#### 6.4. Capitão de Formação
+
+**Carta:** Infantaria (ATK 3 / HP 4 / custo 3) · **Estilo:** Padrão (+
+Full Art opcional, ver 6.4b) · **Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of a crimson-and-gold formation captain
+mid-stride through the battle line, one arm raised in a sharp coordinated
+advance signal, nearby soldiers visibly straightening up and gaining
+resolve as he passes, orderly ranks reorganizing behind him, warm dusty
+daylight, painterly brushwork in the style of a premium collectible card
+game (Hearthstone / Legends of Runeterra quality), warm palette of
+crimson, gold and steel gray, medium-wide shot fully visible, cinematic
+composition, landscape orientation, no text, no card frame, no border, no
+watermark
+```
+
+---
+
+#### 6.4b. Capitão de Formação — Full Art
+
+**Carta:** a mesma acima · **Estilo:** Full Art · **Status:** pronto pra
+gerar
+
+```
+Legendary hero portrait, ultra-epic fantasy trading-card full-art
+illustration of a crimson-and-gold formation captain, tall vertical
+portrait filling the entire frame, dynamic low-angle hero shot mid-stride
+through the battle line, one arm thrust out in a sharp commanding gesture,
+a faint golden shockwave of resolve visibly rippling outward from his hand
+toward nearby soldiers. Layered depth composition: the captain sharp in
+the foreground filling most of the vertical frame, disciplined soldiers
+straightening into formation around him in the midground, a dusty
+battlefield and steel-gray sky in the background. Drifting dust and embers
+cross between the depth layers. Extremely detailed rendering — engraved
+plate-and-mail armor, sharp specular highlights on polished steel and
+gold, painted in the hyper-detailed epic style of premium full-art trading
+cards (Pokémon TCG full-art / Legends of Runeterra legendary-tier
+quality), rich palette of crimson, gold and steel gray, powerful sense of
+command and momentum, tall vertical portrait aspect ratio (approximately
+0.72:1 width to height), composition designed to fill a tall card frame
+edge-to-edge with no empty margins at top or bottom, no text, no card
+frame, no border, no watermark
+```
+
+---
+
+#### 6.5. Batedor
+
+**Carta:** Infantaria (ATK 1 / HP 2 / custo 1) · **Estilo:** Padrão ·
+**Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of a light, agile crimson-and-gold scout
+soldier crouched low and ready to dash, minimal armor built for speed
+rather than protection, already glancing toward his next position on the
+battlefield, warm dusty daylight, painterly brushwork in the style of a
+premium collectible card game (Hearthstone / Legends of Runeterra
+quality), warm palette of crimson, gold and steel gray, medium shot fully
+visible, cinematic composition, landscape orientation, no text, no card
+frame, no border, no watermark
+```
+
+---
+
+#### 6.6. Lanceiro de Controle
+
+**Carta:** Infantaria (ATK 3 / HP 2 / custo 2) · **Estilo:** Padrão ·
+**Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of a crimson-and-gold spearman holding a
+long spear braced horizontally to control the space in front of him,
+intimidating wide-legged stance keeping enemies at bay, disciplined
+battlefield formation visible behind him, warm dusty daylight, painterly
+brushwork in the style of a premium collectible card game (Hearthstone /
+Legends of Runeterra quality), warm palette of crimson, gold and steel
+gray, medium shot fully visible, cinematic composition, landscape
+orientation, no text, no card frame, no border, no watermark
+```
+
+---
+
+#### 6.7. Cavaleiro Tático
+
+**Carta:** Cavalaria (ATK 4 / HP 4 / custo 3) · **Estilo:** Padrão (+ Full
+Art opcional, ver 6.7b) · **Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of a mounted tactical knight in
+crimson-and-gold armor wheeling his warhorse sharply mid-maneuver to
+reposition along the battle line, dynamic turning motion with dust kicked
+up under the horse's hooves, disciplined cavalry formation visible behind
+him, warm dusty daylight, painterly brushwork in the style of a premium
+collectible card game (Hearthstone / Legends of Runeterra quality), warm
+palette of crimson, gold and steel gray, dynamic medium-wide shot with
+horse and rider fully visible, cinematic composition, landscape
+orientation, no text, no card frame, no border, no watermark
+```
+
+---
+
+#### 6.7b. Cavaleiro Tático — Full Art
+
+**Carta:** a mesma acima · **Estilo:** Full Art · **Status:** pronto pra
+gerar
+
+```
+Legendary hero portrait, ultra-epic fantasy trading-card full-art
+illustration of a mounted tactical knight in crimson-and-gold armor, tall
+vertical portrait filling the entire frame, dynamic low-angle shot of his
+warhorse caught mid-wheel, front legs off the ground as it turns sharply
+to reposition along the battle line, the knight leaning into the turn with
+sword drawn, dust and torn grass kicked up in a dramatic arc. Layered
+depth composition: horse and rider sharp in the foreground filling most of
+the vertical frame, a blurred disciplined cavalry line reforming in the
+midground, a dusty battlefield and steel-gray sky in the background.
+Drifting dust crosses between the depth layers. Extremely detailed
+rendering — engraved plate armor, individual mane strands, sharp specular
+highlights on polished steel and gold, painted in the hyper-detailed epic
+style of premium full-art trading cards (Pokémon TCG full-art / Legends of
+Runeterra legendary-tier quality), rich palette of crimson, gold and steel
+gray, powerful sense of speed and precision, tall vertical portrait aspect
+ratio (approximately 0.72:1 width to height), composition designed to
+fill a tall card frame edge-to-edge with no empty margins at top or
+bottom, no text, no card frame, no border, no watermark
+```
+
+---
+
+#### 6.8. Veterano de Guerra
+
+**Carta:** Infantaria (ATK 4 / HP 3 / custo 3) · **Estilo:** Padrão (+
+Full Art opcional, ver 6.8b) · **Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of a grizzled war veteran in battle-scarred
+crimson-and-gold armor, standing resolute at the deepest point of the
+battle line, weathered confident expression, a notched sword held
+low and ready, dust and faint smoke drifting past him, warm dusty
+daylight, painterly brushwork in the style of a premium collectible card
+game (Hearthstone / Legends of Runeterra quality), warm palette of
+crimson, gold and steel gray, medium shot fully visible, cinematic
+composition, landscape orientation, no text, no card frame, no border, no
+watermark
+```
+
+---
+
+#### 6.8b. Veterano de Guerra — Full Art
+
+**Carta:** a mesma acima · **Estilo:** Full Art · **Status:** pronto pra
+gerar
+
+```
+Legendary hero portrait, ultra-epic fantasy trading-card full-art
+illustration of a grizzled war veteran in battle-scarred crimson-and-gold
+armor, tall vertical portrait filling the entire frame, dynamic low-angle
+hero shot, standing resolute with a notched sword held low and ready,
+weathered scarred face and graying hair, dented armor telling a story of
+countless battles. Layered depth composition: the veteran sharp in the
+foreground filling most of the vertical frame, a blurred battle line of
+younger soldiers behind him in the midground, a dusty battlefield and
+steel-gray sky in the background. Drifting dust and faint smoke cross
+between the depth layers. Extremely detailed rendering — battle-worn
+scratches and dents in the armor plating, sharp specular highlights on
+worn steel, painted in the hyper-detailed epic style of premium full-art
+trading cards (Pokémon TCG full-art / Legends of Runeterra legendary-tier
+quality), rich palette of crimson, gold and steel gray, powerful sense of
+experience and resilience, tall vertical portrait aspect ratio
+(approximately 0.72:1 width to height), composition designed to fill a
+tall card frame edge-to-edge with no empty margins at top or bottom, no
+text, no card frame, no border, no watermark
+```
+
+---
+
+### Táticas
+
+#### 6.9. Reformar Linhas
+
+**Carta:** Tática (custo 2) · **Estilo:** Padrão (+ Full Art opcional, ver
+6.9b) · **Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting, a tactical overhead-tinged battlefield
+scene of three crimson-and-gold soldiers shifting position at once as if
+directed by an unseen commander, motion-blur trails showing each one's
+path to a new spot in the formation, banners and orderly ranks around
+them, warm dusty daylight, painterly brushwork in the style of a premium
+collectible card game (Hearthstone / Legends of Runeterra quality), warm
+palette of crimson, gold and steel gray, wide shot with all three soldiers
+visible, cinematic composition, landscape orientation, no text, no card
+frame, no border, no watermark
+```
+
+---
+
+#### 6.9b. Reformar Linhas — Full Art
+
+**Carta:** a mesma acima · **Estilo:** Full Art · **Status:** pronto pra
+gerar
+
+```
+Ultra-epic fantasy trading-card full-art illustration of a battlefield
+reformation in progress, tall vertical portrait filling the entire frame,
+three crimson-and-gold soldiers caught mid-motion shifting to new
+positions in the formation, glowing golden motion-trails tracing each
+one's path like a tactician's diagram made real, seen from a dynamic
+low-angle. Layered depth composition: the three repositioning soldiers
+sharp in the foreground and midground, tall banners and a full disciplined
+army formation in the background. Drifting dust crosses between the depth
+layers. Extremely detailed rendering — engraved armor, individual motion
+trail particles, painted in the hyper-detailed epic style of premium
+full-art trading cards (Pokémon TCG full-art / Legends of Runeterra
+legendary-tier quality), rich palette of crimson, gold and steel gray,
+powerful sense of coordinated precision, tall vertical portrait aspect
+ratio (approximately 0.72:1 width to height), composition designed to
+fill a tall card frame edge-to-edge with no empty margins at top or
+bottom, no text, no card frame, no border, no watermark
+```
+
+---
+
+#### 6.10. Avanço Coordenado
+
+**Carta:** Tática (custo 2) · **Estilo:** Padrão · **Status:** pronto pra
+gerar
+
+```
+Epic fantasy digital painting of a tight line of crimson-and-gold infantry
+advancing together in perfect lockstep, weapons raised, a faint golden
+glow of gathering momentum building around their weapons and shields as
+they march forward as one, warm dusty daylight, painterly brushwork in the
+style of a premium collectible card game (Hearthstone / Legends of
+Runeterra quality), warm palette of crimson, gold and steel gray, wide
+shot with the whole line visible, cinematic composition, landscape
+orientation, no text, no card frame, no border, no watermark
+```
+
+---
+
+#### 6.11. Reposicionamento Rápido
+
+**Carta:** Tática (custo 1) · **Estilo:** Padrão · **Status:** pronto pra
+gerar
+
+```
+Epic fantasy digital painting of a crimson-and-gold soldier shoving an
+enemy soldier off balance and out of position with a sharp shield-bash,
+the enemy stumbling sideways mid-motion, dust kicked up at their feet,
+warm dusty daylight, painterly brushwork in the style of a premium
+collectible card game (Hearthstone / Legends of Runeterra quality), warm
+palette of crimson, gold and steel gray, dynamic medium shot with both
+figures visible, cinematic composition, landscape orientation, no text, no
+card frame, no border, no watermark
+```
+
+---
+
+#### 6.12. Linha Fechada
+
+**Carta:** Tática (custo 2) · **Estilo:** Padrão · **Status:** pronto pra
+gerar
+
+```
+Epic fantasy digital painting of a tight crimson-and-gold shield wall,
+several soldiers locking their shields together edge to edge as one solid
+barrier, bracing together against an incoming blow, sparks and dust
+flying off the shields at the point of impact, warm dusty daylight,
+painterly brushwork in the style of a premium collectible card game
+(Hearthstone / Legends of Runeterra quality), warm palette of crimson,
+gold and steel gray, wide shot with the whole shield wall visible,
+cinematic composition, landscape orientation, no text, no card frame, no
+border, no watermark
+```
+
+---
+
+#### 6.13. Ordem de Retirada
+
+**Carta:** Tática (custo 2) · **Estilo:** Padrão · **Status:** pronto pra
+gerar
+
+```
+Epic fantasy digital painting of a wounded crimson-and-gold soldier being
+pulled back from the front line by a comrade's steady grip on his arm,
+retreating together toward the safety of the rear ranks, a faint warm
+healing light glowing softly around the wound, dusty battlefield at
+dusk, painterly brushwork in the style of a premium collectible card game
+(Hearthstone / Legends of Runeterra quality), warm palette of crimson,
+gold and steel gray, medium shot with both figures visible, cinematic
+composition, landscape orientation, no text, no card frame, no border, no
+watermark
+```
+
+---
+
+### Emboscadas
+
+#### 6.14. Bloqueio Instantâneo
+
+**Carta:** Emboscada (custo 2) · **Estilo:** Padrão · **Status:** pronto
+pra gerar
+
+```
+Epic fantasy digital painting of a crimson-and-gold soldier suddenly
+stepping in front of an ally at the last possible instant, shield raised
+just in time to intercept a blow meant for the ally behind him, sparks
+flying off the shield at the moment of impact, dramatic dusty daylight,
+painterly brushwork in the style of a premium collectible card game
+(Hearthstone / Legends of Runeterra quality), warm palette of crimson,
+gold and steel gray, dynamic medium shot with both figures visible,
+cinematic composition, landscape orientation, no text, no card frame, no
+border, no watermark
+```
+
+---
+
+#### 6.15. Contra-Manobra
+
+**Carta:** Emboscada (custo 3) · **Estilo:** Padrão (+ Full Art opcional,
+ver 6.15b) · **Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of two crimson-and-gold soldiers trading
+positions in a blurred instant mid-combat, dodging an incoming attack by
+swapping places at the last possible moment, motion-blur trails showing
+their swap, an enemy's blade or blow passing harmlessly through where one
+of them used to stand, dramatic dusty daylight, painterly brushwork in the
+style of a premium collectible card game (Hearthstone / Legends of
+Runeterra quality), warm palette of crimson, gold and steel gray, dynamic
+medium-wide shot with both figures visible, cinematic composition,
+landscape orientation, no text, no card frame, no border, no watermark
+```
+
+---
+
+#### 6.15b. Contra-Manobra — Full Art
+
+**Carta:** a mesma acima · **Estilo:** Full Art · **Status:** pronto pra
+gerar
+
+```
+Ultra-epic fantasy trading-card full-art illustration of two
+crimson-and-gold soldiers trading positions in a blurred instant
+mid-combat, tall vertical portrait filling the entire frame, dynamic
+low-angle shot capturing the exact moment of the swap — both soldiers
+mid-motion crossing paths, golden motion-trails tracing their swapped
+paths, an enemy blade passing harmlessly through empty air between them.
+Layered depth composition: the two swapping soldiers sharp in the
+foreground and midground filling most of the vertical frame, a
+disciplined battle line and dusty battlefield in the background. Drifting
+dust and sparks cross between the depth layers. Extremely detailed
+rendering — engraved armor, individual motion-trail particles, sharp
+specular highlights on polished steel, painted in the hyper-detailed epic
+style of premium full-art trading cards (Pokémon TCG full-art / Legends of
+Runeterra legendary-tier quality), rich palette of crimson, gold and steel
+gray, powerful sense of speed and precision, tall vertical portrait aspect
+ratio (approximately 0.72:1 width to height), composition designed to
+fill a tall card frame edge-to-edge with no empty margins at top or
+bottom, no text, no card frame, no border, no watermark
+```
+
+---
+
+#### 6.16. Formação Quebrada
+
+**Carta:** Emboscada (custo 2) · **Estilo:** Padrão · **Status:** pronto
+pra gerar
+
+```
+Epic fantasy digital painting of an enemy soldier's formation breaking
+apart in chaos, one enemy stumbling and being knocked sideways out of
+position amid drifting smoke and confusion, a crimson-and-gold soldier's
+weapon or shield visible at the edge of frame having just caused the
+disruption, dramatic dusty daylight, painterly brushwork in the style of a
+premium collectible card game (Hearthstone / Legends of Runeterra
+quality), warm palette of crimson, gold and steel gray, dynamic medium
+shot fully visible, cinematic composition, landscape orientation, no text,
+no card frame, no border, no watermark
+```
+
+---
+
+### Terrenos
+
+#### 6.17. Fortaleza de Pedra
+
+**Carta:** Terreno (custo 3) · **Estilo:** Padrão (+ Full Art opcional,
+ver 6.17b) · **Status:** pronto pra gerar
+
+```
+Epic fantasy digital painting of a sturdy fortified stone rampart section
+protecting a row of soldiers standing behind it, thick weathered
+battlements with a crimson-and-gold banner mounted atop, soldiers visible
+sheltering just behind the wall, warm dusty daylight, painterly brushwork
+in the style of a premium collectible card game (Hearthstone / Legends of
+Runeterra quality), warm palette of stone gray, crimson and gold, wide
+shot with the rampart and soldiers visible, cinematic composition,
+landscape orientation, no text, no card frame, no border, no watermark
+```
+
+---
+
+#### 6.17b. Fortaleza de Pedra — Full Art
+
+**Carta:** a mesma acima · **Estilo:** Full Art · **Status:** pronto pra
+gerar
+
+```
+Ultra-epic fantasy trading-card full-art illustration of a massive
+fortified stone rampart, tall vertical portrait filling the entire frame,
+dynamic low-angle shot looking up along the towering weathered
+battlements, a crimson-and-gold banner mounted at the top snapping in the
+wind, soldiers sheltering safely at its base in the lower part of the
+frame. Layered depth composition: the rampart's stonework sharp and
+detailed filling most of the vertical frame, sheltering soldiers in the
+foreground below it, a dusty battlefield and steel-gray sky visible beyond
+the wall in the background. Drifting dust crosses between the depth
+layers. Extremely detailed rendering — weathered stone texture, individual
+cracks and moss patches, embroidered banner fabric, painted in the
+hyper-detailed epic style of premium full-art trading cards (Pokémon TCG
+full-art / Legends of Runeterra legendary-tier quality), rich palette of
+stone gray, crimson and gold, powerful sense of scale and protection, tall
+vertical portrait aspect ratio (approximately 0.72:1 width to height),
+composition designed to fill a tall card frame edge-to-edge with no empty
+margins at top or bottom, no text, no card frame, no border, no watermark
+```
+
+---
+
+#### 6.18. Pântano Maldito
+
+**Carta:** Terreno (custo 2) · **Estilo:** Padrão · **Status:** pronto pra
+gerar
+
+```
+Epic fantasy digital painting of a cursed, murky swampland bogging down a
+row of enemy soldiers standing in it, withered blackened plants and thick
+low-hanging fog, an eerie sickly green-tinged mire clinging to their legs
+and weapons, dim overcast light breaking the game's usual warm palette on
+purpose here to feel wrong/cursed, painterly brushwork in the style of a
+premium collectible card game (Hearthstone / Legends of Runeterra
+quality), palette of murky green, dark mud brown and pale sickly mist,
+wide shot with the swamp and soldiers visible, cinematic composition,
+landscape orientation, no text, no card frame, no border, no watermark
+```
+
+---
+
