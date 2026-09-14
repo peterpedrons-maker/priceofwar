@@ -20,6 +20,15 @@ As imagens de referência que forem enviadas ficam salvas em
   ~2:3, retrato), sem painel de pergaminho separado — nome, custo, tipo e
   ATK/HP ficam sobrepostos direto em cima da ilustração.
 
+**Regra pras cartas que têm as duas versões:** Padrão e Full Art têm que
+ser DUAS ARTES DIFERENTES de verdade — um momento, ângulo ou cenário
+diferente pra mesma carta — nunca a mesma cena só reenquadrada/esticada
+pra outra proporção. Por exemplo, se a Padrão mostra um cavaleiro
+atacando, a Full Art dele não repete a mesma investida vista de outro
+ângulo: mostra um momento totalmente diferente (ele descansando depois da
+batalha, um close num detalhe específico, etc.). Todos os pares abaixo já
+seguem essa regra.
+
 Os prompts abaixo estão em inglês (é o que os geradores de imagem
 respondem melhor), com as notas em português.
 
@@ -1024,26 +1033,25 @@ gerar
 
 ```
 TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic Magic: The Gathering-quality fantasy
-trading-card full-art illustration of a heroic mounted knight lancer
-inspired by Saint George, tall vertical portrait filling the entire frame,
-dynamic low-angle shot of a powerful white warhorse rearing mid-charge at
-the mouth of a narrow rocky gorge, the knight leaning forward in
-gleaming white-and-gold plate armor, a long lance couched and leveled
-straight toward the viewer, a huge white cape marked with a red cross
-billowing up and filling much of the frame behind him. At the base of the
-gorge wall beside the horse's hooves, a bleached dragon ribcage juts half
--buried from the rock — old bones from his legend, not a present threat.
-Layered depth composition: horse and rider sharp in the foreground filling
-most of the vertical frame, jagged canyon walls closing in on either side
-in the midground, a golden dawn sky breaking through the gorge's mouth far
-ahead in the background. Drifting dust and loose scree cross between the
-depth layers. Extremely detailed rendering — engraved filigree in the
-armor, individual mane and cape fabric strands, weathered bone texture on
-the dragon ribcage, sharp specular highlights on polished gold and steel.
-Rich palette of white, gold and crimson against cold gray stone, powerful
-sense of scale and momentum, composition designed to fill a tall card
-frame edge-to-edge with no empty margins at top or bottom, no text, no
-card frame, no border, no watermark
+trading-card full-art illustration of the same heroic knight lancer
+inspired by Saint George, but a completely different quiet moment than
+his battlefield charge: standing dismounted and still atop a windswept
+hilltop at sunrise, his lance driven point-down into the earth beside him,
+one gauntleted hand resting on the massive bleached skull of a slain
+dragon half-buried in the grass at his feet — the legend's aftermath, not
+its action. His white-and-gold armor and cape are calm and undisturbed by
+wind for once, catching the soft pink-gold light of dawn. His warhorse
+grazes peacefully a short distance behind him. Layered depth composition:
+the knight and dragon skull sharp in the foreground filling most of the
+vertical frame, his resting horse in the midground, a vast, peaceful
+sunrise valley stretching out below the hilltop in the background.
+Drifting mist rises from the valley floor between the depth layers.
+Extremely detailed rendering — engraved filigree in the armor, weathered
+bone texture on the massive skull, dew on the grass, soft specular
+highlights on polished gold. Rich palette of soft dawn pink, gold and
+white, powerful sense of quiet triumph and legend, composition designed to
+fill a tall card frame edge-to-edge with no empty margins at top or
+bottom, no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1104,23 +1112,25 @@ gerar
 
 ```
 TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic Magic: The Gathering-quality fantasy
-trading-card full-art illustration of a richly armored noble crusader lord
-on horseback atop a windswept hilltop, tall vertical portrait filling the
-entire frame, dynamic low-angle hero shot, ornate gold-trimmed plate armor
-with elaborate engraved religious heraldry on his tabard, one gauntleted
-arm thrust upward in a commanding gesture as radiant golden light spills
-down the hillside below him. Layered depth composition: the lord and his
-rearing horse sharp in the foreground filling most of the vertical frame,
-loyal soldiers rising from drifting mist partway down the hill in the
-midground, still half-transparent with light, a vast misty valley and
-golden dawn sky filling the background far below. Drifting motes of golden
-light and mist cross between the depth layers. Extremely detailed
-rendering — engraved filigree in the armor, individual mane strands,
-windswept banner fabric, sharp specular highlights on polished gold. Rich
-palette of gold, white and crimson, powerful sense of scale and divine
-command, composition designed to fill a tall card frame edge-to-edge with
-no empty margins at top or bottom, no text, no card frame, no border, no
-watermark
+trading-card full-art illustration of the same noble crusader lord, but a
+completely different, intimate indoor moment instead of his outdoor
+hilltop command: kneeling alone in prayer before a small candlelit shrine
+inside a private chapel, dismounted, his ornate gold-trimmed armor still
+worn but his head bowed and hands clasped around his sword's hilt planted
+point-down before him like a cross. Around him, faint translucent figures
+of loyal soldiers are just beginning to materialize out of the candlelight
+and shadow, kneeling in the same reverent pose he holds, summoned by his
+prayer rather than his command. Layered depth composition: the lord sharp
+in the foreground filling most of the vertical frame, the materializing
+soldiers taking shape in the candlelit shadow around him in the midground,
+a small stained-glass window glowing faintly with moonlight in the
+background. Drifting motes of candlelight and mist cross between the depth
+layers. Extremely detailed rendering — engraved filigree in the armor,
+wax pooling on the shrine's candles, soft specular highlights on polished
+gold. Rich palette of warm candle-gold against deep chapel shadow,
+powerful sense of quiet devotion rather than command, composition designed
+to fill a tall card frame edge-to-edge with no empty margins at top or
+bottom, no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1157,22 +1167,25 @@ gerar
 
 ```
 TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic Magic: The Gathering-quality fantasy
-trading-card full-art illustration of the archetypal White Knight fording
-a rain-swollen river, tall vertical portrait filling the entire frame,
-dynamic low-angle shot of his warhorse rearing as it crashes through
-the current, sheets of spray thrown up around them, the knight in gleaming
-full white-and-gold plate armor, sword raised high overhead wreathed in
-brilliant holy white-gold energy cutting through the gray downpour.
-Layered depth composition: horse and rider sharp in the foreground filling
-most of the vertical frame, rain-lashed riverbanks in the midground,
-distant lightning-lit battlements silhouetted on the horizon in the
-background. Rain streaks and water droplets cross between the depth
-layers, caught mid-air. Extremely detailed rendering — engraved plate
-armor slick with rain, individual mane strands, sharp specular highlights
-on wet polished steel and gold. Rich palette of storm gray and rain-blue
-cut by warm white-gold light, powerful sense of scale and defiance,
-composition designed to fill a tall card frame edge-to-edge with no empty
-margins at top or bottom, no text, no card frame, no border, no watermark
+trading-card full-art illustration of the same archetypal White Knight,
+but a completely different, still moment instead of his river-storm
+crossing: standing perfectly motionless in the calm, sunlit eye of a
+battlefield in the moment right after victory, surrounded by a wide ring
+of fallen enemy weapons and banners planted broken in the earth, his sword
+lowered and resting point-down in the dirt rather than raised, full white-
+and-gold plate armor undamaged and gleaming in warm clear daylight, a
+serene, almost sorrowful expression rather than triumphant fury. Layered
+depth composition: the knight sharp in the foreground filling most of the
+vertical frame, the ring of fallen banners and debris in the midground, a
+clear, peaceful blue sky finally breaking after the storm in the
+background. A single white feather drifts down between the depth layers.
+Extremely detailed rendering — engraved plate armor catching clean
+sunlight, individual strands of his horse's mane where it stands quietly
+behind him, soft specular highlights on polished steel and gold. Rich
+palette of clear sky blue, white and gold, powerful sense of solemn
+victory and peace, composition designed to fill a tall card frame edge-to
+-edge with no empty margins at top or bottom, no text, no card frame, no
+border, no watermark
 ```
 
 ---
@@ -1208,22 +1221,22 @@ gerar
 
 ```
 TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic Magic: The Gathering-quality fantasy
-trading-card full-art illustration of a mounted crusader squad captain
-rallying his troops atop a besieged stone bridge, tall vertical portrait
-filling the entire frame, dynamic low-angle hero shot on horseback, gold
--trimmed battle-scorched armor, one arm raised high thrusting a huge white
--and-gold banner upward so its cloth fills much of the top of the vertical
-frame, snapping violently in the wind. Layered depth composition: the
-captain and horse sharp in the foreground filling the lower half of the
-frame, retreating soldiers turning back to rally around him in the
-midground, the bridge's crumbled far arch and a smoke-choked river far
-below in the background. Drifting embers and torn banner threads cross
-between the depth layers. Extremely detailed rendering — scorched battle
--worn armor, embroidered banner fabric, sharp specular highlights on gold
-trim. Rich palette of smoke gray, gold and crimson, powerful sense of
-scale and last-stand tension, composition designed to fill a tall card
-frame edge-to-edge with no empty margins at top or bottom, no text, no
-card frame, no border, no watermark
+trading-card full-art illustration of the same crusader squad captain, but
+a completely different, offensive moment instead of his defensive bridge
+stand: leading a full-speed triumphant charge across open golden dawn
+fields, banner held level and streaming straight back from the speed of
+the gallop rather than thrust upward, gold-trimmed armor pristine and
+catching the morning sun, an unmistakable grin of exhilaration rather than
+grim resolve. Layered depth composition: the captain and horse sharp in
+the foreground filling most of the vertical frame, a wide wave of
+cheering infantry charging alongside him in the midground, a bright open
+sunrise horizon in the background. Dust and sunlit motes cross between the
+depth layers. Extremely detailed rendering — polished undamaged armor,
+embroidered banner fabric streaming in the wind, sharp specular highlights
+on gold trim. Rich palette of golden sunrise, crimson and white, powerful
+sense of unstoppable momentum and morale, composition designed to fill a
+tall card frame edge-to-edge with no empty margins at top or bottom, no
+text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1310,22 +1323,24 @@ gerar
 
 ```
 TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Ultra-epic Magic: The Gathering-quality fantasy trading-card full-art
-illustration of a massive wooden trebuchet siege engine at the exact
-moment of launch, tall vertical portrait filling the entire frame, camera
-positioned low and close to the machine's base looking sharply upward
-along its arm as it whips diagonally through the frame, a huge flaming
-payload just releasing from the sling and arcing up out of the top of the
-frame trailing fire and smoke, crusader soldiers in white-and-gold bracing
-against the machine's recoil at its base. Layered depth composition: the
-trebuchet's massive wooden frame and crew sharp in the foreground filling
-most of the vertical frame, a distant fortified enemy gatehouse glimpsed
-far below in the midground, a dramatic dawn sky streaked with smoke in
-the background. Sparks, splinters and embers cross between the depth
-layers. Extremely detailed rendering — weathered wood grain, taut
-straining ropes, individual embers in the flaming payload. Rich palette of
-gold, wood brown and fire orange, powerful sense of scale and impact,
-composition designed to fill a tall card frame edge-to-edge with no empty
-margins at top or bottom, no text, no card frame, no border, no watermark
+illustration of the aftermath moment of a Trabuco's strike rather than the
+launch itself, tall vertical portrait filling the entire frame: seen from
+very far away and low to the ground at night, a small silhouetted crusader
+army camp in the foreground bottom of the frame, and high above in the
+night sky, a massive fireball from the payload's impact blooms silently in
+the distance like a second, brief sun, lighting the undersides of the
+clouds orange and casting long dramatic shadows from the watching soldiers
+below. Layered depth composition: silhouetted watching soldiers sharp in
+the foreground filling the lower part of the frame, a dark empty stretch
+of night battlefield in the midground, the massive distant fireball and
+lit clouds dominating the upper background. Sparks and embers drift high
+in the sky between the depth layers. Extremely detailed rendering —
+individually rendered distant embers and smoke tendrils, silhouette detail
+on the watching soldiers' armor rims. Rich palette of deep night blue-
+black and blazing fire orange, powerful sense of awe and scale from a
+safe distance, composition designed to fill a tall card frame edge-to-edge
+with no empty margins at top or bottom, no text, no card frame, no border,
+no watermark
 ```
 
 ---
@@ -1526,23 +1541,24 @@ gerar
 
 ```
 TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Ultra-epic Magic: The Gathering-quality fantasy trading-card full-art
-illustration of a fallen soldier's spirit returning to the ranks, tall
-vertical portrait filling the entire frame, dynamic low-angle shot of a
-translucent golden-white ghostly figure rising fully upright from a simple
-grave on a moonlit cemetery hillside, one hand still ghostly and
-dissolving into light, the other already solidifying back into flesh and
-armor, warm holy light pouring upward around him like a pillar filling
-much of the vertical frame. Layered depth composition: the rising spirit
-sharp in the foreground filling most of the frame, rows of simpler grave
-markers receding down the hillside in the midground, a deep misty dusk sky
-in the background. Drifting motes of golden light cross between the depth
-layers. Extremely detailed rendering — translucent light effects on the
-spectral half of the figure, engraved detail on the solidifying armor,
-weathered stone texture on the grave markers. Rich palette of gold,
-translucent white and deep dusk blue, powerful sense of reverence and
-rebirth, composition designed to fill a tall card frame edge-to-edge with
-no empty margins at top or bottom, no text, no card frame, no border, no
-watermark
+illustration of the moment just AFTER the return, not the rising itself:
+tall vertical portrait filling the entire frame, the once-fallen soldier
+now fully solid and alive again, walking forward through the camp under a
+bright clear dawn sky, still faintly glowing at the edges but otherwise
+flesh and armor once more, arms opening wide as a group of his old
+comrades rush forward to embrace him in disbelief and joy, tears and
+laughter on their faces. Layered depth composition: the returned soldier
+and the first comrade reaching him sharp in the foreground filling most of
+the vertical frame, more soldiers running to join the reunion in the
+midground, a bright dawn sky and the camp's banners in the background.
+Sunlit dust and drifting fading motes of the last of his ghostly glow
+cross between the depth layers. Extremely detailed rendering — genuine
+emotion in the faces, weathered reunited armor, sharp specular highlights
+in the bright dawn light. Rich palette of warm gold sunrise, white and
+soft red, powerful sense of joy and homecoming rather than solemn
+resurrection, composition designed to fill a tall card frame edge-to-edge
+with no empty margins at top or bottom, no text, no card frame, no border,
+no watermark
 ```
 
 ---
@@ -1820,22 +1836,22 @@ gerar
 
 ```
 TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic Magic: The Gathering-quality fantasy
-trading-card full-art illustration of a crimson-and-gold formation captain,
-tall vertical portrait filling the entire frame, dynamic low-angle hero
-shot mid-stride through the battle line at sunset, one arm thrust out in a
-sharp commanding gesture, a visible shimmering golden shockwave of resolve
-rippling outward from his hand toward nearby soldiers, frozen mid-ripple
-like a shockwave diagram. Layered depth composition: the captain sharp in
-the foreground filling most of the vertical frame, disciplined soldiers
-straightening into formation around him in the midground, a dusty
-battlefield and deep orange sunset sky in the background. Drifting dust
-and embers cross between the depth layers. Extremely detailed rendering —
-engraved plate-and-mail armor, sharp specular highlights on polished steel
-and gold, the golden shockwave rendered with visible concentric detail.
-Rich palette of crimson, gold and steel gray, powerful sense of command
-and momentum, composition designed to fill a tall card frame edge-to-edge
-with no empty margins at top or bottom, no text, no card frame, no border,
-no watermark
+trading-card full-art illustration of the same formation captain, but a
+completely different, elevated command moment instead of moving through
+the ranks: standing tall atop a rocky outcrop or broken siege-engine
+wreck at dawn, both hands planted on his hips as he surveys the entire
+battlefield spread out below him, mouth open mid-shout giving orders,
+wind whipping his crimson cape out behind him. No shimmer effect here —
+his authority comes from vantage and voice, not visible magic. Layered
+depth composition: the captain sharp in the foreground filling most of
+the vertical frame, the whole disciplined army arrayed in formation far
+below in the midground, a wide dawn battlefield vista in the background.
+Drifting morning mist crosses between the depth layers. Extremely detailed
+rendering — engraved plate-and-mail armor, windswept cape fabric, sharp
+specular highlights on polished steel and gold. Rich palette of dawn gold,
+crimson and steel gray, powerful sense of overview and command, composition
+designed to fill a tall card frame edge-to-edge with no empty margins at
+top or bottom, no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1914,21 +1930,23 @@ gerar
 
 ```
 TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic Magic: The Gathering-quality fantasy
-trading-card full-art illustration of a mounted tactical knight in
-crimson-and-gold armor, tall vertical portrait filling the entire frame,
-dynamic low-angle shot of his warhorse caught mid-wheel, front legs off
-the ground as it carves a wide visible arc of torn earth beneath it, the
-knight leaning hard into the turn with sword drawn. Layered depth
-composition: horse and rider sharp in the foreground filling most of the
-vertical frame, the churned-earth arc curving away into the midground
-toward a waiting disciplined cavalry line, a golden-hour plain and warm
-sky in the background. Drifting dust crosses between the depth layers.
-Extremely detailed rendering — engraved plate armor, individual mane
-strands, sharp specular highlights on polished steel and gold. Rich
-palette of crimson, gold and steel gray, powerful sense of speed and
-precision, composition designed to fill a tall card frame edge-to-edge
-with no empty margins at top or bottom, no text, no card frame, no border,
-no watermark
+trading-card full-art illustration of the same mounted tactical knight in
+crimson-and-gold armor, but a completely different action than his open-
+plain wheeling turn: his warhorse fully airborne, leaping clean over a
+smashed and burning supply wagon barricade in the middle of a chaotic
+battlefield, wreckage and scattered crates strewn on both sides, the
+knight crouched low over the horse's neck with sword sheathed, both hands
+gripping the reins tight for the landing. Layered depth composition: horse
+and rider sharp in mid-leap in the foreground filling most of the vertical
+frame, the wrecked barricade and battle chaos in the midground, smoke and
+a hazy battlefield in the background. Sparks and drifting embers from the
+burning wagon cross between the depth layers. Extremely detailed rendering
+— engraved plate armor, individual mane strands caught in the leap, sharp
+specular highlights on polished steel and gold. Rich palette of crimson,
+gold and steel gray lit by fire-orange from the wreckage, powerful sense
+of daring and obstacle-crossing, composition designed to fill a tall card
+frame edge-to-edge with no empty margins at top or bottom, no text, no
+card frame, no border, no watermark
 ```
 
 ---
@@ -1963,21 +1981,25 @@ gerar
 
 ```
 TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic Magic: The Gathering-quality fantasy
-trading-card full-art illustration of a grizzled war veteran in battle-
-scarred crimson-and-gold armor, tall vertical portrait filling the entire
-frame, dynamic low-angle hero shot standing resolute in the deepest of
-three stacked trench lines, a notched sword held low and ready, weathered
-scarred face and graying hair, dented armor telling a story of countless
-battles. Layered depth composition: the veteran sharp in the foreground
-filling most of the vertical frame, the two emptier, more battered trench
-lines ahead of him visible receding in the midground, a dusty battlefield
-and steel-gray sky in the background. Drifting dust and falling debris
-cross between the depth layers. Extremely detailed rendering — battle-worn
-scratches and dents in the armor plating, sharp specular highlights on
-worn steel, packed-earth trench walls. Rich palette of crimson, gold and
-steel gray, powerful sense of experience and immovable resilience,
-composition designed to fill a tall card frame edge-to-edge with no empty
-margins at top or bottom, no text, no card frame, no border, no watermark
+trading-card full-art illustration of the same grizzled war veteran in
+battle-scarred crimson-and-gold armor, but a completely different, quiet
+character moment instead of the trench line: seated on an overturned
+crate beside a low campfire at night, armor half-removed and resting
+beside him, a group of much younger soldiers sitting cross-legged around
+the fire listening intently as he gestures with a scarred hand mid-story,
+an old notched sword laid flat across his knees. Firelight is the only
+light source, warm orange flickering across every attentive young face.
+Layered depth composition: the veteran sharp in the foreground filling
+most of the vertical frame, the ring of listening soldiers around the
+fire in the midground, dark tents and a starry night sky in the
+background. Drifting sparks from the fire cross between the depth layers.
+Extremely detailed rendering — battle-worn scratches and dents in the
+resting armor, weathered scarred face lit warmly from below, individual
+sparks rising from the campfire. Rich palette of firelight orange against
+deep night blue, powerful sense of legacy and quiet mentorship rather than
+combat, composition designed to fill a tall card frame edge-to-edge with
+no empty margins at top or bottom, no text, no card frame, no border, no
+watermark
 ```
 
 ---
@@ -2013,21 +2035,24 @@ gerar
 
 ```
 TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Ultra-epic Magic: The Gathering-quality fantasy trading-card full-art
-illustration of a battlefield reformation in progress, tall vertical
-portrait filling the entire frame, three crimson-and-gold soldiers caught
-mid-motion shifting to new positions in the formation, glowing golden
-tactical lines tracing each one's path like a living tactician's diagram
-overlaid on the real world, seen from a steep tilted-down angle looking
-into the formation below. Layered depth composition: the three
-repositioning soldiers and their glowing paths sharp in the foreground and
-midground, tall banners and a full disciplined army formation in the
-background. Drifting dust crosses between the depth layers. Extremely
-detailed rendering — engraved armor, individually rendered glowing line
-segments, painted texture on the trampled ground. Rich palette of
-crimson, gold and steel gray with golden light accents, powerful sense of
-coordinated precision, composition designed to fill a tall card frame
-edge-to-edge with no empty margins at top or bottom, no text, no card
-frame, no border, no watermark
+illustration of an entire army reforming at once, a true aerial bird's-
+eye view directly down onto the whole battlefield formation, tall
+vertical portrait filling the entire frame — unlike the close three-
+soldier moment elsewhere in this set, this shows dozens of tiny crimson-
+and-gold soldiers across the whole field shifting into a new shape
+together, glowing golden tactical lines connecting entire blocks of troops
+like a massive living diagram seen from directly above, the formation
+visibly reshaping from a broken line into a solid wedge. Layered depth
+composition: the nearest reforming ranks sharp in the foreground filling
+the lower part of the frame, the glowing tactical-line network spanning
+the midground, the full battlefield with its rivers, roads and enemy
+lines tiny in the distant background far below. Drifting cloud shadow
+crosses between the depth layers. Extremely detailed rendering — tiny
+individually posed soldier figures, glowing line segments, terrain texture
+seen from above. Rich palette of crimson, gold and steel gray with a
+network of golden light, powerful sense of grand strategy and scale,
+composition designed to fill a tall card frame edge-to-edge with no empty
+margins at top or bottom, no text, no card frame, no border, no watermark
 ```
 
 ---
@@ -2170,22 +2195,23 @@ gerar
 
 ```
 TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Ultra-epic Magic: The Gathering-quality fantasy trading-card full-art
-illustration of two crimson-and-gold soldiers trading positions in a
-blurred instant inside a narrow ruined corridor, tall vertical portrait
-filling the entire frame, dynamic low-angle shot capturing the exact
-moment of the swap — both soldiers mid-motion crossing paths between
-broken columns, golden motion-trails tracing their swapped paths, an enemy
-blade passing harmlessly through empty air between them. Layered depth
-composition: the two swapping soldiers sharp in the foreground and
-midground filling most of the vertical frame, shafts of light cutting
-through the ruined ceiling above, rubble and a disciplined battle line
-glimpsed beyond the corridor's far end in the background. Drifting dust
-and sparks cross between the depth layers. Extremely detailed rendering —
-engraved armor, individual motion-trail particles, weathered ruined-stone
-texture. Rich palette of crimson, gold and steel gray, powerful sense of
-speed and precision, composition designed to fill a tall card frame
-edge-to-edge with no empty margins at top or bottom, no text, no card
-frame, no border, no watermark
+illustration of the same swap-maneuver trick, but happening in the middle
+of a huge chaotic open-field melee instead of an isolated ruined corridor:
+tall vertical portrait filling the entire frame, two crimson-and-gold
+soldiers blurring through each other's positions right in the thick of a
+crowded clash of dozens of fighting soldiers, golden motion-trails
+tracing their swap cutting clearly through the visual noise of the battle
+around them, an enemy blade passing harmlessly through the empty air where
+one of them used to stand. Layered depth composition: the two swapping
+soldiers and their glowing trails sharp in the foreground, a dense mass of
+clashing soldiers filling the midground on all sides, a smoky battlefield
+sky in the background. Drifting dust and sparks cross between the depth
+layers. Extremely detailed rendering — engraved armor, individual motion-
+trail particles, varied armor and poses in the surrounding melee crowd.
+Rich palette of crimson, gold and steel gray, powerful sense of a
+precision trick executed amid total chaos, composition designed to fill a
+tall card frame edge-to-edge with no empty margins at top or bottom, no
+text, no card frame, no border, no watermark
 ```
 
 ---
@@ -2244,22 +2270,24 @@ gerar
 
 ```
 TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Ultra-epic Magic: The Gathering-quality fantasy trading-card full-art
-illustration of a massive fortified stone rampart, tall vertical portrait
-filling the entire frame, dynamic low-angle shot looking up along the
-towering weathered battlements, dozens of arrows and spear-tips stuck
-harmlessly in the outer stone face like a pincushion, a crimson-and-gold
-banner mounted at the top snapping in the wind, soldiers sheltering safely
-in the rampart's cool shadow at its base in the lower part of the frame.
-Layered depth composition: the rampart's pockmarked stonework sharp and
-detailed filling most of the vertical frame, sheltering soldiers in the
-foreground below it, a dusty battlefield and steel-gray sky visible beyond
-the wall in the background. Drifting dust crosses between the depth
-layers. Extremely detailed rendering — weathered stone texture, individual
-arrow shafts and embedded spear-tips, embroidered banner fabric. Rich
-palette of stone gray, crimson and gold, powerful sense of scale and
-proven protection, composition designed to fill a tall card frame edge-to
--edge with no empty margins at top or bottom, no text, no card frame, no
-border, no watermark
+illustration of the same stone rampart under active night siege rather
+than the calm daytime cutaway view elsewhere in this set: tall vertical
+portrait filling the entire frame, seen from outside and below at night,
+torchlight and burning arrows streaking through the dark sky toward the
+battlements, defenders atop the wall silhouetted against the torchlight as
+they pour a cauldron of boiling oil down over the parapet, the crimson-
+and-gold banner lit orange by the chaos below. Layered depth composition:
+the base of the rampart and attacking siege ladders sharp in the
+foreground filling the lower part of the frame, the defenders and pouring
+oil along the battlements in the midground, a smoke-and-fire-lit night sky
+in the background. Sparks and burning debris cross between the depth
+layers. Extremely detailed rendering — weathered stone texture lit by
+firelight, individual streaks of flaming arrows, the oil's glinting
+surface as it falls. Rich palette of deep night blue-black cut by intense
+fire orange, powerful sense of active desperate defense rather than quiet
+protection, composition designed to fill a tall card frame edge-to-edge
+with no empty margins at top or bottom, no text, no card frame, no border,
+no watermark
 ```
 
 ---
