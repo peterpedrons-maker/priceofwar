@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { Info, X, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
@@ -675,6 +675,56 @@ const templateForType = (cardType?: CardType) => {
   return cardTemplateImage;
 };
 
+// FitText — shrinks its text (via a uniform CSS scale, never wrapping or
+// truncating) just enough that it always fits the width of its container,
+// measured for real off the actual rendered pixels rather than guessed from
+// character count. That's the only way to guarantee it fits everywhere this
+// renders (hand cards, board slots at two breakpoints, the detail modal, the
+// announce popup) since each has a different real pixel width for the same
+// name box percentage. Short names that already fit render at their natural
+// size (scale is only ever ≤ 1, never enlarged past the base font size).
+const FitText = ({ text, className, style }: { text: string, className?: string, style?: React.CSSProperties }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const textEl = textRef.current;
+    if (!container || !textEl) return;
+    // Sets the scale directly on the DOM node instead of going through React
+    // state — this re-renders constantly (every animation tick on the board),
+    // and a state-driven scale kept getting stomped back to its initial value
+    // by those re-renders faster than the effect could correct it again.
+    const fit = () => {
+      textEl.style.transform = 'scale(1)';
+      const containerWidth = container.clientWidth;
+      const textWidth = textEl.scrollWidth;
+      const scale = textWidth > containerWidth && textWidth > 0 ? containerWidth / textWidth : 1;
+      textEl.style.transform = `scale(${scale})`;
+    };
+    fit();
+    // Re-measure once the real font is done loading — measuring against the
+    // fallback font (during the @font-face swap window) would bake in a scale
+    // sized for the wrong glyph metrics.
+    document.fonts?.ready?.then(fit);
+    const ro = new ResizeObserver(fit);
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [text]);
+
+  return (
+    <div ref={containerRef} className="w-full h-full flex items-center justify-center overflow-hidden">
+      <span
+        ref={textRef}
+        className={className}
+        style={{ ...style, display: 'inline-block', whiteSpace: 'nowrap', transformOrigin: 'center' }}
+      >
+        {text}
+      </span>
+    </div>
+  );
+};
+
 const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof typeof CARD_FACE_VARIANTS }) => {
   const v = CARD_FACE_VARIANTS[variant];
   const showStats = !NO_STAT_TYPES.has(card.cardType as CardType);
@@ -699,17 +749,17 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
       </div>
 
       <div className="absolute inset-0 z-10 pointer-events-none">
-        {/* Name */}
-        <div className="absolute flex items-center justify-center px-1 overflow-hidden" style={{ top: '0%', left: '12%', right: '22%', height: '8%' }}>
-          <span
+        {/* Name — FitText shrinks long names down (see its own comment) instead of
+            truncating them with an ellipsis, so the full name is always readable. */}
+        <div className="absolute px-1" style={{ top: '0%', left: '12%', right: '22%', height: '8%' }}>
+          <FitText
+            text={card.name}
             // The name plate and type ribbon are pale parchment, so the text on them is
             // dark ink, not gold — light-on-light was the reason they were hard to read.
             // The highlight underneath gives it the engraved-into-the-plate look.
-            className={`${v.name} font-bold uppercase tracking-tight truncate w-full text-center`}
+            className={`${v.name} font-bold uppercase tracking-tight`}
             style={{ fontFamily: "'Cinzel', serif", color: '#2a1605', textShadow: '0 1px 0 rgba(255,243,206,0.55)' }}
-          >
-            {card.name}
-          </span>
+          />
         </div>
 
         {/* Cost (Ouro) — mapped to the template's round cutout, top-right */}
