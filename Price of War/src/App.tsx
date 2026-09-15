@@ -901,10 +901,10 @@ const FitEffectText = ({ text, className, style, align = 'center' }: { text: str
 // runs noticeably smaller type, since the plate itself sits over the art
 // rather than getting its own dedicated card real estate.
 const FULL_ART_PLATE_VARIANTS = {
-  hand:  { type: 'text-[10px]',                       effect: 'text-xs' },
-  field: { type: 'text-[5px] md:text-[6px]',          effect: 'text-[5px] md:text-[6px]' },
-  modal: { type: 'text-sm',                           effect: 'text-base' },
-  popup: { type: 'text-[8px] md:text-[9px]',          effect: 'text-[9px] md:text-[10px]' },
+  hand:  { type: 'text-[10px]',                       effect: 'text-[11px]' },
+  field: { type: 'text-[5px] md:text-[6px]',          effect: 'text-[4px] md:text-[5px]' },
+  modal: { type: 'text-sm',                           effect: 'text-sm' },
+  popup: { type: 'text-[8px] md:text-[9px]',          effect: 'text-[8px] md:text-[9px]' },
 } as const;
 
 const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof typeof CARD_FACE_VARIANTS }) => {
@@ -962,7 +962,7 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
               text={card.effect}
               align="start"
               className={`${pv.effect} text-left leading-snug`}
-              style={{ fontFamily: "'Crimson Pro', serif", color: '#f3e6c8' }}
+              style={{ fontFamily: "'PT Serif', serif", color: '#f3e6c8' }}
             />
           </div>
         </div>
@@ -971,10 +971,11 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
       <img src={cardTemplateFullArtGoldImage} alt="" aria-hidden className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
 
       <div className="absolute inset-0 z-10 pointer-events-none">
-        {/* Name — sits on the frame's own dark top bar, so light/gold text instead
-            of the Padrão layout's dark-ink-on-parchment. Bar's real interior (pixel
-            -sampled off the frame image): x 6%-69%, y 7.3%-13.9%. */}
-        <div className="absolute px-1 flex items-center" style={{ top: '7.3%', left: '7%', width: '60%', height: '6.6%' }}>
+        {/* Name — sits on the frame's own dark top bar. Re-checked against the
+            bar's actual dark fill (not just its outer gold trim): it runs from
+            ~9% to ~71% (where the coin medallion starts), vertically ~8.5%-14% —
+            the box now matches that instead of a slightly-off guess. */}
+        <div className="absolute px-1 flex items-center" style={{ top: '8.5%', left: '9%', width: '62%', height: '5.5%' }}>
           <FitText
             text={card.name}
             className={`${v.name} font-bold uppercase tracking-tight`}
@@ -982,23 +983,27 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
           />
         </div>
 
-        {/* Cost — the frame's own circular medallion, pixel-sampled center/radius
-            (was eyeballed too far right before — this one's centered on the actual
-            circle, not guessed off the bar's edge). */}
-        <div className="absolute flex items-center justify-center" style={{ left: '77.5%', top: '11.7%', width: '11%', height: '7.4%', transform: 'translate(-50%, -50%)' }}>
+        {/* Cost — NOT inside the round medallion (that's a solid decorative coin,
+            no room for a digit) but in the separate small dark plate immediately
+            to its right, same idea as the Padrão layout's own coin+number pair.
+            Pixel-checked against that plate's actual dark fill: x ~83.5%-91.5%,
+            y ~9.3%-13.8%. */}
+        <div className="absolute flex items-center justify-center" style={{ left: '83.5%', top: '9.3%', width: '8%', height: '4.5%' }}>
           <GoldNumber value={card.cost} className={v.stat} />
         </div>
 
         {/* ATK/HP — the frame's own black shield (left) and red heart shield
-            (right), pixel-sampled centers (both sit noticeably higher than the
-            card's bottom edge, not flush against it like the Padrão layout's
-            blade/heart emblems). */}
+            (right). These taper to a point at the bottom, so their visual
+            center (where a digit actually reads as centered) sits a bit
+            above the shape's geometric middle — moved up from the first,
+            too-low placement after checking a zoomed crop against each
+            shield's own interior. */}
         {showStats && (
           <>
-            <div className="absolute flex items-center justify-center" style={{ left: '14.7%', top: '87%', width: '14%', height: '11%', transform: 'translate(-50%, -50%)' }}>
+            <div className="absolute flex items-center justify-center" style={{ left: '14.7%', top: '85%', width: '14%', height: '11%', transform: 'translate(-50%, -50%)' }}>
               <GoldNumber value={card.atk} className={v.stat} />
             </div>
-            <div className="absolute flex items-center justify-center" style={{ left: '85.3%', top: '87%', width: '14%', height: '11%', transform: 'translate(-50%, -50%)' }}>
+            <div className="absolute flex items-center justify-center" style={{ left: '85.3%', top: '85%', width: '14%', height: '11%', transform: 'translate(-50%, -50%)' }}>
               <GoldNumber value={card.hp} className={v.stat} />
             </div>
           </>

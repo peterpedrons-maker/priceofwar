@@ -18,3 +18,16 @@
   font-display: swap;
   src: url('./assets/fonts/crimson-pro-600.woff2') format('woff2');
 }
+
+/* Full Art cards' own rules-text font — a dense, small-size-legible serif
+   without Crimson Pro's decorative italic slant, closer to the compact serif
+   real TCG rules text (Yu-Gi-Oh included) actually uses. Yu-Gi-Oh's real
+   font (Matrix Book/Bold) isn't freely licensed, so this is the closest
+   freely-licensed stand-in rather than an exact match. */
+@font-face {
+  font-family: 'PT Serif';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./assets/fonts/pt-serif-400.woff2') format('woff2');
+}
