@@ -708,7 +708,7 @@ const ManaBadge = ({ value, className = "" }: { value: number, className?: strin
 // then it shows the most recently destroyed card's name plus a count badge, so cards
 // leaving the field via combat visibly end up somewhere instead of just vanishing.
 const GraveyardPile = ({ cards }: { cards: CardData[] }) => (
-  <div className="w-24 md:w-36 h-32 md:h-48 border-2 border-zinc-700 rounded-xl bg-zinc-900/80 flex items-center justify-center shadow-lg relative overflow-hidden">
+  <div className="w-32 h-44 md:w-40 md:h-56 border-2 border-zinc-700 rounded-xl bg-zinc-900/80 flex items-center justify-center shadow-lg relative overflow-hidden">
     {cards.length === 0 ? (
       <span className="text-zinc-600 font-mono text-xs md:text-sm uppercase tracking-widest rotate-90 opacity-50">Cemitério</span>
     ) : (
@@ -737,14 +737,52 @@ const AtkBadge = ({ value, className = "" }: { value: number, className?: string
   </div>
 );
 
-const HpBadge = ({ value, className = "" }: { value: number, className?: string }) => (
-  <div className={`relative flex items-center justify-center ${className}`}>
-    <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full drop-shadow-md">
-      <path d="M50 90 C 50 90, 10 60, 10 30 C 10 10, 35 10, 50 30 C 65 10, 90 10, 90 30 C 90 60, 50 90, 50 90 Z" fill="#ef4444" stroke="#7f1d1d" strokeWidth="8" strokeLinejoin="round" />
-    </svg>
-    <span className="relative z-10 text-white font-black drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] leading-none">{value}</span>
-  </div>
-);
+// HUD-level HP readout for a General — unlike the plain AtkBadge/other stat
+// badges, this one is the player's own life total, so it gets the same
+// shake + floating "-N" combat feedback CardSlot gives a damaged board card
+// (see its own damageFlash), just self-contained here since a General's HUD
+// badge isn't a CardSlot. Purely reactive to `value` dropping between
+// renders — whatever combat/Tática/splash source caused it.
+const HpBadge = ({ value, className = "" }: { value: number, className?: string }) => {
+  const prevValueRef = useRef(value);
+  const [damageFlash, setDamageFlash] = useState<{ key: number; amount: number } | null>(null);
+  useEffect(() => {
+    if (value < prevValueRef.current) {
+      setDamageFlash({ key: Date.now(), amount: prevValueRef.current - value });
+    }
+    prevValueRef.current = value;
+  }, [value]);
+  useEffect(() => {
+    if (!damageFlash) return;
+    const t = window.setTimeout(() => setDamageFlash(null), 900);
+    return () => clearTimeout(t);
+  }, [damageFlash]);
+
+  return (
+    <motion.div
+      className={`relative flex items-center justify-center ${className}`}
+      animate={{ x: damageFlash ? [0, -6, 6, -4, 4, 0] : 0 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
+    >
+      <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full drop-shadow-md">
+        <path d="M50 90 C 50 90, 10 60, 10 30 C 10 10, 35 10, 50 30 C 65 10, 90 10, 90 30 C 90 60, 50 90, 50 90 Z" fill="#ef4444" stroke="#7f1d1d" strokeWidth="8" strokeLinejoin="round" />
+      </svg>
+      <span className="relative z-10 text-white font-black drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] leading-none">{value}</span>
+      {damageFlash && (
+        <motion.span
+          key={damageFlash.key}
+          initial={{ opacity: 0, y: 0, scale: 0.6 }}
+          animate={{ opacity: [0, 1, 1, 0], y: -22, scale: 1.15 }}
+          transition={{ duration: 0.9, ease: 'easeOut', opacity: { times: [0, 0.15, 0.7, 1] } }}
+          className="absolute -top-1 left-1/2 -translate-x-1/2 text-red-500 font-black text-xs whitespace-nowrap pointer-events-none z-20"
+          style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 6px rgba(239,68,68,0.8)' }}
+        >
+          -{damageFlash.amount}
+        </motion.span>
+      )}
+    </motion.div>
+  );
+};
 
 // A plain gradient-gold number with a strong drop shadow and no background shape —
 // unlike AtkBadge/HpBadge/ManaBadge above, this is used INSIDE CardFace, where the
@@ -2007,18 +2045,19 @@ export default function App() {
   const justDraggedRef = useRef(false);
 
   const isMobile = windowSize.width < 768;
-  // Board container is a fixed 1000x1250px canvas (see the 3D Board div below) that gets
+  // Board container is a fixed 1000x1600px canvas (see the 3D Board div below) that gets
   // scaled down to fit the real viewport — these divisors must match those exact dimensions.
-  // Was 1400 tall: each half (NPC/player field) only needs ~484px for its general row +
-  // two label+slot rows, but grid-rows-2 split the old 1400px evenly into 620px halves,
-  // leaving ~136px of dead space sitting unused right next to the center divider on each
-  // side — on top of the gap itself. Since this is a fixed-width-bound layout on phones
-  // (width is almost always the tighter constraint, see the isMobile branch below), that
-  // wasted height didn't make anything bigger — it just showed up as pure empty margin
-  // above/below the whole board, squeezing the floating hand trays into less real screen
-  // space than they needed. Trimming it to 1250 keeps the turn button/phase-tracker area
-  // comfortably clear of the nearest slot rows while giving the hands ~150px more room.
-  const boardScale = isMobile ? Math.min(windowSize.width / 1000, windowSize.height / 1250) * 1.05 : Math.min(windowSize.width / 1600, 1);
+  // On phones this layout is always width-bound (viewport width/1000 comes out smaller than
+  // viewport height/H for any H a real phone's aspect ratio would need — see boardScale's
+  // isMobile branch), so boardScale itself is set entirely by width and doesn't change
+  // just because H changes. What DOES change is how much of the real screen the resulting
+  // (bigger) canvas actually fills: bumping H bumps the final on-screen board height by the
+  // exact same ratio, since it's the same boardScale applied to a taller canvas. Was 1250 —
+  // raised here specifically so CardSlot (see its own w-32/h-44+ sizing) could grow without
+  // its own two label+slot rows per side overflowing past their half of the grid, which used
+  // to spill toward the shared center divider (see the justify-end/justify-start swap on
+  // each field below) — now they have the room instead of just routing the overflow away.
+  const boardScale = isMobile ? Math.min(windowSize.width / 1000, windowSize.height / 1600) * 1.05 : Math.min(windowSize.width / 1600, 1);
   // Hand cards are fanned out (see getFanRotation below), so the outer cards' bounding box
   // is wider than their flat width — account for that tilt or the fan's edge cards clip.
   // Scale so the WHOLE hand always fits on screen — no floor, or large hands would overflow
@@ -3967,15 +4006,15 @@ export default function App() {
       </motion.div>
 
       {/* 3D Board — flex-shrink-0 matters here: the root container above is a flex
-          column, and this box's own explicit 1250px height is taller than most real
+          column, and this box's own explicit 1600px height is taller than most real
           viewports, so without it the browser's own flex layout was quietly shrinking
           this all the way down to viewport height BEFORE the boardScale transform
           below ever got applied — a second, uncontrolled scale-down stacked on top of
           the real one, which threw off both the object-cover crop on the board art
           (cropping away far more than intended) and any percentage-based positioning
-          inside this box (resolved against the shrunk box, not the real 1000x1250). */}
+          inside this box (resolved against the shrunk box, not the real 1000x1600). */}
       <motion.div
-        className="w-[1000px] h-[1250px] shrink-0 grid grid-rows-2 gap-12 p-8 relative"
+        className="w-[1000px] h-[1600px] shrink-0 grid grid-rows-2 gap-12 p-8 relative"
         animate={boardAnim}
         transition={boardTransition}
         onClick={(e) => {
@@ -4153,14 +4192,14 @@ export default function App() {
                 isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(12)}
                 isTacticDragTarget={isDragTargetSlot('npc', 12)}
               />
-              <ManaBadge value={npcMana} className="absolute -top-3 -left-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
+              <ManaBadge value={npcMana} className="absolute -top-4 -left-4 w-10 h-10 md:w-12 md:h-12 text-sm md:text-base z-20" />
               {/* HUD HP readout for the opponent General — the card's own embedded
                   HP number (see CardFace) sits at a size tuned to fit its emblem,
                   not to be glanced at across the table, so this bigger badge next
                   to the mana coin is the actual "how much HP does he have left"
                   answer at a glance. */}
               {npcSlots[12] && (
-                <HpBadge value={npcSlots[12]!.hp} className="absolute -top-3 -right-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
+                <HpBadge value={npcSlots[12]!.hp} className="absolute -top-4 -right-4 w-10 h-10 md:w-12 md:h-12 text-sm md:text-base z-20" />
               )}
             </div>
             <CardSlot
@@ -4341,12 +4380,12 @@ export default function App() {
                 attackDirection="up"
                 isTacticDragTarget={isDragTargetSlot('own', 12)}
               />
-              <ManaBadge value={playerMana} className="absolute -top-3 -left-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
+              <ManaBadge value={playerMana} className="absolute -top-4 -left-4 w-10 h-10 md:w-12 md:h-12 text-sm md:text-base z-20" />
               {/* HUD HP readout for the player's own General — bottom-right (not
                   top-right, mirroring the NPC's) since that corner is sometimes
                   already taken by the General-ability prompt button below. */}
               {playerSlots[12] && (
-                <HpBadge value={playerSlots[12]!.hp} className="absolute -bottom-3 -right-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
+                <HpBadge value={playerSlots[12]!.hp} className="absolute -bottom-4 -right-4 w-10 h-10 md:w-12 md:h-12 text-sm md:text-base z-20" />
               )}
               {/* Yu-Gi-Oh-style "you may activate this" prompt — the game itself
                   notices the General has a usable Fase-Principal ability right now
@@ -4392,7 +4431,7 @@ export default function App() {
           {/* The stack's thickness is dimmed copies of the card itself, offset behind the
               top one — a plain dark rectangle would read as a box around a card whose
               outline isn't rectangular (see CardBack). */}
-          <div ref={npcDeckRef} className="w-24 md:w-36 h-32 md:h-48 relative">
+          <div ref={npcDeckRef} className="w-32 h-44 md:w-40 md:h-56 relative">
             <CardBack offset={6} brightness={0.3} />
             <CardBack offset={3} brightness={0.55} />
             <CardBack shadow />
@@ -4419,7 +4458,7 @@ export default function App() {
           {/* Deck */}
           <motion.div
             ref={playerDeckRef}
-            className="w-24 md:w-36 h-32 md:h-48 relative group"
+            className="w-32 h-44 md:w-40 md:h-56 relative group"
           >
             {/* Deck thickness effect — dimmed copies of the card, not dark rectangles */}
             <CardBack offset={6} brightness={0.3} />
@@ -5426,7 +5465,7 @@ const CardSlot = ({
         // …) rather than instead of it, so none of that existing board logic changes.
         if (card && !card.isDestroyed && onInfoClick) onInfoClick(card);
       }}
-      className={`w-24 md:w-36 h-32 md:h-48 rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass} ${isValidAttackTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${isMoverSelected ? 'ring-4 ring-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.7)]' : ''} ${isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''} ${isTacticDragTarget ? 'ring-4 ring-fuchsia-400 shadow-[0_0_30px_rgba(232,121,249,0.75)]' : ''}`}
+      className={`w-32 h-44 md:w-40 md:h-56 rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass} ${isValidAttackTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${isMoverSelected ? 'ring-4 ring-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.7)]' : ''} ${isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''} ${isTacticDragTarget ? 'ring-4 ring-fuchsia-400 shadow-[0_0_30px_rgba(232,121,249,0.75)]' : ''}`}
     >
       {!card && hint && (
         // Drag-to-play's drop indicator on the ONE slot currently under the finger
