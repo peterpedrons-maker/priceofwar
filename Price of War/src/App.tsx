@@ -4495,6 +4495,13 @@ export default function App() {
                   duration: origin ? DRAW_FLIGHT_MS / 1000 : 0.4,
                   ease: "easeOut",
                   zIndex: { delay: isFocused ? 0 : 0.4 },
+                  // The hand→ghost handoff at drag start needs to be instant, not eased
+                  // like every other opacity change here — otherwise this card spends
+                  // its normal 0.4s fade-out still fully visible (and full-size) right
+                  // on top of the already-fully-opaque small ghost overlay (see dragCard
+                  // below), reading as one oversized card instead of the intended small
+                  // one following the finger.
+                  opacity: dragCard?.index === i ? { duration: 0 } : undefined,
                 }}
                 onAnimationComplete={() => { delete drawOriginsRef.current[card.id]; }}
                 onPointerDown={(e) => {
@@ -4681,7 +4688,12 @@ export default function App() {
               top: dragCard.y,
               width: HAND_CARD_WIDTH,
               height: HAND_CARD_HEIGHT,
-              transform: 'translate(-50%, -60%) scale(1.15)',
+              // Shrunk to roughly a board slot's own size (was a near-full-size hand
+              // card, which blotted out the exact slots it was supposed to be aimed
+              // at) and lifted almost entirely above the finger — only its bottom
+              // tip sits near the pointer — so the target slot underneath stays
+              // visible the whole time it's being aimed at.
+              transform: 'translate(-50%, -92%) scale(0.42)',
             }}
           >
             <div className={`relative w-full h-full rounded-xl transition-shadow ${isOverValidTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_40px_rgba(52,211,153,0.85)]' : 'shadow-[0_10px_40px_rgba(0,0,0,0.6)]'}`}>
