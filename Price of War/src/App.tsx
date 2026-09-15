@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { Info, X, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass, Sparkles } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
@@ -491,6 +492,35 @@ const EQUIP_ALLOWED_TYPES: Record<string, CardType[]> = {
 // Soldado, Recrutamento Seletivo, Chamado às Armas) — any regular unit, not a
 // General/Relíquia/Terreno/Tática/Emboscada.
 const SOLDIER_TYPES: CardType[] = ['Infantaria', 'Cavalaria', 'Arqueiro', 'Artilharia'];
+
+// ── Drag-to-play classification ──────────────────────────────────────────────
+// What dragging a given hand card up onto the board should actually do, decided
+// purely from the card's own name/type — mirrors handlePlayCardButtonClick's own
+// dispatch order exactly (immediate-effect names first, then TARGETABLE_TACTICS,
+// then Emboscada/unimplemented-Tática rejection, then the plain creature/
+// equipment fallthrough) so the two never disagree about what a card does.
+// 'place': drop on an empty own slot (plain creature/Relíquia/Terreno).
+// 'ownTarget'/'enemyTarget': drop on an occupied own/enemy slot (buffs, equips,
+// damage Táticas — see TARGETABLE_TACTICS/EQUIP_ALLOWED_TYPES above).
+// 'immediate': no board target at all (resolves or opens a picker on release,
+// wherever it's released) — Reformar Linhas, Tributo de Guerra, Trabuco de
+// Cerco, and every reveal/search Tática.
+// 'blocked': Emboscada or a not-yet-implemented Tática — dragging just surfaces
+// the same explanatory toast handlePlayCardButtonClick already shows.
+type CardDropKind = 'place' | 'ownTarget' | 'enemyTarget' | 'immediate' | 'blocked';
+const ENEMY_TARGET_TACTIC_KINDS = new Set<TacticTargetKind>(['reposicionamento_rapido', 'balesta', 'catapulta']);
+const IMMEDIATE_NO_TARGET_CARD_NAMES = new Set([
+  'Reformar Linhas', 'Tributo de Guerra', 'Trabuco de Cerco',
+  'Retorno do Soldado', 'Graal da Dádiva', 'Doutrina Renovada',
+  'Recrutamento Seletivo', 'Recrutar Veteranos', 'Chamado às Armas',
+]);
+const getCardDropKind = (card: CardData): CardDropKind => {
+  if (IMMEDIATE_NO_TARGET_CARD_NAMES.has(card.name)) return 'immediate';
+  const tacticKind = TARGETABLE_TACTICS[card.name];
+  if (tacticKind) return ENEMY_TARGET_TACTIC_KINDS.has(tacticKind) ? 'enemyTarget' : 'ownTarget';
+  if (card.cardType === 'Emboscada' || card.cardType === 'Tática') return 'blocked';
+  return 'place';
+};
 
 // ── Deck Cardeal Pedro mechanics ─────────────────────────────────────────────
 // A first pass at this deck's own abilities — much larger and more varied than
@@ -1869,6 +1899,38 @@ export default function App() {
   };
   const handCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
+  // Drag-to-play — see getCardDropKind above. dragCard is the live floating-ghost
+  // state (rendered near the end of this component's JSX); dragHoverSlot mirrors
+  // whatever board slot is currently under the pointer, purely for the highlight
+  // ring on that slot (see CardSlot's isTacticDragTarget/hint usage below). Both
+  // are plain state (not refs) because they drive render output directly.
+  const [dragCard, setDragCard] = useState<{
+    index: number; card: CardData; kind: CardDropKind; x: number; y: number; fromRect: DOMRect;
+  } | null>(null);
+  const [dragHoverSlot, setDragHoverSlot] = useState<{ side: 'own' | 'npc', index: number } | null>(null);
+  // Where a targetable-Tática drag was released, stashed here (not resolved
+  // immediately) because handlePlayCardButtonClick's own commit — spending the
+  // mana, removing the card from hand, setting pendingTacticAction — has to land
+  // and re-render before resolveOwnTacticTarget/resolveEnemyTacticTarget (which
+  // both read pendingTacticAction straight off state) can see it. The effect
+  // right after this component's other pendingTacticAction-driven effects picks
+  // this up the moment that render happens — see its own comment.
+  const pendingDropTargetRef = useRef<{ side: 'own' | 'npc', index: number } | null>(null);
+  // Always-fresh handles onto handleSlotClick/handleNpcSlotClick/handlePlayCardButtonClick
+  // for the window-level pointermove/pointerup listeners a drag attaches (see
+  // beginCardDrag below) — those listeners are set up once per drag from inside a
+  // single onPointerDown call and would otherwise keep closing over whatever those
+  // functions looked like at that exact instant, missing any state those functions
+  // themselves depend on that changed later in the same render pass.
+  const handleSlotClickRef = useRef<(slotIndex: number, slotEl?: HTMLElement) => void>(() => {});
+  const handleNpcSlotClickRef = useRef<(slotIndex: number) => void>(() => {});
+  const handlePlayCardButtonClickRef = useRef<() => void>(() => {});
+  // True for one tick right after a real drag resolves — consumed by the hand
+  // card's own onClick (see beginCardDrag/the hand card render below) so the
+  // click the browser still fires right after pointerup doesn't immediately
+  // re-toggle whatever now sits in that same hand slot.
+  const justDraggedRef = useRef(false);
+
   const isMobile = windowSize.width < 768;
   // Board container is a fixed 1000x1250px canvas (see the 3D Board div below) that gets
   // scaled down to fit the real viewport — these divisors must match those exact dimensions.
@@ -2493,6 +2555,34 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [currentTurn, gameMode, gameOverWinner]);
+
+  // Bridges the one-render gap between handlePlayCardButtonClick committing a
+  // targetable Tática (spending its mana/hand slot and setting pendingTacticAction
+  // — see the TARGETABLE_TACTICS branch there, defined further down) and
+  // resolveOwnTacticTarget/resolveEnemyTacticTarget actually being safe to call,
+  // since both read pendingTacticAction straight off state rather than taking it
+  // as a parameter. Declared up here (ahead of the assetsReady/gameMode early
+  // returns below, unlike beginCardDrag/resolveOwnTacticTarget themselves) because
+  // this IS a hook — conditionally skipping a useEffect call on some renders but
+  // not others breaks React's hook-order tracking. Referencing
+  // resolveOwnTacticTarget/resolveEnemyTacticTarget before their own declaration
+  // further down is safe here specifically because this callback only actually
+  // runs after the whole component function (including those declarations) has
+  // finished executing for that render — same reasoning as handleSlotClickRef and
+  // friends just above. pendingDropTargetRef is only ever set by beginCardDrag's
+  // onUp, right before it calls handlePlayCardButtonClick — a plain tap-driven
+  // pendingTacticAction (the old "Jogar Carta" flow, now only reachable via a
+  // drag anyway) leaves it null and this effect is a no-op, same as before this
+  // feature existed.
+  useEffect(() => {
+    if (pendingTacticAction && pendingDropTargetRef.current) {
+      const target = pendingDropTargetRef.current;
+      pendingDropTargetRef.current = null;
+      if (target.side === 'own') resolveOwnTacticTarget(target.index);
+      else resolveEnemyTacticTarget(target.index);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingTacticAction]);
 
   if (!assetsReady) {
     return <LoadingScreen onDone={() => setAssetsReady(true)} />;
@@ -3482,6 +3572,11 @@ export default function App() {
     }
   };
 
+  // Kept fresh every render — see their own declarations up near handCardRefs.
+  handleSlotClickRef.current = handleSlotClick;
+  handleNpcSlotClickRef.current = handleNpcSlotClick;
+  handlePlayCardButtonClickRef.current = handlePlayCardButtonClick;
+
   const handleBackgroundClick = () => {
     if (isCardInFlightTransition) return; // don't cancel a card mid hand-off to the board
     if (pendingTacticAction) {
@@ -3516,6 +3611,87 @@ export default function App() {
       // Tapped away while a card was only previewed (Jogar Carta not pressed yet) — cancel it
       setSelectedCardIndex(null);
     }
+  };
+
+  // Drag-to-play — pick a hand card straight up and drop it on its target (an
+  // empty own slot to place it, an occupied own/enemy slot for a targeted
+  // Tática, or just let go anywhere for an immediate-effect card) instead of the
+  // old tap-to-preview-then-tap-"Jogar Carta"-then-tap-a-slot sequence. A plain
+  // tap (no real movement) still falls through to the normal click handler
+  // below, which keeps doing exactly what it always did — read/preview a card.
+  // Attached fresh from a single onPointerDown per gesture rather than a
+  // persistent effect, so these closures always see the exact `index` this one
+  // gesture started with; handleSlotClickRef/handleNpcSlotClickRef/
+  // handlePlayCardButtonClickRef (kept current every render, see above) cover
+  // the other side of that same staleness problem for the functions they call.
+  const beginCardDrag = (index: number, startX: number, startY: number) => {
+    if (ambushPrompt || gameOverWinner || isCardInFlightTransition) return;
+    if (viewState === 'field') return;
+    if (turnPhase !== 'preparacao' || currentTurn !== 'player') return; // let the plain tap's own toast explain why
+    let dragging = false;
+    let hoverSlot: { side: 'own' | 'npc', index: number } | null = null;
+
+    const updateHover = (clientX: number, clientY: number) => {
+      const el = document.elementFromPoint(clientX, clientY);
+      const slotEl = el?.closest('[id^="player-"], [id^="npc-"]') as HTMLElement | null;
+      if (slotEl?.id) {
+        const dash = slotEl.id.indexOf('-');
+        hoverSlot = { side: slotEl.id.slice(0, dash) === 'player' ? 'own' : 'npc', index: parseInt(slotEl.id.slice(dash + 1), 10) };
+      } else {
+        hoverSlot = null;
+      }
+      setDragHoverSlot(hoverSlot);
+    };
+
+    const onMove = (e: PointerEvent) => {
+      if (!dragging) {
+        if (Math.hypot(e.clientX - startX, e.clientY - startY) < 12) return;
+        const card = handRef.current[index];
+        const fromEl = card ? handCardRefs.current[card.id] : null;
+        const fromRect = fromEl?.getBoundingClientRect();
+        if (!card || !fromRect) return;
+        dragging = true;
+        justDraggedRef.current = true;
+        setSelectedCardIndex(index);
+        setViewState('field');
+        setDragCard({ index, card, kind: getCardDropKind(card), x: e.clientX, y: e.clientY, fromRect });
+      } else {
+        setDragCard(prev => (prev ? { ...prev, x: e.clientX, y: e.clientY } : prev));
+      }
+      updateHover(e.clientX, e.clientY);
+    };
+
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      if (!dragging) return; // plain tap — the real click event still fires handleCardClick as always
+      setDragCard(null);
+      setDragHoverSlot(null);
+      const card = handRef.current[index];
+      const kind = card ? getCardDropKind(card) : 'blocked';
+      if (kind === 'immediate' || kind === 'blocked') {
+        flushSync(() => setSelectedCardIndex(index));
+        handlePlayCardButtonClickRef.current();
+      } else if (kind === 'place' && hoverSlot?.side === 'own') {
+        flushSync(() => setSelectedCardIndex(index));
+        handleSlotClickRef.current(hoverSlot.index, document.getElementById(`player-${hoverSlot.index}`) ?? undefined);
+      } else if (kind === 'ownTarget' && hoverSlot?.side === 'own') {
+        flushSync(() => setSelectedCardIndex(index));
+        pendingDropTargetRef.current = hoverSlot;
+        handlePlayCardButtonClickRef.current();
+      } else if (kind === 'enemyTarget' && hoverSlot?.side === 'npc') {
+        flushSync(() => setSelectedCardIndex(index));
+        pendingDropTargetRef.current = hoverSlot;
+        handlePlayCardButtonClickRef.current();
+      } else {
+        // No valid target under the finger when it lifted — full cancel, nothing spent.
+        setSelectedCardIndex(null);
+        setViewState('hand');
+      }
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
   };
 
   // On mobile, the whole hand tray is itself scaled down by handScale (see above) to fit
@@ -3650,6 +3826,17 @@ export default function App() {
   const previewedCard = viewState === 'field' && selectedCardIndex !== null ? hand[selectedCardIndex] : null;
   const getPlayerSlotHint = (slotIndex: number): SlotHint | undefined =>
     previewedCard && !playerSlots[slotIndex] ? getSlotHint(previewedCard.cardType, slotIndex) : undefined;
+
+  // Drag-to-play's own highlight for a targetable Tática (equip/buff/damage) being
+  // dragged — the 'place' kind (plain creatures/Relíquia/Terreno) already gets its
+  // highlight for free from the hint system just above, since it only ever targets
+  // an EMPTY slot; this one's for the occupied-slot case that system doesn't cover.
+  const isDragTargetSlot = (side: 'own' | 'npc', slotIndex: number): boolean => {
+    if (!dragCard) return false;
+    if (side === 'own' && dragCard.kind !== 'ownTarget') return false;
+    if (side === 'npc' && dragCard.kind !== 'enemyTarget') return false;
+    return dragHoverSlot?.side === side && dragHoverSlot.index === slotIndex;
+  };
 
   // Computed once and shared by both the background art layer below and the board's
   // own motion.div (see the "3D Board" comment further down) — the "summon camera"
@@ -3861,6 +4048,7 @@ export default function App() {
               attackDirection="down"
               isValidAttackTarget={validAttackTargets.has(10)}
               isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(10) && !!npcSlots[10]}
+              isTacticDragTarget={isDragTargetSlot('npc', 10)}
             />
             <div className="relative">
               <CardSlot
@@ -3874,6 +4062,7 @@ export default function App() {
                 attackDirection="down"
                 isValidAttackTarget={validAttackTargets.has(12)}
                 isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(12)}
+                isTacticDragTarget={isDragTargetSlot('npc', 12)}
               />
               <ManaBadge value={npcMana} className="absolute -top-3 -left-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
             </div>
@@ -3888,6 +4077,7 @@ export default function App() {
               attackDirection="down"
               isValidAttackTarget={validAttackTargets.has(11)}
               isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(11) && !!npcSlots[11]}
+              isTacticDragTarget={isDragTargetSlot('npc', 11)}
             />
           </div>
           {/* Retaguarda NPC (Backline) */}
@@ -3906,6 +4096,7 @@ export default function App() {
                 attackDirection="down"
                 isValidAttackTarget={validAttackTargets.has(i)}
                 isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(i) && !!npcSlots[i]}
+                isTacticDragTarget={isDragTargetSlot('npc', i)}
               />
             ))}
           </div>
@@ -3925,6 +4116,7 @@ export default function App() {
                 attackDirection="down"
                 isValidAttackTarget={validAttackTargets.has(i)}
                 isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(i) && !!npcSlots[i]}
+                isTacticDragTarget={isDragTargetSlot('npc', i)}
               />
             ))}
           </div>
@@ -3952,6 +4144,7 @@ export default function App() {
                 isMoverSelected={selectedMoverIndex === i}
                 isValidMoveTarget={validMoveTargets.has(i)}
                 hasMoved={movedSlots.has(i)}
+                isTacticDragTarget={isDragTargetSlot('own', i)}
               />
               {/* Mercador da Cruzada / Cavaleiro Hospitalário: same Yu-Gi-Oh-style
                   "you may activate this" Sparkles prompt as the General's own
@@ -3996,6 +4189,7 @@ export default function App() {
                 isMoverSelected={selectedMoverIndex === i}
                 isValidMoveTarget={validMoveTargets.has(i)}
                 hasMoved={movedSlots.has(i)}
+                isTacticDragTarget={isDragTargetSlot('own', i)}
               />
               {creatureAbilityKind && (
                 <motion.button
@@ -4029,6 +4223,7 @@ export default function App() {
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 10}
               attackDirection="up"
               hint={getPlayerSlotHint(10)}
+              isTacticDragTarget={isDragTargetSlot('own', 10)}
             />
             <div className="relative">
               <CardSlot
@@ -4041,6 +4236,7 @@ export default function App() {
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 12}
                 attackDirection="up"
+                isTacticDragTarget={isDragTargetSlot('own', 12)}
               />
               <ManaBadge value={playerMana} className="absolute -top-3 -left-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
               {/* Yu-Gi-Oh-style "you may activate this" prompt — the game itself
@@ -4072,6 +4268,7 @@ export default function App() {
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 11}
               attackDirection="up"
               hint={getPlayerSlotHint(11)}
+              isTacticDragTarget={isDragTargetSlot('own', 11)}
             />
           </div>
         </div>
@@ -4251,7 +4448,10 @@ export default function App() {
                   marginLeft: i === 0 ? 0 : HAND_CARD_STEP - HAND_CARD_WIDTH,
                 }}
                 animate={{
-                  opacity: viewState === 'field'
+                  // While this exact card is the one being drag-followed by the floating
+                  // ghost below, it has nothing left to show here — showing both at once
+                  // would read as two copies of the same card on screen.
+                  opacity: dragCard?.index === i ? 0 : viewState === 'field'
                     ? (isFocused ? 1 : 0.4)
                     // Dim every OTHER card in hand, not just the ones after it in the fan —
                     // dimming only "i > selectedCardIndex" left earlier cards sitting at full
@@ -4297,8 +4497,18 @@ export default function App() {
                   zIndex: { delay: isFocused ? 0 : 0.4 },
                 }}
                 onAnimationComplete={() => { delete drawOriginsRef.current[card.id]; }}
+                onPointerDown={(e) => {
+                  if (ambushPrompt) return;
+                  beginCardDrag(i, e.clientX, e.clientY);
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
+                  // A completed drag already resolved this card (played it or canceled
+                  // it) — the browser still fires this click right after the pointerup,
+                  // and without this guard it would immediately re-toggle the preview
+                  // (or worse, re-open a picker) for whatever's now sitting in this same
+                  // hand slot.
+                  if (justDraggedRef.current) { justDraggedRef.current = false; return; }
                   // An ambush interrupt isn't the normal "pick a card to play" flow —
                   // tapping the highlighted card here shouldn't fall into handleCardClick's
                   // own selection logic (which would just bounce off the Preparação-phase
@@ -4380,20 +4590,19 @@ export default function App() {
                     <div className={`absolute inset-0 rounded-xl border-2 pointer-events-none ${isAmbushCandidate ? 'shadow-[inset_0_0_30px_rgba(239,68,68,0.6)] border-[#ef4444]' : 'shadow-[inset_0_0_30px_rgba(212,175,55,0.6)] border-[#d4af37]'}`} />
                   )}
 
-                  {/* "Jogar Carta" menu — shown on first tap, before zooming to the board */}
+                  {/* Replaces the old "Jogar Carta" button — playing a card is now a drag
+                      gesture (see beginCardDrag), so a tap here just leaves the card
+                      previewed/readable, with this label as the only hint of what to do
+                      next instead of a tappable control. */}
                   {selectedCardIndex === i && viewState === 'hand' && (
-                    <motion.button
+                    <motion.div
                       initial={{ opacity: 0, y: 8, scale: 0.9 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 8, scale: 0.9 }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handlePlayCardButtonClick();
-                      }}
-                      className="absolute -top-5 left-1/2 -translate-x-1/2 z-40 px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(16,185,129,0.7)] border-2 border-emerald-400 pointer-events-auto whitespace-nowrap"
+                      className="absolute -top-5 left-1/2 -translate-x-1/2 z-40 px-5 py-2 bg-emerald-600/90 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(16,185,129,0.7)] border-2 border-emerald-400 pointer-events-none whitespace-nowrap"
                     >
-                      Jogar Carta
-                    </motion.button>
+                      Arraste para jogar
+                    </motion.div>
                   )}
 
                   {/* Emboscada interrupt — "here's the card, activate it or not?" anchored
@@ -4449,6 +4658,38 @@ export default function App() {
           actually played (see handlePlayCardButtonClick, which sets viewState to
           'field' itself), so it was one more thing sitting in the corner without a
           real job, plus it was colliding with the opponent's hand fan up there. */}
+
+      {/* Drag-to-play's own floating ghost — the ONLY visible copy of the card being
+          dragged (see beginCardDrag; the real hand card's opacity goes to 0 for the
+          duration, right above). Just tracks the pointer 1:1 via plain fixed
+          positioning updated on every pointermove — no spring/easing, so it never
+          lags behind the finger the way animating through the normal x/y transition
+          would. Ring color mirrors whatever's currently valid for THIS card's own
+          drop kind: green once it's over a legal target, nothing otherwise (a
+          'place' card also gets the empty-slot hint arrows from getPlayerSlotHint,
+          already visible on the board itself underneath). */}
+      {dragCard && (() => {
+        const isOverValidTarget =
+          (dragCard.kind === 'place' && dragHoverSlot?.side === 'own' && !playerSlots[dragHoverSlot.index]) ||
+          (dragCard.kind === 'ownTarget' && dragHoverSlot?.side === 'own' && !!playerSlots[dragHoverSlot.index]) ||
+          (dragCard.kind === 'enemyTarget' && dragHoverSlot?.side === 'npc' && !!npcSlots[dragHoverSlot.index]);
+        return (
+          <div
+            className="fixed z-[300] pointer-events-none"
+            style={{
+              left: dragCard.x,
+              top: dragCard.y,
+              width: HAND_CARD_WIDTH,
+              height: HAND_CARD_HEIGHT,
+              transform: 'translate(-50%, -60%) scale(1.15)',
+            }}
+          >
+            <div className={`relative w-full h-full rounded-xl transition-shadow ${isOverValidTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_40px_rgba(52,211,153,0.85)]' : 'shadow-[0_10px_40px_rgba(0,0,0,0.6)]'}`}>
+              <CardFace card={dragCard.card} variant="hand" />
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Flying card — plays from hand to the chosen board slot along real screen coordinates.
           Rises to a large "presentation" size above the slot, holds briefly, then descends
@@ -4898,11 +5139,16 @@ const CardSlot = ({
   isAttacking = false, isImpactingTarget = false, attackDirection = 'up', hint,
   isValidAttackTarget = false, isInvalidAttackTarget = false, slotId,
   isMoverSelected = false, isValidMoveTarget = false, hasMoved = false,
-  shockActive = false,
+  shockActive = false, isTacticDragTarget = false,
 }: {
   onClick?: (el: HTMLElement) => void, onInfoClick?: (card: CardData) => void, card?: CardData | null,
   isSelected?: boolean, isAttacking?: boolean, isImpactingTarget?: boolean, attackDirection?: 'up' | 'down',
   hint?: SlotHint, key?: React.Key,
+  // Drag-to-play (see getCardDropKind/isDragTargetSlot): true for the exact
+  // occupied slot currently under the finger while dragging a targetable Tática
+  // onto it (an equip/buff aimed at your own board, or a damage Tática aimed at
+  // the enemy's) — the empty-slot 'place' case already has its own hint prop.
+  isTacticDragTarget?: boolean,
   // Shown on the opponent's slots while the player has an attacker selected: a green
   // glow on anything actually reachable this turn (see getValidAttackTargets), a
   // dimmed/grayed look on an occupied slot that's blocked or out of the attacker's
@@ -4947,7 +5193,7 @@ const CardSlot = ({
           onClick(e.currentTarget as HTMLElement);
         }
       }}
-      className={`w-24 md:w-36 h-32 md:h-48 rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass} ${isValidAttackTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${isMoverSelected ? 'ring-4 ring-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.7)]' : ''} ${isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''}`}
+      className={`w-24 md:w-36 h-32 md:h-48 rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass} ${isValidAttackTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${isMoverSelected ? 'ring-4 ring-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.7)]' : ''} ${isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''} ${isTacticDragTarget ? 'ring-4 ring-fuchsia-400 shadow-[0_0_30px_rgba(232,121,249,0.75)]' : ''}`}
     >
       {!card && hint && (
         // Simple first-pass "where can this card go" indicator: a green arrow on its
@@ -4994,6 +5240,19 @@ const CardSlot = ({
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
           <X className="w-9 h-9 md:w-11 md:h-11 text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.9)]" strokeWidth={3.5} />
         </div>
+      )}
+      {/* Drag-to-play's own "drop it here" cue for a targetable Tática — a bouncing
+          fuchsia arrow instead of the attack system's green/red so it never reads
+          as an attack prompt. Direction always points down at the card, regardless
+          of which side of the board this slot is on. */}
+      {isTacticDragTarget && (
+        <motion.div
+          animate={{ y: [0, 6, 0] }}
+          transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute -top-7 md:-top-9 left-1/2 -translate-x-1/2 pointer-events-none z-30"
+        >
+          <ArrowDown className="w-7 h-7 md:w-9 md:h-9 text-fuchsia-400 drop-shadow-[0_0_10px_rgba(232,121,249,1)]" strokeWidth={3.5} />
+        </motion.div>
       )}
       {card && !card.isDestroyed && (
         <motion.div
