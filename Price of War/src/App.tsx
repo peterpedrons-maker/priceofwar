@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { X, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass, Sparkles, Shield } from 'lucide-react';
+import { X, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass, Sparkles, Shield, Heart } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
@@ -812,7 +812,13 @@ const HudPanel = ({
   const hpPct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
 
   return (
-    <div className={`fixed left-2 md:left-4 z-[60] flex items-center gap-1.5 md:gap-2 pointer-events-none ${side === 'npc' ? 'top-2 md:top-3' : 'bottom-2 md:bottom-3'}`}>
+    // The player's own hand is a large fan of readable cards anchored to the bottom
+    // edge of the screen, so a panel sitting right at bottom-2/3 ends up tucked in
+    // right where the leftmost card curves down — pushed up well clear of it here
+    // (bottom-24/28). The NPC's hand is just a small stack of face-down backs near
+    // the very top, but it's given the same kind of clearance from top-2/3 for
+    // consistency/future-proofing rather than hugging the corner.
+    <div className={`fixed left-2 md:left-4 z-[60] flex items-center gap-1.5 md:gap-2 pointer-events-none ${side === 'npc' ? 'top-4 md:top-6' : 'bottom-24 md:bottom-28'}`}>
       <div className="w-9 h-9 md:w-12 md:h-12 rounded-full border-2 border-amber-400 bg-gradient-to-b from-zinc-800 to-zinc-950 flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.6)] shrink-0">
         <Shield className="w-4 h-4 md:w-6 md:h-6 text-amber-400" strokeWidth={2} />
       </div>
@@ -824,27 +830,30 @@ const HudPanel = ({
         <div className="px-2 py-0.5 rounded bg-gradient-to-r from-red-950/95 to-red-900/80 border border-red-700/60 text-[8px] md:text-[10px] font-black text-amber-100 uppercase tracking-wide truncate max-w-[110px] md:max-w-[160px]">
           {name}
         </div>
-        <div className="relative w-20 md:w-32 h-2.5 md:h-3.5 rounded-full bg-zinc-950 border border-zinc-700 overflow-hidden">
-          <motion.div
-            className="absolute inset-y-0 left-0 bg-gradient-to-r from-red-700 to-red-400"
-            animate={{ width: `${hpPct}%` }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-          />
-          <span className="absolute inset-0 flex items-center justify-center text-[7px] md:text-[9px] font-black text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
-            {hp} / {maxHp}
-          </span>
-          {damageFlash && (
-            <motion.span
-              key={damageFlash.key}
-              initial={{ opacity: 0, y: 0, scale: 0.7 }}
-              animate={{ opacity: [0, 1, 1, 0], y: -16, scale: 1.1 }}
-              transition={{ duration: 0.9, ease: 'easeOut', opacity: { times: [0, 0.15, 0.7, 1] } }}
-              className="absolute -top-0.5 left-1/2 -translate-x-1/2 text-red-400 font-black text-[10px] whitespace-nowrap pointer-events-none z-20"
-              style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 6px rgba(239,68,68,0.9)' }}
-            >
-              -{damageFlash.amount}
-            </motion.span>
-          )}
+        <div className="flex items-center gap-1">
+          <Heart className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 text-red-500 fill-red-500 shrink-0" />
+          <div className="relative w-20 md:w-32 h-2.5 md:h-3.5 rounded-full bg-zinc-950 border border-zinc-700 overflow-hidden">
+            <motion.div
+              className="absolute inset-y-0 left-0 bg-gradient-to-r from-red-700 to-red-400"
+              animate={{ width: `${hpPct}%` }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+            />
+            <span className="absolute inset-0 flex items-center justify-center text-[7px] md:text-[9px] font-black text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
+              {hp} / {maxHp}
+            </span>
+            {damageFlash && (
+              <motion.span
+                key={damageFlash.key}
+                initial={{ opacity: 0, y: 0, scale: 0.7 }}
+                animate={{ opacity: [0, 1, 1, 0], y: -16, scale: 1.1 }}
+                transition={{ duration: 0.9, ease: 'easeOut', opacity: { times: [0, 0.15, 0.7, 1] } }}
+                className="absolute -top-0.5 left-1/2 -translate-x-1/2 text-red-400 font-black text-[10px] whitespace-nowrap pointer-events-none z-20"
+                style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 6px rgba(239,68,68,0.9)' }}
+              >
+                -{damageFlash.amount}
+              </motion.span>
+            )}
+          </div>
         </div>
       </motion.div>
       <ManaBadge value={mana} className="w-7 h-7 md:w-9 md:h-9 text-[10px] md:text-xs ml-0.5 pointer-events-auto" />
