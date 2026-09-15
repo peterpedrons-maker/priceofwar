@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { Info, X, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass, Sparkles } from 'lucide-react';
+import { X, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass, Sparkles } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
@@ -1234,13 +1234,20 @@ const BOARD_EXTERIOR_ART_URL = boardBattlefieldImage;
 const FIELD_PREVIEW_SCALE = { mobile: 0.95, desktop: 0.95 };
 
 // A single tap on a hand card (still in the hand tray, before any drag starts) used
-// to just nudge it up slightly (scale 1.1) — reading it meant a separate "i" button
-// opening a whole different, much bigger modal. Tapping now does the "make it big
-// enough to read" job itself, at roughly this same scale as the old modal, so the
-// dedicated button/modal round-trip isn't needed anymore: the player can read the
-// card AND immediately drag that same enlarged card onto the board in one motion.
-const HAND_TAP_PREVIEW_SCALE = 1.6;
-const HAND_TAP_PREVIEW_LIFT = -190;
+// to just nudge it up slightly in place (scale 1.1) — reading it meant a separate
+// "i" button opening a whole different, much bigger modal. Tapping now renders a
+// fixed, top-level floating copy at this scale instead (see the "Hand card tap
+// preview" overlay further down) — NOT an in-place enlarge of the real card, which
+// lives inside the hand tray's own transformed stacking context and could end up
+// rendering underneath an already-played board card sitting at the same screen
+// position. A fixed/high-z overlay (the same trick the drag ghost already uses)
+// sidesteps that entirely, and doubles as the thing beginCardDrag can be started
+// from, so dragging this same enlarged copy still plays the card.
+const HAND_TAP_PREVIEW_SCALE = 1.35;
+// Board cards (see the "Board card preview" overlay) get their own, separate,
+// slightly smaller scale — they're read-only previews, never dragged, so there's
+// no ghost/ArrasteParaJogar hint competing for space around them.
+const BOARD_PREVIEW_SCALE = 1.25;
 
 // Hand fan layout: cards spread across a modest total angle, center card slightly raised.
 const FAN_SPREAD_DEG = 26;
@@ -1854,7 +1861,15 @@ export default function App() {
   const [npcGraveyard, setNpcGraveyard] = useState<CardData[]>([]);
 
   const [selectedAttackerIndex, setSelectedAttackerIndex] = useState<number | null>(null);
+  // Board card preview (see the fixed overlay further down) — set from CardSlot's
+  // own onClick now, alongside whatever game action that same tap already performs,
+  // so it needs to clear itself instead of waiting on an explicit close every time.
   const [detailedCard, setDetailedCard] = useState<CardData | null>(null);
+  useEffect(() => {
+    if (!detailedCard) return;
+    const t = window.setTimeout(() => setDetailedCard(null), 2200);
+    return () => clearTimeout(t);
+  }, [detailedCard]);
   // A brief, bigger callout for whichever card was just played — mainly for the
   // opponent's plays, which otherwise happen inside a small board slot that's easy to
   // miss on a phone. Player's own plays already get a large preview during selection.
@@ -4542,10 +4557,13 @@ export default function App() {
                   marginLeft: i === 0 ? 0 : HAND_CARD_STEP - HAND_CARD_WIDTH,
                 }}
                 animate={{
-                  // While this exact card is the one being drag-followed by the floating
-                  // ghost below, it has nothing left to show here — showing both at once
-                  // would read as two copies of the same card on screen.
-                  opacity: dragCard?.index === i ? 0 : viewState === 'field'
+                  // Hidden while drag-followed by the floating ghost below, AND while
+                  // just tap-previewed (see the fixed "Hand card tap preview" overlay
+                  // further down) — both cases have a floating, fixed-position copy of
+                  // this exact card doing the showing instead, so this real element
+                  // (still sitting inside the hand tray's own transformed stacking
+                  // context) would otherwise double up with it on screen.
+                  opacity: (dragCard?.index === i || (isFocused && viewState === 'hand')) ? 0 : viewState === 'field'
                     ? (isFocused ? 1 : 0.4)
                     // Dim every OTHER card in hand, not just the ones after it in the fan —
                     // dimming only "i > selectedCardIndex" left earlier cards sitting at full
@@ -4556,12 +4574,8 @@ export default function App() {
                   // Float the previewed card up near the vertical center of the real screen
                   // instead of sitting down at the hand's normal resting height (see
                   // getSelectedCardY above for how mobile's handScale is compensated for).
-                  y: isFocused
-                    ? (viewState === 'field' ? getSelectedCardY() : HAND_TAP_PREVIEW_LIFT)
-                    : (viewState === 'field' ? (isMobile ? 150 : 150) : getFanLift(i)),
-                  scale: isFocused
-                    ? (viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) : HAND_TAP_PREVIEW_SCALE)
-                    : (viewState === 'field' ? 0.6 : 1),
+                  y: isFocused && viewState === 'field' ? getSelectedCardY() : getFanLift(i),
+                  scale: isFocused && viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) : 1,
                   rotateZ: isFocused || viewState === 'field' ? 0 : getFanRotation(i),
                   zIndex: isFocused ? 150 : i + 1,
                   // boxShadow lives on the front face now (see below), not here: a shadow
@@ -4571,10 +4585,8 @@ export default function App() {
                   // behind the actual (already turning, narrower-looking) card.
                 }}
                 whileHover={{
-                  y: isFocused
-                    ? (viewState === 'field' ? getSelectedCardY() : HAND_TAP_PREVIEW_LIFT)
-                    : viewState === 'field' ? 120 : -20,
-                  scale: isFocused ? (viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) + 0.05 : HAND_TAP_PREVIEW_SCALE + 0.03) : 1.05,
+                  y: isFocused && viewState === 'field' ? getSelectedCardY() : (viewState === 'field' ? 120 : -20),
+                  scale: isFocused && viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) + 0.05 : 1.05,
                 }}
                 whileTap={{ scale: 0.95 }}
                 // A freshly drawn card gets a slower transition, matching the full travel
@@ -4683,20 +4695,10 @@ export default function App() {
                     <div className={`absolute inset-0 rounded-xl border-2 pointer-events-none ${isAmbushCandidate ? 'shadow-[inset_0_0_30px_rgba(239,68,68,0.6)] border-[#ef4444]' : 'shadow-[inset_0_0_30px_rgba(212,175,55,0.6)] border-[#d4af37]'}`} />
                   )}
 
-                  {/* Replaces the old "Jogar Carta" button — playing a card is now a drag
-                      gesture (see beginCardDrag), so a tap here just leaves the card
-                      previewed/readable, with this label as the only hint of what to do
-                      next instead of a tappable control. */}
-                  {selectedCardIndex === i && viewState === 'hand' && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.9 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.9 }}
-                      className="absolute -top-5 left-1/2 -translate-x-1/2 z-40 px-5 py-2 bg-emerald-600/90 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(16,185,129,0.7)] border-2 border-emerald-400 pointer-events-none whitespace-nowrap"
-                    >
-                      Arraste para jogar
-                    </motion.div>
-                  )}
+                  {/* The old "Arraste para jogar" label used to live right here, sitting
+                      on top of the card's own name — moved to the fixed tap-preview
+                      overlay further down (see HAND_TAP_PREVIEW_SCALE), positioned
+                      beside that floating copy instead of on top of the card itself. */}
 
                   {/* Emboscada interrupt — "here's the card, activate it or not?" anchored
                       right on the eligible card itself instead of a separate dialog, so
@@ -4751,6 +4753,59 @@ export default function App() {
           actually played (see handlePlayCardButtonClick, which sets viewState to
           'field' itself), so it was one more thing sitting in the corner without a
           real job, plus it was colliding with the opponent's hand fan up there. */}
+
+      {/* Hand card tap preview — a plain tap on a hand card (see handleCardClick,
+          selectedCardIndex) shows this instead of enlarging the real card in place:
+          a fixed, top-level, always-on-top floating copy, same trick as the drag
+          ghost below. The real hand card fades to opacity 0 for as long as this is
+          up (see its own animate block above). Pointerdown here hands straight into
+          beginCardDrag, so dragging this exact floating copy plays the card same as
+          dragging the real one would — from the player's perspective it's the same
+          card the whole time, just already big enough to read. Only shown while
+          still viewState 'hand' (not mid-drag — dragCard's own ghost takes over the
+          instant a drag actually starts) and not during an Emboscada interrupt
+          (that prompt anchors the real card itself, see isAmbushCandidate above). */}
+      {selectedCardIndex !== null && viewState === 'hand' && !dragCard && !ambushPrompt && hand[selectedCardIndex] && (() => {
+        const card = hand[selectedCardIndex];
+        const w = HAND_CARD_WIDTH * HAND_TAP_PREVIEW_SCALE;
+        const h = HAND_CARD_HEIGHT * HAND_TAP_PREVIEW_SCALE;
+        const centerX = windowSize.width / 2;
+        const centerY = windowSize.height * PREVIEW_Y_FRACTION;
+        return (
+          <div
+            className="fixed z-[260]"
+            style={{ left: centerX - w / 2, top: centerY - h / 2, width: w, height: h }}
+            onPointerDown={(e) => beginCardDrag(selectedCardIndex, e.clientX, e.clientY)}
+            onClick={(e) => { e.stopPropagation(); handleCardClick(selectedCardIndex); }}
+          >
+            <div
+              className="relative w-full h-full rounded-xl"
+              style={{ boxShadow: "inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 100px rgba(212, 175, 55, 0.9)" }}
+            >
+              <CardFace card={card} variant="hand" />
+            </div>
+
+            {/* "Arraste para jogar" — beside/below the card now, never on top of its
+                own name or art. A bouncing arrow does the "drag this way" pointing
+                instead of relying on the text alone. */}
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="absolute left-1/2 -translate-x-1/2 -bottom-3 translate-y-full flex flex-col items-center gap-1.5 pointer-events-none"
+            >
+              <motion.div
+                animate={{ y: [0, -8, 0] }}
+                transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <ArrowUp className="w-7 h-7 text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.9)]" strokeWidth={3} />
+              </motion.div>
+              <div className="px-3 py-1.5 bg-emerald-600/90 rounded-full text-white font-black text-[11px] uppercase tracking-wider shadow-[0_4px_16px_rgba(16,185,129,0.7)] border-2 border-emerald-400 whitespace-nowrap">
+                Arraste para jogar
+              </div>
+            </motion.div>
+          </div>
+        );
+      })()}
 
       {/* Drag-to-play's own floating ghost — the ONLY visible copy of the card being
           dragged (see beginCardDrag; the real hand card's opacity goes to 0 for the
@@ -5166,35 +5221,52 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Detailed Card Modal */}
+      {/* Board card preview — tapping any card already on the board (see CardSlot's
+          root onClick) shows this: the same fixed, always-on-top, non-blocking
+          enlarged copy the hand's own tap-preview uses (see BOARD_PREVIEW_SCALE
+          below), NOT the old full-screen backdrop modal. That modal used to be the
+          only way to read a board card, opened by a dedicated "i" button — since a
+          plain tap now ALSO still does whatever it always did (select an attacker,
+          pick a mover, resolve a Tática target, …), a screen-blocking backdrop here
+          would swallow the very next tap needed to continue that action. This has
+          no backdrop and pointer-events-none on everything but its own close
+          button, so it never intercepts a click meant for the board underneath,
+          and it auto-dismisses on its own after a couple seconds instead of
+          requiring an explicit close every time. */}
       <AnimatePresence>
-        {detailedCard && (
+        {detailedCard && (() => {
+          const w = HAND_CARD_WIDTH * BOARD_PREVIEW_SCALE;
+          const h = HAND_CARD_HEIGHT * BOARD_PREVIEW_SCALE;
+          return (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm pointer-events-auto"
-            onClick={() => setDetailedCard(null)}
+            initial={{ opacity: 0, scale: 0.85 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.85 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="fixed z-[260] pointer-events-none"
+            // Plain pixel left/top instead of left:50%+transform:translate(-50%): once
+            // this element also animates `scale` through Framer Motion, Motion takes
+            // full ownership of the `transform` CSS property and overwrites any
+            // manually-set transform value entirely — a translate(-50%,-50%) written
+            // here would just get silently discarded (this was the actual cause of a
+            // stray build's board-preview landing way off-center).
+            style={{
+              left: windowSize.width / 2 - w / 2, top: windowSize.height * PREVIEW_Y_FRACTION - h / 2,
+              width: w, height: h,
+            }}
           >
-            <motion.div
-              initial={{ scale: 0.8, y: 50 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.8, y: 50 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-sm aspect-[2/3] rounded-2xl flex flex-col p-4 shadow-[0_0_100px_rgba(0,0,0,0.8)]"
+            <div className="relative w-full h-full rounded-xl shadow-[0_0_100px_rgba(0,0,0,0.8),inset_0_0_0_1px_rgba(212,175,55,0.45)]">
+              <CardFace card={detailedCard} variant="hand" />
+            </div>
+            <button
+              onClick={() => setDetailedCard(null)}
+              className="absolute -top-3 -left-3 w-8 h-8 bg-red-600 rounded-full border-2 border-red-900 flex items-center justify-center shadow-lg z-30 hover:bg-red-500 transition-colors pointer-events-auto"
             >
-              <button
-                onClick={() => setDetailedCard(null)}
-                className="absolute -top-4 -left-4 w-10 h-10 bg-red-600 rounded-full border-2 border-red-900 flex items-center justify-center shadow-lg z-30 hover:bg-red-500 transition-colors pointer-events-auto"
-              >
-                <X className="text-white w-6 h-6" />
-              </button>
-
-              <CardFace card={detailedCard} variant="modal" />
-            </motion.div>
+              <X className="text-white w-5 h-5" />
+            </button>
           </motion.div>
-        )}
+          );
+        })()}
       </AnimatePresence>
 
       {/* "Ativar habilidade?" — the General's own Fase-Principal effect, offered
@@ -5347,6 +5419,12 @@ const CardSlot = ({
           e.stopPropagation();
           onClick(e.currentTarget as HTMLElement);
         }
+        // Tapping a card anywhere on the board now shows the same enlarged, readable
+        // preview a hand-card tap does (see the fixed overlay in App) — no more
+        // separate "i" button to hit exactly. Fires alongside whatever onClick above
+        // already does (select an attacker, pick a mover, resolve a Tática target,
+        // …) rather than instead of it, so none of that existing board logic changes.
+        if (card && !card.isDestroyed && onInfoClick) onInfoClick(card);
       }}
       className={`w-24 md:w-36 h-32 md:h-48 rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass} ${isValidAttackTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${isMoverSelected ? 'ring-4 ring-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.7)]' : ''} ${isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''} ${isTacticDragTarget ? 'ring-4 ring-fuchsia-400 shadow-[0_0_30px_rgba(232,121,249,0.75)]' : ''}`}
     >
@@ -5481,17 +5559,9 @@ const CardSlot = ({
             </div>
           ))}
 
-          {/* Info Button */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (onInfoClick) onInfoClick(card);
-            }}
-            className="absolute top-0.5 left-0.5 w-5 h-5 md:w-6 md:h-6 bg-blue-600/90 rounded-full border border-blue-900 flex items-center justify-center shadow-md z-30 hover:bg-blue-500 transition-colors pointer-events-auto"
-          >
-            <Info className="text-white w-3 h-3 md:w-4 md:h-4" />
-          </button>
-
+          {/* No more Info button here — tapping the card itself (see the root
+              onClick above) now shows the same enlarged preview this used to open
+              on its own. */}
           <CardFace card={card} variant="field" />
         </motion.div>
       )}
