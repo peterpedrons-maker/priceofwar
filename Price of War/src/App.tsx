@@ -895,7 +895,18 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
   const v = CARD_FACE_VARIANTS[variant];
   const showStats = !NO_STAT_TYPES.has(card.cardType as CardType);
   return (
-    <>
+    // Everything — art, frame image, and every badge/text box — shares this one
+    // oversized, shifted coordinate space (same trick the Padrão layout below
+    // uses for its own template). The frame's illustration doesn't reach its own
+    // canvas edges — median-sampled off its actual alpha, the real border sits
+    // inset ~4% left/right, ~5.1% top, ~6.9% bottom — so rendering it at a plain
+    // 100%/100% left a visible gap of card-colored nothing (the modal backdrop)
+    // between the border and the card's real edge, on every side. Blowing this
+    // whole layer up by those margins' inverse and recentering makes the actual
+    // border touch the true edges, exactly like the Padrão frame does. Every
+    // child below keeps the plain percentages already measured straight off the
+    // frame image's own raw canvas — they don't change, only this wrapper does.
+    <div className="absolute pointer-events-none" style={{ width: '108.8%', height: '113.7%', top: '50%', left: '50%', transform: 'translate(-50%, -49.1%)' }}>
       <div className="absolute overflow-hidden" style={{ left: '10.2%', top: '15.4%', width: '79.4%', height: '73.4%' }}>
         {card.art ? (
           <img src={card.art} alt={card.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -963,7 +974,7 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
           </>
         )}
       </div>
-    </>
+    </div>
   );
 };
 
