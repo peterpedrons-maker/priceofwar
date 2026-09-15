@@ -36,8 +36,13 @@ impressionistas, e até elementos semi-abstratos (diagramas, símbolos
 brilhantes) dentro de cenas realistas. Pra não ficar tudo com a mesma cara
 de "pintura digital genérica", cada prompt abaixo pede deliberadamente uma
 abordagem diferente, escolhida pelo clima da cena — por exemplo: cenas de
-ação/ataque tendem a pedir estilização gráfica ousada (mais perto da
-energia de uma carta de monstro de Yu-Gi-Oh); cenas noturnas/furtivas
+ação/ataque tendem a pedir estilização gráfica ousada — blocos de cor
+chapada, traço confiante, composição dinâmica em diagonal e contraste de
+luz quente-contra-fria — mais perto da energia de uma carta de monstro de
+Yu-Gi-Oh (foi esse o estilo usado no Jorge, Lança Sagrada Padrão, a arte
+que você achou que ficou com a cara mais profissional de carta de TCG até
+agora, e que vale usar de referência sempre que uma cena de ação/investida
+pedir esse tipo de energia); cenas noturnas/furtivas
 pedem realismo cinematográfico de contraste forte; momentos
 tranquilos/emocionais pedem pincelada solta e impressionista; cartas de
 tática/magia/efeito abstrato pedem uma mistura semi-abstrata com
@@ -782,7 +787,7 @@ teacher. Low golden morning light rakes sideways across the training yard,
 catching dust kicked up from the dirt floor, a stack of spare wooden
 weapons leaning against a fence post in the blurred background. Loose, expressive painterly impressionism with visible confident brushstrokes, closer to classical oil-painting concept art than crisp digital rendering, soft warm
 dawn palette of gold, cream and pale steel blue, intimate low
-ground-level composition, landscape orientation (about 1600×1000px, wider
+ground-level composition built along the mentor's long diagonal shadow, landscape orientation (about 1600×1000px, wider
 than tall), no text, no card frame, no border, no watermark
 ```
 
@@ -835,9 +840,9 @@ wreathed in a faint holy white-gold glow that cuts through the gray rain.
 Rain streaks the whole scene, lightning flashing on the horizon
 silhouetting distant battlements, water droplets caught mid-air around the
 horse's churning legs. Heroic confident pose undimmed by the storm.
-Cinematic, near-photographic chiaroscuro rendering with deep dramatic shadow and razor-sharp highlight, closer to a film still than a painting,
+Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism,
 cool stormy palette of slate gray and rain-blue cut through by the knight's
-own warm white-gold glow, dynamic river-crossing composition, cinematic
+own warm white-gold glow, dynamic diagonal river-crossing composition, cinematic
 medium-wide shot with horse and rider fully visible, landscape orientation
 (about 1600×1000px, wider than tall), no text, no card frame, no border,
 no watermark
@@ -946,8 +951,8 @@ enemy soldiers atop a stone gatehouse. Unlike the trebuchet's tight close-
 up power shot elsewhere in this set, this is a wide, populated battlefield
 vista — mud, tents, spare ammunition stacked in pyramids, banners planted
 in the ground, a whole army's energy captured in one frame. Bright midday
-sun casts short hard shadows. Painterly digital realism in the style of premium Magic: The Gathering card art (Legends of Runeterra splash-art quality), warm palette of gold, wood brown and stone
-gray under bright daylight, dynamic wide vista composition, cinematic wide
+sun casts short hard shadows. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism, warm palette of gold and wood brown cut through by cool stone-gray
+shadow under bright daylight, dynamic diagonal wide vista composition, cinematic wide
 shot, landscape orientation (about 1600×1000px, wider than tall), no text,
 no card frame, no border, no watermark
 ```
@@ -969,8 +974,9 @@ members are visible, small and quiet beside the machine, bracing the frame
 after release — a solitary, moodier scene than the busy daytime siege
 camps elsewhere in this set. Cold silver moonlight defines every edge,
 taut ropes still vibrating from the shot. Semi-abstract illustration blending a grounded realistic scene with glowing geometric/runic diagram elements woven directly into the image, part painting part magical schematic, high-contrast nocturnal palette
-of deep indigo and silver moonlight with a single warm bolt-trail, stark
-silhouette composition, cinematic wide shot, landscape orientation (about
+of deep indigo and silver moonlight with a single warm bolt-trail, dynamic
+diagonal silhouette composition following the bolt's trajectory across the
+moon, cinematic wide shot, landscape orientation (about
 1600×1000px, wider than tall), no text, no card frame, no border, no
 watermark
 ```
@@ -993,7 +999,8 @@ candlelight from a nearby iron candelabra, faint engraved cross motifs on
 the breastplate, old tapestries depicting past crusades hanging on the
 stone wall behind it, dust motes drifting through the candlelight. A
 polished shield leans against the stand's base. Hyperreal macro product-photography-level realism, every material surface rendered with tack-sharp physically-based detail, warm palette of white,
-gold and deep candlelit shadow, intimate interior still-life composition,
+gold and deep candlelit shadow, intimate interior still-life composition
+cut by dramatic diagonal candlelight,
 medium shot with the full armor stand visible, landscape orientation
 (about 1600×1000px, wider than tall), no text, no card frame, no border,
 no watermark
@@ -1016,7 +1023,7 @@ from below — a casual field-camp setting, deliberately different from the
 formal candlelit armory of the heavier armor piece in this set. A
 bedroll and a half-eaten meal sit nearby, implying a soldier just stepped
 away. Hyperreal macro product-photography-level realism, every material surface rendered with tack-sharp physically-based detail, warm palette of campfire orange, steel gray and dusk purple,
-outdoor still-life composition, medium shot with the rack visible,
+outdoor still-life composition lit by dynamic diagonal firelight, medium shot with the rack visible,
 landscape orientation (about 1600×1000px, wider than tall), no text, no
 card frame, no border, no watermark
 ```
@@ -1037,7 +1044,8 @@ curling off the tip and catching a shaft of dim torchlight from one side —
 the poison's own glow acting as a second light source against the
 otherwise near-black background. Fletching feathers rendered in sharp
 individual detail. Hyperreal macro product-photography-level realism, every material surface rendered with tack-sharp physically-based detail, palette of near-black cloth, gold fletching and toxic
-green glow, extreme macro close-up composition, landscape orientation
+green glow, extreme macro close-up composition with the bolt laid on a
+dynamic diagonal across the crossed daggers, landscape orientation
 (about 1600×1000px, wider than tall), no text, no card frame, no border,
 no watermark
 ```
@@ -1058,7 +1066,8 @@ seems to come from within the metal rather than reflected light, dew
 beading on the crossguard, soft mist curling around the base of the blade
 at ground level. Intricate engravings near the guard just catching the
 first sunlight. Hyperreal macro product-photography-level realism, every material surface rendered with tack-sharp physically-based detail, palette of steel, gold and dawn-lit mist, outdoor
-close-up composition (contrasting with the indoor candlelit still-lifes
+close-up composition with the blade driven in on a dynamic diagonal
+(contrasting with the indoor candlelit still-lifes
 elsewhere in this set), landscape orientation (about 1600×1000px, wider
 than tall), no text, no card frame, no border, no watermark
 ```
@@ -1081,7 +1090,8 @@ roof above them, about to spring out to reinforce an ally under attack
 just beyond the chapel's shattered doorway. Ivy creeps over the fallen
 stonework around them, a broken statue of a saint watching over the
 hiding place. Cinematic, near-photographic chiaroscuro rendering with deep dramatic shadow and razor-sharp highlight, closer to a film still than a painting, warm palette of gold light against cool ruined-stone
-shadow, tense interior-ambush composition unlike the open-field ambushes
+shadow, tense interior-ambush composition cut by a dynamic diagonal shaft
+of light, unlike the open-field ambushes
 elsewhere in this set, medium-wide shot with the group visible, landscape
 orientation (about 1600×1000px, wider than tall), no text, no card frame,
 no border, no watermark
@@ -1105,8 +1115,8 @@ if returning to the ranks, a handful of fellow soldiers kneeling in
 reverent awe at the base of the hill, their lanterns the only other light
 source. Rows of simpler grave markers stretch away into the misty dusk
 background, implying this is one of many such graves. Semi-abstract illustration blending a grounded realistic scene with glowing geometric/runic diagram elements woven directly into the image, part painting part magical schematic, warm palette of
-gold and translucent white against deep dusk blue mist, elevated hillside
-composition, medium-wide shot fully visible, landscape orientation (about
+gold and translucent white against deep dusk blue mist, dynamic diagonal
+elevated hillside composition, medium-wide shot fully visible, landscape orientation (about
 1600×1000px, wider than tall), no text, no card frame, no border, no
 watermark
 ```
@@ -1156,7 +1166,7 @@ flight of worn stone steps he's only just descended. Roots and vines have
 grown through cracks in the shrine's ceiling, a single beam of sunlight
 piercing down from above to strike the Grail directly. Dust motes hang
 thick in the shaft of light. Graphic, high-contrast illustrative rendering inspired by illuminated manuscripts and engraved relic art, bold linework over painted color rather than soft photographic shading, warm palette of gold, cream stone and soft
-white light against deep underground shadow, dramatic descending-steps
+white light against deep underground shadow, dramatic diagonal descending-steps
 composition, medium shot fully visible, landscape orientation (about
 1600×1000px, wider than tall), no text, no card frame, no border, no
 watermark
@@ -1179,7 +1189,7 @@ their faces lit from below by the map table's ring of candles. Rolled
 scrolls, an inkwell and a compass rest at the map's corners. Warm
 candlelight is the only light source, deep shadow pooling in the corners
 of the tent. Painterly digital realism in the style of premium Magic: The Gathering card art (Legends of Runeterra splash-art quality), warm palette of amber candlelight, parchment cream and
-gold, elevated interior composition, medium-wide shot fully visible,
+gold, dynamic diagonal elevated interior composition, medium-wide shot fully visible,
 landscape orientation (about 1600×1000px, wider than tall), no text, no
 card frame, no border, no watermark
 ```
@@ -1199,7 +1209,7 @@ them casting alternating pools of warm light and shadow down the line,
 stopping to point decisively at one specific soldier who straightens with
 pride as the torchlight catches him. The rest of the line stands in
 disciplined shadow, waiting. Cinematic, near-photographic chiaroscuro rendering with deep dramatic shadow and razor-sharp highlight, closer to a film still than a painting, high-contrast palette of torch-gold pools
-against deep night shadow, dramatic repeating-light composition down the
+against deep night shadow, dynamic diagonal repeating-light composition down the
 line, medium-wide shot fully visible, landscape orientation (about
 1600×1000px, wider than tall), no text, no card frame, no border, no
 watermark
@@ -1220,7 +1230,7 @@ their boots, closely comparing two of them side by side with a critical
 eye while the rest wait calmly in the mist behind. Pale gold dawn light
 breaks low across the field, throwing long thin shadows across the wet
 grass. Loose, expressive painterly impressionism with visible confident brushstrokes, closer to classical oil-painting concept art than crisp digital rendering, warm palette of gold, white and pale misty blue, atmospheric
-low-mist dawn composition, medium-wide shot fully visible, landscape
+low-mist dawn composition cut by long diagonal shadows, medium-wide shot fully visible, landscape
 orientation (about 1600×1000px, wider than tall), no text, no card frame,
 no border, no watermark
 ```
@@ -1241,7 +1251,7 @@ coins onto the desk, a small cross pendant swinging from his neck as he
 leans forward. A single candle in a dish throws warm flickering light
 across the coins, making them glint individually. Hyperreal macro product-photography-level realism, every material surface rendered with tack-sharp physically-based detail, warm palette of gold
 coin shine, candle amber and worn wood brown, intimate cluttered-desk
-composition, medium shot fully visible, landscape orientation (about
+composition lit by a dynamic diagonal candle beam, medium shot fully visible, landscape orientation (about
 1600×1000px, wider than tall), no text, no card frame, no border, no
 watermark
 ```
@@ -1264,7 +1274,7 @@ architecture of the town — narrow streets, tiled roofs, a small chapel bell
 tower — frames the gathering from above, giving a genuine sense of a whole
 town answering a call, distinct from the smaller, close-up group scenes
 elsewhere in this set. Painterly digital realism in the style of premium Magic: The Gathering card art (Legends of Runeterra splash-art quality), warm palette of gold, torch-orange and dusky
-blue-violet sky, dramatic elevated wide-vista composition, landscape
+blue-violet sky, dynamic diagonal elevated wide-vista composition converging on the banner, landscape
 orientation (about 1600×1000px, wider than tall), no text, no card frame,
 no border, no watermark
 ```
