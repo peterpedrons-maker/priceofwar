@@ -897,11 +897,20 @@ const FitEffectText = ({ text, className, style }: { text: string, className?: s
 // runs noticeably smaller type, since the plate itself sits over the art
 // rather than getting its own dedicated card real estate.
 const FULL_ART_PLATE_VARIANTS = {
-  hand:  { type: 'text-xs',                          effect: 'text-sm' },
-  field: { type: 'text-[6px] md:text-[7px]',          effect: 'text-[6px] md:text-[7px]' },
-  modal: { type: 'text-base',                         effect: 'text-lg' },
-  popup: { type: 'text-[9px] md:text-[10px]',         effect: 'text-[10px] md:text-[11px]' },
+  hand:  { type: 'text-[10px]',                       effect: 'text-xs' },
+  field: { type: 'text-[5px] md:text-[6px]',          effect: 'text-[5px] md:text-[6px]' },
+  modal: { type: 'text-sm',                           effect: 'text-base' },
+  popup: { type: 'text-[8px] md:text-[9px]',          effect: 'text-[9px] md:text-[10px]' },
 } as const;
+
+// The plate's hexagon: flat top (full width), straight sides down to 64% of
+// its own height, then a diagonal taper into a narrower flat bottom. Pixel-
+// measured off the frame: the shields' own star ornaments flare inward from
+// outside the plate's top width, first crossing x=12%/88% around y=74-76%
+// card-relative and reaching x=27%/73% by y=82% — so the plate has to have
+// narrowed to that same 20%-80% span by its own bottom or those points
+// poke out from behind the numbers instead of sitting under the plate.
+const FULL_ART_PLATE_CLIP = 'polygon(0% 0%, 100% 0%, 100% 64%, 80% 100%, 20% 100%, 0% 64%)';
 
 const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof typeof CARD_FACE_VARIANTS }) => {
   const v = CARD_FACE_VARIANTS[variant];
@@ -941,29 +950,44 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
           />
         </div>
 
-        {/* Type + effect plate — drawn over the art's lower third (inset from the
-            window's own edges so it never overlaps the frame's gold border), not
-            part of the frame image itself. Bottom pinned to 73%, well clear of
-            the shields (their top edge measures ~77% on this frame), plus a
-            thin gold outline and a lighter fill — both matched to the
-            reference mockup instead of the first pass's much darker, taller,
-            bigger-text version. */}
+        {/* Type + effect plate — drawn over the art's lower area, not part of
+            the frame image itself. A plain rectangle here would either sit
+            too high to look intentional or, moved down where there's room,
+            get its bottom corners poked through by the shields' own star
+            ornaments (they flare in past the plate's sides starting around
+            76% down the card — see FULL_ART_PLATE_CLIP above). Hexagonal
+            chamfer routes around them instead. The gold outline is a second,
+            slightly larger copy of the same hexagon behind the fill, since
+            a CSS border doesn't follow a clip-path's cut corners. */}
         {card.effect && (
-          <div className="absolute flex flex-col items-center px-3 pt-1.5 pb-1" style={{ left: '12%', right: '12%', top: '55%', height: '18%', background: 'linear-gradient(to bottom, rgba(15,12,6,0.42), rgba(10,8,4,0.6) 35%, rgba(8,6,3,0.68))', border: '1px solid rgba(201,162,39,0.55)' }}>
-            {card.cardType && (
-              <>
-                <span className={`${pv.type} font-black uppercase tracking-widest shrink-0`} style={{ fontFamily: "'Cinzel', serif", color: '#e9d8a6' }}>
-                  {card.cardType}
-                </span>
-                <div className="w-2/3 h-px shrink-0 my-1" style={{ background: 'rgba(201,162,39,0.6)' }} />
-              </>
-            )}
-            <div className="flex-1 w-full min-h-0">
-              <FitEffectText
-                text={card.effect}
-                className={`${pv.effect} italic text-center leading-tight`}
-                style={{ fontFamily: "'Crimson Pro', serif", color: '#f3e6c8' }}
-              />
+          <div className="absolute" style={{ left: '11%', right: '11%', top: '62%', height: '21%' }}>
+            <div className="absolute inset-0" style={{ background: 'rgba(201,162,39,0.6)', clipPath: FULL_ART_PLATE_CLIP }} />
+            <div
+              className="absolute flex flex-col items-center pt-1.5 pb-1"
+              style={{ top: '1.5px', left: '1.5px', right: '1.5px', bottom: '1.5px', background: 'linear-gradient(to bottom, rgba(15,12,6,0.42), rgba(10,8,4,0.6) 35%, rgba(8,6,3,0.68))', clipPath: FULL_ART_PLATE_CLIP }}
+            >
+              {/* Text column stays narrower than the plate itself (matching the
+                  chamfer's own narrowest point) so a wrapped line never reaches
+                  into the cut corners at any height — the taper starts well
+                  above the text area, so a column as wide as the plate itself
+                  would still get its edges clipped away near the bottom. */}
+              <div className="flex flex-col items-center h-full" style={{ width: '60%' }}>
+                {card.cardType && (
+                  <>
+                    <span className={`${pv.type} font-black uppercase tracking-widest shrink-0`} style={{ fontFamily: "'Cinzel', serif", color: '#e9d8a6' }}>
+                      {card.cardType}
+                    </span>
+                    <div className="w-2/3 h-px shrink-0 my-1" style={{ background: 'rgba(201,162,39,0.6)' }} />
+                  </>
+                )}
+                <div className="flex-1 w-full min-h-0">
+                  <FitEffectText
+                    text={card.effect}
+                    className={`${pv.effect} italic text-center leading-tight`}
+                    style={{ fontFamily: "'Crimson Pro', serif", color: '#f3e6c8' }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         )}
