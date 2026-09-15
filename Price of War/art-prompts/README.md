@@ -768,37 +768,7 @@ da Padrão: Jorge, Lança Sagrada, Nobre da Cruzada, Cavaleiro da Luz, Comandant
 da Ordem, Trabuco de Cerco, Retorno do Soldado — critério nos comentários originais
 mantido (estatística/raridade/impacto na estratégia).
 
-### Cavalaria
-
-#### 5.10b. Jorge, Lança Sagrada — Full Art
-
-**Carta:** a mesma acima · **Estilo:** Full Art · **Status:** pronto pra
-gerar
-
-```
-TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic Magic: The Gathering-quality fantasy
-trading-card full-art illustration of the same heroic knight lancer
-inspired by Saint George, but a completely different quiet moment than
-his battlefield charge: standing dismounted and still atop a windswept
-hilltop at sunrise, his lance driven point-down into the earth beside him,
-one gauntleted hand resting on the massive bleached skull of a slain
-dragon half-buried in the grass at his feet — the legend's aftermath, not
-its action. His white-and-gold armor and cape are calm and undisturbed by
-wind for once, catching the soft pink-gold light of dawn. His warhorse
-grazes peacefully a short distance behind him. Layered depth composition:
-the knight and dragon skull sharp in the foreground filling most of the
-vertical frame, his resting horse in the midground, a vast, peaceful
-sunrise valley stretching out below the hilltop in the background.
-Drifting mist rises from the valley floor between the depth layers.
-Extremely detailed rendering — engraved filigree in the armor, weathered
-bone texture on the massive skull, dew on the grass, soft specular
-highlights on polished gold. Loose, expressive painterly impressionism with visible confident brushstrokes, closer to classical oil-painting concept art than crisp digital rendering. Rich palette of soft dawn pink, gold and
-white, powerful sense of quiet triumph and legend, composition designed to
-fill a tall card frame edge-to-edge with no empty margins at top or
-bottom, no text, no card frame, no border, no watermark
-```
-
----
+Todas as artes deste baralho já foram entregues.
 
 ## Deck Capitão
 

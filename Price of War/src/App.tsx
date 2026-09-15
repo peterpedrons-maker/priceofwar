@@ -17,7 +17,6 @@ import espiaoSabotadorArt from './assets/card-espiao-sabotador.webp';
 import soldadoFanaticoArt from './assets/card-soldado-fanatico.webp';
 import vigiaDeMantimentosArt from './assets/card-vigia-de-mantimentos.webp';
 import infantariaTreinadaArt from './assets/card-infantaria-treinada.webp';
-import jorgeOLanceiroArt from './assets/card-jorge-o-lanceiro.webp';
 import hospitalarioArt from './assets/card-hospitalario.webp';
 import arqueiroProfissionalArt from './assets/card-arqueiro-profissional.webp';
 import atiradorInfluenteArt from './assets/card-atirador-influente.webp';
@@ -42,6 +41,7 @@ import tributoDeGuerraArt from './assets/card-tributo-de-guerra.webp';
 import chamadoAsArmasArt from './assets/card-chamado-as-armas.webp';
 import recrutaDevotoArt from './assets/card-recruta-devoto.webp';
 import cavaleiroDaLuzFullArt from './assets/card-cavaleiro-da-luz-full.webp';
+import jorgeOLanceiroFullArt from './assets/card-jorge-o-lanceiro-full.webp';
 
 export type CardType = 'Infantaria' | 'Cavalaria' | 'Arqueiro' | 'Artilharia' | 'General' | 'Relíquia' | 'Terreno' | 'Tática' | 'Emboscada';
 
@@ -1235,7 +1235,9 @@ const DECK_CARDEAL: CardData[] = [
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_inf_treinada_${i}`, name: 'Soldados da Ordem', atk: 3, hp: 5, cost: 2, art: infantariaTreinadaArt, effect: '—', cardType: 'Infantaria' })),
 
   // Cavaleiros
-  ...Array(3).fill(null).map((_, i): CardData => ({ id: `cardeal_jorge_${i}`, name: 'Jorge, Lança Sagrada', atk: 4, hp: 6, cost: 3, art: jorgeOLanceiroArt, effect: 'Ao atacar a Vanguarda: causa 2 de dano à unidade na Retaguarda da mesma coluna.', cardType: 'Cavalaria' })),
+  // Same Full Art testing swap as Nobre da Cruzada/Comandante da Ordem/Cavaleiro
+  // da Luz/Trabuco de Cerco/Retorno do Soldado above.
+  ...Array(3).fill(null).map((_, i): CardData => ({ id: `cardeal_jorge_${i}`, name: 'Jorge, Lança Sagrada', atk: 4, hp: 6, cost: 3, art: jorgeOLanceiroFullArt, isFullArt: true, effect: 'Ao atacar a Vanguarda: causa 2 de dano à unidade na Retaguarda da mesma coluna.', cardType: 'Cavalaria' })),
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_hosp_${i}`, name: 'Cavaleiro Hospitalário', atk: 2, hp: 4, cost: 2, art: hospitalarioArt, effect: 'Uma vez por turno: cure 1 HP de um aliado e cause 1 de dano a um inimigo na Vanguarda.', cardType: 'Cavalaria' })),
   // Testing the Full Art print for this card (see CardFaceFullArt) instead of its
   // Padrão one now that both exist — once boosters exist this becomes a real
