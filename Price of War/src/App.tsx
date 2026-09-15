@@ -114,13 +114,14 @@ export type CardData = {
 //   11   = slot especial de Terreno (ao lado do General)
 //   12   = General (fixo, colocado no início da partida — não vem da mão)
 
-export type SlotHint = 'primary' | 'secondary' | 'invalid';
+export type SlotHint = 'valid' | 'invalid';
 
-// Where a given card type can go, for the "where can I play this" indicators shown
-// while a card is being placed. 'primary' = its efficient spot, 'secondary' = allowed
-// but not ideal, 'invalid' = can't go there at all. This is a simple first pass —
-// most types just care about Vanguarda vs Retaguarda for now; per-type nuance (e.g.
-// archers preferring the backline) can refine this later.
+// Whether a given card type can go in a given slot, for the single drop-target
+// indicator shown on whichever slot is currently under the finger while dragging
+// (see dragHoverSlot/getPlayerSlotHint) — Vanguarda and Retaguarda count the same
+// here on purpose: any creature can be placed in either, the difference between
+// them (only Vanguarda can attack) is a combat rule, not a placement rule, so it
+// has no business being color-coded at drop time.
 const getSlotHint = (cardType: CardType | undefined, slotIndex: number): SlotHint => {
   if (slotIndex === 12) return 'invalid'; // General slot is fixed, never playable from hand
   // Emboscada cards only resolve via the ambush interrupt (see maybeActivatePlayerAmbush)
@@ -129,9 +130,9 @@ const getSlotHint = (cardType: CardType | undefined, slotIndex: number): SlotHin
   if (cardType === 'Emboscada' || cardType === 'Tática') return 'invalid';
   const isSpecialSlot = slotIndex === 10 || slotIndex === 11; // beside the General: Relíquia/Terreno only
   const isFieldOnlyCard = cardType === 'Relíquia' || cardType === 'Terreno';
-  if (isSpecialSlot) return isFieldOnlyCard ? 'primary' : 'invalid';
+  if (isSpecialSlot) return isFieldOnlyCard ? 'valid' : 'invalid';
   if (isFieldOnlyCard) return 'invalid';
-  return slotIndex <= 4 ? 'primary' : 'secondary'; // Vanguarda (efficient) vs Retaguarda (less efficient)
+  return 'valid';
 };
 
 // Lane-based combat targeting — ported from an earlier, fully-art version of this
@@ -3821,11 +3822,15 @@ export default function App() {
     return baseAnim;
   };
 
-  // While the player is picking a slot for a previewed card, show a hint on every
-  // empty slot of their own field for where that card type can (and can't) go.
+  // While dragging a card toward an empty slot, show a hint ONLY on the exact
+  // slot currently under the finger (dragHoverSlot) — not on every empty slot at
+  // once. Hearthstone-style: the arrow/X only appears where you're actually
+  // pointing right now, not as a standing map of every legal destination.
   const previewedCard = viewState === 'field' && selectedCardIndex !== null ? hand[selectedCardIndex] : null;
   const getPlayerSlotHint = (slotIndex: number): SlotHint | undefined =>
-    previewedCard && !playerSlots[slotIndex] ? getSlotHint(previewedCard.cardType, slotIndex) : undefined;
+    previewedCard && !playerSlots[slotIndex] && dragHoverSlot?.side === 'own' && dragHoverSlot.index === slotIndex
+      ? getSlotHint(previewedCard.cardType, slotIndex)
+      : undefined;
 
   // Drag-to-play's own highlight for a targetable Tática (equip/buff/damage) being
   // dragged — the 'place' kind (plain creatures/Relíquia/Terreno) already gets its
@@ -5190,11 +5195,9 @@ const CardSlot = ({
 
   const hintClass = hint === 'invalid'
     ? 'border-red-500/60 bg-red-950/30'
-    : hint === 'primary'
+    : hint === 'valid'
       ? 'border-emerald-400/70 bg-emerald-500/10 shadow-[0_0_25px_rgba(52,211,153,0.5)]'
-      : hint === 'secondary'
-        ? 'border-amber-400/60 bg-amber-500/10 shadow-[0_0_18px_rgba(251,191,36,0.4)]'
-        : '';
+      : '';
 
   return (
     <motion.div
@@ -5208,13 +5211,16 @@ const CardSlot = ({
       className={`w-24 md:w-36 h-32 md:h-48 rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass} ${isValidAttackTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${isMoverSelected ? 'ring-4 ring-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.7)]' : ''} ${isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''} ${isTacticDragTarget ? 'ring-4 ring-fuchsia-400 shadow-[0_0_30px_rgba(232,121,249,0.75)]' : ''}`}
     >
       {!card && hint && (
-        // Simple first-pass "where can this card go" indicator: a green arrow on its
-        // efficient spot, a dimmer amber arrow where it's allowed but not ideal, and a
-        // red X where it can't be placed at all. Can grow more nuanced per card type later.
+        // Drag-to-play's drop indicator on the ONE slot currently under the finger
+        // (see getPlayerSlotHint) — a bouncing green arrow if a card can land here,
+        // a red X if it can't (wrong slot type, e.g. Relíquia/Terreno's own special
+        // slots). Vanguarda and Retaguarda show the exact same green arrow — which
+        // row a creature ends up in only matters for combat later (see isFrontline),
+        // not for whether it can be placed there at all.
         <>
           {hint === 'invalid' ? (
             <X className="w-8 h-8 md:w-10 md:h-10 text-red-500/80 pointer-events-none" strokeWidth={3} />
-          ) : hint === 'primary' ? (
+          ) : (
             <motion.div
               animate={{ y: [0, -6, 0] }}
               transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
@@ -5222,8 +5228,6 @@ const CardSlot = ({
             >
               <ArrowUp className="w-8 h-8 md:w-10 md:h-10 text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.9)]" strokeWidth={3} />
             </motion.div>
-          ) : (
-            <ArrowUp className="w-7 h-7 md:w-8 md:h-8 text-amber-400/80 pointer-events-none" strokeWidth={3} />
           )}
         </>
       )}
