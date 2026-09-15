@@ -10,6 +10,18 @@ import cardTemplateImage from './assets/card-template.webp';
 import cardTemplateSilverImage from './assets/card-template-silver.webp';
 import cardTemplateChampagneImage from './assets/card-template-champagne.webp';
 import cardBackplateImage from './assets/card-backplate.webp';
+import multidaoDeFieisArt from './assets/card-multidao-de-fieis.webp';
+import comercianteDasCruzadasArt from './assets/card-comerciante-das-cruzadas.webp';
+import espiaoSabotadorArt from './assets/card-espiao-sabotador.webp';
+import soldadoFanaticoArt from './assets/card-soldado-fanatico.webp';
+import vigiaDeMantimentosArt from './assets/card-vigia-de-mantimentos.webp';
+import infantariaTreinadaArt from './assets/card-infantaria-treinada.webp';
+import jorgeOLanceiroArt from './assets/card-jorge-o-lanceiro.webp';
+import hospitalarioArt from './assets/card-hospitalario.webp';
+import nobreReligiosoArt from './assets/card-nobre-religioso.webp';
+import liderDeEsquadraoArt from './assets/card-lider-de-esquadrao.webp';
+import arqueiroProfissionalArt from './assets/card-arqueiro-profissional.webp';
+import atiradorInfluenteArt from './assets/card-atirador-influente.webp';
 
 export type CardType = 'Infantaria' | 'Cavalaria' | 'Arqueiro' | 'Artilharia' | 'General' | 'Relíquia' | 'Terreno' | 'Tática' | 'Emboscada';
 
@@ -1032,26 +1044,26 @@ const DECK_CARDEAL: CardData[] = [
   { id: 'cardeal_relic', name: 'Cálice da Vida', atk: 0, hp: 5, cost: 3, art: '', effect: 'Permanente. Permite que o General Cardeal Pedro use sua habilidade duas vezes por turno.', cardType: 'Relíquia', isFullArt: true },
 
   // Plebeus → Infantaria
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `cardeal_fiel_${i}`, name: 'Multidão de Fiéis', atk: 0, hp: 3, cost: 1, art: '', effect: '—', cardType: 'Infantaria' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_comerciante_${i}`, name: 'Comerciante das Cruzadas', atk: 1, hp: 1, cost: 1, art: '', effect: 'Uma vez por turno: veja as 2 cartas do topo do deck. Adicione 1 à mão e coloque a outra no fundo.', cardType: 'Infantaria' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `cardeal_fiel_${i}`, name: 'Multidão de Fiéis', atk: 0, hp: 3, cost: 1, art: multidaoDeFieisArt, effect: '—', cardType: 'Infantaria' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_comerciante_${i}`, name: 'Comerciante das Cruzadas', atk: 1, hp: 1, cost: 1, art: comercianteDasCruzadasArt, effect: 'Uma vez por turno: veja as 2 cartas do topo do deck. Adicione 1 à mão e coloque a outra no fundo.', cardType: 'Infantaria' })),
 
   // Infantaria
-  { id: 'cardeal_espiao', name: 'Espião Sabotador', atk: 1, hp: 2, cost: 1, art: '', effect: 'Na Vanguarda: impede Emboscadas inimigas. Se o General aliado receber dano, no próximo turno não poderá usar sua habilidade.', cardType: 'Infantaria' },
-  { id: 'cardeal_fanatico', name: 'Soldado Fanático', atk: 1, hp: 2, cost: 1, art: '', effect: 'Ao atacar: se o General inimigo for de tipo oposto, ganha +2 ATK.', cardType: 'Infantaria' },
+  { id: 'cardeal_espiao', name: 'Espião Sabotador', atk: 1, hp: 2, cost: 1, art: espiaoSabotadorArt, effect: 'Na Vanguarda: impede Emboscadas inimigas. Se o General aliado receber dano, no próximo turno não poderá usar sua habilidade.', cardType: 'Infantaria' },
+  { id: 'cardeal_fanatico', name: 'Soldado Fanático', atk: 1, hp: 2, cost: 1, art: soldadoFanaticoArt, effect: 'Ao atacar: se o General inimigo for de tipo oposto, ganha +2 ATK.', cardType: 'Infantaria' },
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_aprendiz_${i}`, name: 'Aprendiz de Infantaria', atk: 0, hp: 2, cost: 1, art: '', effect: 'Ao ser curado: recebe +1 ATK permanente.', cardType: 'Infantaria' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_vigia_${i}`, name: 'Vigia de Mantimentos', atk: 2, hp: 3, cost: 2, art: '', effect: 'Uma vez por turno: se você tiver menos de 2 cartas na mão, compre até ficar com 2.', cardType: 'Infantaria' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_inf_treinada_${i}`, name: 'Infantaria Treinada', atk: 3, hp: 5, cost: 2, art: '', effect: '—', cardType: 'Infantaria' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_vigia_${i}`, name: 'Vigia de Mantimentos', atk: 2, hp: 3, cost: 2, art: vigiaDeMantimentosArt, effect: 'Uma vez por turno: se você tiver menos de 2 cartas na mão, compre até ficar com 2.', cardType: 'Infantaria' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_inf_treinada_${i}`, name: 'Infantaria Treinada', atk: 3, hp: 5, cost: 2, art: infantariaTreinadaArt, effect: '—', cardType: 'Infantaria' })),
 
   // Cavaleiros
-  ...Array(3).fill(null).map((_, i): CardData => ({ id: `cardeal_jorge_${i}`, name: 'Jorge, o Lanceiro', atk: 4, hp: 6, cost: 3, art: '', effect: 'Ao atacar a Vanguarda: causa 2 de dano à unidade na Retaguarda da mesma coluna.', cardType: 'Cavalaria' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_hosp_${i}`, name: 'Hospitalário', atk: 2, hp: 4, cost: 2, art: '', effect: 'Uma vez por turno: cure 1 HP de um aliado e cause 1 de dano a um inimigo na Vanguarda.', cardType: 'Cavalaria' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_nobre_${i}`, name: 'Nobre Religioso', atk: 4, hp: 5, cost: 3, art: '', effect: 'Ao entrar em campo: invoca Soldados Leais (1 ATK / 2 HP) nos slots adjacentes livres da mesma fileira.', cardType: 'Cavalaria' })),
+  ...Array(3).fill(null).map((_, i): CardData => ({ id: `cardeal_jorge_${i}`, name: 'Jorge, o Lanceiro', atk: 4, hp: 6, cost: 3, art: jorgeOLanceiroArt, effect: 'Ao atacar a Vanguarda: causa 2 de dano à unidade na Retaguarda da mesma coluna.', cardType: 'Cavalaria' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_hosp_${i}`, name: 'Hospitalário', atk: 2, hp: 4, cost: 2, art: hospitalarioArt, effect: 'Uma vez por turno: cure 1 HP de um aliado e cause 1 de dano a um inimigo na Vanguarda.', cardType: 'Cavalaria' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_nobre_${i}`, name: 'Nobre Religioso', atk: 4, hp: 5, cost: 3, art: nobreReligiosoArt, effect: 'Ao entrar em campo: invoca Soldados Leais (1 ATK / 2 HP) nos slots adjacentes livres da mesma fileira.', cardType: 'Cavalaria' })),
   ...Array(4).fill(null).map((_, i): CardData => ({ id: `cardeal_cavaleiro_${i}`, name: 'Cavaleiro Branco', atk: 5, hp: 7, cost: 3, art: '', effect: '—', cardType: 'Cavalaria' })),
-  { id: 'cardeal_lider', name: 'Líder de Esquadrão', atk: 5, hp: 5, cost: 3, art: '', effect: 'Na Vanguarda: Infantaria e Arqueiros aliados ganham +1 ATK e +1 HP durante o combate.', cardType: 'Cavalaria' },
+  { id: 'cardeal_lider', name: 'Líder de Esquadrão', atk: 5, hp: 5, cost: 3, art: liderDeEsquadraoArt, effect: 'Na Vanguarda: Infantaria e Arqueiros aliados ganham +1 ATK e +1 HP durante o combate.', cardType: 'Cavalaria' },
 
   // Arqueiros
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_arq_pro_${i}`, name: 'Arqueiro Profissional', atk: 1, hp: 4, cost: 2, art: '', effect: 'Pode atacar duas vezes por rodada.', cardType: 'Arqueiro' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_atirador_${i}`, name: 'Atirador Influente', atk: 1, hp: 3, cost: 2, art: '', effect: 'Ao ir ao cemitério: compre 3 cartas.', cardType: 'Arqueiro' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_arq_pro_${i}`, name: 'Arqueiro Profissional', atk: 1, hp: 4, cost: 2, art: arqueiroProfissionalArt, effect: 'Pode atacar duas vezes por rodada.', cardType: 'Arqueiro' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_atirador_${i}`, name: 'Atirador Influente', atk: 1, hp: 3, cost: 2, art: atiradorInfluenteArt, effect: 'Ao ir ao cemitério: compre 3 cartas.', cardType: 'Arqueiro' })),
 
   // Táticas de dano
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_trabuco_${i}`, name: 'Trabuco', atk: 0, hp: 0, cost: 3, art: '', effect: 'Causa 2 de dano a TODAS as unidades inimigas.', cardType: 'Tática' })),
