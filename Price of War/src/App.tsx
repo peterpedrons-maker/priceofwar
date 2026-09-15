@@ -63,13 +63,25 @@ const ALL_PRELOAD_IMAGES: string[] = [
   recrutaDevotoArt, cavaleiroDaLuzFullArt, jorgeOLanceiroFullArt,
 ];
 
+// How long a newly drawn card takes to travel from the deck and flip face-up in
+// hand (see the flying-card motion.div's own transition, further down) — shared
+// at module level so playCardDrawSfx (below) can delay its cue to match, instead
+// of firing the instant the draw is logically resolved, well before the card is
+// actually visible.
+const DRAW_FLIGHT_MS = 750;
+
 // One-shot SFX helper — a fresh Audio() per call (rather than one shared/reused
 // element) so overlapping draws (e.g. Recrutar Veteranos drawing several cards at
 // once) each get their own independent playback instead of cutting each other off.
+// Delayed by the same duration as the draw's own flight animation so the sound
+// lands when the card actually arrives in hand, not the instant it's dealt off
+// the deck — otherwise it reads as playing before the player has drawn anything.
 const playCardDrawSfx = () => {
-  const audio = new Audio(cardDrawSfxUrl);
-  audio.volume = 0.6;
-  audio.play().catch(() => {});
+  window.setTimeout(() => {
+    const audio = new Audio(cardDrawSfxUrl);
+    audio.volume = 0.6;
+    audio.play().catch(() => {});
+  }, DRAW_FLIGHT_MS);
 };
 
 export type CardType = 'Infantaria' | 'Cavalaria' | 'Arqueiro' | 'Artilharia' | 'General' | 'Relíquia' | 'Terreno' | 'Tática' | 'Emboscada';
@@ -833,10 +845,13 @@ const CardBack = ({ offset = 0, brightness = 1, shadow = false }: {
 // card-template.webp / card-backplate.webp) — the template image and these
 // coordinates are a matched pair, not independently adjustable.
 const CARD_FACE_VARIANTS = {
-  hand:  { name: 'text-lg',                    effect: 'text-[13px]',              type: 'text-[13px]',              stat: 'text-2xl' },
-  field: { name: 'text-[8px] md:text-[10px]',  effect: 'text-[6px] md:text-[7px]', type: 'text-[7px] md:text-[9px]', stat: 'text-xs md:text-base' },
-  modal: { name: 'text-2xl',                   effect: 'text-lg',                 type: 'text-lg',                  stat: 'text-3xl' },
-  popup: { name: 'text-xs md:text-sm',         effect: 'text-[9px] md:text-[10px]', type: 'text-[9px] md:text-[11px]', stat: 'text-sm md:text-base' },
+  // combatStat is ATK/HP only — kept separate from stat (cost) so the board's tiny
+  // combat numbers can be bumped up for readability without also inflating the gold
+  // cost badge, which was never the part users said was hard to read.
+  hand:  { name: 'text-lg',                    effect: 'text-[13px]',              type: 'text-[13px]',              stat: 'text-2xl',          combatStat: 'text-2xl' },
+  field: { name: 'text-[8px] md:text-[10px]',  effect: 'text-[6px] md:text-[7px]', type: 'text-[7px] md:text-[9px]', stat: 'text-xs md:text-base', combatStat: 'text-base md:text-2xl' },
+  modal: { name: 'text-2xl',                   effect: 'text-lg',                 type: 'text-lg',                  stat: 'text-3xl',          combatStat: 'text-3xl' },
+  popup: { name: 'text-xs md:text-sm',         effect: 'text-[9px] md:text-[10px]', type: 'text-[9px] md:text-[11px]', stat: 'text-sm md:text-base', combatStat: 'text-sm md:text-base' },
 } as const;
 
 // Which physical card-stock a type is printed on. The gold frame has the
@@ -1092,10 +1107,10 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
         {showStats && (
           <>
             <div className="absolute flex items-center justify-center" style={{ left: '16%', top: '85.7%', width: '14%', height: '11%', transform: 'translate(-50%, -50%)' }}>
-              <GoldNumber value={card.atk} className={v.stat} />
+              <GoldNumber value={card.atk} className={v.combatStat} />
             </div>
             <div className="absolute flex items-center justify-center" style={{ left: '84%', top: '85.7%', width: '14%', height: '11%', transform: 'translate(-50%, -50%)' }}>
-              <GoldNumber value={card.hp} className={v.stat} />
+              <GoldNumber value={card.hp} className={v.combatStat} />
             </div>
           </>
         )}
@@ -1189,10 +1204,10 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
         {showStats && (
           <>
             <div className="absolute flex items-center justify-center" style={{ left: '1%', bottom: '-2%', width: '20%', height: '13%' }}>
-              <GoldNumber value={card.atk} className={v.stat} />
+              <GoldNumber value={card.atk} className={v.combatStat} />
             </div>
             <div className="absolute flex items-center justify-center" style={{ right: '0%', bottom: '-2%', width: '20%', height: '13%' }}>
-              <GoldNumber value={card.hp} className={v.stat} />
+              <GoldNumber value={card.hp} className={v.combatStat} />
             </div>
           </>
         )}
@@ -1233,11 +1248,15 @@ const HAND_CARD_STEP = HAND_CARD_WIDTH * 0.5;
 const DRAG_GHOST_SCALE = 0.42;
 const DRAG_GHOST_W = HAND_CARD_WIDTH * DRAG_GHOST_SCALE;
 const DRAG_GHOST_H = HAND_CARD_HEIGHT * DRAG_GHOST_SCALE;
-const DRAG_GHOST_GAP = 14; // px gap between the ghost's right edge and the pointer
-const dragGhostCenter = (pointerX: number, pointerY: number) => ({
-  x: pointerX - DRAG_GHOST_GAP - DRAG_GHOST_W / 2,
-  y: pointerY,
-});
+const DRAG_GHOST_GAP = 62; // px gap between the ghost's right edge and the pointer
+const dragGhostCenter = (pointerX: number, pointerY: number) => {
+  const desiredX = pointerX - DRAG_GHOST_GAP - DRAG_GHOST_W / 2;
+  // Clamped so the ghost never gets pushed half off the left edge of the screen
+  // while aiming at the leftmost column — it just settles closer to the finger
+  // there instead of disappearing off-screen.
+  const minX = DRAG_GHOST_W / 2 + 4;
+  return { x: Math.max(minX, desiredX), y: pointerY };
+};
 
 // ── DECK CAPITÃO ────────────────────────────────────────────────────────────
 // Ported from the earlier full-art version of this project (commit 8a3d7b8,
@@ -1652,26 +1671,45 @@ export default function App() {
   // see DECKS above and the DeckPickerModal rendered in the !gameMode branch.
   const [deckPickerOpen, setDeckPickerOpen] = useState(false);
 
-  // Duel background music: one Audio element for the whole app's life, started
-  // (looping, at a low background volume) whenever a match is in progress and
-  // paused the moment gameMode goes back to null (menu) — never plays over the menu.
-  const duelMusicRef = useRef<HTMLAudioElement | null>(null);
+  // Duel background music: decoded once into a raw AudioBuffer and looped through
+  // the Web Audio API — NOT a plain <audio loop> element. A looping <audio> element
+  // re-seeks/re-buffers at the loop point, which on this track was audible as a
+  // brief stutter/pause before it picked back up. An AudioBufferSourceNode with
+  // loop = true instead just keeps reading the same decoded PCM samples in a
+  // circle, so the seam is sample-accurate and silent. Started whenever a match
+  // is in progress, stopped the moment gameMode goes back to null (menu).
+  const duelMusicCtxRef = useRef<AudioContext | null>(null);
+  const duelMusicBufferRef = useRef<AudioBuffer | null>(null);
+  const duelMusicSourceRef = useRef<AudioBufferSourceNode | null>(null);
   useEffect(() => {
     if (!gameMode) {
-      duelMusicRef.current?.pause();
-      if (duelMusicRef.current) duelMusicRef.current.currentTime = 0;
+      duelMusicSourceRef.current?.stop();
+      duelMusicSourceRef.current = null;
       return;
     }
-    // Only ever constructed once a match actually starts — never during the
-    // loading screen or the menu, so it never competes for bandwidth with the
-    // loading screen's own image preloading.
-    if (!duelMusicRef.current) {
-      const audio = new Audio(duelMusicUrl);
-      audio.loop = true;
-      audio.volume = 0.25;
-      duelMusicRef.current = audio;
-    }
-    duelMusicRef.current.play().catch(() => {});
+    let cancelled = false;
+    (async () => {
+      // Only ever constructed once a match actually starts — never during the
+      // loading screen or the menu, so it never competes for bandwidth with the
+      // loading screen's own image preloading.
+      const ctx = duelMusicCtxRef.current ?? (duelMusicCtxRef.current = new AudioContext());
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      if (!duelMusicBufferRef.current) {
+        const arrayBuffer = await fetch(duelMusicUrl).then(r => r.arrayBuffer());
+        if (cancelled) return;
+        duelMusicBufferRef.current = await ctx.decodeAudioData(arrayBuffer);
+      }
+      if (cancelled || duelMusicSourceRef.current) return;
+      const source = ctx.createBufferSource();
+      source.buffer = duelMusicBufferRef.current;
+      source.loop = true;
+      const gain = ctx.createGain();
+      gain.gain.value = 0.25;
+      source.connect(gain).connect(ctx.destination);
+      source.start();
+      duelMusicSourceRef.current = source;
+    })();
+    return () => { cancelled = true; };
   }, [gameMode]);
   const [viewState, setViewState] = useState<'hand' | 'field'>('hand');
   const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
@@ -2002,7 +2040,6 @@ export default function App() {
   // happens, instead of hardcoding coordinates that would drift if the layout changes.
   const playerDeckRef = useRef<HTMLDivElement>(null);
   const npcDeckRef = useRef<HTMLDivElement>(null);
-  const DRAW_FLIGHT_MS = 750; // how long a newly drawn card takes to travel from the deck and flip face-up in hand
   // Which deck's pool each side is currently drawing from — set in resetGame from
   // the deck chosen at the Quick Match picker, so this can't just be a constant
   // anymore now that there are two real decks instead of one shared card pool.
@@ -4082,6 +4119,14 @@ export default function App() {
                 isTacticDragTarget={isDragTargetSlot('npc', 12)}
               />
               <ManaBadge value={npcMana} className="absolute -top-3 -left-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
+              {/* HUD HP readout for the opponent General — the card's own embedded
+                  HP number (see CardFace) sits at a size tuned to fit its emblem,
+                  not to be glanced at across the table, so this bigger badge next
+                  to the mana coin is the actual "how much HP does he have left"
+                  answer at a glance. */}
+              {npcSlots[12] && (
+                <HpBadge value={npcSlots[12]!.hp} className="absolute -top-3 -right-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
+              )}
             </div>
             <CardSlot
               slotId="npc-11"
@@ -4256,6 +4301,12 @@ export default function App() {
                 isTacticDragTarget={isDragTargetSlot('own', 12)}
               />
               <ManaBadge value={playerMana} className="absolute -top-3 -left-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
+              {/* HUD HP readout for the player's own General — bottom-right (not
+                  top-right, mirroring the NPC's) since that corner is sometimes
+                  already taken by the General-ability prompt button below. */}
+              {playerSlots[12] && (
+                <HpBadge value={playerSlots[12]!.hp} className="absolute -bottom-3 -right-3 w-8 h-8 md:w-10 md:h-10 text-xs md:text-sm z-20" />
+              )}
               {/* Yu-Gi-Oh-style "you may activate this" prompt — the game itself
                   notices the General has a usable Fase-Principal ability right now
                   (see playerGeneralAbilityAvailable) and surfaces it here instead of
@@ -5244,6 +5295,30 @@ const CardSlot = ({
   // one and threading a whole new boolean through each would be pure repetition.
   const isOpponentSlot = slotId?.startsWith('npc-') ?? false;
 
+  // Damage feedback — a brief shake plus a floating "-N" whenever this exact card
+  // (same id) loses HP between renders, whatever the source: normal attack combat,
+  // an AOE Tática (Trabuco/Catapulta/Balestra), a splash effect, anything. Purely
+  // reactive to the HP value itself instead of threading a new prop through every
+  // one of the many call sites that can reduce a card's HP, so it catches all of
+  // them uniformly. Only fires on a decrease (never on a heal), and only compares
+  // against the SAME card id — a different card landing in this slot (or this
+  // card moving to a different slot) just re-baselines instead of reading as damage.
+  const prevHpRef = useRef<number | undefined>(card?.hp);
+  const prevCardIdRef = useRef<string | undefined>(card?.id);
+  const [damageFlash, setDamageFlash] = useState<{ key: number; amount: number } | null>(null);
+  useEffect(() => {
+    if (card && prevCardIdRef.current === card.id && prevHpRef.current !== undefined && card.hp < prevHpRef.current) {
+      setDamageFlash({ key: Date.now(), amount: prevHpRef.current - card.hp });
+    }
+    prevCardIdRef.current = card?.id;
+    prevHpRef.current = card?.hp;
+  }, [card?.id, card?.hp]);
+  useEffect(() => {
+    if (!damageFlash) return;
+    const t = window.setTimeout(() => setDamageFlash(null), 900);
+    return () => clearTimeout(t);
+  }, [damageFlash]);
+
   const hintClass = hint === 'invalid'
     ? 'border-red-500/60 bg-red-950/30'
     : hint === 'valid'
@@ -5333,6 +5408,9 @@ const CardSlot = ({
             // A full-art card landing elsewhere on the board makes this one flinch —
             // a quick up-down jolt, like the table itself shook (see shockActive).
             y: isAttacking ? attackY : (shockActive ? [0, -14, 2, 0] : 0),
+            // Damage feedback (see damageFlash above) — a quick side-to-side rattle,
+            // independent of the y-jolt above so both can play at once.
+            x: damageFlash ? [0, -7, 7, -5, 5, -2, 0] : 0,
             z: isAttacking ? 100 : 0,
             scale: isAttacking ? 1.2 : 1,
             rotateX: isAttacking ? (attackDirection === 'up' ? 20 : -20) : 0,
@@ -5342,6 +5420,7 @@ const CardSlot = ({
             duration: 0.3,
             scale: { type: "spring", stiffness: 400, damping: 15 },
             y: shockActive ? { duration: 0.4, ease: "easeOut" } : undefined,
+            x: damageFlash ? { duration: 0.45, ease: "easeOut" } : undefined,
           }}
           // A resting card gets a two-layer shadow: a tight, hard-edged sliver right
           // behind it (reads as the card's own physical thickness/cardstock edge) plus
@@ -5351,6 +5430,26 @@ const CardSlot = ({
           className="w-full h-full rounded-lg flex flex-col p-1 relative"
         >
           {isImpactingTarget && <SlashEffect />}
+
+          {/* Floating damage number — see damageFlash above. Rises and fades over
+              the same window as the shake it plays alongside, so both read as one
+              single "hit" beat instead of two separate, uncoordinated effects. */}
+          {damageFlash && (
+            <motion.div
+              key={damageFlash.key}
+              initial={{ opacity: 0, y: 0, scale: 0.6 }}
+              animate={{ opacity: [0, 1, 1, 0], y: -36, scale: 1.15 }}
+              transition={{ duration: 0.9, ease: 'easeOut', opacity: { times: [0, 0.15, 0.7, 1] } }}
+              className="absolute inset-0 flex items-center justify-center pointer-events-none z-40"
+            >
+              <span
+                className="font-black text-lg md:text-2xl text-red-500"
+                style={{ fontFamily: "'Cinzel', serif", textShadow: '0 2px 3px rgba(0,0,0,0.9), 0 0 10px rgba(239,68,68,0.6)' }}
+              >
+                -{damageFlash.amount}
+              </span>
+            </motion.div>
+          )}
 
           {/* Equipped Armamentos — the one Tática exception that doesn't discard to
               the graveyard on use (see equippedWeapons/withEquippedWeapons): instead
