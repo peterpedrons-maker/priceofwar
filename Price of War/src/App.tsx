@@ -1071,11 +1071,15 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
           </div>
         )}
 
-        {/* Effect — the parchment text area */}
+        {/* Effect — the parchment text area. Yu-Gi-Oh-style flow (left-to-right
+            from the top-left corner, not centered as a block) like the Full
+            Art plate — same FitEffectText 'start' alignment, just still in
+            this layout's own existing parchment box instead of a new one. */}
         <div className="absolute p-1" style={{ top: '64%', bottom: '10%', left: '11%', right: '11%' }}>
           <FitEffectText
             text={card.effect}
-            className={`${v.effect} text-[#0d0901] font-semibold text-center leading-tight`}
+            align="start"
+            className={`${v.effect} text-[#0d0901] font-semibold text-left leading-tight`}
             style={{ fontFamily: "'Crimson Pro', serif" }}
           />
         </div>
