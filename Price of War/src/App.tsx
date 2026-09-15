@@ -10,6 +10,7 @@ import cardTemplateImage from './assets/card-template.webp';
 import cardTemplateSilverImage from './assets/card-template-silver.webp';
 import cardTemplateChampagneImage from './assets/card-template-champagne.webp';
 import cardBackplateImage from './assets/card-backplate.webp';
+import cardTemplateFullArtGoldImage from './assets/card-template-fullart-gold.webp';
 import multidaoDeFieisArt from './assets/card-multidao-de-fieis.webp';
 import comercianteDasCruzadasArt from './assets/card-comerciante-das-cruzadas.webp';
 import espiaoSabotadorArt from './assets/card-espiao-sabotador.webp';
@@ -18,10 +19,12 @@ import vigiaDeMantimentosArt from './assets/card-vigia-de-mantimentos.webp';
 import infantariaTreinadaArt from './assets/card-infantaria-treinada.webp';
 import jorgeOLanceiroArt from './assets/card-jorge-o-lanceiro.webp';
 import hospitalarioArt from './assets/card-hospitalario.webp';
-import nobreReligiosoArt from './assets/card-nobre-religioso.webp';
-import liderDeEsquadraoArt from './assets/card-lider-de-esquadrao.webp';
 import arqueiroProfissionalArt from './assets/card-arqueiro-profissional.webp';
 import atiradorInfluenteArt from './assets/card-atirador-influente.webp';
+import cardealPedroFullArt from './assets/card-cardeal-pedro-full.webp';
+import caliceDaVidaFullArt from './assets/card-calice-da-vida-full.webp';
+import nobreReligiosoFullArt from './assets/card-nobre-religioso-full.webp';
+import liderDeEsquadraoFullArt from './assets/card-lider-de-esquadrao-full.webp';
 
 export type CardType = 'Infantaria' | 'Cavalaria' | 'Arqueiro' | 'Artilharia' | 'General' | 'Relíquia' | 'Terreno' | 'Tática' | 'Emboscada';
 
@@ -877,9 +880,66 @@ const FitEffectText = ({ text, className, style }: { text: string, className?: s
   );
 };
 
+// Full Art layout — General/Relíquia (and, for now, any other card testing this
+// print — see CardData.isFullArt) skip the Padrão frame entirely: the art fills
+// almost the whole card behind a dedicated frame (card-template-fullart-gold),
+// name/cost sit in its own top bar instead of a parchment name-plate, and there's
+// no separate effect-text panel at all — the frame has none to put it in (see
+// art-prompts/README.md item 3's own note on this). Same GoldNumber/FitText
+// building blocks as the Padrão layout below, just placed for this frame's own
+// window/badge coordinates (measured off reference/full-art-frame-gold-v1.png).
+const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof typeof CARD_FACE_VARIANTS }) => {
+  const v = CARD_FACE_VARIANTS[variant];
+  const showStats = !NO_STAT_TYPES.has(card.cardType as CardType);
+  return (
+    <>
+      <div className="absolute overflow-hidden" style={{ left: '10.2%', top: '15.4%', width: '79.4%', height: '73.4%' }}>
+        {card.art ? (
+          <img src={card.art} alt={card.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900" />
+        )}
+      </div>
+      <img src={cardTemplateFullArtGoldImage} alt="" aria-hidden className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
+
+      <div className="absolute inset-0 z-10 pointer-events-none">
+        {/* Name — sits on the frame's own dark top bar, so light/gold text instead
+            of the Padrão layout's dark-ink-on-parchment. */}
+        <div className="absolute px-1" style={{ top: '5%', left: '8%', right: '25%', height: '9%' }}>
+          <FitText
+            text={card.name}
+            className={`${v.name} font-bold uppercase tracking-tight`}
+            style={{ fontFamily: "'Cinzel', serif", color: '#f5deA0', textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
+          />
+        </div>
+
+        {/* Cost — the frame's own circular medallion cutout, top-right of the bar. */}
+        <div className="absolute flex items-center justify-center" style={{ left: '85%', top: '10.5%', width: '15%', height: '8%', transform: 'translate(-50%, -50%)' }}>
+          <GoldNumber value={card.cost} className={v.stat} />
+        </div>
+
+        {/* ATK/HP — the frame's own black shield (left) and red heart shield
+            (right) at the bottom, same idea as the Padrão layout's blade/heart
+            emblems just at this frame's own coordinates. */}
+        {showStats && (
+          <>
+            <div className="absolute flex items-center justify-center" style={{ left: '11%', bottom: '2%', width: '18%', height: '9%' }}>
+              <GoldNumber value={card.atk} className={v.stat} />
+            </div>
+            <div className="absolute flex items-center justify-center" style={{ right: '11%', bottom: '2%', width: '18%', height: '9%' }}>
+              <GoldNumber value={card.hp} className={v.stat} />
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  );
+};
+
 const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof typeof CARD_FACE_VARIANTS }) => {
   const v = CARD_FACE_VARIANTS[variant];
   const showStats = !NO_STAT_TYPES.has(card.cardType as CardType);
+  if (card.isFullArt) return <CardFaceFullArt card={card} variant={variant} />;
   return (
     <>
       {/* Art + frame share one oversized, shifted coordinate space because the template
@@ -1040,8 +1100,8 @@ const DECK_CAPITAO: CardData[] = [
 // bodies same as any other Infantaria card), and Armamento (equipment) folds
 // into Tática (a 0/0 card whose whole point is its one-time effect).
 const DECK_CARDEAL: CardData[] = [
-  { id: 'cardeal_gen', name: 'Cardeal Pedro', atk: 0, hp: 20, cost: 0, art: '', effect: 'Fase Principal: cure 1 HP em um soldado aliado. Pague 1 ouro para curar 3 HP em vez disso.', cardType: 'General' },
-  { id: 'cardeal_relic', name: 'Cálice da Vida', atk: 0, hp: 5, cost: 3, art: '', effect: 'Permanente. Permite que o General Cardeal Pedro use sua habilidade duas vezes por turno.', cardType: 'Relíquia', isFullArt: true },
+  { id: 'cardeal_gen', name: 'Cardeal Pedro', atk: 0, hp: 20, cost: 0, art: cardealPedroFullArt, effect: 'Fase Principal: cure 1 HP em um soldado aliado. Pague 1 ouro para curar 3 HP em vez disso.', cardType: 'General', isFullArt: true },
+  { id: 'cardeal_relic', name: 'Cálice da Vida', atk: 0, hp: 5, cost: 3, art: caliceDaVidaFullArt, effect: 'Permanente. Permite que o General Cardeal Pedro use sua habilidade duas vezes por turno.', cardType: 'Relíquia', isFullArt: true },
 
   // Plebeus → Infantaria
   ...Array(4).fill(null).map((_, i): CardData => ({ id: `cardeal_fiel_${i}`, name: 'Multidão de Fiéis', atk: 0, hp: 3, cost: 1, art: multidaoDeFieisArt, effect: '—', cardType: 'Infantaria' })),
@@ -1057,9 +1117,13 @@ const DECK_CARDEAL: CardData[] = [
   // Cavaleiros
   ...Array(3).fill(null).map((_, i): CardData => ({ id: `cardeal_jorge_${i}`, name: 'Jorge, o Lanceiro', atk: 4, hp: 6, cost: 3, art: jorgeOLanceiroArt, effect: 'Ao atacar a Vanguarda: causa 2 de dano à unidade na Retaguarda da mesma coluna.', cardType: 'Cavalaria' })),
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_hosp_${i}`, name: 'Hospitalário', atk: 2, hp: 4, cost: 2, art: hospitalarioArt, effect: 'Uma vez por turno: cure 1 HP de um aliado e cause 1 de dano a um inimigo na Vanguarda.', cardType: 'Cavalaria' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_nobre_${i}`, name: 'Nobre Religioso', atk: 4, hp: 5, cost: 3, art: nobreReligiosoArt, effect: 'Ao entrar em campo: invoca Soldados Leais (1 ATK / 2 HP) nos slots adjacentes livres da mesma fileira.', cardType: 'Cavalaria' })),
+  // Testing the Full Art print for this card (see CardFaceFullArt) instead of its
+  // Padrão one now that both exist — once boosters exist this becomes a real
+  // per-copy choice instead of swapping the one CardData entry's own art/isFullArt.
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_nobre_${i}`, name: 'Nobre Religioso', atk: 4, hp: 5, cost: 3, art: nobreReligiosoFullArt, isFullArt: true, effect: 'Ao entrar em campo: invoca Soldados Leais (1 ATK / 2 HP) nos slots adjacentes livres da mesma fileira.', cardType: 'Cavalaria' })),
   ...Array(4).fill(null).map((_, i): CardData => ({ id: `cardeal_cavaleiro_${i}`, name: 'Cavaleiro Branco', atk: 5, hp: 7, cost: 3, art: '', effect: '—', cardType: 'Cavalaria' })),
-  { id: 'cardeal_lider', name: 'Líder de Esquadrão', atk: 5, hp: 5, cost: 3, art: liderDeEsquadraoArt, effect: 'Na Vanguarda: Infantaria e Arqueiros aliados ganham +1 ATK e +1 HP durante o combate.', cardType: 'Cavalaria' },
+  // Same Full Art testing swap as Nobre Religioso above.
+  { id: 'cardeal_lider', name: 'Líder de Esquadrão', atk: 5, hp: 5, cost: 3, art: liderDeEsquadraoFullArt, isFullArt: true, effect: 'Na Vanguarda: Infantaria e Arqueiros aliados ganham +1 ATK e +1 HP durante o combate.', cardType: 'Cavalaria' },
 
   // Arqueiros
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_arq_pro_${i}`, name: 'Arqueiro Profissional', atk: 1, hp: 4, cost: 2, art: arqueiroProfissionalArt, effect: 'Pode atacar duas vezes por rodada.', cardType: 'Arqueiro' })),
