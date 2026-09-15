@@ -777,14 +777,19 @@ const templateForType = (cardType?: CardType) => {
   return cardTemplateImage;
 };
 
-// FitText — shrinks its text (via a uniform CSS scale, never wrapping or
-// truncating) just enough that it always fits the width of its container,
-// measured for real off the actual rendered pixels rather than guessed from
-// character count. That's the only way to guarantee it fits everywhere this
-// renders (hand cards, board slots at two breakpoints, the detail modal, the
-// announce popup) since each has a different real pixel width for the same
-// name box percentage. Short names that already fit render at their natural
-// size (scale is only ever ≤ 1, never enlarged past the base font size).
+// FitText — shrinks a name's font size (and lets it wrap to a 2nd line) just
+// enough that it always fits its container, measured for real off the actual
+// rendered pixels rather than guessed from character count. Used to do this
+// with a single-line CSS transform:scale instead — that guaranteed the name
+// never got visually wider than its box, but a name long enough to need real
+// clipping to fit width-only (unlike shorter overflow, which just leaves a
+// small scaled-down single line) could still fit width-wise while its own
+// scaled box height also shrank, which for a couple of the longer card names
+// let the still-single, still-wide line sit close enough to the box's edge
+// to read as crowding the coin icon beside it. Binary-searching font-size
+// against wrapped height (same technique as FitEffectText below) sidesteps
+// that entirely: a name that doesn't fit on one line wraps to a second
+// instead of both shrinking AND staying single-line.
 const FitText = ({ text, className, style }: { text: string, className?: string, style?: React.CSSProperties }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
@@ -793,21 +798,32 @@ const FitText = ({ text, className, style }: { text: string, className?: string,
     const container = containerRef.current;
     const textEl = textRef.current;
     if (!container || !textEl) return;
-    // Sets the scale directly on the DOM node instead of going through React
-    // state — this re-renders constantly (every animation tick on the board),
-    // and a state-driven scale kept getting stomped back to its initial value
-    // by those re-renders faster than the effect could correct it again.
+    // Sets the font size directly on the DOM node instead of going through
+    // React state — this re-renders constantly (every animation tick on the
+    // board), and a state-driven size kept getting stomped back to its
+    // initial value by those re-renders faster than the effect could correct
+    // it again.
     const fit = () => {
-      textEl.style.transform = 'scale(1)';
-      const containerWidth = container.clientWidth;
-      const textWidth = textEl.scrollWidth;
-      const scale = textWidth > containerWidth && textWidth > 0 ? containerWidth / textWidth : 1;
-      textEl.style.transform = `scale(${scale})`;
+      const containerHeight = container.clientHeight;
+      if (containerHeight <= 0) return;
+      textEl.style.fontSize = '';
+      const baseFontSize = parseFloat(window.getComputedStyle(textEl).fontSize);
+      if (!baseFontSize) return;
+      // Binary search the largest multiplier of the base font size, capped at
+      // 1x, whose real wrapped height still fits — same cap/rationale as
+      // FitEffectText, so a short name never renders bigger than a long one.
+      let lo = 0.3, hi = 1.0;
+      for (let i = 0; i < 12; i++) {
+        const mid = (lo + hi) / 2;
+        textEl.style.fontSize = `${baseFontSize * mid}px`;
+        if (textEl.scrollHeight <= containerHeight) lo = mid; else hi = mid;
+      }
+      textEl.style.fontSize = `${baseFontSize * lo}px`;
     };
     fit();
     // Re-measure once the real font is done loading — measuring against the
-    // fallback font (during the @font-face swap window) would bake in a scale
-    // sized for the wrong glyph metrics.
+    // fallback font (during the @font-face swap window) would bake in a size
+    // fit to the wrong glyph metrics.
     document.fonts?.ready?.then(fit);
     const ro = new ResizeObserver(fit);
     ro.observe(container);
@@ -819,7 +835,7 @@ const FitText = ({ text, className, style }: { text: string, className?: string,
       <span
         ref={textRef}
         className={className}
-        style={{ ...style, display: 'inline-block', whiteSpace: 'nowrap', transformOrigin: 'center' }}
+        style={{ ...style, display: 'block', textAlign: 'center' }}
       >
         {text}
       </span>
@@ -1037,9 +1053,13 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
       </div>
 
       <div className="absolute inset-0 z-10 pointer-events-none">
-        {/* Name — FitText shrinks long names down (see its own comment) instead of
-            truncating them with an ellipsis, so the full name is always readable. */}
-        <div className="absolute px-1" style={{ top: '0%', left: '12%', right: '22%', height: '8%' }}>
+        {/* Name — FitText shrinks/wraps long names (see its own comment) instead of
+            truncating them with an ellipsis, so the full name is always readable.
+            Right edge pulled back from 22% to 26% — pixel-checked against the coin
+            badge's own art (accounting for this template's oversize transform above):
+            its decorative structure actually starts around 75-76%, well before the
+            cost number's own 84% box, so 78% (100-22) was landing text right on it. */}
+        <div className="absolute px-1" style={{ top: '0%', left: '12%', right: '26%', height: '8%' }}>
           <FitText
             text={card.name}
             // The name plate and type ribbon are pale parchment, so the text on them is
