@@ -1233,6 +1233,15 @@ const BOARD_EXTERIOR_ART_URL = boardBattlefieldImage;
 // avoiding every last bit of overlap with the board.
 const FIELD_PREVIEW_SCALE = { mobile: 0.95, desktop: 0.95 };
 
+// A single tap on a hand card (still in the hand tray, before any drag starts) used
+// to just nudge it up slightly (scale 1.1) — reading it meant a separate "i" button
+// opening a whole different, much bigger modal. Tapping now does the "make it big
+// enough to read" job itself, at roughly this same scale as the old modal, so the
+// dedicated button/modal round-trip isn't needed anymore: the player can read the
+// card AND immediately drag that same enlarged card onto the board in one motion.
+const HAND_TAP_PREVIEW_SCALE = 1.6;
+const HAND_TAP_PREVIEW_LIFT = -190;
+
 // Hand fan layout: cards spread across a modest total angle, center card slightly raised.
 const FAN_SPREAD_DEG = 26;
 const FAN_LIFT_PX = 20;
@@ -4548,10 +4557,10 @@ export default function App() {
                   // instead of sitting down at the hand's normal resting height (see
                   // getSelectedCardY above for how mobile's handScale is compensated for).
                   y: isFocused
-                    ? (viewState === 'field' ? getSelectedCardY() : -40)
+                    ? (viewState === 'field' ? getSelectedCardY() : HAND_TAP_PREVIEW_LIFT)
                     : (viewState === 'field' ? (isMobile ? 150 : 150) : getFanLift(i)),
                   scale: isFocused
-                    ? (viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) : 1.1)
+                    ? (viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) : HAND_TAP_PREVIEW_SCALE)
                     : (viewState === 'field' ? 0.6 : 1),
                   rotateZ: isFocused || viewState === 'field' ? 0 : getFanRotation(i),
                   zIndex: isFocused ? 150 : i + 1,
@@ -4563,9 +4572,9 @@ export default function App() {
                 }}
                 whileHover={{
                   y: isFocused
-                    ? (viewState === 'field' ? getSelectedCardY() : -40)
+                    ? (viewState === 'field' ? getSelectedCardY() : HAND_TAP_PREVIEW_LIFT)
                     : viewState === 'field' ? 120 : -20,
-                  scale: isFocused ? (viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) + 0.05 : 1.1) : 1.05,
+                  scale: isFocused ? (viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) + 0.05 : HAND_TAP_PREVIEW_SCALE + 0.03) : 1.05,
                 }}
                 whileTap={{ scale: 0.95 }}
                 // A freshly drawn card gets a slower transition, matching the full travel
@@ -4659,20 +4668,12 @@ export default function App() {
                       }}
                       transition={{ duration: 0.4, ease: "easeOut" }}
                     >
-                  {/* Info Button — only actually clickable while still browsing the hand.
-                      Once past "Jogar Carta" it sits over the board (see the floating
-                      preview position), and pointer-events-auto here would otherwise keep
-                      intercepting taps meant for whatever board slot is underneath it. */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDetailedCard(card);
-                    }}
-                    className={`absolute top-1 left-1 w-8 h-8 bg-blue-600/90 rounded-full border-2 border-blue-900 flex items-center justify-center shadow-md z-30 hover:bg-blue-500 transition-colors ${viewState === 'field' ? 'pointer-events-none' : 'pointer-events-auto'}`}
-                  >
-                    <Info className="text-white w-5 h-5" />
-                  </button>
-
+                  {/* No more Info button here — a plain tap now enlarges this exact
+                      card in place (see HAND_TAP_PREVIEW_SCALE above), big enough to
+                      read on its own, and dragging straight from that same enlarged
+                      state plays it, so the separate "i" button + modal round-trip
+                      this used to open (still used by board cards, see CardSlot)
+                      isn't needed for hand cards anymore. */}
                   <CardFace card={card} variant="hand" />
 
                   {/* Selection Glow — red for an Emboscada interrupt (matches the old
@@ -4892,10 +4893,6 @@ export default function App() {
               // as the exact same card the whole time, not switch to a simplified design.
               className="pointer-events-none rounded-xl flex flex-col p-2 relative"
             >
-              <div className="absolute top-1 left-1 w-8 h-8 bg-blue-600/90 rounded-full border-2 border-blue-900 flex items-center justify-center shadow-md z-30">
-                <Info className="text-white w-5 h-5" />
-              </div>
-
               <CardFace card={flyingCard.card} variant="hand" />
             </motion.div>
           );
