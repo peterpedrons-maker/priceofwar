@@ -4088,7 +4088,18 @@ export default function App() {
             pixel-aligned to these rows anymore — the user prioritized the old,
             functionally-clear 3-row layout over exact alignment with the art's gate
             opening/torches. */}
-        <div className="flex flex-col gap-6 justify-start pt-16">
+        {/* justify-end (not -start): the grid row this sits in is a fixed height
+            (stretched by the outer grid), but this field's own content — General
+            row + both labeled rows + all the gap-6/pt-16 spacing — can add up to
+            more than that height, especially once the label rows are counted.
+            With -start the overflow spilled off the BOTTOM, i.e. straight into the
+            player's own field across the center divider (the Vanguarda rows were
+            visibly overlapping). -end anchors the Vanguarda row (the last child,
+            closest to center) flush against this box's own bottom edge instead —
+            any overflow now pushes the General row up into the pt-16 reserve
+            (and past it if needed), off in open board space instead of into the
+            opponent's cards. */}
+        <div className="flex flex-col gap-6 justify-end pt-16">
           {/* General row (fixed) + Relíquia/Terreno slots */}
           <div className="flex justify-center gap-8 items-center">
             <CardSlot
@@ -4185,7 +4196,13 @@ export default function App() {
         </div>
 
         {/* Player Field — mirrors the NPC block above (see comment there). */}
-        <div className="flex flex-col gap-6 justify-end pb-16 pointer-events-auto">
+        {/* justify-start (not -end) — mirrors the NPC field's own fix just above,
+            same reasoning: anchors this field's Vanguarda row (its first child,
+            closest to center) flush against this box's own top edge instead of
+            letting overflow spill upward into the NPC field across the divider.
+            Any overflow now pushes the General row down into the pb-16 reserve
+            (and past it if needed) instead of into the opponent's cards. */}
+        <div className="flex flex-col gap-6 justify-start pb-16 pointer-events-auto">
           {/* Vanguarda Player (Frontline) */}
           <div className="flex justify-center gap-3 md:gap-6">
             {[0, 1, 2, 3, 4].map((i) => {
