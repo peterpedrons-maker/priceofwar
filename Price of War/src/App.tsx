@@ -993,17 +993,18 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
         </div>
 
         {/* ATK/HP — the frame's own black shield (left) and red heart shield
-            (right). These taper to a point at the bottom, so their visual
-            center (where a digit actually reads as centered) sits a bit
-            above the shape's geometric middle — moved up from the first,
-            too-low placement after checking a zoomed crop against each
-            shield's own interior. */}
+            (right). The first pass overcorrected: nudged up from too-low but
+            landed slightly too far up and too far out toward each shield's
+            outer edge. Re-checked with a crosshair against each shield's own
+            interior (from its top notch down to its bottom point, and its
+            widest left-right span) and moved both a touch toward the card's
+            center and a touch back down to land on the real middle. */}
         {showStats && (
           <>
-            <div className="absolute flex items-center justify-center" style={{ left: '14.7%', top: '85%', width: '14%', height: '11%', transform: 'translate(-50%, -50%)' }}>
+            <div className="absolute flex items-center justify-center" style={{ left: '16%', top: '86.5%', width: '14%', height: '11%', transform: 'translate(-50%, -50%)' }}>
               <GoldNumber value={card.atk} className={v.stat} />
             </div>
-            <div className="absolute flex items-center justify-center" style={{ left: '85.3%', top: '85%', width: '14%', height: '11%', transform: 'translate(-50%, -50%)' }}>
+            <div className="absolute flex items-center justify-center" style={{ left: '84%', top: '86.5%', width: '14%', height: '11%', transform: 'translate(-50%, -50%)' }}>
               <GoldNumber value={card.hp} className={v.stat} />
             </div>
           </>
