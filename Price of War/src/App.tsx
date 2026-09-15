@@ -708,7 +708,7 @@ const ManaBadge = ({ value, className = "" }: { value: number, className?: strin
 // then it shows the most recently destroyed card's name plus a count badge, so cards
 // leaving the field via combat visibly end up somewhere instead of just vanishing.
 const GraveyardPile = ({ cards }: { cards: CardData[] }) => (
-  <div className="w-32 h-44 md:w-40 md:h-56 border-2 border-zinc-700 rounded-xl bg-zinc-900/80 flex items-center justify-center shadow-lg relative overflow-hidden">
+  <div className="w-28 h-36 md:w-36 md:h-48 border-2 border-zinc-700 rounded-xl bg-zinc-900/80 flex items-center justify-center shadow-lg relative overflow-hidden">
     {cards.length === 0 ? (
       <span className="text-zinc-600 font-mono text-xs md:text-sm uppercase tracking-widest rotate-90 opacity-50">Cemitério</span>
     ) : (
@@ -2045,19 +2045,21 @@ export default function App() {
   const justDraggedRef = useRef(false);
 
   const isMobile = windowSize.width < 768;
-  // Board container is a fixed 1000x1600px canvas (see the 3D Board div below) that gets
+  // Board container is a fixed 1000x1400px canvas (see the 3D Board div below) that gets
   // scaled down to fit the real viewport — these divisors must match those exact dimensions.
   // On phones this layout is always width-bound (viewport width/1000 comes out smaller than
   // viewport height/H for any H a real phone's aspect ratio would need — see boardScale's
   // isMobile branch), so boardScale itself is set entirely by width and doesn't change
   // just because H changes. What DOES change is how much of the real screen the resulting
   // (bigger) canvas actually fills: bumping H bumps the final on-screen board height by the
-  // exact same ratio, since it's the same boardScale applied to a taller canvas. Was 1250 —
-  // raised here specifically so CardSlot (see its own w-32/h-44+ sizing) could grow without
-  // its own two label+slot rows per side overflowing past their half of the grid, which used
-  // to spill toward the shared center divider (see the justify-end/justify-start swap on
-  // each field below) — now they have the room instead of just routing the overflow away.
-  const boardScale = isMobile ? Math.min(windowSize.width / 1000, windowSize.height / 1600) * 1.05 : Math.min(windowSize.width / 1600, 1);
+  // exact same ratio, since it's the same boardScale applied to a taller canvas. Was 1250,
+  // briefly 1600 (see git history) — 1600 grew CardSlot enough that on a real phone (with
+  // its browser chrome eating into the actual usable height, unlike a headless test's full
+  // window) the player's own General/Relíquia/Terreno row ended up covered by the hand tray.
+  // 1400 is the trimmed-back number: still noticeably more room than the original 1250 for
+  // CardSlot (see its own w-28/h-36+ sizing below) to grow into, with enough slack left over
+  // for a phone's real chrome instead of just enough for a full-height simulator window.
+  const boardScale = isMobile ? Math.min(windowSize.width / 1000, windowSize.height / 1250) * 1.05 : Math.min(windowSize.width / 1600, 1);
   // Hand cards are fanned out (see getFanRotation below), so the outer cards' bounding box
   // is wider than their flat width — account for that tilt or the fan's edge cards clip.
   // Scale so the WHOLE hand always fits on screen — no floor, or large hands would overflow
@@ -4006,15 +4008,15 @@ export default function App() {
       </motion.div>
 
       {/* 3D Board — flex-shrink-0 matters here: the root container above is a flex
-          column, and this box's own explicit 1600px height is taller than most real
+          column, and this box's own explicit 1400px height is taller than most real
           viewports, so without it the browser's own flex layout was quietly shrinking
           this all the way down to viewport height BEFORE the boardScale transform
           below ever got applied — a second, uncontrolled scale-down stacked on top of
           the real one, which threw off both the object-cover crop on the board art
           (cropping away far more than intended) and any percentage-based positioning
-          inside this box (resolved against the shrunk box, not the real 1000x1600). */}
+          inside this box (resolved against the shrunk box, not the real 1000x1400). */}
       <motion.div
-        className="w-[1000px] h-[1600px] shrink-0 grid grid-rows-2 gap-12 p-8 relative"
+        className="w-[1000px] h-[1250px] shrink-0 grid grid-rows-2 gap-12 p-8 relative"
         animate={boardAnim}
         transition={boardTransition}
         onClick={(e) => {
@@ -4162,7 +4164,7 @@ export default function App() {
             any overflow now pushes the General row up into the pt-16 reserve
             (and past it if needed), off in open board space instead of into the
             opponent's cards. */}
-        <div className="flex flex-col gap-6 justify-end pt-16">
+        <div className="flex flex-col gap-4 justify-end pt-12">
           {/* General row (fixed) + Relíquia/Terreno slots */}
           <div className="flex justify-center gap-8 items-center">
             <CardSlot
@@ -4265,7 +4267,7 @@ export default function App() {
             letting overflow spill upward into the NPC field across the divider.
             Any overflow now pushes the General row down into the pb-16 reserve
             (and past it if needed) instead of into the opponent's cards. */}
-        <div className="flex flex-col gap-6 justify-start pb-16 pointer-events-auto">
+        <div className="flex flex-col gap-4 justify-start pb-12 pointer-events-auto">
           {/* Vanguarda Player (Frontline) */}
           <div className="flex justify-center gap-3 md:gap-6">
             {[0, 1, 2, 3, 4].map((i) => {
@@ -4431,7 +4433,7 @@ export default function App() {
           {/* The stack's thickness is dimmed copies of the card itself, offset behind the
               top one — a plain dark rectangle would read as a box around a card whose
               outline isn't rectangular (see CardBack). */}
-          <div ref={npcDeckRef} className="w-32 h-44 md:w-40 md:h-56 relative">
+          <div ref={npcDeckRef} className="w-28 h-36 md:w-36 md:h-48 relative">
             <CardBack offset={6} brightness={0.3} />
             <CardBack offset={3} brightness={0.55} />
             <CardBack shadow />
@@ -4458,7 +4460,7 @@ export default function App() {
           {/* Deck */}
           <motion.div
             ref={playerDeckRef}
-            className="w-32 h-44 md:w-40 md:h-56 relative group"
+            className="w-28 h-36 md:w-36 md:h-48 relative group"
           >
             {/* Deck thickness effect — dimmed copies of the card, not dark rectangles */}
             <CardBack offset={6} brightness={0.3} />
@@ -5164,7 +5166,7 @@ export default function App() {
             </span>
             {/* No clipping, and a drop-shadow rather than a box-shadow: the card frame's
                 outline isn't a rectangle (wings and spires stick out past it). */}
-            <div className="relative w-32 h-44 md:w-40 md:h-56" style={{ filter: 'drop-shadow(0 10px 18px rgba(0,0,0,0.7))' }}>
+            <div className="relative w-28 h-36 md:w-36 md:h-48" style={{ filter: 'drop-shadow(0 10px 18px rgba(0,0,0,0.7))' }}>
               <CardFace card={announcedCard.card} variant="popup" />
             </div>
           </motion.div>
@@ -5465,7 +5467,7 @@ const CardSlot = ({
         // …) rather than instead of it, so none of that existing board logic changes.
         if (card && !card.isDestroyed && onInfoClick) onInfoClick(card);
       }}
-      className={`w-32 h-44 md:w-40 md:h-56 rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass} ${isValidAttackTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${isMoverSelected ? 'ring-4 ring-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.7)]' : ''} ${isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''} ${isTacticDragTarget ? 'ring-4 ring-fuchsia-400 shadow-[0_0_30px_rgba(232,121,249,0.75)]' : ''}`}
+      className={`w-28 h-36 md:w-36 md:h-48 rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass} ${isValidAttackTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${isMoverSelected ? 'ring-4 ring-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.7)]' : ''} ${isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''} ${isTacticDragTarget ? 'ring-4 ring-fuchsia-400 shadow-[0_0_30px_rgba(232,121,249,0.75)]' : ''}`}
     >
       {!card && hint && (
         // Drag-to-play's drop indicator on the ONE slot currently under the finger
