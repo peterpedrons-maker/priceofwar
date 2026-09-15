@@ -4262,10 +4262,18 @@ export default function App() {
             player's own field across the center divider (the Vanguarda rows were
             visibly overlapping). -end anchors the Vanguarda row (the last child,
             closest to center) flush against this box's own bottom edge instead —
-            any overflow now pushes the General row up into the pt-16 reserve
+            any overflow now pushes the General row up into the pt reserve
             (and past it if needed), off in open board space instead of into the
             opponent's cards. */}
-        <div className="flex flex-col gap-4 justify-end pt-12">
+        {/* pt-3 (not pt-12 like the player field's pb-12 below): the NPC's own
+            hand is a small stack of face-down card backs near the very top of the
+            screen, while the player's hand is a large fan of readable cards that
+            already sits close to their own General row — so only this side has
+            real dead space between the hand/HUD and the board content (the user
+            circled it in a screenshot). Mirroring the same reserve on the player
+            side would just push their General row back down into the hand fan,
+            reintroducing the overlap regression that was fixed earlier. */}
+        <div className="flex flex-col gap-4 justify-end pt-3">
           {/* General row (fixed) + Relíquia/Terreno slots */}
           <div className="flex justify-center gap-8 items-center">
             <CardSlot
