@@ -839,7 +839,7 @@ const FitText = ({ text, className, style }: { text: string, className?: string,
 // single line), this changes the real font-size and lets the browser re-wrap at
 // each candidate size — a transform-scale big enough to fill vertical space would
 // also stretch each already-wrapped line past the box horizontally.
-const FitEffectText = ({ text, className, style }: { text: string, className?: string, style?: React.CSSProperties }) => {
+const FitEffectText = ({ text, className, style, align = 'center' }: { text: string, className?: string, style?: React.CSSProperties, align?: 'center' | 'start' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLParagraphElement>(null);
 
@@ -871,8 +871,12 @@ const FitEffectText = ({ text, className, style }: { text: string, className?: s
     return () => ro.disconnect();
   }, [text]);
 
+  // 'start' — the Full Art plate's own Yu-Gi-Oh-style flow: text begins at the
+  // top-left and wraps normally left-to-right instead of centering as a block,
+  // fitting more characters into the same box than a centered paragraph would.
+  // 'center' (default) is the Padrão layout's existing look — unchanged.
   return (
-    <div ref={containerRef} className="w-full h-full flex items-center justify-center overflow-hidden">
+    <div ref={containerRef} className={`w-full h-full flex overflow-hidden ${align === 'start' ? 'items-start justify-start' : 'items-center justify-center'}`}>
       <p ref={textRef} className={className} style={{ ...style, margin: 0 }}>
         {text}
       </p>
@@ -903,15 +907,6 @@ const FULL_ART_PLATE_VARIANTS = {
   popup: { type: 'text-[8px] md:text-[9px]',          effect: 'text-[9px] md:text-[10px]' },
 } as const;
 
-// The plate's hexagon: flat top (full width), straight sides down to 64% of
-// its own height, then a diagonal taper into a narrower flat bottom. Pixel-
-// measured off the frame: the shields' own star ornaments flare inward from
-// outside the plate's top width, first crossing x=12%/88% around y=74-76%
-// card-relative and reaching x=27%/73% by y=82% — so the plate has to have
-// narrowed to that same 20%-80% span by its own bottom or those points
-// poke out from behind the numbers instead of sitting under the plate.
-const FULL_ART_PLATE_CLIP = 'polygon(0% 0%, 100% 0%, 100% 64%, 80% 100%, 20% 100%, 0% 64%)';
-
 const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof typeof CARD_FACE_VARIANTS }) => {
   const v = CARD_FACE_VARIANTS[variant];
   const pv = FULL_ART_PLATE_VARIANTS[variant];
@@ -936,6 +931,43 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
           <div className="w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900" />
         )}
       </div>
+
+      {/* Type + effect plate — sits behind the frame image (below it in this
+          stacking order) and in front of the art, so the frame's own opaque
+          artwork (the shields' star ornaments, the side rails) naturally
+          masks off whatever part of this plain rectangle would otherwise sit
+          under it, exactly like the reference mockup: no manual clipping or
+          chamfering needed, the frame does that for free. Height is capped at
+          75% though (not just left to fill available room) — that masking
+          cuts both ways: the shields' stars start crossing the plate's own
+          10.5%/89.5% edges around 74-76% down the card, and text that grows
+          down into that band gets its own edge characters masked away by the
+          same opaque artwork, not just the background behind them. */}
+      {card.effect && (
+        <div className="absolute flex flex-col items-center px-2 pt-1.5 pb-1" style={{ left: '10.5%', right: '10.5%', top: '56%', height: '19%', background: 'linear-gradient(to bottom, rgba(15,12,6,0.28), rgba(10,8,4,0.42) 35%, rgba(8,6,3,0.48))' }}>
+          {card.cardType && (
+            <>
+              <span className={`${pv.type} font-black uppercase tracking-widest shrink-0`} style={{ fontFamily: "'Cinzel', serif", color: '#e9d8a6' }}>
+                {card.cardType}
+              </span>
+              <div className="w-2/3 h-px shrink-0 my-1" style={{ background: 'rgba(201,162,39,0.6)' }} />
+            </>
+          )}
+          {/* Yu-Gi-Oh-style body: flows left-to-right from the top-left corner
+              instead of centering as a block, so the plate's own full width and
+              height actually get used — a centered block wastes the space a
+              ragged edge would've used for more characters at a readable size. */}
+          <div className="flex-1 w-full min-h-0">
+            <FitEffectText
+              text={card.effect}
+              align="start"
+              className={`${pv.effect} text-left leading-snug`}
+              style={{ fontFamily: "'Crimson Pro', serif", color: '#f3e6c8' }}
+            />
+          </div>
+        </div>
+      )}
+
       <img src={cardTemplateFullArtGoldImage} alt="" aria-hidden className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
 
       <div className="absolute inset-0 z-10 pointer-events-none">
@@ -949,48 +981,6 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
             style={{ fontFamily: "'Cinzel', serif", color: '#f5deA0', textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
           />
         </div>
-
-        {/* Type + effect plate — drawn over the art's lower area, not part of
-            the frame image itself. A plain rectangle here would either sit
-            too high to look intentional or, moved down where there's room,
-            get its bottom corners poked through by the shields' own star
-            ornaments (they flare in past the plate's sides starting around
-            76% down the card — see FULL_ART_PLATE_CLIP above). Hexagonal
-            chamfer routes around them instead. The gold outline is a second,
-            slightly larger copy of the same hexagon behind the fill, since
-            a CSS border doesn't follow a clip-path's cut corners. */}
-        {card.effect && (
-          <div className="absolute" style={{ left: '11%', right: '11%', top: '62%', height: '21%' }}>
-            <div className="absolute inset-0" style={{ background: 'rgba(201,162,39,0.6)', clipPath: FULL_ART_PLATE_CLIP }} />
-            <div
-              className="absolute flex flex-col items-center pt-1.5 pb-1"
-              style={{ top: '1.5px', left: '1.5px', right: '1.5px', bottom: '1.5px', background: 'linear-gradient(to bottom, rgba(15,12,6,0.42), rgba(10,8,4,0.6) 35%, rgba(8,6,3,0.68))', clipPath: FULL_ART_PLATE_CLIP }}
-            >
-              {/* Text column stays narrower than the plate itself (matching the
-                  chamfer's own narrowest point) so a wrapped line never reaches
-                  into the cut corners at any height — the taper starts well
-                  above the text area, so a column as wide as the plate itself
-                  would still get its edges clipped away near the bottom. */}
-              <div className="flex flex-col items-center h-full" style={{ width: '60%' }}>
-                {card.cardType && (
-                  <>
-                    <span className={`${pv.type} font-black uppercase tracking-widest shrink-0`} style={{ fontFamily: "'Cinzel', serif", color: '#e9d8a6' }}>
-                      {card.cardType}
-                    </span>
-                    <div className="w-2/3 h-px shrink-0 my-1" style={{ background: 'rgba(201,162,39,0.6)' }} />
-                  </>
-                )}
-                <div className="flex-1 w-full min-h-0">
-                  <FitEffectText
-                    text={card.effect}
-                    className={`${pv.effect} italic text-center leading-tight`}
-                    style={{ fontFamily: "'Crimson Pro', serif", color: '#f3e6c8' }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Cost — the frame's own circular medallion, pixel-sampled center/radius
             (was eyeballed too far right before — this one's centered on the actual
