@@ -757,10 +757,10 @@ const CardBack = ({ offset = 0, brightness = 1, shadow = false }: {
 // card-template.webp / card-backplate.webp) — the template image and these
 // coordinates are a matched pair, not independently adjustable.
 const CARD_FACE_VARIANTS = {
-  hand:  { name: 'text-lg',                    effect: 'text-[17px]',              type: 'text-[13px]',              stat: 'text-2xl' },
-  field: { name: 'text-[8px] md:text-[10px]',  effect: 'text-[7px] md:text-[9px]', type: 'text-[7px] md:text-[9px]', stat: 'text-xs md:text-base' },
-  modal: { name: 'text-2xl',                   effect: 'text-2xl',                 type: 'text-lg',                  stat: 'text-3xl' },
-  popup: { name: 'text-xs md:text-sm',         effect: 'text-[11px] md:text-[13px]', type: 'text-[9px] md:text-[11px]', stat: 'text-sm md:text-base' },
+  hand:  { name: 'text-lg',                    effect: 'text-[13px]',              type: 'text-[13px]',              stat: 'text-2xl' },
+  field: { name: 'text-[8px] md:text-[10px]',  effect: 'text-[6px] md:text-[7px]', type: 'text-[7px] md:text-[9px]', stat: 'text-xs md:text-base' },
+  modal: { name: 'text-2xl',                   effect: 'text-lg',                 type: 'text-lg',                  stat: 'text-3xl' },
+  popup: { name: 'text-xs md:text-sm',         effect: 'text-[9px] md:text-[10px]', type: 'text-[9px] md:text-[11px]', stat: 'text-sm md:text-base' },
 } as const;
 
 // Which physical card-stock a type is printed on. The gold frame has the
@@ -853,10 +853,12 @@ const FitEffectText = ({ text, className, style, align = 'center' }: { text: str
       textEl.style.fontSize = '';
       const baseFontSize = parseFloat(window.getComputedStyle(textEl).fontSize);
       if (!baseFontSize) return;
-      // Binary search the largest multiplier of the base font size (capped above
-      // 1x so short text fills more of the box, capped below it for long text)
-      // whose real wrapped height still fits.
-      let lo = 0.3, hi = 1.6;
+      // Binary search the largest multiplier of the base font size, capped at
+      // 1x — never enlarged past the declared size for short text, so every
+      // card's rules text reads at the same size instead of a short effect
+      // looking bigger than a long one. Still shrinks below 1x as a fallback
+      // for text too long to fit at the declared size.
+      let lo = 0.3, hi = 1.0;
       for (let i = 0; i < 12; i++) {
         const mid = (lo + hi) / 2;
         textEl.style.fontSize = `${baseFontSize * mid}px`;
@@ -1074,8 +1076,11 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
         {/* Effect — the parchment text area. Yu-Gi-Oh-style flow (left-to-right
             from the top-left corner, not centered as a block) like the Full
             Art plate — same FitEffectText 'start' alignment, just still in
-            this layout's own existing parchment box instead of a new one. */}
-        <div className="absolute p-1" style={{ top: '64%', bottom: '10%', left: '11%', right: '11%' }}>
+            this layout's own existing parchment box instead of a new one.
+            Widened toward the left (11%→8%) for a bit more room per line;
+            bottom pulled up (10%→13%) so it can't run into the ATK/HP blade
+            and heart emblems, whose own box starts around 89% down the card. */}
+        <div className="absolute p-1" style={{ top: '64%', bottom: '13%', left: '8%', right: '11%' }}>
           <FitEffectText
             text={card.effect}
             align="start"
