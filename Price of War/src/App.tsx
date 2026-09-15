@@ -883,11 +883,14 @@ const FitEffectText = ({ text, className, style }: { text: string, className?: s
 // Full Art layout — General/Relíquia (and, for now, any other card testing this
 // print — see CardData.isFullArt) skip the Padrão frame entirely: the art fills
 // almost the whole card behind a dedicated frame (card-template-fullart-gold),
-// name/cost sit in its own top bar instead of a parchment name-plate, and there's
-// no separate effect-text panel at all — the frame has none to put it in (see
-// art-prompts/README.md item 3's own note on this). Same GoldNumber/FitText
-// building blocks as the Padrão layout below, just placed for this frame's own
-// window/badge coordinates (measured off reference/full-art-frame-gold-v1.png).
+// name/cost sit in its own top bar instead of a parchment name-plate. The frame
+// image itself has no baked-in text plate for type/effect (its cutout is one
+// plain window), so that plate is drawn entirely in code on top of the art —
+// a darkened panel over the art's lower third, same idea as the reference
+// mockup for this frame family (Comandante Aurelion) the user provided. Same
+// GoldNumber/FitText/FitEffectText building blocks as the Padrão layout below,
+// just placed for this frame's own window/badge coordinates (measured off
+// reference/full-art-frame-gold-v1.png).
 const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof typeof CARD_FACE_VARIANTS }) => {
   const v = CARD_FACE_VARIANTS[variant];
   const showStats = !NO_STAT_TYPES.has(card.cardType as CardType);
@@ -913,6 +916,30 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
             style={{ fontFamily: "'Cinzel', serif", color: '#f5deA0', textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
           />
         </div>
+
+        {/* Type + effect plate — drawn over the art's lower third (inset from the
+            window's own edges so it never overlaps the frame's gold border), not
+            part of the frame image itself. Bottom stays above 80% so it never
+            collides with the ATK/HP shields sitting at 87%. */}
+        {card.effect && (
+          <div className="absolute flex flex-col items-center px-3 pt-2 pb-1 rounded-sm" style={{ left: '12%', right: '12%', top: '57%', height: '22%', background: 'linear-gradient(to bottom, rgba(10,8,4,0.35), rgba(10,8,4,0.88) 30%, rgba(6,5,2,0.92))' }}>
+            {card.cardType && (
+              <>
+                <span className={`${v.type} font-black uppercase tracking-widest shrink-0`} style={{ fontFamily: "'Cinzel', serif", color: '#e9d8a6' }}>
+                  {card.cardType}
+                </span>
+                <div className="w-2/3 h-px shrink-0 my-1" style={{ background: 'rgba(201,162,39,0.6)' }} />
+              </>
+            )}
+            <div className="flex-1 w-full min-h-0">
+              <FitEffectText
+                text={card.effect}
+                className={`${v.effect} italic text-center leading-tight`}
+                style={{ fontFamily: "'Crimson Pro', serif", color: '#f3e6c8' }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Cost — the frame's own circular medallion, pixel-sampled center/radius
             (was eyeballed too far right before — this one's centered on the actual
