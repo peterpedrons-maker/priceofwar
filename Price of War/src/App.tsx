@@ -1614,19 +1614,21 @@ export default function App() {
   // paused the moment gameMode goes back to null (menu) — never plays over the menu.
   const duelMusicRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
+    if (!gameMode) {
+      duelMusicRef.current?.pause();
+      if (duelMusicRef.current) duelMusicRef.current.currentTime = 0;
+      return;
+    }
+    // Only ever constructed once a match actually starts — never during the
+    // loading screen or the menu, so it never competes for bandwidth with the
+    // loading screen's own image preloading.
     if (!duelMusicRef.current) {
       const audio = new Audio(duelMusicUrl);
       audio.loop = true;
       audio.volume = 0.25;
       duelMusicRef.current = audio;
     }
-    const audio = duelMusicRef.current;
-    if (gameMode) {
-      audio.play().catch(() => {});
-    } else {
-      audio.pause();
-      audio.currentTime = 0;
-    }
+    duelMusicRef.current.play().catch(() => {});
   }, [gameMode]);
   const [viewState, setViewState] = useState<'hand' | 'field'>('hand');
   const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
@@ -2167,10 +2169,6 @@ export default function App() {
 
     startMatchIntro();
   };
-
-  useEffect(() => {
-    resetGame();
-  }, []);
 
   const startGame = (mode: string, deckId?: DeckId) => {
     resetGame(deckId);
