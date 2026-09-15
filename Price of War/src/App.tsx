@@ -1227,6 +1227,18 @@ const HAND_CARD_HEIGHT = 320; // h-80
 // each card only advances this much past the previous one.
 const HAND_CARD_STEP = HAND_CARD_WIDTH * 0.5;
 
+// Drag-to-play's floating ghost card — shrunk well below hand size so it never
+// blocks the board, and offset to the LEFT of the pointer (not above it) so the
+// board column under the finger stays visible while aiming.
+const DRAG_GHOST_SCALE = 0.42;
+const DRAG_GHOST_W = HAND_CARD_WIDTH * DRAG_GHOST_SCALE;
+const DRAG_GHOST_H = HAND_CARD_HEIGHT * DRAG_GHOST_SCALE;
+const DRAG_GHOST_GAP = 14; // px gap between the ghost's right edge and the pointer
+const dragGhostCenter = (pointerX: number, pointerY: number) => ({
+  x: pointerX - DRAG_GHOST_GAP - DRAG_GHOST_W / 2,
+  y: pointerY,
+});
+
 // ── DECK CAPITÃO ────────────────────────────────────────────────────────────
 // Ported from the earlier full-art version of this project (commit 8a3d7b8,
 // constant DECK_1) — its own General, Criaturas, Táticas, Emboscadas, one
@@ -4679,32 +4691,71 @@ export default function App() {
           would. Ring color mirrors whatever's currently valid for THIS card's own
           drop kind: green once it's over a legal target, nothing otherwise (a
           'place' card also gets the empty-slot hint arrows from getPlayerSlotHint,
-          already visible on the board itself underneath). */}
+          already visible on the board itself underneath).
+          Sits to the LEFT of the finger (not above it): the finger comes up from
+          the hand tray at the bottom, so a card floating straight above it used to
+          sit right on top of the exact column — the opponent's included — the
+          player was trying to look at while aiming. Off to the side, that whole
+          column stays visible the entire time. */}
       {dragCard && (() => {
         const isOverValidTarget =
           (dragCard.kind === 'place' && dragHoverSlot?.side === 'own' && !playerSlots[dragHoverSlot.index]) ||
           (dragCard.kind === 'ownTarget' && dragHoverSlot?.side === 'own' && !!playerSlots[dragHoverSlot.index]) ||
           (dragCard.kind === 'enemyTarget' && dragHoverSlot?.side === 'npc' && !!npcSlots[dragHoverSlot.index]);
+        const ghostCenter = dragGhostCenter(dragCard.x, dragCard.y);
         return (
           <div
             className="fixed z-[300] pointer-events-none"
             style={{
-              left: dragCard.x,
-              top: dragCard.y,
-              width: HAND_CARD_WIDTH,
-              height: HAND_CARD_HEIGHT,
-              // Shrunk to roughly a board slot's own size (was a near-full-size hand
-              // card, which blotted out the exact slots it was supposed to be aimed
-              // at) and lifted almost entirely above the finger — only its bottom
-              // tip sits near the pointer — so the target slot underneath stays
-              // visible the whole time it's being aimed at.
-              transform: 'translate(-50%, -92%) scale(0.42)',
+              left: ghostCenter.x - DRAG_GHOST_W / 2,
+              top: ghostCenter.y - DRAG_GHOST_H / 2,
+              width: DRAG_GHOST_W,
+              height: DRAG_GHOST_H,
             }}
           >
-            <div className={`relative w-full h-full rounded-xl transition-shadow ${isOverValidTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_40px_rgba(52,211,153,0.85)]' : 'shadow-[0_10px_40px_rgba(0,0,0,0.6)]'}`}>
+            <div
+              className={`relative rounded-xl transition-shadow ${isOverValidTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_40px_rgba(52,211,153,0.85)]' : 'shadow-[0_10px_40px_rgba(0,0,0,0.6)]'}`}
+              style={{ width: HAND_CARD_WIDTH, height: HAND_CARD_HEIGHT, transform: `scale(${DRAG_GHOST_SCALE})`, transformOrigin: 'top left' }}
+            >
               <CardFace card={dragCard.card} variant="hand" />
             </div>
           </div>
+        );
+      })()}
+
+      {/* Drag-to-play's own "conducting line" from the floating ghost to whatever
+          slot is currently under the finger — same idea as the attack-targeting
+          lines above (attackLines), but animated: a flowing dash that keeps
+          cycling forward and back along the line for as long as a slot is being
+          aimed at, instead of sitting static, so it reads as "energy" pointing at
+          the destination rather than just a static connector. Only drawn once
+          there's an actual hovered slot — no line while the card is just being
+          lifted with nothing aimed at yet. */}
+      {dragCard && dragHoverSlot && (() => {
+        const slotEl = document.getElementById(`${dragHoverSlot.side === 'own' ? 'player' : 'npc'}-${dragHoverSlot.index}`);
+        if (!slotEl) return null;
+        const toRect = slotEl.getBoundingClientRect();
+        const to = { x: toRect.left + toRect.width / 2, y: toRect.top + toRect.height / 2 };
+        const from = dragGhostCenter(dragCard.x, dragCard.y);
+        const isValid =
+          (dragCard.kind === 'place' && dragHoverSlot.side === 'own' && !playerSlots[dragHoverSlot.index]) ||
+          (dragCard.kind === 'ownTarget' && dragHoverSlot.side === 'own' && !!playerSlots[dragHoverSlot.index]) ||
+          (dragCard.kind === 'enemyTarget' && dragHoverSlot.side === 'npc' && !!npcSlots[dragHoverSlot.index]);
+        const color = isValid ? '#34d399' : '#ef4444';
+        return (
+          <svg className="fixed inset-0 z-[299] pointer-events-none" width="100%" height="100%">
+            <motion.line
+              x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+              stroke={color}
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              strokeDasharray="10 9"
+              animate={{ strokeDashoffset: [0, -38, 0] }}
+              transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }}
+              opacity={0.85}
+              style={{ filter: `drop-shadow(0 0 4px ${color})` }}
+            />
+          </svg>
         );
       })()}
 
