@@ -904,8 +904,9 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
 
       <div className="absolute inset-0 z-10 pointer-events-none">
         {/* Name — sits on the frame's own dark top bar, so light/gold text instead
-            of the Padrão layout's dark-ink-on-parchment. */}
-        <div className="absolute px-1" style={{ top: '5%', left: '8%', right: '25%', height: '9%' }}>
+            of the Padrão layout's dark-ink-on-parchment. Bar's real interior (pixel
+            -sampled off the frame image): x 6%-69%, y 7.3%-13.9%. */}
+        <div className="absolute px-1 flex items-center" style={{ top: '7.3%', left: '7%', width: '60%', height: '6.6%' }}>
           <FitText
             text={card.name}
             className={`${v.name} font-bold uppercase tracking-tight`}
@@ -913,20 +914,23 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
           />
         </div>
 
-        {/* Cost — the frame's own circular medallion cutout, top-right of the bar. */}
-        <div className="absolute flex items-center justify-center" style={{ left: '85%', top: '10.5%', width: '15%', height: '8%', transform: 'translate(-50%, -50%)' }}>
+        {/* Cost — the frame's own circular medallion, pixel-sampled center/radius
+            (was eyeballed too far right before — this one's centered on the actual
+            circle, not guessed off the bar's edge). */}
+        <div className="absolute flex items-center justify-center" style={{ left: '77.5%', top: '11.7%', width: '11%', height: '7.4%', transform: 'translate(-50%, -50%)' }}>
           <GoldNumber value={card.cost} className={v.stat} />
         </div>
 
         {/* ATK/HP — the frame's own black shield (left) and red heart shield
-            (right) at the bottom, same idea as the Padrão layout's blade/heart
-            emblems just at this frame's own coordinates. */}
+            (right), pixel-sampled centers (both sit noticeably higher than the
+            card's bottom edge, not flush against it like the Padrão layout's
+            blade/heart emblems). */}
         {showStats && (
           <>
-            <div className="absolute flex items-center justify-center" style={{ left: '11%', bottom: '2%', width: '18%', height: '9%' }}>
+            <div className="absolute flex items-center justify-center" style={{ left: '14.7%', top: '87%', width: '14%', height: '11%', transform: 'translate(-50%, -50%)' }}>
               <GoldNumber value={card.atk} className={v.stat} />
             </div>
-            <div className="absolute flex items-center justify-center" style={{ right: '11%', bottom: '2%', width: '18%', height: '9%' }}>
+            <div className="absolute flex items-center justify-center" style={{ left: '85.3%', top: '87%', width: '14%', height: '11%', transform: 'translate(-50%, -50%)' }}>
               <GoldNumber value={card.hp} className={v.stat} />
             </div>
           </>
