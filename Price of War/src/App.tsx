@@ -40,6 +40,8 @@ import recrutamentoSeletivoArt from './assets/card-recrutamento-seletivo.webp';
 import recrutarVeteranosArt from './assets/card-recrutar-veteranos.webp';
 import tributoDeGuerraArt from './assets/card-tributo-de-guerra.webp';
 import chamadoAsArmasArt from './assets/card-chamado-as-armas.webp';
+import recrutaDevotoArt from './assets/card-recruta-devoto.webp';
+import cavaleiroDaLuzFullArt from './assets/card-cavaleiro-da-luz-full.webp';
 
 export type CardType = 'Infantaria' | 'Cavalaria' | 'Arqueiro' | 'Artilharia' | 'General' | 'Relíquia' | 'Terreno' | 'Tática' | 'Emboscada';
 
@@ -1228,7 +1230,7 @@ const DECK_CARDEAL: CardData[] = [
   // Infantaria
   { id: 'cardeal_espiao', name: 'Infiltrado da Ordem', atk: 1, hp: 2, cost: 1, art: espiaoSabotadorArt, effect: 'Na Vanguarda: impede Emboscadas inimigas. Se o General aliado receber dano, no próximo turno não poderá usar sua habilidade.', cardType: 'Infantaria' },
   { id: 'cardeal_fanatico', name: 'Fanático da Cruzada', atk: 1, hp: 2, cost: 1, art: soldadoFanaticoArt, effect: 'Ao atacar: se o General inimigo for de tipo oposto, ganha +2 ATK.', cardType: 'Infantaria' },
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_aprendiz_${i}`, name: 'Recruta Devoto', atk: 0, hp: 2, cost: 1, art: '', effect: 'Ao ser curado: recebe +1 ATK permanente.', cardType: 'Infantaria' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_aprendiz_${i}`, name: 'Recruta Devoto', atk: 0, hp: 2, cost: 1, art: recrutaDevotoArt, effect: 'Ao ser curado: recebe +1 ATK permanente.', cardType: 'Infantaria' })),
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_vigia_${i}`, name: 'Intendente do Exército', atk: 2, hp: 3, cost: 2, art: vigiaDeMantimentosArt, effect: 'Uma vez por turno: se você tiver menos de 2 cartas na mão, compre até ficar com 2.', cardType: 'Infantaria' })),
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_inf_treinada_${i}`, name: 'Soldados da Ordem', atk: 3, hp: 5, cost: 2, art: infantariaTreinadaArt, effect: '—', cardType: 'Infantaria' })),
 
@@ -1239,7 +1241,8 @@ const DECK_CARDEAL: CardData[] = [
   // Padrão one now that both exist — once boosters exist this becomes a real
   // per-copy choice instead of swapping the one CardData entry's own art/isFullArt.
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_nobre_${i}`, name: 'Nobre da Cruzada', atk: 4, hp: 5, cost: 3, art: nobreReligiosoFullArt, isFullArt: true, effect: 'Ao entrar em campo: invoca Soldados Leais (1 ATK / 2 HP) nos slots adjacentes livres da mesma fileira.', cardType: 'Cavalaria' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `cardeal_cavaleiro_${i}`, name: 'Cavaleiro da Luz', atk: 5, hp: 7, cost: 3, art: '', effect: '—', cardType: 'Cavalaria' })),
+  // Same Full Art testing swap as Nobre da Cruzada/Comandante da Ordem above.
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `cardeal_cavaleiro_${i}`, name: 'Cavaleiro da Luz', atk: 5, hp: 7, cost: 3, art: cavaleiroDaLuzFullArt, isFullArt: true, effect: '—', cardType: 'Cavalaria' })),
   // Same Full Art testing swap as Nobre da Cruzada above.
   { id: 'cardeal_lider', name: 'Comandante da Ordem', atk: 5, hp: 5, cost: 3, art: liderDeEsquadraoFullArt, isFullArt: true, effect: 'Na Vanguarda: Infantaria e Arqueiros aliados ganham +1 ATK e +1 HP durante o combate.', cardType: 'Cavalaria' },
 
@@ -1248,7 +1251,8 @@ const DECK_CARDEAL: CardData[] = [
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_atirador_${i}`, name: 'Atirador da Cruzada', atk: 1, hp: 3, cost: 2, art: atiradorInfluenteArt, effect: 'Ao ir ao cemitério: compre 3 cartas.', cardType: 'Arqueiro' })),
 
   // Táticas de dano
-  // Full Art print only for now — Padrão art for this card still pending.
+  // Same Full Art testing swap as Nobre da Cruzada/Comandante da Ordem above —
+  // both Padrão and Full Art exist for this one, using Full Art for now.
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_trabuco_${i}`, name: 'Trabuco de Cerco', atk: 0, hp: 0, cost: 3, art: trabucoDeCercoFullArt, isFullArt: true, effect: 'Causa 2 de dano a TODAS as unidades inimigas.', cardType: 'Tática' })),
   ...Array(3).fill(null).map((_, i): CardData => ({ id: `cardeal_catapulta_${i}`, name: 'Catapulta de Guerra', atk: 0, hp: 0, cost: 2, art: catapultaDeGuerraArt, effect: 'Escolha uma fileira inimiga. Todas as unidades naquela fileira recebem 2 de dano.', cardType: 'Tática' })),
   { id: 'cardeal_balesta', name: 'Balestra de Precisão', atk: 0, hp: 0, cost: 1, art: balestraDePrecisaoArt, effect: 'Causa 3 de dano a uma unidade inimiga à sua escolha.', cardType: 'Tática' },

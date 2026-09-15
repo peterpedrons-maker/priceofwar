@@ -768,31 +768,6 @@ da Padrão: Jorge, Lança Sagrada, Nobre da Cruzada, Cavaleiro da Luz, Comandant
 da Ordem, Trabuco de Cerco, Retorno do Soldado — critério nos comentários originais
 mantido (estatística/raridade/impacto na estratégia).
 
-### Infantaria
-
-#### 5.7. Recruta Devoto
-
-**Carta:** Infantaria (ATK 0 / HP 2 / custo 1) · **Estilo:** Padrão ·
-**Status:** pronto pra gerar
-
-```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a very
-young trainee crusader in a dusty outdoor training yard at dawn, wooden
-practice dummies and hanging straw targets around him, ill-fitting
-hand-me-down armor a size too big, gripping a wooden practice sword with
-both hands in an earnest but slightly awkward two-handed stance. The long
-shadow of an unseen older mentor stretches across the ground in front of
-him from just outside the frame, implying guidance without showing the
-teacher. Low golden morning light rakes sideways across the training yard,
-catching dust kicked up from the dirt floor, a stack of spare wooden
-weapons leaning against a fence post in the blurred background. Loose, expressive painterly impressionism with visible confident brushstrokes, closer to classical oil-painting concept art than crisp digital rendering, soft warm
-dawn palette of gold, cream and pale steel blue, intimate low
-ground-level composition built along the mentor's long diagonal shadow, landscape orientation (about 1600×1000px, wider
-than tall), no text, no card frame, no border, no watermark
-```
-
----
-
 ### Cavalaria
 
 #### 5.10b. Jorge, Lança Sagrada — Full Art
@@ -824,87 +799,6 @@ bottom, no text, no card frame, no border, no watermark
 ```
 
 ---
-
-#### 5.13. Cavaleiro da Luz
-
-**Carta:** Cavalaria (ATK 5 / HP 7 / custo 3) · **Estilo:** Padrão (+ Full
-Art opcional, ver 5.13b) · **Status:** pronto pra gerar
-
-```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of the
-archetypal White Knight fording a shallow river at the height of a
-downpour, a powerful white warhorse throwing up sheets of spray with each
-stride, the knight in gleaming full white-and-gold plate armor with almost
-no ornamentation beyond a simple engraved cross, sword raised high and
-wreathed in a faint holy white-gold glow that cuts through the gray rain.
-Rain streaks the whole scene, lightning flashing on the horizon
-silhouetting distant battlements, water droplets caught mid-air around the
-horse's churning legs. Heroic confident pose undimmed by the storm.
-Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism,
-cool stormy palette of slate gray and rain-blue cut through by the knight's
-own warm white-gold glow, dynamic diagonal river-crossing composition, cinematic
-medium-wide shot with horse and rider fully visible, landscape orientation
-(about 1600×1000px, wider than tall), no text, no card frame, no border,
-no watermark
-```
-
----
-
-#### 5.13b. Cavaleiro da Luz — Full Art
-
-**Carta:** a mesma acima · **Estilo:** Full Art · **Status:** pronto pra
-gerar
-
-```
-TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic Magic: The Gathering-quality fantasy
-trading-card full-art illustration of the same archetypal White Knight,
-but a completely different, still moment instead of his river-storm
-crossing: standing perfectly motionless in the calm, sunlit eye of a
-battlefield in the moment right after victory, surrounded by a wide ring
-of fallen enemy weapons and banners planted broken in the earth, his sword
-lowered and resting point-down in the dirt rather than raised, full white-
-and-gold plate armor undamaged and gleaming in warm clear daylight, a
-serene, almost sorrowful expression rather than triumphant fury. Layered
-depth composition: the knight sharp in the foreground filling most of the
-vertical frame, the ring of fallen banners and debris in the midground, a
-clear, peaceful blue sky finally breaking after the storm in the
-background. A single white feather drifts down between the depth layers.
-Extremely detailed rendering — engraved plate armor catching clean
-sunlight, individual strands of his horse's mane where it stands quietly
-behind him, soft specular highlights on polished steel and gold. Loose,
-expressive painterly impressionism with visible confident brushstrokes,
-closer to classical oil-painting concept art than crisp digital
-rendering. Rich palette of clear sky blue, white and gold, powerful sense
-of solemn
-victory and peace, composition designed to fill a tall card frame edge-to
--edge with no empty margins at top or bottom, no text, no card frame, no
-border, no watermark
-```
-
----
-
-### Táticas de dano
-
-#### 5.17. Trabuco de Cerco
-
-**Carta:** Tática (custo 3) · **Estilo:** Padrão (Full Art já entregue) ·
-**Status:** pronto pra gerar
-
-```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting shot from a
-dizzying point-of-view mounted directly in the sling of a massive wooden
-trebuchet siege engine at the exact instant of release, the flaming
-payload just leaving the sling and hurtling toward the viewer as the arm
-whips upward against a dawn sky, crusader soldiers below straining at
-ropes and bracing against the machine's recoil, seen tiny and foreshortened
-from this extreme vantage. A distant fortified enemy gatehouse looms on
-the horizon, the trebuchet's true target. Dust, splinters and sparks
-fly close to camera. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism, warm palette of gold, wood brown and fire orange
-against a pale dawn sky, extreme dynamic point-of-view composition unlike
-any other siege weapon in this set, cinematic wide shot, landscape
-orientation (about 1600×1000px, wider than tall), no text, no card frame,
-no border, no watermark
-```
 
 ## Deck Capitão
 
