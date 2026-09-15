@@ -906,7 +906,7 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
     // border touch the true edges, exactly like the Padrão frame does. Every
     // child below keeps the plain percentages already measured straight off the
     // frame image's own raw canvas — they don't change, only this wrapper does.
-    <div className="absolute pointer-events-none" style={{ width: '108.8%', height: '113.7%', top: '50%', left: '50%', transform: 'translate(-50%, -49.1%)' }}>
+    <div className="absolute pointer-events-none" style={{ width: '108.2%', height: '113.2%', top: '50%', left: '50%', transform: 'translate(-50%, -49.1%)' }}>
       <div className="absolute overflow-hidden" style={{ left: '10.2%', top: '15.4%', width: '79.4%', height: '73.4%' }}>
         {card.art ? (
           <img src={card.art} alt={card.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
