@@ -25,6 +25,21 @@ import cardealPedroFullArt from './assets/card-cardeal-pedro-full.webp';
 import caliceDaVidaFullArt from './assets/card-calice-da-vida-full.webp';
 import nobreReligiosoFullArt from './assets/card-nobre-religioso-full.webp';
 import liderDeEsquadraoFullArt from './assets/card-lider-de-esquadrao-full.webp';
+import trabucoDeCercoFullArt from './assets/card-trabuco-de-cerco-full.webp';
+import catapultaDeGuerraArt from './assets/card-catapulta-de-guerra.webp';
+import balestraDePrecisaoArt from './assets/card-balestra-de-precisao.webp';
+import armaduraDeGuerraArt from './assets/card-armadura-de-guerra.webp';
+import couracaReforcadaArt from './assets/card-couraca-reforcada.webp';
+import flechasVenenosasArt from './assets/card-flechas-venenosas.webp';
+import espadaLongaArt from './assets/card-espada-longa.webp';
+import reforcosOcultosArt from './assets/card-reforcos-ocultos.webp';
+import retornoDoSoldadoFullArt from './assets/card-retorno-do-soldado-full.webp';
+import graalDaDadivaArt from './assets/card-graal-da-dadiva.webp';
+import doutrinaRenovadaArt from './assets/card-doutrina-renovada.webp';
+import recrutamentoSeletivoArt from './assets/card-recrutamento-seletivo.webp';
+import recrutarVeteranosArt from './assets/card-recrutar-veteranos.webp';
+import tributoDeGuerraArt from './assets/card-tributo-de-guerra.webp';
+import chamadoAsArmasArt from './assets/card-chamado-as-armas.webp';
 
 export type CardType = 'Infantaria' | 'Cavalaria' | 'Arqueiro' | 'Artilharia' | 'General' | 'Relíquia' | 'Terreno' | 'Tática' | 'Emboscada';
 
@@ -1233,27 +1248,30 @@ const DECK_CARDEAL: CardData[] = [
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_atirador_${i}`, name: 'Atirador da Cruzada', atk: 1, hp: 3, cost: 2, art: atiradorInfluenteArt, effect: 'Ao ir ao cemitério: compre 3 cartas.', cardType: 'Arqueiro' })),
 
   // Táticas de dano
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_trabuco_${i}`, name: 'Trabuco de Cerco', atk: 0, hp: 0, cost: 3, art: '', effect: 'Causa 2 de dano a TODAS as unidades inimigas.', cardType: 'Tática' })),
-  ...Array(3).fill(null).map((_, i): CardData => ({ id: `cardeal_catapulta_${i}`, name: 'Catapulta de Guerra', atk: 0, hp: 0, cost: 2, art: '', effect: 'Escolha uma fileira inimiga. Todas as unidades naquela fileira recebem 2 de dano.', cardType: 'Tática' })),
-  { id: 'cardeal_balesta', name: 'Balestra de Precisão', atk: 0, hp: 0, cost: 1, art: '', effect: 'Causa 3 de dano a uma unidade inimiga à sua escolha.', cardType: 'Tática' },
+  // Full Art print only for now — Padrão art for this card still pending.
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_trabuco_${i}`, name: 'Trabuco de Cerco', atk: 0, hp: 0, cost: 3, art: trabucoDeCercoFullArt, isFullArt: true, effect: 'Causa 2 de dano a TODAS as unidades inimigas.', cardType: 'Tática' })),
+  ...Array(3).fill(null).map((_, i): CardData => ({ id: `cardeal_catapulta_${i}`, name: 'Catapulta de Guerra', atk: 0, hp: 0, cost: 2, art: catapultaDeGuerraArt, effect: 'Escolha uma fileira inimiga. Todas as unidades naquela fileira recebem 2 de dano.', cardType: 'Tática' })),
+  { id: 'cardeal_balesta', name: 'Balestra de Precisão', atk: 0, hp: 0, cost: 1, art: balestraDePrecisaoArt, effect: 'Causa 3 de dano a uma unidade inimiga à sua escolha.', cardType: 'Tática' },
 
   // Armamentos → Tática
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_armadura_${i}`, name: 'Armadura de Guerra', atk: 0, hp: 0, cost: 1, art: '', effect: 'Infantaria equipada recebe +2 HP.', cardType: 'Tática' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_corcelete_${i}`, name: 'Couraça Reforçada', atk: 0, hp: 0, cost: 1, art: '', effect: 'Arqueiro, Plebeu ou Infantaria equipada recebe +1 HP.', cardType: 'Tática' })),
-  { id: 'cardeal_flecha', name: 'Flechas Venenosas', atk: 0, hp: 0, cost: 1, art: '', effect: 'Arqueiro equipado recebe +1 ATK.', cardType: 'Tática' },
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_espada_${i}`, name: 'Espada Longa', atk: 0, hp: 0, cost: 1, art: '', effect: 'Cavalaria, Infantaria ou Plebeu equipado recebe +2 ATK.', cardType: 'Tática' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_armadura_${i}`, name: 'Armadura de Guerra', atk: 0, hp: 0, cost: 1, art: armaduraDeGuerraArt, effect: 'Infantaria equipada recebe +2 HP.', cardType: 'Tática' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_corcelete_${i}`, name: 'Couraça Reforçada', atk: 0, hp: 0, cost: 1, art: couracaReforcadaArt, effect: 'Arqueiro, Plebeu ou Infantaria equipada recebe +1 HP.', cardType: 'Tática' })),
+  { id: 'cardeal_flecha', name: 'Flechas Venenosas', atk: 0, hp: 0, cost: 1, art: flechasVenenosasArt, effect: 'Arqueiro equipado recebe +1 ATK.', cardType: 'Tática' },
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_espada_${i}`, name: 'Espada Longa', atk: 0, hp: 0, cost: 1, art: espadaLongaArt, effect: 'Cavalaria, Infantaria ou Plebeu equipado recebe +2 ATK.', cardType: 'Tática' })),
 
   // Emboscadas
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_forcas_${i}`, name: 'Reforços Ocultos', atk: 0, hp: 0, cost: 1, art: '', effect: 'Durante um ataque inimigo: um soldado aliado recebe +2 ATK e +1 HP até o fim do turno.', cardType: 'Emboscada' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_forcas_${i}`, name: 'Reforços Ocultos', atk: 0, hp: 0, cost: 1, art: reforcosOcultosArt, effect: 'Durante um ataque inimigo: um soldado aliado recebe +2 ATK e +1 HP até o fim do turno.', cardType: 'Emboscada' })),
 
   // Táticas de utilidade
-  { id: 'cardeal_soldado_retorna', name: 'Retorno do Soldado', atk: 0, hp: 0, cost: 1, art: '', effect: 'Adicione um soldado do cemitério à sua mão.', cardType: 'Tática' },
-  { id: 'cardeal_busca_graal', name: 'Graal da Dádiva', atk: 0, hp: 0, cost: 1, art: '', effect: 'Adicione uma carta de Terreno ou Relíquia do deck à sua mão.', cardType: 'Tática' },
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_nova_tatica_${i}`, name: 'Doutrina Renovada', atk: 0, hp: 0, cost: 1, art: '', effect: 'Adicione uma carta de Tática do deck à sua mão.', cardType: 'Tática' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_esc_dedo_${i}`, name: 'Recrutamento Seletivo', atk: 0, hp: 0, cost: 1, art: '', effect: 'Adicione um soldado do deck à sua mão.', cardType: 'Tática' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_esc_tropas_${i}`, name: 'Recrutar Veteranos', atk: 0, hp: 0, cost: 1, art: '', effect: 'Veja as 4 cartas do topo. Adicione 2 à mão e coloque 2 no fundo do deck.', cardType: 'Tática' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_impostos_${i}`, name: 'Tributo de Guerra', atk: 0, hp: 0, cost: 0, art: '', effect: 'Ganhe 1 ouro adicional neste turno.', cardType: 'Tática' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_reuniao_${i}`, name: 'Chamado às Armas', atk: 0, hp: 0, cost: 2, art: '', effect: 'Invoque do deck até 2 soldados com 0 ATK para slots livres na Vanguarda. Embaralhe o deck.', cardType: 'Tática' })),
+  // Same Full Art testing swap as Nobre da Cruzada/Comandante da Ordem above — both
+  // Padrão and Full Art exist for this one, using Full Art for now.
+  { id: 'cardeal_soldado_retorna', name: 'Retorno do Soldado', atk: 0, hp: 0, cost: 1, art: retornoDoSoldadoFullArt, isFullArt: true, effect: 'Adicione um soldado do cemitério à sua mão.', cardType: 'Tática' },
+  { id: 'cardeal_busca_graal', name: 'Graal da Dádiva', atk: 0, hp: 0, cost: 1, art: graalDaDadivaArt, effect: 'Adicione uma carta de Terreno ou Relíquia do deck à sua mão.', cardType: 'Tática' },
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_nova_tatica_${i}`, name: 'Doutrina Renovada', atk: 0, hp: 0, cost: 1, art: doutrinaRenovadaArt, effect: 'Adicione uma carta de Tática do deck à sua mão.', cardType: 'Tática' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_esc_dedo_${i}`, name: 'Recrutamento Seletivo', atk: 0, hp: 0, cost: 1, art: recrutamentoSeletivoArt, effect: 'Adicione um soldado do deck à sua mão.', cardType: 'Tática' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_esc_tropas_${i}`, name: 'Recrutar Veteranos', atk: 0, hp: 0, cost: 1, art: recrutarVeteranosArt, effect: 'Veja as 4 cartas do topo. Adicione 2 à mão e coloque 2 no fundo do deck.', cardType: 'Tática' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_impostos_${i}`, name: 'Tributo de Guerra', atk: 0, hp: 0, cost: 0, art: tributoDeGuerraArt, effect: 'Ganhe 1 ouro adicional neste turno.', cardType: 'Tática' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_reuniao_${i}`, name: 'Chamado às Armas', atk: 0, hp: 0, cost: 2, art: chamadoAsArmasArt, effect: 'Invoque do deck até 2 soldados com 0 ATK para slots livres na Vanguarda. Embaralhe o deck.', cardType: 'Tática' })),
 ];
 
 // The playable pool each side actually draws from during a match — the General
