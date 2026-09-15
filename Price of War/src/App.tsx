@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { X, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass, Sparkles } from 'lucide-react';
+import { X, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass, Sparkles, Shield } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
@@ -781,6 +781,74 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
         </motion.span>
       )}
     </motion.div>
+  );
+};
+
+// Fixed HUD panel for a General — portrait, name, an actual HP BAR (not just a
+// number), and the gold coin — always visible in the same screen corner
+// regardless of the board's own camera pan/zoom, unlike the old badges that
+// used to float right off the General's own card. Modeled directly on the
+// reference screenshot the user sent: portrait circle, name plaque, HP bar,
+// coin counter, one panel per side. Reuses the same shake + floating "-N"
+// combat feedback as HpBadge/CardSlot on the bar itself, so damage reads
+// clearly on the fixed HUD too, not just on the card in the middle of the board.
+const HudPanel = ({
+  name, hp, maxHp, mana, side,
+}: { name: string; hp: number; maxHp: number; mana: number; side: 'npc' | 'player' }) => {
+  const prevHpRef = useRef(hp);
+  const [damageFlash, setDamageFlash] = useState<{ key: number; amount: number } | null>(null);
+  useEffect(() => {
+    if (hp < prevHpRef.current) {
+      setDamageFlash({ key: Date.now(), amount: prevHpRef.current - hp });
+    }
+    prevHpRef.current = hp;
+  }, [hp]);
+  useEffect(() => {
+    if (!damageFlash) return;
+    const t = window.setTimeout(() => setDamageFlash(null), 900);
+    return () => clearTimeout(t);
+  }, [damageFlash]);
+
+  const hpPct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
+
+  return (
+    <div className={`fixed left-2 md:left-4 z-[60] flex items-center gap-1.5 md:gap-2 pointer-events-none ${side === 'npc' ? 'top-2 md:top-3' : 'bottom-2 md:bottom-3'}`}>
+      <div className="w-9 h-9 md:w-12 md:h-12 rounded-full border-2 border-amber-400 bg-gradient-to-b from-zinc-800 to-zinc-950 flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.6)] shrink-0">
+        <Shield className="w-4 h-4 md:w-6 md:h-6 text-amber-400" strokeWidth={2} />
+      </div>
+      <motion.div
+        className="flex flex-col gap-0.5"
+        animate={{ x: damageFlash ? [0, -5, 5, -3, 3, 0] : 0 }}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
+      >
+        <div className="px-2 py-0.5 rounded bg-gradient-to-r from-red-950/95 to-red-900/80 border border-red-700/60 text-[8px] md:text-[10px] font-black text-amber-100 uppercase tracking-wide truncate max-w-[110px] md:max-w-[160px]">
+          {name}
+        </div>
+        <div className="relative w-20 md:w-32 h-2.5 md:h-3.5 rounded-full bg-zinc-950 border border-zinc-700 overflow-hidden">
+          <motion.div
+            className="absolute inset-y-0 left-0 bg-gradient-to-r from-red-700 to-red-400"
+            animate={{ width: `${hpPct}%` }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+          />
+          <span className="absolute inset-0 flex items-center justify-center text-[7px] md:text-[9px] font-black text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
+            {hp} / {maxHp}
+          </span>
+          {damageFlash && (
+            <motion.span
+              key={damageFlash.key}
+              initial={{ opacity: 0, y: 0, scale: 0.7 }}
+              animate={{ opacity: [0, 1, 1, 0], y: -16, scale: 1.1 }}
+              transition={{ duration: 0.9, ease: 'easeOut', opacity: { times: [0, 0.15, 0.7, 1] } }}
+              className="absolute -top-0.5 left-1/2 -translate-x-1/2 text-red-400 font-black text-[10px] whitespace-nowrap pointer-events-none z-20"
+              style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 6px rgba(239,68,68,0.9)' }}
+            >
+              -{damageFlash.amount}
+            </motion.span>
+          )}
+        </div>
+      </motion.div>
+      <ManaBadge value={mana} className="w-7 h-7 md:w-9 md:h-9 text-[10px] md:text-xs ml-0.5 pointer-events-auto" />
+    </div>
   );
 };
 
@@ -4099,6 +4167,26 @@ export default function App() {
               })}
             </div>
           )}
+          {/* Radial "filling" ring around the button — purely decorative (this game
+              has no real per-turn clock), just a continuously looping fill reinforcing
+              whose turn it is, per the user's own reference. Sits in its own wrapper
+              a bit bigger than the coin button so the ring doesn't get cut by the
+              coin's own rounded edge. */}
+          <div className="relative w-16 h-16 md:w-[4.75rem] md:h-[4.75rem] flex items-center justify-center">
+            <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth="5" />
+              <motion.circle
+                key={currentTurn}
+                cx="50" cy="50" r="46" fill="none"
+                stroke={currentTurn === 'player' ? '#fbbf24' : '#ef4444'}
+                strokeWidth="5" strokeLinecap="round"
+                strokeDasharray={289}
+                initial={{ strokeDashoffset: 289 }}
+                animate={{ strokeDashoffset: 0 }}
+                transition={{ duration: 2.4, repeat: Infinity, ease: 'linear' }}
+                style={{ filter: `drop-shadow(0 0 4px ${currentTurn === 'player' ? 'rgba(251,191,36,0.8)' : 'rgba(239,68,68,0.7)'})` }}
+              />
+            </svg>
           <motion.div
             className="relative w-14 h-14 md:w-16 md:h-16"
             style={{ transformStyle: 'preserve-3d' }}
@@ -4142,6 +4230,19 @@ export default function App() {
               <Hourglass className="w-5 h-5 md:w-6 md:h-6 text-red-200" strokeWidth={2.5} />
             </div>
           </motion.div>
+          </div>
+
+          {/* Turn label — "ENCERRAR TURNO" while it's actionable, "TURNO DO
+              OPONENTE" while it's not, per the user's reference. Kept in the same
+              narrow vertical stack as the phase tracker above (not a wide pill)
+              since a wider one used to sit on top of the Vanguarda slots next to it. */}
+          <div className={`px-2 py-0.5 rounded-full border text-[7px] md:text-[8px] font-black tracking-wide uppercase whitespace-nowrap text-center ${
+            currentTurn === 'player'
+              ? 'bg-amber-500 border-amber-300 text-zinc-950'
+              : 'bg-zinc-950/80 border-red-900/60 text-red-200'
+          }`}>
+            {currentTurn === 'player' ? 'Encerrar Turno' : 'Turno do Oponente'}
+          </div>
         </div>
 
         {/* NPC Field — reverted back to the pre-gateway-art flex layout (three real
@@ -4194,15 +4295,6 @@ export default function App() {
                 isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(12)}
                 isTacticDragTarget={isDragTargetSlot('npc', 12)}
               />
-              <ManaBadge value={npcMana} className="absolute -top-4 -left-4 w-10 h-10 md:w-12 md:h-12 text-sm md:text-base z-20" />
-              {/* HUD HP readout for the opponent General — the card's own embedded
-                  HP number (see CardFace) sits at a size tuned to fit its emblem,
-                  not to be glanced at across the table, so this bigger badge next
-                  to the mana coin is the actual "how much HP does he have left"
-                  answer at a glance. */}
-              {npcSlots[12] && (
-                <HpBadge value={npcSlots[12]!.hp} className="absolute -top-4 -right-4 w-10 h-10 md:w-12 md:h-12 text-sm md:text-base z-20" />
-              )}
             </div>
             <CardSlot
               slotId="npc-11"
@@ -4382,13 +4474,6 @@ export default function App() {
                 attackDirection="up"
                 isTacticDragTarget={isDragTargetSlot('own', 12)}
               />
-              <ManaBadge value={playerMana} className="absolute -top-4 -left-4 w-10 h-10 md:w-12 md:h-12 text-sm md:text-base z-20" />
-              {/* HUD HP readout for the player's own General — bottom-right (not
-                  top-right, mirroring the NPC's) since that corner is sometimes
-                  already taken by the General-ability prompt button below. */}
-              {playerSlots[12] && (
-                <HpBadge value={playerSlots[12]!.hp} className="absolute -bottom-4 -right-4 w-10 h-10 md:w-12 md:h-12 text-sm md:text-base z-20" />
-              )}
               {/* Yu-Gi-Oh-style "you may activate this" prompt — the game itself
                   notices the General has a usable Fase-Principal ability right now
                   (see playerGeneralAbilityAvailable) and surfaces it here instead of
@@ -4531,9 +4616,10 @@ export default function App() {
                 wrapper, not folded into the fan's rotateZ above, which pivots around
                 'top center': a 180° turn around THAT pivot would relocate the whole
                 card to the opposite side of the pivot point instead of just flipping
-                it in place). The opponent's board cards already face them (see
-                CardSlot's isOpponentSlot flip), so their hand should too, rather than
-                presenting right-side-up to the player the way their own hand does. */}
+                it in place). This is just the plain card-back art (no face content to
+                read either way), kept flipped from the opponent's own perspective —
+                unlike their BOARD cards, which no longer flip (see CardSlot below),
+                since there's nothing here for that change to help read. */}
             <div style={{ transform: 'rotate(180deg)', transformOrigin: 'center center', width: '100%', height: '100%', position: 'relative' }}>
               <CardBack shadow />
             </div>
@@ -5262,6 +5348,29 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* HUD panels — fixed to the actual screen corners (not the board's own
+          transformed/panning coordinate space), so they never move during the
+          board's own camera zoom/pan. Replaces the old ManaBadge/HpBadge pair
+          that used to float right off each General's own CardSlot. */}
+      {npcSlots[12] && (
+        <HudPanel
+          side="npc"
+          name={generalNpcRef.current.name}
+          hp={npcSlots[12]!.hp}
+          maxHp={generalNpcRef.current.hp}
+          mana={npcMana}
+        />
+      )}
+      {playerSlots[12] && (
+        <HudPanel
+          side="player"
+          name={generalPlayerRef.current.name}
+          hp={playerSlots[12]!.hp}
+          maxHp={generalPlayerRef.current.hp}
+          mana={playerMana}
+        />
+      )}
+
       {/* Board card preview — tapping any card already on the board (see CardSlot's
           root onClick) shows this: the same fixed, always-on-top, non-blocking
           enlarged copy the hand's own tap-preview uses (see BOARD_PREVIEW_SCALE
@@ -5414,13 +5523,6 @@ const CardSlot = ({
   shockActive?: boolean,
 }) => {
   const attackY = attackDirection === 'up' ? -150 : 150;
-  // The opponent sits across the table, so their own cards should face THEM, not the
-  // player — a 180° turn on the card's content only (not the slot, the info button,
-  // or the attack-target arrows), same as how a real card would be laid on their side
-  // of the table. Derived from the slotId naming convention ("npc-3" vs "player-3")
-  // rather than a prop, since every one of the 26 CardSlot call sites already passes
-  // one and threading a whole new boolean through each would be pure repetition.
-  const isOpponentSlot = slotId?.startsWith('npc-') ?? false;
 
   // Damage feedback — a brief shake plus a floating "-N" whenever this exact card
   // (same id) loses HP between renders, whatever the source: normal attack combat,
@@ -5535,7 +5637,12 @@ const CardSlot = ({
           // A card arriving in a slot (a General at match start, an AI or opponent
           // play) should visibly appear, not just pop into existence — a quick
           // scale/drop-in with a touch of overshoot reads as it "landing" here.
-          initial={{ opacity: 0, scale: 0.4, y: -24, rotate: isOpponentSlot ? 180 : 0 }}
+          // Opponent cards used to render rotated 180° (as if laid out facing them,
+          // across the table) — per the user's explicit ask, EVERY card on the board
+          // now reads upright from the player's own side, opponent's included, since
+          // being able to actually read the enemy's ATK/HP/effect text at a glance
+          // matters more than the "laid out facing them" physical-table conceit.
+          initial={{ opacity: 0, scale: 0.4, y: -24 }}
           animate={{
             opacity: 1,
             // A full-art card landing elsewhere on the board makes this one flinch —
@@ -5547,7 +5654,6 @@ const CardSlot = ({
             z: isAttacking ? 100 : 0,
             scale: isAttacking ? 1.2 : 1,
             rotateX: isAttacking ? (attackDirection === 'up' ? 20 : -20) : 0,
-            rotate: isOpponentSlot ? 180 : 0,
           }}
           transition={{
             duration: 0.3,
