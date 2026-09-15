@@ -42,6 +42,34 @@ import chamadoAsArmasArt from './assets/card-chamado-as-armas.webp';
 import recrutaDevotoArt from './assets/card-recruta-devoto.webp';
 import cavaleiroDaLuzFullArt from './assets/card-cavaleiro-da-luz-full.webp';
 import jorgeOLanceiroFullArt from './assets/card-jorge-o-lanceiro-full.webp';
+import cardDrawSfxUrl from './assets/sfx-comprar-carta.mp3';
+import duelMusicUrl from './assets/music-duelo.mp3';
+
+// Every card/board/UI image in the game besides the start screen's own background
+// and logo (those two load first, in the loading screen's initial black-screen
+// phase — see LoadingScreen below) — preloaded during the loading screen's bar
+// phase so nothing pops in mid-match from a cold network fetch.
+const ALL_PRELOAD_IMAGES: string[] = [
+  boardBattlefieldImage, buttonPlaqueImage, cardTemplateImage, cardTemplateSilverImage,
+  cardTemplateChampagneImage, cardBackplateImage, cardTemplateFullArtGoldImage,
+  multidaoDeFieisArt, comercianteDasCruzadasArt, espiaoSabotadorArt, soldadoFanaticoArt,
+  vigiaDeMantimentosArt, infantariaTreinadaArt, hospitalarioArt, arqueiroProfissionalArt,
+  atiradorInfluenteArt, cardealPedroFullArt, caliceDaVidaFullArt, nobreReligiosoFullArt,
+  liderDeEsquadraoFullArt, trabucoDeCercoFullArt, catapultaDeGuerraArt, balestraDePrecisaoArt,
+  armaduraDeGuerraArt, couracaReforcadaArt, flechasVenenosasArt, espadaLongaArt,
+  reforcosOcultosArt, retornoDoSoldadoFullArt, graalDaDadivaArt, doutrinaRenovadaArt,
+  recrutamentoSeletivoArt, recrutarVeteranosArt, tributoDeGuerraArt, chamadoAsArmasArt,
+  recrutaDevotoArt, cavaleiroDaLuzFullArt, jorgeOLanceiroFullArt,
+];
+
+// One-shot SFX helper — a fresh Audio() per call (rather than one shared/reused
+// element) so overlapping draws (e.g. Recrutar Veteranos drawing several cards at
+// once) each get their own independent playback instead of cutting each other off.
+const playCardDrawSfx = () => {
+  const audio = new Audio(cardDrawSfxUrl);
+  audio.volume = 0.6;
+  audio.play().catch(() => {});
+};
 
 export type CardType = 'Infantaria' | 'Cavalaria' | 'Arqueiro' | 'Artilharia' | 'General' | 'Relíquia' | 'Terreno' | 'Tática' | 'Emboscada';
 
@@ -1515,11 +1543,91 @@ const DeckPickerModal = ({ onSelect, onClose }: { onSelect: (deckId: DeckId) => 
   </motion.div>
 );
 
+// Shown before the main menu so a cold load never drops the player straight into
+// gameplay with art still fetching mid-match. Two phases: a plain black screen
+// (minimum ~500ms) while just the start screen's own background + logo load, then
+// a progress bar while every other card/board image in the game preloads — by the
+// time this unmounts, the whole game's art is already in the browser's cache.
+const LoadingScreen = ({ onDone }: { onDone: () => void }) => {
+  const [showBar, setShowBar] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const preload = (src: string) => new Promise<void>((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve();
+      img.onerror = () => resolve();
+      img.src = src;
+    });
+
+    (async () => {
+      const minBlackScreen = new Promise<void>((resolve) => setTimeout(resolve, 500));
+      await Promise.all([preload(startScreenBgImage), preload(logoImage), minBlackScreen]);
+      if (cancelled) return;
+      setShowBar(true);
+
+      let loaded = 0;
+      const total = ALL_PRELOAD_IMAGES.length;
+      await Promise.all(ALL_PRELOAD_IMAGES.map((src) => preload(src).then(() => {
+        loaded++;
+        if (!cancelled) setProgress(Math.round((loaded / total) * 100));
+      })));
+      if (!cancelled) onDone();
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
+      {showBar && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex flex-col items-center gap-4 w-56"
+        >
+          <img src={logoImage} alt="" className="w-40 select-none pointer-events-none" draggable={false} />
+          <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-amber-500 to-yellow-300 transition-[width] duration-150"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <span className="text-white/40 text-[11px] uppercase tracking-widest">Carregando...</span>
+        </motion.div>
+      )}
+    </div>
+  );
+};
+
 export default function App() {
+  const [assetsReady, setAssetsReady] = useState(false);
   const [gameMode, setGameMode] = useState<string | null>(null);
   // Quick Match asks which deck to play before actually starting the match —
   // see DECKS above and the DeckPickerModal rendered in the !gameMode branch.
   const [deckPickerOpen, setDeckPickerOpen] = useState(false);
+
+  // Duel background music: one Audio element for the whole app's life, started
+  // (looping, at a low background volume) whenever a match is in progress and
+  // paused the moment gameMode goes back to null (menu) — never plays over the menu.
+  const duelMusicRef = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => {
+    if (!duelMusicRef.current) {
+      const audio = new Audio(duelMusicUrl);
+      audio.loop = true;
+      audio.volume = 0.25;
+      duelMusicRef.current = audio;
+    }
+    const audio = duelMusicRef.current;
+    if (gameMode) {
+      audio.play().catch(() => {});
+    } else {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+  }, [gameMode]);
   const [viewState, setViewState] = useState<'hand' | 'field'>('hand');
   const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
@@ -1840,6 +1948,7 @@ export default function App() {
       deckQueueRef.current = [...playerDeckPoolRef.current].sort(() => Math.random() - 0.5);
     }
     const card = deckQueueRef.current.shift()!;
+    playCardDrawSfx();
     return { ...card, id: `hand_${Date.now()}_${Math.random()}` };
   };
   // The opponent's own independent shuffled draw pile — same mechanism as the
@@ -1850,6 +1959,7 @@ export default function App() {
       npcDeckQueueRef.current = [...npcDeckPoolRef.current].sort(() => Math.random() - 0.5);
     }
     const card = npcDeckQueueRef.current.shift()!;
+    playCardDrawSfx();
     return { ...card, id: `npc_hand_${Date.now()}_${Math.random()}` };
   };
 
@@ -2385,6 +2495,10 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [currentTurn, gameMode, gameOverWinner]);
+
+  if (!assetsReady) {
+    return <LoadingScreen onDone={() => setAssetsReady(true)} />;
+  }
 
   if (!gameMode) {
     return (
