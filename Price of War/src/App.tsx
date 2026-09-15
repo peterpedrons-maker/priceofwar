@@ -891,8 +891,21 @@ const FitEffectText = ({ text, className, style }: { text: string, className?: s
 // GoldNumber/FitText/FitEffectText building blocks as the Padrão layout below,
 // just placed for this frame's own window/badge coordinates (measured off
 // reference/full-art-frame-gold-v1.png).
+// The type/effect plate's own text sizes — deliberately a notch below
+// CARD_FACE_VARIANTS' hand/modal sizes (built for the Padrão layout's wider
+// parchment box): the reference mockup for this frame (Comandante Aurelion)
+// runs noticeably smaller type, since the plate itself sits over the art
+// rather than getting its own dedicated card real estate.
+const FULL_ART_PLATE_VARIANTS = {
+  hand:  { type: 'text-xs',                          effect: 'text-sm' },
+  field: { type: 'text-[6px] md:text-[7px]',          effect: 'text-[6px] md:text-[7px]' },
+  modal: { type: 'text-base',                         effect: 'text-lg' },
+  popup: { type: 'text-[9px] md:text-[10px]',         effect: 'text-[10px] md:text-[11px]' },
+} as const;
+
 const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof typeof CARD_FACE_VARIANTS }) => {
   const v = CARD_FACE_VARIANTS[variant];
+  const pv = FULL_ART_PLATE_VARIANTS[variant];
   const showStats = !NO_STAT_TYPES.has(card.cardType as CardType);
   return (
     // Everything — art, frame image, and every badge/text box — shares this one
@@ -930,13 +943,16 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
 
         {/* Type + effect plate — drawn over the art's lower third (inset from the
             window's own edges so it never overlaps the frame's gold border), not
-            part of the frame image itself. Bottom stays above 80% so it never
-            collides with the ATK/HP shields sitting at 87%. */}
+            part of the frame image itself. Bottom pinned to 73%, well clear of
+            the shields (their top edge measures ~77% on this frame), plus a
+            thin gold outline and a lighter fill — both matched to the
+            reference mockup instead of the first pass's much darker, taller,
+            bigger-text version. */}
         {card.effect && (
-          <div className="absolute flex flex-col items-center px-3 pt-2 pb-1 rounded-sm" style={{ left: '12%', right: '12%', top: '57%', height: '22%', background: 'linear-gradient(to bottom, rgba(10,8,4,0.35), rgba(10,8,4,0.88) 30%, rgba(6,5,2,0.92))' }}>
+          <div className="absolute flex flex-col items-center px-3 pt-1.5 pb-1" style={{ left: '12%', right: '12%', top: '55%', height: '18%', background: 'linear-gradient(to bottom, rgba(15,12,6,0.42), rgba(10,8,4,0.6) 35%, rgba(8,6,3,0.68))', border: '1px solid rgba(201,162,39,0.55)' }}>
             {card.cardType && (
               <>
-                <span className={`${v.type} font-black uppercase tracking-widest shrink-0`} style={{ fontFamily: "'Cinzel', serif", color: '#e9d8a6' }}>
+                <span className={`${pv.type} font-black uppercase tracking-widest shrink-0`} style={{ fontFamily: "'Cinzel', serif", color: '#e9d8a6' }}>
                   {card.cardType}
                 </span>
                 <div className="w-2/3 h-px shrink-0 my-1" style={{ background: 'rgba(201,162,39,0.6)' }} />
@@ -945,7 +961,7 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
             <div className="flex-1 w-full min-h-0">
               <FitEffectText
                 text={card.effect}
-                className={`${v.effect} italic text-center leading-tight`}
+                className={`${pv.effect} italic text-center leading-tight`}
                 style={{ fontFamily: "'Crimson Pro', serif", color: '#f3e6c8' }}
               />
             </div>
