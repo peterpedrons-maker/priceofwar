@@ -18,14 +18,14 @@ type ValidTargetsFn = (attackerIndex: number, attackerSlots: (CardData | null)[]
 // Relíquia/Terreno skip below) rather than have the AI actively hurt itself.
 const AI_UNSUPPORTED_TACTICS = new Set([
   'Reformar Linhas', 'Avanço Coordenado', 'Reposicionamento Rápido', 'Linha Fechada', 'Ordem de Retirada',
-  'Balesta', 'Catapulta', 'Armadura Pesada', 'Corcelete', 'Flecha Envenenada', 'Espada Longa',
-  'O Soldado Retorna', 'Busca pelo Santo Graal', 'Nova Tática', 'Escolher a Dedo', 'Escolher Tropas', 'Reunião de Fiéis',
-  // Trabuco and Aumento de Impostos don't need a board target, but they still resolve
+  'Balestra de Precisão', 'Catapulta de Guerra', 'Armadura de Guerra', 'Couraça Reforçada', 'Flechas Venenosas', 'Espada Longa',
+  'Retorno do Soldado', 'Graal da Dádiva', 'Doutrina Renovada', 'Recrutamento Seletivo', 'Recrutar Veteranos', 'Chamado às Armas',
+  // Trabuco de Cerco and Tributo de Guerra don't need a board target, but they still resolve
   // through the same play-card handler as every targeted Tática above (not the plain
   // "place a creature" path) — without this exclusion the AI was placing them as inert
   // 0/0 board occupants instead of ever triggering their effect, permanently wasting
   // both the card and the slot it sat in.
-  'Trabuco', 'Aumento de Impostos',
+  'Trabuco de Cerco', 'Tributo de Guerra',
 ]);
 
 // Emboscada cards only ever resolve via the ambush interrupt (see maybeActivateNpcAmbush
@@ -86,12 +86,12 @@ export const playAiTurn = (
     const targetsArr = Array.from(targets);
     const target = targets.has(12) ? 12 : targetsArr[Math.floor(Math.random() * targetsArr.length)];
     actions.push({ type: 'attack', attackerSlot: i, targetSlot: target });
-    // Arqueiro Profissional: "Pode atacar duas vezes por rodada." Queued right
+    // Arqueiro da Ordem: "Pode atacar duas vezes por rodada." Queued right
     // away against this same pre-combat snapshot, same as every other AI attack
     // decision here — not re-evaluated against the board state after the first
     // attack actually lands (App.tsx's runAiTurn resolves both against whatever
     // the board looks like when each one is actually processed).
-    if (attacker.name === 'Arqueiro Profissional') {
+    if (attacker.name === 'Arqueiro da Ordem') {
       const target2 = targets.has(12) ? 12 : targetsArr[Math.floor(Math.random() * targetsArr.length)];
       actions.push({ type: 'attack', attackerSlot: i, targetSlot: target2 });
     }

@@ -736,12 +736,12 @@ cada deck são o **General** e a **Relíquia**, que são sempre Full Art
 (moldura dourada, janela grande retrato ~0,72:1, ver item 3 acima) —
 marcadas como tal em cada entrada.
 
-## Deck Cardeal Pedro
+## Deck Cardeal Pedro, Voz da Fé
 
 **Identidade visual do deck:** uma ordem militar-religiosa cruzada — branco,
 dourado e vermelho-carmesim, luz quente e dourada de caráter "sagrado" (não
 azulada/mágica), cruzes e símbolos de fé, cavaleiros com mantos sobre a
-armadura no estilo Hospitalário/Templário.
+armadura no estilo Cavaleiro Hospitalário/Templário.
 
 **Nível de detalhe e unicidade (reescrito):** os prompts abaixo foram
 reescritos pra parar de compartilhar a mesma composição genérica ("um
@@ -759,13 +759,13 @@ carmesim, luz quente sagrada), mas nenhuma cena se repete.
 
 **Cartas com Full Art alternativa:** além do General e da Relíquia (que só
 existem em Full Art), estas seis ganham uma versão Full Art opcional além
-da Padrão: Jorge o Lanceiro, Nobre Religioso, Cavaleiro Branco, Líder de
-Esquadrão, Trabuco, O Soldado Retorna — critério nos comentários originais
+da Padrão: Jorge, Lança Sagrada, Nobre da Cruzada, Cavaleiro da Luz, Comandante
+da Ordem, Trabuco de Cerco, Retorno do Soldado — critério nos comentários originais
 mantido (estatística/raridade/impacto na estratégia).
 
 ### Infantaria
 
-#### 5.7. Aprendiz de Infantaria
+#### 5.7. Recruta Devoto
 
 **Carta:** Infantaria (ATK 0 / HP 2 / custo 1) · **Estilo:** Padrão ·
 **Status:** pronto pra gerar
@@ -790,7 +790,7 @@ than tall), no text, no card frame, no border, no watermark
 
 ### Cavalaria
 
-#### 5.10b. Jorge, o Lanceiro — Full Art
+#### 5.10b. Jorge, Lança Sagrada — Full Art
 
 **Carta:** a mesma acima · **Estilo:** Full Art · **Status:** pronto pra
 gerar
@@ -820,7 +820,7 @@ bottom, no text, no card frame, no border, no watermark
 
 ---
 
-#### 5.13. Cavaleiro Branco
+#### 5.13. Cavaleiro da Luz
 
 **Carta:** Cavalaria (ATK 5 / HP 7 / custo 3) · **Estilo:** Padrão (+ Full
 Art opcional, ver 5.13b) · **Status:** pronto pra gerar
@@ -845,7 +845,7 @@ no watermark
 
 ---
 
-#### 5.13b. Cavaleiro Branco — Full Art
+#### 5.13b. Cavaleiro da Luz — Full Art
 
 **Carta:** a mesma acima · **Estilo:** Full Art · **Status:** pronto pra
 gerar
@@ -880,7 +880,7 @@ border, no watermark
 
 ### Táticas de dano
 
-#### 5.17. Trabuco
+#### 5.17. Trabuco de Cerco
 
 **Carta:** Tática (custo 3) · **Estilo:** Padrão (+ Full Art opcional, ver
 5.17b) · **Status:** pronto pra gerar
@@ -903,14 +903,14 @@ no border, no watermark
 
 ---
 
-#### 5.17b. Trabuco — Full Art
+#### 5.17b. Trabuco de Cerco — Full Art
 
 **Carta:** a mesma acima · **Estilo:** Full Art · **Status:** pronto pra
 gerar
 
 ```
 TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Ultra-epic Magic: The Gathering-quality fantasy trading-card full-art
-illustration of the aftermath moment of a Trabuco's strike rather than the
+illustration of the aftermath moment of a Trabuco de Cerco's strike rather than the
 launch itself, tall vertical portrait filling the entire frame: seen from
 very far away and low to the ground at night, a small silhouetted crusader
 army camp in the foreground bottom of the frame, and high above in the
@@ -932,7 +932,7 @@ no watermark
 
 ---
 
-#### 5.18. Catapulta
+#### 5.18. Catapulta de Guerra
 
 **Carta:** Tática (custo 2) · **Estilo:** Padrão · **Status:** pronto pra
 gerar
@@ -954,7 +954,7 @@ no card frame, no border, no watermark
 
 ---
 
-#### 5.19. Balesta
+#### 5.19. Balestra de Precisão
 
 **Carta:** Tática (custo 1) · **Estilo:** Padrão · **Status:** pronto pra
 gerar
@@ -979,7 +979,7 @@ watermark
 
 ### Armamentos (equipáveis)
 
-#### 5.20. Armadura Pesada
+#### 5.20. Armadura de Guerra
 
 **Carta:** Tática/Armamento (custo 1) · **Estilo:** Padrão · **Status:**
 pronto pra gerar
@@ -1001,7 +1001,7 @@ no watermark
 
 ---
 
-#### 5.21. Corcelete
+#### 5.21. Couraça Reforçada
 
 **Carta:** Tática/Armamento (custo 1) · **Estilo:** Padrão · **Status:**
 pronto pra gerar
@@ -1023,7 +1023,7 @@ card frame, no border, no watermark
 
 ---
 
-#### 5.22. Flecha Envenenada
+#### 5.22. Flechas Venenosas
 
 **Carta:** Tática/Armamento (custo 1) · **Estilo:** Padrão · **Status:**
 pronto pra gerar
@@ -1067,7 +1067,7 @@ than tall), no text, no card frame, no border, no watermark
 
 ### Emboscadas
 
-#### 5.24. Forças Secretas
+#### 5.24. Reforços Ocultos
 
 **Carta:** Emboscada (custo 1) · **Estilo:** Padrão · **Status:** pronto
 pra gerar
@@ -1091,7 +1091,7 @@ no border, no watermark
 
 ### Táticas de utilidade
 
-#### 5.25. O Soldado Retorna
+#### 5.25. Retorno do Soldado
 
 **Carta:** Tática (custo 1) · **Estilo:** Padrão (+ Full Art opcional, ver
 5.25b) · **Status:** pronto pra gerar
@@ -1113,7 +1113,7 @@ watermark
 
 ---
 
-#### 5.25b. O Soldado Retorna — Full Art
+#### 5.25b. Retorno do Soldado — Full Art
 
 **Carta:** a mesma acima · **Estilo:** Full Art · **Status:** pronto pra
 gerar
@@ -1142,7 +1142,7 @@ no watermark
 
 ---
 
-#### 5.26. Busca pelo Santo Graal
+#### 5.26. Graal da Dádiva
 
 **Carta:** Tática (custo 1) · **Estilo:** Padrão · **Status:** pronto pra
 gerar
@@ -1164,7 +1164,7 @@ watermark
 
 ---
 
-#### 5.27. Nova Tática
+#### 5.27. Doutrina Renovada
 
 **Carta:** Tática (custo 1) · **Estilo:** Padrão · **Status:** pronto pra
 gerar
@@ -1186,7 +1186,7 @@ card frame, no border, no watermark
 
 ---
 
-#### 5.28. Escolher a Dedo
+#### 5.28. Recrutamento Seletivo
 
 **Carta:** Tática (custo 1) · **Estilo:** Padrão · **Status:** pronto pra
 gerar
@@ -1207,7 +1207,7 @@ watermark
 
 ---
 
-#### 5.29. Escolher Tropas
+#### 5.29. Recrutar Veteranos
 
 **Carta:** Tática (custo 1) · **Estilo:** Padrão · **Status:** pronto pra
 gerar
@@ -1227,7 +1227,7 @@ no border, no watermark
 
 ---
 
-#### 5.30. Aumento de Impostos
+#### 5.30. Tributo de Guerra
 
 **Carta:** Tática (custo 0) · **Estilo:** Padrão · **Status:** pronto pra
 gerar
@@ -1248,7 +1248,7 @@ watermark
 
 ---
 
-#### 5.31. Reunião de Fiéis
+#### 5.31. Chamado às Armas
 
 **Carta:** Tática (custo 2) · **Estilo:** Padrão · **Status:** pronto pra
 gerar
@@ -1274,11 +1274,11 @@ no border, no watermark
 **Identidade visual do deck:** um exército profissional disciplinado, sem
 tom religioso — carmesim, dourado e cinza-aço, o mesmo brasão do leão
 rampante que já aparece nas bandeiras do campo de batalha (item 3d) e no
-logo do jogo (4d-v2). Diferente do Cardeal Pedro (fé e cura), esse
+logo do jogo (4d-v2). Diferente do Cardeal Pedro, Voz da Fé (fé e cura), esse
 baralho é sobre formação e movimento tático.
 
 **Nível de detalhe e unicidade (reescrito):** mesmo tratamento aplicado ao
-Deck Cardeal Pedro — cada carta abaixo tem seu próprio cenário específico,
+Deck Cardeal Pedro, Voz da Fé — cada carta abaixo tem seu próprio cenário específico,
 ângulo de câmera e momento de ação, no nível de Magic: The Gathering, em
 vez de repetir "um soldado parado num campo poeirento" com só o sujeito
 trocado. Várias cenas literalmente visualizam a própria mecânica da carta
@@ -1287,7 +1287,7 @@ terceira trincheira/"coluna", a Formação Quebrada como um vórtice de caos)
 em vez de ilustrar só o nome. Todas ainda compartilham a mesma paleta/
 identidade do baralho.
 
-**Cartas com Full Art alternativa:** mesmo critério do Deck Cardeal Pedro —
+**Cartas com Full Art alternativa:** mesmo critério do Deck Cardeal Pedro, Voz da Fé —
 além do General (já coberto pelos itens 1/1b/2) e da Relíquia (só existe em
 Full Art), estas seis ganham uma versão Full Art opcional: Cavaleiro
 Tático, Capitão de Formação, Veterano de Guerra, Reformar Linhas, Contra-

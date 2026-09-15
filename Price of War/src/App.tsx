@@ -54,7 +54,7 @@ export type CardData = {
   // General/Fortaleza aura checks.
   dmgReduction?: number;
   // The explicit exception to "Táticas are single-use and never sit on the board":
-  // an Armamento (Armadura Pesada/Corcelete/Flecha Envenenada/Espada Longa) doesn't
+  // an Armamento (Armadura de Guerra/Couraça Reforçada/Flechas Venenosas/Espada Longa) doesn't
   // go to the graveyard when used — it stays equipped, rendered as a card peeking
   // out from behind this one (see CardSlot), until this unit dies (see
   // graveyardWithEquipment, which sends any equipped weapons along with it).
@@ -243,7 +243,7 @@ const getEffectiveAtk = (
   if (facingEnemy && !facingEnemy.isDestroyed && facingEnemy.name === 'Lanceiro de Controle') atk -= 1;
   // Pântano Maldito (Terreno, enemy's own slot 11): enemy Vanguarda -1 ATK.
   if (isFrontline(ownIndex) && isAliveAt(enemySlots, 11, 'Pântano Maldito')) atk -= 1;
-  // Líder de Esquadrão (Deck Cardeal): +1 ATK for allied Infantaria/Arqueiro
+  // Comandante da Ordem (Deck Cardeal): +1 ATK for allied Infantaria/Arqueiro
   // while it's standing in the Vanguarda (see hasLiderBuff below).
   if (hasLiderBuff(card, ownSlots)) atk += 1;
   return Math.max(0, atk);
@@ -333,7 +333,7 @@ const canReposition = (moverCard: CardData | null, from: number, to: number): bo
 // Which specific effect a chosen Emboscada card performs when activated,
 // replacing the old one-size-fits-all "+2/+2 to the defender" placeholder now
 // that Deck Capitão's three Emboscadas have actual written mechanics. Any
-// Emboscada without a case here (Deck Cardeal's "Forças Secretas" isn't wired
+// Emboscada without a case here (Deck Cardeal's "Reforços Ocultos" isn't wired
 // yet) still gets that original generic buff as a fallback.
 const resolveAmbushEffect = (
   ambushCard: CardData,
@@ -385,9 +385,9 @@ const resolveAmbushEffect = (
     return { attackerSlots: nextAttackerSlots, defenderSlots, defenderIndex, defender, cancelled: true };
   }
 
-  // Forças Secretas (Deck Cardeal): +2 ATK / +1 HP — same shape as the generic
+  // Reforços Ocultos (Deck Cardeal): +2 ATK / +1 HP — same shape as the generic
   // fallback below but +1 HP, not +2, so it gets its own exact case.
-  if (ambushCard.name === 'Forças Secretas') {
+  if (ambushCard.name === 'Reforços Ocultos') {
     const buffed = defender ? { ...defender, atk: defender.atk + 2, hp: defender.hp + 1 } : null;
     const nextDefenderSlots = [...defenderSlots];
     if (buffed) nextDefenderSlots[defenderIndex] = buffed;
@@ -415,11 +415,11 @@ const TARGETABLE_TACTICS: Record<string, TacticTargetKind> = {
   'Reposicionamento Rápido': 'reposicionamento_rapido',
   'Linha Fechada': 'linha_fechada',
   'Ordem de Retirada': 'ordem_retirada',
-  'Balesta': 'balesta',
-  'Catapulta': 'catapulta',
-  'Armadura Pesada': 'equip_armadura',
-  'Corcelete': 'equip_corcelete',
-  'Flecha Envenenada': 'equip_flecha',
+  'Balestra de Precisão': 'balesta',
+  'Catapulta de Guerra': 'catapulta',
+  'Armadura de Guerra': 'equip_armadura',
+  'Couraça Reforçada': 'equip_corcelete',
+  'Flechas Venenosas': 'equip_flecha',
   'Espada Longa': 'equip_espada',
 };
 const TACTIC_TARGET_PROMPTS: Record<TacticTargetKind, string> = {
@@ -442,8 +442,8 @@ const EQUIP_ALLOWED_TYPES: Record<string, CardType[]> = {
   equip_espada: ['Cavalaria', 'Infantaria'],
 };
 
-// What "um soldado" means across the reveal/search Táticas below (O Soldado
-// Retorna, Escolher a Dedo, Reunião de Fiéis) — any regular unit, not a
+// What "um soldado" means across the reveal/search Táticas below (Retorno do
+// Soldado, Recrutamento Seletivo, Chamado às Armas) — any regular unit, not a
 // General/Relíquia/Terreno/Tática/Emboscada.
 const SOLDIER_TYPES: CardType[] = ['Infantaria', 'Cavalaria', 'Arqueiro', 'Artilharia'];
 
@@ -453,31 +453,31 @@ const SOLDIER_TYPES: CardType[] = ['Infantaria', 'Cavalaria', 'Arqueiro', 'Artil
 // deck/graveyard search), so this covers what's tractable without a brand new
 // subsystem: direct-damage Táticas, the 4 equipment cards (reused as a permanent
 // stat stamp via the same targeting flow as Deck Capitão's Táticas, not a real
-// attach/detach system), Nobre Religioso's summon-on-play, Líder de Esquadrão's
-// aura, Jorge o Lanceiro's splash damage, and Forças Secretas' exact ambush
-// effect. Cardeal Pedro's own heal ability + Cálice da Vida and Aprendiz de
-// Infantaria's "Ao ser curado" trigger are wired too — see the
+// attach/detach system), Nobre da Cruzada's summon-on-play, Comandante da Ordem's
+// aura, Jorge, Lança Sagrada's splash damage, and Reforços Ocultos' exact ambush
+// effect. Cardeal Pedro, Voz da Fé's own heal ability + Cálice da Graça and Recruta
+// Devoto's "Ao ser curado" trigger are wired too — see the
 // generalAbilityPrompt/pendingGeneralHeal state, activateGeneralHeal/
 // resolveGeneralHeal, and playerGeneralAbilityAvailable's "you may activate
 // this" prompt on the General slot (Yu-Gi-Oh-style: the game itself notices
 // the ability is usable and surfaces it, rather than it just sitting there as
-// unusable flavor text). The same prompt pattern now also covers Comerciante
-// das Cruzadas and Hospitalário (see getPlayerCreatureAbilityKind and their
+// unusable flavor text). The same prompt pattern now also covers Mercador
+// da Cruzada and Cavaleiro Hospitalário (see getPlayerCreatureAbilityKind and their
 // activate/resolve functions) — a per-card Sparkles button on their own board
-// slot instead of only the General's. Vigia de Mantimentos is a passive
+// slot instead of only the General's. Intendente do Exército is a passive
 // version of the same "once per turn" idea, piggybacked on the turn-start draw
-// effect instead of a button. Espião Sabotador and Soldado Fanático's "General
+// effect instead of a button. Infiltrado da Ordem and Fanático da Cruzada's "General
 // type" text is handled pragmatically, not with a real faction system — see
-// hasEspiaoInVanguarda/hasEspiaoOnBoard and the Soldado Fanático comment at its
-// attack-time ATK bonus. Atirador Influente's death-trigger draw is hooked into
+// hasEspiaoInVanguarda/hasEspiaoOnBoard and the Fanático da Cruzada comment at its
+// attack-time ATK bonus. Atirador da Cruzada's death-trigger draw is hooked into
 // every withEquippedWeapons call site (see drawForAtiradorInfluente). Arqueiro
 // Profissional's double-attack introduced the game's first "already attacked
 // this turn" tracking (playerAttackCounts, reset every player turn; the AI
 // just queues two attack actions for it in aiService.ts) — every other unit
 // implicitly caps at 1 via the same mechanism now (getMaxAttacksPerTurn).
 // Still left as flavor-only: the reveal/search/graveyard-pick Táticas (O
-// Soldado Retorna, Busca pelo Santo Graal, Nova Tática, Escolher a Dedo,
-// Escolher Tropas, Reunião de Fiéis are actually already wired — see
+// Soldado Retorna, Graal da Dádiva, Doutrina Renovada, Recrutamento Seletivo,
+// Recrutar Veteranos, Chamado às Armas are actually already wired — see
 // openCardPicker call sites — so nothing here is left un-wired for lack of a
 // picker UI anymore). The AI doesn't know how to pick a target for the
 // targeted Táticas — see AI_UNSUPPORTED_TACTICS in aiService.ts, which leaves
@@ -491,7 +491,7 @@ const withEquippedWeapons = (cards: CardData[]): CardData[] =>
   cards.flatMap(c => (c.equippedWeapons?.length ? [c, ...c.equippedWeapons] : [c]));
 
 // Applies flat damage to one slot, same simple "hp minus damage, destroyed at 0"
-// rule combat uses — but for effects (Trabuco/Catapulta/Balesta/Jorge's splash)
+// rule combat uses — but for effects (Trabuco de Cerco/Catapulta de Guerra/Balestra de Precisão/Jorge's splash)
 // that hit a slot directly rather than through the normal attacker-vs-defender
 // exchange. Returns the updated slots array and, if something died, that card
 // (already flagged) for the caller to push onto the graveyard.
@@ -512,7 +512,7 @@ const applyDamageToSlot = (
   return { slots: next, destroyed: null };
 };
 
-// Líder de Esquadrão: "Na Vanguarda: Infantaria e Arqueiros aliados ganham +1 ATK
+// Comandante da Ordem: "Na Vanguarda: Infantaria e Arqueiros aliados ganham +1 ATK
 // e +1 HP durante o combate." A positional aura (must itself be standing in the
 // Vanguarda) — the ATK half is folded into getEffectiveAtk below; the HP half is
 // its own helper since it's added directly to HP in the combat blocks (same spot
@@ -521,33 +521,33 @@ const hasLiderBuff = (card: CardData, ownSlots: (CardData | null)[]): boolean =>
   if (card.cardType !== 'Infantaria' && card.cardType !== 'Arqueiro') return false;
   return [0, 1, 2, 3, 4].some(i => {
     const c = ownSlots[i];
-    return c && !c.isDestroyed && c.name === 'Líder de Esquadrão';
+    return c && !c.isDestroyed && c.name === 'Comandante da Ordem';
   });
 };
 const getAuraCombatHpBonus = (card: CardData, ownSlots: (CardData | null)[]): number =>
   hasLiderBuff(card, ownSlots) ? 1 : 0;
 
-// Espião Sabotador: "Na Vanguarda: impede Emboscadas inimigas." — checked from the
+// Infiltrado da Ordem: "Na Vanguarda: impede Emboscadas inimigas." — checked from the
 // ATTACKING side (see maybeActivatePlayerAmbush/maybeActivateNpcAmbush) to see
 // through the DEFENDER's Emboscada, so this only ever looks at slots 0-4.
 const hasEspiaoInVanguarda = (slots: (CardData | null)[]): boolean =>
-  [0, 1, 2, 3, 4].some(i => slots[i] && !slots[i]?.isDestroyed && slots[i]?.name === 'Espião Sabotador');
-// Espião Sabotador's other half ("Se o General aliado receber dano...") cares about
+  [0, 1, 2, 3, 4].some(i => slots[i] && !slots[i]?.isDestroyed && slots[i]?.name === 'Infiltrado da Ordem');
+// Infiltrado da Ordem's other half ("Se o General aliado receber dano...") cares about
 // it being anywhere on the board, not specifically the Vanguarda — see the General
 // damage checks in handleNpcSlotClick and the AI turn loop.
 const hasEspiaoOnBoard = (slots: (CardData | null)[]): boolean =>
-  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => slots[i] && !slots[i]?.isDestroyed && slots[i]?.name === 'Espião Sabotador');
+  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => slots[i] && !slots[i]?.isDestroyed && slots[i]?.name === 'Infiltrado da Ordem');
 
-// Arqueiro Profissional: "Pode atacar duas vezes por rodada." Every other unit
+// Arqueiro da Ordem: "Pode atacar duas vezes por rodada." Every other unit
 // still only gets one swing per turn (see playerAttackCounts/handleSlotClick).
-const getMaxAttacksPerTurn = (card: CardData): number => card.name === 'Arqueiro Profissional' ? 2 : 1;
+const getMaxAttacksPerTurn = (card: CardData): number => card.name === 'Arqueiro da Ordem' ? 2 : 1;
 
-// Nobre Religioso: "Ao entrar em campo: invoca Soldados Leais (1 ATK / 2 HP) nos
+// Nobre da Cruzada: "Ao entrar em campo: invoca Soldados Leais (1 ATK / 2 HP) nos
 // slots adjacentes livres da mesma fileira." Called right after ANY card lands on
-// a slot (player or AI) — a no-op unless that card is actually Nobre Religioso.
+// a slot (player or AI) — a no-op unless that card is actually Nobre da Cruzada.
 const applyNobreReligiosoSummon = (slots: (CardData | null)[], placedIndex: number): (CardData | null)[] => {
   const placed = slots[placedIndex];
-  if (!placed || placed.name !== 'Nobre Religioso' || placedIndex > 9) return slots;
+  if (!placed || placed.name !== 'Nobre da Cruzada' || placedIndex > 9) return slots;
   const next = [...slots];
   [placedIndex - 1, placedIndex + 1].forEach(j => {
     if (areSlotsAdjacent(placedIndex, j) && !next[j]) {
@@ -1203,57 +1203,57 @@ const DECK_CAPITAO: CardData[] = [
 // bodies same as any other Infantaria card), and Armamento (equipment) folds
 // into Tática (a 0/0 card whose whole point is its one-time effect).
 const DECK_CARDEAL: CardData[] = [
-  { id: 'cardeal_gen', name: 'Cardeal Pedro', atk: 0, hp: 20, cost: 0, art: cardealPedroFullArt, effect: 'Fase Principal: cure 1 HP em um soldado aliado. Pague 1 ouro para curar 3 HP em vez disso.', cardType: 'General', isFullArt: true },
-  { id: 'cardeal_relic', name: 'Cálice da Vida', atk: 0, hp: 5, cost: 3, art: caliceDaVidaFullArt, effect: 'Permanente. Permite que o General Cardeal Pedro use sua habilidade duas vezes por turno.', cardType: 'Relíquia', isFullArt: true },
+  { id: 'cardeal_gen', name: 'Cardeal Pedro, Voz da Fé', atk: 0, hp: 20, cost: 0, art: cardealPedroFullArt, effect: 'Fase Principal: cure 1 HP em um soldado aliado. Pague 1 ouro para curar 3 HP em vez disso.', cardType: 'General', isFullArt: true },
+  { id: 'cardeal_relic', name: 'Cálice da Graça', atk: 0, hp: 5, cost: 3, art: caliceDaVidaFullArt, effect: 'Permanente. Permite que o General Cardeal Pedro use sua habilidade duas vezes por turno.', cardType: 'Relíquia', isFullArt: true },
 
   // Plebeus → Infantaria
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `cardeal_fiel_${i}`, name: 'Multidão de Fiéis', atk: 0, hp: 3, cost: 1, art: multidaoDeFieisArt, effect: '—', cardType: 'Infantaria' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_comerciante_${i}`, name: 'Comerciante das Cruzadas', atk: 1, hp: 1, cost: 1, art: comercianteDasCruzadasArt, effect: 'Uma vez por turno: veja as 2 cartas do topo do deck. Adicione 1 à mão e coloque a outra no fundo.', cardType: 'Infantaria' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `cardeal_fiel_${i}`, name: 'Devotos da Cruzada', atk: 0, hp: 3, cost: 1, art: multidaoDeFieisArt, effect: '—', cardType: 'Infantaria' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_comerciante_${i}`, name: 'Mercador da Cruzada', atk: 1, hp: 1, cost: 1, art: comercianteDasCruzadasArt, effect: 'Uma vez por turno: veja as 2 cartas do topo do deck. Adicione 1 à mão e coloque a outra no fundo.', cardType: 'Infantaria' })),
 
   // Infantaria
-  { id: 'cardeal_espiao', name: 'Espião Sabotador', atk: 1, hp: 2, cost: 1, art: espiaoSabotadorArt, effect: 'Na Vanguarda: impede Emboscadas inimigas. Se o General aliado receber dano, no próximo turno não poderá usar sua habilidade.', cardType: 'Infantaria' },
-  { id: 'cardeal_fanatico', name: 'Soldado Fanático', atk: 1, hp: 2, cost: 1, art: soldadoFanaticoArt, effect: 'Ao atacar: se o General inimigo for de tipo oposto, ganha +2 ATK.', cardType: 'Infantaria' },
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_aprendiz_${i}`, name: 'Aprendiz de Infantaria', atk: 0, hp: 2, cost: 1, art: '', effect: 'Ao ser curado: recebe +1 ATK permanente.', cardType: 'Infantaria' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_vigia_${i}`, name: 'Vigia de Mantimentos', atk: 2, hp: 3, cost: 2, art: vigiaDeMantimentosArt, effect: 'Uma vez por turno: se você tiver menos de 2 cartas na mão, compre até ficar com 2.', cardType: 'Infantaria' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_inf_treinada_${i}`, name: 'Infantaria Treinada', atk: 3, hp: 5, cost: 2, art: infantariaTreinadaArt, effect: '—', cardType: 'Infantaria' })),
+  { id: 'cardeal_espiao', name: 'Infiltrado da Ordem', atk: 1, hp: 2, cost: 1, art: espiaoSabotadorArt, effect: 'Na Vanguarda: impede Emboscadas inimigas. Se o General aliado receber dano, no próximo turno não poderá usar sua habilidade.', cardType: 'Infantaria' },
+  { id: 'cardeal_fanatico', name: 'Fanático da Cruzada', atk: 1, hp: 2, cost: 1, art: soldadoFanaticoArt, effect: 'Ao atacar: se o General inimigo for de tipo oposto, ganha +2 ATK.', cardType: 'Infantaria' },
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_aprendiz_${i}`, name: 'Recruta Devoto', atk: 0, hp: 2, cost: 1, art: '', effect: 'Ao ser curado: recebe +1 ATK permanente.', cardType: 'Infantaria' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_vigia_${i}`, name: 'Intendente do Exército', atk: 2, hp: 3, cost: 2, art: vigiaDeMantimentosArt, effect: 'Uma vez por turno: se você tiver menos de 2 cartas na mão, compre até ficar com 2.', cardType: 'Infantaria' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_inf_treinada_${i}`, name: 'Soldados da Ordem', atk: 3, hp: 5, cost: 2, art: infantariaTreinadaArt, effect: '—', cardType: 'Infantaria' })),
 
   // Cavaleiros
-  ...Array(3).fill(null).map((_, i): CardData => ({ id: `cardeal_jorge_${i}`, name: 'Jorge, o Lanceiro', atk: 4, hp: 6, cost: 3, art: jorgeOLanceiroArt, effect: 'Ao atacar a Vanguarda: causa 2 de dano à unidade na Retaguarda da mesma coluna.', cardType: 'Cavalaria' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_hosp_${i}`, name: 'Hospitalário', atk: 2, hp: 4, cost: 2, art: hospitalarioArt, effect: 'Uma vez por turno: cure 1 HP de um aliado e cause 1 de dano a um inimigo na Vanguarda.', cardType: 'Cavalaria' })),
+  ...Array(3).fill(null).map((_, i): CardData => ({ id: `cardeal_jorge_${i}`, name: 'Jorge, Lança Sagrada', atk: 4, hp: 6, cost: 3, art: jorgeOLanceiroArt, effect: 'Ao atacar a Vanguarda: causa 2 de dano à unidade na Retaguarda da mesma coluna.', cardType: 'Cavalaria' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_hosp_${i}`, name: 'Cavaleiro Hospitalário', atk: 2, hp: 4, cost: 2, art: hospitalarioArt, effect: 'Uma vez por turno: cure 1 HP de um aliado e cause 1 de dano a um inimigo na Vanguarda.', cardType: 'Cavalaria' })),
   // Testing the Full Art print for this card (see CardFaceFullArt) instead of its
   // Padrão one now that both exist — once boosters exist this becomes a real
   // per-copy choice instead of swapping the one CardData entry's own art/isFullArt.
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_nobre_${i}`, name: 'Nobre Religioso', atk: 4, hp: 5, cost: 3, art: nobreReligiosoFullArt, isFullArt: true, effect: 'Ao entrar em campo: invoca Soldados Leais (1 ATK / 2 HP) nos slots adjacentes livres da mesma fileira.', cardType: 'Cavalaria' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `cardeal_cavaleiro_${i}`, name: 'Cavaleiro Branco', atk: 5, hp: 7, cost: 3, art: '', effect: '—', cardType: 'Cavalaria' })),
-  // Same Full Art testing swap as Nobre Religioso above.
-  { id: 'cardeal_lider', name: 'Líder de Esquadrão', atk: 5, hp: 5, cost: 3, art: liderDeEsquadraoFullArt, isFullArt: true, effect: 'Na Vanguarda: Infantaria e Arqueiros aliados ganham +1 ATK e +1 HP durante o combate.', cardType: 'Cavalaria' },
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_nobre_${i}`, name: 'Nobre da Cruzada', atk: 4, hp: 5, cost: 3, art: nobreReligiosoFullArt, isFullArt: true, effect: 'Ao entrar em campo: invoca Soldados Leais (1 ATK / 2 HP) nos slots adjacentes livres da mesma fileira.', cardType: 'Cavalaria' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `cardeal_cavaleiro_${i}`, name: 'Cavaleiro da Luz', atk: 5, hp: 7, cost: 3, art: '', effect: '—', cardType: 'Cavalaria' })),
+  // Same Full Art testing swap as Nobre da Cruzada above.
+  { id: 'cardeal_lider', name: 'Comandante da Ordem', atk: 5, hp: 5, cost: 3, art: liderDeEsquadraoFullArt, isFullArt: true, effect: 'Na Vanguarda: Infantaria e Arqueiros aliados ganham +1 ATK e +1 HP durante o combate.', cardType: 'Cavalaria' },
 
   // Arqueiros
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_arq_pro_${i}`, name: 'Arqueiro Profissional', atk: 1, hp: 4, cost: 2, art: arqueiroProfissionalArt, effect: 'Pode atacar duas vezes por rodada.', cardType: 'Arqueiro' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_atirador_${i}`, name: 'Atirador Influente', atk: 1, hp: 3, cost: 2, art: atiradorInfluenteArt, effect: 'Ao ir ao cemitério: compre 3 cartas.', cardType: 'Arqueiro' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_arq_pro_${i}`, name: 'Arqueiro da Ordem', atk: 1, hp: 4, cost: 2, art: arqueiroProfissionalArt, effect: 'Pode atacar duas vezes por rodada.', cardType: 'Arqueiro' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_atirador_${i}`, name: 'Atirador da Cruzada', atk: 1, hp: 3, cost: 2, art: atiradorInfluenteArt, effect: 'Ao ir ao cemitério: compre 3 cartas.', cardType: 'Arqueiro' })),
 
   // Táticas de dano
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_trabuco_${i}`, name: 'Trabuco', atk: 0, hp: 0, cost: 3, art: '', effect: 'Causa 2 de dano a TODAS as unidades inimigas.', cardType: 'Tática' })),
-  ...Array(3).fill(null).map((_, i): CardData => ({ id: `cardeal_catapulta_${i}`, name: 'Catapulta', atk: 0, hp: 0, cost: 2, art: '', effect: 'Escolha uma fileira inimiga. Todas as unidades naquela fileira recebem 2 de dano.', cardType: 'Tática' })),
-  { id: 'cardeal_balesta', name: 'Balesta', atk: 0, hp: 0, cost: 1, art: '', effect: 'Causa 3 de dano a uma unidade inimiga à sua escolha.', cardType: 'Tática' },
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_trabuco_${i}`, name: 'Trabuco de Cerco', atk: 0, hp: 0, cost: 3, art: '', effect: 'Causa 2 de dano a TODAS as unidades inimigas.', cardType: 'Tática' })),
+  ...Array(3).fill(null).map((_, i): CardData => ({ id: `cardeal_catapulta_${i}`, name: 'Catapulta de Guerra', atk: 0, hp: 0, cost: 2, art: '', effect: 'Escolha uma fileira inimiga. Todas as unidades naquela fileira recebem 2 de dano.', cardType: 'Tática' })),
+  { id: 'cardeal_balesta', name: 'Balestra de Precisão', atk: 0, hp: 0, cost: 1, art: '', effect: 'Causa 3 de dano a uma unidade inimiga à sua escolha.', cardType: 'Tática' },
 
   // Armamentos → Tática
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_armadura_${i}`, name: 'Armadura Pesada', atk: 0, hp: 0, cost: 1, art: '', effect: 'Infantaria equipada recebe +2 HP.', cardType: 'Tática' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_corcelete_${i}`, name: 'Corcelete', atk: 0, hp: 0, cost: 1, art: '', effect: 'Arqueiro, Plebeu ou Infantaria equipada recebe +1 HP.', cardType: 'Tática' })),
-  { id: 'cardeal_flecha', name: 'Flecha Envenenada', atk: 0, hp: 0, cost: 1, art: '', effect: 'Arqueiro equipado recebe +1 ATK.', cardType: 'Tática' },
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_armadura_${i}`, name: 'Armadura de Guerra', atk: 0, hp: 0, cost: 1, art: '', effect: 'Infantaria equipada recebe +2 HP.', cardType: 'Tática' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_corcelete_${i}`, name: 'Couraça Reforçada', atk: 0, hp: 0, cost: 1, art: '', effect: 'Arqueiro, Plebeu ou Infantaria equipada recebe +1 HP.', cardType: 'Tática' })),
+  { id: 'cardeal_flecha', name: 'Flechas Venenosas', atk: 0, hp: 0, cost: 1, art: '', effect: 'Arqueiro equipado recebe +1 ATK.', cardType: 'Tática' },
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_espada_${i}`, name: 'Espada Longa', atk: 0, hp: 0, cost: 1, art: '', effect: 'Cavalaria, Infantaria ou Plebeu equipado recebe +2 ATK.', cardType: 'Tática' })),
 
   // Emboscadas
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_forcas_${i}`, name: 'Forças Secretas', atk: 0, hp: 0, cost: 1, art: '', effect: 'Durante um ataque inimigo: um soldado aliado recebe +2 ATK e +1 HP até o fim do turno.', cardType: 'Emboscada' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_forcas_${i}`, name: 'Reforços Ocultos', atk: 0, hp: 0, cost: 1, art: '', effect: 'Durante um ataque inimigo: um soldado aliado recebe +2 ATK e +1 HP até o fim do turno.', cardType: 'Emboscada' })),
 
   // Táticas de utilidade
-  { id: 'cardeal_soldado_retorna', name: 'O Soldado Retorna', atk: 0, hp: 0, cost: 1, art: '', effect: 'Adicione um soldado do cemitério à sua mão.', cardType: 'Tática' },
-  { id: 'cardeal_busca_graal', name: 'Busca pelo Santo Graal', atk: 0, hp: 0, cost: 1, art: '', effect: 'Adicione uma carta de Terreno ou Relíquia do deck à sua mão.', cardType: 'Tática' },
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_nova_tatica_${i}`, name: 'Nova Tática', atk: 0, hp: 0, cost: 1, art: '', effect: 'Adicione uma carta de Tática do deck à sua mão.', cardType: 'Tática' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_esc_dedo_${i}`, name: 'Escolher a Dedo', atk: 0, hp: 0, cost: 1, art: '', effect: 'Adicione um soldado do deck à sua mão.', cardType: 'Tática' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_esc_tropas_${i}`, name: 'Escolher Tropas', atk: 0, hp: 0, cost: 1, art: '', effect: 'Veja as 4 cartas do topo. Adicione 2 à mão e coloque 2 no fundo do deck.', cardType: 'Tática' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_impostos_${i}`, name: 'Aumento de Impostos', atk: 0, hp: 0, cost: 0, art: '', effect: 'Ganhe 1 ouro adicional neste turno.', cardType: 'Tática' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_reuniao_${i}`, name: 'Reunião de Fiéis', atk: 0, hp: 0, cost: 2, art: '', effect: 'Invoque do deck até 2 soldados com 0 ATK para slots livres na Vanguarda. Embaralhe o deck.', cardType: 'Tática' })),
+  { id: 'cardeal_soldado_retorna', name: 'Retorno do Soldado', atk: 0, hp: 0, cost: 1, art: '', effect: 'Adicione um soldado do cemitério à sua mão.', cardType: 'Tática' },
+  { id: 'cardeal_busca_graal', name: 'Graal da Dádiva', atk: 0, hp: 0, cost: 1, art: '', effect: 'Adicione uma carta de Terreno ou Relíquia do deck à sua mão.', cardType: 'Tática' },
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_nova_tatica_${i}`, name: 'Doutrina Renovada', atk: 0, hp: 0, cost: 1, art: '', effect: 'Adicione uma carta de Tática do deck à sua mão.', cardType: 'Tática' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_esc_dedo_${i}`, name: 'Recrutamento Seletivo', atk: 0, hp: 0, cost: 1, art: '', effect: 'Adicione um soldado do deck à sua mão.', cardType: 'Tática' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_esc_tropas_${i}`, name: 'Recrutar Veteranos', atk: 0, hp: 0, cost: 1, art: '', effect: 'Veja as 4 cartas do topo. Adicione 2 à mão e coloque 2 no fundo do deck.', cardType: 'Tática' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_impostos_${i}`, name: 'Tributo de Guerra', atk: 0, hp: 0, cost: 0, art: '', effect: 'Ganhe 1 ouro adicional neste turno.', cardType: 'Tática' })),
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_reuniao_${i}`, name: 'Chamado às Armas', atk: 0, hp: 0, cost: 2, art: '', effect: 'Invoque do deck até 2 soldados com 0 ATK para slots livres na Vanguarda. Embaralhe o deck.', cardType: 'Tática' })),
 ];
 
 // The playable pool each side actually draws from during a match — the General
@@ -1276,7 +1276,7 @@ const DECKS = {
 } as const;
 type DeckId = keyof typeof DECKS;
 
-// Hospitalário's "cure 1 HP de um aliado" only makes sense targeting someone who's
+// Cavaleiro Hospitalário's "cure 1 HP de um aliado" only makes sense targeting someone who's
 // actually hurt — but CardData has no separate max-HP field, hp IS current HP (see
 // resolveGeneralHeal, which has no such restriction and just heals whatever's
 // clicked). So "damaged" is derived here instead: a card's starting HP is whatever
@@ -1523,14 +1523,14 @@ export default function App() {
   const [batedorFreeMove, setBatedorFreeMove] = useState<number | null>(null);
 
   // ── General activatable abilities (Yu-Gi-Oh-style "you may activate this" prompt) ──
-  // Cardeal Pedro's "Fase Principal: cure 1 HP em um soldado aliado. Pague 1 ouro
+  // Cardeal Pedro, Voz da Fé's "Fase Principal: cure 1 HP em um soldado aliado. Pague 1 ouro
   // para curar 3 HP em vez disso." used to be pure flavor text with no way to trigger
   // it at all. Instead of hardcoding just this one ability, this is meant to read as
   // the general shape a card game like this needs: the game itself notices the
   // General has an available Fase-Principal effect and surfaces it (a glowing prompt
   // on the General, see the CardSlot call sites below) rather than the player having
   // to already know it's there. generalAbilityUses resets every player turn (see the
-  // currentTurn === 'player' effect) and caps at 1, or 2 while Cálice da Vida sits in
+  // currentTurn === 'player' effect) and caps at 1, or 2 while Cálice da Graça sits in
   // the Relíquia slot (see getGeneralAbilityMaxUses).
   const [playerGeneralAbilityUses, setPlayerGeneralAbilityUses] = useState(0);
   const [npcGeneralAbilityUses, setNpcGeneralAbilityUses] = useState(0);
@@ -1546,10 +1546,10 @@ export default function App() {
   // pendingTacticAction above.
   const [pendingGeneralHeal, setPendingGeneralHeal] = useState<{ amount: number } | null>(null);
 
-  // Espião Sabotador's "Se o General aliado receber dano, no próximo turno não
+  // Infiltrado da Ordem's "Se o General aliado receber dano, no próximo turno não
   // poderá usar sua habilidade." pendingPlayerGeneralAbilityBlock/
   // pendingNpcGeneralAbilityBlock are set the moment that side's General takes
-  // damage while a living Espião Sabotador is on their own board (see the damage
+  // damage while a living Infiltrado da Ordem is on their own board (see the damage
   // checks in handleNpcSlotClick and the AI turn loop). The "...BlockedThisTurn"
   // pair is what actually gates the ability and is deliberately a ref, not
   // state: it's flipped on inside the currentTurn-start effect (copied from the
@@ -1566,22 +1566,22 @@ export default function App() {
   const playerGeneralAbilityBlockedThisTurnRef = useRef(false);
   const npcGeneralAbilityBlockedThisTurnRef = useRef(false);
 
-  // Comerciante das Cruzadas ("Uma vez por turno: veja as 2 cartas do topo do
-  // deck...") and Hospitalário ("Uma vez por turno: cure 1 HP...") — the same
+  // Mercador da Cruzada ("Uma vez por turno: veja as 2 cartas do topo do
+  // deck...") and Cavaleiro Hospitalário ("Uma vez por turno: cure 1 HP...") — the same
   // Yu-Gi-Oh-style on-board prompt as the General's own ability above, just keyed
   // per-card instead of only the General slot (see getPlayerCreatureAbilityKind).
   // Tracks card INSTANCE ids (stable while a card sits on the board) rather than
   // names, since both cards have 2 copies that could be on the field at once, each
   // usable independently. Resets every player turn (see the currentTurn effect).
   const [playerActivatedAbilityIds, setPlayerActivatedAbilityIds] = useState<Set<string>>(new Set());
-  // Hospitalário's two independent halves (heal an ally, then damage an enemy
+  // Cavaleiro Hospitalário's two independent halves (heal an ally, then damage an enemy
   // Vanguarda unit) — same two-step "commit, then click a target" shape as
   // pendingGeneralHeal, except it can move straight to 'damage' without ever
   // showing 'heal' (see activateHospitalario) when there's no damaged ally to
   // heal, so the card isn't wasted just because the heal half has no target.
   const [pendingHospitalario, setPendingHospitalario] = useState<{ step: 'heal' | 'damage' } | null>(null);
 
-  // Arqueiro Profissional's "Pode atacar duas vezes por rodada" is the game's
+  // Arqueiro da Ordem's "Pode atacar duas vezes por rodada" is the game's
   // first case of any unit attacking more than once a turn, which means this is
   // also the game's first "already attacked this turn" tracker — every other
   // unit is implicitly capped at 1 through the exact same map (see
@@ -1592,12 +1592,12 @@ export default function App() {
   // not really reachable in practice. Reset every player turn (see the
   // currentTurn effect). The AI's own attacks aren't tracked here at all — it
   // never lets a unit swing more than aiService.ts's own per-unit loop already
-  // decides (see playAiTurn's Arqueiro Profissional case), so it never needs to
+  // decides (see playAiTurn's Arqueiro da Ordem case), so it never needs to
   // consult this.
   const [playerAttackCounts, setPlayerAttackCounts] = useState<Record<number, number>>({});
 
-  // The reveal/search Táticas (O Soldado Retorna, Busca pelo Santo Graal, Nova
-  // Tática, Escolher a Dedo, Escolher Tropas, Reunião de Fiéis) all boil down to
+  // The reveal/search Táticas (Retorno do Soldado, Graal da Dádiva, Nova
+  // Tática, Recrutamento Seletivo, Recrutar Veteranos, Chamado às Armas) all boil down to
   // the same shape: show the player a set of candidate cards and let them pick
   // one (or a couple), then do something with the pick(s) — see openCardPicker
   // and its call sites in handlePlayCardButtonClick.
@@ -1829,15 +1829,15 @@ export default function App() {
     return { ...card, id: `npc_hand_${Date.now()}_${Math.random()}` };
   };
 
-  // Atirador Influente: "Ao ir ao cemitério: compre 3 cartas." Called from every
+  // Atirador da Cruzada: "Ao ir ao cemitério: compre 3 cartas." Called from every
   // "push these destroyed cards onto the graveyard" call site (the same ones
   // withEquippedWeapons already touches — see its own comment), so it fires
   // whether the player's or the NPC's copy is the one that died. Takes the raw
   // (pre-withEquippedWeapons) destroyed list since an equipped weapon can never
-  // itself be named 'Atirador Influente'. No hand-size cap — same as every other
+  // itself be named 'Atirador da Cruzada'. No hand-size cap — same as every other
   // draw in this game (drawFromDeck/drawFromNpcDeck have none either).
   const drawForAtiradorInfluente = (destroyedCards: CardData[], isPlayerOwner: boolean) => {
-    const count = destroyedCards.filter(c => c.name === 'Atirador Influente').length;
+    const count = destroyedCards.filter(c => c.name === 'Atirador da Cruzada').length;
     for (let i = 0; i < count * 3; i++) {
       if (isPlayerOwner) {
         setHand(prev => [...prev, drawFromDeck()]);
@@ -2079,11 +2079,11 @@ export default function App() {
         if (origin) drawOriginsRef.current[newCard.id] = origin;
         setHand(prev => [...prev, newCard]);
       }
-      // Vigia de Mantimentos: "Uma vez por turno: se você tiver menos de 2 cartas
+      // Intendente do Exército: "Uma vez por turno: se você tiver menos de 2 cartas
       // na mão, compre até ficar com 2." A passive check (no button, unlike
-      // Comerciante das Cruzadas/Hospitalário) piggybacked on this same
+      // Mercador da Cruzada/Cavaleiro Hospitalário) piggybacked on this same
       // once-per-turn-start effect instead of a separate per-turn guard.
-      if ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => playerSlots[i] && !playerSlots[i]?.isDestroyed && playerSlots[i]?.name === 'Vigia de Mantimentos')) {
+      if ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => playerSlots[i] && !playerSlots[i]?.isDestroyed && playerSlots[i]?.name === 'Intendente do Exército')) {
         setHand(prev => prev.length >= 2 ? prev : [...prev, ...Array.from({ length: 2 - prev.length }, () => drawFromDeck())]);
       }
     } else {
@@ -2101,8 +2101,8 @@ export default function App() {
       if (turnNumber > 1 && npcHand.length < 10) {
         setNpcHand(prev => [...prev, drawFromNpcDeck()]);
       }
-      // Vigia de Mantimentos, NPC side — same passive check as the player's own above.
-      if ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => npcSlots[i] && !npcSlots[i]?.isDestroyed && npcSlots[i]?.name === 'Vigia de Mantimentos')) {
+      // Intendente do Exército, NPC side — same passive check as the player's own above.
+      if ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => npcSlots[i] && !npcSlots[i]?.isDestroyed && npcSlots[i]?.name === 'Intendente do Exército')) {
         setNpcHand(prev => prev.length >= 2 ? prev : [...prev, ...Array.from({ length: 2 - prev.length }, () => drawFromNpcDeck())]);
       }
     }
@@ -2122,16 +2122,16 @@ export default function App() {
         let currentNpcMana = npcMana;
         let playerGeneralFell = false;
 
-        // Cardeal Pedro's General ability (see resolveGeneralHeal/GENERAL_ABILITIES
+        // Cardeal Pedro, Voz da Fé's General ability (see resolveGeneralHeal/GENERAL_ABILITIES
         // below for the player-facing version of the exact same rule) has no target
         // to pick for the AI — it just always heals its currently weakest ally,
         // spending gold for the bigger heal whenever it can afford to. Mirrors the
-        // player's own once-or-twice-per-turn cap (Cálice da Vida) instead of a
+        // player's own once-or-twice-per-turn cap (Cálice da Graça) instead of a
         // separate, potentially more generous rule for the opponent.
-        // Espião Sabotador: blocked for exactly the turn after the General took
+        // Infiltrado da Ordem: blocked for exactly the turn after the General took
         // damage (see npcGeneralAbilityBlockedThisTurnRef's own comment above).
-        if (currentNpcSlots[12]?.name === 'Cardeal Pedro' && !npcGeneralAbilityBlockedThisTurnRef.current) {
-          const maxUses = currentNpcSlots[10]?.name === 'Cálice da Vida' ? 2 : 1;
+        if (currentNpcSlots[12]?.name === 'Cardeal Pedro, Voz da Fé' && !npcGeneralAbilityBlockedThisTurnRef.current) {
+          const maxUses = currentNpcSlots[10]?.name === 'Cálice da Graça' ? 2 : 1;
           let usesThisTurn = 0;
           while (usesThisTurn < maxUses) {
             const allyIndices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => currentNpcSlots[i]);
@@ -2141,8 +2141,8 @@ export default function App() {
             const healAmount = payGold ? 3 : 1;
             if (payGold) currentNpcMana -= 1;
             let healed = { ...currentNpcSlots[weakest]!, hp: currentNpcSlots[weakest]!.hp + healAmount };
-            // Aprendiz de Infantaria: "Ao ser curado: recebe +1 ATK permanente."
-            if (healed.name === 'Aprendiz de Infantaria') healed = { ...healed, atk: healed.atk + 1 };
+            // Recruta Devoto: "Ao ser curado: recebe +1 ATK permanente."
+            if (healed.name === 'Recruta Devoto') healed = { ...healed, atk: healed.atk + 1 };
             currentNpcSlots[weakest] = healed;
             usesThisTurn++;
           }
@@ -2155,7 +2155,7 @@ export default function App() {
           }
         }
 
-        // Comerciante das Cruzadas / Hospitalário: the same once-per-turn creature
+        // Mercador da Cruzada / Cavaleiro Hospitalário: the same once-per-turn creature
         // abilities as the player's own copies (see activateComercianteDasCruzadas/
         // activateHospitalario below), just auto-run with no UI — every living copy
         // on the NPC's board fires once, same as the player only ever gets one
@@ -2163,7 +2163,7 @@ export default function App() {
         for (let i = 0; i <= 9; i++) {
           const ownedCard = currentNpcSlots[i];
           if (!ownedCard || ownedCard.isDestroyed) continue;
-          if (ownedCard.name === 'Comerciante das Cruzadas') {
+          if (ownedCard.name === 'Mercador da Cruzada') {
             if (npcDeckQueueRef.current.length < 2) {
               npcDeckQueueRef.current = [...npcDeckQueueRef.current, ...[...npcDeckPoolRef.current].sort(() => Math.random() - 0.5)];
             }
@@ -2178,12 +2178,12 @@ export default function App() {
               npcDeckQueueRef.current = [...npcDeckQueueRef.current, ...leftovers];
               setNpcHand(prev => [...prev, { ...chosen, id: `npc_hand_${Date.now()}_${Math.random()}` }]);
             }
-          } else if (ownedCard.name === 'Hospitalário') {
+          } else if (ownedCard.name === 'Cavaleiro Hospitalário') {
             const allyIndices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(j => currentNpcSlots[j] && !currentNpcSlots[j]!.isDestroyed && isCardDamaged(currentNpcSlots[j]!));
             if (allyIndices.length > 0) {
               const weakest = allyIndices.reduce((a, b) => currentNpcSlots[a]!.hp <= currentNpcSlots[b]!.hp ? a : b);
               let healed = { ...currentNpcSlots[weakest]!, hp: currentNpcSlots[weakest]!.hp + 1 };
-              if (healed.name === 'Aprendiz de Infantaria') healed = { ...healed, atk: healed.atk + 1 };
+              if (healed.name === 'Recruta Devoto') healed = { ...healed, atk: healed.atk + 1 };
               currentNpcSlots[weakest] = healed;
             }
             const enemyVanguardaIndices = [0, 1, 2, 3, 4].filter(j => currentPlayerSlots[j] && !currentPlayerSlots[j]!.isDestroyed);
@@ -2211,7 +2211,7 @@ export default function App() {
             announceCardPlay(action.card, 'npc');
             await new Promise(resolve => setTimeout(resolve, 1000));
             currentNpcSlots[action.slotIndex] = action.card;
-            // Nobre Religioso: "Ao entrar em campo: invoca Soldados Leais..." —
+            // Nobre da Cruzada: "Ao entrar em campo: invoca Soldados Leais..." —
             // applies regardless of which side plays it.
             currentNpcSlots = applyNobreReligiosoSummon(currentNpcSlots, action.slotIndex);
             currentNpcMana -= action.card.cost;
@@ -2249,9 +2249,9 @@ export default function App() {
 
               if (!cancelled && defender) {
                 let attackerAtk = getEffectiveAtk(attacker, action.attackerSlot, currentNpcSlots, currentPlayerSlots);
-                // Soldado Fanático — see the exact same check (and its comment) in
+                // Fanático da Cruzada — see the exact same check (and its comment) in
                 // handleNpcSlotClick above; this is the AI-side mirror of it.
-                if (attacker.name === 'Soldado Fanático' && currentPlayerSlots[12] && currentPlayerSlots[12]?.name !== 'Cardeal Pedro') attackerAtk += 2;
+                if (attacker.name === 'Fanático da Cruzada' && currentPlayerSlots[12] && currentPlayerSlots[12]?.name !== 'Cardeal Pedro, Voz da Fé') attackerAtk += 2;
                 const defenderAtk = getEffectiveAtk(defender, targetSlot, currentPlayerSlots, currentNpcSlots);
                 const attackerReduction = getIncomingDamageReduction(action.attackerSlot, currentNpcSlots);
                 const defenderReduction = getIncomingDamageReduction(targetSlot, currentPlayerSlots);
@@ -2259,11 +2259,11 @@ export default function App() {
                 const defenderHpBonus = (defender.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(defender, currentPlayerSlots);
                 const damageToDefender = Math.max(0, attackerAtk - defenderReduction);
 
-                // Espião Sabotador — see the exact same check (and its comment) in
+                // Infiltrado da Ordem — see the exact same check (and its comment) in
                 // handleNpcSlotClick above; here the DEFENDER's side is the player.
                 if (targetSlot === 12 && damageToDefender > 0 && hasEspiaoOnBoard(currentPlayerSlots)) {
                   setPendingPlayerGeneralAbilityBlock(true);
-                  showToast('Espião Sabotador: a habilidade do seu General foi bloqueada no seu próximo turno!');
+                  showToast('Infiltrado da Ordem: a habilidade do seu General foi bloqueada no seu próximo turno!');
                 }
 
                 const updatedAttacker = {
@@ -2294,10 +2294,10 @@ export default function App() {
                   currentPlayerSlots[targetSlot] = updatedDefender;
                 }
 
-                // Jorge, o Lanceiro: "Ao atacar a Vanguarda: causa 2 de dano à
+                // Jorge, Lança Sagrada: "Ao atacar a Vanguarda: causa 2 de dano à
                 // unidade na Retaguarda da mesma coluna." A splash side-effect,
                 // independent of whether the main target survived.
-                if (attacker.name === 'Jorge, o Lanceiro' && isFrontline(targetSlot) && currentPlayerSlots[targetSlot + 5]) {
+                if (attacker.name === 'Jorge, Lança Sagrada' && isFrontline(targetSlot) && currentPlayerSlots[targetSlot + 5]) {
                   const splash = applyDamageToSlot(currentPlayerSlots, targetSlot + 5, 2);
                   currentPlayerSlots = splash.slots;
                   if (splash.destroyed) {
@@ -2427,20 +2427,20 @@ export default function App() {
       return;
     }
 
-    // Aumento de Impostos (Deck Cardeal): immediate, no target.
-    if (card.name === 'Aumento de Impostos') {
+    // Tributo de Guerra (Deck Cardeal): immediate, no target.
+    if (card.name === 'Tributo de Guerra') {
       setPlayerMana(prev => prev - card.cost + 1);
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
       setPlayerGraveyard(g => [...g, card]);
       setSelectedCardIndex(null);
-      showToast('Aumento de Impostos: +1 ouro neste turno!');
+      showToast('Tributo de Guerra: +1 ouro neste turno!');
       return;
     }
 
-    // Trabuco (Deck Cardeal): "Causa 2 de dano a TODAS as unidades inimigas" —
+    // Trabuco de Cerco (Deck Cardeal): "Causa 2 de dano a TODAS as unidades inimigas" —
     // immediate AOE, no target to pick. Hits every enemy creature/General (0-9,
     // 12) — the Relíquia/Terreno slots (10/11) aren't "unidades".
-    if (card.name === 'Trabuco') {
+    if (card.name === 'Trabuco de Cerco') {
       setPlayerMana(prev => prev - card.cost);
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
       setPlayerGraveyard(g => [...g, card]);
@@ -2461,7 +2461,7 @@ export default function App() {
         setNpcGraveyard(g => [...g, ...withEquippedWeapons(destroyed)]);
         drawForAtiradorInfluente(destroyed, false);
       }
-      showToast('Trabuco: 2 de dano a todas as unidades inimigas!');
+      showToast('Trabuco de Cerco: 2 de dano a todas as unidades inimigas!');
       if (npcGeneralFell) setGameOverWinner('player');
       return;
     }
@@ -2480,8 +2480,8 @@ export default function App() {
       return;
     }
 
-    // O Soldado Retorna: reclaim one soldier from your own graveyard.
-    if (card.name === 'O Soldado Retorna') {
+    // Retorno do Soldado: reclaim one soldier from your own graveyard.
+    if (card.name === 'Retorno do Soldado') {
       const candidates = playerGraveyard.filter(c => SOLDIER_TYPES.includes(c.cardType as CardType));
       if (candidates.length === 0) {
         setSelectedCardIndex(null);
@@ -2501,8 +2501,8 @@ export default function App() {
       return;
     }
 
-    // Busca pelo Santo Graal: search the deck for a Terreno or Relíquia.
-    if (card.name === 'Busca pelo Santo Graal') {
+    // Graal da Dádiva: search the deck for a Terreno or Relíquia.
+    if (card.name === 'Graal da Dádiva') {
       const candidates = playerDeckPoolRef.current.filter(c => c.cardType === 'Terreno' || c.cardType === 'Relíquia');
       if (candidates.length === 0) {
         setSelectedCardIndex(null);
@@ -2522,8 +2522,8 @@ export default function App() {
       return;
     }
 
-    // Nova Tática: search the deck for any Tática.
-    if (card.name === 'Nova Tática') {
+    // Doutrina Renovada: search the deck for any Tática.
+    if (card.name === 'Doutrina Renovada') {
       const candidates = playerDeckPoolRef.current.filter(c => c.cardType === 'Tática');
       if (candidates.length === 0) {
         setSelectedCardIndex(null);
@@ -2543,8 +2543,8 @@ export default function App() {
       return;
     }
 
-    // Escolher a Dedo: search the deck for any soldier.
-    if (card.name === 'Escolher a Dedo') {
+    // Recrutamento Seletivo: search the deck for any soldier.
+    if (card.name === 'Recrutamento Seletivo') {
       const candidates = playerDeckPoolRef.current.filter(c => SOLDIER_TYPES.includes(c.cardType as CardType));
       if (candidates.length === 0) {
         setSelectedCardIndex(null);
@@ -2564,9 +2564,9 @@ export default function App() {
       return;
     }
 
-    // Escolher Tropas: reveal the real top 4 of the deck (not just the pool —
+    // Recrutar Veteranos: reveal the real top 4 of the deck (not just the pool —
     // this one actually cares about draw order), keep 2, bottom 2.
-    if (card.name === 'Escolher Tropas') {
+    if (card.name === 'Recrutar Veteranos') {
       if (deckQueueRef.current.length < 4) {
         deckQueueRef.current = [...deckQueueRef.current, ...[...playerDeckPoolRef.current].sort(() => Math.random() - 0.5)];
       }
@@ -2586,9 +2586,9 @@ export default function App() {
       return;
     }
 
-    // Reunião de Fiéis: summon up to 2 zero-ATK soldiers straight from the deck
+    // Chamado às Armas: summon up to 2 zero-ATK soldiers straight from the deck
     // into empty Vanguarda slots, then shuffle.
-    if (card.name === 'Reunião de Fiéis') {
+    if (card.name === 'Chamado às Armas') {
       const candidates = playerDeckPoolRef.current.filter(c => SOLDIER_TYPES.includes(c.cardType as CardType) && c.atk === 0);
       const emptyVanguarda = [0, 1, 2, 3, 4].filter(i => !playerSlots[i]);
       if (candidates.length === 0 || emptyVanguarda.length === 0) {
@@ -2670,23 +2670,23 @@ export default function App() {
   const activePhases = phasesForTurn(turnNumber);
   const isLastPhaseOfTurn = activePhases[activePhases.length - 1] === turnPhase;
 
-  // Cálice da Vida (Relíquia, the slot-10 special slot) lets Cardeal Pedro's General
+  // Cálice da Graça (Relíquia, the slot-10 special slot) lets Cardeal Pedro, Voz da Fé's General
   // ability fire twice per turn instead of once — see GENERAL_ABILITIES below.
-  const playerGeneralAbilityMaxUses = playerSlots[10]?.name === 'Cálice da Vida' ? 2 : 1;
+  const playerGeneralAbilityMaxUses = playerSlots[10]?.name === 'Cálice da Graça' ? 2 : 1;
   // Whether the player's own General has an activatable Fase-Principal ability ready
   // right now — drives the glowing prompt icon on the General slot (see CardSlot's
   // showAbilityPrompt call sites). Requires an actual ally on the board to heal;
   // otherwise there's nothing to target and the prompt would just dead-end.
   const playerGeneralAbilityAvailable =
-    playerSlots[12]?.name === 'Cardeal Pedro' && !playerSlots[12]?.isDestroyed &&
+    playerSlots[12]?.name === 'Cardeal Pedro, Voz da Fé' && !playerSlots[12]?.isDestroyed &&
     currentTurn === 'player' && turnPhase === 'preparacao' &&
     playerGeneralAbilityUses < playerGeneralAbilityMaxUses &&
-    // Espião Sabotador: blocked for exactly the one turn following the General
+    // Infiltrado da Ordem: blocked for exactly the one turn following the General
     // taking damage (see playerGeneralAbilityBlockedThisTurnRef's own comment).
     !playerGeneralAbilityBlockedThisTurnRef.current &&
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => playerSlots[i]);
 
-  // Comerciante das Cruzadas / Hospitalário: which once-per-turn creature ability
+  // Mercador da Cruzada / Cavaleiro Hospitalário: which once-per-turn creature ability
   // (if any) is available to activate on this exact player slot right now — same
   // "you may activate this" shape as playerGeneralAbilityAvailable above, just
   // per-card instead of only the General (see the Sparkles button rendered next
@@ -2695,8 +2695,8 @@ export default function App() {
     if (currentTurn !== 'player' || turnPhase !== 'preparacao') return null;
     const card = playerSlots[slotIndex];
     if (!card || card.isDestroyed || playerActivatedAbilityIds.has(card.id)) return null;
-    if (card.name === 'Comerciante das Cruzadas') return 'comerciante';
-    if (card.name === 'Hospitalário') return 'hospitalario';
+    if (card.name === 'Mercador da Cruzada') return 'comerciante';
+    if (card.name === 'Cavaleiro Hospitalário') return 'hospitalario';
     return null;
   };
 
@@ -2732,7 +2732,7 @@ export default function App() {
   // their whole hand while deciding. This toast is just the "why did my hand just pop
   // up" context, since that part has nowhere else to live.
   const maybeActivatePlayerAmbush = (attacker: CardData, defender: CardData, attackerSlots: (CardData | null)[]): Promise<CardData | null> => {
-    // Espião Sabotador: "Na Vanguarda: impede Emboscadas inimigas." The DEFENDER
+    // Infiltrado da Ordem: "Na Vanguarda: impede Emboscadas inimigas." The DEFENDER
     // here is the player — this card has to be read on the ATTACKER's (the NPC's)
     // side to matter, since it's the attacker's own Espião that "sees through"
     // the defender's ambush. Easy to get backwards: it does NOT protect whoever
@@ -2750,7 +2750,7 @@ export default function App() {
   // otherwise destroy the unit. Always picks the first Emboscada card it's holding.
   const maybeActivateNpcAmbush = async (attacker: CardData, defender: CardData, attackerSlots: (CardData | null)[]): Promise<CardData | null> => {
     // Same rule as maybeActivatePlayerAmbush above, mirrored: the player is
-    // attacking here, so it's the PLAYER's own Espião Sabotador (not the NPC's,
+    // attacking here, so it's the PLAYER's own Infiltrado da Ordem (not the NPC's,
     // even though the NPC is the one defending) that blocks the NPC's Emboscada.
     if (hasEspiaoInVanguarda(attackerSlots)) return null;
     const options = npcHandRef.current.filter(c => c.cardType === 'Emboscada');
@@ -2872,7 +2872,7 @@ export default function App() {
         drawForAtiradorInfluente([result.destroyed], false);
         if (result.destroyed.cardType === 'General') setGameOverWinner('player');
       }
-      showToast('Balesta: 3 de dano causado!');
+      showToast('Balestra de Precisão: 3 de dano causado!');
     } else if (kind === 'catapulta') {
       if (slotIndex > 9) { showToast('Escolha uma fileira inimiga (Vanguarda ou Retaguarda).'); return; }
       const row = getMoveRow(slotIndex) === 0 ? [0, 1, 2, 3, 4] : [5, 6, 7, 8, 9];
@@ -2893,7 +2893,7 @@ export default function App() {
         drawForAtiradorInfluente(destroyed, false);
       }
       if (npcGeneralFell) setGameOverWinner('player');
-      showToast('Catapulta: 2 de dano em toda a fileira!');
+      showToast('Catapulta de Guerra: 2 de dano em toda a fileira!');
     }
 
     setPlayerGraveyard(g => [...g, card]);
@@ -2902,7 +2902,7 @@ export default function App() {
   };
 
   // Toggles one option in/out of the current cardPicker selection — used by the
-  // multi-pick cases (Escolher Tropas, Reunião de Fiéis); single-pick cases resolve
+  // multi-pick cases (Recrutar Veteranos, Chamado às Armas); single-pick cases resolve
   // immediately on tap instead (see the cardPicker modal below) and never call this.
   const toggleCardPickerSelection = (option: CardData) => {
     setCardPicker(prev => {
@@ -2935,8 +2935,8 @@ export default function App() {
     setPlayerSlots(prev => {
       const next = [...prev];
       let healed = { ...next[slotIndex]!, hp: next[slotIndex]!.hp + amount };
-      // Aprendiz de Infantaria: "Ao ser curado: recebe +1 ATK permanente."
-      if (healed.name === 'Aprendiz de Infantaria') healed = { ...healed, atk: healed.atk + 1 };
+      // Recruta Devoto: "Ao ser curado: recebe +1 ATK permanente."
+      if (healed.name === 'Recruta Devoto') healed = { ...healed, atk: healed.atk + 1 };
       next[slotIndex] = healed;
       return next;
     });
@@ -2944,9 +2944,9 @@ export default function App() {
     setPendingGeneralHeal(null);
   };
 
-  // Comerciante das Cruzadas: "Uma vez por turno: veja as 2 cartas do topo do
+  // Mercador da Cruzada: "Uma vez por turno: veja as 2 cartas do topo do
   // deck. Adicione 1 à mão e coloque a outra no fundo." Same reveal-then-choose
-  // shape as Escolher Tropas above (see openCardPicker there), just N=2/keep=1
+  // shape as Recrutar Veteranos above (see openCardPicker there), just N=2/keep=1
   // and triggered from the card's own on-board prompt instead of a hand Tática.
   const activateComercianteDasCruzadas = (card: CardData) => {
     setPlayerActivatedAbilityIds(prev => new Set(prev).add(card.id));
@@ -2954,7 +2954,7 @@ export default function App() {
       deckQueueRef.current = [...deckQueueRef.current, ...[...playerDeckPoolRef.current].sort(() => Math.random() - 0.5)];
     }
     const revealed = deckQueueRef.current.splice(0, 2);
-    openCardPicker('Comerciante das Cruzadas: veja as 2 cartas do topo — escolha 1 para a mão', revealed, 1, (picked) => {
+    openCardPicker('Mercador da Cruzada: veja as 2 cartas do topo — escolha 1 para a mão', revealed, 1, (picked) => {
       const chosen = picked[0];
       const other = revealed.find(c => c.id !== chosen.id);
       if (other) deckQueueRef.current = [...deckQueueRef.current, other];
@@ -2964,7 +2964,7 @@ export default function App() {
     });
   };
 
-  // Hospitalário: "Uma vez por turno: cure 1 HP de um aliado e cause 1 de dano a
+  // Cavaleiro Hospitalário: "Uma vez por turno: cure 1 HP de um aliado e cause 1 de dano a
   // um inimigo na Vanguarda." Two independent halves, each with its own target
   // (see pendingHospitalario/resolveHospitalarioHeal/resolveHospitalarioDamage) —
   // starts on whichever half actually has a target so a fully-healthy board (or
@@ -2974,19 +2974,19 @@ export default function App() {
     const hasDamagedAlly = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => playerSlots[i] && !playerSlots[i]?.isDestroyed && isCardDamaged(playerSlots[i]!));
     if (hasDamagedAlly) {
       setPendingHospitalario({ step: 'heal' });
-      showToast('Hospitalário: escolha um aliado ferido para curar 1 HP.');
+      showToast('Cavaleiro Hospitalário: escolha um aliado ferido para curar 1 HP.');
       return;
     }
     const hasEnemyVanguarda = [0, 1, 2, 3, 4].some(i => npcSlots[i] && !npcSlots[i]?.isDestroyed);
     if (hasEnemyVanguarda) {
       setPendingHospitalario({ step: 'damage' });
-      showToast('Hospitalário: escolha um inimigo na Vanguarda para causar 1 de dano.');
+      showToast('Cavaleiro Hospitalário: escolha um inimigo na Vanguarda para causar 1 de dano.');
     } else {
-      showToast('Hospitalário: nenhum alvo disponível para nenhuma das duas metades.');
+      showToast('Cavaleiro Hospitalário: nenhum alvo disponível para nenhuma das duas metades.');
     }
   };
 
-  // Resolves Hospitalário's heal half once the player clicks their own board (see
+  // Resolves Cavaleiro Hospitalário's heal half once the player clicks their own board (see
   // pendingHospitalario's dispatch at the top of handleSlotClick).
   const resolveHospitalarioHeal = (slotIndex: number) => {
     if (!pendingHospitalario) return;
@@ -2995,8 +2995,8 @@ export default function App() {
     setPlayerSlots(prev => {
       const next = [...prev];
       let healed = { ...next[slotIndex]!, hp: next[slotIndex]!.hp + 1 };
-      // Aprendiz de Infantaria: "Ao ser curado: recebe +1 ATK permanente."
-      if (healed.name === 'Aprendiz de Infantaria') healed = { ...healed, atk: healed.atk + 1 };
+      // Recruta Devoto: "Ao ser curado: recebe +1 ATK permanente."
+      if (healed.name === 'Recruta Devoto') healed = { ...healed, atk: healed.atk + 1 };
       next[slotIndex] = healed;
       return next;
     });
@@ -3004,13 +3004,13 @@ export default function App() {
     const hasEnemyVanguarda = [0, 1, 2, 3, 4].some(i => npcSlots[i] && !npcSlots[i]?.isDestroyed);
     if (hasEnemyVanguarda) {
       setPendingHospitalario({ step: 'damage' });
-      showToast('Hospitalário: escolha um inimigo na Vanguarda para causar 1 de dano.');
+      showToast('Cavaleiro Hospitalário: escolha um inimigo na Vanguarda para causar 1 de dano.');
     } else {
       setPendingHospitalario(null);
     }
   };
 
-  // Resolves Hospitalário's damage half once the player clicks the enemy board
+  // Resolves Cavaleiro Hospitalário's damage half once the player clicks the enemy board
   // (see pendingHospitalario's dispatch at the top of handleNpcSlotClick).
   const resolveHospitalarioDamage = (slotIndex: number) => {
     if (!pendingHospitalario) return;
@@ -3024,7 +3024,7 @@ export default function App() {
       setNpcGraveyard(g => [...g, ...withEquippedWeapons([result.destroyed!])]);
       drawForAtiradorInfluente([result.destroyed], false);
     }
-    showToast('Hospitalário causou 1 de dano!');
+    showToast('Cavaleiro Hospitalário causou 1 de dano!');
     setPendingHospitalario(null);
   };
 
@@ -3178,7 +3178,7 @@ export default function App() {
         showToast(turnNumber < 3 ? "A fase de Batalha só libera a partir do turno 3." : "Só dá pra atacar na fase de Batalha!");
         return;
       }
-      // Arqueiro Profissional gets 2 attacks this turn; every other unit gets 1
+      // Arqueiro da Ordem gets 2 attacks this turn; every other unit gets 1
       // (see getMaxAttacksPerTurn/playerAttackCounts).
       const usedAttacks = playerAttackCounts[slotIndex] ?? 0;
       if (usedAttacks >= getMaxAttacksPerTurn(playerSlots[slotIndex]!)) {
@@ -3241,13 +3241,13 @@ export default function App() {
 
         if (!cancelled && defender) {
           let attackerAtk = getEffectiveAtk(attacker, selectedAttackerIndex, newPlayerSlots, newNpcSlots);
-          // Soldado Fanático: "Ao atacar: se o General inimigo for de tipo oposto,
+          // Fanático da Cruzada: "Ao atacar: se o General inimigo for de tipo oposto,
           // ganha +2 ATK." The game has no real General-faction/type concept — with
           // only 2 decks existing today, "tipo oposto" is simplified to "the enemy
-          // General isn't Cardeal Pedro" (this card only exists in Deck Cardeal, so
+          // General isn't Cardeal Pedro, Voz da Fé" (this card only exists in Deck Cardeal, so
           // its "opposite type" enemy is always Deck Capitão's General in practice).
           // Revisit this exact check if a third deck/General is ever added.
-          if (attacker.name === 'Soldado Fanático' && newNpcSlots[12] && newNpcSlots[12]?.name !== 'Cardeal Pedro') attackerAtk += 2;
+          if (attacker.name === 'Fanático da Cruzada' && newNpcSlots[12] && newNpcSlots[12]?.name !== 'Cardeal Pedro, Voz da Fé') attackerAtk += 2;
           const defenderAtk = getEffectiveAtk(defender, targetSlot, newNpcSlots, newPlayerSlots);
           const attackerReduction = getIncomingDamageReduction(selectedAttackerIndex, newPlayerSlots);
           const defenderReduction = getIncomingDamageReduction(targetSlot, newNpcSlots);
@@ -3255,12 +3255,12 @@ export default function App() {
           const defenderHpBonus = (defender.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(defender, newNpcSlots);
           const damageToDefender = Math.max(0, attackerAtk - defenderReduction);
 
-          // Espião Sabotador: "Se o General aliado receber dano, no próximo turno
+          // Infiltrado da Ordem: "Se o General aliado receber dano, no próximo turno
           // não poderá usar sua habilidade." Checked on the DEFENDER's (NPC's) own
           // side, since it's their own General and their own Espião.
           if (targetSlot === 12 && damageToDefender > 0 && hasEspiaoOnBoard(newNpcSlots)) {
             setPendingNpcGeneralAbilityBlock(true);
-            showToast('Espião Sabotador: a habilidade do General inimigo foi bloqueada no próximo turno dele!');
+            showToast('Infiltrado da Ordem: a habilidade do General inimigo foi bloqueada no próximo turno dele!');
           }
 
           const updatedAttacker = {
@@ -3293,10 +3293,10 @@ export default function App() {
             newNpcSlots[targetSlot] = updatedDefender;
           }
 
-          // Jorge, o Lanceiro: "Ao atacar a Vanguarda: causa 2 de dano à unidade
+          // Jorge, Lança Sagrada: "Ao atacar a Vanguarda: causa 2 de dano à unidade
           // na Retaguarda da mesma coluna." A splash side-effect, independent of
           // whether the main target survived.
-          const splashTarget = attacker.name === 'Jorge, o Lanceiro' && isFrontline(targetSlot) ? newNpcSlots[targetSlot + 5] : null;
+          const splashTarget = attacker.name === 'Jorge, Lança Sagrada' && isFrontline(targetSlot) ? newNpcSlots[targetSlot + 5] : null;
           if (splashTarget) {
             const splashHp = splashTarget.hp - 2;
             if (splashHp <= 0) {
@@ -3313,7 +3313,7 @@ export default function App() {
 
         setPlayerSlots(newPlayerSlots);
         setNpcSlots(newNpcSlots);
-        // Arqueiro Profissional / getMaxAttacksPerTurn — recorded even if the
+        // Arqueiro da Ordem / getMaxAttacksPerTurn — recorded even if the
         // attacker didn't survive or the attack was ambush-cancelled; either way
         // it "attacked" this turn and the slot is either gone or spent.
         setPlayerAttackCounts(prev => ({ ...prev, [selectedAttackerIndex]: (prev[selectedAttackerIndex] ?? 0) + 1 }));
@@ -3369,7 +3369,7 @@ export default function App() {
     if (pendingHospitalario) {
       // Same reasoning again — the card is already marked used (see
       // activateHospitalario) whether or not either half actually lands.
-      showToast('Hospitalário desperdiçado — nenhum alvo escolhido.');
+      showToast('Cavaleiro Hospitalário desperdiçado — nenhum alvo escolhido.');
       setPendingHospitalario(null);
       return;
     }
@@ -3817,7 +3817,7 @@ export default function App() {
                 isValidMoveTarget={validMoveTargets.has(i)}
                 hasMoved={movedSlots.has(i)}
               />
-              {/* Comerciante das Cruzadas / Hospitalário: same Yu-Gi-Oh-style
+              {/* Mercador da Cruzada / Cavaleiro Hospitalário: same Yu-Gi-Oh-style
                   "you may activate this" Sparkles prompt as the General's own
                   ability (see playerGeneralAbilityAvailable above), just on
                   this card's own slot instead of only the General's. */}
@@ -4356,7 +4356,7 @@ export default function App() {
                 setPlayerSlots(prev => {
                   const next = [...prev];
                   next[flyingCard.slotIndex] = flyingCard.card;
-                  // Nobre Religioso: "Ao entrar em campo: invoca Soldados Leais..."
+                  // Nobre da Cruzada: "Ao entrar em campo: invoca Soldados Leais..."
                   return applyNobreReligiosoSummon(next, flyingCard.slotIndex);
                 });
                 // Impact burst + brief camera shake right as the card lands. A full-art
@@ -4602,8 +4602,8 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Card Picker — the reveal/search Táticas (O Soldado Retorna, Busca pelo Santo
-          Graal, Nova Tática, Escolher a Dedo, Escolher Tropas, Reunião de Fiéis) all
+      {/* Card Picker — the reveal/search Táticas (Retorno do Soldado, Graal da
+          Dádiva, Doutrina Renovada, Recrutamento Seletivo, Recrutar Veteranos, Chamado às Armas) all
           resolve through this: a set of real candidate cards the game found (in the
           graveyard, the deck's pool, or the actual top of the deck), tap one to pick
           it. Multi-pick cases (maxPicks > 1) toggle a selection and need an explicit
