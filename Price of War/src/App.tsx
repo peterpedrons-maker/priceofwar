@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { X, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass, Sparkles, Heart, Sword } from 'lucide-react';
+import { X, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass, Sparkles } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
@@ -12,6 +12,9 @@ import cardTemplateSilverImage from './assets/card-template-silver.webp';
 import cardTemplateChampagneImage from './assets/card-template-champagne.webp';
 import cardBackplateImage from './assets/card-backplate.webp';
 import cardTemplateFullArtGoldImage from './assets/card-template-fullart-gold.webp';
+import cardTemplateMiniImage from './assets/card-template-mini.webp';
+import cardTemplateSilverMiniImage from './assets/card-template-silver-mini.webp';
+import cardTemplateChampagneMiniImage from './assets/card-template-champagne-mini.webp';
 import hudGoldBadgeImage from './assets/hud-gold-badge.webp';
 import hudTurnButtonImage from './assets/hud-turn-button.webp';
 import multidaoDeFieisArt from './assets/card-multidao-de-fieis.webp';
@@ -55,6 +58,7 @@ import duelMusicUrl from './assets/music-duelo.mp3';
 const ALL_PRELOAD_IMAGES: string[] = [
   boardBattlefieldImage, buttonPlaqueImage, cardTemplateImage, cardTemplateSilverImage,
   cardTemplateChampagneImage, cardBackplateImage, cardTemplateFullArtGoldImage,
+  cardTemplateMiniImage, cardTemplateSilverMiniImage, cardTemplateChampagneMiniImage,
   multidaoDeFieisArt, comercianteDasCruzadasArt, espiaoSabotadorArt, soldadoFanaticoArt,
   vigiaDeMantimentosArt, infantariaTreinadaArt, hospitalarioArt, arqueiroProfissionalArt,
   atiradorInfluenteArt, cardealPedroFullArt, caliceDaVidaFullArt, nobreReligiosoFullArt,
@@ -903,6 +907,11 @@ const templateForType = (cardType?: CardType) => {
   if (cardType === 'Emboscada') return cardTemplateChampagneImage;
   return cardTemplateImage;
 };
+const templateForTypeMini = (cardType?: CardType) => {
+  if (cardType === 'Tática' || cardType === 'Terreno') return cardTemplateSilverMiniImage;
+  if (cardType === 'Emboscada') return cardTemplateChampagneMiniImage;
+  return cardTemplateMiniImage;
+};
 
 // FitText — shrinks a name's font size (and lets it wrap to a 2nd line) just
 // enough that it always fits its container, measured for real off the actual
@@ -1155,49 +1164,67 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
   );
 };
 
-// A stripped-down board card — full-bleed art crop, no name/type/effect text
-// at all, just big ATK/HP badges (a sword-crossed circle and a solid heart,
-// Hearthstone-style), so the board's numbers can be much bigger than the
-// full card's own tiny stylized emblems ever were. Relies on the existing
-// tap-to-expand preview (already wired on every board card) for the name/
-// effect text instead of trying to fit it on the mini card at all. Border
-// color still tracks the card's own stock (gold/silver/champagne, same as
-// templateForType) so its type reads at a glance without needing a full
-// illustrated frame overlaid on top — an actual frame here (tested against
-// the General specifically) ended up just cluttering the small art.
-const MINI_BORDER_COLOR: Record<string, string> = {
-  Tática: 'border-zinc-300/80',
-  Terreno: 'border-zinc-300/80',
-  Emboscada: 'border-fuchsia-300/80',
-};
-const CardFaceMini = ({ card }: { card: CardData }) => {
+const CARD_FACE_MINI_STD_SCALE = 1536 / 1271;
+const CardFaceStandardMini = ({ card }: { card: CardData }) => {
   const showStats = !NO_STAT_TYPES.has(card.cardType as CardType);
-  const borderColor = MINI_BORDER_COLOR[card.cardType ?? ''] ?? 'border-amber-500/80';
+  const s = CARD_FACE_MINI_STD_SCALE;
   return (
-    <div className={`absolute inset-0 rounded-lg overflow-hidden border-2 ${borderColor} bg-zinc-900`}>
-      {card.art ? (
-        <img src={card.art} alt={card.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-      ) : (
-        <div className="w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900" />
-      )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/20" />
-      {showStats && (
-        <>
-          <div className="absolute bottom-0.5 left-0.5 w-8 h-8 md:w-10 md:h-10 flex items-center justify-center">
-            <Sword className="absolute inset-0 w-full h-full text-zinc-300/90 -rotate-45" strokeWidth={2.5} style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.9))' }} />
-            <span className="relative font-black text-base md:text-xl text-white" style={{ fontFamily: "'Cinzel', serif", textShadow: '0 1px 3px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.9)' }}>
-              {card.atk}
-            </span>
-          </div>
-          <div className="absolute bottom-0.5 right-0.5 w-9 h-9 md:w-11 md:h-11 flex items-center justify-center">
-            <Heart className="absolute inset-0 w-full h-full text-red-600" fill="currentColor" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.9))' }} />
-            <span className="relative font-black text-sm md:text-lg text-white mt-1" style={{ fontFamily: "'Cinzel', serif", textShadow: '0 1px 3px rgba(0,0,0,0.95)' }}>
-              {card.hp}
-            </span>
-          </div>
-        </>
-      )}
-    </div>
+    <>
+      <div
+        className="absolute pointer-events-none"
+        style={{ width: '122%', height: '145.5%', top: '50%', left: '50%', transform: 'translate(-50%, -46%)' }}
+      >
+        <div className="absolute overflow-hidden" style={{ left: '11.52%', top: `${17.64 * s}%`, width: '76.95%', height: `${31.83 * s}%` }}>
+          {card.art ? (
+            <img src={card.art} alt={card.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900" />
+          )}
+        </div>
+        <img src={templateForTypeMini(card.cardType)} alt="" aria-hidden className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
+      </div>
+
+      <div className="absolute inset-0 z-10 pointer-events-none">
+        <div className="absolute px-1 flex items-center" style={{ top: '0%', left: '12%', right: '26%', height: `${8 * s}%` }}>
+          {/* A single truncated line, not FitText's shrink-and-wrap — this bar
+              is only ~7px tall at mini scale, nowhere near enough height for
+              a wrapped 2nd line (a long name like "Mercador da Cruzada" wrapped
+              and overflowed past the plate). Every name is still fully
+              readable from the tap-to-expand preview this mini card opens. */}
+          <span
+            className="block w-full truncate text-center text-[7px] md:text-[9px] font-bold uppercase tracking-tight"
+            style={{ fontFamily: "'Cinzel', serif", color: '#2a1605', textShadow: '0 1px 0 rgba(255,243,206,0.55)' }}
+          >
+            {card.name}
+          </span>
+        </div>
+
+        {/* Plain text + textShadow instead of GoldNumber — cost/atk/hp here
+            are always 1-2 digits in a fixed-size box, so GoldNumber's own
+            ResizeObserver-driven shrink-to-fit (built for names/effect text
+            of unpredictable length) is more machinery than this needs. */}
+        <div className="absolute flex items-center justify-center" style={{ left: '92%', top: `${2.5 * s}%`, width: '16%', height: `${9 * s}%`, transform: 'translate(-50%, -50%)' }}>
+          <span className="font-black text-xs md:text-base" style={{ fontFamily: "'Cinzel', serif", color: '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
+            {card.cost}
+          </span>
+        </div>
+
+        {showStats && (
+          <>
+            <div className="absolute flex items-center justify-center" style={{ left: '11%', top: '82%', width: '20%', height: '12%', transform: 'translate(-50%, -50%)' }}>
+              <span className="font-black text-xs md:text-base" style={{ fontFamily: "'Cinzel', serif", color: '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
+                {card.atk}
+              </span>
+            </div>
+            <div className="absolute flex items-center justify-center" style={{ left: '89%', top: '82%', width: '20%', height: '12%', transform: 'translate(-50%, -50%)' }}>
+              <span className="font-black text-xs md:text-base" style={{ fontFamily: "'Cinzel', serif", color: '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
+                {card.hp}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+    </>
   );
 };
 
@@ -4540,9 +4567,9 @@ export default function App() {
         </div>
 
         {/* The wide avatar/name/HP panel that used to sit beside each General
-            is gone — CardFaceMini now puts the General's own HP (heart +
-            number) directly on its board card like every other creature, so
-            a separate panel repeating the same number was redundant. */}
+            is gone — the board's own mini card already puts the General's HP
+            directly on the card like every other creature, so a separate
+            panel repeating the same number was redundant. */}
       </motion.div>
 
       {/* Opponent Hand (Floating) — one face-down card back per card actually in
@@ -5685,7 +5712,7 @@ const CardSlot = ({
           {/* No more Info button here — tapping the card itself (see the root
               onClick above) now shows the same enlarged preview this used to open
               on its own. */}
-          <CardFaceMini card={card} />
+          <CardFaceStandardMini card={card} />
         </motion.div>
       )}
       {card && card.isDestroyed && (
