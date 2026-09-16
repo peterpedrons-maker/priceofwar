@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { X, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass, Sparkles } from 'lucide-react';
+import { X, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass, Sparkles, Heart, Sword } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
@@ -12,10 +12,6 @@ import cardTemplateSilverImage from './assets/card-template-silver.webp';
 import cardTemplateChampagneImage from './assets/card-template-champagne.webp';
 import cardBackplateImage from './assets/card-backplate.webp';
 import cardTemplateFullArtGoldImage from './assets/card-template-fullart-gold.webp';
-import hudAvatarFrameImage from './assets/hud-avatar-frame.webp';
-import hudNameBarImage from './assets/hud-name-bar.webp';
-import hudRankBarImage from './assets/hud-rank-bar.webp';
-import hudHpBarWindowImage from './assets/hud-hp-bar-window.webp';
 import hudGoldBadgeImage from './assets/hud-gold-badge.webp';
 import hudTurnButtonImage from './assets/hud-turn-button.webp';
 import multidaoDeFieisArt from './assets/card-multidao-de-fieis.webp';
@@ -777,35 +773,6 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
   );
 };
 
-// Fixed HUD panel for a General — portrait, name, an actual HP BAR (not just a
-// number), and the gold coin — always visible in the same screen corner
-// regardless of the board's own camera pan/zoom, unlike the old badges that
-// used to float right off the General's own card. Modeled directly on the
-// reference screenshot the user sent: portrait circle, name plaque, HP bar,
-// coin counter, one panel per side. Reuses the same shake + floating "-N"
-// combat feedback as HpBadge/CardSlot on the bar itself, so damage reads
-// clearly on the fixed HUD too, not just on the card in the middle of the board.
-// Layout fractions below come straight from the source sprite sheet the user
-// provided (hud-avatar-frame + hud-name-bar/hud-rank-bar/hud-hp-bar-window all
-// cropped from the same composite piece): the bars sit overlapping the avatar
-// frame's right edge, starting a bit down from its top, so re-deriving these
-// as percentages of the outer box keeps the panel's proportions faithful to
-// that art at any display size instead of guessing new ones.
-const HUD_BARS_LEFT_PCT = 37.06; // bars' left edge, as % of the panel's own width
-const HUD_BARS_WIDTH_PCT = 62.94; // bars' width, as % of the panel's own width
-const HUD_BARS_TOP_PCT = 13.47; // bars block's top, as % of the panel's own height
-const HUD_NAME_H_PCT = 29.05; // each bar's height, as % of the panel's own height
-const HUD_RANK_H_PCT = 19.15;
-const HUD_HP_H_PCT = 18.56;
-// Inside the HP bar image itself, where its dark "track" sits (clear of the
-// heart icon on the left and the frame border/point on the right) — this is
-// where the actual red fill lives, underneath the art's own transparent window.
-const HUD_HP_TRACK_LEFT_PCT = 22.0;
-const HUD_HP_TRACK_RIGHT_PCT = 11.9;
-const HUD_HP_TRACK_TOP_PCT = 22.6;
-const HUD_HP_TRACK_BOTTOM_PCT = 22.6;
-const HUD_AVATAR_WIDTH_PCT = 40.17; // avatar frame's own width, as % of the panel's own width
-
 const GoldBadge = ({ value, className = "" }: { value: number; className?: string }) => (
   <div className={`relative ${className}`}>
     <img src={hudGoldBadgeImage} alt="" className="w-full h-auto block" draggable={false} />
@@ -814,91 +781,6 @@ const GoldBadge = ({ value, className = "" }: { value: number; className?: strin
     </span>
   </div>
 );
-
-// Lives inside the board's own transformed coordinate space now (a sibling of
-// the General row it sits beside — see the two call sites), not fixed to the
-// viewport: it needs to move with that row under every camera state (mobile
-// scale, battle-phase focus, NPC-turn zoom...), the same way the deck and
-// graveyard piles already do, rather than sitting still in a screen corner
-// while the board pans underneath it.
-const HudPanel = ({ name, hp, maxHp }: { name: string; hp: number; maxHp: number }) => {
-  const prevHpRef = useRef(hp);
-  const [damageFlash, setDamageFlash] = useState<{ key: number; amount: number } | null>(null);
-  useEffect(() => {
-    if (hp < prevHpRef.current) {
-      setDamageFlash({ key: Date.now(), amount: prevHpRef.current - hp });
-    }
-    prevHpRef.current = hp;
-  }, [hp]);
-  useEffect(() => {
-    if (!damageFlash) return;
-    const t = window.setTimeout(() => setDamageFlash(null), 900);
-    return () => clearTimeout(t);
-  }, [damageFlash]);
-
-  const hpPct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
-
-  return (
-    <div className="relative w-full aspect-[2.1167]">
-      {/* Avatar frame — the circular slot is left empty on purpose: the game
-          has no accounts/avatar picker yet, so there's nothing real to put in
-          it. It'll hold a chosen-from-a-set avatar image once that exists. */}
-      <img src={hudAvatarFrameImage} alt="" className="absolute left-0 top-0" style={{ width: `${HUD_AVATAR_WIDTH_PCT}%` }} draggable={false} />
-      <motion.div
-        className="absolute"
-        style={{ left: `${HUD_BARS_LEFT_PCT}%`, top: `${HUD_BARS_TOP_PCT}%`, width: `${HUD_BARS_WIDTH_PCT}%` }}
-        animate={{ x: damageFlash ? [0, -5, 5, -3, 3, 0] : 0 }}
-        transition={{ duration: 0.45, ease: 'easeOut' }}
-      >
-        {/* Name plate — the deck's name for now, since players can't yet make
-            accounts/characters of their own. */}
-        <div className="relative">
-          <img src={hudNameBarImage} alt="" className="w-full h-auto block" draggable={false} />
-          <span className="absolute inset-0 flex items-center justify-start pl-[18%] pr-[10%] text-[8px] md:text-[11px] font-black text-amber-50 uppercase tracking-wide truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-            {name}
-          </span>
-        </div>
-        {/* Rank plate — left empty on purpose: reserved for a future ranked
-            ladder (Ferro/Prata/Ouro...) once online play exists to rank. */}
-        <img src={hudRankBarImage} alt="" className="w-full h-auto block" draggable={false} />
-        {/* HP plate — the art's own dark track has its center window cut
-            transparent (see hud-hp-bar-window), so the red fill div sits
-            underneath it and shows through exactly inside that track. */}
-        <div className="relative">
-          <div
-            className="absolute overflow-hidden"
-            style={{
-              left: `${HUD_HP_TRACK_LEFT_PCT}%`, right: `${HUD_HP_TRACK_RIGHT_PCT}%`,
-              top: `${HUD_HP_TRACK_TOP_PCT}%`, bottom: `${HUD_HP_TRACK_BOTTOM_PCT}%`,
-            }}
-          >
-            <motion.div
-              className="h-full bg-gradient-to-r from-red-700 to-red-400"
-              animate={{ width: `${hpPct}%` }}
-              transition={{ duration: 0.4, ease: 'easeOut' }}
-            />
-          </div>
-          <img src={hudHpBarWindowImage} alt="" className="w-full h-auto block relative" draggable={false} />
-          <span className="absolute inset-0 flex items-center justify-center pl-[19%] text-[8px] md:text-[10px] font-black text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
-            {hp} / {maxHp}
-          </span>
-          {damageFlash && (
-            <motion.span
-              key={damageFlash.key}
-              initial={{ opacity: 0, y: 0, scale: 0.7 }}
-              animate={{ opacity: [0, 1, 1, 0], y: -16, scale: 1.1 }}
-              transition={{ duration: 0.9, ease: 'easeOut', opacity: { times: [0, 0.15, 0.7, 1] } }}
-              className="absolute -top-1 left-1/2 -translate-x-1/2 text-red-400 font-black text-[10px] whitespace-nowrap pointer-events-none z-20"
-              style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 6px rgba(239,68,68,0.9)' }}
-            >
-              -{damageFlash.amount}
-            </motion.span>
-          )}
-        </div>
-      </motion.div>
-    </div>
-  );
-};
 
 // A plain gradient-gold number with a strong drop shadow and no background shape —
 // unlike AtkBadge/HpBadge above, this is used INSIDE CardFace, where the
@@ -1269,6 +1151,52 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
           </>
         )}
       </div>
+    </div>
+  );
+};
+
+// A stripped-down board card — full-bleed art crop, no name/type/effect text
+// at all, just big ATK/HP badges (a sword-crossed circle and a solid heart,
+// Hearthstone-style), so the board's numbers can be much bigger than the
+// full card's own tiny stylized emblems ever were. Relies on the existing
+// tap-to-expand preview (already wired on every board card) for the name/
+// effect text instead of trying to fit it on the mini card at all. Border
+// color still tracks the card's own stock (gold/silver/champagne, same as
+// templateForType) so its type reads at a glance without needing a full
+// illustrated frame overlaid on top — an actual frame here (tested against
+// the General specifically) ended up just cluttering the small art.
+const MINI_BORDER_COLOR: Record<string, string> = {
+  Tática: 'border-zinc-300/80',
+  Terreno: 'border-zinc-300/80',
+  Emboscada: 'border-fuchsia-300/80',
+};
+const CardFaceMini = ({ card }: { card: CardData }) => {
+  const showStats = !NO_STAT_TYPES.has(card.cardType as CardType);
+  const borderColor = MINI_BORDER_COLOR[card.cardType ?? ''] ?? 'border-amber-500/80';
+  return (
+    <div className={`absolute inset-0 rounded-lg overflow-hidden border-2 ${borderColor} bg-zinc-900`}>
+      {card.art ? (
+        <img src={card.art} alt={card.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+      ) : (
+        <div className="w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900" />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/20" />
+      {showStats && (
+        <>
+          <div className="absolute bottom-0.5 left-0.5 w-8 h-8 md:w-10 md:h-10 flex items-center justify-center">
+            <Sword className="absolute inset-0 w-full h-full text-zinc-300/90 -rotate-45" strokeWidth={2.5} style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.9))' }} />
+            <span className="relative font-black text-base md:text-xl text-white" style={{ fontFamily: "'Cinzel', serif", textShadow: '0 1px 3px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.9)' }}>
+              {card.atk}
+            </span>
+          </div>
+          <div className="absolute bottom-0.5 right-0.5 w-9 h-9 md:w-11 md:h-11 flex items-center justify-center">
+            <Heart className="absolute inset-0 w-full h-full text-red-600" fill="currentColor" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.9))' }} />
+            <span className="relative font-black text-sm md:text-lg text-white mt-1" style={{ fontFamily: "'Cinzel', serif", textShadow: '0 1px 3px rgba(0,0,0,0.95)' }}>
+              {card.hp}
+            </span>
+          </div>
+        </>
+      )}
     </div>
   );
 };
@@ -4311,26 +4239,18 @@ export default function App() {
             pixel-aligned to these rows anymore — the user prioritized the old,
             functionally-clear 3-row layout over exact alignment with the art's gate
             opening/torches. */}
-        {/* justify-end (not -start): the grid row this sits in is a fixed height
-            (stretched by the outer grid), but this field's own content — General
-            row + both labeled rows + all the gap-6/pt-16 spacing — can add up to
-            more than that height, especially once the label rows are counted.
-            With -start the overflow spilled off the BOTTOM, i.e. straight into the
-            player's own field across the center divider (the Vanguarda rows were
-            visibly overlapping). -end anchors the Vanguarda row (the last child,
-            closest to center) flush against this box's own bottom edge instead —
-            any overflow now pushes the General row up into the pt reserve
-            (and past it if needed), off in open board space instead of into the
-            opponent's cards. */}
-        {/* pt-3 (not pt-12 like the player field's pb-12 below): the NPC's own
-            hand is a small stack of face-down card backs near the very top of the
-            screen, while the player's hand is a large fan of readable cards that
-            already sits close to their own General row — so only this side has
-            real dead space between the hand/HUD and the board content (the user
-            circled it in a screenshot). Mirroring the same reserve on the player
-            side would just push their General row back down into the hand fan,
-            reintroducing the overlap regression that was fixed earlier. */}
-        <div className="flex flex-col gap-4 justify-end pt-3">
+        {/* justify-start + pt-0 (not -end/pt-3): the NPC's own hand is just a
+            small stack of face-down card backs near the very top of the
+            screen, leaving a big gap between it and the board before this —
+            anchoring this field's content to its own TOP instead of its
+            bottom closes that gap, matching the player field's own tight fit
+            against their (much bigger) hand below. Any slack this content
+            doesn't use now collects at the BOTTOM of this half instead — i.e.
+            in the open board space near the center divider, not against the
+            opponent's hand — so it doesn't reintroduce the old overflow-into-
+            the-player's-field bug that justify-end used to guard against;
+            these cards are still comfortably short of that 625px half. */}
+        <div className="flex flex-col gap-4 justify-start pt-0">
           {/* General row (fixed) + Relíquia/Terreno slots */}
           <div className="relative flex justify-center gap-8 items-center">
             <CardSlot
@@ -4619,31 +4539,10 @@ export default function App() {
           </motion.div>
         </div>
 
-        {/* Player's HUD panel — on the LEFT, at the same height as their own
-            General/Relíquia/Terreno row (the field just above uses pb-16 to
-            reserve exactly this band): that row is only 3 slots wide, so
-            there's real open room beside it that the wider 5-slot rows don't
-            have, per the user's own ask. Left, not right, since the deck/
-            graveyard/gold column above already owns the right side. Placed as
-            a plain sibling of that field (canvas-absolute, like the deck and
-            graveyard) rather than nested inside the row's own flex layout —
-            nesting it there put it under the board's 3D rotateX/perspective
-            transform at a different apparent depth than intended and it
-            rendered far off-screen instead of beside the row. */}
-        {playerSlots[12] && (
-          <div className="absolute left-12 md:left-16 bottom-24 md:bottom-28 w-56 md:w-72 z-30 pointer-events-none">
-            <HudPanel name={generalPlayerRef.current.name} hp={playerSlots[12]!.hp} maxHp={generalPlayerRef.current.hp} />
-          </div>
-        )}
-
-        {/* NPC's HUD panel — mirrors the player's one above: same idea (beside
-            the narrow 3-slot General row instead of over the hand), on the
-            RIGHT since the deck/graveyard block already owns the left here. */}
-        {npcSlots[12] && (
-          <div className="absolute right-12 md:right-16 top-24 md:top-28 w-56 md:w-72 z-30 pointer-events-none">
-            <HudPanel name={generalNpcRef.current.name} hp={npcSlots[12]!.hp} maxHp={generalNpcRef.current.hp} />
-          </div>
-        )}
+        {/* The wide avatar/name/HP panel that used to sit beside each General
+            is gone — CardFaceMini now puts the General's own HP (heart +
+            number) directly on its board card like every other creature, so
+            a separate panel repeating the same number was redundant. */}
       </motion.div>
 
       {/* Opponent Hand (Floating) — one face-down card back per card actually in
@@ -4729,7 +4628,15 @@ export default function App() {
         style={{ transformOrigin: 'bottom center' }}
         animate={{
           scale: handScale,
-          y: isMobile ? (viewState === 'field' ? 200 : 0) : (viewState === 'field' ? 220 : 0),
+          // On mobile, the resting hand sits with roughly its bottom fifth
+          // pushed past the real screen edge — tapping a card still shows it
+          // in full (see the fixed tap-preview overlay further down, which
+          // is positioned independently of this tray), so the hand can give
+          // up that sliver of height without losing any readability, buying
+          // back board space above it.
+          y: isMobile
+            ? (viewState === 'field' ? 200 : HAND_CARD_HEIGHT * handScale * 0.22)
+            : (viewState === 'field' ? 220 : 0),
           // Hidden once the card is actually flying to the board (and briefly after, while
           // the camera settles) so the rest of the hand doesn't clutter the summon
           // animation. NOT hidden during the camera's pre-zoom hold, though — the selected
@@ -5638,7 +5545,7 @@ const CardSlot = ({
         // …) rather than instead of it, so none of that existing board logic changes.
         if (card && !card.isDestroyed && onInfoClick) onInfoClick(card);
       }}
-      className={`w-28 h-36 md:w-36 md:h-48 rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass} ${isValidAttackTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${isMoverSelected ? 'ring-4 ring-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.7)]' : ''} ${isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''} ${isTacticDragTarget ? 'ring-4 ring-fuchsia-400 shadow-[0_0_30px_rgba(232,121,249,0.75)]' : ''}`}
+      className={`w-[7.5rem] h-[9.5rem] md:w-[9.5rem] md:h-[12.5rem] rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass} ${isValidAttackTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${isMoverSelected ? 'ring-4 ring-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.7)]' : ''} ${isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''} ${isTacticDragTarget ? 'ring-4 ring-fuchsia-400 shadow-[0_0_30px_rgba(232,121,249,0.75)]' : ''}`}
     >
       {!card && hint && (
         // Drag-to-play's drop indicator on the ONE slot currently under the finger
@@ -5778,7 +5685,7 @@ const CardSlot = ({
           {/* No more Info button here — tapping the card itself (see the root
               onClick above) now shows the same enlarged preview this used to open
               on its own. */}
-          <CardFace card={card} variant="field" />
+          <CardFaceMini card={card} />
         </motion.div>
       )}
       {card && card.isDestroyed && (
