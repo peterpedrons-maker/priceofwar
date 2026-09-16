@@ -815,9 +815,13 @@ const GoldBadge = ({ value, className = "" }: { value: number; className?: strin
   </div>
 );
 
-const HudPanel = ({
-  name, hp, maxHp, mana, side,
-}: { name: string; hp: number; maxHp: number; mana: number; side: 'npc' | 'player' }) => {
+// Lives inside the board's own transformed coordinate space now (a sibling of
+// the General row it sits beside — see the two call sites), not fixed to the
+// viewport: it needs to move with that row under every camera state (mobile
+// scale, battle-phase focus, NPC-turn zoom...), the same way the deck and
+// graveyard piles already do, rather than sitting still in a screen corner
+// while the board pans underneath it.
+const HudPanel = ({ name, hp, maxHp }: { name: string; hp: number; maxHp: number }) => {
   const prevHpRef = useRef(hp);
   const [damageFlash, setDamageFlash] = useState<{ key: number; amount: number } | null>(null);
   useEffect(() => {
@@ -835,74 +839,63 @@ const HudPanel = ({
   const hpPct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
 
   return (
-    // The player's own hand is a large fan of readable cards anchored to the bottom
-    // edge of the screen, so a panel sitting right at bottom-2/3 ends up tucked in
-    // right where the leftmost card curves down — pushed up well clear of it here
-    // (bottom-24/28). The NPC's hand is just a small stack of face-down backs near
-    // the very top, but it's given the same kind of clearance from top-2/3 for
-    // consistency/future-proofing rather than hugging the corner.
-    <div className={`fixed left-2 md:left-4 z-[60] flex items-end gap-1.5 md:gap-2 pointer-events-none ${side === 'npc' ? 'top-4 md:top-6' : 'bottom-24 md:bottom-28'}`}>
-      <div className="relative w-40 md:w-52 aspect-[2.1167] shrink-0">
-        {/* Avatar frame — the circular slot is left empty on purpose: the game
-            has no accounts/avatar picker yet, so there's nothing real to put in
-            it. It'll hold a chosen-from-a-set avatar image once that exists. */}
-        <img src={hudAvatarFrameImage} alt="" className="absolute left-0 top-0" style={{ width: `${HUD_AVATAR_WIDTH_PCT}%` }} draggable={false} />
-        <motion.div
-          className="absolute"
-          style={{ left: `${HUD_BARS_LEFT_PCT}%`, top: `${HUD_BARS_TOP_PCT}%`, width: `${HUD_BARS_WIDTH_PCT}%` }}
-          animate={{ x: damageFlash ? [0, -5, 5, -3, 3, 0] : 0 }}
-          transition={{ duration: 0.45, ease: 'easeOut' }}
-        >
-          {/* Name plate — the deck's name for now, since players can't yet make
-              accounts/characters of their own. */}
-          <div className="relative">
-            <img src={hudNameBarImage} alt="" className="w-full h-auto block" draggable={false} />
-            <span className="absolute inset-0 flex items-center justify-start pl-[18%] pr-[10%] text-[8px] md:text-[11px] font-black text-amber-50 uppercase tracking-wide truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-              {name}
-            </span>
+    <div className="relative w-full aspect-[2.1167]">
+      {/* Avatar frame — the circular slot is left empty on purpose: the game
+          has no accounts/avatar picker yet, so there's nothing real to put in
+          it. It'll hold a chosen-from-a-set avatar image once that exists. */}
+      <img src={hudAvatarFrameImage} alt="" className="absolute left-0 top-0" style={{ width: `${HUD_AVATAR_WIDTH_PCT}%` }} draggable={false} />
+      <motion.div
+        className="absolute"
+        style={{ left: `${HUD_BARS_LEFT_PCT}%`, top: `${HUD_BARS_TOP_PCT}%`, width: `${HUD_BARS_WIDTH_PCT}%` }}
+        animate={{ x: damageFlash ? [0, -5, 5, -3, 3, 0] : 0 }}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
+      >
+        {/* Name plate — the deck's name for now, since players can't yet make
+            accounts/characters of their own. */}
+        <div className="relative">
+          <img src={hudNameBarImage} alt="" className="w-full h-auto block" draggable={false} />
+          <span className="absolute inset-0 flex items-center justify-start pl-[18%] pr-[10%] text-[8px] md:text-[11px] font-black text-amber-50 uppercase tracking-wide truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+            {name}
+          </span>
+        </div>
+        {/* Rank plate — left empty on purpose: reserved for a future ranked
+            ladder (Ferro/Prata/Ouro...) once online play exists to rank. */}
+        <img src={hudRankBarImage} alt="" className="w-full h-auto block" draggable={false} />
+        {/* HP plate — the art's own dark track has its center window cut
+            transparent (see hud-hp-bar-window), so the red fill div sits
+            underneath it and shows through exactly inside that track. */}
+        <div className="relative">
+          <div
+            className="absolute overflow-hidden"
+            style={{
+              left: `${HUD_HP_TRACK_LEFT_PCT}%`, right: `${HUD_HP_TRACK_RIGHT_PCT}%`,
+              top: `${HUD_HP_TRACK_TOP_PCT}%`, bottom: `${HUD_HP_TRACK_BOTTOM_PCT}%`,
+            }}
+          >
+            <motion.div
+              className="h-full bg-gradient-to-r from-red-700 to-red-400"
+              animate={{ width: `${hpPct}%` }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+            />
           </div>
-          {/* Rank plate — left empty on purpose: reserved for a future ranked
-              ladder (Ferro/Prata/Ouro...) once online play exists to rank. */}
-          <img src={hudRankBarImage} alt="" className="w-full h-auto block" draggable={false} />
-          {/* HP plate — the art's own dark track has its center window cut
-              transparent (see hud-hp-bar-window), so the red fill div sits
-              underneath it and shows through exactly inside that track. */}
-          <div className="relative">
-            <div
-              className="absolute overflow-hidden"
-              style={{
-                left: `${HUD_HP_TRACK_LEFT_PCT}%`, right: `${HUD_HP_TRACK_RIGHT_PCT}%`,
-                top: `${HUD_HP_TRACK_TOP_PCT}%`, bottom: `${HUD_HP_TRACK_BOTTOM_PCT}%`,
-              }}
+          <img src={hudHpBarWindowImage} alt="" className="w-full h-auto block relative" draggable={false} />
+          <span className="absolute inset-0 flex items-center justify-center pl-[19%] text-[8px] md:text-[10px] font-black text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
+            {hp} / {maxHp}
+          </span>
+          {damageFlash && (
+            <motion.span
+              key={damageFlash.key}
+              initial={{ opacity: 0, y: 0, scale: 0.7 }}
+              animate={{ opacity: [0, 1, 1, 0], y: -16, scale: 1.1 }}
+              transition={{ duration: 0.9, ease: 'easeOut', opacity: { times: [0, 0.15, 0.7, 1] } }}
+              className="absolute -top-1 left-1/2 -translate-x-1/2 text-red-400 font-black text-[10px] whitespace-nowrap pointer-events-none z-20"
+              style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 6px rgba(239,68,68,0.9)' }}
             >
-              <motion.div
-                className="h-full bg-gradient-to-r from-red-700 to-red-400"
-                animate={{ width: `${hpPct}%` }}
-                transition={{ duration: 0.4, ease: 'easeOut' }}
-              />
-            </div>
-            <img src={hudHpBarWindowImage} alt="" className="w-full h-auto block relative" draggable={false} />
-            <span className="absolute inset-0 flex items-center justify-center pl-[19%] text-[8px] md:text-[10px] font-black text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
-              {hp} / {maxHp}
-            </span>
-            {damageFlash && (
-              <motion.span
-                key={damageFlash.key}
-                initial={{ opacity: 0, y: 0, scale: 0.7 }}
-                animate={{ opacity: [0, 1, 1, 0], y: -16, scale: 1.1 }}
-                transition={{ duration: 0.9, ease: 'easeOut', opacity: { times: [0, 0.15, 0.7, 1] } }}
-                className="absolute -top-1 left-1/2 -translate-x-1/2 text-red-400 font-black text-[10px] whitespace-nowrap pointer-events-none z-20"
-                style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 6px rgba(239,68,68,0.9)' }}
-              >
-                -{damageFlash.amount}
-              </motion.span>
-            )}
-          </div>
-        </motion.div>
-      </div>
-      {/* Gold counter — the game's per-turn resource, shown on both sides (each
-          side needs to see its own AND the opponent's to plan around it). */}
-      <GoldBadge value={mana} className="w-16 md:w-20 pointer-events-auto mb-[2%]" />
+              -{damageFlash.amount}
+            </motion.span>
+          )}
+        </div>
+      </motion.div>
     </div>
   );
 };
@@ -4315,7 +4308,7 @@ export default function App() {
             reintroducing the overlap regression that was fixed earlier. */}
         <div className="flex flex-col gap-4 justify-end pt-3">
           {/* General row (fixed) + Relíquia/Terreno slots */}
-          <div className="flex justify-center gap-8 items-center">
+          <div className="relative flex justify-center gap-8 items-center">
             <CardSlot
               slotId="npc-10"
               card={npcSlots[10]}
@@ -4495,7 +4488,7 @@ export default function App() {
           </div>
           <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mt-3">Retaguarda</div>
           {/* General row (fixed) + Relíquia/Terreno slots */}
-          <div className="flex justify-center gap-8 items-center">
+          <div className="relative flex justify-center gap-8 items-center">
             <CardSlot
               slotId="player-10"
               card={playerSlots[10]}
@@ -4587,6 +4580,10 @@ export default function App() {
             Retaguarda slots next to it, so it's back to a small inset matching the
             opponent's. */}
         <div className="absolute right-16 md:right-8 bottom-16 flex flex-col gap-6 items-center z-40 pointer-events-auto">
+          {/* Gold counter — a bit above the graveyard, per the user's own ask,
+              instead of attached to the HUD panel over on the other side. */}
+          <GoldBadge value={playerMana} className="w-16 md:w-20" />
+
           {/* Graveyard */}
           <GraveyardPile cards={playerGraveyard} />
 
@@ -4601,6 +4598,39 @@ export default function App() {
             <CardBack shadow />
           </motion.div>
         </div>
+
+        {/* Player's HUD panel — on the LEFT, at the same height as their own
+            General/Relíquia/Terreno row (the field just above uses pb-16 to
+            reserve exactly this band): that row is only 3 slots wide, so
+            there's real open room beside it that the wider 5-slot rows don't
+            have, per the user's own ask. Left, not right, since the deck/
+            graveyard/gold column above already owns the right side. Placed as
+            a plain sibling of that field (canvas-absolute, like the deck and
+            graveyard) rather than nested inside the row's own flex layout —
+            nesting it there put it under the board's 3D rotateX/perspective
+            transform at a different apparent depth than intended and it
+            rendered far off-screen instead of beside the row. */}
+        {playerSlots[12] && (
+          <div className="absolute left-16 md:left-20 bottom-28 md:bottom-32 w-36 md:w-48 z-30 pointer-events-none">
+            <HudPanel name={generalPlayerRef.current.name} hp={playerSlots[12]!.hp} maxHp={generalPlayerRef.current.hp} />
+          </div>
+        )}
+
+        {/* NPC's gold counter — up near the turn button's own side/column
+            (right edge), mirroring the player's own gold sitting just above
+            their graveyard on that same edge lower down. */}
+        <div className="absolute right-16 md:right-8 top-12 z-40 pointer-events-none">
+          <GoldBadge value={npcMana} className="w-16 md:w-20" />
+        </div>
+
+        {/* NPC's HUD panel — mirrors the player's one above: same idea (beside
+            the narrow 3-slot General row instead of over the hand), on the
+            RIGHT since the deck/graveyard block already owns the left here. */}
+        {npcSlots[12] && (
+          <div className="absolute right-16 md:right-20 top-28 md:top-32 w-36 md:w-48 z-30 pointer-events-none">
+            <HudPanel name={generalNpcRef.current.name} hp={npcSlots[12]!.hp} maxHp={generalNpcRef.current.hp} />
+          </div>
+        )}
       </motion.div>
 
       {/* Opponent Hand (Floating) — one face-down card back per card actually in
@@ -5396,28 +5426,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* HUD panels — fixed to the actual screen corners (not the board's own
-          transformed/panning coordinate space), so they never move during the
-          board's own camera zoom/pan. Replaces the old ManaBadge/HpBadge pair
-          that used to float right off each General's own CardSlot. */}
-      {npcSlots[12] && (
-        <HudPanel
-          side="npc"
-          name={generalNpcRef.current.name}
-          hp={npcSlots[12]!.hp}
-          maxHp={generalNpcRef.current.hp}
-          mana={npcMana}
-        />
-      )}
-      {playerSlots[12] && (
-        <HudPanel
-          side="player"
-          name={generalPlayerRef.current.name}
-          hp={playerSlots[12]!.hp}
-          maxHp={generalPlayerRef.current.hp}
-          mana={playerMana}
-        />
-      )}
 
       {/* Board card preview — tapping any card already on the board (see CardSlot's
           root onClick) shows this: the same fixed, always-on-top, non-blocking
