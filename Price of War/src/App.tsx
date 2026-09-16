@@ -783,7 +783,7 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
 const GoldBadge = ({ value, className = "" }: { value: number; className?: string }) => (
   <div className={`relative ${className}`}>
     <img src={hudGoldBadgeImage} alt="" className="w-full h-auto block" draggable={false} />
-    <span className="absolute inset-y-0 right-[8%] left-[38%] flex items-center justify-center text-amber-100 font-black drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] leading-none">
+    <span className="absolute inset-y-0 right-[8%] left-[38%] flex items-center justify-center text-amber-100 font-black text-xl md:text-2xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] leading-none">
       {value}
     </span>
   </div>
@@ -2069,6 +2069,37 @@ export default function App() {
   const [npcGraveyard, setNpcGraveyard] = useState<CardData[]>([]);
 
   const [selectedAttackerIndex, setSelectedAttackerIndex] = useState<number | null>(null);
+  // Floating combat/gold numbers (Hearthstone-style "-3"/"+2" popping off a card or
+  // the gold badge) — a plain list of already-positioned, already-timed entries
+  // rather than anything tied to React state elsewhere, so any call site that just
+  // resolved damage/a heal/a gold change can fire one off with only a DOM id and a
+  // number, no matter how deep in a combat/effect branch it is. Removed by its own
+  // timeout (see spawnFloatingNumber below), not by the animation's onComplete —
+  // onComplete doesn't fire reliably for elements added and removed within the same
+  // render batch that a fast double-attack can produce.
+  const [floatingNumbers, setFloatingNumbers] = useState<{ id: number; x: number; y: number; text: string; kind: 'damage' | 'heal' | 'gold-gain' | 'gold-spend' }[]>([]);
+  const floatingNumberIdRef = useRef(0);
+  const spawnFloatingNumber = (x: number, y: number, value: number, kind: 'damage' | 'heal' | 'gold-gain' | 'gold-spend') => {
+    if (value === 0) return;
+    const id = ++floatingNumberIdRef.current;
+    const text = (kind === 'heal' || kind === 'gold-gain') ? `+${value}` : `-${value}`;
+    // A little horizontal jitter so two numbers landing on the same spot at once
+    // (e.g. an attacker and defender trading damage right next to each other, or
+    // Trabuco de Cerco's AOE hitting a whole row at once) don't render as one
+    // unreadable stack of overlapping digits.
+    const jitterX = x + (Math.random() - 0.5) * 20;
+    setFloatingNumbers(prev => [...prev, { id, x: jitterX, y, text, kind }]);
+    window.setTimeout(() => setFloatingNumbers(prev => prev.filter(f => f.id !== id)), 1300);
+  };
+  // Convenience wrapper for the overwhelmingly common case: the number belongs
+  // over a specific board slot or the gold badge, identified the same way the
+  // rest of this file already finds those elements (document.getElementById).
+  const spawnFloatingNumberAtId = (elementId: string, value: number, kind: 'damage' | 'heal' | 'gold-gain' | 'gold-spend') => {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    spawnFloatingNumber(r.left + r.width / 2, r.top + r.height * 0.35, value, kind);
+  };
   // Board card preview (see the fixed overlay further down) — set from CardSlot's
   // own onClick now, alongside whatever game action that same tap already performs,
   // so it needs to clear itself instead of waiting on an explicit close every time.
@@ -2529,7 +2560,10 @@ export default function App() {
       // 1-2, then grows by +4 every turn from turn 3 onward with no upper cap — and
       // whatever wasn't spent carries over. So a big play can be saved up for instead
       // of always being locked to what a single turn's allowance affords.
-      if (turnNumber >= 3) setPlayerMana(prev => prev + 4);
+      if (turnNumber >= 3) {
+        setPlayerMana(prev => prev + 4);
+        spawnFloatingNumberAtId('player-gold-badge', 4, 'gold-gain');
+      }
       // The NPC's turn forces viewState to 'field' (zoomed out to watch it play), which
       // leaves the hand tray dimmed and pushed down off-screen (see the Hand UI's own
       // animate below) — nothing ever brought it back once play returned to the
@@ -2566,7 +2600,10 @@ export default function App() {
         setHand(prev => prev.length >= 2 ? prev : [...prev, ...Array.from({ length: 2 - prev.length }, () => drawFromDeck())]);
       }
     } else {
-      if (turnNumber >= 3) setNpcMana(prev => prev + 4);
+      if (turnNumber >= 3) {
+        setNpcMana(prev => prev + 4);
+        spawnFloatingNumberAtId('npc-gold-badge', 4, 'gold-gain');
+      }
       setViewState('field');
       setNpcGeneralAbilityUses(0);
       // Same ref-not-state reasoning as the player branch above, but here it's
@@ -2696,6 +2733,7 @@ export default function App() {
             currentNpcMana -= action.card.cost;
             setNpcSlots([...currentNpcSlots]);
             setNpcMana(currentNpcMana);
+            spawnFloatingNumberAtId('npc-gold-badge', action.card.cost, 'gold-spend');
             await new Promise(resolve => setTimeout(resolve, 700));
           } else if (action.type === 'attack') {
             setAttackAnim({ attackerIndex: action.attackerSlot, targetIndex: action.targetSlot, isPlayerAttacking: false });
@@ -2737,6 +2775,7 @@ export default function App() {
                 const attackerHpBonus = (attacker.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(attacker, currentNpcSlots);
                 const defenderHpBonus = (defender.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(defender, currentPlayerSlots);
                 const damageToDefender = Math.max(0, attackerAtk - defenderReduction);
+                const damageToAttacker = Math.max(0, defenderAtk - attackerReduction);
 
                 // Infiltrado da Ordem — see the exact same check (and its comment) in
                 // handleNpcSlotClick above; here the DEFENDER's side is the player.
@@ -2747,7 +2786,7 @@ export default function App() {
 
                 const updatedAttacker = {
                   ...attacker,
-                  hp: attacker.hp + attackerHpBonus - Math.max(0, defenderAtk - attackerReduction),
+                  hp: attacker.hp + attackerHpBonus - damageToAttacker,
                   pendingCombatBonus: undefined,
                 };
                 const updatedDefender = {
@@ -2755,6 +2794,11 @@ export default function App() {
                   hp: defender.hp + defenderHpBonus - damageToDefender,
                   pendingCombatBonus: undefined,
                 };
+
+                // Hearthstone-style floating combat numbers — mirrors the player-
+                // attacking block in handleNpcSlotClick above.
+                spawnFloatingNumberAtId(`npc-${action.attackerSlot}`, damageToAttacker, 'damage');
+                spawnFloatingNumberAtId(`player-${targetSlot}`, damageToDefender, 'damage');
 
                 if (updatedAttacker.hp <= 0) {
                   currentNpcSlots[action.attackerSlot] = { ...updatedAttacker, isDestroyed: true };
@@ -2777,6 +2821,7 @@ export default function App() {
                 // unidade na Retaguarda da mesma coluna." A splash side-effect,
                 // independent of whether the main target survived.
                 if (attacker.name === 'Jorge, Lança Sagrada' && isFrontline(targetSlot) && currentPlayerSlots[targetSlot + 5]) {
+                  spawnFloatingNumberAtId(`player-${targetSlot + 5}`, 2, 'damage');
                   const splash = applyDamageToSlot(currentPlayerSlots, targetSlot + 5, 2);
                   currentPlayerSlots = splash.slots;
                   if (splash.destroyed) {
@@ -2930,6 +2975,7 @@ export default function App() {
     // resolve it immediately instead of zooming to the board for nothing.
     if (card.name === 'Reformar Linhas') {
       setPlayerMana(prev => prev - card.cost);
+      spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
       setPlayerGraveyard(g => [...g, card]);
       setBonusRepositions(prev => prev + 3);
@@ -2941,6 +2987,9 @@ export default function App() {
     // Tributo de Guerra (Deck Cardeal): immediate, no target.
     if (card.name === 'Tributo de Guerra') {
       setPlayerMana(prev => prev - card.cost + 1);
+      const netGoldChange = 1 - card.cost;
+      if (netGoldChange >= 0) spawnFloatingNumberAtId('player-gold-badge', netGoldChange, 'gold-gain');
+      else spawnFloatingNumberAtId('player-gold-badge', -netGoldChange, 'gold-spend');
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
       setPlayerGraveyard(g => [...g, card]);
       setSelectedCardIndex(null);
@@ -2953,6 +3002,7 @@ export default function App() {
     // 12) — the Relíquia/Terreno slots (10/11) aren't "unidades".
     if (card.name === 'Trabuco de Cerco') {
       setPlayerMana(prev => prev - card.cost);
+      spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
       setPlayerGraveyard(g => [...g, card]);
       setSelectedCardIndex(null);
@@ -2960,6 +3010,8 @@ export default function App() {
       const destroyed: CardData[] = [];
       let npcGeneralFell = false;
       [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12].forEach(i => {
+        if (!nextNpcSlots[i]) return;
+        spawnFloatingNumberAtId(`npc-${i}`, 2, 'damage');
         const result = applyDamageToSlot(nextNpcSlots, i, 2);
         nextNpcSlots = result.slots;
         if (result.destroyed) {
@@ -2983,6 +3035,7 @@ export default function App() {
     const kind = TARGETABLE_TACTICS[card.name];
     if (kind) {
       setPlayerMana(prev => prev - card.cost);
+      spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
       setPendingTacticAction({ card, kind });
       setSelectedCardIndex(null);
@@ -3000,6 +3053,7 @@ export default function App() {
         return;
       }
       setPlayerMana(prev => prev - card.cost);
+      spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
       setSelectedCardIndex(null);
       openCardPicker('Escolha um soldado do cemitério para adicionar à mão', candidates, 1, (picked) => {
@@ -3021,6 +3075,7 @@ export default function App() {
         return;
       }
       setPlayerMana(prev => prev - card.cost);
+      spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
       setSelectedCardIndex(null);
       openCardPicker('Escolha uma carta de Terreno ou Relíquia do deck', candidates, 1, (picked) => {
@@ -3042,6 +3097,7 @@ export default function App() {
         return;
       }
       setPlayerMana(prev => prev - card.cost);
+      spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
       setSelectedCardIndex(null);
       openCardPicker('Escolha uma Tática do deck para adicionar à mão', candidates, 1, (picked) => {
@@ -3063,6 +3119,7 @@ export default function App() {
         return;
       }
       setPlayerMana(prev => prev - card.cost);
+      spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
       setSelectedCardIndex(null);
       openCardPicker('Escolha um soldado do deck para adicionar à mão', candidates, 1, (picked) => {
@@ -3083,6 +3140,7 @@ export default function App() {
       }
       const revealed = deckQueueRef.current.splice(0, 4);
       setPlayerMana(prev => prev - card.cost);
+      spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
       setSelectedCardIndex(null);
       openCardPicker('Veja as 4 cartas do topo — escolha 2 para a mão', revealed, 2, (picked) => {
@@ -3108,6 +3166,7 @@ export default function App() {
         return;
       }
       setPlayerMana(prev => prev - card.cost);
+      spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
       setSelectedCardIndex(null);
       openCardPicker(
@@ -3429,7 +3488,10 @@ export default function App() {
   // "Ativar habilidade?" step — see generalAbilityPrompt's modal below) and opens
   // targeting for the actual ally to heal, same two-step shape as a targetable Tática.
   const activateGeneralHeal = (amount: number, cost: number) => {
-    if (cost > 0) setPlayerMana(prev => prev - cost);
+    if (cost > 0) {
+      setPlayerMana(prev => prev - cost);
+      spawnFloatingNumberAtId('player-gold-badge', cost, 'gold-spend');
+    }
     setPlayerGeneralAbilityUses(prev => prev + 1);
     setPendingGeneralHeal({ amount });
     setGeneralAbilityPrompt(null);
@@ -3451,6 +3513,7 @@ export default function App() {
       next[slotIndex] = healed;
       return next;
     });
+    spawnFloatingNumberAtId(`player-${slotIndex}`, amount, 'heal');
     showToast(`${target.name} recuperou ${amount} HP!`);
     setPendingGeneralHeal(null);
   };
@@ -3630,6 +3693,7 @@ export default function App() {
       }
 
       setPlayerMana(prev => prev - cardToPlay.cost);
+      spawnFloatingNumberAtId('player-gold-badge', cardToPlay.cost, 'gold-spend');
 
       const fromEl = handCardRefs.current[cardToPlay.id];
       const fromRect = fromEl?.getBoundingClientRect();
@@ -3765,6 +3829,7 @@ export default function App() {
           const attackerHpBonus = (attacker.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(attacker, newPlayerSlots);
           const defenderHpBonus = (defender.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(defender, newNpcSlots);
           const damageToDefender = Math.max(0, attackerAtk - defenderReduction);
+          const damageToAttacker = Math.max(0, defenderAtk - attackerReduction);
 
           // Infiltrado da Ordem: "Se o General aliado receber dano, no próximo turno
           // não poderá usar sua habilidade." Checked on the DEFENDER's (NPC's) own
@@ -3776,7 +3841,7 @@ export default function App() {
 
           const updatedAttacker = {
             ...attacker,
-            hp: attacker.hp + attackerHpBonus - Math.max(0, defenderAtk - attackerReduction),
+            hp: attacker.hp + attackerHpBonus - damageToAttacker,
             pendingCombatBonus: undefined,
           };
           const updatedDefender = {
@@ -3784,6 +3849,11 @@ export default function App() {
             hp: defender.hp + defenderHpBonus - damageToDefender,
             pendingCombatBonus: undefined,
           };
+
+          // Hearthstone-style floating combat numbers, fired right as both sides'
+          // new HP is decided so they land in sync with the impact flash above.
+          spawnFloatingNumberAtId(`player-${selectedAttackerIndex}`, damageToAttacker, 'damage');
+          spawnFloatingNumberAtId(`npc-${targetSlot}`, damageToDefender, 'damage');
 
           if (updatedAttacker.hp <= 0) {
             newPlayerSlots[selectedAttackerIndex] = { ...updatedAttacker, isDestroyed: true };
@@ -3810,6 +3880,7 @@ export default function App() {
           const splashTarget = attacker.name === 'Jorge, Lança Sagrada' && isFrontline(targetSlot) ? newNpcSlots[targetSlot + 5] : null;
           if (splashTarget) {
             const splashHp = splashTarget.hp - 2;
+            spawnFloatingNumberAtId(`npc-${targetSlot + 5}`, 2, 'damage');
             if (splashHp <= 0) {
               newNpcSlots[targetSlot + 5] = null;
               setNpcGraveyard(g => [...g, ...withEquippedWeapons([{ ...splashTarget, hp: splashHp, isDestroyed: true }])]);
@@ -4223,8 +4294,8 @@ export default function App() {
               distance from the button itself, in the same column as the button,
               instead of one hugging the graveyard and the other floating alone
               near the top edge (which read as mismatched/asymmetric). */}
-          <div onClick={(e) => e.stopPropagation()} className="pointer-events-auto">
-            <GoldBadge value={npcMana} className="w-24 md:w-28" />
+          <div id="npc-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto">
+            <GoldBadge value={npcMana} className="w-32 md:w-36" />
           </div>
 
           <div
@@ -4252,7 +4323,7 @@ export default function App() {
           >
             {/* Whose-turn heading — spelled out plainly instead of leaving it to be
                 inferred from the button's own color/icon, per the user's ask. */}
-            <div className={`text-[8px] md:text-[10px] font-black tracking-wide uppercase whitespace-nowrap ${
+            <div className={`text-[11px] md:text-sm font-black tracking-wide uppercase whitespace-nowrap ${
               currentTurn === 'player' ? 'text-amber-400' : 'text-red-300'
             }`}>
               {currentTurn === 'player' ? 'Seu Turno' : 'Turno do Adversário'}
@@ -4271,7 +4342,7 @@ export default function App() {
                   <React.Fragment key={p}>
                     {idx > 0 && <div className="w-px h-1.5 bg-zinc-600" />}
                     <div
-                      className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[7px] md:text-[8px] font-black tracking-wide uppercase whitespace-nowrap transition-colors ${
+                      className={`flex items-center gap-1 px-2 py-1 rounded-full border text-[9px] md:text-[11px] font-black tracking-wide uppercase whitespace-nowrap transition-colors ${
                         isCurrent
                           ? 'bg-amber-500 border-amber-300 text-zinc-950 shadow-[0_0_8px_rgba(245,158,11,0.7)]'
                           : isLocked
@@ -4279,7 +4350,7 @@ export default function App() {
                             : 'bg-zinc-950/80 border-zinc-600 text-zinc-400'
                       } ${currentTurn !== 'player' ? 'opacity-50' : ''}`}
                     >
-                      {isLocked && <Lock className="w-2 h-2" strokeWidth={3} />}
+                      {isLocked && <Lock className="w-2.5 h-2.5" strokeWidth={3} />}
                       {PHASE_LABELS[p]}
                     </div>
                   </React.Fragment>
@@ -4291,7 +4362,7 @@ export default function App() {
                 whose turn it is, per the user's own reference. Sits in its own wrapper
                 a bit bigger than the coin button so the ring doesn't get cut by the
                 coin's own rounded edge. */}
-            <div className="relative w-24 h-24 md:w-28 md:h-28 flex items-center justify-center">
+            <div className="relative w-28 h-28 md:w-32 md:h-32 flex items-center justify-center">
               <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth="5" />
                 <motion.circle
@@ -4307,7 +4378,7 @@ export default function App() {
                 />
               </svg>
             <motion.div
-              className={`relative w-20 h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center ${
+              className={`relative w-24 h-24 md:w-28 md:h-28 rounded-full flex items-center justify-center ${
                 currentTurn === 'player' ? 'cursor-pointer' : 'cursor-not-allowed'
               }`}
               whileTap={currentTurn === 'player' ? { scale: 0.9 } : undefined}
@@ -4329,9 +4400,9 @@ export default function App() {
                   grayscale/dim filter instead, swapping only the icon on top. */}
               <img src={hudTurnButtonImage} alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none" draggable={false} />
               {currentTurn === 'player' ? (
-                <ChevronRight className="relative w-9 h-9 md:w-10 md:h-10 text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={3} />
+                <ChevronRight className="relative w-11 h-11 md:w-12 md:h-12 text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={3} />
               ) : (
-                <Hourglass className="relative w-8 h-8 md:w-9 md:h-9 text-red-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />
+                <Hourglass className="relative w-10 h-10 md:w-11 md:h-11 text-red-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />
               )}
             </motion.div>
             </div>
@@ -4340,7 +4411,7 @@ export default function App() {
                 OPONENTE" while it's not, per the user's reference. Kept in the same
                 narrow vertical stack as the phase tracker above (not a wide pill)
                 since a wider one used to sit on top of the Vanguarda slots next to it. */}
-            <div className={`px-2 py-0.5 rounded-full border text-[7px] md:text-[8px] font-black tracking-wide uppercase whitespace-nowrap text-center ${
+            <div className={`px-2.5 py-1 rounded-full border text-[9px] md:text-[11px] font-black tracking-wide uppercase whitespace-nowrap text-center ${
               currentTurn === 'player'
                 ? 'bg-amber-500 border-amber-300 text-zinc-950'
                 : 'bg-zinc-950/80 border-red-900/60 text-red-200'
@@ -4351,8 +4422,8 @@ export default function App() {
 
           {/* Player's gold — was over by the graveyard before, now the same
               distance from the button as the NPC's above, per the user's ask. */}
-          <div onClick={(e) => e.stopPropagation()} className="pointer-events-auto">
-            <GoldBadge value={playerMana} className="w-24 md:w-28" />
+          <div id="player-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto">
+            <GoldBadge value={playerMana} className="w-32 md:w-36" />
           </div>
         </div>
 
@@ -4383,7 +4454,13 @@ export default function App() {
               slotId="npc-10"
               card={npcSlots[10]}
               onClick={() => handleNpcSlotClick(10)}
-              onInfoClick={setDetailedCard}
+              // Suppressed during Batalha (see every other onInfoClick below too) —
+              // in that phase almost every tap is either picking an attacker or
+              // picking its target, and the big floating preview this opens used to
+              // sit right on top of the board, hiding the attack/impact animation
+              // it was supposed to be a click on. Preparação keeps the preview
+              // (reading a card there is still the point of tapping it).
+              onInfoClick={turnPhase === 'batalha' ? undefined : setDetailedCard}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 10}
@@ -4397,7 +4474,7 @@ export default function App() {
                 slotId="npc-12"
                 card={npcSlots[12]}
                 onClick={() => handleNpcSlotClick(12)}
-                onInfoClick={setDetailedCard}
+                onInfoClick={turnPhase === 'batalha' ? undefined : setDetailedCard}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 12}
@@ -4411,7 +4488,7 @@ export default function App() {
               slotId="npc-11"
               card={npcSlots[11]}
               onClick={() => handleNpcSlotClick(11)}
-              onInfoClick={setDetailedCard}
+              onInfoClick={turnPhase === 'batalha' ? undefined : setDetailedCard}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 11}
@@ -4430,7 +4507,7 @@ export default function App() {
                 slotId={`npc-${i}`}
                 card={npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
-                onInfoClick={setDetailedCard}
+                onInfoClick={turnPhase === 'batalha' ? undefined : setDetailedCard}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
@@ -4450,7 +4527,7 @@ export default function App() {
                 slotId={`npc-${i}`}
                 card={npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
-                onInfoClick={setDetailedCard}
+                onInfoClick={turnPhase === 'batalha' ? undefined : setDetailedCard}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
@@ -4482,7 +4559,7 @@ export default function App() {
                 card={playerSlots[i]}
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
-                onInfoClick={setDetailedCard}
+                onInfoClick={turnPhase === 'batalha' ? undefined : setDetailedCard}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
@@ -4527,7 +4604,7 @@ export default function App() {
                 card={playerSlots[i]}
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
-                onInfoClick={setDetailedCard}
+                onInfoClick={turnPhase === 'batalha' ? undefined : setDetailedCard}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
@@ -4564,7 +4641,7 @@ export default function App() {
               card={playerSlots[10]}
               onClick={(el) => handleSlotClick(10, el)}
               isSelected={selectedAttackerIndex === 10}
-              onInfoClick={setDetailedCard}
+              onInfoClick={turnPhase === 'batalha' ? undefined : setDetailedCard}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 10}
@@ -4578,7 +4655,7 @@ export default function App() {
                 card={playerSlots[12]}
                 onClick={(el) => handleSlotClick(12, el)}
                 isSelected={selectedAttackerIndex === 12}
-                onInfoClick={setDetailedCard}
+                onInfoClick={turnPhase === 'batalha' ? undefined : setDetailedCard}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 12}
@@ -4608,7 +4685,7 @@ export default function App() {
               card={playerSlots[11]}
               onClick={(el) => handleSlotClick(11, el)}
               isSelected={selectedAttackerIndex === 11}
-              onInfoClick={setDetailedCard}
+              onInfoClick={turnPhase === 'batalha' ? undefined : setDetailedCard}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 11}
@@ -5459,6 +5536,40 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Floating combat/gold numbers (see spawnFloatingNumber/spawnFloatingNumberAtId) —
+          Hearthstone-style: pop in, drift up, fade out, over whatever card or gold
+          badge they're reporting a change for. z-[290], above the board and its
+          highlight rings but below the board/hand card previews (z-[260]) and the
+          full-screen modals above those, so a preview opened right as a number
+          spawns still reads on top of it. */}
+      <div className="fixed inset-0 z-[290] pointer-events-none overflow-hidden">
+        <AnimatePresence>
+          {floatingNumbers.map(fn => (
+            <motion.div
+              key={fn.id}
+              initial={{ opacity: 0, y: 0, scale: 0.5 }}
+              animate={{ opacity: [0, 1, 1, 0], y: -64, scale: [0.5, 1.25, 1, 1] }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1.2, times: [0, 0.18, 0.75, 1], ease: 'easeOut' }}
+              className="absolute font-black select-none"
+              style={{
+                left: fn.x,
+                top: fn.y,
+                transform: 'translate(-50%, -50%)',
+                fontFamily: "'Cinzel', serif",
+                fontSize: fn.kind === 'damage' ? '30px' : '24px',
+                color: fn.kind === 'damage' ? '#ff5555' : fn.kind === 'heal' ? '#4ade80' : fn.kind === 'gold-gain' ? '#fde047' : '#fca5a5',
+                WebkitTextStroke: '1.5px rgba(20,10,0,0.75)',
+                textShadow: `0 2px 3px rgba(0,0,0,0.9), 0 0 14px ${
+                  fn.kind === 'damage' ? 'rgba(255,60,60,0.85)' : fn.kind === 'heal' ? 'rgba(74,222,128,0.85)' : fn.kind === 'gold-gain' ? 'rgba(253,224,71,0.85)' : 'rgba(252,165,165,0.75)'
+                }`,
+              }}
+            >
+              {fn.text}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
 
       {/* Board card preview — tapping any card already on the board (see CardSlot's
           root onClick) shows this: the same fixed, always-on-top, non-blocking
