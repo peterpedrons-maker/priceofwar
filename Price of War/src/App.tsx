@@ -4161,40 +4161,58 @@ export default function App() {
             which phase is which. Flips (like a coin) between an amber "your turn"
             face and a dull gray "not your turn" face. */}
         <div
-          className="absolute top-1/2 -translate-y-1/2 right-16 md:right-16 z-40 pointer-events-auto flex flex-col items-center gap-2"
+          className="absolute top-1/2 -translate-y-1/2 right-16 md:right-16 z-40 pointer-events-auto flex flex-col items-center gap-2.5"
           style={{ perspective: 600 }}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (currentTurn !== 'player') return;
-            setSelectedCardIndex(null);
-            setSelectedAttackerIndex(null);
-            setSelectedMoverIndex(null);
-            // Preparação is ending — this is "Após Remanejamento" for Comandante
-            // Aurelion (see grantAurelionBuff) and Soldado Tático's end-of-turn swap,
-            // whether that means advancing into Batalha or, on an early turn with no
-            // Batalha yet, ending the turn outright.
-            if (turnPhase === 'preparacao') {
-              setPlayerSlots(prev => applyEndOfTurnSwaps(grantAurelionBuff(prev, movedSlots)));
-            }
-            if (isLastPhaseOfTurn) {
-              setCurrentTurn('npc');
-            } else {
-              const idx = activePhases.indexOf(turnPhase);
-              setTurnPhase(activePhases[idx + 1]);
-            }
-          }}
         >
-          {/* Phase tracker — always visible on the player's turn (Yu-Gi-Oh-style: every
-              phase the game has shown at once, not just the current one named in
-              isolation), so it's always clear what's coming, not just what's active.
-              Stacked vertically (not a wide horizontal row anymore) so the whole
-              turn-button cluster stays narrow enough to actually clear the board's
-              slots instead of sitting on top of them. */}
-          {currentTurn === 'player' && (
+          {/* NPC's gold — moved off its own separate top-right spot to sit right
+              here instead, symmetric with the player's below: both now the same
+              distance from the button itself, in the same column as the button,
+              instead of one hugging the graveyard and the other floating alone
+              near the top edge (which read as mismatched/asymmetric). */}
+          <div onClick={(e) => e.stopPropagation()} className="pointer-events-auto">
+            <GoldBadge value={npcMana} className="w-24 md:w-28" />
+          </div>
+
+          <div
+            className="flex flex-col items-center gap-2.5 cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (currentTurn !== 'player') return;
+              setSelectedCardIndex(null);
+              setSelectedAttackerIndex(null);
+              setSelectedMoverIndex(null);
+              // Preparação is ending — this is "Após Remanejamento" for Comandante
+              // Aurelion (see grantAurelionBuff) and Soldado Tático's end-of-turn swap,
+              // whether that means advancing into Batalha or, on an early turn with no
+              // Batalha yet, ending the turn outright.
+              if (turnPhase === 'preparacao') {
+                setPlayerSlots(prev => applyEndOfTurnSwaps(grantAurelionBuff(prev, movedSlots)));
+              }
+              if (isLastPhaseOfTurn) {
+                setCurrentTurn('npc');
+              } else {
+                const idx = activePhases.indexOf(turnPhase);
+                setTurnPhase(activePhases[idx + 1]);
+              }
+            }}
+          >
+            {/* Whose-turn heading — spelled out plainly instead of leaving it to be
+                inferred from the button's own color/icon, per the user's ask. */}
+            <div className={`text-[8px] md:text-[10px] font-black tracking-wide uppercase whitespace-nowrap ${
+              currentTurn === 'player' ? 'text-amber-400' : 'text-red-300'
+            }`}>
+              {currentTurn === 'player' ? 'Seu Turno' : 'Turno do Adversário'}
+            </div>
+
+            {/* Phase tracker — shown on BOTH turns now (dimmed further on the
+                opponent's), not just the player's, so which phase the turn is in
+                stays visible the whole time instead of the tracker vanishing
+                during the opponent's turn. Yu-Gi-Oh-style: every phase the game
+                has shown at once, not just the current one named in isolation. */}
             <div className="flex flex-col items-center gap-1">
               {(['preparacao', 'batalha'] as TurnPhase[]).map((p, idx) => {
                 const isLocked = p === 'batalha' && turnNumber < 3;
-                const isCurrent = turnPhase === p;
+                const isCurrent = currentTurn === 'player' && turnPhase === p;
                 return (
                   <React.Fragment key={p}>
                     {idx > 0 && <div className="w-px h-1.5 bg-zinc-600" />}
@@ -4205,7 +4223,7 @@ export default function App() {
                           : isLocked
                             ? 'bg-zinc-950/80 border-zinc-700 text-zinc-600'
                             : 'bg-zinc-950/80 border-zinc-600 text-zinc-400'
-                      }`}
+                      } ${currentTurn !== 'player' ? 'opacity-50' : ''}`}
                     >
                       {isLocked && <Lock className="w-2 h-2" strokeWidth={3} />}
                       {PHASE_LABELS[p]}
@@ -4214,67 +4232,73 @@ export default function App() {
                 );
               })}
             </div>
-          )}
-          {/* Radial "filling" ring around the button — purely decorative (this game
-              has no real per-turn clock), just a continuously looping fill reinforcing
-              whose turn it is, per the user's own reference. Sits in its own wrapper
-              a bit bigger than the coin button so the ring doesn't get cut by the
-              coin's own rounded edge. */}
-          <div className="relative w-16 h-16 md:w-[4.75rem] md:h-[4.75rem] flex items-center justify-center">
-            <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth="5" />
-              <motion.circle
-                key={currentTurn}
-                cx="50" cy="50" r="46" fill="none"
-                stroke={currentTurn === 'player' ? '#fbbf24' : '#ef4444'}
-                strokeWidth="5" strokeLinecap="round"
-                strokeDasharray={289}
-                initial={{ strokeDashoffset: 289 }}
-                animate={{ strokeDashoffset: 0 }}
-                transition={{ duration: 2.4, repeat: Infinity, ease: 'linear' }}
-                style={{ filter: `drop-shadow(0 0 4px ${currentTurn === 'player' ? 'rgba(251,191,36,0.8)' : 'rgba(239,68,68,0.7)'})` }}
-              />
-            </svg>
-          <motion.div
-            className={`relative w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center ${
-              currentTurn === 'player' ? 'cursor-pointer' : 'cursor-not-allowed'
-            }`}
-            whileTap={currentTurn === 'player' ? { scale: 0.9 } : undefined}
-            animate={{
-              filter: currentTurn === 'player' ? 'grayscale(0) brightness(1)' : 'grayscale(0.85) brightness(0.6)',
-              boxShadow: currentTurn === 'player'
-                ? [
-                    '0 0 8px rgba(245,158,11,0.5)',
-                    '0 0 20px rgba(245,158,11,0.95)',
-                    '0 0 8px rgba(245,158,11,0.5)',
-                  ]
-                : '0 0 0 rgba(0,0,0,0)',
-            }}
-            transition={{ filter: { duration: 0.4 }, boxShadow: { duration: 2, repeat: Infinity } }}
-          >
-            {/* Button art from the user's own reference sheet, replacing the earlier
-                plain code-built circle. It doesn't have two faces like the old flip
-                animation did, so the not-your-turn state is conveyed with a
-                grayscale/dim filter instead, swapping only the icon on top. */}
-            <img src={hudTurnButtonImage} alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none" draggable={false} />
-            {currentTurn === 'player' ? (
-              <ChevronRight className="relative w-6 h-6 md:w-7 md:h-7 text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={3} />
-            ) : (
-              <Hourglass className="relative w-5 h-5 md:w-6 md:h-6 text-red-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />
-            )}
-          </motion.div>
+            {/* Radial "filling" ring around the button — purely decorative (this game
+                has no real per-turn clock), just a continuously looping fill reinforcing
+                whose turn it is, per the user's own reference. Sits in its own wrapper
+                a bit bigger than the coin button so the ring doesn't get cut by the
+                coin's own rounded edge. */}
+            <div className="relative w-24 h-24 md:w-28 md:h-28 flex items-center justify-center">
+              <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth="5" />
+                <motion.circle
+                  key={currentTurn}
+                  cx="50" cy="50" r="46" fill="none"
+                  stroke={currentTurn === 'player' ? '#fbbf24' : '#ef4444'}
+                  strokeWidth="5" strokeLinecap="round"
+                  strokeDasharray={289}
+                  initial={{ strokeDashoffset: 289 }}
+                  animate={{ strokeDashoffset: 0 }}
+                  transition={{ duration: 2.4, repeat: Infinity, ease: 'linear' }}
+                  style={{ filter: `drop-shadow(0 0 4px ${currentTurn === 'player' ? 'rgba(251,191,36,0.8)' : 'rgba(239,68,68,0.7)'})` }}
+                />
+              </svg>
+            <motion.div
+              className={`relative w-20 h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center ${
+                currentTurn === 'player' ? 'cursor-pointer' : 'cursor-not-allowed'
+              }`}
+              whileTap={currentTurn === 'player' ? { scale: 0.9 } : undefined}
+              animate={{
+                filter: currentTurn === 'player' ? 'grayscale(0) brightness(1)' : 'grayscale(0.85) brightness(0.6)',
+                boxShadow: currentTurn === 'player'
+                  ? [
+                      '0 0 8px rgba(245,158,11,0.5)',
+                      '0 0 20px rgba(245,158,11,0.95)',
+                      '0 0 8px rgba(245,158,11,0.5)',
+                    ]
+                  : '0 0 0 rgba(0,0,0,0)',
+              }}
+              transition={{ filter: { duration: 0.4 }, boxShadow: { duration: 2, repeat: Infinity } }}
+            >
+              {/* Button art from the user's own reference sheet, replacing the earlier
+                  plain code-built circle. It doesn't have two faces like the old flip
+                  animation did, so the not-your-turn state is conveyed with a
+                  grayscale/dim filter instead, swapping only the icon on top. */}
+              <img src={hudTurnButtonImage} alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none" draggable={false} />
+              {currentTurn === 'player' ? (
+                <ChevronRight className="relative w-9 h-9 md:w-10 md:h-10 text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={3} />
+              ) : (
+                <Hourglass className="relative w-8 h-8 md:w-9 md:h-9 text-red-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />
+              )}
+            </motion.div>
+            </div>
+
+            {/* Turn label — "ENCERRAR TURNO" while it's actionable, "TURNO DO
+                OPONENTE" while it's not, per the user's reference. Kept in the same
+                narrow vertical stack as the phase tracker above (not a wide pill)
+                since a wider one used to sit on top of the Vanguarda slots next to it. */}
+            <div className={`px-2 py-0.5 rounded-full border text-[7px] md:text-[8px] font-black tracking-wide uppercase whitespace-nowrap text-center ${
+              currentTurn === 'player'
+                ? 'bg-amber-500 border-amber-300 text-zinc-950'
+                : 'bg-zinc-950/80 border-red-900/60 text-red-200'
+            }`}>
+              {currentTurn === 'player' ? 'Encerrar Turno' : 'Turno do Oponente'}
+            </div>
           </div>
 
-          {/* Turn label — "ENCERRAR TURNO" while it's actionable, "TURNO DO
-              OPONENTE" while it's not, per the user's reference. Kept in the same
-              narrow vertical stack as the phase tracker above (not a wide pill)
-              since a wider one used to sit on top of the Vanguarda slots next to it. */}
-          <div className={`px-2 py-0.5 rounded-full border text-[7px] md:text-[8px] font-black tracking-wide uppercase whitespace-nowrap text-center ${
-            currentTurn === 'player'
-              ? 'bg-amber-500 border-amber-300 text-zinc-950'
-              : 'bg-zinc-950/80 border-red-900/60 text-red-200'
-          }`}>
-            {currentTurn === 'player' ? 'Encerrar Turno' : 'Turno do Oponente'}
+          {/* Player's gold — was over by the graveyard before, now the same
+              distance from the button as the NPC's above, per the user's ask. */}
+          <div onClick={(e) => e.stopPropagation()} className="pointer-events-auto">
+            <GoldBadge value={playerMana} className="w-24 md:w-28" />
           </div>
         </div>
 
@@ -4580,10 +4604,6 @@ export default function App() {
             Retaguarda slots next to it, so it's back to a small inset matching the
             opponent's. */}
         <div className="absolute right-16 md:right-8 bottom-16 flex flex-col gap-6 items-center z-40 pointer-events-auto">
-          {/* Gold counter — a bit above the graveyard, per the user's own ask,
-              instead of attached to the HUD panel over on the other side. */}
-          <GoldBadge value={playerMana} className="w-16 md:w-20" />
-
           {/* Graveyard */}
           <GraveyardPile cards={playerGraveyard} />
 
@@ -4611,23 +4631,16 @@ export default function App() {
             transform at a different apparent depth than intended and it
             rendered far off-screen instead of beside the row. */}
         {playerSlots[12] && (
-          <div className="absolute left-16 md:left-20 bottom-28 md:bottom-32 w-36 md:w-48 z-30 pointer-events-none">
+          <div className="absolute left-12 md:left-16 bottom-24 md:bottom-28 w-56 md:w-72 z-30 pointer-events-none">
             <HudPanel name={generalPlayerRef.current.name} hp={playerSlots[12]!.hp} maxHp={generalPlayerRef.current.hp} />
           </div>
         )}
-
-        {/* NPC's gold counter — up near the turn button's own side/column
-            (right edge), mirroring the player's own gold sitting just above
-            their graveyard on that same edge lower down. */}
-        <div className="absolute right-16 md:right-8 top-12 z-40 pointer-events-none">
-          <GoldBadge value={npcMana} className="w-16 md:w-20" />
-        </div>
 
         {/* NPC's HUD panel — mirrors the player's one above: same idea (beside
             the narrow 3-slot General row instead of over the hand), on the
             RIGHT since the deck/graveyard block already owns the left here. */}
         {npcSlots[12] && (
-          <div className="absolute right-16 md:right-20 top-28 md:top-32 w-36 md:w-48 z-30 pointer-events-none">
+          <div className="absolute right-12 md:right-16 top-24 md:top-28 w-56 md:w-72 z-30 pointer-events-none">
             <HudPanel name={generalNpcRef.current.name} hp={npcSlots[12]!.hp} maxHp={generalNpcRef.current.hp} />
           </div>
         )}
