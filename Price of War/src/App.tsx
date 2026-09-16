@@ -1259,7 +1259,7 @@ const CardFaceStandardMini = ({ card }: { card: CardData }) => {
             are always 1-2 digits in a fixed-size box, so GoldNumber's own
             ResizeObserver-driven shrink-to-fit (built for names/effect text
             of unpredictable length) is more machinery than this needs. */}
-        <div className="absolute flex items-center justify-center" style={{ left: '92%', top: `${2.5 * s}%`, width: '16%', height: `${9 * s}%`, transform: 'translate(-50%, -50%)' }}>
+        <div className="absolute flex items-center justify-center" style={{ left: '92%', top: '8%', width: '16%', height: `${9 * s}%`, transform: 'translate(-50%, -50%)' }}>
           <span className="font-black text-xs md:text-base" style={{ fontFamily: "'Cinzel', serif", color: '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
             {card.cost}
           </span>
@@ -1267,12 +1267,12 @@ const CardFaceStandardMini = ({ card }: { card: CardData }) => {
 
         {showStats && (
           <>
-            <div className="absolute flex items-center justify-center" style={{ left: '11%', top: '82%', width: '20%', height: '12%', transform: 'translate(-50%, -50%)' }}>
+            <div className="absolute flex items-center justify-center" style={{ left: '11%', top: '88%', width: '20%', height: '12%', transform: 'translate(-50%, -50%)' }}>
               <span className="font-black text-base md:text-xl" style={{ fontFamily: "'Cinzel', serif", color: '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
                 {card.atk}
               </span>
             </div>
-            <div className="absolute flex items-center justify-center" style={{ left: '89%', top: '82%', width: '20%', height: '12%', transform: 'translate(-50%, -50%)' }}>
+            <div className="absolute flex items-center justify-center" style={{ left: '89%', top: '88%', width: '20%', height: '12%', transform: 'translate(-50%, -50%)' }}>
               <span className="font-black text-base md:text-xl" style={{ fontFamily: "'Cinzel', serif", color: '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
                 {card.hp}
               </span>
