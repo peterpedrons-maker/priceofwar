@@ -1164,6 +1164,62 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
   );
 };
 
+// Mini counterpart of CardFaceFullArt, for board cards whose art is the
+// full-art print (see CardData.isFullArt) — same frame image, same art
+// window and name/cost/ATK-HP coordinates (nothing needed rescaling: unlike
+// the Padrão mini below, this frame isn't a physically-shortened image, just
+// the same one shrunk further, so its own percentages still line up as-is),
+// just the type/effect plate dropped entirely so the art runs straight from
+// the name bar into the shields. A full-art card forced through the Padrão
+// mini's frame would put its full-bleed art behind that frame's much
+// smaller art window instead — wrong crop, wrong proportions.
+const CardFaceFullArtMini = ({ card }: { card: CardData }) => {
+  const showStats = !NO_STAT_TYPES.has(card.cardType as CardType);
+  return (
+    <div className="absolute pointer-events-none" style={{ width: '108.2%', height: '113.2%', top: '50%', left: '50%', transform: 'translate(-50%, -49.1%)' }}>
+      <div className="absolute overflow-hidden" style={{ left: '10.2%', top: '15.4%', width: '79.4%', height: '73.4%' }}>
+        {card.art ? (
+          <img src={card.art} alt={card.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900" />
+        )}
+      </div>
+      <img src={cardTemplateFullArtGoldImage} alt="" aria-hidden className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
+      <div className="absolute inset-0 z-10 pointer-events-none">
+        <div className="absolute px-1 flex items-center" style={{ top: '8.5%', left: '9%', width: '62%', height: '5.5%' }}>
+          <span
+            className="block w-full truncate text-center text-[7px] md:text-[9px] font-bold uppercase tracking-tight"
+            style={{ fontFamily: "'Cinzel', serif", color: '#f5deA0', textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
+          >
+            {card.name}
+          </span>
+        </div>
+
+        <div className="absolute flex items-center justify-center" style={{ left: '83.5%', top: '9.3%', width: '8%', height: '4.5%' }}>
+          <span className="font-black text-xs md:text-base" style={{ fontFamily: "'Cinzel', serif", color: '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
+            {card.cost}
+          </span>
+        </div>
+
+        {showStats && (
+          <>
+            <div className="absolute flex items-center justify-center" style={{ left: '16%', top: '85.7%', width: '14%', height: '11%', transform: 'translate(-50%, -50%)' }}>
+              <span className="font-black text-base md:text-xl" style={{ fontFamily: "'Cinzel', serif", color: '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
+                {card.atk}
+              </span>
+            </div>
+            <div className="absolute flex items-center justify-center" style={{ left: '84%', top: '85.7%', width: '14%', height: '11%', transform: 'translate(-50%, -50%)' }}>
+              <span className="font-black text-base md:text-xl" style={{ fontFamily: "'Cinzel', serif", color: '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
+                {card.hp}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const CARD_FACE_MINI_STD_SCALE = 1536 / 1271;
 const CardFaceStandardMini = ({ card }: { card: CardData }) => {
   const showStats = !NO_STAT_TYPES.has(card.cardType as CardType);
@@ -5712,7 +5768,7 @@ const CardSlot = ({
           {/* No more Info button here — tapping the card itself (see the root
               onClick above) now shows the same enlarged preview this used to open
               on its own. */}
-          <CardFaceStandardMini card={card} />
+          {card.isFullArt ? <CardFaceFullArtMini card={card} /> : <CardFaceStandardMini card={card} />}
         </motion.div>
       )}
       {card && card.isDestroyed && (
