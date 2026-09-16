@@ -4993,24 +4993,11 @@ export default function App() {
               <CardFace card={card} variant="hand" />
             </div>
 
-            {/* "Arraste para jogar" — beside/below the card now, never on top of its
-                own name or art. A bouncing arrow does the "drag this way" pointing
-                instead of relying on the text alone. */}
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="absolute left-1/2 -translate-x-1/2 -bottom-3 translate-y-full flex flex-col items-center gap-1.5 pointer-events-none"
-            >
-              <motion.div
-                animate={{ y: [0, -8, 0] }}
-                transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <ArrowUp className="w-7 h-7 text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.9)]" strokeWidth={3} />
-              </motion.div>
-              <div className="px-3 py-1.5 bg-emerald-600/90 rounded-full text-white font-black text-[11px] uppercase tracking-wider shadow-[0_4px_16px_rgba(16,185,129,0.7)] border-2 border-emerald-400 whitespace-nowrap">
-                Arraste para jogar
-              </div>
-            </motion.div>
+            {/* The "Arraste para jogar" label + bouncing arrow that used to sit
+                below the card here were removed — tapping to enlarge is now the
+                whole interaction; dragging straight from this enlarged copy
+                (via the onPointerDown above) still plays it, just without a
+                hint crowding the card. */}
           </div>
         );
       })()}
