@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { X, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass, Sparkles, Shield, Heart } from 'lucide-react';
+import { X, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass, Sparkles } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
@@ -12,6 +12,12 @@ import cardTemplateSilverImage from './assets/card-template-silver.webp';
 import cardTemplateChampagneImage from './assets/card-template-champagne.webp';
 import cardBackplateImage from './assets/card-backplate.webp';
 import cardTemplateFullArtGoldImage from './assets/card-template-fullart-gold.webp';
+import hudAvatarFrameImage from './assets/hud-avatar-frame.webp';
+import hudNameBarImage from './assets/hud-name-bar.webp';
+import hudRankBarImage from './assets/hud-rank-bar.webp';
+import hudHpBarWindowImage from './assets/hud-hp-bar-window.webp';
+import hudGoldBadgeImage from './assets/hud-gold-badge.webp';
+import hudTurnButtonImage from './assets/hud-turn-button.webp';
 import multidaoDeFieisArt from './assets/card-multidao-de-fieis.webp';
 import comercianteDasCruzadasArt from './assets/card-comerciante-das-cruzadas.webp';
 import espiaoSabotadorArt from './assets/card-espiao-sabotador.webp';
@@ -691,19 +697,6 @@ const ExplosionEffect = () => (
   </div>
 );
 
-// A gold coin, not a mana crystal — Ouro is the game's resource (see the turn-start
-// effect above for how it accumulates), so its badge is styled to match: a coin face
-// instead of Hearthstone's blue hexagon.
-const ManaBadge = ({ value, className = "" }: { value: number, className?: string }) => (
-  <div className={`relative flex items-center justify-center ${className}`}>
-    <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full drop-shadow-md">
-      <circle cx="50" cy="50" r="46" fill="#d4af37" stroke="#7a4a00" strokeWidth="6" />
-      <circle cx="50" cy="50" r="36" fill="none" stroke="#fff3c4" strokeWidth="2.5" opacity="0.6" />
-    </svg>
-    <span className="relative z-10 text-amber-950 font-black drop-shadow-[0_1px_1px_rgba(255,243,196,0.5)] leading-none">{value}</span>
-  </div>
-);
-
 // The on-board Graveyard pile — an empty placeholder box until a card actually dies,
 // then it shows the most recently destroyed card's name plus a count badge, so cards
 // leaving the field via combat visibly end up somewhere instead of just vanishing.
@@ -792,6 +785,36 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
 // coin counter, one panel per side. Reuses the same shake + floating "-N"
 // combat feedback as HpBadge/CardSlot on the bar itself, so damage reads
 // clearly on the fixed HUD too, not just on the card in the middle of the board.
+// Layout fractions below come straight from the source sprite sheet the user
+// provided (hud-avatar-frame + hud-name-bar/hud-rank-bar/hud-hp-bar-window all
+// cropped from the same composite piece): the bars sit overlapping the avatar
+// frame's right edge, starting a bit down from its top, so re-deriving these
+// as percentages of the outer box keeps the panel's proportions faithful to
+// that art at any display size instead of guessing new ones.
+const HUD_BARS_LEFT_PCT = 37.06; // bars' left edge, as % of the panel's own width
+const HUD_BARS_WIDTH_PCT = 62.94; // bars' width, as % of the panel's own width
+const HUD_BARS_TOP_PCT = 13.47; // bars block's top, as % of the panel's own height
+const HUD_NAME_H_PCT = 29.05; // each bar's height, as % of the panel's own height
+const HUD_RANK_H_PCT = 19.15;
+const HUD_HP_H_PCT = 18.56;
+// Inside the HP bar image itself, where its dark "track" sits (clear of the
+// heart icon on the left and the frame border/point on the right) — this is
+// where the actual red fill lives, underneath the art's own transparent window.
+const HUD_HP_TRACK_LEFT_PCT = 22.0;
+const HUD_HP_TRACK_RIGHT_PCT = 11.9;
+const HUD_HP_TRACK_TOP_PCT = 22.6;
+const HUD_HP_TRACK_BOTTOM_PCT = 22.6;
+const HUD_AVATAR_WIDTH_PCT = 40.17; // avatar frame's own width, as % of the panel's own width
+
+const GoldBadge = ({ value, className = "" }: { value: number; className?: string }) => (
+  <div className={`relative ${className}`}>
+    <img src={hudGoldBadgeImage} alt="" className="w-full h-auto block" draggable={false} />
+    <span className="absolute inset-y-0 right-[8%] left-[38%] flex items-center justify-center text-amber-100 font-black drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] leading-none">
+      {value}
+    </span>
+  </div>
+);
+
 const HudPanel = ({
   name, hp, maxHp, mana, side,
 }: { name: string; hp: number; maxHp: number; mana: number; side: 'npc' | 'player' }) => {
@@ -818,27 +841,48 @@ const HudPanel = ({
     // (bottom-24/28). The NPC's hand is just a small stack of face-down backs near
     // the very top, but it's given the same kind of clearance from top-2/3 for
     // consistency/future-proofing rather than hugging the corner.
-    <div className={`fixed left-2 md:left-4 z-[60] flex items-center gap-1.5 md:gap-2 pointer-events-none ${side === 'npc' ? 'top-4 md:top-6' : 'bottom-24 md:bottom-28'}`}>
-      <div className="w-9 h-9 md:w-12 md:h-12 rounded-full border-2 border-amber-400 bg-gradient-to-b from-zinc-800 to-zinc-950 flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.6)] shrink-0">
-        <Shield className="w-4 h-4 md:w-6 md:h-6 text-amber-400" strokeWidth={2} />
-      </div>
-      <motion.div
-        className="flex flex-col gap-0.5"
-        animate={{ x: damageFlash ? [0, -5, 5, -3, 3, 0] : 0 }}
-        transition={{ duration: 0.45, ease: 'easeOut' }}
-      >
-        <div className="px-2 py-0.5 rounded bg-gradient-to-r from-red-950/95 to-red-900/80 border border-red-700/60 text-[8px] md:text-[10px] font-black text-amber-100 uppercase tracking-wide truncate max-w-[110px] md:max-w-[160px]">
-          {name}
-        </div>
-        <div className="flex items-center gap-1">
-          <Heart className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 text-red-500 fill-red-500 shrink-0" />
-          <div className="relative w-20 md:w-32 h-2.5 md:h-3.5 rounded-full bg-zinc-950 border border-zinc-700 overflow-hidden">
-            <motion.div
-              className="absolute inset-y-0 left-0 bg-gradient-to-r from-red-700 to-red-400"
-              animate={{ width: `${hpPct}%` }}
-              transition={{ duration: 0.4, ease: 'easeOut' }}
-            />
-            <span className="absolute inset-0 flex items-center justify-center text-[7px] md:text-[9px] font-black text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
+    <div className={`fixed left-2 md:left-4 z-[60] flex items-end gap-1.5 md:gap-2 pointer-events-none ${side === 'npc' ? 'top-4 md:top-6' : 'bottom-24 md:bottom-28'}`}>
+      <div className="relative w-40 md:w-52 aspect-[2.1167] shrink-0">
+        {/* Avatar frame — the circular slot is left empty on purpose: the game
+            has no accounts/avatar picker yet, so there's nothing real to put in
+            it. It'll hold a chosen-from-a-set avatar image once that exists. */}
+        <img src={hudAvatarFrameImage} alt="" className="absolute left-0 top-0" style={{ width: `${HUD_AVATAR_WIDTH_PCT}%` }} draggable={false} />
+        <motion.div
+          className="absolute"
+          style={{ left: `${HUD_BARS_LEFT_PCT}%`, top: `${HUD_BARS_TOP_PCT}%`, width: `${HUD_BARS_WIDTH_PCT}%` }}
+          animate={{ x: damageFlash ? [0, -5, 5, -3, 3, 0] : 0 }}
+          transition={{ duration: 0.45, ease: 'easeOut' }}
+        >
+          {/* Name plate — the deck's name for now, since players can't yet make
+              accounts/characters of their own. */}
+          <div className="relative">
+            <img src={hudNameBarImage} alt="" className="w-full h-auto block" draggable={false} />
+            <span className="absolute inset-0 flex items-center justify-start pl-[18%] pr-[10%] text-[8px] md:text-[11px] font-black text-amber-50 uppercase tracking-wide truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+              {name}
+            </span>
+          </div>
+          {/* Rank plate — left empty on purpose: reserved for a future ranked
+              ladder (Ferro/Prata/Ouro...) once online play exists to rank. */}
+          <img src={hudRankBarImage} alt="" className="w-full h-auto block" draggable={false} />
+          {/* HP plate — the art's own dark track has its center window cut
+              transparent (see hud-hp-bar-window), so the red fill div sits
+              underneath it and shows through exactly inside that track. */}
+          <div className="relative">
+            <div
+              className="absolute overflow-hidden"
+              style={{
+                left: `${HUD_HP_TRACK_LEFT_PCT}%`, right: `${HUD_HP_TRACK_RIGHT_PCT}%`,
+                top: `${HUD_HP_TRACK_TOP_PCT}%`, bottom: `${HUD_HP_TRACK_BOTTOM_PCT}%`,
+              }}
+            >
+              <motion.div
+                className="h-full bg-gradient-to-r from-red-700 to-red-400"
+                animate={{ width: `${hpPct}%` }}
+                transition={{ duration: 0.4, ease: 'easeOut' }}
+              />
+            </div>
+            <img src={hudHpBarWindowImage} alt="" className="w-full h-auto block relative" draggable={false} />
+            <span className="absolute inset-0 flex items-center justify-center pl-[19%] text-[8px] md:text-[10px] font-black text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
               {hp} / {maxHp}
             </span>
             {damageFlash && (
@@ -847,22 +891,24 @@ const HudPanel = ({
                 initial={{ opacity: 0, y: 0, scale: 0.7 }}
                 animate={{ opacity: [0, 1, 1, 0], y: -16, scale: 1.1 }}
                 transition={{ duration: 0.9, ease: 'easeOut', opacity: { times: [0, 0.15, 0.7, 1] } }}
-                className="absolute -top-0.5 left-1/2 -translate-x-1/2 text-red-400 font-black text-[10px] whitespace-nowrap pointer-events-none z-20"
+                className="absolute -top-1 left-1/2 -translate-x-1/2 text-red-400 font-black text-[10px] whitespace-nowrap pointer-events-none z-20"
                 style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 6px rgba(239,68,68,0.9)' }}
               >
                 -{damageFlash.amount}
               </motion.span>
             )}
           </div>
-        </div>
-      </motion.div>
-      <ManaBadge value={mana} className="w-7 h-7 md:w-9 md:h-9 text-[10px] md:text-xs ml-0.5 pointer-events-auto" />
+        </motion.div>
+      </div>
+      {/* Gold counter — the game's per-turn resource, shown on both sides (each
+          side needs to see its own AND the opponent's to plan around it). */}
+      <GoldBadge value={mana} className="w-16 md:w-20 pointer-events-auto mb-[2%]" />
     </div>
   );
 };
 
 // A plain gradient-gold number with a strong drop shadow and no background shape —
-// unlike AtkBadge/HpBadge/ManaBadge above, this is used INSIDE CardFace, where the
+// unlike AtkBadge/HpBadge above, this is used INSIDE CardFace, where the
 // imported card-template artwork already draws its own coin/blade/shield emblem at
 // each of these exact spots; this just fills in the number on top of it.
 //
@@ -4197,47 +4243,32 @@ export default function App() {
               />
             </svg>
           <motion.div
-            className="relative w-14 h-14 md:w-16 md:h-16"
-            style={{ transformStyle: 'preserve-3d' }}
-            animate={{ rotateX: currentTurn === 'player' ? 0 : 180 }}
-            transition={{ duration: 0.6, ease: "easeInOut" }}
+            className={`relative w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center ${
+              currentTurn === 'player' ? 'cursor-pointer' : 'cursor-not-allowed'
+            }`}
             whileTap={currentTurn === 'player' ? { scale: 0.9 } : undefined}
+            animate={{
+              filter: currentTurn === 'player' ? 'grayscale(0) brightness(1)' : 'grayscale(0.85) brightness(0.6)',
+              boxShadow: currentTurn === 'player'
+                ? [
+                    '0 0 8px rgba(245,158,11,0.5)',
+                    '0 0 20px rgba(245,158,11,0.95)',
+                    '0 0 8px rgba(245,158,11,0.5)',
+                  ]
+                : '0 0 0 rgba(0,0,0,0)',
+            }}
+            transition={{ filter: { duration: 0.4 }, boxShadow: { duration: 2, repeat: Infinity } }}
           >
-            {/* Front face — tap to pass/advance. A plain code-built circle for now (a
-                proper illustrated one is planned later), pulsing while it's actually
-                the player's turn. */}
-            <motion.div
-              className="absolute inset-0 rounded-full cursor-pointer flex items-center justify-center overflow-hidden
-                bg-gradient-to-b from-amber-300 via-amber-500 to-amber-700
-                border-2 border-amber-200
-                shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_4px_0_rgba(120,53,15,0.9),0_6px_12px_rgba(0,0,0,0.5)]"
-              style={{ backfaceVisibility: 'hidden' }}
-              animate={{
-                boxShadow: currentTurn === 'player'
-                  ? [
-                      'inset 0 1px 0 rgba(255,255,255,0.6), 0 4px 0 rgba(120,53,15,0.9), 0 0 8px rgba(245,158,11,0.5)',
-                      'inset 0 1px 0 rgba(255,255,255,0.6), 0 4px 0 rgba(120,53,15,0.9), 0 0 20px rgba(245,158,11,0.95)',
-                      'inset 0 1px 0 rgba(255,255,255,0.6), 0 4px 0 rgba(120,53,15,0.9), 0 0 8px rgba(245,158,11,0.5)',
-                    ]
-                  : 'inset 0 1px 0 rgba(255,255,255,0.6), 0 4px 0 rgba(120,53,15,0.9), 0 0 8px rgba(245,158,11,0.5)'
-              }}
-              transition={{ duration: 2, repeat: Infinity }}
-            >
-              <ChevronRight className="w-6 h-6 md:w-7 md:h-7 text-zinc-900" strokeWidth={3} />
-            </motion.div>
-
-            {/* Back face — opponent's turn (not actionable). Same circle, dull
-                red/stone tones and an hourglass instead of the arrow, so it clearly
-                reads as "not yours right now". */}
-            <div
-              className="absolute inset-0 rounded-full cursor-not-allowed flex items-center justify-center
-                bg-gradient-to-b from-zinc-500 via-zinc-600 to-zinc-800
-                border-2 border-red-900/60
-                shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_4px_0_rgba(30,10,10,0.9),0_6px_12px_rgba(0,0,0,0.5)]"
-              style={{ backfaceVisibility: 'hidden', transform: 'rotateX(180deg)' }}
-            >
-              <Hourglass className="w-5 h-5 md:w-6 md:h-6 text-red-200" strokeWidth={2.5} />
-            </div>
+            {/* Button art from the user's own reference sheet, replacing the earlier
+                plain code-built circle. It doesn't have two faces like the old flip
+                animation did, so the not-your-turn state is conveyed with a
+                grayscale/dim filter instead, swapping only the icon on top. */}
+            <img src={hudTurnButtonImage} alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none" draggable={false} />
+            {currentTurn === 'player' ? (
+              <ChevronRight className="relative w-6 h-6 md:w-7 md:h-7 text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={3} />
+            ) : (
+              <Hourglass className="relative w-5 h-5 md:w-6 md:h-6 text-red-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />
+            )}
           </motion.div>
           </div>
 
