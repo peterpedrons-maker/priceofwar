@@ -1212,12 +1212,12 @@ const CardFaceStandardMini = ({ card }: { card: CardData }) => {
         {showStats && (
           <>
             <div className="absolute flex items-center justify-center" style={{ left: '11%', top: '82%', width: '20%', height: '12%', transform: 'translate(-50%, -50%)' }}>
-              <span className="font-black text-xs md:text-base" style={{ fontFamily: "'Cinzel', serif", color: '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
+              <span className="font-black text-base md:text-xl" style={{ fontFamily: "'Cinzel', serif", color: '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
                 {card.atk}
               </span>
             </div>
             <div className="absolute flex items-center justify-center" style={{ left: '89%', top: '82%', width: '20%', height: '12%', transform: 'translate(-50%, -50%)' }}>
-              <span className="font-black text-xs md:text-base" style={{ fontFamily: "'Cinzel', serif", color: '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
+              <span className="font-black text-base md:text-xl" style={{ fontFamily: "'Cinzel', serif", color: '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
                 {card.hp}
               </span>
             </div>
