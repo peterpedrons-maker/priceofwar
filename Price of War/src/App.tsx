@@ -1241,7 +1241,7 @@ const CardFaceStandardMini = ({ card }: { card: CardData }) => {
       </div>
 
       <div className="absolute inset-0 z-10 pointer-events-none">
-        <div className="absolute px-1 flex items-center" style={{ top: '0%', left: '12%', right: '26%', height: `${8 * s}%` }}>
+        <div className="absolute px-1 flex items-center" style={{ top: '3%', left: '12%', right: '26%', height: `${8 * s}%` }}>
           {/* A single truncated line, not FitText's shrink-and-wrap — this bar
               is only ~7px tall at mini scale, nowhere near enough height for
               a wrapped 2nd line (a long name like "Mercador da Cruzada" wrapped
