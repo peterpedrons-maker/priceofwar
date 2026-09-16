@@ -15,6 +15,8 @@ import cardTemplateFullArtGoldImage from './assets/card-template-fullart-gold.we
 import cardTemplateMiniImage from './assets/card-template-mini.webp';
 import cardTemplateSilverMiniImage from './assets/card-template-silver-mini.webp';
 import cardTemplateChampagneMiniImage from './assets/card-template-champagne-mini.webp';
+import cardFullArtFrameEmboscadaImage from './assets/card-fullart-frame-emboscada.webp';
+import cardFullArtFrameTaticaImage from './assets/card-fullart-frame-tatica.webp';
 import hudGoldBadgeImage from './assets/hud-gold-badge.webp';
 import hudTurnButtonImage from './assets/hud-turn-button.webp';
 import multidaoDeFieisArt from './assets/card-multidao-de-fieis.webp';
@@ -59,6 +61,7 @@ const ALL_PRELOAD_IMAGES: string[] = [
   boardBattlefieldImage, buttonPlaqueImage, cardTemplateImage, cardTemplateSilverImage,
   cardTemplateChampagneImage, cardBackplateImage, cardTemplateFullArtGoldImage,
   cardTemplateMiniImage, cardTemplateSilverMiniImage, cardTemplateChampagneMiniImage,
+  cardFullArtFrameEmboscadaImage, cardFullArtFrameTaticaImage,
   multidaoDeFieisArt, comercianteDasCruzadasArt, espiaoSabotadorArt, soldadoFanaticoArt,
   vigiaDeMantimentosArt, infantariaTreinadaArt, hospitalarioArt, arqueiroProfissionalArt,
   atiradorInfluenteArt, cardealPedroFullArt, caliceDaVidaFullArt, nobreReligiosoFullArt,
@@ -1164,6 +1167,42 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
   );
 };
 
+// Per-type frame/art-window geometry for CardFaceFullArtMini. The Tática and
+// Emboscada frames are separate assets from the creature one (own art,
+// generated independently) so neither their outer bleed margin nor their art
+// window lines up with the gold frame's own numbers by coincidence — each
+// was measured off that frame's own alpha (largest-connected-component of
+// the chroma-keyed transparent area, same technique as the general-frame
+// asset from earlier in this project) rather than reused from the gold one.
+// left/top here are negative-inset absolute values (a plain left/top/width/
+// height box), not the gold frame's original top:50%/left:50%/translate(-50%,Y%)
+// centering — the two are equivalent (this is that math already resolved to
+// its rendered position), just simpler to add new entries to.
+type FullArtMiniConfig = {
+  image: string;
+  wrapper: { left: string; top: string; width: string; height: string };
+  art: { left: string; top: string; width: string; height: string };
+};
+const FULL_ART_MINI_CONFIG: Record<string, FullArtMiniConfig> = {
+  Tática: {
+    image: cardFullArtFrameTaticaImage,
+    wrapper: { left: '-0.49%', top: '-0.61%', width: '100.99%', height: '103.71%' },
+    art: { left: '9.77%', top: '15.43%', width: '80.86%', height: '72.72%' },
+  },
+  Emboscada: {
+    image: cardFullArtFrameEmboscadaImage,
+    wrapper: { left: '-0.79%', top: '-0.98%', width: '101.585%', height: '107.793%' },
+    art: { left: '9.96%', top: '15.36%', width: '79.88%', height: '69.40%' },
+  },
+};
+const FULL_ART_MINI_DEFAULT: FullArtMiniConfig = {
+  image: cardTemplateFullArtGoldImage,
+  wrapper: { left: '-4.1%', top: '-5.58%', width: '108.2%', height: '113.2%' },
+  art: { left: '10.2%', top: '15.4%', width: '79.4%', height: '73.4%' },
+};
+const fullArtMiniConfigForType = (cardType?: CardType): FullArtMiniConfig =>
+  FULL_ART_MINI_CONFIG[cardType ?? ''] ?? FULL_ART_MINI_DEFAULT;
+
 // Mini counterpart of CardFaceFullArt, for board cards whose art is the
 // full-art print (see CardData.isFullArt) — same frame image, same art
 // window and name/cost/ATK-HP coordinates (nothing needed rescaling: unlike
@@ -1172,19 +1211,23 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
 // just the type/effect plate dropped entirely so the art runs straight from
 // the name bar into the shields. A full-art card forced through the Padrão
 // mini's frame would put its full-bleed art behind that frame's much
-// smaller art window instead — wrong crop, wrong proportions.
+// smaller art window instead — wrong crop, wrong proportions. Tática/
+// Emboscada get their own frame (see FULL_ART_MINI_CONFIG) instead of the
+// creature one — that one's baked-in ATK/HP shield sockets made no sense on
+// a card type that never shows stats (see NO_STAT_TYPES).
 const CardFaceFullArtMini = ({ card }: { card: CardData }) => {
   const showStats = !NO_STAT_TYPES.has(card.cardType as CardType);
+  const cfg = fullArtMiniConfigForType(card.cardType);
   return (
-    <div className="absolute pointer-events-none" style={{ width: '108.2%', height: '113.2%', top: '50%', left: '50%', transform: 'translate(-50%, -49.1%)' }}>
-      <div className="absolute overflow-hidden" style={{ left: '10.2%', top: '15.4%', width: '79.4%', height: '73.4%' }}>
+    <div className="absolute pointer-events-none" style={{ ...cfg.wrapper }}>
+      <div className="absolute overflow-hidden" style={{ ...cfg.art }}>
         {card.art ? (
           <img src={card.art} alt={card.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900" />
         )}
       </div>
-      <img src={cardTemplateFullArtGoldImage} alt="" aria-hidden className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
+      <img src={cfg.image} alt="" aria-hidden className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
       <div className="absolute inset-0 z-10 pointer-events-none">
         <div className="absolute px-1 flex items-center" style={{ top: '8.5%', left: '9%', width: '62%', height: '5.5%' }}>
           <span
