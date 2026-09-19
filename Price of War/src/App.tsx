@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { X, ArrowUp, ArrowDown, ChevronRight, Hourglass, Sparkles } from 'lucide-react';
+import { X, ArrowUp, ArrowDown, Sparkles } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
@@ -18,7 +18,6 @@ import cardTemplateChampagneMiniImage from './assets/card-template-champagne-min
 import cardFullArtFrameEmboscadaImage from './assets/card-fullart-frame-emboscada.webp';
 import cardFullArtFrameTaticaImage from './assets/card-fullart-frame-tatica.webp';
 import hudGoldBadgeImage from './assets/hud-gold-badge.webp';
-import hudTurnButtonImage from './assets/hud-turn-button.webp';
 import multidaoDeFieisArt from './assets/card-multidao-de-fieis.webp';
 import comercianteDasCruzadasArt from './assets/card-comerciante-das-cruzadas.webp';
 import espiaoSabotadorArt from './assets/card-espiao-sabotador.webp';
@@ -4728,41 +4727,24 @@ export default function App() {
             }
           }}
         >
-          {/* Whose-turn heading — spelled out plainly instead of leaving it to be
-              inferred from the button's own color/icon, per the user's ask. */}
-          <div className={`text-[8px] md:text-[10px] font-black tracking-wide uppercase whitespace-nowrap ${
-            currentTurn === 'player' ? 'text-amber-400' : 'text-red-300'
-          }`}>
-            {currentTurn === 'player' ? 'Seu Turno' : 'Turno do Adversário'}
-          </div>
-
-          {/* Radial "filling" ring around the button — purely decorative (this game
-              has no real per-turn clock), just a continuously looping fill reinforcing
-              whose turn it is, per the user's own reference. Sits in its own wrapper
-              a bit bigger than the coin button so the ring doesn't get cut by the
-              coin's own rounded edge. */}
-          <div className="relative w-11 h-11 md:w-14 md:h-14 flex items-center justify-center">
-            <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth="5" />
-              <motion.circle
-                key={currentTurn}
-                cx="50" cy="50" r="46" fill="none"
-                stroke={currentTurn === 'player' ? '#fbbf24' : '#ef4444'}
-                strokeWidth="5" strokeLinecap="round"
-                strokeDasharray={289}
-                initial={{ strokeDashoffset: 289 }}
-                animate={{ strokeDashoffset: 0 }}
-                transition={{ duration: 2.4, repeat: Infinity, ease: 'linear' }}
-                style={{ filter: `drop-shadow(0 0 4px ${currentTurn === 'player' ? 'rgba(251,191,36,0.8)' : 'rgba(239,68,68,0.7)'})` }}
-              />
-            </svg>
+          {/* A single rectangular button carrying its own text, replacing the old
+              circular button + a separate "whose turn" label above it + a separate
+              "Encerrar Turno" label below it (see git history) — that stack read as
+              three things instead of one, and the top/bottom labels' text was tiny
+              for how much vertical space the whole cluster spent. One plainly-labeled
+              button says the same thing in one place: whose turn it is doubles as
+              what tapping it does (advance the phase, or end the turn on the last
+              one). The pulsing glow (still just the same decorative loop the old
+              circular button had) is what actually signals "tap me" while it's the
+              player's turn. */}
           <motion.div
-            className={`relative w-9 h-9 md:w-11 md:h-11 rounded-full flex items-center justify-center ${
-              currentTurn === 'player' ? 'cursor-pointer' : 'cursor-not-allowed'
+            className={`px-5 py-2.5 md:px-7 md:py-3 rounded-lg border-2 font-black uppercase tracking-wide text-xs md:text-sm whitespace-nowrap text-center ${
+              currentTurn === 'player'
+                ? 'bg-gradient-to-b from-amber-400 to-amber-600 border-amber-200 text-zinc-950 cursor-pointer'
+                : 'bg-zinc-950/80 border-red-900/60 text-red-200 cursor-not-allowed'
             }`}
-            whileTap={currentTurn === 'player' ? { scale: 0.9 } : undefined}
+            whileTap={currentTurn === 'player' ? { scale: 0.95 } : undefined}
             animate={{
-              filter: currentTurn === 'player' ? 'grayscale(0) brightness(1)' : 'grayscale(0.85) brightness(0.6)',
               boxShadow: currentTurn === 'player'
                 ? [
                     '0 0 8px rgba(245,158,11,0.5)',
@@ -4771,30 +4753,10 @@ export default function App() {
                   ]
                 : '0 0 0 rgba(0,0,0,0)',
             }}
-            transition={{ filter: { duration: 0.4 }, boxShadow: { duration: 2, repeat: Infinity } }}
+            transition={{ duration: 2, repeat: Infinity }}
           >
-            {/* Button art from the user's own reference sheet, replacing the earlier
-                plain code-built circle. It doesn't have two faces like the old flip
-                animation did, so the not-your-turn state is conveyed with a
-                grayscale/dim filter instead, swapping only the icon on top. */}
-            <img src={hudTurnButtonImage} alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none" draggable={false} />
-            {currentTurn === 'player' ? (
-              <ChevronRight className="relative w-4 h-4 md:w-5 md:h-5 text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={3} />
-            ) : (
-              <Hourglass className="relative w-3.5 h-3.5 md:w-4 md:h-4 text-red-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />
-            )}
+            {currentTurn === 'player' ? 'Seu Turno' : 'Turno do Adversário'}
           </motion.div>
-          </div>
-
-          {/* Turn label — "ENCERRAR TURNO" while it's actionable, "TURNO DO
-              OPONENTE" while it's not, per the user's reference. */}
-          <div className={`px-1.5 py-px rounded-full border text-[7px] md:text-[9px] font-black tracking-wide uppercase whitespace-nowrap text-center ${
-            currentTurn === 'player'
-              ? 'bg-amber-500 border-amber-300 text-zinc-950'
-              : 'bg-zinc-950/80 border-red-900/60 text-red-200'
-          }`}>
-            {currentTurn === 'player' ? 'Encerrar Turno' : 'Turno do Oponente'}
-          </div>
         </div>
 
         {/* Player's gold — same distance from the button as the NPC's above. */}
