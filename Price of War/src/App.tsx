@@ -793,9 +793,13 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
 };
 
 const GoldBadge = ({ value, className = "" }: { value: number; className?: string }) => (
-  <div className={`relative ${className}`}>
-    <img src={hudGoldBadgeImage} alt="" className="w-full h-auto block" draggable={false} />
-    <span className="absolute inset-y-0 right-[8%] left-[38%] flex items-center justify-center text-amber-100 font-black text-xl md:text-2xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] leading-none">
+  <div className={`relative overflow-hidden ${className}`}>
+    {/* Scaled up ~18% and cropped by the wrapper's own overflow-hidden — makes the coin
+        and plate fill noticeably more of the same box footprint (per the user's ask:
+        bigger coin/number "desde que não estoure o tamanho da caixa") instead of
+        growing the box itself, which would've thrown off the HUD row's alignment. */}
+    <img src={hudGoldBadgeImage} alt="" className="w-full h-auto block scale-[1.18]" draggable={false} />
+    <span className="absolute inset-y-0 right-[6%] left-[36%] flex items-center justify-center text-amber-100 font-black text-2xl md:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] leading-none">
       {value}
     </span>
   </div>
@@ -2119,10 +2123,30 @@ export default function App() {
   // same already-mounted element.
   const [phaseBanner, setPhaseBanner] = useState<{ id: number; title: string; subtitle: string } | null>(null);
   const phaseBannerIdRef = useRef(0);
+  const PHASE_BANNER_DURATION_MS = 1300;
+  // Blocks every board/hand tap while a phase banner is on screen — the banner used
+  // to be purely decorative on top of state that had already changed, so a fast
+  // sequence of actions (the AI's own turn especially, see the currentTurn effect)
+  // could blow right through it before it even finished sliding in. Whatever called
+  // announcePhase is expected to hold off on its own state change (see the turn
+  // button and the Compra/Preparação sequence below) until this clears, and every
+  // click handler that can act on the board checks it too, so nothing sneaks in
+  // through a path that isn't gated by the phase this banner is actually announcing.
+  const [phaseTransitionLock, setPhaseTransitionLock] = useState(false);
+  const phaseLockGenRef = useRef(0);
   const announcePhase = (title: string, subtitle: string) => {
     const id = ++phaseBannerIdRef.current;
     setPhaseBanner({ id, title, subtitle });
-    window.setTimeout(() => setPhaseBanner(prev => (prev?.id === id ? null : prev)), 1600);
+    window.setTimeout(() => setPhaseBanner(prev => (prev?.id === id ? null : prev)), PHASE_BANNER_DURATION_MS);
+    const gen = ++phaseLockGenRef.current;
+    setPhaseTransitionLock(true);
+    window.setTimeout(() => {
+      // Only the MOST RECENT call gets to release the lock — a second banner
+      // announced while the first is still showing (see the Compra→Preparação
+      // sequence) extends the wait instead of the first banner's own timer cutting
+      // it short out from under the second.
+      if (phaseLockGenRef.current === gen) setPhaseTransitionLock(false);
+    }, PHASE_BANNER_DURATION_MS);
   };
   // Board card preview (see the fixed overlay further down) — set from CardSlot's
   // own onClick now, alongside whatever game action that same tap already performs,
@@ -2284,7 +2308,13 @@ export default function App() {
   // 1400 is the trimmed-back number: still noticeably more room than the original 1250 for
   // CardSlot (see its own w-28/h-36+ sizing below) to grow into, with enough slack left over
   // for a phone's real chrome instead of just enough for a full-height simulator window.
-  const boardScale = isMobile ? Math.min(windowSize.width / 1000, windowSize.height / 1250) * 1.05 : Math.min(windowSize.width / 1600, 1);
+  // 1.15 (was 1.05) per the user's own ask to zoom in on just the board for
+  // readability once everything else here settled — hand cards don't use this at
+  // all (see handScale below, sized purely off viewport WIDTH), so they stay exactly
+  // the size they were. The margin this eats into above/below the board (see
+  // boardTopMargin) was comfortably oversized before this change (see its own
+  // measurements) with room to spare for the bump.
+  const boardScale = isMobile ? Math.min(windowSize.width / 1000, windowSize.height / 1250) * 1.15 : Math.min(windowSize.width / 1600, 1);
   // Hand cards are fanned out (see getFanRotation below), so the outer cards' bounding box
   // is wider than their flat width — account for that tilt or the fan's edge cards clip.
   // Scale so the WHOLE hand always fits on screen — no floor, or large hands would overflow
@@ -2598,7 +2628,7 @@ export default function App() {
       // instant) but still gets its own beat on the banner before Preparação's,
       // matching the Yu-Gi-Oh-style phase-by-phase announcement the user asked for.
       announcePhase(COMPRA_LABEL, COMPRA_SUBTITLE);
-      window.setTimeout(() => announcePhase(PHASE_LABELS.preparacao, PHASE_SUBTITLES.preparacao), 1100);
+      window.setTimeout(() => announcePhase(PHASE_LABELS.preparacao, PHASE_SUBTITLES.preparacao), PHASE_BANNER_DURATION_MS);
       setTurnPhase('preparacao');
       setMovedSlots(new Set());
       setSelectedMoverIndex(null);
@@ -2976,6 +3006,7 @@ export default function App() {
 
   const handleCardClick = (index: number) => {
     if (viewState === 'field') return; // hand cards are non-interactive once zoomed to the board
+    if (phaseTransitionLock) return; // see announcePhase — a phase banner is still on screen
     if (turnPhase !== 'preparacao') {
       showToast("Jogar cartas só na fase de Preparação!");
       return;
@@ -3632,6 +3663,7 @@ export default function App() {
 
   const handleSlotClick = (slotIndex: number, slotEl?: HTMLElement) => {
     if (gameOverWinner || isCardInFlightTransition) return;
+    if (phaseTransitionLock) return; // see announcePhase — a phase banner is still on screen
 
     if (pendingTacticAction) { resolveOwnTacticTarget(slotIndex); return; }
     if (pendingGeneralHeal) { resolveGeneralHeal(slotIndex); return; }
@@ -3804,6 +3836,7 @@ export default function App() {
 
   const handleNpcSlotClick = async (slotIndex: number) => {
     if (gameOverWinner) return;
+    if (phaseTransitionLock) return; // see announcePhase — a phase banner is still on screen
     if (pendingTacticAction) { resolveEnemyTacticTarget(slotIndex); return; }
     if (pendingHospitalario?.step === 'damage') { resolveHospitalarioDamage(slotIndex); return; }
     if (selectedAttackerIndex !== null && npcSlots[slotIndex] && !isAnimating) {
@@ -4013,6 +4046,7 @@ export default function App() {
   const beginCardDrag = (index: number, startX: number, startY: number) => {
     if (ambushPrompt || gameOverWinner || isCardInFlightTransition) return;
     if (viewState === 'field') return;
+    if (phaseTransitionLock) return; // see announcePhase — a phase banner is still on screen
     if (turnPhase !== 'preparacao' || currentTurn !== 'player') return; // let the plain tap's own toast explain why
     let dragging = false;
     let hoverSlot: { side: 'own' | 'npc', index: number } | null = null;
@@ -4243,6 +4277,17 @@ export default function App() {
   const artAnim = getBoardAnimation(1);
   const boardTransition = { duration: viewportSettled ? 0.8 : 0, ease: [0.32, 0.72, 0, 1] as const };
 
+  // The root stage (see the outer `justify-center` div below) centers the board's
+  // fixed 1000x1250 box inside the full viewport height, leaving an equal empty
+  // margin above and below it — this is that margin's real size, used to plant the
+  // NPC's floating hand (see below) right against the board's own top edge instead
+  // of at a fixed offset that ignored how big this margin actually is on a given
+  // screen (that mismatch used to leave a much bigger gap above the NPC's hand than
+  // the player's own hand has below theirs, which sizes itself to fill this same
+  // margin on the bottom via handScale).
+  const boardHeightMultiplier = (isMobile ? 1.0 : 0.85) * boardScale;
+  const boardTopMargin = (windowSize.height - 1250 * boardHeightMultiplier) / 2;
+
   return (
     <div
       className="relative w-full h-dvh bg-[#140f0a] overflow-hidden flex flex-col items-center justify-center touch-none"
@@ -4319,8 +4364,19 @@ export default function App() {
             gap between the two Vanguarda rows. Flips (like a coin) between an amber
             "your turn" face and a dull gray "not your turn" face. */}
         <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 pointer-events-auto flex flex-row items-center gap-3 md:gap-5"
-          style={{ perspective: 600 }}
+          // top-1/2 alone lands this on the true center of the whole 1250px board, which
+          // is NOT the same spot as the true center of the gap between the two Vanguarda
+          // rows: the NPC field packs its rows against its own top (closest to its hand)
+          // per the comment below, so whatever height its content doesn't use collects
+          // at ITS bottom edge (closest to the divider) — the player field's own first
+          // child (Vanguarda) sits flush against ITS top edge (also closest to the
+          // divider) with no such slack. That leftover-height mismatch (measured once
+          // against the two Vanguarda rows' own real edges, in this box's fixed 1250px
+          // design units so it holds at any boardScale) is a constant ~24.5px, corrected
+          // here rather than by touching either field's own packing (each was tuned
+          // against a real overflow bug, see their own comments).
+          className="absolute left-1/2 z-40 pointer-events-auto flex flex-row items-center gap-3 md:gap-5"
+          style={{ top: '50%', transform: 'translate(-50%, calc(-50% - 24.5px))', perspective: 600 }}
         >
           {/* NPC's gold — same distance from the button as the player's below. */}
           <div id="npc-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
@@ -4332,6 +4388,7 @@ export default function App() {
             onClick={(e) => {
               e.stopPropagation();
               if (currentTurn !== 'player') return;
+              if (phaseTransitionLock) return; // a banner from the last tap is still playing out
               setSelectedCardIndex(null);
               setSelectedAttackerIndex(null);
               setSelectedMoverIndex(null);
@@ -4788,15 +4845,15 @@ export default function App() {
           away" like the rest of the opponent's side of the table. Reapplying that
           same scale factor here keeps it the same size it always was. */}
       <div
-        // Pushed up so only about the bottom half of each card actually shows — the
-        // opponent doesn't need to be legible (the player never sees their hand
-        // anyway, see the plain card backs below), just present, so tucking half of
-        // it off the top edge reads as "cards in hand" without spending as much
-        // real screen height on it as a fully on-screen fan would.
+        // Planted just above the board's own top edge (see boardTopMargin above) with
+        // only a small gap, the same way the player's own hand sits right up against
+        // the board's bottom edge — it used to hang at a fixed offset that had no idea
+        // how big the actual top margin was, leaving most of that margin empty above
+        // the hand instead of using it to sit close to the board like the player's does.
         className="absolute left-1/2 -translate-x-1/2 flex pointer-events-none z-40"
         style={{
-          top: `${-((isMobile ? 192 : 224) * (isMobile ? 1.0 : 0.85) * boardScale) / 2}px`,
-          transform: `scale(${(isMobile ? 1.0 : 0.85) * boardScale})`,
+          top: `${boardTopMargin - (isMobile ? 192 : 224) * boardHeightMultiplier - 35}px`,
+          transform: `scale(${boardHeightMultiplier})`,
           transformOrigin: 'top center',
         }}
       >
@@ -5592,19 +5649,25 @@ export default function App() {
         </AnimatePresence>
       </div>
 
-      {/* Center-screen phase announcement — Yu-Gi-Oh Duel Links-style: a big serif
-          title fades/scales in, holds, fades out (see announcePhase/phaseBanner
-          above). Sits above the floating numbers (z-290) but below the board/hand
-          card previews and full modals, same reasoning as that overlay. */}
+      {/* Center-screen phase announcement — Yu-Gi-Oh GX-style: the whole title/subtitle
+          block rushes in from the right, holds just long enough to read, then keeps
+          going and rushes out to the left (see announcePhase/phaseBanner above, and
+          PHASE_BANNER_DURATION_MS/phaseTransitionLock for how long the game actually
+          waits on it). Sits above the floating numbers (z-290) but below the
+          board/hand card previews and full modals, same reasoning as that overlay. */}
       <div className="fixed inset-0 z-[292] pointer-events-none flex items-center justify-center overflow-hidden">
         <AnimatePresence>
           {phaseBanner && (
             <motion.div
               key={phaseBanner.id}
-              initial={{ opacity: 0, scale: 0.85, y: -10 }}
-              animate={{ opacity: [0, 1, 1, 0], scale: [0.85, 1, 1, 1.04], y: 0 }}
+              initial={{ opacity: 0, x: 420 }}
+              animate={{ opacity: [0, 1, 1, 1, 0], x: [420, 0, 0, 0, -420] }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 1.5, times: [0, 0.22, 0.78, 1], ease: 'easeOut' }}
+              transition={{
+                duration: PHASE_BANNER_DURATION_MS / 1000,
+                times: [0, 0.16, 0.5, 0.84, 1],
+                ease: ['easeOut', 'linear', 'linear', 'easeIn'],
+              }}
               className="flex flex-col items-center select-none px-8"
             >
               <div className="w-24 md:w-32 h-px bg-gradient-to-r from-transparent via-amber-400/90 to-transparent mb-2" />
