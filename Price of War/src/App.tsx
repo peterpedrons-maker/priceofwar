@@ -226,25 +226,37 @@ const getValidAttackTargets = (
   return validTargets;
 };
 
-// Turn phases — a turn is split into Preparação (both play cards from hand AND
-// reposition units, in any order) and Batalha (attack). Battle doesn't unlock until
-// turn 3 (ported from the earlier full-art version, commit 8a3d7b8), so the opening
-// turns are purely about setting up a formation before anyone can fight. Draw isn't a
-// player-facing phase here — it already happens automatically at turn start (see the
-// currentTurn effect).
+// Turn phases — Compra (draw) is automatic and instant (see the currentTurn effect)
+// but still gets its own announcement/step for readability; Preparação plays cards
+// from hand and activates card/General abilities; Combate (turn 3+ only, ported from
+// the earlier full-art version, commit 8a3d7b8) is the only phase that can attack;
+// Movimentação repositions units. Combate sits BEFORE Movimentação on purpose — you
+// attack with this turn's formation, then adjust it afterward for next turn (this is
+// also when Batedor's free post-combat move and the Aurelion/Soldado Tático
+// end-of-turn effects, which read this turn's movedSlots, actually fire — see the
+// turn button's onClick).
 //
-// Reposicionar and Comando started out as separate, strictly-ordered phases, but that
-// forced players through an empty "nothing to reposition yet" step before they could
-// even play a card — annoying busywork with no upside on most turns. Merging them
-// means the only real phase gate left is the meaningful one: no attacking before
-// you've had a turn or two to set up (see phasesForTurn).
-export type TurnPhase = 'preparacao' | 'batalha';
+// Reposicionar and Comando used to be merged into one phase — forcing them apart
+// re-introduces the "nothing to do yet" step that merge was avoiding, but the user
+// asked for the explicit Yu-Gi-Oh-style phase breakdown anyway; a phase with nothing
+// to do is just a tap-through, not a real cost.
+export type TurnPhase = 'preparacao' | 'combate' | 'movimentacao';
 const phasesForTurn = (turn: number): TurnPhase[] =>
-  turn >= 3 ? ['preparacao', 'batalha'] : ['preparacao'];
+  turn >= 3 ? ['preparacao', 'combate', 'movimentacao'] : ['preparacao', 'movimentacao'];
 const PHASE_LABELS: Record<TurnPhase, string> = {
   preparacao: 'Preparação',
-  batalha: 'Batalha',
+  combate: 'Combate',
+  movimentacao: 'Movimentação',
 };
+const PHASE_SUBTITLES: Record<TurnPhase, string> = {
+  preparacao: 'Jogue cartas e ative habilidades',
+  combate: 'Ataque com suas unidades',
+  movimentacao: 'Reposicione suas unidades',
+};
+// Compra isn't a real TurnPhase (nothing is gated on it, see above) — just the
+// opening beat of the phase-announcement banner shown for a moment at turn start.
+const COMPRA_LABEL = 'Compra';
+const COMPRA_SUBTITLE = 'Uma nova carta é comprada';
 
 // Reposition adjacency — only Vanguarda/Retaguarda slots (0-9) take part; the
 // General/Relíquia/Terreno slots (10-12) are fixed, same as everywhere else they're
@@ -2100,6 +2112,18 @@ export default function App() {
     const r = el.getBoundingClientRect();
     spawnFloatingNumber(r.left + r.width / 2, r.top + r.height * 0.35, value, kind);
   };
+  // Center-screen phase announcement (Yu-Gi-Oh Duel Links-style banner: big serif
+  // title, fades in, holds, fades out) — see PhaseBanner below. Keyed by an
+  // incrementing id (not just the text) so announcing the SAME phase name twice in a
+  // row still replays the animation instead of AnimatePresence treating it as the
+  // same already-mounted element.
+  const [phaseBanner, setPhaseBanner] = useState<{ id: number; title: string; subtitle: string } | null>(null);
+  const phaseBannerIdRef = useRef(0);
+  const announcePhase = (title: string, subtitle: string) => {
+    const id = ++phaseBannerIdRef.current;
+    setPhaseBanner({ id, title, subtitle });
+    window.setTimeout(() => setPhaseBanner(prev => (prev?.id === id ? null : prev)), 1600);
+  };
   // Board card preview (see the fixed overlay further down) — set from CardSlot's
   // own onClick now, alongside whatever game action that same tap already performs,
   // so it needs to clear itself instead of waiting on an explicit close every time.
@@ -2570,7 +2594,11 @@ export default function App() {
       // player, so the hand looked like it had vanished. Bring it back to 'hand' here.
       setViewState('hand');
       // Fresh turn, fresh phase cycle — back to Preparação and every unit's move
-      // available again.
+      // available again. Compra isn't a real gated phase (the draw below is
+      // instant) but still gets its own beat on the banner before Preparação's,
+      // matching the Yu-Gi-Oh-style phase-by-phase announcement the user asked for.
+      announcePhase(COMPRA_LABEL, COMPRA_SUBTITLE);
+      window.setTimeout(() => announcePhase(PHASE_LABELS.preparacao, PHASE_SUBTITLES.preparacao), 1100);
       setTurnPhase('preparacao');
       setMovedSlots(new Set());
       setSelectedMoverIndex(null);
@@ -3610,9 +3638,9 @@ export default function App() {
     if (pendingHospitalario?.step === 'heal') { resolveHospitalarioHeal(slotIndex); return; }
 
     // Batedor's free post-combat move (see batedorFreeMove) opens this same
-    // reposition flow even during Batalha, but only for that one exact unit.
+    // reposition flow even during Combate, but only for that one exact unit.
     const isBatedorFreeMove = batedorFreeMove !== null;
-    if ((turnPhase === 'preparacao' || isBatedorFreeMove) && selectedCardIndex === null) {
+    if ((turnPhase === 'movimentacao' || isBatedorFreeMove) && selectedCardIndex === null) {
       // Reposition — only while no hand card is mid-selection (if one is, a click on
       // an empty slot means "play it here", handled below). Only Vanguarda/Retaguarda
       // units reposition — General/Relíquia/Terreno (10-12) are fixed, same as
@@ -3747,12 +3775,14 @@ export default function App() {
         newSlots[slotIndex] = cardToPlay;
         setPlayerSlots(applyNobreReligiosoSummon(newSlots, slotIndex));
       }
+    } else if (selectedCardIndex === null && playerSlots[slotIndex] && turnPhase === 'preparacao') {
+      // Nothing to do here in Preparação beyond the preview its own onInfoClick
+      // already opened — reposition happens in Movimentação, attacking in Combate.
+      return;
     } else if (selectedCardIndex === null && playerSlots[slotIndex]) {
-      // Select attacker — only once Batalha has unlocked (turn 3+).
-      if (turnPhase !== 'batalha') {
-        showToast(turnNumber < 3 ? "A fase de Batalha só libera a partir do turno 3." : "Só dá pra atacar na fase de Batalha!");
-        return;
-      }
+      // Only turnPhase === 'combate' reaches here (movimentacao was caught by the
+      // very first branch above, preparacao by the one just above) — Combate never
+      // unlocks before turn 3 (see phasesForTurn), so there's nothing left to guard.
       // Arqueiro da Ordem gets 2 attacks this turn; every other unit gets 1
       // (see getMaxAttacksPerTurn/playerAttackCounts).
       const usedAttacks = playerAttackCounts[slotIndex] ?? 0;
@@ -4275,55 +4305,56 @@ export default function App() {
         {/* Central Divider */}
         <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-indigo-400/60 to-transparent shadow-[0_0_15px_rgba(99,102,241,0.6)] -translate-y-1/2 rounded-full pointer-events-none" />
 
-        {/* Turn Button — a small circular tap target on the divider, off to the side,
-            NOT the wide pill this used to be: that pill (and the wide horizontal
-            phase-tracker row above it) was big enough to actually sit on top of the
-            Vanguarda slots next to it. A plain icon (▶ to pass/advance, an hourglass
-            while it's not your turn) says everything a small circle can say — the
-            full "SEU TURNO"/"AVANÇAR: BATALHA"/"TURNO DO ADVERSÁRIO" text doesn't fit
-            here anymore, but the always-visible phase tracker (now a narrow vertical
-            stack of two short labels, not a wide horizontal row) still spells out
-            which phase is which. Flips (like a coin) between an amber "your turn"
-            face and a dull gray "not your turn" face. */}
+        {/* Turn Button + gold badges — used to be pinned off to the right past the
+            5th column (reserved margin the board no longer sets aside now that Deck/
+            Cemitério moved INTO the general row, see below), which read as "off to
+            the side" instead of belonging to the match. Centered horizontally now,
+            sitting on the divider between the two fields — in the same open dirt-
+            texture gap both fields' own justify-start already leaves at the center
+            (see the NPC/player field comments below). A single horizontal ROW (not
+            the old tall vertical stack) — the two Vanguarda rows' own middle column
+            sits directly above/below this exact spot, and that stack was tall enough
+            to visibly cover a card played there; a row is only as tall as its tallest
+            single element instead of the sum of all of them, so it fits the actual
+            gap between the two Vanguarda rows. Flips (like a coin) between an amber
+            "your turn" face and a dull gray "not your turn" face. */}
         <div
-          className="absolute top-1/2 -translate-y-1/2 right-16 md:right-16 z-40 pointer-events-auto flex flex-col items-center gap-2.5"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 pointer-events-auto flex flex-row items-center gap-3 md:gap-5"
           style={{ perspective: 600 }}
         >
-          {/* NPC's gold — moved off its own separate top-right spot to sit right
-              here instead, symmetric with the player's below: both now the same
-              distance from the button itself, in the same column as the button,
-              instead of one hugging the graveyard and the other floating alone
-              near the top edge (which read as mismatched/asymmetric). */}
-          <div id="npc-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto">
-            <GoldBadge value={npcMana} className="w-32 md:w-36" />
+          {/* NPC's gold — same distance from the button as the player's below. */}
+          <div id="npc-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
+            <GoldBadge value={npcMana} className="w-20 md:w-24" />
           </div>
 
           <div
-            className="flex flex-col items-center gap-2.5 cursor-pointer"
+            className="flex flex-col items-center gap-0.5 cursor-pointer shrink-0"
             onClick={(e) => {
               e.stopPropagation();
               if (currentTurn !== 'player') return;
               setSelectedCardIndex(null);
               setSelectedAttackerIndex(null);
               setSelectedMoverIndex(null);
-              // Preparação is ending — this is "Após Remanejamento" for Comandante
-              // Aurelion (see grantAurelionBuff) and Soldado Tático's end-of-turn swap,
-              // whether that means advancing into Batalha or, on an early turn with no
-              // Batalha yet, ending the turn outright.
-              if (turnPhase === 'preparacao') {
-                setPlayerSlots(prev => applyEndOfTurnSwaps(grantAurelionBuff(prev, movedSlots)));
-              }
               if (isLastPhaseOfTurn) {
+                // Movimentação (always the last phase — see phasesForTurn) is ending —
+                // this is "Após Remanejamento" for Comandante Aurelion (see
+                // grantAurelionBuff) and Soldado Tático's end-of-turn swap, both of
+                // which read this turn's movedSlots, so they fire here rather than
+                // when Preparação used to end, back when it was the phase movement
+                // itself happened in.
+                setPlayerSlots(prev => applyEndOfTurnSwaps(grantAurelionBuff(prev, movedSlots)));
                 setCurrentTurn('npc');
               } else {
                 const idx = activePhases.indexOf(turnPhase);
-                setTurnPhase(activePhases[idx + 1]);
+                const nextPhase = activePhases[idx + 1];
+                setTurnPhase(nextPhase);
+                announcePhase(PHASE_LABELS[nextPhase], PHASE_SUBTITLES[nextPhase]);
               }
             }}
           >
             {/* Whose-turn heading — spelled out plainly instead of leaving it to be
                 inferred from the button's own color/icon, per the user's ask. */}
-            <div className={`text-[11px] md:text-sm font-black tracking-wide uppercase whitespace-nowrap ${
+            <div className={`text-[8px] md:text-[10px] font-black tracking-wide uppercase whitespace-nowrap ${
               currentTurn === 'player' ? 'text-amber-400' : 'text-red-300'
             }`}>
               {currentTurn === 'player' ? 'Seu Turno' : 'Turno do Adversário'}
@@ -4331,27 +4362,35 @@ export default function App() {
 
             {/* Phase tracker — shown on BOTH turns now (dimmed further on the
                 opponent's), not just the player's, so which phase the turn is in
-                stays visible the whole time instead of the tracker vanishing
-                during the opponent's turn. Yu-Gi-Oh-style: every phase the game
-                has shown at once, not just the current one named in isolation. */}
-            <div className="flex flex-col items-center gap-1">
-              {(['preparacao', 'batalha'] as TurnPhase[]).map((p, idx) => {
-                const isLocked = p === 'batalha' && turnNumber < 3;
-                const isCurrent = currentTurn === 'player' && turnPhase === p;
+                stays visible the whole time instead of the tracker vanishing during
+                the opponent's turn. A horizontal Yu-Gi-Oh-style step row: Compra
+                (drawing is automatic — see the currentTurn effect — so it's always
+                shown as already-passed the instant a turn starts, never lockable or
+                current) then the three real, order-gated phases from phasesForTurn. */}
+            <div className="flex items-center">
+              {(['compra', ...activePhases] as ('compra' | TurnPhase)[]).map((p, idx) => {
+                const isCompra = p === 'compra';
+                const isLocked = p === 'combate' && turnNumber < 3;
+                const isCurrent = !isCompra && currentTurn === 'player' && turnPhase === p;
+                // Compra, and every real phase before the current one in this turn's
+                // own activePhases order, already happened this turn.
+                const isPast = isCompra || activePhases.indexOf(p as TurnPhase) < activePhases.indexOf(turnPhase);
                 return (
                   <React.Fragment key={p}>
-                    {idx > 0 && <div className="w-px h-1.5 bg-zinc-600" />}
+                    {idx > 0 && <div className={`w-2 md:w-3 h-px ${isPast ? 'bg-amber-500/60' : 'bg-zinc-600'}`} />}
                     <div
-                      className={`flex items-center gap-1 px-2 py-1 rounded-full border text-[9px] md:text-[11px] font-black tracking-wide uppercase whitespace-nowrap transition-colors ${
+                      className={`flex items-center gap-0.5 px-1 py-px rounded border text-[6px] md:text-[7px] font-black tracking-wide uppercase whitespace-nowrap transition-colors ${
                         isCurrent
                           ? 'bg-amber-500 border-amber-300 text-zinc-950 shadow-[0_0_8px_rgba(245,158,11,0.7)]'
                           : isLocked
                             ? 'bg-zinc-950/80 border-zinc-700 text-zinc-600'
-                            : 'bg-zinc-950/80 border-zinc-600 text-zinc-400'
+                            : isPast
+                              ? 'bg-zinc-950/80 border-amber-800/60 text-amber-600/80'
+                              : 'bg-zinc-950/80 border-zinc-600 text-zinc-400'
                       } ${currentTurn !== 'player' ? 'opacity-50' : ''}`}
                     >
-                      {isLocked && <Lock className="w-2.5 h-2.5" strokeWidth={3} />}
-                      {PHASE_LABELS[p]}
+                      {isLocked && <Lock className="w-2 h-2" strokeWidth={3} />}
+                      {isCompra ? COMPRA_LABEL : PHASE_LABELS[p as TurnPhase]}
                     </div>
                   </React.Fragment>
                 );
@@ -4362,7 +4401,7 @@ export default function App() {
                 whose turn it is, per the user's own reference. Sits in its own wrapper
                 a bit bigger than the coin button so the ring doesn't get cut by the
                 coin's own rounded edge. */}
-            <div className="relative w-28 h-28 md:w-32 md:h-32 flex items-center justify-center">
+            <div className="relative w-16 h-16 md:w-20 md:h-20 flex items-center justify-center">
               <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth="5" />
                 <motion.circle
@@ -4378,7 +4417,7 @@ export default function App() {
                 />
               </svg>
             <motion.div
-              className={`relative w-24 h-24 md:w-28 md:h-28 rounded-full flex items-center justify-center ${
+              className={`relative w-14 h-14 md:w-[4.5rem] md:h-[4.5rem] rounded-full flex items-center justify-center ${
                 currentTurn === 'player' ? 'cursor-pointer' : 'cursor-not-allowed'
               }`}
               whileTap={currentTurn === 'player' ? { scale: 0.9 } : undefined}
@@ -4400,9 +4439,9 @@ export default function App() {
                   grayscale/dim filter instead, swapping only the icon on top. */}
               <img src={hudTurnButtonImage} alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none" draggable={false} />
               {currentTurn === 'player' ? (
-                <ChevronRight className="relative w-11 h-11 md:w-12 md:h-12 text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={3} />
+                <ChevronRight className="relative w-7 h-7 md:w-8 md:h-8 text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={3} />
               ) : (
-                <Hourglass className="relative w-10 h-10 md:w-11 md:h-11 text-red-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />
+                <Hourglass className="relative w-6 h-6 md:w-7 md:h-7 text-red-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />
               )}
             </motion.div>
             </div>
@@ -4411,7 +4450,7 @@ export default function App() {
                 OPONENTE" while it's not, per the user's reference. Kept in the same
                 narrow vertical stack as the phase tracker above (not a wide pill)
                 since a wider one used to sit on top of the Vanguarda slots next to it. */}
-            <div className={`px-2.5 py-1 rounded-full border text-[9px] md:text-[11px] font-black tracking-wide uppercase whitespace-nowrap text-center ${
+            <div className={`px-1.5 py-px rounded-full border text-[7px] md:text-[9px] font-black tracking-wide uppercase whitespace-nowrap text-center ${
               currentTurn === 'player'
                 ? 'bg-amber-500 border-amber-300 text-zinc-950'
                 : 'bg-zinc-950/80 border-red-900/60 text-red-200'
@@ -4420,10 +4459,9 @@ export default function App() {
             </div>
           </div>
 
-          {/* Player's gold — was over by the graveyard before, now the same
-              distance from the button as the NPC's above, per the user's ask. */}
-          <div id="player-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto">
-            <GoldBadge value={playerMana} className="w-32 md:w-36" />
+          {/* Player's gold — same distance from the button as the NPC's above. */}
+          <div id="player-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
+            <GoldBadge value={playerMana} className="w-20 md:w-24" />
           </div>
         </div>
 
@@ -4448,19 +4486,28 @@ export default function App() {
             the-player's-field bug that justify-end used to guard against;
             these cards are still comfortably short of that 625px half. */}
         <div className="flex flex-col gap-4 justify-start pt-0">
-          {/* General row (fixed) + Relíquia/Terreno slots */}
-          <div className="relative flex justify-center gap-8 items-center">
+          {/* General row (fixed) + Relíquia/Terreno slots — now a real 5-wide row
+              like Retaguarda/Vanguarda: Cemitério and Deck used to float outside the
+              board's own columns (see git history), which left this row looking like
+              only 3 slots wide instead of 5. Cemitério always on the left, Deck always
+              on the right (see the user's own "locais das cartas" ask) — same gap as
+              the other two rows so all three columns line up. */}
+          <div className="relative flex justify-center gap-3 md:gap-6 items-center">
+            <div className="pointer-events-auto">
+              <GraveyardPile cards={npcGraveyard} />
+            </div>
             <CardSlot
               slotId="npc-10"
               card={npcSlots[10]}
               onClick={() => handleNpcSlotClick(10)}
-              // Suppressed during Batalha (see every other onInfoClick below too) —
-              // in that phase almost every tap is either picking an attacker or
-              // picking its target, and the big floating preview this opens used to
-              // sit right on top of the board, hiding the attack/impact animation
-              // it was supposed to be a click on. Preparação keeps the preview
-              // (reading a card there is still the point of tapping it).
-              onInfoClick={turnPhase === 'batalha' ? undefined : setDetailedCard}
+              // Only shown during Preparação (see every other onInfoClick below too) —
+              // in Combate almost every tap is either picking an attacker or picking
+              // its target, and in Movimentação almost every tap is picking a mover or
+              // its destination; the big floating preview this opens used to sit right
+              // on top of the board, hiding whatever that tap was actually doing.
+              // Preparação keeps the preview (reading a card there is still the point
+              // of tapping it — nothing else consumes that tap in that phase).
+              onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 10}
@@ -4474,7 +4521,7 @@ export default function App() {
                 slotId="npc-12"
                 card={npcSlots[12]}
                 onClick={() => handleNpcSlotClick(12)}
-                onInfoClick={turnPhase === 'batalha' ? undefined : setDetailedCard}
+                onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 12}
@@ -4488,7 +4535,7 @@ export default function App() {
               slotId="npc-11"
               card={npcSlots[11]}
               onClick={() => handleNpcSlotClick(11)}
-              onInfoClick={turnPhase === 'batalha' ? undefined : setDetailedCard}
+              onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 11}
@@ -4497,6 +4544,11 @@ export default function App() {
               isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(11) && !!npcSlots[11]}
               isTacticDragTarget={isDragTargetSlot('npc', 11)}
             />
+            <div ref={npcDeckRef} className="w-28 h-36 md:w-36 md:h-48 relative pointer-events-none">
+              <CardBack offset={6} brightness={0.3} />
+              <CardBack offset={3} brightness={0.55} />
+              <CardBack shadow />
+            </div>
           </div>
           {/* Retaguarda NPC (Backline) */}
           <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mb-3">Retaguarda</div>
@@ -4507,7 +4559,7 @@ export default function App() {
                 slotId={`npc-${i}`}
                 card={npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
-                onInfoClick={turnPhase === 'batalha' ? undefined : setDetailedCard}
+                onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
@@ -4527,7 +4579,7 @@ export default function App() {
                 slotId={`npc-${i}`}
                 card={npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
-                onInfoClick={turnPhase === 'batalha' ? undefined : setDetailedCard}
+                onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
@@ -4559,7 +4611,7 @@ export default function App() {
                 card={playerSlots[i]}
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
-                onInfoClick={turnPhase === 'batalha' ? undefined : setDetailedCard}
+                onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
@@ -4604,7 +4656,7 @@ export default function App() {
                 card={playerSlots[i]}
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
-                onInfoClick={turnPhase === 'batalha' ? undefined : setDetailedCard}
+                onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
@@ -4634,14 +4686,21 @@ export default function App() {
             })}
           </div>
           <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mt-3">Retaguarda</div>
-          {/* General row (fixed) + Relíquia/Terreno slots */}
-          <div className="relative flex justify-center gap-8 items-center">
+          {/* General row (fixed) + Relíquia/Terreno slots — a real 5-wide row now,
+              matching Retaguarda/Vanguarda (see the NPC field's own general row for
+              the full explanation). Cemitério on the left, Deck on the right, same as
+              the NPC's row above — both sides now agree on which side is which,
+              instead of the old diagonal-corners layout (see git history). */}
+          <div className="relative flex justify-center gap-3 md:gap-6 items-center">
+            <div className="pointer-events-auto">
+              <GraveyardPile cards={playerGraveyard} />
+            </div>
             <CardSlot
               slotId="player-10"
               card={playerSlots[10]}
               onClick={(el) => handleSlotClick(10, el)}
               isSelected={selectedAttackerIndex === 10}
-              onInfoClick={turnPhase === 'batalha' ? undefined : setDetailedCard}
+              onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 10}
@@ -4655,7 +4714,7 @@ export default function App() {
                 card={playerSlots[12]}
                 onClick={(el) => handleSlotClick(12, el)}
                 isSelected={selectedAttackerIndex === 12}
-                onInfoClick={turnPhase === 'batalha' ? undefined : setDetailedCard}
+                onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 12}
@@ -4685,7 +4744,7 @@ export default function App() {
               card={playerSlots[11]}
               onClick={(el) => handleSlotClick(11, el)}
               isSelected={selectedAttackerIndex === 11}
-              onInfoClick={turnPhase === 'batalha' ? undefined : setDetailedCard}
+              onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 11}
@@ -4693,53 +4752,15 @@ export default function App() {
               hint={getPlayerSlotHint(11)}
               isTacticDragTarget={isDragTargetSlot('own', 11)}
             />
+            <motion.div
+              ref={playerDeckRef}
+              className="w-28 h-36 md:w-36 md:h-48 relative group pointer-events-none"
+            >
+              <CardBack offset={6} brightness={0.3} />
+              <CardBack offset={3} brightness={0.55} />
+              <CardBack shadow />
+            </motion.div>
           </div>
-        </div>
-
-        {/* Opponent Deck & Graveyard (On Board) — kept inside the board's own canvas
-            (not past its edge) so it's actually visible under the normal, fixed camera
-            used at all times, including while a card is being drawn. Mirrored to the
-            LEFT (the player's own deck sits on the right) so the two decks sit on
-            diagonally opposite corners instead of stacked in the same column. */}
-        <div className="absolute left-4 md:left-8 top-12 flex flex-col gap-6 items-center z-40 pointer-events-none">
-          {/* Deck */}
-          {/* The stack's thickness is dimmed copies of the card itself, offset behind the
-              top one — a plain dark rectangle would read as a box around a card whose
-              outline isn't rectangular (see CardBack). */}
-          <div ref={npcDeckRef} className="w-28 h-36 md:w-36 md:h-48 relative">
-            <CardBack offset={6} brightness={0.3} />
-            <CardBack offset={3} brightness={0.55} />
-            <CardBack shadow />
-          </div>
-          {/* Graveyard */}
-          <GraveyardPile cards={npcGraveyard} />
-        </div>
-
-        {/* Deck & Graveyard (On Board) — kept inside the canvas, on the RIGHT side of
-            the player's own field (the opponent's mirrors it on the left, so the two
-            sit on diagonally opposite corners), so it's visible under the normal
-            camera at all times (see computeDrawOrigin for how a drawn hand card
-            animates itself in from this exact spot). Used to need a much bigger inset
-            than the opponent's block on its side, back when the board's steep tilt
-            made the player's nearer row project onto a proportionally wider slice of
-            the screen — now that the tilt is much shallower (see baseAnim.rotateX in
-            getBoardAnimation), that large offset just crowded this block into the
-            Retaguarda slots next to it, so it's back to a small inset matching the
-            opponent's. */}
-        <div className="absolute right-16 md:right-8 bottom-16 flex flex-col gap-6 items-center z-40 pointer-events-auto">
-          {/* Graveyard */}
-          <GraveyardPile cards={playerGraveyard} />
-
-          {/* Deck */}
-          <motion.div
-            ref={playerDeckRef}
-            className="w-28 h-36 md:w-36 md:h-48 relative group"
-          >
-            {/* Deck thickness effect — dimmed copies of the card, not dark rectangles */}
-            <CardBack offset={6} brightness={0.3} />
-            <CardBack offset={3} brightness={0.55} />
-            <CardBack shadow />
-          </motion.div>
         </div>
 
         {/* The wide avatar/name/HP panel that used to sit beside each General
@@ -5568,6 +5589,42 @@ export default function App() {
               {fn.text}
             </motion.div>
           ))}
+        </AnimatePresence>
+      </div>
+
+      {/* Center-screen phase announcement — Yu-Gi-Oh Duel Links-style: a big serif
+          title fades/scales in, holds, fades out (see announcePhase/phaseBanner
+          above). Sits above the floating numbers (z-290) but below the board/hand
+          card previews and full modals, same reasoning as that overlay. */}
+      <div className="fixed inset-0 z-[292] pointer-events-none flex items-center justify-center overflow-hidden">
+        <AnimatePresence>
+          {phaseBanner && (
+            <motion.div
+              key={phaseBanner.id}
+              initial={{ opacity: 0, scale: 0.85, y: -10 }}
+              animate={{ opacity: [0, 1, 1, 0], scale: [0.85, 1, 1, 1.04], y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1.5, times: [0, 0.22, 0.78, 1], ease: 'easeOut' }}
+              className="flex flex-col items-center select-none px-8"
+            >
+              <div className="w-24 md:w-32 h-px bg-gradient-to-r from-transparent via-amber-400/90 to-transparent mb-2" />
+              <div
+                className="text-3xl md:text-5xl font-black uppercase tracking-[0.15em] text-center whitespace-nowrap"
+                style={{
+                  fontFamily: "'Cinzel', serif",
+                  color: '#f5deb3',
+                  WebkitTextStroke: '1.5px rgba(60,30,0,0.6)',
+                  textShadow: '0 3px 6px rgba(0,0,0,0.85), 0 0 26px rgba(251,191,36,0.55), 0 0 60px rgba(251,191,36,0.25)',
+                }}
+              >
+                {phaseBanner.title}
+              </div>
+              <div className="w-24 md:w-32 h-px bg-gradient-to-r from-transparent via-amber-400/90 to-transparent mt-2 mb-2" />
+              <div className="text-[10px] md:text-sm font-bold uppercase tracking-[0.2em] text-amber-100/80 text-center whitespace-nowrap" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.9)' }}>
+                {phaseBanner.subtitle}
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
 
