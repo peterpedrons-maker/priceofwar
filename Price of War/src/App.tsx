@@ -271,7 +271,7 @@ const PHASE_BANNER_TEXT: Record<TurnPhase, { title: string; subtitle: string }> 
 // the whole time the banner was on screen. Each stage below targets a single
 // plain (non-array) value, which framer-motion just smoothly retargets toward —
 // re-rendering mid-stage is a no-op since the target hasn't changed.
-const PHASE_BANNER_STAGE_MS = { in: 250, hold: 800, out: 250 } as const;
+const PHASE_BANNER_STAGE_MS = { in: 250, hold: 2200, out: 250 } as const;
 const PHASE_BANNER_DURATION_MS = PHASE_BANNER_STAGE_MS.in + PHASE_BANNER_STAGE_MS.hold + PHASE_BANNER_STAGE_MS.out;
 const PHASE_BANNER_MOTION: Record<'in' | 'hold' | 'out', { animate: { opacity: number; x: number }; transition: { duration: number; ease: 'easeOut' | 'easeIn' | 'linear' } }> = {
   in: { animate: { opacity: 1, x: 0 }, transition: { duration: PHASE_BANNER_STAGE_MS.in / 1000, ease: 'easeOut' } },
@@ -813,14 +813,25 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
   );
 };
 
-const GoldBadge = ({ value, className = "" }: { value: number; className?: string }) => (
+const GoldBadge = ({ value, className = "", owner = 'player' }: { value: number; className?: string; owner?: 'player' | 'npc' }) => (
   <div className={`relative overflow-hidden ${className}`}>
     {/* Scaled up ~18% and cropped by the wrapper's own overflow-hidden — makes the coin
         and plate fill noticeably more of the same box footprint (per the user's ask:
         bigger coin/number "desde que não estoure o tamanho da caixa") instead of
         growing the box itself, which would've thrown off the HUD row's alignment. */}
     <img src={hudGoldBadgeImage} alt="" className="w-full h-auto block scale-[1.18]" draggable={false} />
-    <span className="absolute inset-y-0 right-[6%] left-[36%] flex items-center justify-center text-amber-100 font-black text-2xl md:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] leading-none">
+    {/* The two badges are otherwise pixel-identical, which was the user's exact
+        complaint — nothing on screen said which pile was theirs. mix-blend-mode:
+        "color" recolors the opponent's plate toward red while keeping the original
+        artwork's shading/highlights intact (a plain color overlay would just look
+        like a flat red rectangle over it), matching the red the rest of the HUD
+        already uses for "opponent" (the turn button/label). The player's stays the
+        artwork's native gold — no overlay — since gold already reads as "yours"
+        via that same existing convention. */}
+    {owner === 'npc' && (
+      <div className="absolute inset-0 bg-red-600" style={{ mixBlendMode: 'color', opacity: 0.65 }} />
+    )}
+    <span className={`absolute inset-y-0 right-[6%] left-[36%] flex items-center justify-center font-black text-2xl md:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] leading-none ${owner === 'npc' ? 'text-red-100' : 'text-amber-100'}`}>
       {value}
     </span>
   </div>
@@ -4766,19 +4777,31 @@ export default function App() {
           on the actual gap between the two Vanguarda rows, not the board's own
           geometric center (see the ~24.5 design-px correction folded into 600.5
           below — half the board's 1250px height, minus that correction, both scaled
-          by the same factor the board itself renders at). */}
+          by the same factor the board itself renders at).
+
+          Being outside the transform also means this sits STILL while the board
+          pans/zooms toward a played card's slot — which used to mean the button and
+          badges could end up visually stranded on top of whichever row the camera
+          panned into (the exact complaint: "the button moves along with the
+          camera"). Rather than move this WITH that pan (reopening the drifting
+          floating-number bug above), it just steps out of the way: fully
+          transparent and unclickable for the same window getBoardAnimation treats
+          as "camera busy" (isCardInFlightTransition), fading back in the instant
+          the board settles back to its resting framing. */}
       <div
-        className="absolute z-40 pointer-events-auto flex flex-row items-center gap-3 md:gap-5"
+        className="absolute z-40 flex flex-row items-center gap-3 md:gap-5 transition-opacity duration-150"
         style={{
           left: windowSize.width / 2,
           top: boardTopMargin + 600.5 * boardHeightMultiplier,
           transform: 'translate(-50%, -50%)',
           perspective: 600,
+          opacity: isCardInFlightTransition ? 0 : 1,
+          pointerEvents: isCardInFlightTransition ? 'none' : 'auto',
         }}
       >
         {/* NPC's gold — same distance from the button as the player's below. */}
         <div id="npc-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
-          <GoldBadge value={npcMana} className="w-20 md:w-24" />
+          <GoldBadge value={npcMana} owner="npc" className="w-20 md:w-24" />
         </div>
 
         <div
