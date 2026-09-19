@@ -2282,6 +2282,27 @@ export default function App() {
   // Holds the camera's zoomed-in focus for a brief moment after the card lands,
   // so the placement reads clearly before the view eases back to normal.
   const [cameraSettling, setCameraSettling] = useState<{ slotIndex: number } | null>(null);
+  // Drives the fixed gold/turn-button HUD's visibility across a card-play zoom (see
+  // its own render further down) — a plain CSS opacity+transition keyed straight off
+  // isCardInFlightTransition looked right in isolation, but relying on
+  // transition-delay to also hold pointer-events unclickable during that delay
+  // turned out unreliable: pointer-events (not a property browsers actually animate)
+  // flipped back to clickable almost immediately instead of waiting out the delay,
+  // leaving a window where the invisible button could still be tapped. Driving both
+  // off one plain boolean, flipped by this effect instead of by CSS timing, keeps
+  // them perfectly in sync no matter how the browser handles that edge case.
+  const [hudVisible, setHudVisible] = useState(true);
+  useEffect(() => {
+    if (preZoomSlot || flyingCard || cameraSettling) {
+      setHudVisible(false);
+      return;
+    }
+    // The camera's own pan/zoom has already eased back to resting by the time this
+    // flag clears — the user's own ask was for the HUD to wait an extra half-second
+    // past that before it reappears, not to pop back the instant the flag flips.
+    const timer = window.setTimeout(() => setHudVisible(true), 500);
+    return () => window.clearTimeout(timer);
+  }, [preZoomSlot, flyingCard, cameraSettling]);
   // A brief flash/ring burst at the screen position where a played card just landed.
   const [impactBurst, setImpactBurst] = useState<{ x: number; y: number; big?: boolean } | null>(null);
   // A "full art" card (see CardData.isFullArt) landing makes the whole board react —
@@ -4773,19 +4794,24 @@ export default function App() {
           badges could end up visually stranded on top of whichever row the camera
           panned into (the exact complaint: "the button moves along with the
           camera"). Rather than move this WITH that pan (reopening the drifting
-          floating-number bug above), it just steps out of the way: fully
-          transparent and unclickable for the same window getBoardAnimation treats
-          as "camera busy" (isCardInFlightTransition), fading back in the instant
-          the board settles back to its resting framing. */}
+          floating-number bug above), it just steps out of the way: instantly gone
+          (no transition at all — even the ~150ms fade this used to do was long
+          enough to see it hanging there mid-fade while the pan was still moving,
+          which read as the same "walking" complaint all over again) the moment a
+          card-play zoom starts, reappearing on a plain fade once it's done — but
+          only after a flat 500ms hold past the zoom actually finishing (see
+          hudVisible above), since popping back the instant the camera settles still
+          looked like it was catching up to the tail end of that motion. */}
       <div
-        className="absolute z-40 flex flex-row items-center gap-3 md:gap-5 transition-opacity duration-150"
+        className="absolute z-40 flex flex-row items-center gap-3 md:gap-5"
         style={{
           left: windowSize.width / 2,
           top: boardTopMargin + 600.5 * boardHeightMultiplier,
           transform: 'translate(-50%, -50%)',
           perspective: 600,
-          opacity: isCardInFlightTransition ? 0 : 1,
-          pointerEvents: isCardInFlightTransition ? 'none' : 'auto',
+          opacity: hudVisible ? 1 : 0,
+          transition: hudVisible ? 'opacity 0.15s ease' : 'none',
+          pointerEvents: hudVisible ? 'auto' : 'none',
         }}
       >
         {/* NPC's gold — same distance from the button as the player's below. A red
