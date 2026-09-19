@@ -813,25 +813,14 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
   );
 };
 
-const GoldBadge = ({ value, className = "", owner = 'player' }: { value: number; className?: string; owner?: 'player' | 'npc' }) => (
+const GoldBadge = ({ value, className = "" }: { value: number; className?: string }) => (
   <div className={`relative overflow-hidden ${className}`}>
     {/* Scaled up ~18% and cropped by the wrapper's own overflow-hidden — makes the coin
         and plate fill noticeably more of the same box footprint (per the user's ask:
         bigger coin/number "desde que não estoure o tamanho da caixa") instead of
         growing the box itself, which would've thrown off the HUD row's alignment. */}
     <img src={hudGoldBadgeImage} alt="" className="w-full h-auto block scale-[1.18]" draggable={false} />
-    {/* The two badges are otherwise pixel-identical, which was the user's exact
-        complaint — nothing on screen said which pile was theirs. mix-blend-mode:
-        "color" recolors the opponent's plate toward red while keeping the original
-        artwork's shading/highlights intact (a plain color overlay would just look
-        like a flat red rectangle over it), matching the red the rest of the HUD
-        already uses for "opponent" (the turn button/label). The player's stays the
-        artwork's native gold — no overlay — since gold already reads as "yours"
-        via that same existing convention. */}
-    {owner === 'npc' && (
-      <div className="absolute inset-0 bg-red-600" style={{ mixBlendMode: 'color', opacity: 0.65 }} />
-    )}
-    <span className={`absolute inset-y-0 right-[6%] left-[36%] flex items-center justify-center font-black text-2xl md:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] leading-none ${owner === 'npc' ? 'text-red-100' : 'text-amber-100'}`}>
+    <span className="absolute inset-y-0 right-[6%] left-[36%] flex items-center justify-center text-amber-100 font-black text-2xl md:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] leading-none">
       {value}
     </span>
   </div>
@@ -4799,9 +4788,19 @@ export default function App() {
           pointerEvents: isCardInFlightTransition ? 'none' : 'auto',
         }}
       >
-        {/* NPC's gold — same distance from the button as the player's below. */}
-        <div id="npc-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
-          <GoldBadge value={npcMana} owner="npc" className="w-20 md:w-24" />
+        {/* NPC's gold — same distance from the button as the player's below. A red
+            box drawn around the whole badge to tell the two piles apart (see git
+            history) read as an error/warning state instead of a label, so this is a
+            plain "ADVERSÁRIO" tag beside it instead — swap-in point for that
+            player's name/nick once real PvP exists, "JOGADOR" below getting the
+            same treatment. */}
+        <div className="flex items-center gap-1 shrink-0">
+          <span className="text-[8px] md:text-[9px] font-black uppercase tracking-wide text-red-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] whitespace-nowrap">
+            Adversário
+          </span>
+          <div id="npc-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
+            <GoldBadge value={npcMana} className="w-20 md:w-24" />
+          </div>
         </div>
 
         <div
@@ -4867,8 +4866,13 @@ export default function App() {
         </div>
 
         {/* Player's gold — same distance from the button as the NPC's above. */}
-        <div id="player-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
-          <GoldBadge value={playerMana} className="w-20 md:w-24" />
+        <div className="flex items-center gap-1 shrink-0">
+          <div id="player-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
+            <GoldBadge value={playerMana} className="w-20 md:w-24" />
+          </div>
+          <span className="text-[8px] md:text-[9px] font-black uppercase tracking-wide text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] whitespace-nowrap">
+            Jogador
+          </span>
         </div>
       </div>
 
