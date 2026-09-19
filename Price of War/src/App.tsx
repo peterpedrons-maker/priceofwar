@@ -5006,7 +5006,7 @@ export default function App() {
                 // time. key alone is enough for React to keep reusing this same DOM node.
                 key={card.id}
                 ref={(el) => { handCardRefs.current[card.id] = el; }}
-                className={`w-56 h-80 shrink-0 cursor-pointer relative group ${viewState === 'field' ? 'pointer-events-none' : 'pointer-events-auto'}`}
+                className={`w-56 h-80 shrink-0 cursor-pointer relative group ${viewState === 'field' || (selectedCardIndex !== null && !isFocused) ? 'pointer-events-none' : 'pointer-events-auto'}`}
                 // A freshly drawn card (see computeDrawOrigin) mounts sitting right at the
                 // real on-board deck's position/size and animates itself — this same
                 // element, start to finish — into its fan slot below, flipping from its
@@ -5028,11 +5028,13 @@ export default function App() {
                   // double up with it on screen.
                   opacity: (isFocused && viewState === 'hand') ? 0 : viewState === 'field'
                     ? (isFocused ? 1 : 0.4)
-                    // Dim every OTHER card in hand, not just the ones after it in the fan —
-                    // dimming only "i > selectedCardIndex" left earlier cards sitting at full
-                    // opacity right behind/beside the enlarged selected card, poking out as
-                    // a stray, undimmed card edge.
-                    : ((selectedCardIndex !== null || ambushPrompt) && !isFocused ? 0.3 : 1),
+                    // A selected card hides the rest of the hand outright (not just dimmed)
+                    // — only the selected card should read as "in play" while the player
+                    // picks a destination for it, per the user's own ask. An Emboscada
+                    // interrupt prompt (ambushPrompt, unrelated to a manual selection)
+                    // still just dims the rest, since that's a brief forced decision, not
+                    // an open-ended "pick where to play this" state.
+                    : (selectedCardIndex !== null && !isFocused ? 0 : ambushPrompt && !isFocused ? 0.3 : 1),
                   x: isFocused && viewState === 'field' ? getSelectedCardX(i) : 0,
                   // Float the previewed card up near the vertical center of the real screen
                   // instead of sitting down at the hand's normal resting height (see
@@ -5212,14 +5214,13 @@ export default function App() {
         const w = HAND_CARD_WIDTH * previewScale;
         const h = HAND_CARD_HEIGHT * previewScale;
         const edgeGap = 6;
-        // Parked above the hand tray itself (not vertically centered — see git
-        // history) so it clears both the board's own destination highlights AND the
-        // gold/turn-button HUD sitting near the screen's vertical middle. HAND_CARD_HEIGHT
-        // * handScale * 0.78 mirrors the Hand UI's own resting height (see its animate
-        // block: it pushes ~22% of a card's height below the screen's bottom edge on
-        // mobile), so this sits just clear of the real hand cards behind it.
-        const handTrayVisibleHeight = HAND_CARD_HEIGHT * handScale * 0.78;
-        const bottomGap = handTrayVisibleHeight + 16;
+        // Parked in the bottom-left corner (not vertically centered — see git
+        // history) so it clears both the board's own destination highlights and the
+        // gold/turn-button HUD sitting near the screen's vertical middle. The rest of
+        // the hand hides outright the moment a card is selected (see the real hand
+        // card's own opacity above), so this can sit right down at the true bottom
+        // edge without covering anything back there either.
+        const bottomGap = edgeGap;
         return (
           <div
             className="fixed z-[260]"
