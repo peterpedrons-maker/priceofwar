@@ -248,9 +248,9 @@ const phasesForTurn = (turn: number): TurnPhase[] =>
 // that size; this one only has to fit a narrow column, not share a row with the
 // gold badges and turn button.
 const PHASE_TAG_LABELS: Record<TurnPhase, string> = {
-  preparacao: 'Preparação',
+  preparacao: 'Prep.',
   combate: 'Combate',
-  movimentacao: 'Movimentação',
+  movimentacao: 'Mov.',
 };
 const PHASE_TAG_ORDER: TurnPhase[] = ['preparacao', 'combate', 'movimentacao'];
 // The ceremonial "FASE DE X" wording for the center-screen announcement banner
@@ -4302,14 +4302,14 @@ export default function App() {
   // shown on both sides for consistency, even on the NPC's — the AI is gated by
   // the exact same turnNumber check inside playAiTurn.
   const renderPhaseTagColumn = (activePhase: TurnPhase | null) => (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-0.5">
       {PHASE_TAG_ORDER.map(p => {
         const isLocked = p === 'combate' && turnNumber < 3;
         const isCurrent = activePhase === p;
         return (
           <div
             key={p}
-            className={`px-1.5 py-0.5 rounded border text-center text-[6px] md:text-[7px] font-black uppercase tracking-wide whitespace-nowrap ${
+            className={`px-1 py-px rounded border text-center text-[5px] md:text-[6px] font-black uppercase tracking-wide whitespace-nowrap ${
               isCurrent
                 ? 'bg-amber-500 border-amber-300 text-zinc-950 shadow-[0_0_6px_rgba(245,158,11,0.7)]'
                 : isLocked
