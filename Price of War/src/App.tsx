@@ -273,10 +273,18 @@ const PHASE_BANNER_TEXT: Record<TurnPhase, { title: string; subtitle: string }> 
 // re-rendering mid-stage is a no-op since the target hasn't changed.
 const PHASE_BANNER_STAGE_MS = { in: 250, hold: 1600, out: 250 } as const;
 const PHASE_BANNER_DURATION_MS = PHASE_BANNER_STAGE_MS.in + PHASE_BANNER_STAGE_MS.hold + PHASE_BANNER_STAGE_MS.out;
-const PHASE_BANNER_MOTION: Record<'in' | 'hold' | 'out', { animate: { opacity: number; x: number }; transition: { duration: number; ease: 'easeOut' | 'easeIn' | 'linear' } }> = {
-  in: { animate: { opacity: 1, x: 0 }, transition: { duration: PHASE_BANNER_STAGE_MS.in / 1000, ease: 'easeOut' } },
-  hold: { animate: { opacity: 1, x: 0 }, transition: { duration: 0, ease: 'linear' } },
-  out: { animate: { opacity: 0, x: -420 }, transition: { duration: PHASE_BANNER_STAGE_MS.out / 1000, ease: 'easeIn' } },
+// y is a constant lift, not something that changes stage to stage — the ribbon sits
+// dead-center in the viewport by default (see the banner's own fixed inset-0
+// flex-center wrapper below), which put its top edge low enough that the HUD's
+// turn button, vertically centered a bit higher (near the board's own Vanguarda
+// gap, not the screen's true center — see boardTopMargin's own math further down),
+// poked out above it. Shifting the whole banner up clears that without having to
+// touch the HUD itself.
+const PHASE_BANNER_Y = -12;
+const PHASE_BANNER_MOTION: Record<'in' | 'hold' | 'out', { animate: { opacity: number; x: number; y: number }; transition: { duration: number; ease: 'easeOut' | 'easeIn' | 'linear' } }> = {
+  in: { animate: { opacity: 1, x: 0, y: PHASE_BANNER_Y }, transition: { duration: PHASE_BANNER_STAGE_MS.in / 1000, ease: 'easeOut' } },
+  hold: { animate: { opacity: 1, x: 0, y: PHASE_BANNER_Y }, transition: { duration: 0, ease: 'linear' } },
+  out: { animate: { opacity: 0, x: -420, y: PHASE_BANNER_Y }, transition: { duration: PHASE_BANNER_STAGE_MS.out / 1000, ease: 'easeIn' } },
 };
 
 // Reposition adjacency — only Vanguarda/Retaguarda slots (0-9) take part; the
@@ -5737,9 +5745,9 @@ export default function App() {
           {phaseBanner && (
             <motion.div
               key={phaseBanner.id}
-              initial={{ opacity: 0, x: 420 }}
+              initial={{ opacity: 0, x: 420, y: PHASE_BANNER_Y }}
               animate={PHASE_BANNER_MOTION[phaseBanner.stage].animate}
-              exit={{ opacity: 0 }}
+              exit={{ opacity: 0, y: PHASE_BANNER_Y }}
               transition={PHASE_BANNER_MOTION[phaseBanner.stage].transition}
               className="relative flex flex-col items-center select-none py-2"
             >
