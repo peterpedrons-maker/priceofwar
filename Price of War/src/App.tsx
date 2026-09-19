@@ -271,7 +271,7 @@ const PHASE_BANNER_TEXT: Record<TurnPhase, { title: string; subtitle: string }> 
 // the whole time the banner was on screen. Each stage below targets a single
 // plain (non-array) value, which framer-motion just smoothly retargets toward —
 // re-rendering mid-stage is a no-op since the target hasn't changed.
-const PHASE_BANNER_STAGE_MS = { in: 250, hold: 2200, out: 250 } as const;
+const PHASE_BANNER_STAGE_MS = { in: 250, hold: 1600, out: 250 } as const;
 const PHASE_BANNER_DURATION_MS = PHASE_BANNER_STAGE_MS.in + PHASE_BANNER_STAGE_MS.hold + PHASE_BANNER_STAGE_MS.out;
 const PHASE_BANNER_MOTION: Record<'in' | 'hold' | 'out', { animate: { opacity: number; x: number }; transition: { duration: number; ease: 'easeOut' | 'easeIn' | 'linear' } }> = {
   in: { animate: { opacity: 1, x: 0 }, transition: { duration: PHASE_BANNER_STAGE_MS.in / 1000, ease: 'easeOut' } },
@@ -5747,12 +5747,22 @@ export default function App() {
                   block's own content width) via w-screen + centering, so it reads as
                   a banner stretched across the whole table, not a text-sized box. */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-screen h-14 md:h-[4.5rem] bg-gradient-to-b from-red-950 via-[#5a0e0e] to-red-950 border-y-2 border-amber-400/90 shadow-[0_4px_18px_rgba(0,0,0,0.7)]" />
+              {/* Cinzel (still used elsewhere for card titles) reads great as a
+                  logo-style word but is a titling face — thin strokes, tall narrow
+                  letterforms — which got actively worse to read fast at this size
+                  once a stroke outline and wide tracking were stacked on top of it,
+                  exactly the "improve the font" complaint. Crimson Pro is the other
+                  self-hosted serif already bundled for this game (see fonts.css) and
+                  is a text face built for legibility rather than a display one, so
+                  it's swapped in here instead — tracking and the outline stroke both
+                  pulled back too, since those were compounding the problem as much
+                  as the typeface itself was. */}
               <div
-                className="relative text-2xl md:text-4xl font-black uppercase tracking-[0.12em] text-center whitespace-nowrap px-8"
+                className="relative text-2xl md:text-4xl font-black uppercase tracking-[0.02em] text-center whitespace-nowrap px-8"
                 style={{
-                  fontFamily: "'Cinzel', serif",
+                  fontFamily: "'Crimson Pro', serif",
                   color: '#f5deb3',
-                  WebkitTextStroke: '1.5px rgba(60,10,10,0.7)',
+                  WebkitTextStroke: '0.5px rgba(60,10,10,0.6)',
                   textShadow: '0 3px 6px rgba(0,0,0,0.9), 0 0 22px rgba(251,191,36,0.5)',
                 }}
               >
