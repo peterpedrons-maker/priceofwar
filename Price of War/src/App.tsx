@@ -1499,17 +1499,19 @@ const BOARD_EXTERIOR_ART_URL = boardBattlefieldImage;
 // avoiding every last bit of overlap with the board.
 const FIELD_PREVIEW_SCALE = { mobile: 0.95, desktop: 0.95 };
 
-// A single tap on a hand card (still in the hand tray, before any drag starts) used
-// to just nudge it up slightly in place (scale 1.1) — reading it meant a separate
-// "i" button opening a whole different, much bigger modal. Tapping now renders a
-// fixed, top-level floating copy at this scale instead (see the "Hand card tap
-// preview" overlay further down) — NOT an in-place enlarge of the real card, which
-// lives inside the hand tray's own transformed stacking context and could end up
-// rendering underneath an already-played board card sitting at the same screen
-// position. A fixed/high-z overlay sidesteps that entirely — this same floating
-// copy IS the "selected" representation of the card (see handleCardClick/
-// getPlayerSlotHint): tapping a highlighted board destination next plays it.
-const HAND_TAP_PREVIEW_SCALE = 1.35;
+// A single tap on a hand card used to just nudge it up slightly in place (scale
+// 1.1) — reading it meant a separate "i" button opening a whole different, much
+// bigger modal. Tapping now renders a fixed, top-level floating copy instead (see
+// the "Hand card tap preview" overlay further down) — NOT an in-place enlarge of
+// the real card, which lives inside the hand tray's own transformed stacking
+// context and could end up rendering underneath an already-played board card
+// sitting at the same screen position. A fixed/high-z overlay sidesteps that
+// entirely — this same floating copy IS the "selected" representation of the card
+// (see handleCardClick/getPlayerSlotHint): tapping a highlighted board destination
+// next plays it. It shares FIELD_PREVIEW_SCALE (just above) and parks at the same
+// left edge as the old drag-flow's in-hand preview used to — selection now lasts
+// as long as the player is choosing a destination, not just a brief drag, so a
+// centered/full-size preview spent that whole time blocking the board underneath.
 // Board cards (see the "Board card preview" overlay) get their own, separate,
 // slightly smaller scale — they're read-only previews, never dragged, so there's
 // no ghost/ArrasteParaJogar hint competing for space around them.
@@ -5124,12 +5126,12 @@ export default function App() {
                       }}
                       transition={{ duration: 0.4, ease: "easeOut" }}
                     >
-                  {/* No more Info button here — a plain tap now enlarges this exact
-                      card in place (see HAND_TAP_PREVIEW_SCALE above), big enough to
-                      read on its own, and dragging straight from that same enlarged
-                      state plays it, so the separate "i" button + modal round-trip
-                      this used to open (still used by board cards, see CardSlot)
-                      isn't needed for hand cards anymore. */}
+                  {/* No more Info button here — a plain tap now shows this exact card as
+                      an enlarged floating preview (see the "Hand card tap preview"
+                      overlay further down), big enough to read on its own and to tap a
+                      highlighted board destination from, so the separate "i" button +
+                      modal round-trip this used to open (still used by board cards, see
+                      CardSlot) isn't needed for hand cards anymore. */}
                   <CardFace card={card} variant="hand" />
 
                   {/* Selection Glow — red for an Emboscada interrupt (matches the old
@@ -5138,11 +5140,6 @@ export default function App() {
                   {isFocused && (
                     <div className={`absolute inset-0 rounded-xl border-2 pointer-events-none ${isAmbushCandidate ? 'shadow-[inset_0_0_30px_rgba(239,68,68,0.6)] border-[#ef4444]' : 'shadow-[inset_0_0_30px_rgba(212,175,55,0.6)] border-[#d4af37]'}`} />
                   )}
-
-                  {/* The old "Arraste para jogar" label used to live right here, sitting
-                      on top of the card's own name — moved to the fixed tap-preview
-                      overlay further down (see HAND_TAP_PREVIEW_SCALE), positioned
-                      beside that floating copy instead of on top of the card itself. */}
 
                   {/* Emboscada interrupt — "here's the card, activate it or not?" anchored
                       right on the eligible card itself instead of a separate dialog, so
@@ -5211,14 +5208,15 @@ export default function App() {
           isAmbushCandidate above). */}
       {selectedCardIndex !== null && viewState === 'hand' && !ambushPrompt && hand[selectedCardIndex] && (() => {
         const card = hand[selectedCardIndex];
-        const w = HAND_CARD_WIDTH * HAND_TAP_PREVIEW_SCALE;
-        const h = HAND_CARD_HEIGHT * HAND_TAP_PREVIEW_SCALE;
-        const centerX = windowSize.width / 2;
+        const previewScale = isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop;
+        const w = HAND_CARD_WIDTH * previewScale;
+        const h = HAND_CARD_HEIGHT * previewScale;
+        const edgeGap = 6;
         const centerY = windowSize.height * PREVIEW_Y_FRACTION;
         return (
           <div
             className="fixed z-[260]"
-            style={{ left: centerX - w / 2, top: centerY - h / 2, width: w, height: h }}
+            style={{ left: edgeGap, top: centerY - h / 2, width: w, height: h }}
             onClick={(e) => { e.stopPropagation(); handleCardClick(selectedCardIndex); }}
           >
             <div
