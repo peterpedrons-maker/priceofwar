@@ -4741,7 +4741,7 @@ export default function App() {
               whose turn it is, per the user's own reference. Sits in its own wrapper
               a bit bigger than the coin button so the ring doesn't get cut by the
               coin's own rounded edge. */}
-          <div className="relative w-16 h-16 md:w-20 md:h-20 flex items-center justify-center">
+          <div className="relative w-11 h-11 md:w-14 md:h-14 flex items-center justify-center">
             <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 100 100">
               <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth="5" />
               <motion.circle
@@ -4757,7 +4757,7 @@ export default function App() {
               />
             </svg>
           <motion.div
-            className={`relative w-14 h-14 md:w-[4.5rem] md:h-[4.5rem] rounded-full flex items-center justify-center ${
+            className={`relative w-9 h-9 md:w-11 md:h-11 rounded-full flex items-center justify-center ${
               currentTurn === 'player' ? 'cursor-pointer' : 'cursor-not-allowed'
             }`}
             whileTap={currentTurn === 'player' ? { scale: 0.9 } : undefined}
@@ -4779,9 +4779,9 @@ export default function App() {
                 grayscale/dim filter instead, swapping only the icon on top. */}
             <img src={hudTurnButtonImage} alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none" draggable={false} />
             {currentTurn === 'player' ? (
-              <ChevronRight className="relative w-7 h-7 md:w-8 md:h-8 text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={3} />
+              <ChevronRight className="relative w-4 h-4 md:w-5 md:h-5 text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={3} />
             ) : (
-              <Hourglass className="relative w-6 h-6 md:w-7 md:h-7 text-red-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />
+              <Hourglass className="relative w-3.5 h-3.5 md:w-4 md:h-4 text-red-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />
             )}
           </motion.div>
           </div>
