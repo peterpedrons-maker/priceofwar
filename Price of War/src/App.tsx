@@ -5208,15 +5208,22 @@ export default function App() {
           isAmbushCandidate above). */}
       {selectedCardIndex !== null && viewState === 'hand' && !ambushPrompt && hand[selectedCardIndex] && (() => {
         const card = hand[selectedCardIndex];
-        const previewScale = isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop;
+        const previewScale = (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) * 0.7;
         const w = HAND_CARD_WIDTH * previewScale;
         const h = HAND_CARD_HEIGHT * previewScale;
         const edgeGap = 6;
-        const centerY = windowSize.height * PREVIEW_Y_FRACTION;
+        // Parked above the hand tray itself (not vertically centered — see git
+        // history) so it clears both the board's own destination highlights AND the
+        // gold/turn-button HUD sitting near the screen's vertical middle. HAND_CARD_HEIGHT
+        // * handScale * 0.78 mirrors the Hand UI's own resting height (see its animate
+        // block: it pushes ~22% of a card's height below the screen's bottom edge on
+        // mobile), so this sits just clear of the real hand cards behind it.
+        const handTrayVisibleHeight = HAND_CARD_HEIGHT * handScale * 0.78;
+        const bottomGap = handTrayVisibleHeight + 16;
         return (
           <div
             className="fixed z-[260]"
-            style={{ left: edgeGap, top: centerY - h / 2, width: w, height: h }}
+            style={{ left: edgeGap, bottom: bottomGap, width: w, height: h }}
             onClick={(e) => { e.stopPropagation(); handleCardClick(selectedCardIndex); }}
           >
             <div
