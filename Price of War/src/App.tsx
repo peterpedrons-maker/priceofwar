@@ -242,6 +242,17 @@ const getValidAttackTargets = (
 export type TurnPhase = 'preparacao' | 'combate' | 'movimentacao';
 const phasesForTurn = (turn: number): TurnPhase[] =>
   turn >= 3 ? ['preparacao', 'combate', 'movimentacao'] : ['preparacao', 'movimentacao'];
+// Short labels for the small always-on phase-tag column (see PhaseTagColumn below)
+// planted at each field's own edge — brought back in a smaller, out-of-the-way
+// form after the original center-HUD version was removed for being unreadable at
+// that size; this one only has to fit a narrow column, not share a row with the
+// gold badges and turn button.
+const PHASE_TAG_LABELS: Record<TurnPhase, string> = {
+  preparacao: 'Preparação',
+  combate: 'Combate',
+  movimentacao: 'Movimentação',
+};
+const PHASE_TAG_ORDER: TurnPhase[] = ['preparacao', 'combate', 'movimentacao'];
 // The ceremonial "FASE DE X" wording for the center-screen announcement banner
 // (see announcePhase) — this is now the ONLY place a phase's name is shown to the
 // player (the small always-on tracker chip was removed, see git history: too tiny
@@ -1977,6 +1988,10 @@ export default function App() {
   // Which part of the player's own turn they're in — see TurnPhase above. The AI's
   // turn doesn't use this; it just plays/attacks directly via playAiTurn.
   const [turnPhase, setTurnPhase] = useState<TurnPhase>('preparacao');
+  // The AI doesn't have real gated phases (see the currentTurn==='npc' effect below)
+  // — this just drives the phase-tag column mirrored onto its own field, so that
+  // column shows something instead of always sitting dark. null outside its turn.
+  const [npcVisiblePhase, setNpcVisiblePhase] = useState<'preparacao' | 'combate' | null>(null);
   // Slots (0-9) that have already moved/swapped this reposition phase — each unit
   // gets one reposition action per own turn, then it's locked until the next one.
   const [movedSlots, setMovedSlots] = useState<Set<number>>(new Set());
@@ -2706,6 +2721,13 @@ export default function App() {
     if (currentTurn === 'npc' && gameMode === 'Quick Match' && !isAnimating && !gameOverWinner) {
       const runAiTurn = async () => {
         setIsAnimating(true);
+        // No real gated phases on the AI's side (it just runs its whole turn as one
+        // sequence), but the phase-tag column mirrored onto its own field (see
+        // npcVisiblePhase below) reads better showing SOMETHING than always sitting
+        // dark — Preparação while it's still placing cards, Combate once it starts
+        // attacking. There's no Movimentação beat since the AI never repositions its
+        // own units (see the end-of-turn comment further down).
+        setNpcVisiblePhase('preparacao');
         const { actions, playedCardIds } = playAiTurn(npcSlots, playerSlots, npcMana, npcHandRef.current, getValidAttackTargets, turnNumber);
         if (playedCardIds.length > 0) {
           setNpcHand(prev => prev.filter(c => !playedCardIds.includes(c.id)));
@@ -2814,6 +2836,7 @@ export default function App() {
             spawnFloatingNumberAtId('npc-gold-badge', action.card.cost, 'gold-spend');
             await new Promise(resolve => setTimeout(resolve, 700));
           } else if (action.type === 'attack') {
+            setNpcVisiblePhase('combate');
             setAttackAnim({ attackerIndex: action.attackerSlot, targetIndex: action.targetSlot, isPlayerAttacking: false });
             await new Promise(resolve => setTimeout(resolve, 300));
 
@@ -2942,6 +2965,7 @@ export default function App() {
 
         if (playerGeneralFell) {
           setGameOverWinner('npc');
+          setNpcVisiblePhase(null);
           setIsAnimating(false);
           return;
         }
@@ -2954,6 +2978,7 @@ export default function App() {
         currentNpcSlots = applyEndOfTurnSwaps(currentNpcSlots);
         setNpcSlots([...currentNpcSlots]);
 
+        setNpcVisiblePhase(null);
         setCurrentTurn('player');
         setTurnNumber(prev => prev + 1);
         setIsAnimating(false);
@@ -4271,6 +4296,34 @@ export default function App() {
       ? getSlotHint(previewedCard.cardType, slotIndex)
       : undefined;
 
+  // Small always-on phase-tag column planted at a field's own edge (see the two
+  // call sites below) — activePhase is null on the side whose turn it isn't, which
+  // dims every tag (isCurrent never matches null). Combate's lock (turn 3+) is
+  // shown on both sides for consistency, even on the NPC's — the AI is gated by
+  // the exact same turnNumber check inside playAiTurn.
+  const renderPhaseTagColumn = (activePhase: TurnPhase | null) => (
+    <div className="flex flex-col gap-1">
+      {PHASE_TAG_ORDER.map(p => {
+        const isLocked = p === 'combate' && turnNumber < 3;
+        const isCurrent = activePhase === p;
+        return (
+          <div
+            key={p}
+            className={`px-1.5 py-0.5 rounded border text-center text-[6px] md:text-[7px] font-black uppercase tracking-wide whitespace-nowrap ${
+              isCurrent
+                ? 'bg-amber-500 border-amber-300 text-zinc-950 shadow-[0_0_6px_rgba(245,158,11,0.7)]'
+                : isLocked
+                  ? 'bg-zinc-950/80 border-zinc-700 text-zinc-600'
+                  : 'bg-zinc-950/70 border-zinc-600 text-zinc-400'
+            }`}
+          >
+            {PHASE_TAG_LABELS[p]}
+          </div>
+        );
+      })}
+    </div>
+  );
+
   // Drag-to-play's own highlight for a targetable Tática (equip/buff/damage) being
   // dragged — the 'place' kind (plain creatures/Relíquia/Terreno) already gets its
   // highlight for free from the hint system just above, since it only ever targets
@@ -4671,6 +4724,33 @@ export default function App() {
             panel repeating the same number was redundant. */}
       </motion.div>
 
+      {/* Phase-tag columns — one planted near each field's own edge, diagonally
+          opposite each other (NPC's near the top-left, the player's own near the
+          bottom-right) so each sits right next to that side's own field instead of
+          competing for the center strip the gold/turn-button HUD uses. Positioned in
+          plain viewport pixels, exactly like that HUD just below (see its own
+          comment for why: the board can now render WIDER than the viewport at this
+          boardScale — see the zoom bump — so anchoring to the board's OWN left/right
+          edge, which these originally did, put them off-screen half the time; the
+          board's actual columns sit comfortably inset from the board's raw edges,
+          but the raw edges themselves are exactly what a card-play zoom can push
+          past the visible screen). Reuses boardTopMargin/boardHeightMultiplier from
+          above — same viewport-space math, just at 24%/76% down the board's own
+          height instead of 60%, and pinned to the screen's actual left/right edges
+          instead of centered. */}
+      <div
+        className="absolute left-1 md:left-3 z-30 pointer-events-none"
+        style={{ top: boardTopMargin + 0.24 * 1250 * boardHeightMultiplier, transform: 'translateY(-50%)' }}
+      >
+        {renderPhaseTagColumn(currentTurn === 'npc' ? npcVisiblePhase : null)}
+      </div>
+      <div
+        className="absolute right-1 md:right-3 z-30 pointer-events-none"
+        style={{ top: boardTopMargin + 0.76 * 1250 * boardHeightMultiplier, transform: 'translateY(-50%)' }}
+      >
+        {renderPhaseTagColumn(currentTurn === 'player' ? turnPhase : null)}
+      </div>
+
       {/* Turn Button + gold badges — a sibling of the board now, NOT a child of its
           zooming/panning motion.div (see git history) — that mattered for more than
           layout: the camera pans/zooms toward whatever slot a card is being played
@@ -4731,14 +4811,18 @@ export default function App() {
               circular button + a separate "whose turn" label above it + a separate
               "Encerrar Turno" label below it (see git history) — that stack read as
               three things instead of one, and the top/bottom labels' text was tiny
-              for how much vertical space the whole cluster spent. One plainly-labeled
-              button says the same thing in one place: whose turn it is doubles as
-              what tapping it does (advance the phase, or end the turn on the last
-              one). The pulsing glow (still just the same decorative loop the old
-              circular button had) is what actually signals "tap me" while it's the
-              player's turn. */}
+              for how much vertical space the whole cluster spent. A FIXED size (not
+              sized to its own text) — the text changes length by state (Avançar/
+              Encerrar/Adversário), and letting the box follow that used to visibly
+              push the gold badges on either side of it wider/narrower every time the
+              turn or phase changed. The pulsing glow (still just the same decorative
+              loop the old circular button had) is what actually signals "tap me"
+              while it's the player's turn. Text: "Avançar" reads more honestly than
+              the old "Seu Turno" did — tapping this advances to the NEXT phase, not
+              the player's own turn ending, which only "Encerrar" (the very last
+              phase) actually does. */}
           <motion.div
-            className={`px-5 py-2.5 md:px-7 md:py-3 rounded-lg border-2 font-black uppercase tracking-wide text-xs md:text-sm whitespace-nowrap text-center ${
+            className={`w-[5.5rem] md:w-24 h-9 md:h-10 flex items-center justify-center rounded-lg border-2 font-black uppercase tracking-wide text-[11px] md:text-sm whitespace-nowrap ${
               currentTurn === 'player'
                 ? 'bg-gradient-to-b from-amber-400 to-amber-600 border-amber-200 text-zinc-950 cursor-pointer'
                 : 'bg-zinc-950/80 border-red-900/60 text-red-200 cursor-not-allowed'
@@ -4755,7 +4839,7 @@ export default function App() {
             }}
             transition={{ duration: 2, repeat: Infinity }}
           >
-            {currentTurn === 'player' ? 'Seu Turno' : 'Turno do Adversário'}
+            {currentTurn !== 'player' ? 'Adversário' : isLastPhaseOfTurn ? 'Encerrar' : 'Avançar'}
           </motion.div>
         </div>
 
