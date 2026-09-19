@@ -5213,23 +5213,27 @@ export default function App() {
         const previewScale = (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) * 0.7;
         const w = HAND_CARD_WIDTH * previewScale;
         const h = HAND_CARD_HEIGHT * previewScale;
-        const edgeGap = 6;
-        // Parked in the bottom-left corner (not vertically centered — see git
-        // history) so it clears both the board's own destination highlights and the
-        // gold/turn-button HUD sitting near the screen's vertical middle. The rest of
-        // the hand hides outright the moment a card is selected (see the real hand
-        // card's own opacity above), so this can sit right down at the true bottom
-        // edge without covering anything back there either.
-        const bottomGap = edgeGap;
+        const bottomGap = 6;
+        // Centered horizontally at the bottom of the screen (not tucked to an edge —
+        // see git history) so it clears both the board's own destination highlights
+        // and the gold/turn-button HUD sitting near the screen's vertical middle. The
+        // rest of the hand hides outright the moment a card is selected (see the real
+        // hand card's own opacity above), so this can sit right down at the true
+        // bottom edge without covering anything back there either.
         return (
           <div
             className="fixed z-[260]"
-            style={{ left: edgeGap, bottom: bottomGap, width: w, height: h }}
+            style={{ left: windowSize.width / 2 - w / 2, bottom: bottomGap, width: w, height: h }}
             onClick={(e) => { e.stopPropagation(); handleCardClick(selectedCardIndex); }}
           >
+            {/* The glow radius here used to be tuned for this preview's old, much
+                bigger size (before it shrank to get out of the board's way) — left
+                as-is, that same 100px blur no longer read as a card glow at this
+                smaller footprint, just a diffuse gold smudge bleeding out around it.
+                Scaled down to match. */}
             <div
               className="relative w-full h-full rounded-xl"
-              style={{ boxShadow: "inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 100px rgba(212, 175, 55, 0.9)" }}
+              style={{ boxShadow: "inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 18px rgba(212, 175, 55, 0.8)" }}
             >
               <CardFace card={card} variant="hand" />
             </div>
