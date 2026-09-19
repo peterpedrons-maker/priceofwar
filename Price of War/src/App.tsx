@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { X, ArrowUp, ArrowDown, Lock, ChevronRight, Hourglass, Sparkles } from 'lucide-react';
+import { X, ArrowUp, ArrowDown, ChevronRight, Hourglass, Sparkles } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
@@ -243,20 +243,31 @@ const getValidAttackTargets = (
 export type TurnPhase = 'preparacao' | 'combate' | 'movimentacao';
 const phasesForTurn = (turn: number): TurnPhase[] =>
   turn >= 3 ? ['preparacao', 'combate', 'movimentacao'] : ['preparacao', 'movimentacao'];
-const PHASE_LABELS: Record<TurnPhase, string> = {
-  preparacao: 'Preparação',
-  combate: 'Combate',
-  movimentacao: 'Movimentação',
+// The ceremonial "FASE DE X" wording for the center-screen announcement banner
+// (see announcePhase) — this is now the ONLY place a phase's name is shown to the
+// player (the small always-on tracker chip was removed, see git history: too tiny
+// to read, and redundant now that every transition gets this banner).
+const PHASE_BANNER_TEXT: Record<TurnPhase, { title: string; subtitle: string }> = {
+  preparacao: { title: 'Fase de Preparação', subtitle: 'Jogue cartas e ative habilidades' },
+  combate: { title: 'Fase de Combate', subtitle: 'Ataque com suas unidades' },
+  movimentacao: { title: 'Fase de Movimentação', subtitle: 'Reposicione suas unidades' },
 };
-const PHASE_SUBTITLES: Record<TurnPhase, string> = {
-  preparacao: 'Jogue cartas e ative habilidades',
-  combate: 'Ataque com suas unidades',
-  movimentacao: 'Reposicione suas unidades',
+// The banner is driven as a 3-stage state machine (see announcePhase/phaseBanner)
+// instead of one motion.div animating a 5-point opacity/x KEYFRAME array — that
+// version genuinely ran, but this component re-renders constantly (gold badges,
+// the turn ring's own looping animation, floating numbers, …), and every one of
+// those re-renders restarted the keyframe animation from its very first frame,
+// which never gave the opacity track time to climb anywhere near full strength
+// the whole time the banner was on screen. Each stage below targets a single
+// plain (non-array) value, which framer-motion just smoothly retargets toward —
+// re-rendering mid-stage is a no-op since the target hasn't changed.
+const PHASE_BANNER_STAGE_MS = { in: 250, hold: 800, out: 250 } as const;
+const PHASE_BANNER_DURATION_MS = PHASE_BANNER_STAGE_MS.in + PHASE_BANNER_STAGE_MS.hold + PHASE_BANNER_STAGE_MS.out;
+const PHASE_BANNER_MOTION: Record<'in' | 'hold' | 'out', { animate: { opacity: number; x: number }; transition: { duration: number; ease: 'easeOut' | 'easeIn' | 'linear' } }> = {
+  in: { animate: { opacity: 1, x: 0 }, transition: { duration: PHASE_BANNER_STAGE_MS.in / 1000, ease: 'easeOut' } },
+  hold: { animate: { opacity: 1, x: 0 }, transition: { duration: 0, ease: 'linear' } },
+  out: { animate: { opacity: 0, x: -420 }, transition: { duration: PHASE_BANNER_STAGE_MS.out / 1000, ease: 'easeIn' } },
 };
-// Compra isn't a real TurnPhase (nothing is gated on it, see above) — just the
-// opening beat of the phase-announcement banner shown for a moment at turn start.
-const COMPRA_LABEL = 'Compra';
-const COMPRA_SUBTITLE = 'Uma nova carta é comprada';
 
 // Reposition adjacency — only Vanguarda/Retaguarda slots (0-9) take part; the
 // General/Relíquia/Terreno slots (10-12) are fixed, same as everywhere else they're
@@ -1956,7 +1967,14 @@ export default function App() {
 
   const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
   const [currentTurn, setCurrentTurn] = useState<'player' | 'npc'>('player');
-  const [turnNumber, setTurnNumber] = useState(1);
+  // 0 (not 1) — resetGame always sets this to 1 at match start, and the turn-start
+  // effect below (keyed on [currentTurn, turnNumber]) only fires when a dependency
+  // actually CHANGES value; starting at the same 1 it gets reset to meant that
+  // effect silently no-opped for a match's very first turn (including announcePhase,
+  // so the opening "Fase de Preparação" banner never played) — it only ever fired
+  // correctly from the second match of a session onward, once turnNumber had moved
+  // away from 1 for resetGame to change it back from.
+  const [turnNumber, setTurnNumber] = useState(0);
   // Which part of the player's own turn they're in — see TurnPhase above. The AI's
   // turn doesn't use this; it just plays/attacks directly via playAiTurn.
   const [turnPhase, setTurnPhase] = useState<TurnPhase>('preparacao');
@@ -2116,35 +2134,37 @@ export default function App() {
     const r = el.getBoundingClientRect();
     spawnFloatingNumber(r.left + r.width / 2, r.top + r.height * 0.35, value, kind);
   };
-  // Center-screen phase announcement (Yu-Gi-Oh Duel Links-style banner: big serif
-  // title, fades in, holds, fades out) — see PhaseBanner below. Keyed by an
-  // incrementing id (not just the text) so announcing the SAME phase name twice in a
-  // row still replays the animation instead of AnimatePresence treating it as the
-  // same already-mounted element.
-  const [phaseBanner, setPhaseBanner] = useState<{ id: number; title: string; subtitle: string } | null>(null);
+  // Center-screen phase announcement (Yu-Gi-Oh-style crimson ribbon banner that
+  // rushes in from the right and back out to the left) — see the banner overlay
+  // further down. Keyed by an incrementing id (not just the text) so announcing the
+  // SAME phase name twice in a row still replays the animation instead of
+  // AnimatePresence treating it as the same already-mounted element.
+  const [phaseBanner, setPhaseBanner] = useState<{ id: number; title: string; subtitle: string; stage: 'in' | 'hold' | 'out' } | null>(null);
   const phaseBannerIdRef = useRef(0);
-  const PHASE_BANNER_DURATION_MS = 1300;
   // Blocks every board/hand tap while a phase banner is on screen — the banner used
   // to be purely decorative on top of state that had already changed, so a fast
   // sequence of actions (the AI's own turn especially, see the currentTurn effect)
   // could blow right through it before it even finished sliding in. Whatever called
   // announcePhase is expected to hold off on its own state change (see the turn
-  // button and the Compra/Preparação sequence below) until this clears, and every
-  // click handler that can act on the board checks it too, so nothing sneaks in
-  // through a path that isn't gated by the phase this banner is actually announcing.
+  // button and the turn-start effect below) until this clears, and every click
+  // handler that can act on the board checks it too, so nothing sneaks in through a
+  // path that isn't gated by the phase this banner is actually announcing.
   const [phaseTransitionLock, setPhaseTransitionLock] = useState(false);
   const phaseLockGenRef = useRef(0);
-  const announcePhase = (title: string, subtitle: string) => {
+  const announcePhase = (phase: TurnPhase) => {
+    const { title, subtitle } = PHASE_BANNER_TEXT[phase];
     const id = ++phaseBannerIdRef.current;
-    setPhaseBanner({ id, title, subtitle });
-    window.setTimeout(() => setPhaseBanner(prev => (prev?.id === id ? null : prev)), PHASE_BANNER_DURATION_MS);
     const gen = ++phaseLockGenRef.current;
+    setPhaseBanner({ id, title, subtitle, stage: 'in' });
     setPhaseTransitionLock(true);
+    window.setTimeout(() => setPhaseBanner(prev => (prev?.id === id ? { ...prev, stage: 'hold' } : prev)), PHASE_BANNER_STAGE_MS.in);
+    window.setTimeout(() => setPhaseBanner(prev => (prev?.id === id ? { ...prev, stage: 'out' } : prev)), PHASE_BANNER_STAGE_MS.in + PHASE_BANNER_STAGE_MS.hold);
     window.setTimeout(() => {
-      // Only the MOST RECENT call gets to release the lock — a second banner
-      // announced while the first is still showing (see the Compra→Preparação
-      // sequence) extends the wait instead of the first banner's own timer cutting
-      // it short out from under the second.
+      setPhaseBanner(prev => (prev?.id === id ? null : prev));
+      // Only the MOST RECENT call gets to release the lock — if this ever fires
+      // again before the last one's timer clears it, that second call extends the
+      // wait instead of the first banner's own timer cutting it short out from
+      // under the second.
       if (phaseLockGenRef.current === gen) setPhaseTransitionLock(false);
     }, PHASE_BANNER_DURATION_MS);
   };
@@ -2624,11 +2644,12 @@ export default function App() {
       // player, so the hand looked like it had vanished. Bring it back to 'hand' here.
       setViewState('hand');
       // Fresh turn, fresh phase cycle — back to Preparação and every unit's move
-      // available again. Compra isn't a real gated phase (the draw below is
-      // instant) but still gets its own beat on the banner before Preparação's,
-      // matching the Yu-Gi-Oh-style phase-by-phase announcement the user asked for.
-      announcePhase(COMPRA_LABEL, COMPRA_SUBTITLE);
-      window.setTimeout(() => announcePhase(PHASE_LABELS.preparacao, PHASE_SUBTITLES.preparacao), PHASE_BANNER_DURATION_MS);
+      // available again. A single banner here (not a Compra-then-Preparação pair —
+      // see git history) sidesteps a real bug that pairing had: its second banner
+      // was scheduled to fire at the exact millisecond the first one's own cleanup
+      // timer did, and depending on timer ordering the second could get its state
+      // clobbered by the first's before ever finishing its entrance.
+      announcePhase('preparacao');
       setTurnPhase('preparacao');
       setMovedSlots(new Set());
       setSelectedMoverIndex(null);
@@ -4347,181 +4368,6 @@ export default function App() {
           }
         }}
       >
-        {/* Central Divider */}
-        <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-indigo-400/60 to-transparent shadow-[0_0_15px_rgba(99,102,241,0.6)] -translate-y-1/2 rounded-full pointer-events-none" />
-
-        {/* Turn Button + gold badges — used to be pinned off to the right past the
-            5th column (reserved margin the board no longer sets aside now that Deck/
-            Cemitério moved INTO the general row, see below), which read as "off to
-            the side" instead of belonging to the match. Centered horizontally now,
-            sitting on the divider between the two fields — in the same open dirt-
-            texture gap both fields' own justify-start already leaves at the center
-            (see the NPC/player field comments below). A single horizontal ROW (not
-            the old tall vertical stack) — the two Vanguarda rows' own middle column
-            sits directly above/below this exact spot, and that stack was tall enough
-            to visibly cover a card played there; a row is only as tall as its tallest
-            single element instead of the sum of all of them, so it fits the actual
-            gap between the two Vanguarda rows. Flips (like a coin) between an amber
-            "your turn" face and a dull gray "not your turn" face. */}
-        <div
-          // top-1/2 alone lands this on the true center of the whole 1250px board, which
-          // is NOT the same spot as the true center of the gap between the two Vanguarda
-          // rows: the NPC field packs its rows against its own top (closest to its hand)
-          // per the comment below, so whatever height its content doesn't use collects
-          // at ITS bottom edge (closest to the divider) — the player field's own first
-          // child (Vanguarda) sits flush against ITS top edge (also closest to the
-          // divider) with no such slack. That leftover-height mismatch (measured once
-          // against the two Vanguarda rows' own real edges, in this box's fixed 1250px
-          // design units so it holds at any boardScale) is a constant ~24.5px, corrected
-          // here rather than by touching either field's own packing (each was tuned
-          // against a real overflow bug, see their own comments).
-          className="absolute left-1/2 z-40 pointer-events-auto flex flex-row items-center gap-3 md:gap-5"
-          style={{ top: '50%', transform: 'translate(-50%, calc(-50% - 24.5px))', perspective: 600 }}
-        >
-          {/* NPC's gold — same distance from the button as the player's below. */}
-          <div id="npc-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
-            <GoldBadge value={npcMana} className="w-20 md:w-24" />
-          </div>
-
-          <div
-            className="flex flex-col items-center gap-0.5 cursor-pointer shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (currentTurn !== 'player') return;
-              if (phaseTransitionLock) return; // a banner from the last tap is still playing out
-              setSelectedCardIndex(null);
-              setSelectedAttackerIndex(null);
-              setSelectedMoverIndex(null);
-              if (isLastPhaseOfTurn) {
-                // Movimentação (always the last phase — see phasesForTurn) is ending —
-                // this is "Após Remanejamento" for Comandante Aurelion (see
-                // grantAurelionBuff) and Soldado Tático's end-of-turn swap, both of
-                // which read this turn's movedSlots, so they fire here rather than
-                // when Preparação used to end, back when it was the phase movement
-                // itself happened in.
-                setPlayerSlots(prev => applyEndOfTurnSwaps(grantAurelionBuff(prev, movedSlots)));
-                setCurrentTurn('npc');
-              } else {
-                const idx = activePhases.indexOf(turnPhase);
-                const nextPhase = activePhases[idx + 1];
-                setTurnPhase(nextPhase);
-                announcePhase(PHASE_LABELS[nextPhase], PHASE_SUBTITLES[nextPhase]);
-              }
-            }}
-          >
-            {/* Whose-turn heading — spelled out plainly instead of leaving it to be
-                inferred from the button's own color/icon, per the user's ask. */}
-            <div className={`text-[8px] md:text-[10px] font-black tracking-wide uppercase whitespace-nowrap ${
-              currentTurn === 'player' ? 'text-amber-400' : 'text-red-300'
-            }`}>
-              {currentTurn === 'player' ? 'Seu Turno' : 'Turno do Adversário'}
-            </div>
-
-            {/* Phase tracker — shown on BOTH turns now (dimmed further on the
-                opponent's), not just the player's, so which phase the turn is in
-                stays visible the whole time instead of the tracker vanishing during
-                the opponent's turn. A horizontal Yu-Gi-Oh-style step row: Compra
-                (drawing is automatic — see the currentTurn effect — so it's always
-                shown as already-passed the instant a turn starts, never lockable or
-                current) then the three real, order-gated phases from phasesForTurn. */}
-            <div className="flex items-center">
-              {(['compra', ...activePhases] as ('compra' | TurnPhase)[]).map((p, idx) => {
-                const isCompra = p === 'compra';
-                const isLocked = p === 'combate' && turnNumber < 3;
-                const isCurrent = !isCompra && currentTurn === 'player' && turnPhase === p;
-                // Compra, and every real phase before the current one in this turn's
-                // own activePhases order, already happened this turn.
-                const isPast = isCompra || activePhases.indexOf(p as TurnPhase) < activePhases.indexOf(turnPhase);
-                return (
-                  <React.Fragment key={p}>
-                    {idx > 0 && <div className={`w-2 md:w-3 h-px ${isPast ? 'bg-amber-500/60' : 'bg-zinc-600'}`} />}
-                    <div
-                      className={`flex items-center gap-0.5 px-1 py-px rounded border text-[6px] md:text-[7px] font-black tracking-wide uppercase whitespace-nowrap transition-colors ${
-                        isCurrent
-                          ? 'bg-amber-500 border-amber-300 text-zinc-950 shadow-[0_0_8px_rgba(245,158,11,0.7)]'
-                          : isLocked
-                            ? 'bg-zinc-950/80 border-zinc-700 text-zinc-600'
-                            : isPast
-                              ? 'bg-zinc-950/80 border-amber-800/60 text-amber-600/80'
-                              : 'bg-zinc-950/80 border-zinc-600 text-zinc-400'
-                      } ${currentTurn !== 'player' ? 'opacity-50' : ''}`}
-                    >
-                      {isLocked && <Lock className="w-2 h-2" strokeWidth={3} />}
-                      {isCompra ? COMPRA_LABEL : PHASE_LABELS[p as TurnPhase]}
-                    </div>
-                  </React.Fragment>
-                );
-              })}
-            </div>
-            {/* Radial "filling" ring around the button — purely decorative (this game
-                has no real per-turn clock), just a continuously looping fill reinforcing
-                whose turn it is, per the user's own reference. Sits in its own wrapper
-                a bit bigger than the coin button so the ring doesn't get cut by the
-                coin's own rounded edge. */}
-            <div className="relative w-16 h-16 md:w-20 md:h-20 flex items-center justify-center">
-              <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth="5" />
-                <motion.circle
-                  key={currentTurn}
-                  cx="50" cy="50" r="46" fill="none"
-                  stroke={currentTurn === 'player' ? '#fbbf24' : '#ef4444'}
-                  strokeWidth="5" strokeLinecap="round"
-                  strokeDasharray={289}
-                  initial={{ strokeDashoffset: 289 }}
-                  animate={{ strokeDashoffset: 0 }}
-                  transition={{ duration: 2.4, repeat: Infinity, ease: 'linear' }}
-                  style={{ filter: `drop-shadow(0 0 4px ${currentTurn === 'player' ? 'rgba(251,191,36,0.8)' : 'rgba(239,68,68,0.7)'})` }}
-                />
-              </svg>
-            <motion.div
-              className={`relative w-14 h-14 md:w-[4.5rem] md:h-[4.5rem] rounded-full flex items-center justify-center ${
-                currentTurn === 'player' ? 'cursor-pointer' : 'cursor-not-allowed'
-              }`}
-              whileTap={currentTurn === 'player' ? { scale: 0.9 } : undefined}
-              animate={{
-                filter: currentTurn === 'player' ? 'grayscale(0) brightness(1)' : 'grayscale(0.85) brightness(0.6)',
-                boxShadow: currentTurn === 'player'
-                  ? [
-                      '0 0 8px rgba(245,158,11,0.5)',
-                      '0 0 20px rgba(245,158,11,0.95)',
-                      '0 0 8px rgba(245,158,11,0.5)',
-                    ]
-                  : '0 0 0 rgba(0,0,0,0)',
-              }}
-              transition={{ filter: { duration: 0.4 }, boxShadow: { duration: 2, repeat: Infinity } }}
-            >
-              {/* Button art from the user's own reference sheet, replacing the earlier
-                  plain code-built circle. It doesn't have two faces like the old flip
-                  animation did, so the not-your-turn state is conveyed with a
-                  grayscale/dim filter instead, swapping only the icon on top. */}
-              <img src={hudTurnButtonImage} alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none" draggable={false} />
-              {currentTurn === 'player' ? (
-                <ChevronRight className="relative w-7 h-7 md:w-8 md:h-8 text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={3} />
-              ) : (
-                <Hourglass className="relative w-6 h-6 md:w-7 md:h-7 text-red-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />
-              )}
-            </motion.div>
-            </div>
-
-            {/* Turn label — "ENCERRAR TURNO" while it's actionable, "TURNO DO
-                OPONENTE" while it's not, per the user's reference. Kept in the same
-                narrow vertical stack as the phase tracker above (not a wide pill)
-                since a wider one used to sit on top of the Vanguarda slots next to it. */}
-            <div className={`px-1.5 py-px rounded-full border text-[7px] md:text-[9px] font-black tracking-wide uppercase whitespace-nowrap text-center ${
-              currentTurn === 'player'
-                ? 'bg-amber-500 border-amber-300 text-zinc-950'
-                : 'bg-zinc-950/80 border-red-900/60 text-red-200'
-            }`}>
-              {currentTurn === 'player' ? 'Encerrar Turno' : 'Turno do Oponente'}
-            </div>
-          </div>
-
-          {/* Player's gold — same distance from the button as the NPC's above. */}
-          <div id="player-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
-            <GoldBadge value={playerMana} className="w-20 md:w-24" />
-          </div>
-        </div>
-
         {/* NPC Field — reverted back to the pre-gateway-art flex layout (three real
             rows: General/Relíquia/Terreno, then Retaguarda, then Vanguarda), per the
             user's explicit ask: the absolute-positioned single-row version above
@@ -4825,6 +4671,137 @@ export default function App() {
             directly on the card like every other creature, so a separate
             panel repeating the same number was redundant. */}
       </motion.div>
+
+      {/* Turn Button + gold badges — a sibling of the board now, NOT a child of its
+          zooming/panning motion.div (see git history) — that mattered for more than
+          layout: the camera pans/zooms toward whatever slot a card is being played
+          into (see getBoardAnimation's preZoomSlot/flyingCard branch), and while this
+          HUD lived inside that same transform, the real gold badge visibly slid clear
+          across the screen mid-play. The floating "-N" spent-gold number (see
+          spawnFloatingNumberAtId) is spawned once, at a fixed viewport position, right
+          as that pan starts — so it kept landing wherever the badge USED to be, not
+          where the badge ended up, which read as the PLAYED CARD losing the gold
+          instead of the badge. Sitting outside that transform means this never moves
+          for that reason again. Positioned in plain viewport pixels (boardTopMargin/
+          boardHeightMultiplier, see above) to land in the same spot as before: centered
+          on the actual gap between the two Vanguarda rows, not the board's own
+          geometric center (see the ~24.5 design-px correction folded into 600.5
+          below — half the board's 1250px height, minus that correction, both scaled
+          by the same factor the board itself renders at). */}
+      <div
+        className="absolute z-40 pointer-events-auto flex flex-row items-center gap-3 md:gap-5"
+        style={{
+          left: windowSize.width / 2,
+          top: boardTopMargin + 600.5 * boardHeightMultiplier,
+          transform: 'translate(-50%, -50%)',
+          perspective: 600,
+        }}
+      >
+        {/* NPC's gold — same distance from the button as the player's below. */}
+        <div id="npc-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
+          <GoldBadge value={npcMana} className="w-20 md:w-24" />
+        </div>
+
+        <div
+          className="flex flex-col items-center gap-0.5 cursor-pointer shrink-0"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (currentTurn !== 'player') return;
+            if (phaseTransitionLock) return; // a banner from the last tap is still playing out
+            setSelectedCardIndex(null);
+            setSelectedAttackerIndex(null);
+            setSelectedMoverIndex(null);
+            if (isLastPhaseOfTurn) {
+              // Movimentação (always the last phase — see phasesForTurn) is ending —
+              // this is "Após Remanejamento" for Comandante Aurelion (see
+              // grantAurelionBuff) and Soldado Tático's end-of-turn swap, both of
+              // which read this turn's movedSlots, so they fire here rather than
+              // when Preparação used to end, back when it was the phase movement
+              // itself happened in.
+              setPlayerSlots(prev => applyEndOfTurnSwaps(grantAurelionBuff(prev, movedSlots)));
+              setCurrentTurn('npc');
+            } else {
+              const idx = activePhases.indexOf(turnPhase);
+              const nextPhase = activePhases[idx + 1];
+              setTurnPhase(nextPhase);
+              announcePhase(nextPhase);
+            }
+          }}
+        >
+          {/* Whose-turn heading — spelled out plainly instead of leaving it to be
+              inferred from the button's own color/icon, per the user's ask. */}
+          <div className={`text-[8px] md:text-[10px] font-black tracking-wide uppercase whitespace-nowrap ${
+            currentTurn === 'player' ? 'text-amber-400' : 'text-red-300'
+          }`}>
+            {currentTurn === 'player' ? 'Seu Turno' : 'Turno do Adversário'}
+          </div>
+
+          {/* Radial "filling" ring around the button — purely decorative (this game
+              has no real per-turn clock), just a continuously looping fill reinforcing
+              whose turn it is, per the user's own reference. Sits in its own wrapper
+              a bit bigger than the coin button so the ring doesn't get cut by the
+              coin's own rounded edge. */}
+          <div className="relative w-16 h-16 md:w-20 md:h-20 flex items-center justify-center">
+            <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth="5" />
+              <motion.circle
+                key={currentTurn}
+                cx="50" cy="50" r="46" fill="none"
+                stroke={currentTurn === 'player' ? '#fbbf24' : '#ef4444'}
+                strokeWidth="5" strokeLinecap="round"
+                strokeDasharray={289}
+                initial={{ strokeDashoffset: 289 }}
+                animate={{ strokeDashoffset: 0 }}
+                transition={{ duration: 2.4, repeat: Infinity, ease: 'linear' }}
+                style={{ filter: `drop-shadow(0 0 4px ${currentTurn === 'player' ? 'rgba(251,191,36,0.8)' : 'rgba(239,68,68,0.7)'})` }}
+              />
+            </svg>
+          <motion.div
+            className={`relative w-14 h-14 md:w-[4.5rem] md:h-[4.5rem] rounded-full flex items-center justify-center ${
+              currentTurn === 'player' ? 'cursor-pointer' : 'cursor-not-allowed'
+            }`}
+            whileTap={currentTurn === 'player' ? { scale: 0.9 } : undefined}
+            animate={{
+              filter: currentTurn === 'player' ? 'grayscale(0) brightness(1)' : 'grayscale(0.85) brightness(0.6)',
+              boxShadow: currentTurn === 'player'
+                ? [
+                    '0 0 8px rgba(245,158,11,0.5)',
+                    '0 0 20px rgba(245,158,11,0.95)',
+                    '0 0 8px rgba(245,158,11,0.5)',
+                  ]
+                : '0 0 0 rgba(0,0,0,0)',
+            }}
+            transition={{ filter: { duration: 0.4 }, boxShadow: { duration: 2, repeat: Infinity } }}
+          >
+            {/* Button art from the user's own reference sheet, replacing the earlier
+                plain code-built circle. It doesn't have two faces like the old flip
+                animation did, so the not-your-turn state is conveyed with a
+                grayscale/dim filter instead, swapping only the icon on top. */}
+            <img src={hudTurnButtonImage} alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none" draggable={false} />
+            {currentTurn === 'player' ? (
+              <ChevronRight className="relative w-7 h-7 md:w-8 md:h-8 text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={3} />
+            ) : (
+              <Hourglass className="relative w-6 h-6 md:w-7 md:h-7 text-red-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />
+            )}
+          </motion.div>
+          </div>
+
+          {/* Turn label — "ENCERRAR TURNO" while it's actionable, "TURNO DO
+              OPONENTE" while it's not, per the user's reference. */}
+          <div className={`px-1.5 py-px rounded-full border text-[7px] md:text-[9px] font-black tracking-wide uppercase whitespace-nowrap text-center ${
+            currentTurn === 'player'
+              ? 'bg-amber-500 border-amber-300 text-zinc-950'
+              : 'bg-zinc-950/80 border-red-900/60 text-red-200'
+          }`}>
+            {currentTurn === 'player' ? 'Encerrar Turno' : 'Turno do Oponente'}
+          </div>
+        </div>
+
+        {/* Player's gold — same distance from the button as the NPC's above. */}
+        <div id="player-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
+          <GoldBadge value={playerMana} className="w-20 md:w-24" />
+        </div>
+      </div>
 
       {/* Opponent Hand (Floating) — one face-down card back per card actually in
           npcHand, revealed one at a time during the match-intro deal (see
@@ -5649,41 +5626,40 @@ export default function App() {
         </AnimatePresence>
       </div>
 
-      {/* Center-screen phase announcement — Yu-Gi-Oh GX-style: the whole title/subtitle
-          block rushes in from the right, holds just long enough to read, then keeps
-          going and rushes out to the left (see announcePhase/phaseBanner above, and
-          PHASE_BANNER_DURATION_MS/phaseTransitionLock for how long the game actually
-          waits on it). Sits above the floating numbers (z-290) but below the
-          board/hand card previews and full modals, same reasoning as that overlay. */}
+      {/* Center-screen phase announcement — Yu-Gi-Oh-style: a full-width crimson
+          ribbon with the phase name on it rushes in from the right, holds just long
+          enough to read, then keeps going and rushes out to the left (see
+          announcePhase/phaseBanner above, and PHASE_BANNER_DURATION_MS/
+          phaseTransitionLock for how long the game actually waits on it). Sits above
+          the floating numbers (z-290) but below the board/hand card previews and
+          full modals, same reasoning as that overlay. */}
       <div className="fixed inset-0 z-[292] pointer-events-none flex items-center justify-center overflow-hidden">
         <AnimatePresence>
           {phaseBanner && (
             <motion.div
               key={phaseBanner.id}
               initial={{ opacity: 0, x: 420 }}
-              animate={{ opacity: [0, 1, 1, 1, 0], x: [420, 0, 0, 0, -420] }}
+              animate={PHASE_BANNER_MOTION[phaseBanner.stage].animate}
               exit={{ opacity: 0 }}
-              transition={{
-                duration: PHASE_BANNER_DURATION_MS / 1000,
-                times: [0, 0.16, 0.5, 0.84, 1],
-                ease: ['easeOut', 'linear', 'linear', 'easeIn'],
-              }}
-              className="flex flex-col items-center select-none px-8"
+              transition={PHASE_BANNER_MOTION[phaseBanner.stage].transition}
+              className="relative flex flex-col items-center select-none py-2"
             >
-              <div className="w-24 md:w-32 h-px bg-gradient-to-r from-transparent via-amber-400/90 to-transparent mb-2" />
+              {/* The ribbon itself — bled to the full viewport width (not just this
+                  block's own content width) via w-screen + centering, so it reads as
+                  a banner stretched across the whole table, not a text-sized box. */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-screen h-14 md:h-[4.5rem] bg-gradient-to-b from-red-950 via-[#5a0e0e] to-red-950 border-y-2 border-amber-400/90 shadow-[0_4px_18px_rgba(0,0,0,0.7)]" />
               <div
-                className="text-3xl md:text-5xl font-black uppercase tracking-[0.15em] text-center whitespace-nowrap"
+                className="relative text-2xl md:text-4xl font-black uppercase tracking-[0.12em] text-center whitespace-nowrap px-8"
                 style={{
                   fontFamily: "'Cinzel', serif",
                   color: '#f5deb3',
-                  WebkitTextStroke: '1.5px rgba(60,30,0,0.6)',
-                  textShadow: '0 3px 6px rgba(0,0,0,0.85), 0 0 26px rgba(251,191,36,0.55), 0 0 60px rgba(251,191,36,0.25)',
+                  WebkitTextStroke: '1.5px rgba(60,10,10,0.7)',
+                  textShadow: '0 3px 6px rgba(0,0,0,0.9), 0 0 22px rgba(251,191,36,0.5)',
                 }}
               >
                 {phaseBanner.title}
               </div>
-              <div className="w-24 md:w-32 h-px bg-gradient-to-r from-transparent via-amber-400/90 to-transparent mt-2 mb-2" />
-              <div className="text-[10px] md:text-sm font-bold uppercase tracking-[0.2em] text-amber-100/80 text-center whitespace-nowrap" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.9)' }}>
+              <div className="relative mt-1 text-[10px] md:text-sm font-bold uppercase tracking-[0.2em] text-amber-100/90 text-center whitespace-nowrap px-8" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.95)' }}>
                 {phaseBanner.subtitle}
               </div>
             </motion.div>
