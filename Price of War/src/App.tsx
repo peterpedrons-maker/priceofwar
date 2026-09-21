@@ -3476,13 +3476,13 @@ export default function App() {
   const renderTravelingArrow = (
     key: string | number, x1: number, y1: number, x2: number, y2: number,
     imageUrl: string, nativeAngleDeg: number, imgW: number, imgH: number,
-    glowColor: string, big: boolean, durationSec: number
+    glowColor: string, durationSec: number
   ) => {
     const angleDeg = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
     const rotate = angleDeg - nativeAngleDeg;
     return (
       <g key={key}>
-        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={glowColor} strokeWidth={big ? 1.5 : 1} strokeLinecap="round" opacity={big ? 0.22 : 0.12} />
+        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={glowColor} strokeWidth={3} strokeLinecap="round" opacity={0.28} />
         <motion.g
           animate={{ x: [x1, x2], y: [y1, y2], opacity: [0, 1, 1, 0] }}
           transition={{ duration: durationSec, repeat: Infinity, ease: 'easeInOut', times: [0, 0.18, 0.82, 1] }}
@@ -5487,25 +5487,28 @@ export default function App() {
       </AnimatePresence>
 
       {/* Attack Targeting Lines — see renderTravelingArrow above. Candidate targets
-          (attackLines, the player's own selection) get the green/red traveling
-          arrow; the ONE attack actually happening right now (activeAttackLine,
+          (attackLines, the player's own selection) only draw an arrow toward
+          slots that are ACTUALLY reachable this turn — an occupied-but-blocked
+          slot already reads as invalid via its own halo (isInvalidAttackTarget),
+          so a line pointing at something the player can't pick would just be
+          noise. The ONE attack actually happening right now (activeAttackLine,
           either direction) gets its own line so the opponent attacking the player
           shows the same "what's hitting what" indicator the player's own attacks
           do. Drawn in real viewport coordinates (not board-local ones) since the
           board itself is 3D-tilted. */}
-      {(attackLines.length > 0 || activeAttackLine) && (
+      {(attackLines.some(line => line.valid) || activeAttackLine) && (
         <svg className="fixed inset-0 z-40 pointer-events-none" width="100%" height="100%">
-          {attackLines.map((line, idx) => renderTravelingArrow(
+          {attackLines.filter(line => line.valid).map((line, idx) => renderTravelingArrow(
             idx, line.x1, line.y1, line.x2, line.y2,
-            attackArrowRedImage, -90, line.valid ? 18 : 12, line.valid ? 90 : 60,
-            '#ef4444', line.valid, line.valid ? 1.1 : 1.6
+            attackArrowRedImage, -90, 20, 100,
+            '#ef4444', 1.1
           ))}
           {activeAttackLine && renderTravelingArrow(
             'active', activeAttackLine.x1, activeAttackLine.y1, activeAttackLine.x2, activeAttackLine.y2,
             activeAttackLine.isPlayerAttacking ? attackArrowRedImage : attackArrowBlueImage,
             activeAttackLine.isPlayerAttacking ? -90 : 90,
-            activeAttackLine.isPlayerAttacking ? 18 : 14, 90,
-            activeAttackLine.isPlayerAttacking ? '#ef4444' : '#3b82f6', true, 0.9
+            activeAttackLine.isPlayerAttacking ? 20 : 16, 100,
+            activeAttackLine.isPlayerAttacking ? '#ef4444' : '#3b82f6', 0.9
           )}
         </svg>
       )}
@@ -5950,7 +5953,7 @@ const CardSlot = ({
         <img
           src={haloSelectionImage}
           alt=""
-          className="absolute inset-0 m-auto w-[92%] h-[92%] object-contain pointer-events-none z-20 drop-shadow-[0_0_10px_rgba(96,165,250,0.8)]"
+          className="absolute inset-0 m-auto w-[108%] h-[108%] object-contain pointer-events-none z-20 drop-shadow-[0_0_10px_rgba(96,165,250,0.8)]"
         />
       )}
       {!card && hint && (
@@ -6016,7 +6019,7 @@ const CardSlot = ({
           <img
             src={haloValidTargetImage}
             alt=""
-            className="absolute inset-0 m-auto w-[92%] h-[92%] object-contain pointer-events-none z-20 drop-shadow-[0_0_10px_rgba(239,68,68,0.7)]"
+            className="absolute inset-0 m-auto w-[108%] h-[108%] object-contain pointer-events-none z-20 drop-shadow-[0_0_10px_rgba(239,68,68,0.7)]"
           />
           <motion.div
             animate={{ y: [0, 6, 0] }}
@@ -6031,7 +6034,7 @@ const CardSlot = ({
         <img
           src={haloInvalidTargetImage}
           alt=""
-          className="absolute inset-0 m-auto w-[80%] h-[80%] object-contain pointer-events-none z-30 drop-shadow-[0_0_8px_rgba(0,0,0,0.7)]"
+          className="absolute inset-0 m-auto w-[95%] h-[95%] object-contain pointer-events-none z-30 drop-shadow-[0_0_8px_rgba(0,0,0,0.7)]"
         />
       )}
       {/* Drag-to-play's own "drop it here" cue for a targetable Tática — a bouncing
