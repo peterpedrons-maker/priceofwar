@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { X, ArrowUp, ArrowDown, Sparkles, Swords, Shield } from 'lucide-react';
+import { X, ArrowUp, ArrowDown, Sparkles } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
@@ -17,6 +17,17 @@ import cardTemplateChampagneMiniImage from './assets/card-template-champagne-min
 import cardFullArtFrameEmboscadaImage from './assets/card-fullart-frame-emboscada.webp';
 import cardFullArtFrameTaticaImage from './assets/card-fullart-frame-tatica.webp';
 import hudGoldBadgeImage from './assets/hud-gold-badge.webp';
+// Combat visuals cropped from a single reference sheet the user supplied (a
+// collage of style options, not individually-shipped assets — see git history
+// for the exact crop coordinates) — one instance chosen per category instead of
+// coding a full palette of unused alternatives.
+import attackArrowRedImage from './assets/attack-arrow-red.png';
+import attackArrowBlueImage from './assets/attack-arrow-blue.png';
+import haloValidTargetImage from './assets/halo-valid-target.png';
+import haloInvalidTargetImage from './assets/halo-invalid-target.png';
+import haloSelectionImage from './assets/halo-selection.png';
+import badgeSwordImage from './assets/badge-sword.png';
+import badgeShieldImage from './assets/badge-shield.png';
 import multidaoDeFieisArt from './assets/card-multidao-de-fieis.webp';
 import comercianteDasCruzadasArt from './assets/card-comerciante-das-cruzadas.webp';
 import espiaoSabotadorArt from './assets/card-espiao-sabotador.webp';
@@ -3450,38 +3461,39 @@ export default function App() {
     };
   })();
 
-  // Shared visual for both attackLines and activeAttackLine above: a small
-  // triangle that repeatedly flies from source to target and fades out at each
-  // end, instead of a static line/arrowhead sitting there unmoving the whole time
-  // (see git history) — reads as "this is what would happen," in motion, the way
-  // other TCGs animate a targeting arrow. A faint guide line stays underneath so
-  // the full path is still legible between pulses. The triangle's own points are
-  // pre-rotated to the line's angle (plain trig) rather than relying on an SVG
-  // transform-rotate, which would need to fight framer-motion's own transform-origin
-  // handling on top of the position animation — only x/y (a plain translate) needs
-  // to animate here.
+  // Shared visual for both attackLines and activeAttackLine above: the user's
+  // own reference-sheet arrow art (see the asset imports above — attackArrowRed
+  // for "ally → enemy", attackArrowBlue for "enemy → ally", matching that sheet's
+  // own color key) repeatedly flying from source to target and fading out at
+  // each end, instead of a static line/arrowhead sitting there unmoving the whole
+  // time (see git history for the earlier hand-drawn-triangle version). A faint
+  // guide line stays underneath so the full path is still legible between
+  // pulses. Rotation is a plain SVG transform on the (non-animated) <image> —
+  // nativeAngleDeg is where that image already points by default (-90 = up, 90 =
+  // down, using screen/SVG's y-grows-downward convention) so only the difference
+  // from the line's own angle needs applying; only x/y (a plain translate) is
+  // left for framer-motion to animate on the wrapping <motion.g>.
   const renderTravelingArrow = (
     key: string | number, x1: number, y1: number, x2: number, y2: number,
-    color: string, big: boolean, durationSec: number
+    imageUrl: string, nativeAngleDeg: number, imgW: number, imgH: number,
+    glowColor: string, big: boolean, durationSec: number
   ) => {
-    const angle = Math.atan2(y2 - y1, x2 - x1);
-    const len = big ? 12 : 8;
-    const half = big ? 5 : 3.5;
-    const cosA = Math.cos(angle), sinA = Math.sin(angle);
-    const tip = { x: cosA * len * 0.5, y: sinA * len * 0.5 };
-    const backX = -cosA * len * 0.5, backY = -sinA * len * 0.5;
-    const perpX = -sinA * half, perpY = cosA * half;
-    const points = `${tip.x},${tip.y} ${backX + perpX},${backY + perpY} ${backX - perpX},${backY - perpY}`;
+    const angleDeg = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+    const rotate = angleDeg - nativeAngleDeg;
     return (
       <g key={key}>
-        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={big ? 1.5 : 1} strokeLinecap="round" opacity={big ? 0.25 : 0.15} />
-        <motion.polygon
-          points={points}
-          fill={color}
-          style={{ filter: `drop-shadow(0 0 4px ${color})` }}
+        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={glowColor} strokeWidth={big ? 1.5 : 1} strokeLinecap="round" opacity={big ? 0.22 : 0.12} />
+        <motion.g
           animate={{ x: [x1, x2], y: [y1, y2], opacity: [0, 1, 1, 0] }}
           transition={{ duration: durationSec, repeat: Infinity, ease: 'easeInOut', times: [0, 0.18, 0.82, 1] }}
-        />
+        >
+          <image
+            href={imageUrl}
+            x={-imgW / 2} y={-imgH / 2} width={imgW} height={imgH}
+            transform={`rotate(${rotate})`}
+            style={{ filter: `drop-shadow(0 0 3px ${glowColor})` }}
+          />
+        </motion.g>
       </g>
     );
   };
@@ -5485,11 +5497,15 @@ export default function App() {
         <svg className="fixed inset-0 z-40 pointer-events-none" width="100%" height="100%">
           {attackLines.map((line, idx) => renderTravelingArrow(
             idx, line.x1, line.y1, line.x2, line.y2,
-            line.valid ? '#34d399' : '#ef4444', line.valid, line.valid ? 1.1 : 1.6
+            attackArrowRedImage, -90, line.valid ? 18 : 12, line.valid ? 90 : 60,
+            '#ef4444', line.valid, line.valid ? 1.1 : 1.6
           ))}
           {activeAttackLine && renderTravelingArrow(
             'active', activeAttackLine.x1, activeAttackLine.y1, activeAttackLine.x2, activeAttackLine.y2,
-            activeAttackLine.isPlayerAttacking ? '#34d399' : '#f97316', true, 0.9
+            activeAttackLine.isPlayerAttacking ? attackArrowRedImage : attackArrowBlueImage,
+            activeAttackLine.isPlayerAttacking ? -90 : 90,
+            activeAttackLine.isPlayerAttacking ? 18 : 14, 90,
+            activeAttackLine.isPlayerAttacking ? '#ef4444' : '#3b82f6', true, 0.9
           )}
         </svg>
       )}
@@ -5924,8 +5940,19 @@ const CardSlot = ({
         // …) rather than instead of it, so none of that existing board logic changes.
         if (card && !card.isDestroyed && onInfoClick) onInfoClick(card);
       }}
-      className={`w-[7.5rem] h-[9.5rem] md:w-[9.5rem] md:h-[12.5rem] rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${isSelected ? 'ring-4 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : ''} ${hintClass} ${isValidAttackTarget ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${isMoverSelected ? 'ring-4 ring-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.7)]' : ''} ${isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''} ${isTacticDragTarget ? 'ring-4 ring-fuchsia-400 shadow-[0_0_30px_rgba(232,121,249,0.75)]' : ''}`}
+      className={`w-[7.5rem] h-[9.5rem] md:w-[9.5rem] md:h-[12.5rem] rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${hintClass} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${isMoverSelected ? 'ring-4 ring-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.7)]' : ''} ${isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''} ${isTacticDragTarget ? 'ring-4 ring-fuchsia-400 shadow-[0_0_30px_rgba(232,121,249,0.75)]' : ''}`}
     >
+      {isSelected && (
+        // Own attacker picked up for combat — the same blue selection ring from the
+        // reference sheet used everywhere else a unit is "your active pick" (movers
+        // get their own sky ring already; this is specifically the attacker-select
+        // state), replacing the old plain CSS ring.
+        <img
+          src={haloSelectionImage}
+          alt=""
+          className="absolute inset-0 m-auto w-[92%] h-[92%] object-contain pointer-events-none z-20 drop-shadow-[0_0_10px_rgba(96,165,250,0.8)]"
+        />
+      )}
       {!card && hint && (
         // Placement drop indicator on every legal empty slot at once while a hand
         // card is tap-selected (see getPlayerSlotHint) — a bouncing green arrow if
@@ -5961,18 +5988,14 @@ const CardSlot = ({
             // that small read as decoration, not information, and easy to miss on a
             // real phone screen. Sized to actually be read at a glance, same idea as
             // an ATK/HP badge, not a subtle hint.
-            <div
-              className={`absolute top-1 right-1 md:top-1.5 md:right-1.5 w-7 h-7 md:w-9 md:h-9 rounded-full flex items-center justify-center pointer-events-none border-2 border-zinc-950/40 ${
-                rowRoleHint === 'combat' ? 'bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.9)]' : 'bg-sky-500 shadow-[0_0_12px_rgba(14,165,233,0.9)]'
-              }`}
+            <img
+              src={rowRoleHint === 'combat' ? badgeSwordImage : badgeShieldImage}
+              alt={rowRoleHint === 'combat' ? 'Pode atacar a partir daqui' : 'Não pode atacar a partir daqui'}
               title={rowRoleHint === 'combat' ? 'Pode atacar a partir daqui' : 'Não pode atacar a partir daqui'}
-            >
-              {rowRoleHint === 'combat' ? (
-                <Swords className="w-4 h-4 md:w-5 md:h-5 text-zinc-950" strokeWidth={3} />
-              ) : (
-                <Shield className="w-4 h-4 md:w-5 md:h-5 text-zinc-950" strokeWidth={3} />
-              )}
-            </div>
+              className={`absolute top-1 right-1 md:top-1.5 md:right-1.5 w-8 h-8 md:w-10 md:h-10 object-contain pointer-events-none ${
+                rowRoleHint === 'combat' ? 'drop-shadow-[0_0_10px_rgba(245,158,11,0.9)]' : 'drop-shadow-[0_0_10px_rgba(14,165,233,0.9)]'
+              }`}
+            />
           )}
         </>
       )}
@@ -5989,18 +6012,27 @@ const CardSlot = ({
           lane-blocking rule reads as something the player can SEE, not just a click
           that silently fails. */}
       {isValidAttackTarget && (
-        <motion.div
-          animate={{ y: [0, 6, 0] }}
-          transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute -top-7 md:-top-9 left-1/2 -translate-x-1/2 pointer-events-none z-30"
-        >
-          <ArrowDown className="w-7 h-7 md:w-9 md:h-9 text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,1)]" strokeWidth={3.5} />
-        </motion.div>
+        <>
+          <img
+            src={haloValidTargetImage}
+            alt=""
+            className="absolute inset-0 m-auto w-[92%] h-[92%] object-contain pointer-events-none z-20 drop-shadow-[0_0_10px_rgba(239,68,68,0.7)]"
+          />
+          <motion.div
+            animate={{ y: [0, 6, 0] }}
+            transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute -top-7 md:-top-9 left-1/2 -translate-x-1/2 pointer-events-none z-30"
+          >
+            <ArrowDown className="w-7 h-7 md:w-9 md:h-9 text-red-400 drop-shadow-[0_0_10px_rgba(239,68,68,1)]" strokeWidth={3.5} />
+          </motion.div>
+        </>
       )}
       {isInvalidAttackTarget && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-          <X className="w-9 h-9 md:w-11 md:h-11 text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.9)]" strokeWidth={3.5} />
-        </div>
+        <img
+          src={haloInvalidTargetImage}
+          alt=""
+          className="absolute inset-0 m-auto w-[80%] h-[80%] object-contain pointer-events-none z-30 drop-shadow-[0_0_8px_rgba(0,0,0,0.7)]"
+        />
       )}
       {/* Drag-to-play's own "drop it here" cue for a targetable Tática — a bouncing
           fuchsia arrow instead of the attack system's green/red so it never reads
