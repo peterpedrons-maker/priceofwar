@@ -3428,6 +3428,64 @@ export default function App() {
     }
   }
 
+  // A single traveling-arrow line for whichever attack is actually happening right
+  // now (see attackAnim) — separate from attackLines above, which only shows the
+  // PLAYER's own candidate targets before committing to one. The NPC's attack
+  // never goes through that selection step, so without this the opponent hitting
+  // the player was the one attack in the game with no line at all showing what
+  // was attacking what.
+  const activeAttackLine: { x1: number; y1: number; x2: number; y2: number; isPlayerAttacking: boolean } | null = (() => {
+    if (!attackAnim) return null;
+    const fromId = attackAnim.isPlayerAttacking ? `player-${attackAnim.attackerIndex}` : `npc-${attackAnim.attackerIndex}`;
+    const toId = attackAnim.isPlayerAttacking ? `npc-${attackAnim.targetIndex}` : `player-${attackAnim.targetIndex}`;
+    const fromEl = document.getElementById(fromId);
+    const toEl = document.getElementById(toId);
+    if (!fromEl || !toEl) return null;
+    const fromRect = fromEl.getBoundingClientRect();
+    const toRect = toEl.getBoundingClientRect();
+    return {
+      x1: fromRect.left + fromRect.width / 2, y1: fromRect.top + fromRect.height / 2,
+      x2: toRect.left + toRect.width / 2, y2: toRect.top + toRect.height / 2,
+      isPlayerAttacking: attackAnim.isPlayerAttacking,
+    };
+  })();
+
+  // Shared visual for both attackLines and activeAttackLine above: a small
+  // triangle that repeatedly flies from source to target and fades out at each
+  // end, instead of a static line/arrowhead sitting there unmoving the whole time
+  // (see git history) — reads as "this is what would happen," in motion, the way
+  // other TCGs animate a targeting arrow. A faint guide line stays underneath so
+  // the full path is still legible between pulses. The triangle's own points are
+  // pre-rotated to the line's angle (plain trig) rather than relying on an SVG
+  // transform-rotate, which would need to fight framer-motion's own transform-origin
+  // handling on top of the position animation — only x/y (a plain translate) needs
+  // to animate here.
+  const renderTravelingArrow = (
+    key: string | number, x1: number, y1: number, x2: number, y2: number,
+    color: string, big: boolean, durationSec: number
+  ) => {
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    const len = big ? 12 : 8;
+    const half = big ? 5 : 3.5;
+    const cosA = Math.cos(angle), sinA = Math.sin(angle);
+    const tip = { x: cosA * len * 0.5, y: sinA * len * 0.5 };
+    const backX = -cosA * len * 0.5, backY = -sinA * len * 0.5;
+    const perpX = -sinA * half, perpY = cosA * half;
+    const points = `${tip.x},${tip.y} ${backX + perpX},${backY + perpY} ${backX - perpX},${backY - perpY}`;
+    return (
+      <g key={key}>
+        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={big ? 1.5 : 1} strokeLinecap="round" opacity={big ? 0.25 : 0.15} />
+        <motion.polygon
+          points={points}
+          fill={color}
+          style={{ filter: `drop-shadow(0 0 4px ${color})` }}
+          animate={{ x: [x1, x2], y: [y1, y2], opacity: [0, 1, 1, 0] }}
+          transition={{ duration: durationSec, repeat: Infinity, ease: 'easeInOut', times: [0, 0.18, 0.82, 1] }}
+        />
+      </g>
+    );
+  };
+
   // Player is defending: pause and let them choose (or decline) — the actual prompt UI
   // lives right on the eligible card(s) in the hand fan (see the "isAmbushCandidate"
   // branch in the hand render below), not a separate modal, so the player keeps seeing
@@ -5210,7 +5268,7 @@ export default function App() {
           isAmbushCandidate above). */}
       {selectedCardIndex !== null && viewState === 'hand' && !ambushPrompt && hand[selectedCardIndex] && (() => {
         const card = hand[selectedCardIndex];
-        const previewScale = (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) * 0.7;
+        const previewScale = (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) * 0.55;
         const w = HAND_CARD_WIDTH * previewScale;
         const h = HAND_CARD_HEIGHT * previewScale;
         const edgeGap = 6;
@@ -5416,48 +5474,23 @@ export default function App() {
         })()}
       </AnimatePresence>
 
-      {/* Attack Targeting Lines — bold, unmistakable lines with a big arrowhead
-          pointing right at the target (the thin, barely-there version this used to
-          be — see git history — read as decoration more than an actual "you will
-          hit here" indicator; other TCGs' targeting arrows are exactly this bold).
-          Drawn in real viewport coordinates (not board-local ones) since the board
-          itself is 3D-tilted; see attackLines above. Reachable targets get the
-          thick, bright, glowing version with a large arrowhead; blocked ones stay
-          thinner and dim so a glance still tells the two apart at range. */}
-      {attackLines.length > 0 && (
+      {/* Attack Targeting Lines — see renderTravelingArrow above. Candidate targets
+          (attackLines, the player's own selection) get the green/red traveling
+          arrow; the ONE attack actually happening right now (activeAttackLine,
+          either direction) gets its own line so the opponent attacking the player
+          shows the same "what's hitting what" indicator the player's own attacks
+          do. Drawn in real viewport coordinates (not board-local ones) since the
+          board itself is 3D-tilted. */}
+      {(attackLines.length > 0 || activeAttackLine) && (
         <svg className="fixed inset-0 z-40 pointer-events-none" width="100%" height="100%">
-          <defs>
-            <marker id="atk-arrowhead-valid" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto-start-reverse">
-              <path d="M0,0 L14,7 L0,14 Z" fill="#34d399" />
-            </marker>
-            <marker id="atk-arrowhead-invalid" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto-start-reverse">
-              <path d="M0,0 L10,5 L0,10 Z" fill="#ef4444" />
-            </marker>
-          </defs>
-          {attackLines.map((line, idx) => (
-            line.valid ? (
-              <line
-                key={idx}
-                x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2}
-                stroke="#34d399"
-                strokeWidth={4.5}
-                strokeLinecap="round"
-                opacity={0.9}
-                markerEnd="url(#atk-arrowhead-valid)"
-                style={{ filter: 'drop-shadow(0 0 5px rgba(52,211,153,0.9))' }}
-              />
-            ) : (
-              <line
-                key={idx}
-                x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2}
-                stroke="#ef4444"
-                strokeWidth={2.5}
-                strokeLinecap="round"
-                opacity={0.45}
-                markerEnd="url(#atk-arrowhead-invalid)"
-              />
-            )
+          {attackLines.map((line, idx) => renderTravelingArrow(
+            idx, line.x1, line.y1, line.x2, line.y2,
+            line.valid ? '#34d399' : '#ef4444', line.valid, line.valid ? 1.1 : 1.6
           ))}
+          {activeAttackLine && renderTravelingArrow(
+            'active', activeAttackLine.x1, activeAttackLine.y1, activeAttackLine.x2, activeAttackLine.y2,
+            activeAttackLine.isPlayerAttacking ? '#34d399' : '#f97316', true, 0.9
+          )}
         </svg>
       )}
 
