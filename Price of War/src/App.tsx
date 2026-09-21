@@ -5213,17 +5213,19 @@ export default function App() {
         const previewScale = (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) * 0.7;
         const w = HAND_CARD_WIDTH * previewScale;
         const h = HAND_CARD_HEIGHT * previewScale;
-        const bottomGap = 6;
-        // Centered horizontally at the bottom of the screen (not tucked to an edge —
-        // see git history) so it clears both the board's own destination highlights
-        // and the gold/turn-button HUD sitting near the screen's vertical middle. The
-        // rest of the hand hides outright the moment a card is selected (see the real
-        // hand card's own opacity above), so this can sit right down at the true
-        // bottom edge without covering anything back there either.
+        const edgeGap = 6;
+        // Pushed as far left as it can go (centering it — see git history — still
+        // sat it right on top of the General/Relíquia/Terreno row, the closest row
+        // to the hand and dead-center on the board) so it clears both the board's
+        // own destination highlights and the gold/turn-button HUD sitting near the
+        // screen's vertical middle. The rest of the hand hides outright the moment a
+        // card is selected (see the real hand card's own opacity above), so this can
+        // sit right down at the true bottom-left corner without covering anything
+        // back there either.
         return (
           <div
             className="fixed z-[260]"
-            style={{ left: windowSize.width / 2 - w / 2, bottom: bottomGap, width: w, height: h }}
+            style={{ left: edgeGap, bottom: edgeGap, width: w, height: h }}
             onClick={(e) => { e.stopPropagation(); handleCardClick(selectedCardIndex); }}
           >
             {/* The glow radius here used to be tuned for this preview's old, much
@@ -5414,32 +5416,45 @@ export default function App() {
         })()}
       </AnimatePresence>
 
-      {/* Attack Targeting Lines — a thin, mostly-just-a-hint line (à la Yu-Gi-Oh GX Tag
-          Force) rather than a bold effect: it only needs to make clear a connection
-          exists, not shout about it. Drawn in real viewport coordinates (not
-          board-local ones) since the board itself is 3D-tilted; see attackLines
-          above. */}
+      {/* Attack Targeting Lines — bold, unmistakable lines with a big arrowhead
+          pointing right at the target (the thin, barely-there version this used to
+          be — see git history — read as decoration more than an actual "you will
+          hit here" indicator; other TCGs' targeting arrows are exactly this bold).
+          Drawn in real viewport coordinates (not board-local ones) since the board
+          itself is 3D-tilted; see attackLines above. Reachable targets get the
+          thick, bright, glowing version with a large arrowhead; blocked ones stay
+          thinner and dim so a glance still tells the two apart at range. */}
       {attackLines.length > 0 && (
         <svg className="fixed inset-0 z-40 pointer-events-none" width="100%" height="100%">
+          <defs>
+            <marker id="atk-arrowhead-valid" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto-start-reverse">
+              <path d="M0,0 L14,7 L0,14 Z" fill="#34d399" />
+            </marker>
+            <marker id="atk-arrowhead-invalid" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 Z" fill="#ef4444" />
+            </marker>
+          </defs>
           {attackLines.map((line, idx) => (
             line.valid ? (
               <line
                 key={idx}
                 x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2}
                 stroke="#34d399"
-                strokeWidth={1}
+                strokeWidth={4.5}
                 strokeLinecap="round"
-                opacity={0.75}
-                style={{ filter: 'drop-shadow(0 0 2px rgba(52,211,153,0.7))' }}
+                opacity={0.9}
+                markerEnd="url(#atk-arrowhead-valid)"
+                style={{ filter: 'drop-shadow(0 0 5px rgba(52,211,153,0.9))' }}
               />
             ) : (
               <line
                 key={idx}
                 x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2}
                 stroke="#ef4444"
-                strokeWidth={1}
+                strokeWidth={2.5}
                 strokeLinecap="round"
-                opacity={0.4}
+                opacity={0.45}
+                markerEnd="url(#atk-arrowhead-invalid)"
               />
             )
           ))}
@@ -5846,10 +5861,19 @@ const CardSlot = ({
     return () => clearTimeout(t);
   }, [damageFlash]);
 
+  // A valid placement slot's whole border/glow now carries the combat/support
+  // color (amber/sky — same as the corner badge below) instead of a uniform
+  // green, whenever that distinction actually applies (rowRoleHint set) — reading
+  // it off the WHOLE slot instead of a small corner icon is what the player asked
+  // for: "isso tem que ficar claro no tabuleiro," not just technically present.
   const hintClass = hint === 'invalid'
     ? 'border-red-500/60 bg-red-950/30'
     : hint === 'valid'
-      ? 'border-emerald-400/70 bg-emerald-500/10 shadow-[0_0_25px_rgba(52,211,153,0.5)]'
+      ? rowRoleHint === 'combat'
+        ? 'border-amber-400/80 bg-amber-500/15 shadow-[0_0_28px_rgba(245,158,11,0.6)]'
+        : rowRoleHint === 'support'
+          ? 'border-sky-400/80 bg-sky-500/15 shadow-[0_0_28px_rgba(14,165,233,0.6)]'
+          : 'border-emerald-400/70 bg-emerald-500/10 shadow-[0_0_25px_rgba(52,211,153,0.5)]'
       : '';
 
   return (
@@ -5887,20 +5911,33 @@ const CardSlot = ({
               transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
               className="pointer-events-none"
             >
-              <ArrowUp className="w-8 h-8 md:w-10 md:h-10 text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.9)]" strokeWidth={3} />
+              <ArrowUp
+                className={`w-8 h-8 md:w-10 md:h-10 pointer-events-none ${
+                  rowRoleHint === 'combat'
+                    ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.9)]'
+                    : rowRoleHint === 'support'
+                      ? 'text-sky-400 drop-shadow-[0_0_8px_rgba(14,165,233,0.9)]'
+                      : 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.9)]'
+                }`}
+                strokeWidth={3}
+              />
             </motion.div>
           )}
           {hint === 'valid' && rowRoleHint && (
+            // Bigger than the first pass at this (see git history) — a corner icon
+            // that small read as decoration, not information, and easy to miss on a
+            // real phone screen. Sized to actually be read at a glance, same idea as
+            // an ATK/HP badge, not a subtle hint.
             <div
-              className={`absolute top-1 right-1 md:top-1.5 md:right-1.5 w-4 h-4 md:w-5 md:h-5 rounded-full flex items-center justify-center pointer-events-none ${
-                rowRoleHint === 'combat' ? 'bg-amber-500/90 shadow-[0_0_8px_rgba(245,158,11,0.8)]' : 'bg-sky-500/90 shadow-[0_0_8px_rgba(14,165,233,0.8)]'
+              className={`absolute top-1 right-1 md:top-1.5 md:right-1.5 w-7 h-7 md:w-9 md:h-9 rounded-full flex items-center justify-center pointer-events-none border-2 border-zinc-950/40 ${
+                rowRoleHint === 'combat' ? 'bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.9)]' : 'bg-sky-500 shadow-[0_0_12px_rgba(14,165,233,0.9)]'
               }`}
               title={rowRoleHint === 'combat' ? 'Pode atacar a partir daqui' : 'Não pode atacar a partir daqui'}
             >
               {rowRoleHint === 'combat' ? (
-                <Swords className="w-2.5 h-2.5 md:w-3 md:h-3 text-zinc-950" strokeWidth={3} />
+                <Swords className="w-4 h-4 md:w-5 md:h-5 text-zinc-950" strokeWidth={3} />
               ) : (
-                <Shield className="w-2.5 h-2.5 md:w-3 md:h-3 text-zinc-950" strokeWidth={3} />
+                <Shield className="w-4 h-4 md:w-5 md:h-5 text-zinc-950" strokeWidth={3} />
               )}
             </div>
           )}
