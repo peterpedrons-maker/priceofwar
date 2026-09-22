@@ -3511,6 +3511,41 @@ export default function App() {
     }
   }
 
+  // Attack-related halo rings (selected attacker / valid target / invalid target) —
+  // drawn here in a top-level fixed overlay via real getBoundingClientRect positions,
+  // exactly like attackLines above, instead of as an <img> inside each CardSlot. They
+  // used to live inside the slot itself sized at 108% so the ring would read as
+  // bigger than the card, but a slot with no z-index of its own doesn't get to paint
+  // above a LATER sibling slot in plain DOM order — the overflow past a card's edge
+  // was getting silently painted over by whichever occupied slot happened to sit
+  // next to it, which is what read as "off-center" (really "half hidden"). Hoisting
+  // them to one fixed top-level layer (same trick as the attack lines) sidesteps
+  // that entirely.
+  const activeHalos: { key: string; x: number; y: number; w: number; h: number; image: string; scale: number; glow: string }[] = [];
+  if (selectedAttackerIndex !== null) {
+    const selfEl = document.getElementById(`player-${selectedAttackerIndex}`);
+    if (selfEl) {
+      const r = selfEl.getBoundingClientRect();
+      activeHalos.push({
+        key: 'self', x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height,
+        image: haloSelectionImage, scale: 1.15, glow: 'drop-shadow(0 0 10px rgba(96,165,250,0.8))',
+      });
+    }
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].forEach(i => {
+      if (!npcSlots[i]) return;
+      const el = document.getElementById(`npc-${i}`);
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const valid = validAttackTargets.has(i);
+      activeHalos.push({
+        key: `npc-halo-${i}`, x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height,
+        image: valid ? haloValidTargetImage : haloInvalidTargetImage,
+        scale: valid ? 1.15 : 1,
+        glow: valid ? 'drop-shadow(0 0 10px rgba(239,68,68,0.7))' : 'drop-shadow(0 0 8px rgba(0,0,0,0.7))',
+      });
+    });
+  }
+
   // A single traveling-arrow line for whichever attack is actually happening right
   // now (see attackAnim) — separate from attackLines above, which only shows the
   // PLAYER's own candidate targets before committing to one. The NPC's attack
@@ -3554,7 +3589,7 @@ export default function App() {
     const rotate = angleDeg - nativeAngleDeg;
     return (
       <g key={key}>
-        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={glowColor} strokeWidth={3} strokeLinecap="round" opacity={0.28} />
+        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={glowColor} strokeWidth={6} strokeLinecap="round" opacity={0.32} />
         <motion.g
           animate={{ x: [x1, x2], y: [y1, y2], opacity: [0, 1, 1, 0] }}
           transition={{ duration: durationSec, repeat: Infinity, ease: 'easeInOut', times: [0, 0.18, 0.82, 1] }}
@@ -5572,18 +5607,35 @@ export default function App() {
           shows the same "what's hitting what" indicator the player's own attacks
           do. Drawn in real viewport coordinates (not board-local ones) since the
           board itself is 3D-tilted. */}
+      {activeHalos.length > 0 && (
+        <div className="fixed inset-0 z-40 pointer-events-none">
+          {activeHalos.map(h => (
+            <img
+              key={h.key}
+              src={h.image}
+              alt=""
+              style={{
+                position: 'fixed', left: h.x, top: h.y,
+                width: h.w * h.scale, height: h.h * h.scale,
+                transform: 'translate(-50%, -50%)',
+                objectFit: 'contain', filter: h.glow,
+              }}
+            />
+          ))}
+        </div>
+      )}
       {(attackLines.some(line => line.valid) || activeAttackLine) && (
         <svg className="fixed inset-0 z-40 pointer-events-none" width="100%" height="100%">
           {attackLines.filter(line => line.valid).map((line, idx) => renderTravelingArrow(
             idx, line.x1, line.y1, line.x2, line.y2,
-            attackArrowRedImage, -90, 20, 100,
+            attackArrowRedImage, -90, 32, 160,
             '#ef4444', 1.1
           ))}
           {activeAttackLine && renderTravelingArrow(
             'active', activeAttackLine.x1, activeAttackLine.y1, activeAttackLine.x2, activeAttackLine.y2,
             activeAttackLine.isPlayerAttacking ? attackArrowRedImage : attackArrowBlueImage,
             activeAttackLine.isPlayerAttacking ? -90 : 90,
-            activeAttackLine.isPlayerAttacking ? 20 : 16, 100,
+            activeAttackLine.isPlayerAttacking ? 32 : 25, 160,
             activeAttackLine.isPlayerAttacking ? '#ef4444' : '#3b82f6', 0.9
           )}
         </svg>
@@ -6021,17 +6073,6 @@ const CardSlot = ({
       }}
       className={`w-[7.5rem] h-[9.5rem] md:w-[9.5rem] md:h-[12.5rem] rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${hintClass} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${isMoverSelected ? 'ring-4 ring-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.7)]' : ''} ${isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''} ${isTacticDragTarget ? 'ring-4 ring-fuchsia-400 shadow-[0_0_30px_rgba(232,121,249,0.75)]' : ''}`}
     >
-      {isSelected && (
-        // Own attacker picked up for combat — the same blue selection ring from the
-        // reference sheet used everywhere else a unit is "your active pick" (movers
-        // get their own sky ring already; this is specifically the attacker-select
-        // state), replacing the old plain CSS ring.
-        <img
-          src={haloSelectionImage}
-          alt=""
-          className="absolute inset-0 m-auto w-[108%] h-[108%] max-w-none object-contain pointer-events-none z-20 drop-shadow-[0_0_10px_rgba(96,165,250,0.8)]"
-        />
-      )}
       {!card && hint && (
         // Placement drop indicator on every legal empty slot at once while a hand
         // card is tap-selected (see getPlayerSlotHint) — a bouncing green arrow if
@@ -6091,27 +6132,13 @@ const CardSlot = ({
           lane-blocking rule reads as something the player can SEE, not just a click
           that silently fails. */}
       {isValidAttackTarget && (
-        <>
-          <img
-            src={haloValidTargetImage}
-            alt=""
-            className="absolute inset-0 m-auto w-[108%] h-[108%] max-w-none object-contain pointer-events-none z-20 drop-shadow-[0_0_10px_rgba(239,68,68,0.7)]"
-          />
-          <motion.div
-            animate={{ y: [0, 6, 0] }}
-            transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute -top-7 md:-top-9 left-1/2 -translate-x-1/2 pointer-events-none z-30"
-          >
-            <ArrowDown className="w-7 h-7 md:w-9 md:h-9 text-red-400 drop-shadow-[0_0_10px_rgba(239,68,68,1)]" strokeWidth={3.5} />
-          </motion.div>
-        </>
-      )}
-      {isInvalidAttackTarget && (
-        <img
-          src={haloInvalidTargetImage}
-          alt=""
-          className="absolute inset-0 m-auto w-[95%] h-[95%] max-w-none object-contain pointer-events-none z-30 drop-shadow-[0_0_8px_rgba(0,0,0,0.7)]"
-        />
+        <motion.div
+          animate={{ y: [0, 6, 0] }}
+          transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute -top-7 md:-top-9 left-1/2 -translate-x-1/2 pointer-events-none z-30"
+        >
+          <ArrowDown className="w-7 h-7 md:w-9 md:h-9 text-red-400 drop-shadow-[0_0_10px_rgba(239,68,68,1)]" strokeWidth={3.5} />
+        </motion.div>
       )}
       {/* Drag-to-play's own "drop it here" cue for a targetable Tática — a bouncing
           fuchsia arrow instead of the attack system's green/red so it never reads
