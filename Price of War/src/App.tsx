@@ -61,6 +61,15 @@ import cavaleiroDaLuzFullArt from './assets/card-cavaleiro-da-luz-full.webp';
 import jorgeOLanceiroFullArt from './assets/card-jorge-o-lanceiro-full.webp';
 import cardDrawSfxUrl from './assets/sfx-comprar-carta.mp3';
 import duelMusicUrl from './assets/music-duelo.mp3';
+// SFX sourced from CC0 (public-domain) libraries — the "RPG Sound Pack" (a well-known
+// freely-licensed pack) for the attack/tactic sounds, and real card-table recordings
+// for the card-play thud, picked and approved by the user over a few rounds (see git
+// history) rather than a first guess. No attribution is legally required for CC0, but
+// noting the source here for anyone maintaining this later.
+import cardPlaySfxUrl from './assets/sfx-jogar-carta.wav';
+import attackSfxUrl from './assets/sfx-ataque.wav';
+import tacticSfxUrl from './assets/sfx-tatica.wav';
+import selectSfxUrl from './assets/sfx-selecionar.wav';
 
 // Every card/board/UI image in the game besides the start screen's own background
 // and logo (those two load first, in the loading screen's initial black-screen
@@ -100,6 +109,36 @@ const playCardDrawSfx = () => {
     audio.volume = 0.6;
     audio.play().catch(() => {});
   }, DRAW_FLIGHT_MS);
+};
+
+// Same fresh-Audio()-per-call approach as playCardDrawSfx above, for the other
+// three recurring game events that had no audio feedback at all — a card
+// landing on the board, an attack connecting, and a Tática/Emboscada
+// activating. Each fires right at its own visual moment (see call sites)
+// rather than at the start of a longer animation, so it reads as tied to
+// the thing that just happened on screen.
+const playCardPlaySfx = () => {
+  const audio = new Audio(cardPlaySfxUrl);
+  audio.volume = 0.7;
+  audio.play().catch(() => {});
+};
+const playAttackSfx = () => {
+  const audio = new Audio(attackSfxUrl);
+  audio.volume = 0.6;
+  audio.play().catch(() => {});
+};
+const playTacticSfx = () => {
+  const audio = new Audio(tacticSfxUrl);
+  audio.volume = 0.6;
+  audio.play().catch(() => {});
+};
+// Deliberately quieter than the others — this one can fire many times in a row
+// (every hand-card tap) where the others are one-per-event, so it needs to sit
+// in the background instead of competing with them.
+const playSelectSfx = () => {
+  const audio = new Audio(selectSfxUrl);
+  audio.volume = 0.35;
+  audio.play().catch(() => {});
 };
 
 export type CardType = 'Infantaria' | 'Cavalaria' | 'Arqueiro' | 'Artilharia' | 'General' | 'Relíquia' | 'Terreno' | 'Tática' | 'Emboscada';
@@ -2872,6 +2911,7 @@ export default function App() {
             setAttackAnim({ attackerIndex: action.attackerSlot, targetIndex: action.targetSlot, isPlayerAttacking: false });
             await new Promise(resolve => setTimeout(resolve, 300));
 
+            playAttackSfx();
             setIsImpacting(true);
             await new Promise(resolve => setTimeout(resolve, 200));
             setIsImpacting(false);
@@ -3112,6 +3152,7 @@ export default function App() {
       // plays it straight from here.
       setSelectedCardIndex(index);
       setSelectedAttackerIndex(null);
+      playSelectSfx();
     }
   };
 
@@ -3128,6 +3169,7 @@ export default function App() {
       setPlayerMana(prev => prev - card.cost);
       spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
+      playTacticSfx();
       setPlayerGraveyard(g => [...g, card]);
       setBonusRepositions(prev => prev + 3);
       setSelectedCardIndex(null);
@@ -3142,6 +3184,7 @@ export default function App() {
       if (netGoldChange >= 0) spawnFloatingNumberAtId('player-gold-badge', netGoldChange, 'gold-gain');
       else spawnFloatingNumberAtId('player-gold-badge', -netGoldChange, 'gold-spend');
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
+      playTacticSfx();
       setPlayerGraveyard(g => [...g, card]);
       setSelectedCardIndex(null);
       showToast('Tributo de Guerra: +1 ouro neste turno!');
@@ -3155,6 +3198,7 @@ export default function App() {
       setPlayerMana(prev => prev - card.cost);
       spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
+      playTacticSfx();
       setPlayerGraveyard(g => [...g, card]);
       setSelectedCardIndex(null);
       let nextNpcSlots = [...npcSlots];
@@ -3188,6 +3232,7 @@ export default function App() {
       setPlayerMana(prev => prev - card.cost);
       spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
+      playTacticSfx();
       setPendingTacticAction({ card, kind });
       setSelectedCardIndex(null);
       setViewState('field');
@@ -3206,6 +3251,7 @@ export default function App() {
       setPlayerMana(prev => prev - card.cost);
       spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
+      playTacticSfx();
       setSelectedCardIndex(null);
       openCardPicker('Escolha um soldado do cemitério para adicionar à mão', candidates, 1, (picked) => {
         const chosen = picked[0];
@@ -3228,6 +3274,7 @@ export default function App() {
       setPlayerMana(prev => prev - card.cost);
       spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
+      playTacticSfx();
       setSelectedCardIndex(null);
       openCardPicker('Escolha uma carta de Terreno ou Relíquia do deck', candidates, 1, (picked) => {
         const chosen = picked[0];
@@ -3250,6 +3297,7 @@ export default function App() {
       setPlayerMana(prev => prev - card.cost);
       spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
+      playTacticSfx();
       setSelectedCardIndex(null);
       openCardPicker('Escolha uma Tática do deck para adicionar à mão', candidates, 1, (picked) => {
         const chosen = picked[0];
@@ -3272,6 +3320,7 @@ export default function App() {
       setPlayerMana(prev => prev - card.cost);
       spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
+      playTacticSfx();
       setSelectedCardIndex(null);
       openCardPicker('Escolha um soldado do deck para adicionar à mão', candidates, 1, (picked) => {
         const chosen = picked[0];
@@ -3293,6 +3342,7 @@ export default function App() {
       setPlayerMana(prev => prev - card.cost);
       spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
+      playTacticSfx();
       setSelectedCardIndex(null);
       openCardPicker('Veja as 4 cartas do topo — escolha 2 para a mão', revealed, 2, (picked) => {
         const pickedIds = new Set(picked.map(c => c.id));
@@ -3319,6 +3369,7 @@ export default function App() {
       setPlayerMana(prev => prev - card.cost);
       spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
       setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
+      playTacticSfx();
       setSelectedCardIndex(null);
       openCardPicker(
         `Escolha até ${Math.min(2, emptyVanguarda.length)} soldado(s) de 0 ATK para invocar na Vanguarda`,
@@ -3555,6 +3606,7 @@ export default function App() {
     setNpcHand(prev => prev.filter(c => c.id !== chosen.id));
     setNpcGraveyard(g => [...g, chosen]);
     showToast(`O oponente ativou uma Emboscada: ${chosen.name}!`);
+    playTacticSfx();
     return chosen;
   };
 
@@ -4069,7 +4121,8 @@ export default function App() {
       setAttackAnim({ attackerIndex: selectedAttackerIndex, targetIndex: slotIndex, isPlayerAttacking: true });
       
       await new Promise(resolve => setTimeout(resolve, 300));
-      
+
+      playAttackSfx();
       setIsImpacting(true);
       await new Promise(resolve => setTimeout(resolve, 200));
       setIsImpacting(false);
@@ -5251,6 +5304,7 @@ export default function App() {
                           setHand(prev => prev.filter(c => c.id !== card.id));
                           setPlayerGraveyard(g => [...g, card]);
                           showToast(`Emboscada ativada: ${card.name}!`);
+                          playTacticSfx();
                           ambushPrompt!.resolve(card);
                           setAmbushPrompt(null);
                         }}
@@ -5378,6 +5432,7 @@ export default function App() {
                   // Nobre da Cruzada: "Ao entrar em campo: invoca Soldados Leais..."
                   return applyNobreReligiosoSummon(next, flyingCard.slotIndex);
                 });
+                playCardPlaySfx();
                 // Impact burst + brief camera shake right as the card lands. A full-art
                 // card (see CardData.isFullArt) gets the bigger version of both, plus
                 // makes every other card on the board flinch (see triggerFullArtReaction).
