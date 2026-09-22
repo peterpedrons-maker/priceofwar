@@ -2216,6 +2216,20 @@ export default function App() {
 
   const [isImpacting, setIsImpacting] = useState(false);
   const [attackAnim, setAttackAnim] = useState<{ attackerIndex: number, targetIndex: number, isPlayerAttacking: boolean } | null>(null);
+  // Forces a re-render every animation frame while an attack is in flight, purely so
+  // activeAttackLine (below) re-measures the attacking card's live position instead of
+  // freezing on wherever it was the instant attackAnim was first set — that instant is
+  // BEFORE the card's own lunge (see CardSlot's isAttacking y/z/scale) has actually
+  // moved it, so without this the arrow started from the card's now-empty home slot
+  // instead of visibly tracking the card itself mid-lunge.
+  const [, forceAttackLineTick] = useState(0);
+  useEffect(() => {
+    if (!attackAnim) return;
+    let raf = 0;
+    const loop = () => { forceAttackLineTick(t => t + 1); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [attackAnim]);
   const [isAnimating, setIsAnimating] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [gameOverWinner, setGameOverWinner] = useState<'player' | 'npc' | null>(null);
@@ -3413,6 +3427,13 @@ export default function App() {
     return null;
   };
 
+  // Resolves a slot id to the exact element the card's own art currently renders in —
+  // data-card-visual (see CardSlot) is the inner element that physically lunges during
+  // an attack, while the slotId div underneath it never moves. Falling back to the slot
+  // div itself covers the (non-card) General/Relíquia/Terreno special-slot markup.
+  const getCardVisualEl = (slotId: string): HTMLElement | null =>
+    document.querySelector(`[data-card-visual="${slotId}"]`) ?? document.getElementById(slotId);
+
   // A "conducting line" from the selected attacker to every occupied enemy slot — green
   // and flowing for a reachable target, dim red for one that's blocked/out of range —
   // so the lane-blocking rule reads as an obvious line on the board, not just an arrow
@@ -3421,13 +3442,13 @@ export default function App() {
   // two ends live in a 3D-tilted board and need to line up exactly as rendered.
   const attackLines: { x1: number; y1: number; x2: number; y2: number; valid: boolean }[] = [];
   if (selectedAttackerIndex !== null) {
-    const fromEl = document.getElementById(`player-${selectedAttackerIndex}`);
+    const fromEl = getCardVisualEl(`player-${selectedAttackerIndex}`);
     if (fromEl) {
       const fromRect = fromEl.getBoundingClientRect();
       const from = { x: fromRect.left + fromRect.width / 2, y: fromRect.top + fromRect.height / 2 };
       [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].forEach(i => {
         if (!npcSlots[i]) return;
-        const toEl = document.getElementById(`npc-${i}`);
+        const toEl = getCardVisualEl(`npc-${i}`);
         if (!toEl) return;
         const toRect = toEl.getBoundingClientRect();
         attackLines.push({
@@ -3449,8 +3470,8 @@ export default function App() {
     if (!attackAnim) return null;
     const fromId = attackAnim.isPlayerAttacking ? `player-${attackAnim.attackerIndex}` : `npc-${attackAnim.attackerIndex}`;
     const toId = attackAnim.isPlayerAttacking ? `npc-${attackAnim.targetIndex}` : `player-${attackAnim.targetIndex}`;
-    const fromEl = document.getElementById(fromId);
-    const toEl = document.getElementById(toId);
+    const fromEl = getCardVisualEl(fromId);
+    const toEl = getCardVisualEl(toId);
     if (!fromEl || !toEl) return null;
     const fromRect = fromEl.getBoundingClientRect();
     const toRect = toEl.getBoundingClientRect();
@@ -5953,7 +5974,7 @@ const CardSlot = ({
         <img
           src={haloSelectionImage}
           alt=""
-          className="absolute inset-0 m-auto w-[108%] h-[108%] object-contain pointer-events-none z-20 drop-shadow-[0_0_10px_rgba(96,165,250,0.8)]"
+          className="absolute inset-0 m-auto w-[108%] h-[108%] max-w-none object-contain pointer-events-none z-20 drop-shadow-[0_0_10px_rgba(96,165,250,0.8)]"
         />
       )}
       {!card && hint && (
@@ -6019,7 +6040,7 @@ const CardSlot = ({
           <img
             src={haloValidTargetImage}
             alt=""
-            className="absolute inset-0 m-auto w-[108%] h-[108%] object-contain pointer-events-none z-20 drop-shadow-[0_0_10px_rgba(239,68,68,0.7)]"
+            className="absolute inset-0 m-auto w-[108%] h-[108%] max-w-none object-contain pointer-events-none z-20 drop-shadow-[0_0_10px_rgba(239,68,68,0.7)]"
           />
           <motion.div
             animate={{ y: [0, 6, 0] }}
@@ -6034,7 +6055,7 @@ const CardSlot = ({
         <img
           src={haloInvalidTargetImage}
           alt=""
-          className="absolute inset-0 m-auto w-[95%] h-[95%] object-contain pointer-events-none z-30 drop-shadow-[0_0_8px_rgba(0,0,0,0.7)]"
+          className="absolute inset-0 m-auto w-[95%] h-[95%] max-w-none object-contain pointer-events-none z-30 drop-shadow-[0_0_8px_rgba(0,0,0,0.7)]"
         />
       )}
       {/* Drag-to-play's own "drop it here" cue for a targetable Tática — a bouncing
@@ -6086,6 +6107,13 @@ const CardSlot = ({
           // what was making every card look like a flat, weightless sheet of paper.
           style={{ filter: 'drop-shadow(1.5px 2.5px 0 rgba(0,0,0,0.5)) drop-shadow(0 7px 9px rgba(0,0,0,0.4))' }}
           className="w-full h-full rounded-lg flex flex-col p-1 relative"
+          // Lets the attack-targeting-line overlay (see attackLines/activeAttackLine
+          // in App) anchor to wherever this card ACTUALLY is on screen right now —
+          // this is the element that physically lunges via the y/z/scale animate
+          // above, while the slot's own outer div (slotId) stays put. Anchoring the
+          // line to the outer div instead left the arrow starting from the card's
+          // empty home slot mid-lunge, visibly detached from the card itself.
+          data-card-visual={slotId}
         >
           {isImpactingTarget && <SlashEffect />}
 
