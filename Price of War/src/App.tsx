@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { X, ArrowUp, ArrowDown } from 'lucide-react';
+import { X, ArrowUp, ArrowDown, ScrollText, Swords, Footprints, Lock } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
@@ -335,6 +335,14 @@ const PHASE_SHORT_LABEL: Record<TurnPhase, string> = {
   preparacao: 'Preparação',
   combate: 'Combate',
   movimentacao: 'Movimentação',
+};
+// One glyph per phase for that same stepper row — Combate swaps its sword for a
+// padlock while locked (turns 1-2) instead of using this, matching the "coming
+// soon" treatment its dimmed text already gets.
+const PHASE_ICON: Record<TurnPhase, typeof ScrollText> = {
+  preparacao: ScrollText,
+  combate: Swords,
+  movimentacao: Footprints,
 };
 // The banner is driven as a 3-stage state machine (see announcePhase/phaseBanner)
 // instead of one motion.div animating a 5-point opacity/x KEYFRAME array — that
@@ -5082,17 +5090,21 @@ export default function App() {
                 which read as if it didn't exist rather than as "not yet". The one
                 CURRENT phase (only ever true for a phase this turn actually has) is
                 lit up as a solid dark pill; Combate while locked gets its own
-                dimmer treatment so it reads as "coming soon", not just "not now". */}
+                dimmer treatment (and swaps its sword for a padlock) so it reads as
+                "coming soon", not just "not now". A small icon per phase — quicker
+                to recognize at a glance than the tiny text alone — reuses the visual
+                language the user's own reference mockup used for this same stepper. */}
             {currentTurn === 'player' && (
               <>
                 <span className="flex items-center justify-center flex-wrap gap-x-[1px] gap-y-0.5 mt-1 max-w-full">
                   {PHASE_TAG_ORDER.map((p, i) => {
                     const isLocked = p === 'combate' && turnNumber < 3;
                     const isCurrent = p === turnPhase;
+                    const Icon = isLocked ? Lock : PHASE_ICON[p];
                     return (
                       <span key={p} className="flex items-center gap-[1px]">
                         <span
-                          className={`text-[6px] md:text-[7.5px] tracking-normal px-0.5 rounded ${
+                          className={`flex items-center gap-[1.5px] text-[6px] md:text-[7.5px] tracking-normal px-0.5 rounded ${
                             isCurrent
                               ? 'bg-zinc-950 text-amber-200'
                               : isLocked
@@ -5100,6 +5112,7 @@ export default function App() {
                                 : 'text-zinc-950/45'
                           }`}
                         >
+                          <Icon className="w-[6px] h-[6px] md:w-[7.5px] md:h-[7.5px] shrink-0" strokeWidth={3} />
                           {PHASE_SHORT_LABEL[p]}
                         </span>
                         {i < PHASE_TAG_ORDER.length - 1 && <span className="text-[6px] md:text-[7.5px] text-zinc-950/35">›</span>}
