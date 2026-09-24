@@ -326,6 +326,14 @@ const PHASE_BANNER_TEXT: Record<TurnPhase, { title: string; subtitle: string }> 
   combate: { title: 'Fase de Combate', subtitle: 'Ataque com suas unidades' },
   movimentacao: { title: 'Fase de Movimentação', subtitle: 'Reposicione suas unidades' },
 };
+// Short enough to fit as a second line on the Avançar button itself (see its own
+// render below) — "para onde" the tap actually goes, instead of making the player
+// cross-reference the phase tracker on the side to find out.
+const PHASE_SHORT_LABEL: Record<TurnPhase, string> = {
+  preparacao: 'Preparação',
+  combate: 'Combate',
+  movimentacao: 'Movimentação',
+};
 // The banner is driven as a 3-stage state machine (see announcePhase/phaseBanner)
 // instead of one motion.div animating a 5-point opacity/x KEYFRAME array — that
 // version genuinely ran, but this component re-renders constantly (gold badges,
@@ -5022,7 +5030,7 @@ export default function App() {
               the player's own turn ending, which only "Encerrar" (the very last
               phase) actually does. */}
           <motion.div
-            className={`w-[5.5rem] md:w-24 h-9 md:h-10 flex items-center justify-center rounded-lg border-2 font-black uppercase tracking-wide text-[11px] md:text-sm whitespace-nowrap ${
+            className={`w-[6.5rem] md:w-28 h-10 md:h-11 flex flex-col items-center justify-center rounded-lg border-2 font-black uppercase tracking-wide whitespace-nowrap leading-none ${
               currentTurn === 'player'
                 ? 'bg-gradient-to-b from-amber-400 to-amber-600 border-amber-200 text-zinc-950 cursor-pointer'
                 : 'bg-zinc-950/80 border-red-900/60 text-red-200 cursor-not-allowed'
@@ -5039,7 +5047,16 @@ export default function App() {
             }}
             transition={{ duration: 2, repeat: Infinity }}
           >
-            {currentTurn !== 'player' ? 'Adversário' : isLastPhaseOfTurn ? 'Encerrar' : 'Avançar'}
+            <span className="text-[11px] md:text-sm">
+              {currentTurn !== 'player' ? 'Adversário' : isLastPhaseOfTurn ? 'Encerrar' : 'Avançar'}
+            </span>
+            {/* Names the phase the tap actually goes to, instead of leaving the
+                player to check the side tracker to find out — see PHASE_SHORT_LABEL. */}
+            {currentTurn === 'player' && !isLastPhaseOfTurn && (
+              <span className="text-[8px] md:text-[10px] tracking-normal opacity-90 mt-0.5">
+                {PHASE_SHORT_LABEL[activePhases[activePhases.indexOf(turnPhase) + 1]]}
+              </span>
+            )}
           </motion.div>
         </div>
 
@@ -5655,16 +5672,33 @@ export default function App() {
         </svg>
       )}
 
-      {/* Toast Notification */}
+      {/* Toast Notification — same dark-crimson/gold-border/Crimson-Pro treatment as
+          the phase announcement banner below, instead of a generic bright-red pill
+          in a plain sans font that read as a browser alert rather than part of the
+          game's own UI. */}
       <AnimatePresence>
         {toastMessage && (
           <motion.div
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 bg-red-600/90 text-white font-bold rounded-full shadow-[0_0_20px_rgba(220,38,38,0.6)] border-2 border-red-400 pointer-events-none"
+            initial={{ opacity: 0, y: -50, scale: 0.92 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -50, scale: 0.92 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] max-w-[90vw] px-6 py-3 rounded-xl border-2 border-amber-400/90 pointer-events-none"
+            style={{
+              background: 'linear-gradient(to bottom, #450a0a, #5a0e0e, #450a0a)',
+              boxShadow: '0 4px 18px rgba(0,0,0,0.7), 0 0 20px rgba(251,191,36,0.25)',
+            }}
           >
-            {toastMessage}
+            <span
+              className="block text-center text-sm md:text-base font-bold"
+              style={{
+                fontFamily: "'Crimson Pro', serif",
+                color: '#f5deb3',
+                WebkitTextStroke: '0.4px rgba(60,10,10,0.6)',
+                textShadow: '0 2px 4px rgba(0,0,0,0.9), 0 0 14px rgba(251,191,36,0.4)',
+              }}
+            >
+              {toastMessage}
+            </span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -5945,7 +5979,7 @@ export default function App() {
               <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(212,175,55,0.6)] rounded-xl border-2 border-[#d4af37] pointer-events-none" />
 
               {!generalAbilityPrompt.confirmed ? (
-                <div className="absolute -top-5 left-1/2 -translate-x-1/2 z-40 flex gap-2 whitespace-nowrap">
+                <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 z-40 flex gap-2 whitespace-nowrap">
                   <button
                     onClick={() => setGeneralAbilityPrompt(prev => prev ? { ...prev, confirmed: true } : prev)}
                     className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(16,185,129,0.7)] border-2 border-emerald-400"
@@ -5960,7 +5994,7 @@ export default function App() {
                   </button>
                 </div>
               ) : (
-                <div className="absolute -top-5 left-1/2 -translate-x-1/2 z-40 flex flex-col gap-1.5 items-center whitespace-nowrap">
+                <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 z-40 flex flex-col gap-1.5 items-center whitespace-nowrap">
                   <button
                     onClick={() => activateGeneralHeal(1, 0)}
                     className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-[11px] uppercase tracking-wider shadow-[0_4px_16px_rgba(16,185,129,0.7)] border-2 border-emerald-400"
