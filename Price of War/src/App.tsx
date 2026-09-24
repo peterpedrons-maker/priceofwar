@@ -3,8 +3,10 @@ import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/re
 import { X, ArrowUp, ArrowDown } from 'lucide-react';
 import turnButtonFrameImage from './assets/button-frame.webp';
 import nodeCurrentImage from './assets/node-current.webp';
-import nodeInactiveImage from './assets/node-inactive.webp';
+import nodeFutureImage from './assets/node-future.webp';
 import nodeLockedImage from './assets/icon-lock-turn.webp';
+import chevronDoubleImage from './assets/icon-chevron-double.webp';
+import hourglassImage from './assets/icon-hourglass.webp';
 import { playAiTurn, AiAction } from './services/aiService';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
@@ -5089,9 +5091,10 @@ export default function App() {
                 className="absolute inset-0 pointer-events-none"
                 style={{ backgroundImage: `url(${turnButtonFrameImage})`, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat' }}
               />
-              <div className="absolute flex items-center justify-center" style={{ top: '3%', left: '11%', width: '78%', height: '44%' }}>
-                <span className="text-[11px] md:text-sm whitespace-nowrap">
-                  {isLastPhaseOfTurn ? 'Encerrar Turno' : 'Avançar'}
+              <div className="absolute flex items-center justify-center gap-1" style={{ top: '3%', left: '11%', width: '78%', height: '44%' }}>
+                <img src={chevronDoubleImage} className="w-[9px] h-[7px] md:w-[11px] md:h-[9px] shrink-0" alt="" />
+                <span className="text-[10px] md:text-[13px] whitespace-nowrap">
+                  {isLastPhaseOfTurn ? 'Encerrar Turno' : `Finalizar ${PHASE_SHORT_LABEL[turnPhase]}`}
                 </span>
               </div>
               {/* A mini phase stepper baked right into the button instead of a plain
@@ -5099,7 +5102,7 @@ export default function App() {
                   1-2 when it's locked — showing only the phases a turn currently has
                   used to make Combate vanish outright until turn 3, which read as if
                   it didn't exist rather than as "not yet". Each phase gets a small
-                  ring badge from the same reference sheet (green = current, gold =
+                  ring badge from the same reference sheet (green = current, gray =
                   available but not current, padlock = locked) instead of a colored
                   pill, since the sheet's own node art already reads as a state
                   indicator on its own — full names stay in text alongside it either
@@ -5109,12 +5112,12 @@ export default function App() {
                 {PHASE_TAG_ORDER.map(p => {
                   const isLocked = p === 'combate' && turnNumber < 3;
                   const isCurrent = p === turnPhase;
-                  const nodeImg = isLocked ? nodeLockedImage : isCurrent ? nodeCurrentImage : nodeInactiveImage;
+                  const nodeImg = isLocked ? nodeLockedImage : isCurrent ? nodeCurrentImage : nodeFutureImage;
                   return (
                     <span
                       key={p}
                       className={`flex items-center gap-[2px] text-[6px] md:text-[7.5px] tracking-normal whitespace-nowrap ${
-                        isCurrent ? 'text-amber-200' : isLocked ? 'text-zinc-500' : 'text-zinc-400'
+                        isCurrent ? 'text-amber-200' : 'text-zinc-400'
                       }`}
                     >
                       <img src={nodeImg} className="w-[10px] h-[10px] md:w-[12px] md:h-[12px] shrink-0" alt="" />
@@ -5129,12 +5132,22 @@ export default function App() {
               <span className="text-[11px] md:text-sm">Adversário</span>
             </motion.div>
           )}
-          {/* Explains WHY Combate is dimmed instead of leaving the player to guess —
-              gone the moment it actually unlocks at turn 3. Sibling of the framed
-              button above (not a child of it) — see that button's own comment for why. */}
-          {currentTurn === 'player' && turnNumber < 3 && (
-            <span className="text-[6px] md:text-[7px] font-black uppercase tracking-wide text-amber-200/70 whitespace-normal text-center leading-tight max-w-[90%]">
-              Combate no Turno 3
+          {/* The "Turno N" readout + (while locked) the "Combate no Turno 3" hint —
+              matches the info line under the user's own reference mockup. Sibling of
+              the framed button above (not a child of it) — see that button's own
+              comment for why. Always shown on the player's turn (not just while
+              Combate is locked) since a turn counter is useful on its own. */}
+          {currentTurn === 'player' && (
+            <span className="flex items-center gap-1 text-[6px] md:text-[7px] font-black uppercase tracking-wide text-amber-200/70 whitespace-nowrap">
+              <img src={hourglassImage} className="w-[6px] h-[8px] md:w-[7px] md:h-[9px] shrink-0" alt="" />
+              {`Turno ${turnNumber}`}
+              {turnNumber < 3 && (
+                <>
+                  <span className="text-amber-200/40">|</span>
+                  <img src={nodeLockedImage} className="w-[6px] h-[7px] md:w-[7px] md:h-[8px] shrink-0" alt="" />
+                  Combate no Turno 3
+                </>
+              )}
             </span>
           )}
         </div>
