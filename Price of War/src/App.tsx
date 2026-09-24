@@ -5055,7 +5055,7 @@ export default function App() {
               the player's own turn ending, which only "Encerrar" (the very last
               phase) actually does. */}
           <motion.div
-            className={`w-40 md:w-44 min-h-10 md:min-h-11 flex flex-col items-center justify-center rounded-lg border-2 font-black uppercase tracking-wide whitespace-nowrap leading-none px-1 py-1.5 ${
+            className={`w-48 md:w-56 min-h-10 md:min-h-11 flex flex-col items-center justify-center rounded-lg border-2 font-black uppercase tracking-wide whitespace-nowrap leading-none px-1 py-1.5 ${
               currentTurn === 'player'
                 ? 'bg-gradient-to-b from-amber-400 to-amber-600 border-amber-200 text-zinc-950 cursor-pointer'
                 : 'bg-zinc-950/80 border-red-900/60 text-red-200 cursor-not-allowed'
@@ -5085,14 +5085,14 @@ export default function App() {
                 dimmer treatment so it reads as "coming soon", not just "not now". */}
             {currentTurn === 'player' && (
               <>
-                <span className="flex items-center gap-[2px] mt-1">
+                <span className="flex items-center justify-center flex-wrap gap-x-[1px] gap-y-0.5 mt-1 max-w-full">
                   {PHASE_TAG_ORDER.map((p, i) => {
                     const isLocked = p === 'combate' && turnNumber < 3;
                     const isCurrent = p === turnPhase;
                     return (
-                      <span key={p} className="flex items-center gap-[2px]">
+                      <span key={p} className="flex items-center gap-[1px]">
                         <span
-                          className={`text-[6.5px] md:text-[8px] tracking-normal px-1 rounded ${
+                          className={`text-[6px] md:text-[7.5px] tracking-normal px-0.5 rounded ${
                             isCurrent
                               ? 'bg-zinc-950 text-amber-200'
                               : isLocked
@@ -5102,7 +5102,7 @@ export default function App() {
                         >
                           {PHASE_SHORT_LABEL[p]}
                         </span>
-                        {i < PHASE_TAG_ORDER.length - 1 && <span className="text-[6.5px] md:text-[8px] text-zinc-950/35">›</span>}
+                        {i < PHASE_TAG_ORDER.length - 1 && <span className="text-[6px] md:text-[7.5px] text-zinc-950/35">›</span>}
                       </span>
                     );
                   })}
