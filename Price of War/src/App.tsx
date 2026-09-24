@@ -334,6 +334,14 @@ const PHASE_SHORT_LABEL: Record<TurnPhase, string> = {
   combate: 'Combate',
   movimentacao: 'Movimentação',
 };
+// Tight enough to fit all three side by side inside the Avançar button's own
+// stepper row (see its render below) — the full names above are still used
+// wherever there's just one phase alone (turns 1-2) and more room to spell it out.
+const PHASE_BUTTON_LABEL: Record<TurnPhase, string> = {
+  preparacao: 'Prep.',
+  combate: 'Combate',
+  movimentacao: 'Mov.',
+};
 // The banner is driven as a 3-stage state machine (see announcePhase/phaseBanner)
 // instead of one motion.div animating a 5-point opacity/x KEYFRAME array — that
 // version genuinely ran, but this component re-renders constantly (gold badges,
@@ -2231,8 +2239,10 @@ export default function App() {
   // path that isn't gated by the phase this banner is actually announcing.
   const [phaseTransitionLock, setPhaseTransitionLock] = useState(false);
   const phaseLockGenRef = useRef(0);
-  const announcePhase = (phase: TurnPhase) => {
-    const { title, subtitle } = PHASE_BANNER_TEXT[phase];
+  // Shared by announcePhase (below) and announceTurnChange — the ribbon itself
+  // doesn't actually care whether its text is a phase name or a turn handoff,
+  // just that something worth a beat's pause just happened.
+  const showBanner = (title: string, subtitle: string) => {
     const id = ++phaseBannerIdRef.current;
     const gen = ++phaseLockGenRef.current;
     setPhaseBanner({ id, title, subtitle, stage: 'in' });
@@ -2247,6 +2257,20 @@ export default function App() {
       // under the second.
       if (phaseLockGenRef.current === gen) setPhaseTransitionLock(false);
     }, PHASE_BANNER_DURATION_MS);
+  };
+  const announcePhase = (phase: TurnPhase) => {
+    const { title, subtitle } = PHASE_BANNER_TEXT[phase];
+    showBanner(title, subtitle);
+  };
+  // "Seu Turno" / "Turno do Adversário" — the same handoff moment used to only
+  // show up as the Avançar button quietly changing color/label, easy to miss.
+  // Not called on the very first turn of a match (see startGame) — there's no
+  // "the other side just finished" to announce yet.
+  const announceTurnChange = (turn: 'player' | 'npc') => {
+    showBanner(
+      turn === 'player' ? 'Seu Turno' : 'Turno do Adversário',
+      turn === 'player' ? 'Jogue suas cartas e ataque' : 'Aguarde enquanto ele joga'
+    );
   };
   // Board card preview (see the fixed overlay further down) — set from CardSlot's
   // own onClick now, alongside whatever game action that same tap already performs,
@@ -2743,7 +2767,17 @@ export default function App() {
       // was scheduled to fire at the exact millisecond the first one's own cleanup
       // timer did, and depending on timer ordering the second could get its state
       // clobbered by the first's before ever finishing its entrance.
-      announcePhase('preparacao');
+      // Same reasoning applies to "Seu Turno" below: fire it THEN chain the phase
+      // banner after its own full cycle, rather than the two racing for the same
+      // phaseBanner state in the same tick (which just clobbers one before it can
+      // ever render). Only for an actual handoff (turnNumber > 1) — the very first
+      // turn of a match has no "other side just finished" to announce.
+      if (turnNumber > 1) {
+        announceTurnChange('player');
+        window.setTimeout(() => announcePhase('preparacao'), PHASE_BANNER_DURATION_MS);
+      } else {
+        announcePhase('preparacao');
+      }
       setTurnPhase('preparacao');
       setMovedSlots(new Set());
       setSelectedMoverIndex(null);
@@ -5006,6 +5040,7 @@ export default function App() {
               // when Preparação used to end, back when it was the phase movement
               // itself happened in.
               setPlayerSlots(prev => applyEndOfTurnSwaps(grantAurelionBuff(prev, movedSlots)));
+              announceTurnChange('npc');
               setCurrentTurn('npc');
             } else {
               const idx = activePhases.indexOf(turnPhase);
@@ -5030,7 +5065,7 @@ export default function App() {
               the player's own turn ending, which only "Encerrar" (the very last
               phase) actually does. */}
           <motion.div
-            className={`w-[6.5rem] md:w-28 h-10 md:h-11 flex flex-col items-center justify-center rounded-lg border-2 font-black uppercase tracking-wide whitespace-nowrap leading-none ${
+            className={`w-32 md:w-36 h-10 md:h-11 flex flex-col items-center justify-center rounded-lg border-2 font-black uppercase tracking-wide whitespace-nowrap leading-none px-1 ${
               currentTurn === 'player'
                 ? 'bg-gradient-to-b from-amber-400 to-amber-600 border-amber-200 text-zinc-950 cursor-pointer'
                 : 'bg-zinc-950/80 border-red-900/60 text-red-200 cursor-not-allowed'
@@ -5048,14 +5083,35 @@ export default function App() {
             transition={{ duration: 2, repeat: Infinity }}
           >
             <span className="text-[11px] md:text-sm">
-              {currentTurn !== 'player' ? 'Adversário' : isLastPhaseOfTurn ? 'Encerrar' : 'Avançar'}
+              {currentTurn !== 'player' ? 'Adversário' : isLastPhaseOfTurn ? 'Encerrar Turno' : 'Avançar'}
             </span>
-            {/* Names the phase the tap actually goes to, instead of leaving the
-                player to check the side tracker to find out — see PHASE_SHORT_LABEL. */}
-            {currentTurn === 'player' && !isLastPhaseOfTurn && (
-              <span className="text-[8px] md:text-[10px] tracking-normal opacity-90 mt-0.5">
-                {PHASE_SHORT_LABEL[activePhases[activePhases.indexOf(turnPhase) + 1]]}
-              </span>
+            {/* A mini phase stepper baked right into the button instead of a plain
+                "Avançar" — every phase this turn has, in order, with whichever one
+                is CURRENT lit up (a solid dark pill) and the rest dimmed, so the
+                button itself always shows the turn's whole shape instead of just
+                its next step. Turns 1-2 only ever have Preparação, so there's
+                nothing to step through — just its full name, alone. */}
+            {currentTurn === 'player' && (
+              activePhases.length === 1 ? (
+                <span className="text-[8px] md:text-[10px] tracking-normal opacity-90 mt-0.5">
+                  {PHASE_SHORT_LABEL[activePhases[0]]}
+                </span>
+              ) : (
+                <span className="flex items-center gap-[3px] mt-0.5">
+                  {activePhases.map((p, i) => (
+                    <span key={p} className="flex items-center gap-[3px]">
+                      <span
+                        className={`text-[7px] md:text-[9px] tracking-normal px-1 rounded ${
+                          p === turnPhase ? 'bg-zinc-950 text-amber-200' : 'text-zinc-950/45'
+                        }`}
+                      >
+                        {PHASE_BUTTON_LABEL[p]}
+                      </span>
+                      {i < activePhases.length - 1 && <span className="text-[7px] md:text-[9px] text-zinc-950/40">›</span>}
+                    </span>
+                  ))}
+                </span>
+              )
             )}
           </motion.div>
         </div>
