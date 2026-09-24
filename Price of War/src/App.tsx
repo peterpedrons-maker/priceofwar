@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { X, ArrowUp, ArrowDown, Sparkles } from 'lucide-react';
+import { X, ArrowUp, ArrowDown } from 'lucide-react';
 import { playAiTurn, AiAction } from './services/aiService';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
@@ -28,6 +28,7 @@ import haloInvalidTargetImage from './assets/halo-invalid-target.png';
 import haloSelectionImage from './assets/halo-selection.png';
 import badgeSwordImage from './assets/badge-sword.png';
 import badgeShieldImage from './assets/badge-shield.png';
+import abilityReadyBorderImage from './assets/border-ability-ready.png';
 import multidaoDeFieisArt from './assets/card-multidao-de-fieis.webp';
 import comercianteDasCruzadasArt from './assets/card-comerciante-das-cruzadas.webp';
 import espiaoSabotadorArt from './assets/card-espiao-sabotador.webp';
@@ -3805,6 +3806,7 @@ export default function App() {
     setPlayerGeneralAbilityUses(prev => prev + 1);
     setPendingGeneralHeal({ amount });
     setGeneralAbilityPrompt(null);
+    playTacticSfx();
     showToast('Escolha um soldado aliado para curar.');
   };
 
@@ -3833,6 +3835,7 @@ export default function App() {
   // shape as Recrutar Veteranos above (see openCardPicker there), just N=2/keep=1
   // and triggered from the card's own on-board prompt instead of a hand Tática.
   const activateComercianteDasCruzadas = (card: CardData) => {
+    playTacticSfx();
     setPlayerActivatedAbilityIds(prev => new Set(prev).add(card.id));
     if (deckQueueRef.current.length < 2) {
       deckQueueRef.current = [...deckQueueRef.current, ...[...playerDeckPoolRef.current].sort(() => Math.random() - 0.5)];
@@ -3854,6 +3857,7 @@ export default function App() {
   // starts on whichever half actually has a target so a fully-healthy board (or
   // an empty enemy Vanguarda) never wastes the whole activation.
   const activateHospitalario = (card: CardData) => {
+    playTacticSfx();
     setPlayerActivatedAbilityIds(prev => new Set(prev).add(card.id));
     const hasDamagedAlly = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => playerSlots[i] && !playerSlots[i]?.isDestroyed && isCardDamaged(playerSlots[i]!));
     if (hasDamagedAlly) {
@@ -3869,6 +3873,34 @@ export default function App() {
       showToast('Cavaleiro Hospitalário: nenhum alvo disponível para nenhuma das duas metades.');
     }
   };
+
+  // "You may activate this" prompts (the General's own Fase-Principal ability, plus
+  // Mercador da Cruzada / Cavaleiro Hospitalário on their own slots) — used to be a
+  // small circular Sparkles badge in the corner of each CardSlot; the user asked for
+  // the reference sheet's own glowing card-frame border instead, sized to the whole
+  // card so it reads as "the whole thing is armed," not a tiny decoration easy to
+  // miss. Rendered in the same top-level fixed overlay as activeHalos above (see its
+  // own comment for why: a slot with no z-index of its own can't guarantee painting
+  // over a later sibling slot, which is what made the old halo overlay read as
+  // "clipped" whenever a neighbor was occupied — same fix applies here).
+  const abilityReadyPrompts: { key: string; x: number; y: number; w: number; h: number; onClick: () => void }[] = [];
+  const pushAbilityPrompt = (key: string, slotId: string, onClick: () => void) => {
+    const el = document.getElementById(slotId);
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    abilityReadyPrompts.push({ key, x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, onClick });
+  };
+  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(i => {
+    const kind = getPlayerCreatureAbilityKind(i);
+    if (!kind) return;
+    pushAbilityPrompt(`ability-${i}`, `player-${i}`, () => {
+      if (kind === 'comerciante') activateComercianteDasCruzadas(playerSlots[i]!);
+      else activateHospitalario(playerSlots[i]!);
+    });
+  });
+  if (playerGeneralAbilityAvailable) {
+    pushAbilityPrompt('ability-general', 'player-12', () => setGeneralAbilityPrompt({ kind: 'cardeal_heal', confirmed: false }));
+  }
 
   // Resolves Cavaleiro Hospitalário's heal half once the player clicks their own board (see
   // pendingHospitalario's dispatch at the top of handleSlotClick).
@@ -4738,7 +4770,6 @@ export default function App() {
           {/* Vanguarda Player (Frontline) */}
           <div className="flex justify-center gap-3 md:gap-6">
             {[0, 1, 2, 3, 4].map((i) => {
-              const creatureAbilityKind = getPlayerCreatureAbilityKind(i);
               return (
               <div key={i} className="relative">
               <CardSlot
@@ -4758,24 +4789,6 @@ export default function App() {
                 hasMoved={movedSlots.has(i)}
                 isTacticDragTarget={isTacticTargetSlot('own', i)}
               />
-              {/* Mercador da Cruzada / Cavaleiro Hospitalário: same Yu-Gi-Oh-style
-                  "you may activate this" Sparkles prompt as the General's own
-                  ability (see playerGeneralAbilityAvailable above), just on
-                  this card's own slot instead of only the General's. */}
-              {creatureAbilityKind && (
-                <motion.button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (creatureAbilityKind === 'comerciante') activateComercianteDasCruzadas(playerSlots[i]!);
-                    else activateHospitalario(playerSlots[i]!);
-                  }}
-                  animate={{ scale: [1, 1.15, 1] }}
-                  transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute -top-2 -right-2 w-6 h-6 md:w-8 md:h-8 rounded-full bg-gradient-to-b from-amber-400 to-amber-600 border-2 border-amber-200 flex items-center justify-center shadow-[0_0_14px_rgba(251,191,36,0.8)] z-20 pointer-events-auto"
-                >
-                  <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-amber-950" />
-                </motion.button>
-              )}
               </div>
               );
             })}
@@ -4784,7 +4797,6 @@ export default function App() {
           {/* Retaguarda Player (Backline) */}
           <div className="flex justify-center gap-3 md:gap-6">
             {[5, 6, 7, 8, 9].map((i) => {
-              const creatureAbilityKind = getPlayerCreatureAbilityKind(i);
               return (
               <div key={i} className="relative">
               <CardSlot
@@ -4804,20 +4816,6 @@ export default function App() {
                 hasMoved={movedSlots.has(i)}
                 isTacticDragTarget={isTacticTargetSlot('own', i)}
               />
-              {creatureAbilityKind && (
-                <motion.button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (creatureAbilityKind === 'comerciante') activateComercianteDasCruzadas(playerSlots[i]!);
-                    else activateHospitalario(playerSlots[i]!);
-                  }}
-                  animate={{ scale: [1, 1.15, 1] }}
-                  transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute -top-2 -right-2 w-6 h-6 md:w-8 md:h-8 rounded-full bg-gradient-to-b from-amber-400 to-amber-600 border-2 border-amber-200 flex items-center justify-center shadow-[0_0_14px_rgba(251,191,36,0.8)] z-20 pointer-events-auto"
-                >
-                  <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-amber-950" />
-                </motion.button>
-              )}
               </div>
               );
             })}
@@ -4858,23 +4856,6 @@ export default function App() {
                 attackDirection="up"
                 isTacticDragTarget={isTacticTargetSlot('own', 12)}
               />
-              {/* Yu-Gi-Oh-style "you may activate this" prompt — the game itself
-                  notices the General has a usable Fase-Principal ability right now
-                  (see playerGeneralAbilityAvailable) and surfaces it here instead of
-                  it just being unusable flavor text on the card. */}
-              {playerGeneralAbilityAvailable && (
-                <motion.button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setGeneralAbilityPrompt({ kind: 'cardeal_heal', confirmed: false });
-                  }}
-                  animate={{ scale: [1, 1.15, 1] }}
-                  transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute -top-3 -right-3 w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-b from-amber-400 to-amber-600 border-2 border-amber-200 flex items-center justify-center shadow-[0_0_18px_rgba(251,191,36,0.8)] z-20 pointer-events-auto"
-                >
-                  <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-amber-950" />
-                </motion.button>
-              )}
             </div>
             <CardSlot
               slotId="player-11"
@@ -5619,6 +5600,29 @@ export default function App() {
                 width: h.w * h.scale, height: h.h * h.scale,
                 transform: 'translate(-50%, -50%)',
                 objectFit: 'contain', filter: h.glow,
+              }}
+            />
+          ))}
+        </div>
+      )}
+      {/* "You may activate this" prompts — see abilityReadyPrompts above for why
+          these moved out of each CardSlot and into this same top-level fixed layer. */}
+      {abilityReadyPrompts.length > 0 && (
+        <div className="fixed inset-0 z-40 pointer-events-none">
+          {abilityReadyPrompts.map(p => (
+            <motion.button
+              key={p.key}
+              onClick={(e) => { e.stopPropagation(); p.onClick(); }}
+              animate={{ scale: [1, 1.06, 1] }}
+              transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+              className="pointer-events-auto"
+              style={{
+                position: 'fixed', left: p.x, top: p.y,
+                width: p.w * 1.12, height: p.h * 1.12,
+                marginLeft: -(p.w * 1.12) / 2, marginTop: -(p.h * 1.12) / 2,
+                backgroundImage: `url(${abilityReadyBorderImage})`,
+                backgroundSize: '100% 100%',
+                filter: 'drop-shadow(0 0 10px rgba(239,68,68,0.8))',
               }}
             />
           ))}
