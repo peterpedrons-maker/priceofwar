@@ -4677,6 +4677,7 @@ export default function App() {
               onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
+              isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 10}
               attackDirection="down"
               isValidAttackTarget={validAttackTargets.has(10)}
@@ -4691,6 +4692,7 @@ export default function App() {
                 onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
+                isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 12}
                 attackDirection="down"
                 isValidAttackTarget={validAttackTargets.has(12)}
@@ -4705,6 +4707,7 @@ export default function App() {
               onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
+              isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 11}
               attackDirection="down"
               isValidAttackTarget={validAttackTargets.has(11)}
@@ -4729,6 +4732,7 @@ export default function App() {
                 onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
+                isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
                 attackDirection="down"
                 isValidAttackTarget={validAttackTargets.has(i)}
@@ -4749,6 +4753,7 @@ export default function App() {
                 onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
+                isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
                 attackDirection="down"
                 isValidAttackTarget={validAttackTargets.has(i)}
@@ -4780,6 +4785,7 @@ export default function App() {
                 onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
+                isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
                 attackDirection="up"
                 hint={getPlayerSlotHint(i)}
@@ -4807,6 +4813,7 @@ export default function App() {
                 onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
+                isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
                 attackDirection="up"
                 hint={getPlayerSlotHint(i)}
@@ -4838,6 +4845,7 @@ export default function App() {
               onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
+              isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 10}
               attackDirection="up"
               hint={getPlayerSlotHint(10)}
@@ -4852,6 +4860,7 @@ export default function App() {
                 onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
+                isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
                 isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 12}
                 attackDirection="up"
                 isTacticDragTarget={isTacticTargetSlot('own', 12)}
@@ -4865,6 +4874,7 @@ export default function App() {
               onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
+              isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
               isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 11}
               attackDirection="up"
               hint={getPlayerSlotHint(11)}
@@ -5613,8 +5623,8 @@ export default function App() {
             <motion.button
               key={p.key}
               onClick={(e) => { e.stopPropagation(); p.onClick(); }}
-              animate={{ scale: [1, 1.06, 1] }}
-              transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+              animate={{ opacity: [1, 0.3, 1] }}
+              transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
               className="pointer-events-auto"
               style={{
                 position: 'fixed', left: p.x, top: p.y,
@@ -5983,13 +5993,17 @@ export default function App() {
 
 const CardSlot = ({
   onClick, onInfoClick, card, isSelected = false,
-  isAttacking = false, isImpactingTarget = false, attackDirection = 'up', hint, rowRoleHint,
+  isAttacking = false, isImpactingTarget = false, isImpactingAttacker = false, attackDirection = 'up', hint, rowRoleHint,
   isValidAttackTarget = false, isInvalidAttackTarget = false, slotId,
   isMoverSelected = false, isValidMoveTarget = false, hasMoved = false,
   shockActive = false, isTacticDragTarget = false,
 }: {
   onClick?: (el: HTMLElement) => void, onInfoClick?: (card: CardData) => void, card?: CardData | null,
   isSelected?: boolean, isAttacking?: boolean, isImpactingTarget?: boolean, attackDirection?: 'up' | 'down',
+  // True for the attacker's own card during the exact same impact window
+  // isImpactingTarget uses on the defender — Hearthstone-style, both sides in a
+  // collision rattle, not just whoever's taking the hit. See isImpacting/attackAnim.
+  isImpactingAttacker?: boolean,
   hint?: SlotHint, key?: React.Key,
   // Annotates a 'valid' empty-slot hint with what this row actually lets the
   // selected unit DO once placed — 'combat' (Vanguarda) or 'support' (Retaguarda) —
@@ -6032,6 +6046,19 @@ const CardSlot = ({
   const prevHpRef = useRef<number | undefined>(card?.hp);
   const prevCardIdRef = useRef<string | undefined>(card?.id);
   const [damageFlash, setDamageFlash] = useState<{ key: number; amount: number } | null>(null);
+  // Physical "landing weight" — a brief non-uniform squash (see scaleY below) the
+  // instant a genuinely NEW card occupies this slot, on top of the existing scale-in.
+  // Keyed off the same id-change check as the damage flash below (a card moving
+  // within/into this slot, not just its hp changing), but reads prevCardIdRef
+  // BEFORE that effect updates it, so this has to run first.
+  const [justLanded, setJustLanded] = useState(false);
+  useEffect(() => {
+    if (card && prevCardIdRef.current !== card.id) {
+      setJustLanded(true);
+      const t = window.setTimeout(() => setJustLanded(false), 380);
+      return () => clearTimeout(t);
+    }
+  }, [card?.id]);
   useEffect(() => {
     if (card && prevCardIdRef.current === card.id && prevHpRef.current !== undefined && card.hp < prevHpRef.current) {
       setDamageFlash({ key: Date.now(), amount: prevHpRef.current - card.hp });
@@ -6171,21 +6198,44 @@ const CardSlot = ({
           initial={{ opacity: 0, scale: 0.4, y: -24 }}
           animate={{
             opacity: 1,
-            // A full-art card landing elsewhere on the board makes this one flinch —
-            // a quick up-down jolt, like the table itself shook (see shockActive).
-            y: isAttacking ? attackY : (shockActive ? [0, -14, 2, 0] : 0),
-            // Damage feedback (see damageFlash above) — a quick side-to-side rattle,
-            // independent of the y-jolt above so both can play at once.
-            x: damageFlash ? [0, -7, 7, -5, 5, -2, 0] : 0,
+            // Hearthstone-style wind-up: the attacker pulls back a little FIRST
+            // (opposite direction, small distance) before rushing the rest of the
+            // way to the target — reads as the card gathering momentum instead of
+            // just teleporting to its lunge position. A full-art card landing
+            // elsewhere on the board makes this one flinch (see shockActive).
+            y: isAttacking
+              ? [0, attackY > 0 ? -22 : 22, attackY]
+              : (shockActive ? [0, -14, 2, 0] : 0),
+            // Collision tremor — BOTH the attacker and the defender rattle the
+            // instant the hit actually lands (isImpactingAttacker/isImpactingTarget,
+            // both tied to the same isImpacting window), not just whichever card
+            // ends up taking damage; separately, damageFlash below still adds its
+            // own rattle once HP actually drops, so a real hit reads as two beats —
+            // the impact itself, then the wound.
+            x: damageFlash
+              ? [0, -7, 7, -5, 5, -2, 0]
+              : (isImpactingAttacker || isImpactingTarget) ? [0, -6, 6, -4, 4, 0] : 0,
             z: isAttacking ? 100 : 0,
-            scale: isAttacking ? 1.2 : 1,
+            // A quick "punch" scale-up on the attacker right as it connects, and a
+            // matching flinch (brief shrink) on whatever it's hitting — the same
+            // push/give pairing a real collision has.
+            scale: isImpactingAttacker ? 1.32 : isAttacking ? 1.2 : isImpactingTarget ? 0.9 : 1,
+            // Physical landing weight (see justLanded above) — a squash-and-settle
+            // on just the vertical axis, like the card actually has mass hitting the
+            // table, instead of the plain uniform scale-in every card used to get.
+            // Left undefined the rest of the time so it just follows `scale` above.
+            scaleY: justLanded ? [0.55, 1.18, 0.92, 1.03, 1] : undefined,
             rotateX: isAttacking ? (attackDirection === 'up' ? 20 : -20) : 0,
           }}
           transition={{
-            duration: 0.3,
+            duration: isAttacking ? 0.3 : 0.2,
+            times: isAttacking ? [0, 0.4, 1] : undefined,
             scale: { type: "spring", stiffness: 400, damping: 15 },
+            scaleY: justLanded ? { duration: 0.38, ease: "easeOut", times: [0, 0.35, 0.6, 0.85, 1] } : undefined,
             y: shockActive ? { duration: 0.4, ease: "easeOut" } : undefined,
-            x: damageFlash ? { duration: 0.45, ease: "easeOut" } : undefined,
+            x: damageFlash
+              ? { duration: 0.45, ease: "easeOut" }
+              : (isImpactingAttacker || isImpactingTarget) ? { duration: 0.25, ease: "easeOut" } : undefined,
           }}
           // A resting card gets a two-layer shadow: a tight, hard-edged sliver right
           // behind it (reads as the card's own physical thickness/cardstock edge) plus
