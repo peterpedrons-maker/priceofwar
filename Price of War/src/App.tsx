@@ -326,21 +326,15 @@ const PHASE_BANNER_TEXT: Record<TurnPhase, { title: string; subtitle: string }> 
   combate: { title: 'Fase de Combate', subtitle: 'Ataque com suas unidades' },
   movimentacao: { title: 'Fase de Movimentação', subtitle: 'Reposicione suas unidades' },
 };
-// Short enough to fit as a second line on the Avançar button itself (see its own
-// render below) — "para onde" the tap actually goes, instead of making the player
-// cross-reference the phase tracker on the side to find out.
+// The Avançar button's own stepper row (see its render below) always spells out
+// all three full names, Combate included even on turns 1-2 when it's locked —
+// an abbreviated "Prep."/"Mov." read as meaningless to a player who doesn't
+// already know the phase names by heart, so this shrinks the FONT instead of
+// the words to make everything fit.
 const PHASE_SHORT_LABEL: Record<TurnPhase, string> = {
   preparacao: 'Preparação',
   combate: 'Combate',
   movimentacao: 'Movimentação',
-};
-// Tight enough to fit all three side by side inside the Avançar button's own
-// stepper row (see its render below) — the full names above are still used
-// wherever there's just one phase alone (turns 1-2) and more room to spell it out.
-const PHASE_BUTTON_LABEL: Record<TurnPhase, string> = {
-  preparacao: 'Prep.',
-  combate: 'Combate',
-  movimentacao: 'Mov.',
 };
 // The banner is driven as a 3-stage state machine (see announcePhase/phaseBanner)
 // instead of one motion.div animating a 5-point opacity/x KEYFRAME array — that
@@ -2386,27 +2380,6 @@ export default function App() {
   // Holds the camera's zoomed-in focus for a brief moment after the card lands,
   // so the placement reads clearly before the view eases back to normal.
   const [cameraSettling, setCameraSettling] = useState<{ slotIndex: number } | null>(null);
-  // Drives the fixed gold/turn-button HUD's visibility across a card-play zoom (see
-  // its own render further down) — a plain CSS opacity+transition keyed straight off
-  // isCardInFlightTransition looked right in isolation, but relying on
-  // transition-delay to also hold pointer-events unclickable during that delay
-  // turned out unreliable: pointer-events (not a property browsers actually animate)
-  // flipped back to clickable almost immediately instead of waiting out the delay,
-  // leaving a window where the invisible button could still be tapped. Driving both
-  // off one plain boolean, flipped by this effect instead of by CSS timing, keeps
-  // them perfectly in sync no matter how the browser handles that edge case.
-  const [hudVisible, setHudVisible] = useState(true);
-  useEffect(() => {
-    if (preZoomSlot || flyingCard || cameraSettling) {
-      setHudVisible(false);
-      return;
-    }
-    // The camera's own pan/zoom has already eased back to resting by the time this
-    // flag clears — the user's own ask was for the HUD to wait an extra half-second
-    // past that before it reappears, not to pop back the instant the flag flips.
-    const timer = window.setTimeout(() => setHudVisible(true), 500);
-    return () => window.clearTimeout(timer);
-  }, [preZoomSlot, flyingCard, cameraSettling]);
   // A brief flash/ring burst at the screen position where a played card just landed.
   const [impactBurst, setImpactBurst] = useState<{ x: number; y: number; big?: boolean } | null>(null);
   // A "full art" card (see CardData.isFullArt) landing makes the whole board react —
@@ -3528,6 +3501,27 @@ export default function App() {
   const getCardVisualEl = (slotId: string): HTMLElement | null =>
     document.querySelector(`[data-card-visual="${slotId}"]`) ?? document.getElementById(slotId);
 
+  // An element's screen box with every ancestor's CSS `transform` stripped out —
+  // offsetLeft/offsetTop/offsetWidth/offsetHeight are pure pre-transform LAYOUT
+  // numbers (a `transform` repaints an element without moving its box in the layout
+  // sense, even on the ancestor that becomes the offsetParent for it), unlike
+  // getBoundingClientRect which bakes in whatever transform is currently applied.
+  // Walking that chain up to the untransformed <body> gives a position that stays
+  // planted at a slot's resting spot on the board no matter what the camera
+  // (getBoardAnimation's zoom/pan) or an attacking card's own lunge are doing to it
+  // at that exact instant — see the ability-ready prompts below, which used to
+  // visibly ride along with both.
+  const getRestRect = (el: HTMLElement): { x: number; y: number; w: number; h: number } => {
+    let x = 0, y = 0, node: HTMLElement | null = el;
+    while (node && node !== document.body) {
+      x += node.offsetLeft;
+      y += node.offsetTop;
+      node = node.offsetParent as HTMLElement | null;
+    }
+    const bodyRect = document.body.getBoundingClientRect();
+    return { x: x + bodyRect.left, y: y + bodyRect.top, w: el.offsetWidth, h: el.offsetHeight };
+  };
+
   // A "conducting line" from the selected attacker to every occupied enemy slot — green
   // and flowing for a reachable target, dim red for one that's blocked/out of range —
   // so the lane-blocking rule reads as an obvious line on the board, not just an arrow
@@ -3929,8 +3923,8 @@ export default function App() {
   const pushAbilityPrompt = (key: string, slotId: string, onClick: () => void) => {
     const el = document.getElementById(slotId);
     if (!el) return;
-    const r = el.getBoundingClientRect();
-    abilityReadyPrompts.push({ key, x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, onClick });
+    const r = getRestRect(el);
+    abilityReadyPrompts.push({ key, x: r.x + r.w / 2, y: r.y + r.h / 2, w: r.w, h: r.h, onClick });
   };
   [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(i => {
     const kind = getPlayerCreatureAbilityKind(i);
@@ -4984,18 +4978,13 @@ export default function App() {
           by the same factor the board itself renders at).
 
           Being outside the transform also means this sits STILL while the board
-          pans/zooms toward a played card's slot — which used to mean the button and
-          badges could end up visually stranded on top of whichever row the camera
-          panned into (the exact complaint: "the button moves along with the
-          camera"). Rather than move this WITH that pan (reopening the drifting
-          floating-number bug above), it just steps out of the way: instantly gone
-          (no transition at all — even the ~150ms fade this used to do was long
-          enough to see it hanging there mid-fade while the pan was still moving,
-          which read as the same "walking" complaint all over again) the moment a
-          card-play zoom starts, reappearing on a plain fade once it's done — but
-          only after a flat 500ms hold past the zoom actually finishing (see
-          hudVisible above), since popping back the instant the camera settles still
-          looked like it was catching up to the tail end of that motion. */}
+          pans/zooms toward a played card's slot, on purpose — a previous version
+          hid it for the length of that pan instead (the button and badges could
+          otherwise end up visually stranded on top of whichever row the camera
+          panned into), but that read as worse than the stranding it was meant to
+          fix: the whole point of this HUD is to always be right where the player
+          expects it, so it now just stays put and visible through every zoom/pan,
+          same as the always-on-top score overlay in any other card game. */}
       <div
         className="absolute z-40 flex flex-row items-center gap-3 md:gap-5"
         style={{
@@ -5003,9 +4992,6 @@ export default function App() {
           top: boardTopMargin + 600.5 * boardHeightMultiplier,
           transform: 'translate(-50%, -50%)',
           perspective: 600,
-          opacity: hudVisible ? 1 : 0,
-          transition: hudVisible ? 'opacity 0.15s ease' : 'none',
-          pointerEvents: hudVisible ? 'auto' : 'none',
         }}
       >
         {/* NPC's gold — same distance from the button as the player's below. A red
@@ -5054,18 +5040,22 @@ export default function App() {
               circular button + a separate "whose turn" label above it + a separate
               "Encerrar Turno" label below it (see git history) — that stack read as
               three things instead of one, and the top/bottom labels' text was tiny
-              for how much vertical space the whole cluster spent. A FIXED size (not
+              for how much vertical space the whole cluster spent. A FIXED WIDTH (not
               sized to its own text) — the text changes length by state (Avançar/
               Encerrar/Adversário), and letting the box follow that used to visibly
               push the gold badges on either side of it wider/narrower every time the
-              turn or phase changed. The pulsing glow (still just the same decorative
+              turn or phase changed; the height is left free to grow by a fixed
+              MINIMUM instead (min-h-*, not h-*) for the one extra line the "Combate
+              no Turno 3" hint below adds on turns 1-2 — that only changes height,
+              which just re-centers the badges vertically in the row, never their
+              horizontal spread. The pulsing glow (still just the same decorative
               loop the old circular button had) is what actually signals "tap me"
               while it's the player's turn. Text: "Avançar" reads more honestly than
               the old "Seu Turno" did — tapping this advances to the NEXT phase, not
               the player's own turn ending, which only "Encerrar" (the very last
               phase) actually does. */}
           <motion.div
-            className={`w-32 md:w-36 h-10 md:h-11 flex flex-col items-center justify-center rounded-lg border-2 font-black uppercase tracking-wide whitespace-nowrap leading-none px-1 ${
+            className={`w-40 md:w-44 min-h-10 md:min-h-11 flex flex-col items-center justify-center rounded-lg border-2 font-black uppercase tracking-wide whitespace-nowrap leading-none px-1 py-1.5 ${
               currentTurn === 'player'
                 ? 'bg-gradient-to-b from-amber-400 to-amber-600 border-amber-200 text-zinc-950 cursor-pointer'
                 : 'bg-zinc-950/80 border-red-900/60 text-red-200 cursor-not-allowed'
@@ -5086,32 +5076,45 @@ export default function App() {
               {currentTurn !== 'player' ? 'Adversário' : isLastPhaseOfTurn ? 'Encerrar Turno' : 'Avançar'}
             </span>
             {/* A mini phase stepper baked right into the button instead of a plain
-                "Avançar" — every phase this turn has, in order, with whichever one
-                is CURRENT lit up (a solid dark pill) and the rest dimmed, so the
-                button itself always shows the turn's whole shape instead of just
-                its next step. Turns 1-2 only ever have Preparação, so there's
-                nothing to step through — just its full name, alone. */}
+                "Avançar" — ALL THREE phases, always, Combate included even on turns
+                1-2 when it's locked (isLocked below) — showing only the phases a
+                turn currently has used to make Combate vanish outright until turn 3,
+                which read as if it didn't exist rather than as "not yet". The one
+                CURRENT phase (only ever true for a phase this turn actually has) is
+                lit up as a solid dark pill; Combate while locked gets its own
+                dimmer treatment so it reads as "coming soon", not just "not now". */}
             {currentTurn === 'player' && (
-              activePhases.length === 1 ? (
-                <span className="text-[8px] md:text-[10px] tracking-normal opacity-90 mt-0.5">
-                  {PHASE_SHORT_LABEL[activePhases[0]]}
-                </span>
-              ) : (
-                <span className="flex items-center gap-[3px] mt-0.5">
-                  {activePhases.map((p, i) => (
-                    <span key={p} className="flex items-center gap-[3px]">
-                      <span
-                        className={`text-[7px] md:text-[9px] tracking-normal px-1 rounded ${
-                          p === turnPhase ? 'bg-zinc-950 text-amber-200' : 'text-zinc-950/45'
-                        }`}
-                      >
-                        {PHASE_BUTTON_LABEL[p]}
+              <>
+                <span className="flex items-center gap-[2px] mt-1">
+                  {PHASE_TAG_ORDER.map((p, i) => {
+                    const isLocked = p === 'combate' && turnNumber < 3;
+                    const isCurrent = p === turnPhase;
+                    return (
+                      <span key={p} className="flex items-center gap-[2px]">
+                        <span
+                          className={`text-[6.5px] md:text-[8px] tracking-normal px-1 rounded ${
+                            isCurrent
+                              ? 'bg-zinc-950 text-amber-200'
+                              : isLocked
+                                ? 'text-zinc-950/25'
+                                : 'text-zinc-950/45'
+                          }`}
+                        >
+                          {PHASE_SHORT_LABEL[p]}
+                        </span>
+                        {i < PHASE_TAG_ORDER.length - 1 && <span className="text-[6.5px] md:text-[8px] text-zinc-950/35">›</span>}
                       </span>
-                      {i < activePhases.length - 1 && <span className="text-[7px] md:text-[9px] text-zinc-950/40">›</span>}
-                    </span>
-                  ))}
+                    );
+                  })}
                 </span>
-              )
+                {/* Explains WHY Combate is dimmed instead of leaving the player to
+                    guess — gone the moment it actually unlocks at turn 3. */}
+                {turnNumber < 3 && (
+                  <span className="text-[6px] md:text-[7px] tracking-normal text-zinc-950/55 mt-1 whitespace-normal text-center leading-tight">
+                    Combate no Turno 3
+                  </span>
+                )}
+              </>
             )}
           </motion.div>
         </div>
