@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { X, ArrowUp, ArrowDown, ScrollText, Swords, Footprints, Lock } from 'lucide-react';
+import { X, ArrowUp, ArrowDown } from 'lucide-react';
+import turnButtonFrameImage from './assets/button-frame.webp';
+import nodeCurrentImage from './assets/node-current.webp';
+import nodeInactiveImage from './assets/node-inactive.webp';
+import nodeLockedImage from './assets/icon-lock-turn.webp';
 import { playAiTurn, AiAction } from './services/aiService';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
@@ -335,14 +339,6 @@ const PHASE_SHORT_LABEL: Record<TurnPhase, string> = {
   preparacao: 'Preparação',
   combate: 'Combate',
   movimentacao: 'Movimentação',
-};
-// One glyph per phase for that same stepper row — Combate swaps its sword for a
-// padlock while locked (turns 1-2) instead of using this, matching the "coming
-// soon" treatment its dimmed text already gets.
-const PHASE_ICON: Record<TurnPhase, typeof ScrollText> = {
-  preparacao: ScrollText,
-  combate: Swords,
-  movimentacao: Footprints,
 };
 // The banner is driven as a 3-stage state machine (see announcePhase/phaseBanner)
 // instead of one motion.div animating a 5-point opacity/x KEYFRAME array — that
@@ -5052,84 +5048,95 @@ export default function App() {
               sized to its own text) — the text changes length by state (Avançar/
               Encerrar/Adversário), and letting the box follow that used to visibly
               push the gold badges on either side of it wider/narrower every time the
-              turn or phase changed; the height is left free to grow by a fixed
-              MINIMUM instead (min-h-*, not h-*) for the one extra line the "Combate
-              no Turno 3" hint below adds on turns 1-2 — that only changes height,
-              which just re-centers the badges vertically in the row, never their
-              horizontal spread. The pulsing glow (still just the same decorative
+              turn or phase changed. The pulsing glow (still just the same decorative
               loop the old circular button had) is what actually signals "tap me"
               while it's the player's turn. Text: "Avançar" reads more honestly than
               the old "Seu Turno" did — tapping this advances to the NEXT phase, not
               the player's own turn ending, which only "Encerrar" (the very last
-              phase) actually does. */}
-          <motion.div
-            className={`w-48 md:w-56 min-h-10 md:min-h-11 flex flex-col items-center justify-center rounded-lg border-2 font-black uppercase tracking-wide whitespace-nowrap leading-none px-1 py-1.5 ${
-              currentTurn === 'player'
-                ? 'bg-gradient-to-b from-amber-400 to-amber-600 border-amber-200 text-zinc-950 cursor-pointer'
-                : 'bg-zinc-950/80 border-red-900/60 text-red-200 cursor-not-allowed'
-            }`}
-            whileTap={currentTurn === 'player' ? { scale: 0.95 } : undefined}
-            animate={{
-              boxShadow: currentTurn === 'player'
-                ? [
-                    '0 0 8px rgba(245,158,11,0.5)',
-                    '0 0 20px rgba(245,158,11,0.95)',
-                    '0 0 8px rgba(245,158,11,0.5)',
-                  ]
-                : '0 0 0 rgba(0,0,0,0)',
-            }}
-            transition={{ duration: 2, repeat: Infinity }}
-          >
-            <span className="text-[11px] md:text-sm">
-              {currentTurn !== 'player' ? 'Adversário' : isLastPhaseOfTurn ? 'Encerrar Turno' : 'Avançar'}
-            </span>
-            {/* A mini phase stepper baked right into the button instead of a plain
-                "Avançar" — ALL THREE phases, always, Combate included even on turns
-                1-2 when it's locked (isLocked below) — showing only the phases a
-                turn currently has used to make Combate vanish outright until turn 3,
-                which read as if it didn't exist rather than as "not yet". The one
-                CURRENT phase (only ever true for a phase this turn actually has) is
-                lit up as a solid dark pill; Combate while locked gets its own
-                dimmer treatment (and swaps its sword for a padlock) so it reads as
-                "coming soon", not just "not now". A small icon per phase — quicker
-                to recognize at a glance than the tiny text alone — reuses the visual
-                language the user's own reference mockup used for this same stepper. */}
-            {currentTurn === 'player' && (
-              <>
-                <span className="flex items-center justify-center flex-wrap gap-x-[1px] gap-y-0.5 mt-1 max-w-full">
-                  {PHASE_TAG_ORDER.map((p, i) => {
-                    const isLocked = p === 'combate' && turnNumber < 3;
-                    const isCurrent = p === turnPhase;
-                    const Icon = isLocked ? Lock : PHASE_ICON[p];
-                    return (
-                      <span key={p} className="flex items-center gap-[1px]">
-                        <span
-                          className={`flex items-center gap-[1.5px] text-[6px] md:text-[7.5px] tracking-normal px-0.5 rounded ${
-                            isCurrent
-                              ? 'bg-zinc-950 text-amber-200'
-                              : isLocked
-                                ? 'text-zinc-950/25'
-                                : 'text-zinc-950/45'
-                          }`}
-                        >
-                          <Icon className="w-[6px] h-[6px] md:w-[7.5px] md:h-[7.5px] shrink-0" strokeWidth={3} />
-                          {PHASE_SHORT_LABEL[p]}
-                        </span>
-                        {i < PHASE_TAG_ORDER.length - 1 && <span className="text-[6px] md:text-[7.5px] text-zinc-950/35">›</span>}
-                      </span>
-                    );
-                  })}
+              phase) actually does.
+
+              The player-turn version is built from a real art asset (button-frame.png,
+              cropped from a reference sheet the user had an AI generate) instead of a
+              plain CSS gradient box — its own aspect ratio (1344:400) is locked via the
+              `aspectRatio` style so the ornate border never stretches out of proportion
+              at either breakpoint's width. That frame's interior is mostly a
+              TRANSPARENT cutout (only its gold trim is opaque) for the top "plaque"
+              area, which is why a plain amber gradient div still sits behind it — the
+              art shows through as a border on top of it, not a replacement for it. Its
+              lower "track" area, by contrast, is already opaque dark art with two
+              chevrons pre-drawn, so the three phase groups are laid out with
+              justify-around to fall roughly into the three lanes those chevrons imply,
+              rather than drawing our own separator glyphs on top of them. The "Combate
+              no Turno 3" hint moved OUTSIDE this frame (a sibling below it, in the
+              wrapping div) specifically so it can't stretch this locked-aspect-ratio
+              box out of shape by adding a third line inside it. */}
+          {currentTurn === 'player' ? (
+            <motion.div
+              className="relative w-48 md:w-56 font-black uppercase tracking-wide text-zinc-950 cursor-pointer"
+              style={{ aspectRatio: '1344 / 400' }}
+              whileTap={{ scale: 0.95 }}
+              animate={{
+                boxShadow: [
+                  '0 0 8px rgba(245,158,11,0.5)',
+                  '0 0 20px rgba(245,158,11,0.95)',
+                  '0 0 8px rgba(245,158,11,0.5)',
+                ],
+              }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <div className="absolute inset-0 rounded-lg bg-gradient-to-b from-amber-400 to-amber-600" />
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{ backgroundImage: `url(${turnButtonFrameImage})`, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat' }}
+              />
+              <div className="absolute flex items-center justify-center" style={{ top: '3%', left: '11%', width: '78%', height: '44%' }}>
+                <span className="text-[11px] md:text-sm whitespace-nowrap">
+                  {isLastPhaseOfTurn ? 'Encerrar Turno' : 'Avançar'}
                 </span>
-                {/* Explains WHY Combate is dimmed instead of leaving the player to
-                    guess — gone the moment it actually unlocks at turn 3. */}
-                {turnNumber < 3 && (
-                  <span className="text-[6px] md:text-[7px] tracking-normal text-zinc-950/55 mt-1 whitespace-normal text-center leading-tight">
-                    Combate no Turno 3
-                  </span>
-                )}
-              </>
-            )}
-          </motion.div>
+              </div>
+              {/* A mini phase stepper baked right into the button instead of a plain
+                  "Avançar" — ALL THREE phases, always, Combate included even on turns
+                  1-2 when it's locked — showing only the phases a turn currently has
+                  used to make Combate vanish outright until turn 3, which read as if
+                  it didn't exist rather than as "not yet". Each phase gets a small
+                  ring badge from the same reference sheet (green = current, gold =
+                  available but not current, padlock = locked) instead of a colored
+                  pill, since the sheet's own node art already reads as a state
+                  indicator on its own — full names stay in text alongside it either
+                  way, so a player who doesn't recognize the badge yet still has the
+                  word. */}
+              <div className="absolute flex items-center justify-around" style={{ top: '54%', left: '4%', width: '92%', height: '40%' }}>
+                {PHASE_TAG_ORDER.map(p => {
+                  const isLocked = p === 'combate' && turnNumber < 3;
+                  const isCurrent = p === turnPhase;
+                  const nodeImg = isLocked ? nodeLockedImage : isCurrent ? nodeCurrentImage : nodeInactiveImage;
+                  return (
+                    <span
+                      key={p}
+                      className={`flex items-center gap-[2px] text-[6px] md:text-[7.5px] tracking-normal whitespace-nowrap ${
+                        isCurrent ? 'text-amber-200' : isLocked ? 'text-zinc-500' : 'text-zinc-400'
+                      }`}
+                    >
+                      <img src={nodeImg} className="w-[10px] h-[10px] md:w-[12px] md:h-[12px] shrink-0" alt="" />
+                      {PHASE_SHORT_LABEL[p]}
+                    </span>
+                  );
+                })}
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div className="w-48 md:w-56 min-h-10 md:min-h-11 flex flex-col items-center justify-center rounded-lg border-2 font-black uppercase tracking-wide whitespace-nowrap leading-none px-1 py-1.5 bg-zinc-950/80 border-red-900/60 text-red-200 cursor-not-allowed">
+              <span className="text-[11px] md:text-sm">Adversário</span>
+            </motion.div>
+          )}
+          {/* Explains WHY Combate is dimmed instead of leaving the player to guess —
+              gone the moment it actually unlocks at turn 3. Sibling of the framed
+              button above (not a child of it) — see that button's own comment for why. */}
+          {currentTurn === 'player' && turnNumber < 3 && (
+            <span className="text-[6px] md:text-[7px] font-black uppercase tracking-wide text-amber-200/70 whitespace-normal text-center leading-tight max-w-[90%]">
+              Combate no Turno 3
+            </span>
+          )}
         </div>
 
         {/* Player's gold — same distance from the button as the NPC's above. */}
