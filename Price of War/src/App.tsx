@@ -3508,27 +3508,6 @@ export default function App() {
   const getCardVisualEl = (slotId: string): HTMLElement | null =>
     document.querySelector(`[data-card-visual="${slotId}"]`) ?? document.getElementById(slotId);
 
-  // An element's screen box with every ancestor's CSS `transform` stripped out —
-  // offsetLeft/offsetTop/offsetWidth/offsetHeight are pure pre-transform LAYOUT
-  // numbers (a `transform` repaints an element without moving its box in the layout
-  // sense, even on the ancestor that becomes the offsetParent for it), unlike
-  // getBoundingClientRect which bakes in whatever transform is currently applied.
-  // Walking that chain up to the untransformed <body> gives a position that stays
-  // planted at a slot's resting spot on the board no matter what the camera
-  // (getBoardAnimation's zoom/pan) or an attacking card's own lunge are doing to it
-  // at that exact instant — see the ability-ready prompts below, which used to
-  // visibly ride along with both.
-  const getRestRect = (el: HTMLElement): { x: number; y: number; w: number; h: number } => {
-    let x = 0, y = 0, node: HTMLElement | null = el;
-    while (node && node !== document.body) {
-      x += node.offsetLeft;
-      y += node.offsetTop;
-      node = node.offsetParent as HTMLElement | null;
-    }
-    const bodyRect = document.body.getBoundingClientRect();
-    return { x: x + bodyRect.left, y: y + bodyRect.top, w: el.offsetWidth, h: el.offsetHeight };
-  };
-
   // A "conducting line" from the selected attacker to every occupied enemy slot — green
   // and flowing for a reachable target, dim red for one that's blocked/out of range —
   // so the lane-blocking rule reads as an obvious line on the board, not just an arrow
@@ -3926,12 +3905,23 @@ export default function App() {
   // own comment for why: a slot with no z-index of its own can't guarantee painting
   // over a later sibling slot, which is what made the old halo overlay read as
   // "clipped" whenever a neighbor was occupied — same fix applies here).
+  // Real on-screen positions via getBoundingClientRect (like attackLines/activeHalos
+  // above) — a previous version tried to strip the board's own transform out by hand
+  // (summing offsetLeft/offsetTop up the ancestor chain instead), reasoning that
+  // transform never changes an element's own layout box. That's true for translation,
+  // but the board's OWN permanent transform also SCALES its huge 1000x1250 design-space
+  // box down to fit the viewport — offsetLeft/Top are pre-scale numbers in that same
+  // huge coordinate space, so summing them landed the prompt hundreds of pixels off
+  // (past the bottom of the viewport entirely for the General's slot), silently
+  // unclickable. getBoundingClientRect always reflects the real, current, post-transform
+  // position, so this can ride along with a card-play zoom for its brief duration —
+  // a working prompt on rare occasion sliding slightly beats a permanently broken one.
   const abilityReadyPrompts: { key: string; x: number; y: number; w: number; h: number; onClick: () => void }[] = [];
   const pushAbilityPrompt = (key: string, slotId: string, onClick: () => void) => {
     const el = document.getElementById(slotId);
     if (!el) return;
-    const r = getRestRect(el);
-    abilityReadyPrompts.push({ key, x: r.x + r.w / 2, y: r.y + r.h / 2, w: r.w, h: r.h, onClick });
+    const r = el.getBoundingClientRect();
+    abilityReadyPrompts.push({ key, x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, onClick });
   };
   [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(i => {
     const kind = getPlayerCreatureAbilityKind(i);
@@ -5188,18 +5178,19 @@ export default function App() {
                     1-2 when it's locked — showing only the phases a turn currently has
                     used to make Combate vanish outright until turn 3, which read as if
                     it didn't exist rather than as "not yet". Each phase gets a small
-                    ring badge from the same reference sheet (green = current, gray =
-                    available but not current, padlock = locked) instead of a colored
-                    pill, since the sheet's own node art already reads as a state
-                    indicator on its own — full names stay in text alongside it either
-                    way, so a player who doesn't recognize the badge yet still has the
-                    word. The current phase's own ring glows (an animated drop-shadow,
-                    which follows the ring PNG's actual round alpha shape instead of a
-                    rectangular box-shadow around its bounding box) so "this one's active"
-                    reads at a glance, not just from the dimmer text color next to it —
-                    npcVisiblePhase never reaches 'movimentacao' (the AI never
-                    repositions), so that ring simply never lights up on the opponent's
-                    turn, which is correct.
+                    ring badge (green = THIS is the phase being played right now, red =
+                    every other phase, padlock = locked) instead of a colored pill — the
+                    ask was specifically for only the active phase to read as "on", with
+                    every other one (played already or still ahead) reading as "off"
+                    rather than some third, in-between "available" state — full names
+                    stay in text alongside it either way, so a player who doesn't
+                    recognize the badge yet still has the word. The current phase's own
+                    ring glows too (an animated drop-shadow, which follows the ring PNG's
+                    actual round alpha shape instead of a rectangular box-shadow around
+                    its bounding box) so "this one's active" reads at a glance even
+                    before noticing the color — npcVisiblePhase never reaches
+                    'movimentacao' (the AI never repositions), so that ring simply never
+                    lights up on the opponent's turn, which is correct.
 
                     flex-1 on each phase (equal thirds), not justify-around on organically-
                     sized items — "Movimentação" was by far the longest name, and letting
@@ -5211,12 +5202,15 @@ export default function App() {
                     own rendered width, not eyeballed) the full word now fits with margin
                     to spare, so it's spelled out in full like every other label.
 
-                    node-current.webp's ring was recolored (from a dark, muted olive-green
-                    in the reference sheet's own art to a vivid neon green — see git
-                    history for how) since at this render size the original tone read as
-                    barely distinguishable from the gray "future" ring; the animated
-                    drop-shadow glow layers on top of that brighter base color instead of
-                    trying to carry the "lit up" read on its own. */}
+                    Both node-current.webp and node-future.webp started as the same dark,
+                    muted reference-sheet art (olive-green and neutral gray) — barely
+                    distinguishable from each other at this render size, let alone
+                    readable as "on" vs "off" at a glance. Recolored the ring band's own
+                    pixels in both (see git history for how — the green ring's own hue
+                    cleanly separated its ring band from its gold border in a way the
+                    neutral gray one couldn't on its own, so that same mask, shape-matched
+                    onto the gray source, drove the red recolor too), keeping the gold
+                    border accents and each ring's own light/shadow shading intact. */}
                 <div className="absolute flex items-center" style={{ top: '55.5%', left: '5%', width: '90%', height: '21%' }}>
                   {PHASE_TAG_ORDER.map(p => {
                     const isLocked = p === 'combate' && turnNumber < 3;
