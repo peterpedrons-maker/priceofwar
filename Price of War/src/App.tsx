@@ -822,22 +822,32 @@ const ExplosionEffect = () => (
   </div>
 );
 
-// The on-board Graveyard pile — an empty placeholder box until a card actually dies,
-// then it shows the most recently destroyed card's name plus a count badge, so cards
-// leaving the field via combat visibly end up somewhere instead of just vanishing.
-const GraveyardPile = ({ cards }: { cards: CardData[] }) => (
-  <div className="w-28 h-36 md:w-36 md:h-48 border-2 border-zinc-700 rounded-xl bg-zinc-900/80 flex items-center justify-center shadow-lg relative overflow-hidden">
+// The on-board Graveyard pile — an empty placeholder box until a card actually dies.
+// Shows the actual top (most recently destroyed) card as a real thumbnail now, not
+// just its name as plain text — the same CardFace/"popup" variant/box size the card
+// play announcement uses (see its own usage further down), since that's already
+// tuned for a small, fully-legible card at this exact footprint. Clickable (onClick,
+// wired by each call site below) to open the full graveyard browser overlay — the
+// pile itself only ever shows the ONE top card, so opening it is the only way to see
+// what else has piled up underneath.
+const GraveyardPile = ({ cards, onClick }: { cards: CardData[]; onClick?: () => void }) => (
+  <div
+    className={`w-28 h-36 md:w-36 md:h-48 border-2 border-zinc-700 rounded-xl bg-zinc-900/80 flex items-center justify-center shadow-lg relative overflow-hidden ${onClick ? 'cursor-pointer active:scale-95 transition-transform' : ''}`}
+    onClick={onClick}
+  >
     {cards.length === 0 ? (
       <span className="text-zinc-600 font-mono text-xs md:text-sm uppercase tracking-widest rotate-90 opacity-50">Cemitério</span>
     ) : (
       <>
         <div className="absolute inset-1 border border-zinc-700 rounded-lg bg-zinc-800/50 translate-x-1 translate-y-1 -z-10" />
         <div className="absolute inset-1 border border-zinc-700 rounded-lg bg-zinc-800/30 translate-x-2 translate-y-2 -z-20" />
-        <div className="w-[85%] h-[90%] border border-zinc-600 rounded-lg bg-zinc-800 flex flex-col items-center justify-center gap-1 p-1 text-center">
-          <span className="text-zinc-300 font-bold text-[9px] md:text-xs leading-tight px-1">{cards[cards.length - 1].name}</span>
-          <span className="text-zinc-500 font-mono text-[7px] md:text-[9px] uppercase tracking-widest">Cemitério</span>
+        <div className="relative w-[88%] h-[92%]" style={{ filter: CARD_THICKNESS_SHADOW }}>
+          <CardFace card={cards[cards.length - 1]} variant="popup" />
         </div>
-        <span className="absolute top-1 right-1 md:top-2 md:right-2 bg-red-900/90 border border-red-500 text-red-200 text-[9px] md:text-xs font-black rounded-full w-5 h-5 md:w-6 md:h-6 flex items-center justify-center">
+        <span className="absolute bottom-0 inset-x-0 bg-black/70 text-zinc-400 font-mono text-[6px] md:text-[8px] uppercase tracking-widest text-center py-0.5 z-10 pointer-events-none">
+          Cemitério
+        </span>
+        <span className="absolute top-1 right-1 md:top-2 md:right-2 bg-red-900/90 border border-red-500 text-red-200 text-[9px] md:text-xs font-black rounded-full w-5 h-5 md:w-6 md:h-6 flex items-center justify-center z-10 pointer-events-none">
           {cards.length}
         </span>
       </>
@@ -1005,6 +1015,25 @@ const CardBack = ({ offset = 0, brightness = 1, shadow = false }: {
     />
   );
 };
+
+// Shared "physical thickness" treatment for every rendered card front, per the user's
+// own explicit ask for a stronger, exaggerated effect ("cartas muito chapadas... como
+// se fosse só um papel") — three progressively darker, hard-edged (zero-blur)
+// drop-shadow layers stacked behind the card read as the visible side-edges of a thick
+// stack of cardstock, topped with one soft, wide, blurred layer for ambient lift/
+// grounding. drop-shadow (not box-shadow) is deliberate: it follows the template art's
+// own alpha silhouette (which isn't a plain rectangle — corners, banners, wings stick
+// out past a bounding box on some frames) instead of a flat rectangular shadow. Applied
+// via inline `style.filter` at every CardFace call site (there's no shared wrapper
+// component — CardFace itself renders a bare fragment for its callers to size/position)
+// rather than baked into CardFace, since a couple of sites (the equipped-weapon peek,
+// this same drop-shadow chained on top of an existing colored glow) need to combine it
+// with their own effects.
+const CARD_THICKNESS_SHADOW =
+  'drop-shadow(1px 1.5px 0 rgba(120,95,55,0.95)) ' +
+  'drop-shadow(2.5px 3.5px 0 rgba(90,70,40,0.95)) ' +
+  'drop-shadow(4px 5.5px 0 rgba(50,36,18,0.9)) ' +
+  'drop-shadow(3px 12px 16px rgba(0,0,0,0.6))';
 
 // CardFace — the shared visual for every place a card's front actually renders (hand,
 // board slot, detail modal, the flying/announced overlays): the card-template artwork
@@ -2190,6 +2219,10 @@ export default function App() {
   // disappearing after its destruction animation plays out.
   const [playerGraveyard, setPlayerGraveyard] = useState<CardData[]>([]);
   const [npcGraveyard, setNpcGraveyard] = useState<CardData[]>([]);
+  // Which graveyard (if any) the browser overlay below is currently showing — either
+  // pile is public information (same as most card games), so the opponent's is just as
+  // browsable as the player's own, not only the top card GraveyardPile itself shows.
+  const [viewingGraveyard, setViewingGraveyard] = useState<'player' | 'npc' | null>(null);
 
   const [selectedAttackerIndex, setSelectedAttackerIndex] = useState<number | null>(null);
   // Floating combat/gold numbers (Hearthstone-style "-3"/"+2" popping off a card or
@@ -4686,7 +4719,7 @@ export default function App() {
               the other two rows so all three columns line up. */}
           <div className="relative flex justify-center gap-3 md:gap-6 items-center">
             <div className="pointer-events-auto">
-              <GraveyardPile cards={npcGraveyard} />
+              <GraveyardPile cards={npcGraveyard} onClick={() => setViewingGraveyard('npc')} />
             </div>
             <CardSlot
               slotId="npc-10"
@@ -4860,7 +4893,7 @@ export default function App() {
               instead of the old diagonal-corners layout (see git history). */}
           <div className="relative flex justify-center gap-3 md:gap-6 items-center">
             <div className="pointer-events-auto">
-              <GraveyardPile cards={playerGraveyard} />
+              <GraveyardPile cards={playerGraveyard} onClick={() => setViewingGraveyard('player')} />
             </div>
             <CardSlot
               slotId="player-10"
@@ -5562,7 +5595,10 @@ export default function App() {
                         while the actual card was still perspective-foreshortened mid-flip. */}
                     <motion.div
                       className="absolute inset-0 rounded-xl"
-                      style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                      // filter lives here too, not a separate wrapper, for the same
+                      // foreshortening reason the comment above gives for boxShadow — see
+                      // CARD_THICKNESS_SHADOW's own comment for what it's doing.
+                      style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', filter: CARD_THICKNESS_SHADOW }}
                       animate={{
                         boxShadow: isFocused
                           ? "inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 120px rgba(212, 175, 55, 0.95)"
@@ -5683,7 +5719,7 @@ export default function App() {
                 Scaled down to match. */}
             <div
               className="relative w-full h-full rounded-xl"
-              style={{ boxShadow: "inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 18px rgba(212, 175, 55, 0.8)" }}
+              style={{ boxShadow: "inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 18px rgba(212, 175, 55, 0.8)", filter: CARD_THICKNESS_SHADOW }}
             >
               <CardFace card={card} variant="hand" />
             </div>
@@ -5751,6 +5787,7 @@ export default function App() {
               style={{
                 position: 'fixed', zIndex: 500, transformOrigin: 'center center',
                 boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 40px rgba(212,175,55,0.6)',
+                filter: CARD_THICKNESS_SHADOW,
               }}
               // Same frame, art, and layout as the hand card it came from — it should read
               // as the exact same card the whole time, not switch to a simplified design.
@@ -5983,9 +6020,9 @@ export default function App() {
             }`}>
               {announcedCard.side === 'npc' ? 'Adversário jogou' : 'Você jogou'}
             </span>
-            {/* No clipping, and a drop-shadow rather than a box-shadow: the card frame's
-                outline isn't a rectangle (wings and spires stick out past it). */}
-            <div className="relative w-28 h-36 md:w-36 md:h-48" style={{ filter: 'drop-shadow(0 10px 18px rgba(0,0,0,0.7))' }}>
+            {/* CARD_THICKNESS_SHADOW (drop-shadow, not box-shadow: the card frame's
+                outline isn't a rectangle — wings and spires stick out past it). */}
+            <div className="relative w-28 h-36 md:w-36 md:h-48" style={{ filter: CARD_THICKNESS_SHADOW }}>
               <CardFace card={announcedCard.card} variant="popup" />
             </div>
           </motion.div>
@@ -6032,7 +6069,13 @@ export default function App() {
           resolve through this: a set of real candidate cards the game found (in the
           graveyard, the deck's pool, or the actual top of the deck), tap one to pick
           it. Multi-pick cases (maxPicks > 1) toggle a selection and need an explicit
-          confirm instead of resolving on the first tap. */}
+          confirm instead of resolving on the first tap. A 3-column grid (was a single
+          horizontally-scrolling row the player had to drag through one card at a time,
+          each one only partly visible at the screen's own edge) per the user's explicit
+          ask — every card in a row renders at its full size, nothing cropped, and the
+          grid just wraps into as many rows as there are options; overflow-y-auto/
+          max-h scrolls (or "pages", same gesture) through more than fit on screen at
+          once instead of the old horizontal drag. */}
       <AnimatePresence>
         {cardPicker && (
           <motion.div
@@ -6044,7 +6087,7 @@ export default function App() {
             <p className="text-center text-amber-400 font-black uppercase tracking-wide text-sm max-w-xs drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               {cardPicker.title}
             </p>
-            <div className="flex gap-3 overflow-x-auto max-w-full px-2 py-2">
+            <div className="grid grid-cols-3 gap-3 overflow-y-auto max-h-[65vh] w-full max-w-md px-2 py-2 content-start">
               {cardPicker.options.map(opt => {
                 const isSelected = cardPicker.selected.some(c => c.id === opt.id);
                 return (
@@ -6052,7 +6095,7 @@ export default function App() {
                     key={opt.id}
                     initial={{ scale: 0.85, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="flex flex-col items-center gap-2 shrink-0"
+                    className="flex flex-col items-center"
                     onClick={() => {
                       if (cardPicker.maxPicks === 1) {
                         cardPicker.onConfirm([opt]);
@@ -6061,7 +6104,10 @@ export default function App() {
                       }
                     }}
                   >
-                    <div className={`relative w-32 aspect-[2/3] rounded-xl ${isSelected ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''}`}>
+                    <div
+                      className={`relative w-full aspect-[2/3] rounded-xl ${isSelected ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''}`}
+                      style={{ filter: CARD_THICKNESS_SHADOW }}
+                    >
                       <CardFace card={opt} variant="hand" />
                     </div>
                   </motion.div>
@@ -6079,6 +6125,54 @@ export default function App() {
             )}
           </motion.div>
         )}
+      </AnimatePresence>
+
+      {/* Graveyard Browser — tapping either GraveyardPile (see its own onClick prop,
+          wired at each side's usage) opens this: every card currently in that side's
+          pile, not just the top one the pile itself shows. Both piles are public
+          information, same as most card games, so the opponent's own graveyard is
+          just as browsable as the player's. Same 3-column grid as the card picker
+          above, but read-only — a tap does nothing (no selection/confirm state to
+          drive), just a backdrop tap or the close button dismisses it. Most recently
+          buried card shown first (reversed — the pile itself is a stack, last in is
+          effectively "on top"). */}
+      <AnimatePresence>
+        {viewingGraveyard && (() => {
+          const graveyardCards = viewingGraveyard === 'player' ? playerGraveyard : npcGraveyard;
+          return (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[220] flex flex-col items-center justify-center gap-4 p-4 bg-black/80 backdrop-blur-sm pointer-events-auto"
+              onClick={() => setViewingGraveyard(null)}
+            >
+              <p className="text-center text-amber-400 font-black uppercase tracking-wide text-sm max-w-xs drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                Cemitério {viewingGraveyard === 'player' ? 'do Jogador' : 'do Adversário'} ({graveyardCards.length})
+              </p>
+              {graveyardCards.length === 0 ? (
+                <p className="text-zinc-500 font-mono text-xs uppercase tracking-widest">Vazio</p>
+              ) : (
+                <div
+                  className="grid grid-cols-3 gap-3 overflow-y-auto max-h-[65vh] w-full max-w-md px-2 py-2 content-start"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {[...graveyardCards].reverse().map(c => (
+                    <div key={c.id} className="relative w-full aspect-[2/3] rounded-xl" style={{ filter: CARD_THICKNESS_SHADOW }}>
+                      <CardFace card={c} variant="hand" />
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={() => setViewingGraveyard(null)}
+                className="px-5 py-2 bg-zinc-700 hover:bg-zinc-600 active:bg-zinc-800 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-lg border-2 border-zinc-500"
+              >
+                Fechar
+              </button>
+            </motion.div>
+          );
+        })()}
       </AnimatePresence>
 
       {/* Floating combat/gold numbers (see spawnFloatingNumber/spawnFloatingNumberAtId) —
@@ -6201,7 +6295,7 @@ export default function App() {
               width: w, height: h,
             }}
           >
-            <div className="relative w-full h-full rounded-xl shadow-[0_0_100px_rgba(0,0,0,0.8),inset_0_0_0_1px_rgba(212,175,55,0.45)]">
+            <div className="relative w-full h-full rounded-xl shadow-[0_0_100px_rgba(0,0,0,0.8),inset_0_0_0_1px_rgba(212,175,55,0.45)]" style={{ filter: CARD_THICKNESS_SHADOW }}>
               <CardFace card={detailedCard} variant="hand" />
             </div>
             <button
@@ -6232,7 +6326,7 @@ export default function App() {
               animate={{ scale: isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop, opacity: 1 }}
               exit={{ scale: 0.85, opacity: 0 }}
               transition={{ type: "spring", damping: 22, stiffness: 280 }}
-              style={{ transformOrigin: 'center left' }}
+              style={{ transformOrigin: 'center left', filter: CARD_THICKNESS_SHADOW }}
               className="relative w-56 h-80 pointer-events-auto"
             >
               <CardFace card={playerSlots[12]!} variant="hand" />
@@ -6531,11 +6625,9 @@ const CardSlot = ({
               ? { duration: 0.45, ease: "easeOut" }
               : (isImpactingAttacker || isImpactingTarget) ? { duration: 0.25, ease: "easeOut" } : undefined,
           }}
-          // A resting card gets a two-layer shadow: a tight, hard-edged sliver right
-          // behind it (reads as the card's own physical thickness/cardstock edge) plus
-          // a softer, further-offset one (ambient contact shadow) — together they're
-          // what was making every card look like a flat, weightless sheet of paper.
-          style={{ filter: 'drop-shadow(1.5px 2.5px 0 rgba(0,0,0,0.5)) drop-shadow(0 7px 9px rgba(0,0,0,0.4))' }}
+          // CARD_THICKNESS_SHADOW (see its own comment) — a resting card reads as a
+          // stack of real cardstock, not a flat sheet of paper.
+          style={{ filter: CARD_THICKNESS_SHADOW }}
           className="w-full h-full rounded-lg flex flex-col p-1 relative"
           // Lets the attack-targeting-line overlay (see attackLines/activeAttackLine
           // in App) anchor to wherever this card ACTUALLY is on screen right now —
@@ -6577,7 +6669,7 @@ const CardSlot = ({
             <div
               key={weapon.id}
               className="absolute inset-0 rounded-lg pointer-events-none"
-              style={{ transform: `translate(${9 + wi * 6}px, ${9 + wi * 6}px) scale(0.9)` }}
+              style={{ transform: `translate(${9 + wi * 6}px, ${9 + wi * 6}px) scale(0.9)`, filter: CARD_THICKNESS_SHADOW }}
             >
               <CardFace card={weapon} variant="field" />
             </div>
