@@ -5135,12 +5135,22 @@ export default function App() {
                       getBoundingClientRect, not eyeballed) — the visible mismatch is bold
                       all-caps text's own glyphs sitting higher in their line box than a
                       tightly-cropped icon's ink fills its own box, not a layout bug, so
-                      it's corrected with a small manual nudge instead of a flex property. */}
+                      it's corrected with a small manual nudge instead of a flex property.
+                      Text/icon sizes below are ~11% smaller than when this zone's own %
+                      dimensions were first tuned (this whole button shrank by that much —
+                      see its own w-/h- classes above) — this zone's own box shrank with
+                      it, but the font size doesn't automatically follow a % width, so
+                      "Finalizar Preparação" (the longest real label — Movimentação is
+                      always the LAST phase of a turn, so "Finalizar Movimentação" itself
+                      never actually renders) started overflowing the plaque's edges by a
+                      few px. Verified via getBoundingClientRect again at this size: it
+                      now clears both edges by ~2.5px with the icon+text group centered
+                      within a fraction of a pixel. */}
                   {isPlayerTurn && (
-                    <img src={chevronDoubleImage} className="w-[8.5px] h-[6.5px] md:w-[10px] md:h-[7.5px] shrink-0 -translate-y-[1.5px]" alt="" />
+                    <img src={chevronDoubleImage} className="w-[7.5px] h-[5.5px] md:w-[9px] md:h-[6.5px] shrink-0 -translate-y-[1.5px]" alt="" />
                   )}
                   <span
-                    className="text-[9px] md:text-[11px] leading-none whitespace-nowrap text-white"
+                    className="text-[8px] md:text-[10px] leading-none whitespace-nowrap text-white"
                     style={{ textShadow: '0 1px 2px rgba(0,0,0,0.95)' }}
                   >
                     {mainLabel}
