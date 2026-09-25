@@ -5076,36 +5076,41 @@ export default function App() {
               rough guess visibly off-centers text from the panel it should sit inside,
               not just looking a bit loose. Its track area has two chevrons pre-drawn, so
               the three phase groups use justify-around to fall roughly into the three
-              lanes those imply, rather than drawing our own separator glyphs on top. The
-              "Turno N" / "Combate no Turno 3" line moved OUTSIDE this frame (a sibling
-              below it, in the wrapping div) specifically so it can't stretch this
-              locked-aspect-ratio box out of shape by adding a third line inside it. */}
+              lanes those imply, rather than drawing our own separator glyphs on top.
+
+              Sized to fit the actual gap between the board's own npc/player Vanguarda
+              rows (measured ~48px tall at this viewport) instead of the wider size used
+              while this was being built against the reference mockup alone — at that
+              size the frame's own height (aspect-ratio locked, so width and height
+              shrink together) was overlapping both neighboring rows by ~10px each side.
+              The "Turno N" / "Combate no Turno 3" line lives in a THIRD zone here, in the
+              frame's own bottom border margin (below the track's opaque panel, still
+              within the art's own silhouette) rather than as a sibling below the frame —
+              text-shadow (not a flat backdrop, there's no dedicated panel back there)
+              keeps it legible over that textured trim. No pulsing box-shadow glow either
+              anymore — it animated on this element's own bounding BOX, a plain rectangle
+              that doesn't match the frame art's angular diamond-cut silhouette, so it
+              read as a separate ghost rectangle floating around the ornate border rather
+              than a glow coming from it. */}
           {currentTurn === 'player' ? (
             <motion.div
-              className="relative w-48 md:w-56 font-black uppercase tracking-wide text-zinc-950 cursor-pointer"
+              className="relative w-36 md:w-40 font-black uppercase tracking-wide text-zinc-950 cursor-pointer"
               style={{ aspectRatio: '1344 / 400' }}
               whileTap={{ scale: 0.95 }}
-              animate={{
-                boxShadow: [
-                  '0 0 8px rgba(245,158,11,0.5)',
-                  '0 0 20px rgba(245,158,11,0.95)',
-                  '0 0 8px rgba(245,158,11,0.5)',
-                ],
-              }}
-              transition={{ duration: 2, repeat: Infinity }}
             >
               <div
                 className="absolute inset-0 pointer-events-none"
                 style={{ backgroundImage: `url(${turnButtonFrameImage})`, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat' }}
               />
-              {/* Both zones below are measured pixel-for-pixel from the actual art (its
-                  transparent "plaque" cutout and its opaque "track" panel), not eyeballed
-                  — the frame's own decorative border is quite thick relative to its total
-                  size, so a rough guess here visibly off-centers the text from the panel
-                  it's supposed to sit inside instead of just looking a bit loose. */}
+              {/* All three zones below are measured pixel-for-pixel from the actual art
+                  (its transparent "plaque" cutout, its opaque "track" panel, and the
+                  plain border margin below that), not eyeballed — the frame's own
+                  decorative border is quite thick relative to its total size, so a rough
+                  guess here visibly off-centers content from the panel it's supposed to
+                  sit inside instead of just looking a bit loose. */}
               <div className="absolute flex items-center justify-center gap-1" style={{ top: '14%', left: '13%', width: '74%', height: '30%' }}>
-                <img src={chevronDoubleImage} className="w-[8px] h-[6px] md:w-[10px] md:h-[8px] shrink-0" alt="" />
-                <span className="text-[9px] md:text-[12px] whitespace-nowrap">
+                <img src={chevronDoubleImage} className="w-[6px] h-[4.5px] md:w-[7px] md:h-[5.5px] shrink-0" alt="" />
+                <span className="text-[6.5px] md:text-[8px] whitespace-nowrap">
                   {isLastPhaseOfTurn ? 'Encerrar Turno' : `Finalizar ${PHASE_SHORT_LABEL[turnPhase]}`}
                 </span>
               </div>
@@ -5128,39 +5133,42 @@ export default function App() {
                   return (
                     <span
                       key={p}
-                      className={`flex items-center gap-[2px] text-[5.5px] md:text-[7px] tracking-normal whitespace-nowrap ${
+                      className={`flex items-center gap-[1.5px] text-[4px] md:text-[5px] tracking-normal whitespace-nowrap ${
                         isCurrent ? 'text-amber-200' : 'text-zinc-400'
                       }`}
                     >
-                      <img src={nodeImg} className="w-[8px] h-[8px] md:w-[10px] md:h-[10px] shrink-0" alt="" />
+                      <img src={nodeImg} className="w-[6px] h-[6px] md:w-[7px] md:h-[7px] shrink-0" alt="" />
                       {PHASE_SHORT_LABEL[p]}
                     </span>
                   );
                 })}
               </div>
+              {/* The "Turno N" readout + (while locked) the "Combate no Turno 3" hint —
+                  matches the info line under the user's own reference mockup. Sits in
+                  the frame's bottom border margin (below the track's own art, still
+                  within the whole asset's silhouette) with a text-shadow instead of a
+                  background — there's no dedicated flat panel back there to match.
+                  Always shown on the player's turn (not just while Combate is locked)
+                  since a turn counter is useful on its own. */}
+              <div
+                className="absolute flex items-center justify-center gap-1 text-[4px] md:text-[5px] font-black uppercase tracking-wide text-amber-200 whitespace-nowrap"
+                style={{ top: '80%', left: '4%', width: '92%', height: '16%', textShadow: '0 1px 1px rgba(0,0,0,0.9)' }}
+              >
+                <img src={hourglassImage} className="w-[4px] h-[5px] md:w-[5px] md:h-[6px] shrink-0" alt="" />
+                {`Turno ${turnNumber}`}
+                {turnNumber < 3 && (
+                  <>
+                    <span className="text-amber-200/50">|</span>
+                    <img src={nodeLockedImage} className="w-[4px] h-[4.5px] md:w-[5px] md:h-[5.5px] shrink-0" alt="" />
+                    Combate no Turno 3
+                  </>
+                )}
+              </div>
             </motion.div>
           ) : (
-            <motion.div className="w-48 md:w-56 min-h-10 md:min-h-11 flex flex-col items-center justify-center rounded-lg border-2 font-black uppercase tracking-wide whitespace-nowrap leading-none px-1 py-1.5 bg-zinc-950/80 border-red-900/60 text-red-200 cursor-not-allowed">
-              <span className="text-[11px] md:text-sm">Adversário</span>
+            <motion.div className="w-36 md:w-40 min-h-8 md:min-h-9 flex flex-col items-center justify-center rounded-lg border-2 font-black uppercase tracking-wide whitespace-nowrap leading-none px-1 py-1 bg-zinc-950/80 border-red-900/60 text-red-200 cursor-not-allowed">
+              <span className="text-[9px] md:text-[10px]">Adversário</span>
             </motion.div>
-          )}
-          {/* The "Turno N" readout + (while locked) the "Combate no Turno 3" hint —
-              matches the info line under the user's own reference mockup. Sibling of
-              the framed button above (not a child of it) — see that button's own
-              comment for why. Always shown on the player's turn (not just while
-              Combate is locked) since a turn counter is useful on its own. */}
-          {currentTurn === 'player' && (
-            <span className="flex items-center gap-1 text-[6px] md:text-[7px] font-black uppercase tracking-wide text-amber-200/70 whitespace-nowrap">
-              <img src={hourglassImage} className="w-[6px] h-[8px] md:w-[7px] md:h-[9px] shrink-0" alt="" />
-              {`Turno ${turnNumber}`}
-              {turnNumber < 3 && (
-                <>
-                  <span className="text-amber-200/40">|</span>
-                  <img src={nodeLockedImage} className="w-[6px] h-[7px] md:w-[7px] md:h-[8px] shrink-0" alt="" />
-                  Combate no Turno 3
-                </>
-              )}
-            </span>
           )}
         </div>
 
