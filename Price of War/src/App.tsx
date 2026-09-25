@@ -2609,12 +2609,6 @@ export default function App() {
     announceCardPlayRef.current = window.setTimeout(() => setAnnouncedCard(null), 1400);
   };
 
-  useEffect(() => {
-    const handleResize = () => setWindowSize({ width: window.innerWidth, height: window.innerHeight });
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   // On mobile, window.innerHeight at the very first paint often doesn't match the real
   // settled viewport yet (the browser's own URL bar is still on screen and collapses a
   // moment later), which fires a resize -> windowSize update -> boardScale change right
@@ -2632,6 +2626,35 @@ export default function App() {
     const t = window.setTimeout(() => setViewportSettled(true), 500);
     return () => window.clearTimeout(t);
   }, [gameMode]);
+  const viewportSettledRef = useRef(false);
+  useEffect(() => { viewportSettledRef.current = viewportSettled; }, [viewportSettled]);
+
+  // The turn-button HUD and the gold badges (further below) are positioned in plain
+  // viewport pixels derived straight from windowSize (boardTopMargin/boardHeightMultiplier),
+  // with no transition of their own — unlike the board's own motion.div, which glides
+  // smoothly to any new transform. A real mobile browser collapses or reveals its own URL
+  // bar in response to ordinary touch/scroll during play (tapping and dragging a card to
+  // play it is exactly that kind of gesture), which fires a `resize` with only innerHeight
+  // nudged by roughly the bar's own height (~50-100px) — nothing about the game itself
+  // changed. Reacting to that mid-match snapped this HUD straight to its new spot while the
+  // board was still mid-zoom into the played card, reading as the buttons "going down with
+  // the card". A genuine resize (device rotation, an actual window resize) always changes
+  // the width too, or changes the height by far more than a URL bar ever does, so once the
+  // match's own initial correction above has settled, only those get through here.
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      setWindowSize(prev => {
+        const widthChanged = width !== prev.width;
+        const heightJump = Math.abs(height - prev.height);
+        if (viewportSettledRef.current && !widthChanged && heightJump < 150) return prev;
+        return { width, height };
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Pending timers for the match-intro sequence (see startMatchIntro) — tracked so a
   // fresh resetGame (e.g. backing out to the menu and starting a new match right away)
