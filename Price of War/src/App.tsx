@@ -2626,32 +2626,9 @@ export default function App() {
     const t = window.setTimeout(() => setViewportSettled(true), 500);
     return () => window.clearTimeout(t);
   }, [gameMode]);
-  const viewportSettledRef = useRef(false);
-  useEffect(() => { viewportSettledRef.current = viewportSettled; }, [viewportSettled]);
 
-  // The turn-button HUD and the gold badges (further below) are positioned in plain
-  // viewport pixels derived straight from windowSize (boardTopMargin/boardHeightMultiplier),
-  // with no transition of their own — unlike the board's own motion.div, which glides
-  // smoothly to any new transform. A real mobile browser collapses or reveals its own URL
-  // bar in response to ordinary touch/scroll during play (tapping and dragging a card to
-  // play it is exactly that kind of gesture), which fires a `resize` with only innerHeight
-  // nudged by roughly the bar's own height (~50-100px) — nothing about the game itself
-  // changed. Reacting to that mid-match snapped this HUD straight to its new spot while the
-  // board was still mid-zoom into the played card, reading as the buttons "going down with
-  // the card". A genuine resize (device rotation, an actual window resize) always changes
-  // the width too, or changes the height by far more than a URL bar ever does, so once the
-  // match's own initial correction above has settled, only those get through here.
   useEffect(() => {
-    const handleResize = () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      setWindowSize(prev => {
-        const widthChanged = width !== prev.width;
-        const heightJump = Math.abs(height - prev.height);
-        if (viewportSettledRef.current && !widthChanged && heightJump < 150) return prev;
-        return { width, height };
-      });
-    };
+    const handleResize = () => setWindowSize({ width: window.innerWidth, height: window.innerHeight });
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -4614,9 +4591,61 @@ export default function App() {
   // the board moving in lockstep — artAnim passes baseScaleOverride=1 so the art's
   // own full-viewport coverage isn't ALSO shrunk by the board's boardScale fit
   // factor, which doesn't apply to it at all.
-  const boardAnim = getBoardAnimation();
   const artAnim = getBoardAnimation(1);
   const boardTransition = { duration: viewportSettled ? 0.8 : 0, ease: [0.32, 0.72, 0, 1] as const };
+
+  // The grid board's own motion.div (see the "3D Board" comment further down) is split
+  // into two nested layers instead of the single animate={getBoardAnimation()} the art
+  // layer above still uses: an OUTER one carrying just gridBaseAnim (the resting
+  // position/scale — identical formula to getBoardAnimation's own internal baseAnim,
+  // duplicated here since that's local to the function) and an INNER one nested inside
+  // it carrying only the extra "summon camera" pan/zoom as gridZoomDelta. The turn-button
+  // HUD (see where it's now rendered, inside the OUTER, sibling of the INNER) needs
+  // exactly the first half of that and none of the second — see its own comment for why.
+  // gridZoomDelta expresses its pan as a ratio/offset RELATIVE to gridBaseAnim rather
+  // than an absolute value: nesting it inside the OUTER means whatever local x/y this
+  // inner element declares gets multiplied by the OUTER's own scale for free (ordinary
+  // CSS transform composition, translate happens in the element's own local units and
+  // an ancestor's scale stretches that local unit same as everything else it contains),
+  // so dividing the desired pixel pan by gridBaseAnim.scale here cancels that out and
+  // the combined (outer * inner) transform lands exactly where the old single-layer
+  // getBoardAnimation() math used to.
+  const gridBaseAnim = {
+    rotateX: 0,
+    rotateZ: 0,
+    y: isMobile ? 0 : -50,
+    x: 0,
+    z: isMobile ? 50 : 50,
+    scale: (isMobile ? 1.0 : 0.85) * boardScale,
+  };
+  const getGridZoomDelta = () => {
+    if (preZoomSlot || flyingCard || cameraSettling) {
+      const slot = (preZoomSlot ?? flyingCard ?? cameraSettling)!.slotIndex;
+      const col = slot <= 9 ? slot % 5 : 2;
+      const rowFocus = slot <= 4 ? 1 : slot <= 9 ? 0.55 : 0.2;
+      const panX = (2 - col) * (isMobile ? 16 : 22);
+      const panY = rowFocus * (isMobile ? 90 : 65);
+      const s0 = gridBaseAnim.scale;
+
+      if (cameraSettling) {
+        return boardShock ? {
+          x: [-32, 26, -18, 11, -5, 0].map(v => (panX + v) / s0),
+          y: [26, -20, 13, -7, 3, 0].map(v => (-panY + v) / s0),
+          scale: [1.12, 0.93, 1.04, 1].map(v => 1.15 * v),
+          transition: { duration: 0.5, ease: "easeOut" as const },
+        } : {
+          x: [-18, 14, -8, 4, 0].map(v => (panX + v) / s0),
+          y: [14, -10, 6, -2, 0].map(v => (-panY + v) / s0),
+          scale: [1.06, 0.98, 1].map(v => 1.15 * v),
+          transition: { duration: 0.32, ease: "easeOut" as const },
+        };
+      }
+
+      return { x: panX / s0, y: -panY / s0, scale: 1.15, transition: { duration: 0.5, ease: "easeOut" as const } };
+    }
+    return { x: 0, y: 0, scale: 1 };
+  };
+  const gridZoomDelta = getGridZoomDelta();
 
   // The root stage (see the outer `justify-center` div below) centers the board's
   // fixed 1000x1250 box inside the full viewport height, leaving an equal empty
@@ -4673,9 +4702,13 @@ export default function App() {
           (cropping away far more than intended) and any percentage-based positioning
           inside this box (resolved against the shrunk box, not the real 1000x1400). */}
       <motion.div
-        className="w-[1000px] h-[1250px] shrink-0 grid grid-rows-2 gap-12 p-8 relative"
-        animate={boardAnim}
+        className="w-[1000px] h-[1250px] shrink-0 relative"
+        animate={gridBaseAnim}
         transition={boardTransition}
+      >
+      <motion.div
+        className="absolute inset-0 grid grid-rows-2 gap-12 p-8"
+        animate={gridZoomDelta}
         onClick={(e) => {
           e.stopPropagation();
           if (isCardInFlightTransition) return; // don't cancel a card mid hand-off to the board
@@ -4952,65 +4985,46 @@ export default function App() {
             directly on the card like every other creature, so a separate
             panel repeating the same number was redundant. */}
       </motion.div>
+      {/* Turn Button + gold badges — now a CHILD of the board's own OUTER motion.div
+          (see gridBaseAnim/gridZoomDelta above and the two nested motion.divs the 3D
+          board comment introduces), not a plain sibling positioned by hand-rolled
+          viewport-pixel math anymore. That JS math (boardTopMargin/boardHeightMultiplier,
+          both derived from windowSize) was only ever an APPROXIMATION of where the
+          board's own native CSS centering (a flexbox, tracking the real, live browser
+          viewport height continuously) puts the board itself — the two could drift out
+          of sync for a moment whenever the real viewport height changed for a reason
+          this JS math didn't know about yet, most commonly a mobile browser's own URL
+          bar collapsing or reappearing mid-play (an ordinary touch/scroll, like tapping
+          a card to play it, is enough to trigger that on a real device — a fixed-size
+          desktop or emulated viewport never shows it). The board's own CSS-native
+          centering has no such lag; being a real DOM child of the SAME element that
+          gets that centering (the OUTER motion.div, via gridBaseAnim) means this HUD
+          now shares it exactly, at every instant, with nothing approximated in JS.
+          left/top below are plain board-local pixel coordinates (0-1000 / 0-1250, the
+          same space every slot in this grid is laid out in) instead of viewport pixels —
+          500 is the board's own horizontal center, 600.5 is the vertical gap between
+          the two Vanguarda rows (see the old comment's own ~24.5 design-px correction,
+          preserved here: half of 1250, minus that correction).
 
-      {/* Phase-tag columns — one planted near each field's own edge, diagonally
-          opposite each other (NPC's near the top-left, the player's own near the
-          bottom-right) so each sits right next to that side's own field instead of
-          competing for the center strip the gold/turn-button HUD uses. Positioned in
-          plain viewport pixels, exactly like that HUD just below (see its own
-          comment for why: the board can now render WIDER than the viewport at this
-          boardScale — see the zoom bump — so anchoring to the board's OWN left/right
-          edge, which these originally did, put them off-screen half the time; the
-          board's actual columns sit comfortably inset from the board's raw edges,
-          but the raw edges themselves are exactly what a card-play zoom can push
-          past the visible screen). Reuses boardTopMargin/boardHeightMultiplier from
-          above — same viewport-space math, just at 24%/76% down the board's own
-          height instead of 60%, and pinned to the screen's actual left/right edges
-          instead of centered. */}
-      <div
-        className="absolute left-1 md:left-3 z-30 pointer-events-none"
-        style={{ top: boardTopMargin + 0.24 * 1250 * boardHeightMultiplier, transform: 'translateY(-50%)' }}
-      >
-        {renderPhaseTagColumn(currentTurn === 'npc' ? npcVisiblePhase : null)}
-      </div>
-      <div
-        className="absolute right-1 md:right-3 z-30 pointer-events-none"
-        style={{ top: boardTopMargin + 0.76 * 1250 * boardHeightMultiplier, transform: 'translateY(-50%)' }}
-      >
-        {renderPhaseTagColumn(currentTurn === 'player' ? turnPhase : null)}
-      </div>
-
-      {/* Turn Button + gold badges — a sibling of the board now, NOT a child of its
-          zooming/panning motion.div (see git history) — that mattered for more than
-          layout: the camera pans/zooms toward whatever slot a card is being played
-          into (see getBoardAnimation's preZoomSlot/flyingCard branch), and while this
-          HUD lived inside that same transform, the real gold badge visibly slid clear
-          across the screen mid-play. The floating "-N" spent-gold number (see
-          spawnFloatingNumberAtId) is spawned once, at a fixed viewport position, right
-          as that pan starts — so it kept landing wherever the badge USED to be, not
-          where the badge ended up, which read as the PLAYED CARD losing the gold
-          instead of the badge. Sitting outside that transform means this never moves
-          for that reason again. Positioned in plain viewport pixels (boardTopMargin/
-          boardHeightMultiplier, see above) to land in the same spot as before: centered
-          on the actual gap between the two Vanguarda rows, not the board's own
-          geometric center (see the ~24.5 design-px correction folded into 600.5
-          below — half the board's 1250px height, minus that correction, both scaled
-          by the same factor the board itself renders at).
-
-          Being outside the transform also means this sits STILL while the board
-          pans/zooms toward a played card's slot, on purpose — a previous version
-          hid it for the length of that pan instead (the button and badges could
-          otherwise end up visually stranded on top of whichever row the camera
-          panned into), but that read as worse than the stranding it was meant to
-          fix: the whole point of this HUD is to always be right where the player
-          expects it, so it now just stays put and visible through every zoom/pan,
-          same as the always-on-top score overlay in any other card game. */}
+          Being a child of the OUTER but not the INNER (the sibling motion.div just
+          above, which carries gridZoomDelta) means this still doesn't inherit the
+          "summon camera" pan/zoom toward a played card's slot — the whole point of
+          this HUD is to always be right where the player expects it, so it stays put
+          and visible through every zoom/pan, same as the always-on-top score overlay
+          in any other card game (the floating "-N" spent-gold number, spawned once at
+          a fixed viewport position right as that pan starts — see
+          spawnFloatingNumberAtId — depends on the badge itself never moving for that
+          reason too). The extra inline scale below cancels the OUTER's own ambient
+          scale (gridBaseAnim.scale) back out, so this HUD's own fixed pixel sizes
+          (w-[200px] etc. further down) keep rendering at the same physical size
+          regardless of what boardScale currently is — only its POSITION is meant to
+          track the board, not its size. */}
       <div
         className="absolute z-40 flex flex-row items-center gap-3 md:gap-5"
         style={{
-          left: windowSize.width / 2,
-          top: boardTopMargin + 600.5 * boardHeightMultiplier,
-          transform: 'translate(-50%, -50%)',
+          left: 500,
+          top: 600.5,
+          transform: `translate(-50%, -50%) scale(${1 / gridBaseAnim.scale})`,
           perspective: 600,
         }}
       >
@@ -5302,6 +5316,36 @@ export default function App() {
           </span>
         </div>
       </div>
+      </motion.div>
+
+      {/* Phase-tag columns — one planted near each field's own edge, diagonally
+          opposite each other (NPC's near the top-left, the player's own near the
+          bottom-right) so each sits right next to that side's own field instead of
+          competing for the center strip the gold/turn-button HUD uses (see that HUD's
+          own comment just above — unlike this pair, it's now a board-local child of
+          the board's own OUTER motion.div instead of viewport-pixel math). These stay
+          on plain viewport pixels on purpose: the board can render WIDER than the
+          viewport at this boardScale (see the zoom bump), so anchoring to the board's
+          OWN left/right edge, which these originally did, put them off-screen half the
+          time — the board's actual columns sit comfortably inset from the board's raw
+          edges, but the raw edges themselves are exactly what a card-play zoom can push
+          past the visible screen. Reuses boardTopMargin/boardHeightMultiplier from
+          above — same viewport-space math, just at 24%/76% down the board's own
+          height instead of 60%, and pinned to the screen's actual left/right edges
+          instead of centered. */}
+      <div
+        className="absolute left-1 md:left-3 z-30 pointer-events-none"
+        style={{ top: boardTopMargin + 0.24 * 1250 * boardHeightMultiplier, transform: 'translateY(-50%)' }}
+      >
+        {renderPhaseTagColumn(currentTurn === 'npc' ? npcVisiblePhase : null)}
+      </div>
+      <div
+        className="absolute right-1 md:right-3 z-30 pointer-events-none"
+        style={{ top: boardTopMargin + 0.76 * 1250 * boardHeightMultiplier, transform: 'translateY(-50%)' }}
+      >
+        {renderPhaseTagColumn(currentTurn === 'player' ? turnPhase : null)}
+      </div>
+
 
       {/* Opponent Hand (Floating) — one face-down card back per card actually in
           npcHand, revealed one at a time during the match-intro deal (see
