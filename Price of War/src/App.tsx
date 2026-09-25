@@ -7,6 +7,7 @@ import nodeFutureImage from './assets/node-future.webp';
 import nodeLockedImage from './assets/icon-lock-turn.webp';
 import chevronDoubleImage from './assets/icon-chevron-double.webp';
 import hourglassImage from './assets/icon-hourglass.webp';
+import plaqueMaskImage from './assets/plaque-mask.webp';
 import { playAiTurn, AiAction } from './services/aiService';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
@@ -341,18 +342,6 @@ const PHASE_SHORT_LABEL: Record<TurnPhase, string> = {
   preparacao: 'Preparação',
   combate: 'Combate',
   movimentacao: 'Movimentação',
-};
-// The stepper's three columns are equal thirds (see its own render below), and
-// "Movimentação" is long enough that even measuring its exact rendered width to
-// pick the smallest font that still fits it left barely any margin against the
-// column's own border — trimming it to "Movimento" here (only in this one cramped
-// spot; every other label above still spells the full word) buys back enough
-// room that its ring badge lands centered in its own column instead of pushed
-// toward Combate's.
-const PHASE_STEPPER_LABEL: Record<TurnPhase, string> = {
-  preparacao: 'Preparação',
-  combate: 'Combate',
-  movimentacao: 'Movimento',
 };
 // The banner is driven as a 3-stage state machine (see announcePhase/phaseBanner)
 // instead of one motion.div animating a 5-point opacity/x KEYFRAME array — that
@@ -5125,6 +5114,31 @@ export default function App() {
                 style={{ aspectRatio: '1344 / 400' }}
                 whileTap={isPlayerTurn ? { scale: 0.95 } : undefined}
               >
+                {/* The plaque's own cutout is fully transparent in the art (see the frame's
+                    comment above) — this fills just that cutout's exact shape with color
+                    (green for the player's turn, red for the opponent's, matching the
+                    theme "Adversário" already had elsewhere) instead of the whole box, so
+                    it can't poke out past the frame's angular corners the way a plain
+                    rounded-rect backdrop did before. Built from a separate mask asset (see
+                    git history for how it's derived from the same source sheet's alpha
+                    channel) applied as a CSS mask — the mask image itself carries no
+                    color, just the plaque's silhouette, so the actual color comes from this
+                    div's own background and can change with isPlayerTurn without needing a
+                    second image asset per color. */}
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    WebkitMaskImage: `url(${plaqueMaskImage})`,
+                    maskImage: `url(${plaqueMaskImage})`,
+                    WebkitMaskSize: '100% 100%',
+                    maskSize: '100% 100%',
+                    WebkitMaskRepeat: 'no-repeat',
+                    maskRepeat: 'no-repeat',
+                    background: isPlayerTurn
+                      ? 'linear-gradient(to bottom, #4ade80, #15803d)'
+                      : 'linear-gradient(to bottom, #f87171, #7f1d1d)',
+                  }}
+                />
                 <div
                   className="absolute inset-0 pointer-events-none"
                   style={{ backgroundImage: `url(${turnButtonFrameImage})`, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat' }}
@@ -5151,7 +5165,7 @@ export default function App() {
                     <img src={chevronDoubleImage} className="w-[6px] h-[4.5px] md:w-[7px] md:h-[5.5px] shrink-0 -translate-y-[1px]" alt="" />
                   )}
                   <span
-                    className={`text-[6.5px] md:text-[8px] leading-none whitespace-nowrap ${isPlayerTurn ? 'text-amber-200' : 'text-red-200'}`}
+                    className="text-[6.5px] md:text-[8px] leading-none whitespace-nowrap text-white"
                     style={{ textShadow: '0 1px 2px rgba(0,0,0,0.95)' }}
                   >
                     {mainLabel}
@@ -5181,10 +5195,16 @@ export default function App() {
                     own gap math to work with, visibly cramming its ring against the
                     border and uneven-spacing "Combate" next to it. Equal columns make
                     every phase's available width the same regardless of its own name's
-                    length; trimmed to "Movimento" just for this row (see
-                    PHASE_STEPPER_LABEL) on top of that for extra margin, since even the
-                    narrowest font that still reads at this size left barely any to spare
-                    against "Movimentação" specifically. */}
+                    length; at the font size below (chosen by measuring "Movimentação"'s
+                    own rendered width, not eyeballed) the full word now fits with margin
+                    to spare, so it's spelled out in full like every other label.
+
+                    node-current.webp's ring was recolored (from a dark, muted olive-green
+                    in the reference sheet's own art to a vivid neon green — see git
+                    history for how) since at this render size the original tone read as
+                    barely distinguishable from the gray "future" ring; the animated
+                    drop-shadow glow layers on top of that brighter base color instead of
+                    trying to carry the "lit up" read on its own. */}
                 <div className="absolute flex items-center" style={{ top: '55.5%', left: '5%', width: '90%', height: '21%' }}>
                   {PHASE_TAG_ORDER.map(p => {
                     const isLocked = p === 'combate' && turnNumber < 3;
@@ -5203,14 +5223,14 @@ export default function App() {
                           alt=""
                           animate={isCurrent ? {
                             filter: [
-                              'drop-shadow(0 0 1px rgba(74,222,128,0.7))',
-                              'drop-shadow(0 0 2.5px rgba(74,222,128,1))',
-                              'drop-shadow(0 0 1px rgba(74,222,128,0.7))',
+                              'drop-shadow(0 0 1.5px rgba(57,255,20,0.9)) drop-shadow(0 0 0.5px rgba(190,255,170,1))',
+                              'drop-shadow(0 0 3.5px rgba(57,255,20,1)) drop-shadow(0 0 1px rgba(190,255,170,1))',
+                              'drop-shadow(0 0 1.5px rgba(57,255,20,0.9)) drop-shadow(0 0 0.5px rgba(190,255,170,1))',
                             ],
                           } : undefined}
                           transition={isCurrent ? { duration: 1.4, repeat: Infinity } : undefined}
                         />
-                        {PHASE_STEPPER_LABEL[p]}
+                        {PHASE_SHORT_LABEL[p]}
                       </span>
                     );
                   })}
