@@ -4479,12 +4479,26 @@ export default function App() {
     if (preZoomSlot || flyingCard || cameraSettling) {
       const slot = (preZoomSlot ?? flyingCard ?? cameraSettling)!.slotIndex;
       const col = slot <= 9 ? slot % 5 : 2; // 10/11/12 (Relíquia/Terreno/General) sit near center
-      const rowFocus = slot <= 4 ? 1 : slot <= 9 ? 0.55 : 0.2; // Vanguarda is farthest from the hand, General row is closest
+      // Vanguarda gets NO pan or extra scale at all (rowFocus 0, zoomRatio 1 — an exact
+      // no-op, same view as baseAnim) instead of the same "farther row gets more pan"
+      // treatment Retaguarda/General get. Measured directly (getBoundingClientRect, not
+      // eyeballed): the RESTING gap between the fixed turn-button HUD and either
+      // Vanguarda row is only ~1px on a typical phone viewport — there is no slack to
+      // pan into at all. Any pan toward Vanguarda pushed that row into the HUD; pushing
+      // the other way instead just pushed the OPPOSITE side's Vanguarda into the HUD (a
+      // single shared camera transform moves both sides of the board together), and
+      // reducing the zoom's scale increase still left only ~1px of clearance even with
+      // the pan removed entirely — the same razor-thin margin the resting view itself
+      // already lives with. A no-op here can't make that existing tightness any worse;
+      // any nonzero pan or scale bump did. Retaguarda/General keep their original
+      // framing since neither one ever reached the HUD to begin with.
+      const rowFocus = slot <= 4 ? 0 : slot <= 9 ? 0.55 : 0.2;
+      const zoomRatio = slot <= 4 ? 1.0 : 1.15;
       const panX = (2 - col) * (isMobile ? 16 : 22);
       const panY = rowFocus * (isMobile ? 90 : 65);
       const focusedX = baseAnim.x + panX;
       const focusedY = baseAnim.y - panY;
-      const focusedScale = baseAnim.scale * 1.15;
+      const focusedScale = baseAnim.scale * zoomRatio;
       // Clamped at 0 — with the base view already flat, tilting further "back" would
       // just look like the board leaning away from the player during the zoom.
       const focusedRotateX = Math.max(0, baseAnim.rotateX - 8);
@@ -4622,7 +4636,11 @@ export default function App() {
     if (preZoomSlot || flyingCard || cameraSettling) {
       const slot = (preZoomSlot ?? flyingCard ?? cameraSettling)!.slotIndex;
       const col = slot <= 9 ? slot % 5 : 2;
-      const rowFocus = slot <= 4 ? 1 : slot <= 9 ? 0.55 : 0.2;
+      // Kept identical to getBoardAnimation's own copy of this formula (see its comment)
+      // so the art layer and this grid layer stay in lockstep during the zoom — the
+      // Vanguarda cap there is what keeps this pan from reaching the fixed HUD.
+      const rowFocus = slot <= 4 ? 0 : slot <= 9 ? 0.55 : 0.2;
+      const zoomRatio = slot <= 4 ? 1.0 : 1.15;
       const panX = (2 - col) * (isMobile ? 16 : 22);
       const panY = rowFocus * (isMobile ? 90 : 65);
       const s0 = gridBaseAnim.scale;
@@ -4631,17 +4649,17 @@ export default function App() {
         return boardShock ? {
           x: [-32, 26, -18, 11, -5, 0].map(v => (panX + v) / s0),
           y: [26, -20, 13, -7, 3, 0].map(v => (-panY + v) / s0),
-          scale: [1.12, 0.93, 1.04, 1].map(v => 1.15 * v),
+          scale: [1.12, 0.93, 1.04, 1].map(v => zoomRatio * v),
           transition: { duration: 0.5, ease: "easeOut" as const },
         } : {
           x: [-18, 14, -8, 4, 0].map(v => (panX + v) / s0),
           y: [14, -10, 6, -2, 0].map(v => (-panY + v) / s0),
-          scale: [1.06, 0.98, 1].map(v => 1.15 * v),
+          scale: [1.06, 0.98, 1].map(v => zoomRatio * v),
           transition: { duration: 0.32, ease: "easeOut" as const },
         };
       }
 
-      return { x: panX / s0, y: -panY / s0, scale: 1.15, transition: { duration: 0.5, ease: "easeOut" as const } };
+      return { x: panX / s0, y: -panY / s0, scale: zoomRatio, transition: { duration: 0.5, ease: "easeOut" as const } };
     }
     return { x: 0, y: 0, scale: 1 };
   };
@@ -5026,19 +5044,6 @@ export default function App() {
           top: 600.5,
           transform: `translate(-50%, -50%) scale(${1 / gridBaseAnim.scale})`,
           perspective: 600,
-          // Staying fixed in place (see the long comment above) means a summon-camera
-          // zoom toward Vanguarda — the row closest to this HUD on either side, and the
-          // one the zoom pans hardest toward, since it's farthest from the hand (see
-          // getGridZoomDelta's own rowFocus) — can push that row far enough on screen to
-          // visually overlap this HUD instead of just passing near it. Dimming (not
-          // hiding — a fully-hidden version was already tried and rejected, see above)
-          // for the length of that pan keeps the collision from reading as a glitch
-          // while never moving or unmounting this HUD itself. pointer-events off at the
-          // same time stops a tap mid-flight from landing on a badge/button that's
-          // barely visible right then.
-          opacity: isCardInFlightTransition ? 0.2 : 1,
-          pointerEvents: isCardInFlightTransition ? 'none' : undefined,
-          transition: 'opacity 0.25s ease',
         }}
       >
         {/* NPC's gold — same distance from the button as the player's below. A red
