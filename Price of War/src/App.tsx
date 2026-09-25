@@ -5202,14 +5202,26 @@ export default function App() {
                     ascenders/descenders — collapsing it to the font's own metrics keeps
                     items-center's centering based on the actual ink instead of that
                     reserved space, verified against getBoundingClientRect (all three
-                    words now measure to the exact same top/bottom, and a reference-line
-                    overlay on a real screenshot confirms it visually too). object-contain
-                    on the icon below matters specifically for the padlock: its own source
+                    words now measure to the exact same top/bottom). object-contain on
+                    the icon below matters specifically for the padlock: its own source
                     art (icon-lock-turn.webp) is a portrait 53x64 canvas, not the near-
                     square 64x61/64x60 the two ring badges use, so without it the padlock
                     was stretched wider to fill this same square box instead of keeping
                     its own proportions — same fix applied to its other use in the
-                    turn-info line below. */}
+                    turn-info line below.
+
+                    The icon's own -translate-y-[0.8px]: even with leading-none, the
+                    icon's box (sized to its own height, 8.5px) and the text's own line
+                    box (collapsed to the font's real metrics, ~5.2px) each get centered
+                    independently by items-center — correct per CSS, but a cap-height-only
+                    word's ink isn't perfectly centered within ITS OWN line box either
+                    (fonts generally reserve a bit more room above than below), so the
+                    two centered boxes' actual ink still landed ~0.8px apart. Verified via
+                    getBoundingClientRect: identical for all three phases (same offset,
+                    same direction), so this is one shared, measurable icon-vs-text gap,
+                    not three separately misaligned words — nudging the icon by that exact
+                    measured amount (same fix pattern as the chevron in the main label
+                    above) closes it. */}
                 <div className="absolute flex items-center" style={{ top: '55.5%', left: '5%', width: '90%', height: '21%' }}>
                   {PHASE_TAG_ORDER.map(p => {
                     const isLocked = p === 'combate' && turnNumber < 3;
@@ -5224,7 +5236,7 @@ export default function App() {
                       >
                         <motion.img
                           src={nodeImg}
-                          className="w-[8.5px] h-[8.5px] md:w-[10px] md:h-[10px] shrink-0 object-contain"
+                          className="w-[8.5px] h-[8.5px] md:w-[10px] md:h-[10px] shrink-0 object-contain -translate-y-[0.8px]"
                           alt=""
                           animate={isCurrent ? {
                             filter: [
