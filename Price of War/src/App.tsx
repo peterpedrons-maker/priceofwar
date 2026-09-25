@@ -5004,16 +5004,20 @@ export default function App() {
         {/* NPC's gold — same distance from the button as the player's below. A red
             box drawn around the whole badge to tell the two piles apart (see git
             history) read as an error/warning state instead of a label, so this is a
-            plain "ADVERSÁRIO" tag beside it instead — swap-in point for that
+            plain "ADVERSÁRIO" tag under it instead — swap-in point for that
             player's name/nick once real PvP exists, "JOGADOR" below getting the
-            same treatment. */}
-        <div className="flex items-center gap-1 shrink-0">
-          <span className="text-[8px] md:text-[9px] font-black uppercase tracking-wide text-red-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] whitespace-nowrap">
+            same treatment. Stacked (label under badge, not beside it) and the badge
+            itself shrunk — side-by-side at the old size ran wider than the whole
+            row had room for (the label text was visibly clipped at the screen's own
+            edge), and freeing that width is what let the center turn button grow to
+            its current size below. */}
+        <div className="flex flex-col items-center gap-0.5 shrink-0">
+          <div id="npc-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
+            <GoldBadge value={npcMana} className="w-14 md:w-16" />
+          </div>
+          <span className="text-[6px] md:text-[7px] font-black uppercase tracking-wide text-red-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] whitespace-nowrap">
             Adversário
           </span>
-          <div id="npc-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
-            <GoldBadge value={npcMana} className="w-20 md:w-24" />
-          </div>
         </div>
 
         <div
@@ -5060,9 +5064,16 @@ export default function App() {
 
               The player-turn version is built from a real art asset (button-frame.png,
               cropped from a reference sheet the user had an AI generate) instead of a
-              plain CSS gradient box — its own aspect ratio (1344:400) is locked via the
-              `aspectRatio` style so the ornate border never stretches out of proportion
-              at either breakpoint's width. An earlier pass kept a plain amber CSS
+              plain CSS gradient box. Width and height are both fixed pixel values now,
+              not the art's own native 1344:400 ratio locked via `aspectRatio` (see git
+              history) — that kept the border from ever stretching, but also meant
+              widening the box to fit bigger, more readable text always grew its height
+              in lockstep, and this box's height is hard-capped by the ~48px gap between
+              the board's own rows (see below). A mild ~25% horizontal stretch past the
+              art's native ratio reads as fine given how simple its border geometry is
+              (straight bevels and diamond accent points, no fine circular detail that
+              stretching would visibly warp) — the tradeoff for legible text at this
+              width. An earlier pass kept a plain amber CSS
               gradient behind it, meant to show through the plaque's transparent cutout —
               but that div was a plain rounded rectangle, and the frame's actual silhouette
               is an angular diamond-cut shape well INSIDE that rectangle's corners, so the
@@ -5079,11 +5090,13 @@ export default function App() {
               the three phase groups use justify-around to fall roughly into the three
               lanes those imply, rather than drawing our own separator glyphs on top.
 
-              Sized to fit the actual gap between the board's own npc/player Vanguarda
-              rows (measured ~48px tall at this viewport) instead of the wider size used
-              while this was being built against the reference mockup alone — at that
-              size the frame's own height (aspect-ratio locked, so width and height
-              shrink together) was overlapping both neighboring rows by ~10px each side.
+              Height is capped to fit the actual gap between the board's own npc/player
+              Vanguarda rows (measured ~48px tall at this viewport) — a previous version
+              locked to the art's own aspect ratio and grew past that gap, overlapping
+              both neighboring rows by ~10px each side. Width, freed from that same
+              ratio, grew separately once the gold badges beside this button dropped
+              their old side-by-side label (stacked below the coin instead — see that
+              badge's own comment) and stopped needing as much of the row's own width.
               The "Turno N" / "Combate no Turno 3" line lives in a THIRD zone here, in the
               frame's own bottom border margin (below the track's opaque panel, still
               within the art's own silhouette) rather than as a sibling below the frame —
@@ -5110,8 +5123,7 @@ export default function App() {
               : 'Adversário';
             return (
               <motion.div
-                className={`relative w-36 md:w-40 font-black uppercase tracking-wide ${isPlayerTurn ? 'cursor-pointer' : 'cursor-not-allowed'}`}
-                style={{ aspectRatio: '1344 / 400' }}
+                className={`relative w-[200px] md:w-[224px] h-[44px] md:h-[50px] font-black uppercase tracking-wide ${isPlayerTurn ? 'cursor-pointer' : 'cursor-not-allowed'}`}
                 whileTap={isPlayerTurn ? { scale: 0.95 } : undefined}
               >
                 {/* The plaque's own cutout is fully transparent in the art (see the frame's
@@ -5162,10 +5174,10 @@ export default function App() {
                       tightly-cropped icon's ink fills its own box, not a layout bug, so
                       it's corrected with a small manual nudge instead of a flex property. */}
                   {isPlayerTurn && (
-                    <img src={chevronDoubleImage} className="w-[6px] h-[4.5px] md:w-[7px] md:h-[5.5px] shrink-0 -translate-y-[1px]" alt="" />
+                    <img src={chevronDoubleImage} className="w-[8.5px] h-[6.5px] md:w-[10px] md:h-[7.5px] shrink-0 -translate-y-[1.5px]" alt="" />
                   )}
                   <span
-                    className="text-[6.5px] md:text-[8px] leading-none whitespace-nowrap text-white"
+                    className="text-[9px] md:text-[11px] leading-none whitespace-nowrap text-white"
                     style={{ textShadow: '0 1px 2px rgba(0,0,0,0.95)' }}
                   >
                     {mainLabel}
@@ -5213,13 +5225,13 @@ export default function App() {
                     return (
                       <span
                         key={p}
-                        className={`flex-1 flex items-center justify-center gap-[1px] text-[3.2px] md:text-[4px] font-medium tracking-normal whitespace-nowrap ${
+                        className={`flex-1 flex items-center justify-center gap-[1.5px] text-[4.5px] md:text-[5.5px] font-medium tracking-normal whitespace-nowrap ${
                           isCurrent ? 'text-amber-200' : 'text-zinc-400'
                         }`}
                       >
                         <motion.img
                           src={nodeImg}
-                          className="w-[6px] h-[6px] md:w-[7px] md:h-[7px] shrink-0"
+                          className="w-[8.5px] h-[8.5px] md:w-[10px] md:h-[10px] shrink-0"
                           alt=""
                           animate={isCurrent ? {
                             filter: [
@@ -5244,15 +5256,15 @@ export default function App() {
                     Combate is locked) since both the turn counter and the lock hint are
                     global to the match, not tied to whose turn it currently is. */}
                 <div
-                  className="absolute flex items-center justify-center gap-1 text-[4px] md:text-[5px] font-black uppercase tracking-wide text-amber-200 whitespace-nowrap"
+                  className="absolute flex items-center justify-center gap-1 text-[5.5px] md:text-[7px] font-black uppercase tracking-wide text-amber-200 whitespace-nowrap"
                   style={{ top: '80%', left: '4%', width: '92%', height: '16%', textShadow: '0 1px 1px rgba(0,0,0,0.9)' }}
                 >
-                  <img src={hourglassImage} className="w-[4px] h-[5px] md:w-[5px] md:h-[6px] shrink-0" alt="" />
+                  <img src={hourglassImage} className="w-[5.5px] h-[7px] md:w-[7px] md:h-[8.5px] shrink-0" alt="" />
                   {`Turno ${turnNumber}`}
                   {turnNumber < 3 && (
                     <>
                       <span className="text-amber-200/50">|</span>
-                      <img src={nodeLockedImage} className="w-[4px] h-[4.5px] md:w-[5px] md:h-[5.5px] shrink-0" alt="" />
+                      <img src={nodeLockedImage} className="w-[5.5px] h-[6.5px] md:w-[7px] md:h-[7.5px] shrink-0" alt="" />
                       Combate no Turno 3
                     </>
                   )}
@@ -5262,12 +5274,13 @@ export default function App() {
           })()}
         </div>
 
-        {/* Player's gold — same distance from the button as the NPC's above. */}
-        <div className="flex items-center gap-1 shrink-0">
+        {/* Player's gold — same distance from the button as the NPC's above, same
+            stacked-and-shrunk treatment (see that badge's own comment for why). */}
+        <div className="flex flex-col items-center gap-0.5 shrink-0">
           <div id="player-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
-            <GoldBadge value={playerMana} className="w-20 md:w-24" />
+            <GoldBadge value={playerMana} className="w-14 md:w-16" />
           </div>
-          <span className="text-[8px] md:text-[9px] font-black uppercase tracking-wide text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] whitespace-nowrap">
+          <span className="text-[6px] md:text-[7px] font-black uppercase tracking-wide text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] whitespace-nowrap">
             Jogador
           </span>
         </div>
