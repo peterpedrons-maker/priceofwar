@@ -5061,17 +5061,25 @@ export default function App() {
               cropped from a reference sheet the user had an AI generate) instead of a
               plain CSS gradient box — its own aspect ratio (1344:400) is locked via the
               `aspectRatio` style so the ornate border never stretches out of proportion
-              at either breakpoint's width. That frame's interior is mostly a
-              TRANSPARENT cutout (only its gold trim is opaque) for the top "plaque"
-              area, which is why a plain amber gradient div still sits behind it — the
-              art shows through as a border on top of it, not a replacement for it. Its
-              lower "track" area, by contrast, is already opaque dark art with two
-              chevrons pre-drawn, so the three phase groups are laid out with
-              justify-around to fall roughly into the three lanes those chevrons imply,
-              rather than drawing our own separator glyphs on top of them. The "Combate
-              no Turno 3" hint moved OUTSIDE this frame (a sibling below it, in the
-              wrapping div) specifically so it can't stretch this locked-aspect-ratio
-              box out of shape by adding a third line inside it. */}
+              at either breakpoint's width. An earlier pass kept a plain amber CSS
+              gradient behind it, meant to show through the plaque's transparent cutout —
+              but that div was a plain rounded rectangle, and the frame's actual silhouette
+              is an angular diamond-cut shape well INSIDE that rectangle's corners, so the
+              gradient's own rounded corners poked out past the art (visibly, right where
+              the diamond accents are) instead of being fully hidden behind it. Dropped
+              entirely: the plaque's cutout now just shows the board through it, same as
+              the track's own art (already fully opaque, no backdrop needed there).
+              Both content zones below (top/left/width/height as percentages) are measured
+              directly from the art's own transparent-plaque and opaque-track bounds (see
+              the analysis behind this comment in git history) rather than eyeballed —
+              this frame's border reads as quite thick relative to the whole asset, so a
+              rough guess visibly off-centers text from the panel it should sit inside,
+              not just looking a bit loose. Its track area has two chevrons pre-drawn, so
+              the three phase groups use justify-around to fall roughly into the three
+              lanes those imply, rather than drawing our own separator glyphs on top. The
+              "Turno N" / "Combate no Turno 3" line moved OUTSIDE this frame (a sibling
+              below it, in the wrapping div) specifically so it can't stretch this
+              locked-aspect-ratio box out of shape by adding a third line inside it. */}
           {currentTurn === 'player' ? (
             <motion.div
               className="relative w-48 md:w-56 font-black uppercase tracking-wide text-zinc-950 cursor-pointer"
@@ -5086,14 +5094,18 @@ export default function App() {
               }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              <div className="absolute inset-0 rounded-lg bg-gradient-to-b from-amber-400 to-amber-600" />
               <div
                 className="absolute inset-0 pointer-events-none"
                 style={{ backgroundImage: `url(${turnButtonFrameImage})`, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat' }}
               />
-              <div className="absolute flex items-center justify-center gap-1" style={{ top: '3%', left: '11%', width: '78%', height: '44%' }}>
-                <img src={chevronDoubleImage} className="w-[9px] h-[7px] md:w-[11px] md:h-[9px] shrink-0" alt="" />
-                <span className="text-[10px] md:text-[13px] whitespace-nowrap">
+              {/* Both zones below are measured pixel-for-pixel from the actual art (its
+                  transparent "plaque" cutout and its opaque "track" panel), not eyeballed
+                  — the frame's own decorative border is quite thick relative to its total
+                  size, so a rough guess here visibly off-centers the text from the panel
+                  it's supposed to sit inside instead of just looking a bit loose. */}
+              <div className="absolute flex items-center justify-center gap-1" style={{ top: '14%', left: '13%', width: '74%', height: '30%' }}>
+                <img src={chevronDoubleImage} className="w-[8px] h-[6px] md:w-[10px] md:h-[8px] shrink-0" alt="" />
+                <span className="text-[9px] md:text-[12px] whitespace-nowrap">
                   {isLastPhaseOfTurn ? 'Encerrar Turno' : `Finalizar ${PHASE_SHORT_LABEL[turnPhase]}`}
                 </span>
               </div>
@@ -5108,7 +5120,7 @@ export default function App() {
                   indicator on its own — full names stay in text alongside it either
                   way, so a player who doesn't recognize the badge yet still has the
                   word. */}
-              <div className="absolute flex items-center justify-around" style={{ top: '54%', left: '4%', width: '92%', height: '40%' }}>
+              <div className="absolute flex items-center justify-around" style={{ top: '55.5%', left: '5%', width: '90%', height: '21%' }}>
                 {PHASE_TAG_ORDER.map(p => {
                   const isLocked = p === 'combate' && turnNumber < 3;
                   const isCurrent = p === turnPhase;
@@ -5116,11 +5128,11 @@ export default function App() {
                   return (
                     <span
                       key={p}
-                      className={`flex items-center gap-[2px] text-[6px] md:text-[7.5px] tracking-normal whitespace-nowrap ${
+                      className={`flex items-center gap-[2px] text-[5.5px] md:text-[7px] tracking-normal whitespace-nowrap ${
                         isCurrent ? 'text-amber-200' : 'text-zinc-400'
                       }`}
                     >
-                      <img src={nodeImg} className="w-[10px] h-[10px] md:w-[12px] md:h-[12px] shrink-0" alt="" />
+                      <img src={nodeImg} className="w-[8px] h-[8px] md:w-[10px] md:h-[10px] shrink-0" alt="" />
                       {PHASE_SHORT_LABEL[p]}
                     </span>
                   );
