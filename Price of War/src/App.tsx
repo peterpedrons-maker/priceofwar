@@ -5026,6 +5026,19 @@ export default function App() {
           top: 600.5,
           transform: `translate(-50%, -50%) scale(${1 / gridBaseAnim.scale})`,
           perspective: 600,
+          // Staying fixed in place (see the long comment above) means a summon-camera
+          // zoom toward Vanguarda — the row closest to this HUD on either side, and the
+          // one the zoom pans hardest toward, since it's farthest from the hand (see
+          // getGridZoomDelta's own rowFocus) — can push that row far enough on screen to
+          // visually overlap this HUD instead of just passing near it. Dimming (not
+          // hiding — a fully-hidden version was already tried and rejected, see above)
+          // for the length of that pan keeps the collision from reading as a glitch
+          // while never moving or unmounting this HUD itself. pointer-events off at the
+          // same time stops a tap mid-flight from landing on a badge/button that's
+          // barely visible right then.
+          opacity: isCardInFlightTransition ? 0.2 : 1,
+          pointerEvents: isCardInFlightTransition ? 'none' : undefined,
+          transition: 'opacity 0.25s ease',
         }}
       >
         {/* NPC's gold — same distance from the button as the player's below. A red
