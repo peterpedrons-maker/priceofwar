@@ -5124,8 +5124,20 @@ export default function App() {
                   pill, since the sheet's own node art already reads as a state
                   indicator on its own — full names stay in text alongside it either
                   way, so a player who doesn't recognize the badge yet still has the
-                  word. */}
-              <div className="absolute flex items-center justify-around" style={{ top: '55.5%', left: '5%', width: '90%', height: '21%' }}>
+                  word. The current phase's own ring glows (an animated drop-shadow,
+                  which follows the ring PNG's actual round alpha shape instead of a
+                  rectangular box-shadow around its bounding box) so "this one's active"
+                  reads at a glance, not just from the dimmer text color next to it.
+
+                  flex-1 on each phase (equal thirds), not justify-around on organically-
+                  sized items — "Movimentação" is by far the longest name, and letting it
+                  claim whatever width it wants left less room for justify-around's own
+                  gap math to work with, visibly cramming it against the border and
+                  uneven-spacing "Combate" next to it. Equal columns make every phase's
+                  available width the same regardless of its own name's length, so
+                  fitting the widest one (verified by measuring its rendered width, not
+                  eyeballed) means they all fit. */}
+              <div className="absolute flex items-center" style={{ top: '55.5%', left: '5%', width: '90%', height: '21%' }}>
                 {PHASE_TAG_ORDER.map(p => {
                   const isLocked = p === 'combate' && turnNumber < 3;
                   const isCurrent = p === turnPhase;
@@ -5133,11 +5145,23 @@ export default function App() {
                   return (
                     <span
                       key={p}
-                      className={`flex items-center gap-[1.5px] text-[4px] md:text-[5px] tracking-normal whitespace-nowrap ${
+                      className={`flex-1 flex items-center justify-center gap-[1px] text-[3.5px] md:text-[4.2px] font-medium tracking-normal whitespace-nowrap ${
                         isCurrent ? 'text-amber-200' : 'text-zinc-400'
                       }`}
                     >
-                      <img src={nodeImg} className="w-[6px] h-[6px] md:w-[7px] md:h-[7px] shrink-0" alt="" />
+                      <motion.img
+                        src={nodeImg}
+                        className="w-[6px] h-[6px] md:w-[7px] md:h-[7px] shrink-0"
+                        alt=""
+                        animate={isCurrent ? {
+                          filter: [
+                            'drop-shadow(0 0 1px rgba(74,222,128,0.7))',
+                            'drop-shadow(0 0 2.5px rgba(74,222,128,1))',
+                            'drop-shadow(0 0 1px rgba(74,222,128,0.7))',
+                          ],
+                        } : undefined}
+                        transition={isCurrent ? { duration: 1.4, repeat: Infinity } : undefined}
+                      />
                       {PHASE_SHORT_LABEL[p]}
                     </span>
                   );
