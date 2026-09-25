@@ -5193,7 +5193,23 @@ export default function App() {
                     cleanly separated its ring band from its gold border in a way the
                     neutral gray one couldn't on its own, so that same mask, shape-matched
                     onto the gray source, drove the red recolor too), keeping the gold
-                    border accents and each ring's own light/shadow shading intact. */}
+                    border accents and each ring's own light/shadow shading intact.
+
+                    leading-none on each span, matching the main label above (which
+                    already had it for the same reason): without it, the browser's
+                    default line-height reserves extra space around each word's own
+                    glyphs, and how much space differs slightly per word depending on
+                    ascenders/descenders — collapsing it to the font's own metrics keeps
+                    items-center's centering based on the actual ink instead of that
+                    reserved space, verified against getBoundingClientRect (all three
+                    words now measure to the exact same top/bottom, and a reference-line
+                    overlay on a real screenshot confirms it visually too). object-contain
+                    on the icon below matters specifically for the padlock: its own source
+                    art (icon-lock-turn.webp) is a portrait 53x64 canvas, not the near-
+                    square 64x61/64x60 the two ring badges use, so without it the padlock
+                    was stretched wider to fill this same square box instead of keeping
+                    its own proportions — same fix applied to its other use in the
+                    turn-info line below. */}
                 <div className="absolute flex items-center" style={{ top: '55.5%', left: '5%', width: '90%', height: '21%' }}>
                   {PHASE_TAG_ORDER.map(p => {
                     const isLocked = p === 'combate' && turnNumber < 3;
@@ -5202,13 +5218,13 @@ export default function App() {
                     return (
                       <span
                         key={p}
-                        className={`flex-1 flex items-center justify-center gap-[1.5px] text-[4.5px] md:text-[5.5px] font-medium tracking-normal whitespace-nowrap ${
+                        className={`flex-1 flex items-center justify-center gap-[1.5px] text-[4.5px] md:text-[5.5px] font-medium tracking-normal leading-none whitespace-nowrap ${
                           isCurrent ? 'text-amber-200' : 'text-zinc-400'
                         }`}
                       >
                         <motion.img
                           src={nodeImg}
-                          className="w-[8.5px] h-[8.5px] md:w-[10px] md:h-[10px] shrink-0"
+                          className="w-[8.5px] h-[8.5px] md:w-[10px] md:h-[10px] shrink-0 object-contain"
                           alt=""
                           animate={isCurrent ? {
                             filter: [
@@ -5231,17 +5247,27 @@ export default function App() {
                     background — there's no dedicated flat panel back there to match.
                     Always shown (not just on the player's turn, and not just while
                     Combate is locked) since both the turn counter and the lock hint are
-                    global to the match, not tied to whose turn it currently is. */}
+                    global to the match, not tied to whose turn it currently is. Font size
+                    (and its own icons, scaled the same ~18% down) now matches the phase
+                    stepper line just above it exactly — it used to run noticeably bigger
+                    than that line per the user's own explicit ask to bring the two in
+                    line. leading-none added for the same reason the stepper line has it
+                    (see its own comment): without it, the default line-height reserves
+                    different amounts of space above/below words with a descender (the
+                    "ç" in Combate No Turno 3 has none, this line's other words do) than
+                    words without one, so "centered" text can look like it's sitting on a
+                    slightly different baseline even though nothing is actually misaligned
+                    in the font itself. */}
                 <div
-                  className="absolute flex items-center justify-center gap-1 text-[5.5px] md:text-[7px] font-black uppercase tracking-wide text-amber-200 whitespace-nowrap"
+                  className="absolute flex items-center justify-center gap-1 text-[4.5px] md:text-[5.5px] font-black uppercase tracking-wide leading-none text-amber-200 whitespace-nowrap"
                   style={{ top: '80%', left: '4%', width: '92%', height: '16%', textShadow: '0 1px 1px rgba(0,0,0,0.9)' }}
                 >
-                  <img src={hourglassImage} className="w-[5.5px] h-[7px] md:w-[7px] md:h-[8.5px] shrink-0" alt="" />
+                  <img src={hourglassImage} className="w-[4.5px] h-[5.5px] md:w-[6px] md:h-[7px] shrink-0" alt="" />
                   {`Turno ${turnNumber}`}
                   {turnNumber < 3 && (
                     <>
                       <span className="text-amber-200/50">|</span>
-                      <img src={nodeLockedImage} className="w-[5.5px] h-[6.5px] md:w-[7px] md:h-[7.5px] shrink-0" alt="" />
+                      <img src={nodeLockedImage} className="w-[4.5px] h-[5px] md:w-[6px] md:h-[6px] shrink-0 object-contain" alt="" />
                       Combate no Turno 3
                     </>
                   )}
