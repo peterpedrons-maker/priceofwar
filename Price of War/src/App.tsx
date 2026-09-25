@@ -4475,70 +4475,13 @@ export default function App() {
     };
 
     // Camera follows a card being played, zooming in toward the slot it's headed for —
-    // a Yu-Gi-Oh Forbidden Memories-style summon camera — then eases back once it lands.
-    if (preZoomSlot || flyingCard || cameraSettling) {
-      const slot = (preZoomSlot ?? flyingCard ?? cameraSettling)!.slotIndex;
-      const col = slot <= 9 ? slot % 5 : 2; // 10/11/12 (Relíquia/Terreno/General) sit near center
-      // Vanguarda gets NO pan or extra scale at all (rowFocus 0, zoomRatio 1 — an exact
-      // no-op, same view as baseAnim) instead of the same "farther row gets more pan"
-      // treatment Retaguarda/General get. Measured directly (getBoundingClientRect, not
-      // eyeballed): the RESTING gap between the fixed turn-button HUD and either
-      // Vanguarda row is only ~1px on a typical phone viewport — there is no slack to
-      // pan into at all. Any pan toward Vanguarda pushed that row into the HUD; pushing
-      // the other way instead just pushed the OPPOSITE side's Vanguarda into the HUD (a
-      // single shared camera transform moves both sides of the board together), and
-      // reducing the zoom's scale increase still left only ~1px of clearance even with
-      // the pan removed entirely — the same razor-thin margin the resting view itself
-      // already lives with. A no-op here can't make that existing tightness any worse;
-      // any nonzero pan or scale bump did. Retaguarda/General keep their original
-      // framing since neither one ever reached the HUD to begin with.
-      const rowFocus = slot <= 4 ? 0 : slot <= 9 ? 0.55 : 0.2;
-      const zoomRatio = slot <= 4 ? 1.0 : 1.15;
-      const panX = (2 - col) * (isMobile ? 16 : 22);
-      const panY = rowFocus * (isMobile ? 90 : 65);
-      const focusedX = baseAnim.x + panX;
-      const focusedY = baseAnim.y - panY;
-      const focusedScale = baseAnim.scale * zoomRatio;
-      // Clamped at 0 — with the base view already flat, tilting further "back" would
-      // just look like the board leaning away from the player during the zoom.
-      const focusedRotateX = Math.max(0, baseAnim.rotateX - 8);
-
-      if (cameraSettling) {
-        // The card just landed — a sharp shake on top of the same focused view, plus a
-        // quick extra punch-in on the zoom for a stronger felt impact. A full-art card
-        // (see boardShock/triggerFullArtReaction) gets a noticeably bigger, longer
-        // version of the same shake instead of a separate effect.
-        return boardShock ? {
-          ...baseAnim,
-          x: [focusedX - 32, focusedX + 26, focusedX - 18, focusedX + 11, focusedX - 5, focusedX],
-          y: [focusedY + 26, focusedY - 20, focusedY + 13, focusedY - 7, focusedY + 3, focusedY],
-          scale: [focusedScale * 1.12, focusedScale * 0.93, focusedScale * 1.04, focusedScale],
-          rotateX: focusedRotateX,
-          transition: { duration: 0.5, ease: "easeOut" }
-        } : {
-          ...baseAnim,
-          x: [focusedX - 18, focusedX + 14, focusedX - 8, focusedX + 4, focusedX],
-          y: [focusedY + 14, focusedY - 10, focusedY + 6, focusedY - 2, focusedY],
-          scale: [focusedScale * 1.06, focusedScale * 0.98, focusedScale],
-          rotateX: focusedRotateX,
-          transition: { duration: 0.32, ease: "easeOut" }
-        };
-      }
-
-      return {
-        ...baseAnim,
-        x: focusedX,
-        y: focusedY,
-        scale: focusedScale,
-        rotateX: focusedRotateX,
-        transition: { duration: 0.5, ease: "easeOut" }
-      };
-    }
-
-    // Combat no longer moves the camera at all (it used to zoom/tilt/shake toward
-    // whichever side was attacking) — the board now stays put like it does the rest
-    // of the time, and only the attacking card itself lunges at its target (see
-    // CardSlot's isAttacking/attackY), the way Hearthstone does it.
+    // a Yu-Gi-Oh Forbidden Memories-style summon camera used to pan/zoom/shake toward
+    // whatever slot a card was headed for (preZoomSlot/flyingCard/cameraSettling), then
+    // ease back once it landed — removed per explicit request: even with Vanguarda
+    // exempted from it (see git history), the camera moving at all during a card play
+    // read as wrong. The board now never moves for that reason, on either row, full
+    // stop — preZoomSlot/flyingCard/cameraSettling/boardShock still exist and still
+    // drive the card's own flight sprite and impact flash, just not this camera.
     return baseAnim;
   };
 
@@ -4632,38 +4575,13 @@ export default function App() {
     z: isMobile ? 50 : 50,
     scale: (isMobile ? 1.0 : 0.85) * boardScale,
   };
-  const getGridZoomDelta = () => {
-    if (preZoomSlot || flyingCard || cameraSettling) {
-      const slot = (preZoomSlot ?? flyingCard ?? cameraSettling)!.slotIndex;
-      const col = slot <= 9 ? slot % 5 : 2;
-      // Kept identical to getBoardAnimation's own copy of this formula (see its comment)
-      // so the art layer and this grid layer stay in lockstep during the zoom — the
-      // Vanguarda cap there is what keeps this pan from reaching the fixed HUD.
-      const rowFocus = slot <= 4 ? 0 : slot <= 9 ? 0.55 : 0.2;
-      const zoomRatio = slot <= 4 ? 1.0 : 1.15;
-      const panX = (2 - col) * (isMobile ? 16 : 22);
-      const panY = rowFocus * (isMobile ? 90 : 65);
-      const s0 = gridBaseAnim.scale;
-
-      if (cameraSettling) {
-        return boardShock ? {
-          x: [-32, 26, -18, 11, -5, 0].map(v => (panX + v) / s0),
-          y: [26, -20, 13, -7, 3, 0].map(v => (-panY + v) / s0),
-          scale: [1.12, 0.93, 1.04, 1].map(v => zoomRatio * v),
-          transition: { duration: 0.5, ease: "easeOut" as const },
-        } : {
-          x: [-18, 14, -8, 4, 0].map(v => (panX + v) / s0),
-          y: [14, -10, 6, -2, 0].map(v => (-panY + v) / s0),
-          scale: [1.06, 0.98, 1].map(v => zoomRatio * v),
-          transition: { duration: 0.32, ease: "easeOut" as const },
-        };
-      }
-
-      return { x: panX / s0, y: -panY / s0, scale: zoomRatio, transition: { duration: 0.5, ease: "easeOut" as const } };
-    }
-    return { x: 0, y: 0, scale: 1 };
-  };
-  const gridZoomDelta = getGridZoomDelta();
+  // Used to carry the summon-camera pan/zoom/shake toward a played card's slot (see
+  // getBoardAnimation's own matching comment for why that's gone now) — always identity
+  // today, kept as its own layer rather than collapsed back into gridBaseAnim/the grid's
+  // own motion.div since the HUD (see where it's rendered) specifically relies on being
+  // a child of the OUTER layer and not this INNER one to share the board's exact resting
+  // position with zero lag (see that comment) without inheriting whatever this ever does.
+  const gridZoomDelta = { x: 0, y: 0, scale: 1 };
 
   // The root stage (see the outer `justify-center` div below) centers the board's
   // fixed 1000x1250 box inside the full viewport height, leaving an equal empty
@@ -5168,7 +5086,7 @@ export default function App() {
               : 'Adversário';
             return (
               <motion.div
-                className={`relative w-[200px] md:w-[224px] h-[44px] md:h-[50px] font-black uppercase tracking-wide ${isPlayerTurn ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                className={`relative w-[182px] md:w-[204px] h-[40px] md:h-[46px] font-black uppercase tracking-wide ${isPlayerTurn ? 'cursor-pointer' : 'cursor-not-allowed'}`}
                 whileTap={isPlayerTurn ? { scale: 0.95 } : undefined}
               >
                 {/* The plaque's own cutout is fully transparent in the art (see the frame's
