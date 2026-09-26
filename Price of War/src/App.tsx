@@ -985,18 +985,51 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
   );
 };
 
-const GoldBadge = ({ value, className = "" }: { value: number; className?: string }) => (
-  <div className={`relative overflow-hidden ${className}`}>
-    {/* Scaled up ~18% and cropped by the wrapper's own overflow-hidden — makes the coin
-        and plate fill noticeably more of the same box footprint (per the user's ask:
-        bigger coin/number "desde que não estoure o tamanho da caixa") instead of
-        growing the box itself, which would've thrown off the HUD row's alignment. */}
-    <img src={hudGoldBadgeImage} alt="" className="w-full h-auto block scale-[1.18]" draggable={false} />
-    <span className="absolute inset-y-0 right-[6%] left-[36%] flex items-center justify-center text-amber-100 font-black text-2xl md:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] leading-none">
-      {value}
-    </span>
-  </div>
-);
+const GoldBadge = ({ value, className = "" }: { value: number; className?: string }) => {
+  // Self-fitting like GoldNumber below: the number strip is a fixed fraction of the
+  // coin plate's own width (~58%), so the text-2xl/3xl size tuned for a single digit
+  // started spilling out of the box once gold climbs into two or three digits later
+  // in a match (mana has no upper cap from turn 3 on). Measuring and shrinking the
+  // text to always fit — instead of just picking a smaller fixed size that would
+  // eventually overflow again at some higher value — means it never leaks again.
+  const numberBoxRef = useRef<HTMLDivElement>(null);
+  const numberTextRef = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const box = numberBoxRef.current;
+    const text = numberTextRef.current;
+    if (!box || !text) return;
+    const fit = () => {
+      text.style.transform = 'scale(1)';
+      const boxWidth = box.clientWidth;
+      const scale = boxWidth > 0 && text.scrollWidth > boxWidth ? boxWidth / text.scrollWidth : 1;
+      text.style.transform = `scale(${scale})`;
+    };
+    fit();
+    document.fonts?.ready?.then(fit);
+    const ro = new ResizeObserver(fit);
+    ro.observe(box);
+    return () => ro.disconnect();
+  }, [value]);
+
+  return (
+    <div className={`relative overflow-hidden ${className}`}>
+      {/* Scaled up ~18% and cropped by the wrapper's own overflow-hidden — makes the coin
+          and plate fill noticeably more of the same box footprint (per the user's ask:
+          bigger coin/number "desde que não estoure o tamanho da caixa") instead of
+          growing the box itself, which would've thrown off the HUD row's alignment. */}
+      <img src={hudGoldBadgeImage} alt="" className="w-full h-auto block scale-[1.18]" draggable={false} />
+      <div ref={numberBoxRef} className="absolute inset-y-0 right-[6%] left-[36%] flex items-center justify-center overflow-hidden">
+        <span
+          ref={numberTextRef}
+          className="text-amber-100 font-black text-2xl md:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] leading-none whitespace-nowrap"
+          style={{ transformOrigin: 'center' }}
+        >
+          {value}
+        </span>
+      </div>
+    </div>
+  );
+};
 
 // A plain gradient-gold number with a strong drop shadow and no background shape —
 // unlike AtkBadge/HpBadge above, this is used INSIDE CardFace, where the
@@ -3322,6 +3355,19 @@ export default function App() {
       setSelectedCardIndex(index);
       setSelectedAttackerIndex(null);
       playSelectSfx();
+      // Proactive guidance the instant a card with a non-obvious next step gets
+      // selected, instead of only surfacing after the player either guesses right
+      // or taps somewhere wrong first (see the empty-slot rejection toast below) —
+      // that used to read as the game being stuck rather than teaching the actual
+      // next tap.
+      const card = hand[index];
+      const dropKind = getCardDropKind(card);
+      if (dropKind === 'blocked' || dropKind === 'immediate') {
+        showToast('Toque na carta novamente para jogá-la.');
+      } else if (dropKind === 'ownTarget' || dropKind === 'enemyTarget') {
+        const tacticKind = TARGETABLE_TACTICS[card.name];
+        if (tacticKind) showToast(TACTIC_TARGET_PROMPTS[tacticKind]);
+      }
     }
   };
 
@@ -4675,10 +4721,19 @@ export default function App() {
   // flips to 'field' now during the flight animation itself, see handleSlotClick)
   // is enough: this card stays "previewed" the entire time it's selected.
   const previewedCard = selectedCardIndex !== null ? hand[selectedCardIndex] : null;
-  const getPlayerSlotHint = (slotIndex: number): SlotHint | undefined =>
-    previewedCard && !playerSlots[slotIndex]
-      ? getSlotHint(previewedCard.cardType, slotIndex)
-      : undefined;
+  const getPlayerSlotHint = (slotIndex: number): SlotHint | undefined => {
+    if (!previewedCard || playerSlots[slotIndex]) return undefined;
+    // A targetable Tática (ownTarget/enemyTarget — see getCardDropKind) already has
+    // real guidance: the highlighted occupied slot it can actually hit (see
+    // isTacticDragTarget/isTacticTargetSlot). Marking every EMPTY slot invalid here
+    // on top of that used to bury the one useful highlight under a board full of red
+    // X's — confusing enough that it read as "nothing to do here, cancel and retry"
+    // instead of "tap the highlighted target". No hint at all is the honest answer
+    // for a slot this card was never going to touch anyway.
+    const kind = getCardDropKind(previewedCard);
+    if (kind === 'ownTarget' || kind === 'enemyTarget') return undefined;
+    return getSlotHint(previewedCard.cardType, slotIndex);
+  };
 
   // Small always-on phase-tag column planted at a field's own edge (see the two
   // call sites below) — activePhase is null on the side whose turn it isn't, which
@@ -6182,6 +6237,28 @@ export default function App() {
           )}
         </svg>
       )}
+
+      {/* Explicit "Cancelar" button — handleBackgroundClick already backed out of
+          every one of these states (a hand card merely selected/previewed, or a
+          committed Tática/cura do General/Cavaleiro Hospitalário waiting on a
+          target) whenever the player tapped the board/background around the
+          hand, but nothing on screen ever said that tap did anything — found only
+          by accident. Same fixed spot every time, so it's learnable at a glance
+          instead of rediscovered per session. */}
+      <AnimatePresence>
+        {(selectedCardIndex !== null || !!pendingTacticAction || !!pendingGeneralHeal || !!pendingHospitalario) && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            onClick={handleBackgroundClick}
+            className="fixed top-3 left-3 md:top-4 md:left-4 z-[205] flex items-center gap-1.5 pl-2 pr-3 py-1.5 rounded-full bg-zinc-900/90 border-2 border-red-500/80 text-red-300 font-black text-[11px] md:text-xs uppercase tracking-wider shadow-[0_4px_16px_rgba(0,0,0,0.6)] pointer-events-auto"
+          >
+            <X className="w-3.5 h-3.5 md:w-4 md:h-4" strokeWidth={3} />
+            Cancelar
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* Toast Notification — same dark-crimson/gold-border/Crimson-Pro treatment as
           the phase announcement banner below, instead of a generic bright-red pill
