@@ -799,16 +799,48 @@ const applyNobreReligiosoSummon = (slots: (CardData | null)[], placedIndex: numb
 // Both Generals now come from whichever deck each side is playing (see DECKS
 // below) — picked at match start in resetGame, not fixed constants like before.
 
+// Evenly-spaced directions for SlashEffect's spark burst below.
+const SLASH_SPARK_ANGLES = Array.from({ length: 6 }, (_, i) => (i / 6) * Math.PI * 2);
+
+// The moment of contact in any attack — rendered on BOTH the attacker and the
+// defender now (see isImpactingAttacker/isImpactingTarget's shared isImpacting
+// window), not just the defender, so a hit reads as one real collision both
+// sides take part in instead of just a mark on whoever got hit. On top of the
+// original crossed slash lines: a quick bright flash (the "snap" of contact),
+// an expanding ring shockwave, and a handful of sparks kicked outward — still
+// fast (under 0.3s) since this fires on every single attack, not a rare event.
 const SlashEffect = () => (
-  <motion.div
-    initial={{ scale: 0, opacity: 1, rotateZ: -45 }}
-    animate={{ scale: [0, 2, 2.5], opacity: [1, 1, 0] }}
-    transition={{ duration: 0.2, ease: "easeOut" }}
-    className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none"
-  >
-    <div className="w-[200%] h-4 bg-white shadow-[0_0_30px_rgba(255,255,255,1)] rounded-full" />
-    <div className="absolute w-[200%] h-2 bg-red-500 shadow-[0_0_20px_rgba(239,68,68,1)] rounded-full" />
-  </motion.div>
+  <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
+    <motion.div
+      initial={{ scale: 0.3, opacity: 1 }}
+      animate={{ scale: 1.6, opacity: 0 }}
+      transition={{ duration: 0.18, ease: "easeOut" }}
+      className="absolute w-10 h-10 md:w-14 md:h-14 bg-white rounded-full blur-md mix-blend-screen"
+    />
+    <motion.div
+      initial={{ scale: 0.2, opacity: 0.9 }}
+      animate={{ scale: 2.2, opacity: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="absolute w-12 h-12 md:w-16 md:h-16 rounded-full border-2 border-white/90"
+    />
+    <motion.div
+      initial={{ scale: 0, opacity: 1, rotateZ: -45 }}
+      animate={{ scale: [0, 2, 2.5], opacity: [1, 1, 0] }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+    >
+      <div className="w-[200%] h-4 bg-white shadow-[0_0_30px_rgba(255,255,255,1)] rounded-full" />
+      <div className="absolute w-[200%] h-2 bg-red-500 shadow-[0_0_20px_rgba(239,68,68,1)] rounded-full" />
+    </motion.div>
+    {SLASH_SPARK_ANGLES.map((angle, i) => (
+      <motion.div
+        key={i}
+        className="absolute w-1.5 h-1.5 md:w-2 md:h-2 bg-yellow-300 rounded-full shadow-[0_0_6px_rgba(253,224,71,0.9)]"
+        initial={{ x: 0, y: 0, opacity: 1 }}
+        animate={{ x: Math.cos(angle) * 46, y: Math.sin(angle) * 46, opacity: 0 }}
+        transition={{ duration: 0.28, ease: "easeOut" }}
+      />
+    ))}
+  </div>
 );
 
 const ExplosionEffect = () => (
@@ -824,7 +856,28 @@ const ExplosionEffect = () => (
       <div className="absolute w-24 h-24 bg-yellow-300 rounded-full blur-lg mix-blend-screen" />
       <div className="absolute w-16 h-16 bg-white rounded-full blur-md mix-blend-screen" />
     </motion.div>
-    {/* Particles */}
+    {/* Card shards — a few jagged fragments tumbling outward on top of the ember
+        particles below, so this reads as the CARD itself breaking apart, not
+        just a generic fire burst. */}
+    {[...Array(7)].map((_, i) => {
+      const angle = (i / 7) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+      const dist = 60 + Math.random() * 50;
+      return (
+        <motion.div
+          key={`shard-${i}`}
+          className="absolute w-3 h-4 md:w-4 md:h-5 bg-[#c5b599] border border-[#8c7a5f] rounded-[2px]"
+          initial={{ x: 0, y: 0, rotate: 0, opacity: 1 }}
+          animate={{
+            x: Math.cos(angle) * dist,
+            y: Math.sin(angle) * dist,
+            rotate: (Math.random() - 0.5) * 480,
+            opacity: 0,
+          }}
+          transition={{ duration: 0.55, ease: "easeOut", delay: 0.05 }}
+        />
+      );
+    })}
+    {/* Ember particles */}
     {[...Array(12)].map((_, i) => (
       <motion.div
         key={i}
@@ -2458,6 +2511,21 @@ export default function App() {
     fromX: number; fromY: number; fromW: number; fromH: number;
     toX: number; toY: number; toW: number; toH: number;
   } | null>(null);
+  // A board reposition (Movimentação phase move/swap — see handleSlotClick) sliding
+  // between two real on-screen slot positions, same "measure the real DOM rects"
+  // idea as flyingCard above, but deliberately smaller and quicker: a card being
+  // shuffled a few feet over shouldn't get the big showcase hover-zoom a brand new
+  // card gets when played from hand — just a low, quick hop so it visibly travels
+  // instead of vanishing from one slot and popping into existence at the other.
+  // `swapped` is only set when the destination slot was occupied (a real swap, both
+  // cards crossing paths at once); moving into an empty slot only ever needs `mover`.
+  const [repositionFlight, setRepositionFlight] = useState<{
+    originIndex: number; destIndex: number;
+    moverCard: CardData; swappedCard: CardData | null;
+    isBatedorFreeMove: boolean; wasAlreadyMoved: boolean;
+    mover: { fromX: number; fromY: number; toX: number; toY: number; w: number; h: number };
+    swapped: { fromX: number; fromY: number; toX: number; toY: number; w: number; h: number } | null;
+  } | null>(null);
   // Holds the camera's zoomed-in focus for a brief moment after the card lands,
   // so the placement reads clearly before the view eases back to normal.
   const [cameraSettling, setCameraSettling] = useState<{ slotIndex: number } | null>(null);
@@ -3525,7 +3593,7 @@ export default function App() {
   // True for the whole hand-off from "card selected" to "card landed on the board" — the
   // camera pre-zoom, the flight itself, and the brief settle afterward. Used to ignore
   // stray clicks that would otherwise cancel the card's selection mid-transition.
-  const isCardInFlightTransition = !!(preZoomSlot || flyingCard || cameraSettling);
+  const isCardInFlightTransition = !!(preZoomSlot || flyingCard || cameraSettling || repositionFlight);
 
   // Which of the opponent's slots the currently-selected attacker can actually reach
   // (see getValidAttackTargets) — a plain per-render computation rather than a Hook
@@ -4111,14 +4179,40 @@ export default function App() {
       const wasAlreadyMoved = movedSlots.has(selectedMoverIndex);
       const mover = playerSlots[selectedMoverIndex];
       const occupant = playerSlots[slotIndex];
-      const newSlots = [...playerSlots];
-      newSlots[selectedMoverIndex] = occupant ?? null; // moving into empty, or swapping
-      newSlots[slotIndex] = mover;
-      // Capitão de Formação: "Ao mover: adjacentes +1 ATK" — a this-turn-only
-      // stamp (see applyFormationCaptainBuff) on whoever ends up next to its
-      // new position.
-      setPlayerSlots(applyFormationCaptainBuff(newSlots, slotIndex));
+      const originIndex = selectedMoverIndex;
+      const destIndex = slotIndex;
       setSelectedMoverIndex(null);
+
+      // Slide both slots' real on-screen rects into a repositionFlight (see its own
+      // comment) instead of swapping the state right away — the actual slot swap
+      // (and Capitão de Formação's buff) only commits once that slide lands, in the
+      // flight overlay's own onAnimationComplete below.
+      const originRect = document.getElementById(`player-${originIndex}`)?.getBoundingClientRect();
+      const destRect = document.getElementById(`player-${destIndex}`)?.getBoundingClientRect();
+      if (!mover || !originRect || !destRect) {
+        // Defensive fallback (should never happen — both slots are on-screen
+        // whenever they're clickable) so a reposition never silently gets stuck.
+        const newSlots = [...playerSlots];
+        newSlots[originIndex] = occupant ?? null;
+        newSlots[destIndex] = mover ?? null;
+        setPlayerSlots(applyFormationCaptainBuff(newSlots, destIndex));
+      } else {
+        setRepositionFlight({
+          originIndex, destIndex, moverCard: mover, swappedCard: occupant ?? null,
+          isBatedorFreeMove, wasAlreadyMoved,
+          mover: {
+            fromX: originRect.left + originRect.width / 2, fromY: originRect.top + originRect.height / 2,
+            toX: destRect.left + destRect.width / 2, toY: destRect.top + destRect.height / 2,
+            w: originRect.width, h: originRect.height,
+          },
+          swapped: occupant ? {
+            fromX: destRect.left + destRect.width / 2, fromY: destRect.top + destRect.height / 2,
+            toX: originRect.left + originRect.width / 2, toY: originRect.top + originRect.height / 2,
+            w: destRect.width, h: destRect.height,
+          } : null,
+        });
+        return;
+      }
 
       if (isBatedorFreeMove) {
         setBatedorFreeMove(null);
@@ -4127,8 +4221,8 @@ export default function App() {
       }
       setMovedSlots(prev => {
         const next = new Set(prev);
-        next.add(selectedMoverIndex!);
-        next.add(slotIndex);
+        next.add(originIndex);
+        next.add(destIndex);
         return next;
       });
       if (wasAlreadyMoved) setBonusRepositions(prev => Math.max(0, prev - 1));
@@ -4893,7 +4987,7 @@ export default function App() {
               <div key={i} className="relative">
               <CardSlot
                 slotId={`player-${i}`}
-                card={playerSlots[i]}
+                card={repositionFlight && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : playerSlots[i]}
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
                 onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
@@ -4921,7 +5015,7 @@ export default function App() {
               <div key={i} className="relative">
               <CardSlot
                 slotId={`player-${i}`}
-                card={playerSlots[i]}
+                card={repositionFlight && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : playerSlots[i]}
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
                 onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
@@ -5855,6 +5949,70 @@ export default function App() {
         })()}
       </AnimatePresence>
 
+      {/* Reposition flight (see repositionFlight's own comment) — a low, quick slide
+          between two real on-screen board slots, one leg per card involved (just the
+          mover into an empty slot, or both mover+swapped crossing paths at once).
+          Both origin and destination CardSlots hide their normal card render for the
+          duration (see the `card={...}` ternary at each Vanguarda/Retaguarda map
+          above), so this overlay is the only visible copy while it's mid-flight. */}
+      <AnimatePresence>
+        {repositionFlight && [
+          { leg: repositionFlight.mover, card: repositionFlight.moverCard, isPrimary: true },
+          ...(repositionFlight.swapped ? [{ leg: repositionFlight.swapped, card: repositionFlight.swappedCard!, isPrimary: false }] : []),
+        ].map(({ leg, card, isPrimary }) => {
+          // A small hop, not the hand-play showcase hover (see flyingCard) — this is a
+          // card being nudged a few slots over, not a brand new card entering play.
+          const LIFT = 30;
+          const midX = (leg.fromX + leg.toX) / 2;
+          const midY = Math.min(leg.fromY, leg.toY) - LIFT;
+          const tilt = leg.toX === leg.fromX ? 0 : (leg.toX > leg.fromX ? 5 : -5);
+          return (
+            <motion.div
+              key={card.id}
+              initial={{
+                left: leg.fromX - leg.w / 2, top: leg.fromY - leg.h / 2,
+                width: leg.w, height: leg.h, rotate: 0,
+              }}
+              animate={{
+                left: [leg.fromX - leg.w / 2, midX - leg.w / 2, leg.toX - leg.w / 2],
+                top: [leg.fromY - leg.h / 2, midY - leg.h / 2, leg.toY - leg.h / 2],
+                rotate: [0, tilt, 0],
+              }}
+              transition={{ duration: 0.4, ease: "easeInOut" }}
+              // Only the mover's own leg commits the actual slot swap — attaching this
+              // to both legs of a swap would just run the same commit twice.
+              onAnimationComplete={isPrimary ? () => {
+                setPlayerSlots(prev => {
+                  const next = [...prev];
+                  next[repositionFlight.originIndex] = repositionFlight.swappedCard;
+                  next[repositionFlight.destIndex] = repositionFlight.moverCard;
+                  // Capitão de Formação: "Ao mover: adjacentes +1 ATK" (this-turn-only,
+                  // see applyFormationCaptainBuff's own comment).
+                  return applyFormationCaptainBuff(next, repositionFlight.destIndex);
+                });
+                if (repositionFlight.isBatedorFreeMove) {
+                  setBatedorFreeMove(null);
+                  showToast("Batedor se reposicionou após o combate!");
+                } else {
+                  setMovedSlots(prev => {
+                    const next = new Set(prev);
+                    next.add(repositionFlight.originIndex);
+                    next.add(repositionFlight.destIndex);
+                    return next;
+                  });
+                  if (repositionFlight.wasAlreadyMoved) setBonusRepositions(prev => Math.max(0, prev - 1));
+                }
+                setRepositionFlight(null);
+              } : undefined}
+              style={{ position: 'fixed', zIndex: 480, filter: CARD_THICKNESS_SHADOW }}
+              className="pointer-events-none rounded-lg flex flex-col p-1"
+            >
+              {card.isFullArt ? <CardFaceFullArtMini card={card} /> : <CardFaceStandardMini card={card} />}
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
+
       {/* Impact burst — flash, double shockwave, radiating sparks and a ground shadow pulse
           where the card just landed. */}
       <AnimatePresence>
@@ -6670,7 +6828,7 @@ const CardSlot = ({
           // empty home slot mid-lunge, visibly detached from the card itself.
           data-card-visual={slotId}
         >
-          {isImpactingTarget && <SlashEffect />}
+          {(isImpactingAttacker || isImpactingTarget) && <SlashEffect />}
 
           {/* Floating damage number — see damageFlash above. Rises and fades over
               the same window as the shake it plays alongside, so both read as one
@@ -6716,24 +6874,24 @@ const CardSlot = ({
       )}
       {card && card.isDestroyed && (
         <>
+          {/* The card itself burning away — now the actual CardFace (same mini
+              component the live card renders, see just above), not a flat beige
+              placeholder with the raw art image pasted in. Reads as THIS exact
+              card breaking apart instead of a generic dying rectangle, and no
+              longer goes blank for cards with no art file yet (see DECK_CAPITAO,
+              still art: '' everywhere) since it isn't just an <img> tag anymore. */}
           <motion.div
-            initial={{ scale: 1, opacity: 1, rotateZ: 0 }}
-            animate={{ 
-              scale: [1, 1.1, 0.8, 0], 
-              opacity: [1, 1, 0.5, 0], 
+            initial={{ scale: 1, opacity: 1, rotateZ: 0, filter: "brightness(1) grayscale(0)" }}
+            animate={{
+              scale: [1, 1.1, 0.8, 0.4],
+              opacity: [1, 1, 0.6, 0],
               rotateZ: [0, -5, 5, -10, 10, 0],
-              filter: ["brightness(1)", "brightness(2)", "brightness(0.5)", "brightness(0)"]
+              filter: ["brightness(1) grayscale(0)", "brightness(2.2) grayscale(0.4)", "brightness(0.5) grayscale(0.9)", "brightness(0) grayscale(1)"],
             }}
             transition={{ duration: 0.8, ease: "easeInOut" }}
-            className="absolute inset-0 z-40 pointer-events-none"
+            className="absolute inset-0 z-40 pointer-events-none rounded-lg overflow-hidden w-full h-full"
           >
-            <div className="w-full h-full bg-[#c5b599] rounded-lg border-2 border-[#8c7a5f] shadow-lg overflow-hidden grayscale">
-               {card.art ? (
-                 <img src={card.art} className="w-full h-full object-cover opacity-50" />
-               ) : (
-                 <div className="w-full h-full bg-zinc-800" />
-               )}
-            </div>
+            {card.isFullArt ? <CardFaceFullArtMini card={card} /> : <CardFaceStandardMini card={card} />}
           </motion.div>
           <ExplosionEffect />
         </>
