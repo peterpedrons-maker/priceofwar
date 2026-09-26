@@ -1678,8 +1678,8 @@ const DECK_CAPITAO: CardData[] = [
 // bodies same as any other Infantaria card), and Armamento (equipment) folds
 // into Tática (a 0/0 card whose whole point is its one-time effect).
 const DECK_CARDEAL: CardData[] = [
-  { id: 'cardeal_gen', name: 'Cardeal Pedro, Voz da Fé', atk: 0, hp: 20, cost: 0, art: cardealPedroFullArt, effect: 'Fase Principal: cure 1 HP em um soldado aliado. Pague 1 ouro para curar 3 HP em vez disso.', cardType: 'General', isFullArt: true },
-  { id: 'cardeal_relic', name: 'Cálice da Graça', atk: 0, hp: 5, cost: 3, art: caliceDaVidaFullArt, effect: 'Permanente. Permite que o General Cardeal Pedro use sua habilidade duas vezes por turno.', cardType: 'Relíquia', isFullArt: true },
+  { id: 'cardeal_gen', name: 'Cardeal Pedro, Voz da Fé', atk: 0, hp: 20, cost: 0, art: cardealPedroFullArt, effect: 'Fase Principal: pague 2 ouro para curar 1 HP em um soldado aliado, mesmo com HP cheio.', cardType: 'General', isFullArt: true },
+  { id: 'cardeal_relic', name: 'Cálice da Graça', atk: 0, hp: 5, cost: 3, art: caliceDaVidaFullArt, effect: 'Permanente. A cura do General Cardeal Pedro aumenta de 1 para 2 HP.', cardType: 'Relíquia', isFullArt: true },
 
   // Plebeus → Infantaria
   ...Array(4).fill(null).map((_, i): CardData => ({ id: `cardeal_fiel_${i}`, name: 'Devotos da Cruzada', atk: 0, hp: 3, cost: 1, art: multidaoDeFieisArt, effect: '—', cardType: 'Infantaria' })),
@@ -2150,17 +2150,12 @@ export default function App() {
   // General has an available Fase-Principal effect and surfaces it (a glowing prompt
   // on the General, see the CardSlot call sites below) rather than the player having
   // to already know it's there. generalAbilityUses resets every player turn (see the
-  // currentTurn === 'player' effect) and caps at 1, or 2 while Cálice da Graça sits in
-  // the Relíquia slot (see getGeneralAbilityMaxUses).
+  // currentTurn === 'player' effect) and caps at 1 (see playerGeneralAbilityMaxUses).
   const [playerGeneralAbilityUses, setPlayerGeneralAbilityUses] = useState(0);
   const [npcGeneralAbilityUses, setNpcGeneralAbilityUses] = useState(0);
-  // "Ativar habilidade?" — the first prompt, offering the free vs. paid variant (or
-  // just a plain activate/cancel for an ability with no cost choice).
-  // `confirmed` splits this into the two Yu-Gi-Oh-style steps: first a plain "activate
-  // this effect?" yes/no on the card itself, and only once the player says yes does
-  // the card's own cost/amount choice show up (see activateGeneralHeal) — instead of
-  // dumping both decisions on the player at once.
-  const [generalAbilityPrompt, setGeneralAbilityPrompt] = useState<{ kind: 'cardeal_heal', confirmed: boolean } | null>(null);
+  // "Ativar habilidade?" — a plain activate/cancel prompt on the General itself
+  // (see activateGeneralHeal below for the fixed 2-gold cost this commits to).
+  const [generalAbilityPrompt, setGeneralAbilityPrompt] = useState<{ kind: 'cardeal_heal' } | null>(null);
   // Set once the player has committed to activating and chosen an amount — now
   // waiting for them to click the actual ally to heal, same two-step shape as
   // pendingTacticAction above.
@@ -2898,36 +2893,28 @@ export default function App() {
         // Cardeal Pedro, Voz da Fé's General ability (see resolveGeneralHeal/GENERAL_ABILITIES
         // below for the player-facing version of the exact same rule) has no target
         // to pick for the AI — it just always heals its currently weakest ally,
-        // spending gold for the bigger heal whenever it can afford to. Mirrors the
-        // player's own once-or-twice-per-turn cap (Cálice da Graça) instead of a
-        // separate, potentially more generous rule for the opponent.
+        // once per turn, whenever it can afford the 2-gold cost. Cálice da Graça
+        // boosts the heal amount instead of granting a second use (see
+        // playerGeneralAbilityMaxUses's own comment for why the double-use version
+        // was removed).
         // Infiltrado da Ordem: blocked for exactly the turn after the General took
         // damage (see npcGeneralAbilityBlockedThisTurnRef's own comment above).
-        if (currentNpcSlots[12]?.name === 'Cardeal Pedro, Voz da Fé' && !npcGeneralAbilityBlockedThisTurnRef.current) {
-          const maxUses = currentNpcSlots[10]?.name === 'Cálice da Graça' ? 2 : 1;
-          let usesThisTurn = 0;
-          while (usesThisTurn < maxUses) {
-            // Same "must actually be damaged" restriction as the player's own
-            // resolveGeneralHeal (see its comment) — without it the AI would also
-            // spend its free heal on an already-full-HP Recruta Devoto every turn
-            // just to stack its "+1 ATK on heal" for free.
-            const allyIndices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => currentNpcSlots[i] && isCardDamaged(currentNpcSlots[i]!));
-            if (allyIndices.length === 0) break;
+        if (currentNpcSlots[12]?.name === 'Cardeal Pedro, Voz da Fé' && !npcGeneralAbilityBlockedThisTurnRef.current && currentNpcMana >= 2) {
+          const allyIndices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => currentNpcSlots[i]);
+          if (allyIndices.length > 0) {
             const weakest = allyIndices.reduce((a, b) => currentNpcSlots[a]!.hp <= currentNpcSlots[b]!.hp ? a : b);
-            const payGold = currentNpcMana >= 1;
-            const healAmount = payGold ? 3 : 1;
-            if (payGold) currentNpcMana -= 1;
+            currentNpcMana -= 2;
+            const healAmount = currentNpcSlots[10]?.name === 'Cálice da Graça' ? 2 : 1;
             let healed = { ...currentNpcSlots[weakest]!, hp: currentNpcSlots[weakest]!.hp + healAmount };
-            // Recruta Devoto: "Ao ser curado: recebe +1 ATK permanente."
+            // Recruta Devoto: "Ao ser curado: recebe +1 ATK permanente." Fine to allow
+            // even at full HP now — the ability always costs 2 gold, so this is a
+            // deliberate paid trade-off instead of a free repeatable exploit.
             if (healed.name === 'Recruta Devoto') healed = { ...healed, atk: healed.atk + 1 };
             currentNpcSlots[weakest] = healed;
-            usesThisTurn++;
-          }
-          if (usesThisTurn > 0) {
-            setNpcGeneralAbilityUses(usesThisTurn);
+            setNpcGeneralAbilityUses(1);
             setNpcSlots([...currentNpcSlots]);
             setNpcMana(currentNpcMana);
-            showToast(`O oponente usou a habilidade do General (${usesThisTurn}x)!`);
+            showToast('O oponente usou a habilidade do General!');
             await new Promise(resolve => setTimeout(resolve, 700));
           }
         }
@@ -3538,26 +3525,28 @@ export default function App() {
   const activePhases = phasesForTurn(turnNumber);
   const isLastPhaseOfTurn = activePhases[activePhases.length - 1] === turnPhase;
 
-  // Cálice da Graça (Relíquia, the slot-10 special slot) lets Cardeal Pedro, Voz da Fé's General
-  // ability fire twice per turn instead of once — see GENERAL_ABILITIES below.
-  const playerGeneralAbilityMaxUses = playerSlots[10]?.name === 'Cálice da Graça' ? 2 : 1;
+  // Cálice da Graça (Relíquia, the slot-10 special slot) used to grant a second use per
+  // turn, which combined with the old free-heal exploit (see playerGeneralAbilityAvailable's
+  // history below) let its ATK stacking double up. It now boosts the heal amount
+  // instead (see activateGeneralHeal's call sites), so the ability stays capped at
+  // once per turn regardless of relics equipped.
+  const playerGeneralAbilityMaxUses = 1;
   // Whether the player's own General has an activatable Fase-Principal ability ready
   // right now — drives the glowing prompt icon on the General slot (see CardSlot's
-  // showAbilityPrompt call sites). Requires an actual DAMAGED ally on the board to
-  // heal — not just any ally — otherwise there's nothing to target and the prompt
-  // would just dead-end (matches Cavaleiro Hospitalário's own identical restriction,
-  // see resolveHospitalarioHeal). Originally just checked "any ally exists", which
-  // let a full-HP Recruta Devoto (0/2, "Ao ser curado: recebe +1 ATK permanente") get
-  // healed over and over for free — undamaged, no HP actually restored — stacking its
-  // ATK without limit from turn 1 on, doubled with Cálice da Graça's second use.
+  // showAbilityPrompt call sites). The ability now always costs 2 gold and can target
+  // any ally, including one at full HP — healing an already-full Recruta Devoto (0/2,
+  // "Ao ser curado: recebe +1 ATK permanente") still grants its ATK bonus, but paying
+  // 2 gold for it every turn is a deliberate trade-off now instead of the free,
+  // unlimited stack this used to be before the ability had any cost at all.
   const playerGeneralAbilityAvailable =
     playerSlots[12]?.name === 'Cardeal Pedro, Voz da Fé' && !playerSlots[12]?.isDestroyed &&
     currentTurn === 'player' && turnPhase === 'preparacao' &&
     playerGeneralAbilityUses < playerGeneralAbilityMaxUses &&
+    playerMana >= 2 &&
     // Infiltrado da Ordem: blocked for exactly the one turn following the General
     // taking damage (see playerGeneralAbilityBlockedThisTurnRef's own comment).
     !playerGeneralAbilityBlockedThisTurnRef.current &&
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => playerSlots[i] && !playerSlots[i]?.isDestroyed && isCardDamaged(playerSlots[i]!));
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => playerSlots[i] && !playerSlots[i]?.isDestroyed);
 
   // Mercador da Cruzada / Cavaleiro Hospitalário: which once-per-turn creature ability
   // (if any) is available to activate on this exact player slot right now — same
@@ -3909,11 +3898,10 @@ export default function App() {
   const resolveGeneralHeal = (slotIndex: number) => {
     if (!pendingGeneralHeal) return;
     const target = playerSlots[slotIndex];
-    // Same "must actually be hurt" restriction as Hospitalário's own heal
-    // (resolveHospitalarioHeal) — see playerGeneralAbilityAvailable's own comment for
-    // why: healing an undamaged Recruta Devoto used to still fire its "+1 ATK
-    // permanent on heal" with no HP actually restored, an unlimited free stack.
-    if (slotIndex > 9 || !target || !isCardDamaged(target)) { showToast('Escolha um aliado ferido no campo.'); return; }
+    // Any ally, damaged or not — see playerGeneralAbilityAvailable's own comment for
+    // why overhealing a full-HP unit (e.g. Recruta Devoto, for its "+1 ATK ao ser
+    // curado") is fine now that the ability always costs 2 gold to use at all.
+    if (slotIndex > 9 || !target) { showToast('Escolha um soldado aliado no campo.'); return; }
     const amount = pendingGeneralHeal.amount;
     setPlayerSlots(prev => {
       const next = [...prev];
@@ -4008,7 +3996,7 @@ export default function App() {
     });
   });
   if (playerGeneralAbilityAvailable) {
-    pushAbilityPrompt('ability-general', 'player-12', () => setGeneralAbilityPrompt({ kind: 'cardeal_heal', confirmed: false }));
+    pushAbilityPrompt('ability-general', 'player-12', () => setGeneralAbilityPrompt({ kind: 'cardeal_heal' }));
   }
 
   // Resolves Cavaleiro Hospitalário's heal half once the player clicks their own board (see
@@ -6355,9 +6343,9 @@ export default function App() {
       {/* "Ativar habilidade?" — the General's own Fase-Principal effect, offered
           Yu-Gi-Oh-style: the card floats up in the exact same tucked-aside "selected
           card" spot a hand card gets when picked to be played (see getSelectedCardX/Y
-          and the hand render above), with a plain ativar/não first — only once the
-          player says yes does the card's own cost choice (grátis vs. pago) show up,
-          instead of dumping both decisions on the player in one screen. */}
+          and the hand render above). There's only one cost/amount combo now (2 ouro,
+          heal amount set by Cálice da Graça — see activateGeneralHeal's call site
+          below), so this is a plain ativar/não instead of a further cost-choice step. */}
       <AnimatePresence>
         {generalAbilityPrompt && playerSlots[12] && (
           <div
@@ -6375,44 +6363,21 @@ export default function App() {
               <CardFace card={playerSlots[12]!} variant="hand" />
               <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(212,175,55,0.6)] rounded-xl border-2 border-[#d4af37] pointer-events-none" />
 
-              {!generalAbilityPrompt.confirmed ? (
-                <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 z-40 flex gap-2 whitespace-nowrap">
-                  <button
-                    onClick={() => setGeneralAbilityPrompt(prev => prev ? { ...prev, confirmed: true } : prev)}
-                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(16,185,129,0.7)] border-2 border-emerald-400"
-                  >
-                    Ativar
-                  </button>
-                  <button
-                    onClick={() => setGeneralAbilityPrompt(null)}
-                    className="px-5 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(0,0,0,0.6)] border-2 border-zinc-500"
-                  >
-                    Não ativar
-                  </button>
-                </div>
-              ) : (
-                <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 z-40 flex flex-col gap-1.5 items-center whitespace-nowrap">
-                  <button
-                    onClick={() => activateGeneralHeal(1, 0)}
-                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-[11px] uppercase tracking-wider shadow-[0_4px_16px_rgba(16,185,129,0.7)] border-2 border-emerald-400"
-                  >
-                    Curar 1 HP (grátis)
-                  </button>
-                  <button
-                    onClick={() => activateGeneralHeal(3, 1)}
-                    disabled={playerMana < 1}
-                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-[11px] uppercase tracking-wider shadow-[0_4px_16px_rgba(16,185,129,0.7)] border-2 border-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
-                  >
-                    Pagar 1 ouro: curar 3 HP
-                  </button>
-                  <button
-                    onClick={() => setGeneralAbilityPrompt(null)}
-                    className="px-4 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded-full text-white font-black text-[11px] uppercase tracking-wider shadow-[0_4px_16px_rgba(0,0,0,0.6)] border-2 border-zinc-500"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              )}
+              <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 z-40 flex gap-2 whitespace-nowrap">
+                <button
+                  onClick={() => activateGeneralHeal(playerSlots[10]?.name === 'Cálice da Graça' ? 2 : 1, 2)}
+                  disabled={playerMana < 2}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(16,185,129,0.7)] border-2 border-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
+                >
+                  Pagar 2 ouro: curar {playerSlots[10]?.name === 'Cálice da Graça' ? 2 : 1} HP
+                </button>
+                <button
+                  onClick={() => setGeneralAbilityPrompt(null)}
+                  className="px-5 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(0,0,0,0.6)] border-2 border-zinc-500"
+                >
+                  Não ativar
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
