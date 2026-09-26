@@ -2874,12 +2874,19 @@ export default function App() {
   const matchIntroTimeoutsRef = useRef<number[]>([]);
 
   // Drives the Hearthstone-style "VS" reveal at the very start of a match (see
-  // MatchIntroOverlay further below, and startMatchIntro): both Generals appear huge
-  // on opposite sides ('panels'), a "BATALHA" banner slams in between them
-  // ('banner'), then both shrink and fly down into their real board slot
-  // ('descend') — only once that lands does startMatchIntro place them on the real
-  // board and start dealing hands. null means no reveal is in progress.
-  const [matchIntroStage, setMatchIntroStage] = useState<null | 'panels' | 'banner' | 'descend'>(null);
+  // MatchIntroOverlay further below, and startMatchIntro): both Generals' art appears
+  // huge on opposite sides ('panels'), then both shrink and fly down into their real
+  // board slot ('descend'), and only once they've actually landed does the "BATALHA"
+  // banner slam in over the board itself ('battle') — the reveal is about the
+  // Generals taking their place, not a banner floating in front of them. null means
+  // no reveal is in progress.
+  const [matchIntroStage, setMatchIntroStage] = useState<null | 'panels' | 'descend' | 'battle'>(null);
+  // Set true for the very first turn of a fresh match (see resetGame) so the normal
+  // per-turn "Fase de Preparação" ribbon (see the turnNumber effect below) doesn't
+  // fire immediately and race the VS reveal above — startMatchIntro calls
+  // announcePhase itself once the reveal's own "battle" stage has cleared, and
+  // flips this back off right before doing so.
+  const suppressInitialPhaseBannerRef = useRef(false);
   // Where the 'descend' stage's shrink animation ends — the real board General
   // slots' own on-screen rects, measured only once we're about to need them (they
   // don't exist meaningfully before the match's board has actually mounted).
@@ -2911,26 +2918,44 @@ export default function App() {
     // reveal only once that's done means it never has to visibly re-glide to a
     // corrected position mid-entrance.
     const INTRO_START = 550;
+    // Both Generals' art floats in from the sides and holds...
     schedule(() => { setMatchIntroStage('panels'); playRevealGeneralSfx(); }, INTRO_START);
-    schedule(() => { setMatchIntroStage('banner'); playBatalhaBannerSfx(); }, INTRO_START + 900);
-    schedule(() => setMatchIntroStage('descend'), INTRO_START + 1900);
-    // 750ms is also this component's own descend-stage transition duration (see
-    // MatchIntroOverlay) — by the time this fires, both portraits have visually
-    // finished shrinking into their board slot, so swapping the overlay for the
-    // real card underneath (same trick setFlyingCard(null) uses alongside placing
-    // its own card, see the hand-to-board flight above) reads as one seamless landing.
+    // ...then shrinks and flies down into its real board slot. 750ms below is also
+    // this component's own descend-stage transition duration (see
+    // MatchIntroOverlay) — LAND fires right as that finishes.
+    const DESCEND_START = INTRO_START + 1900;
+    schedule(() => setMatchIntroStage('descend'), DESCEND_START);
+    const LAND = DESCEND_START + 750;
+    // Landing: the overlay's portraits hand off to the real board slot (same trick
+    // setFlyingCard(null) uses alongside placing its own card, see the hand-to-board
+    // flight above, so there's no frame where neither is rendered) — only THEN does
+    // "BATALHA" slam in over the board itself, since the reveal is about the
+    // Generals taking their place, not a banner floating in front of them.
+    const BATTLE_BANNER_MS = 1500;
     schedule(() => {
       setPlayerSlots(prev => { const next = [...prev]; next[12] = generalPlayerRef.current; return next; });
       setNpcSlots(prev => { const next = [...prev]; next[12] = generalNpcRef.current; return next; });
       playCardPlaySfx();
-      setMatchIntroStage(null);
       setIntroDescendTargets(null);
-    }, INTRO_START + 2650);
+      setMatchIntroStage('battle');
+      playBatalhaBannerSfx();
+    }, LAND);
+    // Only once BATALHA itself has cleared does the normal per-turn phase ribbon
+    // play (see suppressInitialPhaseBannerRef/the turnNumber effect) — the two are
+    // both center-screen ribbons, so playing them back to back instead of
+    // overlapping keeps the moment readable instead of stacking two banners.
+    const BATTLE_END = LAND + BATTLE_BANNER_MS;
+    schedule(() => {
+      setMatchIntroStage(null);
+      suppressInitialPhaseBannerRef.current = false;
+      announcePhase('preparacao');
+    }, BATTLE_END);
 
     // Kept comfortably past the 500ms viewport-settle window above (see
     // viewportSettled) so the deck's on-screen position is already final, not still
-    // correcting itself, by the time the first card's flight measures it.
-    const DEAL_START = INTRO_START + 3650;
+    // correcting itself, by the time the first card's flight measures it. Also well
+    // past BATTLE_END so dealing doesn't visibly race the "BATALHA" banner off screen.
+    const DEAL_START = BATTLE_END + 500;
     const DEAL_STEP = 820;
     for (let i = 0; i < 5; i++) {
       const t = DEAL_START + i * DEAL_STEP;
@@ -2951,6 +2976,7 @@ export default function App() {
     matchIntroTimeoutsRef.current = [];
     setMatchIntroStage(null);
     setIntroDescendTargets(null);
+    suppressInitialPhaseBannerRef.current = true;
 
     const npcDeckId: DeckId = deckId === 'capitao' ? 'cardeal' : 'capitao';
     playerDeckPoolRef.current = DECKS[deckId].pool;
@@ -3029,7 +3055,10 @@ export default function App() {
       if (turnNumber > 1) {
         announceTurnChange('player');
         window.setTimeout(() => announcePhase('preparacao'), PHASE_BANNER_DURATION_MS);
-      } else {
+      } else if (!suppressInitialPhaseBannerRef.current) {
+        // Suppressed at a fresh match's very first turn — the VS reveal
+        // (startMatchIntro) calls announcePhase itself once its own "BATALHA"
+        // banner has cleared, instead of this firing immediately and racing it.
         announcePhase('preparacao');
       }
       setTurnPhase('preparacao');
@@ -6422,12 +6451,15 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Match-intro "VS" reveal — see startMatchIntro/matchIntroStage above. Both
-          Generals huge on opposite sides, a "BATALHA" banner between them, then both
-          shrink down into their real board slot (introDescendTargets) before hand
-          dealing starts. Sits above everything else on screen (z-[900]+). */}
+      {/* Match-intro "VS" reveal, portrait stage — see startMatchIntro/matchIntroStage
+          above. Both Generals' art (no name/cost/stats — just the painting, see the
+          user's own ask for a cleaner reveal) huge on opposite sides, then both
+          shrink down into their real board slot (introDescendTargets). Only rendered
+          for 'panels'/'descend' — by 'battle' the Generals are already on the real
+          board and this hands off to the separate BATALHA banner below. Sits above
+          everything else on screen (z-[900]+). */}
       <AnimatePresence>
-        {matchIntroStage && (() => {
+        {(matchIntroStage === 'panels' || matchIntroStage === 'descend') && (() => {
           const bigW = windowSize.width * 0.34;
           const bigH = bigW * (400 / 300);
           const bigTop = windowSize.height * 0.46 - bigH / 2;
@@ -6437,6 +6469,14 @@ export default function App() {
           const panelTransition = descending
             ? { duration: 0.75, ease: 'easeInOut' as const }
             : { duration: 0.65, ease: 'easeOut' as const };
+          const portraitFrame = (card: CardData) => (
+            <div
+              className="relative w-full h-full rounded-2xl overflow-hidden"
+              style={{ boxShadow: 'inset 0 0 0 3px rgba(212,175,55,0.9), inset 0 0 50px 12px rgba(0,0,0,0.55), 0 0 50px rgba(0,0,0,0.85)' }}
+            >
+              <img src={card.art} alt={card.name} className="w-full h-full object-cover" draggable={false} />
+            </div>
+          );
           return (
             <motion.div
               key="match-intro"
@@ -6453,7 +6493,7 @@ export default function App() {
               />
               {/* Player's General — slides in from the left */}
               <motion.div
-                className="fixed rounded-xl"
+                className="fixed"
                 style={{ zIndex: 901, filter: CARD_THICKNESS_SHADOW }}
                 initial={{ left: -bigW, top: bigTop, width: bigW, height: bigH, opacity: 0 }}
                 animate={
@@ -6463,13 +6503,11 @@ export default function App() {
                 }
                 transition={panelTransition}
               >
-                <div className="relative w-full h-full">
-                  <CardFace card={generalPlayerRef.current} variant="modal" />
-                </div>
+                {portraitFrame(generalPlayerRef.current)}
               </motion.div>
               {/* NPC's General — slides in from the right, mirrored */}
               <motion.div
-                className="fixed rounded-xl"
+                className="fixed"
                 style={{ zIndex: 901, filter: CARD_THICKNESS_SHADOW }}
                 initial={{ left: windowSize.width, top: bigTop, width: bigW, height: bigH, opacity: 0 }}
                 animate={
@@ -6479,33 +6517,51 @@ export default function App() {
                 }
                 transition={panelTransition}
               >
-                <div className="relative w-full h-full">
-                  <CardFace card={generalNpcRef.current} variant="modal" />
-                </div>
+                {portraitFrame(generalNpcRef.current)}
               </motion.div>
-              <AnimatePresence>
-                {matchIntroStage === 'banner' && (
-                  <motion.div
-                    key="batalha-banner"
-                    className="fixed z-[902]"
-                    style={{ left: '50%', top: '50%' }}
-                    initial={{ opacity: 0, scale: 0.4, x: '-50%', y: '-50%', rotate: -4 }}
-                    animate={{ opacity: 1, scale: 1, x: '-50%', y: '-50%', rotate: 0 }}
-                    exit={{ opacity: 0, scale: 1.3 }}
-                    transition={{ type: 'spring', damping: 14, stiffness: 280 }}
-                  >
-                    <span
-                      className="block text-5xl md:text-7xl font-black uppercase tracking-widest text-red-500 whitespace-nowrap"
-                      style={{ fontFamily: "'Cinzel', serif", textShadow: '0 0 30px rgba(220,38,38,0.9), 0 4px 10px rgba(0,0,0,0.9)', WebkitTextStroke: '2px #1a0505' }}
-                    >
-                      BATALHA
-                    </span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </motion.div>
           );
         })()}
+      </AnimatePresence>
+
+      {/* Match-intro "VS" reveal, BATALHA stage — fires only once both Generals have
+          actually landed on the real board (see startMatchIntro's LAND schedule), so
+          this reads as the board itself declaring battle rather than a banner
+          floating in front of the portraits. Same crimson-ribbon language as the
+          in-match phase banner further below, just bigger — a one-time moment, not
+          a recurring beat, so it shouldn't be confused for one of those. */}
+      <AnimatePresence>
+        {matchIntroStage === 'battle' && (
+          <motion.div
+            key="batalha-banner"
+            className="fixed inset-0 z-[900] flex items-center justify-center pointer-events-none overflow-hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <motion.div
+              className="relative flex flex-col items-center select-none"
+              initial={{ scale: 1.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.85, opacity: 0 }}
+              transition={{ type: 'spring', damping: 16, stiffness: 260 }}
+            >
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-screen h-20 md:h-28 bg-gradient-to-b from-red-950 via-[#5a0e0e] to-red-950 border-y-4 border-amber-400/90 shadow-[0_6px_28px_rgba(0,0,0,0.8)]" />
+              <span
+                className="relative text-6xl md:text-8xl font-black uppercase tracking-[0.05em] whitespace-nowrap px-8"
+                style={{
+                  fontFamily: "'Crimson Pro', serif",
+                  color: '#f5deb3',
+                  WebkitTextStroke: '0.75px rgba(60,10,10,0.7)',
+                  textShadow: '0 4px 10px rgba(0,0,0,0.9), 0 0 34px rgba(251,191,36,0.6)',
+                }}
+              >
+                Batalha!
+              </span>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* Install-as-app prompt */}
