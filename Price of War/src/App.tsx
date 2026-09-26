@@ -78,6 +78,17 @@ import cardPlaySfxUrl from './assets/sfx-jogar-carta.wav';
 import attackSfxUrl from './assets/sfx-ataque.wav';
 import tacticSfxUrl from './assets/sfx-tatica.wav';
 import selectSfxUrl from './assets/sfx-selecionar.wav';
+// Second round of SFX (see the same play* helpers further below) — same CC0 sourcing
+// approach as above, this time from lavenderdotpet/CC0-Public-Domain-Sounds on GitHub
+// (itself a mirror of the Kenney UI/impact packs plus a small RPG SFX set), covering
+// the gaps the user pointed out: nothing played for a plain UI button, a card lifting
+// off to fly, a unit actually taking damage (as opposed to just the attack swing), a
+// harder hit specifically when a General is the one hurt, or a card dying.
+import uiClickSfxUrl from './assets/sfx-clique-ui.wav';
+import cardLiftSfxUrl from './assets/sfx-levantar-carta.wav';
+import damageSfxUrl from './assets/sfx-dano.wav';
+import generalDamageSfxUrl from './assets/sfx-dano-general.wav';
+import destroySfxUrl from './assets/sfx-destruicao.wav';
 
 // Every card/board/UI image in the game besides the start screen's own background
 // and logo (those two load first, in the loading screen's initial black-screen
@@ -146,6 +157,48 @@ const playTacticSfx = () => {
 const playSelectSfx = () => {
   const audio = new Audio(selectSfxUrl);
   audio.volume = 0.35;
+  audio.play().catch(() => {});
+};
+// A plain click for any non-card UI button (menu, deck picker, phase/turn button,
+// Cancelar, modal close, ability prompts, ...) — the game had sound for playing/
+// attacking/selecting a CARD but total silence for everything else you tap, which
+// read as half the interface being "dead" next to the other half.
+const playUiClickSfx = () => {
+  const audio = new Audio(uiClickSfxUrl);
+  audio.volume = 0.4;
+  audio.play().catch(() => {});
+};
+// The instant a card lifts off to fly somewhere — played from hand to the board
+// (see flyingCard) or slid between two board slots (see repositionFlight) — so the
+// motion has a sound at BOTH ends (liftoff here, the existing thud/tactic cue on
+// arrival) instead of only announcing itself once it's already landed.
+const playCardLiftSfx = () => {
+  const audio = new Audio(cardLiftSfxUrl);
+  audio.volume = 0.45;
+  audio.play().catch(() => {});
+};
+// Any card actually losing HP — see CardSlot's own damageFlash effect, which
+// already uniformly detects this regardless of the source (a direct attack, an
+// AOE Tática, a splash effect, anything), so hooking the sound there covers every
+// case for free instead of needing to thread it through each damage call site.
+// A General specifically gets the heavier/plated hit (playGeneralDamageSfx) —
+// losing General HP is the whole win condition, so it should land differently
+// from a regular soldier taking a hit.
+const playDamageSfx = () => {
+  const audio = new Audio(damageSfxUrl);
+  audio.volume = 0.55;
+  audio.play().catch(() => {});
+};
+const playGeneralDamageSfx = () => {
+  const audio = new Audio(generalDamageSfxUrl);
+  audio.volume = 0.65;
+  audio.play().catch(() => {});
+};
+// A card actually dying (isDestroyed flips true) — see CardSlot's own destroy
+// effect further below.
+const playDestroySfx = () => {
+  const audio = new Audio(destroySfxUrl);
+  audio.volume = 0.6;
   audio.play().catch(() => {});
 };
 
@@ -985,51 +1038,23 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
   );
 };
 
-const GoldBadge = ({ value, className = "" }: { value: number; className?: string }) => {
-  // Self-fitting like GoldNumber below: the number strip is a fixed fraction of the
-  // coin plate's own width (~58%), so the text-2xl/3xl size tuned for a single digit
-  // started spilling out of the box once gold climbs into two or three digits later
-  // in a match (mana has no upper cap from turn 3 on). Measuring and shrinking the
-  // text to always fit — instead of just picking a smaller fixed size that would
-  // eventually overflow again at some higher value — means it never leaks again.
-  const numberBoxRef = useRef<HTMLDivElement>(null);
-  const numberTextRef = useRef<HTMLSpanElement>(null);
-  useLayoutEffect(() => {
-    const box = numberBoxRef.current;
-    const text = numberTextRef.current;
-    if (!box || !text) return;
-    const fit = () => {
-      text.style.transform = 'scale(1)';
-      const boxWidth = box.clientWidth;
-      const scale = boxWidth > 0 && text.scrollWidth > boxWidth ? boxWidth / text.scrollWidth : 1;
-      text.style.transform = `scale(${scale})`;
-    };
-    fit();
-    document.fonts?.ready?.then(fit);
-    const ro = new ResizeObserver(fit);
-    ro.observe(box);
-    return () => ro.disconnect();
-  }, [value]);
-
-  return (
-    <div className={`relative overflow-hidden ${className}`}>
-      {/* Scaled up ~18% and cropped by the wrapper's own overflow-hidden — makes the coin
-          and plate fill noticeably more of the same box footprint (per the user's ask:
-          bigger coin/number "desde que não estoure o tamanho da caixa") instead of
-          growing the box itself, which would've thrown off the HUD row's alignment. */}
-      <img src={hudGoldBadgeImage} alt="" className="w-full h-auto block scale-[1.18]" draggable={false} />
-      <div ref={numberBoxRef} className="absolute inset-y-0 right-[6%] left-[36%] flex items-center justify-center overflow-hidden">
-        <span
-          ref={numberTextRef}
-          className="text-amber-100 font-black text-2xl md:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] leading-none whitespace-nowrap"
-          style={{ transformOrigin: 'center' }}
-        >
-          {value}
-        </span>
-      </div>
-    </div>
-  );
-};
+const GoldBadge = ({ value, className = "" }: { value: number; className?: string }) => (
+  <div className={`relative overflow-hidden ${className}`}>
+    {/* Scaled up ~18% and cropped by the wrapper's own overflow-hidden — makes the coin
+        and plate fill noticeably more of the same box footprint (per the user's ask:
+        bigger coin/number "desde que não estoure o tamanho da caixa") instead of
+        growing the box itself, which would've thrown off the HUD row's alignment. */}
+    <img src={hudGoldBadgeImage} alt="" className="w-full h-auto block scale-[1.18]" draggable={false} />
+    {/* Fixed, deliberately small size (not the self-fitting measure-and-shrink version
+        this had briefly) per the user's own explicit ask: a plain smaller size that
+        never reaches the strip's edges, comfortably fitting three digits (mana has no
+        upper cap from turn 3 on) with real margin to spare, rather than a dynamic
+        shrink that still read as "leaking" close to the border. */}
+    <span className="absolute inset-y-0 right-[6%] left-[36%] flex items-center justify-center text-amber-100 font-black text-sm md:text-base drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] leading-none">
+      {value}
+    </span>
+  </div>
+);
 
 // A plain gradient-gold number with a strong drop shadow and no background shape —
 // unlike AtkBadge/HpBadge above, this is used INSIDE CardFace, where the
@@ -1922,7 +1947,7 @@ const MenuButton = ({ label, onClick, className = '' }: {
   <motion.button
     whileHover={{ scale: 1.04 }}
     whileTap={{ scale: 0.97 }}
-    onClick={onClick}
+    onClick={(e) => { playUiClickSfx(); onClick(e); }}
     className={`relative w-full ${className}`}
     style={{ aspectRatio: '831 / 177' }}
   >
@@ -2031,13 +2056,13 @@ const InstallPrompt = ({
           <p className="text-sm text-[#4a3b2c]">Jogue em tela cheia, sem as barras do navegador. Instale o app no seu aparelho.</p>
           <div className="flex gap-3 w-full">
             <button
-              onClick={onDismiss}
+              onClick={() => { playUiClickSfx(); onDismiss(); }}
               className="flex-1 px-4 py-2 rounded-full border-2 border-[#5c4a30] text-[#4a3b2c] font-bold text-sm hover:bg-black/5 transition-colors"
             >
               Agora não
             </button>
             <button
-              onClick={onInstall}
+              onClick={() => { playUiClickSfx(); onInstall(); }}
               className="flex-1 px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm shadow-lg transition-colors"
             >
               Instalar
@@ -2050,7 +2075,7 @@ const InstallPrompt = ({
             Toque em <strong>Compartilhar</strong> e depois em <strong>"Adicionar à Tela de Início"</strong> para jogar em tela cheia, sem as barras do navegador.
           </p>
           <button
-            onClick={onDismiss}
+            onClick={() => { playUiClickSfx(); onDismiss(); }}
             className="px-6 py-2 rounded-full border-2 border-[#5c4a30] text-[#4a3b2c] font-bold text-sm hover:bg-black/5 transition-colors"
           >
             Entendi
@@ -2085,7 +2110,7 @@ const DeckPickerModal = ({ onSelect, onClose }: { onSelect: (deckId: DeckId) => 
           key={deck.id}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          onClick={() => onSelect(deck.id)}
+          onClick={() => { playUiClickSfx(); onSelect(deck.id); }}
           className="text-left bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-2xl border-2 border-[#5c4a30] shadow-2xl p-5 flex flex-col gap-1"
           style={{ boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.45), 0 10px 40px rgba(0,0,0,0.6)' }}
         >
@@ -2095,7 +2120,7 @@ const DeckPickerModal = ({ onSelect, onClose }: { onSelect: (deckId: DeckId) => 
           <span className="text-[11px] text-[#6b5636] mt-1 uppercase tracking-wide">{deck.pool.length + 1} cartas</span>
         </motion.button>
       ))}
-      <button onClick={onClose} className="mx-auto mt-1 px-4 py-2 text-sm text-zinc-300 hover:text-white transition-colors">
+      <button onClick={() => { playUiClickSfx(); onClose(); }} className="mx-auto mt-1 px-4 py-2 text-sm text-zinc-300 hover:text-white transition-colors">
         Cancelar
       </button>
     </motion.div>
@@ -4243,6 +4268,7 @@ export default function App() {
         newSlots[destIndex] = mover ?? null;
         setPlayerSlots(applyFormationCaptainBuff(newSlots, destIndex));
       } else {
+        playCardLiftSfx();
         setRepositionFlight({
           originIndex, destIndex, moverCard: mover, swappedCard: occupant ?? null,
           isBatedorFreeMove, wasAlreadyMoved,
@@ -4334,6 +4360,7 @@ export default function App() {
           const latestFromRect = fromEl.getBoundingClientRect();
           const toRect = slotEl.getBoundingClientRect();
           setPreZoomSlot(null);
+          playCardLiftSfx();
           setFlyingCard({
             card: cardToPlay,
             slotIndex,
@@ -5227,6 +5254,7 @@ export default function App() {
             e.stopPropagation();
             if (currentTurn !== 'player') return;
             if (phaseTransitionLock) return; // a banner from the last tap is still playing out
+            playUiClickSfx();
             setSelectedCardIndex(null);
             setSelectedAttackerIndex(null);
             setSelectedMoverIndex(null);
@@ -5859,6 +5887,7 @@ export default function App() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          playUiClickSfx();
                           ambushPrompt!.resolve(null);
                           setAmbushPrompt(null);
                         }}
@@ -6251,7 +6280,7 @@ export default function App() {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            onClick={handleBackgroundClick}
+            onClick={() => { playUiClickSfx(); handleBackgroundClick(); }}
             className="fixed top-3 left-3 md:top-4 md:left-4 z-[205] flex items-center gap-1.5 pl-2 pr-3 py-1.5 rounded-full bg-zinc-900/90 border-2 border-red-500/80 text-red-300 font-black text-[11px] md:text-xs uppercase tracking-wider shadow-[0_4px_16px_rgba(0,0,0,0.6)] pointer-events-auto"
           >
             <X className="w-3.5 h-3.5 md:w-4 md:h-4" strokeWidth={3} />
@@ -6346,7 +6375,7 @@ export default function App() {
               {gameOverWinner === 'player' ? 'O General inimigo caiu em batalha.' : 'Seu General caiu em batalha.'}
             </p>
             <button
-              onClick={() => setGameMode(null)}
+              onClick={() => { playUiClickSfx(); setGameMode(null); }}
               className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-full font-black uppercase tracking-widest text-white shadow-[0_0_30px_rgba(99,102,241,0.6)] transition-colors"
             >
               Voltar ao Menu
@@ -6407,7 +6436,7 @@ export default function App() {
             </div>
             {cardPicker.maxPicks > 1 && (
               <button
-                onClick={() => cardPicker.onConfirm(cardPicker.selected)}
+                onClick={() => { playUiClickSfx(); cardPicker.onConfirm(cardPicker.selected); }}
                 disabled={cardPicker.selected.length === 0}
                 className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(16,185,129,0.7)] border-2 border-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
               >
@@ -6456,7 +6485,7 @@ export default function App() {
                 </div>
               )}
               <button
-                onClick={() => setViewingGraveyard(null)}
+                onClick={() => { playUiClickSfx(); setViewingGraveyard(null); }}
                 className="px-5 py-2 bg-zinc-700 hover:bg-zinc-600 active:bg-zinc-800 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-lg border-2 border-zinc-500"
               >
                 Fechar
@@ -6590,7 +6619,7 @@ export default function App() {
               <CardFace card={detailedCard} variant="hand" />
             </div>
             <button
-              onClick={() => setDetailedCard(null)}
+              onClick={() => { playUiClickSfx(); setDetailedCard(null); }}
               className="absolute -top-3 -left-3 w-8 h-8 bg-red-600 rounded-full border-2 border-red-900 flex items-center justify-center shadow-lg z-30 hover:bg-red-500 transition-colors pointer-events-auto"
             >
               <X className="text-white w-5 h-5" />
@@ -6632,7 +6661,7 @@ export default function App() {
                   Pagar 2 ouro: curar {playerSlots[10]?.name === 'Cálice da Graça' ? 2 : 1} HP
                 </button>
                 <button
-                  onClick={() => setGeneralAbilityPrompt(null)}
+                  onClick={() => { playUiClickSfx(); setGeneralAbilityPrompt(null); }}
                   className="px-5 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(0,0,0,0.6)] border-2 border-zinc-500"
                 >
                   Não ativar
@@ -6718,6 +6747,9 @@ const CardSlot = ({
   useEffect(() => {
     if (card && prevCardIdRef.current === card.id && prevHpRef.current !== undefined && card.hp < prevHpRef.current) {
       setDamageFlash({ key: Date.now(), amount: prevHpRef.current - card.hp });
+      // A General losing HP is the whole win condition, so it gets the heavier
+      // plated-hit cue instead of the plain one every other unit takes.
+      if (card.cardType === 'General') playGeneralDamageSfx(); else playDamageSfx();
     }
     prevCardIdRef.current = card?.id;
     prevHpRef.current = card?.hp;
@@ -6727,6 +6759,14 @@ const CardSlot = ({
     const t = window.setTimeout(() => setDamageFlash(null), 900);
     return () => clearTimeout(t);
   }, [damageFlash]);
+  // A card actually dying — same "isDestroyed flips true" moment the destroy
+  // animation below reacts to, tracked with its own ref since it's a boolean
+  // transition rather than the value comparison prevHpRef does for damage.
+  const prevIsDestroyedRef = useRef(false);
+  useEffect(() => {
+    if (card?.isDestroyed && !prevIsDestroyedRef.current) playDestroySfx();
+    prevIsDestroyedRef.current = !!card?.isDestroyed;
+  }, [card?.isDestroyed]);
 
   // A valid placement slot's whole border/glow now carries the combat/support
   // color (amber/sky — same as the corner badge below) instead of a uniform
