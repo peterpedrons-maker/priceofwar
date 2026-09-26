@@ -176,6 +176,13 @@ export type CardData = {
   // chosen unit at cast time. Read in getIncomingDamageReduction alongside the
   // General/Fortaleza aura checks.
   dmgReduction?: number;
+  // A temporary ATK stack from Capitão de Formação's "Ao mover: adjacentes +1
+  // ATK" (see applyFormationCaptainBuff) — unlike dmgReduction above, this is
+  // NOT permanent: it's cleared at the start of every player turn (see the
+  // currentTurn === 'player' effect) so re-triggering it several times in one
+  // turn (e.g. with Reformar Linhas' bonus moves) is a real but temporary
+  // burst, not a free permanent stack. Read in getEffectiveAtk.
+  formationBuffAtk?: number;
   // The explicit exception to "Táticas are single-use and never sit on the board":
   // an Armamento (Armadura de Guerra/Couraça Reforçada/Flechas Venenosas/Espada Longa) doesn't
   // go to the graveyard when used — it stays equipped, rendered as a card peeking
@@ -422,6 +429,9 @@ const getEffectiveAtk = (
   enemySlots: (CardData | null)[]
 ): number => {
   let atk = card.atk + (card.pendingCombatBonus?.atk ?? 0);
+  // Capitão de Formação: "Ao mover: adjacentes +1 ATK" — temporary, cleared at
+  // the start of the next player turn (see formationBuffAtk's own comment).
+  atk += card.formationBuffAtk ?? 0;
   // Estandarte da Legião (Relíquia, own slot 10): all allies +1 ATK.
   if (isAliveAt(ownSlots, 10, 'Estandarte da Legião')) atk += 1;
   // Veterano de Guerra: +2 ATK to itself while standing in column index 2
@@ -472,16 +482,23 @@ const grantAurelionBuff = (slots: (CardData | null)[], moved: Set<number>): (Car
 };
 
 // Capitão de Formação: "Ao mover: adjacentes +1 ATK." Called right after a
-// reposition move lands (see handleSlotClick) — a permanent stat stamp on
-// whoever was standing next to its NEW position, not a recomputed aura, so the
-// buff persists even if the Capitão later moves away or dies.
+// reposition move lands (see handleSlotClick) — stamps whoever is standing
+// next to its NEW position, surviving even if the Capitão later moves away or
+// dies (read via getEffectiveAtk, not baked into card.atk directly), but only
+// until the end of the current turn (see formationBuffAtk's own comment and
+// the player-turn-start reset). Originally a genuinely permanent +1 ATK on
+// every trigger with no cap — combined with Reformar Linhas letting the same
+// Capitão be re-picked-up and moved several times in one turn (see
+// bonusRepositions), that let a single 3-cost card snowball unlimited
+// permanent ATK for free, forever. Capping it to "this turn only" keeps the
+// combo real (still a burst worth setting up) without the infinite stack.
 const applyFormationCaptainBuff = (slots: (CardData | null)[], moverNewIndex: number): (CardData | null)[] => {
   const mover = slots[moverNewIndex];
   if (!mover || mover.name !== 'Capitão de Formação') return slots;
   const next = [...slots];
   for (let j = 0; j <= 9; j++) {
     if (areSlotsAdjacent(moverNewIndex, j) && next[j]) {
-      next[j] = { ...next[j]!, atk: next[j]!.atk + 1 };
+      next[j] = { ...next[j]!, formationBuffAtk: (next[j]!.formationBuffAtk ?? 0) + 1 };
     }
   }
   return next;
@@ -2821,6 +2838,13 @@ export default function App() {
       setSelectedMoverIndex(null);
       setBonusRepositions(0);
       setBatedorFreeMove(null);
+      // Capitão de Formação's move-triggered +1 ATK (see formationBuffAtk's own
+      // comment) expires here, at the start of the very next player turn — same
+      // reset point as movedSlots/bonusRepositions above, so it survives exactly
+      // through the rest of the turn it was granted in (including Combate) and
+      // no longer.
+      setPlayerSlots(prev => prev.map(c => c && c.formationBuffAtk ? { ...c, formationBuffAtk: 0 } : c));
+      setNpcSlots(prev => prev.map(c => c && c.formationBuffAtk ? { ...c, formationBuffAtk: 0 } : c));
       setPlayerGeneralAbilityUses(0);
       // See pendingPlayerGeneralAbilityBlock's own comment for why this is a ref,
       // not state: playerGeneralAbilityAvailable reads it straight off at render
@@ -4090,8 +4114,9 @@ export default function App() {
       const newSlots = [...playerSlots];
       newSlots[selectedMoverIndex] = occupant ?? null; // moving into empty, or swapping
       newSlots[slotIndex] = mover;
-      // Capitão de Formação: "Ao mover: adjacentes +1 ATK" — a permanent stamp on
-      // whoever ends up next to its new position.
+      // Capitão de Formação: "Ao mover: adjacentes +1 ATK" — a this-turn-only
+      // stamp (see applyFormationCaptainBuff) on whoever ends up next to its
+      // new position.
       setPlayerSlots(applyFormationCaptainBuff(newSlots, slotIndex));
       setSelectedMoverIndex(null);
 
