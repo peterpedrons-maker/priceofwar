@@ -46,6 +46,12 @@ import hospitalarioArt from './assets/card-hospitalario.webp';
 import arqueiroProfissionalArt from './assets/card-arqueiro-profissional.webp';
 import atiradorInfluenteArt from './assets/card-atirador-influente.webp';
 import cardealPedroFullArt from './assets/card-cardeal-pedro-full.webp';
+// Comandante Aurelion (Deck Capitão's General) has no real art yet — the user is
+// still generating it externally. This SVG silhouette/crest stands in for it so the
+// General has SOMETHING to show wherever his portrait needs to be large (the match
+// intro reveal, see MatchIntroOverlay), instead of a blank box. Swap this import for
+// the real art file once it's ready — see DECK_CAPITAO's gen1 entry below.
+import placeholderGeneralCapitaoImage from './assets/placeholder-general-capitao.svg';
 import caliceDaVidaFullArt from './assets/card-calice-da-vida-full.webp';
 import nobreReligiosoFullArt from './assets/card-nobre-religioso-full.webp';
 import liderDeEsquadraoFullArt from './assets/card-lider-de-esquadrao-full.webp';
@@ -89,6 +95,11 @@ import cardLiftSfxUrl from './assets/sfx-levantar-carta.wav';
 import damageSfxUrl from './assets/sfx-dano.wav';
 import generalDamageSfxUrl from './assets/sfx-dano-general.wav';
 import destroySfxUrl from './assets/sfx-destruicao.wav';
+// Match-intro VS reveal (see startMatchIntro/MatchIntroOverlay further below) — a
+// whoosh for each General's portrait sliding into view, and a metallic stinger for
+// the "BATALHA" banner slam.
+import revealGeneralSfxUrl from './assets/sfx-reveal-general.wav';
+import batalhaBannerSfxUrl from './assets/sfx-batalha-banner.wav';
 
 // Every card/board/UI image in the game besides the start screen's own background
 // and logo (those two load first, in the loading screen's initial black-screen
@@ -198,6 +209,17 @@ const playGeneralDamageSfx = () => {
 // effect further below.
 const playDestroySfx = () => {
   const audio = new Audio(destroySfxUrl);
+  audio.volume = 0.6;
+  audio.play().catch(() => {});
+};
+// Match-intro VS reveal (see startMatchIntro/MatchIntroOverlay further below).
+const playRevealGeneralSfx = () => {
+  const audio = new Audio(revealGeneralSfxUrl);
+  audio.volume = 0.55;
+  audio.play().catch(() => {});
+};
+const playBatalhaBannerSfx = () => {
+  const audio = new Audio(batalhaBannerSfxUrl);
   audio.volume = 0.6;
   audio.play().catch(() => {});
 };
@@ -1260,7 +1282,15 @@ const FitText = ({ text, className, style }: { text: string, className?: string,
       <span
         ref={textRef}
         className={className}
-        style={{ ...style, display: 'block', textAlign: 'center' }}
+        // lineHeight is set here (not left to the font-size utility's own bundled
+        // default, e.g. text-2xl's fixed 2rem) specifically so it scales down
+        // together with the font-size the binary search above picks — otherwise a
+        // 2-line name's wrapped height stays roughly constant no matter how far the
+        // search shrinks the font (only glyph width shrinks, not the fixed-px line
+        // box), so it can never actually converge on something that fits a short
+        // container — see Comandante Aurelion's name overflowing the reveal
+        // cinematic's card, which is what surfaced this.
+        style={{ ...style, display: 'block', textAlign: 'center', lineHeight: 1.05 }}
       >
         {text}
       </span>
@@ -1766,7 +1796,10 @@ const HAND_CARD_STEP = HAND_CARD_WIDTH * 0.5;
 // targeted Táticas are left in the AI's hand entirely (see
 // AI_UNSUPPORTED_TACTICS in aiService.ts) rather than risk it wasting them.
 const DECK_CAPITAO: CardData[] = [
-  { id: 'gen1', name: 'Comandante Aurelion, Mestre da Formação', atk: 0, hp: 20, cost: 0, art: '', effect: 'Após Remanejamento: até 2 unidades que se moveram ganham +1/+1 no próximo combate. Passiva: unidades adjacentes recebem -1 de dano.', cardType: 'General' },
+  // art is a temporary placeholder silhouette (see the import above) until the real
+  // Comandante Aurelion art is generated — swap placeholderGeneralCapitaoImage for
+  // the real art file once it's ready.
+  { id: 'gen1', name: 'Comandante Aurelion, Mestre da Formação', atk: 0, hp: 20, cost: 0, art: placeholderGeneralCapitaoImage, effect: 'Após Remanejamento: até 2 unidades que se moveram ganham +1/+1 no próximo combate. Passiva: unidades adjacentes recebem -1 de dano.', cardType: 'General' },
 
   // Criaturas (27)
   ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_tactical_soldier_${i}`, name: 'Soldado Tático', atk: 3, hp: 3, cost: 2, art: '', effect: 'Troca com aliado adjacente no fim do turno.', cardType: 'Infantaria' })),
@@ -2840,26 +2873,64 @@ export default function App() {
   // top of the new match.
   const matchIntroTimeoutsRef = useRef<number[]>([]);
 
-  // Brings both Generals onto the board, then deals both starting hands (5 cards each)
-  // with a staggered "drawn from the deck" beat — the player's own draw-animation
-  // viewState for their hand, and incrementally revealing the opponent's face-down
-  // hand for theirs — so the match visibly begins instead of the board and both hands
-  // just appearing fully set up the instant the match starts.
+  // Drives the Hearthstone-style "VS" reveal at the very start of a match (see
+  // MatchIntroOverlay further below, and startMatchIntro): both Generals appear huge
+  // on opposite sides ('panels'), a "BATALHA" banner slams in between them
+  // ('banner'), then both shrink and fly down into their real board slot
+  // ('descend') — only once that lands does startMatchIntro place them on the real
+  // board and start dealing hands. null means no reveal is in progress.
+  const [matchIntroStage, setMatchIntroStage] = useState<null | 'panels' | 'banner' | 'descend'>(null);
+  // Where the 'descend' stage's shrink animation ends — the real board General
+  // slots' own on-screen rects, measured only once we're about to need them (they
+  // don't exist meaningfully before the match's board has actually mounted).
+  const [introDescendTargets, setIntroDescendTargets] = useState<{ player: DOMRect; npc: DOMRect } | null>(null);
+  useEffect(() => {
+    if (matchIntroStage !== 'descend') return;
+    const playerEl = document.getElementById('player-12');
+    const npcEl = document.getElementById('npc-12');
+    if (playerEl && npcEl) {
+      setIntroDescendTargets({ player: playerEl.getBoundingClientRect(), npc: npcEl.getBoundingClientRect() });
+    }
+  }, [matchIntroStage]);
+
+  // Brings both Generals onto the board (after the VS reveal above plays out), then
+  // deals both starting hands (5 cards each) with a staggered "drawn from the deck"
+  // beat — the player's own draw-animation viewState for their hand, and
+  // incrementally revealing the opponent's face-down hand for theirs — so the match
+  // visibly begins instead of the board and both hands just appearing fully set up
+  // the instant the match starts.
   const startMatchIntro = () => {
     const schedule = (fn: () => void, delay: number) => {
       const id = window.setTimeout(fn, delay);
       matchIntroTimeoutsRef.current.push(id);
     };
 
+    // Same 500ms mobile viewport-settle window as the deck-draw comment below (the
+    // browser's URL bar collapsing right as a match starts nudges windowSize once,
+    // which the two big reveal portraits below are positioned from) — starting the
+    // reveal only once that's done means it never has to visibly re-glide to a
+    // corrected position mid-entrance.
+    const INTRO_START = 550;
+    schedule(() => { setMatchIntroStage('panels'); playRevealGeneralSfx(); }, INTRO_START);
+    schedule(() => { setMatchIntroStage('banner'); playBatalhaBannerSfx(); }, INTRO_START + 900);
+    schedule(() => setMatchIntroStage('descend'), INTRO_START + 1900);
+    // 750ms is also this component's own descend-stage transition duration (see
+    // MatchIntroOverlay) — by the time this fires, both portraits have visually
+    // finished shrinking into their board slot, so swapping the overlay for the
+    // real card underneath (same trick setFlyingCard(null) uses alongside placing
+    // its own card, see the hand-to-board flight above) reads as one seamless landing.
     schedule(() => {
       setPlayerSlots(prev => { const next = [...prev]; next[12] = generalPlayerRef.current; return next; });
       setNpcSlots(prev => { const next = [...prev]; next[12] = generalNpcRef.current; return next; });
-    }, 300);
+      playCardPlaySfx();
+      setMatchIntroStage(null);
+      setIntroDescendTargets(null);
+    }, INTRO_START + 2650);
 
     // Kept comfortably past the 500ms viewport-settle window above (see
     // viewportSettled) so the deck's on-screen position is already final, not still
     // correcting itself, by the time the first card's flight measures it.
-    const DEAL_START = 1300;
+    const DEAL_START = INTRO_START + 3650;
     const DEAL_STEP = 820;
     for (let i = 0; i < 5; i++) {
       const t = DEAL_START + i * DEAL_STEP;
@@ -2878,6 +2949,8 @@ export default function App() {
   const resetGame = (deckId: DeckId = 'capitao') => {
     matchIntroTimeoutsRef.current.forEach(clearTimeout);
     matchIntroTimeoutsRef.current = [];
+    setMatchIntroStage(null);
+    setIntroDescendTargets(null);
 
     const npcDeckId: DeckId = deckId === 'capitao' ? 'cardeal' : 'capitao';
     playerDeckPoolRef.current = DECKS[deckId].pool;
@@ -6347,6 +6420,92 @@ export default function App() {
             </div>
           </motion.div>
         )}
+      </AnimatePresence>
+
+      {/* Match-intro "VS" reveal — see startMatchIntro/matchIntroStage above. Both
+          Generals huge on opposite sides, a "BATALHA" banner between them, then both
+          shrink down into their real board slot (introDescendTargets) before hand
+          dealing starts. Sits above everything else on screen (z-[900]+). */}
+      <AnimatePresence>
+        {matchIntroStage && (() => {
+          const bigW = windowSize.width * 0.34;
+          const bigH = bigW * (400 / 300);
+          const bigTop = windowSize.height * 0.46 - bigH / 2;
+          const leftBigX = windowSize.width * 0.06;
+          const rightBigX = windowSize.width - bigW - windowSize.width * 0.06;
+          const descending = matchIntroStage === 'descend' && introDescendTargets;
+          const panelTransition = descending
+            ? { duration: 0.75, ease: 'easeInOut' as const }
+            : { duration: 0.65, ease: 'easeOut' as const };
+          return (
+            <motion.div
+              key="match-intro"
+              className="fixed inset-0 z-[900] pointer-events-none"
+              initial={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+            >
+              <motion.div
+                className="absolute inset-0 bg-black"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: matchIntroStage === 'descend' ? 0.35 : 0.8 }}
+                transition={{ duration: 0.5 }}
+              />
+              {/* Player's General — slides in from the left */}
+              <motion.div
+                className="fixed rounded-xl"
+                style={{ zIndex: 901, filter: CARD_THICKNESS_SHADOW }}
+                initial={{ left: -bigW, top: bigTop, width: bigW, height: bigH, opacity: 0 }}
+                animate={
+                  descending && introDescendTargets
+                    ? { left: introDescendTargets.player.left, top: introDescendTargets.player.top, width: introDescendTargets.player.width, height: introDescendTargets.player.height, opacity: 1 }
+                    : { left: leftBigX, top: bigTop, width: bigW, height: bigH, opacity: 1 }
+                }
+                transition={panelTransition}
+              >
+                <div className="relative w-full h-full">
+                  <CardFace card={generalPlayerRef.current} variant="modal" />
+                </div>
+              </motion.div>
+              {/* NPC's General — slides in from the right, mirrored */}
+              <motion.div
+                className="fixed rounded-xl"
+                style={{ zIndex: 901, filter: CARD_THICKNESS_SHADOW }}
+                initial={{ left: windowSize.width, top: bigTop, width: bigW, height: bigH, opacity: 0 }}
+                animate={
+                  descending && introDescendTargets
+                    ? { left: introDescendTargets.npc.left, top: introDescendTargets.npc.top, width: introDescendTargets.npc.width, height: introDescendTargets.npc.height, opacity: 1 }
+                    : { left: rightBigX, top: bigTop, width: bigW, height: bigH, opacity: 1 }
+                }
+                transition={panelTransition}
+              >
+                <div className="relative w-full h-full">
+                  <CardFace card={generalNpcRef.current} variant="modal" />
+                </div>
+              </motion.div>
+              <AnimatePresence>
+                {matchIntroStage === 'banner' && (
+                  <motion.div
+                    key="batalha-banner"
+                    className="fixed z-[902]"
+                    style={{ left: '50%', top: '50%' }}
+                    initial={{ opacity: 0, scale: 0.4, x: '-50%', y: '-50%', rotate: -4 }}
+                    animate={{ opacity: 1, scale: 1, x: '-50%', y: '-50%', rotate: 0 }}
+                    exit={{ opacity: 0, scale: 1.3 }}
+                    transition={{ type: 'spring', damping: 14, stiffness: 280 }}
+                  >
+                    <span
+                      className="block text-5xl md:text-7xl font-black uppercase tracking-widest text-red-500 whitespace-nowrap"
+                      style={{ fontFamily: "'Cinzel', serif", textShadow: '0 0 30px rgba(220,38,38,0.9), 0 4px 10px rgba(0,0,0,0.9)', WebkitTextStroke: '2px #1a0505' }}
+                    >
+                      BATALHA
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          );
+        })()}
       </AnimatePresence>
 
       {/* Install-as-app prompt */}
