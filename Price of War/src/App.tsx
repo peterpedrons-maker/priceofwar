@@ -761,16 +761,19 @@ const hasEspiaoOnBoard = (slots: (CardData | null)[]): boolean =>
 // still only gets one swing per turn (see playerAttackCounts/handleSlotClick).
 const getMaxAttacksPerTurn = (card: CardData): number => card.name === 'Arqueiro da Ordem' ? 2 : 1;
 
-// Nobre da Cruzada: "Ao entrar em campo: invoca Soldados Leais (1 ATK / 2 HP) nos
-// slots adjacentes livres da mesma fileira." Called right after ANY card lands on
-// a slot (player or AI) — a no-op unless that card is actually Nobre da Cruzada.
+// Nobre da Cruzada: "Ao entrar em campo: invoca Soldados Leais (1 ATK / 1 HP) nos
+// slots adjacentes livres da mesma fileira." (tokens were 1/2 — see the deck's own
+// balance pass comment near Nobre da Cruzada's CardData entry: 4/5 plus two 2-HP
+// bodies was 6 ATK / 9 HP total across 3 slots for 3 mana, well past anything else
+// at that cost). Called right after ANY card lands on a slot (player or AI) — a
+// no-op unless that card is actually Nobre da Cruzada.
 const applyNobreReligiosoSummon = (slots: (CardData | null)[], placedIndex: number): (CardData | null)[] => {
   const placed = slots[placedIndex];
   if (!placed || placed.name !== 'Nobre da Cruzada' || placedIndex > 9) return slots;
   const next = [...slots];
   [placedIndex - 1, placedIndex + 1].forEach(j => {
     if (areSlotsAdjacent(placedIndex, j) && !next[j]) {
-      next[j] = { id: `soldado_leal_${Date.now()}_${j}`, name: 'Soldado Leal', atk: 1, hp: 2, cost: 0, art: '', effect: '', cardType: 'Infantaria' };
+      next[j] = { id: `soldado_leal_${Date.now()}_${j}`, name: 'Soldado Leal', atk: 1, hp: 1, cost: 0, art: '', effect: '', cardType: 'Infantaria' };
     }
   });
   return next;
@@ -1687,32 +1690,54 @@ const DECK_CARDEAL: CardData[] = [
   { id: 'cardeal_fanatico', name: 'Fanático da Cruzada', atk: 1, hp: 2, cost: 1, art: soldadoFanaticoArt, effect: 'Ao atacar: se o General inimigo for de tipo oposto, ganha +2 ATK.', cardType: 'Infantaria' },
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_aprendiz_${i}`, name: 'Recruta Devoto', atk: 0, hp: 2, cost: 1, art: recrutaDevotoArt, effect: 'Ao ser curado: recebe +1 ATK permanente.', cardType: 'Infantaria' })),
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_vigia_${i}`, name: 'Intendente do Exército', atk: 2, hp: 3, cost: 2, art: vigiaDeMantimentosArt, effect: 'Uma vez por turno: se você tiver menos de 2 cartas na mão, compre até ficar com 2.', cardType: 'Infantaria' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_inf_treinada_${i}`, name: 'Soldados da Ordem', atk: 3, hp: 5, cost: 2, art: infantariaTreinadaArt, effect: '—', cardType: 'Infantaria' })),
+  // Balance pass: was 3/5 (8 total) — Capitão's own cost-2 creatures cap around 6
+  // total stats (3/3 or 2/4); trimmed to 3/4 so a vanilla body no longer sits well
+  // above the game's own cost-2 curve with no condition attached.
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_inf_treinada_${i}`, name: 'Soldados da Ordem', atk: 3, hp: 4, cost: 2, art: infantariaTreinadaArt, effect: '—', cardType: 'Infantaria' })),
 
   // Cavaleiros
   // Same Full Art testing swap as Nobre da Cruzada/Comandante da Ordem/Cavaleiro
   // da Luz/Trabuco de Cerco/Retorno do Soldado above.
   ...Array(3).fill(null).map((_, i): CardData => ({ id: `cardeal_jorge_${i}`, name: 'Jorge, Lança Sagrada', atk: 4, hp: 6, cost: 3, art: jorgeOLanceiroFullArt, isFullArt: true, effect: 'Ao atacar a Vanguarda: causa 2 de dano à unidade na Retaguarda da mesma coluna.', cardType: 'Cavalaria' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_hosp_${i}`, name: 'Cavaleiro Hospitalário', atk: 2, hp: 4, cost: 2, art: hospitalarioArt, effect: 'Uma vez por turno: cure 1 HP de um aliado e cause 1 de dano a um inimigo na Vanguarda.', cardType: 'Cavalaria' })),
+  // Balance pass: was 2/4 — the best-in-slot heal+damage engine at cost 2 (Capitão's
+  // own cost-2 creatures cap around 6 total stats; this had 6 total AND a strong
+  // repeatable ability on top). Trimmed to 2/3 so the ability is still what you're
+  // really paying for, not the body too.
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_hosp_${i}`, name: 'Cavaleiro Hospitalário', atk: 2, hp: 3, cost: 2, art: hospitalarioArt, effect: 'Uma vez por turno: cure 1 HP de um aliado e cause 1 de dano a um inimigo na Vanguarda.', cardType: 'Cavalaria' })),
   // Testing the Full Art print for this card (see CardFaceFullArt) instead of its
   // Padrão one now that both exist — once boosters exist this becomes a real
   // per-copy choice instead of swapping the one CardData entry's own art/isFullArt.
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_nobre_${i}`, name: 'Nobre da Cruzada', atk: 4, hp: 5, cost: 3, art: nobreReligiosoFullArt, isFullArt: true, effect: 'Ao entrar em campo: invoca Soldados Leais (1 ATK / 2 HP) nos slots adjacentes livres da mesma fileira.', cardType: 'Cavalaria' })),
+  // Balance pass: token stats trimmed from 1/2 to 1/1 (see applyNobreReligiosoSummon's
+  // own comment) — 4/5 plus two 2-HP bodies was 6 ATK/9 HP total across 3 slots for 3
+  // mana, well past any other card at that cost in either deck.
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_nobre_${i}`, name: 'Nobre da Cruzada', atk: 4, hp: 5, cost: 3, art: nobreReligiosoFullArt, isFullArt: true, effect: 'Ao entrar em campo: invoca Soldados Leais (1 ATK / 1 HP) nos slots adjacentes livres da mesma fileira.', cardType: 'Cavalaria' })),
   // Same Full Art testing swap as Nobre da Cruzada/Comandante da Ordem above.
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `cardeal_cavaleiro_${i}`, name: 'Cavaleiro da Luz', atk: 5, hp: 7, cost: 3, art: cavaleiroDaLuzFullArt, isFullArt: true, effect: '—', cardType: 'Cavalaria' })),
+  // Balance pass: was 5/7 vanilla — 12 total stats for cost 3 with zero condition,
+  // the single strongest stat-line in the whole deck at that cost (compare Jorge's
+  // 4/6 and Comandante's 5/5, both of which at least carry an ability for the same
+  // total). Trimmed to 4/5 (9 total) so a plain vanilla body no longer outclasses
+  // every card here that actually does something for its cost.
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `cardeal_cavaleiro_${i}`, name: 'Cavaleiro da Luz', atk: 4, hp: 5, cost: 3, art: cavaleiroDaLuzFullArt, isFullArt: true, effect: '—', cardType: 'Cavalaria' })),
   // Same Full Art testing swap as Nobre da Cruzada above.
   { id: 'cardeal_lider', name: 'Comandante da Ordem', atk: 5, hp: 5, cost: 3, art: liderDeEsquadraoFullArt, isFullArt: true, effect: 'Na Vanguarda: Infantaria e Arqueiros aliados ganham +1 ATK e +1 HP durante o combate.', cardType: 'Cavalaria' },
 
   // Arqueiros
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_arq_pro_${i}`, name: 'Arqueiro da Ordem', atk: 1, hp: 4, cost: 2, art: arqueiroProfissionalArt, effect: 'Pode atacar duas vezes por rodada.', cardType: 'Arqueiro' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_atirador_${i}`, name: 'Atirador da Cruzada', atk: 1, hp: 3, cost: 2, art: atiradorInfluenteArt, effect: 'Ao ir ao cemitério: compre 3 cartas.', cardType: 'Arqueiro' })),
+  // Balance pass: was "compre 3 cartas" (see drawForAtiradorInfluente's own comment)
+  // — 3 free cards off a death that's going to happen anyway in combat was way out
+  // of line with every other card-advantage effect in the deck (Mercador da Cruzada,
+  // Intendente do Exército). Trimmed to 2.
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_atirador_${i}`, name: 'Atirador da Cruzada', atk: 1, hp: 3, cost: 2, art: atiradorInfluenteArt, effect: 'Ao ir ao cemitério: compre 2 cartas.', cardType: 'Arqueiro' })),
 
   // Táticas de dano
   // Same Full Art testing swap as Nobre da Cruzada/Comandante da Ordem above —
   // both Padrão and Full Art exist for this one, using Full Art for now.
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_trabuco_${i}`, name: 'Trabuco de Cerco', atk: 0, hp: 0, cost: 3, art: trabucoDeCercoFullArt, isFullArt: true, effect: 'Causa 2 de dano a TODAS as unidades inimigas.', cardType: 'Tática' })),
   ...Array(3).fill(null).map((_, i): CardData => ({ id: `cardeal_catapulta_${i}`, name: 'Catapulta de Guerra', atk: 0, hp: 0, cost: 2, art: catapultaDeGuerraArt, effect: 'Escolha uma fileira inimiga. Todas as unidades naquela fileira recebem 2 de dano.', cardType: 'Tática' })),
-  { id: 'cardeal_balesta', name: 'Balestra de Precisão', atk: 0, hp: 0, cost: 1, art: balestraDePrecisaoArt, effect: 'Causa 3 de dano a uma unidade inimiga à sua escolha.', cardType: 'Tática' },
+  // Balance pass: was cost 1 — single-target removal that kills almost any 1-2 drop
+  // outright, cheaper than Catapulta de Guerra's own 2-damage full ROW at cost 2.
+  // Raised to cost 2, still efficient but no longer a 1-mana blowout.
+  { id: 'cardeal_balesta', name: 'Balestra de Precisão', atk: 0, hp: 0, cost: 2, art: balestraDePrecisaoArt, effect: 'Causa 3 de dano a uma unidade inimiga à sua escolha.', cardType: 'Tática' },
 
   // Armamentos → Tática
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_armadura_${i}`, name: 'Armadura de Guerra', atk: 0, hp: 0, cost: 1, art: armaduraDeGuerraArt, effect: 'Infantaria equipada recebe +2 HP.', cardType: 'Tática' })),
@@ -1730,7 +1755,11 @@ const DECK_CARDEAL: CardData[] = [
   { id: 'cardeal_busca_graal', name: 'Graal da Dádiva', atk: 0, hp: 0, cost: 1, art: graalDaDadivaArt, effect: 'Adicione uma carta de Terreno ou Relíquia do deck à sua mão.', cardType: 'Tática' },
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_nova_tatica_${i}`, name: 'Doutrina Renovada', atk: 0, hp: 0, cost: 1, art: doutrinaRenovadaArt, effect: 'Adicione uma carta de Tática do deck à sua mão.', cardType: 'Tática' })),
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_esc_dedo_${i}`, name: 'Recrutamento Seletivo', atk: 0, hp: 0, cost: 1, art: recrutamentoSeletivoArt, effect: 'Adicione um soldado do deck à sua mão.', cardType: 'Tática' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_esc_tropas_${i}`, name: 'Recrutar Veteranos', atk: 0, hp: 0, cost: 1, art: recrutarVeteranosArt, effect: 'Veja as 4 cartas do topo. Adicione 2 à mão e coloque 2 no fundo do deck.', cardType: 'Tática' })),
+  // Balance pass: was cost 1 — getting 2 guaranteed cards (not just 1, like
+  // Recrutamento Seletivo/Doutrina Renovada at the same original cost) off a 4-card
+  // look was the most efficient card-selection in the deck by a wide margin. Raised
+  // to cost 2 to match its actually-double payoff.
+  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_esc_tropas_${i}`, name: 'Recrutar Veteranos', atk: 0, hp: 0, cost: 2, art: recrutarVeteranosArt, effect: 'Veja as 4 cartas do topo. Adicione 2 à mão e coloque 2 no fundo do deck.', cardType: 'Tática' })),
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_impostos_${i}`, name: 'Tributo de Guerra', atk: 0, hp: 0, cost: 0, art: tributoDeGuerraArt, effect: 'Ganhe 1 ouro adicional neste turno.', cardType: 'Tática' })),
   ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_reuniao_${i}`, name: 'Chamado às Armas', atk: 0, hp: 0, cost: 2, art: chamadoAsArmasArt, effect: 'Invoque do deck até 2 soldados com 0 ATK para slots livres na Vanguarda. Embaralhe o deck.', cardType: 'Tática' })),
 ];
@@ -2548,7 +2577,8 @@ export default function App() {
     return { ...card, id: `npc_hand_${Date.now()}_${Math.random()}` };
   };
 
-  // Atirador da Cruzada: "Ao ir ao cemitério: compre 3 cartas." Called from every
+  // Atirador da Cruzada: "Ao ir ao cemitério: compre 2 cartas." (was 3 — see the
+  // deck's own balance pass comment near its CardData entry). Called from every
   // "push these destroyed cards onto the graveyard" call site (the same ones
   // withEquippedWeapons already touches — see its own comment), so it fires
   // whether the player's or the NPC's copy is the one that died. Takes the raw
@@ -2557,7 +2587,7 @@ export default function App() {
   // draw in this game (drawFromDeck/drawFromNpcDeck have none either).
   const drawForAtiradorInfluente = (destroyedCards: CardData[], isPlayerOwner: boolean) => {
     const count = destroyedCards.filter(c => c.name === 'Atirador da Cruzada').length;
-    for (let i = 0; i < count * 3; i++) {
+    for (let i = 0; i < count * 2; i++) {
       if (isPlayerOwner) {
         setHand(prev => [...prev, drawFromDeck()]);
       } else {
@@ -2877,7 +2907,11 @@ export default function App() {
           const maxUses = currentNpcSlots[10]?.name === 'Cálice da Graça' ? 2 : 1;
           let usesThisTurn = 0;
           while (usesThisTurn < maxUses) {
-            const allyIndices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => currentNpcSlots[i]);
+            // Same "must actually be damaged" restriction as the player's own
+            // resolveGeneralHeal (see its comment) — without it the AI would also
+            // spend its free heal on an already-full-HP Recruta Devoto every turn
+            // just to stack its "+1 ATK on heal" for free.
+            const allyIndices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => currentNpcSlots[i] && isCardDamaged(currentNpcSlots[i]!));
             if (allyIndices.length === 0) break;
             const weakest = allyIndices.reduce((a, b) => currentNpcSlots[a]!.hp <= currentNpcSlots[b]!.hp ? a : b);
             const payGold = currentNpcMana >= 1;
@@ -3509,8 +3543,13 @@ export default function App() {
   const playerGeneralAbilityMaxUses = playerSlots[10]?.name === 'Cálice da Graça' ? 2 : 1;
   // Whether the player's own General has an activatable Fase-Principal ability ready
   // right now — drives the glowing prompt icon on the General slot (see CardSlot's
-  // showAbilityPrompt call sites). Requires an actual ally on the board to heal;
-  // otherwise there's nothing to target and the prompt would just dead-end.
+  // showAbilityPrompt call sites). Requires an actual DAMAGED ally on the board to
+  // heal — not just any ally — otherwise there's nothing to target and the prompt
+  // would just dead-end (matches Cavaleiro Hospitalário's own identical restriction,
+  // see resolveHospitalarioHeal). Originally just checked "any ally exists", which
+  // let a full-HP Recruta Devoto (0/2, "Ao ser curado: recebe +1 ATK permanente") get
+  // healed over and over for free — undamaged, no HP actually restored — stacking its
+  // ATK without limit from turn 1 on, doubled with Cálice da Graça's second use.
   const playerGeneralAbilityAvailable =
     playerSlots[12]?.name === 'Cardeal Pedro, Voz da Fé' && !playerSlots[12]?.isDestroyed &&
     currentTurn === 'player' && turnPhase === 'preparacao' &&
@@ -3518,7 +3557,7 @@ export default function App() {
     // Infiltrado da Ordem: blocked for exactly the one turn following the General
     // taking damage (see playerGeneralAbilityBlockedThisTurnRef's own comment).
     !playerGeneralAbilityBlockedThisTurnRef.current &&
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => playerSlots[i]);
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => playerSlots[i] && !playerSlots[i]?.isDestroyed && isCardDamaged(playerSlots[i]!));
 
   // Mercador da Cruzada / Cavaleiro Hospitalário: which once-per-turn creature ability
   // (if any) is available to activate on this exact player slot right now — same
@@ -3870,7 +3909,11 @@ export default function App() {
   const resolveGeneralHeal = (slotIndex: number) => {
     if (!pendingGeneralHeal) return;
     const target = playerSlots[slotIndex];
-    if (slotIndex > 9 || !target) { showToast('Escolha um soldado aliado no campo.'); return; }
+    // Same "must actually be hurt" restriction as Hospitalário's own heal
+    // (resolveHospitalarioHeal) — see playerGeneralAbilityAvailable's own comment for
+    // why: healing an undamaged Recruta Devoto used to still fire its "+1 ATK
+    // permanent on heal" with no HP actually restored, an unlimited free stack.
+    if (slotIndex > 9 || !target || !isCardDamaged(target)) { showToast('Escolha um aliado ferido no campo.'); return; }
     const amount = pendingGeneralHeal.amount;
     setPlayerSlots(prev => {
       const next = [...prev];
