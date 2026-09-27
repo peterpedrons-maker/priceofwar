@@ -440,6 +440,13 @@ const PHASE_SHORT_LABEL: Record<TurnPhase, string> = {
 // the whole time the banner was on screen. Each stage below targets a single
 // plain (non-array) value, which framer-motion just smoothly retargets toward —
 // re-rendering mid-stage is a no-op since the target hasn't changed.
+// The match-intro "BATALHA!" reveal (see MatchIntroOverlay) shows the artwork in 3
+// left-to-right chunks — [from%, to%] of the image's own width — instead of all at
+// once, roughly matching "BA" / "TA" / "LHA!"'s share of the 8 glyphs (letter widths
+// aren't perfectly even, so these are eyeballed against the actual art, not an exact
+// character count).
+const BATALHA_REVEAL_STAGES: [number, number][] = [[0, 28], [28, 52], [52, 100]];
+
 const PHASE_BANNER_STAGE_MS = { in: 250, hold: 1600, out: 250 } as const;
 const PHASE_BANNER_DURATION_MS = PHASE_BANNER_STAGE_MS.in + PHASE_BANNER_STAGE_MS.hold + PHASE_BANNER_STAGE_MS.out;
 // y is a constant lift, not something that changes stage to stage — the ribbon sits
@@ -6535,10 +6542,12 @@ export default function App() {
           this reads as the board itself declaring battle rather than a banner
           floating in front of the portraits. User-supplied artwork (see
           bannerBatalhaImage) instead of typeset text — it drops onto the board with
-          real weight (fast fall, a hard squash-and-recoil on impact) and only once
-          it's actually landed does it settle into the same gentle vibration as
-          before, so the shake reads as an aftershock of the impact rather than an
-          unmotivated idle wobble. */}
+          real weight (fast fall, a hard squash-and-recoil on impact), revealing
+          itself in 3 quick left-to-right chunks ("BA" → "TA" → "LHA!", timed to
+          finish right around the moment of impact — see BATALHA_REVEAL_STAGES)
+          rather than popping in all at once, and only once it's actually landed
+          does it settle into a light vibration, subtle enough to read as a
+          lingering aftershock rather than a constant shake. */}
       <AnimatePresence>
         {matchIntroStage === 'battle' && (
           <motion.div
@@ -6554,10 +6563,9 @@ export default function App() {
                 keyframe run with an infinitely-repeating one on the same property. */}
             <motion.div
               className="relative select-none"
-              initial={{ y: -520, opacity: 0, scaleX: 1, scaleY: 1 }}
+              initial={{ y: -520, scaleX: 1, scaleY: 1 }}
               animate={{
                 y: [-520, -520, 0, -16, 0],
-                opacity: [0, 1, 1, 1, 1],
                 scaleY: [1, 1, 0.76, 1.07, 1],
                 scaleX: [1, 1, 1.1, 0.96, 1],
               }}
@@ -6565,19 +6573,41 @@ export default function App() {
               transition={{ duration: 0.62, times: [0, 0.15, 0.62, 0.83, 1], ease: ['linear', 'easeIn', 'easeOut', 'easeOut'] }}
             >
               {/* Inner layer: the held vibration, delayed to start right as the fall
-                  above lands (its own 0.62s duration) — same jitter feel as the
-                  previous typeset version, now sold as the impact's aftershock. */}
-              <motion.img
-                src={bannerBatalhaImage}
-                alt="Batalha!"
-                draggable={false}
-                className="block w-[92vw] max-w-3xl h-auto drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)]"
-                animate={{ x: [0, -4, 4, -3, 3, 0], y: [0, 2, -2, 1, -1, 0] }}
+                  above lands (its own 0.62s duration) — much lighter than the first
+                  pass at this (see git history), just enough to read as a lingering
+                  aftershock rather than an idle wobble. */}
+              <motion.div
+                className="relative"
+                animate={{ x: [0, -1.5, 1.5, -1, 1, 0], y: [0, 1, -1, 0.5, -0.5, 0] }}
                 transition={{
-                  x: { duration: 0.22, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut', delay: 0.62 },
-                  y: { duration: 0.19, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut', delay: 0.62 },
+                  x: { duration: 0.4, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut', delay: 0.62 },
+                  y: { duration: 0.34, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut', delay: 0.62 },
                 }}
-              />
+              >
+                {/* Invisible sizing reference — establishes the real box the 3
+                    absolutely-positioned reveal stages below anchor to. */}
+                <img src={bannerBatalhaImage} alt="Batalha!" draggable={false} className="block w-[92vw] max-w-3xl h-auto invisible" />
+                {/* 3 copies of the same image, each showing only its own horizontal
+                    slice via clip-path — same source art, so nothing needed
+                    re-exporting, and the slices always line up pixel-for-pixel. Each
+                    pops in a beat after the last (see BATALHA_REVEAL_STAGES), timed
+                    to land just before/at the fall's own impact so the last chunk
+                    ("LHA!") completing IS the impact. */}
+                {BATALHA_REVEAL_STAGES.map(([from, to], i) => (
+                  <motion.img
+                    key={i}
+                    src={bannerBatalhaImage}
+                    alt=""
+                    aria-hidden="true"
+                    draggable={false}
+                    className="absolute inset-0 w-full h-full drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)]"
+                    style={{ clipPath: `inset(0 ${100 - to}% 0 ${from}%)` }}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 + i * 0.09, duration: 0.16, ease: 'easeOut' }}
+                  />
+                ))}
+              </motion.div>
             </motion.div>
           </motion.div>
         )}
