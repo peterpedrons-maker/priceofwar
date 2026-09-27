@@ -6527,9 +6527,12 @@ export default function App() {
       {/* Match-intro "VS" reveal, BATALHA stage — fires only once both Generals have
           actually landed on the real board (see startMatchIntro's LAND schedule), so
           this reads as the board itself declaring battle rather than a banner
-          floating in front of the portraits. Same crimson-ribbon language as the
-          in-match phase banner further below, just bigger — a one-time moment, not
-          a recurring beat, so it shouldn't be confused for one of those. */}
+          floating in front of the portraits. Deliberately NOT the same ribbon
+          language as the in-match phase banner further below — this is a one-time,
+          all-caps "FIGHT!"-style stamp (Anton, see fonts.css), not another
+          decorative parchment banner: no background bar, just the word itself —
+          slammed in big, slanted, molten-gold, and left gently vibrating while it
+          holds so it reads as alive rather than a static title card. */}
       <AnimatePresence>
         {matchIntroStage === 'battle' && (
           <motion.div
@@ -6538,23 +6541,34 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.2 }}
           >
             <motion.div
-              className="relative flex flex-col items-center select-none"
-              initial={{ scale: 1.6, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.85, opacity: 0 }}
-              transition={{ type: 'spring', damping: 16, stiffness: 260 }}
+              className="relative select-none"
+              style={{ transform: 'skewX(-9deg)' }}
+              initial={{ scale: 1.9, opacity: 0, rotate: -3 }}
+              animate={{
+                scale: 1, opacity: 1, rotate: 0,
+                x: [0, -3, 3, -2, 2, 0],
+                y: [0, 2, -2, 1, -1, 0],
+              }}
+              exit={{ scale: 0.7, opacity: 0 }}
+              transition={{
+                scale: { type: 'spring', damping: 11, stiffness: 320 },
+                rotate: { type: 'spring', damping: 11, stiffness: 320 },
+                opacity: { duration: 0.12 },
+                x: { duration: 0.22, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut', delay: 0.35 },
+                y: { duration: 0.19, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut', delay: 0.35 },
+              }}
             >
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-screen h-20 md:h-28 bg-gradient-to-b from-red-950 via-[#5a0e0e] to-red-950 border-y-4 border-amber-400/90 shadow-[0_6px_28px_rgba(0,0,0,0.8)]" />
               <span
-                className="relative text-6xl md:text-8xl font-black uppercase tracking-[0.05em] whitespace-nowrap px-8"
+                className="block text-7xl md:text-9xl uppercase whitespace-nowrap px-8"
                 style={{
-                  fontFamily: "'Crimson Pro', serif",
-                  color: '#f5deb3',
-                  WebkitTextStroke: '0.75px rgba(60,10,10,0.7)',
-                  textShadow: '0 4px 10px rgba(0,0,0,0.9), 0 0 34px rgba(251,191,36,0.6)',
+                  fontFamily: "'Anton', sans-serif",
+                  background: 'linear-gradient(180deg, #fff6d8 0%, #ffcf4d 35%, #e8611a 72%, #8a1f0d 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  textShadow: '0 0 40px rgba(255,140,20,0.85), 0 0 90px rgba(220,38,38,0.55), 0 8px 18px rgba(0,0,0,0.9)',
                 }}
               >
                 Batalha!
