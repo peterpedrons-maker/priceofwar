@@ -446,6 +446,11 @@ const PHASE_SHORT_LABEL: Record<TurnPhase, string> = {
 // aren't perfectly even, so these are eyeballed against the actual art, not an exact
 // character count).
 const BATALHA_REVEAL_STAGES: [number, number][] = [[0, 28], [28, 52], [52, 100]];
+// Each chunk above lands on its own beat — a clear pause between "BA", "TA" and
+// "LHA!" instead of a rapid stagger — starting this long (seconds) after the
+// BATALHA stage begins, then this much further apart per chunk.
+const BATALHA_CHUNK_START_S = 0.2;
+const BATALHA_CHUNK_GAP_S = 0.45;
 
 const PHASE_BANNER_STAGE_MS = { in: 250, hold: 1600, out: 250 } as const;
 const PHASE_BANNER_DURATION_MS = PHASE_BANNER_STAGE_MS.in + PHASE_BANNER_STAGE_MS.hold + PHASE_BANNER_STAGE_MS.out;
@@ -2944,7 +2949,10 @@ export default function App() {
     // flight above, so there's no frame where neither is rendered) — only THEN does
     // "BATALHA" slam in over the board itself, since the reveal is about the
     // Generals taking their place, not a banner floating in front of them.
-    const BATTLE_BANNER_MS = 1500;
+    // Long enough for the 3 staged chunks (see BATALHA_REVEAL_STAGES/
+    // BATALHA_CHUNK_START_S/BATALHA_CHUNK_GAP_S) to each land and still leave a
+    // solid beat of the fully-assembled word holding on screen before it clears.
+    const BATTLE_BANNER_MS = 2200;
     schedule(() => {
       setPlayerSlots(prev => { const next = [...prev]; next[12] = generalPlayerRef.current; return next; });
       setNpcSlots(prev => { const next = [...prev]; next[12] = generalNpcRef.current; return next; });
@@ -6541,13 +6549,13 @@ export default function App() {
           actually landed on the real board (see startMatchIntro's LAND schedule), so
           this reads as the board itself declaring battle rather than a banner
           floating in front of the portraits. User-supplied artwork (see
-          bannerBatalhaImage) instead of typeset text — it drops onto the board with
-          real weight (fast fall, a hard squash-and-recoil on impact), revealing
-          itself in 3 quick left-to-right chunks ("BA" → "TA" → "LHA!", timed to
-          finish right around the moment of impact — see BATALHA_REVEAL_STAGES)
-          rather than popping in all at once, and only once it's actually landed
-          does it settle into a light vibration, subtle enough to read as a
-          lingering aftershock rather than a constant shake. */}
+          bannerBatalhaImage) instead of typeset text, revealed in 3 left-to-right
+          chunks ("BA" → "TA" → "LHA!", see BATALHA_REVEAL_STAGES) — each chunk is
+          its own small impact (a short drop, a hard squash-and-recoil, a bright
+          flash) landing on a clearly separate beat (BATALHA_CHUNK_START_S/
+          BATALHA_CHUNK_GAP_S) rather than one shared fall for the whole word. No
+          held vibration afterward — each chunk's own impact carries the "juice"
+          instead of a constant shake. */}
       <AnimatePresence>
         {matchIntroStage === 'battle' && (
           <motion.div
@@ -6558,56 +6566,47 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            {/* Outer layer: the one-shot fall + landing squash/recoil. Kept separate
-                from the inner vibration below since Framer can't cleanly mix a single
-                keyframe run with an infinitely-repeating one on the same property. */}
-            <motion.div
-              className="relative select-none"
-              initial={{ y: -520, scaleX: 1, scaleY: 1 }}
-              animate={{
-                y: [-520, -520, 0, -16, 0],
-                scaleY: [1, 1, 0.76, 1.07, 1],
-                scaleX: [1, 1, 1.1, 0.96, 1],
-              }}
-              exit={{ scale: 0.7, opacity: 0 }}
-              transition={{ duration: 0.62, times: [0, 0.15, 0.62, 0.83, 1], ease: ['linear', 'easeIn', 'easeOut', 'easeOut'] }}
-            >
-              {/* Inner layer: the held vibration, delayed to start right as the fall
-                  above lands (its own 0.62s duration) — much lighter than the first
-                  pass at this (see git history), just enough to read as a lingering
-                  aftershock rather than an idle wobble. */}
-              <motion.div
-                className="relative"
-                animate={{ x: [0, -1.5, 1.5, -1, 1, 0], y: [0, 1, -1, 0.5, -0.5, 0] }}
-                transition={{
-                  x: { duration: 0.4, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut', delay: 0.62 },
-                  y: { duration: 0.34, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut', delay: 0.62 },
-                }}
-              >
-                {/* Invisible sizing reference — establishes the real box the 3
-                    absolutely-positioned reveal stages below anchor to. */}
-                <img src={bannerBatalhaImage} alt="Batalha!" draggable={false} className="block w-[92vw] max-w-3xl h-auto invisible" />
-                {/* 3 copies of the same image, each showing only its own horizontal
-                    slice via clip-path — same source art, so nothing needed
-                    re-exporting, and the slices always line up pixel-for-pixel. Each
-                    pops in a beat after the last (see BATALHA_REVEAL_STAGES), timed
-                    to land just before/at the fall's own impact so the last chunk
-                    ("LHA!") completing IS the impact. */}
-                {BATALHA_REVEAL_STAGES.map(([from, to], i) => (
-                  <motion.img
-                    key={i}
-                    src={bannerBatalhaImage}
-                    alt=""
-                    aria-hidden="true"
-                    draggable={false}
-                    className="absolute inset-0 w-full h-full drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)]"
-                    style={{ clipPath: `inset(0 ${100 - to}% 0 ${from}%)` }}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 + i * 0.09, duration: 0.16, ease: 'easeOut' }}
-                  />
-                ))}
-              </motion.div>
+            <motion.div className="relative select-none" exit={{ scale: 0.85, opacity: 0 }}>
+              {/* Invisible sizing reference — establishes the real box the chunks
+                  and their flashes below anchor to. */}
+              <img src={bannerBatalhaImage} alt="Batalha!" draggable={false} className="block w-[92vw] max-w-3xl h-auto invisible" />
+              {/* 3 copies of the same image, each showing only its own horizontal
+                  slice via clip-path — same source art, so nothing needed
+                  re-exporting, and the slices always line up pixel-for-pixel. */}
+              {BATALHA_REVEAL_STAGES.map(([from, to], i) => {
+                const delay = BATALHA_CHUNK_START_S + i * BATALHA_CHUNK_GAP_S;
+                const clip = `inset(0 ${100 - to}% 0 ${from}%)`;
+                return (
+                  <React.Fragment key={i}>
+                    <motion.img
+                      src={bannerBatalhaImage}
+                      alt={i === 0 ? 'Batalha!' : undefined}
+                      aria-hidden={i === 0 ? undefined : 'true'}
+                      draggable={false}
+                      className="absolute inset-0 w-full h-full drop-shadow-[0_14px_34px_rgba(0,0,0,0.85)]"
+                      style={{ clipPath: clip }}
+                      initial={{ opacity: 0, y: -55, scaleX: 1, scaleY: 1 }}
+                      animate={{
+                        opacity: [0, 1, 1, 1],
+                        y: [-55, 0, 5, 0],
+                        scaleY: [1, 0.78, 1.08, 1],
+                        scaleX: [1, 1.14, 0.95, 1],
+                      }}
+                      transition={{ delay, duration: 0.34, times: [0, 0.55, 0.8, 1], ease: ['easeIn', 'easeOut', 'easeOut'] }}
+                    />
+                    {/* A bright flash clipped to this same slice, timed to peak right
+                        as the chunk lands — this is what sells "impact" now that
+                        there's no follow-up vibration doing that job. */}
+                    <motion.div
+                      className="absolute inset-0"
+                      style={{ clipPath: clip, background: 'radial-gradient(ellipse, rgba(255,246,220,0.95) 0%, rgba(255,246,220,0) 72%)' }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: [0, 0, 1, 0] }}
+                      transition={{ delay, duration: 0.38, times: [0, 0.5, 0.62, 1], ease: 'easeOut' }}
+                    />
+                  </React.Fragment>
+                );
+              })}
             </motion.div>
           </motion.div>
         )}
