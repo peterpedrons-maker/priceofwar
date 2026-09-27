@@ -31,16 +31,3 @@
   font-display: swap;
   src: url('./assets/fonts/pt-serif-400.woff2') format('woff2');
 }
-
-/* The match-intro "BATALHA!" call-out (see MatchIntroOverlay in App.tsx) wants a
-   completely different register from the game's own medieval-serif cards and
-   ribbons — a blunt, all-caps display face like a fighting-game "FIGHT!" stamp,
-   not another decorative serif. Anton (OFL) is exactly that: heavy, condensed,
-   geometric sans. */
-@font-face {
-  font-family: 'Anton';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('./assets/fonts/anton-regular.ttf') format('truetype');
-}

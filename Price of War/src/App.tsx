@@ -52,6 +52,12 @@ import cardealPedroFullArt from './assets/card-cardeal-pedro-full.webp';
 // intro reveal, see MatchIntroOverlay), instead of a blank box. Swap this import for
 // the real art file once it's ready — see DECK_CAPITAO's gen1 entry below.
 import placeholderGeneralCapitaoImage from './assets/placeholder-general-capitao.svg';
+// User-provided artwork for the match-intro "BATALHA!" call-out and the Game Over
+// screen's "VITÓRIA!"/"DERROTA" — replaces the plain typeset versions (see
+// MatchIntroOverlay and the Game Over Overlay further below).
+import bannerBatalhaImage from './assets/banner-batalha.webp';
+import bannerVitoriaImage from './assets/banner-vitoria.webp';
+import bannerDerrotaImage from './assets/banner-derrota.webp';
 import caliceDaVidaFullArt from './assets/card-calice-da-vida-full.webp';
 import nobreReligiosoFullArt from './assets/card-nobre-religioso-full.webp';
 import liderDeEsquadraoFullArt from './assets/card-lider-de-esquadrao-full.webp';
@@ -6527,12 +6533,12 @@ export default function App() {
       {/* Match-intro "VS" reveal, BATALHA stage — fires only once both Generals have
           actually landed on the real board (see startMatchIntro's LAND schedule), so
           this reads as the board itself declaring battle rather than a banner
-          floating in front of the portraits. Deliberately NOT the same ribbon
-          language as the in-match phase banner further below — this is a one-time,
-          all-caps "FIGHT!"-style stamp (Anton, see fonts.css), not another
-          decorative parchment banner: no background bar, just the word itself —
-          slammed in big, slanted, molten-gold, and left gently vibrating while it
-          holds so it reads as alive rather than a static title card. */}
+          floating in front of the portraits. User-supplied artwork (see
+          bannerBatalhaImage) instead of typeset text — it drops onto the board with
+          real weight (fast fall, a hard squash-and-recoil on impact) and only once
+          it's actually landed does it settle into the same gentle vibration as
+          before, so the shake reads as an aftershock of the impact rather than an
+          unmotivated idle wobble. */}
       <AnimatePresence>
         {matchIntroStage === 'battle' && (
           <motion.div
@@ -6543,36 +6549,35 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
+            {/* Outer layer: the one-shot fall + landing squash/recoil. Kept separate
+                from the inner vibration below since Framer can't cleanly mix a single
+                keyframe run with an infinitely-repeating one on the same property. */}
             <motion.div
               className="relative select-none"
-              style={{ transform: 'skewX(-9deg)' }}
-              initial={{ scale: 1.9, opacity: 0, rotate: -3 }}
+              initial={{ y: -520, opacity: 0, scaleX: 1, scaleY: 1 }}
               animate={{
-                scale: 1, opacity: 1, rotate: 0,
-                x: [0, -3, 3, -2, 2, 0],
-                y: [0, 2, -2, 1, -1, 0],
+                y: [-520, -520, 0, -16, 0],
+                opacity: [0, 1, 1, 1, 1],
+                scaleY: [1, 1, 0.76, 1.07, 1],
+                scaleX: [1, 1, 1.1, 0.96, 1],
               }}
               exit={{ scale: 0.7, opacity: 0 }}
-              transition={{
-                scale: { type: 'spring', damping: 11, stiffness: 320 },
-                rotate: { type: 'spring', damping: 11, stiffness: 320 },
-                opacity: { duration: 0.12 },
-                x: { duration: 0.22, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut', delay: 0.35 },
-                y: { duration: 0.19, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut', delay: 0.35 },
-              }}
+              transition={{ duration: 0.62, times: [0, 0.15, 0.62, 0.83, 1], ease: ['linear', 'easeIn', 'easeOut', 'easeOut'] }}
             >
-              <span
-                className="block text-7xl md:text-9xl uppercase whitespace-nowrap px-8"
-                style={{
-                  fontFamily: "'Anton', sans-serif",
-                  background: 'linear-gradient(180deg, #fff6d8 0%, #ffcf4d 35%, #e8611a 72%, #8a1f0d 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  textShadow: '0 0 40px rgba(255,140,20,0.85), 0 0 90px rgba(220,38,38,0.55), 0 8px 18px rgba(0,0,0,0.9)',
+              {/* Inner layer: the held vibration, delayed to start right as the fall
+                  above lands (its own 0.62s duration) — same jitter feel as the
+                  previous typeset version, now sold as the impact's aftershock. */}
+              <motion.img
+                src={bannerBatalhaImage}
+                alt="Batalha!"
+                draggable={false}
+                className="block w-[92vw] max-w-3xl h-auto drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)]"
+                animate={{ x: [0, -4, 4, -3, 3, 0], y: [0, 2, -2, 1, -1, 0] }}
+                transition={{
+                  x: { duration: 0.22, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut', delay: 0.62 },
+                  y: { duration: 0.19, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut', delay: 0.62 },
                 }}
-              >
-                Batalha!
-              </span>
+              />
             </motion.div>
           </motion.div>
         )}
@@ -6589,7 +6594,13 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Game Over Overlay — the General has fallen */}
+      {/* Game Over Overlay — the General has fallen. Same user-supplied artwork
+          family as the match-intro BATALHA (see bannerVitoriaImage/
+          bannerDerrotaImage), each with its own "surgir" treatment matching its
+          mood rather than reusing BATALHA's violent slam: Vitória glows in from the
+          inside out (a soft gold burst blooming behind it as it scales up), Derrota
+          drifts down slowly out of a dark, desaturated haze — heavy and mournful,
+          no bounce. */}
       <AnimatePresence>
         {gameOverWinner && (
           <motion.div
@@ -6597,9 +6608,40 @@ export default function App() {
             animate={{ opacity: 1 }}
             className="fixed inset-0 z-[300] flex flex-col items-center justify-center gap-6 bg-black/90 pointer-events-auto"
           >
-            <h1 className={`text-4xl md:text-6xl font-black uppercase tracking-widest drop-shadow-[0_0_20px_rgba(0,0,0,0.8)] ${gameOverWinner === 'player' ? 'text-emerald-400' : 'text-red-500'}`}>
-              {gameOverWinner === 'player' ? 'Vitória!' : 'Derrota!'}
-            </h1>
+            {gameOverWinner === 'player' ? (
+              <div className="relative flex items-center justify-center w-[85vw] max-w-lg">
+                <motion.div
+                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[70vw] h-[70vw] rounded-full pointer-events-none"
+                  style={{ background: 'radial-gradient(circle, rgba(255,205,110,0.55) 0%, rgba(255,205,110,0) 70%)', maxWidth: '24rem', maxHeight: '24rem' }}
+                  initial={{ scale: 0.2, opacity: 0 }}
+                  animate={{ scale: [0.2, 1.4, 1.1], opacity: [0, 0.9, 0.55] }}
+                  transition={{ duration: 1.1, times: [0, 0.6, 1], ease: 'easeOut' }}
+                />
+                <motion.img
+                  src={bannerVitoriaImage}
+                  alt="Vitória!"
+                  draggable={false}
+                  className="relative w-full h-auto"
+                  style={{ filter: 'drop-shadow(0 10px 40px rgba(255,200,80,0.5))' }}
+                  initial={{ scale: 0.35, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', damping: 13, stiffness: 140, delay: 0.1 }}
+                />
+              </div>
+            ) : (
+              <div className="relative flex items-center justify-center w-[85vw] max-w-lg">
+                <motion.img
+                  src={bannerDerrotaImage}
+                  alt="Derrota"
+                  draggable={false}
+                  className="relative w-full h-auto"
+                  style={{ filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.9))' }}
+                  initial={{ y: -70, opacity: 0, filter: 'brightness(0.4) saturate(0.5)' }}
+                  animate={{ y: 0, opacity: 1, filter: 'brightness(1) saturate(1)' }}
+                  transition={{ duration: 1.8, ease: 'easeOut' }}
+                />
+              </div>
+            )}
             <p className="text-zinc-300 text-sm md:text-base text-center max-w-xs">
               {gameOverWinner === 'player' ? 'O General inimigo caiu em batalha.' : 'Seu General caiu em batalha.'}
             </p>
