@@ -161,45 +161,49 @@ um tamanho exato em pixels, use algo como **1024×1424** ou **900×1250**.
 
 ```
 TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic fantasy trading-card full-art
-illustration, but shot from a radically different vantage than a standing
-hero pose: a steep, almost-directly-overhead aerial view looking straight
-down onto the battlefield, as if peering into a vast stone amphitheater
-from high above — the commander stands dead center at the convergence
-point of the whole formation, seen sharply foreshortened from behind and
-above (shoulders, helm crown and the top of his upraised gauntlet the
-most visible parts of him, rather than a full frontal portrait), one hand
-still raised. Radiating outward from him in every direction, faint
-glowing gold formation-lines connect him to the ranks of soldiers arrayed
-around him like spokes of a wheel, visibly thickening into a protective
-golden lattice around the units nearest him — a literal, diagrammatic
-rendering of his shielding presence rather than a generic battle-aura.
-Storm clouds close in from all four corners of the frame like the mouth
-of a vast dark vortex swirling around this one lit point, a single shaft
-of golden light breaking through directly above him. Layered depth
-composition: the commander and his innermost ring of protected soldiers
-sharp and brightly lit in the center, the wider formation and its
-converging lines receding believably into scale toward the frame's
-edges, the storm-vortex darkness deepest at the four corners. Extremely
-detailed rendering — individual rivets on the foreshortened armor,
-glowing line segments, tiny individually posed distant soldiers. Painted
-in the hyper-detailed epic style of premium full-art trading cards
-(Pokémon TCG full-art / Legends of Runeterra legendary-tier quality),
-rich saturated color palette of gold, crimson and stormy steel blue, a
-genuinely vertiginous top-down sense of scale and perspective unlike any
-other card in this set, composition designed to fill a tall card frame
-edge-to-edge with no empty margins at the top or bottom, no text, no
-card frame, no border, no watermark
+illustration, a dramatic low three-quarter hero angle looking slightly up
+at the subject so he dominates the frame — full body clearly visible and
+instantly recognizable as the same commander from the Padrão portraits,
+same ornate gold-trimmed plate armor and crimson-and-gold cape, but caught
+in a completely different moment: standing with both arms thrown wide
+instead of one fist raised, head tilted back, as a vast dome of golden
+light bursts outward from his chest and armor in a single visible
+shockwave-ring, the front rank of his soldiers just inside the dome's
+edge visibly shielded — sparks and enemy arrows shown shattering
+harmlessly against the light's outer surface right at the edge of the
+frame, a literal, striking image of his protective aura rather than a
+flat diagram or a generic glow. The force of the burst whips his cape
+and the ground's dust violently outward. Storm clouds recoil and part
+around the dome's upper edge, a shaft of gold breaking through directly
+above him. Layered depth composition: the commander sharp, larger-than-
+life and fully lit in the foreground, the shielded front rank and
+shattering projectiles at the dome's edge in the midground, the
+recoiling storm and distant fortress spires in the background. Extremely
+detailed rendering — individual rivets and engraved filigree on the
+armor, cape fabric caught mid-whip, sparks scattering off the light's
+surface. Painted in the hyper-detailed epic style of premium full-art
+trading cards (Pokémon TCG full-art / Legends of Runeterra legendary-tier
+quality), rich saturated color palette of gold, crimson and stormy steel
+blue, powerful sense of scale and raw protective force, composition
+designed to fill a tall card frame edge-to-edge with no empty margins at
+the top or bottom, no text, no card frame, no border, no watermark
 ```
 
 **Notas:** a versão anterior deste prompt (punho erguido, capa enorme,
 exército embaixo) acabava sendo essencialmente a MESMA pose do prompt
 1/1b, só "mais épica" — mesmo ângulo de câmera, mesmo gesto, mesmo fundo,
-só em corpo inteiro. Reescrevi do zero pra ser uma perspectiva
-genuinamente diferente (visão quase reta de cima, tipo mesa de guerra
-vista do teto, em vez de outro retrato de herói de baixo pra cima) e pra
-visualizar a habilidade passiva dele (aliados adjacentes tomam -1 de
-dano) de forma mais abstrata/diagramática — linhas douradas literais
-conectando ele às tropas, em vez de só uma aura genérica de "poder".
+só em corpo inteiro. Uma primeira tentativa de correção foi longe demais
+pro outro lado: uma visão quase reta de cima deixava o próprio comandante
+pequeno e quase irreconhecível, sem aquele impacto de "carta rara e linda"
+que uma Full Art precisa ter. Reescrevi de novo com um meio-termo: ângulo
+baixo dramático (olhando um pouco de baixo pra cima, não reto de cima),
+corpo inteiro bem visível e claramente o mesmo personagem em armadura, mas
+num gesto e momento diferentes dos dois prompts anteriores (braços abertos
+liberando uma cúpula de luz, em vez de punho erguido ou mão apontando) —
+mantém a habilidade passiva dele (aliados adjacentes tomam -1 de dano)
+visualizada de forma mais abstrata (uma cúpula literal de luz protetora,
+com flechas se estilhaçando nela) sem sacrificar o quanto a imagem
+precisa ser bonita/épica por si só.
 
 
 
@@ -837,6 +841,19 @@ exército inteiro formando um selo/runa mágica visto de cima. Pose e
 cenário nunca mais se repetem entre Padrão e Full Art da mesma carta —
 só o estilo pictórico de fundo pode coincidir, quando fizer sentido.
 
+**Correção — abstrato demais some com o personagem:** a primeira versão
+do General acima usava uma vista quase reta de cima que deixava o próprio
+comandante pequeno e quase irreconhecível — abstrato, mas sem aquele
+impacto de "carta rara linda" que uma Full Art precisa ter, e sem dar pra
+perceber que é a mesma carta da versão Padrão. Corrigi o General e mais
+duas cartas com o mesmo problema (Capitão de Formação e Cavaleiro
+Tático, que também tinham o personagem virando silhueta/borrão em vez de
+protagonista) pra um meio-termo: ângulo de câmera ainda bem diferente do
+Padrão (baixo e dramático, não reto de cima), mas o personagem sempre
+grande, nítido, bem iluminado e claramente reconhecível — a abstração
+fica nos elementos ao redor dele (a cúpula de luz, a onda de choque
+dourada, o arco de luz cruzado), não nele mesmo.
+
 **Cartas com Full Art alternativa:** mesmo critério do Deck Cardeal Pedro, Voz da Fé —
 além do General (já coberto pelos itens 1/1b/2) e da Relíquia (só existe em
 Full Art), estas seis ganham uma versão Full Art opcional: Cavaleiro
@@ -959,28 +976,28 @@ text, no card frame, no border, no watermark
 gerar
 
 ```
-TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Ultra-epic Magic: The Gathering-quality fantasy trading-card full-art
-illustration shot from an extreme ground-level worm's-eye vantage — the
-viewer is a soldier on the dirt, looking almost straight up — as the
-captain's boot slams down mid-stride directly overhead, his whole body
-wildly foreshortened above the viewer, cape and silhouette blotting out a
-low sun behind him so his face is barely visible, more impression than
-portrait. From the point where his boot meets the ground, a visible ring
-of golden shockwave energy ripples outward across the battlefield like a
-dropped stone in water, the ripple's crest picking out glowing tactical
-grid-lines on the dirt as it passes beneath distant soldiers, their
-postures straightening the instant the ring reaches them — the "+1 ATK"
-effect rendered as a literal, almost diagrammatic force wave rather than
-a described feeling. Layered depth composition: the captain's
-foreshortened boot and leg enormous and sharp in the extreme foreground,
-the golden ripple and its grid-lines spreading through the midground,
-tiny distant soldiers catching the wave at the very edges of the frame.
-Drifting dust kicked up by the impact crosses between the depth layers.
-Painterly digital realism in the epic style of premium Magic: The
-Gathering full-art illustrations (Legends of Runeterra legendary-tier
-quality), rich palette of dawn gold, crimson and steel gray, a
-deliberately unconventional low, almost-abstract vantage point unlike
-the Padrão version's mid-stride wide shot, composition designed to fill
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic Magic: The Gathering-quality fantasy
+trading-card full-art illustration of the same formation captain,
+instantly recognizable in his crimson-and-gold armor, but shot from a
+dramatic low three-quarter angle instead of the Padrão's side-on motion-
+blur wide shot — camera low and close, looking slightly up as he plants
+a striding boot down hard, his upper body and face fully lit and clearly
+visible, cape snapping out behind him, one arm still thrown forward
+mid-command. From the point where his boot meets the ground, a visible
+ring of golden shockwave energy ripples outward across the battlefield
+like a dropped stone in water, the ripple's crest picking out glowing
+tactical grid-lines on the dirt as it races toward distant soldiers,
+their postures straightening the instant it reaches them — the "+1 ATK"
+effect rendered as a literal force wave rather than a described feeling.
+Layered depth composition: the captain sharp, larger-than-life and fully
+lit in the foreground, the golden ripple and its grid-lines spreading
+through the midground, tiny distant soldiers catching the wave near the
+horizon in the background. Drifting dust kicked up by the impact crosses
+between the depth layers. Painterly digital realism in the epic style of
+premium Magic: The Gathering full-art illustrations (Legends of
+Runeterra legendary-tier quality), rich palette of dawn gold, crimson and
+steel gray, a dynamic low hero angle unlike the Padrão version's wide
+tracking shot, composition designed to fill
 a tall card frame edge-to-edge with no empty margins at top or bottom,
 no text, no card frame, no border, no watermark
 ```
@@ -1058,25 +1075,24 @@ wider than tall), no text, no card frame, no border, no watermark
 gerar
 
 ```
-TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Ultra-epic Magic: The Gathering-quality fantasy trading-card full-art
-illustration of the same tactical knight, but from a completely different
-vantage and moment than the Padrão's wide side-on turn: an extreme low
-ground-level angle looking almost straight up between two horses' legs
-at the exact instant of a mid-battle swap, his warhorse and a second
-ally's warhorse crossing paths directly overhead in a blurred X, both
-riders and mounts reduced to dark foreshortened silhouettes against a
-bright sky glimpsed only in the narrow gaps between churning hooves and
-bellies. Where the two riders' paths cross, their motion-blur trails
-don't read as horses at all anymore but as two long glowing golden arcs
-slicing across the sky like crossed blades of light — an abstract
-heraldic "crossing" emblem formed entirely by movement, no real weapon
-in sight. Scattered clods of dirt kicked loose overhead hang suspended
-mid-fall around the crossing point. Layered depth composition: the
-nearest horse's legs and belly enormous and sharp in the extreme
-foreground, the crossing riders and their light-arcs in the midground
-sky, a bright empty sky in the background. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism, rich palette of crimson,
-gold and steel gray against a stark bright sky, a deliberately
-disorienting worm's-eye composition unlike any other card in this set,
+TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px or 900x1250px — noticeably taller than wide. Legendary hero portrait, ultra-epic Magic: The Gathering-quality fantasy
+trading-card full-art illustration of the same tactical knight, fully
+lit and clearly recognizable in his crimson-and-gold armor, but caught
+in a different action than the Padrão's wide open-plain turn: a
+dramatic low three-quarter angle as his warhorse rears and pivots hard
+at the exact instant of a mid-battle swap, knight and horse sharp, large
+and dynamically posed, filling most of the vertical frame. Behind him,
+where a second ally's warhorse crosses paths with his own, their
+motion-blur trails don't read as a horse anymore but as a single long
+glowing golden arc of light slicing across the background sky — an
+abstract heraldic "crossing" mark left by the swap, distinct from the
+knight's own clearly-rendered figure in front of it. Scattered clods of
+dirt kicked loose by the pivot hang suspended mid-fall around him.
+Layered depth composition: the knight and his rearing horse sharp and
+fully lit in the foreground, the glowing crossing-arc in the midground
+sky, a stormy dusk horizon in the background. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism, rich palette of crimson,
+gold and steel gray against a stormy sky, a dynamic low hero angle
+unlike the Padrão version's wide tracking shot,
 composition designed to fill a tall card frame edge-to-edge with no
 empty margins at top or bottom, no text, no card frame, no border, no
 watermark
@@ -1119,24 +1135,24 @@ TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x14
 trading-card full-art illustration of the same grizzled war veteran, in
 a completely different, quiet character moment instead of the trench
 line: seated on an overturned crate beside a low campfire at night, shot
-from a low, close angle from ground level behind the ring of young
-soldiers gathered around the fire, so their backs and long firelit
-shadows fill the foreground while the veteran himself, small and
-slightly distant across the flames, is the only one facing the viewer,
-gesturing mid-story with a scarred hand. The soldiers' shadows, thrown
-huge and elongated across the dirt by the low firelight, all converge
-toward him from every side like dark spokes radiating to a single hub —
-an unspoken visual echo of a veteran whose experience anchors and
-strengthens everyone positioned behind him, without depicting the
-battlefield mechanic literally. Firelight is the only light source, warm
-orange rim-lighting the backs and shoulders of the boys in the
-foreground. Layered depth composition: silhouetted shoulders and
-radiating shadows sharp in the foreground, the veteran and fire lit
-clearly in the midground, dark tents and a starry night sky in the
-background. Drifting sparks from the fire cross between the depth
-layers. Loose, expressive painterly impressionism with visible confident brushstrokes, closer to classical oil-painting concept art than crisp digital rendering. Rich palette of firelight orange against
-deep night blue, a converging-shadow composition unlike any other card
-in this set, composition designed to fill a tall card frame edge-to-edge with
+close and low at the edge of the ring of young soldiers gathered around
+the fire — close enough that the veteran himself is large, sharp and
+fully lit by the firelight, filling most of the vertical frame, weathered
+face and scarred hands rendered in full detail as he gestures mid-story,
+while just one or two of the nearest listening soldiers' silhouetted
+shoulders and long firelit shadows frame him at the very edge of the
+foreground. Those few soldiers' shadows, thrown huge and elongated
+across the dirt by the low firelight, converge toward him like dark
+spokes radiating to a single hub — an unspoken visual echo of a veteran
+whose experience anchors and strengthens everyone positioned behind him,
+without depicting the battlefield mechanic literally. Firelight is the
+only light source, warm orange lighting his weathered face from below.
+Layered depth composition: the veteran sharp, large and fully lit in the
+foreground, a couple of silhouetted shoulders and radiating shadows at
+the frame's edge in the near midground, dark tents and a starry night
+sky in the background. Drifting sparks from the fire cross between the
+depth layers. Loose, expressive painterly impressionism with visible confident brushstrokes, closer to classical oil-painting concept art than crisp digital rendering. Rich palette of firelight orange against
+deep night blue, composition designed to fill a tall card frame edge-to-edge with
 no empty margins at top or bottom, no text, no card frame, no border, no
 watermark
 ```
