@@ -106,6 +106,12 @@ import destroySfxUrl from './assets/sfx-destruicao.wav';
 // the "BATALHA" banner slam.
 import revealGeneralSfxUrl from './assets/sfx-reveal-general.wav';
 import batalhaBannerSfxUrl from './assets/sfx-batalha-banner.wav';
+// A heavy stone-block impact (CC0, github.com/lavenderdotpet/CC0-Public-Domain-Sounds,
+// 75-cc0-breaking-falling-hit-sfx/bfh1_rock_falling_01.ogg) — timed to the exact
+// moment BATALHA's own fall lands, since a medieval war banner "slamming down like
+// something heavy hitting the ground" calls for a stone/masonry thud, not a musical
+// stinger.
+import batalhaImpactSfxUrl from './assets/sfx-batalha-impacto.wav';
 
 // Every card/board/UI image in the game besides the start screen's own background
 // and logo (those two load first, in the loading screen's initial black-screen
@@ -227,6 +233,14 @@ const playRevealGeneralSfx = () => {
 const playBatalhaBannerSfx = () => {
   const audio = new Audio(batalhaBannerSfxUrl);
   audio.volume = 0.6;
+  audio.play().catch(() => {});
+};
+// The heavy stone-thud that lands exactly when BATALHA's own fall hits the board —
+// see startMatchIntro's separate scheduled call for this, timed to the animation's
+// own impact fraction rather than firing alongside playBatalhaBannerSfx above.
+const playBatalhaImpactSfx = () => {
+  const audio = new Audio(batalhaImpactSfxUrl);
+  audio.volume = 0.75;
   audio.play().catch(() => {});
 };
 
@@ -440,17 +454,14 @@ const PHASE_SHORT_LABEL: Record<TurnPhase, string> = {
 // the whole time the banner was on screen. Each stage below targets a single
 // plain (non-array) value, which framer-motion just smoothly retargets toward —
 // re-rendering mid-stage is a no-op since the target hasn't changed.
-// The match-intro "BATALHA!" reveal (see MatchIntroOverlay) shows the artwork in 3
-// left-to-right chunks — [from%, to%] of the image's own width — instead of all at
-// once, roughly matching "BA" / "TA" / "LHA!"'s share of the 8 glyphs (letter widths
-// aren't perfectly even, so these are eyeballed against the actual art, not an exact
-// character count).
-const BATALHA_REVEAL_STAGES: [number, number][] = [[0, 28], [28, 52], [52, 100]];
-// Each chunk above lands on its own beat — a clear pause between "BA", "TA" and
-// "LHA!" instead of a rapid stagger — starting this long (seconds) after the
-// BATALHA stage begins, then this much further apart per chunk.
-const BATALHA_CHUNK_START_S = 0.2;
-const BATALHA_CHUNK_GAP_S = 0.45;
+// The match-intro "BATALHA!" reveal (see MatchIntroOverlay) is the whole word
+// dropping onto the board as one piece — a heavy fall, then a hard
+// squash-and-recoil landing, no vibration afterward. IMPACT_FRACTION is where in
+// that fall (as a fraction of FALL_MS) the actual landing happens — both the impact
+// flash and playBatalhaImpactSfx are timed off it, so the visual slam and the sound
+// land on the exact same frame.
+const BATALHA_FALL_MS = 680;
+const BATALHA_IMPACT_FRACTION = 0.55;
 
 const PHASE_BANNER_STAGE_MS = { in: 250, hold: 1600, out: 250 } as const;
 const PHASE_BANNER_DURATION_MS = PHASE_BANNER_STAGE_MS.in + PHASE_BANNER_STAGE_MS.hold + PHASE_BANNER_STAGE_MS.out;
@@ -2949,10 +2960,9 @@ export default function App() {
     // flight above, so there's no frame where neither is rendered) — only THEN does
     // "BATALHA" slam in over the board itself, since the reveal is about the
     // Generals taking their place, not a banner floating in front of them.
-    // Long enough for the 3 staged chunks (see BATALHA_REVEAL_STAGES/
-    // BATALHA_CHUNK_START_S/BATALHA_CHUNK_GAP_S) to each land and still leave a
-    // solid beat of the fully-assembled word holding on screen before it clears.
-    const BATTLE_BANNER_MS = 2200;
+    // Long enough for the fall (BATALHA_FALL_MS) to land and still leave a solid
+    // beat of the fully-assembled word holding on screen before it clears.
+    const BATTLE_BANNER_MS = BATALHA_FALL_MS + 900;
     schedule(() => {
       setPlayerSlots(prev => { const next = [...prev]; next[12] = generalPlayerRef.current; return next; });
       setNpcSlots(prev => { const next = [...prev]; next[12] = generalNpcRef.current; return next; });
@@ -2961,6 +2971,9 @@ export default function App() {
       setMatchIntroStage('battle');
       playBatalhaBannerSfx();
     }, LAND);
+    // The actual "hits the ground" moment, mid-fall — see BATALHA_IMPACT_FRACTION
+    // and MatchIntroOverlay's own matching flash timing.
+    schedule(() => playBatalhaImpactSfx(), LAND + Math.round(BATALHA_FALL_MS * BATALHA_IMPACT_FRACTION));
     // Only once BATALHA itself has cleared does the normal per-turn phase ribbon
     // play (see suppressInitialPhaseBannerRef/the turnNumber effect) — the two are
     // both center-screen ribbons, so playing them back to back instead of
@@ -6549,13 +6562,11 @@ export default function App() {
           actually landed on the real board (see startMatchIntro's LAND schedule), so
           this reads as the board itself declaring battle rather than a banner
           floating in front of the portraits. User-supplied artwork (see
-          bannerBatalhaImage) instead of typeset text, revealed in 3 left-to-right
-          chunks ("BA" → "TA" → "LHA!", see BATALHA_REVEAL_STAGES) — each chunk is
-          its own small impact (a short drop, a hard squash-and-recoil, a bright
-          flash) landing on a clearly separate beat (BATALHA_CHUNK_START_S/
-          BATALHA_CHUNK_GAP_S) rather than one shared fall for the whole word. No
-          held vibration afterward — each chunk's own impact carries the "juice"
-          instead of a constant shake. */}
+          bannerBatalhaImage), whole and in one piece — it drops hard from above and
+          slams down (a heavy fall, then an exaggerated squash-and-recoil landing,
+          see BATALHA_FALL_MS/BATALHA_IMPACT_FRACTION), with a bright flash and a
+          heavy stone-thud (playBatalhaImpactSfx, scheduled in startMatchIntro) right
+          as it hits — no vibration afterward once it's settled. */}
       <AnimatePresence>
         {matchIntroStage === 'battle' && (
           <motion.div
@@ -6566,47 +6577,41 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <motion.div className="relative select-none" exit={{ scale: 0.85, opacity: 0 }}>
-              {/* Invisible sizing reference — establishes the real box the chunks
-                  and their flashes below anchor to. */}
-              <img src={bannerBatalhaImage} alt="Batalha!" draggable={false} className="block w-[92vw] max-w-3xl h-auto invisible" />
-              {/* 3 copies of the same image, each showing only its own horizontal
-                  slice via clip-path — same source art, so nothing needed
-                  re-exporting, and the slices always line up pixel-for-pixel. */}
-              {BATALHA_REVEAL_STAGES.map(([from, to], i) => {
-                const delay = BATALHA_CHUNK_START_S + i * BATALHA_CHUNK_GAP_S;
-                const clip = `inset(0 ${100 - to}% 0 ${from}%)`;
-                return (
-                  <React.Fragment key={i}>
-                    <motion.img
-                      src={bannerBatalhaImage}
-                      alt={i === 0 ? 'Batalha!' : undefined}
-                      aria-hidden={i === 0 ? undefined : 'true'}
-                      draggable={false}
-                      className="absolute inset-0 w-full h-full drop-shadow-[0_14px_34px_rgba(0,0,0,0.85)]"
-                      style={{ clipPath: clip }}
-                      initial={{ opacity: 0, y: -55, scaleX: 1, scaleY: 1 }}
-                      animate={{
-                        opacity: [0, 1, 1, 1],
-                        y: [-55, 0, 5, 0],
-                        scaleY: [1, 0.78, 1.08, 1],
-                        scaleX: [1, 1.14, 0.95, 1],
-                      }}
-                      transition={{ delay, duration: 0.34, times: [0, 0.55, 0.8, 1], ease: ['easeIn', 'easeOut', 'easeOut'] }}
-                    />
-                    {/* A bright flash clipped to this same slice, timed to peak right
-                        as the chunk lands — this is what sells "impact" now that
-                        there's no follow-up vibration doing that job. */}
-                    <motion.div
-                      className="absolute inset-0"
-                      style={{ clipPath: clip, background: 'radial-gradient(ellipse, rgba(255,246,220,0.95) 0%, rgba(255,246,220,0) 72%)' }}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: [0, 0, 1, 0] }}
-                      transition={{ delay, duration: 0.38, times: [0, 0.5, 0.62, 1], ease: 'easeOut' }}
-                    />
-                  </React.Fragment>
-                );
-              })}
+            {/* Impact flash — timed to the same BATALHA_IMPACT_FRACTION point in the
+                fall below, so the visual slam, the flash, and playBatalhaImpactSfx
+                all land on the same frame. */}
+            <motion.div
+              className="absolute inset-0"
+              style={{ background: 'radial-gradient(ellipse at center, rgba(255,246,220,0.9) 0%, rgba(255,246,220,0) 62%)' }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0, 0, 1, 0] }}
+              transition={{
+                duration: BATALHA_FALL_MS / 1000,
+                times: [0, BATALHA_IMPACT_FRACTION * 0.97, BATALHA_IMPACT_FRACTION, 1],
+                ease: 'easeOut',
+              }}
+            />
+            <motion.div
+              className="relative select-none"
+              initial={{ y: -650, scaleX: 1, scaleY: 1 }}
+              animate={{
+                y: [-650, -650, 0, -10, 0],
+                scaleY: [1, 1, 0.6, 1.08, 1],
+                scaleX: [1, 1, 1.2, 0.95, 1],
+              }}
+              exit={{ scale: 0.85, opacity: 0 }}
+              transition={{
+                duration: BATALHA_FALL_MS / 1000,
+                times: [0, BATALHA_IMPACT_FRACTION * 0.8, BATALHA_IMPACT_FRACTION, BATALHA_IMPACT_FRACTION + (1 - BATALHA_IMPACT_FRACTION) * 0.45, 1],
+                ease: ['linear', 'easeIn', 'easeOut', 'easeOut'],
+              }}
+            >
+              <img
+                src={bannerBatalhaImage}
+                alt="Batalha!"
+                draggable={false}
+                className="block w-[92vw] max-w-3xl h-auto drop-shadow-[0_22px_40px_rgba(0,0,0,0.9)]"
+              />
             </motion.div>
           </motion.div>
         )}
