@@ -2962,7 +2962,7 @@ export default function App() {
     // Generals taking their place, not a banner floating in front of them.
     // Long enough for the fall (BATALHA_FALL_MS) to land and still leave a solid
     // beat of the fully-assembled word holding on screen before it clears.
-    const BATTLE_BANNER_MS = BATALHA_FALL_MS + 900;
+    const BATTLE_BANNER_MS = BATALHA_FALL_MS + 1500;
     schedule(() => {
       setPlayerSlots(prev => { const next = [...prev]; next[12] = generalPlayerRef.current; return next; });
       setNpcSlots(prev => { const next = [...prev]; next[12] = generalNpcRef.current; return next; });
@@ -6566,17 +6566,27 @@ export default function App() {
           slams down (a heavy fall, then an exaggerated squash-and-recoil landing,
           see BATALHA_FALL_MS/BATALHA_IMPACT_FRACTION), with a bright flash and a
           heavy stone-thud (playBatalhaImpactSfx, scheduled in startMatchIntro) right
-          as it hits — no vibration afterward once it's settled. */}
+          as it hits — no vibration afterward once it's settled. The board dims
+          behind it (same bg-black-scrim trick as the portrait stage above) so the
+          word reads clearly against the battlefield instead of competing with it,
+          and the word itself sits a bit above dead-center (via pb-[14vh] on the
+          flex box below) rather than covering the exact middle of the board. */}
       <AnimatePresence>
         {matchIntroStage === 'battle' && (
           <motion.div
             key="batalha-banner"
-            className="fixed inset-0 z-[900] flex items-center justify-center pointer-events-none overflow-hidden"
+            className="fixed inset-0 z-[900] flex items-center justify-center pb-[14vh] pointer-events-none overflow-hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
+            <motion.div
+              className="absolute inset-0 bg-black"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.55 }}
+              transition={{ duration: 0.35 }}
+            />
             {/* Impact flash — timed to the same BATALHA_IMPACT_FRACTION point in the
                 fall below, so the visual slam, the flash, and playBatalhaImpactSfx
                 all land on the same frame. */}
