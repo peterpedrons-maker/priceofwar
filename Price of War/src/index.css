@@ -1,20 +1,18 @@
 @import "tailwindcss";
 
-/* Match-intro "BATALHA!" reveal (see MatchIntroOverlay in App.tsx) — a real 8-frame
-   flipbook (user-supplied sprite sheet, see banner-batalha-sprite.webp — only the
-   sheet's first 8 of 12 cells; frames 9-12 visibly shifted the text's alignment)
-   stepped via background-position, since `steps()` is the one easing CSS/Framer has
-   that holds each frame crisp instead of blending into the next — exactly what a
-   sprite flipbook needs. Frame count/width match the sprite's own 8 cells; keep both
-   in sync if that file is ever regenerated. The sheet itself only builds up and
-   holds — it doesn't fade back out — so MatchIntroOverlay handles the exit fade
-   itself. */
+/* Match-intro "BATALHA!" reveal (see MatchIntroOverlay in App.tsx) — a real 12-frame
+   flipbook (user-supplied sprite sheet, see banner-batalha-sprite.webp) stepped via
+   background-position, since `steps()` is the one easing CSS/Framer has that holds
+   each frame crisp instead of blending into the next — exactly what a sprite
+   flipbook needs. Frame count/width match the sprite's own 12 cells; keep both in
+   sync if that file is ever regenerated. The sheet itself only builds up and holds —
+   it doesn't fade back out — so MatchIntroOverlay handles the exit fade itself. */
 @keyframes batalha-sprite-steps {
   from { background-position: 0% 0; }
   to { background-position: 100% 0; }
 }
 .batalha-sprite {
   background-repeat: no-repeat;
-  background-size: 800% 100%;
-  animation: batalha-sprite-steps 1.2s steps(7, end) 1 forwards;
+  background-size: 1200% 100%;
+  animation: batalha-sprite-steps 1.5s steps(11, end) 1 forwards;
 }

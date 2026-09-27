@@ -440,15 +440,14 @@ const PHASE_SHORT_LABEL: Record<TurnPhase, string> = {
 // the whole time the banner was on screen. Each stage below targets a single
 // plain (non-array) value, which framer-motion just smoothly retargets toward —
 // re-rendering mid-stage is a no-op since the target hasn't changed.
-// The match-intro "BATALHA!" reveal (see MatchIntroOverlay) plays as a real 8-frame
+// The match-intro "BATALHA!" reveal (see MatchIntroOverlay) plays as a real 12-frame
 // flipbook (user-supplied sprite sheet, see banner-batalha-sprite.webp and the
-// .batalha-sprite CSS animation in index.css) — only the sheet's first 8 of 12
-// cells; frames 9-12 visibly shifted the text's own alignment, so they're left out
-// rather than exported as a separate file. Frames 1-3 are the word dropping into
-// place, 4 is the "!" dropping in after it, 5-8 are the impact's dust settling — but
-// the sheet itself doesn't fade back out, so this component still owns the hold +
-// exit fade after it plays.
-const BATALHA_SPRITE_DURATION_MS = 1200;
+// .batalha-sprite CSS animation in index.css). Unlike an earlier 32-frame sheet that
+// didn't hold up (its text visibly drifted position/scale frame to frame and some
+// frames clipped past their own cell), this one's build-up (frames 1-4) is
+// intentional growth and frames 5-12 hold rock-steady — but the sheet itself doesn't
+// fade back out, so this component still owns the hold + exit fade after it plays.
+const BATALHA_SPRITE_DURATION_MS = 1500;
 const BATALHA_HOLD_MS = 700;
 const BATALHA_FADE_MS = 350;
 
@@ -6549,7 +6548,7 @@ export default function App() {
       {/* Match-intro "VS" reveal, BATALHA stage — fires only once both Generals have
           actually landed on the real board (see startMatchIntro's LAND schedule), so
           this reads as the board itself declaring battle rather than a banner
-          floating in front of the portraits. User-supplied 8-frame sprite sheet
+          floating in front of the portraits. User-supplied 12-frame sprite sheet
           (see banner-batalha-sprite.webp) played as a real flipbook via the
           .batalha-sprite CSS animation in index.css. The board itself dims while
           this plays, per the user's ask, clearing together with the sprite at the
