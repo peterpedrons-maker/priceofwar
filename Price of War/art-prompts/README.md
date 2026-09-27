@@ -788,6 +788,22 @@ terceira trincheira/"coluna", a Formação Quebrada como um vórtice de caos)
 em vez de ilustrar só o nome. Todas ainda compartilham a mesma paleta/
 identidade do baralho.
 
+**Variedade de estilo pictórico (ajustada):** a primeira passagem de
+reescrita acabou concentrando estilo demais num só tratamento — quase
+metade das cartas usava a mesma frase de "estilização gráfica ousada estilo
+Yu-Gi-Oh", o que fazia o baralho inteiro parecer visualmente parecido
+mesmo com cenas diferentes. Rebalanceei a escolha de estilo em quatro
+cartas (Escudeiro de Linha, Capitão de Formação Full Art, Veterano de
+Guerra Padrão e Reposicionamento Rápido) pra realismo pintado estilo
+Magic ou realismo cinematográfico de contraste forte, deixando o "estilo
+Yu-Gi-Oh" só pras cenas que realmente pedem esse impacto gráfico mais
+chapado (Lanceiro de Controle, Cavaleiro Tático Full Art, Linha Fechada,
+Contra-Manobra Full Art, Formação Quebrada). Também acrescentei um
+detalhe visual único a mais em cada uma dessas quatro cartas (o escudo do
+Escudeiro marcado por golpes antigos, a corneta de sinal do Capitão, os
+entalhes no punho da espada do Veterano, a tábua rachando sob a bota do
+inimigo no Reposicionamento) pra reforçar a unicidade.
+
 **Cartas com Full Art alternativa:** mesmo critério do Deck Cardeal Pedro, Voz da Fé —
 além do General (já coberto pelos itens 1/1b/2) e da Relíquia (só existe em
 Full Art), estas seis ganham uma versão Full Art opcional: Cavaleiro
@@ -866,14 +882,17 @@ no watermark
 WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting shot from a
 dramatic low worm's-eye angle from directly behind and below a sturdy
 crimson-and-gold squire, looking up past his braced legs and raised tower
-shield toward a sky full of incoming arrows frozen mid-fall, several
-already stuck harmlessly in the shield's face. Between his planted boots,
-partially visible, two younger soldiers crouch low in the shelter of his
-shadow, safe behind him. Warm dusty daylight breaks around the shield's
-edge in bright rim-light. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism, warm palette of crimson, gold and steel
-gray against a bright sky, extreme low protective-angle composition,
-landscape orientation (about 1600×1000px, wider than tall), no text, no
-card frame, no border, no watermark
+shield — its face bearing the lion crest and pitted with the scars of
+countless older strikes — toward a sky full of incoming arrows frozen
+mid-fall, several already stuck harmlessly in the wood. Between his
+planted boots, partially visible, two younger soldiers crouch low in the
+shelter of his shadow, safe behind him. Warm dusty daylight breaks around
+the shield's edge in bright rim-light. Painterly digital realism in the
+style of premium Magic: The Gathering card art (Legends of Runeterra
+splash-art quality), warm palette of crimson, gold and steel gray against
+a bright sky, extreme low protective-angle composition, landscape
+orientation (about 1600×1000px, wider than tall), no text, no card frame,
+no border, no watermark
 ```
 
 ---
@@ -912,18 +931,22 @@ trading-card full-art illustration of the same formation captain, but a
 completely different, elevated command moment instead of moving through
 the ranks: standing tall atop a rocky outcrop or broken siege-engine
 wreck at dawn, both hands planted on his hips as he surveys the entire
-battlefield spread out below him, mouth open mid-shout giving orders,
-wind whipping his crimson cape out behind him. No shimmer effect here —
-his authority comes from vantage and voice, not visible magic. Layered
-depth composition: the captain sharp in the foreground filling most of
-the vertical frame, the whole disciplined army arrayed in formation far
-below in the midground, a wide dawn battlefield vista in the background.
-Drifting morning mist crosses between the depth layers. Extremely detailed
-rendering — engraved plate-and-mail armor, windswept cape fabric, sharp
-specular highlights on polished steel and gold. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism. Rich palette of dawn gold,
-crimson and steel gray, powerful sense of overview and command, composition
-designed to fill a tall card frame edge-to-edge with no empty margins at
-top or bottom, no text, no card frame, no border, no watermark
+battlefield spread out below him, mouth open mid-shout giving orders, a
+battle-worn signal horn slung uselessly across his back for when voice
+alone can't carry, wind whipping his crimson cape out behind him. No
+shimmer effect here — his authority comes from vantage and voice, not
+visible magic. Layered depth composition: the captain sharp in the
+foreground filling most of the vertical frame, the whole disciplined army
+arrayed in formation far below in the midground, a wide dawn battlefield
+vista in the background. Drifting morning mist crosses between the depth
+layers. Extremely detailed rendering — engraved plate-and-mail armor,
+windswept cape fabric, sharp specular highlights on polished steel and
+gold. Painterly digital realism in the epic style of premium Magic: The
+Gathering full-art illustrations (Legends of Runeterra legendary-tier
+quality), rich palette of dawn gold, crimson and steel gray, powerful
+sense of overview and command, composition designed to fill a tall card
+frame edge-to-edge with no empty margins at top or bottom, no text, no
+card frame, no border, no watermark
 ```
 
 ---
@@ -1033,13 +1056,15 @@ distinct trench lines stacked in depth — a grizzled war veteran in
 battle-scarred crimson-and-gold armor stands alone and unshaken in the
 third, deepest trench line while the two lines ahead of him are visibly
 emptier and more battered, debris and arrows raining down past him
-unheeded. A notched sword held low and ready, weathered confident
-expression. Dust and faint smoke drift across the whole cross-section.
-Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism,
-warm palette of crimson, gold and steel gray, unusual layered cross-
-section composition that makes the "third line" concept literal, landscape
-orientation (about 1600×1000px, wider than tall), no text, no card frame,
-no border, no watermark
+unheeded. A notched sword held low and ready, its grip carved with a
+private tally of notches marking each battle he's outlasted, weathered
+confident expression. Dust and faint smoke drift across the whole
+cross-section. Cinematic, near-photographic chiaroscuro rendering with
+deep dramatic shadow and razor-sharp highlight, closer to a film still
+than a painting, warm palette of crimson, gold and steel gray, unusual
+layered cross-section composition that makes the "third line" concept
+literal, landscape orientation (about 1600×1000px, wider than tall), no
+text, no card frame, no border, no watermark
 ```
 
 ---
@@ -1155,14 +1180,16 @@ gerar
 WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px or 1280x800px — noticeably wider than tall, NOT a vertical/portrait image. Epic Magic: The Gathering-quality fantasy digital painting of a crimson-
 and-gold soldier delivering a sharp shield-bash that sends an enemy
 soldier stumbling sideways off the edge of a narrow wooden plank bridge
-over a rocky ravine, the enemy's arms windmilling for balance right at
-the plank's edge, dust and splinters kicked up at the point of impact.
-The danger of the drop below adds real stakes to what would otherwise be
-a simple shove. Dramatic midday light. Bold, dynamic graphic stylization with dramatic flat color blocking and confident linework, closer to Yu-Gi-Oh monster-card energy than soft painterly realism, warm palette of crimson, gold and
-steel gray against a rocky ravine backdrop, dynamic edge-of-danger
-composition, medium shot with both figures visible, landscape orientation
-(about 1600×1000px, wider than tall), no text, no card frame, no border,
-no watermark
+over a rocky ravine, a plank already splitting under the enemy's
+off-balance boot, the enemy's arms windmilling for balance right at the
+plank's edge, dust and splinters kicked up at the point of impact. The
+danger of the drop below adds real stakes to what would otherwise be a
+simple shove. Dramatic midday light. Painterly digital realism in the
+style of premium Magic: The Gathering card art (Legends of Runeterra
+splash-art quality), warm palette of crimson, gold and steel gray against
+a rocky ravine backdrop, dynamic edge-of-danger composition, medium shot
+with both figures visible, landscape orientation (about 1600×1000px,
+wider than tall), no text, no card frame, no border, no watermark
 ```
 
 ---
