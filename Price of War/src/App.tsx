@@ -55,7 +55,7 @@ import placeholderGeneralCapitaoImage from './assets/placeholder-general-capitao
 // User-provided artwork for the match-intro "BATALHA!" call-out and the Game Over
 // screen's "VITÓRIA!"/"DERROTA" — replaces the plain typeset versions (see
 // MatchIntroOverlay and the Game Over Overlay further below).
-import bannerBatalhaImage from './assets/banner-batalha.webp';
+import bannerBatalhaSpriteImage from './assets/banner-batalha-sprite.webp';
 import bannerVitoriaImage from './assets/banner-vitoria.webp';
 import bannerDerrotaImage from './assets/banner-derrota.webp';
 import caliceDaVidaFullArt from './assets/card-calice-da-vida-full.webp';
@@ -440,17 +440,12 @@ const PHASE_SHORT_LABEL: Record<TurnPhase, string> = {
 // the whole time the banner was on screen. Each stage below targets a single
 // plain (non-array) value, which framer-motion just smoothly retargets toward —
 // re-rendering mid-stage is a no-op since the target hasn't changed.
-// The match-intro "BATALHA!" reveal (see MatchIntroOverlay) shows the artwork in 3
-// left-to-right chunks — [from%, to%] of the image's own width — instead of all at
-// once, roughly matching "BA" / "TA" / "LHA!"'s share of the 8 glyphs (letter widths
-// aren't perfectly even, so these are eyeballed against the actual art, not an exact
-// character count).
-const BATALHA_REVEAL_STAGES: [number, number][] = [[0, 28], [28, 52], [52, 100]];
-// Each chunk above lands on its own beat — a clear pause between "BA", "TA" and
-// "LHA!" instead of a rapid stagger — starting this long (seconds) after the
-// BATALHA stage begins, then this much further apart per chunk.
-const BATALHA_CHUNK_START_S = 0.2;
-const BATALHA_CHUNK_GAP_S = 0.45;
+// The match-intro "BATALHA!" reveal (see MatchIntroOverlay) plays as a real 32-frame
+// flipbook (user-supplied sprite sheet, see banner-batalha-sprite.webp and the
+// .batalha-sprite CSS animation in index.css) rather than a coded tween — the sheet
+// itself already goes build-up → hold/pulse → energy ring → fade to sparks, so this
+// one duration is both the reveal AND the exit; nothing else needs to fade it out.
+const BATALHA_SPRITE_DURATION_MS = 2600;
 
 const PHASE_BANNER_STAGE_MS = { in: 250, hold: 1600, out: 250 } as const;
 const PHASE_BANNER_DURATION_MS = PHASE_BANNER_STAGE_MS.in + PHASE_BANNER_STAGE_MS.hold + PHASE_BANNER_STAGE_MS.out;
@@ -2949,10 +2944,9 @@ export default function App() {
     // flight above, so there's no frame where neither is rendered) — only THEN does
     // "BATALHA" slam in over the board itself, since the reveal is about the
     // Generals taking their place, not a banner floating in front of them.
-    // Long enough for the 3 staged chunks (see BATALHA_REVEAL_STAGES/
-    // BATALHA_CHUNK_START_S/BATALHA_CHUNK_GAP_S) to each land and still leave a
-    // solid beat of the fully-assembled word holding on screen before it clears.
-    const BATTLE_BANNER_MS = 2200;
+    // The sprite (see BATALHA_SPRITE_DURATION_MS) already ends faded to nothing, so
+    // this just needs to comfortably clear the CSS animation's own duration.
+    const BATTLE_BANNER_MS = BATALHA_SPRITE_DURATION_MS + 100;
     schedule(() => {
       setPlayerSlots(prev => { const next = [...prev]; next[12] = generalPlayerRef.current; return next; });
       setNpcSlots(prev => { const next = [...prev]; next[12] = generalNpcRef.current; return next; });
@@ -6548,14 +6542,11 @@ export default function App() {
       {/* Match-intro "VS" reveal, BATALHA stage — fires only once both Generals have
           actually landed on the real board (see startMatchIntro's LAND schedule), so
           this reads as the board itself declaring battle rather than a banner
-          floating in front of the portraits. User-supplied artwork (see
-          bannerBatalhaImage) instead of typeset text, revealed in 3 left-to-right
-          chunks ("BA" → "TA" → "LHA!", see BATALHA_REVEAL_STAGES) — each chunk is
-          its own small impact (a short drop, a hard squash-and-recoil, a bright
-          flash) landing on a clearly separate beat (BATALHA_CHUNK_START_S/
-          BATALHA_CHUNK_GAP_S) rather than one shared fall for the whole word. No
-          held vibration afterward — each chunk's own impact carries the "juice"
-          instead of a constant shake. */}
+          floating in front of the portraits. User-supplied 32-frame sprite sheet
+          (see banner-batalha-sprite.webp) played as a real flipbook via the
+          .batalha-sprite CSS animation in index.css — the sheet itself already goes
+          build-up → hold/pulse → energy ring → fade to sparks, so there's nothing
+          left for this component to animate beyond mounting/unmounting the element. */}
       <AnimatePresence>
         {matchIntroStage === 'battle' && (
           <motion.div
@@ -6566,48 +6557,15 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <motion.div className="relative select-none" exit={{ scale: 0.85, opacity: 0 }}>
-              {/* Invisible sizing reference — establishes the real box the chunks
-                  and their flashes below anchor to. */}
-              <img src={bannerBatalhaImage} alt="Batalha!" draggable={false} className="block w-[92vw] max-w-3xl h-auto invisible" />
-              {/* 3 copies of the same image, each showing only its own horizontal
-                  slice via clip-path — same source art, so nothing needed
-                  re-exporting, and the slices always line up pixel-for-pixel. */}
-              {BATALHA_REVEAL_STAGES.map(([from, to], i) => {
-                const delay = BATALHA_CHUNK_START_S + i * BATALHA_CHUNK_GAP_S;
-                const clip = `inset(0 ${100 - to}% 0 ${from}%)`;
-                return (
-                  <React.Fragment key={i}>
-                    <motion.img
-                      src={bannerBatalhaImage}
-                      alt={i === 0 ? 'Batalha!' : undefined}
-                      aria-hidden={i === 0 ? undefined : 'true'}
-                      draggable={false}
-                      className="absolute inset-0 w-full h-full drop-shadow-[0_14px_34px_rgba(0,0,0,0.85)]"
-                      style={{ clipPath: clip }}
-                      initial={{ opacity: 0, y: -55, scaleX: 1, scaleY: 1 }}
-                      animate={{
-                        opacity: [0, 1, 1, 1],
-                        y: [-55, 0, 5, 0],
-                        scaleY: [1, 0.78, 1.08, 1],
-                        scaleX: [1, 1.14, 0.95, 1],
-                      }}
-                      transition={{ delay, duration: 0.34, times: [0, 0.55, 0.8, 1], ease: ['easeIn', 'easeOut', 'easeOut'] }}
-                    />
-                    {/* A bright flash clipped to this same slice, timed to peak right
-                        as the chunk lands — this is what sells "impact" now that
-                        there's no follow-up vibration doing that job. */}
-                    <motion.div
-                      className="absolute inset-0"
-                      style={{ clipPath: clip, background: 'radial-gradient(ellipse, rgba(255,246,220,0.95) 0%, rgba(255,246,220,0) 72%)' }}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: [0, 0, 1, 0] }}
-                      transition={{ delay, duration: 0.38, times: [0, 0.5, 0.62, 1], ease: 'easeOut' }}
-                    />
-                  </React.Fragment>
-                );
-              })}
-            </motion.div>
+            <div
+              className="batalha-sprite"
+              style={{
+                backgroundImage: `url(${bannerBatalhaSpriteImage})`,
+                width: 'min(78vw, 420px)',
+                aspectRatio: '172 / 135',
+                filter: 'drop-shadow(0 14px 34px rgba(0,0,0,0.85))',
+              }}
+            />
           </motion.div>
         )}
       </AnimatePresence>

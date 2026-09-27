@@ -1,1 +1,17 @@
 @import "tailwindcss";
+
+/* Match-intro "BATALHA!" reveal (see MatchIntroOverlay in App.tsx) — a real 32-frame
+   flipbook (user-supplied sprite sheet, see banner-batalha-sprite.webp) stepped via
+   background-position instead of a Framer keyframe tween, since `steps()` is the one
+   easing CSS/Framer has that actually holds each frame crisp instead of blending
+   into the next — exactly what a sprite flipbook needs. Frame count/width match the
+   sprite's own 32 cells; keep both in sync if that file is ever regenerated. */
+@keyframes batalha-sprite-steps {
+  from { background-position: 0% 0; }
+  to { background-position: 100% 0; }
+}
+.batalha-sprite {
+  background-repeat: no-repeat;
+  background-size: 3200% 100%;
+  animation: batalha-sprite-steps 2.6s steps(31, end) 1 forwards;
+}
