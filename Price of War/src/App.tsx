@@ -6569,14 +6569,15 @@ export default function App() {
           bright flash and a heavy stone-thud (playBatalhaImpactSfx, scheduled in
           startMatchIntro) right as it hits — no vibration afterward once it's
           settled. The scene dims further behind it (stacking with the portrait
-          stage's own scrim above) so the word reads clearly, and it sits a bit above
-          dead-center (via pb-[14vh] on the flex box below) rather than covering the
-          exact middle of the screen. */}
+          stage's own scrim above) so the word reads clearly, and it's anchored near
+          the TOP of the screen (items-start + pt-[9vh] on the flex box below) rather
+          than centered, so it falls into the open space above the two frozen General
+          portraits instead of landing on top of their art. */}
       <AnimatePresence>
         {matchIntroStage === 'battle' && (
           <motion.div
             key="batalha-banner"
-            className="fixed inset-0 z-[900] flex items-center justify-center pb-[14vh] pointer-events-none overflow-hidden"
+            className="fixed inset-0 z-[900] flex items-start justify-center pt-[9vh] pointer-events-none overflow-hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
