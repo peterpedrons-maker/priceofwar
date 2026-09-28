@@ -2390,19 +2390,23 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
           fully-lettered "PRICE OF WAR — FAITH AND FIRE" crest painted into it, so
           there was no need to generate a whole separate logo asset. Shrunk from the
           old full-width hero size now that the screen actually has content below it
-          worth making room for (see the user's own reference mockup). */}
+          worth making room for (see the user's own reference mockup). Pulled back up
+          close under the profile bar (mt-2, was mt-14) per the user's own call that
+          it was sitting too low — there's more card content below it now than there
+          used to be (Multijogador became a second featured card), so the logo needs
+          to give that room rather than the other way around. */}
       <motion.img
         src={logoImage}
         alt="Price of War — Faith and Fire"
         initial={{ y: -40, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", stiffness: 100 }}
-        className="w-[48vw] max-w-[190px] mt-14 mb-2 z-10 select-none pointer-events-none drop-shadow-[0_0_25px_rgba(212,175,55,0.35)]"
+        className="w-[48vw] max-w-[190px] mt-2 mb-1 z-10 select-none pointer-events-none drop-shadow-[0_0_25px_rgba(212,175,55,0.35)]"
         draggable={false}
       />
       {/* Subtitle ribbon — plain styled text, no new art (see the reference
           mockup's "GUERRA PELO REINO" banner under its own logo). */}
-      <div className="relative z-10 mb-4 px-4 py-1 rounded-full border border-[#d4af37]/70 bg-black/50">
+      <div className="relative z-10 mb-3 px-4 py-1 rounded-full border border-[#d4af37]/70 bg-black/50">
         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#d4af37]">Guerra pelo Reino</span>
       </div>
 
@@ -2410,12 +2414,18 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
         {/* The mode identifiers themselves (used in onSelectMode/gameMode comparisons
             elsewhere) stay in English — only the label actually shown is translated,
             so this doesn't need to touch any of the logic keyed off those strings.
-            Campanha gets its own featured, taller card (same treatment the reference
-            mockup gives it); the other four share two half-width rows — Multijogador
-            paired with Loja rather than its own full-width row, now that there's a
-            second "secondary destination" to sit next to it. Background crops reuse
-            existing art (battlefield/card-back) rather than generating a new image
-            per card — see art-prompts/README.md 4e-4h/4m for the real art briefs. */}
+            Campanha and Multijogador both get the featured, taller treatment and
+            come first — the user's own call that those two are the most-used modes
+            and belong at the top, not mixed in with Partida Rápida/Meu Deck/Loja
+            below them. ("Campanha" itself is a placeholder name for now — the user
+            wants to revisit it once the actual mode behind it is redesigned, see
+            their own NPC-ladder idea discussed elsewhere in this session.)
+            Background crops reuse existing art (battlefield/card-back) rather than
+            generating a new image per card — see art-prompts/README.md 4e-4m for
+            the real art briefs (already updated for this layout: Campanha and
+            Multijogador share the ~3.3:1 featured brief/frame, Loja is its own
+            ~3.6:1 full-width-but-short brief/frame, Partida Rápida/Meu Deck keep
+            the compact ~2:1 brief/frame). */}
         <MenuCard
           icon="⚔️"
           title={MODE_LABELS_PT['Campaign']}
@@ -2423,6 +2433,14 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
           bgImage={boardBattlefieldImage}
           tall
           onClick={(e) => { e.stopPropagation(); onSelectMode('Campaign'); }}
+        />
+        <MenuCard
+          icon="👑"
+          title={MODE_LABELS_PT['Multiplayer']}
+          subtitle="Desafie outros comandantes"
+          bgImage={boardBattlefieldImage}
+          tall
+          onClick={(e) => { e.stopPropagation(); onSelectMode('Multiplayer'); }}
         />
         <div className="grid grid-cols-2 gap-3">
           <MenuCard
@@ -2440,25 +2458,16 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
             onClick={(e) => { e.stopPropagation(); onSelectMode('My Deck'); }}
           />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <MenuCard
-            icon="👑"
-            title={MODE_LABELS_PT['Multiplayer']}
-            subtitle="Desafie comandantes"
-            bgImage={boardBattlefieldImage}
-            onClick={(e) => { e.stopPropagation(); onSelectMode('Multiplayer'); }}
-          />
-          <MenuCard
-            icon="🏪"
-            title="Loja"
-            subtitle="Boosters e Coroas"
-            bgImage={cardTemplateFullArtGoldImage}
-            onClick={(e) => {
-              e.stopPropagation();
-              setComingSoon({ title: 'Loja', message: 'Em breve você vai poder comprar boosters e Coroas aqui.' });
-            }}
-          />
-        </div>
+        <MenuCard
+          icon="🏪"
+          title="Loja"
+          subtitle="Boosters e Coroas"
+          bgImage={cardTemplateFullArtGoldImage}
+          onClick={(e) => {
+            e.stopPropagation();
+            setComingSoon({ title: 'Loja', message: 'Em breve você vai poder comprar boosters e Coroas aqui.' });
+          }}
+        />
       </div>
 
       {/* Secondary destinations — none of these screens exist yet (see

@@ -802,37 +802,53 @@ mais compacta/quadrada, então o espaço reservado também é menor.
 card "Meu Deck" em `MainMenu` — salvar como
 `src/assets/menu-card-meu-deck.webp` · **Estilo:** elemento/ícone de UI ·
 **Status:** pronto pra gerar
+**Revisado:** a primeira versão deste prompt descrevia "cartas ornamentadas
+genéricas" de propósito, achando que pedir um brasão específico ia
+atrapalhar o still-life — na prática a IA respondeu inventando um baralho
+comum (naipes, números, etc.) que não tem nada a ver com as cartas do
+jogo. Corrigido travando o design no brasão real do verso das nossas
+cartas (mesmo emblema do logo, 4d/4d-v2) e garantindo que só o VERSO
+apareça em toda a cena — nunca uma frente, nunca um naipe/número
+genérico.
 
-Par do prompt anterior na mesma fileira (mesma proporção ~2:1), mas
-contemplativo em vez de ação — é o botão que leva pro gerenciamento de
-cartas, então mostra as próprias cartas como objeto, no mesmo estilo
-still-life hiper-realista já usado pras cartas de equipamento do Deck
-Cardeal Pedro.
+Par do prompt de Partida Rápida (4f) na mesma fileira (mesma proporção
+~2:1), mas contemplativo em vez de ação — é o botão que leva pro
+gerenciamento de cartas, então mostra as próprias cartas como objeto, no
+mesmo estilo still-life hiper-realista já usado pras cartas de
+equipamento do Deck Cardeal Pedro.
 
 ```
-WIDE LANDSCAPE BANNER IMAGE, aspect ratio approx 2:1 (width:height), approx 1200x580px — wider than tall but noticeably more square than a thin banner, NOT a portrait image. Hyperreal macro still-life illustration of a neat stack of ornate
-crimson-and-gold playing cards resting on a dark wooden table, the top
-card's gilded card-back design catching warm candlelight from a single
-lit candle in an iron holder just beside the stack, soft shadow pooling
-around the base of the cards, a few loose cards fanned slightly at the
-edge of the stack. Hyperreal macro product-photography-level realism,
-every material surface rendered with tack-sharp physically-based detail
-(same treatment as this game's equipment still-life cards), warm palette
-of candlelight amber, gold leaf and dark wood brown, intimate close-up
-composition with the stack positioned right-of-center, leaving the left
-side of the frame in soft dark shadow and relatively uncluttered for UI
-text/icon placed on top in code. No text, no UI, no watermark, wide
-landscape banner orientation (about 1200×580px, roughly 2:1, wider than
-tall)
+WIDE LANDSCAPE BANNER IMAGE, aspect ratio approx 2:1 (width:height), approx 1200x580px — wider than tall but noticeably more square than a thin banner, NOT a portrait image. Hyperreal macro still-life illustration of a neat stack of playing cards
+resting face-down on a dark wooden table, so every single card in frame
+shows only its back — never a front, never a suit, never a number, never
+any other card design. Every visible card back is identical: a rich
+crimson card back with a gold-foil border, centered on an engraved bronze-
+and-gold medallion crest bearing a rearing lion sigil flanked by two
+crossed swords, wreathed by a carved laurel-and-banner ribbon border
+(the exact same heraldic crest as this game's own card-back design — no
+other symbol, no alternate crest). The top card's gilded crest catches
+warm candlelight from a single lit candle in an iron holder just beside
+the stack, soft shadow pooling around the base of the cards, a few loose
+cards fanned slightly at the edge of the stack — still face-down, backs
+only, at every angle shown. Hyperreal macro product-photography-level
+realism, every material surface rendered with tack-sharp physically-based
+detail (same treatment as this game's equipment still-life cards), warm
+palette of candlelight amber, gold leaf and dark wood brown, intimate
+close-up composition with the stack positioned right-of-center, leaving
+the left side of the frame in soft dark shadow and relatively uncluttered
+for UI text/icon placed on top in code. No text, no UI, no watermark, no
+generic playing-card faces anywhere in frame, wide landscape banner
+orientation (about 1200×580px, roughly 2:1, wider than tall)
 ```
 
-**Notas:** mesma ideia de "lado escuro reservado" dos dois anteriores, só
-que aqui é o lado esquerdo inteiro (a pilha de cartas fica deslocada pra
-direita de propósito). Se quiser trocar o baralho genérico por algo mais
-"deste jogo" (leão dourado no verso, por exemplo), dá pra acrescentar uma
-frase tipo "the top card's back bearing a rearing golden lion crest" —
-deixei genérico porque still-life hiper-realista tende a sair melhor sem
-pedir um símbolo heráldico específico de uma vez.
+**Notas:** mesma ideia de "lado escuro reservado" dos outros cards
+compactos, só que aqui é o lado esquerdo inteiro (a pilha de cartas fica
+deslocada pra direita de propósito). A correção principal foi dupla:
+descrever o brasão exato (em vez de deixar genérico) E insistir
+repetidamente que só o verso aparece — sem as duas coisas juntas, um
+still-life "realista" de baralho tende a puxar pra referência de baralho
+de baralhão comum (naipes/números) do próprio treino da IA, mesmo que a
+cor peça carmesim-e-dourado.
 
 ---
 
@@ -842,36 +858,40 @@ pedir um símbolo heráldico específico de uma vez.
 do card "Multijogador" em `MainMenu` — salvar como
 `src/assets/menu-card-multijogador.webp` · **Estilo:** elemento/ícone de
 UI · **Status:** pronto pra gerar
-**Revisado:** o layout do menu mudou depois desse prompt ter sido
-escrito — Multijogador deixou de ter sua própria linha de largura total
-e passou a dividir uma linha com o novo card "Loja" (ver 4m), então a
-proporção e a composição abaixo foram ajustadas de ~3,3:1/simétrico pra
-~2:1/canto reservado, igual os outros cards compactos (4f/4g).
+**Revisado (2ª vez):** o layout mudou de novo — o usuário pediu que
+Campanha e Multijogador fossem os dois primeiros botões, ambos em
+destaque ("grande, assim como acontece em campanha"), e a Loja passou a
+ocupar sua própria linha sozinha (ver 4m). Multijogador volta a ser um
+card de largura total e proporção ~3,3:1, igual a Campanha (4e), e a
+composição abaixo volta a reservar o terço esquerdo escuro em vez do
+canto — mesmo tratamento de texto que Campanha, já que os dois ficam
+lado a lado no topo do menu com o mesmo estilo de card.
 
 ```
-WIDE LANDSCAPE BANNER IMAGE, aspect ratio approx 2:1 (width:height), approx 1200x580px — wider than tall but noticeably more square than a thin banner, NOT a portrait image. Two armored knights facing off in a standoff, one in crimson-and-gold
-heraldry in the foreground-left, one in steel-blue-and-silver heraldry
-facing them from the right, each with their own banner planted in the
-ground behind them, swords drawn and held ready, a hazy battlefield
-stretching between them into the distance at dusk. Same painterly
-premium fantasy key-art style as the game's title screen background
-(League of Legends / Total War loading-screen quality), rich palette
-split between warm crimson-gold (left knight) and cool steel-blue (right
-knight) with a neutral dusk-gold sky uniting them, composition pushed
-toward the upper-right of the frame, leaving the lower-left corner and
-edges relatively dark and uncluttered for UI text/icon placed on top in
-code. No text, no UI, no watermark, no logo, wide landscape banner
-orientation (about 1200×580px, roughly 2:1, wider than tall)
+WIDE LANDSCAPE BANNER IMAGE, aspect ratio approx 3.3:1 (width:height), approx 1600x480px — much wider than tall, a thin horizontal banner, NOT a square or portrait image. Two armored knights facing off in a standoff at medium-close range, one in
+crimson-and-gold heraldry planted center-right of frame, one in steel-
+blue-and-silver heraldry facing them from further back on the right edge,
+each with their own banner planted in the ground behind them, swords
+drawn and held ready, a hazy battlefield stretching away between them
+into the distance at dusk. Same painterly premium fantasy key-art style
+as the game's title screen background (League of Legends / Total War
+loading-screen quality), rich palette split between warm crimson-gold
+(near knight) and cool steel-blue (far knight) with a neutral dusk-gold
+sky uniting them, cinematic wide banner composition with both knights
+pushed toward the right two-thirds of the frame — leave the left third
+and the top/bottom edges relatively dark and uncluttered, since UI text
+and an icon sit on top of them in code. No text, no UI, no watermark, no
+logo, wide landscape banner orientation (about 1600×480px, roughly 3.3:1,
+much wider than tall)
 ```
 
-**Notas:** mesma lógica de "canto inferior-esquerdo reservado" dos
-outros cards compactos (4f/4g) — a versão anterior deste prompt pedia uma
-composição simétrica com uma faixa escura central, que fazia sentido
-quando esse card ocupava a largura toda sozinho; num card menor ao lado
-da Loja, o padrão dos outros três cards (canto reservado, não faixa
-central) fica mais consistente. A ideia de dois lados com cor de
-heráldica diferente (carmesim-dourado vs. azul-aço) se manteve — ainda
-comunica "times diferentes" antes mesmo de o jogador ler o nome do modo.
+**Notas:** mesmo tratamento de "terço esquerdo reservado" da Campanha
+(4e) — os dois cards agora usam a mesma moldura larga (4k) e o mesmo
+espaço reservado pro ícone/título, então precisam se comportar como um
+par visual. A ideia de dois lados com cor de heráldica diferente
+(carmesim-dourado vs. azul-aço) se manteve dos rascunhos anteriores —
+ainda comunica "times diferentes" antes mesmo de o jogador ler o nome do
+modo.
 
 ---
 
@@ -881,35 +901,40 @@ comunica "times diferentes" antes mesmo de o jogador ler o nome do modo.
 `bgImage` do card "Loja" em `MainMenu` — salvar como
 `src/assets/menu-card-loja.webp` · **Estilo:** elemento/ícone de UI ·
 **Status:** pronto pra gerar
-
-Card novo — faltava um jeito de chegar na loja direto pela tela inicial
-(antes só existia o atalho discreto do "+" ao lado das Coroas). Fica na
-mesma linha do Multijogador (ver 4h), então usa a mesma proporção
-compacta ~2:1 dos outros cards secundários.
+**Revisado (2ª vez):** Multijogador voltou a ser um card em destaque
+(4h) e saiu da linha da Loja — agora a Loja ocupa sua própria linha
+inteira sozinha, de largura total mas SEM o destaque "alto" dos dois
+primeiros cards (mesma altura dos cards compactos, só que esticada pra
+largura toda). Isso dá uma proporção mais parecida com um banner fino
+(~3,6:1) em vez do quadrado ~2:1 da revisão anterior — perto o bastante
+da proporção larga (4k) pra usar a mesma moldura, então a composição
+abaixo passou a reservar o terço esquerdo em vez do canto.
 
 ```
-WIDE LANDSCAPE BANNER IMAGE, aspect ratio approx 2:1 (width:height), approx 1200x580px — wider than tall but noticeably more square than a thin banner, NOT a portrait image. Hyperreal macro still-life illustration of an open wooden merchant's
-chest overflowing with treasure relevant to this game's own economy: a
-few sealed booster packs of playing cards tied with ribbon, a small pile
-of loose gold coins, and two or three faceted amethyst-purple gems
-(matching the game's own "Coroas" currency gem, see 4i) spilling out
-alongside them, warm lantern light from just outside the frame catching
-the gold and gems. Hyperreal macro product-photography-level realism,
-every material surface rendered with tack-sharp physically-based detail
-(same treatment as this game's equipment still-life cards and the Meu
-Deck menu card, 4g), warm palette of lantern amber, gold coin shine and
-a cool purple glint off the gems, composition pushed toward the upper-
-right of the frame, leaving the lower-left corner and edges relatively
-dark and uncluttered for UI text/icon placed on top in code. No text, no
-UI, no watermark, wide landscape banner orientation (about 1200×580px,
-roughly 2:1, wider than tall)
+WIDE LANDSCAPE BANNER IMAGE, aspect ratio approx 3.6:1 (width:height), approx 1600x440px — much wider than tall, a thin horizontal banner, NOT a square or portrait image. Hyperreal macro still-life illustration of an open wooden merchant's chest
+overflowing with treasure relevant to this game's own economy: a few
+sealed booster packs of playing cards tied with ribbon, a small pile of
+loose gold coins, and two or three faceted amethyst-purple gems (matching
+the game's own "Coroas" currency gem, see 4i) spilling out alongside
+them, warm lantern light from just outside the frame catching the gold
+and gems. Hyperreal macro product-photography-level realism, every
+material surface rendered with tack-sharp physically-based detail (same
+treatment as this game's equipment still-life cards and the Meu Deck
+menu card, 4g), warm palette of lantern amber, gold coin shine and a cool
+purple glint off the gems, composition pushed toward the right two-thirds
+of the frame — leave the left third and the top/bottom edges relatively
+dark and uncluttered, since UI text and an icon sit on top of them in
+code. No text, no UI, no watermark, wide landscape banner orientation
+(about 1600×440px, roughly 3.6:1, much wider than tall)
 ```
 
 **Notas:** pedi booster + ouro + gemas de ametista juntos de propósito —
 é literalmente o que a Loja vai vender (boosters, e Coroas usam essa
 mesma gema como ícone, ver 4i), então a arte já "spoila" o conteúdo da
-tela sem precisar de texto nenhum. Mesma lógica de canto reservado dos
-outros cards compactos.
+tela sem precisar de texto nenhum. Trocou o "canto reservado" da revisão
+anterior pelo "terço esquerdo reservado" pra combinar com a moldura larga
+(4k) que Campanha e Multijogador usam, já que a Loja também virou um card
+de largura total.
 
 ---
 
@@ -998,11 +1023,12 @@ fica desenhada por cima.
 ## 4k. Container — Moldura dos Cards do Menu (banner largo)
 
 **Vai em:** substitui a borda dourada simples em CSS (`border-2
-border-[#d4af37]`) ao redor do card "Campanha" (o único de proporção
-~3,3:1 agora — ver a nota revisada em 4h: Multijogador passou pra
-proporção compacta ~2:1 quando ganhou a Loja do lado) — salvar como
-`src/assets/ui-frame-menu-card-wide.webp` · **Estilo:** elemento/ícone de
-UI · **Status:** pronto pra gerar
+border-[#d4af37]`) ao redor dos TRÊS cards de largura total — Campanha,
+Multijogador (4h, de volta à proporção ~3,3:1 em destaque) e Loja (4m,
+esticada pra ~3,6:1 já que fica sozinha na própria linha, mas próxima o
+bastante da mesma família pra usar esta moldura sem distorcer os cantos)
+— salvar como `src/assets/ui-frame-menu-card-wide.webp` · **Estilo:**
+elemento/ícone de UI · **Status:** pronto pra gerar
 
 O usuário pediu uma moldura de verdade (não só uma borda lisa) ao redor
 das novas artes de fundo do menu — mesma ideia de "moldura entalhada"
@@ -1042,11 +1068,12 @@ moldura (já com o meio transparente) por cima, ver `MenuCard` em
 
 ## 4l. Container — Moldura dos Cards do Menu (compacto)
 
-**Vai em:** substitui a mesma borda em CSS ao redor dos QUATRO cards de
-proporção ~2:1 — Partida Rápida, Meu Deck (4f/4g), e agora também
-Multijogador e Loja (4h/4m) depois da revisão de layout — salvar como
-`src/assets/ui-frame-menu-card-compact.webp` · **Estilo:** elemento/ícone
-de UI · **Status:** pronto pra gerar
+**Vai em:** substitui a mesma borda em CSS ao redor dos DOIS cards de
+proporção ~2:1 que dividem fileira — Partida Rápida e Meu Deck (4f/4g).
+Multijogador e Loja voltaram a ser cards de largura total depois da 2ª
+revisão de layout e agora usam a moldura larga (4k) em vez desta — salvar
+como `src/assets/ui-frame-menu-card-compact.webp` · **Estilo:**
+elemento/ícone de UI · **Status:** pronto pra gerar
 
 Par do prompt anterior, mesma família visual, só numa proporção mais
 quadrada pra combinar com os quatro cards menores em duas fileiras de
@@ -1072,9 +1099,10 @@ only a thin strip relative to the whole frame)
 fundo por trás, moldura por cima, sem remoção de fundo). Duas molduras
 (larga + compacta) em vez de uma só reaproveitada em todos os cards
 porque esticar uma moldura de proporção muito diferente deixaria os
-cantos entalhados distorcidos — a larga (4k) cobre só a Campanha agora, a
-compacta cobre os outros quatro (Partida Rápida, Meu Deck, Multijogador,
-Loja — ver 4f/4g/4h/4m).
+cantos entalhados distorcidos — a larga (4k) cobre os três cards de
+largura total (Campanha, Multijogador, Loja — ver 4e/4h/4m), a compacta
+cobre só os dois que dividem fileira (Partida Rápida e Meu Deck — ver
+4f/4g).
 
 ---
 
