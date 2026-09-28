@@ -2286,16 +2286,22 @@ const MenuCard = ({ icon, title, subtitle, bgImage, tall = false, className = ''
   >
     <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" draggable={false} />
     <div className="absolute inset-0 bg-gradient-to-br from-black/85 via-black/65 to-black/80" />
-    <div className="relative h-full flex flex-col justify-center gap-0.5 px-3.5">
-      <div className="flex items-center gap-2">
-        <span className={tall ? 'text-2xl leading-none' : 'text-lg leading-none'}>{icon}</span>
+    <div className={`relative h-full flex flex-col justify-center gap-0.5 ${tall ? 'px-3.5' : 'px-2.5'}`}>
+      <div className="flex items-center gap-1.5 min-w-0">
+        <span className={`shrink-0 ${tall ? 'text-2xl leading-none' : 'text-base leading-none'}`}>{icon}</span>
+        {/* break-words is the safety net for single long words with no space to
+            wrap at (e.g. "MULTIJOGADOR") — a title with a space (like "PARTIDA
+            RÁPIDA") wraps cleanly between words instead, but the compact
+            card's half-width is tight enough that the longest single-word
+            title still needs the smallest size to avoid an ugly mid-word
+            break on narrow phones. */}
         <span
-          className={`font-black uppercase tracking-wide text-[#f3e3c3] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] ${tall ? 'text-lg' : 'text-sm'}`}
+          className={`min-w-0 break-words font-black uppercase text-[#f3e3c3] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] ${tall ? 'text-lg tracking-wide' : 'text-[11px] tracking-tight leading-tight'}`}
         >
           {title}
         </span>
       </div>
-      <span className={`text-[#d9c9a3] leading-tight ${tall ? 'text-xs pl-8' : 'text-[10px] pl-[1.65rem]'}`}>{subtitle}</span>
+      <span className={`text-[#d9c9a3] leading-tight ${tall ? 'text-xs pl-8' : 'text-[10px] pl-[1.4rem]'}`}>{subtitle}</span>
     </div>
   </motion.button>
 );
@@ -2405,9 +2411,11 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
             elsewhere) stay in English — only the label actually shown is translated,
             so this doesn't need to touch any of the logic keyed off those strings.
             Campanha gets its own featured, taller card (same treatment the reference
-            mockup gives it); Partida Rápida/Meu Deck share a row; Multijogador gets
-            its own full-width card below. Background crops reuse existing art
-            (battlefield/card-back) rather than generating a new image per card. */}
+            mockup gives it); the other four share two half-width rows — Multijogador
+            paired with Loja rather than its own full-width row, now that there's a
+            second "secondary destination" to sit next to it. Background crops reuse
+            existing art (battlefield/card-back) rather than generating a new image
+            per card — see art-prompts/README.md 4e-4h/4m for the real art briefs. */}
         <MenuCard
           icon="⚔️"
           title={MODE_LABELS_PT['Campaign']}
@@ -2432,13 +2440,25 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
             onClick={(e) => { e.stopPropagation(); onSelectMode('My Deck'); }}
           />
         </div>
-        <MenuCard
-          icon="👑"
-          title={MODE_LABELS_PT['Multiplayer']}
-          subtitle="Desafie outros comandantes"
-          bgImage={boardBattlefieldImage}
-          onClick={(e) => { e.stopPropagation(); onSelectMode('Multiplayer'); }}
-        />
+        <div className="grid grid-cols-2 gap-3">
+          <MenuCard
+            icon="👑"
+            title={MODE_LABELS_PT['Multiplayer']}
+            subtitle="Desafie comandantes"
+            bgImage={boardBattlefieldImage}
+            onClick={(e) => { e.stopPropagation(); onSelectMode('Multiplayer'); }}
+          />
+          <MenuCard
+            icon="🏪"
+            title="Loja"
+            subtitle="Boosters e Coroas"
+            bgImage={cardTemplateFullArtGoldImage}
+            onClick={(e) => {
+              e.stopPropagation();
+              setComingSoon({ title: 'Loja', message: 'Em breve você vai poder comprar boosters e Coroas aqui.' });
+            }}
+          />
+        </div>
       </div>
 
       {/* Secondary destinations — none of these screens exist yet (see
