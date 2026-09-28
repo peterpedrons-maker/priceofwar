@@ -2002,6 +2002,60 @@ const BASE_HP_BY_NAME: Record<string, number> = {};
 });
 const isCardDamaged = (card: CardData): boolean => card.hp < (BASE_HP_BY_NAME[card.name] ?? card.hp);
 
+// ── Player profile (local-only for now) ─────────────────────────────────────
+// No account/backend yet (see the user's own multiplayer/Supabase roadmap) — this
+// is deliberately built as a self-contained local-storage-backed system so the
+// main menu's UI, avatar picker, and Coroas balance are all already real and
+// working. Swapping this for a Supabase-backed profile later means replacing
+// loadProfile/saveProfile's storage, not touching any of the UI built against
+// PlayerProfile's shape.
+type PlayerProfile = {
+  name: string;
+  avatarId: string;
+  coroas: number;
+  rank: string;
+};
+
+// A simple icon gallery, not real generated art yet — each avatar is just an
+// emoji over a distinct colored badge, the same "diverse gallery to pick from"
+// idea the user asked for, without blocking on art generation. Swap these for
+// real illustrated avatars later without changing PlayerProfile's shape (still
+// just an id) or any of the picker/profile-bar UI below.
+const AVATAR_OPTIONS: { id: string; glyph: string; from: string; to: string }[] = [
+  { id: 'lion', glyph: '🦁', from: '#7a1f1f', to: '#c9a24a' },
+  { id: 'sword', glyph: '⚔️', from: '#3a4550', to: '#8a97a6' },
+  { id: 'shield', glyph: '🛡️', from: '#6b4a12', to: '#d4af37' },
+  { id: 'crown', glyph: '👑', from: '#5c3d0a', to: '#e8c766' },
+  { id: 'castle', glyph: '🏰', from: '#41474f', to: '#7d8792' },
+  { id: 'horse', glyph: '🐎', from: '#4a2f1a', to: '#a9723f' },
+  { id: 'bow', glyph: '🏹', from: '#2f4a2f', to: '#6f9b5e' },
+  { id: 'falcon', glyph: '🦅', from: '#2a3a4a', to: '#5f89ab' },
+];
+const avatarById = (id: string) => AVATAR_OPTIONS.find(a => a.id === id) ?? AVATAR_OPTIONS[0];
+
+const PROFILE_STORAGE_KEY = 'pow_player_profile_v1';
+const DEFAULT_PROFILE: PlayerProfile = {
+  name: 'Comandante',
+  avatarId: AVATAR_OPTIONS[0].id,
+  coroas: 150,
+  rank: 'Recruta',
+};
+// Every read/write goes through these two — a private/blocked-storage browser
+// (see the install-prompt code elsewhere for the same defensive pattern) just
+// falls back to an in-memory default instead of throwing.
+const loadProfile = (): PlayerProfile => {
+  try {
+    const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_PROFILE };
+    return { ...DEFAULT_PROFILE, ...JSON.parse(raw) };
+  } catch {
+    return { ...DEFAULT_PROFILE };
+  }
+};
+const saveProfile = (profile: PlayerProfile) => {
+  try { localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile)); } catch { /* private mode etc. */ }
+};
+
 // Display-only Portuguese labels for the main menu buttons — the mode strings
 // themselves ('Quick Match' etc.) stay in English since they're also used as
 // identifiers (gameMode comparisons, onSelectMode), not just display text.
@@ -2047,11 +2101,160 @@ const MenuButton = ({ label, onClick, className = '' }: {
   </motion.button>
 );
 
+// The circular avatar badge itself — used both in the main menu's profile bar
+// (small) and inside the picker modal (bigger, one per option) so the exact
+// look never drifts between the two.
+const AvatarBadge = ({ avatarId, size = 48 }: { avatarId: string; size?: number }) => {
+  const a = avatarById(avatarId);
+  return (
+    <div
+      className="rounded-full flex items-center justify-center shrink-0 border-2 border-[#e8c766]"
+      style={{
+        width: size, height: size,
+        background: `linear-gradient(155deg, ${a.from}, ${a.to})`,
+        boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.5)',
+        fontSize: size * 0.52,
+      }}
+    >
+      {a.glyph}
+    </div>
+  );
+};
+
+// Simple local gallery picker (see AVATAR_OPTIONS above for why these are
+// emoji badges rather than generated art) — same modal-overlay pattern as
+// InstallPrompt/DeckPickerModal elsewhere in this file.
+const AvatarPickerModal = ({ current, onSelect, onClose }: {
+  current: string; onSelect: (id: string) => void; onClose: () => void;
+}) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/80 pointer-events-auto"
+    onClick={onClose}
+  >
+    <motion.div
+      initial={{ scale: 0.9, y: 20 }}
+      animate={{ scale: 1, y: 0 }}
+      exit={{ scale: 0.9, y: 20 }}
+      onClick={(e) => e.stopPropagation()}
+      className="w-full max-w-xs bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-2xl border-2 border-[#5c4a30] shadow-2xl p-6 flex flex-col items-center gap-4"
+      style={{ boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.45), 0 10px 40px rgba(0,0,0,0.6)' }}
+    >
+      <h2 className="text-lg font-black uppercase tracking-wide text-[#2a2117]">Escolha seu Avatar</h2>
+      <div className="grid grid-cols-4 gap-3">
+        {AVATAR_OPTIONS.map(a => (
+          <button
+            key={a.id}
+            onClick={() => { playUiClickSfx(); onSelect(a.id); }}
+            className="relative"
+          >
+            <AvatarBadge avatarId={a.id} size={56} />
+            {a.id === current && (
+              <div className="absolute -inset-1 rounded-full border-2 border-emerald-400" />
+            )}
+          </button>
+        ))}
+      </div>
+      <button
+        onClick={() => { playUiClickSfx(); onClose(); }}
+        className="mt-1 px-5 py-2 rounded-full border-2 border-[#5c4a30] text-[#4a3b2c] font-bold text-sm hover:bg-black/5 transition-colors"
+      >
+        Fechar
+      </button>
+    </motion.div>
+  </motion.div>
+);
+
+// The top profile bar — avatar (tap opens AvatarPickerModal), editable name,
+// a static rank badge (no ranked system yet, see the user's own roadmap; this
+// is just the slot it'll live in), and the Coroas balance. Coroas is the
+// meta-progression currency spent on boosters/events OUTSIDE a match — kept
+// visually distinct from in-match Ouro (a crown badge, not the round gold-coin
+// hud-gold-badge used on the board) specifically so the two are never confused.
+// Entirely local-storage-backed for now (see loadProfile/saveProfile) — no
+// account system yet, but the UI itself is the real thing already.
+const ProfileBar = ({ profile, onChange, onOpenAvatarPicker }: {
+  profile: PlayerProfile;
+  onChange: (patch: Partial<PlayerProfile>) => void;
+  onOpenAvatarPicker: () => void;
+}) => {
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(profile.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const startEditing = () => {
+    setNameDraft(profile.name);
+    setEditingName(true);
+  };
+  const commitName = () => {
+    const trimmed = nameDraft.trim().slice(0, 18);
+    if (trimmed) onChange({ name: trimmed });
+    setEditingName(false);
+  };
+
+  useEffect(() => {
+    if (editingName) inputRef.current?.select();
+  }, [editingName]);
+
+  return (
+    <div
+      className="absolute top-0 inset-x-0 z-20 flex items-center justify-between gap-3 px-4 pb-3"
+      style={{ paddingTop: 'max(12px, env(safe-area-inset-top))', background: 'linear-gradient(to bottom, rgba(0,0,0,0.75), transparent)' }}
+    >
+      <div className="flex items-center gap-2.5 min-w-0">
+        <button onClick={() => { playUiClickSfx(); onOpenAvatarPicker(); }} className="shrink-0">
+          <AvatarBadge avatarId={profile.avatarId} size={44} />
+        </button>
+        <div className="flex flex-col items-start min-w-0">
+          {editingName ? (
+            <input
+              ref={inputRef}
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              onBlur={commitName}
+              onKeyDown={(e) => { if (e.key === 'Enter') commitName(); if (e.key === 'Escape') setEditingName(false); }}
+              maxLength={18}
+              autoFocus
+              className="bg-black/40 border border-[#e8c766]/70 rounded px-1.5 py-0.5 text-sm font-bold text-[#f3e3c3] w-28 outline-none"
+            />
+          ) : (
+            <button onClick={() => { playUiClickSfx(); startEditing(); }} className="flex items-center gap-1 max-w-[9rem]">
+              <span className="truncate text-sm font-bold text-[#f3e3c3] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{profile.name}</span>
+              <span className="text-[10px] opacity-70">✎</span>
+            </button>
+          )}
+          <span className="text-[10px] font-black uppercase tracking-wide text-[#d4af37] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+            {profile.rank}
+          </span>
+        </div>
+      </div>
+      <div
+        className="flex items-center gap-1.5 shrink-0 bg-black/50 border border-[#e8c766]/70 rounded-full px-3 py-1.5"
+        style={{ boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.3)' }}
+      >
+        <span className="text-base leading-none">👑</span>
+        <span className="text-sm font-black text-[#f3e3c3]">{profile.coroas}</span>
+      </div>
+    </div>
+  );
+};
+
 const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) => {
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
   const bgX = useTransform(mouseX, [-500, 500], [-8, 8]);
   const bgY = useTransform(mouseY, [-500, 500], [-8, 8]);
+  const [profile, setProfile] = useState<PlayerProfile>(loadProfile);
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
+  const updateProfile = (patch: Partial<PlayerProfile>) => {
+    setProfile(prev => {
+      const next = { ...prev, ...patch };
+      saveProfile(next);
+      return next;
+    });
+  };
 
   return (
     <motion.div
@@ -2076,6 +2279,21 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
         draggable={false}
       />
       <div className="absolute inset-0 z-0 bg-gradient-to-b from-black/10 via-black/40 to-black/85" />
+
+      <ProfileBar
+        profile={profile}
+        onChange={updateProfile}
+        onOpenAvatarPicker={() => setAvatarPickerOpen(true)}
+      />
+      <AnimatePresence>
+        {avatarPickerOpen && (
+          <AvatarPickerModal
+            current={profile.avatarId}
+            onSelect={(id) => { updateProfile({ avatarId: id }); setAvatarPickerOpen(false); }}
+            onClose={() => setAvatarPickerOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Logo — cropped straight out of the card back's own emblem (see
           card-backplate.webp / art-prompts/README.md "4d"): that art already had a
