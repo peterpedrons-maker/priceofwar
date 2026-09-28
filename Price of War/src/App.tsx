@@ -12,7 +12,6 @@ import { playAiTurn, AiAction } from './services/aiService';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
 import startScreenBgImage from './assets/start-screen-bg.webp';
-import buttonPlaqueImage from './assets/button-plaque.webp';
 import cardTemplateImage from './assets/card-template.webp';
 import cardTemplateSilverImage from './assets/card-template-silver.webp';
 import cardTemplateChampagneImage from './assets/card-template-champagne.webp';
@@ -137,7 +136,7 @@ import batalhaImpactSfxUrl from './assets/sfx-batalha-impacto.wav';
 // phase — see LoadingScreen below) — preloaded during the loading screen's bar
 // phase so nothing pops in mid-match from a cold network fetch.
 const ALL_PRELOAD_IMAGES: string[] = [
-  boardBattlefieldImage, buttonPlaqueImage, cardTemplateImage, cardTemplateSilverImage,
+  boardBattlefieldImage, cardTemplateImage, cardTemplateSilverImage,
   cardTemplateChampagneImage, cardBackplateImage, cardTemplateFullArtGoldImage,
   cardTemplateMiniImage, cardTemplateSilverMiniImage, cardTemplateChampagneMiniImage,
   cardFullArtFrameEmboscadaImage, cardFullArtFrameTaticaImage,
@@ -2014,6 +2013,9 @@ type PlayerProfile = {
   avatarId: string;
   coroas: number;
   rank: string;
+  level: number;
+  xp: number;
+  xpToNext: number;
 };
 
 // A simple icon gallery, not real generated art yet — each avatar is just an
@@ -2038,7 +2040,10 @@ const DEFAULT_PROFILE: PlayerProfile = {
   name: 'Comandante',
   avatarId: AVATAR_OPTIONS[0].id,
   coroas: 150,
-  rank: 'Recruta',
+  rank: 'Recruta I',
+  level: 3,
+  xp: 35,
+  xpToNext: 100,
 };
 // Every read/write goes through these two — a private/blocked-storage browser
 // (see the install-prompt code elsewhere for the same defensive pattern) just
@@ -2065,41 +2070,6 @@ const MODE_LABELS_PT: Record<string, string> = {
   'Multiplayer': 'Multijogador',
   'My Deck': 'Meu Deck',
 };
-
-// A single gold plaque texture (see art-prompts/README.md "4c" and
-// button-plaque.webp — cropped from the user's own generated reference sheet,
-// specifically the largest of several sizes it came in, per their instruction to
-// resize ONE image via code rather than keep multiple generated variants) reused
-// for every menu button below. Sizing differences between buttons (e.g. Quick
-// Match reading as the "primary" action) are a later code-only change if wanted,
-// not a reason to generate more image variants.
-const MenuButton = ({ label, onClick, className = '' }: {
-  label: string, onClick: (e: React.MouseEvent) => void, className?: string
-}) => (
-  <motion.button
-    whileHover={{ scale: 1.04 }}
-    whileTap={{ scale: 0.97 }}
-    onClick={(e) => { playUiClickSfx(); onClick(e); }}
-    className={`relative w-full ${className}`}
-    style={{ aspectRatio: '831 / 177' }}
-  >
-    <img src={buttonPlaqueImage} alt="" className="absolute inset-0 w-full h-full pointer-events-none select-none drop-shadow-[0_6px_10px_rgba(0,0,0,0.5)]" draggable={false} />
-    {/* Text style matches the user's own reference mockup exactly (see
-        art-prompts/reference/start-screen-mockup-v1.png): plain cream/off-white
-        fill with a dark engraved outline, no icon — a bold condensed sans rather
-        than the Cinzel serif used elsewhere, since that's what the reference
-        actually uses for button labels (Cinzel stays on the logo/headings). */}
-    <span
-      className="absolute inset-0 flex items-center justify-center font-black uppercase tracking-wide text-base md:text-xl"
-      style={{
-        color: '#f3e3c3',
-        textShadow: '-1px -1px 0 #2a1608, 1px -1px 0 #2a1608, -1px 1px 0 #2a1608, 1px 1px 0 #2a1608, 0 2px 3px rgba(0,0,0,0.6)',
-      }}
-    >
-      {label}
-    </span>
-  </motion.button>
-);
 
 // The circular avatar badge itself — used both in the main menu's profile bar
 // (small) and inside the picker modal (bigger, one per option) so the exact
@@ -2175,10 +2145,11 @@ const AvatarPickerModal = ({ current, onSelect, onClose }: {
 // hud-gold-badge used on the board) specifically so the two are never confused.
 // Entirely local-storage-backed for now (see loadProfile/saveProfile) — no
 // account system yet, but the UI itself is the real thing already.
-const ProfileBar = ({ profile, onChange, onOpenAvatarPicker }: {
+const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
   profile: PlayerProfile;
   onChange: (patch: Partial<PlayerProfile>) => void;
   onOpenAvatarPicker: () => void;
+  onOpenShop: () => void;
 }) => {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(profile.name);
@@ -2198,16 +2169,24 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker }: {
     if (editingName) inputRef.current?.select();
   }, [editingName]);
 
+  const xpPct = Math.min(100, Math.round((profile.xp / Math.max(1, profile.xpToNext)) * 100));
+
   return (
     <div
-      className="absolute top-0 inset-x-0 z-20 flex items-center justify-between gap-3 px-4 pb-3"
+      className="absolute top-0 inset-x-0 z-20 flex items-start justify-between gap-3 px-4 pb-3"
       style={{ paddingTop: 'max(12px, env(safe-area-inset-top))', background: 'linear-gradient(to bottom, rgba(0,0,0,0.75), transparent)' }}
     >
-      <div className="flex items-center gap-2.5 min-w-0">
-        <button onClick={() => { playUiClickSfx(); onOpenAvatarPicker(); }} className="shrink-0">
-          <AvatarBadge avatarId={profile.avatarId} size={44} />
+      <div
+        className="flex items-center gap-2.5 min-w-0 bg-black/50 border border-[#e8c766]/70 rounded-full pl-1.5 pr-4 py-1.5"
+        style={{ boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.3)' }}
+      >
+        <button onClick={() => { playUiClickSfx(); onOpenAvatarPicker(); }} className="shrink-0 relative">
+          <AvatarBadge avatarId={profile.avatarId} size={40} />
+          <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#2a1608] border border-[#e8c766] text-[8px] font-black text-[#e8c766] flex items-center justify-center leading-none">
+            {profile.level}
+          </span>
         </button>
-        <div className="flex flex-col items-start min-w-0">
+        <div className="flex flex-col items-start min-w-0 gap-0.5">
           {editingName ? (
             <input
               ref={inputRef}
@@ -2225,21 +2204,117 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker }: {
               <span className="text-[10px] opacity-70">✎</span>
             </button>
           )}
-          <span className="text-[10px] font-black uppercase tracking-wide text-[#d4af37] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+          <span className="text-[9px] font-black uppercase tracking-wide text-[#d4af37] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
             {profile.rank}
           </span>
+          {/* Cosmetic for now — no XP is actually awarded anywhere yet, same
+              "real UI, no data feeding it yet" tier as Coroas/rank above. */}
+          <div className="w-20 h-1.5 rounded-full bg-black/60 border border-[#e8c766]/40 overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-[#d4af37] to-[#f3e3c3]" style={{ width: `${xpPct}%` }} />
+          </div>
         </div>
       </div>
-      <div
-        className="flex items-center gap-1.5 shrink-0 bg-black/50 border border-[#e8c766]/70 rounded-full px-3 py-1.5"
-        style={{ boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.3)' }}
-      >
-        <span className="text-base leading-none">👑</span>
-        <span className="text-sm font-black text-[#f3e3c3]">{profile.coroas}</span>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <div
+          className="flex items-center gap-1.5 bg-black/50 border border-[#e8c766]/70 rounded-full pl-3 pr-1.5 py-1.5"
+          style={{ boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.3)' }}
+        >
+          <span className="text-base leading-none">👑</span>
+          <span className="text-sm font-black text-[#f3e3c3]">{profile.coroas}</span>
+          <button
+            onClick={() => { playUiClickSfx(); onOpenShop(); }}
+            className="w-5 h-5 rounded-full bg-emerald-600 hover:bg-emerald-500 flex items-center justify-center text-white text-xs font-black leading-none transition-colors"
+            aria-label="Comprar Coroas"
+          >
+            +
+          </button>
+        </div>
       </div>
     </div>
   );
 };
+
+// A lightweight stub for menu destinations that don't exist yet (shop,
+// settings, tutorials, ranking) — same modal shell as AvatarPickerModal/
+// InstallPrompt, just a title/message and a close button. Keeps the bottom
+// icon row and the Coroas "+" button honest about what's real right now
+// instead of silently doing nothing when tapped.
+const ComingSoonModal = ({ title, message, onClose }: { title: string; message: string; onClose: () => void }) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/80 pointer-events-auto"
+    onClick={onClose}
+  >
+    <motion.div
+      initial={{ scale: 0.9, y: 20 }}
+      animate={{ scale: 1, y: 0 }}
+      exit={{ scale: 0.9, y: 20 }}
+      onClick={(e) => e.stopPropagation()}
+      className="w-full max-w-xs bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-2xl border-2 border-[#5c4a30] shadow-2xl p-6 flex flex-col items-center gap-3 text-center"
+      style={{ boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.45), 0 10px 40px rgba(0,0,0,0.6)' }}
+    >
+      <h2 className="text-lg font-black uppercase tracking-wide text-[#2a2117]">{title}</h2>
+      <p className="text-sm text-[#4a3b2c]">{message}</p>
+      <button
+        onClick={() => { playUiClickSfx(); onClose(); }}
+        className="mt-1 px-5 py-2 rounded-full border-2 border-[#5c4a30] text-[#4a3b2c] font-bold text-sm hover:bg-black/5 transition-colors"
+      >
+        Fechar
+      </button>
+    </motion.div>
+  </motion.div>
+);
+
+// The big image-card mode buttons (see the user's reference mockup) — a
+// framed panel with a faint background crop of an existing art asset (no new
+// art generated for this pass, see bgImage callers below), an icon, a title
+// and a one-line subtitle, instead of the plain gold plaque MenuButton used
+// before. `tall` controls the two heights the reference uses (the featured
+// Campanha card vs. every other card).
+const MenuCard = ({ icon, title, subtitle, bgImage, tall = false, className = '', onClick }: {
+  icon: string; title: string; subtitle: string; bgImage: string; tall?: boolean; className?: string;
+  onClick: (e: React.MouseEvent) => void;
+}) => (
+  <motion.button
+    whileHover={{ scale: 1.02 }}
+    whileTap={{ scale: 0.97 }}
+    onClick={(e) => { playUiClickSfx(); onClick(e); }}
+    className={`relative rounded-xl overflow-hidden border-2 border-[#d4af37] text-left ${tall ? 'h-24' : 'h-20'} ${className}`}
+    style={{ boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.4), 0 6px 16px rgba(0,0,0,0.5)' }}
+  >
+    <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" draggable={false} />
+    <div className="absolute inset-0 bg-gradient-to-br from-black/85 via-black/65 to-black/80" />
+    <div className="relative h-full flex flex-col justify-center gap-0.5 px-3.5">
+      <div className="flex items-center gap-2">
+        <span className={tall ? 'text-2xl leading-none' : 'text-lg leading-none'}>{icon}</span>
+        <span
+          className={`font-black uppercase tracking-wide text-[#f3e3c3] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] ${tall ? 'text-lg' : 'text-sm'}`}
+        >
+          {title}
+        </span>
+      </div>
+      <span className={`text-[#d9c9a3] leading-tight ${tall ? 'text-xs pl-8' : 'text-[10px] pl-[1.65rem]'}`}>{subtitle}</span>
+    </div>
+  </motion.button>
+);
+
+// Small secondary destinations row (settings/tutorials/ranking/sound) — none
+// of these screens exist yet, so every one opens ComingSoonModal for now (see
+// MainMenu). Kept as its own row below the mode cards, same spot the
+// reference mockup puts it.
+const MenuIconButton = ({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) => (
+  <button onClick={() => { playUiClickSfx(); onClick(); }} className="flex flex-col items-center gap-1">
+    <div
+      className="w-11 h-11 rounded-lg border-2 border-[#d4af37]/70 bg-black/50 flex items-center justify-center text-lg"
+      style={{ boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.3)' }}
+    >
+      {icon}
+    </div>
+    <span className="text-[9px] uppercase tracking-wide font-bold text-[#d9c9a3] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{label}</span>
+  </button>
+);
 
 const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) => {
   const mouseX = useMotionValue(0);
@@ -2248,6 +2323,7 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
   const bgY = useTransform(mouseY, [-500, 500], [-8, 8]);
   const [profile, setProfile] = useState<PlayerProfile>(loadProfile);
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
+  const [comingSoon, setComingSoon] = useState<{ title: string; message: string } | null>(null);
   const updateProfile = (patch: Partial<PlayerProfile>) => {
     setProfile(prev => {
       const next = { ...prev, ...patch };
@@ -2284,6 +2360,7 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
         profile={profile}
         onChange={updateProfile}
         onOpenAvatarPicker={() => setAvatarPickerOpen(true)}
+        onOpenShop={() => setComingSoon({ title: 'Loja de Coroas', message: 'Em breve você vai poder comprar Coroas aqui para trocar por boosters e eventos.' })}
       />
       <AnimatePresence>
         {avatarPickerOpen && (
@@ -2293,33 +2370,87 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
             onClose={() => setAvatarPickerOpen(false)}
           />
         )}
+        {comingSoon && (
+          <ComingSoonModal
+            title={comingSoon.title}
+            message={comingSoon.message}
+            onClose={() => setComingSoon(null)}
+          />
+        )}
       </AnimatePresence>
 
       {/* Logo — cropped straight out of the card back's own emblem (see
           card-backplate.webp / art-prompts/README.md "4d"): that art already had a
           fully-lettered "PRICE OF WAR — FAITH AND FIRE" crest painted into it, so
-          there was no need to generate a whole separate logo asset. */}
+          there was no need to generate a whole separate logo asset. Shrunk from the
+          old full-width hero size now that the screen actually has content below it
+          worth making room for (see the user's own reference mockup). */}
       <motion.img
         src={logoImage}
         alt="Price of War — Faith and Fire"
-        initial={{ y: -60, opacity: 0 }}
+        initial={{ y: -40, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", stiffness: 100 }}
-        className="w-[85vw] max-w-md mb-10 z-10 select-none pointer-events-none drop-shadow-[0_0_35px_rgba(212,175,55,0.35)]"
+        className="w-[48vw] max-w-[190px] mt-14 mb-2 z-10 select-none pointer-events-none drop-shadow-[0_0_25px_rgba(212,175,55,0.35)]"
         draggable={false}
       />
+      {/* Subtitle ribbon — plain styled text, no new art (see the reference
+          mockup's "GUERRA PELO REINO" banner under its own logo). */}
+      <div className="relative z-10 mb-4 px-4 py-1 rounded-full border border-[#d4af37]/70 bg-black/50">
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#d4af37]">Guerra pelo Reino</span>
+      </div>
 
-      <div className="flex flex-col gap-4 relative z-10 w-[85vw] max-w-sm">
+      <div className="flex flex-col gap-3 relative z-10 w-[88vw] max-w-sm">
         {/* The mode identifiers themselves (used in onSelectMode/gameMode comparisons
             elsewhere) stay in English — only the label actually shown is translated,
-            so this doesn't need to touch any of the logic keyed off those strings. */}
-        {(['Campaign', 'Quick Match', 'Multiplayer', 'My Deck'] as const).map((mode) => (
-          <MenuButton
-            key={mode}
-            label={MODE_LABELS_PT[mode]}
-            onClick={(e) => { e.stopPropagation(); onSelectMode(mode); }}
+            so this doesn't need to touch any of the logic keyed off those strings.
+            Campanha gets its own featured, taller card (same treatment the reference
+            mockup gives it); Partida Rápida/Meu Deck share a row; Multijogador gets
+            its own full-width card below. Background crops reuse existing art
+            (battlefield/card-back) rather than generating a new image per card. */}
+        <MenuCard
+          icon="⚔️"
+          title={MODE_LABELS_PT['Campaign']}
+          subtitle="Capítulo I — O Cerco de Aureth"
+          bgImage={boardBattlefieldImage}
+          tall
+          onClick={(e) => { e.stopPropagation(); onSelectMode('Campaign'); }}
+        />
+        <div className="grid grid-cols-2 gap-3">
+          <MenuCard
+            icon="⚡"
+            title={MODE_LABELS_PT['Quick Match']}
+            subtitle="Contra a IA"
+            bgImage={startScreenBgImage}
+            onClick={(e) => { e.stopPropagation(); onSelectMode('Quick Match'); }}
           />
-        ))}
+          <MenuCard
+            icon="🎴"
+            title={MODE_LABELS_PT['My Deck']}
+            subtitle="Suas cartas"
+            bgImage={cardBackplateImage}
+            onClick={(e) => { e.stopPropagation(); onSelectMode('My Deck'); }}
+          />
+        </div>
+        <MenuCard
+          icon="👑"
+          title={MODE_LABELS_PT['Multiplayer']}
+          subtitle="Desafie outros comandantes"
+          bgImage={boardBattlefieldImage}
+          onClick={(e) => { e.stopPropagation(); onSelectMode('Multiplayer'); }}
+        />
+      </div>
+
+      {/* Secondary destinations — none of these screens exist yet (see
+          ComingSoonModal), just the slots the reference mockup reserves for them. */}
+      <div
+        className="absolute bottom-0 inset-x-0 z-20 flex items-center justify-center gap-6 pt-3"
+        style={{ paddingBottom: 'max(14px, env(safe-area-inset-bottom))', background: 'linear-gradient(to top, rgba(0,0,0,0.75), transparent)' }}
+      >
+        <MenuIconButton icon="⚙️" label="Config." onClick={() => setComingSoon({ title: 'Configurações', message: 'Em breve.' })} />
+        <MenuIconButton icon="📖" label="Tutoriais" onClick={() => setComingSoon({ title: 'Tutoriais', message: 'Em breve.' })} />
+        <MenuIconButton icon="🏆" label="Ranking" onClick={() => setComingSoon({ title: 'Ranking', message: 'O sistema de partidas ranqueadas ainda está por vir.' })} />
+        <MenuIconButton icon="🔊" label="Som" onClick={() => setComingSoon({ title: 'Som', message: 'Em breve.' })} />
       </div>
     </motion.div>
   );
