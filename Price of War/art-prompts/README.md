@@ -873,6 +873,167 @@ comunicar "times diferentes" antes mesmo de o jogador ler o nome do modo.
 
 ---
 
+## 4i. Container — Pílula de Coroas
+
+**Vai em:** substitui o fundo desenhado em CSS (`bg-black/50` + borda
+dourada) atrás do ícone 👑 e do número de Coroas, no canto superior
+direito da tela inicial (`ProfileBar` em `src/App.tsx`) — salvar como
+`src/assets/ui-pill-coroas.webp` · **Estilo:** elemento/ícone de UI ·
+**Status:** pronto pra gerar
+
+Mesma família de material dos itens 4b/4c antigos (bronze envelhecido e
+ouro, entalhado) — é o "container bem legal" que o usuário pediu pra
+substituir a pílula lisa atual. Curta e larga o bastante pra caber o
+ícone da coroa + até 4 dígitos de número por cima em código.
+
+```
+Top-down-neutral game UI icon illustration of a single ornate horizontal
+pill-shaped capsule badge: aged bronze metal with gold trim, a small
+circular medallion socket at the left end (sized to hold a crown icon,
+added separately in code) bordered by a faceted amethyst-purple gem,
+engraved rope-and-vine detailing running along the top and bottom edges
+of the capsule, the rest of the pill's surface smooth, flat and evenly
+lit so a number reads clearly on top of it in code. Isolated game UI
+asset on a flat, solid mid-gray background (no scene, no other elements)
+so it can be cleanly cut out and reused as a currency-pill background.
+Same painterly medieval-fantasy game style as the rest of the set (Gwent
+/ Yu-Gi-Oh Forbidden Memories menu quality), warm torchlit color grading
+(amber highlights on the bronze, a cool purple glint on the gem), no
+text, no numbers baked into it, no watermark, wide short pill/capsule
+composition (roughly 3:1, wider than tall)
+```
+
+**Notas:** pedi a gema em ametista de propósito — é a mesma cor usada no
+mockup de referência do usuário pro ícone da coroa, e ajuda a "Coroas"
+(moeda de fora da partida) se diferenciar ainda mais do Ouro (moeda de
+dentro da partida, sempre dourado puro sem gema). "Sem número" é
+proposital, igual o botão antigo (4c) — o valor é renderizado em código
+por cima.
+
+---
+
+## 4j. Container — Barra de Perfil
+
+**Vai em:** substitui o fundo em CSS (`bg-black/50` + borda dourada) da
+barra de perfil inteira no canto superior esquerdo (avatar + nome + rank
++ barra de XP, `ProfileBar` em `src/App.tsx`) — salvar como
+`src/assets/ui-pill-perfil.webp` · **Estilo:** elemento/ícone de UI ·
+**Status:** pronto pra gerar
+
+"Mesmo design de container" pedido pelo usuário pra combinar com a
+pílula de Coroas (4i) — mesmo material/acabamento, só maior e com um
+encaixe circular pro avatar do jogador em vez do medalhão da coroa.
+
+```
+Top-down-neutral game UI icon illustration of a single ornate horizontal
+pill-shaped capsule badge, wider than a small currency pill: aged bronze
+metal with gold trim, matching the exact same material, engraving style
+and rope-and-vine border as a companion currency-pill asset in this set,
+but with a larger circular recessed socket at the left end — deep enough
+to visually hold a round avatar portrait added separately in code, with
+its own raised gold ring border around the socket. The rest of the
+capsule to the right of the socket is a smooth, flat, evenly lit surface
+divided into two horizontal bands by a thin engraved line: a slightly
+taller top band (for a player name in code) and a shorter bottom band
+with a shallow carved groove running its full length (a track for a
+thin progress bar rendered in code on top of it). Isolated game UI asset
+on a flat, solid mid-gray background (no scene, no other elements) so it
+can be cleanly cut out and reused as the profile-bar background. Same
+painterly medieval-fantasy game style as the rest of the set (Gwent /
+Yu-Gi-Oh Forbidden Memories menu quality), warm torchlit color grading
+(amber highlights on the bronze), no text, no avatar, no numbers baked
+into it, no watermark, wide horizontal pill/capsule composition (roughly
+4.5:1, noticeably wider than the currency pill)
+```
+
+**Notas:** pedi "a mesma matéria/acabamento que uma pílula de moeda
+irmã" de propósito pra IA que for gerar entender que são a mesma família
+visual (mande a 4i junto como referência, se seu gerador aceitar
+referência de imagem). O "trilho entalhado" pro grupo inferior é pra
+onde a barra de XP (já implementada em código, cosmética por enquanto)
+fica desenhada por cima.
+
+---
+
+## 4k. Container — Moldura dos Cards do Menu (banner largo)
+
+**Vai em:** substitui a borda dourada simples em CSS (`border-2
+border-[#d4af37]`) ao redor dos cards "Campanha" e "Multijogador" (os
+dois de proporção ~3,3:1, ver 4e/4h) — salvar como
+`src/assets/ui-frame-menu-card-wide.webp` · **Estilo:** elemento/ícone de
+UI · **Status:** pronto pra gerar
+
+O usuário pediu uma moldura de verdade (não só uma borda lisa) ao redor
+das novas artes de fundo do menu — mesma ideia de "moldura entalhada"
+já usada nos frames das cartas de jogo, só que numa proporção bem mais
+larga e baixa.
+
+```
+Top-down-neutral game UI icon illustration of a single ornate rectangular
+picture-frame border, aged bronze and gold with engraved corner brackets,
+rivets and a thin rope-and-vine trim running along the inner and outer
+edge of the frame. The frame's center is a large, plain, flat solid
+mid-gray rectangular window — completely empty, no texture, no
+gradient — representing where a background image will show through once
+composited in code; only the border itself should have any detail or
+color. Same painterly medieval-fantasy game style as the rest of the set
+(Gwent / Yu-Gi-Oh Forbidden Memories menu quality), warm torchlit color
+grading on the bronze/gold border only, no text, no watermark, wide
+landscape frame composition (roughly 3.3:1 outer aspect ratio, matching
+a thin horizontal banner, the border itself only a thin strip relative
+to the whole frame — most of the frame's own area is the empty gray
+window)
+```
+
+**Notas:** diferente dos marcadores de zona (3e/3f/3g), que ficam com o
+fundo cinza sólido de propósito (só recortados uma vez, no formato final),
+essa moldura precisa MESMO virar transparente na janela central — ela
+fica por CIMA da arte de fundo (4e/4h) em código, então o meio precisa
+deixar a arte de trás aparecer. Como o meio é um retângulo grande, liso e
+de cor sólida única (sem gradiente, sem textura), a remoção de fundo por
+cor é bem simples de fazer depois (ferramenta de recorte automático ou
+"remover fundo" da maioria dos editores) — só a borda entalhada
+permanece opaca. Ordem de empilhamento em código: arte de fundo primeiro,
+moldura (já com o meio transparente) por cima, ver `MenuCard` em
+`App.tsx`.
+
+---
+
+## 4l. Container — Moldura dos Cards do Menu (compacto)
+
+**Vai em:** substitui a mesma borda em CSS ao redor dos cards "Partida
+Rápida" e "Meu Deck" (os dois de proporção ~2:1, ver 4f/4g) — salvar como
+`src/assets/ui-frame-menu-card-compact.webp` · **Estilo:** elemento/ícone
+de UI · **Status:** pronto pra gerar
+
+Par do prompt anterior, mesma família visual, só numa proporção mais
+quadrada pra combinar com os dois cards menores lado a lado.
+
+```
+Top-down-neutral game UI icon illustration of a single ornate rectangular
+picture-frame border, matching the exact same bronze-and-gold material,
+engraved corner brackets, rivets and rope-and-vine trim as a companion
+wide banner-frame asset in this set. The frame's center is a large,
+plain, flat solid mid-gray rectangular window — completely empty, no
+texture, no gradient — representing where a background image will show
+through once composited in code; only the border itself should have any
+detail or color. Same painterly medieval-fantasy game style as the rest
+of the set (Gwent / Yu-Gi-Oh Forbidden Memories menu quality), warm
+torchlit color grading on the bronze/gold border only, no text, no
+watermark, landscape frame composition (roughly 2:1 outer aspect ratio,
+noticeably more square than the wide banner frame, the border itself
+only a thin strip relative to the whole frame)
+```
+
+**Notas:** mesma lógica de empilhamento do prompt anterior (arte de
+fundo por trás, moldura por cima, sem remoção de fundo). Duas molduras
+(larga + compacta) em vez de uma só reaproveitada nos 4 cards porque
+esticar uma moldura de proporção muito diferente deixaria os cantos
+entalhados distorcidos — cada uma cobre os dois cards que já compartilham
+proporção parecida (ver 4e-4h).
+
+---
+
 ## 3. Moldura Full Art (dourada) — referência de layout
 
 **Arquivo:** [`reference/full-art-frame-gold-v1.png`](./reference/full-art-frame-gold-v1.png)
