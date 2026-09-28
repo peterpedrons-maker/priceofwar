@@ -46,12 +46,31 @@ import hospitalarioArt from './assets/card-hospitalario.webp';
 import arqueiroProfissionalArt from './assets/card-arqueiro-profissional.webp';
 import atiradorInfluenteArt from './assets/card-atirador-influente.webp';
 import cardealPedroFullArt from './assets/card-cardeal-pedro-full.webp';
-// Comandante Aurelion (Deck Capitão's General) has no real art yet — the user is
-// still generating it externally. This SVG silhouette/crest stands in for it so the
-// General has SOMETHING to show wherever his portrait needs to be large (the match
-// intro reveal, see MatchIntroOverlay), instead of a blank box. Swap this import for
-// the real art file once it's ready — see DECK_CAPITAO's gen1 entry below.
-import placeholderGeneralCapitaoImage from './assets/placeholder-general-capitao.svg';
+// Deck Capitão's own card art (see art-prompts/README.md's "Deck Capitão" section
+// for the prompts these came from). Six of these are Full Art prints used in place
+// of their Padrão counterpart — same choice Deck Cardeal makes for its own
+// Nobre da Cruzada/Cavaleiro da Luz/Comandante da Ordem/Trabuco de
+// Cerco/Retorno do Soldado above (both versions exist, Full Art is just the one
+// actually wired into CardData below).
+import comandanteAurelionFullArt from './assets/card-comandante-aurelion-full.webp';
+import estandarteDaLegiaoFullArt from './assets/card-estandarte-da-legiao-full.webp';
+import soldadoTaticoArt from './assets/card-soldado-tatico.webp';
+import escudeiroDeLinhaArt from './assets/card-escudeiro-de-linha.webp';
+import capitaoDeFormacaoFullArt from './assets/card-capitao-de-formacao-full.webp';
+import batedorArt from './assets/card-batedor.webp';
+import lanceiroDeControleArt from './assets/card-lanceiro-de-controle.webp';
+import cavaleiroTaticoFullArt from './assets/card-cavaleiro-tatico-full.webp';
+import veteranoDeGuerraFullArt from './assets/card-veterano-de-guerra-full.webp';
+import reformarLinhasFullArt from './assets/card-reformar-linhas-full.webp';
+import avancoCoordenadoArt from './assets/card-avanco-coordenado.webp';
+import reposicionamentoRapidoArt from './assets/card-reposicionamento-rapido.webp';
+import linhaFechadaArt from './assets/card-linha-fechada.webp';
+import ordemDeRetiradaArt from './assets/card-ordem-de-retirada.webp';
+import bloqueioInstantaneoArt from './assets/card-bloqueio-instantaneo.webp';
+import contraManobraFullArt from './assets/card-contra-manobra-full.webp';
+import formacaoQuebradaArt from './assets/card-formacao-quebrada.webp';
+import fortalezaDePedraFullArt from './assets/card-fortaleza-de-pedra-full.webp';
+import pantanoMalditoArt from './assets/card-pantano-maldito.webp';
 // User-provided artwork for the match-intro "BATALHA!" call-out and the Game Over
 // screen's "VITÓRIA!"/"DERROTA" — replaces the plain typeset versions (see
 // MatchIntroOverlay and the Game Over Overlay further below).
@@ -1825,38 +1844,35 @@ const HAND_CARD_STEP = HAND_CARD_WIDTH * 0.5;
 // targeted Táticas are left in the AI's hand entirely (see
 // AI_UNSUPPORTED_TACTICS in aiService.ts) rather than risk it wasting them.
 const DECK_CAPITAO: CardData[] = [
-  // art is a temporary placeholder silhouette (see the import above) until the real
-  // Comandante Aurelion art is generated — swap placeholderGeneralCapitaoImage for
-  // the real art file once it's ready.
-  { id: 'gen1', name: 'Comandante Aurelion, Mestre da Formação', atk: 0, hp: 20, cost: 0, art: placeholderGeneralCapitaoImage, effect: 'Após Remanejamento: até 2 unidades que se moveram ganham +1/+1 no próximo combate. Passiva: unidades adjacentes recebem -1 de dano.', cardType: 'General' },
+  { id: 'gen1', name: 'Comandante Aurelion, Mestre da Formação', atk: 0, hp: 20, cost: 0, art: comandanteAurelionFullArt, isFullArt: true, effect: 'Após Remanejamento: até 2 unidades que se moveram ganham +1/+1 no próximo combate. Passiva: unidades adjacentes recebem -1 de dano.', cardType: 'General' },
 
   // Criaturas (27)
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_tactical_soldier_${i}`, name: 'Soldado Tático', atk: 3, hp: 3, cost: 2, art: '', effect: 'Troca com aliado adjacente no fim do turno.', cardType: 'Infantaria' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_line_squire_${i}`, name: 'Escudeiro de Linha', atk: 2, hp: 4, cost: 2, art: '', effect: 'Protege unidades atrás.', cardType: 'Infantaria' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_formation_captain_${i}`, name: 'Capitão de Formação', atk: 3, hp: 4, cost: 3, art: '', effect: 'Ao mover: adjacentes +1 ATK.', cardType: 'Infantaria' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_scout_${i}`, name: 'Batedor', atk: 1, hp: 2, cost: 1, art: '', effect: 'Move após combate.', cardType: 'Infantaria' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_control_lancer_${i}`, name: 'Lanceiro de Controle', atk: 3, hp: 2, cost: 2, art: '', effect: 'Inimigo à sua frente recebe -1 ATK.', cardType: 'Infantaria' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_tactical_knight_${i}`, name: 'Cavaleiro Tático', atk: 4, hp: 4, cost: 3, art: '', effect: 'Troca com qualquer aliado na linha.', cardType: 'Cavalaria' })),
-  ...Array(3).fill(null).map((_, i): CardData => ({ id: `c_veteran_${i}`, name: 'Veterano de Guerra', atk: 4, hp: 3, cost: 3, art: '', effect: '+2 ATK na coluna 3.', cardType: 'Infantaria' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_tactical_soldier_${i}`, name: 'Soldado Tático', atk: 3, hp: 3, cost: 2, art: soldadoTaticoArt, effect: 'Troca com aliado adjacente no fim do turno.', cardType: 'Infantaria' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_line_squire_${i}`, name: 'Escudeiro de Linha', atk: 2, hp: 4, cost: 2, art: escudeiroDeLinhaArt, effect: 'Protege unidades atrás.', cardType: 'Infantaria' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_formation_captain_${i}`, name: 'Capitão de Formação', atk: 3, hp: 4, cost: 3, art: capitaoDeFormacaoFullArt, isFullArt: true, effect: 'Ao mover: adjacentes +1 ATK.', cardType: 'Infantaria' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_scout_${i}`, name: 'Batedor', atk: 1, hp: 2, cost: 1, art: batedorArt, effect: 'Move após combate.', cardType: 'Infantaria' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_control_lancer_${i}`, name: 'Lanceiro de Controle', atk: 3, hp: 2, cost: 2, art: lanceiroDeControleArt, effect: 'Inimigo à sua frente recebe -1 ATK.', cardType: 'Infantaria' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_tactical_knight_${i}`, name: 'Cavaleiro Tático', atk: 4, hp: 4, cost: 3, art: cavaleiroTaticoFullArt, isFullArt: true, effect: 'Troca com qualquer aliado na linha.', cardType: 'Cavalaria' })),
+  ...Array(3).fill(null).map((_, i): CardData => ({ id: `c_veteran_${i}`, name: 'Veterano de Guerra', atk: 4, hp: 3, cost: 3, art: veteranoDeGuerraFullArt, isFullArt: true, effect: '+2 ATK na coluna 3.', cardType: 'Infantaria' })),
 
   // Táticas (20)
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `t_reform_lines_${i}`, name: 'Reformar Linhas', atk: 0, hp: 0, cost: 2, art: '', effect: 'Reorganiza até 3 unidades.', cardType: 'Tática' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `t_coordinated_advance_${i}`, name: 'Avanço Coordenado', atk: 0, hp: 0, cost: 2, art: '', effect: 'Após mover: +2 ATK.', cardType: 'Tática' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `t_quick_reposition_${i}`, name: 'Reposicionamento Rápido', atk: 0, hp: 0, cost: 1, art: '', effect: 'Move inimigo 1 slot.', cardType: 'Tática' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `t_closed_line_${i}`, name: 'Linha Fechada', atk: 0, hp: 0, cost: 2, art: '', effect: 'Adjacentes recebem menos dano.', cardType: 'Tática' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `t_retreat_order_${i}`, name: 'Ordem de Retirada', atk: 0, hp: 0, cost: 2, art: '', effect: 'Move para a Retaguarda + cura.', cardType: 'Tática' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `t_reform_lines_${i}`, name: 'Reformar Linhas', atk: 0, hp: 0, cost: 2, art: reformarLinhasFullArt, isFullArt: true, effect: 'Reorganiza até 3 unidades.', cardType: 'Tática' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `t_coordinated_advance_${i}`, name: 'Avanço Coordenado', atk: 0, hp: 0, cost: 2, art: avancoCoordenadoArt, effect: 'Após mover: +2 ATK.', cardType: 'Tática' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `t_quick_reposition_${i}`, name: 'Reposicionamento Rápido', atk: 0, hp: 0, cost: 1, art: reposicionamentoRapidoArt, effect: 'Move inimigo 1 slot.', cardType: 'Tática' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `t_closed_line_${i}`, name: 'Linha Fechada', atk: 0, hp: 0, cost: 2, art: linhaFechadaArt, effect: 'Adjacentes recebem menos dano.', cardType: 'Tática' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `t_retreat_order_${i}`, name: 'Ordem de Retirada', atk: 0, hp: 0, cost: 2, art: ordemDeRetiradaArt, effect: 'Move para a Retaguarda + cura.', cardType: 'Tática' })),
 
   // Emboscadas (12)
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `a_instant_block_${i}`, name: 'Bloqueio Instantâneo', atk: 0, hp: 0, cost: 2, art: '', effect: 'Cancela ataque se houver adjacente.', cardType: 'Emboscada' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `a_counter_maneuver_${i}`, name: 'Contra-Manobra', atk: 0, hp: 0, cost: 3, art: '', effect: 'Troca posições durante o ataque.', cardType: 'Emboscada' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `a_broken_formation_${i}`, name: 'Formação Quebrada', atk: 0, hp: 0, cost: 2, art: '', effect: 'Move inimigo aleatoriamente.', cardType: 'Emboscada' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `a_instant_block_${i}`, name: 'Bloqueio Instantâneo', atk: 0, hp: 0, cost: 2, art: bloqueioInstantaneoArt, effect: 'Cancela ataque se houver adjacente.', cardType: 'Emboscada' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `a_counter_maneuver_${i}`, name: 'Contra-Manobra', atk: 0, hp: 0, cost: 3, art: contraManobraFullArt, isFullArt: true, effect: 'Troca posições durante o ataque.', cardType: 'Emboscada' })),
+  ...Array(4).fill(null).map((_, i): CardData => ({ id: `a_broken_formation_${i}`, name: 'Formação Quebrada', atk: 0, hp: 0, cost: 2, art: formacaoQuebradaArt, effect: 'Move inimigo aleatoriamente.', cardType: 'Emboscada' })),
 
   // Relíquia (1)
-  { id: 'relic_banner_0', name: 'Estandarte da Legião', atk: 0, hp: 5, cost: 3, art: '', effect: 'Permanente. Todas as unidades aliadas ganham +1 ATK enquanto esta relíquia estiver no campo.', cardType: 'Relíquia', isFullArt: true },
+  { id: 'relic_banner_0', name: 'Estandarte da Legião', atk: 0, hp: 5, cost: 3, art: estandarteDaLegiaoFullArt, effect: 'Permanente. Todas as unidades aliadas ganham +1 ATK enquanto esta relíquia estiver no campo.', cardType: 'Relíquia', isFullArt: true },
 
   // Terrenos (2)
-  { id: 'terrain_fortress_0', name: 'Fortaleza de Pedra', atk: 0, hp: 8, cost: 3, art: '', effect: 'Permanente. Unidades aliadas na Retaguarda recebem -1 de dano de ataques inimigos.', cardType: 'Terreno' },
-  { id: 'terrain_swamp_0', name: 'Pântano Maldito', atk: 0, hp: 6, cost: 2, art: '', effect: 'Permanente. Unidades inimigas na Vanguarda sofrem -1 ATK enquanto este terreno estiver no campo.', cardType: 'Terreno' },
+  { id: 'terrain_fortress_0', name: 'Fortaleza de Pedra', atk: 0, hp: 8, cost: 3, art: fortalezaDePedraFullArt, isFullArt: true, effect: 'Permanente. Unidades aliadas na Retaguarda recebem -1 de dano de ataques inimigos.', cardType: 'Terreno' },
+  { id: 'terrain_swamp_0', name: 'Pântano Maldito', atk: 0, hp: 6, cost: 2, art: pantanoMalditoArt, effect: 'Permanente. Unidades inimigas na Vanguarda sofrem -1 ATK enquanto este terreno estiver no campo.', cardType: 'Terreno' },
 ];
 
 // ── DECK CARDEAL PEDRO ──────────────────────────────────────────────────────
