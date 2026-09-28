@@ -2904,12 +2904,12 @@ export default function App() {
 
   // Drives the Hearthstone-style "VS" reveal at the very start of a match (see
   // MatchIntroOverlay further below, and startMatchIntro): both Generals' art appears
-  // huge on opposite sides ('panels'), then both shrink and fly down into their real
-  // board slot ('descend'), and only once they've actually landed does the "BATALHA"
-  // banner slam in over the board itself ('battle') — the reveal is about the
-  // Generals taking their place, not a banner floating in front of them. null means
-  // no reveal is in progress.
-  const [matchIntroStage, setMatchIntroStage] = useState<null | 'panels' | 'descend' | 'battle'>(null);
+  // huge on opposite sides and holds ('panels'), then the "BATALHA" banner slams down
+  // between them while they're still frozen in that big reveal position ('battle') —
+  // the declaration lands before either General has taken their place, not after —
+  // and only once BATALHA has cleared do both shrink and fly down into their real
+  // board slot ('descend'). null means no reveal is in progress.
+  const [matchIntroStage, setMatchIntroStage] = useState<null | 'panels' | 'battle' | 'descend'>(null);
   // Set true for the very first turn of a fresh match (see resetGame) so the normal
   // per-turn "Fase de Preparação" ribbon (see the turnNumber effect below) doesn't
   // fire immediately and race the VS reveal above — startMatchIntro calls
@@ -2947,49 +2947,46 @@ export default function App() {
     // reveal only once that's done means it never has to visibly re-glide to a
     // corrected position mid-entrance.
     const INTRO_START = 550;
-    // Both Generals' art floats in from the sides and holds...
+    // Both Generals' art floats in from the sides and holds, frozen in that big
+    // reveal position, for a beat before the battle cry falls between them.
     schedule(() => { setMatchIntroStage('panels'); playRevealGeneralSfx(); }, INTRO_START);
-    // ...then shrinks and flies down into its real board slot. 750ms below is also
-    // this component's own descend-stage transition duration (see
-    // MatchIntroOverlay) — LAND fires right as that finishes.
-    const DESCEND_START = INTRO_START + 1900;
+    const BATTLE_START = INTRO_START + 900;
+    // "BATALHA" slams down between the two still-frozen portraits — the declaration
+    // lands BEFORE either General has taken their place on the board, not after (see
+    // matchIntroStage's own comment above for why this order reads better).
+    schedule(() => { setMatchIntroStage('battle'); playBatalhaBannerSfx(); }, BATTLE_START);
+    // The actual "hits the ground" moment, mid-fall — see BATALHA_IMPACT_FRACTION
+    // and MatchIntroOverlay's own matching flash timing.
+    schedule(() => playBatalhaImpactSfx(), BATTLE_START + Math.round(BATALHA_FALL_MS * BATALHA_IMPACT_FRACTION));
+    // Long enough for the fall (BATALHA_FALL_MS) to land and still leave a solid
+    // beat of the fully-assembled word holding on screen before it clears.
+    const BATTLE_BANNER_MS = BATALHA_FALL_MS + 1500;
+    // Only once BATALHA has cleared do both Generals shrink and fly down into their
+    // real board slot. 750ms below is also this component's own descend-stage
+    // transition duration (see MatchIntroOverlay) — LAND fires right as that finishes.
+    const DESCEND_START = BATTLE_START + BATTLE_BANNER_MS;
     schedule(() => setMatchIntroStage('descend'), DESCEND_START);
     const LAND = DESCEND_START + 750;
     // Landing: the overlay's portraits hand off to the real board slot (same trick
     // setFlyingCard(null) uses alongside placing its own card, see the hand-to-board
-    // flight above, so there's no frame where neither is rendered) — only THEN does
-    // "BATALHA" slam in over the board itself, since the reveal is about the
-    // Generals taking their place, not a banner floating in front of them.
-    // Long enough for the fall (BATALHA_FALL_MS) to land and still leave a solid
-    // beat of the fully-assembled word holding on screen before it clears.
-    const BATTLE_BANNER_MS = BATALHA_FALL_MS + 1500;
+    // flight above, so there's no frame where neither is rendered). Only once both
+    // Generals have actually arrived does the normal per-turn phase ribbon play (see
+    // suppressInitialPhaseBannerRef/the turnNumber effect).
     schedule(() => {
       setPlayerSlots(prev => { const next = [...prev]; next[12] = generalPlayerRef.current; return next; });
       setNpcSlots(prev => { const next = [...prev]; next[12] = generalNpcRef.current; return next; });
       playCardPlaySfx();
       setIntroDescendTargets(null);
-      setMatchIntroStage('battle');
-      playBatalhaBannerSfx();
-    }, LAND);
-    // The actual "hits the ground" moment, mid-fall — see BATALHA_IMPACT_FRACTION
-    // and MatchIntroOverlay's own matching flash timing.
-    schedule(() => playBatalhaImpactSfx(), LAND + Math.round(BATALHA_FALL_MS * BATALHA_IMPACT_FRACTION));
-    // Only once BATALHA itself has cleared does the normal per-turn phase ribbon
-    // play (see suppressInitialPhaseBannerRef/the turnNumber effect) — the two are
-    // both center-screen ribbons, so playing them back to back instead of
-    // overlapping keeps the moment readable instead of stacking two banners.
-    const BATTLE_END = LAND + BATTLE_BANNER_MS;
-    schedule(() => {
       setMatchIntroStage(null);
       suppressInitialPhaseBannerRef.current = false;
       announcePhase('preparacao');
-    }, BATTLE_END);
+    }, LAND);
 
     // Kept comfortably past the 500ms viewport-settle window above (see
     // viewportSettled) so the deck's on-screen position is already final, not still
     // correcting itself, by the time the first card's flight measures it. Also well
-    // past BATTLE_END so dealing doesn't visibly race the "BATALHA" banner off screen.
-    const DEAL_START = BATTLE_END + 500;
+    // past LAND so dealing doesn't visibly race the Generals landing on the board.
+    const DEAL_START = LAND + 500;
     const DEAL_STEP = 820;
     for (let i = 0; i < 5; i++) {
       const t = DEAL_START + i * DEAL_STEP;
@@ -6487,13 +6484,16 @@ export default function App() {
 
       {/* Match-intro "VS" reveal, portrait stage — see startMatchIntro/matchIntroStage
           above. Both Generals' art (no name/cost/stats — just the painting, see the
-          user's own ask for a cleaner reveal) huge on opposite sides, then both
-          shrink down into their real board slot (introDescendTargets). Only rendered
-          for 'panels'/'descend' — by 'battle' the Generals are already on the real
-          board and this hands off to the separate BATALHA banner below. Sits above
-          everything else on screen (z-[900]+). */}
+          user's own ask for a cleaner reveal) huge on opposite sides, held frozen
+          there through the BATALHA banner below, then shrinking down into their real
+          board slot (introDescendTargets) only once that banner has cleared. Rendered
+          for 'panels'/'battle'/'descend' — 'battle' reuses the same frozen big-corner
+          position as 'panels' (descending stays false until matchIntroStage is
+          actually 'descend'), so the two Generals just sit still behind BATALHA
+          instead of racing it to the board. Sits above everything else on screen
+          (z-[900]+). */}
       <AnimatePresence>
-        {(matchIntroStage === 'panels' || matchIntroStage === 'descend') && (() => {
+        {(matchIntroStage === 'panels' || matchIntroStage === 'battle' || matchIntroStage === 'descend') && (() => {
           const bigW = windowSize.width * 0.34;
           const bigH = bigW * (400 / 300);
           const bigTop = windowSize.height * 0.46 - bigH / 2;
@@ -6558,19 +6558,20 @@ export default function App() {
         })()}
       </AnimatePresence>
 
-      {/* Match-intro "VS" reveal, BATALHA stage — fires only once both Generals have
-          actually landed on the real board (see startMatchIntro's LAND schedule), so
-          this reads as the board itself declaring battle rather than a banner
-          floating in front of the portraits. User-supplied artwork (see
-          bannerBatalhaImage), whole and in one piece — it drops hard from above and
-          slams down (a heavy fall, then an exaggerated squash-and-recoil landing,
-          see BATALHA_FALL_MS/BATALHA_IMPACT_FRACTION), with a bright flash and a
-          heavy stone-thud (playBatalhaImpactSfx, scheduled in startMatchIntro) right
-          as it hits — no vibration afterward once it's settled. The board dims
-          behind it (same bg-black-scrim trick as the portrait stage above) so the
-          word reads clearly against the battlefield instead of competing with it,
-          and the word itself sits a bit above dead-center (via pb-[14vh] on the
-          flex box below) rather than covering the exact middle of the board. */}
+      {/* Match-intro "VS" reveal, BATALHA stage — fires while both Generals are still
+          frozen in their big reveal position (see startMatchIntro's BATTLE_START
+          schedule), so the declaration lands between the two of them face-to-face,
+          before either has taken their place on the board — only once this whole
+          stage clears do they shrink down into their real slot ('descend'). User-
+          supplied artwork (see bannerBatalhaImage), whole and in one piece — it drops
+          hard from above and slams down (a heavy fall, then an exaggerated squash-
+          and-recoil landing, see BATALHA_FALL_MS/BATALHA_IMPACT_FRACTION), with a
+          bright flash and a heavy stone-thud (playBatalhaImpactSfx, scheduled in
+          startMatchIntro) right as it hits — no vibration afterward once it's
+          settled. The scene dims further behind it (stacking with the portrait
+          stage's own scrim above) so the word reads clearly, and it sits a bit above
+          dead-center (via pb-[14vh] on the flex box below) rather than covering the
+          exact middle of the screen. */}
       <AnimatePresence>
         {matchIntroStage === 'battle' && (
           <motion.div
