@@ -629,8 +629,15 @@ tamanhos que a IA do usuário gerou de uma vez — os outros tamanhos foram
 descartados, é só redimensionar este mesmo arquivo por CSS se algum botão
 precisar ser maior/menor) · **Vai em:** textura reutilizada nos 4 botões
 do menu (Campanha, Partida Rápida, Multiplayer, Meu Deck) — um só arquivo,
-usado 4 vezes · **Estilo:** elemento/ícone de UI · **Status:** integrado
-no jogo
+usado 4 vezes · **Estilo:** elemento/ícone de UI · **Status:** substituído
+— ver 4e/4f/4g/4h logo abaixo
+
+O menu foi redesenhado em cima de uma referência nova (mockup gerado por
+outra IA, ver 4e abaixo) trocando os 4 botões de placa lisa por cards
+maiores com arte de fundo própria por trás de cada um — esse plaque único
+reaproveitado 4x não é mais usado (o componente `MenuButton` que o
+desenhava foi removido de `App.tsx`). Prompt fica registrado aqui só como
+histórico.
 
 ```
 Top-down-neutral game UI icon illustration of a single ornate horizontal
@@ -708,6 +715,161 @@ vinheta/gradiente e não são uma cor sólida) e mandou pra integrar.
 **Notas:** essa é a arte que efetivamente está no jogo — o prompt 4d fica
 registrado só como alternativa caso um dia se queira um logo desenhado do
 zero em vez de reaproveitar o brasão da carta.
+
+---
+
+## 4e. Botão do Menu — Campanha
+
+**Referência:** mockup completo gerado por outra IA que o usuário trouxe
+como inspiração pro redesign do menu (não salvo em `reference/` — imagem
+só compartilhada no chat) · **Vai em:** substitui `boardBattlefieldImage`
+(reaproveitado como placeholder) no `bgImage` do card "Campanha" em
+`MainMenu` (`src/App.tsx`) — salvar como
+`src/assets/menu-card-campanha.webp` e trocar o import · **Estilo:**
+elemento/ícone de UI · **Status:** pronto pra gerar
+
+O redesign do menu trocou os 4 botões de placa lisa (ver 4c acima, agora
+substituído) por cards maiores, cada um com sua própria arte de fundo —
+igual ao mockup de referência que o usuário mandou. Esse é o card em
+destaque (o maior dos quatro, ~3,3:1 de proporção), então pede a cena mais
+"cinematográfica" do lote.
+
+```
+WIDE LANDSCAPE BANNER IMAGE, aspect ratio approx 3.3:1 (width:height), approx 1600x480px — much wider than tall, a thin horizontal banner, NOT a square or portrait image. Epic painterly digital illustration for a game menu button background: a lone
+crimson-and-gold armored knight seen from behind at medium-close range,
+standing at the edge of a war camp looking out over a vast army marching
+toward a besieged castle burning on the horizon at dusk, warm golden-
+orange sky breaking through storm clouds, banners and spear-tips of the
+distant army silhouetted against the light, dramatic atmospheric haze
+separating the knight in the foreground from the army and castle in the
+distance. Same painterly premium fantasy key-art style as the game's
+title screen background (League of Legends / Total War loading-screen
+quality), warm dusk palette of crimson, gold and deep blue-violet shadow,
+cinematic wide banner composition with the knight positioned left-of-
+center and open sky/battle vista filling the right two-thirds of the
+frame — leave the left third and the top/bottom edges relatively dark and
+uncluttered, since UI text and an icon sit on top of them in code. No
+text, no UI, no watermark, no logo, wide landscape banner orientation
+(about 1600×480px, roughly 3.3:1, much wider than tall)
+```
+
+**Notas:** pedi de propósito espaço "escuro e limpo" no terço esquerdo —
+é exatamente onde o ícone e o título "CAMPANHA" ficam sobrepostos em
+código (ver `MenuCard` em `App.tsx`), então a arte não pode competir com o
+texto ali. O restante da imagem some numa vinheta escura por cima (código
+já aplica um gradiente preto de ~65-85%), então pode (e deve) ser bem
+vívida/detalhada — só essa faixa esquerda precisa ficar mais "vazia".
+
+---
+
+## 4f. Botão do Menu — Partida Rápida
+
+**Vai em:** substitui `startScreenBgImage` (placeholder) no `bgImage` do
+card "Partida Rápida" em `MainMenu` — salvar como
+`src/assets/menu-card-partida-rapida.webp` · **Estilo:** elemento/ícone de
+UI · **Status:** pronto pra gerar
+
+Esse e o próximo (Meu Deck) dividem a mesma fileira lado a lado, então são
+mais "quadrados" que o card da Campanha (~2:1 em vez de ~3,3:1). Partida
+Rápida = ação rápida contra a IA, então pede um duelo direto e dinâmico.
+
+```
+WIDE LANDSCAPE BANNER IMAGE, aspect ratio approx 2:1 (width:height), approx 1200x580px — wider than tall but noticeably more square than a thin banner, NOT a portrait image. Two crimson-and-gold armored knights clashing swords in a tight,
+dynamic close-up duel, sparks flying at the point of impact, motion blur
+on the striking arms, dust kicked up around their boots, dramatic side
+lighting from a low sun. Bold, dynamic graphic stylization with dramatic
+flat color blocking and confident linework, closer to Yu-Gi-Oh monster-
+card energy than soft painterly realism (same treatment as Jorge, Lança
+Sagrada's own card art — this game's own reference for that style), warm
+palette of crimson, gold and steel gray, dynamic diagonal action
+composition with the clash pushed toward the upper-right of the frame,
+leaving the lower-left corner and edges relatively dark and uncluttered
+for UI text/icon placed on top in code. No text, no UI, no watermark,
+wide landscape banner orientation (about 1200×580px, roughly 2:1, wider
+than tall)
+```
+
+**Notas:** mesma lógica de "canto escuro reservado pro texto" do prompt
+anterior, só que aqui é o canto inferior-esquerdo (onde o ícone/título
+"PARTIDA RÁPIDA" ficam) em vez do terço esquerdo inteiro — a composição é
+mais compacta/quadrada, então o espaço reservado também é menor.
+
+---
+
+## 4g. Botão do Menu — Meu Deck
+
+**Vai em:** substitui `cardBackplateImage` (placeholder) no `bgImage` do
+card "Meu Deck" em `MainMenu` — salvar como
+`src/assets/menu-card-meu-deck.webp` · **Estilo:** elemento/ícone de UI ·
+**Status:** pronto pra gerar
+
+Par do prompt anterior na mesma fileira (mesma proporção ~2:1), mas
+contemplativo em vez de ação — é o botão que leva pro gerenciamento de
+cartas, então mostra as próprias cartas como objeto, no mesmo estilo
+still-life hiper-realista já usado pras cartas de equipamento do Deck
+Cardeal Pedro.
+
+```
+WIDE LANDSCAPE BANNER IMAGE, aspect ratio approx 2:1 (width:height), approx 1200x580px — wider than tall but noticeably more square than a thin banner, NOT a portrait image. Hyperreal macro still-life illustration of a neat stack of ornate
+crimson-and-gold playing cards resting on a dark wooden table, the top
+card's gilded card-back design catching warm candlelight from a single
+lit candle in an iron holder just beside the stack, soft shadow pooling
+around the base of the cards, a few loose cards fanned slightly at the
+edge of the stack. Hyperreal macro product-photography-level realism,
+every material surface rendered with tack-sharp physically-based detail
+(same treatment as this game's equipment still-life cards), warm palette
+of candlelight amber, gold leaf and dark wood brown, intimate close-up
+composition with the stack positioned right-of-center, leaving the left
+side of the frame in soft dark shadow and relatively uncluttered for UI
+text/icon placed on top in code. No text, no UI, no watermark, wide
+landscape banner orientation (about 1200×580px, roughly 2:1, wider than
+tall)
+```
+
+**Notas:** mesma ideia de "lado escuro reservado" dos dois anteriores, só
+que aqui é o lado esquerdo inteiro (a pilha de cartas fica deslocada pra
+direita de propósito). Se quiser trocar o baralho genérico por algo mais
+"deste jogo" (leão dourado no verso, por exemplo), dá pra acrescentar uma
+frase tipo "the top card's back bearing a rearing golden lion crest" —
+deixei genérico porque still-life hiper-realista tende a sair melhor sem
+pedir um símbolo heráldico específico de uma vez.
+
+---
+
+## 4h. Botão do Menu — Multijogador
+
+**Vai em:** substitui `boardBattlefieldImage` (placeholder) no `bgImage`
+do card "Multijogador" em `MainMenu` — salvar como
+`src/assets/menu-card-multijogador.webp` · **Estilo:** elemento/ícone de
+UI · **Status:** pronto pra gerar
+
+Card de largura total como o da Campanha (~3,3:1), mas simétrico — é o
+botão de PvP, então mostra dois lados se encarando em vez de uma cena de
+um exército só.
+
+```
+WIDE LANDSCAPE BANNER IMAGE, aspect ratio approx 3.3:1 (width:height), approx 1600x480px — much wider than tall, a thin horizontal banner, NOT a square or portrait image. Two armored knights facing off in a symmetrical standoff, one in
+crimson-and-gold heraldry on the left, one in steel-blue-and-silver
+heraldry on the right, each with their own banner planted in the ground
+behind them, swords drawn and held ready, a hazy battlefield stretching
+between them into the distance at dusk. Same painterly premium fantasy
+key-art style as the game's title screen background (League of Legends /
+Total War loading-screen quality), rich palette split between warm
+crimson-gold (left knight) and cool steel-blue (right knight) with a
+neutral dusk-gold sky uniting them, symmetrical wide banner composition
+with a clear darker vertical band down the center of the frame — that's
+where UI text/icon sit on top in code, so keep it relatively plain and
+uncluttered there. No text, no UI, no watermark, no logo, wide landscape
+banner orientation (about 1600×480px, roughly 3.3:1, much wider than
+tall)
+```
+
+**Notas:** o "band escuro no centro" é o equivalente, pra esse card
+simétrico, do "canto/lado escuro" pedido nos três prompts acima — o
+ícone/título "MULTIJOGADOR" fica centralizado, não num canto, então o
+espaço reservado também precisa ser central. A ideia de dois lados com
+cor de heráldica diferente (carmesim-dourado vs. azul-aço) é pra já
+comunicar "times diferentes" antes mesmo de o jogador ler o nome do modo.
 
 ---
 
