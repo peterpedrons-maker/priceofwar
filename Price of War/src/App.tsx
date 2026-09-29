@@ -1235,6 +1235,15 @@ const CARD_THICKNESS_SHADOW =
   'drop-shadow(4px 5.5px 0 rgba(50,36,18,0.9)) ' +
   'drop-shadow(3px 12px 16px rgba(0,0,0,0.6))';
 
+// A Full Art print's silhouette isn't a rectangle — wings and spikes overflow the
+// card box and its corners are empty — so a ring/glow drawn on the card's own
+// rectangular box shows through as a "container" around the frame. For those
+// prints the rectangular box-shadow is dropped and the glow moves into the
+// filter chain, where drop-shadow follows the frame's real alpha instead.
+const cardBoxShadow = (card: CardData, rect: string) => (card.isFullArt ? 'none' : rect);
+const cardGlowFilter = (card: CardData, glow: string) =>
+  card.isFullArt ? `${CARD_THICKNESS_SHADOW} drop-shadow(${glow})` : CARD_THICKNESS_SHADOW;
+
 // CardFace — the shared visual for every place a card's front actually renders (hand,
 // board slot, detail modal, the flying/announced overlays): the card-template artwork
 // as the frame, the card's own art sitting in the template's cutout window, and the
@@ -1548,21 +1557,27 @@ type FullArtMiniConfig = {
   art: { left: string; top: string; width: string; height: string };
 };
 const FULL_ART_MINI_CONFIG: Record<string, FullArtMiniConfig> = {
+  // Wrappers below place each frame's OUTER silhouette (wings, spikes and all)
+  // exactly where the gold creature frame's own silhouette lands (x -3.8%..103.6%,
+  // y -5.0%..105.4% of the card) — so every Full Art print has its rails at the
+  // same spot and reads as the same size. An earlier version squeezed the whole
+  // silhouette inside the card rectangle instead, which shrank the rails and art
+  // window ~5% next to a gold card.
   Tática: {
     image: cardFullArtFrameTaticaImage,
-    wrapper: { left: '-0.49%', top: '-0.61%', width: '100.99%', height: '103.71%' },
+    wrapper: { left: '-4.21%', top: '-5.69%', width: '108.1%', height: '114.1%' },
     art: { left: '9.77%', top: '15.43%', width: '80.86%', height: '72.72%' },
   },
   Emboscada: {
     image: cardFullArtFrameEmboscadaImage,
-    wrapper: { left: '-0.79%', top: '-0.98%', width: '101.585%', height: '107.793%' },
+    wrapper: { left: '-4.65%', top: '-6.08%', width: '109%', height: '118.8%' },
     art: { left: '9.96%', top: '15.36%', width: '79.88%', height: '69.40%' },
   },
   // Terreno never shows ATK/HP either (NO_STAT_TYPES) but has no frame of its
   // own yet — borrows the Tática one (same geometry) until a dedicated color exists.
   Terreno: {
     image: cardFullArtFrameTaticaImage,
-    wrapper: { left: '-0.49%', top: '-0.61%', width: '100.99%', height: '103.71%' },
+    wrapper: { left: '-4.21%', top: '-5.69%', width: '108.1%', height: '114.1%' },
     art: { left: '9.77%', top: '15.43%', width: '80.86%', height: '72.72%' },
   },
 };
@@ -6366,16 +6381,16 @@ export default function App() {
                       // filter lives here too, not a separate wrapper, for the same
                       // foreshortening reason the comment above gives for boxShadow — see
                       // CARD_THICKNESS_SHADOW's own comment for what it's doing.
-                      style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', filter: CARD_THICKNESS_SHADOW }}
+                      style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', filter: cardGlowFilter(card, isFocused ? '0 0 22px rgba(212,175,55,0.95)' : '0 0 0 transparent') }}
                       animate={{
-                        boxShadow: isFocused
+                        boxShadow: cardBoxShadow(card, isFocused
                           ? "inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 120px rgba(212, 175, 55, 0.95)"
-                          : "inset 0 0 0 1px rgba(212,175,55,0.45), 0 10px 30px rgba(0,0,0,0.5)"
+                          : "inset 0 0 0 1px rgba(212,175,55,0.45), 0 10px 30px rgba(0,0,0,0.5)")
                       }}
                       whileHover={{
-                        boxShadow: isFocused
+                        boxShadow: cardBoxShadow(card, isFocused
                           ? "0 0 80px rgba(212, 175, 55, 0.8)"
-                          : "0 0 25px rgba(212, 175, 55, 0.5)"
+                          : "0 0 25px rgba(212, 175, 55, 0.5)")
                       }}
                       transition={{ duration: 0.4, ease: "easeOut" }}
                     >
@@ -6488,7 +6503,7 @@ export default function App() {
                 Scaled down to match. */}
             <div
               className="relative w-full h-full rounded-xl"
-              style={{ boxShadow: "inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 18px rgba(212, 175, 55, 0.8)", filter: CARD_THICKNESS_SHADOW }}
+              style={{ boxShadow: cardBoxShadow(card, "inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 18px rgba(212, 175, 55, 0.8)"), filter: cardGlowFilter(card, '0 0 12px rgba(212,175,55,0.9)') }}
             >
               <CardFace card={card} variant="hand" />
             </div>
@@ -6555,8 +6570,8 @@ export default function App() {
               }}
               style={{
                 position: 'fixed', zIndex: 500, transformOrigin: 'center center',
-                boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 40px rgba(212,175,55,0.6)',
-                filter: CARD_THICKNESS_SHADOW,
+                boxShadow: cardBoxShadow(flyingCard.card, 'inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 40px rgba(212,175,55,0.6)'),
+                filter: cardGlowFilter(flyingCard.card, '0 0 24px rgba(212,175,55,0.75)'),
               }}
               // Same frame, art, and layout as the hand card it came from — it should read
               // as the exact same card the whole time, not switch to a simplified design.
@@ -7334,7 +7349,10 @@ export default function App() {
               width: w, height: h,
             }}
           >
-            <div className="relative w-full h-full rounded-xl shadow-[0_0_100px_rgba(0,0,0,0.8),inset_0_0_0_1px_rgba(212,175,55,0.45)]" style={{ filter: CARD_THICKNESS_SHADOW }}>
+            <div
+              className={`relative w-full h-full rounded-xl ${detailedCard.isFullArt ? '' : 'shadow-[0_0_100px_rgba(0,0,0,0.8),inset_0_0_0_1px_rgba(212,175,55,0.45)]'}`}
+              style={{ filter: cardGlowFilter(detailedCard, '0 0 40px rgba(0,0,0,0.8)') }}
+            >
               <CardFace card={detailedCard} variant="hand" />
             </div>
             <button
