@@ -815,6 +815,57 @@ Sheet of four matching game UI icons arranged in a 2x2 grid with generous empty 
 
 ---
 
+## 4n. Menu principal — segunda rodada (pendente)
+
+**Status:** prompts prontos, artes ainda não geradas. Pedido do usuário depois de ver
+o menu integrado: molduras **mais finas** (as atuais ficaram grossas), **sem
+subtítulo** nos botões (só ícone + título, pra mostrar mais da arte) e **ícones
+desenhados** no lugar dos emojis (coroa das Coroas, Desafios, Online, Editar Deck,
+Loja) mais **avatares** variados no lugar do leão.
+
+Enquanto as molduras novas não chegam, o código já desenha as atuais em 9-slice
+(CSS `border-image`, 7 px nos botões e 7 px na placa dos ícones), que as afina sem
+arte nova. Quando chegarem: salvar como `ui-frame-menu-card.webp` e
+`ui-icon-button.webp` (substituem os atuais), recortar o cinza igual da rodada
+anterior, e ajustar `borderImageSlice` em `MenuCard` / `MenuIconButton`.
+
+<details>
+<summary>Prompts</summary>
+
+**Moldura fina dos botões (4:1)** → `ui-frame-menu-card.webp`
+```
+Top-down-neutral game UI illustration of a single slim ornate rectangular picture-frame border, aged bronze and gold, a delicate thin metal rim with a fine rope trim along its inner edge and small engraved corner brackets with tiny rivets. The border must be VERY THIN: each side only about 3% of the image's height thick (about 12px on a 400px-tall image), with the corner brackets only slightly larger than the rim, so that the empty center window covers about 94% of the whole image. The frame's center is a large, plain, flat solid mid-gray rectangular window, completely empty, no texture, no gradient, representing where a background image will show through once composited in code; only the slim border itself has any detail or color. Same material and engraving style as this game's other bronze-and-gold UI pieces. Painterly medieval-fantasy game style (Gwent / Yu-Gi-Oh Forbidden Memories menu quality), warm torchlit color grading on the bronze and gold only, no text, no watermark, wide landscape frame composition, 4:1 outer aspect ratio (1600x400)
+```
+
+**Placa fina dos ícones pequenos (1:1)** → `ui-icon-button.webp`
+```
+Top-down-neutral game UI illustration of a single slim ornate square button frame with softly rounded corners: aged bronze and gold, a delicate thin metal rim only about 6% of the image's width thick with a fine rope trim along its inner edge, and a large flat, smooth, evenly lit dark-bronze recessed center covering about 85% of the width where an icon will be placed in code. Same material and engraving style as the rest of this game's bronze-and-gold UI set. Isolated game UI asset on a flat, solid mid-gray background (no scene, no other elements) so it can be cleanly cut out. Painterly medieval-fantasy game style (Gwent / Yu-Gi-Oh Forbidden Memories menu quality), warm torchlit color grading, no text, no icon, no watermark, square composition, 1:1
+```
+
+**Ícones do menu (folha 3x2)** → `ui-icon-coroa/desafios/online/editar-deck/loja/mais.webp`
+```
+Sheet of six matching game UI icons arranged in a 3x2 grid (three columns, two rows) with generous empty space between them, on a flat, solid mid-gray background. Each icon is an embossed gold-and-bronze medieval-fantasy emblem with soft rim lighting, same style, same size, same lighting, each centered in its own cell. Top row: (1) a golden crown with a large faceted amethyst-purple gem in its center, (2) two crossed swords over a small heater shield, (3) a golden globe of the world ringed by a thin orbit band. Bottom row: (4) a small fan of three cards seen from the back, each with an ornate gold border and a rearing lion crest in the middle, with a feather quill lying across them (no suits, no numbers, no playing-card pips), (5) a leather coin pouch tied with rope with gold coins spilling out, (6) a round emerald-green button with a gold rim and a bold golden plus sign in the middle. Painterly medieval-fantasy game style (Gwent / Yu-Gi-Oh Forbidden Memories menu quality), no text, no labels, no watermark, landscape composition, 3:2 aspect ratio
+```
+
+**Avatares A: jovens** → `avatar-01..08.webp`
+```
+Sheet of eight fantasy character portrait avatars arranged in a 4x2 grid (four columns, two rows) on a flat, solid mid-gray background with generous gray space between them. Each portrait is head-and-shoulders framed and fills its own perfect circle (the circle edge is just the crop, with no ring, border or frame). Four women and four men, all young adults (about 18 to 30 years old), all different people with clearly different faces, hair styles, hair colors and skin tones (from very pale to deep brown), dressed as medieval-fantasy commoners, scouts, squires and young soldiers (leather jerkins, simple mail, cloth hoods, a headband, a braid, a short beard, a light scar, a freckled face). Painterly semi-realistic style like a premium fantasy card game, warm dramatic lighting, expressive faces looking slightly toward the viewer, consistent style, scale and lighting across all eight. No text, no labels, no watermark, square composition
+```
+
+**Avatares B: maduros e idosos** → `avatar-09..16.webp`
+```
+Sheet of eight fantasy character portrait avatars arranged in a 4x2 grid (four columns, two rows) on a flat, solid mid-gray background with generous gray space between them. Each portrait is head-and-shoulders framed and fills its own perfect circle (the circle edge is just the crop, with no ring, border or frame). Four women and four men, all mature or elderly (about 45 to 75 years old), all different people with clearly different faces, hair styles, hair colors (grey, white, silver, dark) and skin tones, with wrinkles, weathered skin and character: a scarred veteran soldier, a stern grey-haired matron in a headscarf, a white-bearded scholar with round spectacles, a priestess with silver hair and a small holy pendant, a bald battle-worn sergeant, an elderly noblewoman with an elaborate braid, a one-eyed old captain, a kindly white-haired blacksmith with a leather cap. Painterly semi-realistic style like a premium fantasy card game, warm dramatic lighting, consistent style, scale and lighting across all eight. No text, no labels, no watermark, square composition
+```
+
+**Avatares C: papéis** → `avatar-17..24.webp`
+```
+Sheet of eight fantasy character portrait avatars arranged in a 4x2 grid (four columns, two rows) on a flat, solid mid-gray background with generous gray space between them. Each portrait is head-and-shoulders framed and fills its own perfect circle (the circle edge is just the crop, with no ring, border or frame). Four women and four men of mixed ages and skin tones, each a different medieval-fantasy role: a female knight in polished plate armor with a plumed helm under her arm, a hooded male archer with a feathered cap, a female cleric in white and gold robes with a hood, a bearded male commander in a crimson cloak with a gold-trimmed steel helm, a female mage in a deep blue hood with a faint glow in her eyes, a young male squire with a padded gambeson and messy hair, a noblewoman with a slim gold circlet, a rugged male mercenary with a scarred face and a bandana. Painterly semi-realistic style like a premium fantasy card game, warm dramatic lighting, consistent style, scale and lighting across all eight. No text, no labels, no watermark, square composition
+```
+
+</details>
+
+---
+
 ## 3. Moldura Full Art (dourada) — referência de layout
 
 **Arquivo:** [`reference/full-art-frame-gold-v1.png`](./reference/full-art-frame-gold-v1.png)

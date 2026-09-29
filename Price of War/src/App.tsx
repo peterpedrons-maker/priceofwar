@@ -2268,11 +2268,11 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
             />
           ) : (
             <button onClick={() => { playUiClickSfx(); startEditing(); }} className="flex items-center gap-[1cqw] min-w-0">
-              <span className="truncate font-bold text-[#f8ecd0]" style={{ fontSize: '4.8cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.85)' }}>{profile.name}</span>
+              <span className="truncate font-bold text-[#f8ecd0]" style={{ fontFamily: "'Cinzel', serif", fontSize: '4.5cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.85)' }}>{profile.name}</span>
               <span className="opacity-70 shrink-0" style={{ fontSize: '3cqw' }}>✎</span>
             </button>
           )}
-          <span className="ml-auto shrink-0 font-black uppercase tracking-wide text-[#f0cf6a]" style={{ fontSize: '3.1cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
+          <span className="ml-auto shrink-0 font-black uppercase tracking-wide text-[#f0cf6a]" style={{ fontFamily: "'Cinzel', serif", fontSize: '3cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
             {profile.rank}
           </span>
         </div>
@@ -2287,7 +2287,7 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
         <img src={uiPillCoroasImage} alt="" draggable={false} className="absolute inset-0 w-full h-full select-none pointer-events-none" />
         <span className="absolute leading-none" style={{ left: '13%', top: '50%', transform: 'translate(-50%, -50%)', fontSize: '12.5cqw' }}>👑</span>
         <div className="absolute flex items-center justify-between" style={{ left: '27%', right: '6.5%', top: '24%', bottom: '24%' }}>
-          <span className="font-black text-[#f8ecd0]" style={{ fontSize: '12.5cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.85)' }}>{profile.coroas}</span>
+          <span className="font-black text-[#f8ecd0]" style={{ fontFamily: "'Cinzel', serif", fontSize: '12.5cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.85)' }}>{profile.coroas}</span>
           <button
             onClick={() => { playUiClickSfx(); onOpenShop(); }}
             className="rounded-full bg-emerald-600 hover:bg-emerald-500 flex items-center justify-center text-white font-black leading-none transition-colors"
@@ -2335,15 +2335,16 @@ const ComingSoonModal = ({ title, message, onClose }: { title: string; message: 
   </motion.div>
 );
 
-// The image-card mode buttons: the banner art fills the whole card, the cut-out
-// bronze frame (ui-frame-menu-card, real alpha in its window) sits on top, and the
-// icon/title/subtitle live inside that window — left side, where the art briefs
-// (art-prompts/README.md 4e-4m) leave the scene dark on purpose. The card keeps
-// the art's own 1600:397 ratio so neither image is ever stretched, and the frame's
-// window sits at 4.5-95.5% across, 17-79% down, which is what the text box below
-// is measured against.
-const MenuCard = ({ icon, title, subtitle, bgImage, onClick }: {
-  icon: string; title: string; subtitle: string; bgImage: string;
+// The image-card mode buttons: banner art inside a thin bronze frame, with just an
+// icon and the title on the left (the art briefs in art-prompts/README.md leave
+// that side dark on purpose). The frame is the same cut-out as before
+// (ui-frame-menu-card, 1600x397, 74-76 px border) but drawn as a CSS 9-slice
+// (border-image) at 7px, so the ornate corners scale down instead of the whole
+// frame eating a fifth of the button — the user found the full-size one too thick.
+// Buttons keep the art's own 1600:397 ratio so the picture is never stretched.
+const MENU_FRAME_PX = 7;
+const MenuCard = ({ icon, title, bgImage, onClick }: {
+  icon: string; title: string; bgImage: string;
   onClick: (e: React.MouseEvent) => void;
 }) => (
   <motion.button
@@ -2351,39 +2352,62 @@ const MenuCard = ({ icon, title, subtitle, bgImage, onClick }: {
     whileTap={{ scale: 0.97 }}
     onClick={(e) => { playUiClickSfx(); onClick(e); }}
     className="relative w-full text-left"
-    style={{ aspectRatio: '1600 / 397', containerType: 'inline-size', filter: 'drop-shadow(0 6px 8px rgba(0,0,0,0.55))' }}
+    style={{ aspectRatio: '1600 / 397', containerType: 'inline-size', filter: 'drop-shadow(0 5px 7px rgba(0,0,0,0.55))' }}
   >
-    <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
-    <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.78), rgba(0,0,0,0.42) 45%, rgba(0,0,0,0.08) 75%, transparent)' }} />
-    <img src={uiFrameMenuCardImage} alt="" className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
-    <div className="absolute flex flex-col justify-center gap-[1cqw]" style={{ left: '8%', right: '6%', top: '17%', bottom: '21%' }}>
-      <div className="flex items-center gap-[2cqw] min-w-0">
-        <span className="shrink-0 leading-none" style={{ fontSize: 'clamp(16px, 5.4cqw, 22px)' }}>{icon}</span>
+    <div
+      className="absolute inset-0"
+      style={{
+        borderStyle: 'solid',
+        borderColor: 'transparent',
+        borderWidth: MENU_FRAME_PX,
+        borderImageSource: `url(${uiFrameMenuCardImage})`,
+        borderImageSlice: '74 76 74 76',
+        borderImageWidth: MENU_FRAME_PX,
+        borderImageRepeat: 'round',
+      }}
+    >
+      <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
+      <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.7), rgba(0,0,0,0.3) 40%, transparent 70%)' }} />
+      <div className="absolute inset-0 flex items-center gap-[2.5cqw]" style={{ paddingLeft: '4.5%', paddingRight: '4%' }}>
+        <span className="shrink-0 leading-none" style={{ fontSize: 'clamp(20px, 7cqw, 28px)' }}>{icon}</span>
         <span
-          className="min-w-0 break-words font-black uppercase tracking-wide text-[#f8ecd0] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
-          style={{ fontSize: 'clamp(14px, 4.7cqw, 19px)', lineHeight: 1.1 }}
+          className="min-w-0 break-words font-black uppercase text-[#f8ecd0]"
+          style={{ fontFamily: "'Cinzel', serif", fontSize: 'clamp(17px, 6.2cqw, 25px)', letterSpacing: '0.07em', lineHeight: 1.05, textShadow: '0 2px 3px rgba(0,0,0,0.95), 0 0 8px rgba(0,0,0,0.6)' }}
         >
           {title}
         </span>
       </div>
-      <span className="text-[#e3d3ad] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" style={{ fontSize: 'clamp(10px, 3cqw, 12px)', lineHeight: 1.15, paddingLeft: 'calc(clamp(16px, 5.4cqw, 22px) + 2cqw)' }}>
-        {subtitle}
-      </span>
     </div>
   </motion.button>
 );
 
 // Small secondary destinations row (settings/tutorials/ranking/sound) — none
 // of these screens exist yet, so every one opens ComingSoonModal for now (see
-// MainMenu). The bronze plaque is ui-icon-button and the icon inside it is one
-// of the cut-outs from the ui-icons sheet (`icon` is that image's URL).
+// MainMenu). The bronze plaque is ui-icon-button drawn as a 9-slice too (thin
+// edge, stretched flat center) and the icon inside it is one of the cut-outs from
+// the ui-icons sheet (`icon` is that image's URL).
 const MenuIconButton = ({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) => (
   <button onClick={() => { playUiClickSfx(); onClick(); }} className="flex flex-col items-center gap-1 active:scale-95 transition-transform">
-    <div className="relative w-14 h-14 drop-shadow-[0_3px_4px_rgba(0,0,0,0.6)]">
-      <img src={uiIconButtonImage} alt="" className="absolute inset-0 w-full h-full select-none" draggable={false} />
-      <img src={icon} alt="" className="absolute left-1/2 top-1/2 w-[34px] h-[34px] -translate-x-1/2 -translate-y-1/2 object-contain select-none" style={{ filter: 'brightness(1.25) saturate(1.1) drop-shadow(0 1px 1px rgba(0,0,0,0.7))' }} draggable={false} />
+    <div
+      className="relative w-14 h-14 drop-shadow-[0_3px_4px_rgba(0,0,0,0.6)]"
+      style={{
+        borderStyle: 'solid',
+        borderColor: 'transparent',
+        borderWidth: 7,
+        borderImageSource: `url(${uiIconButtonImage})`,
+        borderImageSlice: '52 fill',
+        borderImageWidth: 7,
+      }}
+    >
+      <img
+        src={icon}
+        alt=""
+        className="absolute left-1/2 top-1/2 w-[30px] h-[30px] -translate-x-1/2 -translate-y-1/2 object-contain select-none"
+        style={{ filter: 'brightness(1.2) saturate(1.1) drop-shadow(0 1px 1px rgba(0,0,0,0.7))' }}
+        draggable={false}
+      />
     </div>
-    <span className="text-[9px] uppercase tracking-wide font-bold text-[#e3d3ad] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{label}</span>
+    <span className="text-[9px] uppercase tracking-[0.12em] font-bold text-[#f0e0bb]" style={{ fontFamily: "'Cinzel', serif", textShadow: '0 1px 2px rgba(0,0,0,0.95)' }}>{label}</span>
   </button>
 );
 
@@ -2476,11 +2500,11 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
       />
       {/* Subtitle ribbon — plain styled text, no new art (see the reference
           mockup's "GUERRA PELO REINO" banner under its own logo). */}
-      <div className="relative z-10 mb-3 px-4 py-1 rounded-full border border-[#d4af37]/70 bg-black/50">
-        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#d4af37]">Guerra pelo Reino</span>
+      <div className="relative z-10 mb-4 px-4 py-1 rounded-full border border-[#d4af37]/70 bg-black/50">
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#d4af37]" style={{ fontFamily: "'Cinzel', serif" }}>Guerra pelo Reino</span>
       </div>
 
-      <div className="flex flex-col gap-2.5 relative z-10 w-[88vw] max-w-sm">
+      <div className="flex flex-col gap-3 relative z-10 w-[88vw] max-w-sm">
         {/* Four equal buttons, in the user's own order: Desafios first (the
             Hearthstone-style NPC ladder it will become — for now it just opens the
             deck picker and starts a match against the AI, the only mode whose
@@ -2492,14 +2516,12 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
         <MenuCard
           icon="⚔️"
           title={MODE_LABELS_PT['Campaign']}
-          subtitle="Enfrente os comandantes"
           bgImage={menuCardDesafiosImage}
           onClick={(e) => { e.stopPropagation(); onSelectMode('Campaign'); }}
         />
         <MenuCard
           icon="🌐"
           title={MODE_LABELS_PT['Multiplayer']}
-          subtitle="Duelos contra jogadores"
           bgImage={menuCardOnlineImage}
           onClick={(e) => {
             e.stopPropagation();
@@ -2509,7 +2531,6 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
         <MenuCard
           icon="🎴"
           title={MODE_LABELS_PT['My Deck']}
-          subtitle="Monte o seu baralho"
           bgImage={menuCardEditarDeckImage}
           onClick={(e) => {
             e.stopPropagation();
@@ -2519,7 +2540,6 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
         <MenuCard
           icon="💎"
           title="Loja"
-          subtitle="Boosters e Coroas"
           bgImage={menuCardLojaImage}
           onClick={(e) => {
             e.stopPropagation();
