@@ -30,7 +30,8 @@ import menuCardOnlineImage from './assets/menu-card-online.webp';
 import menuCardEditarDeckImage from './assets/menu-card-editar-deck.webp';
 import menuCardLojaImage from './assets/menu-card-loja.webp';
 import uiFrameMenuCardImage from './assets/ui-frame-menu-card.webp';
-import uiEditorTileImage from './assets/ui-editor-tile.webp';
+import uiStatAtkImage from './assets/ui-stat-atk.webp';
+import uiStatHpImage from './assets/ui-stat-hp.webp';
 import uiEditorRowImage from './assets/ui-editor-row.webp';
 import uiEditorHeaderImage from './assets/ui-editor-header.webp';
 import uiEditorTabOnImage from './assets/ui-editor-tab-on.webp';
@@ -184,7 +185,7 @@ const ALL_PRELOAD_IMAGES: string[] = [
   recrutamentoSeletivoArt, recrutarVeteranosArt, tributoDeGuerraArt, chamadoAsArmasArt,
   recrutaDevotoArt, cavaleiroDaLuzFullArt, jorgeOLanceiroFullArt,
   menuCardDesafiosImage, menuCardOnlineImage, menuCardEditarDeckImage, menuCardLojaImage,
-  uiFrameMenuCardImage, uiEditorTileImage, uiEditorRowImage, uiEditorHeaderImage, uiEditorTabOnImage, uiEditorTabOffImage, uiWindowFrameImage, uiWindowTextureImage, uiPillCoroasImage, uiProfilePlateImage, uiIconButtonImage,
+  uiFrameMenuCardImage, uiStatAtkImage, uiStatHpImage, uiEditorRowImage, uiEditorHeaderImage, uiEditorTabOnImage, uiEditorTabOffImage, uiWindowFrameImage, uiWindowTextureImage, uiPillCoroasImage, uiProfilePlateImage, uiIconButtonImage,
   uiIconConfigImage, uiIconTutoriaisImage, uiIconRankingImage, uiIconSomImage,
   uiIconCoroaImage, uiIconDesafiosImage, uiIconOnlineImage, uiIconEditarDeckImage,
   uiIconLojaImage, uiIconMaisImage,
@@ -2411,6 +2412,20 @@ const ArtFrame = ({ src, slice, width, className = '', style, children }: {
   </div>
 );
 
+// Small pill button drawn with the tab art (bright when selected, dim when not).
+const ArtChip = ({ active, onClick, children, className = '' }: { active: boolean; onClick: () => void; children: React.ReactNode; className?: string; key?: React.Key }) => (
+  <button onClick={() => { playUiClickSfx(); onClick(); }} className={`relative h-[34px] active:scale-95 transition ${className}`}>
+    <ArtFrame
+      src={active ? uiEditorTabOnImage : uiEditorTabOffImage}
+      slice={[44, 44, 44, 44]}
+      width={[11, 11, 11, 11]}
+      className="absolute inset-0"
+      style={{ background: active ? 'rgba(96,68,16,0.6)' : 'rgba(0,0,0,0.4)' }}
+    />
+    <span className={`relative block px-4 uppercase tracking-[0.1em] text-[11px] whitespace-nowrap ${active ? 'text-[#fff1c9]' : 'text-[#a89a78]'}`} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>{children}</span>
+  </button>
+);
+
 // A selectable row inside a window (deck choice, Casual/Ranqueado): an engraved inset
 // with a soft top highlight and a gold accent on the left instead of a boxed outline.
 const WindowOption = ({ children, onClick }: { children: React.ReactNode; onClick: () => void; key?: React.Key }) => (
@@ -2996,8 +3011,6 @@ const DECK_VIEW_KEY = 'pow_deck_view_v1';
 const EDITOR_MARGIN = 5;
 const EDITOR_FRAME = 18;
 const EDITOR_PAD = 6;
-const TILE_BORDER = 12;
-const TILE_PAD = 4;
 const ROW_H = 44;
 // Row art is 148px tall, slice edges (top/right/bottom/left) 40/175/40/140: drawn at ROW_H / 148.
 const ROW_EDGES: Edges = [12, 52, 12, 42];
@@ -3022,6 +3035,8 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
   const [picked, setPicked] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   const [confirm, setConfirm] = useState<{ title: string; message: string; run: () => void } | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [draft, setDraft] = useState<{ type: CardType | 'todas'; sort: EditorSort; view: 'lista' | 'cartas' }>({ type: 'todas', sort: 'custo', view: 'lista' });
   const [generalOpen, setGeneralOpen] = useState(false);
   const [generalChoice, setGeneralChoice] = useState<string | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
@@ -3032,6 +3047,8 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
     return () => window.removeEventListener('resize', on);
   }, []);
 
+  // Filters that differ from the defaults, shown as a count on the Filtros button.
+  const filterCount = (typeFilter !== 'todas' ? 1 : 0) + (sort !== 'custo' ? 1 : 0);
   const slot = store.slots[slotIdx];
   const total = deckCardCount(slot);
   const problem = deckProblem(slot);
@@ -3108,9 +3125,10 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
   const gridW = Math.min(viewW, 480) - 2 * (EDITOR_MARGIN + EDITOR_FRAME + EDITOR_PAD) - 12; // outer margin, screen frame, inner padding, grid padding
   const gridCols = 3;
   const cellW = Math.floor((gridW - cellGap * (gridCols - 1)) / gridCols);
-  const tileCardW = cellW - TILE_BORDER * 2;
-  const tileScale = tileCardW / 224;
-  const tileCardH = Math.round(320 * tileScale);
+  // The card art's wings stick out a bit past its 224x320 box, so it is drawn slightly smaller
+  // than the cell to keep the silhouette inside it.
+  const cellScale = cellW / 246;
+  const cellH = Math.round(320 * cellScale) + 14;
   const pickedCard = picked ? cardByName(picked) : undefined;
 
   const chip = (active: boolean) =>
@@ -3153,13 +3171,11 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
         }}
       >
         {/* Header: back, deck slots, saved flash */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <WindowButton onClick={onClose}>Voltar</WindowButton>
           <div className="flex gap-1.5 flex-1 justify-center">
             {store.slots.map((sl, i) => (
-              <button key={sl.id} onClick={() => { playUiClickSfx(); setSlotIdx(i); setPicked(null); }} className={chip(i === slotIdx)} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
-                Deck {i + 1}
-              </button>
+              <ArtChip key={sl.id} active={i === slotIdx} onClick={() => { setSlotIdx(i); setPicked(null); }}>Deck {i + 1}</ArtChip>
             ))}
           </div>
           <span className={`text-[10px] uppercase tracking-wider transition-opacity ${savedFlash ? 'opacity-100' : 'opacity-0'} text-emerald-300`} style={{ fontFamily: "'Cinzel', serif" }}>Salvo</span>
@@ -3202,40 +3218,25 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
           ))}
         </div>
 
-        {/* Filters */}
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-1.5 px-1.5 shrink-0" style={{ scrollbarWidth: 'none' }}>
-          <button onClick={() => { playUiClickSfx(); setTypeFilter('todas'); }} className={chip(typeFilter === 'todas')} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>Todas</button>
-          {CARD_TYPE_ORDER.map(t => (
-            <button key={t} onClick={() => { playUiClickSfx(); setTypeFilter(t); }} className={chip(typeFilter === t)} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>{t}</button>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar..."
-            className="flex-1 min-w-0 rounded-md bg-black/45 px-3 py-1.5 text-[13px] text-[#f3e3c3] placeholder:text-[#8d7f60] outline-none shadow-[inset_0_0_0_1px_rgba(212,175,55,0.35)] focus:shadow-[inset_0_0_0_1px_rgba(232,199,102,0.9)]"
-            style={{ fontFamily: "'PT Serif', serif" }}
-          />
-          <button
-            onClick={() => { playUiClickSfx(); setSort(EDITOR_SORTS[(EDITOR_SORTS.indexOf(sort) + 1) % EDITOR_SORTS.length]); }}
-            className="shrink-0 rounded-md bg-black/45 px-3 text-[11px] uppercase tracking-wider text-[#e3d3ad] shadow-[inset_0_0_0_1px_rgba(212,175,55,0.35)]"
-            style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}
-          >
-            Ordem: {sort}
+        {/* Search + one Filtros button (type, order and view live in its window) */}
+        <div className="flex gap-2 shrink-0">
+          <ThinFrame px={11} className="flex-1 min-w-0" style={{ background: 'rgba(0,0,0,0.35)' }}>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar carta..."
+              className="block w-full bg-transparent px-2 py-1 text-[13px] text-[#f3e3c3] placeholder:text-[#8d7f60] outline-none"
+              style={{ fontFamily: "'PT Serif', serif" }}
+            />
+          </ThinFrame>
+          <button onClick={() => { playUiClickSfx(); setDraft({ type: typeFilter, sort, view }); setFilterOpen(true); }} className="relative shrink-0 active:scale-95 transition">
+            <ThinFrame px={11} style={{ background: filterCount > 0 ? 'rgba(122,90,22,0.55)' : 'rgba(20,13,6,0.45)' }}>
+              <span className="block px-4 py-1 text-xs uppercase tracking-[0.12em] text-[#f0e0bb]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>Filtros</span>
+            </ThinFrame>
+            {filterCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center text-[9px] font-black text-[#fff1c9] bg-[#8a2a1a] shadow-[0_0_0_1.5px_#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>{filterCount}</span>
+            )}
           </button>
-          <div className="shrink-0 flex rounded-md overflow-hidden shadow-[inset_0_0_0_1px_rgba(212,175,55,0.35)]">
-            {([['lista', 'Lista'], ['cartas', 'Cartas']] as const).map(([id, label]) => (
-              <button
-                key={id}
-                onClick={() => { playUiClickSfx(); changeView(id); }}
-                className={`px-2.5 text-[10px] uppercase tracking-wider ${view === id ? 'bg-[#7a5a16]/75 text-[#fff1c9]' : 'bg-black/45 text-[#a89a78]'}`}
-                style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Cards: list (default) or card grid. Switching Deck <-> Reserva turns the page: the
@@ -3270,13 +3271,17 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
                           {/* cost: inside the left socket */}
                           <span className="absolute top-0 bottom-0 flex items-center justify-center text-[12px] font-black text-[#fff1c9]" style={{ fontFamily: "'Cinzel', serif", left: 8, width: 21 }}>{r.card.cost}</span>
                           {/* name + type */}
-                          <span className="absolute top-0 bottom-0 flex flex-col justify-center min-w-0" style={{ left: 44, right: isUnit ? 98 : 60 }}>
+                          <span className="absolute top-0 bottom-0 flex flex-col justify-center min-w-0" style={{ left: 44, right: isUnit ? 120 : 60 }}>
                             <span className="truncate text-[13px] leading-tight text-[#f3e3c3]" style={{ fontFamily: "'PT Serif', serif", fontWeight: 700 }}>{r.name}</span>
                             <span className="text-[9px] leading-tight uppercase tracking-[0.12em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>{r.card.cardType}</span>
                           </span>
                           {isUnit && (
-                            <span className="absolute top-0 bottom-0 flex items-center justify-end text-[12px] font-black tabular-nums" style={{ fontFamily: "'Cinzel', serif", right: 62 }}>
-                              <span className="text-[#f0a595]">{r.card.atk}</span><span className="text-[#8d7f60]">/</span><span className="text-[#8fe0a4]">{r.card.hp}</span>
+                            <span className="absolute top-0 bottom-0 flex items-center gap-1" style={{ right: 60 }}>
+                              {([[uiStatAtkImage, r.card.atk], [uiStatHpImage, r.card.hp]] as const).map(([img, val], k) => (
+                                <span key={k} className="relative flex items-center justify-center" style={{ width: 24, height: 27, backgroundImage: `url(${img})`, backgroundSize: '100% 100%' }}>
+                                  <span className="text-[12px] font-black leading-none pt-[2px]" style={{ fontFamily: "'Cinzel', serif", color: '#fff4d2', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.8)' }}>{val}</span>
+                                </span>
+                              ))}
                             </span>
                           )}
                           {/* quantity: inside the right socket */}
@@ -3289,24 +3294,21 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
               ) : (
                 <div className="grid p-1.5" style={{ gridTemplateColumns: `repeat(${gridCols}, ${cellW}px)`, columnGap: cellGap, rowGap: cellGap, justifyContent: 'center' }}>
                   {rows.map(r => (
-                    <button key={r.name} onClick={() => { playUiClickSfx(); openCard(r.name); }} className="relative active:brightness-125 active:scale-[0.97] transition" style={{ width: cellW, height: tileCardH + TILE_PAD * 2 + TILE_BORDER * 2 }}>
-                      <ArtFrame src={uiEditorTileImage} slice={[68, 68, 68, 68]} width={[TILE_BORDER, TILE_BORDER, TILE_BORDER, TILE_BORDER]} className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(38,25,11,0.7), rgba(14,9,4,0.8))' }}>
-                        <div className="absolute" style={{ width: tileCardW, height: tileCardH, left: TILE_BORDER, top: TILE_BORDER + TILE_PAD }}>
-                          {/* Full Art frames come out smaller than Padrão ones at the same scale, so
-                              they are drawn slightly larger to look the same size in the grid. */}
-                          <div className="absolute pointer-events-none" style={{ width: 224, height: 320, transform: `scale(${tileScale * (r.card.isFullArt ? FULL_ART_TILE_SCALE : 1)})`, transformOrigin: 'center center', left: (tileCardW - 224) / 2, top: (tileCardH - 320) / 2 }}>
-                            <div className="relative w-full h-full rounded-xl">
-                              <CardFace card={r.card} variant="hand" />
-                            </div>
-                          </div>
+                    <button key={r.name} onClick={() => { playUiClickSfx(); openCard(r.name); }} className="relative active:brightness-125 active:scale-[0.97] transition" style={{ width: cellW, height: cellH }}>
+                      {/* Every card gets the same cell, so the grid lines up exactly. Full Art
+                          frames come out smaller than Padrão ones at the same scale, so they are
+                          drawn slightly larger to look the same size. */}
+                      <div className="absolute pointer-events-none" style={{ width: 224, height: 320, transform: `scale(${cellScale * (r.card.isFullArt ? FULL_ART_TILE_SCALE : 1)})`, transformOrigin: 'center center', left: (cellW - 224) / 2, top: (cellH - 320) / 2 }}>
+                        <div className="relative w-full h-full rounded-xl">
+                          <CardFace card={r.card} variant="hand" />
                         </div>
-                        <span
-                          className="absolute bottom-1.5 right-1.5 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-black text-[#fff1c9] bg-[#5a3d0c] shadow-[0_0_0_1.5px_#e8c766,0_2px_4px_rgba(0,0,0,0.6)]"
-                          style={{ fontFamily: "'Cinzel', serif" }}
-                        >
-                          x{r.count}
-                        </span>
-                      </ArtFrame>
+                      </div>
+                      <span
+                        className="absolute bottom-0 right-0 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-black text-[#fff1c9] bg-[#5a3d0c] shadow-[0_0_0_1.5px_#e8c766,0_2px_4px_rgba(0,0,0,0.6)]"
+                        style={{ fontFamily: "'Cinzel', serif" }}
+                      >
+                        x{r.count}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -3399,6 +3401,43 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
                 <div className="flex gap-3">
                   <WindowButton onClick={() => setConfirm(null)}>Cancelar</WindowButton>
                   <WindowButton primary onClick={() => { const run = confirm.run; setConfirm(null); run(); }}>Confirmar</WindowButton>
+                </div>
+              </div>
+            </FramedWindow>
+          </WindowOverlay>
+        )}
+        {filterOpen && (
+          <WindowOverlay onClose={() => setFilterOpen(false)}>
+            <FramedWindow>
+              <div className="flex flex-col gap-3 px-1 py-1">
+                <WindowTitle>Filtros</WindowTitle>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] uppercase tracking-[0.14em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>Tipo</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(['todas', ...CARD_TYPE_ORDER] as const).map(t => (
+                      <ArtChip key={t} active={draft.type === t} onClick={() => setDraft(d => ({ ...d, type: t }))}>{t === 'todas' ? 'Todas' : t}</ArtChip>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] uppercase tracking-[0.14em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>Ordem</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {EDITOR_SORTS.map(o => (
+                      <ArtChip key={o} active={draft.sort === o} onClick={() => setDraft(d => ({ ...d, sort: o }))}>{o.charAt(0).toUpperCase() + o.slice(1)}</ArtChip>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] uppercase tracking-[0.14em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>Visualização</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    <ArtChip active={draft.view === 'lista'} onClick={() => setDraft(d => ({ ...d, view: 'lista' }))}>Lista</ArtChip>
+                    <ArtChip active={draft.view === 'cartas'} onClick={() => setDraft(d => ({ ...d, view: 'cartas' }))}>Cartas</ArtChip>
+                  </div>
+                </div>
+                <button onClick={() => { playUiClickSfx(); setDraft(d => ({ ...d, type: 'todas', sort: 'custo' })); }} className="self-center text-[11px] uppercase tracking-[0.14em] text-[#e8c766] underline underline-offset-4" style={{ fontFamily: "'Cinzel', serif" }}>Limpar filtros</button>
+                <div className="flex gap-3 justify-center">
+                  <WindowButton onClick={() => setFilterOpen(false)}>Cancelar</WindowButton>
+                  <WindowButton primary onClick={() => { setTypeFilter(draft.type); setSort(draft.sort); changeView(draft.view); setFilterOpen(false); }}>Aplicar</WindowButton>
                 </div>
               </div>
             </FramedWindow>
