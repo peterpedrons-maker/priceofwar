@@ -1014,8 +1014,10 @@ Top-down-neutral game UI illustration of a single ornate player profile plate fo
 
 ## 4o. Janelas do menu — moldura e textura de fundo
 
-**Status:** moldura **entregue e integrada** (`ui-window-frame.webp`, 768x768); textura de
-fundo **pendente** (prompt abaixo). A primeira moldura (linha fina solta por fora e cantos
+**Status:** moldura **entregue e integrada** (`ui-window-frame.webp`, 768x768) e textura de
+fundo **entregue e integrada** (`ui-window-texture.webp`, 512x512; a arte veio com 4x4 repetições
+do mesmo motivo e costuras de couro entre elas, e emenda bem nas bordas — testado; é
+repetida a 400 px sob um brilho quente suave). A primeira moldura (linha fina solta por fora e cantos
 enormes com corte diagonal) foi descartada e o prompt foi refeito pedindo um anel só e
 cantos pequenos apoiados nele.
 
@@ -1023,10 +1025,9 @@ A moldura é usada por **todas** as janelas do menu, através de um componente s
 (`FramedWindow` / `WindowOverlay` / `WindowTitle` / `WindowText` / `WindowButton` em
 `src/App.tsx`): Online, escolha de avatar, avisos "em breve", escolha de deck e "instale o
 app". Ela é desenhada em 9 fatias (CSS `border-image`, fatia de 160 px na arte de 768):
-os quatro cantos mantêm o tamanho e os lados retos esticam. O fundo do painel é a constante
-`WINDOW_BG`, hoje um degradê bronze escuro com granulação procedural; quando a textura chegar,
-é só trocar essa constante e todas as janelas acompanham. Qualquer janela nova deve usar o
-mesmo componente.
+os quatro cantos mantêm o tamanho e os lados retos esticam. O fundo do painel é definido em
+`FramedWindow` (textura + brilho); mudar ali muda todas as janelas. Qualquer janela nova deve
+usar o mesmo componente.
 
 Recorte: o cinza foi removido por inteiro (janela central e fora), a moldura tem cantos
 internos arredondados que ficam transparentes.
@@ -1047,9 +1048,30 @@ The area inside the ring is a large, plain, flat, solid mid-gray square (RGB 125
 Painterly medieval-fantasy game style (Gwent / Hearthstone UI quality), the same bronze-and-gold material and engraving as this game's other UI pieces, warm torchlit color grading on the metal only, crisp clean edges, no text, no watermark.
 ```
 
-**Textura de fundo das janelas (pendente)** → `ui-window-texture.webp`
+**Textura de fundo das janelas (usado)** → `ui-window-texture.webp`
 ```
 Seamless tileable square texture, 1:1 aspect ratio (1024x1024), a flat top-down view of a dark aged surface for the background of medieval-fantasy game menus: deep brown-black embossed leather with a very faint, low-contrast engraved filigree pattern of interlaced vines and small repeating knotwork, subtle stitched seams, soft worn patina and tiny scuffs. Warm dark palette only: darkest tones around #140d07, lightest tones no brighter than #3a2914, with very faint bronze highlights on the raised parts of the pattern. Even lighting across the whole image: no vignette, no gradient from one side to the other, no shadows falling across it, no glow, no focal point, no large features, no borders, no frame, no edge damage. The pattern must repeat seamlessly in both directions so that tiling it produces no visible seams. Low overall contrast so that light cream text and small icons stay clearly readable on top of it. No text, no letters, no symbols, no watermark.
+```
+
+</details>
+
+---
+
+## 4p. Fundo da tela inicial — versão épica (pendente)
+
+**Status:** prompt pronto, arte ainda não gerada. Pedido do usuário: o fundo atual (um reino
+de dia entardecer) é bom mas "aleatório"; trocar por algo mais épico, com cara de jogo.
+
+Vai substituir `start-screen-bg.webp` (usado em `MainMenu` e na tela de carregamento). A
+composição precisa respeitar o layout da tela: topo (~14%) tem a barra de perfil, logo em
+seguida o logo (até ~35%), a coluna dos 4 botões ocupa ~40-75% e os ícones ficam no rodapé.
+Por isso o pedido é drama nas bordas e no céu, com o miolo mais calmo.
+
+<details>
+<summary>Prompt</summary>
+
+```
+Tall vertical portrait key-art background for a mobile game main menu, 9:19.5 aspect ratio (about 1080x2340), epic painterly digital illustration in the style of a premium fantasy card game (Hearthstone, Legends of Runeterra, League of Legends loading-screen quality). Scene: a colossal fortress-cathedral with tall spires and a huge gothic rose window carved into a black cliff, seen from a low angle at dusk, its towers glowing with orange firelight; a vast burning sky of storm clouds torn open by a blazing golden sunset, shafts of golden light breaking through, drifting embers and sparks in the air. Far below, a river of tiny marching soldiers with crimson-and-gold lion banners flows toward the gates, and the ruins of an enemy siege camp smolder in the distance. In the lower foreground, dark planted swords, broken spears and tattered crimson banners rise from the ground on both the left and right edges, framing the scene like a stage. Palette: fire orange, molten gold, deep crimson and blue-violet shadows, rich and saturated but with soft atmospheric haze. COMPOSITION FOR A MENU: the top 14% of the image is a fairly plain dark sky (a status bar sits there); the upper third has an open glowing sky area with the fortress spires only faintly visible, since a logo goes there; the middle 40% to 75% is calm, hazy, low-contrast and mostly dark (four wide buttons will cover it), with the fortress body fading into misty shadow; the strongest detail, light and contrast live in the far sky behind the logo and in the left and right edges. Dark vignette toward the bottom for a row of icons. No text, no letters, no UI, no logo, no watermark, no people in close-up.
 ```
 
 </details>

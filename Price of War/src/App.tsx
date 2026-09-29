@@ -31,6 +31,7 @@ import menuCardEditarDeckImage from './assets/menu-card-editar-deck.webp';
 import menuCardLojaImage from './assets/menu-card-loja.webp';
 import uiFrameMenuCardImage from './assets/ui-frame-menu-card.webp';
 import uiWindowFrameImage from './assets/ui-window-frame.webp';
+import uiWindowTextureImage from './assets/ui-window-texture.webp';
 import uiPillCoroasImage from './assets/ui-pill-coroas.webp';
 import uiProfilePlateImage from './assets/ui-profile-plate.webp';
 import uiIconButtonImage from './assets/ui-icon-button.webp';
@@ -178,7 +179,7 @@ const ALL_PRELOAD_IMAGES: string[] = [
   recrutamentoSeletivoArt, recrutarVeteranosArt, tributoDeGuerraArt, chamadoAsArmasArt,
   recrutaDevotoArt, cavaleiroDaLuzFullArt, jorgeOLanceiroFullArt,
   menuCardDesafiosImage, menuCardOnlineImage, menuCardEditarDeckImage, menuCardLojaImage,
-  uiFrameMenuCardImage, uiWindowFrameImage, uiPillCoroasImage, uiProfilePlateImage, uiIconButtonImage,
+  uiFrameMenuCardImage, uiWindowFrameImage, uiWindowTextureImage, uiPillCoroasImage, uiProfilePlateImage, uiIconButtonImage,
   uiIconConfigImage, uiIconTutoriaisImage, uiIconRankingImage, uiIconSomImage,
   uiIconCoroaImage, uiIconDesafiosImage, uiIconOnlineImage, uiIconEditarDeckImage,
   uiIconLojaImage, uiIconMaisImage,
@@ -2162,12 +2163,10 @@ const AvatarBadge = ({ avatarId, size = 48, bare = false }: { avatarId: string; 
 // Every window/popup in the menu (Online, avatars, "coming soon", deck picker, install
 // prompt) uses this one look: the ornate square frame (ui-window-frame, drawn as a CSS
 // 9-slice — the four corner caps keep their size, the plain straight sides stretch)
-// around a dark panel. The panel's fill is WINDOW_BG: right now a dark bronze gradient
-// with a faint procedural grain; when the real background texture from
-// art-prompts/README.md 4o exists, swap it in here and every window follows.
+// around a dark panel filled with the embossed-leather texture (ui-window-texture, a
+// seamless tile, shown at 400px so each stitched panel reads about 100px wide) under a
+// soft warm highlight. Change the fill here and every window follows.
 const WINDOW_FRAME_PX = 34;
-const WINDOW_GRAIN = `url("data:image/svg+xml,${encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.85  0 0 0 0 0.7  0 0 0 0 0.45  0 0 0 0.09 0'/></filter><rect width='100%' height='100%' filter='url(#n)'/></svg>")}")`;
-const WINDOW_BG = `${WINDOW_GRAIN}, radial-gradient(ellipse at 50% 30%, #2b1d10 0%, #1a110a 60%, #0f0a05 100%)`;
 const WINDOW_FONT_DECO = "'Cinzel Decorative', 'Cinzel', serif";
 
 const FramedWindow = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
@@ -2181,7 +2180,10 @@ const FramedWindow = ({ children, className = '' }: { children: React.ReactNode;
       borderImageSlice: '160',
       borderImageWidth: `${WINDOW_FRAME_PX}px`,
       borderImageRepeat: 'stretch',
-      background: WINDOW_BG,
+      backgroundColor: '#150e08',
+      backgroundImage: `radial-gradient(ellipse at 50% 25%, rgba(150,100,40,0.28), rgba(150,100,40,0) 70%), url(${uiWindowTextureImage})`,
+      backgroundSize: '100% 100%, 400px 400px',
+      backgroundRepeat: 'no-repeat, repeat',
       filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.7))',
     }}
   >
