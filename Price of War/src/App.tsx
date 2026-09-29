@@ -2263,7 +2263,7 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
         >
           {profile.level}
         </span>
-        <div className="absolute flex items-center gap-[1.5cqw] min-w-0" style={{ left: '40.5%', top: '25.5%', width: '52%', height: '20%' }}>
+        <div className="absolute flex items-center gap-[1.5cqw] min-w-0" style={{ left: '42%', top: '26%', width: '49%', height: '19%' }}>
           {editingName ? (
             <input
               ref={inputRef}
@@ -2274,16 +2274,13 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
               maxLength={18}
               autoFocus
               className="bg-black/50 border border-[#e8c766]/70 rounded px-1 font-bold text-[#f3e3c3] w-[60%] outline-none"
-              style={{ fontFamily: "'Cinzel', serif", fontSize: '3.9cqw', lineHeight: 1.2 }}
+              style={{ fontFamily: "'Cinzel', serif", fontSize: '3.3cqw', lineHeight: 1.2 }}
             />
           ) : (
             <button onClick={() => { playUiClickSfx(); startEditing(); }} className="flex items-center gap-[1cqw] min-w-0 text-left">
-              <span className="truncate font-bold text-[#f8ecd0]" style={{ fontFamily: "'Cinzel', serif", fontSize: '3.9cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>{profile.name}</span>
+              <span className="truncate font-bold text-[#f8ecd0]" style={{ fontFamily: "'Cinzel', serif", fontSize: '3.4cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>{profile.name}</span>
             </button>
           )}
-          <span className="ml-auto shrink-0 font-black uppercase tracking-wide text-[#f0cf6a]" style={{ fontFamily: "'Cinzel', serif", fontSize: '2.5cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
-            {profile.rank}
-          </span>
         </div>
         {/* Cosmetic for now — no XP is actually awarded anywhere yet, same
             "real UI, no data feeding it yet" tier as Coroas/rank above. */}
@@ -2488,14 +2485,9 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
         initial={{ y: -40, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", stiffness: 100 }}
-        className="w-[54vw] max-w-[215px] mt-1 mb-1 z-10 select-none pointer-events-none drop-shadow-[0_0_25px_rgba(212,175,55,0.35)]"
+        className="w-[54vw] max-w-[215px] mt-1 mb-4 z-10 select-none pointer-events-none drop-shadow-[0_0_25px_rgba(212,175,55,0.35)]"
         draggable={false}
       />
-      {/* Subtitle ribbon — plain styled text, no new art (see the reference
-          mockup's "GUERRA PELO REINO" banner under its own logo). */}
-      <div className="relative z-10 mb-4 px-4 py-1 rounded-full border border-[#d4af37]/70 bg-black/50">
-        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#d4af37]" style={{ fontFamily: "'Cinzel', serif" }}>Guerra pelo Reino</span>
-      </div>
 
       <div className="flex flex-col gap-3 relative z-10 w-[88vw] max-w-sm">
         {/* Four equal buttons, in the user's own order: Desafios first (the
