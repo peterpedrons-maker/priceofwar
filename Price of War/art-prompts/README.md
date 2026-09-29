@@ -1137,7 +1137,7 @@ Top-down-neutral game UI illustration of a single, extremely thin, elegant gold-
 
 ## 4s. Molduras finas — ícones de baixo, perfil e Coroas (pendente)
 
-**Status:** prompts prontos. Pedido do usuário: o resto da tela inicial ainda tem as artes de
+**Status:** **entregue e integrado** (`ui-icon-button.webp` 256, `ui-profile-plate.webp` 1100x287, `ui-pill-coroas.webp` 620x126). Recorte com transparência gradual (como 4r) e, como a moldura fina deixa o interior vazio, os vãos fechados foram preenchidos por código com um marrom quase preto semi-opaco, para os ícones e os textos ficarem legíveis; medidas do layout refeitas na arte nova (comentário em `ProfileBar`). A pílula veio 4,9:1 (o prompt pedia 3,8:1) e a placa 3,8:1 (pedia 3,2:1), então ficaram um pouco menores em altura. Pedido do usuário: o resto da tela inicial ainda tem as artes de
 bronze grosso (quadradinhos de Config./Tutoriais/Ranking/Som, placa do perfil, pílula de
 Coroas); quer tudo na mesma linha dourada fina. Como o resto do menu, o objetivo é combinar
 com `ui-frame-menu-card.webp` (linha dupla, cantinhos com folhinha).

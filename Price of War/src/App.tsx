@@ -2352,34 +2352,35 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
 
   const xpPct = Math.min(100, Math.round((profile.xp / Math.max(1, profile.xpToNext)) * 100));
 
-  // Both containers below are cut-out art (ui-profile-plate / ui-pill-coroas). Each is
-  // a container-query box and everything inside is placed as a % of the art and sized
-  // in cqw, so it scales with the plate's own width. Measured off the plate art
-  // (1679x499): avatar recess centre (17.5%, 47.6%) and 20.4% wide; level shield
-  // centre (33.4%, 73%); name inset x 39.4-93.2%, y 25-46%; XP track x 41.8-88.1%,
-  // y 58.7-66%. Coroas pill: gem socket centred at (13%, 50%), value bar to its right.
+  // Both containers below are thin gold-line cut-outs (ui-profile-plate / ui-pill-coroas)
+  // whose enclosed areas were pre-filled dark in the art. Each is a container-query box
+  // and everything inside is placed as a % of the art and sized in cqw, so it scales with
+  // the plate's own width. Measured off the plate art (1740x454): avatar recess centre
+  // (16.6%, 50%), 22.4% wide; level shield centre (26.8%, 82.3%); name field x 31-93%,
+  // y 19-58%; XP track x 33-94%, y 68-76%. Coroas pill (1857x376): medallion socket
+  // centred at (10%, 46.8%), 13.2% wide, value area to its right.
   return (
     <div
       className="absolute top-0 inset-x-0 z-20 flex items-center justify-between gap-2 px-3 pb-3"
       style={{ paddingTop: 'max(10px, env(safe-area-inset-top))', background: 'linear-gradient(to bottom, rgba(0,0,0,0.75), transparent)' }}
     >
-      <div className="relative shrink-0" style={{ width: 'min(67%, 268px)', aspectRatio: '1679 / 499', containerType: 'inline-size' }}>
+      <div className="relative shrink-0" style={{ width: 'min(67%, 268px)', aspectRatio: '1740 / 454', containerType: 'inline-size' }}>
         <img src={uiProfilePlateImage} alt="" draggable={false} className="absolute inset-0 w-full h-full select-none pointer-events-none" style={{ filter: 'drop-shadow(0 3px 4px rgba(0,0,0,0.55))' }} />
         <button
           onClick={() => { playUiClickSfx(); onOpenAvatarPicker(); }}
           className="absolute"
-          style={{ left: '17.5%', top: '47.6%', width: '20cqw', height: '20cqw', transform: 'translate(-50%, -50%)' }}
+          style={{ left: '16.6%', top: '50%', width: '22cqw', height: '22cqw', transform: 'translate(-50%, -50%)' }}
           aria-label="Escolher avatar"
         >
-          <AvatarBadge avatarId={profile.avatarId} size="20cqw" bare />
+          <AvatarBadge avatarId={profile.avatarId} size="22cqw" bare />
         </button>
         <span
           className="absolute flex items-center justify-center font-black text-[#f8ecd0] leading-none"
-          style={{ left: '33.4%', top: '73%', width: '8cqw', height: '8cqw', transform: 'translate(-50%, -50%)', fontFamily: "'Cinzel', serif", fontSize: '5.2cqw', textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}
+          style={{ left: '26.8%', top: '82.3%', width: '6cqw', height: '6cqw', transform: 'translate(-50%, -50%)', fontFamily: "'Cinzel', serif", fontSize: '4cqw', textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}
         >
           {profile.level}
         </span>
-        <div className="absolute flex items-center gap-[1.5cqw] min-w-0" style={{ left: '42%', top: '26%', width: '49%', height: '19%' }}>
+        <div className="absolute flex items-center gap-[1.5cqw] min-w-0" style={{ left: '36%', top: '22%', width: '57%', height: '34%' }}>
           {editingName ? (
             <input
               ref={inputRef}
@@ -2390,30 +2391,30 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
               maxLength={18}
               autoFocus
               className="bg-black/50 border border-[#e8c766]/70 rounded px-1 font-bold text-[#f3e3c3] w-[60%] outline-none"
-              style={{ fontFamily: "'Cinzel', serif", fontSize: '3.3cqw', lineHeight: 1.2 }}
+              style={{ fontFamily: "'Cinzel', serif", fontSize: '4cqw', lineHeight: 1.2 }}
             />
           ) : (
             <button onClick={() => { playUiClickSfx(); startEditing(); }} className="flex items-center gap-[1cqw] min-w-0 text-left">
-              <span className="truncate font-bold text-[#f8ecd0]" style={{ fontFamily: "'Cinzel', serif", fontSize: '3.4cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>{profile.name}</span>
+              <span className="truncate font-bold text-[#f8ecd0]" style={{ fontFamily: "'Cinzel', serif", fontSize: '4.2cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>{profile.name}</span>
             </button>
           )}
         </div>
         {/* Cosmetic for now — no XP is actually awarded anywhere yet, same
             "real UI, no data feeding it yet" tier as Coroas/rank above. */}
-        <div className="absolute rounded-full overflow-hidden" style={{ left: '42.6%', top: '60.2%', width: '44.4%', height: '4.6%' }}>
+        <div className="absolute rounded-full overflow-hidden" style={{ left: '33.3%', top: '68.3%', width: '60.5%', height: '7.4%' }}>
           <div className="h-full bg-gradient-to-r from-[#d4af37] to-[#f3e3c3]" style={{ width: `${xpPct}%` }} />
         </div>
       </div>
 
-      <div className="relative shrink-0" style={{ width: 'min(30%, 128px)', aspectRatio: '800 / 210', containerType: 'inline-size' }}>
+      <div className="relative shrink-0" style={{ width: 'min(33%, 144px)', aspectRatio: '1857 / 376', containerType: 'inline-size' }}>
         <img src={uiPillCoroasImage} alt="" draggable={false} className="absolute inset-0 w-full h-full select-none pointer-events-none" />
-        <img src={uiIconCoroaImage} alt="" draggable={false} className="absolute select-none pointer-events-none object-contain" style={{ left: '13%', top: '50%', width: '15cqw', height: '15cqw', transform: 'translate(-50%, -50%)', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }} />
-        <div className="absolute flex items-center justify-between" style={{ left: '27%', right: '6.5%', top: '24%', bottom: '24%' }}>
-          <span className="font-black text-[#f8ecd0]" style={{ fontFamily: "'Cinzel', serif", fontSize: '12.5cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.85)' }}>{profile.coroas}</span>
+        <img src={uiIconCoroaImage} alt="" draggable={false} className="absolute select-none pointer-events-none object-contain" style={{ left: '10%', top: '46.8%', width: '11.5cqw', height: '11.5cqw', transform: 'translate(-50%, -50%)', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }} />
+        <div className="absolute flex items-center justify-between" style={{ left: '19%', right: '5.5%', top: '22%', bottom: '22%' }}>
+          <span className="font-black text-[#f8ecd0]" style={{ fontFamily: "'Cinzel', serif", fontSize: '9.5cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.85)' }}>{profile.coroas}</span>
           <button
             onClick={() => { playUiClickSfx(); onOpenShop(); }}
             className="shrink-0 active:scale-90 transition-transform"
-            style={{ width: '13cqw', height: '13cqw' }}
+            style={{ width: '10.5cqw', height: '10.5cqw' }}
             aria-label="Comprar Coroas"
           >
             <img src={uiIconMaisImage} alt="" draggable={false} className="w-full h-full object-contain select-none pointer-events-none" />
@@ -2618,7 +2619,7 @@ const MenuIconButton = ({ icon, label, onClick }: { icon: string; label: string;
         <img
           src={icon}
           alt=""
-          className="absolute left-1/2 top-1/2 w-[62%] h-[62%] -translate-x-1/2 -translate-y-1/2 object-contain select-none"
+          className="absolute left-1/2 top-1/2 w-[64%] h-[64%] -translate-x-1/2 -translate-y-1/2 object-contain select-none"
           style={{
             filter: lit ? 'brightness(1.4) saturate(1.1) drop-shadow(0 0 7px rgba(255,205,90,0.95))' : 'brightness(1.2) saturate(1.1) drop-shadow(0 1px 1px rgba(0,0,0,0.7))',
             transition: 'filter 100ms',
