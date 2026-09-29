@@ -1057,13 +1057,15 @@ Seamless tileable square texture, 1:1 aspect ratio (1024x1024), a flat top-down 
 
 ---
 
-## 4p. Fundo da tela inicial — versão épica (pendente)
+## 4p. Fundo da tela inicial — versão épica
 
-**Status:** prompt pronto, arte ainda não gerada. Pedido do usuário: o fundo atual (um reino
-de dia entardecer) é bom mas "aleatório"; trocar por algo mais épico, com cara de jogo.
+**Status:** entregue e integrado (`start-screen-bg.webp`, 704x1389; substitui o reino ao
+entardecer anterior, que continua em `reference/start-screen-bg-v1.png`). A arte veio com uma
+faixa azul lisa de 131 px no topo (fora da cena), que foi cortada. Usada em `MainMenu` e na
+tela de carregamento. Pedido do usuário: o fundo antigo era bom mas "aleatório"; trocar por
+algo mais épico, com cara de jogo.
 
-Vai substituir `start-screen-bg.webp` (usado em `MainMenu` e na tela de carregamento). A
-composição precisa respeitar o layout da tela: topo (~14%) tem a barra de perfil, logo em
+A composição pedida respeita o layout da tela: topo (~14%) tem a barra de perfil, logo em
 seguida o logo (até ~35%), a coluna dos 4 botões ocupa ~40-75% e os ícones ficam no rodapé.
 Por isso o pedido é drama nas bordas e no céu, com o miolo mais calmo.
 
