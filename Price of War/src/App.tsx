@@ -2061,6 +2061,118 @@ const DECKS = {
 } as const;
 type DeckId = keyof typeof DECKS;
 
+// ── Collection and saved decks (local-only for now) ─────────────────────────
+// What the deck editor edits. The player owns a COLLECTION (card name -> copies) and builds
+// DECKS out of it; whatever is owned but not in the deck is the reserve (never stored on
+// its own, so a card can't get lost between the two). Everything is keyed by card NAME
+// (every copy of a card shares its stats, same idea as BASE_HP_BY_NAME below) and the
+// concrete CardData copies are only picked when a match starts (buildDeckSelection).
+// Stored in localStorage like the profile, so an account backend can replace
+// load/saveDeckStore without touching the screens. Until a shop/boosters exist, the first
+// launch grants the Cardeal starter deck plus a random handful of Capitão cards, purely so
+// the editor has something in its reserve to play with.
+const DECK_MIN_CARDS = 40;
+const DECK_MAX_CARDS = 60;
+const DECK_MAX_COPIES = 4;
+const DECK_STORE_KEY = 'pow_deck_store_v1';
+
+const CARD_INSTANCES_BY_NAME: Record<string, CardData[]> = {};
+[...DECK_CAPITAO, ...DECK_CARDEAL].forEach(c => {
+  if (!CARD_INSTANCES_BY_NAME[c.name]) CARD_INSTANCES_BY_NAME[c.name] = [];
+  CARD_INSTANCES_BY_NAME[c.name].push(c);
+});
+const cardByName = (name: string): CardData | undefined => CARD_INSTANCES_BY_NAME[name]?.[0];
+const isGeneralName = (name: string) => cardByName(name)?.cardType === 'General';
+
+type DeckSlot = { id: string; name: string; general: string; cards: Record<string, number> };
+type DeckStore = { collection: Record<string, number>; slots: DeckSlot[] };
+// What a match needs from a deck: the draw pool, the General, and which prebuilt deck the AI takes.
+type DeckSelection = { pool: readonly CardData[]; general: CardData; npcDeckId: DeckId };
+
+const countByName = (cards: readonly CardData[]) => {
+  const out: Record<string, number> = {};
+  cards.forEach(c => { out[c.name] = (out[c.name] ?? 0) + 1; });
+  return out;
+};
+
+const buildStarterStore = (): DeckStore => {
+  const starterCards = countByName(DECKS.cardeal.pool);
+  const collection: Record<string, number> = { ...starterCards, [DECKS.cardeal.general.name]: 1 };
+  // Test extras: a random sample of Capitão cards (and its General), see the note above.
+  const capitaoCounts = countByName(DECKS.capitao.pool);
+  Object.keys(capitaoCounts).sort(() => Math.random() - 0.5).slice(0, 14).forEach(name => {
+    collection[name] = (collection[name] ?? 0) + 1 + Math.floor(Math.random() * Math.min(3, capitaoCounts[name]));
+  });
+  collection[DECKS.capitao.general.name] = 1;
+  return {
+    collection,
+    slots: [
+      { id: 'slot1', name: DECKS.cardeal.name, general: DECKS.cardeal.general.name, cards: { ...starterCards } },
+      { id: 'slot2', name: 'Deck 2', general: DECKS.cardeal.general.name, cards: {} },
+    ],
+  };
+};
+
+// Drops anything the catalog no longer knows and clamps counts to what is owned, so a stale
+// or hand-edited save can never produce an impossible deck.
+const sanitizeDeckStore = (raw: any): DeckStore | null => {
+  if (!raw || typeof raw !== 'object' || typeof raw.collection !== 'object' || !Array.isArray(raw.slots) || raw.slots.length < 2) return null;
+  const collection: Record<string, number> = {};
+  Object.entries(raw.collection as Record<string, number>).forEach(([name, n]) => {
+    const max = CARD_INSTANCES_BY_NAME[name]?.length;
+    if (max && Number.isFinite(n) && n > 0) collection[name] = Math.min(Math.floor(n), max);
+  });
+  const ownedGenerals = Object.keys(collection).filter(isGeneralName);
+  if (ownedGenerals.length === 0) return null;
+  const slots: DeckSlot[] = raw.slots.slice(0, 2).map((sl: any, i: number): DeckSlot => {
+    const cards: Record<string, number> = {};
+    Object.entries((sl?.cards ?? {}) as Record<string, number>).forEach(([name, n]) => {
+      const own = collection[name] ?? 0;
+      if (own > 0 && !isGeneralName(name) && Number.isFinite(n) && n > 0) cards[name] = Math.min(Math.floor(n), own, DECK_MAX_COPIES);
+    });
+    return {
+      id: `slot${i + 1}`,
+      name: typeof sl?.name === 'string' && sl.name ? sl.name.slice(0, 24) : `Deck ${i + 1}`,
+      general: ownedGenerals.includes(sl?.general) ? sl.general : ownedGenerals[0],
+      cards,
+    };
+  });
+  return { collection, slots };
+};
+const loadDeckStore = (): DeckStore => {
+  try {
+    const raw = localStorage.getItem(DECK_STORE_KEY);
+    if (raw) {
+      const ok = sanitizeDeckStore(JSON.parse(raw));
+      if (ok) return ok;
+    }
+  } catch { /* fall through to a fresh starter */ }
+  const fresh = buildStarterStore();
+  saveDeckStore(fresh);
+  return fresh;
+};
+const saveDeckStore = (store: DeckStore) => {
+  try { localStorage.setItem(DECK_STORE_KEY, JSON.stringify(store)); } catch { /* private mode etc. */ }
+};
+
+const deckCardCount = (slot: DeckSlot) => Object.values(slot.cards).reduce((a, b) => a + b, 0);
+// null = playable; otherwise the reason it isn't (shown in the editor and the deck picker).
+const deckProblem = (slot: DeckSlot): string | null => {
+  const n = deckCardCount(slot);
+  if (n < DECK_MIN_CARDS) return `Faltam ${DECK_MIN_CARDS - n} cartas (mínimo ${DECK_MIN_CARDS})`;
+  if (n > DECK_MAX_CARDS) return `${n - DECK_MAX_CARDS} cartas a mais (máximo ${DECK_MAX_CARDS})`;
+  return null;
+};
+const buildDeckSelection = (slot: DeckSlot): DeckSelection => {
+  const general = cardByName(slot.general) ?? DECKS.cardeal.general;
+  const pool: CardData[] = [];
+  Object.entries(slot.cards).forEach(([name, n]) => pool.push(...(CARD_INSTANCES_BY_NAME[name] ?? []).slice(0, n)));
+  // The AI plays the prebuilt deck of the OTHER faction, as before.
+  const isCapitaoGeneral = DECK_CAPITAO.some(c => c.cardType === 'General' && c.name === general.name);
+  return { pool, general, npcDeckId: isCapitaoGeneral ? 'cardeal' : 'capitao' };
+};
+const DEFAULT_DECK_SELECTION: DeckSelection = { pool: DECKS.capitao.pool, general: DECKS.capitao.general, npcDeckId: 'cardeal' };
+
 // Cavaleiro Hospitalário's "cure 1 HP de um aliado" only makes sense targeting someone who's
 // actually hurt — but CardData has no separate max-HP field, hp IS current HP (see
 // resolveGeneralHeal, which has no such restriction and just heals whatever's
@@ -2648,6 +2760,7 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   const [comingSoon, setComingSoon] = useState<{ title: string; message: string } | null>(null);
   const [onlineOpen, setOnlineOpen] = useState(false);
+  const [deckEditorOpen, setDeckEditorOpen] = useState(false);
   const updateProfile = (patch: Partial<PlayerProfile>) => {
     setProfile(prev => {
       const next = { ...prev, ...patch };
@@ -2699,6 +2812,7 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
             onClose={() => setAvatarPickerOpen(false)}
           />
         )}
+        {deckEditorOpen && <DeckEditor onClose={() => setDeckEditorOpen(false)} />}
         {onlineOpen && (
           <OnlineModeModal
             onClose={() => setOnlineOpen(false)}
@@ -2729,8 +2843,8 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
             deck picker and starts a match against the AI, the only mode whose
             opponent actually plays), then Online, Meu Deck and Loja. The old
             Partida Rápida button is gone on purpose. Online opens the
-            Casual/Ranqueado picker (OnlineModeModal); Meu Deck / Loja have no
-            screens yet, so they open ComingSoonModal instead of starting
+            Casual/Ranqueado picker (OnlineModeModal), Meu Deck the deck editor; Loja has
+            no screen yet, so it opens ComingSoonModal instead of starting
             a match with a dead opponent. The mode identifiers ('Campaign' etc.)
             stay in English; only the label shown is translated. */}
         <MenuCard
@@ -2749,9 +2863,7 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
           icon={uiIconEditarDeckImage}
           title={MODE_LABELS_PT['My Deck']}
           bgImage={menuCardEditarDeckImage}
-          onClick={() => {
-            setComingSoon({ title: 'Meu Deck', message: 'Em breve você vai poder montar e ajustar o seu baralho aqui.' });
-          }}
+          onClick={() => setDeckEditorOpen(true)}
         />
         <MenuCard
           icon={uiIconLojaImage}
@@ -2811,29 +2923,361 @@ const InstallPrompt = ({
   </WindowOverlay>
 );
 
-// Shown right after tapping "Quick Match" — picking a deck here is what decides
-// which General and card pool the player gets; the AI always takes the other
-// deck (see resetGame), so every match pits the two against each other.
-const DeckPickerModal = ({ onSelect, onClose }: { onSelect: (deckId: DeckId) => void, onClose: () => void }) => (
+// Shown right after tapping Desafios — the player picks one of THEIR saved decks (see the
+// deck editor); the AI takes the prebuilt deck of the other faction (see buildDeckSelection).
+// A deck that breaks the size rules is listed but greyed out, with the reason.
+const DeckPickerModal = ({ store, onSelect, onClose }: { store: DeckStore; onSelect: (sel: DeckSelection) => void, onClose: () => void }) => (
   <WindowOverlay onClose={onClose}>
     <FramedWindow>
       <div className="flex flex-col gap-3 px-1 py-1">
         <WindowTitle>Escolha seu Deck</WindowTitle>
-        {Object.values(DECKS).map((deck) => (
-          <WindowOption key={deck.id} onClick={() => onSelect(deck.id)}>
-            <div className="flex flex-col gap-0.5">
-              <span className="uppercase text-[#f3e3c3]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 15, letterSpacing: '0.08em' }}>{deck.name}</span>
-              <span className="text-[11px] font-bold text-[#e8c766]" style={{ fontFamily: "'PT Serif', serif" }}>General: {deck.general.name}</span>
-              <span className="text-[12px] leading-snug text-[#cdbd97]" style={{ fontFamily: "'PT Serif', serif" }}>{deck.description}</span>
-              <span className="text-[10px] text-[#9d8d6b] mt-0.5 uppercase tracking-wide" style={{ fontFamily: "'Cinzel', serif" }}>{deck.pool.length + 1} cartas</span>
-            </div>
-          </WindowOption>
-        ))}
+        {store.slots.map((slot) => {
+          const problem = deckProblem(slot);
+          return (
+            <WindowOption key={slot.id} onClick={() => { if (!problem) onSelect(buildDeckSelection(slot)); }}>
+              <div className={`flex flex-col gap-0.5 ${problem ? 'opacity-45' : ''}`}>
+                <span className="uppercase text-[#f3e3c3]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 15, letterSpacing: '0.08em' }}>{slot.name}</span>
+                <span className="text-[11px] font-bold text-[#e8c766]" style={{ fontFamily: "'PT Serif', serif" }}>General: {slot.general}</span>
+                <span className="text-[10px] mt-0.5 uppercase tracking-wide" style={{ fontFamily: "'Cinzel', serif", color: problem ? '#e08a7a' : '#9d8d6b' }}>
+                  {problem ?? `${deckCardCount(slot)} cartas`}
+                </span>
+              </div>
+            </WindowOption>
+          );
+        })}
         <WindowButton onClick={onClose} className="self-center">Cancelar</WindowButton>
       </div>
     </FramedWindow>
   </WindowOverlay>
 );
+
+// ── Deck editor ─────────────────────────────────────────────────────────────
+// Full-screen, Forbidden-Memories style: the screen shows ONE side at a time — the deck or
+// the reserve — and a switch at the top flips between them. Tapping a card never moves it
+// straight away (too easy to mis-tap on a phone): it opens a small window with the card, a
+// quantity stepper and a clear "send to ..." button. Clear / auto-fill / general swap ask
+// for confirmation as well. Every confirmed change is saved right away.
+const CARD_TYPE_ORDER: CardType[] = ['Infantaria', 'Cavalaria', 'Arqueiro', 'Artilharia', 'Tática', 'Emboscada', 'Terreno', 'Relíquia'];
+type DeckSide = 'deck' | 'reserve';
+type EditorSort = 'custo' | 'nome' | 'tipo';
+const EDITOR_SORTS: EditorSort[] = ['custo', 'nome', 'tipo'];
+
+const DeckEditor = ({ onClose }: { onClose: () => void }) => {
+  const [store, setStore] = useState<DeckStore>(loadDeckStore);
+  const [slotIdx, setSlotIdx] = useState(0);
+  const [side, setSide] = useState<DeckSide>('deck');
+  const [typeFilter, setTypeFilter] = useState<CardType | 'todas'>('todas');
+  const [sort, setSort] = useState<EditorSort>('custo');
+  const [query, setQuery] = useState('');
+  const [picked, setPicked] = useState<string | null>(null);
+  const [qty, setQty] = useState(1);
+  const [confirm, setConfirm] = useState<{ title: string; message: string; run: () => void } | null>(null);
+  const [generalOpen, setGeneralOpen] = useState(false);
+  const [generalChoice, setGeneralChoice] = useState<string | null>(null);
+  const [savedFlash, setSavedFlash] = useState(false);
+  const [viewW, setViewW] = useState(typeof window !== 'undefined' ? window.innerWidth : 390);
+  useEffect(() => {
+    const on = () => setViewW(window.innerWidth);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+
+  const slot = store.slots[slotIdx];
+  const total = deckCardCount(slot);
+  const problem = deckProblem(slot);
+  const ownedGenerals = Object.keys(store.collection).filter(isGeneralName);
+
+  const commit = (mutate: (draft: DeckStore) => void) => {
+    setStore(prev => {
+      const next: DeckStore = JSON.parse(JSON.stringify(prev));
+      mutate(next);
+      saveDeckStore(next);
+      return next;
+    });
+    setSavedFlash(true);
+    window.setTimeout(() => setSavedFlash(false), 1400);
+  };
+
+  const inDeck = (name: string) => slot.cards[name] ?? 0;
+  const owned = (name: string) => store.collection[name] ?? 0;
+  // How many copies can move each way right now.
+  const canAdd = (name: string) => Math.max(0, Math.min(owned(name) - inDeck(name), DECK_MAX_COPIES - inDeck(name), DECK_MAX_CARDS - total));
+  const canRemove = (name: string) => inDeck(name);
+  const addReason = (name: string) =>
+    owned(name) - inDeck(name) <= 0 ? 'Sem cópias na reserva'
+      : inDeck(name) >= DECK_MAX_COPIES ? `Limite de ${DECK_MAX_COPIES} cópias por carta`
+      : total >= DECK_MAX_CARDS ? `Deck cheio (${DECK_MAX_CARDS}/${DECK_MAX_CARDS})` : '';
+
+  const rows = (() => {
+    const names = Object.keys(store.collection).filter(n => !isGeneralName(n));
+    const list = names
+      .map(name => ({ name, card: cardByName(name)!, count: side === 'deck' ? inDeck(name) : owned(name) - inDeck(name) }))
+      .filter(r => r.count > 0)
+      .filter(r => typeFilter === 'todas' || r.card.cardType === typeFilter)
+      .filter(r => !query.trim() || r.name.toLowerCase().includes(query.trim().toLowerCase()));
+    const typeRank = (t?: CardType) => { const i = CARD_TYPE_ORDER.indexOf(t as CardType); return i < 0 ? 99 : i; };
+    list.sort((a, b) =>
+      sort === 'nome' ? a.name.localeCompare(b.name, 'pt-BR')
+      : sort === 'tipo' ? typeRank(a.card.cardType) - typeRank(b.card.cardType) || a.card.cost - b.card.cost || a.name.localeCompare(b.name, 'pt-BR')
+      : a.card.cost - b.card.cost || a.name.localeCompare(b.name, 'pt-BR'));
+    return list;
+  })();
+  const reserveCount = Object.keys(store.collection).filter(n => !isGeneralName(n)).reduce((sum, n) => sum + owned(n) - inDeck(n), 0);
+
+  const openCard = (name: string) => { setPicked(name); setQty(1); };
+  const maxQty = picked ? (side === 'deck' ? canRemove(picked) : canAdd(picked)) : 0;
+  const applyMove = () => {
+    if (!picked || maxQty < 1) return;
+    const n = Math.min(qty, maxQty);
+    commit(d => {
+      const cards = d.slots[slotIdx].cards;
+      const next = (cards[picked] ?? 0) + (side === 'deck' ? -n : n);
+      if (next <= 0) delete cards[picked]; else cards[picked] = next;
+    });
+    setPicked(null);
+  };
+
+  const autoFillPlan = () => {
+    const plan: Record<string, number> = {};
+    let sum = total;
+    const names = Object.keys(store.collection).filter(n => !isGeneralName(n)).sort((a, b) =>
+      CARD_TYPE_ORDER.indexOf(cardByName(a)!.cardType as CardType) - CARD_TYPE_ORDER.indexOf(cardByName(b)!.cardType as CardType) || cardByName(a)!.cost - cardByName(b)!.cost);
+    let added = true;
+    while (sum < DECK_MAX_CARDS && added) {
+      added = false;
+      for (const name of names) {
+        if (sum >= DECK_MAX_CARDS) break;
+        const have = inDeck(name) + (plan[name] ?? 0);
+        if (have < Math.min(owned(name), DECK_MAX_COPIES)) { plan[name] = (plan[name] ?? 0) + 1; sum++; added = true; }
+      }
+    }
+    return plan;
+  };
+
+  const cellGap = 8;
+  const gridW = Math.min(viewW, 480) - 24;
+  const cellW = Math.floor((gridW - cellGap * 2) / 3);
+  const scale = cellW / 224;
+  const cellH = Math.round(320 * scale);
+  const pickedCard = picked ? cardByName(picked) : undefined;
+
+  const chip = (active: boolean) =>
+    `shrink-0 px-2.5 py-1 rounded-full border text-[10px] uppercase tracking-[0.1em] transition-colors ${active ? 'border-[#e8c766] bg-[#7a5a16]/70 text-[#fff1c9]' : 'border-[#d4af37]/35 text-[#cdbd97]'}`;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.18 }}
+      className="fixed inset-0 z-[300] flex flex-col items-center text-white"
+      style={{
+        backgroundColor: '#0f0a05',
+        backgroundImage: `linear-gradient(rgba(12,8,4,0.86), rgba(12,8,4,0.94)), url(${uiWindowTextureImage})`,
+        backgroundSize: 'cover, 400px 400px',
+        paddingTop: 'max(10px, env(safe-area-inset-top))',
+        paddingBottom: 'max(10px, env(safe-area-inset-bottom))',
+      }}
+    >
+      <div className="w-full max-w-[480px] flex flex-col h-full px-3 gap-2">
+        {/* Header: back, deck slots, saved flash */}
+        <div className="flex items-center gap-2">
+          <WindowButton onClick={onClose}>Voltar</WindowButton>
+          <div className="flex gap-1.5 flex-1 justify-center">
+            {store.slots.map((sl, i) => (
+              <button key={sl.id} onClick={() => { playUiClickSfx(); setSlotIdx(i); setPicked(null); }} className={chip(i === slotIdx)} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
+                Deck {i + 1}
+              </button>
+            ))}
+          </div>
+          <span className={`text-[10px] uppercase tracking-wider transition-opacity ${savedFlash ? 'opacity-100' : 'opacity-0'} text-emerald-300`} style={{ fontFamily: "'Cinzel', serif" }}>Salvo</span>
+        </div>
+
+        {/* Deck title + counter + general */}
+        <ThinFrame px={11} style={{ background: 'rgba(20,13,6,0.55)' }}>
+          <div className="px-2 py-1 flex items-center gap-2">
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="truncate uppercase text-[#f3e3c3]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 14, letterSpacing: '0.06em' }}>{slot.name}</span>
+              <button onClick={() => { playUiClickSfx(); setGeneralChoice(slot.general); setGeneralOpen(true); }} className="text-left truncate text-[11px] text-[#e8c766]" style={{ fontFamily: "'PT Serif', serif" }}>
+                General: {slot.general} <span className="opacity-70">✎</span>
+              </button>
+            </div>
+            <div className="flex flex-col items-end shrink-0">
+              <span className="font-black leading-none" style={{ fontFamily: "'Cinzel', serif", fontSize: 20, color: problem ? '#f08a78' : '#8fe0a4' }}>{total}<span className="text-[12px] opacity-70">/{DECK_MAX_CARDS}</span></span>
+              <span className="text-[9px] uppercase tracking-wider text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>mín. {DECK_MIN_CARDS}</span>
+            </div>
+          </div>
+        </ThinFrame>
+        {problem && <p className="text-center text-[11px] text-[#f0a595] -mt-1" style={{ fontFamily: "'PT Serif', serif" }}>{problem}</p>}
+
+        {/* The switch: deck side / reserve side */}
+        <div className="grid grid-cols-2 gap-2">
+          {([['deck', 'Deck', total], ['reserve', 'Reserva', reserveCount]] as const).map(([id, label, n]) => (
+            <button
+              key={id}
+              onClick={() => { playUiClickSfx(); setSide(id); setPicked(null); }}
+              className={`rounded-md py-2 text-center uppercase tracking-[0.12em] transition-colors ${side === id ? 'bg-[#7a5a16]/75 text-[#fff1c9] shadow-[inset_0_0_0_1px_rgba(232,199,102,0.85)]' : 'bg-black/40 text-[#cdbd97] shadow-[inset_0_0_0_1px_rgba(212,175,55,0.3)]'}`}
+              style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 13 }}
+            >
+              {label} <span className="opacity-75">({n})</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Filters */}
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-3 px-3" style={{ scrollbarWidth: 'none' }}>
+          <button onClick={() => { playUiClickSfx(); setTypeFilter('todas'); }} className={chip(typeFilter === 'todas')} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>Todas</button>
+          {CARD_TYPE_ORDER.map(t => (
+            <button key={t} onClick={() => { playUiClickSfx(); setTypeFilter(t); }} className={chip(typeFilter === t)} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>{t}</button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar carta..."
+            className="flex-1 min-w-0 rounded-md bg-black/45 px-3 py-1.5 text-[13px] text-[#f3e3c3] placeholder:text-[#8d7f60] outline-none shadow-[inset_0_0_0_1px_rgba(212,175,55,0.35)] focus:shadow-[inset_0_0_0_1px_rgba(232,199,102,0.9)]"
+            style={{ fontFamily: "'PT Serif', serif" }}
+          />
+          <button
+            onClick={() => { playUiClickSfx(); setSort(EDITOR_SORTS[(EDITOR_SORTS.indexOf(sort) + 1) % EDITOR_SORTS.length]); }}
+            className="shrink-0 rounded-md bg-black/45 px-3 text-[11px] uppercase tracking-wider text-[#e3d3ad] shadow-[inset_0_0_0_1px_rgba(212,175,55,0.35)]"
+            style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}
+          >
+            Ordem: {sort}
+          </button>
+        </div>
+
+        {/* Cards */}
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden -mx-3 px-3 py-1" style={{ scrollbarWidth: 'none' }}>
+          {rows.length === 0 ? (
+            <p className="text-center text-[13px] text-[#a89a78] mt-10" style={{ fontFamily: "'PT Serif', serif" }}>
+              {side === 'deck' ? 'Nenhuma carta no deck com esse filtro.' : 'Nenhuma carta na reserva com esse filtro.'}
+            </p>
+          ) : (
+            <div className="grid" style={{ gridTemplateColumns: `repeat(3, ${cellW}px)`, columnGap: cellGap, rowGap: 20, justifyContent: 'center', paddingBottom: 12 }}>
+              {rows.map(r => (
+                <button key={r.name} onClick={() => { playUiClickSfx(); openCard(r.name); }} className="relative active:brightness-125 transition" style={{ width: cellW, height: cellH }}>
+                  <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+                    <div className="relative w-full h-full rounded-xl">
+                      <CardFace card={r.card} variant="hand" />
+                    </div>
+                  </div>
+                  <span
+                    className="absolute -bottom-1 -right-1 min-w-[22px] h-[22px] px-1 rounded-full flex items-center justify-center text-[11px] font-black text-[#fff1c9] bg-[#5a3d0c] shadow-[0_0_0_1.5px_#e8c766,0_2px_4px_rgba(0,0,0,0.6)]"
+                    style={{ fontFamily: "'Cinzel', serif" }}
+                  >
+                    x{r.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Shortcuts */}
+        <div className="flex gap-2 justify-center pt-1">
+          <WindowButton
+            onClick={() => setConfirm({
+              title: 'Limpar deck',
+              message: total === 0 ? 'O deck já está vazio.' : `Todas as ${total} cartas do ${slot.name} voltam para a reserva. O General continua o mesmo.`,
+              run: () => { if (total > 0) commit(d => { d.slots[slotIdx].cards = {}; }); },
+            })}
+          >
+            Limpar deck
+          </WindowButton>
+          <WindowButton
+            onClick={() => {
+              const plan = autoFillPlan();
+              const add = Object.values(plan).reduce((a, b) => a + b, 0);
+              setConfirm({
+                title: 'Preencher automático',
+                message: add === 0 ? `Nada para adicionar: o deck já tem ${total} cartas ou a reserva não tem mais cartas que caibam.` : `Vai adicionar ${add} cartas da reserva ao ${slot.name}, até ${DECK_MAX_CARDS}, respeitando o limite de ${DECK_MAX_COPIES} cópias.`,
+                run: () => { if (add > 0) commit(d => { Object.entries(plan).forEach(([n, c]) => { d.slots[slotIdx].cards[n] = (d.slots[slotIdx].cards[n] ?? 0) + c; }); }); },
+              });
+            }}
+          >
+            Preencher automático
+          </WindowButton>
+        </div>
+      </div>
+
+      {/* Card window: what is being moved, how many, and the explicit button */}
+      <AnimatePresence>
+        {pickedCard && picked && (
+          <WindowOverlay onClose={() => setPicked(null)}>
+            <FramedWindow>
+              <div className="flex flex-col items-center gap-3 px-1 py-1">
+                <div className="relative shrink-0" style={{ width: 224 * 0.72, height: 320 * 0.72 }}>
+                  <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: 'scale(0.72)', transformOrigin: 'top left' }}>
+                    <div className="relative w-full h-full rounded-xl"><CardFace card={pickedCard} variant="hand" /></div>
+                  </div>
+                </div>
+                <span className="text-[11px] text-[#cdbd97]" style={{ fontFamily: "'PT Serif', serif" }}>
+                  No deck: {inDeck(picked)} · Reserva: {owned(picked) - inDeck(picked)} · Total: {owned(picked)}
+                </span>
+                {maxQty > 1 && (
+                  <div className="flex items-center gap-3">
+                    <WindowButton onClick={() => setQty(q => Math.max(1, q - 1))}>−</WindowButton>
+                    <span className="min-w-[2ch] text-center text-lg font-black text-[#fff1c9]" style={{ fontFamily: "'Cinzel', serif" }}>{Math.min(qty, maxQty)}</span>
+                    <WindowButton onClick={() => setQty(q => Math.min(maxQty, q + 1))}>+</WindowButton>
+                  </div>
+                )}
+                {maxQty > 0 ? (
+                  <WindowButton primary onClick={applyMove}>
+                    {side === 'deck' ? 'Enviar para a reserva' : 'Enviar para o deck'}
+                  </WindowButton>
+                ) : (
+                  <span className="text-[12px] text-[#f0a595] text-center" style={{ fontFamily: "'PT Serif', serif" }}>{side === 'deck' ? '' : addReason(picked)}</span>
+                )}
+                <WindowButton onClick={() => setPicked(null)}>Cancelar</WindowButton>
+              </div>
+            </FramedWindow>
+          </WindowOverlay>
+        )}
+        {confirm && (
+          <WindowOverlay onClose={() => setConfirm(null)}>
+            <FramedWindow>
+              <div className="flex flex-col items-center gap-3 px-2 py-2">
+                <WindowTitle>{confirm.title}</WindowTitle>
+                <WindowText>{confirm.message}</WindowText>
+                <div className="flex gap-3">
+                  <WindowButton onClick={() => setConfirm(null)}>Cancelar</WindowButton>
+                  <WindowButton primary onClick={() => { const run = confirm.run; setConfirm(null); run(); }}>Confirmar</WindowButton>
+                </div>
+              </div>
+            </FramedWindow>
+          </WindowOverlay>
+        )}
+        {generalOpen && (
+          <WindowOverlay onClose={() => setGeneralOpen(false)}>
+            <FramedWindow>
+              <div className="flex flex-col gap-3 px-1 py-1">
+                <WindowTitle>General do deck</WindowTitle>
+                {ownedGenerals.map(g => (
+                  <WindowOption key={g} onClick={() => setGeneralChoice(g)}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[13px] text-[#f3e3c3]" style={{ fontFamily: "'PT Serif', serif" }}>{g}</span>
+                      {generalChoice === g && <span className="text-[#8fe0a4] text-sm">✓</span>}
+                    </div>
+                  </WindowOption>
+                ))}
+                <div className="flex gap-3 justify-center">
+                  <WindowButton onClick={() => setGeneralOpen(false)}>Cancelar</WindowButton>
+                  <WindowButton primary onClick={() => {
+                    const g = generalChoice;
+                    setGeneralOpen(false);
+                    if (g && g !== slot.general) commit(d => { d.slots[slotIdx].general = g; });
+                  }}>Confirmar</WindowButton>
+                </div>
+              </div>
+            </FramedWindow>
+          </WindowOverlay>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
 
 // Shown before the main menu so a cold load never drops the player straight into
 // gameplay with art still fetching mid-match. Two phases: a plain black screen
@@ -3646,20 +4090,19 @@ export default function App() {
     }
   };
 
-  // deckId is which deck the PLAYER picked at the Quick Match screen; the AI
-  // always plays the other one, so every match shows both decks in action.
-  const resetGame = (deckId: DeckId = 'capitao') => {
+  // `sel` is the deck the PLAYER picked (one of their saved decks, see buildDeckSelection);
+  // the AI plays the prebuilt deck of the other faction, so every match shows both in action.
+  const resetGame = (sel: DeckSelection = DEFAULT_DECK_SELECTION) => {
     matchIntroTimeoutsRef.current.forEach(clearTimeout);
     matchIntroTimeoutsRef.current = [];
     setMatchIntroStage(null);
     setIntroDescendTargets(null);
     suppressInitialPhaseBannerRef.current = true;
 
-    const npcDeckId: DeckId = deckId === 'capitao' ? 'cardeal' : 'capitao';
-    playerDeckPoolRef.current = DECKS[deckId].pool;
-    npcDeckPoolRef.current = DECKS[npcDeckId].pool;
-    generalPlayerRef.current = DECKS[deckId].general;
-    generalNpcRef.current = DECKS[npcDeckId].general;
+    playerDeckPoolRef.current = sel.pool;
+    npcDeckPoolRef.current = DECKS[sel.npcDeckId].pool;
+    generalPlayerRef.current = sel.general;
+    generalNpcRef.current = DECKS[sel.npcDeckId].general;
     deckQueueRef.current = [];
     npcDeckQueueRef.current = [];
 
@@ -3697,8 +4140,8 @@ export default function App() {
     startMatchIntro();
   };
 
-  const startGame = (mode: string, deckId?: DeckId) => {
-    resetGame(deckId);
+  const startGame = (mode: string, sel?: DeckSelection) => {
+    resetGame(sel);
     setGameMode(mode);
   };
 
@@ -4112,7 +4555,8 @@ export default function App() {
         <AnimatePresence>
           {deckPickerOpen && (
             <DeckPickerModal
-              onSelect={(deckId) => { setDeckPickerOpen(false); startGame('Quick Match', deckId); }}
+              store={loadDeckStore()}
+              onSelect={(sel) => { setDeckPickerOpen(false); startGame('Quick Match', sel); }}
               onClose={() => setDeckPickerOpen(false)}
             />
           )}
