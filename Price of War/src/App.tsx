@@ -31,7 +31,7 @@ import menuCardEditarDeckImage from './assets/menu-card-editar-deck.webp';
 import menuCardLojaImage from './assets/menu-card-loja.webp';
 import uiFrameMenuCardImage from './assets/ui-frame-menu-card.webp';
 import uiPillCoroasImage from './assets/ui-pill-coroas.webp';
-import uiPillPerfilImage from './assets/ui-pill-perfil.webp';
+import uiProfilePlateImage from './assets/ui-profile-plate.webp';
 import uiIconButtonImage from './assets/ui-icon-button.webp';
 import uiIconConfigImage from './assets/ui-icon-config.webp';
 import uiIconTutoriaisImage from './assets/ui-icon-tutoriais.webp';
@@ -177,7 +177,7 @@ const ALL_PRELOAD_IMAGES: string[] = [
   recrutamentoSeletivoArt, recrutarVeteranosArt, tributoDeGuerraArt, chamadoAsArmasArt,
   recrutaDevotoArt, cavaleiroDaLuzFullArt, jorgeOLanceiroFullArt,
   menuCardDesafiosImage, menuCardOnlineImage, menuCardEditarDeckImage, menuCardLojaImage,
-  uiFrameMenuCardImage, uiPillCoroasImage, uiPillPerfilImage, uiIconButtonImage,
+  uiFrameMenuCardImage, uiPillCoroasImage, uiProfilePlateImage, uiIconButtonImage,
   uiIconConfigImage, uiIconTutoriaisImage, uiIconRankingImage, uiIconSomImage,
   uiIconCoroaImage, uiIconDesafiosImage, uiIconOnlineImage, uiIconEditarDeckImage,
   uiIconLojaImage, uiIconMaisImage,
@@ -2144,13 +2144,13 @@ const MODE_LABELS_PT: Record<string, string> = {
 // (small) and inside the picker modal (bigger, one per option) so the exact
 // look never drifts between the two. The portraits are square, cropped to the
 // circle here.
-const AvatarBadge = ({ avatarId, size = 48 }: { avatarId: string; size?: number | string }) => {
+const AvatarBadge = ({ avatarId, size = 48, bare = false }: { avatarId: string; size?: number | string; bare?: boolean }) => {
   const a = avatarById(avatarId);
   const box = typeof size === 'number' ? `${size}px` : size;
   return (
     <div
-      className="rounded-full overflow-hidden shrink-0 border-2 border-[#e8c766] bg-black"
-      style={{ width: box, height: box, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.5)' }}
+      className={`rounded-full overflow-hidden shrink-0 bg-black ${bare ? '' : 'border-2 border-[#e8c766]'}`}
+      style={{ width: box, height: box, boxShadow: bare ? undefined : 'inset 0 0 0 1px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.5)' }}
     >
       <img src={a.image} alt="" draggable={false} className="w-full h-full object-cover select-none pointer-events-none" />
     </div>
@@ -2236,34 +2236,34 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
 
   const xpPct = Math.min(100, Math.round((profile.xp / Math.max(1, profile.xpToNext)) * 100));
 
-  // Both containers below are the cut-out art (ui-pill-perfil / ui-pill-coroas). Each
-  // is a container-query box, and everything inside is placed as a % of the art and
-  // sized in cqw, so the whole thing scales with the pill's own width instead of
-  // needing separate phone-size tweaks. The %s were measured off the art itself:
-  // the profile pill's avatar recess is centred at (19.9%, 49%), its name band runs
-  // 30-97% across the top half, and the XP groove sits at 32-94% x 63-70% y; the
-  // Coroas pill's gem socket is centred at (13%, 50%) with the value bar to its right.
+  // Both containers below are cut-out art (ui-profile-plate / ui-pill-coroas). Each is
+  // a container-query box and everything inside is placed as a % of the art and sized
+  // in cqw, so it scales with the plate's own width. Measured off the plate art
+  // (1679x499): avatar recess centre (17.5%, 47.6%) and 20.4% wide; level shield
+  // centre (33.4%, 73%); name inset x 39.4-93.2%, y 25-46%; XP track x 41.8-88.1%,
+  // y 58.7-66%. Coroas pill: gem socket centred at (13%, 50%), value bar to its right.
   return (
     <div
-      className="absolute top-0 inset-x-0 z-20 flex items-start justify-between gap-2 px-3 pb-3"
-      style={{ paddingTop: 'max(12px, env(safe-area-inset-top))', background: 'linear-gradient(to bottom, rgba(0,0,0,0.75), transparent)' }}
+      className="absolute top-0 inset-x-0 z-20 flex items-center justify-between gap-2 px-3 pb-3"
+      style={{ paddingTop: 'max(10px, env(safe-area-inset-top))', background: 'linear-gradient(to bottom, rgba(0,0,0,0.75), transparent)' }}
     >
-      <div className="relative shrink-0" style={{ width: 'min(58vw, 250px)', aspectRatio: '1100 / 213', containerType: 'inline-size' }}>
-        <img src={uiPillPerfilImage} alt="" draggable={false} className="absolute inset-0 w-full h-full select-none pointer-events-none" />
+      <div className="relative shrink-0" style={{ width: 'min(67%, 268px)', aspectRatio: '1679 / 499', containerType: 'inline-size' }}>
+        <img src={uiProfilePlateImage} alt="" draggable={false} className="absolute inset-0 w-full h-full select-none pointer-events-none" style={{ filter: 'drop-shadow(0 3px 4px rgba(0,0,0,0.55))' }} />
         <button
           onClick={() => { playUiClickSfx(); onOpenAvatarPicker(); }}
           className="absolute"
-          style={{ left: '19.9%', top: '49%', width: '14cqw', height: '14cqw', transform: 'translate(-50%, -50%)' }}
+          style={{ left: '17.5%', top: '47.6%', width: '20cqw', height: '20cqw', transform: 'translate(-50%, -50%)' }}
+          aria-label="Escolher avatar"
         >
-          <AvatarBadge avatarId={profile.avatarId} size="14cqw" />
-          <span
-            className="absolute rounded-full bg-[#2a1608] border border-[#e8c766] font-black text-[#e8c766] flex items-center justify-center leading-none"
-            style={{ right: '-10%', bottom: '-10%', width: '6cqw', height: '6cqw', fontSize: '3.4cqw' }}
-          >
-            {profile.level}
-          </span>
+          <AvatarBadge avatarId={profile.avatarId} size="20cqw" bare />
         </button>
-        <div className="absolute flex items-center gap-[1.5cqw] min-w-0" style={{ left: '30.5%', top: '14%', width: '59%', height: '35%' }}>
+        <span
+          className="absolute flex items-center justify-center font-black text-[#f8ecd0] leading-none"
+          style={{ left: '33.4%', top: '73%', width: '8cqw', height: '8cqw', transform: 'translate(-50%, -50%)', fontFamily: "'Cinzel', serif", fontSize: '5.2cqw', textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}
+        >
+          {profile.level}
+        </span>
+        <div className="absolute flex items-center gap-[1.5cqw] min-w-0" style={{ left: '40.5%', top: '25.5%', width: '52%', height: '20%' }}>
           {editingName ? (
             <input
               ref={inputRef}
@@ -2273,27 +2273,26 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
               onKeyDown={(e) => { if (e.key === 'Enter') commitName(); if (e.key === 'Escape') setEditingName(false); }}
               maxLength={18}
               autoFocus
-              className="bg-black/50 border border-[#e8c766]/70 rounded px-1 font-bold text-[#f3e3c3] w-[55%] outline-none"
-              style={{ fontSize: '5cqw', lineHeight: 1.2 }}
+              className="bg-black/50 border border-[#e8c766]/70 rounded px-1 font-bold text-[#f3e3c3] w-[60%] outline-none"
+              style={{ fontFamily: "'Cinzel', serif", fontSize: '3.9cqw', lineHeight: 1.2 }}
             />
           ) : (
-            <button onClick={() => { playUiClickSfx(); startEditing(); }} className="flex items-center gap-[1cqw] min-w-0">
-              <span className="truncate font-bold text-[#f8ecd0]" style={{ fontFamily: "'Cinzel', serif", fontSize: '4.5cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.85)' }}>{profile.name}</span>
-              <span className="opacity-70 shrink-0" style={{ fontSize: '3cqw' }}>✎</span>
+            <button onClick={() => { playUiClickSfx(); startEditing(); }} className="flex items-center gap-[1cqw] min-w-0 text-left">
+              <span className="truncate font-bold text-[#f8ecd0]" style={{ fontFamily: "'Cinzel', serif", fontSize: '3.9cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>{profile.name}</span>
             </button>
           )}
-          <span className="ml-auto shrink-0 font-black uppercase tracking-wide text-[#f0cf6a]" style={{ fontFamily: "'Cinzel', serif", fontSize: '3cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
+          <span className="ml-auto shrink-0 font-black uppercase tracking-wide text-[#f0cf6a]" style={{ fontFamily: "'Cinzel', serif", fontSize: '2.5cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
             {profile.rank}
           </span>
         </div>
         {/* Cosmetic for now — no XP is actually awarded anywhere yet, same
             "real UI, no data feeding it yet" tier as Coroas/rank above. */}
-        <div className="absolute rounded-full overflow-hidden" style={{ left: '32.4%', top: '63.4%', width: '60.8%', height: '6.6%' }}>
+        <div className="absolute rounded-full overflow-hidden" style={{ left: '42.6%', top: '60.2%', width: '44.4%', height: '4.6%' }}>
           <div className="h-full bg-gradient-to-r from-[#d4af37] to-[#f3e3c3]" style={{ width: `${xpPct}%` }} />
         </div>
       </div>
 
-      <div className="relative shrink-0" style={{ width: 'min(31vw, 132px)', aspectRatio: '800 / 210', containerType: 'inline-size' }}>
+      <div className="relative shrink-0" style={{ width: 'min(30%, 128px)', aspectRatio: '800 / 210', containerType: 'inline-size' }}>
         <img src={uiPillCoroasImage} alt="" draggable={false} className="absolute inset-0 w-full h-full select-none pointer-events-none" />
         <img src={uiIconCoroaImage} alt="" draggable={false} className="absolute select-none pointer-events-none object-contain" style={{ left: '13%', top: '50%', width: '15cqw', height: '15cqw', transform: 'translate(-50%, -50%)', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }} />
         <div className="absolute flex items-center justify-between" style={{ left: '27%', right: '6.5%', top: '24%', bottom: '24%' }}>
@@ -2433,7 +2432,7 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
       // of the screen: with four compact buttons the whole stack is shorter than it
       // used to be, and centering it pushed the logo back down (the user has asked
       // twice for it to sit higher). The leftover space ends up above the icon row.
-      style={{ paddingTop: 'calc(max(12px, env(safe-area-inset-top)) + 62px)' }}
+      style={{ paddingTop: 'calc(max(10px, env(safe-area-inset-top)) + 78px)' }}
       className="flex flex-col items-center justify-start w-full h-full bg-zinc-950 text-white relative overflow-hidden"
     >
       {/* Background — a besieged castle at dusk (art-prompts/README.md "4"),

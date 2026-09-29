@@ -840,9 +840,14 @@ enquanto; os prompts 03 e 08-24 seguem guardados. O `AvatarBadge` corta em círc
 e o seletor é uma grade 3x2; um perfil salvo com um id antigo (emoji) cai no
 primeiro avatar.
 
-Pendente: novo container do perfil (a placa atual, `ui-pill-perfil`, foi
-considerada estranha; o usuário quer algo mais bonito e "gamificado"). Prompt na
-seção abaixo.
+Container do perfil: **entregue e integrado** (`ui-profile-plate.webp`, substitui
+`ui-pill-perfil`). Recorte: o brilho laranja em volta (que se misturava ao cinza) foi
+tratado por distância de cor ao cinza, e a estrelinha de marca d'água da IA no canto
+inferior direito foi apagada (o buraco que ela deixou na trança foi preenchido).
+Medidas usadas no código (arte 1679x499): recesso do avatar centro (17,5%; 47,6%),
+20,4% de largura; escudo do nível centro (33,4%; 73%); caixa do nome x 39-93%,
+y 25-46%; trilho de XP x 42-88%, y 59-66%. O botão "Comandante" agora cabe inteiro
+(fonte do nome 3,9cqw, o lápis de editar saiu; tocar no nome continua editando).
 
 <details>
 <summary>Prompts (moldura, placa, ícones e avatares)</summary>
