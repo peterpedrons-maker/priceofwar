@@ -833,8 +833,16 @@ Entregue (cinza recortado do mesmo jeito da primeira rodada, ver 4e–4m):
   moedas, botão "+" verde). Foram separados por componente conectado, não por
   coluna fixa, porque a pena das cartas cruza a linha da grade.
 
-Pendente: `avatar-01..24.webp` (o seletor de avatar ainda usa os emojis; quando as
-imagens chegarem, cortar em círculo no `AvatarBadge` e no `AvatarPickerModal`).
+Avatares: **6 entregues e integrados** (`avatar-01/02/04/05/06/07.webp`, em estilo
+de retrato ilustrado; a primeira versão dos prompts saía realista demais e foi
+trocada, ver o trecho comum abaixo). O usuário decidiu ficar só com esses por
+enquanto; os prompts 03 e 08-24 seguem guardados. O `AvatarBadge` corta em círculo
+e o seletor é uma grade 3x2; um perfil salvo com um id antigo (emoji) cai no
+primeiro avatar.
+
+Pendente: novo container do perfil (a placa atual, `ui-pill-perfil`, foi
+considerada estranha; o usuário quer algo mais bonito e "gamificado"). Prompt na
+seção abaixo.
 
 <details>
 <summary>Prompts (moldura, placa, ícones e avatares)</summary>

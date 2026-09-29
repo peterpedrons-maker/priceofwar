@@ -43,6 +43,14 @@ import uiIconOnlineImage from './assets/ui-icon-online.webp';
 import uiIconEditarDeckImage from './assets/ui-icon-editar-deck.webp';
 import uiIconLojaImage from './assets/ui-icon-loja.webp';
 import uiIconMaisImage from './assets/ui-icon-mais.webp';
+// Player avatars (art-prompts/README.md 4n). Numbered after their prompt: 03 and
+// 08+ haven't been generated yet.
+import avatar01Image from './assets/avatar-01.webp';
+import avatar02Image from './assets/avatar-02.webp';
+import avatar04Image from './assets/avatar-04.webp';
+import avatar05Image from './assets/avatar-05.webp';
+import avatar06Image from './assets/avatar-06.webp';
+import avatar07Image from './assets/avatar-07.webp';
 // Combat visuals cropped from a single reference sheet the user supplied (a
 // collage of style options, not individually-shipped assets — see git history
 // for the exact crop coordinates) — one instance chosen per category instead of
@@ -173,6 +181,7 @@ const ALL_PRELOAD_IMAGES: string[] = [
   uiIconConfigImage, uiIconTutoriaisImage, uiIconRankingImage, uiIconSomImage,
   uiIconCoroaImage, uiIconDesafiosImage, uiIconOnlineImage, uiIconEditarDeckImage,
   uiIconLojaImage, uiIconMaisImage,
+  avatar01Image, avatar02Image, avatar04Image, avatar05Image, avatar06Image, avatar07Image,
 ];
 
 // How long a newly drawn card takes to travel from the deck and flip face-up in
@@ -2079,20 +2088,16 @@ type PlayerProfile = {
   xpToNext: number;
 };
 
-// A simple icon gallery, not real generated art yet — each avatar is just an
-// emoji over a distinct colored badge, the same "diverse gallery to pick from"
-// idea the user asked for, without blocking on art generation. Swap these for
-// real illustrated avatars later without changing PlayerProfile's shape (still
-// just an id) or any of the picker/profile-bar UI below.
-const AVATAR_OPTIONS: { id: string; glyph: string; from: string; to: string }[] = [
-  { id: 'lion', glyph: '🦁', from: '#7a1f1f', to: '#c9a24a' },
-  { id: 'sword', glyph: '⚔️', from: '#3a4550', to: '#8a97a6' },
-  { id: 'shield', glyph: '🛡️', from: '#6b4a12', to: '#d4af37' },
-  { id: 'crown', glyph: '👑', from: '#5c3d0a', to: '#e8c766' },
-  { id: 'castle', glyph: '🏰', from: '#41474f', to: '#7d8792' },
-  { id: 'horse', glyph: '🐎', from: '#4a2f1a', to: '#a9723f' },
-  { id: 'bow', glyph: '🏹', from: '#2f4a2f', to: '#6f9b5e' },
-  { id: 'falcon', glyph: '🦅', from: '#2a3a4a', to: '#5f89ab' },
+// The avatar gallery: illustrated portraits (art-prompts/README.md 4n) picked in
+// AvatarPickerModal. A profile only stores the id, so adding the other prompts'
+// avatars later is just more entries here.
+const AVATAR_OPTIONS: { id: string; image: string }[] = [
+  { id: 'batedora', image: avatar01Image },
+  { id: 'escudeiro', image: avatar02Image },
+  { id: 'arqueiro', image: avatar04Image },
+  { id: 'clerigo', image: avatar05Image },
+  { id: 'soldado', image: avatar06Image },
+  { id: 'cacadora', image: avatar07Image },
 ];
 const avatarById = (id: string) => AVATAR_OPTIONS.find(a => a.id === id) ?? AVATAR_OPTIONS[0];
 
@@ -2113,7 +2118,9 @@ const loadProfile = (): PlayerProfile => {
   try {
     const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
     if (!raw) return { ...DEFAULT_PROFILE };
-    return { ...DEFAULT_PROFILE, ...JSON.parse(raw) };
+    const stored = { ...DEFAULT_PROFILE, ...JSON.parse(raw) };
+    if (!AVATAR_OPTIONS.some(a => a.id === stored.avatarId)) stored.avatarId = DEFAULT_PROFILE.avatarId;
+    return stored;
   } catch {
     return { ...DEFAULT_PROFILE };
   }
@@ -2135,28 +2142,23 @@ const MODE_LABELS_PT: Record<string, string> = {
 
 // The circular avatar badge itself — used both in the main menu's profile bar
 // (small) and inside the picker modal (bigger, one per option) so the exact
-// look never drifts between the two.
+// look never drifts between the two. The portraits are square, cropped to the
+// circle here.
 const AvatarBadge = ({ avatarId, size = 48 }: { avatarId: string; size?: number | string }) => {
   const a = avatarById(avatarId);
   const box = typeof size === 'number' ? `${size}px` : size;
   return (
     <div
-      className="rounded-full flex items-center justify-center shrink-0 border-2 border-[#e8c766]"
-      style={{
-        width: box, height: box,
-        background: `linear-gradient(155deg, ${a.from}, ${a.to})`,
-        boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.5)',
-        fontSize: `calc(${box} * 0.52)`,
-      }}
+      className="rounded-full overflow-hidden shrink-0 border-2 border-[#e8c766] bg-black"
+      style={{ width: box, height: box, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.5)' }}
     >
-      {a.glyph}
+      <img src={a.image} alt="" draggable={false} className="w-full h-full object-cover select-none pointer-events-none" />
     </div>
   );
 };
 
-// Simple local gallery picker (see AVATAR_OPTIONS above for why these are
-// emoji badges rather than generated art) — same modal-overlay pattern as
-// InstallPrompt/DeckPickerModal elsewhere in this file.
+// Local gallery picker — same modal-overlay pattern as InstallPrompt/
+// DeckPickerModal elsewhere in this file.
 const AvatarPickerModal = ({ current, onSelect, onClose }: {
   current: string; onSelect: (id: string) => void; onClose: () => void;
 }) => (
@@ -2176,14 +2178,14 @@ const AvatarPickerModal = ({ current, onSelect, onClose }: {
       style={{ boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.45), 0 10px 40px rgba(0,0,0,0.6)' }}
     >
       <h2 className="text-lg font-black uppercase tracking-wide text-[#2a2117]">Escolha seu Avatar</h2>
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-3 gap-4">
         {AVATAR_OPTIONS.map(a => (
           <button
             key={a.id}
             onClick={() => { playUiClickSfx(); onSelect(a.id); }}
             className="relative"
           >
-            <AvatarBadge avatarId={a.id} size={56} />
+            <AvatarBadge avatarId={a.id} size={72} />
             {a.id === current && (
               <div className="absolute -inset-1 rounded-full border-2 border-emerald-400" />
             )}
