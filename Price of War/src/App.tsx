@@ -2162,11 +2162,11 @@ const AvatarBadge = ({ avatarId, size = 48, bare = false }: { avatarId: string; 
 // ---- Shared window layout ------------------------------------------------------
 // Every window/popup in the menu (Online, avatars, "coming soon", deck picker, install
 // prompt) uses this one look: the ornate square frame (ui-window-frame, drawn as a CSS
-// 9-slice — the four corner caps keep their size, the plain straight sides stretch)
+// 9-slice — the four corner flourishes keep their size, the thin straight lines stretch)
 // around a dark panel filled with the embossed-leather texture (ui-window-texture, a
 // seamless tile, shown at 400px so each stitched panel reads about 100px wide) under a
 // soft warm highlight. Change the fill here and every window follows.
-const WINDOW_FRAME_PX = 34;
+const WINDOW_FRAME_PX = 28;
 const WINDOW_FONT_DECO = "'Cinzel Decorative', 'Cinzel', serif";
 
 const FramedWindow = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
@@ -2177,7 +2177,7 @@ const FramedWindow = ({ children, className = '' }: { children: React.ReactNode;
       borderColor: 'transparent',
       borderWidth: WINDOW_FRAME_PX,
       borderImageSource: `url(${uiWindowFrameImage})`,
-      borderImageSlice: '160',
+      borderImageSlice: '90',
       borderImageWidth: `${WINDOW_FRAME_PX}px`,
       borderImageRepeat: 'stretch',
       backgroundColor: '#150e08',
@@ -2528,7 +2528,7 @@ const MenuCard = ({ icon, title, bgImage, onClick }: {
       animate={{ scale: lit ? 0.98 : 1 }}
       transition={{ duration: 0.09 }}
       className="relative w-full text-left"
-      style={{ aspectRatio: '1600 / 397', containerType: 'inline-size', filter: 'drop-shadow(0 5px 7px rgba(0,0,0,0.55))' }}
+      style={{ aspectRatio: '810 / 183', containerType: 'inline-size', filter: 'drop-shadow(0 5px 7px rgba(0,0,0,0.55))' }}
     >
       <div className="absolute inset-0" style={{ filter: phase === 'confirm' ? 'brightness(1.22) saturate(1.1)' : 'none', transition: 'filter 90ms' }}>
         <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />

@@ -1110,7 +1110,7 @@ Top-down-neutral game UI illustration of a single thin horizontal ornamental div
 
 ## 4r. Molduras de linha fina — botões e janelas (pendente)
 
-**Status:** prompts prontos. Pedido do usuário: as molduras atuais (dos botões e das janelas)
+**Status:** **entregue e integrado** (`ui-frame-menu-card.webp` 810x183 e `ui-window-frame.webp` 640x641, recortados com transparência gradual — o cinza vira alpha proporcional à distância dele — porque o fio tem só 2 a 5 px e o recorte por borda comeria ele). Nos botões a moldura deixou de ser 4:1 e virou 810:183 (a arte veio 4,4:1), e nas janelas a fatia caiu de 160 para 90 px e a borda de 34 para 28. As molduras grossas antigas saíram do projeto. Pedido do usuário: as molduras atuais (dos botões e das janelas)
 ainda estão grossas demais; quer algo "como se fosse só uma linha dourada", que não chame
 atenção, feito por arte e usado em tudo. Vão substituir `ui-frame-menu-card.webp` (botões, 4:1)
 e `ui-window-frame.webp` (janelas, 1:1). Para os botões basta trocar o arquivo (é uma
