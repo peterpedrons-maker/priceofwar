@@ -815,22 +815,29 @@ Sheet of four matching game UI icons arranged in a 2x2 grid with generous empty 
 
 ---
 
-## 4n. Menu principal — segunda rodada (pendente)
+## 4n. Menu principal — segunda rodada
 
-**Status:** prompts prontos, artes ainda não geradas. Pedido do usuário depois de ver
-o menu integrado: molduras **mais finas** (as atuais ficaram grossas), **sem
+**Status:** moldura fina, placa fina e ícones **entregues e integradas**; avatares
+**pendentes** (24 prompts avulsos abaixo).
+
+Pedido do usuário depois de ver o menu integrado: molduras **mais finas**, **sem
 subtítulo** nos botões (só ícone + título, pra mostrar mais da arte) e **ícones
-desenhados** no lugar dos emojis (coroa das Coroas, Desafios, Online, Editar Deck,
-Loja) mais **24 avatares** variados (um prompt avulso por personagem) no lugar do leão.
+desenhados** no lugar dos emojis, mais avatares variados no lugar do leão.
 
-Enquanto as molduras novas não chegam, o código já desenha as atuais em 9-slice
-(CSS `border-image`, 7 px nos botões e 7 px na placa dos ícones), que as afina sem
-arte nova. Quando chegarem: salvar como `ui-frame-menu-card.webp` e
-`ui-icon-button.webp` (substituem os atuais), recortar o cinza igual da rodada
-anterior, e ajustar `borderImageSlice` em `MenuCard` / `MenuIconButton`.
+Entregue (cinza recortado do mesmo jeito da primeira rodada, ver 4e–4m):
+- `ui-frame-menu-card.webp` — moldura 4:1 fina, com cantoneiras; agora é uma
+  sobreposição direta (o 9-slice provisório saiu) e o botão tem a proporção 1600:397.
+- `ui-icon-button.webp` — placa fina dos ícones de baixo.
+- `ui-icon-coroa/desafios/online/editar-deck/loja/mais.webp` — os 6 ícones da
+  folha (coroa das Coroas, espadas e escudo, globo, cartas com pena, bolsa de
+  moedas, botão "+" verde). Foram separados por componente conectado, não por
+  coluna fixa, porque a pena das cartas cruza a linha da grade.
+
+Pendente: `avatar-01..24.webp` (o seletor de avatar ainda usa os emojis; quando as
+imagens chegarem, cortar em círculo no `AvatarBadge` e no `AvatarPickerModal`).
 
 <details>
-<summary>Prompts</summary>
+<summary>Prompts (moldura, placa, ícones e avatares)</summary>
 
 **Moldura fina dos botões (4:1)** → `ui-frame-menu-card.webp`
 ```

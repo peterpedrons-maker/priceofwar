@@ -37,6 +37,12 @@ import uiIconConfigImage from './assets/ui-icon-config.webp';
 import uiIconTutoriaisImage from './assets/ui-icon-tutoriais.webp';
 import uiIconRankingImage from './assets/ui-icon-ranking.webp';
 import uiIconSomImage from './assets/ui-icon-som.webp';
+import uiIconCoroaImage from './assets/ui-icon-coroa.webp';
+import uiIconDesafiosImage from './assets/ui-icon-desafios.webp';
+import uiIconOnlineImage from './assets/ui-icon-online.webp';
+import uiIconEditarDeckImage from './assets/ui-icon-editar-deck.webp';
+import uiIconLojaImage from './assets/ui-icon-loja.webp';
+import uiIconMaisImage from './assets/ui-icon-mais.webp';
 // Combat visuals cropped from a single reference sheet the user supplied (a
 // collage of style options, not individually-shipped assets — see git history
 // for the exact crop coordinates) — one instance chosen per category instead of
@@ -165,6 +171,8 @@ const ALL_PRELOAD_IMAGES: string[] = [
   menuCardDesafiosImage, menuCardOnlineImage, menuCardEditarDeckImage, menuCardLojaImage,
   uiFrameMenuCardImage, uiPillCoroasImage, uiPillPerfilImage, uiIconButtonImage,
   uiIconConfigImage, uiIconTutoriaisImage, uiIconRankingImage, uiIconSomImage,
+  uiIconCoroaImage, uiIconDesafiosImage, uiIconOnlineImage, uiIconEditarDeckImage,
+  uiIconLojaImage, uiIconMaisImage,
 ];
 
 // How long a newly drawn card takes to travel from the deck and flip face-up in
@@ -2285,16 +2293,16 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
 
       <div className="relative shrink-0" style={{ width: 'min(31vw, 132px)', aspectRatio: '800 / 210', containerType: 'inline-size' }}>
         <img src={uiPillCoroasImage} alt="" draggable={false} className="absolute inset-0 w-full h-full select-none pointer-events-none" />
-        <span className="absolute leading-none" style={{ left: '13%', top: '50%', transform: 'translate(-50%, -50%)', fontSize: '12.5cqw' }}>👑</span>
+        <img src={uiIconCoroaImage} alt="" draggable={false} className="absolute select-none pointer-events-none object-contain" style={{ left: '13%', top: '50%', width: '15cqw', height: '15cqw', transform: 'translate(-50%, -50%)', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }} />
         <div className="absolute flex items-center justify-between" style={{ left: '27%', right: '6.5%', top: '24%', bottom: '24%' }}>
           <span className="font-black text-[#f8ecd0]" style={{ fontFamily: "'Cinzel', serif", fontSize: '12.5cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.85)' }}>{profile.coroas}</span>
           <button
             onClick={() => { playUiClickSfx(); onOpenShop(); }}
-            className="rounded-full bg-emerald-600 hover:bg-emerald-500 flex items-center justify-center text-white font-black leading-none transition-colors"
-            style={{ width: '12cqw', height: '12cqw', fontSize: '9cqw' }}
+            className="shrink-0 active:scale-90 transition-transform"
+            style={{ width: '13cqw', height: '13cqw' }}
             aria-label="Comprar Coroas"
           >
-            +
+            <img src={uiIconMaisImage} alt="" draggable={false} className="w-full h-full object-contain select-none pointer-events-none" />
           </button>
         </div>
       </div>
@@ -2335,14 +2343,13 @@ const ComingSoonModal = ({ title, message, onClose }: { title: string; message: 
   </motion.div>
 );
 
-// The image-card mode buttons: banner art inside a thin bronze frame, with just an
-// icon and the title on the left (the art briefs in art-prompts/README.md leave
-// that side dark on purpose). The frame is the same cut-out as before
-// (ui-frame-menu-card, 1600x397, 74-76 px border) but drawn as a CSS 9-slice
-// (border-image) at 7px, so the ornate corners scale down instead of the whole
-// frame eating a fifth of the button — the user found the full-size one too thick.
-// Buttons keep the art's own 1600:397 ratio so the picture is never stretched.
-const MENU_FRAME_PX = 7;
+// The image-card mode buttons: banner art under a thin bronze frame (the second
+// round of frame art, ui-frame-menu-card — a slim rim with ornate corner brackets
+// and a transparent window), with a drawn icon and the title on the left, where the
+// art briefs (art-prompts/README.md) leave the scene dark on purpose. The card keeps
+// the frame's own 1600:397 ratio so neither image is ever stretched, and the frame
+// covers the art's outer edge, so the art just fills the whole card behind it.
+// `icon` is the URL of one of the ui-icon-* cut-outs.
 const MenuCard = ({ icon, title, bgImage, onClick }: {
   icon: string; title: string; bgImage: string;
   onClick: (e: React.MouseEvent) => void;
@@ -2354,55 +2361,40 @@ const MenuCard = ({ icon, title, bgImage, onClick }: {
     className="relative w-full text-left"
     style={{ aspectRatio: '1600 / 397', containerType: 'inline-size', filter: 'drop-shadow(0 5px 7px rgba(0,0,0,0.55))' }}
   >
-    <div
-      className="absolute inset-0"
-      style={{
-        borderStyle: 'solid',
-        borderColor: 'transparent',
-        borderWidth: MENU_FRAME_PX,
-        borderImageSource: `url(${uiFrameMenuCardImage})`,
-        borderImageSlice: '74 76 74 76',
-        borderImageWidth: MENU_FRAME_PX,
-        borderImageRepeat: 'round',
-      }}
-    >
-      <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
-      <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.7), rgba(0,0,0,0.3) 40%, transparent 70%)' }} />
-      <div className="absolute inset-0 flex items-center gap-[2.5cqw]" style={{ paddingLeft: '4.5%', paddingRight: '4%' }}>
-        <span className="shrink-0 leading-none" style={{ fontSize: 'clamp(20px, 7cqw, 28px)' }}>{icon}</span>
-        <span
-          className="min-w-0 break-words font-black uppercase text-[#f8ecd0]"
-          style={{ fontFamily: "'Cinzel', serif", fontSize: 'clamp(17px, 6.2cqw, 25px)', letterSpacing: '0.07em', lineHeight: 1.05, textShadow: '0 2px 3px rgba(0,0,0,0.95), 0 0 8px rgba(0,0,0,0.6)' }}
-        >
-          {title}
-        </span>
-      </div>
+    <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
+    <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.78), rgba(0,0,0,0.4) 45%, transparent 75%)' }} />
+    <img src={uiFrameMenuCardImage} alt="" className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
+    <div className="absolute inset-0 flex items-center gap-[3cqw]" style={{ paddingLeft: '6.5%', paddingRight: '5%' }}>
+      <img
+        src={icon}
+        alt=""
+        className="shrink-0 object-contain select-none pointer-events-none"
+        style={{ width: '11cqw', height: '11cqw', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.7))' }}
+        draggable={false}
+      />
+      <span
+        className="min-w-0 break-words font-black uppercase text-[#f8ecd0]"
+        style={{ fontFamily: "'Cinzel', serif", fontSize: 'clamp(17px, 6.2cqw, 25px)', letterSpacing: '0.07em', lineHeight: 1.05, textShadow: '0 2px 3px rgba(0,0,0,0.95), 0 0 8px rgba(0,0,0,0.6)' }}
+      >
+        {title}
+      </span>
     </div>
   </motion.button>
 );
 
 // Small secondary destinations row (settings/tutorials/ranking/sound) — none
 // of these screens exist yet, so every one opens ComingSoonModal for now (see
-// MainMenu). The bronze plaque is ui-icon-button drawn as a 9-slice too (thin
-// edge, stretched flat center) and the icon inside it is one of the cut-outs from
-// the ui-icons sheet (`icon` is that image's URL).
+// MainMenu). The bronze plaque is ui-icon-button (the slim second-round art, with a
+// large dark recess) and the icon inside it is one of the cut-outs from the
+// ui-icons sheet (`icon` is that image's URL).
 const MenuIconButton = ({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) => (
   <button onClick={() => { playUiClickSfx(); onClick(); }} className="flex flex-col items-center gap-1 active:scale-95 transition-transform">
-    <div
-      className="relative w-14 h-14 drop-shadow-[0_3px_4px_rgba(0,0,0,0.6)]"
-      style={{
-        borderStyle: 'solid',
-        borderColor: 'transparent',
-        borderWidth: 7,
-        borderImageSource: `url(${uiIconButtonImage})`,
-        borderImageSlice: '52 fill',
-        borderImageWidth: 7,
-      }}
-    >
+    <div className="relative w-14 h-14 drop-shadow-[0_3px_4px_rgba(0,0,0,0.6)]">
+      <img src={uiIconButtonImage} alt="" className="absolute inset-0 w-full h-full select-none" draggable={false} />
       <img
         src={icon}
         alt=""
-        className="absolute left-1/2 top-1/2 w-[30px] h-[30px] -translate-x-1/2 -translate-y-1/2 object-contain select-none"
+        className="absolute left-1/2 top-1/2 w-[62%] h-[62%] -translate-x-1/2 -translate-y-1/2 object-contain select-none"
         style={{ filter: 'brightness(1.2) saturate(1.1) drop-shadow(0 1px 1px rgba(0,0,0,0.7))' }}
         draggable={false}
       />
@@ -2514,13 +2506,13 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
             a match with a dead opponent. The mode identifiers ('Campaign' etc.)
             stay in English; only the label shown is translated. */}
         <MenuCard
-          icon="⚔️"
+          icon={uiIconDesafiosImage}
           title={MODE_LABELS_PT['Campaign']}
           bgImage={menuCardDesafiosImage}
           onClick={(e) => { e.stopPropagation(); onSelectMode('Campaign'); }}
         />
         <MenuCard
-          icon="🌐"
+          icon={uiIconOnlineImage}
           title={MODE_LABELS_PT['Multiplayer']}
           bgImage={menuCardOnlineImage}
           onClick={(e) => {
@@ -2529,7 +2521,7 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
           }}
         />
         <MenuCard
-          icon="🎴"
+          icon={uiIconEditarDeckImage}
           title={MODE_LABELS_PT['My Deck']}
           bgImage={menuCardEditarDeckImage}
           onClick={(e) => {
@@ -2538,7 +2530,7 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
           }}
         />
         <MenuCard
-          icon="💎"
+          icon={uiIconLojaImage}
           title="Loja"
           bgImage={menuCardLojaImage}
           onClick={(e) => {
