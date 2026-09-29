@@ -2130,7 +2130,7 @@ const saveProfile = (profile: PlayerProfile) => {
 const MODE_LABELS_PT: Record<string, string> = {
   'Campaign': 'Desafios',
   'Multiplayer': 'Online',
-  'My Deck': 'Editar Deck',
+  'My Deck': 'Meu Deck',
 };
 
 // The circular avatar badge itself — used both in the main menu's profile bar
@@ -2500,8 +2500,8 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
         {/* Four equal buttons, in the user's own order: Desafios first (the
             Hearthstone-style NPC ladder it will become — for now it just opens the
             deck picker and starts a match against the AI, the only mode whose
-            opponent actually plays), then Online, Editar Deck and Loja. The old
-            Partida Rápida button is gone on purpose. Online / Editar Deck / Loja
+            opponent actually plays), then Online, Meu Deck and Loja. The old
+            Partida Rápida button is gone on purpose. Online / Meu Deck / Loja
             have no screens yet, so they open ComingSoonModal instead of starting
             a match with a dead opponent. The mode identifiers ('Campaign' etc.)
             stay in English; only the label shown is translated. */}
@@ -2526,7 +2526,7 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
           bgImage={menuCardEditarDeckImage}
           onClick={(e) => {
             e.stopPropagation();
-            setComingSoon({ title: 'Editar Deck', message: 'Em breve você vai poder montar e ajustar o seu baralho aqui.' });
+            setComingSoon({ title: 'Meu Deck', message: 'Em breve você vai poder montar e ajustar o seu baralho aqui.' });
           }}
         />
         <MenuCard
