@@ -2127,6 +2127,12 @@ const loadProfile = (): PlayerProfile => {
     return { ...DEFAULT_PROFILE };
   }
 };
+// Keeps the Coroas pill short: full number up to 99.999, then "123 mil" / "1,2 mi".
+const formatCoroas = (n: number) => {
+  if (n < 100000) return n.toLocaleString('pt-BR');
+  if (n < 1000000) return `${Math.floor(n / 1000)} mil`;
+  return `${(Math.floor(n / 100000) / 10).toLocaleString('pt-BR')} mi`;
+};
 const saveProfile = (profile: PlayerProfile) => {
   try { localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile)); } catch { /* private mode etc. */ }
 };
@@ -2357,8 +2363,9 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
   // and everything inside is placed as a % of the art and sized in cqw, so it scales with
   // the plate's own width. Measured off the plate art (1740x454): avatar recess centre
   // (16.6%, 50%), 22.4% wide; level shield centre (26.8%, 82.3%); name field x 31-93%,
-  // y 19-58%; XP track x 33-94%, y 68-76%. Coroas pill (1857x376): medallion socket
-  // centred at (10%, 46.8%), 13.2% wide, value area to its right.
+  // y 19-58%; XP track x 33-94%, y 68-76%. Coroas pill (1240x376): medallion socket
+  // centred at (15%, 46.8%) — the pill art was shortened by cutting out its straight middle,
+  // hence 1240 wide — value area to its right.
   return (
     <div
       className="absolute top-0 inset-x-0 z-20 flex items-center justify-between gap-2 px-3 pb-3"
@@ -2406,15 +2413,15 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
         </div>
       </div>
 
-      <div className="relative shrink-0" style={{ width: 'min(33%, 144px)', aspectRatio: '1857 / 376', containerType: 'inline-size' }}>
+      <div className="relative shrink-0" style={{ width: 'min(28%, 112px)', aspectRatio: '1240 / 376', containerType: 'inline-size' }}>
         <img src={uiPillCoroasImage} alt="" draggable={false} className="absolute inset-0 w-full h-full select-none pointer-events-none" />
-        <img src={uiIconCoroaImage} alt="" draggable={false} className="absolute select-none pointer-events-none object-contain" style={{ left: '10%', top: '46.8%', width: '11.5cqw', height: '11.5cqw', transform: 'translate(-50%, -50%)', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }} />
-        <div className="absolute flex items-center justify-between" style={{ left: '19%', right: '5.5%', top: '22%', bottom: '22%' }}>
-          <span className="font-black text-[#f8ecd0]" style={{ fontFamily: "'Cinzel', serif", fontSize: '9.5cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.85)' }}>{profile.coroas}</span>
+        <img src={uiIconCoroaImage} alt="" draggable={false} className="absolute select-none pointer-events-none object-contain" style={{ left: '15%', top: '46.8%', width: '17cqw', height: '17cqw', transform: 'translate(-50%, -50%)', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }} />
+        <div className="absolute flex items-center justify-between" style={{ left: '29%', right: '7%', top: '22%', bottom: '22%' }}>
+          <span className="font-black text-[#f8ecd0]" style={{ fontFamily: "'Cinzel', serif", fontSize: '11cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.85)' }}>{formatCoroas(profile.coroas)}</span>
           <button
             onClick={() => { playUiClickSfx(); onOpenShop(); }}
             className="shrink-0 active:scale-90 transition-transform"
-            style={{ width: '10.5cqw', height: '10.5cqw' }}
+            style={{ width: '15cqw', height: '15cqw' }}
             aria-label="Comprar Coroas"
           >
             <img src={uiIconMaisImage} alt="" draggable={false} className="w-full h-full object-contain select-none pointer-events-none" />
