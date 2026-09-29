@@ -2341,6 +2341,76 @@ const ComingSoonModal = ({ title, message, onClose }: { title: string; message: 
   </motion.div>
 );
 
+// The Online button's window: pick Casual or Ranqueado. Neither has a backend yet
+// (accounts/matchmaking are the future Supabase work), so choosing one hands off to
+// ComingSoonModal with its own message — but the choice itself is the real UI.
+// Drawn in the menu's own style: the bronze frame art as a 9-slice around a dark
+// panel, the bronze plaque behind each option's icon, Cinzel Decorative titles.
+const ONLINE_MODES: { id: 'casual' | 'ranked'; title: string; desc: string; icon: string }[] = [
+  { id: 'casual', title: 'Casual', desc: 'Partidas amistosas, sem pontos em jogo.', icon: uiIconDesafiosImage },
+  { id: 'ranked', title: 'Ranqueado', desc: 'Suba de rank e ganhe recompensas.', icon: uiIconRankingImage },
+];
+const OnlineModeModal = ({ onPick, onClose }: { onPick: (mode: 'casual' | 'ranked') => void; onClose: () => void }) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/80 pointer-events-auto"
+    onClick={onClose}
+  >
+    <motion.div
+      initial={{ scale: 0.92, y: 20 }}
+      animate={{ scale: 1, y: 0 }}
+      exit={{ scale: 0.92, y: 20 }}
+      onClick={(e) => e.stopPropagation()}
+      className="w-full max-w-xs"
+      style={{
+        borderStyle: 'solid',
+        borderColor: 'transparent',
+        borderWidth: 12,
+        borderImageSource: `url(${uiFrameMenuCardImage})`,
+        borderImageSlice: '74 76 74 76',
+        borderImageWidth: '12px',
+        borderImageRepeat: 'round',
+        background: 'linear-gradient(to bottom, #1d140b, #0f0a05)',
+        filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.7))',
+      }}
+    >
+      <div className="flex flex-col gap-3 px-3 pt-2 pb-3">
+        <h2
+          className="text-center uppercase text-[#f3e3c3]"
+          style={{ fontFamily: "'Cinzel Decorative', 'Cinzel', serif", fontWeight: 700, fontSize: 20, letterSpacing: '0.1em', textShadow: '0 2px 3px rgba(0,0,0,0.95)' }}
+        >
+          Online
+        </h2>
+        {ONLINE_MODES.map(m => (
+          <button
+            key={m.id}
+            onClick={() => { playUiClickSfx(); onPick(m.id); }}
+            className="flex items-center gap-3 rounded-lg border border-[#d4af37]/40 bg-black/40 px-2.5 py-2 text-left active:scale-[0.97] transition-transform"
+          >
+            <div className="relative w-12 h-12 shrink-0">
+              <img src={uiIconButtonImage} alt="" className="absolute inset-0 w-full h-full select-none" draggable={false} />
+              <img src={m.icon} alt="" className="absolute left-1/2 top-1/2 w-[62%] h-[62%] -translate-x-1/2 -translate-y-1/2 object-contain select-none" style={{ filter: 'brightness(1.2) saturate(1.1)' }} draggable={false} />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="uppercase text-[#f3e3c3]" style={{ fontFamily: "'Cinzel Decorative', 'Cinzel', serif", fontWeight: 700, fontSize: 15, letterSpacing: '0.08em' }}>{m.title}</span>
+              <span className="text-[11px] leading-tight text-[#cdbd97]" style={{ fontFamily: "'PT Serif', serif" }}>{m.desc}</span>
+            </div>
+          </button>
+        ))}
+        <button
+          onClick={() => { playUiClickSfx(); onClose(); }}
+          className="self-center mt-0.5 px-5 py-1.5 rounded-full border border-[#d4af37]/60 text-[#e3d3ad] text-xs uppercase tracking-[0.12em] active:scale-95 transition-transform"
+          style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}
+        >
+          Voltar
+        </button>
+      </div>
+    </motion.div>
+  </motion.div>
+);
+
 // The image-card mode buttons: banner art under a thin bronze frame (the second
 // round of frame art, ui-frame-menu-card — a slim rim with ornate corner brackets
 // and a transparent window), with a drawn icon and the title on the left, where the
@@ -2409,6 +2479,7 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
   const [profile, setProfile] = useState<PlayerProfile>(loadProfile);
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   const [comingSoon, setComingSoon] = useState<{ title: string; message: string } | null>(null);
+  const [onlineOpen, setOnlineOpen] = useState(false);
   const updateProfile = (patch: Partial<PlayerProfile>) => {
     setProfile(prev => {
       const next = { ...prev, ...patch };
@@ -2460,6 +2531,17 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
             onClose={() => setAvatarPickerOpen(false)}
           />
         )}
+        {onlineOpen && (
+          <OnlineModeModal
+            onClose={() => setOnlineOpen(false)}
+            onPick={(mode) => {
+              setOnlineOpen(false);
+              setComingSoon(mode === 'casual'
+                ? { title: 'Online Casual', message: 'As partidas casuais contra outros jogadores ainda estão por vir.' }
+                : { title: 'Online Ranqueado', message: 'O sistema de partidas ranqueadas ainda está por vir.' });
+            }}
+          />
+        )}
         {comingSoon && (
           <ComingSoonModal
             title={comingSoon.title}
@@ -2494,8 +2576,9 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
             Hearthstone-style NPC ladder it will become — for now it just opens the
             deck picker and starts a match against the AI, the only mode whose
             opponent actually plays), then Online, Meu Deck and Loja. The old
-            Partida Rápida button is gone on purpose. Online / Meu Deck / Loja
-            have no screens yet, so they open ComingSoonModal instead of starting
+            Partida Rápida button is gone on purpose. Online opens the
+            Casual/Ranqueado picker (OnlineModeModal); Meu Deck / Loja have no
+            screens yet, so they open ComingSoonModal instead of starting
             a match with a dead opponent. The mode identifiers ('Campaign' etc.)
             stay in English; only the label shown is translated. */}
         <MenuCard
@@ -2508,10 +2591,7 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
           icon={uiIconOnlineImage}
           title={MODE_LABELS_PT['Multiplayer']}
           bgImage={menuCardOnlineImage}
-          onClick={(e) => {
-            e.stopPropagation();
-            setComingSoon({ title: 'Online', message: 'Os duelos contra outros jogadores (casual e ranqueado) ainda estão por vir.' });
-          }}
+          onClick={(e) => { e.stopPropagation(); setOnlineOpen(true); }}
         />
         <MenuCard
           icon={uiIconEditarDeckImage}
