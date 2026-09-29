@@ -1169,6 +1169,19 @@ Top-down-neutral game UI illustration of a slim, elegant gold-line currency pill
 
 ---
 
+## 4t. Editor de deck (Meu Deck) — artes da tela (pendente)
+
+**Status:** pendente. Hoje a tela usa só as molduras finas já existentes (`ui-frame-menu-card.webp`
+em botões, linhas e casas das cartas). Objetivo: arte própria, na mesma linha fina dourada
+(4r/4s), para o editor ficar com cara de jogo e não de formulário. Peças: (1) casa da carta
+(retrato 5:7), (2) linha da lista (larga, com soquete do custo à esquerda e da quantidade à direita),
+(3) placa do cabeçalho do deck (nome, General, contador), (4) abas Deck/Reserva (selecionada e
+apagada), (5) pílula de filtro (selecionada e apagada), (6) ícones (8 tipos de carta, Lista, Cartas,
+Ordem, Buscar, Limpar deck, Preencher automático). Cinza RGB 125,125,125 no fundo e nos vãos,
+recorte com transparência gradual como em 4r. Prompts completos foram enviados no chat.
+
+---
+
 ## 3. Moldura Full Art (dourada) — referência de layout
 
 **Arquivo:** [`reference/full-art-frame-gold-v1.png`](./reference/full-art-frame-gold-v1.png)

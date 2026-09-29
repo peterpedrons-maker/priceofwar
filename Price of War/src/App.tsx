@@ -2962,6 +2962,7 @@ type DeckSide = 'deck' | 'reserve';
 type EditorSort = 'custo' | 'nome' | 'tipo';
 const EDITOR_SORTS: EditorSort[] = ['custo', 'nome', 'tipo'];
 const DECK_VIEW_KEY = 'pow_deck_view_v1';
+const FULL_ART_TILE_SHRINK = 0.93;
 
 const DeckEditor = ({ onClose }: { onClose: () => void }) => {
   const [store, setStore] = useState<DeckStore>(loadDeckStore);
@@ -3065,10 +3066,13 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
 
   const cellGap = 8;
   const gridW = Math.min(viewW, 480) - 24 - 22 - 12; // screen padding, ThinFrame border, grid padding
-  const gridCols = 4;
-  const cellW = Math.floor((gridW - cellGap * (gridCols - 1)) / gridCols);
-  const scale = cellW / 224;
-  const cellH = Math.round(320 * scale);
+  const gridCols = 3;
+  const cellW = Math.floor((gridW - cellGap * (gridCols - 1) - 16) / gridCols);
+  const TILE_BORDER = 9;
+  const TILE_PAD = 8;
+  const tileCardW = cellW - TILE_BORDER * 2 - TILE_PAD * 2;
+  const tileScale = tileCardW / 224;
+  const tileCardH = Math.round(320 * tileScale);
   const pickedCard = picked ? cardByName(picked) : undefined;
 
   const chip = (active: boolean) =>
@@ -3203,20 +3207,28 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
                 })}
               </div>
             ) : (
-              <div className="grid p-1.5" style={{ gridTemplateColumns: `repeat(${gridCols}, ${cellW}px)`, columnGap: cellGap, rowGap: 14, justifyContent: 'center' }}>
+              <div className="grid p-2" style={{ gridTemplateColumns: `repeat(${gridCols}, ${cellW}px)`, columnGap: cellGap, rowGap: cellGap, justifyContent: 'center' }}>
                 {rows.map(r => (
-                  <button key={r.name} onClick={() => { playUiClickSfx(); openCard(r.name); }} className="relative active:brightness-125 transition" style={{ width: cellW, height: cellH }}>
-                    <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
-                      <div className="relative w-full h-full rounded-xl">
-                        <CardFace card={r.card} variant="hand" />
+                  <button key={r.name} onClick={() => { playUiClickSfx(); openCard(r.name); }} className="relative active:brightness-125 active:scale-[0.97] transition" style={{ width: cellW }}>
+                    {/* One tile per card, all the same size: the thin gold frame gives a
+                        chessboard rhythm, and the card sits centred inside with breathing room. */}
+                    <ThinFrame px={TILE_BORDER} style={{ background: 'linear-gradient(to bottom, rgba(38,25,11,0.7), rgba(14,9,4,0.8))' }}>
+                      <div className="relative mx-auto" style={{ width: tileCardW, height: tileCardH, marginTop: TILE_PAD, marginBottom: TILE_PAD }}>
+                        {/* Full Art prints have wings/rails outside the card box, so they are
+                            drawn a touch smaller to look the same size as the Padrão ones. */}
+                        <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: `scale(${tileScale * (r.card.isFullArt ? FULL_ART_TILE_SHRINK : 1)})`, transformOrigin: 'center center', left: (tileCardW - 224) / 2, top: (tileCardH - 320) / 2 }}>
+                          <div className="relative w-full h-full rounded-xl">
+                            <CardFace card={r.card} variant="hand" />
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <span
-                      className="absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-black text-[#fff1c9] bg-[#5a3d0c] shadow-[0_0_0_1.5px_#e8c766,0_2px_4px_rgba(0,0,0,0.6)]"
-                      style={{ fontFamily: "'Cinzel', serif" }}
-                    >
-                      x{r.count}
-                    </span>
+                      <span
+                        className="absolute bottom-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-black text-[#fff1c9] bg-[#5a3d0c] shadow-[0_0_0_1.5px_#e8c766,0_2px_4px_rgba(0,0,0,0.6)]"
+                        style={{ fontFamily: "'Cinzel', serif" }}
+                      >
+                        x{r.count}
+                      </span>
+                    </ThinFrame>
                   </button>
                 ))}
               </div>
@@ -3254,48 +3266,50 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
       {/* Card window: what is being moved, how many, and the explicit button */}
       <AnimatePresence>
         {pickedCard && picked && (
-          <WindowOverlay onClose={() => setPicked(null)}>
-            <FramedWindow>
-              <div className="flex flex-col gap-3 px-1 py-1">
-                <div className="flex gap-3 items-start">
-                  <div className="relative shrink-0" style={{ width: 224 * 0.5, height: 320 * 0.5 }}>
-                    <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: 'scale(0.5)', transformOrigin: 'top left' }}>
-                      <div className="relative w-full h-full rounded-xl"><CardFace card={pickedCard} variant="hand" /></div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1.5 min-w-0 flex-1">
-                    <span className="uppercase text-[#f3e3c3] leading-tight" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 13, letterSpacing: '0.05em' }}>{picked}</span>
-                    <span className="text-[10px] uppercase tracking-[0.12em] text-[#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>
-                      {pickedCard.cardType} · custo {pickedCard.cost}
-                      {['Infantaria', 'Cavalaria', 'Arqueiro', 'Artilharia'].includes(pickedCard.cardType ?? '') && ` · ${pickedCard.atk}/${pickedCard.hp}`}
-                    </span>
-                    <span className="text-[11px] leading-snug text-[#dccfae]" style={{ fontFamily: "'PT Serif', serif" }}>{pickedCard.effect}</span>
-                    <span className="text-[10px] text-[#a89a78]" style={{ fontFamily: "'PT Serif', serif" }}>
-                      Deck {inDeck(picked)} · Reserva {owned(picked) - inDeck(picked)} · Total {owned(picked)}
-                    </span>
-                  </div>
-                </div>
-                {maxQty > 1 && (
-                  <div className="flex items-center justify-center gap-3">
-                    <WindowButton onClick={() => setQty(q => Math.max(1, q - 1))}>−</WindowButton>
-                    <span className="min-w-[2ch] text-center text-lg font-black text-[#fff1c9]" style={{ fontFamily: "'Cinzel', serif" }}>{Math.min(qty, maxQty)}</span>
-                    <WindowButton onClick={() => setQty(q => Math.min(maxQty, q + 1))}>+</WindowButton>
-                  </div>
-                )}
-                {maxQty === 0 && side === 'reserve' && (
-                  <span className="text-[12px] text-[#f0a595] text-center" style={{ fontFamily: "'PT Serif', serif" }}>{addReason(picked)}</span>
-                )}
-                <div className="flex gap-3 justify-center">
-                  <WindowButton onClick={() => setPicked(null)}>Cancelar</WindowButton>
-                  {maxQty > 0 && (
-                    <WindowButton primary onClick={applyMove}>
-                      {side === 'deck' ? 'Para a reserva' : 'Para o deck'}
-                    </WindowButton>
-                  )}
-                </div>
+          // Just the card lifted over a dimmed screen, with two plain choices under it —
+          // no window, no text: the list already shows the details.
+          <motion.div
+            key="picked"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[500] flex flex-col items-center justify-center gap-7 p-4 bg-black/80"
+            onClick={() => setPicked(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.8, y: 30 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.85, y: 20 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 24 }}
+              className="relative shrink-0"
+              style={{ width: 224 * 0.8, height: 320 * 0.8, filter: 'drop-shadow(0 14px 22px rgba(0,0,0,0.75))' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: 'scale(0.8)', transformOrigin: 'top left' }}>
+                <div className="relative w-full h-full rounded-xl"><CardFace card={pickedCard} variant="hand" /></div>
               </div>
-            </FramedWindow>
-          </WindowOverlay>
+            </motion.div>
+            <div className="flex flex-col items-center gap-3" onClick={(e) => e.stopPropagation()}>
+              {maxQty > 1 && (
+                <div className="flex items-center gap-3">
+                  <WindowButton onClick={() => setQty(q => Math.max(1, q - 1))}>−</WindowButton>
+                  <span className="min-w-[2ch] text-center text-lg font-black text-[#fff1c9]" style={{ fontFamily: "'Cinzel', serif" }}>{Math.min(qty, maxQty)}</span>
+                  <WindowButton onClick={() => setQty(q => Math.min(maxQty, q + 1))}>+</WindowButton>
+                </div>
+              )}
+              {maxQty === 0 && side === 'reserve' && (
+                <span className="text-[12px] text-[#f0a595] text-center" style={{ fontFamily: "'PT Serif', serif" }}>{addReason(picked)}</span>
+              )}
+              <div className="flex gap-3 justify-center">
+                {maxQty > 0 && (
+                  <WindowButton primary onClick={applyMove}>
+                    {side === 'deck' ? 'Remover do deck' : 'Para o deck'}
+                  </WindowButton>
+                )}
+                <WindowButton onClick={() => setPicked(null)}>Cancelar</WindowButton>
+              </div>
+            </div>
+          </motion.div>
         )}
         {confirm && (
           <WindowOverlay onClose={() => setConfirm(null)}>
