@@ -1108,6 +1108,33 @@ Top-down-neutral game UI illustration of a single thin horizontal ornamental div
 
 ---
 
+## 4r. Molduras de linha fina — botões e janelas (pendente)
+
+**Status:** prompts prontos. Pedido do usuário: as molduras atuais (dos botões e das janelas)
+ainda estão grossas demais; quer algo "como se fosse só uma linha dourada", que não chame
+atenção, feito por arte e usado em tudo. Vão substituir `ui-frame-menu-card.webp` (botões, 4:1)
+e `ui-window-frame.webp` (janelas, 1:1). Para os botões basta trocar o arquivo (é uma
+sobreposição direta); para as janelas, trocar o arquivo e reduzir `WINDOW_FRAME_PX` e a fatia
+(`borderImageSlice`) em `FramedWindow`, medindo os cantos na arte nova. O mesmo prompt gera as
+duas; só muda a proporção e o tamanho dos cantinhos.
+
+<details>
+<summary>Prompts</summary>
+
+**Moldura fina dos botões (4:1)** → `ui-frame-menu-card.webp`
+```
+Top-down-neutral game UI illustration of a single, extremely thin, elegant gold-line rectangular frame for a medieval-fantasy game menu button, on a wide 4:1 canvas (1600x400), perfectly symmetrical and centered with about 1% of empty margin on every side. The frame is just a delicate line: one crisp polished gold line only about 0.8% of the image height thick (about 3px on a 400px-tall image), with a second, even finer darker-gold hairline running just inside it, and nothing else along the straight sides: no bronze band, no rope, no gems, no engraving, no texture, no thick border, no shadow. Only the four corners carry a tiny ornament: a small curled gold bracket with a fine leaf flourish and a single tiny dot, identical on all four corners (mirrored), no larger than 3% of the image width, drawn with the same thin line weight. The straight stretches of the line are perfectly uniform so the frame can be stretched in code. The area inside the frame is a large, flat, solid mid-gray (RGB 125,125,125) rectangle, completely empty, and the background outside the frame is the exact same flat mid-gray. Polished gold with a subtle warm highlight, crisp clean edges, painterly medieval-fantasy game style (Gwent / Hearthstone UI quality). No text, no watermark, no glow.
+```
+
+**Moldura fina das janelas (1:1)** → `ui-window-frame.webp`
+```
+Top-down-neutral game UI illustration of a single, extremely thin, elegant gold-line square frame for a medieval-fantasy game window, 1:1 canvas (1024x1024), perfectly symmetrical and centered with about 2% of empty margin on every side. The frame is just a delicate line: one crisp polished gold line only about 0.7% of the image width thick (about 7px on a 1024px image), with a second, even finer darker-gold hairline running just inside it, and nothing else along the straight sides: no bronze band, no rope, no gems, no engraving, no texture, no thick border, no shadow. Only the four corners carry a small ornament: a curled gold bracket with a fine leaf flourish, a tiny Celtic knot and a single tiny dot, identical on all four corners (mirrored), no larger than 6% of the image width, drawn with the same thin line weight. The straight stretches of the line are perfectly uniform so the frame can be stretched in code. The area inside the frame is a large, flat, solid mid-gray (RGB 125,125,125) square, completely empty, and the background outside the frame is the exact same flat mid-gray. Polished gold with a subtle warm highlight, crisp clean edges, painterly medieval-fantasy game style (Gwent / Hearthstone UI quality). No text, no watermark, no glow.
+```
+
+</details>
+
+---
+
 ## 3. Moldura Full Art (dourada) — referência de layout
 
 **Arquivo:** [`reference/full-art-frame-gold-v1.png`](./reference/full-art-frame-gold-v1.png)

@@ -2204,6 +2204,7 @@ const WindowOverlay = ({ children, onClose }: { children: React.ReactNode; onClo
       initial={{ scale: 0.92, y: 20 }}
       animate={{ scale: 1, y: 0 }}
       exit={{ scale: 0.92, y: 20 }}
+      transition={{ duration: 0.18, ease: 'easeOut' }}
       onClick={(e) => e.stopPropagation()}
       className="w-full max-w-sm"
     >
@@ -2456,58 +2457,155 @@ const OnlineModeModal = ({ onPick, onClose }: { onPick: (mode: 'casual' | 'ranke
 // the frame's own 1600:397 ratio so neither image is ever stretched, and the frame
 // covers the art's outer edge, so the art just fills the whole card behind it.
 // `icon` is the URL of one of the ui-icon-* cut-outs.
-const MenuCard = ({ icon, title, bgImage, onClick }: {
-  icon: string; title: string; bgImage: string;
-  onClick: (e: React.MouseEvent) => void;
-}) => (
-  <motion.button
-    whileHover={{ scale: 1.02 }}
-    whileTap={{ scale: 0.97 }}
-    onClick={(e) => { playUiClickSfx(); onClick(e); }}
-    className="relative w-full text-left"
-    style={{ aspectRatio: '1600 / 397', containerType: 'inline-size', filter: 'drop-shadow(0 5px 7px rgba(0,0,0,0.55))' }}
-  >
-    <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
-    <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.78), rgba(0,0,0,0.4) 45%, transparent 75%)' }} />
-    <img src={uiFrameMenuCardImage} alt="" className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
-    <div className="absolute inset-0 flex items-center gap-[2.5cqw]" style={{ paddingLeft: '7%', paddingRight: '5%' }}>
-      <img
-        src={icon}
-        alt=""
-        className="shrink-0 object-contain select-none pointer-events-none"
-        style={{ width: '10.5cqw', height: '10.5cqw', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.7))' }}
-        draggable={false}
+// Tap feedback shared by every main-menu button, in three beats:
+//  1. touch     — the button sinks a little (98%), the frame flashes gold, the icon glows;
+//  2. confirm   — for ~230ms the button stays brighter (and, on the big cards, a spark of
+//                 gold runs along the frame);
+//  3. transition — only then is the real action run (the target window fades in fast).
+// Taps during the confirm beat are ignored so a double tap cannot fire the action twice.
+type TapPhase = 'idle' | 'pressed' | 'confirm';
+const MENU_CONFIRM_MS = 230;
+const useMenuTap = (onActivate: () => void) => {
+  const [phase, setPhase] = useState<TapPhase>('idle');
+  const timer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  const busy = phase === 'confirm';
+  const release = () => { if (!busy) setPhase('idle'); };
+  return {
+    phase,
+    handlers: {
+      onPointerDown: () => { if (!busy) setPhase('pressed'); },
+      onPointerUp: release,
+      onPointerLeave: release,
+      onPointerCancel: release,
+      onClick: () => {
+        if (busy) return;
+        playUiClickSfx();
+        setPhase('confirm');
+        timer.current = window.setTimeout(() => { setPhase('idle'); onActivate(); }, MENU_CONFIRM_MS);
+      },
+    },
+  };
+};
+
+// Two sparks leave the top-left corner and race around the frame in opposite directions,
+// meeting at the bottom-right (each covers half of the perimeter, which is why the leg
+// times are split by the card's own edge lengths: about 80% along the long edge, 20% down
+// the short one).
+const FrameSparks = () => {
+  const spark = 'absolute w-[5px] h-[5px] -ml-[2.5px] -mt-[2.5px] rounded-full bg-[#fff3c4]';
+  const glow = { boxShadow: '0 0 7px 3px rgba(255,196,70,0.95)' };
+  return (
+    <div className="absolute inset-[1.5%] pointer-events-none">
+      <motion.span
+        className={spark} style={glow}
+        initial={{ left: '0%', top: '0%', opacity: 0 }}
+        animate={{ left: ['0%', '100%', '100%'], top: ['0%', '0%', '100%'], opacity: [0, 1, 1, 0] }}
+        transition={{ duration: 0.26, times: [0, 0.8, 1], ease: 'linear' }}
       />
-      <span
-        className="min-w-0 uppercase text-[#f3e3c3]"
-        style={{ fontFamily: "'Cinzel Decorative', 'Cinzel', serif", fontWeight: 700, fontSize: 'clamp(12px, 5cqw, 15px)', letterSpacing: '0.09em', lineHeight: 1.1, textShadow: '0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.7)' }}
-      >
-        {title}
-      </span>
+      <motion.span
+        className={spark} style={glow}
+        initial={{ left: '0%', top: '0%', opacity: 0 }}
+        animate={{ left: ['0%', '0%', '100%'], top: ['0%', '100%', '100%'], opacity: [0, 1, 1, 0] }}
+        transition={{ duration: 0.26, times: [0, 0.2, 1], ease: 'linear' }}
+      />
     </div>
-  </motion.button>
-);
+  );
+};
+
+// The image-card mode buttons: banner art under a thin bronze frame, with a drawn icon and
+// the title on the left (the art briefs in art-prompts/README.md leave that side dark on
+// purpose). The card keeps the frame's own 1600:397 ratio so neither image is stretched.
+// `icon` is the URL of one of the ui-icon-* cut-outs.
+const MenuCard = ({ icon, title, bgImage, onClick }: {
+  icon: string; title: string; bgImage: string; onClick: () => void;
+}) => {
+  const { phase, handlers } = useMenuTap(onClick);
+  const lit = phase !== 'idle';
+  return (
+    <motion.button
+      {...handlers}
+      animate={{ scale: lit ? 0.98 : 1 }}
+      transition={{ duration: 0.09 }}
+      className="relative w-full text-left"
+      style={{ aspectRatio: '1600 / 397', containerType: 'inline-size', filter: 'drop-shadow(0 5px 7px rgba(0,0,0,0.55))' }}
+    >
+      <div className="absolute inset-0" style={{ filter: phase === 'confirm' ? 'brightness(1.22) saturate(1.1)' : 'none', transition: 'filter 90ms' }}>
+        <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.78), rgba(0,0,0,0.4) 45%, transparent 75%)' }} />
+      </div>
+      <img src={uiFrameMenuCardImage} alt="" className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
+      {/* Same frame drawn again, lit up gold — fades in on touch and stays through the confirm beat. */}
+      <img
+        src={uiFrameMenuCardImage}
+        alt=""
+        aria-hidden
+        className="absolute inset-0 w-full h-full pointer-events-none select-none"
+        draggable={false}
+        style={{
+          opacity: lit ? 1 : 0,
+          transition: 'opacity 80ms',
+          filter: 'brightness(1.9) saturate(2) sepia(0.35) drop-shadow(0 0 5px rgba(255,205,90,0.95))',
+        }}
+      />
+      <div className="absolute inset-0 flex items-center gap-[2.5cqw]" style={{ paddingLeft: '7%', paddingRight: '5%' }}>
+        <img
+          src={icon}
+          alt=""
+          className="shrink-0 object-contain select-none pointer-events-none"
+          style={{
+            width: '10.5cqw', height: '10.5cqw',
+            filter: lit ? 'brightness(1.3) drop-shadow(0 0 7px rgba(255,205,90,0.95))' : 'drop-shadow(0 2px 3px rgba(0,0,0,0.7))',
+            transition: 'filter 100ms',
+          }}
+          draggable={false}
+        />
+        <span
+          className="min-w-0 uppercase text-[#f3e3c3]"
+          style={{ fontFamily: "'Cinzel Decorative', 'Cinzel', serif", fontWeight: 700, fontSize: 'clamp(12px, 5cqw, 15px)', letterSpacing: '0.09em', lineHeight: 1.1, textShadow: '0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.7)' }}
+        >
+          {title}
+        </span>
+      </div>
+      {phase === 'confirm' && <FrameSparks />}
+    </motion.button>
+  );
+};
 
 // Small secondary destinations row (settings/tutorials/ranking/sound) — none
 // of these screens exist yet, so every one opens ComingSoonModal for now (see
-// MainMenu). The bronze plaque is ui-icon-button (the slim second-round art, with a
-// large dark recess) and the icon inside it is one of the cut-outs from the
-// ui-icons sheet (`icon` is that image's URL).
-const MenuIconButton = ({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) => (
-  <button onClick={() => { playUiClickSfx(); onClick(); }} className="flex flex-col items-center gap-1 active:scale-95 transition-transform">
-    <div className="relative w-14 h-14 drop-shadow-[0_3px_4px_rgba(0,0,0,0.6)]">
-      <img src={uiIconButtonImage} alt="" className="absolute inset-0 w-full h-full select-none" draggable={false} />
-      <img
-        src={icon}
-        alt=""
-        className="absolute left-1/2 top-1/2 w-[62%] h-[62%] -translate-x-1/2 -translate-y-1/2 object-contain select-none"
-        style={{ filter: 'brightness(1.2) saturate(1.1) drop-shadow(0 1px 1px rgba(0,0,0,0.7))' }}
-        draggable={false}
-      />
-    </div>
-    <span className="text-[9px] uppercase tracking-[0.12em] font-bold text-[#f0e0bb]" style={{ fontFamily: "'Cinzel', serif", textShadow: '0 1px 2px rgba(0,0,0,0.95)' }}>{label}</span>
-  </button>
-);
+// MainMenu). Same tap feedback as the cards minus the sparks: it sinks, the plaque
+// flashes gold, the icon glows, and the window opens after the confirm beat.
+const MenuIconButton = ({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) => {
+  const { phase, handlers } = useMenuTap(onClick);
+  const lit = phase !== 'idle';
+  return (
+    <motion.button {...handlers} animate={{ scale: lit ? 0.96 : 1 }} transition={{ duration: 0.09 }} className="flex flex-col items-center gap-1">
+      <div className="relative w-14 h-14 drop-shadow-[0_3px_4px_rgba(0,0,0,0.6)]">
+        <img src={uiIconButtonImage} alt="" className="absolute inset-0 w-full h-full select-none" draggable={false} />
+        <img
+          src={uiIconButtonImage}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 w-full h-full select-none pointer-events-none"
+          draggable={false}
+          style={{ opacity: lit ? 1 : 0, transition: 'opacity 80ms', filter: 'brightness(1.8) saturate(2) sepia(0.35) drop-shadow(0 0 5px rgba(255,205,90,0.95))' }}
+        />
+        <img
+          src={icon}
+          alt=""
+          className="absolute left-1/2 top-1/2 w-[62%] h-[62%] -translate-x-1/2 -translate-y-1/2 object-contain select-none"
+          style={{
+            filter: lit ? 'brightness(1.4) saturate(1.1) drop-shadow(0 0 7px rgba(255,205,90,0.95))' : 'brightness(1.2) saturate(1.1) drop-shadow(0 1px 1px rgba(0,0,0,0.7))',
+            transition: 'filter 100ms',
+          }}
+          draggable={false}
+        />
+      </div>
+      <span className="text-[9px] uppercase tracking-[0.12em] font-bold text-[#f0e0bb]" style={{ fontFamily: "'Cinzel', serif", textShadow: '0 1px 2px rgba(0,0,0,0.95)' }}>{label}</span>
+    </motion.button>
+  );
+};
 
 const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) => {
   const mouseX = useMotionValue(0);
@@ -2607,20 +2705,19 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
           icon={uiIconDesafiosImage}
           title={MODE_LABELS_PT['Campaign']}
           bgImage={menuCardDesafiosImage}
-          onClick={(e) => { e.stopPropagation(); onSelectMode('Campaign'); }}
+          onClick={() => onSelectMode('Campaign')}
         />
         <MenuCard
           icon={uiIconOnlineImage}
           title={MODE_LABELS_PT['Multiplayer']}
           bgImage={menuCardOnlineImage}
-          onClick={(e) => { e.stopPropagation(); setOnlineOpen(true); }}
+          onClick={() => setOnlineOpen(true)}
         />
         <MenuCard
           icon={uiIconEditarDeckImage}
           title={MODE_LABELS_PT['My Deck']}
           bgImage={menuCardEditarDeckImage}
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={() => {
             setComingSoon({ title: 'Meu Deck', message: 'Em breve você vai poder montar e ajustar o seu baralho aqui.' });
           }}
         />
@@ -2628,8 +2725,7 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
           icon={uiIconLojaImage}
           title="Loja"
           bgImage={menuCardLojaImage}
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={() => {
             setComingSoon({ title: 'Loja', message: 'Em breve você vai poder comprar boosters e Coroas aqui.' });
           }}
         />
