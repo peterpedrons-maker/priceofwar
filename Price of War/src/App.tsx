@@ -2184,6 +2184,8 @@ const FramedWindow = ({ children, className = '' }: { children: React.ReactNode;
       backgroundImage: `radial-gradient(ellipse at 50% 25%, rgba(150,100,40,0.28), rgba(150,100,40,0) 70%), url(${uiWindowTextureImage})`,
       backgroundSize: '100% 100%, 400px 400px',
       backgroundRepeat: 'no-repeat, repeat',
+      backgroundOrigin: 'border-box',
+      backgroundClip: 'border-box',
       filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.7))',
     }}
   >
@@ -2235,19 +2237,38 @@ const WindowTitle = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
+// The same thin gold-line frame art, drawn as a small 9-slice: `px` is the border width
+// (the corner flourishes are scaled to it). Used around options and buttons inside
+// windows in place of the CSS outlines they had — the user wants one line style for
+// everything for now, with more decoration later. Slice 31 = the corner size in the
+// 810px frame art.
+const ThinFrame = ({ px, className = '', style, children }: { px: number; className?: string; style?: React.CSSProperties; children: React.ReactNode }) => (
+  <div
+    className={className}
+    style={{
+      borderStyle: 'solid',
+      borderColor: 'transparent',
+      borderWidth: px,
+      borderImageSource: `url(${uiFrameMenuCardImage})`,
+      borderImageSlice: '31',
+      borderImageWidth: `${px}px`,
+      borderImageRepeat: 'stretch',
+      ...style,
+      backgroundOrigin: 'border-box',
+      backgroundClip: 'border-box',
+    }}
+  >
+    {children}
+  </div>
+);
+
 // A selectable row inside a window (deck choice, Casual/Ranqueado): an engraved inset
 // with a soft top highlight and a gold accent on the left instead of a boxed outline.
 const WindowOption = ({ children, onClick }: { children: React.ReactNode; onClick: () => void; key?: React.Key }) => (
-  <button
-    onClick={() => { playUiClickSfx(); onClick(); }}
-    className="relative w-full text-left rounded-md pl-4 pr-3 py-2.5 active:brightness-125 active:scale-[0.98] transition"
-    style={{
-      background: 'linear-gradient(to right, rgba(74,48,20,0.55), rgba(30,19,9,0.55) 55%, rgba(18,11,6,0.35))',
-      boxShadow: 'inset 0 1px 0 rgba(232,199,102,0.22), inset 0 -1px 0 rgba(0,0,0,0.65), 0 2px 6px rgba(0,0,0,0.4)',
-    }}
-  >
-    <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full" style={{ background: 'linear-gradient(to bottom, #f3d98a, #a8791f)' }} />
-    {children}
+  <button onClick={() => { playUiClickSfx(); onClick(); }} className="block w-full text-left active:brightness-125 active:scale-[0.98] transition">
+    <ThinFrame px={13} style={{ background: 'linear-gradient(to right, rgba(74,48,20,0.5), rgba(24,15,7,0.5))', }}>
+      <div className="px-2 py-1">{children}</div>
+    </ThinFrame>
   </button>
 );
 
@@ -2256,12 +2277,15 @@ const WindowText = ({ children }: { children: React.ReactNode }) => (
 );
 
 const WindowButton = ({ children, onClick, primary = false, className = '' }: { children: React.ReactNode; onClick: () => void; primary?: boolean; className?: string }) => (
-  <button
-    onClick={() => { playUiClickSfx(); onClick(); }}
-    className={`px-5 py-1.5 rounded-full border text-xs uppercase tracking-[0.12em] active:scale-95 transition-transform ${primary ? 'border-[#e8c766] bg-[#7a5a16]/70 text-[#fff1c9]' : 'border-[#d4af37]/60 text-[#e3d3ad]'} ${className}`}
-    style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}
-  >
-    {children}
+  <button onClick={() => { playUiClickSfx(); onClick(); }} className={`active:scale-95 active:brightness-125 transition ${className}`}>
+    <ThinFrame px={11} style={{ background: primary ? 'rgba(122,90,22,0.55)' : 'rgba(20,13,6,0.45)', }}>
+      <span
+        className="block px-4 py-0.5 text-xs uppercase tracking-[0.12em] text-[#f0e0bb]"
+        style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}
+      >
+        {children}
+      </span>
+    </ThinFrame>
   </button>
 );
 

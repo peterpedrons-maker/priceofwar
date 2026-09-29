@@ -1135,6 +1135,40 @@ Top-down-neutral game UI illustration of a single, extremely thin, elegant gold-
 
 ---
 
+## 4s. Molduras finas — ícones de baixo, perfil e Coroas (pendente)
+
+**Status:** prompts prontos. Pedido do usuário: o resto da tela inicial ainda tem as artes de
+bronze grosso (quadradinhos de Config./Tutoriais/Ranking/Som, placa do perfil, pílula de
+Coroas); quer tudo na mesma linha dourada fina. Como o resto do menu, o objetivo é combinar
+com `ui-frame-menu-card.webp` (linha dupla, cantinhos com folhinha).
+
+Ao integrar: `ui-icon-button.webp` (1:1, miolo cinza vira transparente — o ícone entra
+por cima, hoje em `MenuIconButton`), `ui-profile-plate.webp` e `ui-pill-coroas.webp` (medidas
+do layout em cqw em `ProfileBar` precisam ser refeitas na arte nova). Recortar com transparência
+gradual, como em 4r.
+
+<details>
+<summary>Prompts</summary>
+
+**Moldura fina dos ícones (1:1)** → `ui-icon-button.webp`
+```
+Top-down-neutral game UI illustration of a single, extremely thin, elegant gold-line square frame for a small medieval-fantasy game icon button, 1:1 canvas (1024x1024), perfectly symmetrical and centered with about 3% of empty margin on every side. The frame is just a delicate line with softly rounded corners: one crisp polished gold line only about 1% of the image width thick (about 10px on a 1024px image), with a second, even finer darker-gold hairline running just inside it, and nothing else: no bronze band, no rope, no gems, no engraving, no texture, no thick border, no shadow. Each of the four corners carries only a tiny curled leaf flourish, identical on all four corners (mirrored), no larger than 9% of the image width, drawn with the same thin line weight. The area inside the frame is a large, flat, solid mid-gray (RGB 125,125,125) square, completely empty, and the background outside the frame is the exact same flat mid-gray. Polished gold with a subtle warm highlight, crisp clean edges, painterly medieval-fantasy game style (Gwent / Hearthstone UI quality). No text, no icon, no watermark, no glow.
+```
+
+**Placa fina do perfil (3,2:1)** → `ui-profile-plate.webp`
+```
+Top-down-neutral game UI illustration of a slim, elegant gold-line player profile plate for a mobile medieval-fantasy card game, wide landscape composition, 3.2:1 aspect ratio (1600x500), on a flat solid mid-gray background (RGB 125,125,125). Everything is drawn with fine polished gold lines, no thick bronze bands: (1) at the far left, a round avatar ring made of one thin gold line (about 1% of the image height thick) with a second fine darker-gold hairline just inside it, and two small, delicate wing-like leaf flourishes curling from its left and right sides; the ring's diameter is about 92% of the image height, and inside it a flat solid mid-gray disc (same gray as the background) where a portrait will be placed in code; (2) a small shield-shaped level badge attached to the lower right of the ring, outlined in thin gold, its inside flat solid mid-gray; (3) to the right, a long rectangular plate outlined by a thin double gold line with tiny corner flourishes, split into an upper wide name field and, below it, a slim rounded track for an experience bar with a tiny round gold gem at its right end; the insides of the name field and of the track are flat solid mid-gray (same gray), completely empty. Same material and line weight everywhere, crisp clean edges, subtle warm highlight on the gold only, painterly medieval-fantasy game style (Gwent / Hearthstone UI quality). No text, no numbers, no portrait, no watermark, no glow, no shadow.
+```
+
+**Pílula fina de Coroas (3,8:1)** → `ui-pill-coroas.webp`
+```
+Top-down-neutral game UI illustration of a slim, elegant gold-line currency pill for a medieval-fantasy game, wide 3.8:1 canvas (1520x400) on a flat solid mid-gray background (RGB 125,125,125), centered with about 4% margin. A horizontal capsule with fully rounded ends, outlined by a thin polished gold line (about 1% of the image height thick) with a second fine darker-gold hairline just inside it. At the left end sits a round medallion socket outlined by the same thin gold line with a single small faceted amethyst-purple gem set at its lower edge; the socket's inside is flat solid mid-gray (a crown icon will be placed there in code). The rest of the capsule's inside is flat solid mid-gray, completely empty. No bronze band, no rope, no thick border, no engraving, no shadow. Crisp clean edges, subtle warm highlight on the gold only, painterly medieval-fantasy game style (Gwent / Hearthstone UI quality). No text, no numbers, no watermark, no glow.
+```
+
+</details>
+
+---
+
 ## 3. Moldura Full Art (dourada) — referência de layout
 
 **Arquivo:** [`reference/full-art-frame-gold-v1.png`](./reference/full-art-frame-gold-v1.png)
