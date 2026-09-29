@@ -821,7 +821,7 @@ Sheet of four matching game UI icons arranged in a 2x2 grid with generous empty 
 o menu integrado: molduras **mais finas** (as atuais ficaram grossas), **sem
 subtítulo** nos botões (só ícone + título, pra mostrar mais da arte) e **ícones
 desenhados** no lugar dos emojis (coroa das Coroas, Desafios, Online, Editar Deck,
-Loja) mais **avatares** variados no lugar do leão.
+Loja) mais **24 avatares** variados (um prompt avulso por personagem) no lugar do leão.
 
 Enquanto as molduras novas não chegam, o código já desenha as atuais em 9-slice
 (CSS `border-image`, 7 px nos botões e 7 px na placa dos ícones), que as afina sem
@@ -847,19 +847,133 @@ Top-down-neutral game UI illustration of a single slim ornate square button fram
 Sheet of six matching game UI icons arranged in a 3x2 grid (three columns, two rows) with generous empty space between them, on a flat, solid mid-gray background. Each icon is an embossed gold-and-bronze medieval-fantasy emblem with soft rim lighting, same style, same size, same lighting, each centered in its own cell. Top row: (1) a golden crown with a large faceted amethyst-purple gem in its center, (2) two crossed swords over a small heater shield, (3) a golden globe of the world ringed by a thin orbit band. Bottom row: (4) a small fan of three cards seen from the back, each with an ornate gold border and a rearing lion crest in the middle, with a feather quill lying across them (no suits, no numbers, no playing-card pips), (5) a leather coin pouch tied with rope with gold coins spilling out, (6) a round emerald-green button with a gold rim and a bold golden plus sign in the middle. Painterly medieval-fantasy game style (Gwent / Yu-Gi-Oh Forbidden Memories menu quality), no text, no labels, no watermark, landscape composition, 3:2 aspect ratio
 ```
 
-**Avatares A: jovens** → `avatar-01..08.webp`
+**Avatares (24 prompts avulsos, 1:1)** → `avatar-01..24.webp`
+
+As folhas de 8 retratos por imagem foram descartadas: a IA repetia o mesmo rosto. Agora é um prompt por avatar, cada um com um personagem único (idade, pele, rosto, cabelo, roupa, expressão e cor de fundo diferentes). Gerar uma imagem por prompt; o jogo corta em círculo. Cada prompt = o trecho comum abaixo + a descrição do personagem.
+
+Trecho comum:
 ```
-Sheet of eight fantasy character portrait avatars arranged in a 4x2 grid (four columns, two rows) on a flat, solid mid-gray background with generous gray space between them. Each portrait is head-and-shoulders framed and fills its own perfect circle (the circle edge is just the crop, with no ring, border or frame). Four women and four men, all young adults (about 18 to 30 years old), all different people with clearly different faces, hair styles, hair colors and skin tones (from very pale to deep brown), dressed as medieval-fantasy commoners, scouts, squires and young soldiers (leather jerkins, simple mail, cloth hoods, a headband, a braid, a short beard, a light scar, a freckled face). Painterly semi-realistic style like a premium fantasy card game, warm dramatic lighting, expressive faces looking slightly toward the viewer, consistent style, scale and lighting across all eight. No text, no labels, no watermark, square composition
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark.
 ```
 
-**Avatares B: maduros e idosos** → `avatar-09..16.webp`
+**01 Batedora de pele escura**
 ```
-Sheet of eight fantasy character portrait avatars arranged in a 4x2 grid (four columns, two rows) on a flat, solid mid-gray background with generous gray space between them. Each portrait is head-and-shoulders framed and fills its own perfect circle (the circle edge is just the crop, with no ring, border or frame). Four women and four men, all mature or elderly (about 45 to 75 years old), all different people with clearly different faces, hair styles, hair colors (grey, white, silver, dark) and skin tones, with wrinkles, weathered skin and character: a scarred veteran soldier, a stern grey-haired matron in a headscarf, a white-bearded scholar with round spectacles, a priestess with silver hair and a small holy pendant, a bald battle-worn sergeant, an elderly noblewoman with an elaborate braid, a one-eyed old captain, a kindly white-haired blacksmith with a leather cap. Painterly semi-realistic style like a premium fantasy card game, warm dramatic lighting, consistent style, scale and lighting across all eight. No text, no labels, no watermark, square composition
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A young woman of about 22 with deep brown skin, tight black coily hair in a high puff tied with a red cloth band, high cheekbones and a wide confident smile, a small gold hoop earring, a brown leather scout jerkin with a green scarf. Head turned three-quarters to the right, light from the left, misty forest-green background.
 ```
 
-**Avatares C: papéis** → `avatar-17..24.webp`
+**02 Escudeiro ruivo**
 ```
-Sheet of eight fantasy character portrait avatars arranged in a 4x2 grid (four columns, two rows) on a flat, solid mid-gray background with generous gray space between them. Each portrait is head-and-shoulders framed and fills its own perfect circle (the circle edge is just the crop, with no ring, border or frame). Four women and four men of mixed ages and skin tones, each a different medieval-fantasy role: a female knight in polished plate armor with a plumed helm under her arm, a hooded male archer with a feathered cap, a female cleric in white and gold robes with a hood, a bearded male commander in a crimson cloak with a gold-trimmed steel helm, a female mage in a deep blue hood with a faint glow in her eyes, a young male squire with a padded gambeson and messy hair, a noblewoman with a slim gold circlet, a rugged male mercenary with a scarred face and a bandana. Painterly semi-realistic style like a premium fantasy card game, warm dramatic lighting, consistent style, scale and lighting across all eight. No text, no labels, no watermark, square composition
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A young man of about 20 with very pale freckled skin, messy copper-red hair, green eyes, a cheeky lopsided grin and a small scar through his left eyebrow, wearing a faded blue padded squire's gambeson with the collar open. Head tilted slightly, warm sunset-orange background.
+```
+
+**03 Guerreira da trança**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A young woman of about 25 with light olive skin, a single thick black braid over one shoulder, sharp almond eyes, a calm serious expression and a thin scar on her chin, dark steel chainmail coif hanging around her neck. Looking straight at the viewer, cold slate-blue background.
+```
+
+**04 Arqueiro de turbante**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A young man of about 28 with medium brown skin, a neatly trimmed short black beard, thick eyebrows and a warm smile, a dark green cloth wrapped around his head with a brass clasp, a brown wool tunic with a leather strap across the chest holding a quiver. Dusty ochre background.
+```
+
+**05 Aprendiz de clériga**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A young woman of about 19 with fair East Asian features, a short black bob with straight bangs, a round face and wide curious eyes looking slightly upward, a white apprentice hood with gold trim. Soft lavender background.
+```
+
+**06 Soldado careca**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A young man of about 24 with dark brown skin, a shaved head, a strong jaw, a small stud earring and a stern determined look, a steel gorget over a plain red tabard with a white stripe. Deep crimson background.
+```
+
+**07 Caçadora de bandana**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A young woman of about 27 with tan skin, wavy chestnut hair blowing in the wind, freckles across the nose and a sun-lined grin, a red bandana on her forehead, a worn leather archer's bracer and arrow fletching visible at the shoulder. Teal sky background.
+```
+
+**08 Nórdico de coque**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A young man of about 23 with pale skin, blond hair in a top-knot with shaved sides, light blue eyes, a sparse blond beard and an intense stare, a fur-trimmed cloak fastened with a bronze brooch. Pale icy-blue background with frost.
+```
+
+**09 Capitão veterano**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. An old man of about 70 with a long white braided beard, weathered ruddy skin, one milky blind left eye crossed by an old scar, a dented dark steel helm with a faded red plume. Smoky charcoal background with drifting embers.
+```
+
+**10 Avó sorridente**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. An elderly woman of about 68 with dark brown skin, short cropped white curly hair, deep laugh lines and a kind warm smile, a patterned orange-and-yellow headwrap and a wooden bead necklace. Warm terracotta background.
+```
+
+**11 Ferreiro careca**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A man of about 55 with medium tan skin, a bald head, a thick grey mustache, huge bushy eyebrows, a soot-smudged cheek and a burn scar on his neck, leather apron straps over his shoulders. Lit by the orange glow of a forge, dark red-orange background.
+```
+
+**12 Matrona da trança coroa**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A woman of about 50 with fair rosy skin, silver-blonde hair in an elaborate crown braid, blue-grey eyes and a dignified stern expression, a dark green velvet hood trimmed with fur and a silver brooch. Deep green and gold tapestry background.
+```
+
+**13 Sábio de óculos**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. An old man of about 75 with East Asian features, a thin long white beard, a white top-knot, tiny round wire spectacles and a wise gentle half-smile, a deep indigo scholar's robe with a high collar. Softly blurred candlelit bookshelves in the background.
+```
+
+**14 Sacerdotisa de véu negro**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A woman of about 60 with olive skin, jet-black hair with one grey streak pulled back under a black veil, a sharp hawk-like nose, piercing dark eyes and tight lips, a gold sun pendant on black-and-gold vestments. Dark violet background.
+```
+
+**15 Sargento cicatrizado**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A man of about 52 with brown-black skin, close-cropped grey hair and a salt-and-pepper beard, a heavy scar from forehead to cheek, tired but noble eyes, a battered steel breastplate with a crimson sash. Stormy grey background.
+```
+
+**16 Herbalista de penas**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A woman of about 65 with tan skin, wild grey-white hair tied with leather cord and small feathers, a deeply lined face and a mischievous grin with a missing tooth, a patched fur vest and a small herb pouch on a strap. Warm amber wooden-hut background.
+```
+
+**17 Cavaleira de armadura**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A female knight of about 30 with pale skin, cropped dark hair, dirt and sweat on her face and a determined expression, polished silver plate armor with gold trim, a crimson-plumed helmet tucked under her arm, her breath fogging in the cold. Golden sunlit cathedral background.
+```
+
+**18 Arqueiro encapuzado**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A hooded male archer of about 35 with tan skin and rough stubble, a dark green cloak hood shadowing his eyes so only the lower face and one glinting eye show, arrow fletching over his shoulder. Deep forest at night, cold moonlight.
+```
+
+**19 Clériga radiante**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A female cleric of about 26 with deep brown skin, serene eyes lifted upward and a faint golden halo glow around her head, a white-and-gold hooded robe embroidered with suns. Radiant white-gold light background.
+```
+
+**20 Comandante de manto**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A male commander of about 48 with fair skin, a sharply trimmed dark beard with silver at the chin and a commanding gaze, a steel helm with gold trim and a tall crimson crest, a crimson cloak fastened with a golden lion clasp. Red battle banners in the background.
+```
+
+**21 Maga de olhos brilhantes**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A female mage of about 32 with light brown skin, long silver-white hair, softly glowing pale blue eyes, a deep blue hood with silver runes stitched along the edge, small arcane sparks floating around her. Deep blue starry background.
+```
+
+**22 Escudeiro adolescente**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A young male squire of about 16 with a round ruddy pale face, big ears, unruly straw-yellow hair, freckles and an awed wide-eyed expression, an oversized padded gambeson and a pot helm sitting crooked on his head. Muted grey-green training-yard background.
+```
+
+**23 Nobre de coroa de rubi**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A noblewoman of about 38 with dark ebony skin, hair in intricate braids swept up beneath a slim gold circlet with a small ruby, long gold earrings, a high-necked burgundy velvet gown with a gold lion brooch and a cool confident expression. Deep burgundy drapery background.
+```
+
+**24 Mercenário de tapa-olho**
+```
+Square 1:1 fantasy character portrait avatar, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed painted background with no border, ring or frame. Painterly semi-realistic style like a premium fantasy card game, sharp detailed face, no text, no watermark. A male mercenary of about 40 with tanned leathery skin, dark hair pulled back with shaved sides, a thick scar across the nose, black stubble and a gold-toothed grin, a black eyepatch over one eye, a red bandana on his forehead, a patched dark leather jacket with a bone necklace. Smoky amber tavern background.
 ```
 
 </details>
