@@ -3014,6 +3014,14 @@ const EDITOR_PAD = 6;
 const ROW_H = 44;
 // Row art is 148px tall, slice edges (top/right/bottom/left) 40/175/40/140: drawn at ROW_H / 148.
 const ROW_EDGES: Edges = [12, 52, 12, 42];
+// Spreadsheet columns of the list, as offsets from the row's right edge (the cost sits in the
+// row art's left socket, the quantity in its right one). Header and rows share these numbers.
+const COL_QTY_RIGHT = 13;
+const COL_HP_RIGHT = 52;
+const COL_ATK_RIGHT = 84;
+const COL_TYPE_RIGHT = 116;
+const COL_NAME_RIGHT = 184;
+const COL_DIVIDERS = [52, 84, 116, 182];
 const FULL_ART_TILE_SCALE = 1.07; // measured: Full Art silhouettes are ~5-8% smaller than Padrão ones at the same scale
 
 const DeckEditor = ({ onClose }: { onClose: () => void }) => {
@@ -3036,7 +3044,13 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
   const [qty, setQty] = useState(1);
   const [confirm, setConfirm] = useState<{ title: string; message: string; run: () => void } | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [draft, setDraft] = useState<{ type: CardType | 'todas'; sort: EditorSort; view: 'lista' | 'cartas' }>({ type: 'todas', sort: 'custo', view: 'lista' });
+  const [draft, setDraft] = useState<{ type: CardType | 'todas'; sort: EditorSort }>({ type: 'todas', sort: 'custo' });
+  // Visual confirmation of a move: a ghost of the card flies to the tab it went to, and a
+  // short message says what happened.
+  const deckTabRef = useRef<HTMLButtonElement>(null);
+  const reserveTabRef = useRef<HTMLButtonElement>(null);
+  const [fly, setFly] = useState<{ id: number; card: CardData; from: { x: number; y: number }; to: { x: number; y: number } } | null>(null);
+  const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
   const [generalOpen, setGeneralOpen] = useState(false);
   const [generalChoice, setGeneralChoice] = useState<string | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
@@ -3101,6 +3115,19 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
       const next = (cards[picked] ?? 0) + (side === 'deck' ? -n : n);
       if (next <= 0) delete cards[picked]; else cards[picked] = next;
     });
+    const dest: DeckSide = side === 'deck' ? 'reserve' : 'deck';
+    const card = cardByName(picked);
+    const rect = (dest === 'deck' ? deckTabRef : reserveTabRef).current?.getBoundingClientRect();
+    const id = Date.now();
+    if (card) {
+      setFly({
+        id, card,
+        from: { x: window.innerWidth / 2, y: window.innerHeight / 2 - 50 },
+        to: rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : { x: window.innerWidth / 2, y: 130 },
+      });
+    }
+    setToast({ id, text: `${n > 1 ? `${n}× ` : ''}${picked} → ${dest === 'deck' ? 'Deck' : 'Reserva'}` });
+    window.setTimeout(() => setToast(t => (t && t.id === id ? null : t)), 1700);
     setPicked(null);
   };
 
@@ -3191,7 +3218,7 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
               </button>
             </div>
             <span className="shrink-0 text-[9px] uppercase tracking-wider text-[#a89a78] text-right leading-tight" style={{ fontFamily: "'Cinzel', serif" }}>/{DECK_MAX_CARDS}<br />mín. {DECK_MIN_CARDS}</span>
-            <span className="shrink-0 w-[28px] text-center font-black leading-none" style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: problem ? '#f08a78' : '#8fe0a4' }}>{total}</span>
+            <span className="shrink-0 w-[28px] text-center font-black leading-none" style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: problem ? '#f08a78' : '#8fe0a4' }}><motion.span key={total} className="inline-block" initial={{ scale: 1.6 }} animate={{ scale: 1 }} transition={{ duration: 0.4 }}>{total}</motion.span></span>
           </div>
         </ArtFrame>
         {problem && <p className="text-center text-[11px] text-[#f0a595] -mt-1" style={{ fontFamily: "'PT Serif', serif" }}>{problem}</p>}
@@ -3201,6 +3228,7 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
           {([['deck', 'Deck', total], ['reserve', 'Reserva', reserveCount]] as const).map(([id, label, n]) => (
             <button
               key={id}
+              ref={id === 'deck' ? deckTabRef : reserveTabRef}
               onClick={() => { if (side === id) return; playUiClickSfx(); flipDir.current = id === 'reserve' ? 1 : -1; setSide(id); setPicked(null); }}
               className="relative h-[42px] active:scale-[0.97] transition"
             >
@@ -3212,7 +3240,7 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
                 style={{ background: side === id ? 'rgba(96,68,16,0.6)' : 'rgba(0,0,0,0.4)' }}
               />
               <span className={`relative uppercase tracking-[0.12em] ${side === id ? 'text-[#fff1c9]' : 'text-[#a89a78]'}`} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 13 }}>
-                {label} <span className="opacity-75">({n})</span>
+                {label} <motion.span key={n} className="inline-block opacity-90" initial={{ scale: 1.55, color: '#ffe08a' }} animate={{ scale: 1, color: side === id ? '#fff1c9' : '#a89a78' }} transition={{ duration: 0.45 }}>({n})</motion.span>
               </span>
             </button>
           ))}
@@ -3224,14 +3252,26 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar carta..."
+              placeholder="Buscar..."
               className="block w-full bg-transparent px-2 py-1 text-[13px] text-[#f3e3c3] placeholder:text-[#8d7f60] outline-none"
               style={{ fontFamily: "'PT Serif', serif" }}
             />
           </ThinFrame>
-          <button onClick={() => { playUiClickSfx(); setDraft({ type: typeFilter, sort, view }); setFilterOpen(true); }} className="relative shrink-0 active:scale-95 transition">
+          <div className="flex gap-1 shrink-0">
+            {([['lista', 'Ver em lista'], ['cartas', 'Ver em cartas']] as const).map(([id, label]) => (
+              <button key={id} aria-label={label} title={label} onClick={() => { if (view !== id) { playUiClickSfx(); changeView(id); } }} className="relative w-[38px] active:scale-95 transition">
+                <ArtFrame src={view === id ? uiEditorTabOnImage : uiEditorTabOffImage} slice={[44, 44, 44, 44]} width={[11, 11, 11, 11]} className="absolute inset-0" style={{ background: view === id ? 'rgba(96,68,16,0.6)' : 'rgba(0,0,0,0.4)' }} />
+                <svg viewBox="0 0 24 24" className="relative mx-auto" width="18" height="18" fill="none" stroke={view === id ? '#fff1c9' : '#a89a78'} strokeWidth="2" strokeLinecap="round">
+                  {id === 'lista'
+                    ? <><path d="M4 6h16M4 12h16M4 18h16" /></>
+                    : <><rect x="4" y="4" width="7" height="7" rx="1" /><rect x="13" y="4" width="7" height="7" rx="1" /><rect x="4" y="13" width="7" height="7" rx="1" /><rect x="13" y="13" width="7" height="7" rx="1" /></>}
+                </svg>
+              </button>
+            ))}
+          </div>
+          <button onClick={() => { playUiClickSfx(); setDraft({ type: typeFilter, sort }); setFilterOpen(true); }} className="relative shrink-0 active:scale-95 transition">
             <ThinFrame px={11} style={{ background: filterCount > 0 ? 'rgba(122,90,22,0.55)' : 'rgba(20,13,6,0.45)' }}>
-              <span className="block px-4 py-1 text-xs uppercase tracking-[0.12em] text-[#f0e0bb]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>Filtros</span>
+              <span className="block px-2 py-1 text-xs uppercase tracking-[0.1em] text-[#f0e0bb]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>Filtros</span>
             </ThinFrame>
             {filterCount > 0 && (
               <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center text-[9px] font-black text-[#fff1c9] bg-[#8a2a1a] shadow-[0_0_0_1.5px_#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>{filterCount}</span>
@@ -3241,7 +3281,26 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
 
         {/* Cards: list (default) or card grid. Switching Deck <-> Reserva turns the page: the
             old side slides and tilts away, the new one swings in from the other edge. */}
-        <div className="flex-1 min-h-0 rounded-md" style={{ background: 'linear-gradient(to bottom, rgba(112,80,44,0.34), rgba(74,50,26,0.3))', boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.14), inset 0 8px 18px rgba(0,0,0,0.25)', perspective: 900 }}>
+        <div className="flex-1 min-h-0 rounded-md flex flex-col" style={{ background: 'linear-gradient(to bottom, rgba(112,80,44,0.34), rgba(74,50,26,0.3))', boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.14), inset 0 8px 18px rgba(0,0,0,0.25)', perspective: 900 }}>
+          {view === 'lista' && rows.length > 0 && (
+            // Column titles, one per cell of the rows below (same offsets, so they line up).
+            <div className="relative shrink-0 mx-1.5 mt-1.5" style={{ height: 22 }}>
+              <div className="absolute inset-x-0 bottom-0 h-px bg-[#d4af37]/40" />
+              {([
+                ['Custo', { left: -2, width: 42 }],
+                ['Nome', { left: 46, right: COL_NAME_RIGHT }],
+                ['Tipo', { right: COL_TYPE_RIGHT, width: 66 }],
+                ['ATK', { right: COL_ATK_RIGHT, width: 32 }],
+                ['HP', { right: COL_HP_RIGHT, width: 32 }],
+                ['Qtd', { right: COL_QTY_RIGHT, width: 34 }],
+              ] as const).map(([label, pos]) => (
+                <span key={label} className="absolute top-0 bottom-[3px] flex items-center justify-center text-[8px] uppercase tracking-[0.1em] text-[#e8c766]/85" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, ...pos }}>{label}</span>
+              ))}
+              {COL_DIVIDERS.map(x => <div key={x} className="absolute top-[3px] bottom-0 w-px bg-[#d4af37]/25" style={{ right: x }} />)}
+              <div className="absolute top-[3px] bottom-0 w-px bg-[#d4af37]/25" style={{ left: 40 }} />
+            </div>
+          )}
+          <div className="flex-1 min-h-0">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={`${side}-${slotIdx}`}
@@ -3268,24 +3327,25 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
                         style={{ height: ROW_H }}
                       >
                         <ArtFrame src={uiEditorRowImage} slice={[40, 175, 40, 140]} width={ROW_EDGES} className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(60,40,16,0.55), rgba(18,12,6,0.6))' }}>
-                          {/* cost: inside the left socket */}
+                          {/* One cell per column, split by thin gold lines like a spreadsheet:
+                              cost | name | type | ATK | HP | quantity */}
                           <span className="absolute top-0 bottom-0 flex items-center justify-center text-[12px] font-black text-[#fff1c9]" style={{ fontFamily: "'Cinzel', serif", left: 8, width: 21 }}>{r.card.cost}</span>
-                          {/* name + type */}
-                          <span className="absolute top-0 bottom-0 flex flex-col justify-center min-w-0" style={{ left: 44, right: isUnit ? 120 : 60 }}>
-                            <span className="truncate text-[13px] leading-tight text-[#f3e3c3]" style={{ fontFamily: "'PT Serif', serif", fontWeight: 700 }}>{r.name}</span>
-                            <span className="text-[9px] leading-tight uppercase tracking-[0.12em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>{r.card.cardType}</span>
+                          <div className="absolute top-[13px] bottom-[13px] w-px bg-[#d4af37]/25" style={{ left: 40 }} />
+                          <span className="absolute top-0 bottom-0 flex items-center min-w-0" style={{ left: 46, right: COL_NAME_RIGHT }}>
+                            <span className="text-[12px] leading-[1.1] text-[#f3e3c3] line-clamp-2" style={{ fontFamily: "'PT Serif', serif", fontWeight: 700 }}>{r.name}</span>
                           </span>
-                          {isUnit && (
-                            <span className="absolute top-0 bottom-0 flex items-center gap-1" style={{ right: 60 }}>
-                              {([[uiStatAtkImage, r.card.atk], [uiStatHpImage, r.card.hp]] as const).map(([img, val], k) => (
-                                <span key={k} className="relative flex items-center justify-center" style={{ width: 24, height: 27, backgroundImage: `url(${img})`, backgroundSize: '100% 100%' }}>
+                          {COL_DIVIDERS.map(x => <div key={x} className="absolute top-[13px] bottom-[13px] w-px bg-[#d4af37]/25" style={{ right: x }} />)}
+                          <span className="absolute top-0 bottom-0 flex items-center justify-center text-center text-[8px] leading-tight uppercase tracking-[0.06em] text-[#cdbd97]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, right: COL_TYPE_RIGHT, width: 66 }}>{r.card.cardType}</span>
+                          {([[uiStatAtkImage, r.card.atk, COL_ATK_RIGHT], [uiStatHpImage, r.card.hp, COL_HP_RIGHT]] as const).map(([img, val, right], k) => (
+                            <span key={k} className="absolute top-0 bottom-0 flex items-center justify-center" style={{ right, width: 32 }}>
+                              {isUnit ? (
+                                <span className="flex items-center justify-center" style={{ width: 24, height: 27, backgroundImage: `url(${img})`, backgroundSize: '100% 100%' }}>
                                   <span className="text-[12px] font-black leading-none pt-[2px]" style={{ fontFamily: "'Cinzel', serif", color: '#fff4d2', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.8)' }}>{val}</span>
                                 </span>
-                              ))}
+                              ) : <span className="text-[12px] text-[#6d6248]">—</span>}
                             </span>
-                          )}
-                          {/* quantity: inside the right socket */}
-                          <span className="absolute top-0 bottom-0 flex items-center justify-center text-[11px] font-black text-[#e8c766]" style={{ fontFamily: "'Cinzel', serif", right: 13, width: 34 }}>x{r.count}</span>
+                          ))}
+                          <span className="absolute top-0 bottom-0 flex items-center justify-center text-[11px] font-black text-[#e8c766]" style={{ fontFamily: "'Cinzel', serif", right: COL_QTY_RIGHT, width: 34 }}>x{r.count}</span>
                         </ArtFrame>
                       </button>
                     );
@@ -3315,6 +3375,7 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
               )}
             </motion.div>
           </AnimatePresence>
+          </div>
         </div>
 
         {/* Shortcuts */}
@@ -3427,17 +3488,10 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
                     ))}
                   </div>
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] uppercase tracking-[0.14em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>Visualização</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    <ArtChip active={draft.view === 'lista'} onClick={() => setDraft(d => ({ ...d, view: 'lista' }))}>Lista</ArtChip>
-                    <ArtChip active={draft.view === 'cartas'} onClick={() => setDraft(d => ({ ...d, view: 'cartas' }))}>Cartas</ArtChip>
-                  </div>
-                </div>
                 <button onClick={() => { playUiClickSfx(); setDraft(d => ({ ...d, type: 'todas', sort: 'custo' })); }} className="self-center text-[11px] uppercase tracking-[0.14em] text-[#e8c766] underline underline-offset-4" style={{ fontFamily: "'Cinzel', serif" }}>Limpar filtros</button>
                 <div className="flex gap-3 justify-center">
                   <WindowButton onClick={() => setFilterOpen(false)}>Cancelar</WindowButton>
-                  <WindowButton primary onClick={() => { setTypeFilter(draft.type); setSort(draft.sort); changeView(draft.view); setFilterOpen(false); }}>Aplicar</WindowButton>
+                  <WindowButton primary onClick={() => { setTypeFilter(draft.type); setSort(draft.sort); setFilterOpen(false); }}>Aplicar</WindowButton>
                 </div>
               </div>
             </FramedWindow>
@@ -3467,6 +3521,40 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
               </div>
             </FramedWindow>
           </WindowOverlay>
+        )}
+      </AnimatePresence>
+
+      {/* Move feedback: the card flies to the tab it went to, and a message names the move */}
+      {fly && (
+        <motion.div
+          key={fly.id}
+          className="fixed left-0 top-0 z-[600] pointer-events-none"
+          style={{ width: 112, height: 160, filter: 'drop-shadow(0 8px 12px rgba(0,0,0,0.7))' }}
+          initial={{ x: fly.from.x - 56, y: fly.from.y - 80, scale: 1.6, opacity: 1, rotate: 0 }}
+          animate={{ x: fly.to.x - 56, y: fly.to.y - 80, scale: 0.16, opacity: 0.2, rotate: 10 }}
+          transition={{ duration: 0.55, ease: [0.45, 0, 0.75, 0.4] }}
+          onAnimationComplete={() => setFly(null)}
+        >
+          <div className="absolute top-0 left-0" style={{ width: 224, height: 320, transform: 'scale(0.5)', transformOrigin: 'top left' }}>
+            <div className="relative w-full h-full rounded-xl"><CardFace card={fly.card} variant="hand" /></div>
+          </div>
+        </motion.div>
+      )}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            key={toast.id}
+            className="fixed left-1/2 z-[600] pointer-events-none"
+            style={{ bottom: 'calc(max(4px, env(safe-area-inset-bottom)) + 96px)', x: '-50%' }}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.22 }}
+          >
+            <ArtFrame src={uiEditorTabOnImage} slice={[44, 44, 44, 44]} width={[12, 12, 12, 12]} className="relative" style={{ background: 'rgba(60,40,10,0.92)' }}>
+              <span className="relative block px-5 py-2 text-[12px] text-[#fff1c9] whitespace-nowrap" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, letterSpacing: '0.06em' }}>✓ {toast.text}</span>
+            </ArtFrame>
+          </motion.div>
         )}
       </AnimatePresence>
     </motion.div>
