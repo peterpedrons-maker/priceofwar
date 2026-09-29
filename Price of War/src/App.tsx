@@ -32,7 +32,9 @@ import menuCardLojaImage from './assets/menu-card-loja.webp';
 import uiFrameMenuCardImage from './assets/ui-frame-menu-card.webp';
 import uiStatAtkImage from './assets/ui-stat-atk.webp';
 import uiStatHpImage from './assets/ui-stat-hp.webp';
-import uiEditorRowImage from './assets/ui-editor-row.webp';
+import uiLineHImage from './assets/ui-line-h.webp';
+import uiLineVImage from './assets/ui-line-v.webp';
+import uiIconCardImage from './assets/ui-icon-card.webp';
 import uiEditorHeaderImage from './assets/ui-editor-header.webp';
 import uiEditorTabOnImage from './assets/ui-editor-tab-on.webp';
 import uiEditorTabOffImage from './assets/ui-editor-tab-off.webp';
@@ -185,7 +187,7 @@ const ALL_PRELOAD_IMAGES: string[] = [
   recrutamentoSeletivoArt, recrutarVeteranosArt, tributoDeGuerraArt, chamadoAsArmasArt,
   recrutaDevotoArt, cavaleiroDaLuzFullArt, jorgeOLanceiroFullArt,
   menuCardDesafiosImage, menuCardOnlineImage, menuCardEditarDeckImage, menuCardLojaImage,
-  uiFrameMenuCardImage, uiStatAtkImage, uiStatHpImage, uiEditorRowImage, uiEditorHeaderImage, uiEditorTabOnImage, uiEditorTabOffImage, uiWindowFrameImage, uiWindowTextureImage, uiPillCoroasImage, uiProfilePlateImage, uiIconButtonImage,
+  uiFrameMenuCardImage, uiStatAtkImage, uiStatHpImage, uiLineHImage, uiLineVImage, uiIconCardImage, uiEditorHeaderImage, uiEditorTabOnImage, uiEditorTabOffImage, uiWindowFrameImage, uiWindowTextureImage, uiPillCoroasImage, uiProfilePlateImage, uiIconButtonImage,
   uiIconConfigImage, uiIconTutoriaisImage, uiIconRankingImage, uiIconSomImage,
   uiIconCoroaImage, uiIconDesafiosImage, uiIconOnlineImage, uiIconEditarDeckImage,
   uiIconLojaImage, uiIconMaisImage,
@@ -2412,6 +2414,13 @@ const ArtFrame = ({ src, slice, width, className = '', style, children }: {
   </div>
 );
 
+const VLine = ({ className = '' }: { className?: string }) => (
+  <span aria-hidden className={`absolute left-0 top-[7px] bottom-[7px] w-[3px] pointer-events-none ${className}`} style={{ backgroundImage: `url(${uiLineVImage})`, backgroundSize: '100% 100%' }} />
+);
+const HLine = ({ className = '' }: { className?: string }) => (
+  <span aria-hidden className={`absolute inset-x-0 bottom-0 h-[3px] pointer-events-none ${className}`} style={{ backgroundImage: `url(${uiLineHImage})`, backgroundSize: '100% 100%' }} />
+);
+
 // Small pill button drawn with the tab art (bright when selected, dim when not).
 const ArtChip = ({ active, onClick, children, className = '' }: { active: boolean; onClick: () => void; children: React.ReactNode; className?: string; key?: React.Key }) => (
   <button onClick={() => { playUiClickSfx(); onClick(); }} className={`relative h-[34px] active:scale-95 transition ${className}`}>
@@ -3011,17 +3020,10 @@ const DECK_VIEW_KEY = 'pow_deck_view_v1';
 const EDITOR_MARGIN = 5;
 const EDITOR_FRAME = 18;
 const EDITOR_PAD = 6;
-const ROW_H = 44;
-// Row art is 148px tall, slice edges (top/right/bottom/left) 40/175/40/140: drawn at ROW_H / 148.
-const ROW_EDGES: Edges = [12, 52, 12, 42];
-// Spreadsheet columns of the list, as offsets from the row's right edge (the cost sits in the
-// row art's left socket, the quantity in its right one). Header and rows share these numbers.
-const COL_QTY_RIGHT = 13;
-const COL_HP_RIGHT = 52;
-const COL_ATK_RIGHT = 84;
-const COL_TYPE_RIGHT = 116;
-const COL_NAME_RIGHT = 184;
-const COL_DIVIDERS = [52, 84, 116, 182];
+// Spreadsheet columns of the list: cost | name | type | ATK | HP | quantity. Header and rows share
+// this template, and the cells are split by the thin gold line art (ui-line-v / ui-line-h).
+const LIST_COLS = '34px minmax(0,1fr) 70px 34px 34px 38px';
+const ROW_H = 42;
 const FULL_ART_TILE_SCALE = 1.07; // measured: Full Art silhouettes are ~5-8% smaller than Padrão ones at the same scale
 
 const DeckEditor = ({ onClose }: { onClose: () => void }) => {
@@ -3155,7 +3157,8 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
   // The card art's wings stick out a bit past its 224x320 box, so it is drawn slightly smaller
   // than the cell to keep the silhouette inside it.
   const cellScale = cellW / 246;
-  const cellH = Math.round(320 * cellScale) + 14;
+  // The frames' points stick out above and below the 320px box too, so rows get extra height.
+  const cellH = Math.round(320 * cellScale * 1.12) + 8;
   const pickedCard = picked ? cardByName(picked) : undefined;
 
   const chip = (active: boolean) =>
@@ -3261,11 +3264,14 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
             {([['lista', 'Ver em lista'], ['cartas', 'Ver em cartas']] as const).map(([id, label]) => (
               <button key={id} aria-label={label} title={label} onClick={() => { if (view !== id) { playUiClickSfx(); changeView(id); } }} className="relative w-[38px] active:scale-95 transition">
                 <ArtFrame src={view === id ? uiEditorTabOnImage : uiEditorTabOffImage} slice={[44, 44, 44, 44]} width={[11, 11, 11, 11]} className="absolute inset-0" style={{ background: view === id ? 'rgba(96,68,16,0.6)' : 'rgba(0,0,0,0.4)' }} />
-                <svg viewBox="0 0 24 24" className="relative mx-auto" width="18" height="18" fill="none" stroke={view === id ? '#fff1c9' : '#a89a78'} strokeWidth="2" strokeLinecap="round">
-                  {id === 'lista'
-                    ? <><path d="M4 6h16M4 12h16M4 18h16" /></>
-                    : <><rect x="4" y="4" width="7" height="7" rx="1" /><rect x="13" y="4" width="7" height="7" rx="1" /><rect x="4" y="13" width="7" height="7" rx="1" /><rect x="13" y="13" width="7" height="7" rx="1" /></>}
-                </svg>
+                {id === 'lista' ? (
+                  <svg viewBox="0 0 24 24" className="relative mx-auto" width="18" height="18" fill="none" stroke={view === id ? '#fff1c9' : '#a89a78'} strokeWidth="2" strokeLinecap="round">
+                    <path d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                ) : (
+                  // a tiny real card frame from the game's own art
+                  <img src={uiIconCardImage} alt="" className="relative mx-auto" width={17} height={25} style={{ opacity: view === id ? 1 : 0.55 }} />
+                )}
               </button>
             ))}
           </div>
@@ -3283,21 +3289,15 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
             old side slides and tilts away, the new one swings in from the other edge. */}
         <div className="flex-1 min-h-0 rounded-md flex flex-col" style={{ background: 'linear-gradient(to bottom, rgba(112,80,44,0.34), rgba(74,50,26,0.3))', boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.14), inset 0 8px 18px rgba(0,0,0,0.25)', perspective: 900 }}>
           {view === 'lista' && rows.length > 0 && (
-            // Column titles, one per cell of the rows below (same offsets, so they line up).
-            <div className="relative shrink-0 mx-1.5 mt-1.5" style={{ height: 22 }}>
-              <div className="absolute inset-x-0 bottom-0 h-px bg-[#d4af37]/40" />
-              {([
-                ['Custo', { left: -2, width: 42 }],
-                ['Nome', { left: 46, right: COL_NAME_RIGHT }],
-                ['Tipo', { right: COL_TYPE_RIGHT, width: 66 }],
-                ['ATK', { right: COL_ATK_RIGHT, width: 32 }],
-                ['HP', { right: COL_HP_RIGHT, width: 32 }],
-                ['Qtd', { right: COL_QTY_RIGHT, width: 34 }],
-              ] as const).map(([label, pos]) => (
-                <span key={label} className="absolute top-0 bottom-[3px] flex items-center justify-center text-[8px] uppercase tracking-[0.1em] text-[#e8c766]/85" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, ...pos }}>{label}</span>
+            // Column titles, one per cell of the rows below (same grid, so they line up).
+            <div className="relative shrink-0 mx-1.5 mt-1.5 grid" style={{ gridTemplateColumns: LIST_COLS, height: 24 }}>
+              {['Custo', 'Nome', 'Tipo', 'ATK', 'HP', 'Qtd'].map((label, i) => (
+                <span key={label} className="relative flex items-center justify-center text-[8px] uppercase tracking-[0.1em] text-[#e8c766]/90" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
+                  {i > 0 && <VLine />}
+                  {label}
+                </span>
               ))}
-              {COL_DIVIDERS.map(x => <div key={x} className="absolute top-[3px] bottom-0 w-px bg-[#d4af37]/25" style={{ right: x }} />)}
-              <div className="absolute top-[3px] bottom-0 w-px bg-[#d4af37]/25" style={{ left: 40 }} />
+              <HLine />
             </div>
           )}
           <div className="flex-1 min-h-0">
@@ -3316,37 +3316,40 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
                   {side === 'deck' ? 'Nenhuma carta no deck com esse filtro.' : 'Nenhuma carta na reserva com esse filtro.'}
                 </p>
               ) : view === 'lista' ? (
-                <div className="flex flex-col p-1.5" style={{ gap: 5 }}>
+                <div className="flex flex-col px-1.5 pb-1.5">
                   {rows.map(r => {
                     const isUnit = ['Infantaria', 'Cavalaria', 'Arqueiro', 'Artilharia'].includes(r.card.cardType ?? '');
                     return (
                       <button
                         key={r.name}
                         onClick={() => { playUiClickSfx(); openCard(r.name); }}
-                        className="relative block w-full shrink-0 text-left active:brightness-125 active:scale-[0.985] transition"
-                        style={{ height: ROW_H }}
+                        className="relative grid w-full shrink-0 text-left active:bg-[#7a5a16]/35 transition-colors"
+                        style={{ gridTemplateColumns: LIST_COLS, height: ROW_H }}
                       >
-                        <ArtFrame src={uiEditorRowImage} slice={[40, 175, 40, 140]} width={ROW_EDGES} className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(60,40,16,0.55), rgba(18,12,6,0.6))' }}>
-                          {/* One cell per column, split by thin gold lines like a spreadsheet:
-                              cost | name | type | ATK | HP | quantity */}
-                          <span className="absolute top-0 bottom-0 flex items-center justify-center text-[12px] font-black text-[#fff1c9]" style={{ fontFamily: "'Cinzel', serif", left: 8, width: 21 }}>{r.card.cost}</span>
-                          <div className="absolute top-[13px] bottom-[13px] w-px bg-[#d4af37]/25" style={{ left: 40 }} />
-                          <span className="absolute top-0 bottom-0 flex items-center min-w-0" style={{ left: 46, right: COL_NAME_RIGHT }}>
-                            <span className="text-[12px] leading-[1.1] text-[#f3e3c3] line-clamp-2" style={{ fontFamily: "'PT Serif', serif", fontWeight: 700 }}>{r.name}</span>
+                        <span className="flex items-center justify-center text-[14px] font-black text-[#fff1c9]" style={{ fontFamily: "'Cinzel', serif" }}>{r.card.cost}</span>
+                        <span className="relative flex items-center min-w-0 px-2">
+                          <VLine />
+                          <span className="text-[12px] leading-[1.1] text-[#f3e3c3] line-clamp-2" style={{ fontFamily: "'PT Serif', serif", fontWeight: 700 }}>{r.name}</span>
+                        </span>
+                        <span className="relative flex items-center justify-center text-center text-[7.5px] leading-tight uppercase tracking-[0.04em] text-[#cdbd97]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
+                          <VLine />
+                          {r.card.cardType}
+                        </span>
+                        {([[uiStatAtkImage, r.card.atk], [uiStatHpImage, r.card.hp]] as const).map(([img, val], k) => (
+                          <span key={k} className="relative flex items-center justify-center">
+                            <VLine />
+                            {isUnit ? (
+                              <span className="flex items-center justify-center" style={{ width: 24, height: 27, backgroundImage: `url(${img})`, backgroundSize: '100% 100%' }}>
+                                <span className="text-[12px] font-black leading-none pt-[2px]" style={{ fontFamily: "'Cinzel', serif", color: '#fff4d2', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.8)' }}>{val}</span>
+                              </span>
+                            ) : <span className="text-[12px] text-[#6d6248]">—</span>}
                           </span>
-                          {COL_DIVIDERS.map(x => <div key={x} className="absolute top-[13px] bottom-[13px] w-px bg-[#d4af37]/25" style={{ right: x }} />)}
-                          <span className="absolute top-0 bottom-0 flex items-center justify-center text-center text-[8px] leading-tight uppercase tracking-[0.06em] text-[#cdbd97]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, right: COL_TYPE_RIGHT, width: 66 }}>{r.card.cardType}</span>
-                          {([[uiStatAtkImage, r.card.atk, COL_ATK_RIGHT], [uiStatHpImage, r.card.hp, COL_HP_RIGHT]] as const).map(([img, val, right], k) => (
-                            <span key={k} className="absolute top-0 bottom-0 flex items-center justify-center" style={{ right, width: 32 }}>
-                              {isUnit ? (
-                                <span className="flex items-center justify-center" style={{ width: 24, height: 27, backgroundImage: `url(${img})`, backgroundSize: '100% 100%' }}>
-                                  <span className="text-[12px] font-black leading-none pt-[2px]" style={{ fontFamily: "'Cinzel', serif", color: '#fff4d2', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.8)' }}>{val}</span>
-                                </span>
-                              ) : <span className="text-[12px] text-[#6d6248]">—</span>}
-                            </span>
-                          ))}
-                          <span className="absolute top-0 bottom-0 flex items-center justify-center text-[11px] font-black text-[#e8c766]" style={{ fontFamily: "'Cinzel', serif", right: COL_QTY_RIGHT, width: 34 }}>x{r.count}</span>
-                        </ArtFrame>
+                        ))}
+                        <span className="relative flex items-center justify-center text-[13px] font-black text-[#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>
+                          <VLine />
+                          x{r.count}
+                        </span>
+                        <HLine />
                       </button>
                     );
                   })}
