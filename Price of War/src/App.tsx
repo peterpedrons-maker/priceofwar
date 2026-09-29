@@ -2443,17 +2443,17 @@ const MenuCard = ({ icon, title, bgImage, onClick }: {
     <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
     <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.78), rgba(0,0,0,0.4) 45%, transparent 75%)' }} />
     <img src={uiFrameMenuCardImage} alt="" className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
-    <div className="absolute inset-0 flex items-center gap-[2.5cqw]" style={{ paddingLeft: '5.5%', paddingRight: '5%' }}>
+    <div className="absolute inset-0 flex items-center gap-[2.5cqw]" style={{ paddingLeft: '7%', paddingRight: '5%' }}>
       <img
         src={icon}
         alt=""
         className="shrink-0 object-contain select-none pointer-events-none"
-        style={{ width: '9cqw', height: '9cqw', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.7))' }}
+        style={{ width: '10.5cqw', height: '10.5cqw', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.7))' }}
         draggable={false}
       />
       <span
         className="min-w-0 uppercase text-[#f3e3c3]"
-        style={{ fontFamily: "'Cinzel Decorative', 'Cinzel', serif", fontWeight: 700, fontSize: 'clamp(12px, 4.2cqw, 16px)', letterSpacing: '0.09em', lineHeight: 1.1, textShadow: '0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.7)' }}
+        style={{ fontFamily: "'Cinzel Decorative', 'Cinzel', serif", fontWeight: 700, fontSize: 'clamp(12px, 5cqw, 15px)', letterSpacing: '0.09em', lineHeight: 1.1, textShadow: '0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.7)' }}
       >
         {title}
       </span>
@@ -2582,7 +2582,7 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
         draggable={false}
       />
 
-      <div className="flex flex-col gap-3 relative z-10 w-[88vw] max-w-sm">
+      <div className="flex flex-col gap-2.5 relative z-10 w-[68vw] max-w-[270px] mt-auto mb-[104px]">
         {/* Four equal buttons, in the user's own order: Desafios first (the
             Hearthstone-style NPC ladder it will become — for now it just opens the
             deck picker and starts a match against the AI, the only mode whose
