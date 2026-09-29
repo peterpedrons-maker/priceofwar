@@ -1136,7 +1136,7 @@ const GoldBadge = ({ value, className = "" }: { value: number; className?: strin
 // size that looks right on one overflows its coin/blade/heart badge on a
 // smaller one. This measures its own box and shrinks (never grows past the
 // base size) exactly enough to always fit, on any container size.
-const GoldNumber = ({ value, className = "" }: { value: number, className?: string }) => {
+const GoldNumber = ({ value, className = "", dark = false }: { value: number, className?: string, dark?: boolean }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
 
@@ -1166,10 +1166,14 @@ const GoldNumber = ({ value, className = "" }: { value: number, className?: stri
         className={`font-black leading-none ${className}`}
         style={{
           fontFamily: "'Cinzel', serif",
-          background: 'linear-gradient(180deg, #FFFFFF 0%, #FDE08B 30%, #D4AF37 60%, #AA7200 100%)',
+          background: dark
+            ? 'linear-gradient(180deg, #6b4a1e 0%, #3f2a0d 55%, #2b1a06 100%)'
+            : 'linear-gradient(180deg, #FFFFFF 0%, #FDE08B 30%, #D4AF37 60%, #AA7200 100%)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
-          filter: 'drop-shadow(0 2px 2px rgba(0,0,0,1)) drop-shadow(0 0 4px rgba(0,0,0,0.8))',
+          filter: dark
+            ? 'drop-shadow(0 1px 0 rgba(255,248,230,0.75))'
+            : 'drop-shadow(0 2px 2px rgba(0,0,0,1)) drop-shadow(0 0 4px rgba(0,0,0,0.8))',
           display: 'inline-block',
           whiteSpace: 'nowrap',
           transformOrigin: 'center',
@@ -1441,6 +1445,7 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
   const pv = FULL_ART_PLATE_VARIANTS[variant];
   const showStats = !NO_STAT_TYPES.has(card.cardType as CardType);
   const cfg = fullArtMiniConfigForType(card.cardType);
+  const lightBar = usesLightBar(cfg);
   return (
     // Everything — art, frame image, and every badge/text box — shares this one
     // oversized, shifted coordinate space (same trick the Padrão layout below
@@ -1509,7 +1514,7 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
           <FitText
             text={card.name}
             className={`${v.name} font-bold uppercase tracking-tight`}
-            style={{ fontFamily: "'Cinzel', serif", color: '#f5deA0', textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
+            style={{ fontFamily: "'Cinzel', serif", ...nameTextStyle(lightBar) }}
           />
         </div>
 
@@ -1519,7 +1524,7 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
             Pixel-checked against that plate's actual dark fill: x ~83.5%-91.5%,
             y ~9.3%-13.8%. */}
         <div className="absolute flex items-center justify-center" style={{ left: '83.5%', top: '9.3%', width: '8%', height: '4.5%' }}>
-          <GoldNumber value={card.cost} className={v.stat} />
+          <GoldNumber value={card.cost} className={v.stat} dark={lightBar} />
         </div>
 
         {/* ATK/HP — the frame's own black shield (left) and red heart shield
@@ -1581,6 +1586,13 @@ const FULL_ART_MINI_CONFIG: Record<string, FullArtMiniConfig> = {
     art: { left: '9.77%', top: '15.43%', width: '80.86%', height: '72.72%' },
   },
 };
+// The Tática/Emboscada/Terreno frames have LIGHT (silver/champagne) name and cost
+// bars, unlike the creature frame's dark one — the usual pale-gold text washes out
+// on them, so those get dark brown with a faint light edge instead.
+const usesLightBar = (cfg: FullArtMiniConfig) => cfg.image !== cardTemplateFullArtGoldImage;
+const nameTextStyle = (light: boolean): React.CSSProperties => light
+  ? { color: '#3a2610', textShadow: '0 1px 0 rgba(255,248,230,0.7)' }
+  : { color: '#f5deA0', textShadow: '0 1px 3px rgba(0,0,0,0.9)' };
 const FULL_ART_MINI_DEFAULT: FullArtMiniConfig = {
   image: cardTemplateFullArtGoldImage,
   wrapper: { left: '-4.1%', top: '-5.58%', width: '108.2%', height: '113.2%' },
@@ -1604,6 +1616,7 @@ const fullArtMiniConfigForType = (cardType?: CardType): FullArtMiniConfig =>
 const CardFaceFullArtMini = ({ card }: { card: CardData }) => {
   const showStats = !NO_STAT_TYPES.has(card.cardType as CardType);
   const cfg = fullArtMiniConfigForType(card.cardType);
+  const lightBar = usesLightBar(cfg);
   return (
     <div className="absolute pointer-events-none" style={{ ...cfg.wrapper }}>
       <div className="absolute overflow-hidden" style={{ ...cfg.art }}>
@@ -1618,14 +1631,14 @@ const CardFaceFullArtMini = ({ card }: { card: CardData }) => {
         <div className="absolute px-1 flex items-center" style={{ top: '8.5%', left: '9%', width: '62%', height: '5.5%' }}>
           <span
             className="block w-full truncate text-center text-[7px] md:text-[9px] font-bold uppercase tracking-tight"
-            style={{ fontFamily: "'Cinzel', serif", color: '#f5deA0', textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
+            style={{ fontFamily: "'Cinzel', serif", ...nameTextStyle(lightBar) }}
           >
             {card.name}
           </span>
         </div>
 
         <div className="absolute flex items-center justify-center" style={{ left: '83.5%', top: '9.3%', width: '8%', height: '4.5%' }}>
-          <span className="font-black text-xs md:text-base" style={{ fontFamily: "'Cinzel', serif", color: '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
+          <span className="font-black text-xs md:text-base" style={{ fontFamily: "'Cinzel', serif", ...(lightBar ? { color: '#3a2610', textShadow: '0 1px 0 rgba(255,248,230,0.7)' } : { color: '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }) }}>
             {card.cost}
           </span>
         </div>
