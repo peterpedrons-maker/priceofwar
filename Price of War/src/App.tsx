@@ -2416,8 +2416,8 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
       <div className="relative shrink-0" style={{ width: 'min(28%, 112px)', aspectRatio: '1240 / 376', containerType: 'inline-size' }}>
         <img src={uiPillCoroasImage} alt="" draggable={false} className="absolute inset-0 w-full h-full select-none pointer-events-none" />
         <img src={uiIconCoroaImage} alt="" draggable={false} className="absolute select-none pointer-events-none object-contain" style={{ left: '15%', top: '46.8%', width: '17cqw', height: '17cqw', transform: 'translate(-50%, -50%)', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }} />
-        <div className="absolute flex items-center justify-between" style={{ left: '29%', right: '7%', top: '22%', bottom: '22%' }}>
-          <span className="font-black text-[#f8ecd0]" style={{ fontFamily: "'Cinzel', serif", fontSize: '11cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.85)' }}>{formatCoroas(profile.coroas)}</span>
+        <div className="absolute flex items-center" style={{ left: '29%', right: '7%', top: '22%', bottom: '22%' }}>
+          <span className="flex-1 text-center font-black text-[#f8ecd0]" style={{ fontFamily: "'Cinzel', serif", fontSize: '11cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.85)' }}>{formatCoroas(profile.coroas)}</span>
           <button
             onClick={() => { playUiClickSfx(); onOpenShop(); }}
             className="shrink-0 active:scale-90 transition-transform"
