@@ -30,6 +30,11 @@ import menuCardOnlineImage from './assets/menu-card-online.webp';
 import menuCardEditarDeckImage from './assets/menu-card-editar-deck.webp';
 import menuCardLojaImage from './assets/menu-card-loja.webp';
 import uiFrameMenuCardImage from './assets/ui-frame-menu-card.webp';
+import uiEditorTileImage from './assets/ui-editor-tile.webp';
+import uiEditorRowImage from './assets/ui-editor-row.webp';
+import uiEditorHeaderImage from './assets/ui-editor-header.webp';
+import uiEditorTabOnImage from './assets/ui-editor-tab-on.webp';
+import uiEditorTabOffImage from './assets/ui-editor-tab-off.webp';
 import uiWindowFrameImage from './assets/ui-window-frame.webp';
 import uiWindowTextureImage from './assets/ui-window-texture.webp';
 import uiPillCoroasImage from './assets/ui-pill-coroas.webp';
@@ -179,7 +184,7 @@ const ALL_PRELOAD_IMAGES: string[] = [
   recrutamentoSeletivoArt, recrutarVeteranosArt, tributoDeGuerraArt, chamadoAsArmasArt,
   recrutaDevotoArt, cavaleiroDaLuzFullArt, jorgeOLanceiroFullArt,
   menuCardDesafiosImage, menuCardOnlineImage, menuCardEditarDeckImage, menuCardLojaImage,
-  uiFrameMenuCardImage, uiWindowFrameImage, uiWindowTextureImage, uiPillCoroasImage, uiProfilePlateImage, uiIconButtonImage,
+  uiFrameMenuCardImage, uiEditorTileImage, uiEditorRowImage, uiEditorHeaderImage, uiEditorTabOnImage, uiEditorTabOffImage, uiWindowFrameImage, uiWindowTextureImage, uiPillCoroasImage, uiProfilePlateImage, uiIconButtonImage,
   uiIconConfigImage, uiIconTutoriaisImage, uiIconRankingImage, uiIconSomImage,
   uiIconCoroaImage, uiIconDesafiosImage, uiIconOnlineImage, uiIconEditarDeckImage,
   uiIconLojaImage, uiIconMaisImage,
@@ -2380,6 +2385,32 @@ const ThinFrame = ({ px, className = '', style, children }: { px: number; classN
   </div>
 );
 
+// A 9-slice frame drawn on its own layer, so the content on top is never pushed inwards by
+// the border. `slice` is in the source image's pixels and `width` is the CSS size each edge
+// is drawn at — pass width = slice x (rendered height / source height) to keep the art's
+// proportions (sockets stay round, corners stay square).
+type Edges = [number, number, number, number];
+const ArtFrame = ({ src, slice, width, className = '', style, children }: {
+  src: string; slice: Edges; width: Edges; className?: string; style?: React.CSSProperties; children?: React.ReactNode; key?: React.Key;
+}) => (
+  <div className={className} style={style}>
+    <div
+      aria-hidden
+      className="absolute inset-0 pointer-events-none"
+      style={{
+        borderStyle: 'solid',
+        borderColor: 'transparent',
+        borderWidth: width.map(w => `${w}px`).join(' '),
+        borderImageSource: `url(${src})`,
+        borderImageSlice: slice.join(' '),
+        borderImageWidth: width.map(w => `${w}px`).join(' '),
+        borderImageRepeat: 'stretch',
+      }}
+    />
+    {children}
+  </div>
+);
+
 // A selectable row inside a window (deck choice, Casual/Ranqueado): an engraved inset
 // with a soft top highlight and a gold accent on the left instead of a boxed outline.
 const WindowOption = ({ children, onClick }: { children: React.ReactNode; onClick: () => void; key?: React.Key }) => (
@@ -2962,12 +2993,18 @@ type DeckSide = 'deck' | 'reserve';
 type EditorSort = 'custo' | 'nome' | 'tipo';
 const EDITOR_SORTS: EditorSort[] = ['custo', 'nome', 'tipo'];
 const DECK_VIEW_KEY = 'pow_deck_view_v1';
+const TILE_BORDER = 12;
+const TILE_PAD = 4;
+const ROW_H = 44;
+// Row art is 148px tall, slice edges (top/right/bottom/left) 40/175/40/140: drawn at ROW_H / 148.
+const ROW_EDGES: Edges = [12, 52, 12, 42];
 const FULL_ART_TILE_SCALE = 1.07; // measured: Full Art silhouettes are ~5-8% smaller than Padrão ones at the same scale
 
 const DeckEditor = ({ onClose }: { onClose: () => void }) => {
   const [store, setStore] = useState<DeckStore>(loadDeckStore);
   const [slotIdx, setSlotIdx] = useState(0);
   const [side, setSide] = useState<DeckSide>('deck');
+  const flipDir = useRef(1);
   const [typeFilter, setTypeFilter] = useState<CardType | 'todas'>('todas');
   const [sort, setSort] = useState<EditorSort>('custo');
   const [query, setQuery] = useState('');
@@ -3064,13 +3101,11 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
     return plan;
   };
 
-  const cellGap = 8;
+  const cellGap = 6;
   const gridW = Math.min(viewW, 480) - 24 - 22 - 12; // screen padding, ThinFrame border, grid padding
   const gridCols = 3;
-  const cellW = Math.floor((gridW - cellGap * (gridCols - 1) - 16) / gridCols);
-  const TILE_BORDER = 9;
-  const TILE_PAD = 8;
-  const tileCardW = cellW - TILE_BORDER * 2 - TILE_PAD * 2;
+  const cellW = Math.floor((gridW - cellGap * (gridCols - 1)) / gridCols);
+  const tileCardW = cellW - TILE_BORDER * 2;
   const tileScale = tileCardW / 224;
   const tileCardH = Math.round(320 * tileScale);
   const pickedCard = picked ? cardByName(picked) : undefined;
@@ -3107,33 +3142,39 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
           <span className={`text-[10px] uppercase tracking-wider transition-opacity ${savedFlash ? 'opacity-100' : 'opacity-0'} text-emerald-300`} style={{ fontFamily: "'Cinzel', serif" }}>Salvo</span>
         </div>
 
-        {/* Deck title + counter + general */}
-        <ThinFrame px={11} style={{ background: 'rgba(20,13,6,0.55)' }}>
-          <div className="px-2 py-1 flex items-center gap-2">
+        {/* Deck title + general + counter (the counter sits in the plate's own socket) */}
+        <ArtFrame src={uiEditorHeaderImage} slice={[50, 130, 50, 70]} width={[15, 39, 15, 21]} className="relative shrink-0" style={{ height: 56, background: 'rgba(20,13,6,0.55)' }}>
+          <div className="absolute inset-0 flex items-center gap-2 pl-6" style={{ paddingRight: 9 }}>
             <div className="flex flex-col min-w-0 flex-1">
-              <span className="truncate uppercase text-[#f3e3c3]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 14, letterSpacing: '0.06em' }}>{slot.name}</span>
-              <button onClick={() => { playUiClickSfx(); setGeneralChoice(slot.general); setGeneralOpen(true); }} className="text-left truncate text-[11px] text-[#e8c766]" style={{ fontFamily: "'PT Serif', serif" }}>
+              <span className="truncate uppercase text-[#f3e3c3] leading-tight" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 13, letterSpacing: '0.06em' }}>{slot.name}</span>
+              <button onClick={() => { playUiClickSfx(); setGeneralChoice(slot.general); setGeneralOpen(true); }} className="text-left truncate text-[11px] leading-tight text-[#e8c766]" style={{ fontFamily: "'PT Serif', serif" }}>
                 General: {slot.general} <span className="opacity-70">✎</span>
               </button>
             </div>
-            <div className="flex flex-col items-end shrink-0">
-              <span className="font-black leading-none" style={{ fontFamily: "'Cinzel', serif", fontSize: 20, color: problem ? '#f08a78' : '#8fe0a4' }}>{total}<span className="text-[12px] opacity-70">/{DECK_MAX_CARDS}</span></span>
-              <span className="text-[9px] uppercase tracking-wider text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>mín. {DECK_MIN_CARDS}</span>
-            </div>
+            <span className="shrink-0 text-[9px] uppercase tracking-wider text-[#a89a78] text-right leading-tight" style={{ fontFamily: "'Cinzel', serif" }}>/{DECK_MAX_CARDS}<br />mín. {DECK_MIN_CARDS}</span>
+            <span className="shrink-0 w-[28px] text-center font-black leading-none" style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: problem ? '#f08a78' : '#8fe0a4' }}>{total}</span>
           </div>
-        </ThinFrame>
+        </ArtFrame>
         {problem && <p className="text-center text-[11px] text-[#f0a595] -mt-1" style={{ fontFamily: "'PT Serif', serif" }}>{problem}</p>}
 
         {/* The switch: deck side / reserve side */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 shrink-0">
           {([['deck', 'Deck', total], ['reserve', 'Reserva', reserveCount]] as const).map(([id, label, n]) => (
             <button
               key={id}
-              onClick={() => { playUiClickSfx(); setSide(id); setPicked(null); }}
-              className={`rounded-md py-2 text-center uppercase tracking-[0.12em] transition-colors ${side === id ? 'bg-[#7a5a16]/75 text-[#fff1c9] shadow-[inset_0_0_0_1px_rgba(232,199,102,0.85)]' : 'bg-black/40 text-[#cdbd97] shadow-[inset_0_0_0_1px_rgba(212,175,55,0.3)]'}`}
-              style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 13 }}
+              onClick={() => { if (side === id) return; playUiClickSfx(); flipDir.current = id === 'reserve' ? 1 : -1; setSide(id); setPicked(null); }}
+              className="relative h-[42px] active:scale-[0.97] transition"
             >
-              {label} <span className="opacity-75">({n})</span>
+              <ArtFrame
+                src={side === id ? uiEditorTabOnImage : uiEditorTabOffImage}
+                slice={[44, 44, 44, 44]}
+                width={[14, 14, 14, 14]}
+                className="absolute inset-0"
+                style={{ background: side === id ? 'rgba(96,68,16,0.6)' : 'rgba(0,0,0,0.4)' }}
+              />
+              <span className={`relative uppercase tracking-[0.12em] ${side === id ? 'text-[#fff1c9]' : 'text-[#a89a78]'}`} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 13 }}>
+                {label} <span className="opacity-75">({n})</span>
+              </span>
             </button>
           ))}
         </div>
@@ -3174,66 +3215,81 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
           </div>
         </div>
 
-        {/* Cards: list (default) or card grid */}
-        <ThinFrame px={11} className="flex-1 min-h-0" style={{ background: 'rgba(14,9,4,0.55)' }}>
-          <div className="h-full overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: 'none' }}>
-            {rows.length === 0 ? (
-              <p className="text-center text-[13px] text-[#a89a78] mt-10 px-4" style={{ fontFamily: "'PT Serif', serif" }}>
-                {side === 'deck' ? 'Nenhuma carta no deck com esse filtro.' : 'Nenhuma carta na reserva com esse filtro.'}
-              </p>
-            ) : view === 'lista' ? (
-              <div className="flex flex-col">
-                {rows.map(r => {
-                  const isUnit = ['Infantaria', 'Cavalaria', 'Arqueiro', 'Artilharia'].includes(r.card.cardType ?? '');
-                  return (
-                    <button
-                      key={r.name}
-                      onClick={() => { playUiClickSfx(); openCard(r.name); }}
-                      className="flex items-center gap-2 px-2 py-[7px] text-left border-b border-[#d4af37]/15 last:border-b-0 active:bg-[#7a5a16]/40 transition-colors"
-                    >
-                      <span className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-black text-[#fff1c9] bg-[#3a2708] shadow-[inset_0_0_0_1px_rgba(232,199,102,0.7)]" style={{ fontFamily: "'Cinzel', serif" }}>{r.card.cost}</span>
-                      <span className="flex flex-col min-w-0 flex-1">
-                        <span className="truncate text-[13px] text-[#f3e3c3]" style={{ fontFamily: "'PT Serif', serif", fontWeight: 700 }}>{r.name}</span>
-                        <span className="text-[9px] uppercase tracking-[0.12em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>{r.card.cardType}</span>
-                      </span>
-                      {isUnit && (
-                        <span className="shrink-0 text-[12px] font-black tabular-nums" style={{ fontFamily: "'Cinzel', serif" }}>
-                          <span className="text-[#f0a595]">{r.card.atk}</span><span className="text-[#8d7f60]"> / </span><span className="text-[#8fe0a4]">{r.card.hp}</span>
-                        </span>
-                      )}
-                      <span className="shrink-0 min-w-[30px] text-right text-[12px] font-black text-[#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>x{r.count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="grid p-2" style={{ gridTemplateColumns: `repeat(${gridCols}, ${cellW}px)`, columnGap: cellGap, rowGap: cellGap, justifyContent: 'center' }}>
-                {rows.map(r => (
-                  <button key={r.name} onClick={() => { playUiClickSfx(); openCard(r.name); }} className="relative active:brightness-125 active:scale-[0.97] transition" style={{ width: cellW }}>
-                    {/* One tile per card, all the same size: the thin gold frame gives a
-                        chessboard rhythm, and the card sits centred inside with breathing room. */}
-                    <ThinFrame px={TILE_BORDER} style={{ background: 'linear-gradient(to bottom, rgba(38,25,11,0.7), rgba(14,9,4,0.8))' }}>
-                      <div className="relative mx-auto" style={{ width: tileCardW, height: tileCardH, marginTop: TILE_PAD, marginBottom: TILE_PAD }}>
-                        {/* Full Art frames come out smaller than Padrão ones at the same scale, so
-                            they are drawn slightly larger to look the same size in the grid. */}
-                        <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: `scale(${tileScale * (r.card.isFullArt ? FULL_ART_TILE_SCALE : 1)})`, transformOrigin: 'center center', left: (tileCardW - 224) / 2, top: (tileCardH - 320) / 2 }}>
-                          <div className="relative w-full h-full rounded-xl">
-                            <CardFace card={r.card} variant="hand" />
+        {/* Cards: list (default) or card grid. Switching Deck <-> Reserva turns the page: the
+            old side slides and tilts away, the new one swings in from the other edge. */}
+        <ThinFrame px={11} className="flex-1 min-h-0" style={{ background: 'rgba(14,9,4,0.55)', perspective: 900 }}>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={`${side}-${slotIdx}`}
+              initial={{ opacity: 0, x: 60 * flipDir.current, rotateY: -22 * flipDir.current }}
+              animate={{ opacity: 1, x: 0, rotateY: 0 }}
+              exit={{ opacity: 0, x: -60 * flipDir.current, rotateY: 22 * flipDir.current }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="h-full overflow-y-auto overflow-x-hidden"
+              style={{ scrollbarWidth: 'none', transformOrigin: 'center center' }}
+            >
+              {rows.length === 0 ? (
+                <p className="text-center text-[13px] text-[#a89a78] mt-10 px-4" style={{ fontFamily: "'PT Serif', serif" }}>
+                  {side === 'deck' ? 'Nenhuma carta no deck com esse filtro.' : 'Nenhuma carta na reserva com esse filtro.'}
+                </p>
+              ) : view === 'lista' ? (
+                <div className="flex flex-col p-1.5" style={{ gap: 5 }}>
+                  {rows.map(r => {
+                    const isUnit = ['Infantaria', 'Cavalaria', 'Arqueiro', 'Artilharia'].includes(r.card.cardType ?? '');
+                    return (
+                      <button
+                        key={r.name}
+                        onClick={() => { playUiClickSfx(); openCard(r.name); }}
+                        className="relative block w-full shrink-0 text-left active:brightness-125 active:scale-[0.985] transition"
+                        style={{ height: ROW_H }}
+                      >
+                        <ArtFrame src={uiEditorRowImage} slice={[40, 175, 40, 140]} width={ROW_EDGES} className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(60,40,16,0.55), rgba(18,12,6,0.6))' }}>
+                          {/* cost: inside the left socket */}
+                          <span className="absolute top-0 bottom-0 flex items-center justify-center text-[12px] font-black text-[#fff1c9]" style={{ fontFamily: "'Cinzel', serif", left: 8, width: 21 }}>{r.card.cost}</span>
+                          {/* name + type */}
+                          <span className="absolute top-0 bottom-0 flex flex-col justify-center min-w-0" style={{ left: 44, right: isUnit ? 98 : 60 }}>
+                            <span className="truncate text-[13px] leading-tight text-[#f3e3c3]" style={{ fontFamily: "'PT Serif', serif", fontWeight: 700 }}>{r.name}</span>
+                            <span className="text-[9px] leading-tight uppercase tracking-[0.12em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>{r.card.cardType}</span>
+                          </span>
+                          {isUnit && (
+                            <span className="absolute top-0 bottom-0 flex items-center justify-end text-[12px] font-black tabular-nums" style={{ fontFamily: "'Cinzel', serif", right: 62 }}>
+                              <span className="text-[#f0a595]">{r.card.atk}</span><span className="text-[#8d7f60]">/</span><span className="text-[#8fe0a4]">{r.card.hp}</span>
+                            </span>
+                          )}
+                          {/* quantity: inside the right socket */}
+                          <span className="absolute top-0 bottom-0 flex items-center justify-center text-[11px] font-black text-[#e8c766]" style={{ fontFamily: "'Cinzel', serif", right: 13, width: 34 }}>x{r.count}</span>
+                        </ArtFrame>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="grid p-1.5" style={{ gridTemplateColumns: `repeat(${gridCols}, ${cellW}px)`, columnGap: cellGap, rowGap: cellGap, justifyContent: 'center' }}>
+                  {rows.map(r => (
+                    <button key={r.name} onClick={() => { playUiClickSfx(); openCard(r.name); }} className="relative active:brightness-125 active:scale-[0.97] transition" style={{ width: cellW, height: tileCardH + TILE_PAD * 2 + TILE_BORDER * 2 }}>
+                      <ArtFrame src={uiEditorTileImage} slice={[68, 68, 68, 68]} width={[TILE_BORDER, TILE_BORDER, TILE_BORDER, TILE_BORDER]} className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(38,25,11,0.7), rgba(14,9,4,0.8))' }}>
+                        <div className="absolute" style={{ width: tileCardW, height: tileCardH, left: TILE_BORDER, top: TILE_BORDER + TILE_PAD }}>
+                          {/* Full Art frames come out smaller than Padrão ones at the same scale, so
+                              they are drawn slightly larger to look the same size in the grid. */}
+                          <div className="absolute pointer-events-none" style={{ width: 224, height: 320, transform: `scale(${tileScale * (r.card.isFullArt ? FULL_ART_TILE_SCALE : 1)})`, transformOrigin: 'center center', left: (tileCardW - 224) / 2, top: (tileCardH - 320) / 2 }}>
+                            <div className="relative w-full h-full rounded-xl">
+                              <CardFace card={r.card} variant="hand" />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <span
-                        className="absolute bottom-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-black text-[#fff1c9] bg-[#5a3d0c] shadow-[0_0_0_1.5px_#e8c766,0_2px_4px_rgba(0,0,0,0.6)]"
-                        style={{ fontFamily: "'Cinzel', serif" }}
-                      >
-                        x{r.count}
-                      </span>
-                    </ThinFrame>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+                        <span
+                          className="absolute bottom-1.5 right-1.5 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-black text-[#fff1c9] bg-[#5a3d0c] shadow-[0_0_0_1.5px_#e8c766,0_2px_4px_rgba(0,0,0,0.6)]"
+                          style={{ fontFamily: "'Cinzel', serif" }}
+                        >
+                          x{r.count}
+                        </span>
+                      </ArtFrame>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
         </ThinFrame>
 
         {/* Shortcuts */}
