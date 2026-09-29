@@ -1059,23 +1059,49 @@ Seamless tileable square texture, 1:1 aspect ratio (1024x1024), a flat top-down 
 
 ## 4p. Fundo da tela inicial — versão épica
 
-**Status:** entregue e integrado (`start-screen-bg.webp`, 704x1389; substitui o reino ao
-entardecer anterior, que continua em `reference/start-screen-bg-v1.png`). A arte veio com uma
-faixa azul lisa de 131 px no topo (fora da cena), que foi cortada; a causa foi o próprio
-prompt, que dizia que o topo era "onde fica uma barra de status" e o gerador desenhou a barra.
-O prompt abaixo já foi corrigido (pede arte de ponta a ponta, sem faixas). Usada em `MainMenu` e na
-tela de carregamento. Pedido do usuário: o fundo antigo era bom mas "aleatório"; trocar por
-algo mais épico, com cara de jogo.
+**Status:** a v1 está integrada (`start-screen-bg.webp`, 704x1389; o reino ao entardecer
+anterior continua em `reference/start-screen-bg-v1.png`). A v1 veio com uma faixa azul lisa de
+131 px no topo, cortada; a causa foi o próprio prompt, que dizia que o topo era "onde fica uma
+barra de status" e o gerador desenhou a barra. **A v2 (prompt abaixo) está pendente**: o
+logo saiu do menu (vai para a futura tela de login/criação de conta, que usará este mesmo
+fundo, com o logo por cima do céu), então a composição mudou — o miolo agora é o herói da
+imagem e a calma fica embaixo, onde ficam os botões. Usada em `MainMenu`, na tela de
+carregamento e, no futuro, no login.
 
-A composição pedida respeita o layout da tela: topo (~14%) tem a barra de perfil, logo em
-seguida o logo (até ~35%), a coluna dos 4 botões ocupa ~40-75% e os ícones ficam no rodapé.
-Por isso o pedido é drama nas bordas e no céu, com o miolo mais calmo.
+Layout que a arte precisa respeitar (celular 9:19,5): topo ~13% = barra de perfil; do topo até
+~60% = a cena principal, livre de botões (no login o logo vai no terço superior); de ~60% a 100%
+= botões e ícones, então calmo, escuro e de baixo contraste.
+
+<details>
+<summary>Prompt v2</summary>
+
+```
+Tall vertical portrait key-art background for a mobile game, 9:19.5 aspect ratio, as high resolution as the generator allows (at least 1080x2340), epic painterly digital illustration in the style of a premium fantasy card game (Hearthstone, Legends of Runeterra, League of Legends loading-screen quality). FULL-BLEED ARTWORK: the painting fills the entire canvas edge to edge from the very first row of pixels, with NO flat bar, band, strip, header, footer, letterbox, border or solid-color area anywhere.
+
+Scene: a colossal gothic fortress-cathedral with tall spires, a huge carved rose window and burning battlements, built into a black cliff and seen from a low angle at dusk, its windows and towers glowing with orange firelight; a vast burning sky of storm clouds torn open by a blazing golden sunset, shafts of golden light breaking through, drifting embers and sparks in the air. A river of tiny marching soldiers with crimson-and-gold lion banners flows toward the great gates far below, and the ruins of an enemy siege camp smolder in the mist. In the foreground on the left and right edges, dark planted swords, broken spears and tattered crimson banners rise from the ground like a stage frame. Palette: fire orange, molten gold, deep crimson and blue-violet shadows, rich and saturated with soft atmospheric haze.
+
+COMPOSITION FOR A MENU (very important): the fortress and the glowing sky are the hero and live in the upper 60% of the image, with the tallest spires and the brightest light in the upper-middle, and a fairly open glowing sky area at the top center (a logo will be placed over it); the top 13% is still painted sky, just slightly darker. The lower 40% of the image is calm, hazy, low-contrast and mostly dark: the fortress base fades into thick misty shadow, with only faint hints of the marching army, since wide buttons will cover this area. Strongest detail, light and contrast in the upper 60% and along the left and right edges; a soft dark vignette toward the bottom edge.
+
+No text, no letters, no UI, no logo, no watermark, no people in close-up.
+```
+
+</details>
+
+---
+
+## 4q. Divisor fino das janelas (pendente)
+
+**Status:** prompt pronto. Hoje o divisor é desenhado em CSS (`WindowDivider` em `src/App.tsx`:
+duas linhas douradas que somem nas pontas em volta de um losango). A arte vai substituir esse
+CSS e pode ser usada para separar seções em qualquer janela. Pedido do usuário: uma arte "bem
+fininha" só para dividir. Como os geradores não fazem faixas muito finas, o prompt pede um
+canvas 4:1 com o divisor só no meio (cortar o cinza e o excesso depois).
 
 <details>
 <summary>Prompt</summary>
 
 ```
-Tall vertical portrait key-art background for a mobile game main menu, 9:19.5 aspect ratio (about 1080x2340), epic painterly digital illustration in the style of a premium fantasy card game (Hearthstone, Legends of Runeterra, League of Legends loading-screen quality). Scene: a colossal fortress-cathedral with tall spires and a huge gothic rose window carved into a black cliff, seen from a low angle at dusk, its towers glowing with orange firelight; a vast burning sky of storm clouds torn open by a blazing golden sunset, shafts of golden light breaking through, drifting embers and sparks in the air. Far below, a river of tiny marching soldiers with crimson-and-gold lion banners flows toward the gates, and the ruins of an enemy siege camp smolder in the distance. In the lower foreground, dark planted swords, broken spears and tattered crimson banners rise from the ground on both the left and right edges, framing the scene like a stage. Palette: fire orange, molten gold, deep crimson and blue-violet shadows, rich and saturated but with soft atmospheric haze. FULL-BLEED ARTWORK: the painting must fill the entire canvas edge to edge from the very first row of pixels, with NO flat bar, band, strip, header, footer, letterbox, border or solid-color area at the top or bottom. COMPOSITION FOR A MENU: the top 14% of the image is simply the darker upper part of the painted sky (still painted, still full of cloud detail); the upper third has an open glowing sky area with the fortress spires only faintly visible, since a logo goes there; the middle 40% to 75% is calm, hazy, low-contrast and mostly dark (four wide buttons will cover it), with the fortress body fading into misty shadow; the strongest detail, light and contrast live in the far sky behind the logo and in the left and right edges. Dark vignette toward the bottom for a row of icons. No text, no letters, no UI, no logo, no watermark, no people in close-up.
+Top-down-neutral game UI illustration of a single thin horizontal ornamental divider rule for a medieval-fantasy game menu, centered on a wide 4:1 canvas (2064x512) with a flat, solid mid-gray background (RGB 125,125,125) and nothing else in the image. The divider occupies only the middle band, about 8% of the image height, and spans about 90% of the width, perfectly symmetrical left to right. Aged bronze and gold metal: a very thin straight gold line that tapers to fine points at both ends, with a small elegant central ornament (a diamond-shaped gem cap flanked by two tiny curled leaf flourishes and a small Celtic knot), a fine rope trim along the line. Same material and engraving style as this game's other bronze-and-gold UI pieces, warm torchlit color grading on the metal only, crisp clean edges. No text, no watermark, no shadow on the background, no glow, no other decoration.
 ```
 
 </details>

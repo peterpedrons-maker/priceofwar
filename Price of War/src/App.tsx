@@ -2212,13 +2212,42 @@ const WindowOverlay = ({ children, onClose }: { children: React.ReactNode; onClo
   </motion.div>
 );
 
+// Thin ornamental rule: two fading gold lines around a small diamond. Drawn in CSS for
+// now; the divider art prompt in art-prompts/README.md (4o) can replace it later.
+const WindowDivider = ({ className = '' }: { className?: string }) => (
+  <div className={`flex items-center justify-center gap-2 w-4/5 mx-auto ${className}`} aria-hidden>
+    <span className="h-px flex-1" style={{ background: 'linear-gradient(to right, transparent, rgba(232,199,102,0.75))' }} />
+    <span className="w-1.5 h-1.5 rotate-45 bg-[#e8c766] shadow-[0_0_6px_rgba(232,199,102,0.7)]" />
+    <span className="h-px flex-1" style={{ background: 'linear-gradient(to left, transparent, rgba(232,199,102,0.75))' }} />
+  </div>
+);
+
 const WindowTitle = ({ children }: { children: React.ReactNode }) => (
-  <h2
-    className="text-center uppercase text-[#f3e3c3]"
-    style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 20, letterSpacing: '0.1em', textShadow: '0 2px 3px rgba(0,0,0,0.95)' }}
+  <div className="flex flex-col gap-1.5">
+    <h2
+      className="text-center uppercase text-[#f3e3c3]"
+      style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 20, letterSpacing: '0.1em', textShadow: '0 2px 3px rgba(0,0,0,0.95)' }}
+    >
+      {children}
+    </h2>
+    <WindowDivider />
+  </div>
+);
+
+// A selectable row inside a window (deck choice, Casual/Ranqueado): an engraved inset
+// with a soft top highlight and a gold accent on the left instead of a boxed outline.
+const WindowOption = ({ children, onClick }: { children: React.ReactNode; onClick: () => void; key?: React.Key }) => (
+  <button
+    onClick={() => { playUiClickSfx(); onClick(); }}
+    className="relative w-full text-left rounded-md pl-4 pr-3 py-2.5 active:brightness-125 active:scale-[0.98] transition"
+    style={{
+      background: 'linear-gradient(to right, rgba(74,48,20,0.55), rgba(30,19,9,0.55) 55%, rgba(18,11,6,0.35))',
+      boxShadow: 'inset 0 1px 0 rgba(232,199,102,0.22), inset 0 -1px 0 rgba(0,0,0,0.65), 0 2px 6px rgba(0,0,0,0.4)',
+    }}
   >
+    <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full" style={{ background: 'linear-gradient(to bottom, #f3d98a, #a8791f)' }} />
     {children}
-  </h2>
+  </button>
 );
 
 const WindowText = ({ children }: { children: React.ReactNode }) => (
@@ -2401,20 +2430,18 @@ const OnlineModeModal = ({ onPick, onClose }: { onPick: (mode: 'casual' | 'ranke
       <div className="flex flex-col gap-3 px-1 py-1">
         <WindowTitle>Online</WindowTitle>
         {ONLINE_MODES.map(m => (
-          <button
-            key={m.id}
-            onClick={() => { playUiClickSfx(); onPick(m.id); }}
-            className="flex items-center gap-3 rounded-lg border border-[#d4af37]/40 bg-black/40 px-2.5 py-2 text-left active:scale-[0.97] transition-transform"
-          >
-            <div className="relative w-12 h-12 shrink-0">
-              <img src={uiIconButtonImage} alt="" className="absolute inset-0 w-full h-full select-none" draggable={false} />
-              <img src={m.icon} alt="" className="absolute left-1/2 top-1/2 w-[62%] h-[62%] -translate-x-1/2 -translate-y-1/2 object-contain select-none" style={{ filter: 'brightness(1.2) saturate(1.1)' }} draggable={false} />
+          <WindowOption key={m.id} onClick={() => onPick(m.id)}>
+            <div className="flex items-center gap-3">
+              <div className="relative w-12 h-12 shrink-0">
+                <img src={uiIconButtonImage} alt="" className="absolute inset-0 w-full h-full select-none" draggable={false} />
+                <img src={m.icon} alt="" className="absolute left-1/2 top-1/2 w-[62%] h-[62%] -translate-x-1/2 -translate-y-1/2 object-contain select-none" style={{ filter: 'brightness(1.2) saturate(1.1)' }} draggable={false} />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="uppercase text-[#f3e3c3]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 15, letterSpacing: '0.08em' }}>{m.title}</span>
+                <span className="text-[11px] leading-tight text-[#cdbd97]" style={{ fontFamily: "'PT Serif', serif" }}>{m.desc}</span>
+              </div>
             </div>
-            <div className="flex flex-col min-w-0">
-              <span className="uppercase text-[#f3e3c3]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 15, letterSpacing: '0.08em' }}>{m.title}</span>
-              <span className="text-[11px] leading-tight text-[#cdbd97]" style={{ fontFamily: "'PT Serif', serif" }}>{m.desc}</span>
-            </div>
-          </button>
+          </WindowOption>
         ))}
         <WindowButton onClick={onClose} className="self-center">Voltar</WindowButton>
       </div>
@@ -2562,26 +2589,10 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
         )}
       </AnimatePresence>
 
-      {/* Logo — cropped straight out of the card back's own emblem (see
-          card-backplate.webp / art-prompts/README.md "4d"): that art already had a
-          fully-lettered "PRICE OF WAR — FAITH AND FIRE" crest painted into it, so
-          there was no need to generate a whole separate logo asset. Shrunk from the
-          old full-width hero size now that the screen actually has content below it
-          worth making room for (see the user's own reference mockup). Pulled back up
-          close under the profile bar (mt-2, was mt-14) per the user's own call that
-          it was sitting too low — there's more card content below it now than there
-          used to be (Multijogador became a second featured card), so the logo needs
-          to give that room rather than the other way around. */}
-      <motion.img
-        src={logoImage}
-        alt="Price of War — Faith and Fire"
-        initial={{ y: -40, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 100 }}
-        className="w-[54vw] max-w-[215px] mt-1 mb-4 z-10 select-none pointer-events-none drop-shadow-[0_0_25px_rgba(212,175,55,0.35)]"
-        draggable={false}
-      />
-
+      {/* No logo here: it moves to the login / create-account screen that will come
+          before this menu once accounts exist (the user's call — after logging in, the
+          menu is just the profile bar and the buttons). logo-price-of-war.webp stays
+          in the project, and the loading screen still shows it. */}
       <div className="flex flex-col gap-2.5 relative z-10 w-[68vw] max-w-[270px] mt-auto mb-[104px]">
         {/* Four equal buttons, in the user's own order: Desafios first (the
             Hearthstone-style NPC ladder it will become — for now it just opens the
@@ -2681,16 +2692,14 @@ const DeckPickerModal = ({ onSelect, onClose }: { onSelect: (deckId: DeckId) => 
       <div className="flex flex-col gap-3 px-1 py-1">
         <WindowTitle>Escolha seu Deck</WindowTitle>
         {Object.values(DECKS).map((deck) => (
-          <button
-            key={deck.id}
-            onClick={() => { playUiClickSfx(); onSelect(deck.id); }}
-            className="text-left rounded-lg border border-[#d4af37]/40 bg-black/40 px-3 py-2.5 flex flex-col gap-0.5 active:scale-[0.97] transition-transform"
-          >
-            <span className="uppercase text-[#f3e3c3]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 15, letterSpacing: '0.08em' }}>{deck.name}</span>
-            <span className="text-[11px] font-bold text-[#e8c766]" style={{ fontFamily: "'PT Serif', serif" }}>General: {deck.general.name}</span>
-            <span className="text-[12px] leading-snug text-[#cdbd97]" style={{ fontFamily: "'PT Serif', serif" }}>{deck.description}</span>
-            <span className="text-[10px] text-[#9d8d6b] mt-0.5 uppercase tracking-wide" style={{ fontFamily: "'Cinzel', serif" }}>{deck.pool.length + 1} cartas</span>
-          </button>
+          <WindowOption key={deck.id} onClick={() => onSelect(deck.id)}>
+            <div className="flex flex-col gap-0.5">
+              <span className="uppercase text-[#f3e3c3]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 15, letterSpacing: '0.08em' }}>{deck.name}</span>
+              <span className="text-[11px] font-bold text-[#e8c766]" style={{ fontFamily: "'PT Serif', serif" }}>General: {deck.general.name}</span>
+              <span className="text-[12px] leading-snug text-[#cdbd97]" style={{ fontFamily: "'PT Serif', serif" }}>{deck.description}</span>
+              <span className="text-[10px] text-[#9d8d6b] mt-0.5 uppercase tracking-wide" style={{ fontFamily: "'Cinzel', serif" }}>{deck.pool.length + 1} cartas</span>
+            </div>
+          </WindowOption>
         ))}
         <WindowButton onClick={onClose} className="self-center">Cancelar</WindowButton>
       </div>
