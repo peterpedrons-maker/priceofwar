@@ -2993,6 +2993,9 @@ type DeckSide = 'deck' | 'reserve';
 type EditorSort = 'custo' | 'nome' | 'tipo';
 const EDITOR_SORTS: EditorSort[] = ['custo', 'nome', 'tipo'];
 const DECK_VIEW_KEY = 'pow_deck_view_v1';
+const EDITOR_MARGIN = 5;
+const EDITOR_FRAME = 18;
+const EDITOR_PAD = 6;
 const TILE_BORDER = 12;
 const TILE_PAD = 4;
 const ROW_H = 44;
@@ -3102,7 +3105,7 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
   };
 
   const cellGap = 6;
-  const gridW = Math.min(viewW, 480) - 24 - 22 - 12; // screen padding, ThinFrame border, grid padding
+  const gridW = Math.min(viewW, 480) - 2 * (EDITOR_MARGIN + EDITOR_FRAME + EDITOR_PAD) - 12; // outer margin, screen frame, inner padding, grid padding
   const gridCols = 3;
   const cellW = Math.floor((gridW - cellGap * (gridCols - 1)) / gridCols);
   const tileCardW = cellW - TILE_BORDER * 2;
@@ -3121,14 +3124,34 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
       transition={{ duration: 0.18 }}
       className="fixed inset-0 z-[300] flex flex-col items-center text-white"
       style={{
-        backgroundColor: '#0f0a05',
-        backgroundImage: `linear-gradient(rgba(12,8,4,0.86), rgba(12,8,4,0.94)), url(${uiWindowTextureImage})`,
-        backgroundSize: 'cover, 400px 400px',
-        paddingTop: 'max(10px, env(safe-area-inset-top))',
-        paddingBottom: 'max(10px, env(safe-area-inset-bottom))',
+        backgroundColor: '#080503',
+        paddingTop: 'calc(max(4px, env(safe-area-inset-top)) + 2px)',
+        paddingBottom: 'calc(max(4px, env(safe-area-inset-bottom)) + 2px)',
+        paddingLeft: EDITOR_MARGIN,
+        paddingRight: EDITOR_MARGIN,
       }}
     >
-      <div className="w-full max-w-[480px] flex flex-col h-full px-3 gap-2">
+      {/* The whole screen is one framed window: thin gold frame, and a deep oxblood leather
+          tone with the shared texture, so the parchment-brown list panel inside reads clearly. */}
+      <div
+        className="w-full max-w-[480px] flex flex-col h-full gap-2"
+        style={{
+          borderStyle: 'solid',
+          borderColor: 'transparent',
+          borderWidth: EDITOR_FRAME,
+          borderImageSource: `url(${uiWindowFrameImage})`,
+          borderImageSlice: '90',
+          borderImageWidth: `${EDITOR_FRAME}px`,
+          borderImageRepeat: 'stretch',
+          padding: `6px ${EDITOR_PAD}px`,
+          backgroundColor: '#22100d',
+          backgroundImage: `radial-gradient(ellipse at 50% 20%, rgba(170,70,50,0.22), rgba(170,70,50,0) 70%), linear-gradient(rgba(34,14,12,0.55), rgba(20,8,7,0.7)), url(${uiWindowTextureImage})`,
+          backgroundSize: '100% 100%, 100% 100%, 400px 400px',
+          backgroundRepeat: 'no-repeat, no-repeat, repeat',
+          backgroundOrigin: 'border-box',
+          backgroundClip: 'border-box',
+        }}
+      >
         {/* Header: back, deck slots, saved flash */}
         <div className="flex items-center gap-2">
           <WindowButton onClick={onClose}>Voltar</WindowButton>
@@ -3180,7 +3203,7 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
         </div>
 
         {/* Filters */}
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-3 px-3" style={{ scrollbarWidth: 'none' }}>
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-1.5 px-1.5 shrink-0" style={{ scrollbarWidth: 'none' }}>
           <button onClick={() => { playUiClickSfx(); setTypeFilter('todas'); }} className={chip(typeFilter === 'todas')} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>Todas</button>
           {CARD_TYPE_ORDER.map(t => (
             <button key={t} onClick={() => { playUiClickSfx(); setTypeFilter(t); }} className={chip(typeFilter === t)} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>{t}</button>
@@ -3190,7 +3213,7 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar carta..."
+            placeholder="Buscar..."
             className="flex-1 min-w-0 rounded-md bg-black/45 px-3 py-1.5 text-[13px] text-[#f3e3c3] placeholder:text-[#8d7f60] outline-none shadow-[inset_0_0_0_1px_rgba(212,175,55,0.35)] focus:shadow-[inset_0_0_0_1px_rgba(232,199,102,0.9)]"
             style={{ fontFamily: "'PT Serif', serif" }}
           />
@@ -3217,7 +3240,7 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
 
         {/* Cards: list (default) or card grid. Switching Deck <-> Reserva turns the page: the
             old side slides and tilts away, the new one swings in from the other edge. */}
-        <ThinFrame px={11} className="flex-1 min-h-0" style={{ background: 'rgba(14,9,4,0.55)', perspective: 900 }}>
+        <div className="flex-1 min-h-0 rounded-md" style={{ background: 'linear-gradient(to bottom, rgba(112,80,44,0.34), rgba(74,50,26,0.3))', boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.14), inset 0 8px 18px rgba(0,0,0,0.25)', perspective: 900 }}>
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={`${side}-${slotIdx}`}
@@ -3290,7 +3313,7 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
               )}
             </motion.div>
           </AnimatePresence>
-        </ThinFrame>
+        </div>
 
         {/* Shortcuts */}
         <div className="flex gap-2 justify-center pt-1">
