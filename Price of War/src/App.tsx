@@ -2962,7 +2962,7 @@ type DeckSide = 'deck' | 'reserve';
 type EditorSort = 'custo' | 'nome' | 'tipo';
 const EDITOR_SORTS: EditorSort[] = ['custo', 'nome', 'tipo'];
 const DECK_VIEW_KEY = 'pow_deck_view_v1';
-const FULL_ART_TILE_SHRINK = 0.93;
+const FULL_ART_TILE_SCALE = 1.07; // measured: Full Art silhouettes are ~5-8% smaller than Padrão ones at the same scale
 
 const DeckEditor = ({ onClose }: { onClose: () => void }) => {
   const [store, setStore] = useState<DeckStore>(loadDeckStore);
@@ -3214,9 +3214,9 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
                         chessboard rhythm, and the card sits centred inside with breathing room. */}
                     <ThinFrame px={TILE_BORDER} style={{ background: 'linear-gradient(to bottom, rgba(38,25,11,0.7), rgba(14,9,4,0.8))' }}>
                       <div className="relative mx-auto" style={{ width: tileCardW, height: tileCardH, marginTop: TILE_PAD, marginBottom: TILE_PAD }}>
-                        {/* Full Art prints have wings/rails outside the card box, so they are
-                            drawn a touch smaller to look the same size as the Padrão ones. */}
-                        <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: `scale(${tileScale * (r.card.isFullArt ? FULL_ART_TILE_SHRINK : 1)})`, transformOrigin: 'center center', left: (tileCardW - 224) / 2, top: (tileCardH - 320) / 2 }}>
+                        {/* Full Art frames come out smaller than Padrão ones at the same scale, so
+                            they are drawn slightly larger to look the same size in the grid. */}
+                        <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: `scale(${tileScale * (r.card.isFullArt ? FULL_ART_TILE_SCALE : 1)})`, transformOrigin: 'center center', left: (tileCardW - 224) / 2, top: (tileCardH - 320) / 2 }}>
                           <div className="relative w-full h-full rounded-xl">
                             <CardFace card={r.card} variant="hand" />
                           </div>
