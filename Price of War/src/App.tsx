@@ -1431,6 +1431,7 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
   const v = CARD_FACE_VARIANTS[variant];
   const pv = FULL_ART_PLATE_VARIANTS[variant];
   const showStats = !NO_STAT_TYPES.has(card.cardType as CardType);
+  const cfg = fullArtMiniConfigForType(card.cardType);
   return (
     // Everything — art, frame image, and every badge/text box — shares this one
     // oversized, shifted coordinate space (same trick the Padrão layout below
@@ -1443,8 +1444,8 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
     // border touch the true edges, exactly like the Padrão frame does. Every
     // child below keeps the plain percentages already measured straight off the
     // frame image's own raw canvas — they don't change, only this wrapper does.
-    <div className="absolute pointer-events-none" style={{ width: '108.2%', height: '113.2%', top: '50%', left: '50%', transform: 'translate(-50%, -49.1%)' }}>
-      <div className="absolute overflow-hidden" style={{ left: '10.2%', top: '15.4%', width: '79.4%', height: '73.4%' }}>
+    <div className="absolute pointer-events-none" style={{ ...cfg.wrapper }}>
+      <div className="absolute overflow-hidden" style={{ ...cfg.art }}>
         {card.art ? (
           <img src={card.art} alt={card.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
         ) : (
@@ -1488,7 +1489,7 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
         </div>
       )}
 
-      <img src={cardTemplateFullArtGoldImage} alt="" aria-hidden className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
+      <img src={cfg.image} alt="" aria-hidden className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
 
       <div className="absolute inset-0 z-10 pointer-events-none">
         {/* Name — sits on the frame's own dark top bar. Re-checked against the
@@ -1556,6 +1557,13 @@ const FULL_ART_MINI_CONFIG: Record<string, FullArtMiniConfig> = {
     image: cardFullArtFrameEmboscadaImage,
     wrapper: { left: '-0.79%', top: '-0.98%', width: '101.585%', height: '107.793%' },
     art: { left: '9.96%', top: '15.36%', width: '79.88%', height: '69.40%' },
+  },
+  // Terreno never shows ATK/HP either (NO_STAT_TYPES) but has no frame of its
+  // own yet — borrows the Tática one (same geometry) until a dedicated color exists.
+  Terreno: {
+    image: cardFullArtFrameTaticaImage,
+    wrapper: { left: '-0.49%', top: '-0.61%', width: '100.99%', height: '103.71%' },
+    art: { left: '9.77%', top: '15.43%', width: '80.86%', height: '72.72%' },
   },
 };
 const FULL_ART_MINI_DEFAULT: FullArtMiniConfig = {
