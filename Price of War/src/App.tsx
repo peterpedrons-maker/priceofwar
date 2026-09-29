@@ -2961,6 +2961,7 @@ const CARD_TYPE_ORDER: CardType[] = ['Infantaria', 'Cavalaria', 'Arqueiro', 'Art
 type DeckSide = 'deck' | 'reserve';
 type EditorSort = 'custo' | 'nome' | 'tipo';
 const EDITOR_SORTS: EditorSort[] = ['custo', 'nome', 'tipo'];
+const DECK_VIEW_KEY = 'pow_deck_view_v1';
 
 const DeckEditor = ({ onClose }: { onClose: () => void }) => {
   const [store, setStore] = useState<DeckStore>(loadDeckStore);
@@ -2969,6 +2970,14 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
   const [typeFilter, setTypeFilter] = useState<CardType | 'todas'>('todas');
   const [sort, setSort] = useState<EditorSort>('custo');
   const [query, setQuery] = useState('');
+  // List is the default (fast to scan with hundreds of cards); the card grid is an option.
+  const [view, setView] = useState<'lista' | 'cartas'>(() => {
+    try { return localStorage.getItem(DECK_VIEW_KEY) === 'cartas' ? 'cartas' : 'lista'; } catch { return 'lista'; }
+  });
+  const changeView = (v: 'lista' | 'cartas') => {
+    setView(v);
+    try { localStorage.setItem(DECK_VIEW_KEY, v); } catch { /* preference only */ }
+  };
   const [picked, setPicked] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   const [confirm, setConfirm] = useState<{ title: string; message: string; run: () => void } | null>(null);
@@ -3055,8 +3064,9 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
   };
 
   const cellGap = 8;
-  const gridW = Math.min(viewW, 480) - 24;
-  const cellW = Math.floor((gridW - cellGap * 2) / 3);
+  const gridW = Math.min(viewW, 480) - 24 - 22 - 12; // screen padding, ThinFrame border, grid padding
+  const gridCols = 4;
+  const cellW = Math.floor((gridW - cellGap * (gridCols - 1)) / gridCols);
   const scale = cellW / 224;
   const cellH = Math.round(320 * scale);
   const pickedCard = picked ? cardByName(picked) : undefined;
@@ -3146,34 +3156,73 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
           >
             Ordem: {sort}
           </button>
+          <div className="shrink-0 flex rounded-md overflow-hidden shadow-[inset_0_0_0_1px_rgba(212,175,55,0.35)]">
+            {([['lista', 'Lista'], ['cartas', 'Cartas']] as const).map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => { playUiClickSfx(); changeView(id); }}
+                className={`px-2.5 text-[10px] uppercase tracking-wider ${view === id ? 'bg-[#7a5a16]/75 text-[#fff1c9]' : 'bg-black/45 text-[#a89a78]'}`}
+                style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Cards */}
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden -mx-3 px-3 py-1" style={{ scrollbarWidth: 'none' }}>
-          {rows.length === 0 ? (
-            <p className="text-center text-[13px] text-[#a89a78] mt-10" style={{ fontFamily: "'PT Serif', serif" }}>
-              {side === 'deck' ? 'Nenhuma carta no deck com esse filtro.' : 'Nenhuma carta na reserva com esse filtro.'}
-            </p>
-          ) : (
-            <div className="grid" style={{ gridTemplateColumns: `repeat(3, ${cellW}px)`, columnGap: cellGap, rowGap: 20, justifyContent: 'center', paddingBottom: 12 }}>
-              {rows.map(r => (
-                <button key={r.name} onClick={() => { playUiClickSfx(); openCard(r.name); }} className="relative active:brightness-125 transition" style={{ width: cellW, height: cellH }}>
-                  <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
-                    <div className="relative w-full h-full rounded-xl">
-                      <CardFace card={r.card} variant="hand" />
+        {/* Cards: list (default) or card grid */}
+        <ThinFrame px={11} className="flex-1 min-h-0" style={{ background: 'rgba(14,9,4,0.55)' }}>
+          <div className="h-full overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: 'none' }}>
+            {rows.length === 0 ? (
+              <p className="text-center text-[13px] text-[#a89a78] mt-10 px-4" style={{ fontFamily: "'PT Serif', serif" }}>
+                {side === 'deck' ? 'Nenhuma carta no deck com esse filtro.' : 'Nenhuma carta na reserva com esse filtro.'}
+              </p>
+            ) : view === 'lista' ? (
+              <div className="flex flex-col">
+                {rows.map(r => {
+                  const isUnit = ['Infantaria', 'Cavalaria', 'Arqueiro', 'Artilharia'].includes(r.card.cardType ?? '');
+                  return (
+                    <button
+                      key={r.name}
+                      onClick={() => { playUiClickSfx(); openCard(r.name); }}
+                      className="flex items-center gap-2 px-2 py-[7px] text-left border-b border-[#d4af37]/15 last:border-b-0 active:bg-[#7a5a16]/40 transition-colors"
+                    >
+                      <span className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-black text-[#fff1c9] bg-[#3a2708] shadow-[inset_0_0_0_1px_rgba(232,199,102,0.7)]" style={{ fontFamily: "'Cinzel', serif" }}>{r.card.cost}</span>
+                      <span className="flex flex-col min-w-0 flex-1">
+                        <span className="truncate text-[13px] text-[#f3e3c3]" style={{ fontFamily: "'PT Serif', serif", fontWeight: 700 }}>{r.name}</span>
+                        <span className="text-[9px] uppercase tracking-[0.12em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>{r.card.cardType}</span>
+                      </span>
+                      {isUnit && (
+                        <span className="shrink-0 text-[12px] font-black tabular-nums" style={{ fontFamily: "'Cinzel', serif" }}>
+                          <span className="text-[#f0a595]">{r.card.atk}</span><span className="text-[#8d7f60]"> / </span><span className="text-[#8fe0a4]">{r.card.hp}</span>
+                        </span>
+                      )}
+                      <span className="shrink-0 min-w-[30px] text-right text-[12px] font-black text-[#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>x{r.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="grid p-1.5" style={{ gridTemplateColumns: `repeat(${gridCols}, ${cellW}px)`, columnGap: cellGap, rowGap: 14, justifyContent: 'center' }}>
+                {rows.map(r => (
+                  <button key={r.name} onClick={() => { playUiClickSfx(); openCard(r.name); }} className="relative active:brightness-125 transition" style={{ width: cellW, height: cellH }}>
+                    <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+                      <div className="relative w-full h-full rounded-xl">
+                        <CardFace card={r.card} variant="hand" />
+                      </div>
                     </div>
-                  </div>
-                  <span
-                    className="absolute -bottom-1 -right-1 min-w-[22px] h-[22px] px-1 rounded-full flex items-center justify-center text-[11px] font-black text-[#fff1c9] bg-[#5a3d0c] shadow-[0_0_0_1.5px_#e8c766,0_2px_4px_rgba(0,0,0,0.6)]"
-                    style={{ fontFamily: "'Cinzel', serif" }}
-                  >
-                    x{r.count}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+                    <span
+                      className="absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-black text-[#fff1c9] bg-[#5a3d0c] shadow-[0_0_0_1.5px_#e8c766,0_2px_4px_rgba(0,0,0,0.6)]"
+                      style={{ fontFamily: "'Cinzel', serif" }}
+                    >
+                      x{r.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </ThinFrame>
 
         {/* Shortcuts */}
         <div className="flex gap-2 justify-center pt-1">
@@ -3207,30 +3256,43 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
         {pickedCard && picked && (
           <WindowOverlay onClose={() => setPicked(null)}>
             <FramedWindow>
-              <div className="flex flex-col items-center gap-3 px-1 py-1">
-                <div className="relative shrink-0" style={{ width: 224 * 0.72, height: 320 * 0.72 }}>
-                  <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: 'scale(0.72)', transformOrigin: 'top left' }}>
-                    <div className="relative w-full h-full rounded-xl"><CardFace card={pickedCard} variant="hand" /></div>
+              <div className="flex flex-col gap-3 px-1 py-1">
+                <div className="flex gap-3 items-start">
+                  <div className="relative shrink-0" style={{ width: 224 * 0.5, height: 320 * 0.5 }}>
+                    <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: 'scale(0.5)', transformOrigin: 'top left' }}>
+                      <div className="relative w-full h-full rounded-xl"><CardFace card={pickedCard} variant="hand" /></div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+                    <span className="uppercase text-[#f3e3c3] leading-tight" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 13, letterSpacing: '0.05em' }}>{picked}</span>
+                    <span className="text-[10px] uppercase tracking-[0.12em] text-[#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>
+                      {pickedCard.cardType} · custo {pickedCard.cost}
+                      {['Infantaria', 'Cavalaria', 'Arqueiro', 'Artilharia'].includes(pickedCard.cardType ?? '') && ` · ${pickedCard.atk}/${pickedCard.hp}`}
+                    </span>
+                    <span className="text-[11px] leading-snug text-[#dccfae]" style={{ fontFamily: "'PT Serif', serif" }}>{pickedCard.effect}</span>
+                    <span className="text-[10px] text-[#a89a78]" style={{ fontFamily: "'PT Serif', serif" }}>
+                      Deck {inDeck(picked)} · Reserva {owned(picked) - inDeck(picked)} · Total {owned(picked)}
+                    </span>
                   </div>
                 </div>
-                <span className="text-[11px] text-[#cdbd97]" style={{ fontFamily: "'PT Serif', serif" }}>
-                  No deck: {inDeck(picked)} · Reserva: {owned(picked) - inDeck(picked)} · Total: {owned(picked)}
-                </span>
                 {maxQty > 1 && (
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center gap-3">
                     <WindowButton onClick={() => setQty(q => Math.max(1, q - 1))}>−</WindowButton>
                     <span className="min-w-[2ch] text-center text-lg font-black text-[#fff1c9]" style={{ fontFamily: "'Cinzel', serif" }}>{Math.min(qty, maxQty)}</span>
                     <WindowButton onClick={() => setQty(q => Math.min(maxQty, q + 1))}>+</WindowButton>
                   </div>
                 )}
-                {maxQty > 0 ? (
-                  <WindowButton primary onClick={applyMove}>
-                    {side === 'deck' ? 'Enviar para a reserva' : 'Enviar para o deck'}
-                  </WindowButton>
-                ) : (
-                  <span className="text-[12px] text-[#f0a595] text-center" style={{ fontFamily: "'PT Serif', serif" }}>{side === 'deck' ? '' : addReason(picked)}</span>
+                {maxQty === 0 && side === 'reserve' && (
+                  <span className="text-[12px] text-[#f0a595] text-center" style={{ fontFamily: "'PT Serif', serif" }}>{addReason(picked)}</span>
                 )}
-                <WindowButton onClick={() => setPicked(null)}>Cancelar</WindowButton>
+                <div className="flex gap-3 justify-center">
+                  <WindowButton onClick={() => setPicked(null)}>Cancelar</WindowButton>
+                  {maxQty > 0 && (
+                    <WindowButton primary onClick={applyMove}>
+                      {side === 'deck' ? 'Para a reserva' : 'Para o deck'}
+                    </WindowButton>
+                  )}
+                </div>
               </div>
             </FramedWindow>
           </WindowOverlay>
