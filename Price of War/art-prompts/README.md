@@ -718,391 +718,100 @@ zero em vez de reaproveitar o brasão da carta.
 
 ---
 
-## 4e. Botão do Menu — Campanha
+## 4e–4m. Menu principal — artes entregues
 
-**Referência:** mockup completo gerado por outra IA que o usuário trouxe
-como inspiração pro redesign do menu (não salvo em `reference/` — imagem
-só compartilhada no chat) · **Vai em:** substitui `boardBattlefieldImage`
-(reaproveitado como placeholder) no `bgImage` do card "Campanha" em
-`MainMenu` (`src/App.tsx`) — salvar como
-`src/assets/menu-card-campanha.webp` e trocar o import · **Estilo:**
-elemento/ícone de UI · **Status:** pronto pra gerar
+**Status:** entregue e integrada (`MainMenu` em `src/App.tsx`). Substitui os antigos
+4e (Campanha), 4f (Partida Rápida), 4g (Meu Deck), 4h (Multijogador), 4i/4j
+(pílulas de Coroas e de perfil), 4k/4l (molduras larga e compacta) e 4m (Loja).
 
-O redesign do menu trocou os 4 botões de placa lisa (ver 4c acima, agora
-substituído) por cards maiores, cada um com sua própria arte de fundo —
-igual ao mockup de referência que o usuário mandou. Esse é o card em
-destaque (o maior dos quatro, ~3,3:1 de proporção), então pede a cena mais
-"cinematográfica" do lote.
+**Layout final:** 4 botões do mesmo tamanho, empilhados, todos em 4:1
+(1600×400): **Desafios**, **Online**, **Editar Deck**, **Loja**, mais uma
+fileira de 4 ícones pequenos embaixo (Config., Tutoriais, Ranking, Som). Não
+existe mais "Partida Rápida": Desafios abre o seletor de deck e inicia a
+partida contra a IA (hoje o único modo em que o adversário joga). Online,
+Editar Deck e Loja ainda abrem um aviso "em breve".
 
+| Arquivo em `src/assets/` | O que é |
+|---|---|
+| `menu-card-desafios.webp` | mesa de guerra com mapa e figuras de comandantes |
+| `menu-card-online.webp` | dois comandantes frente a frente numa ponte |
+| `menu-card-editar-deck.webp` | cartas sobre uma mesa de madeira, com vela |
+| `menu-card-loja.webp` | baú com pacotes lacrados, moedas e ametistas |
+| `ui-frame-menu-card.webp` | moldura 4:1 com a janela central transparente |
+| `ui-pill-coroas.webp` | container da pílula de Coroas (encaixe da coroa à esquerda) |
+| `ui-pill-perfil.webp` | container do perfil (encaixe do avatar, faixa do nome, trilho de XP) |
+| `ui-icon-button.webp` | placa quadrada dos ícones pequenos |
+| `ui-icon-config/tutoriais/ranking/som.webp` | os 4 ícones, recortados da folha |
+
+**Como foram recortados** (a IA de imagem não gera fundo transparente e devolveu
+cinza chapado em JPG): flood fill do cinza a partir da borda, mais os vãos
+fechados nos ícones (engrenagem, alças do troféu, espiral da corneta) e, na
+moldura, só a janela central; depois limpeza de ruído, erosão de 1px e
+suavização da borda, e recoloração da franja com a cor do interior para não
+sobrar halo cinza. Os quatro banners dos botões não tinham cinza (só foram
+convertidos e reduzidos a 1600 px de largura).
+
+**Observações:**
+- `menu-card-editar-deck.webp`: as cartas na imagem foram inventadas pela IA
+  (nomes como "Griffon", texto embaralhado), não são cartas reais do jogo. No
+  menu elas ficam pequenas e atrás do degradê de leitura, então não aparece
+  como problema; se um dia incomodar, o plano B é gerar só a mesa com a vela e
+  compor as cartas reais em código por cima.
+- `ui-icon-tutoriais.webp`: a página do livro tem texto falso pintado; ilegível
+  no tamanho usado (28 px).
+- Terreno ainda não tem moldura Full Art própria (usa a prateada da Tática).
+
+<details>
+<summary>Prompts finais usados (para regenerar alguma arte)</summary>
+
+Todos os banners: 4:1, terço esquerdo escuro e vazio (o ícone/título ficam ali).
+
+**Desafios**
 ```
-WIDE LANDSCAPE BANNER IMAGE, aspect ratio approx 3.3:1 (width:height), approx 1600x480px — much wider than tall, a thin horizontal banner, NOT a square or portrait image. Epic painterly digital illustration for a game menu button background: a lone
-crimson-and-gold armored knight seen from behind at medium-close range,
-standing at the edge of a war camp looking out over a vast army marching
-toward a besieged castle burning on the horizon at dusk, warm golden-
-orange sky breaking through storm clouds, banners and spear-tips of the
-distant army silhouetted against the light, dramatic atmospheric haze
-separating the knight in the foreground from the army and castle in the
-distance. Same painterly premium fantasy key-art style as the game's
-title screen background (League of Legends / Total War loading-screen
-quality), warm dusk palette of crimson, gold and deep blue-violet shadow,
-cinematic wide banner composition with the knight positioned left-of-
-center and open sky/battle vista filling the right two-thirds of the
-frame — leave the left third and the top/bottom edges relatively dark and
-uncluttered, since UI text and an icon sit on top of them in code. No
-text, no UI, no watermark, no logo, wide landscape banner orientation
-(about 1600×480px, roughly 3.3:1, much wider than tall)
-```
-
-**Notas:** pedi de propósito espaço "escuro e limpo" no terço esquerdo —
-é exatamente onde o ícone e o título "CAMPANHA" ficam sobrepostos em
-código (ver `MenuCard` em `App.tsx`), então a arte não pode competir com o
-texto ali. O restante da imagem some numa vinheta escura por cima (código
-já aplica um gradiente preto de ~65-85%), então pode (e deve) ser bem
-vívida/detalhada — só essa faixa esquerda precisa ficar mais "vazia".
-
----
-
-## 4f. Botão do Menu — Partida Rápida
-
-**Vai em:** substitui `startScreenBgImage` (placeholder) no `bgImage` do
-card "Partida Rápida" em `MainMenu` — salvar como
-`src/assets/menu-card-partida-rapida.webp` · **Estilo:** elemento/ícone de
-UI · **Status:** pronto pra gerar
-
-Esse e o próximo (Meu Deck) dividem a mesma fileira lado a lado, então são
-mais "quadrados" que o card da Campanha (~2:1 em vez de ~3,3:1). Partida
-Rápida = ação rápida contra a IA, então pede um duelo direto e dinâmico.
-
-```
-WIDE LANDSCAPE BANNER IMAGE, aspect ratio approx 2:1 (width:height), approx 1200x580px — wider than tall but noticeably more square than a thin banner, NOT a portrait image. Two crimson-and-gold armored knights clashing swords in a tight,
-dynamic close-up duel, sparks flying at the point of impact, motion blur
-on the striking arms, dust kicked up around their boots, dramatic side
-lighting from a low sun. Bold, dynamic graphic stylization with dramatic
-flat color blocking and confident linework, closer to Yu-Gi-Oh monster-
-card energy than soft painterly realism (same treatment as Jorge, Lança
-Sagrada's own card art — this game's own reference for that style), warm
-palette of crimson, gold and steel gray, dynamic diagonal action
-composition with the clash pushed toward the upper-right of the frame,
-leaving the lower-left corner and edges relatively dark and uncluttered
-for UI text/icon placed on top in code. No text, no UI, no watermark,
-wide landscape banner orientation (about 1200×580px, roughly 2:1, wider
-than tall)
+WIDE LANDSCAPE BANNER IMAGE, aspect ratio 4:1 (width:height), approx 1600x400px, very wide and short, a thin horizontal banner, NOT a square or portrait image. Epic painterly digital illustration for a game menu button background: a candlelit war-council table seen from a low angle, an aged map of a besieged kingdom spread across it, a row of carved wooden commander figurines standing on the map facing the viewer, each wearing different heraldry (crimson lion, steel-blue eagle, black wolf, golden sun), small war banners planted in the map, a glowing red wax seal, a dark torchlit tent interior fading into shadow behind. Same painterly premium fantasy key-art style as a League of Legends / Total War loading screen, warm palette of amber candlelight, crimson, gold and deep shadow. Composition pushed toward the right two-thirds of the frame, leaving the left third and the top and bottom edges dark and uncluttered, since UI text and an icon sit on top of them in code. No text, no letters on the map, no UI, no watermark, no logo, wide banner orientation (1600x400, 4:1)
 ```
 
-**Notas:** mesma lógica de "canto escuro reservado pro texto" do prompt
-anterior, só que aqui é o canto inferior-esquerdo (onde o ícone/título
-"PARTIDA RÁPIDA" ficam) em vez do terço esquerdo inteiro — a composição é
-mais compacta/quadrada, então o espaço reservado também é menor.
-
----
-
-## 4g. Botão do Menu — Meu Deck
-
-**Vai em:** substitui `cardBackplateImage` (placeholder) no `bgImage` do
-card "Meu Deck" em `MainMenu` — salvar como
-`src/assets/menu-card-meu-deck.webp` · **Estilo:** elemento/ícone de UI ·
-**Status:** pronto pra gerar
-**Revisado:** a primeira versão deste prompt descrevia "cartas ornamentadas
-genéricas" de propósito, achando que pedir um brasão específico ia
-atrapalhar o still-life — na prática a IA respondeu inventando um baralho
-comum (naipes, números, etc.) que não tem nada a ver com as cartas do
-jogo. Corrigido travando o design no brasão real do verso das nossas
-cartas (mesmo emblema do logo, 4d/4d-v2) e garantindo que só o VERSO
-apareça em toda a cena — nunca uma frente, nunca um naipe/número
-genérico.
-
-Par do prompt de Partida Rápida (4f) na mesma fileira (mesma proporção
-~2:1), mas contemplativo em vez de ação — é o botão que leva pro
-gerenciamento de cartas, então mostra as próprias cartas como objeto, no
-mesmo estilo still-life hiper-realista já usado pras cartas de
-equipamento do Deck Cardeal Pedro.
-
+**Online**
 ```
-WIDE LANDSCAPE BANNER IMAGE, aspect ratio approx 2:1 (width:height), approx 1200x580px — wider than tall but noticeably more square than a thin banner, NOT a portrait image. Hyperreal macro still-life illustration of a neat stack of playing cards
-resting face-down on a dark wooden table, so every single card in frame
-shows only its back — never a front, never a suit, never a number, never
-any other card design. Every visible card back is identical: a rich
-crimson card back with a gold-foil border, centered on an engraved bronze-
-and-gold medallion crest bearing a rearing lion sigil flanked by two
-crossed swords, wreathed by a carved laurel-and-banner ribbon border
-(the exact same heraldic crest as this game's own card-back design — no
-other symbol, no alternate crest). The top card's gilded crest catches
-warm candlelight from a single lit candle in an iron holder just beside
-the stack, soft shadow pooling around the base of the cards, a few loose
-cards fanned slightly at the edge of the stack — still face-down, backs
-only, at every angle shown. Hyperreal macro product-photography-level
-realism, every material surface rendered with tack-sharp physically-based
-detail (same treatment as this game's equipment still-life cards), warm
-palette of candlelight amber, gold leaf and dark wood brown, intimate
-close-up composition with the stack positioned right-of-center, leaving
-the left side of the frame in soft dark shadow and relatively uncluttered
-for UI text/icon placed on top in code. No text, no UI, no watermark, no
-generic playing-card faces anywhere in frame, wide landscape banner
-orientation (about 1200×580px, roughly 2:1, wider than tall)
+WIDE LANDSCAPE BANNER IMAGE, aspect ratio 4:1 (width:height), approx 1600x400px, very wide and short, a thin horizontal banner, NOT a square or portrait image. Epic painterly digital illustration for a game menu button background: two armored commanders facing each other across a long stone bridge at dusk, one in crimson-and-gold heraldry, the other in steel-blue-and-silver heraldry, each with their own banner planted behind them, swords planted point-down in the ground in front of them, a faint bright spark of light hanging in the air between the two, hazy battlefield stretching away into the distance. Same painterly premium fantasy key-art style as a League of Legends / Total War loading screen, warm crimson-gold on one side and cool steel-blue on the other, united by a dusk-gold sky. Composition pushed toward the right two-thirds of the frame, leaving the left third and the top and bottom edges dark and uncluttered, since UI text and an icon sit on top of them in code. No text, no UI, no watermark, no logo, wide banner orientation (1600x400, 4:1)
 ```
 
-**Notas:** mesma ideia de "lado escuro reservado" dos outros cards
-compactos, só que aqui é o lado esquerdo inteiro (a pilha de cartas fica
-deslocada pra direita de propósito). A correção principal foi dupla:
-descrever o brasão exato (em vez de deixar genérico) E insistir
-repetidamente que só o verso aparece — sem as duas coisas juntas, um
-still-life "realista" de baralho tende a puxar pra referência de baralho
-de baralhão comum (naipes/números) do próprio treino da IA, mesmo que a
-cor peça carmesim-e-dourado.
-
----
-
-## 4h. Botão do Menu — Multijogador
-
-**Vai em:** substitui `boardBattlefieldImage` (placeholder) no `bgImage`
-do card "Multijogador" em `MainMenu` — salvar como
-`src/assets/menu-card-multijogador.webp` · **Estilo:** elemento/ícone de
-UI · **Status:** pronto pra gerar
-**Revisado (2ª vez):** o layout mudou de novo — o usuário pediu que
-Campanha e Multijogador fossem os dois primeiros botões, ambos em
-destaque ("grande, assim como acontece em campanha"), e a Loja passou a
-ocupar sua própria linha sozinha (ver 4m). Multijogador volta a ser um
-card de largura total e proporção ~3,3:1, igual a Campanha (4e), e a
-composição abaixo volta a reservar o terço esquerdo escuro em vez do
-canto — mesmo tratamento de texto que Campanha, já que os dois ficam
-lado a lado no topo do menu com o mesmo estilo de card.
-
+**Editar Deck** (anexar 3-4 cartas reais do jogo como referência, de cores diferentes)
 ```
-WIDE LANDSCAPE BANNER IMAGE, aspect ratio approx 3.3:1 (width:height), approx 1600x480px — much wider than tall, a thin horizontal banner, NOT a square or portrait image. Two armored knights facing off in a standoff at medium-close range, one in
-crimson-and-gold heraldry planted center-right of frame, one in steel-
-blue-and-silver heraldry facing them from further back on the right edge,
-each with their own banner planted in the ground behind them, swords
-drawn and held ready, a hazy battlefield stretching away between them
-into the distance at dusk. Same painterly premium fantasy key-art style
-as the game's title screen background (League of Legends / Total War
-loading-screen quality), rich palette split between warm crimson-gold
-(near knight) and cool steel-blue (far knight) with a neutral dusk-gold
-sky uniting them, cinematic wide banner composition with both knights
-pushed toward the right two-thirds of the frame — leave the left third
-and the top/bottom edges relatively dark and uncluttered, since UI text
-and an icon sit on top of them in code. No text, no UI, no watermark, no
-logo, wide landscape banner orientation (about 1600×480px, roughly 3.3:1,
-much wider than tall)
+Use the attached reference images as the EXACT card design. Every card in the scene must reproduce the same layout as the references: an ornate winged metal frame with a title bar at the top with a round coin badge at its right end, the illustration filling the whole card, and a translucent text panel over the lower part of the art. The frame comes in three colors in the references (red-and-gold, silver, champagne gold); use those three and mix them in the row. Some frames have shield-shaped stat badges at the bottom corners and some have only a small emblem in the bottom right corner; copy each one exactly as shown, do not add or remove badges. Do not invent a different card design, and do not draw ordinary playing cards, suits, pips or numbers. The illustrations inside the cards may differ from each other (medieval fantasy warriors, banners, fortresses), but the frame and layout must match the references exactly. WIDE LANDSCAPE BANNER IMAGE, aspect ratio 4:1 (width:height), approx 1600x400px, very wide and short, NOT a square or portrait image. Scene: five of these cards laid out in a slightly overlapping horizontal row on a dark wooden table, seen from a low angle so the row reads as a wide strip (the row may be cropped by the top and bottom edges), one lit candle in an iron holder at the right edge casting warm light and soft shadows across the cards. Hyperreal macro product-photography realism, warm palette of candlelight amber, gold and dark wood brown. Cards placed in the right two-thirds of the frame, leaving the left third in soft dark shadow and uncluttered, since UI text and an icon sit on top of it in code. No text outside the cards, no UI, no watermark, wide banner orientation (1600x400, 4:1)
 ```
 
-**Notas:** mesmo tratamento de "terço esquerdo reservado" da Campanha
-(4e) — os dois cards agora usam a mesma moldura larga (4k) e o mesmo
-espaço reservado pro ícone/título, então precisam se comportar como um
-par visual. A ideia de dois lados com cor de heráldica diferente
-(carmesim-dourado vs. azul-aço) se manteve dos rascunhos anteriores —
-ainda comunica "times diferentes" antes mesmo de o jogador ler o nome do
-modo.
-
----
-
-## 4m. Botão do Menu — Loja
-
-**Vai em:** substitui `cardTemplateFullArtGoldImage` (placeholder) no
-`bgImage` do card "Loja" em `MainMenu` — salvar como
-`src/assets/menu-card-loja.webp` · **Estilo:** elemento/ícone de UI ·
-**Status:** pronto pra gerar
-**Revisado (2ª vez):** Multijogador voltou a ser um card em destaque
-(4h) e saiu da linha da Loja — agora a Loja ocupa sua própria linha
-inteira sozinha, de largura total mas SEM o destaque "alto" dos dois
-primeiros cards (mesma altura dos cards compactos, só que esticada pra
-largura toda). Isso dá uma proporção mais parecida com um banner fino
-(~3,6:1) em vez do quadrado ~2:1 da revisão anterior — perto o bastante
-da proporção larga (4k) pra usar a mesma moldura, então a composição
-abaixo passou a reservar o terço esquerdo em vez do canto.
-
+**Loja**
 ```
-WIDE LANDSCAPE BANNER IMAGE, aspect ratio approx 3.6:1 (width:height), approx 1600x440px — much wider than tall, a thin horizontal banner, NOT a square or portrait image. Hyperreal macro still-life illustration of an open wooden merchant's chest
-overflowing with treasure relevant to this game's own economy: a few
-sealed booster packs of playing cards tied with ribbon, a small pile of
-loose gold coins, and two or three faceted amethyst-purple gems (matching
-the game's own "Coroas" currency gem, see 4i) spilling out alongside
-them, warm lantern light from just outside the frame catching the gold
-and gems. Hyperreal macro product-photography-level realism, every
-material surface rendered with tack-sharp physically-based detail (same
-treatment as this game's equipment still-life cards and the Meu Deck
-menu card, 4g), warm palette of lantern amber, gold coin shine and a cool
-purple glint off the gems, composition pushed toward the right two-thirds
-of the frame — leave the left third and the top/bottom edges relatively
-dark and uncluttered, since UI text and an icon sit on top of them in
-code. No text, no UI, no watermark, wide landscape banner orientation
-(about 1600×440px, roughly 3.6:1, much wider than tall)
+WIDE LANDSCAPE BANNER IMAGE, aspect ratio 4:1 (width:height), approx 1600x400px, very wide and short, a thin horizontal banner, NOT a square or portrait image. Hyperreal macro still-life illustration of an open wooden merchant's chest overflowing with treasure: several small sealed card packs made of crimson parchment tied with gold ribbon and closed with gold wax seals stamped with a rearing lion, a pile of loose gold coins, and two or three faceted amethyst-purple gems spilling out alongside them, warm lantern light from just outside the frame catching the gold and gems. Hyperreal macro product-photography realism, every material rendered with tack-sharp physically-based detail, warm palette of lantern amber, gold coin shine and a cool purple glint off the gems. Composition pushed toward the right two-thirds of the frame, leaving the left third and the top and bottom edges dark and uncluttered, since UI text and an icon sit on top of them in code. No text, no UI, no watermark, wide banner orientation (1600x400, 4:1)
 ```
 
-**Notas:** pedi booster + ouro + gemas de ametista juntos de propósito —
-é literalmente o que a Loja vai vender (boosters, e Coroas usam essa
-mesma gema como ícone, ver 4i), então a arte já "spoila" o conteúdo da
-tela sem precisar de texto nenhum. Trocou o "canto reservado" da revisão
-anterior pelo "terço esquerdo reservado" pra combinar com a moldura larga
-(4k) que Campanha e Multijogador usam, já que a Loja também virou um card
-de largura total.
-
----
-
-## 4i. Container — Pílula de Coroas
-
-**Vai em:** substitui o fundo desenhado em CSS (`bg-black/50` + borda
-dourada) atrás do ícone 👑 e do número de Coroas, no canto superior
-direito da tela inicial (`ProfileBar` em `src/App.tsx`) — salvar como
-`src/assets/ui-pill-coroas.webp` · **Estilo:** elemento/ícone de UI ·
-**Status:** pronto pra gerar
-
-Mesma família de material dos itens 4b/4c antigos (bronze envelhecido e
-ouro, entalhado) — é o "container bem legal" que o usuário pediu pra
-substituir a pílula lisa atual. Curta e larga o bastante pra caber o
-ícone da coroa + até 4 dígitos de número por cima em código.
-
+**Moldura dos botões** (janela central cinza, removida depois)
 ```
-Top-down-neutral game UI icon illustration of a single ornate horizontal
-pill-shaped capsule badge: aged bronze metal with gold trim, a small
-circular medallion socket at the left end (sized to hold a crown icon,
-added separately in code) bordered by a faceted amethyst-purple gem,
-engraved rope-and-vine detailing running along the top and bottom edges
-of the capsule, the rest of the pill's surface smooth, flat and evenly
-lit so a number reads clearly on top of it in code. Isolated game UI
-asset on a flat, solid mid-gray background (no scene, no other elements)
-so it can be cleanly cut out and reused as a currency-pill background.
-Same painterly medieval-fantasy game style as the rest of the set (Gwent
-/ Yu-Gi-Oh Forbidden Memories menu quality), warm torchlit color grading
-(amber highlights on the bronze, a cool purple glint on the gem), no
-text, no numbers baked into it, no watermark, wide short pill/capsule
-composition (roughly 3:1, wider than tall)
+Top-down-neutral game UI illustration of a single ornate rectangular picture-frame border, aged bronze and gold with engraved corner brackets, rivets and a thin rope-and-vine trim running along the inner and outer edge of the frame. The frame's center is a large, plain, flat solid mid-gray rectangular window, completely empty, no texture, no gradient, representing where a background image will show through once composited in code; only the border itself should have any detail or color. Painterly medieval-fantasy game style (Gwent / Yu-Gi-Oh Forbidden Memories menu quality), warm torchlit color grading on the bronze and gold border only, no text, no watermark, wide landscape frame composition, roughly 4:1 outer aspect ratio, the border itself only a thin strip relative to the whole frame
 ```
 
-**Notas:** pedi a gema em ametista de propósito — é a mesma cor usada no
-mockup de referência do usuário pro ícone da coroa, e ajuda a "Coroas"
-(moeda de fora da partida) se diferenciar ainda mais do Ouro (moeda de
-dentro da partida, sempre dourado puro sem gema). "Sem número" é
-proposital, igual o botão antigo (4c) — o valor é renderizado em código
-por cima.
-
----
-
-## 4j. Container — Barra de Perfil
-
-**Vai em:** substitui o fundo em CSS (`bg-black/50` + borda dourada) da
-barra de perfil inteira no canto superior esquerdo (avatar + nome + rank
-+ barra de XP, `ProfileBar` em `src/App.tsx`) — salvar como
-`src/assets/ui-pill-perfil.webp` · **Estilo:** elemento/ícone de UI ·
-**Status:** pronto pra gerar
-
-"Mesmo design de container" pedido pelo usuário pra combinar com a
-pílula de Coroas (4i) — mesmo material/acabamento, só maior e com um
-encaixe circular pro avatar do jogador em vez do medalhão da coroa.
-
+**Pílula de Coroas**
 ```
-Top-down-neutral game UI icon illustration of a single ornate horizontal
-pill-shaped capsule badge, wider than a small currency pill: aged bronze
-metal with gold trim, matching the exact same material, engraving style
-and rope-and-vine border as a companion currency-pill asset in this set,
-but with a larger circular recessed socket at the left end — deep enough
-to visually hold a round avatar portrait added separately in code, with
-its own raised gold ring border around the socket. The rest of the
-capsule to the right of the socket is a smooth, flat, evenly lit surface
-divided into two horizontal bands by a thin engraved line: a slightly
-taller top band (for a player name in code) and a shorter bottom band
-with a shallow carved groove running its full length (a track for a
-thin progress bar rendered in code on top of it). Isolated game UI asset
-on a flat, solid mid-gray background (no scene, no other elements) so it
-can be cleanly cut out and reused as the profile-bar background. Same
-painterly medieval-fantasy game style as the rest of the set (Gwent /
-Yu-Gi-Oh Forbidden Memories menu quality), warm torchlit color grading
-(amber highlights on the bronze), no text, no avatar, no numbers baked
-into it, no watermark, wide horizontal pill/capsule composition (roughly
-4.5:1, noticeably wider than the currency pill)
+Top-down-neutral game UI icon illustration of a single ornate horizontal pill-shaped capsule badge: aged bronze metal with gold trim, a small circular medallion socket at the left end (sized to hold a crown icon, added separately in code) bordered by a faceted amethyst-purple gem, engraved rope-and-vine detailing running along the top and bottom edges of the capsule, the rest of the pill's surface smooth, flat and evenly lit so a number reads clearly on top of it in code. Isolated game UI asset on a flat, solid mid-gray background (no scene, no other elements) so it can be cleanly cut out. Painterly medieval-fantasy game style (Gwent / Yu-Gi-Oh Forbidden Memories menu quality), warm torchlit color grading (amber highlights on the bronze, a cool purple glint on the gem), no text, no numbers baked into it, no watermark, wide short pill composition, roughly 3:1, wider than tall
 ```
 
-**Notas:** pedi "a mesma matéria/acabamento que uma pílula de moeda
-irmã" de propósito pra IA que for gerar entender que são a mesma família
-visual (mande a 4i junto como referência, se seu gerador aceitar
-referência de imagem). O "trilho entalhado" pro grupo inferior é pra
-onde a barra de XP (já implementada em código, cosmética por enquanto)
-fica desenhada por cima.
-
----
-
-## 4k. Container — Moldura dos Cards do Menu (banner largo)
-
-**Vai em:** substitui a borda dourada simples em CSS (`border-2
-border-[#d4af37]`) ao redor dos TRÊS cards de largura total — Campanha,
-Multijogador (4h, de volta à proporção ~3,3:1 em destaque) e Loja (4m,
-esticada pra ~3,6:1 já que fica sozinha na própria linha, mas próxima o
-bastante da mesma família pra usar esta moldura sem distorcer os cantos)
-— salvar como `src/assets/ui-frame-menu-card-wide.webp` · **Estilo:**
-elemento/ícone de UI · **Status:** pronto pra gerar
-
-O usuário pediu uma moldura de verdade (não só uma borda lisa) ao redor
-das novas artes de fundo do menu — mesma ideia de "moldura entalhada"
-já usada nos frames das cartas de jogo, só que numa proporção bem mais
-larga e baixa.
-
+**Barra de perfil** (mandar a pílula de Coroas junto como referência, se possível)
 ```
-Top-down-neutral game UI icon illustration of a single ornate rectangular
-picture-frame border, aged bronze and gold with engraved corner brackets,
-rivets and a thin rope-and-vine trim running along the inner and outer
-edge of the frame. The frame's center is a large, plain, flat solid
-mid-gray rectangular window — completely empty, no texture, no
-gradient — representing where a background image will show through once
-composited in code; only the border itself should have any detail or
-color. Same painterly medieval-fantasy game style as the rest of the set
-(Gwent / Yu-Gi-Oh Forbidden Memories menu quality), warm torchlit color
-grading on the bronze/gold border only, no text, no watermark, wide
-landscape frame composition (roughly 3.3:1 outer aspect ratio, matching
-a thin horizontal banner, the border itself only a thin strip relative
-to the whole frame — most of the frame's own area is the empty gray
-window)
+Top-down-neutral game UI illustration of a single ornate horizontal pill-shaped capsule badge, wider than a small currency pill: aged bronze metal with gold trim, matching the exact same material, engraving style and rope-and-vine border as a companion currency-pill asset in this set, but with a larger circular recessed socket at the left end, deep enough to visually hold a round avatar portrait added separately in code, with its own raised gold ring border around the socket. The rest of the capsule to the right of the socket is a smooth, flat, evenly lit surface divided into two horizontal bands by a thin engraved line: a slightly taller top band (for a player name in code) and a shorter bottom band with a shallow carved groove running its full length (a track for a thin progress bar rendered in code). Isolated game UI asset on a flat, solid mid-gray background (no scene, no other elements) so it can be cleanly cut out. Painterly medieval-fantasy game style (Gwent / Yu-Gi-Oh Forbidden Memories menu quality), warm torchlit color grading, no text, no avatar, no numbers baked into it, no watermark, wide horizontal pill composition, roughly 4.5:1, noticeably wider than the currency pill
 ```
 
-**Notas:** diferente dos marcadores de zona (3e/3f/3g), que ficam com o
-fundo cinza sólido de propósito (só recortados uma vez, no formato final),
-essa moldura precisa MESMO virar transparente na janela central — ela
-fica por CIMA da arte de fundo (4e/4h) em código, então o meio precisa
-deixar a arte de trás aparecer. Como o meio é um retângulo grande, liso e
-de cor sólida única (sem gradiente, sem textura), a remoção de fundo por
-cor é bem simples de fazer depois (ferramenta de recorte automático ou
-"remover fundo" da maioria dos editores) — só a borda entalhada
-permanece opaca. Ordem de empilhamento em código: arte de fundo primeiro,
-moldura (já com o meio transparente) por cima, ver `MenuCard` em
-`App.tsx`.
-
----
-
-## 4l. Container — Moldura dos Cards do Menu (compacto)
-
-**Vai em:** substitui a mesma borda em CSS ao redor dos DOIS cards de
-proporção ~2:1 que dividem fileira — Partida Rápida e Meu Deck (4f/4g).
-Multijogador e Loja voltaram a ser cards de largura total depois da 2ª
-revisão de layout e agora usam a moldura larga (4k) em vez desta — salvar
-como `src/assets/ui-frame-menu-card-compact.webp` · **Estilo:**
-elemento/ícone de UI · **Status:** pronto pra gerar
-
-Par do prompt anterior, mesma família visual, só numa proporção mais
-quadrada pra combinar com os quatro cards menores em duas fileiras de
-dois.
-
+**Placa dos ícones pequenos**
 ```
-Top-down-neutral game UI icon illustration of a single ornate rectangular
-picture-frame border, matching the exact same bronze-and-gold material,
-engraved corner brackets, rivets and rope-and-vine trim as a companion
-wide banner-frame asset in this set. The frame's center is a large,
-plain, flat solid mid-gray rectangular window — completely empty, no
-texture, no gradient — representing where a background image will show
-through once composited in code; only the border itself should have any
-detail or color. Same painterly medieval-fantasy game style as the rest
-of the set (Gwent / Yu-Gi-Oh Forbidden Memories menu quality), warm
-torchlit color grading on the bronze/gold border only, no text, no
-watermark, landscape frame composition (roughly 2:1 outer aspect ratio,
-noticeably more square than the wide banner frame, the border itself
-only a thin strip relative to the whole frame)
+Top-down-neutral game UI illustration of a single ornate square button plaque with softly rounded corners: aged bronze metal with gold trim, a thin engraved rope-and-vine border, and a flat, smooth, evenly lit recessed center where an icon will be added separately in code. Same material and engraving style as the rest of this game's bronze-and-gold UI set. Isolated game UI asset on a flat, solid mid-gray background (no scene, no other elements) so it can be cleanly cut out. Painterly medieval-fantasy game style (Gwent / Yu-Gi-Oh Forbidden Memories menu quality), warm torchlit color grading, no text, no icon, no watermark, square composition, 1:1
 ```
 
-**Notas:** mesma lógica de empilhamento do prompt anterior (arte de
-fundo por trás, moldura por cima, sem remoção de fundo). Duas molduras
-(larga + compacta) em vez de uma só reaproveitada em todos os cards
-porque esticar uma moldura de proporção muito diferente deixaria os
-cantos entalhados distorcidos — a larga (4k) cobre os três cards de
-largura total (Campanha, Multijogador, Loja — ver 4e/4h/4m), a compacta
-cobre só os dois que dividem fileira (Partida Rápida e Meu Deck — ver
-4f/4g).
+**Pacote de ícones**
+```
+Sheet of four matching game UI icons arranged in a 2x2 grid with generous empty space between them, on a flat, solid mid-gray background. Each icon is an embossed gold-and-bronze medieval-fantasy emblem with soft rim lighting: top-left a cogwheel (settings), top-right an open ancient book with visible pages (tutorials), bottom-left a golden trophy cup (ranking), bottom-right a war horn with sound waves coming out of it (sound). All four in the same style, same size, same lighting, each centered in its own quarter. Painterly medieval-fantasy game style (Gwent / Yu-Gi-Oh Forbidden Memories menu quality), no text, no labels, no watermark, square composition
+```
+
+</details>
 
 ---
 
