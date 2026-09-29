@@ -991,6 +991,18 @@ Square 1:1 stylized fantasy character avatar portrait for a mobile card game, he
 Square 1:1 stylized fantasy character avatar portrait for a mobile card game, head-and-shoulders bust, the face centered with the whole head and shoulders inside the central 80% of the frame (it will be cropped to a circle in code), full-bleed simple painted background with no border, ring or frame. Hand-painted digital illustration in the style of a fantasy trading card game (Hearthstone, Gwent, Legends of Runeterra portraits): bold clean shapes, confident brushwork, slightly exaggerated and expressive features, simplified soft shading, rich saturated colors. NOT photorealistic: no photo look, no realistic skin pores or textures, no 3D render look, no uncanny realism. No text, no watermark. A male mercenary of about 40 with tanned leathery skin, dark hair pulled back with shaved sides, a thick scar across the nose, black stubble and a gold-toothed grin, a black eyepatch over one eye, a red bandana on his forehead, a patched dark leather jacket with a bone necklace. Smoky amber tavern background.
 ```
 
+**Novo container do perfil (gamificado)** → `ui-profile-plate.webp`
+
+Substitui `ui-pill-perfil` (achado estranho: avatar minúsculo dentro de um anel grosso
+e muito espaço vazio). Proporção 3,2:1, então fica mais alto que a pílula atual e o
+conteúdo do menu precisa descer ~35 px. Layout que o código vai assumir (medir de
+novo na arte recebida): anel do avatar à esquerda (~96% da altura, centro em ~15%),
+selo do nível no canto inferior direito do anel, placa do nome em cima à direita,
+trilho de XP embaixo com uma gema na ponta.
+```
+Top-down-neutral game UI illustration of a single ornate player profile plate for a mobile fantasy card game, wide landscape composition, 3.2:1 aspect ratio (1600x500). Aged bronze and gold metalwork with a few crimson enamel accents and small gold gem studs, engraved rope-and-vine trim, subtle warm glow along the gold edges, same material and style as this game's other bronze-and-gold UI pieces. Layout, left to right: (1) a large round avatar frame at the far left, an ornate thick gold ring with small wing-like flourishes on its sides, its outer diameter about 96% of the image height so it slightly overlaps the top and bottom edges of the plate, containing an EMPTY round recess with a flat solid dark-brown center where a portrait will be placed in code; (2) a small shield-shaped level badge attached to the lower-right of the avatar ring, gold rim with a crimson center left completely empty for a number; (3) to the right, a long horizontal name plate with a slightly banner-like shape, dark smooth inset surface in the upper half of the plate (for a player name added in code), and below it a recessed carved track for an experience bar, long and thin, with a small round gold gem cap at its right end (the bar fill is added in code, leave the track empty). Isolated game UI asset on a flat, solid mid-gray background (no scene, no other elements) so it can be cleanly cut out. Painterly medieval-fantasy game style (Gwent / Hearthstone UI quality), warm torchlit color grading, no text, no numbers, no portrait, no watermark.
+```
+
 </details>
 
 ---
