@@ -1012,6 +1012,50 @@ Top-down-neutral game UI illustration of a single ornate player profile plate fo
 
 ---
 
+## 4o. Janelas do menu — moldura e textura de fundo
+
+**Status:** moldura **entregue e integrada** (`ui-window-frame.webp`, 768x768); textura de
+fundo **pendente** (prompt abaixo). A primeira moldura (linha fina solta por fora e cantos
+enormes com corte diagonal) foi descartada e o prompt foi refeito pedindo um anel só e
+cantos pequenos apoiados nele.
+
+A moldura é usada por **todas** as janelas do menu, através de um componente só
+(`FramedWindow` / `WindowOverlay` / `WindowTitle` / `WindowText` / `WindowButton` em
+`src/App.tsx`): Online, escolha de avatar, avisos "em breve", escolha de deck e "instale o
+app". Ela é desenhada em 9 fatias (CSS `border-image`, fatia de 160 px na arte de 768):
+os quatro cantos mantêm o tamanho e os lados retos esticam. O fundo do painel é a constante
+`WINDOW_BG`, hoje um degradê bronze escuro com granulação procedural; quando a textura chegar,
+é só trocar essa constante e todas as janelas acompanham. Qualquer janela nova deve usar o
+mesmo componente.
+
+Recorte: o cinza foi removido por inteiro (janela central e fora), a moldura tem cantos
+internos arredondados que ficam transparentes.
+
+<details>
+<summary>Prompts</summary>
+
+**Moldura da janela (usado)**
+```
+Top-down-neutral game UI illustration of a single square window frame for a mobile fantasy card game, 1:1 aspect ratio (1024x1024), perfectly symmetrical, centered, with about 2% of empty margin on every side.
+
+THE FRAME IS ONE SINGLE, CONTINUOUS, CLOSED RING of aged bronze and gold metal, about 6% of the image width thick, running all the way around with no gaps, no breaks, no second or outer line, no floating pieces and no empty space between parts. Every straight stretch of the ring is IDENTICAL, plain and uniform: a flat bronze band with a thin bright gold rim on its outer edge and a fine rope trim along its inner edge. Nothing else decorates the straight stretches: no gems, no emblems, no notches, no ornaments, no changes in width.
+
+Each of the four corners has a small ornamental cap that sits FLUSH on the ring (same thickness as the ring, not wider), square in shape, only about 11% of the image width along each side, with a small carved Celtic knot, one rivet, and a slightly raised gold edge. All four corner caps are identical, only rotated. No diagonal cuts, no wings, no pieces that stick out beyond the ring or extend far along the sides.
+
+The area inside the ring is a large, plain, flat, solid mid-gray square (RGB 125,125,125) window, completely empty: no texture, no gradient, no shadow, no vignette, no glow. The background outside the ring is the exact same flat solid mid-gray. Only the ring itself has any detail or color.
+
+Painterly medieval-fantasy game style (Gwent / Hearthstone UI quality), the same bronze-and-gold material and engraving as this game's other UI pieces, warm torchlit color grading on the metal only, crisp clean edges, no text, no watermark.
+```
+
+**Textura de fundo das janelas (pendente)** → `ui-window-texture.webp`
+```
+Seamless tileable square texture, 1:1 aspect ratio (1024x1024), a flat top-down view of a dark aged surface for the background of medieval-fantasy game menus: deep brown-black embossed leather with a very faint, low-contrast engraved filigree pattern of interlaced vines and small repeating knotwork, subtle stitched seams, soft worn patina and tiny scuffs. Warm dark palette only: darkest tones around #140d07, lightest tones no brighter than #3a2914, with very faint bronze highlights on the raised parts of the pattern. Even lighting across the whole image: no vignette, no gradient from one side to the other, no shadows falling across it, no glow, no focal point, no large features, no borders, no frame, no edge damage. The pattern must repeat seamlessly in both directions so that tiling it produces no visible seams. Low overall contrast so that light cream text and small icons stay clearly readable on top of it. No text, no letters, no symbols, no watermark.
+```
+
+</details>
+
+---
+
 ## 3. Moldura Full Art (dourada) — referência de layout
 
 **Arquivo:** [`reference/full-art-frame-gold-v1.png`](./reference/full-art-frame-gold-v1.png)

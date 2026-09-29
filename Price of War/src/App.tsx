@@ -30,6 +30,7 @@ import menuCardOnlineImage from './assets/menu-card-online.webp';
 import menuCardEditarDeckImage from './assets/menu-card-editar-deck.webp';
 import menuCardLojaImage from './assets/menu-card-loja.webp';
 import uiFrameMenuCardImage from './assets/ui-frame-menu-card.webp';
+import uiWindowFrameImage from './assets/ui-window-frame.webp';
 import uiPillCoroasImage from './assets/ui-pill-coroas.webp';
 import uiProfilePlateImage from './assets/ui-profile-plate.webp';
 import uiIconButtonImage from './assets/ui-icon-button.webp';
@@ -177,7 +178,7 @@ const ALL_PRELOAD_IMAGES: string[] = [
   recrutamentoSeletivoArt, recrutarVeteranosArt, tributoDeGuerraArt, chamadoAsArmasArt,
   recrutaDevotoArt, cavaleiroDaLuzFullArt, jorgeOLanceiroFullArt,
   menuCardDesafiosImage, menuCardOnlineImage, menuCardEditarDeckImage, menuCardLojaImage,
-  uiFrameMenuCardImage, uiPillCoroasImage, uiProfilePlateImage, uiIconButtonImage,
+  uiFrameMenuCardImage, uiWindowFrameImage, uiPillCoroasImage, uiProfilePlateImage, uiIconButtonImage,
   uiIconConfigImage, uiIconTutoriaisImage, uiIconRankingImage, uiIconSomImage,
   uiIconCoroaImage, uiIconDesafiosImage, uiIconOnlineImage, uiIconEditarDeckImage,
   uiIconLojaImage, uiIconMaisImage,
@@ -2157,11 +2158,39 @@ const AvatarBadge = ({ avatarId, size = 48, bare = false }: { avatarId: string; 
   );
 };
 
-// Local gallery picker — same modal-overlay pattern as InstallPrompt/
-// DeckPickerModal elsewhere in this file.
-const AvatarPickerModal = ({ current, onSelect, onClose }: {
-  current: string; onSelect: (id: string) => void; onClose: () => void;
-}) => (
+// ---- Shared window layout ------------------------------------------------------
+// Every window/popup in the menu (Online, avatars, "coming soon", deck picker, install
+// prompt) uses this one look: the ornate square frame (ui-window-frame, drawn as a CSS
+// 9-slice — the four corner caps keep their size, the plain straight sides stretch)
+// around a dark panel. The panel's fill is WINDOW_BG: right now a dark bronze gradient
+// with a faint procedural grain; when the real background texture from
+// art-prompts/README.md 4o exists, swap it in here and every window follows.
+const WINDOW_FRAME_PX = 34;
+const WINDOW_GRAIN = `url("data:image/svg+xml,${encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.85  0 0 0 0 0.7  0 0 0 0 0.45  0 0 0 0.09 0'/></filter><rect width='100%' height='100%' filter='url(#n)'/></svg>")}")`;
+const WINDOW_BG = `${WINDOW_GRAIN}, radial-gradient(ellipse at 50% 30%, #2b1d10 0%, #1a110a 60%, #0f0a05 100%)`;
+const WINDOW_FONT_DECO = "'Cinzel Decorative', 'Cinzel', serif";
+
+const FramedWindow = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
+  <div
+    className={className}
+    style={{
+      borderStyle: 'solid',
+      borderColor: 'transparent',
+      borderWidth: WINDOW_FRAME_PX,
+      borderImageSource: `url(${uiWindowFrameImage})`,
+      borderImageSlice: '160',
+      borderImageWidth: `${WINDOW_FRAME_PX}px`,
+      borderImageRepeat: 'stretch',
+      background: WINDOW_BG,
+      filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.7))',
+    }}
+  >
+    {children}
+  </div>
+);
+
+// Dimmed backdrop + centered FramedWindow; `onClose` is called on a tap outside.
+const WindowOverlay = ({ children, onClose }: { children: React.ReactNode; onClose?: () => void }) => (
   <motion.div
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
@@ -2170,36 +2199,67 @@ const AvatarPickerModal = ({ current, onSelect, onClose }: {
     onClick={onClose}
   >
     <motion.div
-      initial={{ scale: 0.9, y: 20 }}
+      initial={{ scale: 0.92, y: 20 }}
       animate={{ scale: 1, y: 0 }}
-      exit={{ scale: 0.9, y: 20 }}
+      exit={{ scale: 0.92, y: 20 }}
       onClick={(e) => e.stopPropagation()}
-      className="w-full max-w-xs bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-2xl border-2 border-[#5c4a30] shadow-2xl p-6 flex flex-col items-center gap-4"
-      style={{ boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.45), 0 10px 40px rgba(0,0,0,0.6)' }}
+      className="w-full max-w-sm"
     >
-      <h2 className="text-lg font-black uppercase tracking-wide text-[#2a2117]">Escolha seu Avatar</h2>
-      <div className="grid grid-cols-3 gap-4">
-        {AVATAR_OPTIONS.map(a => (
-          <button
-            key={a.id}
-            onClick={() => { playUiClickSfx(); onSelect(a.id); }}
-            className="relative"
-          >
-            <AvatarBadge avatarId={a.id} size={72} />
-            {a.id === current && (
-              <div className="absolute -inset-1 rounded-full border-2 border-emerald-400" />
-            )}
-          </button>
-        ))}
-      </div>
-      <button
-        onClick={() => { playUiClickSfx(); onClose(); }}
-        className="mt-1 px-5 py-2 rounded-full border-2 border-[#5c4a30] text-[#4a3b2c] font-bold text-sm hover:bg-black/5 transition-colors"
-      >
-        Fechar
-      </button>
+      {children}
     </motion.div>
   </motion.div>
+);
+
+const WindowTitle = ({ children }: { children: React.ReactNode }) => (
+  <h2
+    className="text-center uppercase text-[#f3e3c3]"
+    style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 20, letterSpacing: '0.1em', textShadow: '0 2px 3px rgba(0,0,0,0.95)' }}
+  >
+    {children}
+  </h2>
+);
+
+const WindowText = ({ children }: { children: React.ReactNode }) => (
+  <p className="text-center text-[13px] leading-snug text-[#dccfae]" style={{ fontFamily: "'PT Serif', serif" }}>{children}</p>
+);
+
+const WindowButton = ({ children, onClick, primary = false, className = '' }: { children: React.ReactNode; onClick: () => void; primary?: boolean; className?: string }) => (
+  <button
+    onClick={() => { playUiClickSfx(); onClick(); }}
+    className={`px-5 py-1.5 rounded-full border text-xs uppercase tracking-[0.12em] active:scale-95 transition-transform ${primary ? 'border-[#e8c766] bg-[#7a5a16]/70 text-[#fff1c9]' : 'border-[#d4af37]/60 text-[#e3d3ad]'} ${className}`}
+    style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}
+  >
+    {children}
+  </button>
+);
+
+// Local gallery picker — same modal-overlay pattern as InstallPrompt/
+// DeckPickerModal elsewhere in this file.
+const AvatarPickerModal = ({ current, onSelect, onClose }: {
+  current: string; onSelect: (id: string) => void; onClose: () => void;
+}) => (
+  <WindowOverlay onClose={onClose}>
+    <FramedWindow>
+      <div className="flex flex-col items-center gap-4 px-2 py-2">
+        <WindowTitle>Escolha seu Avatar</WindowTitle>
+        <div className="grid grid-cols-3 gap-4">
+          {AVATAR_OPTIONS.map(a => (
+            <button
+              key={a.id}
+              onClick={() => { playUiClickSfx(); onSelect(a.id); }}
+              className="relative active:scale-95 transition-transform"
+            >
+              <AvatarBadge avatarId={a.id} size={72} />
+              {a.id === current && (
+                <div className="absolute -inset-1 rounded-full border-2 border-emerald-400" />
+              )}
+            </button>
+          ))}
+        </div>
+        <WindowButton onClick={onClose}>Fechar</WindowButton>
+      </div>
+    </FramedWindow>
+  </WindowOverlay>
 );
 
 // The top profile bar — avatar (tap opens AvatarPickerModal), editable name,
@@ -2314,75 +2374,30 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
 // icon row and the Coroas "+" button honest about what's real right now
 // instead of silently doing nothing when tapped.
 const ComingSoonModal = ({ title, message, onClose }: { title: string; message: string; onClose: () => void }) => (
-  <motion.div
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    exit={{ opacity: 0 }}
-    className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/80 pointer-events-auto"
-    onClick={onClose}
-  >
-    <motion.div
-      initial={{ scale: 0.9, y: 20 }}
-      animate={{ scale: 1, y: 0 }}
-      exit={{ scale: 0.9, y: 20 }}
-      onClick={(e) => e.stopPropagation()}
-      className="w-full max-w-xs bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-2xl border-2 border-[#5c4a30] shadow-2xl p-6 flex flex-col items-center gap-3 text-center"
-      style={{ boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.45), 0 10px 40px rgba(0,0,0,0.6)' }}
-    >
-      <h2 className="text-lg font-black uppercase tracking-wide text-[#2a2117]">{title}</h2>
-      <p className="text-sm text-[#4a3b2c]">{message}</p>
-      <button
-        onClick={() => { playUiClickSfx(); onClose(); }}
-        className="mt-1 px-5 py-2 rounded-full border-2 border-[#5c4a30] text-[#4a3b2c] font-bold text-sm hover:bg-black/5 transition-colors"
-      >
-        Fechar
-      </button>
-    </motion.div>
-  </motion.div>
+  <WindowOverlay onClose={onClose}>
+    <FramedWindow>
+      <div className="flex flex-col items-center gap-3 px-2 py-2">
+        <WindowTitle>{title}</WindowTitle>
+        <WindowText>{message}</WindowText>
+        <WindowButton onClick={onClose}>Fechar</WindowButton>
+      </div>
+    </FramedWindow>
+  </WindowOverlay>
 );
 
 // The Online button's window: pick Casual or Ranqueado. Neither has a backend yet
 // (accounts/matchmaking are the future Supabase work), so choosing one hands off to
 // ComingSoonModal with its own message — but the choice itself is the real UI.
-// Drawn in the menu's own style: the bronze frame art as a 9-slice around a dark
-// panel, the bronze plaque behind each option's icon, Cinzel Decorative titles.
+// Drawn with the shared FramedWindow, with the bronze plaque behind each option's icon.
 const ONLINE_MODES: { id: 'casual' | 'ranked'; title: string; desc: string; icon: string }[] = [
   { id: 'casual', title: 'Casual', desc: 'Partidas amistosas, sem pontos em jogo.', icon: uiIconDesafiosImage },
   { id: 'ranked', title: 'Ranqueado', desc: 'Suba de rank e ganhe recompensas.', icon: uiIconRankingImage },
 ];
 const OnlineModeModal = ({ onPick, onClose }: { onPick: (mode: 'casual' | 'ranked') => void; onClose: () => void }) => (
-  <motion.div
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    exit={{ opacity: 0 }}
-    className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/80 pointer-events-auto"
-    onClick={onClose}
-  >
-    <motion.div
-      initial={{ scale: 0.92, y: 20 }}
-      animate={{ scale: 1, y: 0 }}
-      exit={{ scale: 0.92, y: 20 }}
-      onClick={(e) => e.stopPropagation()}
-      className="w-full max-w-xs"
-      style={{
-        borderStyle: 'solid',
-        borderColor: 'transparent',
-        borderWidth: 12,
-        borderImageSource: `url(${uiFrameMenuCardImage})`,
-        borderImageSlice: '74 76 74 76',
-        borderImageWidth: '12px',
-        borderImageRepeat: 'round',
-        background: 'linear-gradient(to bottom, #1d140b, #0f0a05)',
-        filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.7))',
-      }}
-    >
-      <div className="flex flex-col gap-3 px-3 pt-2 pb-3">
-        <h2
-          className="text-center uppercase text-[#f3e3c3]"
-          style={{ fontFamily: "'Cinzel Decorative', 'Cinzel', serif", fontWeight: 700, fontSize: 20, letterSpacing: '0.1em', textShadow: '0 2px 3px rgba(0,0,0,0.95)' }}
-        >
-          Online
-        </h2>
+  <WindowOverlay onClose={onClose}>
+    <FramedWindow>
+      <div className="flex flex-col gap-3 px-1 py-1">
+        <WindowTitle>Online</WindowTitle>
         {ONLINE_MODES.map(m => (
           <button
             key={m.id}
@@ -2394,21 +2409,15 @@ const OnlineModeModal = ({ onPick, onClose }: { onPick: (mode: 'casual' | 'ranke
               <img src={m.icon} alt="" className="absolute left-1/2 top-1/2 w-[62%] h-[62%] -translate-x-1/2 -translate-y-1/2 object-contain select-none" style={{ filter: 'brightness(1.2) saturate(1.1)' }} draggable={false} />
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="uppercase text-[#f3e3c3]" style={{ fontFamily: "'Cinzel Decorative', 'Cinzel', serif", fontWeight: 700, fontSize: 15, letterSpacing: '0.08em' }}>{m.title}</span>
+              <span className="uppercase text-[#f3e3c3]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 15, letterSpacing: '0.08em' }}>{m.title}</span>
               <span className="text-[11px] leading-tight text-[#cdbd97]" style={{ fontFamily: "'PT Serif', serif" }}>{m.desc}</span>
             </div>
           </button>
         ))}
-        <button
-          onClick={() => { playUiClickSfx(); onClose(); }}
-          className="self-center mt-0.5 px-5 py-1.5 rounded-full border border-[#d4af37]/60 text-[#e3d3ad] text-xs uppercase tracking-[0.12em] active:scale-95 transition-transform"
-          style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}
-        >
-          Voltar
-        </button>
+        <WindowButton onClick={onClose} className="self-center">Voltar</WindowButton>
       </div>
-    </motion.div>
-  </motion.div>
+    </FramedWindow>
+  </WindowOverlay>
 );
 
 // The image-card mode buttons: banner art under a thin bronze frame (the second
@@ -2633,97 +2642,58 @@ const InstallPrompt = ({
 }: {
   kind: 'native' | 'ios', onInstall: () => void, onDismiss: () => void
 }) => (
-  <motion.div
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    exit={{ opacity: 0 }}
-    className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/80 pointer-events-auto"
-  >
-    <motion.div
-      initial={{ scale: 0.9, y: 20 }}
-      animate={{ scale: 1, y: 0 }}
-      exit={{ scale: 0.9, y: 20 }}
-      className="w-full max-w-xs bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-2xl border-2 border-[#5c4a30] shadow-2xl p-6 flex flex-col items-center gap-4 text-center"
-      style={{ boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.45), 0 10px 40px rgba(0,0,0,0.6)' }}
-    >
-      <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-[#5c4a30] shadow-lg shrink-0">
-        <img src={`${import.meta.env.BASE_URL}icon-192.png`} alt="" className="w-full h-full object-cover" />
+  <WindowOverlay>
+    <FramedWindow>
+      <div className="flex flex-col items-center gap-3 px-2 py-2 text-center">
+        <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-[#d4af37]/70 shadow-lg shrink-0">
+          <img src={`${import.meta.env.BASE_URL}icon-192.png`} alt="" className="w-full h-full object-cover" />
+        </div>
+        <WindowTitle>Instale o Price of War</WindowTitle>
+        {kind === 'native' ? (
+          <>
+            <WindowText>Jogue em tela cheia, sem as barras do navegador. Instale o app no seu aparelho.</WindowText>
+            <div className="flex gap-3">
+              <WindowButton onClick={onDismiss}>Agora não</WindowButton>
+              <WindowButton onClick={onInstall} primary>Instalar</WindowButton>
+            </div>
+          </>
+        ) : (
+          <>
+            <WindowText>
+              Toque em <strong>Compartilhar</strong> e depois em <strong>"Adicionar à Tela de Início"</strong> para jogar em tela cheia, sem as barras do navegador.
+            </WindowText>
+            <WindowButton onClick={onDismiss}>Entendi</WindowButton>
+          </>
+        )}
       </div>
-      <h2 className="text-lg font-black uppercase tracking-wide text-[#2a2117]">Instale o Price of War</h2>
-      {kind === 'native' ? (
-        <>
-          <p className="text-sm text-[#4a3b2c]">Jogue em tela cheia, sem as barras do navegador. Instale o app no seu aparelho.</p>
-          <div className="flex gap-3 w-full">
-            <button
-              onClick={() => { playUiClickSfx(); onDismiss(); }}
-              className="flex-1 px-4 py-2 rounded-full border-2 border-[#5c4a30] text-[#4a3b2c] font-bold text-sm hover:bg-black/5 transition-colors"
-            >
-              Agora não
-            </button>
-            <button
-              onClick={() => { playUiClickSfx(); onInstall(); }}
-              className="flex-1 px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm shadow-lg transition-colors"
-            >
-              Instalar
-            </button>
-          </div>
-        </>
-      ) : (
-        <>
-          <p className="text-sm text-[#4a3b2c]">
-            Toque em <strong>Compartilhar</strong> e depois em <strong>"Adicionar à Tela de Início"</strong> para jogar em tela cheia, sem as barras do navegador.
-          </p>
-          <button
-            onClick={() => { playUiClickSfx(); onDismiss(); }}
-            className="px-6 py-2 rounded-full border-2 border-[#5c4a30] text-[#4a3b2c] font-bold text-sm hover:bg-black/5 transition-colors"
-          >
-            Entendi
-          </button>
-        </>
-      )}
-    </motion.div>
-  </motion.div>
+    </FramedWindow>
+  </WindowOverlay>
 );
 
 // Shown right after tapping "Quick Match" — picking a deck here is what decides
 // which General and card pool the player gets; the AI always takes the other
 // deck (see resetGame), so every match pits the two against each other.
 const DeckPickerModal = ({ onSelect, onClose }: { onSelect: (deckId: DeckId) => void, onClose: () => void }) => (
-  <motion.div
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    exit={{ opacity: 0 }}
-    className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/80 pointer-events-auto"
-    onClick={onClose}
-  >
-    <motion.div
-      initial={{ scale: 0.9, y: 20 }}
-      animate={{ scale: 1, y: 0 }}
-      exit={{ scale: 0.9, y: 20 }}
-      onClick={(e) => e.stopPropagation()}
-      className="w-full max-w-sm flex flex-col gap-4"
-    >
-      <h2 className="text-center text-xl font-black uppercase tracking-wide text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">Escolha seu Deck</h2>
-      {Object.values(DECKS).map((deck) => (
-        <motion.button
-          key={deck.id}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => { playUiClickSfx(); onSelect(deck.id); }}
-          className="text-left bg-gradient-to-b from-[#e8dcbe] via-[#c9b48a] to-[#a3895f] rounded-2xl border-2 border-[#5c4a30] shadow-2xl p-5 flex flex-col gap-1"
-          style={{ boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.45), 0 10px 40px rgba(0,0,0,0.6)' }}
-        >
-          <span className="text-lg font-black uppercase tracking-wide text-[#2a2117]">{deck.name}</span>
-          <span className="text-xs font-bold text-[#5c4a30]">General: {deck.general.name}</span>
-          <span className="text-sm text-[#4a3b2c] mt-1">{deck.description}</span>
-          <span className="text-[11px] text-[#6b5636] mt-1 uppercase tracking-wide">{deck.pool.length + 1} cartas</span>
-        </motion.button>
-      ))}
-      <button onClick={() => { playUiClickSfx(); onClose(); }} className="mx-auto mt-1 px-4 py-2 text-sm text-zinc-300 hover:text-white transition-colors">
-        Cancelar
-      </button>
-    </motion.div>
-  </motion.div>
+  <WindowOverlay onClose={onClose}>
+    <FramedWindow>
+      <div className="flex flex-col gap-3 px-1 py-1">
+        <WindowTitle>Escolha seu Deck</WindowTitle>
+        {Object.values(DECKS).map((deck) => (
+          <button
+            key={deck.id}
+            onClick={() => { playUiClickSfx(); onSelect(deck.id); }}
+            className="text-left rounded-lg border border-[#d4af37]/40 bg-black/40 px-3 py-2.5 flex flex-col gap-0.5 active:scale-[0.97] transition-transform"
+          >
+            <span className="uppercase text-[#f3e3c3]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 15, letterSpacing: '0.08em' }}>{deck.name}</span>
+            <span className="text-[11px] font-bold text-[#e8c766]" style={{ fontFamily: "'PT Serif', serif" }}>General: {deck.general.name}</span>
+            <span className="text-[12px] leading-snug text-[#cdbd97]" style={{ fontFamily: "'PT Serif', serif" }}>{deck.description}</span>
+            <span className="text-[10px] text-[#9d8d6b] mt-0.5 uppercase tracking-wide" style={{ fontFamily: "'Cinzel', serif" }}>{deck.pool.length + 1} cartas</span>
+          </button>
+        ))}
+        <WindowButton onClick={onClose} className="self-center">Cancelar</WindowButton>
+      </div>
+    </FramedWindow>
+  </WindowOverlay>
 );
 
 // Shown before the main menu so a cold load never drops the player straight into
