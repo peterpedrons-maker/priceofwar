@@ -255,6 +255,51 @@ const playSelectSfx = () => {
 // Cancelar, modal close, ability prompts, ...) — the game had sound for playing/
 // attacking/selecting a CARD but total silence for everything else you tap, which
 // read as half the interface being "dead" next to the other half.
+// Sound for the centre-screen banners (phase changes and turn handoffs, for both sides). Synthesised
+// with Web Audio so it needs no asset: a band-passed noise sweep (whoosh) and, for a turn handoff,
+// a low two-note gong underneath.
+let bannerAudioCtx: AudioContext | null = null;
+const playBannerSfx = (kind: 'phase' | 'turn' = 'phase') => {
+  try {
+    const AC = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AC) return;
+    bannerAudioCtx = bannerAudioCtx ?? new AC();
+    const ctx = bannerAudioCtx;
+    if (ctx.state === 'suspended') void ctx.resume();
+    const t0 = ctx.currentTime;
+    const dur = 0.42;
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+    const noise = ctx.createBufferSource();
+    noise.buffer = buf;
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.Q.value = 1.4;
+    band.frequency.setValueAtTime(kind === 'turn' ? 300 : 500, t0);
+    band.frequency.exponentialRampToValueAtTime(kind === 'turn' ? 1800 : 2600, t0 + 0.3);
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(0.0001, t0);
+    ng.gain.exponentialRampToValueAtTime(0.32, t0 + 0.12);
+    ng.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    noise.connect(band).connect(ng).connect(ctx.destination);
+    noise.start(t0);
+    if (kind === 'turn') {
+      [110, 165].forEach((f, i) => {
+        const o = ctx.createOscillator();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(f, t0 + i * 0.05);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, t0 + i * 0.05);
+        g.gain.exponentialRampToValueAtTime(0.22, t0 + i * 0.05 + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.1);
+        o.connect(g).connect(ctx.destination);
+        o.start(t0 + i * 0.05);
+        o.stop(t0 + 1.15);
+      });
+    }
+  } catch { /* audio is optional */ }
+};
 const playUiClickSfx = () => {
   const audio = new Audio(uiClickSfxUrl);
   audio.volume = 0.4;
@@ -4434,7 +4479,8 @@ export default function App() {
   // Shared by announcePhase (below) and announceTurnChange — the ribbon itself
   // doesn't actually care whether its text is a phase name or a turn handoff,
   // just that something worth a beat's pause just happened.
-  const showBanner = (title: string, subtitle: string) => {
+  const showBanner = (title: string, subtitle: string, sfx: 'phase' | 'turn' = 'phase') => {
+    playBannerSfx(sfx);
     const id = ++phaseBannerIdRef.current;
     const gen = ++phaseLockGenRef.current;
     setPhaseBanner({ id, title, subtitle, stage: 'in' });
@@ -4461,7 +4507,8 @@ export default function App() {
   const announceTurnChange = (turn: 'player' | 'npc') => {
     showBanner(
       turn === 'player' ? 'Seu Turno' : 'Turno do Adversário',
-      turn === 'player' ? 'Jogue suas cartas e ataque' : 'Aguarde enquanto ele joga'
+      turn === 'player' ? 'Jogue suas cartas e ataque' : 'Aguarde enquanto ele joga',
+      'turn'
     );
   };
   // Board card preview (see the fixed overlay further down) — set from CardSlot's
@@ -5105,7 +5152,14 @@ export default function App() {
         // dark — Preparação while it's still placing cards, Combate once it starts
         // attacking. There's no Movimentação beat since the AI never repositions its
         // own units (see the end-of-turn comment further down).
+        // The opponent passes through the same phases as the player, with the same banners and
+        // sounds (the "Turno do Adversário" banner is still on screen when this starts, so wait
+        // for it first). The AI never repositions, so there is no Movimentação beat.
+        await new Promise(resolve => setTimeout(resolve, Math.max(0, PHASE_BANNER_DURATION_MS - 1000) + 150));
         setNpcVisiblePhase('preparacao');
+        showBanner('Fase de Preparação', 'O adversário joga suas cartas');
+        await new Promise(resolve => setTimeout(resolve, PHASE_BANNER_DURATION_MS + 150));
+        let npcCombatAnnounced = false;
         const { actions, playedCardIds } = playAiTurn(npcSlots, playerSlots, npcMana, npcHandRef.current, getValidAttackTargets, turnNumber);
         if (playedCardIds.length > 0) {
           setNpcHand(prev => prev.filter(c => !playedCardIds.includes(c.id)));
@@ -5211,6 +5265,11 @@ export default function App() {
             await new Promise(resolve => setTimeout(resolve, 700));
           } else if (action.type === 'attack') {
             setNpcVisiblePhase('combate');
+            if (!npcCombatAnnounced) {
+              npcCombatAnnounced = true;
+              showBanner('Fase de Combate', 'O adversário ataca suas unidades');
+              await new Promise(resolve => setTimeout(resolve, PHASE_BANNER_DURATION_MS + 150));
+            }
             setAttackAnim({ attackerIndex: action.attackerSlot, targetIndex: action.targetSlot, isPlayerAttacking: false });
             await new Promise(resolve => setTimeout(resolve, 300));
 
