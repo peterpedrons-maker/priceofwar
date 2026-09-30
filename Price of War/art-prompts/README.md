@@ -1182,6 +1182,22 @@ recorte com transparência gradual como em 4r. Prompts completos foram enviados 
 
 ---
 
+## 4u. Loja de boosters — camadas da cena (pendente)
+
+**Status:** pendente. A tela já funciona com desenhos provisórios (`ShopScreen` em `src/App.tsx`); cada arte
+entregue entra no objeto `SHOP_ART` e substitui o provisório sem mexer no resto. Todas as camadas usam o
+**mesmo canvas 9:16 (1024x1792)**, fundo cinza RGB 125,125,125 (recorto como nas outras) e a mesma luz/paleta
+da cena de referência (A). Arquivos: `shop-counter`, `shop-shelf` (opaca, sem recorte), `shop-npc-greet/show/happy/sorry`,
+`booster-cardeal`, `booster-capitao`.
+
+Ordem sugerida: A (referência) → B (prateleira) → C (balcão) → D (NPC: primeiro a pose "greet", depois as
+outras usando a primeira como referência) → E (boosters). Nas camadas B–E anexar a imagem A no gerador.
+
+Prateleira: 5 fileiras de até 10 boosters (50). Boosters ~5:8 em pé, apoiados na tábua de cada fileira. As posições
+exatas eu ajusto no código depois de ver a arte. Prompts completos foram enviados no chat.
+
+---
+
 ## 3. Moldura Full Art (dourada) — referência de layout
 
 **Arquivo:** [`reference/full-art-frame-gold-v1.png`](./reference/full-art-frame-gold-v1.png)

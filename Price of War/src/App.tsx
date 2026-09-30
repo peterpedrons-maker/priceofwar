@@ -2127,8 +2127,8 @@ const sanitizeDeckStore = (raw: any): DeckStore | null => {
   if (!raw || typeof raw !== 'object' || typeof raw.collection !== 'object' || !Array.isArray(raw.slots) || raw.slots.length < 2) return null;
   const collection: Record<string, number> = {};
   Object.entries(raw.collection as Record<string, number>).forEach(([name, n]) => {
-    const max = CARD_INSTANCES_BY_NAME[name]?.length;
-    if (max && Number.isFinite(n) && n > 0) collection[name] = Math.min(Math.floor(n), max);
+    // Boosters can give more copies than the prebuilt decks hold, so the only cap is a sanity one.
+    if (CARD_INSTANCES_BY_NAME[name] && Number.isFinite(n) && n > 0) collection[name] = Math.min(Math.floor(n), 999);
   });
   const ownedGenerals = Object.keys(collection).filter(isGeneralName);
   if (ownedGenerals.length === 0) return null;
@@ -2174,7 +2174,11 @@ const deckProblem = (slot: DeckSlot): string | null => {
 const buildDeckSelection = (slot: DeckSlot): DeckSelection => {
   const general = cardByName(slot.general) ?? DECKS.cardeal.general;
   const pool: CardData[] = [];
-  Object.entries(slot.cards).forEach(([name, n]) => pool.push(...(CARD_INSTANCES_BY_NAME[name] ?? []).slice(0, n)));
+  Object.entries(slot.cards).forEach(([name, n]) => {
+    const base = CARD_INSTANCES_BY_NAME[name] ?? [];
+    // Copies beyond what the prebuilt decks hold (won from boosters) are clones with their own ids.
+    for (let k = 0; k < n && base.length > 0; k++) pool.push(base[k] ?? { ...base[0], id: `${base[0].id}_copy${k}` });
+  });
   // The AI plays the prebuilt deck of the OTHER faction, as before.
   const isCapitaoGeneral = DECK_CAPITAO.some(c => c.cardType === 'General' && c.name === general.name);
   return { pool, general, npcDeckId: isCapitaoGeneral ? 'cardeal' : 'capitao' };
@@ -2816,6 +2820,7 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
   const [comingSoon, setComingSoon] = useState<{ title: string; message: string } | null>(null);
   const [onlineOpen, setOnlineOpen] = useState(false);
   const [deckEditorOpen, setDeckEditorOpen] = useState(false);
+  const [shopOpen, setShopOpen] = useState(false);
   const updateProfile = (patch: Partial<PlayerProfile>) => {
     setProfile(prev => {
       const next = { ...prev, ...patch };
@@ -2868,6 +2873,7 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
           />
         )}
         {deckEditorOpen && <DeckEditor onClose={() => setDeckEditorOpen(false)} />}
+        {shopOpen && <ShopScreen coroas={profile.coroas} onSpend={(n) => updateProfile({ coroas: Math.max(0, profile.coroas - n) })} onClose={() => setShopOpen(false)} />}
         {onlineOpen && (
           <OnlineModeModal
             onClose={() => setOnlineOpen(false)}
@@ -2924,9 +2930,7 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
           icon={uiIconLojaImage}
           title="Loja"
           bgImage={menuCardLojaImage}
-          onClick={() => {
-            setComingSoon({ title: 'Loja', message: 'Em breve você vai poder comprar boosters e Coroas aqui.' });
-          }}
+          onClick={() => setShopOpen(true)}
         />
       </div>
 
@@ -3613,6 +3617,363 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
           </motion.div>
         )}
       </AnimatePresence>
+    </motion.div>
+  );
+};
+
+// ── Loja de boosters ─────────────────────────────────────────────────────────
+// A fixed 2D scene built from stacked layers (back to front): shelf wall, the boosters standing
+// on it, the merchant, and the counter. "Camera" moves are just each layer animating at its own
+// speed, which is what sells the depth: choosing Comprar pushes the counter down and the merchant
+// forward and away while the shelf swells into view; picking a booster lifts it off the shelf
+// toward the player. Every layer draws a provisional placeholder until real art is dropped into
+// SHOP_ART (see art-prompts/README.md 4t).
+type ShopPhase = 'front' | 'shelf' | 'detail' | 'opening';
+type NpcMood = 'greet' | 'show' | 'happy' | 'sorry';
+type BoosterDef = { id: string; name: string; description: string; faction: DeckId; price: number; cards: number; accent: string };
+
+const BOOSTERS: BoosterDef[] = [
+  { id: 'cardeal', name: 'Booster Cardeal', description: '5 cartas do baralho do Cardeal Pedro, Voz da Fé. Uma delas é sempre de custo 3 ou mais.', faction: 'cardeal', price: 100, cards: 5, accent: '#d9cfae' },
+  { id: 'capitao', name: 'Booster Capitão', description: '5 cartas do baralho do Capitão. Uma delas é sempre de custo 3 ou mais.', faction: 'capitao', price: 100, cards: 5, accent: '#b8402c' },
+];
+// Room for 50 boosters: 5 shelves of up to 10. A booster's slot is its index in BOOSTERS.
+const SHELF_ROWS = 5;
+const SHELF_COLS = 10;
+const SHELF_ZOOM = 2.4;
+const BOOSTER_ASPECT = 5 / 8;
+
+const NPC_LINES: Record<NpcMood, string> = {
+  greet: 'Bem-vindo, viajante! Cartas novas para o seu baralho? Chegou na loja certa.',
+  show: 'Venha, dê uma olhada. Tenho boosters de todos os reinos!',
+  happy: 'Excelente escolha! Vamos ver o que o destino lhe reservou.',
+  sorry: 'Hmm... suas Coroas não são suficientes para este.',
+};
+
+// Real layer art goes here as it is delivered; anything left undefined keeps its placeholder.
+const SHOP_ART: { counter?: string; shelf?: string; npc: Partial<Record<NpcMood, string>>; boosters: Partial<Record<string, string>> } = {
+  npc: {},
+  boosters: {},
+};
+
+// Cheap cards are common, costly ones rarer; the last card of a pack is always a strong one.
+const rollBooster = (def: BoosterDef): CardData[] => {
+  const pool = DECKS[def.faction].pool;
+  const weight = (c: CardData) => (c.cost <= 1 ? 6 : c.cost === 2 ? 4 : c.cost === 3 ? 2 : 1);
+  const draw = (list: readonly CardData[]) => {
+    let roll = Math.random() * list.reduce((sum, c) => sum + weight(c), 0);
+    for (const c of list) { roll -= weight(c); if (roll <= 0) return c; }
+    return list[list.length - 1];
+  };
+  const strong = pool.filter(c => c.cost >= 3 || c.isFullArt);
+  const out: CardData[] = [];
+  for (let i = 0; i < def.cards - 1; i++) out.push(draw(pool));
+  out.push(draw(strong.length > 0 ? strong : pool));
+  return out;
+};
+
+const BoosterArt = ({ def }: { def: BoosterDef }) => {
+  const src = SHOP_ART.boosters[def.id];
+  if (src) return <img src={src} alt={def.name} draggable={false} className="w-full h-full object-contain select-none pointer-events-none" />;
+  return (
+    <div className="w-full h-full rounded-[10%] relative overflow-hidden flex flex-col items-center justify-center" style={{ background: `linear-gradient(160deg, ${def.accent}, #2a1a0c 85%)`, boxShadow: 'inset 0 0 0 2px rgba(232,199,102,0.85), 0 2px 6px rgba(0,0,0,0.6)' }}>
+      <div className="absolute inset-x-0 top-0 h-[8%] bg-black/35" />
+      <div className="absolute inset-x-0 bottom-0 h-[8%] bg-black/35" />
+      <span className="text-[#fff1c9] font-black leading-none" style={{ fontFamily: "'Cinzel', serif", fontSize: 'clamp(9px, 26%, 40px)' }}>{def.name.split(' ')[1]?.[0] ?? '?'}</span>
+    </div>
+  );
+};
+
+const NpcArt = ({ mood }: { mood: NpcMood }) => {
+  const src = SHOP_ART.npc[mood];
+  if (src) return <img src={src} alt="" draggable={false} className="w-full h-full object-contain object-bottom select-none pointer-events-none" />;
+  // Provisional merchant: a hooded figure whose eyes, mouth and arm change with the mood.
+  const mouth = mood === 'sorry' ? 'M84 112 Q100 104 116 112' : mood === 'greet' ? 'M84 108 Q100 120 116 108' : 'M82 106 Q100 126 118 106';
+  const brows = mood === 'sorry' ? ['M78 82 L92 87', 'M122 82 L108 87'] : ['M78 86 L92 84', 'M122 86 L108 84'];
+  return (
+    <svg viewBox="0 0 200 260" className="w-full h-full" preserveAspectRatio="xMidYMax meet">
+      <path d="M30 260 Q34 150 100 140 Q166 150 170 260 Z" fill="#5a2f1a" stroke="#c9a227" strokeWidth="2" />
+      <path d="M60 100 Q100 20 140 100 Q150 150 100 150 Q50 150 60 100 Z" fill="#3c2114" stroke="#c9a227" strokeWidth="2" />
+      <ellipse cx="100" cy="100" rx="34" ry="38" fill="#d9a877" />
+      <circle cx="87" cy="94" r="3.6" fill="#241208" /><circle cx="113" cy="94" r="3.6" fill="#241208" />
+      {brows.map((d, i) => <path key={i} d={d} stroke="#241208" strokeWidth="3" strokeLinecap="round" />)}
+      <path d={mouth} stroke="#7a3320" strokeWidth="3.5" strokeLinecap="round" fill={mood === 'happy' || mood === 'show' ? '#7a3320' : 'none'} />
+      {mood === 'show' && <path d="M150 190 L210 150" stroke="#5a2f1a" strokeWidth="26" strokeLinecap="round" />}
+      {mood === 'happy' && <><circle cx="76" cy="214" r="15" fill="#d9a877" /><circle cx="124" cy="214" r="15" fill="#d9a877" /></>}
+      <text x="100" y="250" textAnchor="middle" fontSize="9" fill="#e8c766" opacity="0.7" fontFamily="Cinzel, serif">ARTE PROVISÓRIA</text>
+    </svg>
+  );
+};
+
+const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n: number) => void; onClose: () => void }) => {
+  const [phase, setPhase] = useState<ShopPhase>('front');
+  const [mood, setMood] = useState<NpcMood>('greet');
+  const [zoomed, setZoomed] = useState(false);
+  const [selected, setSelected] = useState<{ def: BoosterDef; rect: { left: number; top: number; width: number; height: number } } | null>(null);
+  const [pull, setPull] = useState<{ cards: { card: CardData; isNew: boolean }[]; step: number; opened: boolean } | null>(null);
+  const [viewport, setViewport] = useState({ w: window.innerWidth, h: window.innerHeight });
+  const boosterEls = useRef<Record<string, HTMLElement | null>>({});
+  useEffect(() => {
+    const on = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+
+  const stageW = Math.min(viewport.w, 480);
+  const shelfW = stageW * 0.92;
+  const shelfH = viewport.h * 0.56;
+  const layerEase = [0.4, 0, 0.2, 1] as const;
+  const dim = phase === 'detail' || phase === 'opening';
+
+  const goShopping = () => {
+    setMood('show');
+    window.setTimeout(() => setPhase('shelf'), 900);
+  };
+  const backToCounter = () => { setZoomed(false); setMood('greet'); setPhase('front'); };
+  const pickBooster = (def: BoosterDef) => {
+    const r = boosterEls.current[def.id]?.getBoundingClientRect();
+    if (!r) return;
+    setSelected({ def, rect: { left: r.left, top: r.top, width: r.width, height: r.height } });
+    setPhase('detail');
+  };
+  const buy = () => {
+    if (!selected) return;
+    const { def } = selected;
+    if (coroas < def.price) { setMood('sorry'); return; }
+    onSpend(def.price);
+    const store = loadDeckStore();
+    const cards = rollBooster(def).map(card => {
+      const isNew = (store.collection[card.name] ?? 0) === 0;
+      store.collection[card.name] = (store.collection[card.name] ?? 0) + 1;
+      return { card, isNew };
+    });
+    saveDeckStore(store);
+    setMood('happy');
+    setPull({ cards, step: 0, opened: false });
+    setPhase('opening');
+  };
+  const finishOpening = () => { setPull(null); setSelected(null); setMood('show'); setPhase('shelf'); };
+
+  // Detail: the chosen booster flies from its slot to the middle of the screen.
+  const detailW = Math.min(stageW * 0.5, 200);
+  const detailH = detailW / BOOSTER_ASPECT;
+  const detailTarget = { left: (viewport.w - detailW) / 2, top: viewport.h * 0.14, width: detailW, height: detailH };
+
+  const cardScale = Math.min(1.3, (stageW * 0.72) / 224);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-[300] bg-black flex justify-center text-white overflow-hidden"
+    >
+      <div className="relative h-full w-full max-w-[480px] overflow-hidden">
+        {/* 1 · shelf wall + boosters (farthest) */}
+        <motion.div
+          className="absolute inset-0 z-10"
+          initial={false}
+          animate={phase === 'front'
+            ? { scale: 0.9, y: -viewport.h * 0.02, filter: 'brightness(0.75) blur(1.5px)' }
+            : { scale: 1, y: 0, filter: `brightness(${dim ? 0.3 : 1}) blur(0px)` }}
+          transition={{ duration: 0.9, ease: layerEase }}
+        >
+          {SHOP_ART.shelf
+            ? <img src={SHOP_ART.shelf} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none" />
+            : <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 50% 35%, #4a2e18 0%, #24140a 60%, #120a05 100%)' }} />}
+          <motion.div
+            className="absolute"
+            style={{ left: '4%', right: '4%', top: '14%', height: '56%', touchAction: 'none' }}
+            animate={{ scale: zoomed ? SHELF_ZOOM : 1 }}
+            transition={{ duration: 0.5, ease: layerEase }}
+            drag={phase === 'shelf' && zoomed}
+            dragConstraints={{ left: -(SHELF_ZOOM - 1) * shelfW / 2, right: (SHELF_ZOOM - 1) * shelfW / 2, top: -(SHELF_ZOOM - 1) * shelfH / 2, bottom: (SHELF_ZOOM - 1) * shelfH / 2 }}
+            dragElastic={0.1}
+          >
+            {Array.from({ length: SHELF_ROWS }).map((_, r) => (
+              <div key={r} className="absolute inset-x-0" style={{ top: `${r * 20}%`, height: '20%' }}>
+                {!SHOP_ART.shelf && <div className="absolute inset-x-0 bottom-0 h-[9%] rounded-sm" style={{ background: 'linear-gradient(to bottom, #8a5a30, #4a2c14)', boxShadow: '0 3px 6px rgba(0,0,0,0.6)' }} />}
+              </div>
+            ))}
+            {BOOSTERS.map((def, i) => {
+              const row = Math.floor(i / SHELF_COLS);
+              const col = i % SHELF_COLS;
+              return (
+                <motion.button
+                  key={def.id}
+                  ref={(el: HTMLButtonElement | null) => { boosterEls.current[def.id] = el; }}
+                  aria-label={def.name}
+                  onTap={() => { if (phase === 'shelf') { playUiClickSfx(); pickBooster(def); } }}
+                  whileHover={{ y: -3 }}
+                  className="absolute"
+                  style={{ left: `${((col + 0.5) / SHELF_COLS) * 100}%`, top: `${row * 20 + 20 * 0.09}%`, width: `${100 / SHELF_COLS * 0.82}%`, aspectRatio: `${BOOSTER_ASPECT}`, x: '-50%', opacity: selected?.def.id === def.id && phase !== 'shelf' ? 0 : 1, pointerEvents: phase === 'shelf' ? 'auto' : 'none' }}
+                >
+                  <BoosterArt def={def} />
+                </motion.button>
+              );
+            })}
+          </motion.div>
+        </motion.div>
+
+        {/* 2 · the merchant */}
+        <motion.div
+          className="absolute z-20 pointer-events-none"
+          style={{ left: '8%', right: '8%', bottom: '17%', height: '56%' }}
+          initial={false}
+          animate={phase === 'front' ? { opacity: 1, scale: 1, y: 0 } : { opacity: 0, scale: 1.4, y: -viewport.h * 0.05 }}
+          transition={{ duration: 0.8, ease: layerEase }}
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div key={mood} className="w-full h-full" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
+              <NpcArt mood={mood} />
+            </motion.div>
+          </AnimatePresence>
+        </motion.div>
+
+        {/* 3 · the counter (nearest) */}
+        <motion.div
+          className="absolute z-30 inset-x-0 bottom-0 pointer-events-none"
+          style={{ height: '24%' }}
+          initial={false}
+          animate={phase === 'front' ? { y: 0, opacity: 1 } : { y: '45%', opacity: 0 }}
+          transition={{ duration: 0.7, ease: layerEase }}
+        >
+          {SHOP_ART.counter
+            ? <img src={SHOP_ART.counter} alt="" draggable={false} className="w-full h-full object-cover object-top select-none" />
+            : (
+              <div className="w-full h-full relative" style={{ background: 'linear-gradient(to bottom, #9a6a3a 0%, #6a4222 12%, #3a2110 100%)', boxShadow: '0 -6px 14px rgba(0,0,0,0.6)' }}>
+                {[12, 22, 30, 74, 84].map((x, i) => <span key={i} className="absolute rounded-full" style={{ left: `${x}%`, top: `${20 + (i % 2) * 14}%`, width: 22, height: 22, background: 'radial-gradient(circle at 35% 30%, #ffe08a, #b98a1e)', boxShadow: '0 2px 3px rgba(0,0,0,0.6)' }} />)}
+              </div>
+            )}
+        </motion.div>
+
+        {/* Talking at the counter */}
+        <AnimatePresence>
+          {phase === 'front' && (
+            <motion.div key="talk" className="absolute z-40 inset-x-3" style={{ bottom: 'calc(max(10px, env(safe-area-inset-bottom)) + 8px)' }} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }} transition={{ duration: 0.3 }}>
+              <FramedWindow>
+                <div className="flex flex-col items-center gap-3 px-1 py-1">
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.div key={mood} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                      <WindowText>{NPC_LINES[mood]}</WindowText>
+                    </motion.div>
+                  </AnimatePresence>
+                  <div className="flex gap-3">
+                    <WindowButton onClick={onClose}>Sair</WindowButton>
+                    <WindowButton primary onClick={goShopping}>Comprar</WindowButton>
+                  </div>
+                </div>
+              </FramedWindow>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Shelf controls */}
+        <AnimatePresence>
+          {phase === 'shelf' && (
+            <motion.div key="shelfui" className="absolute z-40 inset-x-3 flex flex-col gap-2" style={{ top: 'calc(max(10px, env(safe-area-inset-top)) + 4px)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ delay: 0.5, duration: 0.3 }}>
+              <div className="flex items-center gap-2">
+                <WindowButton onClick={backToCounter}>Voltar</WindowButton>
+                <span className="flex-1 text-center text-[13px] uppercase tracking-[0.14em] text-[#f3e3c3]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700 }}>Prateleira</span>
+                <WindowButton onClick={() => setZoomed(z => !z)}>{zoomed ? 'Ver tudo' : 'Aproximar'}</WindowButton>
+              </div>
+              <div className="flex justify-between text-[11px] text-[#e8c766]" style={{ fontFamily: "'PT Serif', serif" }}>
+                <span>{zoomed ? 'Arraste para mover a prateleira' : 'Toque num booster'}</span>
+                <span>{formatCoroas(coroas)} Coroas</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Chosen booster: lifts off the shelf, with its price and the Comprar button */}
+        <AnimatePresence>
+          {phase === 'detail' && selected && (
+            <motion.div key="detail" className="fixed inset-0 z-[400]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setPhase('shelf'); setSelected(null); setMood('show'); }}>
+              <motion.div
+                className="fixed"
+                style={{ filter: 'drop-shadow(0 18px 24px rgba(0,0,0,0.75))' }}
+                initial={selected.rect}
+                animate={detailTarget}
+                exit={selected.rect}
+                transition={{ duration: 0.55, ease: layerEase }}
+              >
+                <BoosterArt def={selected.def} />
+              </motion.div>
+              <div className="fixed inset-x-3 mx-auto max-w-[456px]" style={{ bottom: 'calc(max(10px, env(safe-area-inset-bottom)) + 8px)' }} onClick={(e) => e.stopPropagation()}>
+                <FramedWindow>
+                  <div className="flex flex-col items-center gap-2 px-1 py-1">
+                    <WindowTitle>{selected.def.name}</WindowTitle>
+                    <WindowText>{mood === 'sorry' ? NPC_LINES.sorry : selected.def.description}</WindowText>
+                    <span className="text-[15px] font-black text-[#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>{selected.def.price} Coroas <span className="text-[11px] font-normal text-[#a89a78]">(você tem {formatCoroas(coroas)})</span></span>
+                    <div className="flex gap-3">
+                      <WindowButton onClick={() => { setPhase('shelf'); setSelected(null); setMood('show'); }}>Voltar</WindowButton>
+                      <WindowButton primary onClick={buy}>Comprar</WindowButton>
+                    </div>
+                  </div>
+                </FramedWindow>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Opening: dark backdrop, tap to tear the pack, then the cards one by one */}
+        <AnimatePresence>
+          {phase === 'opening' && pull && selected && (
+            <motion.div key="opening" className="fixed inset-0 z-[500] flex flex-col items-center justify-center gap-6" style={{ background: 'radial-gradient(ellipse at 50% 45%, rgba(90,60,20,0.85), rgba(0,0,0,0.96) 70%)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              {!pull.opened ? (
+                <>
+                  <motion.button
+                    className="relative"
+                    style={{ width: detailW * 1.15, height: (detailW * 1.15) / BOOSTER_ASPECT, filter: 'drop-shadow(0 0 30px rgba(232,199,102,0.55))' }}
+                    animate={{ rotate: [-2, 2, -2], scale: [1, 1.03, 1] }}
+                    transition={{ duration: 1.4, repeat: Infinity }}
+                    onClick={() => { playUiClickSfx(); setPull({ ...pull, opened: true }); }}
+                    aria-label="Abrir booster"
+                  >
+                    <BoosterArt def={selected.def} />
+                  </motion.button>
+                  <span className="text-[13px] uppercase tracking-[0.2em] text-[#f3e3c3]" style={{ fontFamily: "'Cinzel', serif" }}>Toque para abrir</span>
+                </>
+              ) : pull.step < pull.cards.length ? (
+                <button className="flex flex-col items-center gap-4" onClick={() => { playUiClickSfx(); setPull({ ...pull, step: pull.step + 1 }); }} aria-label="Próxima carta">
+                  <motion.div
+                    key={pull.step}
+                    className="relative"
+                    style={{ width: 224 * cardScale, height: 320 * cardScale, filter: 'drop-shadow(0 0 26px rgba(232,199,102,0.6))', perspective: 900 }}
+                    initial={{ rotateY: 90, scale: 0.6, opacity: 0 }}
+                    animate={{ rotateY: 0, scale: 1, opacity: 1 }}
+                    transition={{ type: 'spring', stiffness: 220, damping: 20 }}
+                  >
+                    <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: `scale(${cardScale})`, transformOrigin: 'top left' }}>
+                      <div className="relative w-full h-full rounded-xl"><CardFace card={pull.cards[pull.step].card} variant="hand" /></div>
+                    </div>
+                    {pull.cards[pull.step].isNew && (
+                      <span className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-[11px] font-black text-[#fff1c9] bg-[#b8402c] shadow-[0_0_0_2px_#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>NOVA!</span>
+                    )}
+                  </motion.div>
+                  <span className="text-[12px] uppercase tracking-[0.18em] text-[#cdbd97]" style={{ fontFamily: "'Cinzel', serif" }}>{pull.step + 1} de {pull.cards.length} · toque para continuar</span>
+                </button>
+              ) : (
+                <div className="flex flex-col items-center gap-4 px-3">
+                  <WindowTitle>Suas cartas</WindowTitle>
+                  <div className="flex flex-wrap justify-center gap-x-2 gap-y-3">
+                    {pull.cards.map(({ card, isNew }, i) => (
+                      <motion.div key={i} className="relative" style={{ width: 224 * 0.44, height: 320 * 0.44 }} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
+                        <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: 'scale(0.44)', transformOrigin: 'top left' }}>
+                          <div className="relative w-full h-full rounded-xl"><CardFace card={card} variant="hand" /></div>
+                        </div>
+                        {isNew && <span className="absolute -top-1 -right-1 px-1.5 rounded-full text-[8px] font-black text-[#fff1c9] bg-[#b8402c] shadow-[0_0_0_1.5px_#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>NOVA</span>}
+                      </motion.div>
+                    ))}
+                  </div>
+                  <span className="text-[11px] text-[#a89a78]" style={{ fontFamily: "'PT Serif', serif" }}>As cartas já estão na sua coleção.</span>
+                  <WindowButton primary onClick={finishOpening}>Continuar</WindowButton>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </motion.div>
   );
 };
