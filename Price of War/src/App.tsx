@@ -4459,7 +4459,7 @@ const CoinFace = ({ side }: { side: 'cara' | 'coroa' }) => (
     alt=""
     draggable={false}
     className="absolute inset-0 w-full h-full select-none"
-    style={{ transform: side === 'cara' ? `translateZ(${COIN_THICK / 2}px)` : `rotateY(180deg) translateZ(${COIN_THICK / 2}px)`, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+    style={{ transform: side === 'cara' ? `translateZ(${COIN_THICK / 2}px)` : `rotateX(180deg) translateZ(${COIN_THICK / 2}px)`, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
   />
 );
 const CoinRim = () => (
@@ -4500,8 +4500,8 @@ const CoinToss = ({ onResolved }: { onResolved: (first: 'player' | 'npc') => voi
         <motion.div
           className="absolute inset-0"
           style={{ transformStyle: 'preserve-3d' }}
-          initial={{ y: 0, rotateY: 0, scale: 1 }}
-          animate={phase === 'choose' ? { y: [0, -6, 0], rotateY: 0, scale: 1 } : { y: [0, -110, 0, -14, 0], rotateY: finalTurns, scale: [1, 1.25, 1, 1, 1] }}
+          initial={{ y: 0, rotateX: 0, scale: 1 }}
+          animate={phase === 'choose' ? { y: [0, -6, 0], rotateX: 0, scale: 1 } : { y: [0, -150, 0, -16, 0], rotateX: finalTurns, scale: [1, 2.3, 1, 1, 1] }}
           transition={phase === 'choose' ? { duration: 2.2, repeat: Infinity, ease: 'easeInOut' } : { duration: 2.0, times: [0, 0.42, 0.82, 0.92, 1], ease: ['easeOut', 'easeIn', 'easeOut', 'easeIn'] }}
         >
           <CoinRim />
