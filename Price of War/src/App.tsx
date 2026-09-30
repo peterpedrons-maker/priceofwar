@@ -3022,7 +3022,7 @@ const EDITOR_FRAME = 18;
 const EDITOR_PAD = 6;
 // Spreadsheet columns of the list: cost | name | type | ATK | HP | quantity. Header and rows share
 // this template, and the cells are split by the thin gold line art (ui-line-v / ui-line-h).
-const LIST_COLS = '34px minmax(0,1fr) 70px 34px 34px 38px';
+const LIST_COLS = '40px minmax(0,1fr) 70px 34px 34px 38px';
 const ROW_H = 42;
 const FULL_ART_TILE_SCALE = 1.07; // measured: Full Art silhouettes are ~5-8% smaller than Padrão ones at the same scale
 
@@ -3287,13 +3287,19 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
 
         {/* Cards: list (default) or card grid. Switching Deck <-> Reserva turns the page: the
             old side slides and tilts away, the new one swings in from the other edge. */}
-        <div className="flex-1 min-h-0 rounded-md flex flex-col" style={{ background: 'linear-gradient(to bottom, rgba(112,80,44,0.34), rgba(74,50,26,0.3))', boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.14), inset 0 8px 18px rgba(0,0,0,0.25)', perspective: 900 }}>
+        <div className="relative flex-1 min-h-0 rounded-md flex flex-col" style={{ background: 'linear-gradient(to bottom, rgba(112,80,44,0.34), rgba(74,50,26,0.3))', boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.14), inset 0 8px 18px rgba(0,0,0,0.25)', perspective: 900 }}>
+          {view === 'lista' && rows.length > 0 && (
+            // The column dividers run unbroken from the titles to the bottom of the list. This
+            // layer sits over the scrolling rows and uses the same grid, so the lines line up.
+            <div aria-hidden className="absolute inset-y-1.5 left-1.5 right-1.5 grid pointer-events-none z-10" style={{ gridTemplateColumns: LIST_COLS }}>
+              {LIST_COLS.split(' ').map((_, i) => <span key={i} className="relative">{i > 0 && <VLine className="!top-0 !bottom-0" />}</span>)}
+            </div>
+          )}
           {view === 'lista' && rows.length > 0 && (
             // Column titles, one per cell of the rows below (same grid, so they line up).
             <div className="relative shrink-0 mx-1.5 mt-1.5 grid" style={{ gridTemplateColumns: LIST_COLS, height: 24 }}>
-              {['Custo', 'Nome', 'Tipo', 'ATK', 'HP', 'Qtd'].map((label, i) => (
-                <span key={label} className="relative flex items-center justify-center text-[8px] uppercase tracking-[0.1em] text-[#e8c766]/90" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
-                  {i > 0 && <VLine />}
+              {['Custo', 'Nome', 'Tipo', 'ATK', 'HP', 'Qtd'].map(label => (
+                <span key={label} className="flex items-center justify-center text-[8px] uppercase tracking-[0.06em] text-[#e8c766]/90" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
                   {label}
                 </span>
               ))}
@@ -3326,27 +3332,23 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
                         className="relative grid w-full shrink-0 text-left active:bg-[#7a5a16]/35 transition-colors"
                         style={{ gridTemplateColumns: LIST_COLS, height: ROW_H }}
                       >
-                        <span className="flex items-center justify-center text-[14px] font-black text-[#fff1c9]" style={{ fontFamily: "'Cinzel', serif" }}>{r.card.cost}</span>
-                        <span className="relative flex items-center min-w-0 px-2">
-                          <VLine />
+                        <span className="flex items-center justify-center text-[12px] font-black text-[#fff1c9]" style={{ fontFamily: "'Cinzel', serif" }}>{r.card.cost}</span>
+                        <span className="flex items-center min-w-0 px-2">
                           <span className="text-[12px] leading-[1.1] text-[#f3e3c3] line-clamp-2" style={{ fontFamily: "'PT Serif', serif", fontWeight: 700 }}>{r.name}</span>
                         </span>
-                        <span className="relative flex items-center justify-center text-center text-[7.5px] leading-tight uppercase tracking-[0.04em] text-[#cdbd97]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
-                          <VLine />
+                        <span className="flex items-center justify-center text-center text-[7.5px] leading-tight uppercase tracking-[0.04em] text-[#cdbd97]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
                           {r.card.cardType}
                         </span>
                         {([[uiStatAtkImage, r.card.atk], [uiStatHpImage, r.card.hp]] as const).map(([img, val], k) => (
-                          <span key={k} className="relative flex items-center justify-center">
-                            <VLine />
-                            {isUnit ? (
+                          <span key={k} className="flex items-center justify-center">
+                              {isUnit ? (
                               <span className="flex items-center justify-center" style={{ width: 24, height: 27, backgroundImage: `url(${img})`, backgroundSize: '100% 100%' }}>
                                 <span className="text-[12px] font-black leading-none pt-[2px]" style={{ fontFamily: "'Cinzel', serif", color: '#fff4d2', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.8)' }}>{val}</span>
                               </span>
                             ) : <span className="text-[12px] text-[#6d6248]">—</span>}
                           </span>
                         ))}
-                        <span className="relative flex items-center justify-center text-[13px] font-black text-[#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>
-                          <VLine />
+                        <span className="flex items-center justify-center text-[12px] font-black text-[#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>
                           x{r.count}
                         </span>
                         <HLine />
