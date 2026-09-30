@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authMode, type Session } from './services/auth';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate, type MotionValue } from 'motion/react';
 import { X, ArrowUp, ArrowDown } from 'lucide-react';
 import turnButtonFrameImage from './assets/button-frame.webp';
@@ -2265,6 +2266,8 @@ type PlayerProfile = {
   avatarId: string;
   coroas: number;
   rank: string;
+  // false until the player has picked a name and avatar on the first-run profile screen.
+  nameSet: boolean;
   level: number;
   xp: number;
   xpToNext: number;
@@ -2289,6 +2292,7 @@ const DEFAULT_PROFILE: PlayerProfile = {
   avatarId: AVATAR_OPTIONS[0].id,
   coroas: 150,
   rank: 'Recruta I',
+  nameSet: false,
   level: 3,
   xp: 35,
   xpToNext: 100,
@@ -2870,7 +2874,7 @@ const MenuIconButton = ({ icon, label, onClick }: { icon: string; label: string;
   );
 };
 
-const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) => {
+const MainMenu = ({ onSelectMode, session }: { onSelectMode: (mode: string) => void; session: Session | null }) => {
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
   const bgX = useTransform(mouseX, [-500, 500], [-8, 8]);
@@ -2881,6 +2885,7 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
   const [onlineOpen, setOnlineOpen] = useState(false);
   const [deckEditorOpen, setDeckEditorOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const updateProfile = (patch: Partial<PlayerProfile>) => {
     setProfile(prev => {
       const next = { ...prev, ...patch };
@@ -2933,6 +2938,7 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
           />
         )}
         {deckEditorOpen && <DeckEditor onClose={() => setDeckEditorOpen(false)} />}
+        {settingsOpen && <SettingsModal session={session} profileName={profile.name} onClose={() => setSettingsOpen(false)} />}
         {shopOpen && <ShopScreen coroas={profile.coroas} onSpend={(n) => updateProfile({ coroas: Math.max(0, profile.coroas - n) })} onClose={() => setShopOpen(false)} />}
         {onlineOpen && (
           <OnlineModeModal
@@ -3000,7 +3006,7 @@ const MainMenu = ({ onSelectMode }: { onSelectMode: (mode: string) => void }) =>
         className="absolute bottom-0 inset-x-0 z-20 flex items-center justify-center gap-6 pt-3"
         style={{ paddingBottom: 'max(14px, env(safe-area-inset-bottom))', background: 'linear-gradient(to top, rgba(0,0,0,0.75), transparent)' }}
       >
-        <MenuIconButton icon={uiIconConfigImage} label="Config." onClick={() => setComingSoon({ title: 'Configurações', message: 'Em breve.' })} />
+        <MenuIconButton icon={uiIconConfigImage} label="Config." onClick={() => setSettingsOpen(true)} />
         <MenuIconButton icon={uiIconTutoriaisImage} label="Tutoriais" onClick={() => setComingSoon({ title: 'Tutoriais', message: 'Em breve.' })} />
         <MenuIconButton icon={uiIconRankingImage} label="Ranking" onClick={() => setComingSoon({ title: 'Ranking', message: 'O sistema de partidas ranqueadas ainda está por vir.' })} />
         <MenuIconButton icon={uiIconSomImage} label="Som" onClick={() => setComingSoon({ title: 'Som', message: 'Em breve.' })} />
@@ -4178,6 +4184,184 @@ const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n:
   );
 };
 
+// ── Login and first-run profile ──────────────────────────────────────────────
+// Shown before the main menu: sign in (Google, Discord, e-mail or guest), then pick a name and avatar
+// once. The logo that used to sit on the menu lives here. Accounts come from services/auth.ts.
+const AuthBackdrop = ({ children }: { children: React.ReactNode }) => (
+  <div className="fixed inset-0 z-[250] overflow-hidden bg-black text-white flex justify-center">
+    <img src={startScreenBgImage} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none" />
+    <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/45 to-black/90" />
+    <div className="relative w-full max-w-[480px] h-full flex flex-col items-center px-4" style={{ paddingTop: 'max(22px, env(safe-area-inset-top))', paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+      <motion.img
+        src={logoImage}
+        alt="Price of War"
+        draggable={false}
+        className="w-[15rem] max-w-[72%] select-none pointer-events-none"
+        style={{ filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.75))' }}
+        initial={{ opacity: 0, y: -24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, ease: 'easeOut' }}
+      />
+      {children}
+    </div>
+  </div>
+);
+
+const GoogleMark = () => (
+  <span className="w-[22px] h-[22px] rounded-full bg-white flex items-center justify-center text-[14px] font-black leading-none" style={{ fontFamily: 'Arial, sans-serif', color: '#4285F4' }}>G</span>
+);
+const DiscordMark = () => (
+  <span className="w-[22px] h-[22px] rounded-full flex items-center justify-center" style={{ background: '#5865F2' }}>
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="#fff"><path d="M8 7.2c1.2-.5 2.6-.8 4-.8s2.8.3 4 .8c1.6 2.3 2.4 4.8 2.6 7.6-1.1.9-2.3 1.4-3.6 1.8l-.8-1.3c.4-.2.8-.4 1.2-.7-.9.4-1.8.6-3.4.6s-2.5-.2-3.4-.6c.4.3.8.5 1.2.7l-.8 1.3c-1.3-.4-2.5-.9-3.6-1.8.2-2.8 1-5.3 2.6-7.6zm1.6 4.3a1.1 1.1 0 100 2.2 1.1 1.1 0 000-2.2zm4.8 0a1.1 1.1 0 100 2.2 1.1 1.1 0 000-2.2z" /></svg>
+  </span>
+);
+
+const AuthButton = ({ icon, label, onClick, busy = false, primary = false }: { icon?: React.ReactNode; label: string; onClick: () => void; busy?: boolean; primary?: boolean }) => (
+  <button onClick={() => { if (!busy) { playUiClickSfx(); onClick(); } }} disabled={busy} className={`block w-full active:brightness-125 active:scale-[0.98] transition ${busy ? 'opacity-60' : ''}`}>
+    <ThinFrame px={13} style={{ background: primary ? 'rgba(122,90,22,0.6)' : 'rgba(20,13,6,0.55)' }}>
+      <span className="flex items-center justify-center gap-2.5 py-1.5 text-[13px] uppercase tracking-[0.1em] text-[#f3e3c3]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
+        {icon}{label}
+      </span>
+    </ThinFrame>
+  </button>
+);
+
+const authFieldClass = 'block w-full bg-transparent px-2 py-1.5 text-[14px] text-[#f3e3c3] placeholder:text-[#8d7f60] outline-none';
+
+const LoginScreen = () => {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [note, setNote] = useState('');
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const run = async (key: string, fn: () => Promise<void>) => {
+    setError(''); setNote(''); setBusy(key);
+    try { await fn(); } catch (e) { setError(authErrorText(e)); } finally { setBusy(null); }
+  };
+  const submitEmail = () => run('email', async () => {
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) throw new Error('valid email');
+    if (password.length < 6) throw new Error('password 6');
+    const r = await signInEmail(email.trim(), password, mode);
+    if (r.needsConfirmation) setNote('Enviamos um e-mail de confirmação. Abra o link e depois toque em "Entrar".');
+  });
+  return (
+    <AuthBackdrop>
+      <div className="flex-1" />
+      <motion.div className="w-full" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.25, ease: 'easeOut' }}>
+        <FramedWindow>
+          <div className="flex flex-col gap-2.5 px-1 py-1">
+            <WindowTitle>Entrar</WindowTitle>
+            <AuthButton icon={<GoogleMark />} label="Continuar com Google" busy={busy === 'google'} onClick={() => run('google', () => signInOAuth('google'))} />
+            <AuthButton icon={<DiscordMark />} label="Continuar com Discord" busy={busy === 'discord'} onClick={() => run('discord', () => signInOAuth('discord'))} />
+            {!emailOpen ? (
+              <AuthButton label="Entrar com e-mail" onClick={() => setEmailOpen(true)} />
+            ) : (
+              <div className="flex flex-col gap-2">
+                <ThinFrame px={11} style={{ background: 'rgba(0,0,0,0.35)' }}>
+                  <input type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-mail" className={authFieldClass} style={{ fontFamily: "'PT Serif', serif" }} />
+                </ThinFrame>
+                <ThinFrame px={11} style={{ background: 'rgba(0,0,0,0.35)' }}>
+                  <input type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitEmail(); }} placeholder="Senha (mín. 6 caracteres)" className={authFieldClass} style={{ fontFamily: "'PT Serif', serif" }} />
+                </ThinFrame>
+                <AuthButton primary label={mode === 'signin' ? 'Entrar' : 'Criar conta'} busy={busy === 'email'} onClick={submitEmail} />
+                <button onClick={() => { playUiClickSfx(); setMode(m => (m === 'signin' ? 'signup' : 'signin')); setError(''); setNote(''); }} className="text-[12px] text-[#e8c766] underline underline-offset-4 self-center" style={{ fontFamily: "'PT Serif', serif" }}>
+                  {mode === 'signin' ? 'Não tem conta? Criar conta' : 'Já tem conta? Entrar'}
+                </button>
+              </div>
+            )}
+            {error && <p className="text-center text-[12px] text-[#f0a595]" style={{ fontFamily: "'PT Serif', serif" }}>{error}</p>}
+            {note && <p className="text-center text-[12px] text-[#8fe0a4]" style={{ fontFamily: "'PT Serif', serif" }}>{note}</p>}
+            <div className="flex items-center gap-2 px-2 pt-0.5"><div className="flex-1 h-px bg-[#d4af37]/30" /><span className="text-[10px] uppercase tracking-[0.2em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>ou</span><div className="flex-1 h-px bg-[#d4af37]/30" /></div>
+            <AuthButton label="Jogar como convidado" busy={busy === 'guest'} onClick={() => run('guest', signInGuest)} />
+            {authMode === 'local' && (
+              <p className="text-center text-[10.5px] leading-snug text-[#a89a78]" style={{ fontFamily: "'PT Serif', serif" }}>
+                Versão de teste: as contas online ainda não foram configuradas, então só o modo convidado funciona por enquanto.
+              </p>
+            )}
+          </div>
+        </FramedWindow>
+      </motion.div>
+    </AuthBackdrop>
+  );
+};
+
+const NAME_RULE = /^[\p{L}\p{N} _.\-]{3,16}$/u;
+const ProfileSetupScreen = ({ initialName, initialAvatar, onDone }: { initialName: string; initialAvatar: string; onDone: (name: string, avatarId: string) => void }) => {
+  const [name, setName] = useState(initialName === DEFAULT_PROFILE.name ? '' : initialName);
+  const [avatar, setAvatar] = useState(initialAvatar);
+  const trimmed = name.trim().replace(/\s+/g, ' ');
+  const valid = NAME_RULE.test(trimmed);
+  const hint = trimmed.length === 0 ? 'Escolha um nome de 3 a 16 caracteres.' : trimmed.length < 3 ? 'Muito curto: use pelo menos 3 caracteres.' : !valid ? 'Use só letras, números, espaço, _ . ou -' : '';
+  return (
+    <AuthBackdrop>
+      <div className="flex-1" />
+      <motion.div className="w-full" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: 'easeOut' }}>
+        <FramedWindow>
+          <div className="flex flex-col items-center gap-3 px-1 py-1">
+            <WindowTitle>Crie seu perfil</WindowTitle>
+            <WindowText>Assim os outros jogadores vão ver você.</WindowText>
+            <div className="grid grid-cols-3 gap-x-5 gap-y-3">
+              {AVATAR_OPTIONS.map(a => (
+                <button key={a.id} onClick={() => { playUiClickSfx(); setAvatar(a.id); }} className="relative active:scale-95 transition-transform" aria-label={`Avatar ${a.id}`}>
+                  <AvatarBadge avatarId={a.id} size={62} />
+                  {a.id === avatar && <div className="absolute -inset-1 rounded-full border-2 border-[#8fe0a4]" />}
+                </button>
+              ))}
+            </div>
+            <div className="w-full">
+              <ThinFrame px={11} style={{ background: 'rgba(0,0,0,0.35)' }}>
+                <input value={name} onChange={(e) => setName(e.target.value.slice(0, 16))} onKeyDown={(e) => { if (e.key === 'Enter' && valid) onDone(trimmed, avatar); }} placeholder="Nome do comandante" maxLength={16} autoFocus className={`${authFieldClass} text-center`} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }} />
+              </ThinFrame>
+              <p className={`text-center text-[11px] mt-1.5 ${hint ? 'text-[#f0c9a0]' : 'text-[#8fe0a4]'}`} style={{ fontFamily: "'PT Serif', serif" }}>{hint || '✓ Nome disponível'}</p>
+            </div>
+            <div className={valid ? '' : 'opacity-40 pointer-events-none'}>
+              <WindowButton primary onClick={() => { if (valid) onDone(trimmed, avatar); }}>Começar</WindowButton>
+            </div>
+          </div>
+        </FramedWindow>
+      </motion.div>
+    </AuthBackdrop>
+  );
+};
+
+const SettingsModal = ({ session, profileName, onClose }: { session: Session | null; profileName: string; onClose: () => void }) => {
+  const [confirming, setConfirming] = useState(false);
+  const how = !session ? '' : session.guest ? 'Convidado' : session.provider === 'google' ? 'Google' : session.provider === 'discord' ? 'Discord' : 'E-mail';
+  return (
+    <WindowOverlay onClose={onClose}>
+      <FramedWindow>
+        <div className="flex flex-col items-center gap-3 px-2 py-2">
+          <WindowTitle>Configurações</WindowTitle>
+          <div className="w-full flex flex-col gap-1 text-center">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>Conta</span>
+            <span className="text-[15px] text-[#f3e3c3]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>{profileName}</span>
+            <span className="text-[12px] text-[#cdbd97]" style={{ fontFamily: "'PT Serif', serif" }}>{how}{session?.email ? ` · ${session.email}` : ''}</span>
+          </div>
+          {session?.guest && (
+            <WindowText>Como convidado, seu progresso existe só neste aparelho. Ligue uma conta para não perdê-lo.</WindowText>
+          )}
+          {!confirming ? (
+            <div className="flex gap-3">
+              <WindowButton onClick={onClose}>Fechar</WindowButton>
+              <WindowButton onClick={() => setConfirming(true)}>Sair da conta</WindowButton>
+            </div>
+          ) : (
+            <>
+              <WindowText>{session?.guest ? 'Sair agora pode fazer você perder o acesso a este progresso de convidado. Sair mesmo?' : 'Sair desta conta?'}</WindowText>
+              <div className="flex gap-3">
+                <WindowButton onClick={() => setConfirming(false)}>Cancelar</WindowButton>
+                <WindowButton primary onClick={() => { void signOut(); onClose(); }}>Sair</WindowButton>
+              </div>
+            </>
+          )}
+        </div>
+      </FramedWindow>
+    </WindowOverlay>
+  );
+};
+
 // Shown before the main menu so a cold load never drops the player straight into
 // gameplay with art still fetching mid-match. Two phases: a plain black screen
 // (minimum ~500ms) while just the start screen's own background + logo load, then
@@ -4239,6 +4423,17 @@ const LoadingScreen = ({ onDone }: { onDone: () => void }) => {
 
 export default function App() {
   const [assetsReady, setAssetsReady] = useState(false);
+  // Who is signed in (see services/auth.ts). `authReady` waits for the first answer so the login
+  // screen does not flash for someone who is already signed in.
+  const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [profileNamed, setProfileNamed] = useState(() => loadProfile().nameSet);
+  useEffect(() => {
+    let alive = true;
+    getSession().then(sn => { if (alive) { setSession(sn); setAuthReady(true); } }).catch(() => { if (alive) setAuthReady(true); });
+    const off = onSessionChange(sn => { setSession(sn); setAuthReady(true); });
+    return () => { alive = false; off(); };
+  }, []);
   const [gameMode, setGameMode] = useState<string | null>(null);
   // Quick Match asks which deck to play before actually starting the match —
   // see DECKS above and the DeckPickerModal rendered in the !gameMode branch.
@@ -5454,10 +5649,17 @@ export default function App() {
     return <LoadingScreen onDone={() => setAssetsReady(true)} />;
   }
 
+  if (!authReady) return <div className="fixed inset-0 bg-black" />;
+  if (!session) return <LoginScreen />;
+  if (!profileNamed) {
+    const p = loadProfile();
+    return <ProfileSetupScreen initialName={p.name} initialAvatar={p.avatarId} onDone={(name, avatarId) => { saveProfile({ ...p, name, avatarId, nameSet: true }); setProfileNamed(true); }} />;
+  }
+
   if (!gameMode) {
     return (
       <div className="relative w-full h-dvh bg-zinc-950 text-white">
-        <MainMenu onSelectMode={(mode) => {
+        <MainMenu session={session} onSelectMode={(mode) => {
           // Desafios (mode 'Campaign') is the only menu entry that starts a match
           // for now: pick a deck, then play as 'Quick Match' — the one game mode the
           // NPC's turn logic is actually wired to (see the gameMode === 'Quick Match'
