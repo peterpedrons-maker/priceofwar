@@ -3295,23 +3295,22 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
               </button>
             ))}
           </div>
-          {view === 'cartas' && (
-            // One tap steps through the card sizes: big (3 per row) -> medium (4) -> small (5)
-            <button
-              aria-label="Tamanho das cartas"
-              title="Tamanho das cartas"
-              onClick={() => { playUiClickSfx(); const next = gridCols === 3 ? 4 : gridCols === 4 ? 5 : 3; setGridCols(next); showToast(`Cartas ${next === 3 ? 'grandes' : next === 4 ? 'médias' : 'pequenas'}`); }}
-              className="relative shrink-0 w-[38px] flex items-center justify-center active:scale-95 transition"
-            >
-              <ArtFrame src={uiEditorTabOffImage} slice={[44, 44, 44, 44]} width={[11, 11, 11, 11]} className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.4)' }} />
-              <svg viewBox="0 0 24 24" className="relative" width="22" height="22" fill="#e8c766">
-                {Array.from({ length: gridCols === 3 ? 9 : gridCols === 4 ? 12 : 15 }).map((_, i) => {
-                  const rows = 3, c = gridCols, gap = 1.4, cw = (20 - gap * (c - 1)) / c, ch = (20 - gap * (rows - 1)) / rows;
-                  return <rect key={i} x={2 + (i % c) * (cw + gap)} y={2 + Math.floor(i / c) * (ch + gap)} width={cw} height={ch} rx="0.8" />;
-                })}
-              </svg>
-            </button>
-          )}
+          {/* Always on screen so the header never shifts; dimmed and disabled in list view */}
+          <button
+            aria-label="Tamanho das cartas"
+            title="Tamanho das cartas"
+            disabled={view !== 'cartas'}
+            onClick={() => { playUiClickSfx(); const next = gridCols === 3 ? 4 : gridCols === 4 ? 5 : 3; setGridCols(next); showToast(`Cartas ${next === 3 ? 'grandes' : next === 4 ? 'médias' : 'pequenas'}`); }}
+            className={`relative shrink-0 w-[38px] flex items-center justify-center transition ${view === 'cartas' ? 'active:scale-95' : 'opacity-35 cursor-default'}`}
+          >
+            <ArtFrame src={uiEditorTabOffImage} slice={[44, 44, 44, 44]} width={[11, 11, 11, 11]} className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.4)' }} />
+            <svg viewBox="0 0 24 24" className="relative" width="22" height="22" fill="#e8c766">
+              {Array.from({ length: gridCols === 3 ? 9 : gridCols === 4 ? 12 : 15 }).map((_, i) => {
+                const rows = 3, c = gridCols, gap = 1.4, cw = (20 - gap * (c - 1)) / c, ch = (20 - gap * (rows - 1)) / rows;
+                return <rect key={i} x={2 + (i % c) * (cw + gap)} y={2 + Math.floor(i / c) * (ch + gap)} width={cw} height={ch} rx="0.8" />;
+              })}
+            </svg>
+          </button>
           <button onClick={() => { playUiClickSfx(); setDraft({ type: typeFilter, sort }); setFilterOpen(true); }} className="relative shrink-0 active:scale-95 transition">
             <ThinFrame px={11} style={{ background: filterCount > 0 ? 'rgba(122,90,22,0.55)' : 'rgba(20,13,6,0.45)' }}>
               <span className="block px-2 py-1 text-xs uppercase tracking-[0.1em] text-[#f0e0bb]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>Filtros</span>
