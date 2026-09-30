@@ -31,24 +31,6 @@ GitHub repo → Settings → Secrets and variables → Actions → **Variables**
 Push (or re-run the "Deploy to GitHub Pages" workflow). For local development copy `.env.example` to `.env.local`
 and fill the same two values.
 
-## 5. Tables (next step — not used by the game yet)
-Run in SQL Editor when we wire up profile syncing. Each player can only read and change their own row; the name is
-unique (case-insensitive).
-
-```sql
-create table public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  username text not null,
-  avatar_id text not null default 'batedora',
-  level int not null default 1,
-  xp int not null default 0,
-  coroas int not null default 0,
-  created_at timestamptz not null default now(),
-  constraint username_format check (username ~ '^[A-Za-zÀ-ÿ0-9 _.-]{3,16}$')
-);
-create unique index profiles_username_key on public.profiles (lower(username));
-alter table public.profiles enable row level security;
-create policy "read own profile" on public.profiles for select using (auth.uid() = id);
-create policy "create own profile" on public.profiles for insert with check (auth.uid() = id);
-create policy "update own profile" on public.profiles for update using (auth.uid() = id);
-```
+## 5. Tables
+Run `docs/supabase-schema.sql` in SQL Editor (New query → paste → Run). It creates `profiles`, `collection` and `decks`
+with Row Level Security (each player only sees and changes their own rows) and a `username_available(name)` function.
