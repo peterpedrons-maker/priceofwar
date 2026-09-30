@@ -3027,7 +3027,11 @@ const ROW_H = 42;
 const FULL_ART_TILE_SCALE = 1.07; // measured: Full Art silhouettes are ~5-8% smaller than Padrão ones at the same scale
 
 const DeckEditor = ({ onClose }: { onClose: () => void }) => {
-  const [store, setStore] = useState<DeckStore>(loadDeckStore);
+  // `store` is the draft the player is editing; `saved` is what is on disk. Nothing reaches the
+  // game (or storage) until Salvar copies the draft over.
+  const [saved, setSaved] = useState<DeckStore>(loadDeckStore);
+  const [store, setStore] = useState<DeckStore>(() => JSON.parse(JSON.stringify(saved)));
+  const [leaveOpen, setLeaveOpen] = useState(false);
   const [slotIdx, setSlotIdx] = useState(0);
   const [side, setSide] = useState<DeckSide>('deck');
   const flipDir = useRef(1);
@@ -3055,7 +3059,6 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
   const [generalOpen, setGeneralOpen] = useState(false);
   const [generalChoice, setGeneralChoice] = useState<string | null>(null);
-  const [savedFlash, setSavedFlash] = useState(false);
   const [viewW, setViewW] = useState(typeof window !== 'undefined' ? window.innerWidth : 390);
   useEffect(() => {
     const on = () => setViewW(window.innerWidth);
@@ -3074,12 +3077,21 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
     setStore(prev => {
       const next: DeckStore = JSON.parse(JSON.stringify(prev));
       mutate(next);
-      saveDeckStore(next);
       return next;
     });
-    setSavedFlash(true);
-    window.setTimeout(() => setSavedFlash(false), 1400);
   };
+  const dirty = JSON.stringify(store) !== JSON.stringify(saved);
+  const showToast = (text: string) => {
+    const id = Date.now();
+    setToast({ id, text });
+    window.setTimeout(() => setToast(t => (t && t.id === id ? null : t)), 1700);
+  };
+  const saveNow = () => {
+    saveDeckStore(store);
+    setSaved(JSON.parse(JSON.stringify(store)));
+    showToast('Deck salvo');
+  };
+  const requestClose = () => { if (dirty) setLeaveOpen(true); else onClose(); };
 
   const inDeck = (name: string) => slot.cards[name] ?? 0;
   const owned = (name: string) => store.collection[name] ?? 0;
@@ -3128,8 +3140,7 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
         to: rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : { x: window.innerWidth / 2, y: 130 },
       });
     }
-    setToast({ id, text: `${n > 1 ? `${n}× ` : ''}${picked} → ${dest === 'deck' ? 'Deck' : 'Reserva'}` });
-    window.setTimeout(() => setToast(t => (t && t.id === id ? null : t)), 1700);
+    showToast(`${n > 1 ? `${n}× ` : ''}${picked} → ${dest === 'deck' ? 'Deck' : 'Reserva'}`);
     setPicked(null);
   };
 
@@ -3200,27 +3211,38 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
           backgroundClip: 'border-box',
         }}
       >
-        {/* Header: back, deck slots, saved flash */}
+        {/* Header: back arrow, deck slots, save */}
         <div className="flex items-center gap-2 shrink-0">
-          <WindowButton onClick={onClose}>Voltar</WindowButton>
+          <button aria-label="Voltar" title="Voltar" onClick={() => { playUiClickSfx(); requestClose(); }} className="shrink-0 active:scale-95 transition">
+            <ThinFrame px={9} style={{ background: 'rgba(20,13,6,0.45)' }}>
+              <svg viewBox="0 0 24 24" width="18" height="18" className="block mx-2 my-[1px]" fill="none" stroke="#f0e0bb" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
+            </ThinFrame>
+          </button>
           <div className="flex gap-1.5 flex-1 justify-center">
             {store.slots.map((sl, i) => (
               <ArtChip key={sl.id} active={i === slotIdx} onClick={() => { setSlotIdx(i); setPicked(null); }}>Deck {i + 1}</ArtChip>
             ))}
           </div>
-          <span className={`text-[10px] uppercase tracking-wider transition-opacity ${savedFlash ? 'opacity-100' : 'opacity-0'} text-emerald-300`} style={{ fontFamily: "'Cinzel', serif" }}>Salvo</span>
+          {/* Lit like a selected button (with a red dot) while there are unsaved changes */}
+          <button onClick={() => { if (dirty) { playUiClickSfx(); saveNow(); } }} disabled={!dirty} aria-label="Salvar alterações" className={`relative h-[34px] shrink-0 transition ${dirty ? 'active:scale-95' : ''}`}>
+            <ArtFrame src={dirty ? uiEditorTabOnImage : uiEditorTabOffImage} slice={[44, 44, 44, 44]} width={[11, 11, 11, 11]} className="absolute inset-0" style={{ background: dirty ? 'rgba(122,90,22,0.75)' : 'rgba(0,0,0,0.4)' }} />
+            <span className={`relative block px-3 uppercase tracking-[0.08em] text-[11px] whitespace-nowrap ${dirty ? 'text-[#fff1c9]' : 'text-[#8fe0a4]/80'}`} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>{dirty ? 'Salvar' : 'Salvo ✓'}</span>
+            {dirty && <motion.span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#d8402a] shadow-[0_0_0_1.5px_#e8c766]" animate={{ scale: [1, 1.3, 1] }} transition={{ duration: 1.2, repeat: Infinity }} />}
+          </button>
         </div>
+        {dirty && <p className="text-center text-[11px] -mt-1 text-[#f2c66a]" style={{ fontFamily: "'PT Serif', serif" }}>Alterações não salvas</p>}
 
         {/* Deck title + general + counter (the counter sits in the plate's own socket) */}
         <ArtFrame src={uiEditorHeaderImage} slice={[50, 130, 50, 70]} width={[15, 39, 15, 21]} className="relative shrink-0" style={{ height: 56, background: 'rgba(20,13,6,0.55)' }}>
           <div className="absolute inset-0 flex items-center gap-2 pl-6" style={{ paddingRight: 9 }}>
-            <div className="flex flex-col min-w-0 flex-1">
-              <span className="truncate uppercase text-[#f3e3c3] leading-tight" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 13, letterSpacing: '0.06em' }}>{slot.name}</span>
-              <button onClick={() => { playUiClickSfx(); setGeneralChoice(slot.general); setGeneralOpen(true); }} className="text-left truncate text-[11px] leading-tight text-[#e8c766]" style={{ fontFamily: "'PT Serif', serif" }}>
-                General: {slot.general} <span className="opacity-70">✎</span>
-              </button>
-            </div>
-            <span className="shrink-0 text-[9px] uppercase tracking-wider text-[#a89a78] text-right leading-tight" style={{ fontFamily: "'Cinzel', serif" }}>/{DECK_MAX_CARDS}<br />mín. {DECK_MIN_CARDS}</span>
+            <button onClick={() => { playUiClickSfx(); setGeneralChoice(slot.general); setGeneralOpen(true); }} aria-label="Trocar General" className="flex items-center min-w-0 flex-1 text-left gap-1.5">
+              <span className="truncate uppercase text-[#f3e3c3] leading-tight" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 12, letterSpacing: '0.02em' }}>{slot.name}</span>
+              <span className="shrink-0 text-[12px] text-[#e8c766] opacity-80">✎</span>
+            </button>
+            <span className="shrink-0 flex flex-col text-right leading-tight" style={{ fontFamily: "'Cinzel', serif" }}>
+              <span className="text-[9px] font-bold uppercase tracking-[0.03em] text-[#f3e3c3]">de {DECK_MAX_CARDS} cartas</span>
+              <span className={`text-[8px] uppercase tracking-[0.03em] ${total < DECK_MIN_CARDS ? 'text-[#f08a78]' : 'text-[#a89a78]'}`}>mínimo {DECK_MIN_CARDS}</span>
+            </span>
             <span className="shrink-0 w-[28px] text-center font-black leading-none" style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: problem ? '#f08a78' : '#8fe0a4' }}><motion.span key={total} className="inline-block" initial={{ scale: 1.6 }} animate={{ scale: 1 }} transition={{ duration: 0.4 }}>{total}</motion.span></span>
           </div>
         </ArtFrame>
@@ -3262,15 +3284,15 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
           </ThinFrame>
           <div className="flex gap-1 shrink-0">
             {([['lista', 'Ver em lista'], ['cartas', 'Ver em cartas']] as const).map(([id, label]) => (
-              <button key={id} aria-label={label} title={label} onClick={() => { if (view !== id) { playUiClickSfx(); changeView(id); } }} className="relative w-[38px] active:scale-95 transition">
+              <button key={id} aria-label={label} title={label} onClick={() => { if (view !== id) { playUiClickSfx(); changeView(id); } }} className="relative w-[38px] flex items-center justify-center active:scale-95 transition">
                 <ArtFrame src={view === id ? uiEditorTabOnImage : uiEditorTabOffImage} slice={[44, 44, 44, 44]} width={[11, 11, 11, 11]} className="absolute inset-0" style={{ background: view === id ? 'rgba(96,68,16,0.6)' : 'rgba(0,0,0,0.4)' }} />
                 {id === 'lista' ? (
-                  <svg viewBox="0 0 24 24" className="relative mx-auto" width="18" height="18" fill="none" stroke={view === id ? '#fff1c9' : '#a89a78'} strokeWidth="2" strokeLinecap="round">
+                  <svg viewBox="0 0 24 24" className="relative mx-auto" width="24" height="24" fill="none" stroke={view === id ? '#fff1c9' : '#a89a78'} strokeWidth="2.2" strokeLinecap="round">
                     <path d="M4 6h16M4 12h16M4 18h16" />
                   </svg>
                 ) : (
                   // a tiny real card frame from the game's own art
-                  <img src={uiIconCardImage} alt="" className="relative mx-auto" width={17} height={25} style={{ opacity: view === id ? 1 : 0.55 }} />
+                  <img src={uiIconCardImage} alt="" className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[calc(100%-10px)] w-auto" style={{ opacity: view === id ? 1 : 0.55 }} />
                 )}
               </button>
             ))}
@@ -3467,6 +3489,21 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
                 <div className="flex gap-3">
                   <WindowButton onClick={() => setConfirm(null)}>Cancelar</WindowButton>
                   <WindowButton primary onClick={() => { const run = confirm.run; setConfirm(null); run(); }}>Confirmar</WindowButton>
+                </div>
+              </div>
+            </FramedWindow>
+          </WindowOverlay>
+        )}
+        {leaveOpen && (
+          <WindowOverlay onClose={() => setLeaveOpen(false)}>
+            <FramedWindow>
+              <div className="flex flex-col items-center gap-3 px-2 py-2">
+                <WindowTitle>Alterações não salvas</WindowTitle>
+                <WindowText>Você fez alterações no deck que ainda não foram salvas. Deseja salvar antes de sair?</WindowText>
+                <div className="flex flex-col items-center gap-2">
+                  <WindowButton primary onClick={() => { saveDeckStore(store); onClose(); }}>Salvar e sair</WindowButton>
+                  <WindowButton onClick={() => { setLeaveOpen(false); onClose(); }}>Sair sem salvar</WindowButton>
+                  <WindowButton onClick={() => setLeaveOpen(false)}>Continuar editando</WindowButton>
                 </div>
               </div>
             </FramedWindow>
