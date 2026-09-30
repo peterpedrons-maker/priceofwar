@@ -25,6 +25,9 @@ const client = () => {
   return clientPromise;
 };
 
+// Shared with cloud.ts (profile, collection, decks).
+export const getClient = client;
+
 const fromUser = (user: any): Session => {
   const provider = (user?.is_anonymous ? 'guest' : (user?.app_metadata?.provider ?? 'email')) as AuthProvider;
   return { userId: user.id, provider: ['google', 'discord', 'guest'].includes(provider) ? provider : 'email', email: user.email ?? undefined, guest: !!user.is_anonymous };

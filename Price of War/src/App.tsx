@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { fetchProfile, usernameAvailable, createProfile, updateProfileFields } from './services/cloud';
 import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authErrorDetail, authMode, type Session } from './services/auth';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate, type MotionValue } from 'motion/react';
 import { X, ArrowUp, ArrowDown } from 'lucide-react';
@@ -2563,9 +2564,10 @@ const AvatarPickerModal = ({ current, onSelect, onClose }: {
 // hud-gold-badge used on the board) specifically so the two are never confused.
 // Entirely local-storage-backed for now (see loadProfile/saveProfile) — no
 // account system yet, but the UI itself is the real thing already.
-const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
+const ProfileBar = ({ profile, onChange, onRename, onOpenAvatarPicker, onOpenShop }: {
   profile: PlayerProfile;
   onChange: (patch: Partial<PlayerProfile>) => void;
+  onRename: (name: string) => void;
   onOpenAvatarPicker: () => void;
   onOpenShop: () => void;
 }) => {
@@ -2578,8 +2580,8 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
     setEditingName(true);
   };
   const commitName = () => {
-    const trimmed = nameDraft.trim().slice(0, 18);
-    if (trimmed) onChange({ name: trimmed });
+    const trimmed = nameDraft.trim().slice(0, 16);
+    if (trimmed) onRename(trimmed);
     setEditingName(false);
   };
 
@@ -2629,7 +2631,7 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
               onChange={(e) => setNameDraft(e.target.value)}
               onBlur={commitName}
               onKeyDown={(e) => { if (e.key === 'Enter') commitName(); if (e.key === 'Escape') setEditingName(false); }}
-              maxLength={18}
+              maxLength={16}
               autoFocus
               className="bg-black/50 border border-[#e8c766]/70 rounded px-1 font-bold text-[#f3e3c3] w-[60%] outline-none"
               style={{ fontFamily: "'Cinzel', serif", fontSize: '5.4cqw', lineHeight: 1.2 }}
@@ -2892,6 +2894,19 @@ const MainMenu = ({ onSelectMode, session }: { onSelectMode: (mode: string) => v
       saveProfile(next);
       return next;
     });
+    // The avatar is mirrored to the account (a failed sync is only logged; the local one is what shows).
+    if (authMode === 'supabase' && session && patch.avatarId) void updateProfileFields(session.userId, { avatar_id: patch.avatarId });
+  };
+  // Renaming with real accounts has to be accepted by the server first (names are unique).
+  const renameProfile = async (raw: string) => {
+    const name = raw.trim().replace(/\s+/g, ' ');
+    if (!NAME_RULE.test(name)) { setComingSoon({ title: 'Nome inválido', message: 'Use de 3 a 16 letras, números, espaço, _ . ou -' }); return; }
+    if (name === profile.name) return;
+    if (authMode === 'supabase' && session) {
+      const r = await updateProfileFields(session.userId, { username: name });
+      if (r.ok === false) { setComingSoon({ title: 'Não foi possível trocar o nome', message: r.message }); return; }
+    }
+    updateProfile({ name });
   };
 
   return (
@@ -2926,6 +2941,7 @@ const MainMenu = ({ onSelectMode, session }: { onSelectMode: (mode: string) => v
       <ProfileBar
         profile={profile}
         onChange={updateProfile}
+        onRename={renameProfile}
         onOpenAvatarPicker={() => setAvatarPickerOpen(true)}
         onOpenShop={() => setComingSoon({ title: 'Loja de Coroas', message: 'Em breve você vai poder comprar Coroas aqui para trocar por boosters e eventos.' })}
       />
@@ -4290,12 +4306,38 @@ const LoginScreen = () => {
 };
 
 const NAME_RULE = /^[\p{L}\p{N} _.\-]{3,16}$/u;
-const ProfileSetupScreen = ({ initialName, initialAvatar, onDone }: { initialName: string; initialAvatar: string; onDone: (name: string, avatarId: string) => void }) => {
+// `onSubmit` resolves to an error message (name taken, no connection...) or null on success.
+const ProfileSetupScreen = ({ initialName, initialAvatar, onSubmit }: { initialName: string; initialAvatar: string; onSubmit: (name: string, avatarId: string) => Promise<string | null> }) => {
   const [name, setName] = useState(initialName === DEFAULT_PROFILE.name ? '' : initialName);
   const [avatar, setAvatar] = useState(initialAvatar);
+  const [checking, setChecking] = useState(false);
+  const [taken, setTaken] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const trimmed = name.trim().replace(/\s+/g, ' ');
   const valid = NAME_RULE.test(trimmed);
-  const hint = trimmed.length === 0 ? 'Escolha um nome de 3 a 16 caracteres.' : trimmed.length < 3 ? 'Muito curto: use pelo menos 3 caracteres.' : !valid ? 'Use só letras, números, espaço, _ . ou -' : '';
+  // With real accounts the name must be unique: ask the server (after a short pause in typing).
+  useEffect(() => {
+    setTaken(false);
+    if (authMode !== 'supabase' || !valid) { setChecking(false); return; }
+    setChecking(true);
+    let alive = true;
+    const t = window.setTimeout(async () => {
+      const free = await usernameAvailable(trimmed);
+      if (!alive) return;
+      setTaken(free === false);
+      setChecking(false);
+    }, 450);
+    return () => { alive = false; window.clearTimeout(t); };
+  }, [trimmed, valid]);
+  const hint = trimmed.length === 0 ? 'Escolha um nome de 3 a 16 caracteres.' : trimmed.length < 3 ? 'Muito curto: use pelo menos 3 caracteres.' : !valid ? 'Use só letras, números, espaço, _ . ou -' : taken ? 'Esse nome já está em uso.' : '';
+  const canGo = valid && !taken && !checking && !saving;
+  const go = async () => {
+    if (!canGo) return;
+    setSaving(true); setSubmitError('');
+    const err = await onSubmit(trimmed, avatar);
+    if (err) { setSubmitError(err); setSaving(false); if (/em uso/i.test(err)) setTaken(true); }
+  };
   return (
     <AuthBackdrop>
       <div className="flex-1" />
@@ -4314,12 +4356,14 @@ const ProfileSetupScreen = ({ initialName, initialAvatar, onDone }: { initialNam
             </div>
             <div className="w-full">
               <ThinFrame px={11} style={{ background: 'rgba(0,0,0,0.35)' }}>
-                <input value={name} onChange={(e) => setName(e.target.value.slice(0, 16))} onKeyDown={(e) => { if (e.key === 'Enter' && valid) onDone(trimmed, avatar); }} placeholder="Nome do comandante" maxLength={16} autoFocus className={`${authFieldClass} text-center`} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }} />
+                <input value={name} onChange={(e) => { setName(e.target.value.slice(0, 16)); setSubmitError(''); }} onKeyDown={(e) => { if (e.key === 'Enter') void go(); }} placeholder="Nome do comandante" maxLength={16} autoFocus className={`${authFieldClass} text-center`} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }} />
               </ThinFrame>
-              <p className={`text-center text-[11px] mt-1.5 ${hint ? 'text-[#f0c9a0]' : 'text-[#8fe0a4]'}`} style={{ fontFamily: "'PT Serif', serif" }}>{hint || '✓ Nome disponível'}</p>
+              <p className={`text-center text-[11px] mt-1.5 ${hint || submitError ? 'text-[#f0c9a0]' : checking ? 'text-[#a89a78]' : 'text-[#8fe0a4]'}`} style={{ fontFamily: "'PT Serif', serif" }}>
+                {submitError || hint || (checking ? 'Verificando…' : '✓ Nome disponível')}
+              </p>
             </div>
-            <div className={valid ? '' : 'opacity-40 pointer-events-none'}>
-              <WindowButton primary onClick={() => { if (valid) onDone(trimmed, avatar); }}>Começar</WindowButton>
+            <div className={canGo ? '' : 'opacity-40 pointer-events-none'}>
+              <WindowButton primary onClick={() => void go()}>{saving ? 'Criando…' : 'Começar'}</WindowButton>
             </div>
           </div>
         </FramedWindow>
@@ -4429,7 +4473,30 @@ export default function App() {
   // screen does not flash for someone who is already signed in.
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
-  const [profileNamed, setProfileNamed] = useState(() => loadProfile().nameSet);
+  const [profileNamed, setProfileNamed] = useState(() => (authMode === 'local' ? loadProfile().nameSet : false));
+  // With real accounts the profile lives in the cloud: wait for it before showing the menu.
+  const [profileLoading, setProfileLoading] = useState(authMode === 'supabase');
+  const [profileError, setProfileError] = useState('');
+  const [profileTry, setProfileTry] = useState(0);
+  useEffect(() => {
+    if (authMode !== 'supabase') return;
+    if (!session) { setProfileNamed(false); setProfileLoading(false); setProfileError(''); return; }
+    let alive = true;
+    setProfileLoading(true); setProfileError('');
+    fetchProfile(session.userId).then(r => {
+      if (!alive) return;
+      if (r.ok === false) { setProfileError(r.message); setProfileLoading(false); return; }
+      if (r.data) {
+        const row = r.data;
+        saveProfile({ ...DEFAULT_PROFILE, name: row.username, avatarId: AVATAR_OPTIONS.some(a => a.id === row.avatar_id) ? row.avatar_id : DEFAULT_PROFILE.avatarId, level: row.level, xp: row.xp, coroas: row.coroas, nameSet: true });
+        setProfileNamed(true);
+      } else {
+        setProfileNamed(false);
+      }
+      setProfileLoading(false);
+    });
+    return () => { alive = false; };
+  }, [session?.userId, profileTry]);
   useEffect(() => {
     let alive = true;
     getSession().then(sn => { if (alive) { setSession(sn); setAuthReady(true); } }).catch(() => { if (alive) setAuthReady(true); });
@@ -5653,9 +5720,46 @@ export default function App() {
 
   if (!authReady) return <div className="fixed inset-0 bg-black" />;
   if (!session) return <LoginScreen />;
+  if (authMode === 'supabase' && profileLoading) {
+    return <div className="fixed inset-0 bg-black flex items-center justify-center text-[#cdbd97] text-[12px] uppercase tracking-[0.2em]" style={{ fontFamily: "'Cinzel', serif" }}>Carregando seu perfil…</div>;
+  }
+  if (profileError) {
+    return (
+      <AuthBackdrop>
+        <div className="flex-1" />
+        <FramedWindow>
+          <div className="flex flex-col items-center gap-3 px-2 py-2">
+            <WindowTitle>Não deu para carregar</WindowTitle>
+            <WindowText>{profileError}</WindowText>
+            <div className="flex gap-3">
+              <WindowButton onClick={() => void signOut()}>Sair</WindowButton>
+              <WindowButton primary onClick={() => setProfileTry(n => n + 1)}>Tentar de novo</WindowButton>
+            </div>
+          </div>
+        </FramedWindow>
+      </AuthBackdrop>
+    );
+  }
   if (!profileNamed) {
     const p = loadProfile();
-    return <ProfileSetupScreen initialName={p.name} initialAvatar={p.avatarId} onDone={(name, avatarId) => { saveProfile({ ...p, name, avatarId, nameSet: true }); setProfileNamed(true); }} />;
+    return (
+      <ProfileSetupScreen
+        initialName={authMode === 'supabase' ? '' : p.name}
+        initialAvatar={p.avatarId}
+        onSubmit={async (name, avatarId) => {
+          if (authMode === 'supabase' && session) {
+            const r = await createProfile(session.userId, name, avatarId);
+            if (r.ok === false) return r.message;
+            const row = r.data;
+            saveProfile({ ...DEFAULT_PROFILE, name: row.username, avatarId: row.avatar_id, level: row.level, xp: row.xp, coroas: row.coroas, nameSet: true });
+          } else {
+            saveProfile({ ...p, name, avatarId, nameSet: true });
+          }
+          setProfileNamed(true);
+          return null;
+        }}
+      />
+    );
   }
 
   if (!gameMode) {
