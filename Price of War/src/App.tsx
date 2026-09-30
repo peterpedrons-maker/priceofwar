@@ -3714,11 +3714,10 @@ const PackTear = ({ def, width, height, onTorn }: { def: BoosterDef; width: numb
   const boxRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   const startX = useRef(0);
-  const attachedClip = useTransform(tip, v => `inset(0 0 ${100 - PACK_TEAR_Y}% ${v * 100}%)`);
-  const tornClip = useTransform(tip, v => `inset(0 ${(1 - v) * 100}% ${100 - PACK_TEAR_Y}% 0)`);
-  const tornRotate = useTransform(tip, v => -v * 24);
-  const tornLift = useTransform(tip, v => -v * 10);
-  const tornOrigin = useTransform(tip, v => `${v * 100}% ${PACK_TEAR_Y}%`);
+  // The cut runs horizontally under the crimped top: the whole cap stays one strip, hinged at the
+  // right end, and its left end lifts more the further the finger has gone.
+  const lidRotate = useTransform(tip, v => -v * 11);
+  const glowWidth = useTransform(tip, v => `${v * 100}%`);
   const tipLeft = useTransform(tip, v => `${v * 100}%`);
   const finish = () => {
     if (torn) return;
@@ -3743,8 +3742,9 @@ const PackTear = ({ def, width, height, onTorn }: { def: BoosterDef; width: numb
       transition={torn ? { duration: 0.5, delay: 0.25 } : { duration: 0.2 }}
     >
       <div style={{ ...piece({ clipPath: `inset(${PACK_TEAR_Y}% 0 0 0)` }), filter: 'drop-shadow(0 0 26px rgba(232,199,102,0.5))' }}><BoosterArt def={def} /></div>
-      <motion.div style={{ ...piece({}), clipPath: attachedClip }}><BoosterArt def={def} /></motion.div>
-      <motion.div style={{ ...piece({}), clipPath: tornClip, rotate: tornRotate, y: tornLift, transformOrigin: tornOrigin }}><BoosterArt def={def} /></motion.div>
+      <motion.div style={{ ...piece({ clipPath: `inset(0 0 ${100 - PACK_TEAR_Y}% 0)`, transformOrigin: `100% ${PACK_TEAR_Y}%` }), rotate: lidRotate }}><BoosterArt def={def} /></motion.div>
+      {/* light spilling from inside along the part of the cut that is already open */}
+      <motion.div className="absolute left-0 pointer-events-none" style={{ top: `${PACK_TEAR_Y}%`, height: 7, width: glowWidth, y: '-50%', background: 'linear-gradient(to right, rgba(255,240,190,0.95), rgba(255,214,102,0.9))', boxShadow: '0 0 12px 3px rgba(255,214,102,0.8)', borderRadius: 3 }} />
       {/* dashed tear line with a scissors mark, fading once the player has started */}
       <motion.div className="absolute inset-x-[4%] pointer-events-none" style={{ top: `${PACK_TEAR_Y}%`, borderTop: '2.5px dashed rgba(70,40,10,0.85)' }} animate={{ opacity: touched ? 0.25 : 1 }} />
       <span className="absolute pointer-events-none text-[18px]" style={{ left: '2%', top: `calc(${PACK_TEAR_Y}% - 14px)`, filter: 'drop-shadow(0 1px 1px rgba(255,255,255,0.8))' }}>✂</span>
