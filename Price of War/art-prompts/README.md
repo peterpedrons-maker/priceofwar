@@ -1194,7 +1194,58 @@ Ordem sugerida: A (referência) → B (prateleira) → C (balcão) → D (NPC: p
 outras usando a primeira como referência) → E (boosters). Nas camadas B–E anexar a imagem A no gerador.
 
 Prateleira: 5 fileiras de até 10 boosters (50). Boosters ~5:8 em pé, apoiados na tábua de cada fileira. As posições
-exatas eu ajusto no código depois de ver a arte. Prompts completos foram enviados no chat.
+exatas eu ajusto no código depois de ver a arte.
+
+<details>
+<summary>Prompts (formato já incluso em cada um)</summary>
+
+**A · Cena de referência**
+```
+Portrait 9:16 aspect ratio, exactly 1024x1792 pixels. Painterly medieval-fantasy illustration, the interior of a cozy merchant's card shop seen from the customer's eye level, strict one-point perspective. In the foreground at the bottom, a heavy wooden counter with gold coin stacks, a small golden crown, a brass balance scale, a quill and inkwell, a lit candle and two sealed booster packs. Behind the counter, centered, a friendly middle-aged merchant with a short grey-flecked beard, kind eyes, a soft cap with a feather, a burgundy vest with gold trim over a cream shirt and a brown leather apron. Behind him, filling the wall, tall wooden shelving with five evenly spaced shelves, each lined with rows of small sealed card booster packs in cream-and-gold and crimson-and-steel wrappers. Warm candlelight, soft golden glow, the shelves slightly out of focus (depth of field), rich shadows, palette of warm brown wood, gold and crimson. Same high-quality painterly game-art style as a premium collectible card game. No text, no letters, no watermark, no UI.
+```
+
+**B · Prateleira (opaca, sem recorte)**
+```
+Portrait 9:16 aspect ratio, exactly 1024x1792 pixels. Painterly medieval-fantasy illustration of the back wall of a merchant's card shop: a tall wooden shelving unit with exactly five evenly spaced horizontal shelves, filling most of the width, perfectly frontal one-point perspective with the shelf planks showing a little of their top surface so they read as deep. The shelves are completely EMPTY (no packs, no objects, nothing on them) and the whole wall is fully visible with nothing standing in front of it. Warm dim candlelight from the sides, dark wood, small carved details on the frame, a stone wall behind, the upper and lower parts of the canvas continue the room (dark ceiling beams above, wooden floor line below). The planks sit at roughly 25%, 36%, 48%, 59% and 70% of the image height. Slight depth-of-field softness. Must match the lighting, palette and style of the attached reference image. No text, no watermark, no characters.
+```
+
+**C · Balcão**
+```
+Portrait 9:16 aspect ratio, exactly 1024x1792 pixels. Painterly medieval-fantasy game-art foreground element on a flat solid mid-gray background (RGB 125,125,125). Only the bottom 26% of the canvas contains art: a heavy carved wooden shop counter seen from the front, its top edge running straight across the full width (edge to edge, no gap on either side) with a subtle warm highlight along the front lip. On the counter top: stacks of gold coins, a small golden crown, a brass balance scale, a quill in an inkwell, a lit candle, and two sealed booster packs. Everything above the counter is plain flat gray. Same lighting and style as the attached reference image. No text, no watermark.
+```
+
+**D1 · Vendedor — greet**
+```
+Portrait 9:16 aspect ratio, exactly 1024x1792 pixels. A friendly middle-aged merchant, waist-up, centered, occupying about x 8%-92% and y 25%-78% of the canvas (the counter will hide his lower body). Short grey-flecked beard, kind eyes, soft cap with a feather, burgundy vest with gold trim over a cream shirt, brown leather apron. Painterly medieval-fantasy character art, same style and lighting as the attached reference images, the same character, same outfit, same framing, size and position in every pose. Flat solid mid-gray background (RGB 125,125,125) everywhere around him. No text, no watermark, no other objects. POSE: warm welcoming smile, right hand raised in a friendly greeting, left hand resting on the counter.
+```
+
+**D2 · Vendedor — show**
+```
+Portrait 9:16 aspect ratio, exactly 1024x1792 pixels. A friendly middle-aged merchant, waist-up, centered, occupying about x 8%-92% and y 25%-78% of the canvas (the counter will hide his lower body). Short grey-flecked beard, kind eyes, soft cap with a feather, burgundy vest with gold trim over a cream shirt, brown leather apron. Painterly medieval-fantasy character art, same style and lighting as the attached reference images, the same character, same outfit, same framing, size and position in every pose. Flat solid mid-gray background (RGB 125,125,125) everywhere around him. No text, no watermark, no other objects. POSE: body turned slightly, one arm sweeping out to the side as if presenting the shelves behind him, raised eyebrows, inviting expression.
+```
+
+**D3 · Vendedor — happy**
+```
+Portrait 9:16 aspect ratio, exactly 1024x1792 pixels. A friendly middle-aged merchant, waist-up, centered, occupying about x 8%-92% and y 25%-78% of the canvas (the counter will hide his lower body). Short grey-flecked beard, kind eyes, soft cap with a feather, burgundy vest with gold trim over a cream shirt, brown leather apron. Painterly medieval-fantasy character art, same style and lighting as the attached reference images, the same character, same outfit, same framing, size and position in every pose. Flat solid mid-gray background (RGB 125,125,125) everywhere around him. No text, no watermark, no other objects. POSE: pleased satisfied smile, hands together in front of him as if about to hand over a booster pack, eyes bright.
+```
+
+**D4 · Vendedor — sorry**
+```
+Portrait 9:16 aspect ratio, exactly 1024x1792 pixels. A friendly middle-aged merchant, waist-up, centered, occupying about x 8%-92% and y 25%-78% of the canvas (the counter will hide his lower body). Short grey-flecked beard, kind eyes, soft cap with a feather, burgundy vest with gold trim over a cream shirt, brown leather apron. Painterly medieval-fantasy character art, same style and lighting as the attached reference images, the same character, same outfit, same framing, size and position in every pose. Flat solid mid-gray background (RGB 125,125,125) everywhere around him. No text, no watermark, no other objects. POSE: apologetic expression, shoulders in a small shrug, both palms open and turned up, gentle sad smile.
+```
+
+**E1 · Booster Cardeal**
+```
+Portrait 5:8 aspect ratio, exactly 1000x1600 pixels. Game asset: a single sealed collectible card booster pack standing upright, front view, centered with about 6% margin, on a flat solid mid-gray background (RGB 125,125,125). Foil wrapper with crimped, zig-zag sealed edges at the top and bottom, slight foil sheen and a couple of soft creases, a thin gold border line, a large central emblem. Painterly medieval-fantasy style matching the attached reference. No text, no letters, no watermark, no shadow on the background. Colors and emblem: cream-white and gold wrapper, a radiant golden cross with a dove.
+```
+
+**E2 · Booster Capitão**
+```
+Portrait 5:8 aspect ratio, exactly 1000x1600 pixels. Game asset: a single sealed collectible card booster pack standing upright, front view, centered with about 6% margin, on a flat solid mid-gray background (RGB 125,125,125). Foil wrapper with crimped, zig-zag sealed edges at the top and bottom, slight foil sheen and a couple of soft creases, a thin gold border line, a large central emblem. Painterly medieval-fantasy style matching the attached reference. No text, no letters, no watermark, no shadow on the background. Colors and emblem: deep crimson and steel-gray wrapper, a rampant golden lion.
+```
+
+</details>
+
 
 ---
 
