@@ -1248,6 +1248,34 @@ Portrait 5:8 aspect ratio, exactly 1000x1600 pixels. Game asset: a single sealed
 
 ---
 
+## 4v. Moeda de cara ou coroa (pendente)
+
+**Status:** pendente. Hoje `CoinFace` (em `src/App.tsx`) desenha uma moeda provisória em código. Entregas: `coin-cara`,
+`coin-coroa` (faces, 1:1) e, opcional, `coin-edge` (a borda vista de lado, para o meio do giro). Gerar primeiro a Cara e
+anexá-la ao gerar a Coroa e a borda, para saírem com o mesmo aro, tamanho e posição. Fundo cinza RGB 125,125,125.
+
+<details>
+<summary>Prompts</summary>
+
+**Cara** → `coin-cara`
+```
+Square 1:1 aspect ratio, exactly 1024x1024 pixels. A single ancient gold coin seen perfectly straight-on (front view, no tilt, no perspective), perfectly circular and centered, filling about 86% of the canvas width, on a flat solid mid-gray background (RGB 125,125,125). Heavy polished gold with a worn, hand-struck look, a thick raised rim with a fine beaded border just inside it. Embossed in deep relief on the face: the left-facing profile bust of a stern armored crusader king wearing a plain crown-less helm with a short crest, a strong jaw and a short beard, drawn in noble medieval style, and along the bottom of the inner border the raised word CARA in a classic engraved serif font. Warm candlelight from the upper left: a soft highlight on the rim and on the raised parts of the relief, darker gold in the recesses, a subtle dark edge line around the rim. Painterly medieval-fantasy game-asset style of a premium collectible card game. No hands, no table, no shadow on the background, no glow, no extra text.
+```
+
+**Coroa** → `coin-coroa` (anexar a imagem da Cara)
+```
+Square 1:1 aspect ratio, exactly 1024x1024 pixels. The reverse side of the attached coin: the same gold coin, same size, same position, same thick raised rim with the same beaded border, same metal, lighting and worn hand-struck look, seen perfectly straight-on on a flat solid mid-gray background (RGB 125,125,125). Embossed in deep relief on this face: a large ornate royal crown with a cross on top, a band of small gems and fleur-de-lis points, centered in the coin, and along the bottom of the inner border the raised word COROA in the same engraved serif font as the attached coin. Painterly medieval-fantasy game-asset style of a premium collectible card game. No hands, no table, no shadow on the background, no glow, no extra text.
+```
+
+**Borda (opcional, para o meio do giro)** → `coin-edge` (anexar a Cara)
+```
+Wide 4:1 aspect ratio, exactly 1024x256 pixels. The edge of the attached gold coin seen from the side as a thin horizontal strip, centered on a flat solid mid-gray background (RGB 125,125,125): the coin is about 88% of the canvas width and about 9% of the canvas height, with slightly rounded ends, a fine vertical reeded (knurled) pattern along the edge, the same polished worn gold and the same warm light from above as the attached coin. No shadow, no glow, no text.
+```
+
+</details>
+
+---
+
 ## 3. Moldura Full Art (dourada) — referência de layout
 
 **Arquivo:** [`reference/full-art-frame-gold-v1.png`](./reference/full-art-frame-gold-v1.png)
