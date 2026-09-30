@@ -38,6 +38,10 @@ const writeLocal = (s: Session | null) => {
 };
 const localListeners = new Set<(s: Session | null) => void>();
 const emitLocal = (s: Session | null) => localListeners.forEach(cb => cb(s));
+// Listeners of the Supabase mode too, so a finished sign-in can be announced right away instead of
+// relying only on the library's own event (which could arrive late or, on some browsers, not at all).
+const remoteListeners = new Set<(s: Session | null) => void>();
+const announceRemote = async () => { const s = await getSession(); remoteListeners.forEach(cb => cb(s)); };
 
 export const getSession = async (): Promise<Session | null> => {
   if (authMode === 'local') return readLocal();
@@ -50,12 +54,13 @@ export const onSessionChange = (cb: (s: Session | null) => void): (() => void) =
   if (authMode === 'local') { localListeners.add(cb); return () => { localListeners.delete(cb); }; }
   let off = () => {};
   let cancelled = false;
+  remoteListeners.add(cb);
   client().then(c => {
     if (cancelled) return;
     const { data } = c.auth.onAuthStateChange((_event: string, session: any) => cb(session?.user ? fromUser(session.user) : null));
     off = () => data.subscription.unsubscribe();
   });
-  return () => { cancelled = true; off(); };
+  return () => { cancelled = true; remoteListeners.delete(cb); off(); };
 };
 
 // Friendly Portuguese text for the errors people actually hit.
@@ -85,10 +90,12 @@ export const signInEmail = async (email: string, password: string, mode: 'signin
   if (mode === 'signup') {
     const { data, error } = await c.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}${(import.meta as any).env?.BASE_URL ?? '/'}` } });
     if (error) throw error;
+    if (data.session) await announceRemote();
     return { needsConfirmation: !data.session };
   }
   const { error } = await c.auth.signInWithPassword({ email, password });
   if (error) throw error;
+  await announceRemote();
   return { needsConfirmation: false };
 };
 
@@ -99,8 +106,18 @@ export const signInGuest = async (): Promise<void> => {
     emitLocal(s);
     return;
   }
-  const { error } = await (await client()).auth.signInAnonymously();
+  const { data, error } = await (await client()).auth.signInAnonymously();
   if (error) throw error;
+  if (!data?.session) throw new Error('Anonymous sign-in returned no session');
+  await announceRemote();
+};
+
+// The server's own wording, shown in small print under the friendly message so a failure can be
+// diagnosed from a screenshot.
+export const authErrorDetail = (err: any): string => {
+  const m = String(err?.message ?? err ?? '').trim();
+  const code = err?.code || err?.status;
+  return `${code ? `[${code}] ` : ''}${m}`.slice(0, 160);
 };
 
 export const signOut = async (): Promise<void> => {

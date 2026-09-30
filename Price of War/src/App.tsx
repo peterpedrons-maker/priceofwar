@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authMode, type Session } from './services/auth';
+import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authErrorDetail, authMode, type Session } from './services/auth';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate, type MotionValue } from 'motion/react';
 import { X, ArrowUp, ArrowDown } from 'lucide-react';
 import turnButtonFrameImage from './assets/button-frame.webp';
@@ -4231,14 +4231,15 @@ const authFieldClass = 'block w-full bg-transparent px-2 py-1.5 text-[14px] text
 const LoginScreen = () => {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [errorDetail, setErrorDetail] = useState('');
   const [note, setNote] = useState('');
   const [emailOpen, setEmailOpen] = useState(false);
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const run = async (key: string, fn: () => Promise<void>) => {
-    setError(''); setNote(''); setBusy(key);
-    try { await fn(); } catch (e) { setError(authErrorText(e)); } finally { setBusy(null); }
+    setError(''); setErrorDetail(''); setNote(''); setBusy(key);
+    try { await fn(); } catch (e) { console.error('auth error', e); setError(authErrorText(e)); setErrorDetail(authErrorDetail(e)); } finally { setBusy(null); }
   };
   const submitEmail = () => run('email', async () => {
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) throw new Error('valid email');
@@ -4272,6 +4273,7 @@ const LoginScreen = () => {
               </div>
             )}
             {error && <p className="text-center text-[12px] text-[#f0a595]" style={{ fontFamily: "'PT Serif', serif" }}>{error}</p>}
+            {error && errorDetail && <p className="text-center text-[9.5px] leading-snug text-[#8d7f60] break-words" style={{ fontFamily: 'monospace' }}>{errorDetail}</p>}
             {note && <p className="text-center text-[12px] text-[#8fe0a4]" style={{ fontFamily: "'PT Serif', serif" }}>{note}</p>}
             <div className="flex items-center gap-2 px-2 pt-0.5"><div className="flex-1 h-px bg-[#d4af37]/30" /><span className="text-[10px] uppercase tracking-[0.2em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>ou</span><div className="flex-1 h-px bg-[#d4af37]/30" /></div>
             <AuthButton label="Jogar como convidado" busy={busy === 'guest'} onClick={() => run('guest', signInGuest)} />
