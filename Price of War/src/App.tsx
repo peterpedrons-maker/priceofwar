@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
+import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate } from 'motion/react';
 import { X, ArrowUp, ArrowDown } from 'lucide-react';
 import turnButtonFrameImage from './assets/button-frame.webp';
 import nodeCurrentImage from './assets/node-current.webp';
@@ -30,6 +30,13 @@ import menuCardOnlineImage from './assets/menu-card-online.webp';
 import menuCardEditarDeckImage from './assets/menu-card-editar-deck.webp';
 import menuCardLojaImage from './assets/menu-card-loja.webp';
 import uiFrameMenuCardImage from './assets/ui-frame-menu-card.webp';
+import shopShelfImage from './assets/shop-shelf.webp';
+import shopCounterImage from './assets/shop-counter.webp';
+import shopNpcGreetImage from './assets/shop-npc-greet.webp';
+import shopNpcShowImage from './assets/shop-npc-show.webp';
+import shopNpcHappyImage from './assets/shop-npc-happy.webp';
+import shopNpcSorryImage from './assets/shop-npc-sorry.webp';
+import boosterCardealImage from './assets/booster-cardeal.webp';
 import uiStatAtkImage from './assets/ui-stat-atk.webp';
 import uiStatHpImage from './assets/ui-stat-hp.webp';
 import uiLineHImage from './assets/ui-line-h.webp';
@@ -187,7 +194,7 @@ const ALL_PRELOAD_IMAGES: string[] = [
   recrutamentoSeletivoArt, recrutarVeteranosArt, tributoDeGuerraArt, chamadoAsArmasArt,
   recrutaDevotoArt, cavaleiroDaLuzFullArt, jorgeOLanceiroFullArt,
   menuCardDesafiosImage, menuCardOnlineImage, menuCardEditarDeckImage, menuCardLojaImage,
-  uiFrameMenuCardImage, uiStatAtkImage, uiStatHpImage, uiLineHImage, uiLineVImage, uiIconCardImage, uiEditorHeaderImage, uiEditorTabOnImage, uiEditorTabOffImage, uiWindowFrameImage, uiWindowTextureImage, uiPillCoroasImage, uiProfilePlateImage, uiIconButtonImage,
+  uiFrameMenuCardImage, shopShelfImage, shopCounterImage, shopNpcGreetImage, shopNpcShowImage, shopNpcHappyImage, shopNpcSorryImage, boosterCardealImage, uiStatAtkImage, uiStatHpImage, uiLineHImage, uiLineVImage, uiIconCardImage, uiEditorHeaderImage, uiEditorTabOnImage, uiEditorTabOffImage, uiWindowFrameImage, uiWindowTextureImage, uiPillCoroasImage, uiProfilePlateImage, uiIconButtonImage,
   uiIconConfigImage, uiIconTutoriaisImage, uiIconRankingImage, uiIconSomImage,
   uiIconCoroaImage, uiIconDesafiosImage, uiIconOnlineImage, uiIconEditarDeckImage,
   uiIconLojaImage, uiIconMaisImage,
@@ -3639,8 +3646,16 @@ const BOOSTERS: BoosterDef[] = [
 // Room for 50 boosters: 5 shelves of up to 10. A booster's slot is its index in BOOSTERS.
 const SHELF_ROWS = 5;
 const SHELF_COLS = 10;
-const SHELF_ZOOM = 2.4;
-const BOOSTER_ASPECT = 5 / 8;
+const BOOSTER_ASPECT = 512 / 882;
+// Every layer is a 9:16 canvas drawn to the same proportions, so they are all laid out inside one
+// "scene" box that covers the screen (like object-cover) and positioned in fractions of it.
+// Measured off shop-shelf: the shelving interior spans x 22%-79%, and the tops of the first five
+// planks (where boosters stand) sit at these fractions of the scene height.
+const SHELF_X0 = 168 / 768;
+const SHELF_X1 = 606 / 768;
+const SHELF_PLANKS = [432, 538, 643, 742, 850].map(y => y / 1376);
+const SHELF_OVERVIEW = 1.3;   // camera scale once the merchant is out of the way
+const SHELF_CLOSEUP = 2.6;    // and after "Aproximar"
 
 const NPC_LINES: Record<NpcMood, string> = {
   greet: 'Bem-vindo, viajante! Cartas novas para o seu baralho? Chegou na loja certa.',
@@ -3649,10 +3664,12 @@ const NPC_LINES: Record<NpcMood, string> = {
   sorry: 'Hmm... suas Coroas não são suficientes para este.',
 };
 
-// Real layer art goes here as it is delivered; anything left undefined keeps its placeholder.
-const SHOP_ART: { counter?: string; shelf?: string; npc: Partial<Record<NpcMood, string>>; boosters: Partial<Record<string, string>> } = {
-  npc: {},
-  boosters: {},
+// The layer art (art-prompts/README.md 4u). A booster without art yet (Capitão) draws a placeholder.
+const SHOP_ART: { counter: string; shelf: string; npc: Record<NpcMood, string>; boosters: Partial<Record<string, string>> } = {
+  counter: shopCounterImage,
+  shelf: shopShelfImage,
+  npc: { greet: shopNpcGreetImage, show: shopNpcShowImage, happy: shopNpcHappyImage, sorry: shopNpcSorryImage },
+  boosters: { cardeal: boosterCardealImage },
 };
 
 // Cheap cards are common, costly ones rarer; the last card of a pack is always a strong one.
@@ -3673,7 +3690,7 @@ const rollBooster = (def: BoosterDef): CardData[] => {
 
 const BoosterArt = ({ def }: { def: BoosterDef }) => {
   const src = SHOP_ART.boosters[def.id];
-  if (src) return <img src={src} alt={def.name} draggable={false} className="w-full h-full object-contain select-none pointer-events-none" />;
+  if (src) return <img src={src} alt={def.name} draggable={false} className="w-full h-full object-contain select-none pointer-events-none" style={{ filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.55))' }} />;
   return (
     <div className="w-full h-full rounded-[10%] relative overflow-hidden flex flex-col items-center justify-center" style={{ background: `linear-gradient(160deg, ${def.accent}, #2a1a0c 85%)`, boxShadow: 'inset 0 0 0 2px rgba(232,199,102,0.85), 0 2px 6px rgba(0,0,0,0.6)' }}>
       <div className="absolute inset-x-0 top-0 h-[8%] bg-black/35" />
@@ -3683,26 +3700,9 @@ const BoosterArt = ({ def }: { def: BoosterDef }) => {
   );
 };
 
-const NpcArt = ({ mood }: { mood: NpcMood }) => {
-  const src = SHOP_ART.npc[mood];
-  if (src) return <img src={src} alt="" draggable={false} className="w-full h-full object-contain object-bottom select-none pointer-events-none" />;
-  // Provisional merchant: a hooded figure whose eyes, mouth and arm change with the mood.
-  const mouth = mood === 'sorry' ? 'M84 112 Q100 104 116 112' : mood === 'greet' ? 'M84 108 Q100 120 116 108' : 'M82 106 Q100 126 118 106';
-  const brows = mood === 'sorry' ? ['M78 82 L92 87', 'M122 82 L108 87'] : ['M78 86 L92 84', 'M122 86 L108 84'];
-  return (
-    <svg viewBox="0 0 200 260" className="w-full h-full" preserveAspectRatio="xMidYMax meet">
-      <path d="M30 260 Q34 150 100 140 Q166 150 170 260 Z" fill="#5a2f1a" stroke="#c9a227" strokeWidth="2" />
-      <path d="M60 100 Q100 20 140 100 Q150 150 100 150 Q50 150 60 100 Z" fill="#3c2114" stroke="#c9a227" strokeWidth="2" />
-      <ellipse cx="100" cy="100" rx="34" ry="38" fill="#d9a877" />
-      <circle cx="87" cy="94" r="3.6" fill="#241208" /><circle cx="113" cy="94" r="3.6" fill="#241208" />
-      {brows.map((d, i) => <path key={i} d={d} stroke="#241208" strokeWidth="3" strokeLinecap="round" />)}
-      <path d={mouth} stroke="#7a3320" strokeWidth="3.5" strokeLinecap="round" fill={mood === 'happy' || mood === 'show' ? '#7a3320' : 'none'} />
-      {mood === 'show' && <path d="M150 190 L210 150" stroke="#5a2f1a" strokeWidth="26" strokeLinecap="round" />}
-      {mood === 'happy' && <><circle cx="76" cy="214" r="15" fill="#d9a877" /><circle cx="124" cy="214" r="15" fill="#d9a877" /></>}
-      <text x="100" y="250" textAnchor="middle" fontSize="9" fill="#e8c766" opacity="0.7" fontFamily="Cinzel, serif">ARTE PROVISÓRIA</text>
-    </svg>
-  );
-};
+const NpcArt = ({ mood }: { mood: NpcMood }) => (
+  <img src={SHOP_ART.npc[mood]} alt="" draggable={false} className="absolute inset-0 w-full h-full select-none pointer-events-none" />
+);
 
 const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n: number) => void; onClose: () => void }) => {
   const [phase, setPhase] = useState<ShopPhase>('front');
@@ -3719,9 +3719,28 @@ const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n:
   }, []);
 
   const stageW = Math.min(viewport.w, 480);
-  const shelfW = stageW * 0.92;
-  const shelfH = viewport.h * 0.56;
+  // Scene box = the 9:16 canvas scaled to cover the stage.
+  const sceneW = Math.max(stageW, viewport.h * 9 / 16);
+  const sceneH = sceneW * 16 / 9;
+  const panX = useMotionValue(0);
+  const panY = useMotionValue(0);
+  // How far the zoomed shelf can be dragged before its edge would show inside the screen.
+  const panLimitX = Math.max(0, (SHELF_CLOSEUP * sceneW - stageW) / 2);
+  const panLimitY = Math.max(0, (SHELF_CLOSEUP * sceneH - viewport.h) / 2);
   const layerEase = [0.4, 0, 0.2, 1] as const;
+  // Aproximar lands on the first shelf's left end, where the boosters start; leaving it recenters.
+  useEffect(() => {
+    if (zoomed && phase === 'shelf') {
+      const fx = SHELF_X0 + 0.15 * (SHELF_X1 - SHELF_X0);
+      const fy = SHELF_PLANKS[0];
+      const clamp = (v: number, lim: number) => Math.max(-lim, Math.min(lim, v));
+      motionAnimate(panX, clamp(-SHELF_CLOSEUP * (fx - 0.5) * sceneW, panLimitX), { duration: 0.5 });
+      motionAnimate(panY, clamp((0.32 - 0.5) * viewport.h - SHELF_CLOSEUP * (fy - 0.5) * sceneH, panLimitY), { duration: 0.5 });
+    } else if (phase !== 'shelf' || !zoomed) {
+      motionAnimate(panX, 0, { duration: 0.4 });
+      motionAnimate(panY, 0, { duration: 0.4 });
+    }
+  }, [zoomed, phase]);
   const dim = phase === 'detail' || phase === 'opening';
 
   const goShopping = () => {
@@ -3769,35 +3788,27 @@ const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n:
       className="fixed inset-0 z-[300] bg-black flex justify-center text-white overflow-hidden"
     >
       <div className="relative h-full w-full max-w-[480px] overflow-hidden">
-        {/* 1 · shelf wall + boosters (farthest) */}
-        <motion.div
-          className="absolute inset-0 z-10"
-          initial={false}
-          animate={phase === 'front'
-            ? { scale: 0.9, y: -viewport.h * 0.02, filter: 'brightness(0.75) blur(1.5px)' }
-            : { scale: 1, y: 0, filter: `brightness(${dim ? 0.3 : 1}) blur(0px)` }}
-          transition={{ duration: 0.9, ease: layerEase }}
-        >
-          {SHOP_ART.shelf
-            ? <img src={SHOP_ART.shelf} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none" />
-            : <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 50% 35%, #4a2e18 0%, #24140a 60%, #120a05 100%)' }} />}
+        {/* The scene: one 9:16 box covering the screen; every layer below is a full canvas in it */}
+        <div className="absolute left-1/2 top-1/2 pointer-events-none" style={{ width: sceneW, height: sceneH, transform: 'translate(-50%, -50%)' }}>
+          {/* 1 · shelf wall + boosters (farthest). Its own scale is the "camera": pulled back and
+              dim at the counter, pushed in for the shelf, further for Aproximar. */}
           <motion.div
-            className="absolute"
-            style={{ left: '4%', right: '4%', top: '14%', height: '56%', touchAction: 'none' }}
-            animate={{ scale: zoomed ? SHELF_ZOOM : 1 }}
-            transition={{ duration: 0.5, ease: layerEase }}
+            className="absolute inset-0 pointer-events-auto"
+            style={{ x: panX, y: panY, touchAction: 'none' }}
+            initial={false}
+            animate={phase === 'front'
+              ? { scale: 1, filter: 'brightness(0.72) blur(1.5px)' }
+              : { scale: zoomed ? SHELF_CLOSEUP : SHELF_OVERVIEW, filter: `brightness(${dim ? 0.3 : 1}) blur(0px)` }}
+            transition={{ duration: 0.9, ease: layerEase }}
             drag={phase === 'shelf' && zoomed}
-            dragConstraints={{ left: -(SHELF_ZOOM - 1) * shelfW / 2, right: (SHELF_ZOOM - 1) * shelfW / 2, top: -(SHELF_ZOOM - 1) * shelfH / 2, bottom: (SHELF_ZOOM - 1) * shelfH / 2 }}
-            dragElastic={0.1}
+            dragConstraints={{ left: -panLimitX, right: panLimitX, top: -panLimitY, bottom: panLimitY }}
+            dragElastic={0.08}
           >
-            {Array.from({ length: SHELF_ROWS }).map((_, r) => (
-              <div key={r} className="absolute inset-x-0" style={{ top: `${r * 20}%`, height: '20%' }}>
-                {!SHOP_ART.shelf && <div className="absolute inset-x-0 bottom-0 h-[9%] rounded-sm" style={{ background: 'linear-gradient(to bottom, #8a5a30, #4a2c14)', boxShadow: '0 3px 6px rgba(0,0,0,0.6)' }} />}
-              </div>
-            ))}
+            <img src={SHOP_ART.shelf} alt="" draggable={false} className="absolute inset-0 w-full h-full select-none pointer-events-none" />
             {BOOSTERS.map((def, i) => {
               const row = Math.floor(i / SHELF_COLS);
               const col = i % SHELF_COLS;
+              const hidden = selected?.def.id === def.id && phase !== 'shelf';
               return (
                 <motion.button
                   key={def.id}
@@ -3806,46 +3817,48 @@ const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n:
                   onTap={() => { if (phase === 'shelf') { playUiClickSfx(); pickBooster(def); } }}
                   whileHover={{ y: -3 }}
                   className="absolute"
-                  style={{ left: `${((col + 0.5) / SHELF_COLS) * 100}%`, top: `${row * 20 + 20 * 0.09}%`, width: `${100 / SHELF_COLS * 0.82}%`, aspectRatio: `${BOOSTER_ASPECT}`, x: '-50%', opacity: selected?.def.id === def.id && phase !== 'shelf' ? 0 : 1, pointerEvents: phase === 'shelf' ? 'auto' : 'none' }}
+                  style={{
+                    left: `${(SHELF_X0 + ((col + 0.5) / SHELF_COLS) * (SHELF_X1 - SHELF_X0)) * 100}%`,
+                    bottom: `${(1 - SHELF_PLANKS[row]) * 100 - 0.4}%`,
+                    width: `${((SHELF_X1 - SHELF_X0) / SHELF_COLS) * 0.8 * 100}%`,
+                    aspectRatio: `${BOOSTER_ASPECT}`,
+                    x: '-50%',
+                    opacity: hidden ? 0 : 1,
+                    pointerEvents: phase === 'shelf' ? 'auto' : 'none',
+                  }}
                 >
                   <BoosterArt def={def} />
                 </motion.button>
               );
             })}
           </motion.div>
-        </motion.div>
 
-        {/* 2 · the merchant */}
-        <motion.div
-          className="absolute z-20 pointer-events-none"
-          style={{ left: '8%', right: '8%', bottom: '17%', height: '56%' }}
-          initial={false}
-          animate={phase === 'front' ? { opacity: 1, scale: 1, y: 0 } : { opacity: 0, scale: 1.4, y: -viewport.h * 0.05 }}
-          transition={{ duration: 0.8, ease: layerEase }}
-        >
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div key={mood} className="w-full h-full" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
-              <NpcArt mood={mood} />
-            </motion.div>
-          </AnimatePresence>
-        </motion.div>
+          {/* 2 · the merchant */}
+          <motion.div
+            className="absolute inset-0"
+            style={{ transformOrigin: '50% 45%' }}
+            initial={false}
+            animate={phase === 'front' ? { opacity: 1, scale: 1, y: 0 } : { opacity: 0, scale: 1.3, y: -sceneH * 0.04 }}
+            transition={{ duration: 0.8, ease: layerEase }}
+          >
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div key={mood} className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
+                <NpcArt mood={mood} />
+              </motion.div>
+            </AnimatePresence>
+          </motion.div>
 
-        {/* 3 · the counter (nearest) */}
-        <motion.div
-          className="absolute z-30 inset-x-0 bottom-0 pointer-events-none"
-          style={{ height: '24%' }}
-          initial={false}
-          animate={phase === 'front' ? { y: 0, opacity: 1 } : { y: '45%', opacity: 0 }}
-          transition={{ duration: 0.7, ease: layerEase }}
-        >
-          {SHOP_ART.counter
-            ? <img src={SHOP_ART.counter} alt="" draggable={false} className="w-full h-full object-cover object-top select-none" />
-            : (
-              <div className="w-full h-full relative" style={{ background: 'linear-gradient(to bottom, #9a6a3a 0%, #6a4222 12%, #3a2110 100%)', boxShadow: '0 -6px 14px rgba(0,0,0,0.6)' }}>
-                {[12, 22, 30, 74, 84].map((x, i) => <span key={i} className="absolute rounded-full" style={{ left: `${x}%`, top: `${20 + (i % 2) * 14}%`, width: 22, height: 22, background: 'radial-gradient(circle at 35% 30%, #ffe08a, #b98a1e)', boxShadow: '0 2px 3px rgba(0,0,0,0.6)' }} />)}
-              </div>
-            )}
-        </motion.div>
+          {/* 3 · the counter (nearest): drops away as the camera turns to the shelf */}
+          <motion.img
+            src={SHOP_ART.counter}
+            alt=""
+            draggable={false}
+            className="absolute inset-0 w-full h-full select-none"
+            initial={false}
+            animate={phase === 'front' ? { y: 0, opacity: 1 } : { y: sceneH * 0.32, opacity: 0 }}
+            transition={{ duration: 0.7, ease: layerEase }}
+          />
+        </div>
 
         {/* Talking at the counter */}
         <AnimatePresence>
@@ -3875,7 +3888,7 @@ const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n:
               <div className="flex items-center gap-2">
                 <WindowButton onClick={backToCounter}>Voltar</WindowButton>
                 <span className="flex-1 text-center text-[13px] uppercase tracking-[0.14em] text-[#f3e3c3]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700 }}>Prateleira</span>
-                <WindowButton onClick={() => setZoomed(z => !z)}>{zoomed ? 'Ver tudo' : 'Aproximar'}</WindowButton>
+                <WindowButton onClick={() => setZoomed(z => !z)}>{zoomed ? 'Afastar' : 'Aproximar'}</WindowButton>
               </div>
               <div className="flex justify-between text-[11px] text-[#e8c766]" style={{ fontFamily: "'PT Serif', serif" }}>
                 <span>{zoomed ? 'Arraste para mover a prateleira' : 'Toque num booster'}</span>

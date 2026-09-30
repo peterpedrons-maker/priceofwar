@@ -1184,8 +1184,7 @@ recorte com transparência gradual como em 4r. Prompts completos foram enviados 
 
 ## 4u. Loja de boosters — camadas da cena (pendente)
 
-**Status:** pendente. A tela já funciona com desenhos provisórios (`ShopScreen` em `src/App.tsx`); cada arte
-entregue entra no objeto `SHOP_ART` e substitui o provisório sem mexer no resto. Todas as camadas usam o
+**Status:** integrado, exceto o booster do Capitão (E2), que ainda usa um desenho provisório. Entregues e recortados: prateleira (com chão e laterais), balcão, vendedor em 4 poses e booster Cardeal, todos em `src/assets/shop-*.webp` / `booster-cardeal.webp`, registrados em `SHOP_ART` (`ShopScreen` em `src/App.tsx`). Todas as camadas usam o
 **mesmo canvas 9:16 (1024x1792)**, fundo cinza RGB 125,125,125 (recorto como nas outras) e a mesma luz/paleta
 da cena de referência (A). Arquivos: `shop-counter`, `shop-shelf` (opaca, sem recorte), `shop-npc-greet/show/happy/sorry`,
 `booster-cardeal`, `booster-capitao`.
