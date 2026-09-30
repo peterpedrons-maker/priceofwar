@@ -39,6 +39,8 @@ import shopNpcShowImage from './assets/shop-npc-show.webp';
 import shopNpcHappyImage from './assets/shop-npc-happy.webp';
 import shopNpcSorryImage from './assets/shop-npc-sorry.webp';
 import boosterCardealImage from './assets/booster-cardeal.webp';
+import coinCaraImage from './assets/coin-cara.webp';
+import coinCoroaImage from './assets/coin-coroa.webp';
 import uiStatAtkImage from './assets/ui-stat-atk.webp';
 import uiStatHpImage from './assets/ui-stat-hp.webp';
 import uiLineHImage from './assets/ui-line-h.webp';
@@ -4448,24 +4450,28 @@ const playCoinSfx = (kind: 'toss' | 'land') => {
   } catch { /* audio is optional */ }
 };
 
-// A provisional 2D gold coin (drawn in code until the real art exists). Cara = a knight's profile,
-// Coroa = the crown icon.
+// The coin: the two delivered faces (Cara / Coroa) set on either side of a stack of thin gold discs, so
+// when it spins edge-on it has real thickness instead of vanishing into a line.
+const COIN_THICK = 9;
 const CoinFace = ({ side }: { side: 'cara' | 'coroa' }) => (
-  <div
-    className="absolute inset-0 rounded-full flex flex-col items-center justify-center"
-    style={{
-      background: 'radial-gradient(circle at 35% 28%, #fff3bd 0%, #f0cf6e 30%, #c9962a 68%, #7a560f 100%)',
-      boxShadow: 'inset 0 0 0 4px #b98a1e, inset 0 0 0 7px #6b4a0c, inset 0 -6px 14px rgba(0,0,0,0.4), 0 6px 14px rgba(0,0,0,0.6)',
-      transform: side === 'coroa' ? 'rotateY(180deg)' : undefined,
-      backfaceVisibility: 'hidden',
-      WebkitBackfaceVisibility: 'hidden',
-    }}
-  >
-    {side === 'coroa'
-      ? <img src={uiIconCoroaImage} alt="" draggable={false} className="w-[46%] h-[46%] object-contain select-none" style={{ filter: 'drop-shadow(0 1px 1px rgba(255,255,255,0.4)) sepia(0.3)' }} />
-      : <svg viewBox="0 0 48 48" className="w-[46%] h-[46%]" fill="#6b4a0c" stroke="#3d2a06" strokeWidth="1"><path d="M13 40V31C9 23 13 13 22 9c7-3 15 0 17 7l-3 2 4 6-4 3v13H13z" /><path d="M22 22h8" stroke="#f0cf6e" strokeWidth="2" fill="none" /></svg>}
-    <span className="mt-1 text-[11px] font-black tracking-[0.18em] text-[#4a3207]" style={{ fontFamily: "'Cinzel', serif" }}>{side === 'cara' ? 'CARA' : 'COROA'}</span>
-  </div>
+  <img
+    src={side === 'cara' ? coinCaraImage : coinCoroaImage}
+    alt=""
+    draggable={false}
+    className="absolute inset-0 w-full h-full select-none"
+    style={{ transform: side === 'cara' ? `translateZ(${COIN_THICK / 2}px)` : `rotateY(180deg) translateZ(${COIN_THICK / 2}px)`, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+  />
+);
+const CoinRim = () => (
+  <>
+    {Array.from({ length: 8 }).map((_, i) => (
+      <div
+        key={i}
+        className="absolute rounded-full"
+        style={{ inset: '3.2%', transform: `translateZ(${(i / 7 - 0.5) * (COIN_THICK - 1)}px)`, background: i % 2 ? 'linear-gradient(90deg, #a87820, #d6a93a 50%, #a87820)' : 'linear-gradient(90deg, #8f6416, #c2931f 50%, #8f6416)' }}
+      />
+    ))}
+  </>
 );
 
 // Before BATALHA: one player calls heads or tails, the coin is tossed, and whoever called it right
@@ -4490,7 +4496,7 @@ const CoinToss = ({ onResolved }: { onResolved: (first: 'player' | 'npc') => voi
   return (
     <motion.div className="fixed inset-0 z-[950] flex flex-col items-center justify-end pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
       {/* the coin hangs above the two Generals so it never overlaps them */}
-      <div className="absolute left-1/2" style={{ top: '19vh', width: 112, height: 112, perspective: 700, marginLeft: -56 }}>
+      <div className="absolute left-1/2" style={{ top: '19vh', width: 120, height: 120, perspective: 800, marginLeft: -60 }}>
         <motion.div
           className="absolute inset-0"
           style={{ transformStyle: 'preserve-3d' }}
@@ -4498,6 +4504,7 @@ const CoinToss = ({ onResolved }: { onResolved: (first: 'player' | 'npc') => voi
           animate={phase === 'choose' ? { y: [0, -6, 0], rotateY: 0, scale: 1 } : { y: [0, -110, 0, -14, 0], rotateY: finalTurns, scale: [1, 1.25, 1, 1, 1] }}
           transition={phase === 'choose' ? { duration: 2.2, repeat: Infinity, ease: 'easeInOut' } : { duration: 2.0, times: [0, 0.42, 0.82, 0.92, 1], ease: ['easeOut', 'easeIn', 'easeOut', 'easeIn'] }}
         >
+          <CoinRim />
           <CoinFace side="cara" />
           <CoinFace side="coroa" />
         </motion.div>

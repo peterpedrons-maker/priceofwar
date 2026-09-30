@@ -1250,7 +1250,7 @@ Portrait 5:8 aspect ratio, exactly 1000x1600 pixels. Game asset: a single sealed
 
 ## 4v. Moeda de cara ou coroa (pendente)
 
-**Status:** pendente. Hoje `CoinFace` (em `src/App.tsx`) desenha uma moeda provisória em código. Entregas: `coin-cara`,
+**Status:** entregue e integrado: `coin-cara.webp` e `coin-coroa.webp` (420x420, recortados com o mesmo enquadramento) em `CoinToss`; a espessura da moeda no giro é uma pilha de discos dourados feita em código, então a borda (`coin-edge`) não foi usada. Entregas pedidas: `coin-cara`,
 `coin-coroa` (faces, 1:1) e, opcional, `coin-edge` (a borda vista de lado, para o meio do giro). Gerar primeiro a Cara e
 anexá-la ao gerar a Coroa e a borda, para saírem com o mesmo aro, tamanho e posição. Fundo cinza RGB 125,125,125.
 
