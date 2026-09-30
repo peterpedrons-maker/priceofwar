@@ -3704,12 +3704,87 @@ const NpcArt = ({ mood }: { mood: NpcMood }) => (
   <img src={SHOP_ART.npc[mood]} alt="" draggable={false} className="absolute inset-0 w-full h-full select-none pointer-events-none" />
 );
 
+// The sealed pack with a tear line near the top: the player swipes a finger along it and the strip
+// peels away behind the fingertip. A plain tap tears it too. `onTorn` fires once it is open.
+const PACK_TEAR_Y = 12; // % of the pack's height where the tear line runs
+const PackTear = ({ def, width, height, onTorn }: { def: BoosterDef; width: number; height: number; onTorn: () => void }) => {
+  const tip = useMotionValue(0);
+  const [torn, setTorn] = useState(false);
+  const [touched, setTouched] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+  const startX = useRef(0);
+  const attachedClip = useTransform(tip, v => `inset(0 0 ${100 - PACK_TEAR_Y}% ${v * 100}%)`);
+  const tornClip = useTransform(tip, v => `inset(0 ${(1 - v) * 100}% ${100 - PACK_TEAR_Y}% 0)`);
+  const tornRotate = useTransform(tip, v => -v * 24);
+  const tornLift = useTransform(tip, v => -v * 10);
+  const tornOrigin = useTransform(tip, v => `${v * 100}% ${PACK_TEAR_Y}%`);
+  const tipLeft = useTransform(tip, v => `${v * 100}%`);
+  const finish = () => {
+    if (torn) return;
+    setTorn(true);
+    motionAnimate(tip, 1, { duration: 0.2 });
+    window.setTimeout(onTorn, 700);
+  };
+  const follow = (clientX: number) => {
+    const r = boxRef.current?.getBoundingClientRect();
+    if (!r || torn) return;
+    const t = Math.max(tip.get(), Math.min(1, (clientX - r.left) / r.width));
+    tip.set(t);
+    if (t >= 0.94) finish();
+  };
+  const piece = (extra: React.CSSProperties) => ({ position: 'absolute' as const, inset: 0, ...extra });
+  return (
+    <motion.div
+      ref={boxRef}
+      className="relative"
+      style={{ width, height }}
+      animate={torn ? { y: 70, opacity: 0, scale: 0.9 } : { y: 0, opacity: 1, scale: 1 }}
+      transition={torn ? { duration: 0.5, delay: 0.25 } : { duration: 0.2 }}
+    >
+      <div style={{ ...piece({ clipPath: `inset(${PACK_TEAR_Y}% 0 0 0)` }), filter: 'drop-shadow(0 0 26px rgba(232,199,102,0.5))' }}><BoosterArt def={def} /></div>
+      <motion.div style={{ ...piece({}), clipPath: attachedClip }}><BoosterArt def={def} /></motion.div>
+      <motion.div style={{ ...piece({}), clipPath: tornClip, rotate: tornRotate, y: tornLift, transformOrigin: tornOrigin }}><BoosterArt def={def} /></motion.div>
+      {/* dashed tear line with a scissors mark, fading once the player has started */}
+      <motion.div className="absolute inset-x-[4%] pointer-events-none" style={{ top: `${PACK_TEAR_Y}%`, borderTop: '2.5px dashed rgba(70,40,10,0.85)' }} animate={{ opacity: touched ? 0.25 : 1 }} />
+      <span className="absolute pointer-events-none text-[18px]" style={{ left: '2%', top: `calc(${PACK_TEAR_Y}% - 14px)`, filter: 'drop-shadow(0 1px 1px rgba(255,255,255,0.8))' }}>✂</span>
+      {!touched && (
+        <motion.span
+          className="absolute pointer-events-none text-[22px] font-black text-[#fff1c9]"
+          style={{ top: `calc(${PACK_TEAR_Y}% - 15px)`, textShadow: '0 0 8px rgba(0,0,0,0.9)' }}
+          animate={{ left: ['8%', '84%'] }}
+          transition={{ duration: 1.3, repeat: Infinity, ease: 'easeInOut' }}
+        >➜</motion.span>
+      )}
+      {/* glowing fingertip on the tear */}
+      <motion.span className="absolute pointer-events-none rounded-full" style={{ left: tipLeft, top: `${PACK_TEAR_Y}%`, width: 16, height: 16, x: '-50%', y: '-50%', background: 'radial-gradient(circle, #fff6d0, rgba(255,214,102,0.0) 70%)', opacity: touched ? 1 : 0 }} />
+      {/* the swipe area: a generous strip over the tear line */}
+      {!torn && (
+        <div
+          className="absolute inset-x-[-6%]"
+          style={{ top: `calc(${PACK_TEAR_Y}% - 26px)`, height: 52, touchAction: 'none', cursor: 'grab' }}
+          onPointerDown={(e) => { dragging.current = true; startX.current = e.clientX; setTouched(true); e.currentTarget.setPointerCapture(e.pointerId); follow(e.clientX); }}
+          onPointerMove={(e) => { if (dragging.current) follow(e.clientX); }}
+          onPointerUp={(e) => {
+            dragging.current = false;
+            if (Math.abs(e.clientX - startX.current) < 8 && tip.get() < 0.2) { motionAnimate(tip, 1, { duration: 0.45, onUpdate: v => { if (v >= 0.94) finish(); } }); }
+          }}
+          aria-label="Rasgar o booster"
+        />
+      )}
+      {torn && (
+        <motion.div className="fixed inset-0 pointer-events-none z-10" style={{ background: 'radial-gradient(circle at 50% 45%, rgba(255,240,190,0.95), rgba(255,200,90,0.4) 35%, rgba(0,0,0,0) 65%)' }} initial={{ opacity: 0, scale: 0.4 }} animate={{ opacity: [0, 1, 0], scale: [0.4, 1.6, 2] }} transition={{ duration: 0.75, times: [0, 0.25, 1] }} />
+      )}
+    </motion.div>
+  );
+};
+
 const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n: number) => void; onClose: () => void }) => {
   const [phase, setPhase] = useState<ShopPhase>('front');
   const [mood, setMood] = useState<NpcMood>('greet');
   const [zoomed, setZoomed] = useState(false);
   const [selected, setSelected] = useState<{ def: BoosterDef; rect: { left: number; top: number; width: number; height: number } } | null>(null);
-  const [pull, setPull] = useState<{ cards: { card: CardData; isNew: boolean }[]; step: number; opened: boolean } | null>(null);
+  const [pull, setPull] = useState<{ cards: { card: CardData; isNew: boolean; strong: boolean }[]; step: number; phase: 'sealed' | 'stack' | 'summary' } | null>(null);
   const [viewport, setViewport] = useState({ w: window.innerWidth, h: window.innerHeight });
   const boosterEls = useRef<Record<string, HTMLElement | null>>({});
   useEffect(() => {
@@ -3760,14 +3835,17 @@ const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n:
     if (coroas < def.price) { setMood('sorry'); return; }
     onSpend(def.price);
     const store = loadDeckStore();
-    const cards = rollBooster(def).map(card => {
+    // Shown from the least to the most rare, so the best card is always the last one revealed.
+    const rarity = (c: CardData) => (c.isFullArt ? 10 : 0) + c.cost;
+    const rolled = rollBooster(def).sort((a, b) => rarity(a) - rarity(b));
+    const cards = rolled.map(card => {
       const isNew = (store.collection[card.name] ?? 0) === 0;
       store.collection[card.name] = (store.collection[card.name] ?? 0) + 1;
-      return { card, isNew };
+      return { card, isNew, strong: rarity(card) >= 4 };
     });
     saveDeckStore(store);
     setMood('happy');
-    setPull({ cards, step: 0, opened: false });
+    setPull({ cards, step: 0, phase: 'sealed' });
     setPhase('opening');
   };
   const finishOpening = () => { setPull(null); setSelected(null); setMood('show'); setPhase('shelf'); };
@@ -3929,50 +4007,65 @@ const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n:
           )}
         </AnimatePresence>
 
-        {/* Opening: dark backdrop, tap to tear the pack, then the cards one by one */}
+        {/* Opening: dark backdrop, swipe to tear the pack, then the cards come out stacked and the
+            player swipes each one aside to see the next (least rare first, best last). */}
         <AnimatePresence>
           {phase === 'opening' && pull && selected && (
             <motion.div key="opening" className="fixed inset-0 z-[500] flex flex-col items-center justify-center gap-6" style={{ background: 'radial-gradient(ellipse at 50% 45%, rgba(90,60,20,0.85), rgba(0,0,0,0.96) 70%)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              {!pull.opened ? (
+              {pull.phase === 'sealed' && (
                 <>
-                  <motion.button
-                    className="relative"
-                    style={{ width: detailW * 1.15, height: (detailW * 1.15) / BOOSTER_ASPECT, filter: 'drop-shadow(0 0 30px rgba(232,199,102,0.55))' }}
-                    animate={{ rotate: [-2, 2, -2], scale: [1, 1.03, 1] }}
-                    transition={{ duration: 1.4, repeat: Infinity }}
-                    onClick={() => { playUiClickSfx(); setPull({ ...pull, opened: true }); }}
-                    aria-label="Abrir booster"
-                  >
-                    <BoosterArt def={selected.def} />
-                  </motion.button>
-                  <span className="text-[13px] uppercase tracking-[0.2em] text-[#f3e3c3]" style={{ fontFamily: "'Cinzel', serif" }}>Toque para abrir</span>
+                  <PackTear def={selected.def} width={detailW * 1.2} height={(detailW * 1.2) / BOOSTER_ASPECT} onTorn={() => setPull(p => (p ? { ...p, phase: 'stack' } : p))} />
+                  <span className="text-[13px] uppercase tracking-[0.2em] text-[#f3e3c3] text-center px-6" style={{ fontFamily: "'Cinzel', serif" }}>Deslize o dedo sobre a linha para rasgar</span>
                 </>
-              ) : pull.step < pull.cards.length ? (
-                <button className="flex flex-col items-center gap-4" onClick={() => { playUiClickSfx(); setPull({ ...pull, step: pull.step + 1 }); }} aria-label="Próxima carta">
-                  <motion.div
-                    key={pull.step}
-                    className="relative"
-                    style={{ width: 224 * cardScale, height: 320 * cardScale, filter: 'drop-shadow(0 0 26px rgba(232,199,102,0.6))', perspective: 900 }}
-                    initial={{ rotateY: 90, scale: 0.6, opacity: 0 }}
-                    animate={{ rotateY: 0, scale: 1, opacity: 1 }}
-                    transition={{ type: 'spring', stiffness: 220, damping: 20 }}
-                  >
-                    <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: `scale(${cardScale})`, transformOrigin: 'top left' }}>
-                      <div className="relative w-full h-full rounded-xl"><CardFace card={pull.cards[pull.step].card} variant="hand" /></div>
-                    </div>
-                    {pull.cards[pull.step].isNew && (
-                      <span className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-[11px] font-black text-[#fff1c9] bg-[#b8402c] shadow-[0_0_0_2px_#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>NOVA!</span>
-                    )}
-                  </motion.div>
-                  <span className="text-[12px] uppercase tracking-[0.18em] text-[#cdbd97]" style={{ fontFamily: "'Cinzel', serif" }}>{pull.step + 1} de {pull.cards.length} · toque para continuar</span>
-                </button>
-              ) : (
-                <div className="flex flex-col items-center gap-4 px-3">
+              )}
+              {pull.phase === 'stack' && (
+                <div className="flex flex-col items-center gap-8">
+                  <div className="relative mb-14" style={{ width: 224 * cardScale, height: 320 * cardScale, perspective: 900 }}>
+                    {pull.cards.map(({ card, isNew, strong }, i) => {
+                      const r = i - pull.step;      // 0 = the card on top
+                      const seen = r < 0;
+                      return (
+                        <motion.div
+                          key={i}
+                          className="absolute inset-0"
+                          style={{ zIndex: seen ? i : 100 - r, touchAction: 'none', filter: `drop-shadow(0 0 ${strong ? 26 : 12}px rgba(232,199,102,${strong ? 0.85 : 0.4}))`, cursor: r === 0 ? 'grab' : 'default' }}
+                          initial={{ y: 160, scale: 0.4, opacity: 0, rotate: 0 }}
+                          animate={seen
+                            ? { x: 0, y: -18, scale: 0.78, opacity: 1, rotate: 0 }
+                            : { x: 0, y: r * 14, scale: 1 - r * 0.05, opacity: 1, rotate: r === 0 ? 0 : (i % 2 ? 1.5 : -1.5) }}
+                          transition={{ type: 'spring', stiffness: 260, damping: 26, delay: pull.step === 0 ? i * 0.07 : 0 }}
+                          drag={r === 0 ? 'x' : false}
+                          dragConstraints={{ left: 0, right: 0 }}
+                          dragElastic={0.9}
+                          onDragEnd={(_, info) => {
+                            if (Math.abs(info.offset.x) > 70 || Math.abs(info.velocity.x) > 500) {
+                              playUiClickSfx();
+                              const next = pull.step + 1;
+                              setPull({ ...pull, step: next });
+                              if (next >= pull.cards.length) window.setTimeout(() => setPull(p => (p ? { ...p, phase: 'summary' } : p)), 450);
+                            }
+                          }}
+                        >
+                          <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: `scale(${cardScale})`, transformOrigin: 'top left' }}>
+                            <div className="relative w-full h-full rounded-xl"><CardFace card={card} variant="hand" /></div>
+                          </div>
+                          {isNew && <span className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-[11px] font-black text-[#fff1c9] bg-[#b8402c] shadow-[0_0_0_2px_#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>NOVA!</span>}
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                  <span className="text-[12px] uppercase tracking-[0.18em] text-[#cdbd97] text-center px-6" style={{ fontFamily: "'Cinzel', serif" }}>
+                    {pull.step < pull.cards.length ? `Arraste a carta para o lado · ${pull.cards.length - pull.step} ${pull.cards.length - pull.step === 1 ? 'restante' : 'restantes'}` : ''}
+                  </span>
+                </div>
+              )}
+              {pull.phase === 'summary' && (
+                <div className="flex flex-col items-center gap-5 px-3">
                   <WindowTitle>Suas cartas</WindowTitle>
-                  <div className="flex flex-wrap justify-center gap-x-2 gap-y-3">
+                  <div className="flex flex-wrap justify-center gap-x-5 gap-y-6">
                     {pull.cards.map(({ card, isNew }, i) => (
-                      <motion.div key={i} className="relative" style={{ width: 224 * 0.44, height: 320 * 0.44 }} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
-                        <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: 'scale(0.44)', transformOrigin: 'top left' }}>
+                      <motion.div key={i} className="relative" style={{ width: 224 * 0.42, height: 320 * 0.42 }} initial={{ opacity: 0, y: 24, scale: 0.8 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: i * 0.09, type: 'spring', stiffness: 260, damping: 22 }}>
+                        <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: 'scale(0.42)', transformOrigin: 'top left' }}>
                           <div className="relative w-full h-full rounded-xl"><CardFace card={card} variant="hand" /></div>
                         </div>
                         {isNew && <span className="absolute -top-1 -right-1 px-1.5 rounded-full text-[8px] font-black text-[#fff1c9] bg-[#b8402c] shadow-[0_0_0_1.5px_#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>NOVA</span>}
