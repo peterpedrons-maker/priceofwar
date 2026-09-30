@@ -2294,8 +2294,8 @@ const DEFAULT_PROFILE: PlayerProfile = {
   coroas: 150,
   rank: 'Recruta I',
   nameSet: false,
-  level: 3,
-  xp: 35,
+  level: 1,
+  xp: 0,
   xpToNext: 100,
 };
 // Every read/write goes through these two — a private/blocked-storage browser
@@ -2307,6 +2307,8 @@ const loadProfile = (): PlayerProfile => {
     if (!raw) return { ...DEFAULT_PROFILE };
     const stored = { ...DEFAULT_PROFILE, ...JSON.parse(raw) };
     if (!AVATAR_OPTIONS.some(a => a.id === stored.avatarId)) stored.avatarId = DEFAULT_PROFILE.avatarId;
+    // Old builds started everyone at level 3 with some XP; nobody has earned any yet, so reset that.
+    if (stored.level === 3 && stored.xp === 35) { stored.level = 1; stored.xp = 0; }
     return stored;
   } catch {
     return { ...DEFAULT_PROFILE };
@@ -2564,6 +2566,9 @@ const AvatarPickerModal = ({ current, onSelect, onClose }: {
 // hud-gold-badge used on the board) specifically so the two are never confused.
 // Entirely local-storage-backed for now (see loadProfile/saveProfile) — no
 // account system yet, but the UI itself is the real thing already.
+// Renaming from the profile plate is switched off on purpose: a rename will come back later as a
+// regulated option (for example, paid in Coroas). The rename logic (MainMenu.renameProfile) stays.
+const ALLOW_PROFILE_RENAME = false;
 const ProfileBar = ({ profile, onChange, onRename, onOpenAvatarPicker, onOpenShop }: {
   profile: PlayerProfile;
   onChange: (patch: Partial<PlayerProfile>) => void;
@@ -2609,14 +2614,25 @@ const ProfileBar = ({ profile, onChange, onRename, onOpenAvatarPicker, onOpenSho
       <div className="flex items-center justify-between gap-2" style={{ ['--h' as any]: 'min(50px, calc((100cqw - 32px) / 7.131))' }}>
       <div className="relative shrink-0" style={{ width: 'calc(var(--h) * 3.8326)', aspectRatio: '1740 / 454', containerType: 'inline-size' }}>
         <img src={uiProfilePlateImage} alt="" draggable={false} className="absolute inset-0 w-full h-full select-none pointer-events-none" style={{ filter: 'drop-shadow(0 3px 4px rgba(0,0,0,0.55))' }} />
-        <button
-          onClick={() => { playUiClickSfx(); onOpenAvatarPicker(); }}
-          className="absolute"
-          style={{ left: '16.6%', top: '50%', width: '22cqw', height: '22cqw', transform: 'translate(-50%, -50%)' }}
-          aria-label="Escolher avatar"
-        >
-          <AvatarBadge avatarId={profile.avatarId} size="22cqw" bare />
-        </button>
+        {/* The avatar sits in the ring's recess (centre 16.6% / 50.7% of the plate) and is cut around
+            the level shield, so the shield always draws on top of it instead of being half covered. */}
+        <svg width="0" height="0" className="absolute" aria-hidden>
+          <defs>
+            <clipPath id="avatar-clip" clipPathUnits="objectBoundingBox">
+              <path clipRule="evenodd" d="M0 0H1V1H0Z M0.22818 0.69338 L0.26818 0.65157 L0.30636 0.69338 L0.30636 0.82230 L0.29455 0.92683 L0.26818 1.00348 L0.24182 0.92683 L0.22818 0.82230 Z" />
+            </clipPath>
+          </defs>
+        </svg>
+        <div className="absolute inset-0 pointer-events-none" style={{ clipPath: 'url(#avatar-clip)' }}>
+          <button
+            onClick={() => { playUiClickSfx(); onOpenAvatarPicker(); }}
+            className="absolute pointer-events-auto"
+            style={{ left: '16.6%', top: '50.7%', width: '22.2cqw', height: '22.2cqw', transform: 'translate(-50%, -50%)' }}
+            aria-label="Escolher avatar"
+          >
+            <AvatarBadge avatarId={profile.avatarId} size="22.2cqw" bare />
+          </button>
+        </div>
         <span
           className="absolute flex items-center justify-center font-black text-[#f8ecd0] leading-none"
           style={{ left: '26.8%', top: '82.3%', width: '6cqw', height: '6cqw', transform: 'translate(-50%, -50%)', fontFamily: "'Cinzel', serif", fontSize: '5cqw', textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}
@@ -2637,7 +2653,7 @@ const ProfileBar = ({ profile, onChange, onRename, onOpenAvatarPicker, onOpenSho
               style={{ fontFamily: "'Cinzel', serif", fontSize: '5.4cqw', lineHeight: 1.2 }}
             />
           ) : (
-            <button onClick={() => { playUiClickSfx(); startEditing(); }} className="flex items-center gap-[1cqw] min-w-0 text-left">
+            <button onClick={() => { if (!ALLOW_PROFILE_RENAME) return; playUiClickSfx(); startEditing(); }} className={`flex items-center gap-[1cqw] min-w-0 text-left ${ALLOW_PROFILE_RENAME ? '' : 'cursor-default'}`}>
               <span className="truncate font-bold text-[#f8ecd0]" style={{ fontFamily: "'Cinzel', serif", fontSize: '5.6cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>{profile.name}</span>
             </button>
           )}
@@ -2961,9 +2977,8 @@ const MainMenu = ({ onSelectMode, session }: { onSelectMode: (mode: string) => v
             onClose={() => setOnlineOpen(false)}
             onPick={(mode) => {
               setOnlineOpen(false);
-              setComingSoon(mode === 'casual'
-                ? { title: 'Online Casual', message: 'As partidas casuais contra outros jogadores ainda estão por vir.' }
-                : { title: 'Online Ranqueado', message: 'O sistema de partidas ranqueadas ainda está por vir.' });
+              if (mode === 'casual') { onSelectMode('OnlineCasual'); return; }
+              setComingSoon({ title: 'Online Ranqueado', message: 'O sistema de partidas ranqueadas ainda está por vir.' });
             }}
           />
         )}
@@ -4408,6 +4423,143 @@ const SettingsModal = ({ session, profileName, onClose }: { session: Session | n
   );
 };
 
+// Short metallic "ting" for the coin landing (Web Audio, no asset), shared audio context with the banners.
+const playCoinSfx = (kind: 'toss' | 'land') => {
+  try {
+    const AC = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AC) return;
+    bannerAudioCtx = bannerAudioCtx ?? new AC();
+    const ctx = bannerAudioCtx;
+    if (ctx.state === 'suspended') void ctx.resume();
+    const t0 = ctx.currentTime;
+    const notes = kind === 'toss' ? [[900, 0], [1350, 0.06]] : [[2100, 0], [2800, 0.05], [1400, 0.11]];
+    notes.forEach(([f, d]) => {
+      const o = ctx.createOscillator();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(f, t0 + d);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t0 + d);
+      g.gain.exponentialRampToValueAtTime(kind === 'toss' ? 0.12 : 0.2, t0 + d + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + (kind === 'toss' ? 0.25 : 0.7));
+      o.connect(g).connect(ctx.destination);
+      o.start(t0 + d);
+      o.stop(t0 + d + 0.8);
+    });
+  } catch { /* audio is optional */ }
+};
+
+// A provisional 2D gold coin (drawn in code until the real art exists). Cara = a knight's profile,
+// Coroa = the crown icon.
+const CoinFace = ({ side }: { side: 'cara' | 'coroa' }) => (
+  <div
+    className="absolute inset-0 rounded-full flex flex-col items-center justify-center"
+    style={{
+      background: 'radial-gradient(circle at 35% 28%, #fff3bd 0%, #f0cf6e 30%, #c9962a 68%, #7a560f 100%)',
+      boxShadow: 'inset 0 0 0 4px #b98a1e, inset 0 0 0 7px #6b4a0c, inset 0 -6px 14px rgba(0,0,0,0.4), 0 6px 14px rgba(0,0,0,0.6)',
+      transform: side === 'coroa' ? 'rotateY(180deg)' : undefined,
+      backfaceVisibility: 'hidden',
+      WebkitBackfaceVisibility: 'hidden',
+    }}
+  >
+    {side === 'coroa'
+      ? <img src={uiIconCoroaImage} alt="" draggable={false} className="w-[46%] h-[46%] object-contain select-none" style={{ filter: 'drop-shadow(0 1px 1px rgba(255,255,255,0.4)) sepia(0.3)' }} />
+      : <svg viewBox="0 0 48 48" className="w-[46%] h-[46%]" fill="#6b4a0c" stroke="#3d2a06" strokeWidth="1"><path d="M13 40V31C9 23 13 13 22 9c7-3 15 0 17 7l-3 2 4 6-4 3v13H13z" /><path d="M22 22h8" stroke="#f0cf6e" strokeWidth="2" fill="none" /></svg>}
+    <span className="mt-1 text-[11px] font-black tracking-[0.18em] text-[#4a3207]" style={{ fontFamily: "'Cinzel', serif" }}>{side === 'cara' ? 'CARA' : 'COROA'}</span>
+  </div>
+);
+
+// Before BATALHA: one player calls heads or tails, the coin is tossed, and whoever called it right
+// plays first. `onResolved` hands the winner back to the match intro.
+const CoinToss = ({ onResolved }: { onResolved: (first: 'player' | 'npc') => void; key?: React.Key }) => {
+  const [phase, setPhase] = useState<'choose' | 'flip' | 'result'>('choose');
+  const [choice, setChoice] = useState<'cara' | 'coroa' | null>(null);
+  const [result, setResult] = useState<'cara' | 'coroa'>('cara');
+  const timers = useRef<number[]>([]);
+  useEffect(() => () => { timers.current.forEach(clearTimeout); }, []);
+  const call = (c: 'cara' | 'coroa') => {
+    if (phase !== 'choose') return;
+    playUiClickSfx();
+    const r: 'cara' | 'coroa' = Math.random() < 0.5 ? 'cara' : 'coroa';
+    setChoice(c); setResult(r); setPhase('flip');
+    playCoinSfx('toss');
+    timers.current.push(window.setTimeout(() => { setPhase('result'); playCoinSfx('land'); }, 2100));
+    timers.current.push(window.setTimeout(() => onResolved(c === r ? 'player' : 'npc'), 3900));
+  };
+  const won = choice === result;
+  const finalTurns = 5 * 360 + (result === 'cara' ? 0 : 180);
+  return (
+    <motion.div className="fixed inset-0 z-[950] flex flex-col items-center justify-end pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+      {/* the coin hangs above the two Generals so it never overlaps them */}
+      <div className="absolute left-1/2" style={{ top: '19vh', width: 112, height: 112, perspective: 700, marginLeft: -56 }}>
+        <motion.div
+          className="absolute inset-0"
+          style={{ transformStyle: 'preserve-3d' }}
+          initial={{ y: 0, rotateY: 0, scale: 1 }}
+          animate={phase === 'choose' ? { y: [0, -6, 0], rotateY: 0, scale: 1 } : { y: [0, -110, 0, -14, 0], rotateY: finalTurns, scale: [1, 1.25, 1, 1, 1] }}
+          transition={phase === 'choose' ? { duration: 2.2, repeat: Infinity, ease: 'easeInOut' } : { duration: 2.0, times: [0, 0.42, 0.82, 0.92, 1], ease: ['easeOut', 'easeIn', 'easeOut', 'easeIn'] }}
+        >
+          <CoinFace side="cara" />
+          <CoinFace side="coroa" />
+        </motion.div>
+        <motion.div className="absolute left-1/2 -bottom-5 h-3 rounded-full bg-black/60 blur-md" style={{ x: '-50%' }} initial={{ width: 90 }} animate={phase === 'flip' ? { width: [90, 40, 90, 80, 90], opacity: [0.6, 0.25, 0.6, 0.5, 0.6] } : { width: 90 }} transition={{ duration: 2.0, times: [0, 0.42, 0.82, 0.92, 1] }} />
+      </div>
+      <div className="w-full max-w-[420px] px-5 flex flex-col items-center gap-3 pointer-events-auto" style={{ paddingBottom: 'calc(max(18px, env(safe-area-inset-bottom)) + 7vh)', minHeight: 200 }}>
+        {phase === 'choose' && (
+          <>
+            <span className="text-[17px] uppercase tracking-[0.14em] text-[#fff1c9]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, textShadow: '0 2px 6px rgba(0,0,0,0.9)' }}>Cara ou Coroa?</span>
+            <span className="text-[12px] text-[#dccfae] text-center" style={{ fontFamily: "'PT Serif', serif", textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>Quem acertar começa a partida.</span>
+            <div className="flex gap-4 mt-1">
+              <WindowButton primary onClick={() => call('cara')}>Cara</WindowButton>
+              <WindowButton primary onClick={() => call('coroa')}>Coroa</WindowButton>
+            </div>
+          </>
+        )}
+        {phase === 'flip' && (
+          <span className="text-[14px] uppercase tracking-[0.2em] text-[#dccfae]" style={{ fontFamily: "'Cinzel', serif", textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>Você escolheu {choice === 'cara' ? 'Cara' : 'Coroa'}…</span>
+        )}
+        {phase === 'result' && (
+          <motion.div className="flex flex-col items-center gap-1" initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}>
+            <span className="text-[13px] uppercase tracking-[0.2em] text-[#dccfae]" style={{ fontFamily: "'Cinzel', serif", textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>Deu {result === 'cara' ? 'Cara' : 'Coroa'}!</span>
+            <span className="text-[20px] uppercase tracking-[0.12em]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, color: won ? '#8fe0a4' : '#f0a595', textShadow: '0 2px 6px rgba(0,0,0,0.9)' }}>{won ? 'Você começa!' : 'O adversário começa!'}</span>
+          </motion.div>
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
+// "Procurando adversário" -> "Adversário encontrado" before the match loads. For now the opponent is the
+// AI; the same screen will front the real matchmaking queue.
+const MatchSearchOverlay = ({ onReady, onCancel }: { onReady: () => void; onCancel: () => void; key?: React.Key }) => {
+  const [found, setFound] = useState(false);
+  useEffect(() => {
+    const t1 = window.setTimeout(() => { setFound(true); playBannerSfx('turn'); }, 1800 + Math.random() * 1600);
+    return () => window.clearTimeout(t1);
+  }, []);
+  useEffect(() => {
+    if (!found) return;
+    const t = window.setTimeout(onReady, 1700);
+    return () => window.clearTimeout(t);
+  }, [found]);
+  return (
+    <motion.div className="fixed inset-0 z-[600] flex flex-col items-center justify-center gap-5 bg-black/85" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      {!found ? (
+        <>
+          <motion.div className="w-14 h-14 rounded-full border-4 border-[#d4af37]/30 border-t-[#e8c766]" animate={{ rotate: 360 }} transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }} />
+          <span className="text-[16px] uppercase tracking-[0.16em] text-[#fff1c9]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700 }}>Procurando adversário…</span>
+          <span className="text-[11px] text-[#a89a78] text-center px-8" style={{ fontFamily: "'PT Serif', serif" }}>Versão de teste: o adversário é controlado pela IA.</span>
+          <WindowButton onClick={onCancel}>Cancelar</WindowButton>
+        </>
+      ) : (
+        <motion.div className="flex flex-col items-center gap-2" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 20 }}>
+          <span className="text-[22px] uppercase tracking-[0.14em] text-[#8fe0a4]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>Adversário encontrado!</span>
+          <span className="text-[12px] uppercase tracking-[0.2em] text-[#dccfae]" style={{ fontFamily: "'Cinzel', serif" }}>A batalha está a caminho…</span>
+        </motion.div>
+      )}
+    </motion.div>
+  );
+};
+
 // Shown before the main menu so a cold load never drops the player straight into
 // gameplay with art still fetching mid-match. Two phases: a plain black screen
 // (minimum ~500ms) while just the start screen's own background + logo load, then
@@ -4507,6 +4659,9 @@ export default function App() {
   // Quick Match asks which deck to play before actually starting the match —
   // see DECKS above and the DeckPickerModal rendered in the !gameMode branch.
   const [deckPickerOpen, setDeckPickerOpen] = useState(false);
+  // Online Casual: which deck was chosen while the "searching for an opponent" screen is up.
+  const [deckPickerFor, setDeckPickerFor] = useState<'desafios' | 'casual'>('desafios');
+  const [searching, setSearching] = useState<DeckSelection | null>(null);
 
   // Duel background music: decoded once into a raw AudioBuffer and looped through
   // the Web Audio API — NOT a plain <audio loop> element. A looping <audio> element
@@ -5164,7 +5319,11 @@ export default function App() {
   // the declaration lands before either General has taken their place, not after —
   // and only once BATALHA has cleared do both shrink and fly down into their real
   // board slot ('descend'). null means no reveal is in progress.
-  const [matchIntroStage, setMatchIntroStage] = useState<null | 'panels' | 'battle' | 'descend'>(null);
+  const [matchIntroStage, setMatchIntroStage] = useState<null | 'panels' | 'coin' | 'battle' | 'descend'>(null);
+  // Who plays first, decided by the coin toss (the turn counter then advances after the SECOND player's turn).
+  const firstSideRef = useRef<'player' | 'npc'>('player');
+  // True from a lost toss until the opponent's first turn begins: blocks taps while the hands are dealt.
+  const [npcKickoffPending, setNpcKickoffPending] = useState(false);
   // Set true for the very first turn of a fresh match (see resetGame) so the normal
   // per-turn "Fase de Preparação" ribbon (see the turnNumber effect below) doesn't
   // fire immediately and race the VS reveal above — startMatchIntro calls
@@ -5195,38 +5354,34 @@ export default function App() {
       const id = window.setTimeout(fn, delay);
       matchIntroTimeoutsRef.current.push(id);
     };
-
-    // Same 500ms mobile viewport-settle window as the deck-draw comment below (the
-    // browser's URL bar collapsing right as a match starts nudges windowSize once,
-    // which the two big reveal portraits below are positioned from) — starting the
-    // reveal only once that's done means it never has to visibly re-glide to a
-    // corrected position mid-entrance.
+    // Same 500ms mobile viewport-settle window as the deck-draw comment below (the browser's URL bar
+    // collapsing right as a match starts nudges windowSize once, which the two big reveal portraits are
+    // positioned from) — starting the reveal only once that's done means it never has to re-glide.
     const INTRO_START = 550;
-    // Both Generals' art floats in from the sides and holds, frozen in that big
-    // reveal position, for a beat before the battle cry falls between them.
+    // Both Generals' art floats in from the sides and holds, frozen in that big reveal position...
     schedule(() => { setMatchIntroStage('panels'); playRevealGeneralSfx(); }, INTRO_START);
-    const BATTLE_START = INTRO_START + 900;
-    // "BATALHA" slams down between the two still-frozen portraits — the declaration
-    // lands BEFORE either General has taken their place on the board, not after (see
-    // matchIntroStage's own comment above for why this order reads better).
+    // ...and then the coin toss decides who plays first (CoinToss calls continueMatchIntro).
+    schedule(() => setMatchIntroStage('coin'), INTRO_START + 900);
+  };
+
+  // Everything after the toss: BATALHA, the Generals landing, both hands dealt, and — when the
+  // opponent won the toss — the opponent's first turn.
+  const continueMatchIntro = (first: 'player' | 'npc') => {
+    const schedule = (fn: () => void, delay: number) => {
+      const id = window.setTimeout(fn, delay);
+      matchIntroTimeoutsRef.current.push(id);
+    };
+    firstSideRef.current = first;
+    if (first === 'npc') setNpcKickoffPending(true);
+    const BATTLE_START = 250;
+    // "BATALHA" slams down between the two still-frozen portraits — the declaration lands BEFORE either
+    // General has taken their place on the board.
     schedule(() => { setMatchIntroStage('battle'); playBatalhaBannerSfx(); }, BATTLE_START);
-    // The actual "hits the ground" moment, mid-fall — see BATALHA_IMPACT_FRACTION
-    // and MatchIntroOverlay's own matching flash timing.
     schedule(() => playBatalhaImpactSfx(), BATTLE_START + Math.round(BATALHA_FALL_MS * BATALHA_IMPACT_FRACTION));
-    // Long enough for the fall (BATALHA_FALL_MS) to land and still leave a solid
-    // beat of the fully-assembled word holding on screen before it clears.
     const BATTLE_BANNER_MS = BATALHA_FALL_MS + 1500;
-    // Only once BATALHA has cleared do both Generals shrink and fly down into their
-    // real board slot. 750ms below is also this component's own descend-stage
-    // transition duration (see MatchIntroOverlay) — LAND fires right as that finishes.
     const DESCEND_START = BATTLE_START + BATTLE_BANNER_MS;
     schedule(() => setMatchIntroStage('descend'), DESCEND_START);
     const LAND = DESCEND_START + 750;
-    // Landing: the overlay's portraits hand off to the real board slot (same trick
-    // setFlyingCard(null) uses alongside placing its own card, see the hand-to-board
-    // flight above, so there's no frame where neither is rendered). Only once both
-    // Generals have actually arrived does the normal per-turn phase ribbon play (see
-    // suppressInitialPhaseBannerRef/the turnNumber effect).
     schedule(() => {
       setPlayerSlots(prev => { const next = [...prev]; next[12] = generalPlayerRef.current; return next; });
       setNpcSlots(prev => { const next = [...prev]; next[12] = generalNpcRef.current; return next; });
@@ -5234,13 +5389,12 @@ export default function App() {
       setIntroDescendTargets(null);
       setMatchIntroStage(null);
       suppressInitialPhaseBannerRef.current = false;
-      announcePhase('preparacao');
+      // Going first: the usual phase ribbon. Going second: the opponent opens once the hands are dealt.
+      if (first === 'player') announcePhase('preparacao');
     }, LAND);
 
-    // Kept comfortably past the 500ms viewport-settle window above (see
-    // viewportSettled) so the deck's on-screen position is already final, not still
-    // correcting itself, by the time the first card's flight measures it. Also well
-    // past LAND so dealing doesn't visibly race the Generals landing on the board.
+    // Kept comfortably past the viewport-settle window (see viewportSettled) so the deck's on-screen
+    // position is already final by the time the first card's flight measures it.
     const DEAL_START = LAND + 500;
     const DEAL_STEP = 820;
     for (let i = 0; i < 5; i++) {
@@ -5252,6 +5406,13 @@ export default function App() {
         setHand(prev => [...prev, newCard]);
       }, t);
       schedule(() => setNpcHand(prev => [...prev, drawFromNpcDeck()]), t + 400);
+    }
+    if (first === 'npc') {
+      schedule(() => {
+        setNpcKickoffPending(false);
+        announceTurnChange('npc');
+        setCurrentTurn('npc');
+      }, DEAL_START + 5 * DEAL_STEP + 900);
     }
   };
 
@@ -5271,6 +5432,8 @@ export default function App() {
     deckQueueRef.current = [];
     npcDeckQueueRef.current = [];
 
+    firstSideRef.current = 'player';
+    setNpcKickoffPending(false);
     setGameOverWinner(null);
     setCurrentTurn('player');
     setTurnNumber(1);
@@ -5337,7 +5500,7 @@ export default function App() {
       // phaseBanner state in the same tick (which just clobbers one before it can
       // ever render). Only for an actual handoff (turnNumber > 1) — the very first
       // turn of a match has no "other side just finished" to announce.
-      if (turnNumber > 1) {
+      if (turnNumber > 1 || firstSideRef.current === 'npc') {
         announceTurnChange('player');
         window.setTimeout(() => announcePhase('preparacao'), PHASE_BANNER_DURATION_MS);
       } else if (!suppressInitialPhaseBannerRef.current) {
@@ -5678,7 +5841,7 @@ export default function App() {
 
         setNpcVisiblePhase(null);
         setCurrentTurn('player');
-        setTurnNumber(prev => prev + 1);
+        if (firstSideRef.current === 'player') setTurnNumber(prev => prev + 1);
         setIsAnimating(false);
       };
       
@@ -5770,17 +5933,21 @@ export default function App() {
           // for now: pick a deck, then play as 'Quick Match' — the one game mode the
           // NPC's turn logic is actually wired to (see the gameMode === 'Quick Match'
           // check in the NPC turn effect).
-          if (mode === 'Campaign') setDeckPickerOpen(true);
+          if (mode === 'Campaign') { setDeckPickerFor('desafios'); setDeckPickerOpen(true); }
+          else if (mode === 'OnlineCasual') { setDeckPickerFor('casual'); setDeckPickerOpen(true); }
           else startGame(mode);
         }} />
         <AnimatePresence>
           {deckPickerOpen && (
             <DeckPickerModal
               store={loadDeckStore()}
-              onSelect={(sel) => { setDeckPickerOpen(false); startGame('Quick Match', sel); }}
+              onSelect={(sel) => { setDeckPickerOpen(false); if (deckPickerFor === 'casual') setSearching(sel); else startGame('Quick Match', sel); }}
               onClose={() => setDeckPickerOpen(false)}
             />
           )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {searching && <MatchSearchOverlay key="searching" onCancel={() => setSearching(null)} onReady={() => { const sel = searching; setSearching(null); startGame('Quick Match', sel); }} />}
         </AnimatePresence>
         <AnimatePresence>
           {installPromptKind && (
@@ -7715,6 +7882,7 @@ export default function App() {
               // itself happened in.
               setPlayerSlots(prev => applyEndOfTurnSwaps(grantAurelionBuff(prev, movedSlots)));
               announceTurnChange('npc');
+              if (firstSideRef.current === 'npc') setTurnNumber(prev => prev + 1);
               setCurrentTurn('npc');
             } else {
               const idx = activePhases.indexOf(turnPhase);
@@ -8808,7 +8976,7 @@ export default function App() {
           instead of racing it to the board. Sits above everything else on screen
           (z-[900]+). */}
       <AnimatePresence>
-        {(matchIntroStage === 'panels' || matchIntroStage === 'battle' || matchIntroStage === 'descend') && (() => {
+        {(matchIntroStage === 'panels' || matchIntroStage === 'coin' || matchIntroStage === 'battle' || matchIntroStage === 'descend') && (() => {
           const bigW = windowSize.width * 0.34;
           const bigH = bigW * (400 / 300);
           const bigTop = windowSize.height * 0.46 - bigH / 2;
@@ -8872,6 +9040,10 @@ export default function App() {
           );
         })()}
       </AnimatePresence>
+
+      <AnimatePresence>{matchIntroStage === 'coin' && <CoinToss key="coin-toss" onResolved={continueMatchIntro} />}</AnimatePresence>
+      {/* Nothing behind the intro can be tapped (the turn button used to be reachable through it). */}
+      {(npcKickoffPending || matchIntroStage !== null) && <div className="fixed inset-0 z-[700]" />}
 
       {/* Match-intro "VS" reveal, BATALHA stage — fires while both Generals are still
           frozen in their big reveal position (see startMatchIntro's BATTLE_START
