@@ -3709,12 +3709,13 @@ const NpcArt = ({ mood }: { mood: NpcMood }) => (
 
 // The sealed pack with a tear line near the top: the player swipes a finger along it and the strip
 // peels away behind the fingertip. A plain tap tears it too. `onTorn` fires once it is open.
-// Sparks thrown out of the opening when the pack bursts (fixed so every open looks alike).
-const SPARKS = Array.from({ length: 16 }, (_, i) => {
-  const a = (i / 16) * Math.PI * 2 + (i % 3) * 0.2;
-  const d = 90 + (i * 37) % 110;
-  return { x: Math.cos(a) * d, y: Math.sin(a) * d * 0.8 - 20, size: 3 + (i % 3) * 2, delay: (i % 5) * 0.03 };
-});
+// Sparks that drift up out of the opened pack (fixed so every open looks alike).
+const SPARKS = Array.from({ length: 12 }, (_, i) => ({
+  x: ((i * 53) % 100 - 50) * 1.3,
+  y: -(70 + (i * 41) % 120),
+  size: 2.5 + (i % 3) * 1.8,
+  delay: (i % 6) * 0.06,
+}));
 const PACK_TEAR_Y = 12; // % of the pack's height where the tear line runs
 const PackTear = ({ def, width, height, onTorn }: { def: BoosterDef; width: number; height: number; onTorn: () => void }) => {
   const tip = useMotionValue(0);
@@ -3732,7 +3733,7 @@ const PackTear = ({ def, width, height, onTorn }: { def: BoosterDef; width: numb
     if (torn) return;
     setTorn(true);
     motionAnimate(tip, 1, { duration: 0.2 });
-    window.setTimeout(onTorn, 950);
+    window.setTimeout(onTorn, 820);
   };
   const follow = (clientX: number) => {
     const r = boxRef.current?.getBoundingClientRect();
@@ -3748,23 +3749,25 @@ const PackTear = ({ def, width, height, onTorn }: { def: BoosterDef; width: numb
       className="relative"
       style={{ width, height }}
     >
-      {/* the body drops and dissolves; the lid flies up and away; a beam, rays, sparks and a
-          white-out cover the split so a single still image reads as a pack bursting open */}
-      <motion.div style={{ ...piece({ clipPath: `inset(${PACK_TEAR_Y}% 0 0 0)`, filter: 'drop-shadow(0 0 26px rgba(232,199,102,0.5))' }) }} animate={torn ? { y: 46, scale: 0.96, opacity: 0, filter: 'drop-shadow(0 0 40px rgba(255,236,170,1)) brightness(2.2)' } : { y: 0, scale: 1, opacity: 1 }} transition={torn ? { duration: 0.55, delay: 0.3, ease: 'easeIn' } : { duration: 0.2 }}><BoosterArt def={def} /></motion.div>
-      <motion.div style={piece({})} animate={torn ? { y: -120, x: -26, rotate: -18, opacity: 0 } : { y: 0, x: 0, rotate: 0, opacity: 1 }} transition={torn ? { duration: 0.6, delay: 0.05, ease: [0.2, 0.7, 0.3, 1] } : { duration: 0.2 }}>
-        <motion.div style={{ ...piece({ clipPath: `inset(0 0 ${100 - PACK_TEAR_Y}% 0)`, transformOrigin: `100% ${PACK_TEAR_Y}%` }), rotate: lidRotate }}><BoosterArt def={def} /></motion.div>
-      </motion.div>
+      {/* Once cut: the lid lifts off, light pours out of the opening (only from the pack itself),
+          then the pack fades as the first card takes its place. */}
+      <motion.div style={{ ...piece({ clipPath: `inset(${PACK_TEAR_Y}% 0 0 0)`, filter: 'drop-shadow(0 0 26px rgba(232,199,102,0.5))' }) }} animate={torn ? { opacity: [1, 1, 0], filter: ['drop-shadow(0 0 26px rgba(232,199,102,0.5)) brightness(1)', 'drop-shadow(0 0 26px rgba(232,199,102,0.7)) brightness(1.35)', 'drop-shadow(0 0 30px rgba(255,230,150,0.9)) brightness(1.6)'] } : { opacity: 1 }} transition={torn ? { duration: 1.0, times: [0, 0.6, 1], ease: 'easeInOut' } : { duration: 0.2 }}><BoosterArt def={def} /></motion.div>
       {torn && (
         <>
-          <motion.div className="absolute pointer-events-none" style={{ left: '2%', right: '2%', top: `${PACK_TEAR_Y}%`, height: '150%', transformOrigin: '50% 0%', mixBlendMode: 'screen', background: 'linear-gradient(to bottom, rgba(255,240,190,1), rgba(255,214,102,0.55) 35%, rgba(255,190,80,0) 100%)', clipPath: 'polygon(0 0, 100% 0, 118% 100%, -18% 100%)' }} initial={{ scaleY: 0, opacity: 0 }} animate={{ scaleY: 1, opacity: [0, 1, 0.9] }} transition={{ duration: 0.5, ease: 'easeOut' }} />
-          <motion.div className="absolute pointer-events-none rounded-full" style={{ left: '50%', top: `${PACK_TEAR_Y}%`, width: '290%', aspectRatio: '1', x: '-50%', y: '-50%', mixBlendMode: 'screen', background: 'repeating-conic-gradient(from 0deg, rgba(255,232,150,0.75) 0deg 5deg, rgba(255,232,150,0) 5deg 16deg)', WebkitMaskImage: 'radial-gradient(circle, #000 0%, rgba(0,0,0,0.6) 30%, transparent 62%)', maskImage: 'radial-gradient(circle, #000 0%, rgba(0,0,0,0.6) 30%, transparent 62%)' }} initial={{ opacity: 0, scale: 0.3, rotate: 0 }} animate={{ opacity: [0, 1, 0.7, 0], scale: [0.3, 1, 1.15, 1.3], rotate: 50 }} transition={{ duration: 1.1, times: [0, 0.25, 0.7, 1], ease: 'easeOut' }} />
+          {/* glow pooling inside the opening */}
+          <motion.div className="absolute pointer-events-none" style={{ left: '-10%', right: '-10%', top: `${PACK_TEAR_Y - 22}%`, height: '44%', mixBlendMode: 'screen', background: 'radial-gradient(ellipse at 50% 50%, rgba(255,240,190,0.95) 0%, rgba(255,214,102,0.55) 40%, rgba(255,190,80,0) 72%)' }} initial={{ opacity: 0, scaleX: 0.5 }} animate={{ opacity: [0, 1, 1, 0.5], scaleX: [0.5, 1, 1.05, 1] }} transition={{ duration: 1.0, times: [0, 0.3, 0.7, 1] }} />
+          {/* the column of light rising straight up out of the pack, as wide as the pack */}
+          <motion.div className="absolute pointer-events-none" style={{ left: '5%', right: '5%', bottom: `${100 - PACK_TEAR_Y}%`, height: '95%', transformOrigin: '50% 100%', mixBlendMode: 'screen', background: 'linear-gradient(to top, rgba(255,244,200,0.98) 0%, rgba(255,222,120,0.7) 30%, rgba(255,200,90,0.28) 65%, rgba(255,190,80,0) 100%)', WebkitMaskImage: 'linear-gradient(to right, transparent 0%, #000 28%, #000 72%, transparent 100%)', maskImage: 'linear-gradient(to right, transparent 0%, #000 28%, #000 72%, transparent 100%)' }} initial={{ scaleY: 0, opacity: 0 }} animate={{ scaleY: [0, 1, 1], opacity: [0, 1, 0.85] }} transition={{ duration: 0.9, times: [0, 0.45, 1], ease: 'easeOut' }} />
+          {/* a hot seam right along the cut */}
+          <motion.div className="absolute pointer-events-none rounded-full" style={{ left: '1%', right: '1%', top: `${PACK_TEAR_Y}%`, y: '-50%', background: 'linear-gradient(to right, rgba(255,240,190,0), #fff6d6 15%, #fff6d6 85%, rgba(255,240,190,0))', boxShadow: '0 0 18px 6px rgba(255,214,102,0.9)' }} initial={{ height: 4, opacity: 0 }} animate={{ height: [4, 12, 8], opacity: [0, 1, 1] }} transition={{ duration: 0.5 }} />
           {SPARKS.map((sp, i) => (
-            <motion.span key={i} className="absolute pointer-events-none rounded-full" style={{ left: '50%', top: `${PACK_TEAR_Y}%`, width: sp.size, height: sp.size, background: '#fff3c4', boxShadow: '0 0 8px 2px rgba(255,214,102,0.95)' }} initial={{ x: 0, y: 0, opacity: 0, scale: 1 }} animate={{ x: sp.x, y: sp.y, opacity: [0, 1, 0], scale: [1, 1.2, 0.2] }} transition={{ duration: 0.9, delay: 0.1 + sp.delay, ease: 'easeOut' }} />
+            <motion.span key={i} className="absolute pointer-events-none rounded-full" style={{ left: `${50 + sp.x / 3}%`, top: `${PACK_TEAR_Y}%`, width: sp.size, height: sp.size, background: '#fff3c4', boxShadow: '0 0 7px 2px rgba(255,214,102,0.95)' }} initial={{ y: 0, opacity: 0 }} animate={{ y: sp.y, x: sp.x * 0.4, opacity: [0, 1, 0] }} transition={{ duration: 1.0, delay: 0.2 + sp.delay, ease: 'easeOut' }} />
           ))}
         </>
       )}
-      {/* light spilling from inside along the part of the cut that is already open */}
-      <motion.div className="absolute left-0 pointer-events-none" style={{ top: `${PACK_TEAR_Y}%`, height: 7, width: glowWidth, y: '-50%', background: 'linear-gradient(to right, rgba(255,240,190,0.95), rgba(255,214,102,0.9))', boxShadow: '0 0 12px 3px rgba(255,214,102,0.8)', borderRadius: 3 }} />
+      <motion.div style={piece({})} animate={torn ? { y: -70, x: -24, rotate: -20, opacity: 0 } : { y: 0, x: 0, rotate: 0, opacity: 1 }} transition={torn ? { duration: 0.55, delay: 0.05, ease: [0.2, 0.7, 0.3, 1] } : { duration: 0.2 }}>
+        <motion.div style={{ ...piece({ clipPath: `inset(0 0 ${100 - PACK_TEAR_Y}% 0)`, transformOrigin: `100% ${PACK_TEAR_Y}%` }), rotate: lidRotate }}><BoosterArt def={def} /></motion.div>
+      </motion.div>
       {/* dashed tear line with a scissors mark, fading once the player has started */}
       <motion.div className="absolute inset-x-[4%] pointer-events-none" style={{ top: `${PACK_TEAR_Y}%`, borderTop: '2.5px dashed rgba(70,40,10,0.85)' }} animate={{ opacity: touched ? 0.25 : 1 }} />
       <span className="absolute pointer-events-none text-[18px]" style={{ left: '2%', top: `calc(${PACK_TEAR_Y}% - 14px)`, filter: 'drop-shadow(0 1px 1px rgba(255,255,255,0.8))' }}>✂</span>
@@ -3791,9 +3794,6 @@ const PackTear = ({ def, width, height, onTorn }: { def: BoosterDef; width: numb
           }}
           aria-label="Rasgar o booster"
         />
-      )}
-      {torn && (
-        <motion.div className="fixed inset-0 pointer-events-none z-10" style={{ background: 'radial-gradient(circle at 50% 42%, #fffbe6 0%, #ffe9a8 45%, #f6c65a 100%)' }} initial={{ opacity: 0 }} animate={{ opacity: [0, 0, 1] }} transition={{ duration: 0.95, times: [0, 0.45, 1], ease: 'easeIn' }} />
       )}
     </motion.div>
   );
@@ -4048,7 +4048,6 @@ const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n:
               )}
               {pull.phase === 'stack' && (
                 <div className="flex flex-col items-center gap-8">
-                  <motion.div key="burstflash" className="fixed inset-0 pointer-events-none z-20" style={{ background: 'radial-gradient(circle at 50% 42%, #fffbe6 0%, #ffe9a8 45%, #f6c65a 100%)' }} initial={{ opacity: 1 }} animate={{ opacity: 0 }} transition={{ duration: 0.8, ease: 'easeOut' }} />
                   <div className="relative mb-14" style={{ width: 224 * cardScale, height: 320 * cardScale, perspective: 900 }}>
                     {pull.cards.map(({ card, isNew, strong }, i) => {
                       const r = i - pull.step;      // 0 = the card on top
