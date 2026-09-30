@@ -3016,7 +3016,6 @@ const CARD_TYPE_ORDER: CardType[] = ['Infantaria', 'Cavalaria', 'Arqueiro', 'Art
 type DeckSide = 'deck' | 'reserve';
 type EditorSort = 'custo' | 'nome' | 'tipo';
 const EDITOR_SORTS: EditorSort[] = ['custo', 'nome', 'tipo'];
-const DECK_VIEW_KEY = 'pow_deck_view_v1';
 const EDITOR_MARGIN = 5;
 const EDITOR_FRAME = 18;
 const EDITOR_PAD = 6;
@@ -3038,14 +3037,11 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
   const [typeFilter, setTypeFilter] = useState<CardType | 'todas'>('todas');
   const [sort, setSort] = useState<EditorSort>('custo');
   const [query, setQuery] = useState('');
-  // List is the default (fast to scan with hundreds of cards); the card grid is an option.
-  const [view, setView] = useState<'lista' | 'cartas'>(() => {
-    try { return localStorage.getItem(DECK_VIEW_KEY) === 'cartas' ? 'cartas' : 'lista'; } catch { return 'lista'; }
-  });
-  const changeView = (v: 'lista' | 'cartas') => {
-    setView(v);
-    try { localStorage.setItem(DECK_VIEW_KEY, v); } catch { /* preference only */ }
-  };
+  // The editor always opens on the card grid, 4 per row (16 on screen): cards are what the player
+  // wants to see first. List view and the card size are one tap away.
+  const [view, setView] = useState<'lista' | 'cartas'>('cartas');
+  const changeView = (v: 'lista' | 'cartas') => setView(v);
+  const [gridCols, setGridCols] = useState<3 | 4 | 5>(4);
   const [picked, setPicked] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   const [confirm, setConfirm] = useState<{ title: string; message: string; run: () => void } | null>(null);
@@ -3163,8 +3159,6 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
 
   const cellGap = 6;
   const gridW = Math.min(viewW, 480) - 2 * (EDITOR_MARGIN + EDITOR_FRAME + EDITOR_PAD) - 12; // outer margin, screen frame, inner padding, grid padding
-  // Test hook: localStorage pow_deck_cols = 3 | 4 | 5 cards per row (default 3).
-  const gridCols = (() => { try { const n = Number(localStorage.getItem('pow_deck_cols')); return n === 4 || n === 5 ? n : 3; } catch { return 3; } })();
   const cellW = Math.floor((gridW - cellGap * (gridCols - 1)) / gridCols);
   // The card art's wings stick out a bit past its 224x320 box, so it is drawn slightly smaller
   // than the cell to keep the silhouette inside it.
@@ -3287,7 +3281,7 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
             />
           </ThinFrame>
           <div className="flex gap-1 shrink-0">
-            {([['lista', 'Ver em lista'], ['cartas', 'Ver em cartas']] as const).map(([id, label]) => (
+            {([['cartas', 'Ver em cartas'], ['lista', 'Ver em lista']] as const).map(([id, label]) => (
               <button key={id} aria-label={label} title={label} onClick={() => { if (view !== id) { playUiClickSfx(); changeView(id); } }} className="relative w-[38px] flex items-center justify-center active:scale-95 transition">
                 <ArtFrame src={view === id ? uiEditorTabOnImage : uiEditorTabOffImage} slice={[44, 44, 44, 44]} width={[11, 11, 11, 11]} className="absolute inset-0" style={{ background: view === id ? 'rgba(96,68,16,0.6)' : 'rgba(0,0,0,0.4)' }} />
                 {id === 'lista' ? (
@@ -3301,6 +3295,23 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
               </button>
             ))}
           </div>
+          {view === 'cartas' && (
+            // One tap steps through the card sizes: big (3 per row) -> medium (4) -> small (5)
+            <button
+              aria-label="Tamanho das cartas"
+              title="Tamanho das cartas"
+              onClick={() => { playUiClickSfx(); const next = gridCols === 3 ? 4 : gridCols === 4 ? 5 : 3; setGridCols(next); showToast(`Cartas ${next === 3 ? 'grandes' : next === 4 ? 'médias' : 'pequenas'}`); }}
+              className="relative shrink-0 w-[38px] flex items-center justify-center active:scale-95 transition"
+            >
+              <ArtFrame src={uiEditorTabOffImage} slice={[44, 44, 44, 44]} width={[11, 11, 11, 11]} className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.4)' }} />
+              <svg viewBox="0 0 24 24" className="relative" width="22" height="22" fill="#e8c766">
+                {Array.from({ length: gridCols === 3 ? 9 : gridCols === 4 ? 12 : 15 }).map((_, i) => {
+                  const rows = 3, c = gridCols, gap = 1.4, cw = (20 - gap * (c - 1)) / c, ch = (20 - gap * (rows - 1)) / rows;
+                  return <rect key={i} x={2 + (i % c) * (cw + gap)} y={2 + Math.floor(i / c) * (ch + gap)} width={cw} height={ch} rx="0.8" />;
+                })}
+              </svg>
+            </button>
+          )}
           <button onClick={() => { playUiClickSfx(); setDraft({ type: typeFilter, sort }); setFilterOpen(true); }} className="relative shrink-0 active:scale-95 transition">
             <ThinFrame px={11} style={{ background: filterCount > 0 ? 'rgba(122,90,22,0.55)' : 'rgba(20,13,6,0.45)' }}>
               <span className="block px-2 py-1 text-xs uppercase tracking-[0.1em] text-[#f0e0bb]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>Filtros</span>
