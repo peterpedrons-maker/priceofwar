@@ -1491,6 +1491,10 @@ const FULL_ART_PLATE_VARIANTS = {
   popup: { type: 'text-[8px] md:text-[9px]',          effect: 'text-[8px] md:text-[9px]' },
 } as const;
 
+// Measured on real renders: a Full Art card's outer silhouette (frame + wings) comes out ~6% smaller
+// than a Padrão one in the same 224x320 slot (239x352 vs 254x376 px), so every Full Art face is scaled
+// up by this much around the card's centre and they all read as the same size side by side.
+const FULL_ART_SIZE_FIX = 1.065;
 const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof typeof CARD_FACE_VARIANTS }) => {
   const v = CARD_FACE_VARIANTS[variant];
   const pv = FULL_ART_PLATE_VARIANTS[variant];
@@ -1509,7 +1513,7 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
     // border touch the true edges, exactly like the Padrão frame does. Every
     // child below keeps the plain percentages already measured straight off the
     // frame image's own raw canvas — they don't change, only this wrapper does.
-    <div className="absolute pointer-events-none" style={{ ...cfg.wrapper }}>
+    <div className="absolute pointer-events-none" style={{ ...cfg.wrapper, transform: `scale(${FULL_ART_SIZE_FIX})`, transformOrigin: '50% 50%' }}>
       <div className="absolute overflow-hidden" style={{ ...cfg.art }}>
         {card.art ? (
           <img src={card.art} alt={card.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -2546,10 +2550,13 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
   // hence 1240 wide — value area to its right.
   return (
     <div
-      className="absolute top-0 inset-x-0 z-20 flex items-center justify-between gap-2 px-3 pb-3"
-      style={{ paddingTop: 'max(10px, env(safe-area-inset-top))', background: 'linear-gradient(to bottom, rgba(0,0,0,0.75), transparent)' }}
+      className="absolute top-0 inset-x-0 z-20 px-3 pb-3"
+      style={{ paddingTop: 'max(10px, env(safe-area-inset-top))', background: 'linear-gradient(to bottom, rgba(0,0,0,0.75), transparent)', containerType: 'inline-size' }}
     >
-      <div className="relative shrink-0" style={{ width: 'min(67%, 268px)', aspectRatio: '1740 / 454', containerType: 'inline-size' }}>
+      {/* Profile plate and Coroas pill share one height H (art aspect ratios 1740/454 and 1240/376),
+          the tallest that fits both side by side, capped at 50px. */}
+      <div className="flex items-center justify-between gap-2" style={{ ['--h' as any]: 'min(50px, calc((100cqw - 32px) / 7.131))' }}>
+      <div className="relative shrink-0" style={{ width: 'calc(var(--h) * 3.8326)', aspectRatio: '1740 / 454', containerType: 'inline-size' }}>
         <img src={uiProfilePlateImage} alt="" draggable={false} className="absolute inset-0 w-full h-full select-none pointer-events-none" style={{ filter: 'drop-shadow(0 3px 4px rgba(0,0,0,0.55))' }} />
         <button
           onClick={() => { playUiClickSfx(); onOpenAvatarPicker(); }}
@@ -2561,7 +2568,7 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
         </button>
         <span
           className="absolute flex items-center justify-center font-black text-[#f8ecd0] leading-none"
-          style={{ left: '26.8%', top: '82.3%', width: '6cqw', height: '6cqw', transform: 'translate(-50%, -50%)', fontFamily: "'Cinzel', serif", fontSize: '4cqw', textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}
+          style={{ left: '26.8%', top: '82.3%', width: '6cqw', height: '6cqw', transform: 'translate(-50%, -50%)', fontFamily: "'Cinzel', serif", fontSize: '5cqw', textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}
         >
           {profile.level}
         </span>
@@ -2576,11 +2583,11 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
               maxLength={18}
               autoFocus
               className="bg-black/50 border border-[#e8c766]/70 rounded px-1 font-bold text-[#f3e3c3] w-[60%] outline-none"
-              style={{ fontFamily: "'Cinzel', serif", fontSize: '4cqw', lineHeight: 1.2 }}
+              style={{ fontFamily: "'Cinzel', serif", fontSize: '5.4cqw', lineHeight: 1.2 }}
             />
           ) : (
             <button onClick={() => { playUiClickSfx(); startEditing(); }} className="flex items-center gap-[1cqw] min-w-0 text-left">
-              <span className="truncate font-bold text-[#f8ecd0]" style={{ fontFamily: "'Cinzel', serif", fontSize: '4.2cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>{profile.name}</span>
+              <span className="truncate font-bold text-[#f8ecd0]" style={{ fontFamily: "'Cinzel', serif", fontSize: '5.6cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>{profile.name}</span>
             </button>
           )}
         </div>
@@ -2591,11 +2598,11 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
         </div>
       </div>
 
-      <div className="relative shrink-0" style={{ width: 'min(28%, 112px)', aspectRatio: '1240 / 376', containerType: 'inline-size' }}>
+      <div className="relative shrink-0" style={{ width: 'calc(var(--h) * 3.2979)', aspectRatio: '1240 / 376', containerType: 'inline-size' }}>
         <img src={uiPillCoroasImage} alt="" draggable={false} className="absolute inset-0 w-full h-full select-none pointer-events-none" />
         <img src={uiIconCoroaImage} alt="" draggable={false} className="absolute select-none pointer-events-none object-contain" style={{ left: '15%', top: '46.8%', width: '17cqw', height: '17cqw', transform: 'translate(-50%, -50%)', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }} />
         <div className="absolute flex items-center" style={{ left: '29%', right: '7%', top: '22%', bottom: '22%' }}>
-          <span className="flex-1 text-center font-black text-[#f8ecd0]" style={{ fontFamily: "'Cinzel', serif", fontSize: '11cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.85)' }}>{formatCoroas(profile.coroas)}</span>
+          <span className="flex-1 text-center font-black text-[#f8ecd0]" style={{ fontFamily: "'Cinzel', serif", fontSize: '10cqw', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.85)' }}>{formatCoroas(profile.coroas)}</span>
           <button
             onClick={() => { playUiClickSfx(); onOpenShop(); }}
             className="shrink-0 active:scale-90 transition-transform"
@@ -2605,6 +2612,7 @@ const ProfileBar = ({ profile, onChange, onOpenAvatarPicker, onOpenShop }: {
             <img src={uiIconMaisImage} alt="" draggable={false} className="w-full h-full object-contain select-none pointer-events-none" />
           </button>
         </div>
+      </div>
       </div>
     </div>
   );
@@ -3034,7 +3042,7 @@ const EDITOR_PAD = 6;
 // this template, and the cells are split by the thin gold line art (ui-line-v / ui-line-h).
 const LIST_COLS = '40px minmax(0,1fr) 70px 34px 34px 38px';
 const ROW_H = 42;
-const FULL_ART_TILE_SCALE = 1.07; // measured: Full Art silhouettes are ~5-8% smaller than Padrão ones at the same scale
+const FULL_ART_TILE_SCALE = 1; // Full Art sizing is fixed inside CardFaceFullArt (FULL_ART_SIZE_FIX)
 
 const DeckEditor = ({ onClose }: { onClose: () => void }) => {
   // `store` is the draft the player is editing; `saved` is what is on disk. Nothing reaches the
