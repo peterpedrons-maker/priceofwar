@@ -3644,6 +3644,9 @@ const BOOSTERS: BoosterDef[] = [
   { id: 'capitao', name: 'Booster Capitão', description: '5 cartas do baralho do Capitão. Uma delas é sempre de custo 3 ou mais.', faction: 'capitao', price: 100, cards: 5, accent: '#b8402c' },
 ];
 // Room for 50 boosters: 5 shelves of up to 10. A booster's slot is its index in BOOSTERS.
+// TEST BUILD: boosters cost nothing so the opening flow can be tried over and over. Set to false
+// when accounts exist and Coroas are real; BoosterDef.price is what will be charged then.
+const TEST_FREE_BOOSTERS = true;
 const SHELF_ROWS = 5;
 const SHELF_COLS = 10;
 const BOOSTER_ASPECT = 512 / 882;
@@ -3832,8 +3835,10 @@ const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n:
   const buy = () => {
     if (!selected) return;
     const { def } = selected;
-    if (coroas < def.price) { setMood('sorry'); return; }
-    onSpend(def.price);
+    if (!TEST_FREE_BOOSTERS) {
+      if (coroas < def.price) { setMood('sorry'); return; }
+      onSpend(def.price);
+    }
     const store = loadDeckStore();
     // Shown from the least to the most rare, so the best card is always the last one revealed.
     const rarity = (c: CardData) => (c.isFullArt ? 10 : 0) + c.cost;
@@ -3995,7 +4000,11 @@ const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n:
                   <div className="flex flex-col items-center gap-2 px-1 py-1">
                     <WindowTitle>{selected.def.name}</WindowTitle>
                     <WindowText>{mood === 'sorry' ? NPC_LINES.sorry : selected.def.description}</WindowText>
-                    <span className="text-[15px] font-black text-[#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>{selected.def.price} Coroas <span className="text-[11px] font-normal text-[#a89a78]">(você tem {formatCoroas(coroas)})</span></span>
+                    <span className="text-[15px] font-black text-[#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>
+                      {TEST_FREE_BOOSTERS
+                        ? <>Grátis <span className="text-[11px] font-normal text-[#a89a78]">(versão de teste)</span></>
+                        : <>{selected.def.price} Coroas <span className="text-[11px] font-normal text-[#a89a78]">(você tem {formatCoroas(coroas)})</span></>}
+                    </span>
                     <div className="flex gap-3">
                       <WindowButton onClick={() => { setPhase('shelf'); setSelected(null); setMood('show'); }}>Voltar</WindowButton>
                       <WindowButton primary onClick={buy}>Comprar</WindowButton>
