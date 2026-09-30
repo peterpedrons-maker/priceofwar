@@ -2422,7 +2422,7 @@ const HLine = ({ className = '' }: { className?: string }) => (
 );
 
 // Small pill button drawn with the tab art (bright when selected, dim when not).
-const ArtChip = ({ active, onClick, children, className = '' }: { active: boolean; onClick: () => void; children: React.ReactNode; className?: string; key?: React.Key }) => (
+const ArtChip = ({ active, onClick, children, className = '', compact = false }: { active: boolean; onClick: () => void; children: React.ReactNode; className?: string; compact?: boolean; key?: React.Key }) => (
   <button onClick={() => { playUiClickSfx(); onClick(); }} className={`relative h-[34px] active:scale-95 transition ${className}`}>
     <ArtFrame
       src={active ? uiEditorTabOnImage : uiEditorTabOffImage}
@@ -2431,7 +2431,7 @@ const ArtChip = ({ active, onClick, children, className = '' }: { active: boolea
       className="absolute inset-0"
       style={{ background: active ? 'rgba(96,68,16,0.6)' : 'rgba(0,0,0,0.4)' }}
     />
-    <span className={`relative block px-4 uppercase tracking-[0.1em] text-[11px] whitespace-nowrap ${active ? 'text-[#fff1c9]' : 'text-[#a89a78]'}`} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>{children}</span>
+    <span className={`relative block ${compact ? 'px-2.5' : 'px-4'} uppercase tracking-[0.1em] text-[11px] whitespace-nowrap ${active ? 'text-[#fff1c9]' : 'text-[#a89a78]'}`} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>{children}</span>
   </button>
 );
 
@@ -3163,7 +3163,8 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
 
   const cellGap = 6;
   const gridW = Math.min(viewW, 480) - 2 * (EDITOR_MARGIN + EDITOR_FRAME + EDITOR_PAD) - 12; // outer margin, screen frame, inner padding, grid padding
-  const gridCols = 3;
+  // Test hook: localStorage pow_deck_cols = 3 | 4 | 5 cards per row (default 3).
+  const gridCols = (() => { try { const n = Number(localStorage.getItem('pow_deck_cols')); return n === 4 || n === 5 ? n : 3; } catch { return 3; } })();
   const cellW = Math.floor((gridW - cellGap * (gridCols - 1)) / gridCols);
   // The card art's wings stick out a bit past its 224x320 box, so it is drawn slightly smaller
   // than the cell to keep the silhouette inside it.
@@ -3213,14 +3214,17 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
       >
         {/* Header: back arrow, deck slots, save */}
         <div className="flex items-center gap-2 shrink-0">
-          <button aria-label="Voltar" title="Voltar" onClick={() => { playUiClickSfx(); requestClose(); }} className="shrink-0 active:scale-95 transition">
+          <button aria-label="Voltar" onClick={() => { playUiClickSfx(); requestClose(); }} className="shrink-0 active:scale-95 transition">
             <ThinFrame px={9} style={{ background: 'rgba(20,13,6,0.45)' }}>
-              <svg viewBox="0 0 24 24" width="18" height="18" className="block mx-2 my-[1px]" fill="none" stroke="#f0e0bb" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
+              <span className="flex items-center gap-1 pl-1.5 pr-2.5 py-[2px] text-[10px] uppercase tracking-[0.1em] text-[#f0e0bb]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#f0e0bb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
+                Voltar
+              </span>
             </ThinFrame>
           </button>
           <div className="flex gap-1.5 flex-1 justify-center">
             {store.slots.map((sl, i) => (
-              <ArtChip key={sl.id} active={i === slotIdx} onClick={() => { setSlotIdx(i); setPicked(null); }}>Deck {i + 1}</ArtChip>
+              <ArtChip key={sl.id} compact active={i === slotIdx} onClick={() => { setSlotIdx(i); setPicked(null); }}>Deck {i + 1}</ArtChip>
             ))}
           </div>
           {/* Lit like a selected button (with a red dot) while there are unsaved changes */}
@@ -3391,7 +3395,7 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
                         </div>
                       </div>
                       <span
-                        className="absolute bottom-0 right-0 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-black text-[#fff1c9] bg-[#5a3d0c] shadow-[0_0_0_1.5px_#e8c766,0_2px_4px_rgba(0,0,0,0.6)]"
+                        className={`absolute bottom-0 right-0 rounded-full flex items-center justify-center font-black text-[#fff1c9] bg-[#5a3d0c] shadow-[0_0_0_1.5px_#e8c766,0_2px_4px_rgba(0,0,0,0.6)] ${gridCols > 3 ? 'min-w-[14px] h-[14px] px-0.5 text-[8px]' : 'min-w-[18px] h-[18px] px-1 text-[10px]'}`}
                         style={{ fontFamily: "'Cinzel', serif" }}
                       >
                         x{r.count}
