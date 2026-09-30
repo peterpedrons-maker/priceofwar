@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate } from 'motion/react';
+import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate, type MotionValue } from 'motion/react';
 import { X, ArrowUp, ArrowDown } from 'lucide-react';
 import turnButtonFrameImage from './assets/button-frame.webp';
 import nodeCurrentImage from './assets/node-current.webp';
@@ -3707,85 +3707,75 @@ const NpcArt = ({ mood }: { mood: NpcMood }) => (
   <img src={SHOP_ART.npc[mood]} alt="" draggable={false} className="absolute inset-0 w-full h-full select-none pointer-events-none" />
 );
 
-// The sealed pack with a tear line near the top: the player swipes a finger along it and the strip
-// peels away behind the fingertip. A plain tap tears it too. `onTorn` fires once it is open.
-// Sparks that drift up out of the opened pack (fixed so every open looks alike).
-const SPARKS = Array.from({ length: 12 }, (_, i) => ({
-  x: ((i * 53) % 100 - 50) * 1.3,
-  y: -(70 + (i * 41) % 120),
-  size: 2.5 + (i % 3) * 1.8,
-  delay: (i % 6) * 0.06,
-}));
+// The sealed pack with a tear line near the top: the player swipes a finger along it (either
+// direction) and the crimped strip peels away like thin plastic. A plain tap tears it too.
+// `onTorn` fires once it is open and the first card should appear.
 const PACK_TEAR_Y = 12; // % of the pack's height where the tear line runs
-const PackTear = ({ def, width, height, cardCount, onTorn }: { def: BoosterDef; width: number; height: number; cardCount: number; onTorn: () => void }) => {
+const LID_SLICES = 16;
+
+// One vertical slice of the top strip. Slices hinge on the cut edge and fold back one after the
+// other as the tear passes them (a wave, like a foil peeling), wobble, then the whole strip
+// flutters up and away, each slice on its own delay. Being separate slices is what lets the
+// strip bend and ripple instead of turning as one stiff board.
+const LidSlice = ({ i, def, tip, fly, height }: { i: number; def: BoosterDef; tip: MotionValue<number>; fly: MotionValue<number>; height: number; key?: React.Key }) => {
+  const N = LID_SLICES;
+  const c = (i + 0.5) / N;
+  const H = (height * PACK_TEAR_Y) / 100;
+  const peel = (t: number) => { const k = Math.max(0, Math.min(1, (t - c) * 5)); return k * k * (3 - 2 * k); };
+  const flight = (f: number) => Math.max(0, Math.min(1, (f - i * 0.012) / 0.86));
+  const rotateX = useTransform([tip, fly] as MotionValue<number>[], ([t, f]: number[]) => peel(t) * (74 + Math.sin(i * 2.3) * 14) + flight(f) * 230);
+  const rotateZ = useTransform([tip, fly] as MotionValue<number>[], ([t, f]: number[]) => Math.sin(i * 0.85 + t * 8) * peel(t) * 5 + flight(f) * (c - 0.5) * 120 + Math.sin(flight(f) * 18 + i) * 10 * flight(f));
+  const y = useTransform([tip, fly] as MotionValue<number>[], ([t, f]: number[]) => -peel(t) * H * (0.38 + Math.cos(i * 1.7) * 0.08) - flight(f) * H * 4.2 + Math.sin(flight(f) * 14 + i * 0.7) * 8 * flight(f));
+  const x = useTransform([fly] as MotionValue<number>[], ([f]: number[]) => (c - 0.5) * flight(f) * 120 - flight(f) * 26);
+  const opacity = useTransform(fly, f => 1 - Math.max(0, (flight(f) - 0.5) / 0.5));
+  const glare = useTransform([tip, fly] as MotionValue<number>[], ([t, f]: number[]) => Math.min(1, peel(t) * 0.9 + flight(f)));
+  return (
+    <motion.div
+      className="absolute inset-0 pointer-events-none"
+      style={{ clipPath: `inset(0 ${(1 - (i + 1) / N) * 100 - 0.25}% ${100 - PACK_TEAR_Y}% ${(i / N) * 100 - 0.25}%)`, transformOrigin: `${c * 100}% ${PACK_TEAR_Y}%`, transformPerspective: 500, rotateX, rotateZ, x, y, opacity }}
+    >
+      <BoosterArt def={def} />
+      <motion.div className="absolute inset-0" style={{ opacity: glare, background: `linear-gradient(${100 + i * 6}deg, rgba(255,255,255,0) 15%, rgba(255,255,255,0.65) 45%, rgba(255,255,255,0) 75%)`, mixBlendMode: 'screen' }} />
+    </motion.div>
+  );
+};
+
+const PackTear = ({ def, width, height, onTorn }: { def: BoosterDef; width: number; height: number; onTorn: () => void }) => {
   const tip = useMotionValue(0);
+  const fly = useMotionValue(0);
   const [torn, setTorn] = useState(false);
   const [touched, setTouched] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   const startX = useRef(0);
-  // The cut runs horizontally under the crimped top: the whole cap stays one strip, hinged at the
-  // right end, and its left end lifts more the further the finger has gone.
-  const lidRotate = useTransform(tip, v => -v * 11);
   const glowWidth = useTransform(tip, v => `${v * 100}%`);
   const tipLeft = useTransform(tip, v => `${v * 100}%`);
   const finish = () => {
     if (torn) return;
     setTorn(true);
-    motionAnimate(tip, 1, { duration: 0.2 });
-    window.setTimeout(onTorn, 1500);
+    motionAnimate(tip, 1, { duration: 0.15 });
+    motionAnimate(fly, 1, { duration: 1.25, ease: [0.25, 0.6, 0.35, 1] });
+    window.setTimeout(onTorn, 750);
   };
+  // Progress = how far the finger has travelled along the strip from where it touched down,
+  // whichever way it goes (most people swipe left to right, but not all).
   const follow = (clientX: number) => {
-    const r = boxRef.current?.getBoundingClientRect();
-    if (!r || torn) return;
-    const t = Math.max(tip.get(), Math.min(1, (clientX - r.left) / r.width));
+    if (torn) return;
+    const t = Math.max(tip.get(), Math.min(1, Math.abs(clientX - startX.current) / (width * 0.8)));
     tip.set(t);
     if (t >= 0.94) finish();
   };
-  const piece = (extra: React.CSSProperties) => ({ position: 'absolute' as const, inset: 0, ...extra });
   return (
-    <motion.div
-      ref={boxRef}
-      className="relative"
-      style={{ width, height }}
-    >
-      {/* Once cut: the lid pops off and the cards slide up out of the opening, face down, and fan out
-          floating above the pack; a faint glow stays inside the opening only. Then the pack sinks
-          away and the cards come forward (next phase). */}
-      {torn && Array.from({ length: cardCount }).map((_, i) => {
-        const mid = (cardCount - 1) / 2;
-        const off = i - mid;
-        const cw = width * 0.8;
-        const sc = cw / 224;
-        return (
-          <motion.div
-            key={i}
-            className="absolute pointer-events-none"
-            style={{ left: '50%', top: 0, width: 224, height: 320, marginLeft: -112, transformOrigin: '50% 50%', zIndex: 1 }}
-            initial={{ x: 0, y: height * 0.3, scale: sc, rotate: 0, opacity: 1 }}
-            animate={{ x: off * width * 0.13, y: [height * 0.3, -height * 0.34 - Math.abs(off) * 6, -height * 0.32 - Math.abs(off) * 6 - 6, -height * 0.34 - Math.abs(off) * 6], scale: sc, rotate: off * 7, opacity: 1 }}
-            transition={{ duration: 1.0, delay: 0.3 + i * 0.09, times: [0, 0.6, 0.8, 1], ease: 'easeOut' }}
-          >
-            <div className="relative w-full h-full"><CardBack shadow /></div>
-          </motion.div>
-        );
-      })}
-      <motion.div style={{ ...piece({ clipPath: `inset(${PACK_TEAR_Y}% 0 0 0)`, filter: 'drop-shadow(0 0 22px rgba(232,199,102,0.4))' }), zIndex: 2 }} animate={torn ? { opacity: [1, 1, 0], y: [0, 0, 40] } : { opacity: 1, y: 0 }} transition={torn ? { duration: 1.5, times: [0, 0.75, 1], ease: 'easeInOut' } : { duration: 0.2 }}><BoosterArt def={def} /></motion.div>
-      {torn && (
-        <>
-          {/* a soft glow inside the opening, nothing more */}
-          <motion.div className="absolute pointer-events-none" style={{ left: '0%', right: '0%', top: `${PACK_TEAR_Y - 9}%`, height: '18%', zIndex: 3, mixBlendMode: 'screen', background: 'radial-gradient(ellipse at 50% 55%, rgba(255,236,170,0.75) 0%, rgba(255,214,102,0.3) 50%, rgba(255,190,80,0) 75%)' }} initial={{ opacity: 0 }} animate={{ opacity: [0, 0.9, 0.5, 0] }} transition={{ duration: 1.4, times: [0, 0.2, 0.6, 1] }} />
-          {SPARKS.slice(0, 7).map((sp, i) => (
-            <motion.span key={i} className="absolute pointer-events-none rounded-full" style={{ left: `${50 + sp.x / 3}%`, top: `${PACK_TEAR_Y}%`, width: sp.size * 0.8, height: sp.size * 0.8, zIndex: 3, background: '#fff3c4', boxShadow: '0 0 5px 1px rgba(255,214,102,0.8)' }} initial={{ y: 0, opacity: 0 }} animate={{ y: sp.y * 0.7, x: sp.x * 0.35, opacity: [0, 0.9, 0] }} transition={{ duration: 1.1, delay: 0.25 + sp.delay, ease: 'easeOut' }} />
-          ))}
-        </>
-      )}
-      <motion.div style={{ ...piece({}), zIndex: 4 }} animate={torn ? { y: -80, x: -28, rotate: -22, opacity: 0 } : { y: 0, x: 0, rotate: 0, opacity: 1 }} transition={torn ? { duration: 0.55, delay: 0.05, ease: [0.2, 0.7, 0.3, 1] } : { duration: 0.2 }}>
-        <motion.div style={{ ...piece({ clipPath: `inset(0 0 ${100 - PACK_TEAR_Y}% 0)`, transformOrigin: `100% ${PACK_TEAR_Y}%` }), rotate: lidRotate }}><BoosterArt def={def} /></motion.div>
-      </motion.div>
+    <div ref={boxRef} className="relative" style={{ width, height }}>
+      <motion.div className="absolute inset-0 pointer-events-none" style={{ clipPath: `inset(${PACK_TEAR_Y}% 0 0 0)`, filter: 'drop-shadow(0 0 22px rgba(232,199,102,0.4))' }} animate={torn ? { opacity: [1, 1, 0], y: [0, 0, 36] } : { opacity: 1, y: 0 }} transition={torn ? { duration: 1.1, times: [0, 0.55, 1], ease: 'easeInOut' } : { duration: 0.2 }}><BoosterArt def={def} /></motion.div>
+      {/* a small glow inside the opening only */}
+      <motion.div className="absolute pointer-events-none" style={{ left: '0%', right: '0%', top: `${PACK_TEAR_Y - 6}%`, height: '13%', mixBlendMode: 'screen', background: 'radial-gradient(ellipse at 50% 55%, rgba(255,236,170,0.6) 0%, rgba(255,214,102,0.22) 50%, rgba(255,190,80,0) 75%)' }} initial={{ opacity: 0 }} animate={{ opacity: torn ? [0, 0.85, 0.35] : 0 }} transition={{ duration: 0.9, times: [0, 0.3, 1] }} />
+      {Array.from({ length: LID_SLICES }).map((_, i) => <LidSlice key={i} i={i} def={def} tip={tip} fly={fly} height={height} />)}
+      {/* the part of the cut that is already open shows a thin bright seam */}
+      <motion.div className="absolute pointer-events-none" style={{ left: 0, top: `${PACK_TEAR_Y}%`, height: 4, width: glowWidth, y: '-50%', background: 'linear-gradient(to right, rgba(255,240,190,0.9), rgba(255,214,102,0.85))', boxShadow: '0 0 8px 2px rgba(255,214,102,0.7)', borderRadius: 2 }} />
       {/* dashed tear line with a scissors mark, fading once the player has started */}
-      <motion.div className="absolute inset-x-[4%] pointer-events-none" style={{ top: `${PACK_TEAR_Y}%`, borderTop: '2.5px dashed rgba(70,40,10,0.85)' }} animate={{ opacity: touched ? 0.25 : 1 }} />
-      <span className="absolute pointer-events-none text-[18px]" style={{ left: '2%', top: `calc(${PACK_TEAR_Y}% - 14px)`, filter: 'drop-shadow(0 1px 1px rgba(255,255,255,0.8))' }}>✂</span>
+      <motion.div className="absolute inset-x-[4%] pointer-events-none" style={{ top: `${PACK_TEAR_Y}%`, borderTop: '2.5px dashed rgba(70,40,10,0.85)' }} animate={{ opacity: touched || torn ? 0 : 1 }} />
+      <span className="absolute pointer-events-none text-[18px]" style={{ left: '2%', top: `calc(${PACK_TEAR_Y}% - 14px)`, opacity: touched || torn ? 0 : 1, filter: 'drop-shadow(0 1px 1px rgba(255,255,255,0.8))' }}>✂</span>
       {!touched && (
         <motion.span
           className="absolute pointer-events-none text-[22px] font-black text-[#fff1c9]"
@@ -3794,23 +3784,26 @@ const PackTear = ({ def, width, height, cardCount, onTorn }: { def: BoosterDef; 
           transition={{ duration: 1.3, repeat: Infinity, ease: 'easeInOut' }}
         >➜</motion.span>
       )}
-      {/* glowing fingertip on the tear */}
-      <motion.span className="absolute pointer-events-none rounded-full" style={{ left: tipLeft, top: `${PACK_TEAR_Y}%`, width: 16, height: 16, x: '-50%', y: '-50%', background: 'radial-gradient(circle, #fff6d0, rgba(255,214,102,0.0) 70%)', opacity: touched ? 1 : 0 }} />
-      {/* the swipe area: a generous strip over the tear line */}
+      <motion.span className="absolute pointer-events-none rounded-full" style={{ left: tipLeft, top: `${PACK_TEAR_Y}%`, width: 16, height: 16, x: '-50%', y: '-50%', background: 'radial-gradient(circle, #fff6d0, rgba(255,214,102,0.0) 70%)', opacity: touched && !torn ? 1 : 0 }} />
+      {/* the swipe area: a generous strip over the tear line, above every other layer */}
       {!torn && (
         <div
-          className="absolute inset-x-[-6%]"
-          style={{ top: `calc(${PACK_TEAR_Y}% - 26px)`, height: 52, touchAction: 'none', cursor: 'grab' }}
-          onPointerDown={(e) => { dragging.current = true; startX.current = e.clientX; setTouched(true); e.currentTarget.setPointerCapture(e.pointerId); follow(e.clientX); }}
+          className="absolute inset-x-[-10%]"
+          style={{ top: `calc(${PACK_TEAR_Y}% - 34px)`, height: 68, zIndex: 20, touchAction: 'none', cursor: 'grab' }}
+          onPointerDown={(e) => { dragging.current = true; startX.current = e.clientX; setTouched(true); try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* ignore */ } }}
           onPointerMove={(e) => { if (dragging.current) follow(e.clientX); }}
           onPointerUp={(e) => {
+            if (!dragging.current) return;
             dragging.current = false;
-            if (Math.abs(e.clientX - startX.current) < 8 && tip.get() < 0.2) { motionAnimate(tip, 1, { duration: 0.45, onUpdate: v => { if (v >= 0.94) finish(); } }); }
+            const moved = Math.abs(e.clientX - startX.current);
+            // a tap, or a swipe let go past the middle, finishes the job
+            if (moved < 10 || tip.get() > 0.4) { motionAnimate(tip, 1, { duration: 0.3, onUpdate: v => { if (v >= 0.94) finish(); } }); }
           }}
+          onPointerCancel={() => { dragging.current = false; if (tip.get() > 0.4) finish(); }}
           aria-label="Rasgar o booster"
         />
       )}
-    </motion.div>
+    </div>
   );
 };
 
@@ -3819,7 +3812,7 @@ const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n:
   const [mood, setMood] = useState<NpcMood>('greet');
   const [zoomed, setZoomed] = useState(false);
   const [selected, setSelected] = useState<{ def: BoosterDef; rect: { left: number; top: number; width: number; height: number } } | null>(null);
-  const [pull, setPull] = useState<{ cards: { card: CardData; isNew: boolean; strong: boolean }[]; step: number; flipped: boolean; phase: 'sealed' | 'stack' | 'summary' } | null>(null);
+  const [pull, setPull] = useState<{ cards: { card: CardData; isNew: boolean; strong: boolean }[]; step: number; phase: 'sealed' | 'stack' | 'summary' } | null>(null);
   const [viewport, setViewport] = useState({ w: window.innerWidth, h: window.innerHeight });
   const boosterEls = useRef<Record<string, HTMLElement | null>>({});
   // Which way each opened card was swiped (so it leaves that way).
@@ -3884,7 +3877,7 @@ const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n:
     });
     saveDeckStore(store);
     setMood('happy');
-    setPull({ cards, step: 0, flipped: false, phase: 'sealed' });
+    setPull({ cards, step: 0, phase: 'sealed' });
     setPhase('opening');
   };
   const finishOpening = () => { setPull(null); setSelected(null); setMood('show'); setPhase('shelf'); };
@@ -4057,7 +4050,7 @@ const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n:
             <motion.div key="opening" className="fixed inset-0 z-[500] flex flex-col items-center justify-center gap-6" style={{ background: 'radial-gradient(ellipse at 50% 45%, rgba(90,60,20,0.85), rgba(0,0,0,0.96) 70%)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               {pull.phase === 'sealed' && (
                 <>
-                  <PackTear def={selected.def} width={detailW * 1.2} height={(detailW * 1.2) / BOOSTER_ASPECT} cardCount={pull.cards.length} onTorn={() => setPull(p => (p ? { ...p, phase: 'stack' } : p))} />
+                  <PackTear def={selected.def} width={detailW * 1.2} height={(detailW * 1.2) / BOOSTER_ASPECT} onTorn={() => setPull(p => (p ? { ...p, phase: 'stack' } : p))} />
                   <span className="text-[13px] uppercase tracking-[0.2em] text-[#f3e3c3] text-center px-6" style={{ fontFamily: "'Cinzel', serif" }}>Deslize o dedo sobre a linha para rasgar</span>
                 </>
               )}
@@ -4067,65 +4060,43 @@ const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n:
                     {pull.cards.map(({ card, isNew, strong }, i) => {
                       const r = i - pull.step;      // 0 = the card on top
                       const seen = r < 0;
-                      const faceUp = r === 0 && pull.flipped;
-                      // Every card comes out face down; only the top one can be turned over (tap),
-                      // and only a turned card can be swiped away. Cards underneath stay backs, so
-                      // nothing is given away early.
+                      // Only the top card is ever visible; the rest wait exactly underneath it,
+                      // hidden, so what comes next stays a surprise.
                       return (
                         <motion.div
                           key={i}
                           className="absolute inset-0"
-                          style={{
-                            zIndex: 100 - r,
-                            touchAction: 'none',
-                            filter: faceUp ? `drop-shadow(0 0 ${strong ? 26 : 12}px rgba(232,199,102,${strong ? 0.85 : 0.4}))` : 'drop-shadow(0 6px 10px rgba(0,0,0,0.6))',
-                            cursor: r === 0 ? (pull.flipped ? 'grab' : 'pointer') : 'default',
-                            pointerEvents: r === 0 ? 'auto' : 'none',
-                          }}
-                          initial={{ y: -90, scale: 0.42, opacity: 0, rotate: (i - 2) * 6 }}
+                          style={{ zIndex: 100 - r, touchAction: 'none', filter: `drop-shadow(0 0 ${strong ? 26 : 12}px rgba(232,199,102,${strong ? 0.85 : 0.4}))`, cursor: r === 0 ? 'grab' : 'default', pointerEvents: r === 0 ? 'auto' : 'none' }}
+                          initial={{ y: 50, scale: 0.55, opacity: 0, rotate: 0 }}
                           animate={seen
                             ? { x: (dirs[i] ?? 1) * 380, y: 0, scale: 0.9, opacity: 0, rotate: (dirs[i] ?? 1) * 16 }
-                            : { x: 0, y: Math.min(r, 4) * 7, scale: 1 - Math.min(r, 4) * 0.018, opacity: r > 4 ? 0 : 1, rotate: r === 0 ? 0 : (i % 2 ? 1.6 : -1.6) }}
-                          transition={{ type: 'spring', stiffness: 240, damping: 24, delay: pull.step === 0 ? Math.min(i, 5) * 0.06 : 0 }}
-                          drag={faceUp ? 'x' : false}
+                            : r === 0
+                              ? { x: 0, y: 0, scale: 1, opacity: 1, rotate: 0 }
+                              : { x: 0, y: 0, scale: 0.96, opacity: 0, rotate: 0 }}
+                          transition={{ type: 'spring', stiffness: 240, damping: 24, delay: pull.step === 0 && r === 0 ? 0.1 : 0 }}
+                          drag={r === 0 ? 'x' : false}
                           dragConstraints={{ left: 0, right: 0 }}
                           dragElastic={0.9}
-                          onTap={() => { if (r === 0 && !pull.flipped) { playUiClickSfx(); setPull({ ...pull, flipped: true }); } }}
                           onDragEnd={(_, info) => {
                             if (Math.abs(info.offset.x) > 70 || Math.abs(info.velocity.x) > 500) {
                               playUiClickSfx();
                               dirs[i] = info.offset.x < 0 ? -1 : 1;
                               const next = pull.step + 1;
-                              setPull({ ...pull, step: next, flipped: false });
+                              setPull({ ...pull, step: next });
                               if (next >= pull.cards.length) window.setTimeout(() => setPull(p => (p ? { ...p, phase: 'summary' } : p)), 450);
                             }
                           }}
                         >
-                          <motion.div
-                            className="absolute inset-0"
-                            style={{ transformStyle: 'preserve-3d', transformPerspective: 900 }}
-                            initial={false}
-                            animate={{ rotateY: faceUp ? 0 : 180 }}
-                            transition={{ duration: 0.45, ease: 'easeInOut' }}
-                          >
-                            <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}>
-                              <div className="absolute top-0 left-0" style={{ width: 224, height: 320, transform: `scale(${cardScale})`, transformOrigin: 'top left' }}>
-                                <div className="relative w-full h-full rounded-xl"><CardFace card={card} variant="hand" /></div>
-                              </div>
-                            </div>
-                            <div className="absolute inset-0" style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}>
-                              <div className="absolute top-0 left-0" style={{ width: 224, height: 320, transform: `scale(${cardScale})`, transformOrigin: 'top left' }}>
-                                <div className="relative w-full h-full"><CardBack /></div>
-                              </div>
-                            </div>
-                          </motion.div>
-                          {isNew && faceUp && <span className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-[11px] font-black text-[#fff1c9] bg-[#b8402c] shadow-[0_0_0_2px_#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>NOVA!</span>}
+                          <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: `scale(${cardScale})`, transformOrigin: 'top left' }}>
+                            <div className="relative w-full h-full rounded-xl"><CardFace card={card} variant="hand" /></div>
+                          </div>
+                          {isNew && <span className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-[11px] font-black text-[#fff1c9] bg-[#b8402c] shadow-[0_0_0_2px_#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>NOVA!</span>}
                         </motion.div>
                       );
                     })}
                   </div>
                   <span className="text-[12px] uppercase tracking-[0.18em] text-[#cdbd97] text-center px-6" style={{ fontFamily: "'Cinzel', serif" }}>
-                    {pull.step >= pull.cards.length ? '' : pull.flipped ? 'Arraste a carta para o lado' : `Toque na carta para virar · ${pull.cards.length - pull.step} ${pull.cards.length - pull.step === 1 ? 'restante' : 'restantes'}`}
+                    {pull.step < pull.cards.length ? `Arraste a carta para o lado · ${pull.cards.length - pull.step} ${pull.cards.length - pull.step === 1 ? 'restante' : 'restantes'}` : ''}
                   </span>
                 </div>
               )}
