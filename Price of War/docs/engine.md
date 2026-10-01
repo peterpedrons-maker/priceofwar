@@ -78,6 +78,10 @@ it, reject anything illegal, and only then hand out rewards. The AI is a bot sea
 `npm test` runs `tests/engine-rules.ts` (one scenario per rule), and `tests/engine-sim.ts` (AI vs AI full matches
 with invariants checked after every action, deterministic replay, random fuzzing, and the hidden-information check).
 
+## Online
+
+See `docs/online-setup.md`: the server (`server/`) runs this same engine; both devices replay the same actions.
+
 ## Online, next
 
 The server keeps the full `GameState`, receives `Action`s from each seat, calls `applyAction`, and sends each player

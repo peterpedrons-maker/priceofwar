@@ -181,13 +181,16 @@ import batalhaImpactSfxUrl from './assets/sfx-batalha-impacto.wav';
 import { DECK_RECIPES, requireCardDef, type DeckId } from './engine/catalog';
 import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActivePhases, createMatch, deckSetupFromRecipe, newMatchLog, type MatchLog } from './engine/game';
 import { aiNextAction } from './engine/ai';
+import { mirrorEvents, mirrorSeats } from './engine/view';
+import { cancelQueue, fetchSteps, queueForMatch, queueStatus, sendAction, type MatchInit, type StepRow } from './services/online';
+import { DECK_MAX_CARDS, DECK_MAX_COPIES, DECK_MIN_CARDS } from './engine/deck';
 import {
   EQUIP_ALLOWED_TYPES, TACTIC_TARGET_PROMPTS, TARGETABLE_TACTICS, GOLD_PER_TURN, HAND_LIMIT, START_GOLD, START_HAND,
   areSlotsAdjacent, canPlaceInSlot, canReposition, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction,
   getLaneCol, getMaxAttacksPerTurn, getMoveRow, getValidAttackTargets, isBackline, isCardDamaged, isFrontline, phasesForTurn,
   type TacticTargetKind,
 } from './engine/rules';
-import type { Action as EngineAction, Card as EngineCard, GameEvent, GameState, Seat, TurnPhase } from './engine/types';
+import { otherSeat, type Action as EngineAction, type Card as EngineCard, type GameEvent, type GameState, type Seat, type TurnPhase } from './engine/types';
 export type { TurnPhase, TacticTargetKind };
 
 // Every card/board/UI image in the game besides the start screen's own background
@@ -1586,9 +1589,6 @@ const DECKS = {
 // load/saveDeckStore without touching the screens. Until a shop/boosters exist, the first
 // launch grants the Cardeal starter deck plus a random handful of Capitão cards, purely so
 // the editor has something in its reserve to play with.
-const DECK_MIN_CARDS = 40;
-const DECK_MAX_CARDS = 60;
-const DECK_MAX_COPIES = 4;
 const DECK_STORE_KEY = 'pow_deck_store_v1';
 
 const CARD_INSTANCES_BY_NAME: Record<string, CardData[]> = {};
@@ -1602,7 +1602,21 @@ const isGeneralName = (name: string) => cardByName(name)?.cardType === 'General'
 type DeckSlot = { id: string; name: string; general: string; cards: Record<string, number> };
 type DeckStore = { collection: Record<string, number>; slots: DeckSlot[]; owner?: string };
 // What a match needs from a deck: the draw pool, the General, and which prebuilt deck the AI takes.
-type DeckSelection = { cards: Record<string, number>; general: string; npcDeckId: DeckId };
+type DeckSelection = { cards: Record<string, number>; general: string; npcDeckId: DeckId; npcGeneral?: string };
+
+// An online match, seen from this device. The local engine is a replica of the server's match (same seed, the same
+// actions in the same order): my own actions are applied here at once AND sent to the server, which checks them with
+// the very same rules and records them; the opponent's come back as steps and are played out on screen.
+type OnlineMatch = {
+  init: MatchInit;
+  mySeat: Seat;
+  lastSeen: number;
+  remote: EngineAction[];
+  waiter: (() => void) | null;
+  timer: number | null;
+  sendChain: Promise<void>;
+  stopped: boolean;
+};
 
 const countByName = (cards: readonly CardData[]) => {
   const out: Record<string, number> = {};
@@ -1692,6 +1706,15 @@ const saveDeckStore = (store: DeckStore) => {
   if (cloudUserId) { window.clearTimeout(pushTimer); pushTimer = window.setTimeout(runPush, 700); }
 };
 const stopCloudSync = () => { cloudUserId = null; window.clearTimeout(pushTimer); };
+// Pushes whatever is still waiting to be saved (the server reads the collection from the cloud to check a deck).
+const flushCloudSync = async (): Promise<void> => {
+  if (!cloudUserId) return;
+  window.clearTimeout(pushTimer);
+  const idle = async () => { for (let i = 0; i < 50 && pushing; i++) await new Promise(r => setTimeout(r, 100)); };
+  await idle();
+  await runPush();
+  await idle();
+};
 // Called once after sign-in. The cloud copy wins when the account already has one. A brand-new account
 // takes this device's store if nobody has claimed it yet (so what you built before accounts moves up),
 // otherwise it starts from a fresh starter store. Resolves to an error message, or null.
@@ -3956,7 +3979,8 @@ const CoinRim = () => (
 
 // Before BATALHA: one player calls heads or tails, the coin is tossed, and whoever called it right
 // plays first. `onResolved` hands the winner back to the match intro.
-const CoinToss = ({ onResolved }: { onResolved: (first: 'player' | 'npc') => void; key?: React.Key }) => {
+// `forced`: an online match already knows who goes first (the server decided) — the toss is only shown.
+const CoinToss = ({ onResolved, forced }: { onResolved: (first: 'player' | 'npc') => void; forced?: 'player' | 'npc'; key?: React.Key }) => {
   const [phase, setPhase] = useState<'choose' | 'flip' | 'result'>('choose');
   const [choice, setChoice] = useState<'cara' | 'coroa' | null>(null);
   const [result, setResult] = useState<'cara' | 'coroa'>('cara');
@@ -3965,7 +3989,7 @@ const CoinToss = ({ onResolved }: { onResolved: (first: 'player' | 'npc') => voi
   const call = (c: 'cara' | 'coroa') => {
     if (phase !== 'choose') return;
     playUiClickSfx();
-    const r: 'cara' | 'coroa' = Math.random() < 0.5 ? 'cara' : 'coroa';
+    const r: 'cara' | 'coroa' = forced ? (forced === 'player' ? c : c === 'cara' ? 'coroa' : 'cara') : Math.random() < 0.5 ? 'cara' : 'coroa';
     setChoice(c); setResult(r); setPhase('flip');
     playCoinSfx('toss');
     timers.current.push(window.setTimeout(() => { setPhase('result'); playCoinSfx('land'); }, 1900));
@@ -4042,6 +4066,73 @@ const MatchSearchOverlay = ({ onReady, onCancel }: { onReady: () => void; onCanc
           <span className="text-[22px] uppercase tracking-[0.14em] text-[#8fe0a4]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>Adversário encontrado!</span>
           <span className="text-[12px] uppercase tracking-[0.2em] text-[#dccfae]" style={{ fontFamily: "'Cinzel', serif" }}>A batalha está a caminho…</span>
         </motion.div>
+      )}
+    </motion.div>
+  );
+};
+
+// The real queue: "Procurando adversário" while the server looks for another player (or hands the chair to the AI
+// after a short wait), then "Adversário encontrado" with who it is. `challenge` is a match against the AI that still
+// goes through the same server (Desafios).
+const OnlineSearchOverlay = ({ selection, challenge, onMatched, onCancel, onUnavailable }: {
+  selection: DeckSelection; challenge: boolean; onMatched: (init: MatchInit) => void; onCancel: () => void; onUnavailable?: () => void; key?: React.Key;
+}) => {
+  const [stage, setStage] = useState<{ kind: 'searching' } | { kind: 'found'; init: MatchInit } | { kind: 'error'; message: string }>({ kind: 'searching' });
+  useEffect(() => {
+    let cancelled = false;
+    let timer: number | undefined;
+    const found = (init: MatchInit) => { if (cancelled) return; playBannerSfx('turn'); setStage({ kind: 'found', init }); };
+    const poll = async () => {
+      if (cancelled) return;
+      const r = await queueStatus();
+      if (cancelled) return;
+      if (r.ok === true && r.status === 'matched') return found(r.match);
+      if (r.ok === false && !r.unavailable) { setStage({ kind: 'error', message: r.error }); return; }
+      timer = window.setTimeout(poll, 1200);
+    };
+    (async () => {
+      await flushCloudSync();
+      const r = await queueForMatch({ general: selection.general, cards: selection.cards }, challenge);
+      if (cancelled) return;
+      if (r.ok === false) {
+        if (r.unavailable && onUnavailable) { onUnavailable(); return; }
+        setStage({ kind: 'error', message: r.error });
+        return;
+      }
+      if (r.status === 'matched') return found(r.match);
+      timer = window.setTimeout(poll, 1200);
+    })();
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, []);
+  useEffect(() => {
+    if (stage.kind !== 'found') return;
+    const t = window.setTimeout(() => onMatched(stage.init), 1700);
+    return () => window.clearTimeout(t);
+  }, [stage]);
+  const cancel = () => { void cancelQueue(); onCancel(); };
+  return (
+    <motion.div className="fixed inset-0 z-[600] flex flex-col items-center justify-center gap-5 bg-black/85" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      {stage.kind === 'searching' && (
+        <>
+          <motion.div className="w-14 h-14 rounded-full border-4 border-[#d4af37]/30 border-t-[#e8c766]" animate={{ rotate: 360 }} transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }} />
+          <span className="text-[16px] uppercase tracking-[0.16em] text-[#fff1c9]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700 }}>{challenge ? 'Preparando o desafio…' : 'Procurando adversário…'}</span>
+          {!challenge && <span className="text-[11px] text-[#a89a78] text-center px-8" style={{ fontFamily: "'PT Serif', serif" }}>Se ninguém aparecer em cerca de 15 segundos, um adversário controlado pela IA assume a partida.</span>}
+          <WindowButton onClick={cancel}>Cancelar</WindowButton>
+        </>
+      )}
+      {stage.kind === 'found' && (
+        <motion.div className="flex flex-col items-center gap-2" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 220, damping: 16 }}>
+          <span className="text-[22px] uppercase tracking-[0.14em] text-[#8fe0a4]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>{challenge ? 'Desafio pronto!' : 'Adversário encontrado!'}</span>
+          <span className="text-[14px] uppercase tracking-[0.18em] text-[#fff1c9]" style={{ fontFamily: "'Cinzel', serif" }}>{stage.init.opponent.bot ? `${stage.init.opponent.name} (IA)` : stage.init.opponent.name}</span>
+          <span className="text-[12px] uppercase tracking-[0.2em] text-[#dccfae]" style={{ fontFamily: "'Cinzel', serif" }}>A batalha está a caminho…</span>
+        </motion.div>
+      )}
+      {stage.kind === 'error' && (
+        <>
+          <span className="text-[16px] uppercase tracking-[0.14em] text-[#f0a595]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700 }}>Não foi possível entrar</span>
+          <span className="text-[12px] text-[#dccfae] text-center px-8" style={{ fontFamily: "'PT Serif', serif" }}>{stage.message}</span>
+          <WindowButton primary onClick={onCancel}>Voltar</WindowButton>
+        </>
       )}
     </motion.div>
   );
@@ -4151,7 +4242,7 @@ export default function App() {
   const [deckPickerOpen, setDeckPickerOpen] = useState(false);
   // Online Casual: which deck was chosen while the "searching for an opponent" screen is up.
   const [deckPickerFor, setDeckPickerFor] = useState<'desafios' | 'casual'>('desafios');
-  const [searching, setSearching] = useState<DeckSelection | null>(null);
+  const [searching, setSearching] = useState<{ sel: DeckSelection; challenge: boolean } | null>(null);
 
   // Duel background music: decoded once into a raw AudioBuffer and looped through
   // the Web Audio API — NOT a plain <audio loop> element. A looping <audio> element
@@ -4693,6 +4784,11 @@ export default function App() {
   // actions applied, in order. That record is what lets a server re-run the match to validate a result before
   // giving out rewards, and lets any match be replayed.
   const matchLogRef = useRef<MatchLog | null>(null);
+  // Online matches only (see OnlineMatch): the real-chairs replica, and who/what is on the other side.
+  const onlineRef = useRef<OnlineMatch | null>(null);
+  const realEngineRef = useRef<GameState | null>(null);
+  const [opponentInfo, setOpponentInfo] = useState<{ name: string; avatarId: string; bot: boolean } | null>(null);
+  const [waitingRemote, setWaitingRemote] = useState(false);
 
   // Where a newly drawn card should land: right next to the last real hand card (or the
   // tray's own resting spot if the hand is still empty) — an approximation of the new
@@ -4951,20 +5047,113 @@ export default function App() {
   };
 
   // The one door into the rules: asks the engine to apply an action for a seat, then shows the result.
+  // What the screen shows: in an online match played from chair 1, the mirrored copy (me at the bottom).
+  const viewOf = (real: GameState): GameState => (onlineRef.current && onlineRef.current.mySeat === 1 ? mirrorSeats(real) : real);
+
   const dispatchAction = (
     seat: Seat,
     action: EngineAction,
     opts: { skip?: { hand?: boolean; boards?: boolean }; quietTurn?: boolean } = {},
   ): { ok: true; state: GameState; events: GameEvent[] } | { ok: false; error: string } => {
-    const current = engineRef.current;
+    const online = onlineRef.current;
+    const current = online ? realEngineRef.current : engineRef.current;
     if (!current) return { ok: false, error: 'Não há partida em andamento.' };
-    const r = applyAction(current, seat, action);
+    // `seat` is a screen seat (0 = me, 1 = the opponent); online, the engine runs on the real chairs.
+    const realSeat: Seat = online ? (seat === 0 ? online.mySeat : otherSeat(online.mySeat)) : seat;
+    const r = applyAction(current, realSeat, action);
     if (r.ok === false) return r;
-    engineRef.current = r.state;
-    matchLogRef.current?.actions.push({ seat, action });
-    processEvents(r.events, opts);
-    syncView(r.state, opts.skip);
-    return r;
+    const mirrored = !!online && online.mySeat === 1;
+    const view = mirrored ? mirrorSeats(r.state) : r.state;
+    const events = mirrored ? mirrorEvents(r.events) : r.events;
+    if (online) realEngineRef.current = r.state;
+    engineRef.current = view;
+    matchLogRef.current?.actions.push({ seat: realSeat, action });
+    processEvents(events, opts);
+    syncView(view, opts.skip);
+    if (online && seat === 0 && action.type !== 'begin') sendOnline(online, action);
+    return { ok: true, state: view, events };
+  };
+
+  // ── Online plumbing ─────────────────────────────────────────────────────────
+  const wakeWaiter = (online: OnlineMatch) => { const w = online.waiter; online.waiter = null; w?.(); };
+  // Steps recorded by the server: mine were already applied here, `begin` is applied by both sides on their own;
+  // the opponent's (a person or the bot) wait in line to be played out.
+  const ingestSteps = (online: OnlineMatch, steps: StepRow[]) => {
+    steps.forEach(st => {
+      if (st.n <= online.lastSeen) return;
+      online.lastSeen = st.n;
+      if (st.seat === online.mySeat || st.action.type === 'begin') return;
+      // The opponent giving up can happen at any moment (not only on their turn): end the match right away.
+      if (st.action.type === 'concede') { dispatchAction(1, st.action); return; }
+      online.remote.push(st.action);
+    });
+    if (steps.length) wakeWaiter(online);
+  };
+  const stopOnline = () => {
+    const online = onlineRef.current;
+    if (online) { online.stopped = true; if (online.timer) window.clearTimeout(online.timer); wakeWaiter(online); }
+    onlineRef.current = null;
+    realEngineRef.current = null;
+    setOpponentInfo(null);
+    setWaitingRemote(false);
+  };
+  const startOnlinePolling = (online: OnlineMatch) => {
+    const tick = async () => {
+      if (online.stopped) return;
+      const steps = await fetchSteps(online.init.id, online.lastSeen);
+      if (online.stopped) return;
+      if (steps && steps.length) ingestSteps(online, steps);
+      online.timer = window.setTimeout(tick, steps && steps.length ? 400 : 900);
+    };
+    online.timer = window.setTimeout(tick, 600);
+  };
+  // Rebuilds the whole match from the server's record (coming back to a match, or after a refused action).
+  const rebuildOnline = (online: OnlineMatch, steps: StepRow[]): boolean => {
+    let real = createMatch({ seed: online.init.seed, decks: online.init.decks, first: online.init.first }).state;
+    for (const st of steps) {
+      const r = applyAction(real, st.seat, st.action);
+      if (r.ok === false) { console.error('replay refused a recorded step', st, r.error); return false; }
+      real = r.state;
+    }
+    realEngineRef.current = real;
+    engineRef.current = viewOf(real);
+    online.remote = [];
+    online.lastSeen = steps.length ? steps[steps.length - 1].n : 0;
+    ghostsRef.current = { player: {}, npc: {} };
+    syncView(engineRef.current);
+    if (real.winner !== null) setGameOverWinner(viewOf(real).winner === 0 ? 'player' : 'npc');
+    return true;
+  };
+  const resyncOnline = async (online: OnlineMatch) => {
+    const steps = await fetchSteps(online.init.id, 0);
+    if (steps && !online.stopped) rebuildOnline(online, steps);
+  };
+  // My actions go to the server one at a time, in order. A refusal means this device and the server disagree:
+  // say so and rebuild from the server's record.
+  const sendOnline = (online: OnlineMatch, action: EngineAction) => {
+    online.sendChain = online.sendChain.then(async () => {
+      for (let attempt = 0; attempt < 6 && !online.stopped; attempt++) {
+        const r = await sendAction(online.init.id, action, online.lastSeen);
+        if (r.ok === true) { ingestSteps(online, r.steps); return; }
+        if (!r.unavailable) { showToast(r.error); await resyncOnline(online); return; }
+        await sleep(1500 * (attempt + 1));
+      }
+      showToast('Sem conexão com o servidor de partidas.');
+    });
+  };
+  // The opponent's next action: the AI's decision in a local match, the next recorded step in an online one.
+  const nextOpponentAction = async (): Promise<EngineAction | null> => {
+    const online = onlineRef.current;
+    if (!online) { const st = engineRef.current; return st ? aiNextAction(st, 1) : null; }
+    const t0 = Date.now();
+    let notified = false;
+    while (!online.stopped) {
+      const a = online.remote.shift();
+      if (a) { setWaitingRemote(false); return a; }
+      if (!notified && Date.now() - t0 > 2500) { notified = true; setWaitingRemote(true); }
+      await new Promise<void>(resolve => { online.waiter = resolve; window.setTimeout(resolve, 500); });
+    }
+    return null;
   };
 
   // A pick prompt the engine is waiting on from the player (a search, a reveal): show it, then send the answer.
@@ -5014,8 +5203,9 @@ export default function App() {
         });
         dispatchAction(0, { type: 'ambush', cardId: chosen?.id ?? null });
       } else {
-        const a = aiNextAction(s, 1);
-        if (a.type === 'ambush' && a.cardId) await sleep(500);
+        const a = await nextOpponentAction();
+        if (!a) return;
+        if (a.type === 'ambush' && a.cardId && !onlineRef.current) await sleep(500);
         dispatchAction(1, a);
       }
     }
@@ -5049,15 +5239,25 @@ export default function App() {
     };
     firstSideRef.current = first;
     const firstSeat: Seat = first === 'player' ? 0 : 1;
-    const sel = matchSelectionRef.current;
-    const matchOptions = {
-      seed: Math.floor(Math.random() * 0x7fffffff),
-      decks: [{ general: sel.general, cards: sel.cards }, deckSetupFromRecipe(sel.npcDeckId)] as [ReturnType<typeof deckSetupFromRecipe>, ReturnType<typeof deckSetupFromRecipe>],
-      first: firstSeat,
-    };
-    const created = createMatch(matchOptions);
-    matchLogRef.current = newMatchLog(matchOptions);
-    engineRef.current = created.state;
+    const online = onlineRef.current;
+    let created: { state: GameState };
+    if (online) {
+      // Online: the match is the server's (its seed and both decks), seen from my chair.
+      const real = createMatch({ seed: online.init.seed, decks: online.init.decks, first: online.init.first });
+      realEngineRef.current = real.state;
+      created = { state: viewOf(real.state) };
+      engineRef.current = created.state;
+    } else {
+      const sel = matchSelectionRef.current;
+      const matchOptions = {
+        seed: Math.floor(Math.random() * 0x7fffffff),
+        decks: [{ general: sel.general, cards: sel.cards }, deckSetupFromRecipe(sel.npcDeckId)] as [ReturnType<typeof deckSetupFromRecipe>, ReturnType<typeof deckSetupFromRecipe>],
+        first: firstSeat,
+      };
+      created = createMatch(matchOptions);
+      matchLogRef.current = newMatchLog(matchOptions);
+      engineRef.current = created.state;
+    }
     const dealt = created.state;
     setNpcKickoffPending(true);   // nothing can be tapped until both hands are dealt
     const BATTLE_START = 250;
@@ -5120,6 +5320,7 @@ export default function App() {
     setIntroDescendTargets(null);
 
     engineRef.current = null;
+    realEngineRef.current = null;
     matchLogRef.current = null;
     matchSelectionRef.current = sel;
     ghostsRef.current = { player: {}, npc: {} };
@@ -5165,8 +5366,56 @@ export default function App() {
   };
 
   const startGame = (mode: string, sel?: DeckSelection) => {
+    stopOnline();
     resetGame(sel);
     setGameMode(mode);
+  };
+
+  // An online match found by the queue (or the bot fallback): the same intro, then the server's match.
+  const startOnlineMatch = (init: MatchInit) => {
+    stopOnline();
+    const online: OnlineMatch = { init, mySeat: init.seat, lastSeen: 0, remote: [], waiter: null, timer: null, sendChain: Promise.resolve(), stopped: false };
+    onlineRef.current = online;
+    setOpponentInfo(init.opponent);
+    const mine = init.decks[init.seat];
+    const theirs = init.decks[otherSeat(init.seat)];
+    const sel: DeckSelection = { cards: mine.cards, general: mine.general, npcDeckId: 'cardeal', npcGeneral: theirs.general };
+    if (init.resumed) {
+      // Coming back to a match already under way: no intro, straight to the board as it stands.
+      resetGame(sel);
+      matchIntroTimeoutsRef.current.forEach(clearTimeout);
+      matchIntroTimeoutsRef.current = [];
+      setMatchIntroStage(null);
+      setNpcKickoffPending(false);
+      setGameMode('Quick Match');
+      if (rebuildOnline(online, init.steps)) {
+        startOnlinePolling(online);
+        const view = engineRef.current;
+        if (view && view.winner === null) {
+          setViewState(view.turn.active === 0 ? 'hand' : 'field');
+          // an answer may be owed (an ambush or a pick) — or awaited from the other side
+          openPlayerPick();
+          void settleAmbush();
+        }
+      }
+      return;
+    }
+    ingestSteps(online, init.steps);   // anything the other side (or the bot) already did while we were loading
+    resetGame(sel);
+    setGameMode('Quick Match');
+    startOnlinePolling(online);
+  };
+  // Leaving a match from the menu: online, that is a concession (the server records it) — then back to the menu.
+  const leaveMatch = async () => {
+    const online = onlineRef.current;
+    const live = engineRef.current && engineRef.current.winner === null;
+    if (online && live) {
+      online.stopped = true;
+      if (online.timer) window.clearTimeout(online.timer);
+      await sendAction(online.init.id, { type: 'concede' }, online.lastSeen);
+    }
+    stopOnline();
+    setGameMode(null);
   };
 
   // The opponent's turn: the AI looks at the engine state and answers with one action at a time — exactly
@@ -5184,9 +5433,10 @@ export default function App() {
       let combatAnnounced = false;
       let movementAnnounced = false;
       for (let guard = 0; guard < 300; guard++) {
+        if (!engineRef.current || engineRef.current.winner !== null || engineRef.current.turn.active !== 1) break;
+        const action = await nextOpponentAction();
         const s = engineRef.current;
-        if (!s || s.winner !== null || s.turn.active !== 1) break;
-        const action = aiNextAction(s, 1);
+        if (!action || !s || s.winner !== null) break;
         if (action.type === 'play') {
           const card = s.players[1].hand.find(h => h.id === action.cardId);
           if (!card) break;
@@ -5322,13 +5572,31 @@ export default function App() {
           {deckPickerOpen && (
             <DeckPickerModal
               store={loadDeckStore()}
-              onSelect={(sel) => { setDeckPickerOpen(false); if (deckPickerFor === 'casual') setSearching(sel); else startGame('Quick Match', sel); }}
+              onSelect={(sel) => {
+                setDeckPickerOpen(false);
+                // With accounts, every match (against a person or the AI) goes through the game server; without them,
+                // the local game stays as it was.
+                if (deckPickerFor === 'casual') setSearching({ sel, challenge: false });
+                else if (authMode === 'supabase') setSearching({ sel, challenge: true });
+                else startGame('Quick Match', sel);
+              }}
               onClose={() => setDeckPickerOpen(false)}
             />
           )}
         </AnimatePresence>
         <AnimatePresence>
-          {searching && <MatchSearchOverlay key="searching" onCancel={() => setSearching(null)} onReady={() => { const sel = searching; setSearching(null); startGame('Quick Match', sel); }} />}
+          {searching && authMode === 'supabase' && (
+            <OnlineSearchOverlay
+              key="searching-online"
+              selection={searching.sel}
+              challenge={searching.challenge}
+              onCancel={() => setSearching(null)}
+              onMatched={(init) => { setSearching(null); startOnlineMatch(init); }}
+              // The server is not reachable (not deployed yet, no connection): a challenge still plays locally.
+              onUnavailable={searching.challenge ? () => { const sel = searching.sel; setSearching(null); startGame('Quick Match', sel); } : undefined}
+            />
+          )}
+          {searching && authMode !== 'supabase' && <MatchSearchOverlay key="searching" onCancel={() => setSearching(null)} onReady={() => { const sel = searching.sel; setSearching(null); startGame('Quick Match', sel); }} />}
         </AnimatePresence>
         <AnimatePresence>
           {installPromptKind && (
@@ -6600,7 +6868,7 @@ export default function App() {
             <GoldBadge value={npcMana} className="w-14 md:w-16" />
           </div>
           <span className="text-[6px] md:text-[7px] font-black uppercase tracking-wide text-red-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] whitespace-nowrap">
-            Adversário
+            {opponentInfo?.name ?? 'Adversário'}
           </span>
         </div>
 
@@ -7597,6 +7865,22 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Online: the opponent has not answered yet. */}
+      {waitingRemote && !gameOverWinner && (
+        <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[206] px-3 py-1 rounded-full bg-black/80 border border-amber-400/60 text-amber-200 text-[10px] font-black uppercase tracking-widest pointer-events-none">
+          Aguardando o adversário…
+        </div>
+      )}
+      {/* Leaving a match: online, it counts as giving up. */}
+      {gameMode && !gameOverWinner && matchIntroStage === null && (
+        <button
+          onClick={() => { if (window.confirm(onlineRef.current ? 'Desistir da partida? Você perde a batalha.' : 'Sair da partida?')) { playUiClickSfx(); void leaveMatch(); } }}
+          className="fixed top-3 right-3 z-[205] px-2.5 py-1 rounded-full bg-zinc-900/85 border border-zinc-500/70 text-zinc-300 text-[10px] font-black uppercase tracking-wider"
+        >
+          {onlineRef.current ? 'Desistir' : 'Sair'}
+        </button>
+      )}
+
       {/* Toast Notification — same dark-crimson/gold-border/Crimson-Pro treatment as
           the phase announcement banner below, instead of a generic bright-red pill
           in a plain sans font that read as a browser alert rather than part of the
@@ -7726,14 +8010,14 @@ export default function App() {
                 }
                 transition={panelTransition}
               >
-                {portraitFrame(DECKS[matchSelectionRef.current.npcDeckId].general)}
+                {portraitFrame(matchSelectionRef.current.npcGeneral ? cardDataFromName(matchSelectionRef.current.npcGeneral, 'intro-npc') : DECKS[matchSelectionRef.current.npcDeckId].general)}
               </motion.div>
             </motion.div>
           );
         })()}
       </AnimatePresence>
 
-      <AnimatePresence>{matchIntroStage === 'coin' && <CoinToss key="coin-toss" onResolved={continueMatchIntro} />}</AnimatePresence>
+      <AnimatePresence>{matchIntroStage === 'coin' && <CoinToss key="coin-toss" onResolved={continueMatchIntro} forced={onlineRef.current ? (onlineRef.current.init.first === onlineRef.current.mySeat ? 'player' : 'npc') : undefined} />}</AnimatePresence>
       {/* Nothing behind the intro can be tapped (the turn button used to be reachable through it). */}
       {(npcKickoffPending || matchIntroStage !== null) && <div className="fixed inset-0 z-[700]" />}
 
@@ -7871,7 +8155,7 @@ export default function App() {
               {gameOverWinner === 'player' ? 'O General inimigo caiu em batalha.' : 'Seu General caiu em batalha.'}
             </p>
             <button
-              onClick={() => { playUiClickSfx(); setGameMode(null); }}
+              onClick={() => { playUiClickSfx(); stopOnline(); setGameMode(null); }}
               className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-full font-black uppercase tracking-widest text-white shadow-[0_0_30px_rgba(99,102,241,0.6)] transition-colors"
             >
               Voltar ao Menu

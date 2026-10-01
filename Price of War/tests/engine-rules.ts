@@ -1,6 +1,7 @@
 // Scenario tests, one per rule:  npx tsx tests/engine-rules.ts
 import { requireCardDef } from '../src/engine/catalog';
 import { aiNextAction } from '../src/engine/ai';
+import { mirrorEvents, mirrorSeats } from '../src/engine/view';
 import { applyAction, combatOpen, createMatch, deckSetupFromRecipe, newMatchLog, replayMatch } from '../src/engine/game';
 import { HAND_LIMIT, START_HAND } from '../src/engine/rules';
 import type { Action, Card, GameEvent, GameState, Seat } from '../src/engine/types';
@@ -604,6 +605,21 @@ test('AI discards down to the limit by itself', () => {
   s.players[1].gold = 0;
   const r = aiTurn(s, 1);
   eq([r.s.turn.active, r.s.players[1].hand.length], [0, HAND_LIMIT]);
+});
+test('mirroring swaps the chairs and is its own inverse', () => {
+  let s = fresh({ a: 'cardeal', b: 'capitao', first: 1 });
+  s.turn.active = 1; s.turn.first = 1;
+  put(s, 0, 2, 'Batedor'); put(s, 1, 2, 'Soldado Tático');
+  s.winner = null;
+  const m = mirrorSeats(s);
+  eq([m.players[0].general, m.players[1].general], [s.players[1].general, s.players[0].general]);
+  eq([m.turn.active, m.turn.first], [0, 0]);
+  eq(JSON.stringify(mirrorSeats(m)), JSON.stringify(s));
+  // an engine run on the mirror behaves like one run on the original, seat for seat
+  const a1 = act(s, 1, { type: 'advance' });
+  const a2 = act(m, 0, { type: 'advance' });
+  eq(JSON.stringify(mirrorSeats(a2.s).turn), JSON.stringify(a1.s.turn));
+  eq(JSON.stringify(mirrorEvents(a2.ev).map((e: any) => e.t)), JSON.stringify(a1.ev.map((e: any) => e.t)));
 });
 test('a replay of the recorded actions reaches the same state (and a cheated action is rejected)', () => {
   const opts = { seed: 11, decks: [deckSetupFromRecipe('cardeal'), deckSetupFromRecipe('capitao')] as [any, any], first: 0 as Seat };

@@ -29,3 +29,26 @@ export const redactEvents = (events: GameEvent[], seat: Seat): GameEvent[] =>
     if (e.t === 'draw' && e.seat !== seat) return { ...e, card: hiddenCard(e.card.id) };
     return e;
   });
+
+// ── Seat mirroring ───────────────────────────────────────────────────────────
+// The screen always shows "me" as seat 0 (bottom) and the opponent as seat 1. A player who really sits in chair 1
+// plays on a mirrored copy of the match: the same state with the two chairs swapped. Mirroring twice gives back
+// the original.
+export const mirrorSeats = (state: GameState): GameState => {
+  const flip = (s: Seat): Seat => (s === 0 ? 1 : 0);
+  const pending = state.pending
+    ? state.pending.kind === 'ambush'
+      ? { ...state.pending, seat: flip(state.pending.seat), attacker: flip(state.pending.attacker) }
+      : { ...state.pending, seat: flip(state.pending.seat) }
+    : null;
+  return {
+    ...state,
+    players: [state.players[1], state.players[0]],
+    turn: { ...state.turn, active: flip(state.turn.active), first: flip(state.turn.first) },
+    pending,
+    winner: state.winner === null ? null : flip(state.winner),
+  };
+};
+
+export const mirrorEvents = (events: GameEvent[]): GameEvent[] =>
+  events.map(e => ('seat' in e ? ({ ...e, seat: (e.seat === 0 ? 1 : 0) as Seat } as GameEvent) : e));

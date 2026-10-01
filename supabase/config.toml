@@ -1,0 +1,7 @@
+# Used by the Supabase CLI when deploying the game server (see Price of War/docs/online-setup.md).
+project_id = "ljytihmtsaagsxzhlmsg"
+
+[functions.game]
+# The function checks the player's own login token itself (auth.getUser), so the gateway check is off —
+# that also keeps it working with the newer "publishable" API keys.
+verify_jwt = false
