@@ -51,6 +51,7 @@ const play = (seed: number, a: DeckId, b: DeckId, first: Seat, maxRounds = 150) 
   const step = (seat: Seat, action: Action) => {
     if (action.type === 'play') { const c = state.players[seat].hand.find(h => h.id === action.cardId); if (c) usage[c.cardType] = (usage[c.cardType] ?? 0) + 1; if (c && c.cardType === 'Tática') tactics[c.name] = (tactics[c.name] ?? 0) + 1; }
     if (action.type === 'discard') discards += action.cardIds.length;
+    if (action.type === 'move') usage['(moves)'] = (usage['(moves)'] ?? 0) + 1;
     const before = JSON.stringify(state);
     const r = applyAction(state, seat, action);
     check(JSON.stringify(state) === before, `seed ${seed}: applyAction mutated its input`);
@@ -97,6 +98,7 @@ for (let seed = 1; seed <= 120; seed++) {
 console.log(`  matches ${total}: finished ${finished}, stalled ${stalled}; avg rounds ${(rounds / Math.max(1, finished)).toFixed(1)}; first player won ${firstWins}/${finished}; deck wins`, winsByDeck);
 console.log('  cards played by type', usage, '| tactics', tactics, '| discarded', discards);
 check(total > 0 && finished / total > 0.9, 'most AI vs AI matches should finish');
+check((usage['(moves)'] ?? 0) > 50, 'the AI repositions during the match');
 check((usage['Tática'] ?? 0) > 20 && (usage['Relíquia'] ?? 0) > 0 && (usage['Terreno'] ?? 0) > 0, 'the AI uses Táticas, Relíquias and Terrenos');
 
 // ── 3: fuzz ─────────────────────────────────────────────────────────────────

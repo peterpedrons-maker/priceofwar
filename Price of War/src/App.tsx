@@ -4212,7 +4212,7 @@ export default function App() {
   // The AI doesn't have real gated phases (see the currentTurn==='npc' effect below)
   // — this just drives the phase-tag column mirrored onto its own field, so that
   // column shows something instead of always sitting dark. null outside its turn.
-  const [npcVisiblePhase, setNpcVisiblePhase] = useState<'preparacao' | 'combate' | null>(null);
+  const [npcVisiblePhase, setNpcVisiblePhase] = useState<TurnPhase | null>(null);
   // Slots (0-9) that have already moved/swapped this reposition phase — each unit
   // gets one reposition action per own turn, then it's locked until the next one.
   const [movedSlots, setMovedSlots] = useState<Set<number>>(new Set());
@@ -4544,6 +4544,8 @@ export default function App() {
   // `swapped` is only set when the destination slot was occupied (a real swap, both
   // cards crossing paths at once); moving into an empty slot only ever needs `mover`.
   const [repositionFlight, setRepositionFlight] = useState<{
+    // Whose board the slide happens on (the opponent now repositions too).
+    side: 'player' | 'npc';
     originIndex: number; destIndex: number;
     moverCard: CardData; swappedCard: CardData | null;
     mover: { fromX: number; fromY: number; toX: number; toY: number; w: number; h: number };
@@ -5160,6 +5162,7 @@ export default function App() {
       showBanner('Fase de Preparação', 'O adversário joga suas cartas');
       await sleep(PHASE_BANNER_DURATION_MS + 150);
       let combatAnnounced = false;
+      let movementAnnounced = false;
       for (let guard = 0; guard < 300; guard++) {
         const s = engineRef.current;
         if (!s || s.winner !== null || s.turn.active !== 1) break;
@@ -5191,6 +5194,32 @@ export default function App() {
           setAttackAnim(null);
           const killed = r.events.some(e => e.t === 'destroyed');
           await sleep(killed ? 1000 : 300);
+        } else if (action.type === 'move') {
+          // Repositioning: the same slide the player's own moves get, on the opponent's board.
+          setNpcVisiblePhase(s.turn.phase === 'combate' ? 'combate' : 'movimentacao');
+          if (!movementAnnounced && s.turn.phase === 'movimentacao') {
+            movementAnnounced = true;
+            showBanner('Fase de Movimentação', 'O adversário reposiciona suas unidades');
+            await sleep(PHASE_BANNER_DURATION_MS + 150);
+          }
+          const board = s.players[1].board;
+          const originRect = document.getElementById(`npc-${action.from}`)?.getBoundingClientRect();
+          const destRect = document.getElementById(`npc-${action.to}`)?.getBoundingClientRect();
+          const mover = board[action.from];
+          const occupant = board[action.to];
+          if (originRect && destRect && mover) {
+            playCardLiftSfx();
+            setRepositionFlight({
+              side: 'npc', originIndex: action.from, destIndex: action.to, moverCard: toCardData(mover), swappedCard: occupant ? toCardData(occupant) : null,
+              mover: { fromX: originRect.left + originRect.width / 2, fromY: originRect.top + originRect.height / 2, toX: destRect.left + destRect.width / 2, toY: destRect.top + destRect.height / 2, w: originRect.width, h: originRect.height },
+              swapped: occupant ? { fromX: destRect.left + destRect.width / 2, fromY: destRect.top + destRect.height / 2, toX: originRect.left + originRect.width / 2, toY: originRect.top + originRect.height / 2, w: destRect.width, h: destRect.height } : null,
+            });
+            await sleep(450);
+          }
+          const r = dispatchAction(1, action);
+          setRepositionFlight(null);
+          if (r.ok === false) break;
+          await sleep(350);
         } else if (action.type === 'ability') {
           showToast(action.slot === 12 ? 'O oponente usou a habilidade do General!' : 'O oponente usou uma habilidade!');
           if (dispatchAction(1, action).ok === false) break;
@@ -5297,7 +5326,8 @@ export default function App() {
   const handleCardClick = (index: number) => {
     if (viewState === 'field') return; // hand cards are non-interactive once zoomed to the board
     if (phaseTransitionLock) return; // see announcePhase — a phase banner is still on screen
-    if (turnPhase !== 'preparacao') {
+    // Avanço Coordenado is the one card played after moving, in Movimentação.
+    if (turnPhase !== 'preparacao' && !(turnPhase === 'movimentacao' && hand[index]?.name === 'Avanço Coordenado')) {
       showToast("Jogar cartas só na fase de Preparação!");
       return;
     }
@@ -5771,6 +5801,7 @@ export default function App() {
       }
       playCardLiftSfx();
       setRepositionFlight({
+        side: 'player',
         originIndex, destIndex, moverCard: mover, swappedCard: occupant ?? null,
         mover: {
           fromX: originRect.left + originRect.width / 2, fromY: originRect.top + originRect.height / 2,
@@ -6314,7 +6345,7 @@ export default function App() {
               <CardSlot
                 key={i}
                 slotId={`npc-${i}`}
-                card={npcSlots[i]}
+                card={repositionFlight?.side === 'npc' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
                 onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
@@ -6335,7 +6366,7 @@ export default function App() {
               <CardSlot
                 key={i}
                 slotId={`npc-${i}`}
-                card={npcSlots[i]}
+                card={repositionFlight?.side === 'npc' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
                 onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
               shockActive={boardShock}
@@ -6366,7 +6397,7 @@ export default function App() {
               <div key={i} className="relative">
               <CardSlot
                 slotId={`player-${i}`}
-                card={repositionFlight && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : playerSlots[i]}
+                card={repositionFlight?.side === 'player' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : playerSlots[i]}
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
                 onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
@@ -6394,7 +6425,7 @@ export default function App() {
               <div key={i} className="relative">
               <CardSlot
                 slotId={`player-${i}`}
-                card={repositionFlight && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : playerSlots[i]}
+                card={repositionFlight?.side === 'player' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : playerSlots[i]}
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
                 onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
@@ -7298,7 +7329,8 @@ export default function App() {
               onAnimationComplete={isPrimary ? () => {
                 // The slide landed: the engine commits the move (swap, Capitão de Formação's buff, once-per-turn
                 // bookkeeping, Batedor's free move) and the board shows the result.
-                dispatchAction(0, { type: 'move', from: repositionFlight.originIndex, to: repositionFlight.destIndex });
+                // (the opponent's moves are committed by its own turn runner, which waits for this slide)
+                if (repositionFlight.side === 'player') dispatchAction(0, { type: 'move', from: repositionFlight.originIndex, to: repositionFlight.destIndex });
                 setRepositionFlight(null);
               } : undefined}
               style={{ position: 'fixed', zIndex: 480, filter: CARD_THICKNESS_SHADOW }}

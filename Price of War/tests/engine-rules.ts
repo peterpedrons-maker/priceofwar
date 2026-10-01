@@ -83,11 +83,20 @@ test('the round counter goes up after the second player, whoever starts', () => 
   s = act(s, 0, { type: 'advance' }).s; s = act(s, 0, { type: 'advance' }).s; s = act(s, 0, { type: 'advance' }).s;
   eq([s.turn.active, s.turn.round], [1, 2]);
 });
-test('draw at every turn start, but not above the hand limit of 12', () => {
+test('the turn draw has no cap: with 12 cards in hand you still draw (the limit is only checked at the end of the turn)', () => {
   let s = fresh();
   for (let i = 0; i < 12; i++) give(s, 1, 'Batedor');
   s = act(s, 0, { type: 'advance' }).s; s = act(s, 0, { type: 'advance' }).s;
-  eq(s.players[1].hand.length, 12);
+  eq([s.turn.active, s.players[1].hand.length], [1, 13]);
+});
+test('Avanço Coordenado is playable in Movimentação, other cards are not', () => {
+  let s = fresh({ a: 'capitao' }); s.turn.phase = 'movimentacao';
+  put(s, 0, 1, 'Batedor');
+  const av = give(s, 0, 'Avanço Coordenado'); const other = give(s, 0, 'Linha Fechada');
+  s = act(s, 0, { type: 'move', from: 1, to: 2 }).s;
+  refused(s, 0, { type: 'play', cardId: other.id, target: 2 }, 'Preparação');
+  s = act(s, 0, { type: 'play', cardId: av.id, target: 2 }).s;
+  eq(s.players[0].board[2]!.atk, 3);
 });
 test('over the hand limit at the end of the turn: must discard down to 12 before the turn passes', () => {
   let s = fresh();
@@ -557,7 +566,35 @@ test('AI uses Balestra on a unit it can kill, Trabuco/Catapulta when they pay of
   const r = aiTurn(s, 1);
   ok(r.played.includes('Balestra de Precisão') || r.played.includes('Trabuco de Cerco'), 'removal was used: ' + r.played);
   ok(r.played.includes('Espada Longa'), 'equip was used: ' + r.played);
-  ok(!!r.s.players[1].board[1]?.equippedWeapons?.length, 'sword rides on the front-line unit');
+  ok(r.s.players[1].board.some((c, i) => i <= 4 && c?.equippedWeapons?.length), 'sword rides on a front-line unit');
+});
+test('AI repositions: brings back-row Infantaria forward, and covers an exposed General lane', () => {
+  let s = fresh({ a: 'capitao', b: 'cardeal', first: 1 });
+  s.turn.active = 1; s.turn.first = 1; s.turn.phase = 'movimentacao';
+  put(s, 1, 6, 'Soldados da Ordem'); // 3/4 Infantaria stuck in the back row: cannot attack there
+  put(s, 0, 2, 'Soldado Tático');    // the enemy has something that can hit
+  const a1 = aiNextAction(s, 1, () => 0.5);
+  eq(a1.type, 'move');
+  s = act(s, 1, a1).s;
+  ok(s.players[1].board.some((c, i) => i <= 4 && c?.name === 'Soldados da Ordem'), 'moved to the Vanguarda: ' + JSON.stringify(s.players[1].board.map(c => c?.name ?? null)));
+  // exposed lane: units everywhere except columns 2
+  let t = fresh({ a: 'capitao', b: 'cardeal', first: 1 });
+  t.turn.active = 1; t.turn.first = 1; t.turn.phase = 'movimentacao';
+  put(t, 1, 1, 'Soldados da Ordem'); put(t, 1, 3, 'Soldados da Ordem'); put(t, 0, 2, 'Soldado Tático');
+  const moves: string[] = [];
+  for (let i = 0; i < 6 && t.turn.active === 1; i++) { const a = aiNextAction(t, 1, () => 0.5); if (a.type === 'move') moves.push(`${a.from}>${a.to}`); t = act(t, 1, a).s; }
+  ok(!!(t.players[1].board[2] || t.players[1].board[7]), 'the General lane is covered after moving: ' + moves.join(','));
+});
+test('AI uses the free Batedor move only when it helps; Avanço Coordenado after moving', () => {
+  let s = fresh({ a: 'capitao', b: 'capitao', first: 1 });
+  s.turn.active = 1; s.turn.first = 1; s.turn.round = 2; s.turn.phase = 'movimentacao';
+  put(s, 1, 7, 'Soldado Tático'); put(s, 0, 2, 'Batedor');
+  const av = give(s, 1, 'Avanço Coordenado');
+  const seen: string[] = [];
+  for (let i = 0; i < 6 && s.turn.active === 1; i++) { const a = aiNextAction(s, 1, () => 0.5); seen.push(a.type); s = act(s, 1, a).s; }
+  ok(seen.includes('move'), 'it moved: ' + seen);
+  ok(seen.indexOf('play') > seen.indexOf('move'), 'then played Avanço Coordenado: ' + seen);
+  void av;
 });
 test('AI discards down to the limit by itself', () => {
   let s = fresh({ first: 1 });

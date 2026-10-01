@@ -49,13 +49,22 @@ Everything that happened comes back as events (`turn_start`, `gold`, `draw`, `at
 
 ## Rules decided in the engine
 
-- 15 gold and 10 cards each; one card drawn at the start of every turn (only while the hand is under 12); +5 gold per turn from round 2, stacking.
-- Card effects can take a hand past 12. At the end of the turn the seat must discard down to 12 (`state.pending.kind === 'discard'`), the cards go to the graveyard, and only then does the turn pass.
+- 15 gold and 10 cards each; one card drawn at the start of every turn, always (there is no cap on starting a turn with cards); +5 gold per turn from round 2, stacking.
+- The hand limit (12) is only checked at the END of a turn: with more, the player must choose which cards to discard, down to 12 (`state.pending.kind === 'discard'`), the cards go to the graveyard, and only then does the turn pass.
 - Combat opens from the 2nd turn of the match: the first player cannot attack in their first turn.
+- Avanço Coordenado is played in Movimentação (after moving); every other card in Preparação.
 - Relíquia goes only in slot 10, Terreno only in slot 11.
 - Bonus HP in combat (Comandante da Ordem's aura, Aurelion's +1/+1) lasts only for that combat.
 - Contra-Manobra: the adjacent ally steps into the targeted slot and takes the hit.
 - Batedor's free move ends when the Combate phase does.
+
+## The AI (`ai.ts`)
+
+It plays every kind of card: creatures (placed where the formation scores best), Relíquia/Terreno in their slots,
+removal (Balestra, Trabuco, Catapulta), equipment, buffs, searches, Reformar Linhas / Reposicionamento Rápido /
+Avanço Coordenado. It attacks by scoring each possible attack (kills and General hits up, pointless suicide down),
+repositions in Movimentação (back-row Infantaria forward, archers behind, the General's lane covered, fragile units
+behind tough ones), takes Batedor's free move, answers ambush prompts and discards its least valuable cards.
 
 ## Match record
 

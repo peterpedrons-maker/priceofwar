@@ -214,7 +214,8 @@ const startTurn = (c: Ctx, seat: Seat) => {
   p.generalAbilityBlocked = p.pendingGeneralBlock;
   p.pendingGeneralBlock = false;
 
-  if (p.hand.length < HAND_LIMIT) drawCards(c, seat, 1, 'turn');
+  // No cap on drawing: the hand limit is only enforced at the END of a turn (see advance).
+  drawCards(c, seat, 1, 'turn');
   // Intendente do Exército: with fewer than 2 cards in hand, draw up to 2.
   if (p.board.some((card, i) => i <= 9 && card?.name === 'Intendente do Exército') && p.hand.length < 2) {
     drawCards(c, seat, 2 - p.hand.length, 'effect');
@@ -272,12 +273,15 @@ const uniqueByName = (names: string[]) => [...new Set(names)];
 
 const playCard = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'play' }>) => {
   assertCanAct(c, seat);
-  if (c.s.turn.phase !== 'preparacao') fail('Jogar cartas só na fase de Preparação!');
   const p = P(c, seat);
   const enemySeat = otherSeat(seat);
   const enemy = P(c, enemySeat);
   const card = p.hand.find(h => h.id === a.cardId);
   if (!card) return fail('Essa carta não está na sua mão.');
+  // Cards are played in Preparação — except Avanço Coordenado ("Após mover: +2 ATK"), which can only ever be
+  // used on a unit that already moved this turn, and moving happens in Movimentação.
+  const inMovement = c.s.turn.phase === 'movimentacao' && card.name === 'Avanço Coordenado';
+  if (c.s.turn.phase !== 'preparacao' && !inMovement) fail('Jogar cartas só na fase de Preparação!');
   if (p.gold < card.cost) fail('Ouro insuficiente!');
 
   // Spends the cost and takes the card out of the hand — only called once everything is validated.
