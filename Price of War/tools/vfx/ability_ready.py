@@ -12,7 +12,7 @@ from scipy.ndimage import gaussian_filter
 W, H = 232, 288                      # card area, same geometry as the punch / burn sheets
 PAD = 50
 FW, FH = W + 2 * PAD, H + 2 * PAD
-NF, COLS = 24, 6                     # 24 frames at 15 fps = 1.6 s loop
+NF, COLS = 36, 6                     # 36 frames at 20 fps = 1.8 s loop
 R = 22                               # corner radius of the card
 rs = np.random.default_rng(5)
 yy, xx = np.mgrid[0:FH, 0:FW].astype(float)
@@ -44,21 +44,37 @@ def star(cx, cy, size, a):
     return d * a
 
 frames = []
+u_perim = (perim_angle / (2 * math.pi)) % 1.0            # position along the border, 0..1 (around the card)
+side = np.clip(np.abs(xx - FW / 2) / (W / 2), 0, 1)       # 0 centre .. 1 at the left/right edges
+TAU = 2 * math.pi
+# a few light "currents" running round the border: integer spatial and temporal frequencies keep the loop seamless
+CUR = [(3, 1, 0.00, 0.55), (5, -2, 0.31, 0.30), (8, 3, 0.62, 0.22), (2, -1, 0.17, 0.35)]
 for k in range(NF):
     t = k / NF
-    pulse = 0.5 + 0.5 * math.sin(2 * math.pi * t - math.pi / 2)            # 0..1
-    # 1) breathing rim + glow
-    lum = rim * (0.75 + 0.25 * pulse) + inner * (0.20 + 0.28 * pulse) + outer * (0.35 + 0.35 * pulse)
-    # a brighter comet that circles the edge once per loop
-    ang = (perim_angle / (2 * math.pi) - t) % 1.0
-    comet = np.exp(-np.minimum(ang, 1 - ang) ** 2 / (2 * 0.045 ** 2)) * np.exp(-np.abs(sdf + 1.5) ** 2 / (2 * 2.6 ** 2))
-    lum = lum + comet * 1.15
-    # 2) diagonal light sweep inside the card (once per loop, over the first 55 %)
-    s = np.clip(t / 0.55, 0, 1)
-    pos = -0.35 + 1.7 * s
+    flow = sum(a * np.sin(TAU * (f * u_perim - m * t + ph)) for f, m, ph, a in CUR)
+    flow = 0.5 + 0.5 * flow / sum(a for *_, a in CUR)                       # 0..1, bands of light sliding along the edge
+    breathe = 0.5 + 0.5 * math.sin(TAU * t)
+    # 1) rim: its brightness and thickness both ride the currents, so the light visibly FLOWS round the card
+    thick = 1.0 + 1.4 * flow
+    rim_f = np.exp(-(sdf + 1.6) ** 2 / (2 * (1.0 * thick) ** 2))
+    inner_f = np.exp(-np.clip(-sdf, 0, None) / (7 + 11 * flow)) * inside
+    outer_f = np.exp(-np.clip(sdf, 0, None) / (7 + 6 * flow)) * (sdf >= 0)
+    lum = rim_f * (0.35 + 0.95 * flow) + inner_f * (0.10 + 0.40 * flow) + outer_f * (0.18 + 0.55 * flow) * (0.8 + 0.2 * breathe)
+    # 2) two bright comets circling at different speeds, in opposite directions
+    for spd, wid, amp in [(1, 0.05, 1.1), (-2, 0.03, 0.6)]:
+        ang = (u_perim - spd * t) % 1.0
+        comet = np.exp(-np.minimum(ang, 1 - ang) ** 2 / (2 * wid ** 2)) * np.exp(-np.abs(sdf + 1.6) ** 2 / (2 * 2.4 ** 2))
+        lum = lum + comet * amp
+    # 3) light wisps streaming up along the inside of the side edges (soft vertical streaks that drift upwards)
+    yn = (yy - PAD) / H
+    streak = (np.sin(TAU * (3 * yn - 1 * t) + 6 * side) * 0.5 + 0.5) * (np.sin(TAU * (5 * yn - 2 * t) + 9 * side + 1.3) * 0.5 + 0.5)
+    edge_band = np.exp(-np.clip(-sdf, 0, None) / 17.0) * inside * (np.clip((sdf + 4) * -1, 0, 1))
+    lum = lum + streak ** 2 * edge_band * 0.75
+    # 4) a wide soft diagonal sheen that glides across the whole card, every loop (no dead time)
+    pos = -0.45 + 1.9 * t
     diag = (xx - (FW - W) / 2) / W * 0.62 + (yy - (FH - H) / 2) / H * 0.38
-    sweep = np.exp(-((diag - pos) / 0.07) ** 2) * inside * (0.55 if t < 0.55 else 0)
-    lum = lum + sweep * 0.55
+    sweep = np.exp(-((diag - pos) / 0.10) ** 2) * inside
+    lum = lum + sweep * 0.30
     # 3) motes drifting up along the card, fading in and out
     mote = np.zeros((FH, FW))
     for mx, ph, sp, sz in motes:
@@ -79,7 +95,7 @@ for k in range(NF):
     colr = np.stack([np.interp(v, [0, .5, 1], [190, 255, 255]), np.interp(v, [0, .5, 1], [120, 214, 250]), np.interp(v, [0, .5, 1], [20, 100, 215])], axis=-1)
     alpha = np.clip(lum * 1.1, 0, 1)
     # keep the card's centre readable: the inside glow is already weak, cap alpha there
-    alpha = np.where(sdf < -22, np.minimum(alpha, 0.30 + 0.25 * sweep), alpha)
+    alpha = np.where(sdf < -22, np.minimum(alpha, 0.14 + 0.45 * sweep), alpha)
     img = np.dstack([colr, alpha * 255]).astype(np.uint8)
     frames.append(Image.fromarray(img, 'RGBA'))
 
@@ -127,6 +143,6 @@ if len(sys.argv) > 1 and sys.argv[1] == 'preview':
             comp = Image.fromarray(np.dstack([np.where(a[..., 3:4] > 0, rgb, f[..., :3]), outa]).astype(np.uint8), 'RGBA')
             fr.alpha_composite(comp, (ox, 20))
         gif.append(fr.convert('RGB').resize((PW * 2 // 2 * 1, PHH)))
-    gif[0].save('/tmp/claude-0/ability_ready_preview.gif', save_all=True, append_images=gif[1:], duration=int(1000 / 15), loop=0)
+    gif[0].save('/tmp/claude-0/ability_ready_preview.gif', save_all=True, append_images=gif[1:], duration=50, loop=0)
     gif[NF // 2].save('/tmp/claude-0/ability_ready_still.png')
     print('preview written')
