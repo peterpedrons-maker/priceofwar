@@ -41,8 +41,8 @@ type Props = {
   phase: TurnPhase | null;
   // Phases that exist in the rules but cannot be reached yet (Combate / Pós-combate before combat opens).
   locked: TurnPhase[];
-  // The small line over the name: "Finalizar", "Encerrar turno", "+5 ouro", ...
-  caption: string;
+  // Optional small line before the name. The panel normally shows just the name and a chevron for "tap to go on".
+  caption?: string;
   // Name override (the adversary's turn reads "ADVERSÁRIO" instead of the phase).
   name?: string;
   // Tappable phases show the double chevron; automatic ones and the adversary's turn do not.
@@ -102,9 +102,9 @@ export function TurnTracker({ mine, phase, locked, caption, name, tappable }: Pr
       </div>
       <div className="trk-layer trk-art" />
       <div className="trk-diamond" />
-      <div className="trk-lab" key={label + caption}>
-        <em>{caption}</em>
-        <b className={label.length > 10 ? 'long' : ''}>{label}</b>
+      <div className="trk-lab" key={label}>
+        {caption && <em>{caption}</em>}
+        <b className={label.length > 11 ? 'long' : ''}>{label}</b>
         {tappable && <s>››</s>}
       </div>
       {TRACKER_PHASES.map((p, i) => {

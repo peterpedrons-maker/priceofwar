@@ -7272,17 +7272,12 @@ export default function App() {
             const shownPhase = isPlayerTurn ? (autoPhase ?? turnPhase) : npcVisiblePhase;
             const locked: TurnPhase[] = combatOpenNow ? [] : ['combate', 'pos_combate'];
             const automatic = isPlayerTurn && (shownPhase === 'compra' || shownPhase === 'suprimentos');
-            const caption = !isPlayerTurn ? 'Turno do'
-              : shownPhase === 'compra' ? '+1 carta'
-              : shownPhase === 'suprimentos' ? (turnNumber >= 2 ? '+5 ouro' : 'Sem ouro')
-              : isLastPhaseOfTurn ? 'Encerrar' : 'Finalizar';
             return (
               <motion.div whileTap={isPlayerTurn && !automatic ? { scale: 0.96 } : undefined}>
                 <TurnTracker
                   mine={isPlayerTurn}
                   phase={shownPhase}
                   locked={locked}
-                  caption={caption}
                   name={isPlayerTurn ? undefined : 'ADVERSÁRIO'}
                   tappable={isPlayerTurn && !automatic}
                 />
