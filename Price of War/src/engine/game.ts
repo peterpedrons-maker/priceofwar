@@ -478,7 +478,7 @@ const playCard = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'play' }>) => {
     const atkBonus = tactic === 'equip_flecha' ? 1 : tactic === 'equip_espada' ? 2 : 0;
     const hpBonus = tactic === 'equip_armadura' ? 2 : tactic === 'equip_corcelete' ? 1 : 0;
     own[slot] = { ...target!, atk: target!.atk + atkBonus, hp: target!.hp + hpBonus, equippedWeapons: [...(target!.equippedWeapons ?? []), card] };
-    c.ev.push({ t: 'equip', seat, slot, card });
+    c.ev.push({ t: 'equip', seat, slot, card, atk: atkBonus, hp: hpBonus });
     log(c, seat, `${target!.name} equipado: ${card.name}!`);
   } else if (tactic === 'reposicionamento_rapido') {
     if (slot > 9 || !foe[slot]) fail('Escolha uma unidade inimiga no campo.');

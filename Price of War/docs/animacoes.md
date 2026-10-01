@@ -75,3 +75,10 @@ Compra e Suprimentos passam sozinhas no painel (`autoPhase` no cliente, ou `npcV
 Evento `reinforce` do motor, depois de `destroyed`. No cliente: a carta caída queima na casa (1,3 s), a reforço continua visível atrás
 (`holdsRef` faz o quadro mostrar o ghost na frente e a reforço atrás), e aos 1,45 s ela desliza reta para a frente (`repositionFlight` com
 `reinforce: true`, 0,34 s, ease de aceleração) e cai com poeira. Só depois o quadro volta a mostrar o estado real do motor.
+
+## Equipar (Armamento) e máscaras de revelação
+
+`equip` (evento do motor, agora com `atk`/`hp` do bônus) → `EquipFxLayer`: a unidade sobe flutuando para o meio da tela (a casa fica vazia, `holdsRef`),
+a carta de equipamento chega por baixo, passa para trás da unidade (o mesmo desvio que o tabuleiro desenha), os números sobem, aparece o bônus
+(`StatUpBadge`, ícone trocável por arte via `iconSrc`) e as duas voltam para a casa. ~3,4 s; o toque no tabuleiro fica bloqueado nesse tempo.
+`.reveal-in` / `.reveal-out` (index.css, `@property --rv`): qualquer imagem pode surgir de dentro para fora ou de fora para dentro.

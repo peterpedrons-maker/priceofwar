@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 're
 import { fetchProfile, usernameAvailable, createProfile, updateProfileFields, fetchStore, pushStore, type CloudDeck } from './services/cloud';
 import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authErrorDetail, authMode, type Session } from './services/auth';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate, type MotionValue } from 'motion/react';
-import { X, ArrowUp, ArrowDown } from 'lucide-react';
+import { X, ArrowUp, ArrowDown, Swords, ShieldPlus } from 'lucide-react';
 import { TurnTracker } from './TurnTracker';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
@@ -583,7 +583,7 @@ type TargetKind = 'heal' | 'damage' | 'buff' | 'move';
 const TARGET_STYLE: Record<TargetKind, { label: string; color: string; halo: string }> = {
   heal: { label: 'Cura', color: '#34d399', halo: 'hue-rotate(112deg) saturate(1.2) drop-shadow(0 0 10px rgba(52,211,153,0.95))' },
   damage: { label: 'Dano', color: '#ef4444', halo: 'drop-shadow(0 0 10px rgba(239,68,68,0.95))' },
-  buff: { label: 'Reforço', color: '#fbbf24', halo: 'hue-rotate(40deg) saturate(1.2) drop-shadow(0 0 10px rgba(251,191,36,0.95))' },
+  buff: { label: 'Bônus', color: '#fbbf24', halo: 'hue-rotate(40deg) saturate(1.2) drop-shadow(0 0 10px rgba(251,191,36,0.95))' },
   move: { label: 'Deslocar', color: '#60a5fa', halo: 'hue-rotate(205deg) saturate(1.2) drop-shadow(0 0 10px rgba(96,165,250,0.95))' },
 };
 const HUD_CARD_SCALE = 0.47;      // of the 224x320 hand-card box: ~105 px wide, a bit more than twice a card on the board
@@ -698,6 +698,57 @@ const AbilityReadyGlow = ({ x, y, w, h, onClick, card = null, kind = 'utility' }
         aria-label="Ativar efeito"
       />
     </div>
+  );
+};
+
+// The bonus that shows when something raises a card's stats (equipment now; heals and buffs later). The icon is meant to be
+// painted art (`iconSrc`); until it exists a plain symbol stands in. It always arrives through a reveal mask.
+const StatUpBadge = ({ kind, amount, iconSrc }: { kind: 'atk' | 'hp'; amount: number; iconSrc?: string }) => {
+  const color = kind === 'atk' ? '#ffb347' : '#7fc3ff';
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="reveal-in relative flex items-center justify-center rounded-full" style={{ width: 74, height: 74, background: 'radial-gradient(circle at 50% 38%, #3a2a16, #120c06 72%)', boxShadow: `0 0 0 2px ${color}, 0 0 22px 4px ${color}88, inset 0 0 14px #000a` }}>
+        {iconSrc ? <img src={iconSrc} alt="" className="w-[78%] h-[78%] object-contain" /> : kind === 'atk' ? <Swords size={38} color={color} strokeWidth={2.2} /> : <ShieldPlus size={38} color={color} strokeWidth={2.2} />}
+      </div>
+      <motion.span initial={{ opacity: 0, scale: 0.4, y: 6 }} animate={{ opacity: 1, scale: [0.4, 1.35, 1], y: 0 }} transition={{ delay: 0.35, duration: 0.45, times: [0, 0.6, 1] }}
+        className="font-black" style={{ fontFamily: "'Cinzel', serif", fontSize: 30, color: '#fff7e0', textShadow: `0 2px 0 #000, 0 0 14px ${color}` }}>
+        +{amount} <span style={{ fontSize: 15, letterSpacing: '0.12em', color }}>{kind === 'atk' ? 'ATAQUE' : 'VIDA'}</span>
+      </motion.span>
+    </div>
+  );
+};
+
+// Equipping, as a small scene: the unit floats up, the equipment card arrives in front, slides in UNDERneath, the bonus
+// shows, then both settle back into the slot. Positions are offsets from the slot's own rectangle, so it works for either
+// side of the board; the slot itself is held empty on screen meanwhile (holdsRef).
+const EquipFxLayer = ({ fx, vw, vh }: { fx: { side: 'player' | 'npc'; unit: CardData; unitAfter: CardData; weapon: CardData; atk: number; hp: number; stage: 'lift' | 'arrive' | 'under' | 'bonus' | 'return'; rect: { x: number; y: number; w: number; h: number } }; vw: number; vh: number }) => {
+  const { rect, stage } = fx;
+  const S = Math.min(3.6, (vw * 0.5) / rect.w);               // how big the card gets in the middle of the screen
+  const dx = vw / 2 - rect.x, dy = vh * 0.40 - rect.y;
+  const peek = 0.16;                                          // the same offset the board draws a stacked weapon at (9 px on a 56 px card)
+  const home = stage === 'return';
+  const unitPose = home ? { x: 0, y: 0, scale: 1 } : { x: dx, y: dy, scale: S };
+  const weaponPose = stage === 'lift' ? { x: dx, y: dy + vh * 0.55, scale: S * 1.15, rotate: -8, opacity: 0 }
+    : stage === 'arrive' ? { x: dx - rect.w * S * 0.10, y: dy + rect.h * S * 0.06, scale: S * 1.04, rotate: -5, opacity: 1 }
+    : stage === 'return' ? { x: rect.w * peek, y: rect.w * peek, scale: 0.9, rotate: 0, opacity: 1 }
+    : { x: dx + rect.w * S * peek, y: dy + rect.w * S * peek, scale: S * 0.9, rotate: 0, opacity: 1 };
+  const base: React.CSSProperties = { position: 'fixed', left: rect.x - rect.w / 2, top: rect.y - rect.h / 2, width: rect.w, height: rect.h };
+  const spring = { type: 'spring' as const, stiffness: 170, damping: 19 };
+  return (
+    <>
+      <motion.div className="fixed inset-0 pointer-events-none bg-black" style={{ zIndex: 470 }} initial={{ opacity: 0 }} animate={{ opacity: home ? 0 : 0.5 }} transition={{ duration: 0.4 }} />
+      <motion.div className="pointer-events-none" style={{ ...base, zIndex: stage === 'arrive' ? 483 : 481, filter: CARD_THICKNESS_SHADOW }} initial={{ opacity: 0, rotate: -8, scale: 0.8, x: dx, y: dy + vh * 0.55 }} animate={weaponPose} transition={spring}>
+        <CardFace card={fx.weapon} variant="field" />
+      </motion.div>
+      <motion.div className="pointer-events-none" style={{ ...base, zIndex: 482, filter: CARD_THICKNESS_SHADOW }} initial={{ x: 0, y: 0, scale: 1 }} animate={unitPose} transition={stage === 'lift' ? { type: 'spring', stiffness: 150, damping: 17 } : spring}>
+        {(fx.unit.isFullArt ? <CardFaceFullArtMini card={stage === 'bonus' || stage === 'return' ? fx.unitAfter : fx.unit} /> : <CardFaceStandardMini card={stage === 'bonus' || stage === 'return' ? fx.unitAfter : fx.unit} />)}
+      </motion.div>
+      {stage === 'bonus' && (
+        <div className="fixed pointer-events-none flex justify-center" style={{ left: 0, width: vw, top: vh * 0.40 - rect.h * S * 0.5 - 128, zIndex: 490 }}>
+          <StatUpBadge kind={fx.atk > 0 ? 'atk' : 'hp'} amount={fx.atk > 0 ? fx.atk : fx.hp} />
+        </div>
+      )}
+    </>
   );
 };
 
@@ -4843,6 +4894,15 @@ export default function App() {
     mover: { fromX: number; fromY: number; toX: number; toY: number; w: number; h: number };
     swapped: { fromX: number; fromY: number; toX: number; toY: number; w: number; h: number } | null;
   } | null>(null);
+  // Equipping an Armamento: the unit floats up to the middle of the screen, the equipment card arrives, slides in underneath
+  // it, the bonus shows, and both settle back into the slot. `stage` drives where each card is; the engine has already
+  // applied everything (the slot is simply held empty on screen meanwhile, see holdsRef).
+  const [equipFx, setEquipFx] = useState<null | {
+    id: number; side: 'player' | 'npc'; slot: number; unit: CardData; unitAfter: CardData; weapon: CardData; atk: number; hp: number;
+    stage: 'lift' | 'arrive' | 'under' | 'bonus' | 'return';
+    rect: { x: number; y: number; w: number; h: number };
+  }>(null);
+  const equipFxIdRef = useRef(0);
   // Holds the camera's zoomed-in focus for a brief moment after the card lands,
   // so the placement reads clearly before the view eases back to normal.
   const [cameraSettling, setCameraSettling] = useState<{ slotIndex: number } | null>(null);
@@ -5246,6 +5306,30 @@ export default function App() {
           }, 1300);
           break;
         }
+        case 'equip': {
+          if (opts.quietTurn) break;
+          const side = e.seat === 0 ? 'player' : 'npc';
+          const slotEl = document.getElementById(`${side}-${e.slot}`)?.getBoundingClientRect();
+          const board = engineRef.current?.players[e.seat].board;
+          const after = board?.[e.slot];
+          if (!slotEl || !after) break;
+          const unitAfter = toCardData(after);
+          const weapon = toCardData(e.card);
+          const unit: CardData = { ...unitAfter, atk: unitAfter.atk - e.atk, hp: unitAfter.hp - e.hp, equippedWeapons: unitAfter.equippedWeapons?.filter(w => w.id !== weapon.id) };
+          const id = ++equipFxIdRef.current;
+          holdsRef.current[side][e.slot] = null;             // the real card waits (hidden) while its copy performs
+          setEquipFx({ id, side, slot: e.slot, unit, unitAfter, weapon, atk: e.atk, hp: e.hp, stage: 'lift', rect: { x: slotEl.left + slotEl.width / 2, y: slotEl.top + slotEl.height / 2, w: slotEl.width, h: slotEl.height } });
+          playCardLiftSfx();
+          const at = (ms: number, stage: 'arrive' | 'under' | 'bonus' | 'return') => window.setTimeout(() => setEquipFx(f => (f?.id === id ? { ...f, stage } : f)), ms);
+          at(600, 'arrive'); at(1150, 'under'); at(1600, 'bonus'); at(2900, 'return');
+          window.setTimeout(() => playCardPlaySfx(), 1650);
+          window.setTimeout(() => {
+            delete holdsRef.current[side][e.slot];
+            setEquipFx(f => (f?.id === id ? null : f));
+            if (engineRef.current) syncView(engineRef.current);
+          }, 3450);
+          break;
+        }
         case 'reinforce': {
           // The fallen card burns first; then the reinforcement slides up into its place.
           const side = e.seat === 0 ? 'player' : 'npc';
@@ -5267,6 +5351,7 @@ export default function App() {
           break;
         }
         case 'log':
+          if (e.text.includes(' equipado: ')) break;   // the equip scene says it itself
           // The AI's own prompts and its ambush line have their own wording elsewhere.
           if (e.seat === 1 && (e.text.includes('ativar Emboscada?') || e.text.startsWith('Emboscada ativada') || e.text.startsWith('Você tem'))) break;
           showToast(e.seat === 1 && e.text.includes('descartada') ? `O oponente descartou ${e.text.split(' ')[0]} carta(s).` : e.text);
@@ -6097,7 +6182,7 @@ export default function App() {
   // True for the whole hand-off from "card selected" to "card landed on the board" — the
   // camera pre-zoom, the flight itself, and the brief settle afterward. Used to ignore
   // stray clicks that would otherwise cancel the card's selection mid-transition.
-  const isCardInFlightTransition = !!(preZoomSlot || flyingCard || cameraSettling || repositionFlight);
+  const isCardInFlightTransition = !!(preZoomSlot || flyingCard || cameraSettling || repositionFlight || equipFx);
 
   // Which of the opponent's slots the currently-selected attacker can actually reach
   // (see getValidAttackTargets) — a plain per-render computation rather than a Hook
@@ -7039,7 +7124,7 @@ export default function App() {
               // on top of the board, hiding whatever that tap was actually doing.
               // Preparação keeps the preview (reading a card there is still the point
               // of tapping it — nothing else consumes that tap in that phase).
-              onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode ? setDetailedCard : undefined}
+              onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
@@ -7054,7 +7139,7 @@ export default function App() {
                 slotId="npc-12"
                 card={npcSlots[12]}
                 onClick={() => handleNpcSlotClick(12)}
-                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode ? setDetailedCard : undefined}
+                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
@@ -7069,7 +7154,7 @@ export default function App() {
               slotId="npc-11"
               card={npcSlots[11]}
               onClick={() => handleNpcSlotClick(11)}
-              onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode ? setDetailedCard : undefined}
+              onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
@@ -7094,7 +7179,7 @@ export default function App() {
                 slotId={`npc-${i}`}
                 card={repositionFlight?.side === 'npc' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
-                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode ? setDetailedCard : undefined}
+                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
@@ -7115,7 +7200,7 @@ export default function App() {
                 slotId={`npc-${i}`}
                 card={repositionFlight?.side === 'npc' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
-                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode ? setDetailedCard : undefined}
+                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
@@ -7147,7 +7232,7 @@ export default function App() {
                 card={repositionFlight?.side === 'player' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : playerSlots[i]}
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
-                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode ? setDetailedCard : undefined}
+                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
@@ -7175,7 +7260,7 @@ export default function App() {
                 card={repositionFlight?.side === 'player' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : playerSlots[i]}
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
-                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode ? setDetailedCard : undefined}
+                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
@@ -7207,7 +7292,7 @@ export default function App() {
               card={playerSlots[10]}
               onClick={(el) => handleSlotClick(10, el)}
               isSelected={selectedAttackerIndex === 10}
-              onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode ? setDetailedCard : undefined}
+              onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
@@ -7222,7 +7307,7 @@ export default function App() {
                 card={playerSlots[12]}
                 onClick={(el) => handleSlotClick(12, el)}
                 isSelected={selectedAttackerIndex === 12}
-                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode ? setDetailedCard : undefined}
+                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
@@ -7236,7 +7321,7 @@ export default function App() {
               card={playerSlots[11]}
               onClick={(el) => handleSlotClick(11, el)}
               isSelected={selectedAttackerIndex === 11}
-              onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode ? setDetailedCard : undefined}
+              onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
@@ -7788,6 +7873,8 @@ export default function App() {
           );
         })()}
       </AnimatePresence>
+
+      {equipFx && <EquipFxLayer fx={equipFx} vw={windowSize.width} vh={windowSize.height} />}
 
       {/* Reposition flight (see repositionFlight's own comment) — a low, quick slide
           between two real on-screen board slots, one leg per card involved (just the

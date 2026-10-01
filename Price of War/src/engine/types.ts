@@ -178,7 +178,7 @@ export type GameEvent =
   | { t: 'move'; seat: Seat; from: number; to: number; swapped: boolean }
   // Reforço: the card behind a fallen Vanguarda card stepped forward into its place.
   | { t: 'reinforce'; seat: Seat; from: number; to: number; card: Card }
-  | { t: 'equip'; seat: Seat; slot: number; card: Card }
+  | { t: 'equip'; seat: Seat; slot: number; card: Card; atk: number; hp: number }
   | { t: 'graveyard'; seat: Seat; card: Card }
   | { t: 'ability'; seat: Seat; slot: number; name: string }
   | { t: 'pick'; seat: Seat; title: string }
