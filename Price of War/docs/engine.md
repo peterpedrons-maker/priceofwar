@@ -36,6 +36,7 @@ else { state = r.state; animate(r.events); }                                    
 | `ability {slot, target?, target2?}` | once-per-turn abilities (Cardeal Pedro, Mercador, Hospitalário) |
 | `ambush {cardId \| null}` | the defender answers an ambush prompt |
 | `choose {cardIds}` | answers a search/reveal prompt |
+| `discard {cardIds}` | answers the end-of-turn discard prompt (see below) |
 | `advance` | end the phase (from the last phase: end the turn) |
 | `concede` | give up |
 
@@ -48,12 +49,20 @@ Everything that happened comes back as events (`turn_start`, `gold`, `draw`, `at
 
 ## Rules decided in the engine
 
-- 15 gold and 10 cards each; one card drawn at the start of every turn (hand limit 12); +5 gold per turn from round 2, stacking.
+- 15 gold and 10 cards each; one card drawn at the start of every turn (only while the hand is under 12); +5 gold per turn from round 2, stacking.
+- Card effects can take a hand past 12. At the end of the turn the seat must discard down to 12 (`state.pending.kind === 'discard'`), the cards go to the graveyard, and only then does the turn pass.
 - Combat opens from the 2nd turn of the match: the first player cannot attack in their first turn.
 - Relíquia goes only in slot 10, Terreno only in slot 11.
 - Bonus HP in combat (Comandante da Ordem's aura, Aurelion's +1/+1) lasts only for that combat.
 - Contra-Manobra: the adjacent ally steps into the targeted slot and takes the hit.
 - Batedor's free move ends when the Combate phase does.
+
+## Match record
+
+`newMatchLog` / `replayMatch` (game.ts): a match is fully described by how it was created plus the list of applied actions.
+The client keeps this record for **every** match — against the AI exactly like against a person — so a server can re-run
+it, reject anything illegal, and only then hand out rewards. The AI is a bot seat that submits the same actions as a human
+(`aiNextAction`), so it flows through the same pipeline.
 
 ## Tests
 

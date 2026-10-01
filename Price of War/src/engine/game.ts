@@ -775,6 +775,30 @@ const advance = (c: Ctx, seat: Seat) => {
     c.ev.push({ t: 'phase', seat, phase: t.phase });
     return;
   }
+  // Effects can push a hand past the limit during the turn; at the end of it the seat has to discard the excess.
+  const excess = P(c, seat).hand.length - HAND_LIMIT;
+  if (excess > 0) {
+    c.s.pending = { kind: 'discard', seat, count: excess };
+    log(c, seat, `Você tem ${P(c, seat).hand.length} cartas: descarte ${excess} para terminar o turno.`);
+    return;
+  }
+  endTurn(c);
+};
+
+// The discard that ends a turn which ran over the hand limit.
+const discardExcess = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'discard' }>) => {
+  assertCanAct(c, seat, true);
+  const pend = c.s.pending;
+  if (!pend || pend.kind !== 'discard') return fail('Não há descarte pendente.');
+  if (pend.seat !== seat) return fail('Esse descarte não é seu.');
+  const ids = a.cardIds;
+  if (new Set(ids).size !== ids.length) fail('Escolha cartas diferentes.');
+  if (ids.length !== pend.count) fail(`Descarte exatamente ${pend.count} carta(s).`);
+  const hand = P(c, seat).hand;
+  if (!ids.every(id => hand.some(h => h.id === id))) fail('Essa carta não está na sua mão.');
+  ids.forEach(id => discard(c, seat, removeFromHand(c, seat, id)));
+  c.s.pending = null;
+  log(c, seat, `${ids.length} carta(s) descartada(s).`);
   endTurn(c);
 };
 
@@ -796,6 +820,7 @@ export const applyAction = (state: GameState, seat: Seat, action: Action): Actio
       case 'ability': useAbility(c, seat, action); break;
       case 'ambush': respondAmbush(c, seat, action); break;
       case 'choose': choose(c, seat, action); break;
+      case 'discard': discardExcess(c, seat, action); break;
       case 'advance': advance(c, seat); break;
       case 'concede':
         if (c.s.winner !== null) fail('A partida já terminou.');
@@ -809,4 +834,30 @@ export const applyAction = (state: GameState, seat: Seat, action: Action): Actio
     throw e;
   }
   return { ok: true, state: c.s, events: c.ev };
+};
+
+// ── Match record ────────────────────────────────────────────────────────────
+// A match is fully described by how it was created plus the actions that were applied, in order. Keeping that
+// record (for every match, against the AI or a person) lets a server re-run it to check a result before
+// rewarding it, and lets anything be replayed.
+export interface MatchLog {
+  seed: number;
+  decks: [DeckSetup, DeckSetup];
+  first: Seat;
+  actions: { seat: Seat; action: Action }[];
+}
+
+export const newMatchLog = (opts: MatchOptions): MatchLog => ({ seed: opts.seed, decks: opts.decks, first: opts.first, actions: [] });
+
+// Re-runs a record from scratch. Fails (ok: false) if any recorded action is no longer legal.
+export const replayMatch = (log: MatchLog): ActionResult => {
+  let state = createMatch({ seed: log.seed, decks: log.decks, first: log.first }).state;
+  let events: GameEvent[] = [];
+  for (const { seat, action } of log.actions) {
+    const r = applyAction(state, seat, action);
+    if (r.ok === false) return r;
+    state = r.state;
+    events = events.concat(r.events);
+  }
+  return { ok: true, state, events };
 };

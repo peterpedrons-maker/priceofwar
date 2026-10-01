@@ -1,6 +1,7 @@
 // Scenario tests, one per rule:  npx tsx tests/engine-rules.ts
 import { requireCardDef } from '../src/engine/catalog';
-import { applyAction, combatOpen, createMatch, deckSetupFromRecipe } from '../src/engine/game';
+import { aiNextAction } from '../src/engine/ai';
+import { applyAction, combatOpen, createMatch, deckSetupFromRecipe, newMatchLog, replayMatch } from '../src/engine/game';
 import type { Action, Card, GameEvent, GameState, Seat } from '../src/engine/types';
 
 let passed = 0, failed = 0;
@@ -87,6 +88,33 @@ test('draw at every turn start, but not above the hand limit of 12', () => {
   for (let i = 0; i < 12; i++) give(s, 1, 'Batedor');
   s = act(s, 0, { type: 'advance' }).s; s = act(s, 0, { type: 'advance' }).s;
   eq(s.players[1].hand.length, 12);
+});
+test('over the hand limit at the end of the turn: must discard down to 12 before the turn passes', () => {
+  let s = fresh();
+  for (let i = 0; i < 14; i++) give(s, 0, 'Batedor');
+  s = act(s, 0, { type: 'advance' }).s;           // -> Movimentação (no combat in the very first turn)
+  s = act(s, 0, { type: 'advance' }).s;           // last phase: the turn does not end yet
+  eq([s.turn.active, s.pending?.kind, (s.pending as any).count], [0, 'discard', 2]);
+  refused(s, 0, { type: 'advance' }, 'pendente');
+  refused(s, 0, { type: 'discard', cardIds: [s.players[0].hand[0].id] }, 'exatamente 2');
+  refused(s, 1, { type: 'discard', cardIds: [] }, 'turno');
+  const ids = s.players[0].hand.slice(0, 2).map(c => c.id);
+  s = act(s, 0, { type: 'discard', cardIds: ids }).s;
+  eq([s.turn.active, s.pending, s.players[0].hand.length, s.players[0].graveyard.length], [1, null, 12, 2]);
+});
+test('exactly at the limit nothing has to be discarded', () => {
+  let s = fresh();
+  for (let i = 0; i < 12; i++) give(s, 0, 'Batedor');
+  s = act(act(s, 0, { type: 'advance' }).s, 0, { type: 'advance' }).s;
+  eq([s.turn.active, s.pending], [1, null]);
+});
+test('cards that draw can take the hand past 12 during the turn', () => {
+  let s = fresh({ a: 'cardeal' });
+  for (let i = 0; i < 12; i++) give(s, 0, 'Batedor');
+  const c = give(s, 0, 'Recrutamento Seletivo');
+  s = act(s, 0, { type: 'play', cardId: c.id }).s;
+  s = act(s, 0, { type: 'choose', cardIds: [(s.pending as any).options[0].id] }).s;
+  eq(s.players[0].hand.length, 13);
 });
 test('only the active seat can act, and nothing after the match ends', () => {
   const s = fresh();
@@ -499,6 +527,61 @@ test('Aurelion: up to 2 units that moved get +1/+1 for the next combat; Soldado 
   s = act(s, 0, { type: 'advance' }).s;
   eq(s.players[0].board[0]?.pendingCombatBonus, { atk: 1, hp: 1 });
   eq([s.players[0].board[5]?.name, s.players[0].board[6]?.name], ['Escudeiro de Linha', 'Soldado Tático']);
+});
+
+// ── the AI uses everything ──────────────────────────────────────────────────
+const aiTurn = (s: GameState, seat: Seat): { s: GameState; played: string[] } => {
+  const played: string[] = [];
+  let guard = 0;
+  while (s.turn.active === seat && s.winner === null && guard++ < 200) {
+    const a = aiNextAction(s, seat, () => 0.37);
+    if (a.type === 'play') played.push(s.players[seat].hand.find(h => h.id === a.cardId)!.name);
+    s = act(s, seat, a).s;
+  }
+  return { s, played };
+};
+test('AI plays Relíquia and Terreno into their own slots, Tributo first', () => {
+  let s = fresh({ a: 'capitao', b: 'capitao', first: 1 });
+  s.turn.active = 1; s.turn.first = 1;
+  give(s, 1, 'Estandarte da Legião'); give(s, 1, 'Fortaleza de Pedra'); give(s, 1, 'Tributo de Guerra'); give(s, 1, 'Batedor');
+  const r = aiTurn(s, 1);
+  eq([r.s.players[1].board[10]?.name, r.s.players[1].board[11]?.name], ['Estandarte da Legião', 'Fortaleza de Pedra']);
+  eq(r.played[0], 'Tributo de Guerra');
+});
+test('AI uses Balestra on a unit it can kill, Trabuco/Catapulta when they pay off, equips on its front line', () => {
+  let s = fresh({ a: 'capitao', b: 'cardeal', first: 1 });
+  s.turn.active = 1; s.turn.first = 1;
+  put(s, 0, 2, 'Escudeiro de Linha'); put(s, 0, 0, 'Batedor'); put(s, 0, 4, 'Batedor'); put(s, 0, 5, 'Batedor'); put(s, 0, 7, 'Batedor');
+  put(s, 1, 1, 'Soldados da Ordem');
+  give(s, 1, 'Balestra de Precisão'); give(s, 1, 'Espada Longa'); give(s, 1, 'Trabuco de Cerco');
+  const r = aiTurn(s, 1);
+  ok(r.played.includes('Balestra de Precisão') || r.played.includes('Trabuco de Cerco'), 'removal was used: ' + r.played);
+  ok(r.played.includes('Espada Longa'), 'equip was used: ' + r.played);
+  ok(!!r.s.players[1].board[1]?.equippedWeapons?.length, 'sword rides on the front-line unit');
+});
+test('AI discards down to the limit by itself', () => {
+  let s = fresh({ first: 1 });
+  s.turn.active = 1; s.turn.first = 1;
+  for (let i = 0; i < 14; i++) give(s, 1, i % 2 ? 'Reforços Ocultos' : 'Cavaleiro da Luz');
+  s.players[1].gold = 0;
+  const r = aiTurn(s, 1);
+  eq([r.s.turn.active, r.s.players[1].hand.length], [0, 12]);
+});
+test('a replay of the recorded actions reaches the same state (and a cheated action is rejected)', () => {
+  const opts = { seed: 11, decks: [deckSetupFromRecipe('cardeal'), deckSetupFromRecipe('capitao')] as [any, any], first: 0 as Seat };
+  const log = newMatchLog(opts);
+  let s = createMatch(opts).state;
+  log.actions.push({ seat: 0, action: { type: 'begin' } }); s = act(s, 0, { type: 'begin' }).s;
+  for (let i = 0; i < 60 && s.winner === null; i++) {
+    const seat = (s.pending ? s.pending.seat : s.turn.active) as Seat;
+    const a = aiNextAction(s, seat, () => 0.5);
+    log.actions.push({ seat, action: a }); s = act(s, seat, a).s;
+  }
+  const r = replayMatch(log);
+  ok(r.ok === true, 'replay ok');
+  eq(JSON.stringify((r as any).state), JSON.stringify(s));
+  const tampered = { ...log, actions: [...log.actions, { seat: 0 as Seat, action: { type: 'play', cardId: 'nope', slot: 1 } as Action }] };
+  ok(replayMatch(tampered).ok === false, 'a made-up action fails the replay');
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

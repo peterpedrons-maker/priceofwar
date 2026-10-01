@@ -179,7 +179,7 @@ import batalhaBannerSfxUrl from './assets/sfx-batalha-banner.wav';
 // stinger.
 import batalhaImpactSfxUrl from './assets/sfx-batalha-impacto.wav';
 import { DECK_RECIPES, requireCardDef, type DeckId } from './engine/catalog';
-import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActivePhases, createMatch, deckSetupFromRecipe } from './engine/game';
+import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActivePhases, createMatch, deckSetupFromRecipe, newMatchLog, type MatchLog } from './engine/game';
 import { aiNextAction } from './engine/ai';
 import {
   EQUIP_ALLOWED_TYPES, TACTIC_TARGET_PROMPTS, TARGETABLE_TACTICS, GOLD_PER_TURN, HAND_LIMIT, START_GOLD, START_HAND,
@@ -1479,6 +1479,9 @@ const HAND_CARD_STEP = HAND_CARD_WIDTH * 0.5;
 // Big hands (a match opens with 10-11 cards, up to HAND_LIMIT) overlap MORE instead of fanning
 // out wider: the fan never gets wider than 7 cards' worth, so the cards stay a readable size.
 const HAND_FULL_SPREAD_COUNT = 7;
+// Tapping a hand card lifts it out of the fan and enlarges it so it can be read; the other cards stay on
+// screen, and only those lying over it fade so the card shows through them.
+const HAND_SELECT_SCALE = 1.4;
 const handStepFor = (count: number) =>
   count <= HAND_FULL_SPREAD_COUNT ? HAND_CARD_STEP : (HAND_CARD_STEP * (HAND_FULL_SPREAD_COUNT - 1)) / (count - 1);
 
@@ -4305,11 +4308,15 @@ export default function App() {
     title: string;
     options: CardData[];
     maxPicks: number;
+    // At least this many must be chosen to confirm (1 for the reveal/search prompts, the exact count for a discard).
+    minPicks: number;
+    // True when even a single pick needs the Confirmar button (a discard is not undone by a mis-tap).
+    alwaysConfirm: boolean;
     selected: CardData[];
     onConfirm: (picked: CardData[]) => void;
   } | null>(null);
-  const openCardPicker = (title: string, options: CardData[], maxPicks: number, onConfirm: (picked: CardData[]) => void) => {
-    setCardPicker({ title, options, maxPicks, selected: [], onConfirm });
+  const openCardPicker = (title: string, options: CardData[], maxPicks: number, onConfirm: (picked: CardData[]) => void, extra: { minPicks?: number; alwaysConfirm?: boolean } = {}) => {
+    setCardPicker({ title, options, maxPicks, minPicks: extra.minPicks ?? 1, alwaysConfirm: !!extra.alwaysConfirm, selected: [], onConfirm });
   };
 
   const [playerMana, setPlayerMana] = useState(10);
@@ -4647,6 +4654,7 @@ export default function App() {
   useEffect(() => {
     if (!new URLSearchParams(window.location.search).has('debug')) return;
     (window as any).__powEngine = () => engineRef.current;
+    (window as any).__powMatchLog = () => matchLogRef.current;
     // Lets a test set up a situation (give a card, move a unit…) and have the screen follow.
     (window as any).__powSet = (mutate: (s: GameState) => void) => {
       const next = JSON.parse(JSON.stringify(engineRef.current)) as GameState;
@@ -4659,6 +4667,10 @@ export default function App() {
   // The deck the player picked for the match in progress (the engine match is created once the coin
   // toss has decided who goes first).
   const matchSelectionRef = useRef<DeckSelection>(DEFAULT_DECK_SELECTION);
+  // Every match — against the AI exactly like against a person — is recorded as how it was created plus the
+  // actions applied, in order. That record is what lets a server re-run the match to validate a result before
+  // giving out rewards, and lets any match be replayed.
+  const matchLogRef = useRef<MatchLog | null>(null);
 
   // Where a newly drawn card should land: right next to the last real hand card (or the
   // tray's own resting spot if the hand is still empty) — an approximation of the new
@@ -4904,8 +4916,8 @@ export default function App() {
         }
         case 'log':
           // The AI's own prompts and its ambush line have their own wording elsewhere.
-          if (e.seat === 1 && (e.text.includes('ativar Emboscada?') || e.text.startsWith('Emboscada ativada'))) break;
-          showToast(e.text);
+          if (e.seat === 1 && (e.text.includes('ativar Emboscada?') || e.text.startsWith('Emboscada ativada') || e.text.startsWith('Você tem'))) break;
+          showToast(e.seat === 1 && e.text.includes('descartada') ? `O oponente descartou ${e.text.split(' ')[0]} carta(s).` : e.text);
           break;
         case 'winner':
           setGameOverWinner(e.seat === 0 ? 'player' : 'npc');
@@ -4927,6 +4939,7 @@ export default function App() {
     const r = applyAction(current, seat, action);
     if (r.ok === false) return r;
     engineRef.current = r.state;
+    matchLogRef.current?.actions.push({ seat, action });
     processEvents(r.events, opts);
     syncView(r.state, opts.skip);
     return r;
@@ -4935,6 +4948,16 @@ export default function App() {
   // A pick prompt the engine is waiting on from the player (a search, a reveal): show it, then send the answer.
   const openPlayerPick = () => {
     const pend = engineRef.current?.pending;
+    if (pend && pend.kind === 'discard' && pend.seat === 0) {
+      // Over the hand limit at the end of the turn: choose which cards go to the graveyard.
+      const hand12 = engineRef.current!.players[0].hand.map(toCardData);
+      openCardPicker(`Mão acima do limite: descarte ${pend.count} carta${pend.count > 1 ? 's' : ''} para o cemitério`, hand12, pend.count, (picked) => {
+        const r = dispatchAction(0, { type: 'discard', cardIds: picked.map(c => c.id) });
+        if (r.ok === false) { showToast(r.error); return; }
+        setCardPicker(null);
+      }, { minPicks: pend.count, alwaysConfirm: true });
+      return;
+    }
     if (!pend || pend.kind !== 'pick' || pend.seat !== 0) return;
     openCardPicker(pend.title, pend.options.map(toCardData), pend.max, (picked) => {
       const r = dispatchAction(0, { type: 'choose', cardIds: picked.map(c => c.id) });
@@ -5005,11 +5028,13 @@ export default function App() {
     firstSideRef.current = first;
     const firstSeat: Seat = first === 'player' ? 0 : 1;
     const sel = matchSelectionRef.current;
-    const created = createMatch({
+    const matchOptions = {
       seed: Math.floor(Math.random() * 0x7fffffff),
-      decks: [{ general: sel.general, cards: sel.cards }, deckSetupFromRecipe(sel.npcDeckId)],
+      decks: [{ general: sel.general, cards: sel.cards }, deckSetupFromRecipe(sel.npcDeckId)] as [ReturnType<typeof deckSetupFromRecipe>, ReturnType<typeof deckSetupFromRecipe>],
       first: firstSeat,
-    });
+    };
+    const created = createMatch(matchOptions);
+    matchLogRef.current = newMatchLog(matchOptions);
     engineRef.current = created.state;
     const dealt = created.state;
     setNpcKickoffPending(true);   // nothing can be tapped until both hands are dealt
@@ -5073,6 +5098,7 @@ export default function App() {
     setIntroDescendTargets(null);
 
     engineRef.current = null;
+    matchLogRef.current = null;
     matchSelectionRef.current = sel;
     ghostsRef.current = { player: {}, npc: {} };
 
@@ -5567,6 +5593,7 @@ export default function App() {
       if (!prev) return prev;
       const already = prev.selected.some(c => c.id === option.id);
       if (already) return { ...prev, selected: prev.selected.filter(c => c.id !== option.id) };
+      if (prev.maxPicks === 1) return { ...prev, selected: [option] };
       if (prev.selected.length >= prev.maxPicks) return prev; // already at the cap
       return { ...prev, selected: [...prev.selected, option] };
     });
@@ -6530,8 +6557,7 @@ export default function App() {
             setSelectedMoverIndex(null);
             // Advancing ends the phase — and, from the last phase, the turn (Aurelion's bonus, the Soldado Tático swap,
             // the opponent's turn starting) — all decided by the engine.
-            const r = dispatchAction(0, { type: 'advance' });
-            if (r.ok === false) showToast(r.error);
+            playerAct({ type: 'advance' });
           }}
         >
           {/* A single rectangular button carrying its own text, replacing the old
@@ -6967,6 +6993,11 @@ export default function App() {
               // separate screen replacing the hand.
               const isAmbushCandidate = ambushPrompt?.options.some(o => o.id === card.id) ?? false;
               const isFocused = selectedCardIndex === i || isAmbushCandidate;
+              // The card the player tapped, in the hand view: it steps up out of the fan (see HAND_SELECT_SCALE).
+              const tapSelected = viewState === 'hand' && selectedCardIndex === i && !isAmbushCandidate;
+              // Cards in front of it whose area overlaps it fade away (and let taps through to it).
+              const coveredBySelected = viewState === 'hand' && selectedCardIndex !== null && !ambushPrompt
+                && i > selectedCardIndex && (i - selectedCardIndex) * handStep < HAND_CARD_WIDTH * HAND_SELECT_SCALE;
               return (
               <motion.div
                 // No layoutId here: it would make Framer Motion auto-animate this card's
@@ -6978,7 +7009,7 @@ export default function App() {
                 key={card.id}
                 ref={(el) => { handCardRefs.current[card.id] = el; }}
                 data-hand-card
-                className={`w-56 h-80 shrink-0 cursor-pointer relative group ${viewState === 'field' || (selectedCardIndex !== null && !isFocused) ? 'pointer-events-none' : 'pointer-events-auto'}`}
+                className={`w-56 h-80 shrink-0 cursor-pointer relative group ${viewState === 'field' || coveredBySelected ? 'pointer-events-none' : 'pointer-events-auto'}`}
                 // A freshly drawn card (see computeDrawOrigin) mounts sitting right at the
                 // real on-board deck's position/size and animates itself — this same
                 // element, start to finish — into its fan slot below, flipping from its
@@ -6993,35 +7024,27 @@ export default function App() {
                   marginLeft: i === 0 ? 0 : handStep - HAND_CARD_WIDTH,
                 }}
                 animate={{
-                  // Hidden while tap-previewed (see the fixed "Hand card tap preview"
-                  // overlay further down) — that floating, fixed-position copy does the
-                  // showing instead, so this real element (still sitting inside the
-                  // hand tray's own transformed stacking context) would otherwise
-                  // double up with it on screen.
-                  opacity: (isFocused && viewState === 'hand') ? 0 : viewState === 'field'
+                  // The tapped card shows in full; the ones lying over it fade so it reads through them; the rest of
+                  // the hand stays as it was. An Emboscada prompt dims everything but the card in question.
+                  opacity: tapSelected ? 1 : coveredBySelected ? 0.2 : viewState === 'field'
                     ? (isFocused ? 1 : 0.4)
-                    // A selected card hides the rest of the hand outright (not just dimmed)
-                    // — only the selected card should read as "in play" while the player
-                    // picks a destination for it, per the user's own ask. An Emboscada
-                    // interrupt prompt (ambushPrompt, unrelated to a manual selection)
-                    // still just dims the rest, since that's a brief forced decision, not
-                    // an open-ended "pick where to play this" state.
-                    : (selectedCardIndex !== null && !isFocused ? 0 : ambushPrompt && !isFocused ? 0.3 : 1),
+                    : (ambushPrompt && !isFocused ? 0.3 : 1),
                   x: isFocused && viewState === 'field' ? getSelectedCardX(i) : 0,
                   // Float the previewed card up near the vertical center of the real screen
                   // instead of sitting down at the hand's normal resting height (see
                   // getSelectedCardY above for how mobile's handScale is compensated for).
-                  y: isFocused && viewState === 'field' ? getSelectedCardY() : getFanLift(i),
-                  scale: isFocused && viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) : 1,
+                  // (the resting hand sits partly below the screen edge on mobile, so the lift also brings it back up)
+                  y: isFocused && viewState === 'field' ? getSelectedCardY() : tapSelected ? getFanLift(i) - (isMobile ? HAND_CARD_HEIGHT * 0.22 : 0) - 24 : getFanLift(i),
+                  scale: isFocused && viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) : tapSelected ? HAND_SELECT_SCALE : 1,
                   rotateZ: isFocused || viewState === 'field' ? 0 : getFanRotation(i),
-                  zIndex: isFocused ? 150 : i + 1,
+                  zIndex: isFocused && !tapSelected ? 150 : i + 1,
                   // boxShadow lives on the front face now (see below), not here: a shadow
                   // on THIS element is a flat 2D box that doesn't perspective-foreshorten
                   // the way the nested 3D-rotated card does, so during the flip it kept
                   // rendering as a separate, undistorted rounded-rectangle ghost sitting
                   // behind the actual (already turning, narrower-looking) card.
                 }}
-                whileHover={{
+                whileHover={tapSelected ? undefined : {
                   y: isFocused && viewState === 'field' ? getSelectedCardY() : (viewState === 'field' ? 120 : -20),
                   scale: isFocused && viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) + 0.05 : 1.05,
                 }}
@@ -7171,51 +7194,6 @@ export default function App() {
           'field' itself), so it was one more thing sitting in the corner without a
           real job, plus it was colliding with the opponent's hand fan up there. */}
 
-      {/* Hand card tap preview — a plain tap on a hand card (see handleCardClick,
-          selectedCardIndex) shows this instead of enlarging the real card in place:
-          a fixed, top-level, always-on-top floating copy. The real hand card fades
-          to opacity 0 for as long as this is up (see its own animate block above).
-          This floating copy IS the selected-card representation the rest of the
-          tap-to-play flow builds on: the board highlights this card's valid
-          destinations at the same time (see getPlayerSlotHint/isTacticTargetSlot),
-          and tapping one plays it — from the player's perspective it's the same
-          card the whole time, just already big enough to read. Not shown during an
-          Emboscada interrupt (that prompt anchors the real card itself, see
-          isAmbushCandidate above). */}
-      {selectedCardIndex !== null && viewState === 'hand' && !ambushPrompt && hand[selectedCardIndex] && (() => {
-        const card = hand[selectedCardIndex];
-        const previewScale = (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) * 0.55;
-        const w = HAND_CARD_WIDTH * previewScale;
-        const h = HAND_CARD_HEIGHT * previewScale;
-        const edgeGap = 6;
-        // Pushed as far left as it can go (centering it — see git history — still
-        // sat it right on top of the General/Relíquia/Terreno row, the closest row
-        // to the hand and dead-center on the board) so it clears both the board's
-        // own destination highlights and the gold/turn-button HUD sitting near the
-        // screen's vertical middle. The rest of the hand hides outright the moment a
-        // card is selected (see the real hand card's own opacity above), so this can
-        // sit right down at the true bottom-left corner without covering anything
-        // back there either.
-        return (
-          <div
-            className="fixed z-[260]"
-            style={{ left: edgeGap, bottom: edgeGap, width: w, height: h }}
-            onClick={(e) => { e.stopPropagation(); handleCardClick(selectedCardIndex); }}
-          >
-            {/* The glow radius here used to be tuned for this preview's old, much
-                bigger size (before it shrank to get out of the board's way) — left
-                as-is, that same 100px blur no longer read as a card glow at this
-                smaller footprint, just a diffuse gold smudge bleeding out around it.
-                Scaled down to match. */}
-            <div
-              className="relative w-full h-full rounded-xl"
-              style={{ boxShadow: cardBoxShadow(card, "inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 18px rgba(212, 175, 55, 0.8)"), filter: cardGlowFilter(card, '0 0 12px rgba(212,175,55,0.9)') }}
-            >
-              <CardFace card={card} variant="hand" />
-            </div>
-          </div>
-        );
-      })()}
       {/* Flying card — plays from hand to the chosen board slot along real screen coordinates.
           Rises to a large "presentation" size above the slot, holds briefly, then descends
           straight down into place. Kept simple on purpose: no wobble, dip, or shake. */}
@@ -7840,7 +7818,7 @@ export default function App() {
                     animate={{ scale: 1, opacity: 1 }}
                     className="flex flex-col items-center"
                     onClick={() => {
-                      if (cardPicker.maxPicks === 1) {
+                      if (cardPicker.maxPicks === 1 && !cardPicker.alwaysConfirm) {
                         cardPicker.onConfirm([opt]);
                       } else {
                         toggleCardPickerSelection(opt);
@@ -7857,10 +7835,10 @@ export default function App() {
                 );
               })}
             </div>
-            {cardPicker.maxPicks > 1 && (
+            {(cardPicker.maxPicks > 1 || cardPicker.alwaysConfirm) && (
               <button
                 onClick={() => { playUiClickSfx(); cardPicker.onConfirm(cardPicker.selected); }}
-                disabled={cardPicker.selected.length === 0}
+                disabled={cardPicker.selected.length < cardPicker.minPicks}
                 className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(16,185,129,0.7)] border-2 border-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
               >
                 Confirmar ({cardPicker.selected.length}/{cardPicker.maxPicks})

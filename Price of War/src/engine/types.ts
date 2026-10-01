@@ -107,6 +107,12 @@ export type Pending =
       slots?: number[];
     }
   | {
+      // End of turn with more than HAND_LIMIT cards: the seat must discard down to the limit.
+      kind: 'discard';
+      seat: Seat;
+      count: number;
+    }
+  | {
       kind: 'ambush';
       // The DEFENDER decides whether to spring an Emboscada.
       seat: Seat;
@@ -141,6 +147,8 @@ export type Action =
   | { type: 'ambush'; cardId: string | null }
   // Resolves a pick prompt (search/reveal): the chosen card ids.
   | { type: 'choose'; cardIds: string[] }
+  // Answers the end-of-turn discard prompt: exactly the number of cards asked for, they go to the graveyard.
+  | { type: 'discard'; cardIds: string[] }
   // Ends the current phase (and the turn, from the last phase).
   | { type: 'advance' }
   | { type: 'concede' };

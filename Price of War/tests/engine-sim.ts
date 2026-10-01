@@ -5,12 +5,15 @@
 //  4. Redaction: the opponent's hand and deck order are never exposed.
 import { DECK_RECIPES, type DeckId } from '../src/engine/catalog';
 import { aiNextAction } from '../src/engine/ai';
-import { applyAction, createMatch, deckSetupFromRecipe } from '../src/engine/game';
+import { applyAction, createMatch, deckSetupFromRecipe, replayMatch } from '../src/engine/game';
 import { nextRandom, seedFrom } from '../src/engine/rng';
 import { redactFor } from '../src/engine/view';
 import type { Action, Card, GameState, Seat } from '../src/engine/types';
 
 let failures = 0;
+const usage: Record<string, number> = {};
+const tactics: Record<string, number> = {};
+let discards = 0;
 const check = (cond: boolean, msg: string) => { if (!cond) { failures++; if (failures <= 25) console.log('  ✗', msg); } };
 
 const allCards = (s: GameState): Card[] => {
@@ -46,6 +49,8 @@ const play = (seed: number, a: DeckId, b: DeckId, first: Seat, maxRounds = 150) 
   const rand = () => nextRandom(rng);
   const rng = { rng: seedFrom(seed * 7 + 1) };
   const step = (seat: Seat, action: Action) => {
+    if (action.type === 'play') { const c = state.players[seat].hand.find(h => h.id === action.cardId); if (c) usage[c.cardType] = (usage[c.cardType] ?? 0) + 1; if (c && c.cardType === 'Tática') tactics[c.name] = (tactics[c.name] ?? 0) + 1; }
+    if (action.type === 'discard') discards += action.cardIds.length;
     const before = JSON.stringify(state);
     const r = applyAction(state, seat, action);
     check(JSON.stringify(state) === before, `seed ${seed}: applyAction mutated its input`);
@@ -84,13 +89,15 @@ for (let seed = 1; seed <= 120; seed++) {
   } else stalled++;
   if (seed <= 5) {
     // replay the recorded actions: must land on the identical state
-    let s = createMatch({ seed, decks: [deckSetupFromRecipe(a), deckSetupFromRecipe(b)], first }).state;
-    for (const h of r.history) { const x = applyAction(s, h.seat, h.action); if (x.ok === true) s = x.state; else check(false, `replay refused ${h.action.type}`); }
-    check(JSON.stringify(s) === JSON.stringify(r.state), `seed ${seed}: replay differs from the original match`);
+    const rep = replayMatch({ seed, decks: [deckSetupFromRecipe(a), deckSetupFromRecipe(b)], first, actions: r.history });
+    check(rep.ok === true, `seed ${seed}: replay refused an action`);
+    if (rep.ok === true) check(JSON.stringify(rep.state) === JSON.stringify(r.state), `seed ${seed}: replay differs from the original match`);
   }
 }
 console.log(`  matches ${total}: finished ${finished}, stalled ${stalled}; avg rounds ${(rounds / Math.max(1, finished)).toFixed(1)}; first player won ${firstWins}/${finished}; deck wins`, winsByDeck);
+console.log('  cards played by type', usage, '| tactics', tactics, '| discarded', discards);
 check(total > 0 && finished / total > 0.9, 'most AI vs AI matches should finish');
+check((usage['Tática'] ?? 0) > 20 && (usage['Relíquia'] ?? 0) > 0 && (usage['Terreno'] ?? 0) > 0, 'the AI uses Táticas, Relíquias and Terrenos');
 
 // ── 3: fuzz ─────────────────────────────────────────────────────────────────
 console.log('Fuzz…');
@@ -113,6 +120,7 @@ for (let m = 0; m < 60; m++) {
       { type: 'ability', slot: R(13), target: R(12) - 1, target2: R(12) - 1 },
       { type: 'ambush', cardId: R(2) ? pickCard() : null },
       { type: 'choose', cardIds: state.pending?.kind === 'pick' ? state.pending.options.slice(0, R(3)).map(o => o.id) : [pickCard()] },
+      { type: 'discard', cardIds: hand.slice(0, R(4)).map(h => h.id) },
       { type: 'advance' }, { type: 'advance' },
     ];
     // half the time follow the AI so the match actually progresses; the other half is noise
