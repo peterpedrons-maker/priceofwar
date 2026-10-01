@@ -78,6 +78,7 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     const { a, b } = await pvp(db);
     eq(a.id, b.id);
     ok(a.iGoFirst !== b.iGoFirst, 'exactly one goes first');
+    ok(a.mySide !== b.mySide && [a.mySide, b.mySide].includes('cara') && [a.mySide, b.mySide].includes('coroa'), 'one is Cara, the other Coroa');
     eq([a.opponent.name, b.opponent.name], ['Bruno', 'Alice']);
     eq(a.myDeck.general, DECK_RECIPES.cardeal.general);
     eq(a.opponentGeneral, DECK_RECIPES.capitao.general);

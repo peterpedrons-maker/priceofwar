@@ -81,7 +81,7 @@ export function TurnTracker({ mine, phase, locked, caption, name, tappable }: Pr
   const vars = {
     '--b1': base.b1, '--b2': base.b2, '--glow': pal.glow,
     '--bt': BAND_TOP, '--bb': BAND_BOTTOM, '--my': MEDALLION_Y,
-    '--fb': 1.08, transform: `scale(${scale})`,
+    '--fb': 1, transform: `scale(${scale})`,
     '--mband': `url(${trackerBand})`, '--mneu': `url(${trackerNeutral})`, '--mart': `url(${trackerArt})`,
   } as CSSProperties;
 

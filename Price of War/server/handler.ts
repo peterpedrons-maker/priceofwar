@@ -31,6 +31,8 @@ export interface MatchInit {
   id: string;
   // True when the player goes first (decided by the server's coin toss).
   iGoFirst: boolean;
+  // The side of the coin this player was given: seat order is random, so seat 0 = Cara, seat 1 = Coroa is fair.
+  mySide: 'cara' | 'coroa';
   myDeck: DeckJson;
   opponentGeneral: string;
   opponent: { name: string; avatarId: string; bot: boolean };
@@ -199,7 +201,7 @@ const initOf = async (db: Db, m: MatchRow, userId: string, cfg: GameConfig): Pro
   const resumed = rows.some(r => r.actor === 0 && r.action.type !== 'begin') || cfg.now() - Date.parse(m.created_at) > 60000;
   const start = viewFor(createMatch({ seed: m.seed, decks: m.decks, first: m.first }).state, seat);
   return {
-    id: m.id, iGoFirst: m.first === seat, myDeck: m.decks[seat], opponentGeneral: m.decks[otherSeat(seat)].general,
+    id: m.id, iGoFirst: m.first === seat, mySide: seat === 0 ? 'cara' : 'coroa', myDeck: m.decks[seat], opponentGeneral: m.decks[otherSeat(seat)].general,
     opponent: oppId ? { name: prof?.username ?? 'Jogador', avatarId: prof?.avatar_id ?? 'batedora', bot: false } : { ...BOT_PROFILE, bot: true },
     start, rows: resumed ? [] : rows, latest: resumed ? (rows[rows.length - 1] ?? null) : null,
     status: m.status, winner: m.winner === null ? null : (m.winner === seat ? 0 : 1), resumed, deadline: m.turn_deadline, now: cfg.now(),

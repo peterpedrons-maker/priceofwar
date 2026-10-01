@@ -168,7 +168,15 @@ var START_HAND = 7;
 var GOLD_PER_TURN = 5;
 var GOLD_FROM_ROUND = 2;
 var HAND_LIMIT = 10;
-var phasesForTurn = (combatOpen2) => combatOpen2 ? ["preparacao", "combate", "movimentacao"] : ["preparacao", "movimentacao"];
+var phasesForTurn = (combatOpen2) => combatOpen2 ? ["compra", "suprimentos", "preparacao", "combate", "pos_combate", "movimentacao"] : ["compra", "suprimentos", "preparacao", "movimentacao"];
+var AUTOMATIC_PHASES = ["compra", "suprimentos"];
+var restingPhasesForTurn = (combatOpen2) => phasesForTurn(combatOpen2).filter((p) => !AUTOMATIC_PHASES.includes(p));
+var ABILITY_PHASES = {
+  "Cardeal Pedro, Voz da F\xE9": ["preparacao", "pos_combate"],
+  "Cavaleiro Hospital\xE1rio": ["preparacao", "pos_combate"]
+};
+var abilityPhases = (cardName) => ABILITY_PHASES[cardName] ?? ["preparacao"];
+var POST_COMBAT_CARD_TYPES = ["T\xE1tica", "Rel\xEDquia", "Terreno"];
 var isFrontline = (slot) => slot >= 0 && slot <= 4;
 var isBackline = (slot) => slot >= 5 && slot <= 9;
 var isUnitSlot = (slot) => slot >= 0 && slot <= 9;
@@ -349,7 +357,7 @@ var log = (c, seat, text, priv = false) => {
 };
 var P = (c, seat) => c.s.players[seat];
 var combatOpen = (s) => s.turn.round >= 2 || s.turn.active !== s.turn.first;
-var activePhases = (s) => phasesForTurn(combatOpen(s));
+var activePhases = (s) => restingPhasesForTurn(combatOpen(s));
 var addGold = (c, seat, delta, reason) => {
   if (delta === 0) return;
   P(c, seat).gold += delta;
@@ -440,24 +448,40 @@ var startTurn = (c, seat) => {
   const t = c.s.turn;
   const p = P(c, seat);
   t.active = seat;
-  t.phase = "preparacao";
+  t.phase = "compra";
   t.moved = [];
   t.bonusRepositions = 0;
   t.batedorFree = null;
   t.attackCounts = {};
   t.activated = [];
   c.ev.push({ t: "turn_start", seat, round: t.round });
-  if (t.round >= GOLD_FROM_ROUND) addGold(c, seat, GOLD_PER_TURN, "turn");
   p.board.forEach((card, i) => {
     if (card?.formationBuffAtk) p.board[i] = { ...card, formationBuffAtk: 0 };
   });
   p.generalAbilityUses = 0;
   p.generalAbilityBlocked = p.pendingGeneralBlock;
   p.pendingGeneralBlock = false;
-  drawCards(c, seat, 1, "turn");
-  if (p.board.some((card, i) => i <= 9 && card?.name === "Intendente do Ex\xE9rcito") && p.hand.length < 2) {
-    drawCards(c, seat, 2 - p.hand.length, "effect");
+  const skip = p.skip ?? {};
+  p.skip = void 0;
+  c.ev.push({ t: "phase", seat, phase: "compra" });
+  if (skip.compra) {
+    c.ev.push({ t: "skip", seat, phase: "compra" });
+    log(c, seat, "A fase de Compra foi pulada!");
+  } else {
+    drawCards(c, seat, 1, "turn");
+    if (p.board.some((card, i) => i <= 9 && card?.name === "Intendente do Ex\xE9rcito") && p.hand.length < 2) {
+      drawCards(c, seat, 2 - p.hand.length, "effect");
+    }
   }
+  t.phase = "suprimentos";
+  c.ev.push({ t: "phase", seat, phase: "suprimentos" });
+  if (skip.suprimentos) {
+    c.ev.push({ t: "skip", seat, phase: "suprimentos" });
+    log(c, seat, "A fase de Suprimentos foi pulada!");
+  } else if (t.round >= GOLD_FROM_ROUND) {
+    addGold(c, seat, GOLD_PER_TURN, "turn");
+  }
+  t.phase = "preparacao";
   c.ev.push({ t: "phase", seat, phase: "preparacao" });
 };
 var grantAurelionBuff = (c, seat) => {
@@ -505,8 +529,13 @@ var playCard = (c, seat, a) => {
   const enemy = P(c, enemySeat);
   const card = p.hand.find((h) => h.id === a.cardId);
   if (!card) return fail("Essa carta n\xE3o est\xE1 na sua m\xE3o.");
-  const inMovement = c.s.turn.phase === "movimentacao" && card.name === "Avan\xE7o Coordenado";
-  if (c.s.turn.phase !== "preparacao" && !inMovement) fail("Jogar cartas s\xF3 na fase de Prepara\xE7\xE3o!");
+  const phase = c.s.turn.phase;
+  const inMovement = phase === "movimentacao" && card.name === "Avan\xE7o Coordenado";
+  if (phase === "pos_combate") {
+    if (!POST_COMBAT_CARD_TYPES.includes(card.cardType)) fail("Depois do combate s\xF3 d\xE1 pra jogar T\xE1ticas, Rel\xEDquias e Terrenos!");
+  } else if (phase !== "preparacao" && !inMovement) {
+    fail("Jogar cartas s\xF3 nas fases de Prepara\xE7\xE3o e P\xF3s-combate!");
+  }
   if (p.gold < card.cost) fail("Ouro insuficiente!");
   const commit = () => {
     removeFromHand(c, seat, card.id);
@@ -705,11 +734,13 @@ var playCard = (c, seat, a) => {
 };
 var useAbility = (c, seat, a) => {
   assertCanAct(c, seat);
-  if (c.s.turn.phase !== "preparacao") fail("Habilidades s\xF3 na fase de Prepara\xE7\xE3o.");
   const p = P(c, seat);
   const enemySeat = otherSeat(seat);
   const card = p.board[a.slot];
   if (!card) return fail("N\xE3o h\xE1 carta nesse slot.");
+  if (!abilityPhases(card.name).includes(c.s.turn.phase)) {
+    fail(abilityPhases(card.name).includes("pos_combate") ? "Essa habilidade s\xF3 vale na Prepara\xE7\xE3o e no P\xF3s-combate." : "Habilidades s\xF3 na fase de Prepara\xE7\xE3o.");
+  }
   const usedUp = c.s.turn.activated.includes(card.id);
   if (a.slot === GENERAL_SLOT) {
     if (card.name !== "Cardeal Pedro, Voz da F\xE9") fail("Esse General n\xE3o tem habilidade ativa.");
@@ -1285,7 +1316,8 @@ var aiNextAction = (state, seat, rand = Math.random) => {
     }
     return { type: "choose", cardIds: bestIds(pend.options, Math.max(pend.min, Math.min(pend.max, pend.options.length))) };
   }
-  if (t.phase === "preparacao") {
+  if (t.phase === "preparacao" || t.phase === "pos_combate") {
+    const afterCombat = t.phase === "pos_combate";
     const general = me.board[12];
     if (general?.name === "Cardeal Pedro, Voz da F\xE9" && me.generalAbilityUses < 1 && !me.generalAbilityBlocked && me.gold >= 2) {
       const allies = UNIT_SLOTS.filter((i) => me.board[i]);
@@ -1323,7 +1355,7 @@ var aiNextAction = (state, seat, rand = Math.random) => {
       if (card.cardType === "Rel\xEDquia" && !me.board[10]) return { type: "play", cardId: card.id, slot: 10 };
       if (card.cardType === "Terreno" && !me.board[11]) return { type: "play", cardId: card.id, slot: 11 };
     }
-    for (const card of me.hand) {
+    for (const card of afterCombat ? [] : me.hand) {
       if (!isSoldier(card) || !afford(card)) continue;
       const empty = UNIT_SLOTS.filter((i) => !me.board[i]);
       if (empty.length === 0) break;
@@ -1570,6 +1602,7 @@ var initOf = async (db, m, userId, cfg) => {
   return {
     id: m.id,
     iGoFirst: m.first === seat,
+    mySide: seat === 0 ? "cara" : "coroa",
     myDeck: m.decks[seat],
     opponentGeneral: m.decks[otherSeat(seat)].general,
     opponent: oppId ? { name: prof?.username ?? "Jogador", avatarId: prof?.avatar_id ?? "batedora", bot: false } : { ...BOT_PROFILE, bot: true },

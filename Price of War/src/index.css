@@ -22,7 +22,7 @@
   background: linear-gradient(90deg, transparent, #fff, transparent); animation: trk-wipe-edge .7s cubic-bezier(.5,0,.3,1) forwards; }
 @keyframes trk-wipe-edge { 0% { left: -11%; opacity: 0; } 15% { opacity: .95; } 80% { opacity: .95; } 100% { left: 103%; opacity: 0; } }
 .trk-diamond { position: absolute; left: 50%; top: 1.2%; width: 6px; height: 6px; transform: translate(-50%, 0) rotate(45deg); background: #fff; box-shadow: 0 0 8px var(--glow); z-index: 3; }
-.trk-lab { position: absolute; left: 4.2%; right: 4.2%; top: calc(var(--bt) * 100%); height: calc((var(--bb) - var(--bt)) * 100%); display: flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap; z-index: 3; animation: trk-lab-in .28s ease-out; }
+.trk-lab { position: absolute; left: 4.2%; right: 4.2%; top: calc(var(--bt) * 100%); height: calc((var(--bb) - var(--bt)) * 100%); display: flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap; z-index: 3; padding-top: 2px; animation: trk-lab-in .28s ease-out; }
 @keyframes trk-lab-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 .trk-lab em { font-style: normal; font-family: 'Cinzel', serif; font-weight: 900; font-size: calc(8.5px * var(--fb, 1)); letter-spacing: .2em; text-transform: uppercase; color: #fff7d6; text-shadow: 0 1px 2px rgba(0,0,0,.8), 0 0 5px rgba(0,0,0,.65); }
 .trk-lab b { font-family: 'Cinzel Decorative', 'Cinzel', serif; font-weight: 900; font-size: calc(16px * var(--fb, 1)); letter-spacing: .06em; color: #fffaf0; text-shadow: 0 1px 2px #000, 0 0 6px rgba(0,0,0,.6), 0 0 12px var(--glow); }

@@ -31,6 +31,7 @@ export interface RewardInfo {
 export interface MatchInit {
   id: string;
   iGoFirst: boolean;
+  mySide?: 'cara' | 'coroa';
   myDeck: DeckJson;
   opponentGeneral: string;
   opponent: { name: string; avatarId: string; bot: boolean };

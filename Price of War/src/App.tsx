@@ -4139,26 +4139,27 @@ const CoinRim = () => (
   </>
 );
 
-// Before BATALHA: one player calls heads or tails, the coin is tossed, and whoever called it right
-// plays first. `onResolved` hands the winner back to the match intro.
-// `forced`: an online match already knows who goes first (the server decided) — the toss is only shown.
-const CoinToss = ({ onResolved, forced }: { onResolved: (first: 'player' | 'npc') => void; forced?: 'player' | 'npc'; key?: React.Key }) => {
-  const [phase, setPhase] = useState<'choose' | 'flip' | 'result'>('choose');
-  const [choice, setChoice] = useState<'cara' | 'coroa' | null>(null);
-  const [result, setResult] = useState<'cara' | 'coroa'>('cara');
+// Before BATALHA: nobody chooses anything. Each player is GIVEN a side of the coin ("Você é Cara" / "Você é Coroa"),
+// the coin is tossed, and whoever holds the side that lands up plays first. Online the server hands out the sides
+// (so two players can never pick the same one) and already knows who goes first (`forced`); against the AI the
+// side and the landing are drawn here. `onResolved` hands the winner back to the match intro.
+const CoinToss = ({ onResolved, mySide, forced }: { onResolved: (first: 'player' | 'npc') => void; mySide: 'cara' | 'coroa'; forced?: 'player' | 'npc'; key?: React.Key }) => {
+  const [phase, setPhase] = useState<'assign' | 'flip' | 'result'>('assign');
+  const [result] = useState<'cara' | 'coroa'>(() => (forced ? (forced === 'player' ? mySide : mySide === 'cara' ? 'coroa' : 'cara') : Math.random() < 0.5 ? 'cara' : 'coroa'));
   const timers = useRef<number[]>([]);
-  useEffect(() => () => { timers.current.forEach(clearTimeout); }, []);
-  const call = (c: 'cara' | 'coroa') => {
-    if (phase !== 'choose') return;
-    playUiClickSfx();
-    const r: 'cara' | 'coroa' = forced ? (forced === 'player' ? c : c === 'cara' ? 'coroa' : 'cara') : Math.random() < 0.5 ? 'cara' : 'coroa';
-    setChoice(c); setResult(r); setPhase('flip');
-    playCoinSfx('toss');
-    timers.current.push(window.setTimeout(() => { setPhase('result'); playCoinSfx('land'); }, 1900));
-    timers.current.push(window.setTimeout(() => onResolved(c === r ? 'player' : 'npc'), 3700));
-  };
-  const won = choice === result;
+  useEffect(() => {
+    const t = timers.current;
+    // The side is shown on its own for a beat, then the coin goes up by itself.
+    t.push(window.setTimeout(() => { setPhase('flip'); playCoinSfx('toss'); }, 2000));
+    t.push(window.setTimeout(() => { setPhase('result'); playCoinSfx('land'); }, 3900));
+    t.push(window.setTimeout(() => onResolved(mySide === result ? 'player' : 'npc'), 5700));
+    return () => { t.forEach(clearTimeout); };
+  }, []);
+  const label = (side: 'cara' | 'coroa') => (side === 'cara' ? 'Cara' : 'Coroa');
+  const other = mySide === 'cara' ? 'coroa' : 'cara';
+  const won = mySide === result;
   const finalTurns = 9 * 360 + (result === 'cara' ? 0 : 180);
+  const restTurns = mySide === 'cara' ? 0 : 180;   // while waiting, the coin shows the player's own face
   return (
     <motion.div className="fixed inset-0 z-[950] flex flex-col items-center justify-end pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
       {/* the coin hangs above the two Generals so it never overlaps them */}
@@ -4166,9 +4167,9 @@ const CoinToss = ({ onResolved, forced }: { onResolved: (first: 'player' | 'npc'
         <motion.div
           className="absolute inset-0"
           style={{ transformStyle: 'preserve-3d' }}
-          initial={{ y: 0, rotateX: 0, scale: 1 }}
-          animate={phase === 'choose' ? { y: [0, -6, 0], rotateX: 0, scale: 1 } : { y: [0, -150, 0, -16, 0], rotateX: finalTurns, scale: [1, 2.3, 1, 1, 1] }}
-          transition={phase === 'choose' ? { duration: 2.2, repeat: Infinity, ease: 'easeInOut' } : { duration: 1.8, times: [0, 0.42, 0.82, 0.92, 1], ease: ['easeOut', 'easeIn', 'easeOut', 'easeIn'] }}
+          initial={{ y: 0, rotateX: restTurns, scale: 1 }}
+          animate={phase === 'assign' ? { y: [0, -6, 0], rotateX: restTurns, scale: 1 } : { y: [0, -150, 0, -16, 0], rotateX: finalTurns, scale: [1, 2.3, 1, 1, 1] }}
+          transition={phase === 'assign' ? { duration: 2.2, repeat: Infinity, ease: 'easeInOut' } : { duration: 1.8, times: [0, 0.42, 0.82, 0.92, 1], ease: ['easeOut', 'easeIn', 'easeOut', 'easeIn'] }}
         >
           <CoinRim />
           <CoinFace side="cara" />
@@ -4176,23 +4177,19 @@ const CoinToss = ({ onResolved, forced }: { onResolved: (first: 'player' | 'npc'
         </motion.div>
         <motion.div className="absolute left-1/2 -bottom-5 h-3 rounded-full bg-black/60 blur-md" style={{ x: '-50%' }} initial={{ width: 90 }} animate={phase === 'flip' ? { width: [90, 40, 90, 80, 90], opacity: [0.6, 0.25, 0.6, 0.5, 0.6] } : { width: 90 }} transition={{ duration: 1.8, times: [0, 0.42, 0.82, 0.92, 1] }} />
       </div>
-      <div className="w-full max-w-[420px] px-5 flex flex-col items-center gap-3 pointer-events-auto" style={{ paddingBottom: 'calc(max(18px, env(safe-area-inset-bottom)) + 7vh)', minHeight: 200 }}>
-        {phase === 'choose' && (
-          <>
-            <span className="text-[17px] uppercase tracking-[0.14em] text-[#fff1c9]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, textShadow: '0 2px 6px rgba(0,0,0,0.9)' }}>Cara ou Coroa?</span>
-            <span className="text-[12px] text-[#dccfae] text-center" style={{ fontFamily: "'PT Serif', serif", textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>Quem acertar começa a partida.</span>
-            <div className="flex gap-4 mt-1">
-              <WindowButton primary onClick={() => call('cara')}>Cara</WindowButton>
-              <WindowButton primary onClick={() => call('coroa')}>Coroa</WindowButton>
-            </div>
-          </>
-        )}
-        {phase === 'flip' && (
-          <span className="text-[14px] uppercase tracking-[0.2em] text-[#dccfae]" style={{ fontFamily: "'Cinzel', serif", textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>Você escolheu {choice === 'cara' ? 'Cara' : 'Coroa'}…</span>
+      <div className="w-full max-w-[420px] px-5 flex flex-col items-center gap-3 pointer-events-none" style={{ paddingBottom: 'calc(max(18px, env(safe-area-inset-bottom)) + 7vh)', minHeight: 200 }}>
+        {phase !== 'result' && (
+          <motion.div className="flex flex-col items-center gap-1.5" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+            <span className="text-[12px] uppercase tracking-[0.22em] text-[#dccfae]" style={{ fontFamily: "'Cinzel', serif", textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>Você é</span>
+            <span className="text-[30px] uppercase tracking-[0.12em] text-[#fff1c9]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, textShadow: '0 2px 8px rgba(0,0,0,0.95)' }}>{label(mySide)}</span>
+            <span className="text-[12px] text-[#dccfae] text-center" style={{ fontFamily: "'PT Serif', serif", textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>
+              {phase === 'assign' ? `O adversário é ${label(other)}. Quem ganhar o sorteio começa.` : 'A moeda está no ar…'}
+            </span>
+          </motion.div>
         )}
         {phase === 'result' && (
           <motion.div className="flex flex-col items-center gap-1" initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}>
-            <span className="text-[13px] uppercase tracking-[0.2em] text-[#dccfae]" style={{ fontFamily: "'Cinzel', serif", textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>Deu {result === 'cara' ? 'Cara' : 'Coroa'}!</span>
+            <span className="text-[13px] uppercase tracking-[0.2em] text-[#dccfae]" style={{ fontFamily: "'Cinzel', serif", textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>Deu {label(result)}!</span>
             <span className="text-[20px] uppercase tracking-[0.12em]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, color: won ? '#8fe0a4' : '#f0a595', textShadow: '0 2px 6px rgba(0,0,0,0.9)' }}>{won ? 'Você começa!' : 'O adversário começa!'}</span>
           </motion.div>
         )}
@@ -4498,7 +4495,6 @@ export default function App() {
   const [npcGeneralAbilityUses, setNpcGeneralAbilityUses] = useState(0);
   // "Ativar habilidade?" — a plain activate/cancel prompt on the General itself
   // (see activateGeneralHeal below for the fixed 2-gold cost this commits to).
-  const [generalAbilityPrompt, setGeneralAbilityPrompt] = useState<{ kind: 'cardeal_heal' } | null>(null);
   // Set once the player has committed to activating and chosen an amount — now
   // waiting for them to click the actual ally to heal, same two-step shape as
   // pendingTacticAction above.
@@ -5073,6 +5069,8 @@ export default function App() {
   // the declaration lands before either General has taken their place, not after —
   // and only once BATALHA has cleared do both shrink and fly down into their real
   // board slot ('descend'). null means no reveal is in progress.
+  // The side of the coin this player was given for the opening toss (the server hands it out online).
+  const [coinSide, setCoinSide] = useState<'cara' | 'coroa'>('cara');
   const [matchIntroStage, setMatchIntroStage] = useState<null | 'panels' | 'coin' | 'battle' | 'descend'>(null);
   // Who plays first, decided by the coin toss (the turn counter then advances after the SECOND player's turn).
   const firstSideRef = useRef<'player' | 'npc'>('player');
@@ -5509,6 +5507,8 @@ export default function App() {
     // collapsing right as a match starts nudges windowSize once, which the two big reveal portraits are
     // positioned from) — starting the reveal only once that's done means it never has to re-glide.
     const INTRO_START = 550;
+    const online = onlineRef.current;
+    setCoinSide(online ? (online.init.mySide ?? (online.init.iGoFirst ? 'cara' : 'coroa')) : Math.random() < 0.5 ? 'cara' : 'coroa');
     // Both Generals' art floats in from the sides and holds, frozen in that big reveal position...
     schedule(() => { setMatchIntroStage('panels'); playRevealGeneralSfx(); }, INTRO_START);
     // ...and then the coin toss decides who plays first (CoinToss calls continueMatchIntro).
@@ -5625,7 +5625,6 @@ export default function App() {
     setCardPicker(null);
     setPlayerGeneralAbilityUses(0);
     setNpcGeneralAbilityUses(0);
-    setGeneralAbilityPrompt(null);
     setPendingGeneralHeal(null);
     setPendingHospitalario(null);
     setPlayerAttackCounts({});
@@ -5980,6 +5979,17 @@ export default function App() {
       // the board highlights this card's valid destinations at the same time
       // (see getPlayerSlotHint/isTacticTargetSlot), so tapping one of those next
       // plays it straight from here.
+      // A Tática that needs a target skips the "Jogar" step: one tap on the card goes straight to picking the
+      // target (Cancelar puts it back in the hand). Without enough gold it is only selected, and says why.
+      const firstTapKind = getCardDropKind(hand[index]);
+      if ((firstTapKind === 'ownTarget' || firstTapKind === 'enemyTarget') && playerMana >= hand[index].cost) {
+        playSelectSfx();
+        setSelectedAttackerIndex(null);
+        setPendingTacticAction({ card: hand[index], kind: TARGETABLE_TACTICS[hand[index].name] });
+        setSelectedCardIndex(null);
+        setViewState('field');
+        return;
+      }
       setSelectedCardIndex(index);
       setSelectedAttackerIndex(null);
       playSelectSfx();
@@ -6278,7 +6288,6 @@ export default function App() {
   // heal. The 2 gold are only charged by the engine when the heal actually lands.
   const activateGeneralHeal = (amount: number, _cost: number) => {
     setPendingGeneralHeal({ amount });
-    setGeneralAbilityPrompt(null);
     setViewState('field');
   };
   const resolveGeneralHeal = (slotIndex: number) => {
@@ -6351,7 +6360,8 @@ export default function App() {
     });
   });
   if (playerGeneralAbilityAvailable) {
-    pushAbilityPrompt('ability-general', 'player-12', () => setGeneralAbilityPrompt({ kind: 'cardeal_heal' }));
+    // One tap: straight into picking the ally to heal (Cancelar backs out) — no "ativar?" step in between.
+    pushAbilityPrompt('ability-general', 'player-12', () => activateGeneralHeal(playerSlots[10]?.name === 'Cálice da Graça' ? 2 : 1, 2));
   }
 
   // What the player is being asked to target right now, if anything (see TargetingHud): the source card, what the
@@ -7896,7 +7906,7 @@ export default function App() {
       )}
       {/* "You may activate this" prompts — see abilityReadyPrompts above for why
           these moved out of each CardSlot and into this same top-level fixed layer. */}
-      {abilityReadyPrompts.length > 0 && !targetingMode && !generalAbilityPrompt && (
+      {abilityReadyPrompts.length > 0 && !targetingMode && (
         <div className="fixed inset-0 z-40 pointer-events-none">
           {abilityReadyPrompts.map(p => (
             <AbilityReadyGlow key={p.key} x={p.x} y={p.y} w={p.w} h={p.h} onClick={p.onClick} />
@@ -8140,7 +8150,7 @@ export default function App() {
         })()}
       </AnimatePresence>
 
-      <AnimatePresence>{matchIntroStage === 'coin' && <CoinToss key="coin-toss" onResolved={continueMatchIntro} forced={onlineRef.current ? (onlineRef.current.init.iGoFirst ? 'player' : 'npc') : undefined} />}</AnimatePresence>
+      <AnimatePresence>{matchIntroStage === 'coin' && <CoinToss key="coin-toss" onResolved={continueMatchIntro} mySide={coinSide} forced={onlineRef.current ? (onlineRef.current.init.iGoFirst ? 'player' : 'npc') : undefined} />}</AnimatePresence>
       {/* Nothing behind the intro can be tapped (the turn button used to be reachable through it). */}
       {(npcKickoffPending || matchIntroStage !== null) && <div className="fixed inset-0 z-[700]" />}
 
@@ -8548,47 +8558,20 @@ export default function App() {
         })()}
       </AnimatePresence>
 
-      {/* "Ativar habilidade?" — the General's own Fase-Principal effect, offered
-          Yu-Gi-Oh-style: the card floats up in the exact same tucked-aside "selected
-          card" spot a hand card gets when picked to be played (see getSelectedCardX/Y
-          and the hand render above). There's only one cost/amount combo now (2 ouro,
-          heal amount set by Cálice da Graça — see activateGeneralHeal's call site
-          below), so this is a plain ativar/não instead of a further cost-choice step. */}
+      {/* Target picking (see TargetingHud): the source card tucked in the corner, what the effect does, Cancelar. */}
       <AnimatePresence>
-        {(generalAbilityPrompt || targetingMode) && (() => {
-          const prompting = !!generalAbilityPrompt && playerSlots[12];
-          const source = prompting ? playerSlots[12]! : targetingMode!.source;
-          const kind: TargetKind = prompting ? 'heal' : targetingMode!.kind;
-          return (
-            <TargetingHud
-              key="targeting-hud"
-              source={source}
-              mode={prompting ? 'prompt' : 'targeting'}
-              kind={kind}
-              title={prompting ? 'Habilidade do General' : targetingMode!.title}
-              hint={prompting ? '' : targetingMode!.hint}
-              windowH={windowSize.height}
-              onCancel={prompting ? () => setGeneralAbilityPrompt(null) : cancelTargeting}
-              promptButtons={prompting ? (
-                <>
-                  <button
-                    onClick={() => activateGeneralHeal(playerSlots[10]?.name === 'Cálice da Graça' ? 2 : 1, 2)}
-                    disabled={playerMana < 2}
-                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(16,185,129,0.7)] border-2 border-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
-                  >
-                    Pagar 2 ouro: curar {playerSlots[10]?.name === 'Cálice da Graça' ? 2 : 1} HP
-                  </button>
-                  <button
-                    onClick={() => { playUiClickSfx(); setGeneralAbilityPrompt(null); }}
-                    className="px-5 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(0,0,0,0.6)] border-2 border-zinc-500"
-                  >
-                    Não ativar
-                  </button>
-                </>
-              ) : undefined}
-            />
-          );
-        })()}
+        {targetingMode && (
+          <TargetingHud
+            key="targeting-hud"
+            source={targetingMode.source}
+            mode="targeting"
+            kind={targetingMode.kind}
+            title={targetingMode.title}
+            hint={targetingMode.hint}
+            windowH={windowSize.height}
+            onCancel={cancelTargeting}
+          />
+        )}
       </AnimatePresence>
 
     </div>
