@@ -4488,11 +4488,11 @@ const CoinToss = ({ onResolved }: { onResolved: (first: 'player' | 'npc') => voi
     const r: 'cara' | 'coroa' = Math.random() < 0.5 ? 'cara' : 'coroa';
     setChoice(c); setResult(r); setPhase('flip');
     playCoinSfx('toss');
-    timers.current.push(window.setTimeout(() => { setPhase('result'); playCoinSfx('land'); }, 2100));
-    timers.current.push(window.setTimeout(() => onResolved(c === r ? 'player' : 'npc'), 3900));
+    timers.current.push(window.setTimeout(() => { setPhase('result'); playCoinSfx('land'); }, 1900));
+    timers.current.push(window.setTimeout(() => onResolved(c === r ? 'player' : 'npc'), 3700));
   };
   const won = choice === result;
-  const finalTurns = 5 * 360 + (result === 'cara' ? 0 : 180);
+  const finalTurns = 9 * 360 + (result === 'cara' ? 0 : 180);
   return (
     <motion.div className="fixed inset-0 z-[950] flex flex-col items-center justify-end pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
       {/* the coin hangs above the two Generals so it never overlaps them */}
@@ -4502,13 +4502,13 @@ const CoinToss = ({ onResolved }: { onResolved: (first: 'player' | 'npc') => voi
           style={{ transformStyle: 'preserve-3d' }}
           initial={{ y: 0, rotateX: 0, scale: 1 }}
           animate={phase === 'choose' ? { y: [0, -6, 0], rotateX: 0, scale: 1 } : { y: [0, -150, 0, -16, 0], rotateX: finalTurns, scale: [1, 2.3, 1, 1, 1] }}
-          transition={phase === 'choose' ? { duration: 2.2, repeat: Infinity, ease: 'easeInOut' } : { duration: 2.0, times: [0, 0.42, 0.82, 0.92, 1], ease: ['easeOut', 'easeIn', 'easeOut', 'easeIn'] }}
+          transition={phase === 'choose' ? { duration: 2.2, repeat: Infinity, ease: 'easeInOut' } : { duration: 1.8, times: [0, 0.42, 0.82, 0.92, 1], ease: ['easeOut', 'easeIn', 'easeOut', 'easeIn'] }}
         >
           <CoinRim />
           <CoinFace side="cara" />
           <CoinFace side="coroa" />
         </motion.div>
-        <motion.div className="absolute left-1/2 -bottom-5 h-3 rounded-full bg-black/60 blur-md" style={{ x: '-50%' }} initial={{ width: 90 }} animate={phase === 'flip' ? { width: [90, 40, 90, 80, 90], opacity: [0.6, 0.25, 0.6, 0.5, 0.6] } : { width: 90 }} transition={{ duration: 2.0, times: [0, 0.42, 0.82, 0.92, 1] }} />
+        <motion.div className="absolute left-1/2 -bottom-5 h-3 rounded-full bg-black/60 blur-md" style={{ x: '-50%' }} initial={{ width: 90 }} animate={phase === 'flip' ? { width: [90, 40, 90, 80, 90], opacity: [0.6, 0.25, 0.6, 0.5, 0.6] } : { width: 90 }} transition={{ duration: 1.8, times: [0, 0.42, 0.82, 0.92, 1] }} />
       </div>
       <div className="w-full max-w-[420px] px-5 flex flex-col items-center gap-3 pointer-events-auto" style={{ paddingBottom: 'calc(max(18px, env(safe-area-inset-bottom)) + 7vh)', minHeight: 200 }}>
         {phase === 'choose' && (
