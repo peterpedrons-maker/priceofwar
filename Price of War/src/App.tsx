@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 're
 import { fetchProfile, usernameAvailable, createProfile, updateProfileFields, fetchStore, pushStore, type CloudDeck } from './services/cloud';
 import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authErrorDetail, authMode, type Session } from './services/auth';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate, type MotionValue } from 'motion/react';
-import { X, ArrowUp, ArrowDown, ShieldPlus } from 'lucide-react';
+import { X, ArrowUp, ArrowDown } from 'lucide-react';
 import { TurnTracker } from './TurnTracker';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
@@ -77,6 +77,12 @@ import haloSelectionImage from './assets/halo-selection.png';
 import badgeSwordImage from './assets/badge-sword.png';
 import badgeShieldImage from './assets/badge-shield.png';
 import fxAtkUpSheet from './assets/fx-atk-up-sheet.webp';
+import fxAtkDownSheet from './assets/fx-atk-down-sheet.webp';
+import fxHpUpSheet from './assets/fx-hp-up-sheet.webp';
+import fxHpDownSheet from './assets/fx-hp-down-sheet.webp';
+import fxReinforceSheet from './assets/fx-reinforce-sheet.webp';
+import fxSwapSheet from './assets/fx-swap-sheet.webp';
+import uiEffectReinforceStill from './assets/ui-effect-reinforce.webp';
 import maskGold from './assets/mask-gold.webp';
 import maskGoldRim from './assets/mask-gold-rim.webp';
 import maskSilver from './assets/mask-silver.webp';
@@ -721,8 +727,35 @@ const SpriteOnce = ({ sheet, cols, rows, frames, fps, delay = 0, className = '' 
   const col = frame % cols, row = Math.floor(frame / cols);
   return <div className={className} style={{ backgroundImage: `url(${sheet})`, backgroundRepeat: 'no-repeat', backgroundSize: `${cols * 100}% ${rows * 100}%`, backgroundPosition: `${(col / (cols - 1)) * 100}% ${(row / (rows - 1)) * 100}%` }} />;
 };
+// The painted effect icons and their animation sheets (tools/vfx/effect_icons.py, tools/vfx/atk_up_icon.py).
+type EffectIcon = 'atk-up' | 'atk-down' | 'hp-up' | 'hp-down' | 'reinforce' | 'swap';
+const EFFECT_ICONS: Record<EffectIcon, { sheet: string; rows: number; frames: number; color: string }> = {
+  'atk-up': { sheet: fxAtkUpSheet, rows: 6, frames: 36, color: '#ffb347' },
+  'atk-down': { sheet: fxAtkDownSheet, rows: 5, frames: 30, color: '#ff6a55' },
+  'hp-up': { sheet: fxHpUpSheet, rows: 5, frames: 30, color: '#6ee7a0' },
+  'hp-down': { sheet: fxHpDownSheet, rows: 5, frames: 30, color: '#ff6a55' },
+  'reinforce': { sheet: fxReinforceSheet, rows: 5, frames: 30, color: '#7fc3ff' },
+  'swap': { sheet: fxSwapSheet, rows: 5, frames: 30, color: '#8fe3ff' },
+};
+const SpriteIcon = ({ icon, delay = 0, className = '' }: { icon: EffectIcon; delay?: number; className?: string }) => {
+  const d = EFFECT_ICONS[icon];
+  return <SpriteOnce sheet={d.sheet} cols={6} rows={d.rows} frames={d.frames} fps={30} delay={delay} className={className} />;
+};
+// A small icon that pops above a card when something happens to it (a heal, a bonus, a reinforcement, a swap) and fades.
+const IconPop = ({ x, y, size = 92, icon, label }: { x: number; y: number; size?: number; icon: EffectIcon; label?: string; key?: React.Key }) => {
+  const d = EFFECT_ICONS[icon];
+  return (
+    <motion.div className="fixed pointer-events-none flex flex-col items-center" style={{ left: x - size / 2, top: y - size, width: size, zIndex: 495 }}
+      initial={{ opacity: 0, y: 10, scale: 0.7 }} animate={{ opacity: [0, 1, 1, 0], y: [10, 0, -6, -22], scale: [0.7, 1.05, 1, 1] }} transition={{ duration: 1.9, times: [0, 0.12, 0.7, 1], ease: 'easeOut' }}>
+      <div style={{ width: size, height: size, filter: `drop-shadow(0 0 8px ${d.color}aa) drop-shadow(0 2px 4px rgba(0,0,0,0.7))` }}>
+        <SpriteIcon icon={icon} className="w-full h-full" />
+      </div>
+      {label && <span className="font-black -mt-1 whitespace-nowrap" style={{ fontFamily: "'Cinzel', serif", fontSize: 16, color: '#fff7e0', textShadow: `0 2px 0 #000, 0 0 10px ${d.color}` }}>{label}</span>}
+    </motion.div>
+  );
+};
 const StatUpBadge = ({ kind, amount, iconSrc }: { kind: 'atk' | 'hp'; amount: number; iconSrc?: string }) => {
-  const color = kind === 'atk' ? '#ffb347' : '#7fc3ff';
+  const color = kind === 'atk' ? '#ffb347' : '#6ee7a0';
   return (
     <div className="flex flex-col items-center gap-1">
       {/* the icon is cut out (no plate behind it): the glow is a filter on this wrapper, the reveal mask is on the child */}
@@ -730,9 +763,7 @@ const StatUpBadge = ({ kind, amount, iconSrc }: { kind: 'atk' | 'hp'; amount: nu
         <div className="reveal-in w-full h-full flex items-center justify-center">
           {iconSrc
             ? <img src={iconSrc} alt="" className="w-full h-full object-contain" />
-            : kind === 'atk'
-              ? <SpriteOnce sheet={fxAtkUpSheet} cols={6} rows={6} frames={36} fps={30} delay={250} className="w-full h-full" />
-              : <ShieldPlus size={72} color={color} strokeWidth={2.2} />}
+            : <SpriteIcon icon={kind === 'atk' ? 'atk-up' : 'hp-up'} delay={250} className="w-full h-full" />}
         </div>
       </div>
       <motion.span initial={{ opacity: 0, scale: 0.4, y: 6 }} animate={{ opacity: 1, scale: [0.4, 1.35, 1], y: 0 }} transition={{ delay: 0.5, duration: 0.45, times: [0, 0.6, 1] }}
@@ -4928,6 +4959,18 @@ export default function App() {
     rect: { x: number; y: number; w: number; h: number };
   }>(null);
   const equipFxIdRef = useRef(0);
+  // Small effect icons floating over cards for a moment (see IconPop).
+  const [iconPops, setIconPops] = useState<{ id: number; x: number; y: number; icon: EffectIcon; label?: string }[]>([]);
+  const popIdRef = useRef(0);
+  const popOverSlot = (side: 'player' | 'npc', slot: number, icon: EffectIcon, label?: string, delay = 0) => {
+    window.setTimeout(() => {
+      const r = document.getElementById(`${side}-${slot}`)?.getBoundingClientRect();
+      if (!r) return;
+      const id = ++popIdRef.current;
+      setIconPops(p => [...p, { id, x: r.left + r.width / 2, y: r.top + r.height * 0.35, icon, label }]);
+      window.setTimeout(() => setIconPops(p => p.filter(q => q.id !== id)), 2000);
+    }, delay);
+  };
   // Holds the camera's zoomed-in focus for a brief moment after the card lands,
   // so the placement reads clearly before the view eases back to normal.
   const [cameraSettling, setCameraSettling] = useState<{ slotIndex: number } | null>(null);
@@ -5321,7 +5364,15 @@ export default function App() {
           break;
         case 'heal':
           spawnFloatingNumberAtId(`${ownerId(e.seat)}-${e.slot}`, e.amount, 'heal');
+          if (!opts.quietTurn) popOverSlot(e.seat === 0 ? 'player' : 'npc', e.slot, 'hp-up', `+${e.amount}`);
           break;
+        case 'buff': {
+          // Reforço announces itself (its own icon); anything else that adds ATK / HP gets the matching icon.
+          if (opts.quietTurn || events.some(x => x.t === 'reinforce' && x.seat === e.seat && x.to === e.slot)) break;
+          if (e.atk > 0) popOverSlot(e.seat === 0 ? 'player' : 'npc', e.slot, 'atk-up', `+${e.atk}`);
+          else if (e.hp > 0) popOverSlot(e.seat === 0 ? 'player' : 'npc', e.slot, 'hp-up', `+${e.hp}`);
+          break;
+        }
         case 'destroyed': {
           const ghosts = e.seat === 0 ? ghostsRef.current.player : ghostsRef.current.npc;
           ghosts[e.slot] = { ...toCardData(e.card), isDestroyed: true };
@@ -5331,6 +5382,9 @@ export default function App() {
           }, 1300);
           break;
         }
+        case 'move':
+          if (e.swapped && !opts.quietTurn) popOverSlot(e.seat === 0 ? 'player' : 'npc', e.to, 'swap', 'TROCA');
+          break;
         case 'equip': {
           if (opts.quietTurn) break;
           const side = e.seat === 0 ? 'player' : 'npc';
@@ -5366,6 +5420,7 @@ export default function App() {
             const fromEl = document.getElementById(`${side}-${e.from}`)?.getBoundingClientRect();
             const toEl = document.getElementById(`${side}-${e.to}`)?.getBoundingClientRect();
             delete holds[e.to]; delete holds[e.from];
+            popOverSlot(side, e.to, 'reinforce', 'REFORÇO +1', 420);
             if (!fromEl || !toEl) { if (engineRef.current) syncView(engineRef.current); return; }
             setRepositionFlight({
               side, reinforce: true, originIndex: e.from, destIndex: e.to, moverCard: mover, swappedCard: null,
@@ -7900,6 +7955,7 @@ export default function App() {
       </AnimatePresence>
 
       {equipFx && <EquipFxLayer fx={equipFx} vw={windowSize.width} vh={windowSize.height} />}
+      {iconPops.map(p => <IconPop key={p.id} x={p.x} y={p.y} icon={p.icon} label={p.label} />)}
 
       {/* Reposition flight (see repositionFlight's own comment) — a low, quick slide
           between two real on-screen board slots, one leg per card involved (just the
@@ -9088,6 +9144,10 @@ const CardSlot = ({
               onClick above) now shows the same enlarged preview this used to open
               on its own. */}
           {card.isFullArt ? <CardFaceFullArtMini card={card} /> : <CardFaceStandardMini card={card} />}
+          {/* Reforço mark: an Infantaria in the Retaguarda is the reserve that steps forward when the card in front falls */}
+          {card.cardType === 'Infantaria' && slotId && /-[5-9]$/.test(slotId) && (
+            <img src={uiEffectReinforceStill} alt="" aria-hidden draggable={false} className="absolute pointer-events-none select-none" style={{ left: '50%', bottom: '-9%', width: '46%', transform: 'translateX(-50%)', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.8))', zIndex: 6 }} />
+          )}
         </motion.div>
       )}
       {card && card.isDestroyed && (

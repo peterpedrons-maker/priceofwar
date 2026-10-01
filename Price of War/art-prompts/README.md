@@ -1331,8 +1331,7 @@ Game UI illustration sheet of eight identical-format teaching medallions for a f
 
 ## 4y. Ícones de efeito (um por vez)
 
-**Status:** série em andamento. O 1 (Ataque +) está pronto e animado (`tools/vfx/atk_up_icon.py`, original em `reference/ui-effect-atk-up.jpg`); os 2 a 6 foram
-reescritos (v2) a pedido do usuário e entregues para gerar. Os ícones aparecem quando algo muda os números de uma carta (equipar, curar, bônus). Cada um entra
+**Status:** Ataque +, Vida + (coração verde), Reforço (escudo) e Mover (setas) estão prontos, recortados e animados (`tools/vfx/atk_up_icon.py` e `tools/vfx/effect_icons.py`; originais em `reference/ui-effect-*.jpg`). O **−** de Ataque e de Vida é feito por código a partir do + (barra vermelha), sem arte nova; Dano e Cura separados saíram (Cura = Vida +). Falta só o Escudo de Proteção (opcional). Os prompts abaixo são a v2 pedida pelo usuário. Os ícones aparecem quando algo muda os números de uma carta (equipar, curar, bônus). Cada um entra
 **recortado, sem disco por trás** (brilho por filtro, revelação de dentro para fora). **Padrão da série (v2):** (1) ícones **simples** — formas grandes e lisas,
 duas ou três faixas de sombra, um contorno dourado grosso, quase sem detalhe miúdo, para ler em 70 px; (2) quando o efeito soma ou tira algo, o **sinal (+ ou −) fica AO LADO
 do objeto**, na mesma linha, com um vão cinza vazio entre os dois, **sem encostar**, para o código poder animar o objeto sozinho e fazer o sinal aparecer depois em fade

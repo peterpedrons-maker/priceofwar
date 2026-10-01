@@ -82,3 +82,11 @@ Evento `reinforce` do motor, depois de `destroyed`. No cliente: a carta caída q
 a carta de equipamento chega por baixo, passa para trás da unidade (o mesmo desvio que o tabuleiro desenha), os números sobem, aparece o bônus
 (`StatUpBadge`, ícone trocável por arte via `iconSrc`) e as duas voltam para a casa. ~3,4 s; o toque no tabuleiro fica bloqueado nesse tempo.
 `.reveal-in` / `.reveal-out` (index.css, `@property --rv`): qualquer imagem pode surgir de dentro para fora ou de fora para dentro.
+
+## Ícones de efeito (arte pintada + animação por código)
+
+`tools/vfx/effect_icons.py` recorta cada ícone (`art-prompts/reference/ui-effect-*.jpg`), separa o objeto do sinal e gera uma folha de 30 quadros
+(`fx-<nome>-sheet.webp`) mais o ícone parado (`ui-effect-<nome>.webp`). Coração: bate duas vezes e o + aparece em fade; escudo: sobe e a luz corre
+pelas setas; setas: giram 180° (trocam de lugar). O **−** de ataque e de vida é um + reconstruído por código em barra vermelha (`minus_from_plus`).
+No jogo (`EFFECT_ICONS`, `SpriteIcon`, `IconPop`): cura → coração +N sobre a carta curada; bônus de ATK/VIDA → espada/coração; Reforço → escudo "REFORÇO +1"
+quando a reserva avança; troca de lugar → "TROCA". A Infantaria na Retaguarda leva o escudinho permanente (`ui-effect-reinforce`).
