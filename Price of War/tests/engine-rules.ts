@@ -2,6 +2,7 @@
 import { requireCardDef } from '../src/engine/catalog';
 import { aiNextAction } from '../src/engine/ai';
 import { mirrorEvents, mirrorSeats } from '../src/engine/view';
+import { applyReward, rewardFor, xpToNext } from '../src/engine/rewards';
 import { applyAction, combatOpen, createMatch, deckSetupFromRecipe, newMatchLog, replayMatch } from '../src/engine/game';
 import { HAND_LIMIT, START_HAND } from '../src/engine/rules';
 import type { Action, Card, GameEvent, GameState, Seat } from '../src/engine/types';
@@ -620,6 +621,20 @@ test('mirroring swaps the chairs and is its own inverse', () => {
   const a2 = act(m, 0, { type: 'advance' });
   eq(JSON.stringify(mirrorSeats(a2.s).turn), JSON.stringify(a1.s.turn));
   eq(JSON.stringify(mirrorEvents(a2.ev).map((e: any) => e.t)), JSON.stringify(a1.ev.map((e: any) => e.t)));
+});
+test('rewards: wins, losses, too-short matches, giving up, and level-ups', () => {
+  const base = { vsBot: false, ending: 'general' as const, rounds: 6, steps: 60 };
+  eq(rewardFor({ ...base, won: true }), { xp: 60, coroas: 25, reason: 'win' });
+  eq(rewardFor({ ...base, won: false }), { xp: 25, coroas: 8, reason: 'loss' });
+  eq(rewardFor({ ...base, won: true, vsBot: true }), { xp: 35, coroas: 12, reason: 'win' });
+  eq(rewardFor({ ...base, won: false, ending: 'concede' }), { xp: 0, coroas: 0, reason: 'abandoned' });
+  eq(rewardFor({ ...base, won: false, ending: 'timeout' }).reason, 'abandoned');
+  eq(rewardFor({ ...base, won: true, ending: 'timeout' }).reason, 'win');          // the player who stayed is still rewarded
+  eq(rewardFor({ ...base, won: true, rounds: 2 }).reason, 'too_short');
+  eq(rewardFor({ ...base, won: true, steps: 5 }).reason, 'too_short');
+  eq(xpToNext(1), 100); eq(xpToNext(3), 200);
+  eq(applyReward({ level: 1, xp: 90, coroas: 150 }, { xp: 60, coroas: 25 }), { level: 2, xp: 50, coroas: 175, levelsGained: 1 });
+  eq(applyReward({ level: 1, xp: 0, coroas: 0 }, { xp: 500, coroas: 0 }).level, 4);
 });
 test('a replay of the recorded actions reaches the same state (and a cheated action is rejected)', () => {
   const opts = { seed: 11, decks: [deckSetupFromRecipe('cardeal'), deckSetupFromRecipe('capitao')] as [any, any], first: 0 as Seat };

@@ -176,7 +176,8 @@ export type GameEvent =
   | { t: 'pick'; seat: Seat; title: string }
   | { t: 'winner'; seat: Seat }
   // Plain-language line for the UI toast/log (pt-BR).
-  | { t: 'log'; seat: Seat; text: string };
+  // `private`: only the acting seat gets to read it (it names a card taken from the deck/hand).
+  | { t: 'log'; seat: Seat; text: string; private?: boolean };
 
 export type ActionResult =
   | { ok: true; state: GameState; events: GameEvent[] }

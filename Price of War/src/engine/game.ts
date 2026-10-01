@@ -85,7 +85,7 @@ interface Ctx { s: GameState; ev: GameEvent[] }
 class RuleError extends Error {}
 const fail = (message: string): never => { throw new RuleError(message); };
 
-const log = (c: Ctx, seat: Seat, text: string) => { c.ev.push({ t: 'log', seat, text }); };
+const log = (c: Ctx, seat: Seat, text: string, priv = false) => { c.ev.push(priv ? { t: 'log', seat, text, private: true } : { t: 'log', seat, text }); };
 const P = (c: Ctx, seat: Seat) => c.s.players[seat];
 
 export const combatOpen = (s: GameState): boolean => s.turn.round >= 2 || s.turn.active !== s.turn.first;
@@ -567,7 +567,7 @@ const choose = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'choose' }>) => {
     log(c, seat, `${chosen.name} voltou para sua mão!`);
   } else if (pend.mode === 'deck_search') {
     toHand(picked[0]);
-    log(c, seat, `${picked[0].name} adicionada à mão!`);
+    log(c, seat, `${picked[0].name} adicionada à mão!`, true);
   } else if (pend.mode === 'top_reveal') {
     picked.forEach(toHand);
     const pickedIds = new Set(picked.map(x => x.id));

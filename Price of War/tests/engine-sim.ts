@@ -7,7 +7,7 @@ import { DECK_RECIPES, type DeckId } from '../src/engine/catalog';
 import { aiNextAction } from '../src/engine/ai';
 import { applyAction, createMatch, deckSetupFromRecipe, replayMatch } from '../src/engine/game';
 import { nextRandom, seedFrom } from '../src/engine/rng';
-import { redactFor } from '../src/engine/view';
+import { eventsFor, redactFor, viewFor } from '../src/engine/view';
 import type { Action, Card, GameState, Seat } from '../src/engine/types';
 
 let failures = 0;
@@ -144,10 +144,35 @@ console.log('Redaction…');
   check(v.players[1].hand.every(c => c.hidden && c.name === ''), 'opponent hand cards are hidden');
   check(v.players[1].deckList.length === 0 && v.players[1].drawPile.every(n => n === ''), 'opponent deck is hidden');
   check(v.players[0].hand.every(c => !c.hidden && c.name), 'own hand stays visible');
+  check(v.players[0].deckList.length > 0 && v.players[0].drawPile.every(n => n === ''), 'own deck list stays, own draw order is hidden');
   check(v.rng === 0, 'rng is not exposed');
-  const secret = state.players[1].hand.map(c => c.name);
-  const text = JSON.stringify({ ...v, players: [v.players[0], { ...v.players[1], board: [] }] });
-  check(!secret.some(n => v.players[0].hand.every(c => c.name !== n) && text.includes(`"name":"${n}"`)), 'no opponent hand name leaks into the view');
+  // nothing about the opponent's hand or draw order may appear anywhere in what seat 0 receives
+  const secretNames = new Set(state.players[1].hand.map(c => c.name).filter(n => !state.players[0].hand.some(c => c.name === n)));
+  const text = JSON.stringify({ ...v, players: [v.players[0], { ...v.players[1], board: [], graveyard: [] }] });
+  check(![...secretNames].some(n => text.includes(`"name":"${n}"`)), 'no opponent hand name leaks into the view');
+  // viewFor: seat 1 receives a mirrored copy where it is seat 0
+  const w = viewFor(state, 1);
+  check(w.players[0].general === state.players[1].general && w.players[0].hand.every(c => !c.hidden), 'seat 1 sees itself as seat 0');
+  check(w.players[1].hand.every(c => c.hidden), 'and its opponent as hidden seat 1');
+  check(w.turn.first === (state.turn.first === 0 ? 1 : 0), 'turn order is mirrored too');
+  // a whole AI match: at every step, neither side's view may contain the other's hidden card names
+  let s = state;
+  const begun = applyAction(s, 0, { type: 'begin' }); if (begun.ok === true) s = begun.state;
+  const r2 = { rng: seedFrom(3) };
+  for (let i = 0; i < 160 && s.winner === null; i++) {
+    const seat = (s.pending ? s.pending.seat : s.turn.active) as Seat;
+    const res = applyAction(s, seat, aiNextAction(s, seat, () => nextRandom(r2)));
+    if (res.ok === false) break;
+    s = res.state;
+    for (const viewer of [0, 1] as Seat[]) {
+      const view = viewFor(s, viewer);
+      const hiddenHand = view.players[1].hand;
+      check(hiddenHand.every(c => c.hidden && c.name === ''), `step ${i}: opponent hand hidden for viewer ${viewer}`);
+      check(view.players[1].drawPile.every(n => n === '') && view.players[0].drawPile.every(n => n === ''), `step ${i}: draw piles hidden`);
+      const ev = eventsFor(res.events, viewer).filter(e => e.t === 'draw' && e.seat === 1);
+      check(ev.every(e => (e as any).card.hidden), `step ${i}: opponent draws are hidden`);
+    }
+  }
 }
 
 console.log(failures === 0 ? '\nALL GOOD' : `\n${failures} FAILURE(S)`);

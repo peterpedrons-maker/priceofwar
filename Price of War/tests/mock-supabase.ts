@@ -10,7 +10,10 @@ import { MemoryDb } from '../server/memoryDb';
 type Row = Record<string, any>;
 const tables: { profiles: Row[]; collection: Row[]; decks: Row[] } = { profiles: [], collection: [], decks: [] };
 const memory = new MemoryDb({ profiles: tables.profiles as any, collection: tables.collection as any });
-const cfg: GameConfig = { botAfterMs: Number(process.env.MOCK_BOT_MS ?? 15000), now: () => Date.now(), random: Math.random };
+const cfg: GameConfig = {
+  botAfterMs: Number(process.env.MOCK_BOT_MS ?? 15000), turnMs: Number(process.env.MOCK_TURN_MS ?? 150000), promptMs: Number(process.env.MOCK_PROMPT_MS ?? 60000),
+  maxTimeouts: 2, now: () => Date.now(), random: Math.random,
+};
 
 const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url');
 let users = 0;
@@ -62,20 +65,13 @@ http.createServer(async (req, res) => {
     return send(res, 200, !tables.profiles.some(p => p.username.toLowerCase() === String(b.name).trim().toLowerCase()));
   }
 
-  // match_steps / matches: readable by the two players of the match only
-  if (path === '/rest/v1/match_steps' && req.method === 'GET') {
+  // match_views: each player reads only the rows made for them (what they may see of every step)
+  if (path === '/rest/v1/match_views' && req.method === 'GET') {
     const id = eq('match_id');
-    const m = memory.matches.find(x => x.id === id);
-    if (!m || (m.seat0 !== uid && m.seat1 !== uid)) return send(res, 200, []);
     const gt = Number((url.searchParams.get('n') ?? 'gt.0').replace('gt.', ''));
-    return send(res, 200, await memory.steps(m.id, gt));
-  }
-  if (path === '/rest/v1/matches' && req.method === 'GET') {
-    const id = eq('id');
-    const m = memory.matches.find(x => x.id === id);
-    if (!m || (m.seat0 !== uid && m.seat1 !== uid)) return wantObj ? send(res, 406, { code: 'PGRST116' }) : send(res, 200, []);
-    const { state: _state, ...visible } = m;
-    return wantObj ? send(res, 200, visible) : send(res, 200, [visible]);
+    const rows = memory.viewRows.filter(v => v.match_id === id && v.user === uid && v.n > gt).sort((x, y) => x.n - y.n)
+      .map(({ n, actor, action, events, state, deadline }) => ({ n, actor, action, events, state, deadline }));
+    return send(res, 200, rows);
   }
 
   const m = path.match(/^\/rest\/v1\/(\w+)$/);

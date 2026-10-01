@@ -344,8 +344,8 @@ var RuleError = class extends Error {
 var fail = (message) => {
   throw new RuleError(message);
 };
-var log = (c, seat, text) => {
-  c.ev.push({ t: "log", seat, text });
+var log = (c, seat, text, priv = false) => {
+  c.ev.push(priv ? { t: "log", seat, text, private: true } : { t: "log", seat, text });
 };
 var P = (c, seat) => c.s.players[seat];
 var combatOpen = (s) => s.turn.round >= 2 || s.turn.active !== s.turn.first;
@@ -789,7 +789,7 @@ var choose = (c, seat, a) => {
     log(c, seat, `${chosen.name} voltou para sua m\xE3o!`);
   } else if (pend.mode === "deck_search") {
     toHand(picked[0]);
-    log(c, seat, `${picked[0].name} adicionada \xE0 m\xE3o!`);
+    log(c, seat, `${picked[0].name} adicionada \xE0 m\xE3o!`, true);
   } else if (pend.mode === "top_reveal") {
     picked.forEach(toHand);
     const pickedIds = new Set(picked.map((x) => x.id));
@@ -1386,70 +1386,237 @@ var deckProblem = (cards, general, collection) => {
   return null;
 };
 
+// src/engine/rewards.ts
+var REWARD_MIN_ROUNDS = 3;
+var REWARD_MIN_STEPS = 14;
+var rewardFor = (r) => {
+  if (r.rounds < REWARD_MIN_ROUNDS || r.steps < REWARD_MIN_STEPS) return { xp: 0, coroas: 0, reason: "too_short" };
+  if (r.won) return r.vsBot ? { xp: 35, coroas: 12, reason: "win" } : { xp: 60, coroas: 25, reason: "win" };
+  if (r.ending !== "general") return { xp: 0, coroas: 0, reason: "abandoned" };
+  return r.vsBot ? { xp: 12, coroas: 4, reason: "loss" } : { xp: 25, coroas: 8, reason: "loss" };
+};
+var xpToNext = (level) => 100 + 50 * (Math.max(1, level) - 1);
+var applyReward = (p, gain) => {
+  let { level, xp } = p;
+  xp += gain.xp;
+  let levelsGained = 0;
+  while (xp >= xpToNext(level) && level < 99) {
+    xp -= xpToNext(level);
+    level += 1;
+    levelsGained += 1;
+  }
+  return { level, xp, coroas: p.coroas + gain.coroas, levelsGained };
+};
+
+// src/engine/view.ts
+var hiddenCard = (id) => ({ id, name: "", cardType: "T\xE1tica", atk: 0, hp: 0, cost: 0, effect: "", hidden: true });
+var redactPlayer = (p) => ({
+  ...p,
+  hand: p.hand.map((c) => hiddenCard(c.id)),
+  // Nothing about the deck's contents or order is revealed; only how many cards remain in the queue.
+  deckList: [],
+  drawPile: p.drawPile.map(() => "")
+});
+var redactFor = (state, seat) => {
+  const other = seat === 0 ? 1 : 0;
+  const players = [state.players[0], state.players[1]];
+  players[other] = redactPlayer(players[other]);
+  players[seat] = { ...players[seat], drawPile: players[seat].drawPile.map(() => "") };
+  let pending = state.pending;
+  if (pending && pending.kind === "pick" && pending.seat !== seat) pending = { ...pending, options: pending.options.map((o) => hiddenCard(o.id)) };
+  if (pending && pending.kind === "ambush" && pending.seat !== seat) pending = { ...pending, options: [] };
+  return { ...state, rng: 0, players, pending };
+};
+var redactEvents = (events, seat) => events.filter((e) => !(e.t === "log" && e.private && e.seat !== seat)).map((e) => {
+  if (e.t === "draw" && e.seat !== seat) return { ...e, card: hiddenCard(e.card.id) };
+  return e;
+});
+var mirrorSeats = (state) => {
+  const flip = (s) => s === 0 ? 1 : 0;
+  const pending = state.pending ? state.pending.kind === "ambush" ? { ...state.pending, seat: flip(state.pending.seat), attacker: flip(state.pending.attacker) } : { ...state.pending, seat: flip(state.pending.seat) } : null;
+  return {
+    ...state,
+    players: [state.players[1], state.players[0]],
+    turn: { ...state.turn, active: flip(state.turn.active), first: flip(state.turn.first) },
+    pending,
+    winner: state.winner === null ? null : flip(state.winner)
+  };
+};
+var mirrorEvents = (events) => events.map((e) => "seat" in e ? { ...e, seat: e.seat === 0 ? 1 : 0 } : e);
+var viewFor = (state, seat) => seat === 1 ? mirrorSeats(redactFor(state, seat)) : redactFor(state, seat);
+var eventsFor = (events, seat) => seat === 1 ? mirrorEvents(redactEvents(events, seat)) : redactEvents(events, seat);
+
 // server/handler.ts
-var defaultConfig = () => ({ botAfterMs: 15e3, now: () => Date.now(), random: Math.random });
+var defaultConfig = () => ({ botAfterMs: 15e3, turnMs: 15e4, promptMs: 6e4, maxTimeouts: 2, now: () => Date.now(), random: Math.random });
 var BOT_PROFILE = { name: "Advers\xE1rio", avatarId: "batedora" };
 var STALE_MATCH_MS = 45 * 60 * 1e3;
 var BOT_STEP_LIMIT = 600;
-var decksOf = (id) => ({ general: DECK_RECIPES[id].general, cards: { ...DECK_RECIPES[id].cards } });
-var botDeckFor = (deck) => deck.general === DECK_RECIPES.capitao.general ? decksOf("cardeal") : decksOf("capitao");
+var AUTO_STEP_LIMIT = 40;
+var recipeDeck = (id) => ({ general: DECK_RECIPES[id].general, cards: { ...DECK_RECIPES[id].cards } });
+var botDeckFor = (deck) => deck.general === DECK_RECIPES.capitao.general ? recipeDeck("cardeal") : recipeDeck("capitao");
 var playerOf = (m, userId) => m.seat0 === userId ? 0 : m.seat1 === userId ? 1 : null;
-var runBot = (m, state, n) => {
-  const steps = [];
-  if (m.bot_seat === null) return { state, n, steps };
-  const bot = m.bot_seat;
-  const rng = { rng: seedFrom(m.seed * 31 + n) };
-  const rand = () => nextRandom(rng);
-  for (let i = 0; i < BOT_STEP_LIMIT && state.winner === null; i++) {
-    const mover = state.pending ? state.pending.seat : state.turn.active;
-    if (mover !== bot) break;
-    const action = aiNextAction(state, bot, rand);
-    const r = applyAction(state, bot, action);
-    if (r.ok === false) break;
-    state = r.state;
-    steps.push({ n: ++n, seat: bot, action });
+var userOfSeat = (m, seat) => seat === 0 ? m.seat0 : m.seat1;
+var moverOf = (s) => s.pending ? s.pending.seat : s.turn.active;
+var moverKey = (s) => `${s.turn.round}:${s.turn.active}:${s.pending ? s.pending.kind + s.pending.seat : ""}`;
+var startWork = (m) => ({ state: m.state, n: m.steps_count, key: moverKey(m.state), deadline: m.turn_deadline, steps: [], views: [] });
+var applyStep = (m, w, seat, action, cfg, notes) => {
+  const r = applyAction(w.state, seat, action);
+  if (r.ok === false) return r;
+  w.state = r.state;
+  const n = ++w.n;
+  w.steps.push({ n, seat, action });
+  const key = moverKey(w.state);
+  if (w.state.winner !== null) w.deadline = null;
+  else if (key !== w.key) {
+    w.key = key;
+    w.deadline = cfg.now() + (w.state.pending ? cfg.promptMs : cfg.turnMs);
   }
-  return { state, n, steps };
+  [0, 1].forEach((viewer) => {
+    const user = userOfSeat(m, viewer);
+    if (!user) return;
+    w.views.push({
+      n,
+      viewer,
+      user,
+      actor: seat === viewer ? 0 : 1,
+      action,
+      events: eventsFor([...r.events, ...notes ? notes(viewer) : []], viewer),
+      state: viewFor(w.state, viewer),
+      deadline: w.deadline
+    });
+  });
+  return { ok: true };
 };
+var runBot = (m, w, cfg) => {
+  if (m.bot_seat === null) return;
+  const bot = m.bot_seat;
+  const rng = { rng: seedFrom(m.seed * 31 + w.n) };
+  const rand = () => nextRandom(rng);
+  for (let i = 0; i < BOT_STEP_LIMIT && w.state.winner === null; i++) {
+    if (moverOf(w.state) !== bot) break;
+    if (applyStep(m, w, bot, aiNextAction(w.state, bot, rand), cfg).ok === false) break;
+  }
+};
+var patchOf = (m, w, extra = {}) => ({
+  state: w.state,
+  steps_count: w.n,
+  status: w.state.winner !== null ? "finished" : "active",
+  winner: w.state.winner,
+  turn_deadline: w.deadline,
+  timeouts: m.timeouts,
+  end_reason: m.end_reason,
+  ...extra
+});
+var ensureRewards = async (db, m) => {
+  if (m.status !== "finished" || m.winner === null) return null;
+  if (m.rewards) return m.rewards;
+  const rows = [];
+  for (const seat of [0, 1]) {
+    const user = userOfSeat(m, seat);
+    if (!user) continue;
+    const prof = await db.profile(user);
+    if (!prof) continue;
+    const won = m.winner === seat;
+    const reward = rewardFor({ won, vsBot: m.bot_seat !== null, ending: won ? "general" : m.end_reason ?? "general", rounds: m.state.turn.round, steps: m.steps_count });
+    const after = applyReward({ level: prof.level, xp: prof.xp, coroas: prof.coroas }, reward);
+    rows.push({ user_id: user, seat, reason: reward.reason, xp: reward.xp, coroas: reward.coroas, level: after.level, xp_after: after.xp, coroas_after: after.coroas, levels_gained: after.levelsGained });
+  }
+  if (rows.length === 0) return null;
+  const applied = await db.applyRewards(m.id, rows);
+  if (applied) return rows;
+  return (await db.getMatch(m.id))?.rewards ?? null;
+};
+var rewardOf = (m, rows, userId) => rows?.find((r) => r.user_id === userId) ?? m.rewards?.find((r) => r.user_id === userId) ?? null;
+var enforceClock = async (db, m, cfg) => {
+  for (let guard = 0; guard < 3; guard++) {
+    if (m.status !== "active" || m.turn_deadline === null || cfg.now() <= m.turn_deadline) return m;
+    const mover = moverOf(m.state);
+    if (mover === m.bot_seat) return m;
+    const timeouts = [m.timeouts[0], m.timeouts[1]];
+    timeouts[mover] += 1;
+    const w = startWork(m);
+    let endReason = m.end_reason;
+    if (timeouts[mover] >= cfg.maxTimeouts) {
+      endReason = "timeout";
+      applyStep(m, w, mover, { type: "concede" }, cfg, (viewer) => [{ t: "log", seat: viewer, text: viewer === mover ? "O tempo acabou de novo: voc\xEA perdeu a partida." : "O advers\xE1rio esgotou o tempo: vit\xF3ria!" }]);
+    } else {
+      let first = true;
+      for (let i = 0; i < AUTO_STEP_LIMIT && w.state.winner === null && moverOf(w.state) === mover; i++) {
+        const action = w.state.pending ? aiNextAction(w.state, mover, () => 0.5) : { type: "advance" };
+        const note = first ? (viewer) => [{ t: "log", seat: viewer, text: viewer === mover ? "O tempo acabou: seu turno foi encerrado automaticamente." : "O advers\xE1rio demorou demais: turno encerrado automaticamente." }] : void 0;
+        if (applyStep(m, w, mover, action, cfg, note).ok === false) break;
+        first = false;
+      }
+      runBot(m, w, cfg);
+      if (w.state.winner === null && w.key === moverKey(m.state)) w.deadline = cfg.now() + cfg.turnMs;
+    }
+    const saved = await db.saveMatch(m.id, m.steps_count, patchOf({ ...m, timeouts, end_reason: endReason }, w, { timeouts, end_reason: endReason }), w.steps, w.views);
+    const fresh = await db.getMatch(m.id);
+    if (!fresh) return m;
+    m = fresh;
+    if (!saved) continue;
+    if (m.status === "finished") await ensureRewards(db, m);
+  }
+  return m;
+};
+var viewRowsOf = (db, m, seat, since) => db.views(m.id, seat, since);
 var initOf = async (db, m, userId, cfg) => {
   const seat = playerOf(m, userId);
-  const steps = await db.steps(m.id, 0);
-  const oppId = seat === 0 ? m.seat1 : m.seat0;
+  const oppId = userOfSeat(m, otherSeat(seat));
   const prof = oppId ? await db.profile(oppId) : null;
+  const rows = await viewRowsOf(db, m, seat, 0);
+  const resumed = rows.some((r) => r.actor === 0 && r.action.type !== "begin") || cfg.now() - Date.parse(m.created_at) > 6e4;
+  const start = viewFor(createMatch({ seed: m.seed, decks: m.decks, first: m.first }).state, seat);
   return {
     id: m.id,
-    seat,
-    seed: m.seed,
-    first: m.first,
-    decks: m.decks,
-    opponent: oppId ? { name: prof?.username ?? "Jogador", avatarId: prof?.avatar_id ?? "batedora", bot: false } : { name: BOT_PROFILE.name, avatarId: BOT_PROFILE.avatarId, bot: true },
-    steps,
+    iGoFirst: m.first === seat,
+    myDeck: m.decks[seat],
+    opponentGeneral: m.decks[otherSeat(seat)].general,
+    opponent: oppId ? { name: prof?.username ?? "Jogador", avatarId: prof?.avatar_id ?? "batedora", bot: false } : { ...BOT_PROFILE, bot: true },
+    start,
+    rows: resumed ? [] : rows,
+    latest: resumed ? rows[rows.length - 1] ?? null : null,
     status: m.status,
-    winner: m.winner,
-    // Already under way: this player acted before, or the match is old.
-    resumed: steps.some((st) => st.seat === seat && st.action.type !== "begin") || cfg.now() - Date.parse(m.created_at) > 6e4
+    winner: m.winner === null ? null : m.winner === seat ? 0 : 1,
+    resumed,
+    deadline: m.turn_deadline,
+    now: cfg.now()
   };
 };
 var startMatch = async (db, cfg, a, b) => {
   const seed = Math.floor(cfg.random() * 2147483647) + 1;
   const first = cfg.random() < 0.5 ? 0 : 1;
-  const swap = cfg.random() < 0.5;
-  const [p0, p1] = swap ? [b, a] : [a, b];
+  const [p0, p1] = cfg.random() < 0.5 ? [b, a] : [a, b];
   const bot_seat = p0.user === null ? 0 : p1.user === null ? 1 : null;
   const decks = [p0.deck, p1.deck];
   const created = createMatch({ seed, decks, first });
-  const begun = applyAction(created.state, first, { type: "begin" });
-  if (begun.ok === false) throw new Error(begun.error);
-  const draft = { seed, status: "active", first, seat0: p0.user, seat1: p1.user, bot_seat, decks, state: begun.state, steps_count: 1, winner: null };
-  const steps = [{ n: 1, seat: first, action: { type: "begin" } }];
-  const bot = runBot({ ...draft, id: "", created_at: "" }, begun.state, 1);
-  steps.push(...bot.steps);
-  return db.createMatch({ ...draft, state: bot.state, steps_count: bot.n, status: bot.state.winner !== null ? "finished" : "active", winner: bot.state.winner }, steps);
+  const draft = {
+    seed,
+    status: "active",
+    first,
+    seat0: p0.user,
+    seat1: p1.user,
+    bot_seat,
+    decks,
+    state: created.state,
+    steps_count: 0,
+    winner: null,
+    turn_deadline: null,
+    timeouts: [0, 0],
+    end_reason: null,
+    rewards: null
+  };
+  const m = { ...draft, id: "", created_at: new Date(cfg.now()).toISOString() };
+  const w = startWork(m);
+  w.key = "";
+  if (applyStep(m, w, first, { type: "begin" }, cfg).ok === false) throw new Error("begin refused");
+  runBot(m, w, cfg);
+  return db.createMatch({ ...draft, ...patchOf(m, w) }, w.steps, w.views);
 };
 var finishIfStale = async (db, cfg, m) => {
   if (!m) return null;
   if (cfg.now() - Date.parse(m.created_at) > STALE_MATCH_MS) {
-    await db.saveMatch(m.id, m.steps_count, { state: m.state, steps_count: m.steps_count, status: "finished", winner: m.winner }, []);
+    await db.saveMatch(m.id, m.steps_count, { ...patchOf(m, startWork(m)), status: "finished" }, [], []);
     return null;
   }
   return m;
@@ -1459,9 +1626,8 @@ var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
     case "queue": {
       if (!req.cards || typeof req.cards !== "object" || typeof req.general !== "string") return { ok: false, error: "Deck inv\xE1lido." };
       const resume = await finishIfStale(db, cfg, await db.activeMatchOf(userId));
-      if (resume) return { ok: true, status: "matched", match: await initOf(db, resume, userId, cfg) };
-      const collection = await db.collection(userId);
-      const problem = deckProblem(req.cards, req.general, collection);
+      if (resume) return { ok: true, status: "matched", match: await initOf(db, await enforceClock(db, resume, cfg), userId, cfg) };
+      const problem = deckProblem(req.cards, req.general, await db.collection(userId));
       if (problem) return { ok: false, error: problem };
       const deck = { general: req.general, cards: req.cards };
       await db.queueDelete(userId);
@@ -1479,7 +1645,7 @@ var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
     }
     case "status": {
       const active = await finishIfStale(db, cfg, await db.activeMatchOf(userId));
-      if (active) return { ok: true, status: "matched", match: await initOf(db, active, userId, cfg) };
+      if (active) return { ok: true, status: "matched", match: await initOf(db, await enforceClock(db, active, cfg), userId, cfg) };
       const q = await db.queueGet(userId);
       if (!q) return { ok: true, status: "none" };
       if (cfg.now() - Date.parse(q.created_at) >= cfg.botAfterMs) {
@@ -1494,43 +1660,49 @@ var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
       const m = await db.activeMatchOf(userId);
       const seat = m ? playerOf(m, userId) : null;
       if (m && seat !== null && cfg.now() - Date.parse(m.created_at) < 6e4) {
-        const steps = await db.steps(m.id, 0);
-        if (!steps.some((st) => st.seat === seat && st.action.type !== "begin")) {
-          const r = applyAction(m.state, seat, { type: "concede" });
-          if (r.ok === true) await db.saveMatch(m.id, m.steps_count, { state: r.state, steps_count: m.steps_count + 1, status: "finished", winner: r.state.winner }, [{ n: m.steps_count + 1, seat, action: { type: "concede" } }]);
+        const rows = await db.views(m.id, seat, 0);
+        if (!rows.some((r) => r.actor === 0 && r.action.type !== "begin")) {
+          const w = startWork(m);
+          if (applyStep(m, w, seat, { type: "concede" }, cfg).ok === true) await db.saveMatch(m.id, m.steps_count, patchOf({ ...m, end_reason: "concede" }, w, { end_reason: "concede" }), w.steps, w.views);
         }
       }
       return { ok: true, status: "none" };
     }
-    case "steps": {
-      const m = await db.getMatch(req.matchId);
-      if (!m || playerOf(m, userId) === null) return { ok: false, error: "Partida n\xE3o encontrada." };
-      return { ok: true, status: "acted", steps: await db.steps(m.id, req.since ?? 0), finished: m.status === "finished", winner: m.winner };
-    }
+    case "tick":
     case "act": {
-      if (!req.action || typeof req.action.type !== "string" || req.action.type === "begin") return { ok: false, error: "A\xE7\xE3o inv\xE1lida." };
+      if (req.op === "act" && (!req.action || typeof req.action.type !== "string" || req.action.type === "begin")) return { ok: false, error: "A\xE7\xE3o inv\xE1lida." };
       for (let attempt = 0; attempt < 3; attempt++) {
-        const m = await db.getMatch(req.matchId);
+        let m = await db.getMatch(req.matchId);
         if (!m) return { ok: false, error: "Partida n\xE3o encontrada." };
         const seat = playerOf(m, userId);
         if (seat === null) return { ok: false, error: "Voc\xEA n\xE3o est\xE1 nessa partida." };
-        if (m.status !== "active") return { ok: false, error: "A partida j\xE1 terminou." };
-        const r = applyAction(m.state, seat, req.action);
-        if (r.ok === false) return { ok: false, error: r.error };
-        let n = m.steps_count;
-        const steps = [{ n: ++n, seat, action: req.action }];
-        const bot = runBot(m, r.state, n);
-        steps.push(...bot.steps);
-        const saved = await db.saveMatch(m.id, m.steps_count, {
-          state: bot.state,
-          steps_count: bot.n,
-          status: bot.state.winner !== null ? "finished" : "active",
-          winner: bot.state.winner
-        }, steps);
+        m = await enforceClock(db, m, cfg);
+        if (req.op === "tick" || m.status !== "active") {
+          if (req.op === "act") return { ok: false, error: "A partida j\xE1 terminou." };
+          const rewards2 = await ensureRewards(db, m);
+          return { ok: true, status: "acted", rows: await db.views(m.id, seat, req.since ?? 0), finished: m.status === "finished", deadline: m.turn_deadline, now: cfg.now(), reward: rewardOf(m, rewards2, userId) };
+        }
+        const w = startWork(m);
+        const timeouts = [m.timeouts[0], m.timeouts[1]];
+        timeouts[seat] = 0;
+        const act = req.action;
+        const applied = applyStep(m, w, seat, act, cfg);
+        if (applied.ok === false) return { ok: false, error: applied.error };
+        runBot(m, w, cfg);
+        const endReason = act.type === "concede" ? "concede" : w.state.winner !== null ? "general" : m.end_reason;
+        const saved = await db.saveMatch(m.id, m.steps_count, patchOf({ ...m, timeouts }, w, { timeouts, end_reason: endReason }), w.steps, w.views);
         if (!saved) continue;
-        return { ok: true, status: "acted", steps: await db.steps(m.id, req.since ?? 0), finished: bot.state.winner !== null, winner: bot.state.winner };
+        const fresh = await db.getMatch(m.id) ?? m;
+        const rewards = w.state.winner !== null ? await ensureRewards(db, fresh) : null;
+        return { ok: true, status: "acted", rows: await db.views(m.id, seat, req.since ?? 0), finished: w.state.winner !== null, deadline: w.deadline, now: cfg.now(), reward: rewardOf(fresh, rewards, userId) };
       }
       return { ok: false, error: "A partida mudou enquanto voc\xEA jogava. Tente de novo." };
+    }
+    case "result": {
+      const m = await db.getMatch(req.matchId);
+      if (!m || playerOf(m, userId) === null) return { ok: false, error: "Partida n\xE3o encontrada." };
+      const rewards = await ensureRewards(db, m);
+      return { ok: true, status: "result", finished: m.status === "finished", reward: rewardOf(m, rewards, userId) };
     }
     default:
       return { ok: false, error: "Pedido desconhecido." };
@@ -1542,9 +1714,22 @@ var must = (r, what) => {
   if (r.error) throw new Error(`${what}: ${r.error.message ?? r.error}`);
   return r.data;
 };
+var viewToDb = (matchId, v) => ({
+  match_id: matchId,
+  n: v.n,
+  viewer: v.viewer,
+  viewer_user: v.user,
+  actor: v.actor,
+  action: v.action,
+  events: v.events,
+  state: v.state,
+  deadline: v.deadline
+});
+var viewFromDb = (r) => ({ n: r.n, viewer: r.viewer, user: r.viewer_user, actor: r.actor, action: r.action, events: r.events, state: r.state, deadline: r.deadline === null ? null : Number(r.deadline) });
+var matchFromDb = (r) => ({ ...r, turn_deadline: r.turn_deadline === null || r.turn_deadline === void 0 ? null : Number(r.turn_deadline), timeouts: r.timeouts ?? [0, 0] });
 var supabaseDb = (c) => ({
   async collection(userId) {
-    const rows = must(await c.from("collection").select("card_name, copies").eq("user_id", userId), "collection");
+    const rows = must(await c.from("collection").select("card_name, copies").eq("user_id", userId).limit(5e3), "collection");
     const out = {};
     rows.forEach((r) => {
       out[r.card_name] = r.copies;
@@ -1552,7 +1737,7 @@ var supabaseDb = (c) => ({
     return out;
   },
   async profile(userId) {
-    return must(await c.from("profiles").select("username, avatar_id").eq("id", userId).maybeSingle(), "profile");
+    return must(await c.from("profiles").select("username, avatar_id, level, xp, coroas").eq("id", userId).maybeSingle(), "profile");
   },
   async queueTake(excludeUserId) {
     const rows = must(await c.rpc("queue_take", { p_me: excludeUserId }), "queue_take");
@@ -1567,32 +1752,54 @@ var supabaseDb = (c) => ({
   async queueDelete(userId) {
     must(await c.from("queue").delete().eq("user_id", userId), "queue delete");
   },
-  async createMatch(row, steps) {
-    const m = must(await c.from("matches").insert(row).select("*").single(), "create match");
+  async createMatch(row, steps, views) {
+    const m = matchFromDb(must(await c.from("matches").insert(row).select("*").single(), "create match"));
     if (steps.length) must(await c.from("match_steps").insert(steps.map((s) => ({ match_id: m.id, n: s.n, seat: s.seat, action: s.action }))), "create steps");
+    if (views.length) must(await c.from("match_views").insert(views.map((v) => viewToDb(m.id, v))), "create views");
     return m;
   },
   async getMatch(id) {
-    return must(await c.from("matches").select("*").eq("id", id).maybeSingle(), "get match");
+    const r = must(await c.from("matches").select("*").eq("id", id).maybeSingle(), "get match");
+    return r ? matchFromDb(r) : null;
   },
   async activeMatchOf(userId) {
     const rows = must(await c.from("matches").select("*").eq("status", "active").or(`seat0.eq.${userId},seat1.eq.${userId}`).order("created_at", { ascending: false }).limit(1), "active match");
-    return rows.length ? rows[0] : null;
+    return rows.length ? matchFromDb(rows[0]) : null;
   },
-  async saveMatch(id, expected, patch, newSteps) {
+  async saveMatch(id, expected, patch, newSteps, newViews) {
     if (newSteps.length) {
       const ins = await c.from("match_steps").insert(newSteps.map((s) => ({ match_id: id, n: s.n, seat: s.seat, action: s.action })));
       if (ins.error) return false;
     }
-    const upd = must(await c.from("matches").update({ state: patch.state, steps_count: patch.steps_count, status: patch.status, winner: patch.winner }).eq("id", id).eq("steps_count", expected).select("id"), "save match");
+    const upd = must(await c.from("matches").update({
+      state: patch.state,
+      steps_count: patch.steps_count,
+      status: patch.status,
+      winner: patch.winner,
+      turn_deadline: patch.turn_deadline,
+      timeouts: patch.timeouts,
+      end_reason: patch.end_reason
+    }).eq("id", id).eq("steps_count", expected).select("id"), "save match");
     if (upd.length === 0) {
       if (newSteps.length) await c.from("match_steps").delete().eq("match_id", id).in("n", newSteps.map((s) => s.n));
       return false;
     }
+    if (newViews.length) must(await c.from("match_views").upsert(newViews.map((v) => viewToDb(id, v)), { onConflict: "match_id,viewer,n" }), "save views");
     return true;
   },
   async steps(matchId, sinceN) {
     return must(await c.from("match_steps").select("n, seat, action").eq("match_id", matchId).gt("n", sinceN).order("n", { ascending: true }), "steps");
+  },
+  async views(matchId, viewer, sinceN) {
+    const rows = must(await c.from("match_views").select("n, viewer, viewer_user, actor, action, events, state, deadline").eq("match_id", matchId).eq("viewer", viewer).gt("n", sinceN).order("n", { ascending: true }), "views");
+    return rows.map(viewFromDb);
+  },
+  async latestView(matchId, viewer) {
+    const rows = must(await c.from("match_views").select("n, viewer, viewer_user, actor, action, events, state, deadline").eq("match_id", matchId).eq("viewer", viewer).order("n", { ascending: false }).limit(1), "latest view");
+    return rows.length ? viewFromDb(rows[0]) : null;
+  },
+  async applyRewards(matchId, rows) {
+    return must(await c.rpc("apply_match_rewards", { p_match: matchId, p_rows: rows }), "apply rewards") === true;
   }
 });
 

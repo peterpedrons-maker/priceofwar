@@ -80,10 +80,11 @@ with invariants checked after every action, deterministic replay, random fuzzing
 
 ## Online
 
-See `docs/online-setup.md`: the server (`server/`) runs this same engine; both devices replay the same actions.
+See `docs/online-setup.md`. The server (`server/`) holds the full `GameState` and runs this same engine. For every
+step it stores what each player may see (`viewFor` / `eventsFor` in `view.ts`: the opponent's hand and every deck
+order removed, seats mirrored so "me" is always seat 0). A device only keeps its own view: `dispatchAction`
+(App.tsx) applies my action to the view at once when that is safe, sends it, and the server's step confirms it;
+the opponent's steps arrive ready-made and are played out with the usual animations.
 
-## Online, next
-
-The server keeps the full `GameState`, receives `Action`s from each seat, calls `applyAction`, and sends each player
-`redactFor(state, seat)` and `redactEvents(events, seat)`. The client's `dispatchAction` (App.tsx) is the single place
-that would send an action to the network instead of calling `applyAction` directly.
+`rewards.ts` holds the payout rules (XP / Coroas per result, the minimum length for a match to pay, the level curve)
+and `deck.ts` the deck rules the server checks when a player enters the queue.

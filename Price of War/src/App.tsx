@@ -181,8 +181,8 @@ import batalhaImpactSfxUrl from './assets/sfx-batalha-impacto.wav';
 import { DECK_RECIPES, requireCardDef, type DeckId } from './engine/catalog';
 import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActivePhases, createMatch, deckSetupFromRecipe, newMatchLog, type MatchLog } from './engine/game';
 import { aiNextAction } from './engine/ai';
-import { mirrorEvents, mirrorSeats } from './engine/view';
-import { cancelQueue, fetchSteps, queueForMatch, queueStatus, sendAction, type MatchInit, type StepRow } from './services/online';
+import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
+import { xpToNext } from './engine/rewards';
 import { DECK_MAX_CARDS, DECK_MAX_COPIES, DECK_MIN_CARDS } from './engine/deck';
 import {
   EQUIP_ALLOWED_TYPES, TACTIC_TARGET_PROMPTS, TARGETABLE_TACTICS, GOLD_PER_TURN, HAND_LIMIT, START_GOLD, START_HAND,
@@ -1604,19 +1604,59 @@ type DeckStore = { collection: Record<string, number>; slots: DeckSlot[]; owner?
 // What a match needs from a deck: the draw pool, the General, and which prebuilt deck the AI takes.
 type DeckSelection = { cards: Record<string, number>; general: string; npcDeckId: DeckId; npcGeneral?: string };
 
-// An online match, seen from this device. The local engine is a replica of the server's match (same seed, the same
-// actions in the same order): my own actions are applied here at once AND sent to the server, which checks them with
-// the very same rules and records them; the opponent's come back as steps and are played out on screen.
+// An online match, seen from this device. The server holds the real match; this device holds MY VIEW of it (the
+// opponent's hand and every deck order removed). My own actions are applied to the view at once — so the screen
+// answers instantly — and sent to the server; the view the server sends back replaces it. The opponent's actions
+// (a person or the bot) arrive as ready-made steps: the events to show and the view after them.
 type OnlineMatch = {
   init: MatchInit;
-  mySeat: Seat;
   lastSeen: number;
-  remote: EngineAction[];
+  // Steps of the opponent (a person or the bot) waiting to be played out on screen, in order.
+  remote: ViewRow[];
+  // The opponent's step being played out right now (taken from `remote`, committed by dispatchAction).
+  cursor: ViewRow | null;
+  // True while the presenter is waiting for the opponent's next step.
+  waiting: boolean;
+  // My sent actions waiting for their step; `optimistic` = already shown on screen when sent.
+  ownQueue: { optimistic: boolean; done: (ok: boolean) => void }[];
   waiter: (() => void) | null;
   timer: number | null;
   sendChain: Promise<void>;
+  // Bumped when the server refuses something: actions sent before that are dropped.
+  epoch: number;
   stopped: boolean;
+  finished: boolean;
+  // The state of the last step that is on screen (what to go back to when the server refuses an action).
+  confirmed: GameState | null;
+  // The turn clock: when the player who has to move runs out of time (server time), and how far the server's clock is from ours.
+  deadline: number | null;
+  skew: number;
+  beginRow: ViewRow | null;
+  lastTick: number;
+  reward: RewardInfo | null;
 };
+
+// Actions whose result depends on what only the server knows (the deck, the opponent's hand): they are shown only
+// once the server's step arrives, instead of being applied to the view at once.
+const SERVER_FIRST_CARDS = new Set([
+  'Recrutar Veteranos', 'Chamado às Armas', 'Reposicionamento Rápido',
+  'Graal da Dádiva', 'Doutrina Renovada', 'Recrutamento Seletivo',
+]);
+const needsServer = (action: EngineAction, view: GameState): boolean => {
+  const held = (id: string | null | undefined) => (id ? view.players[0].hand.find(h => h.id === id) : undefined);
+  switch (action.type) {
+    case 'attack': case 'concede': return true;   // the defender's hand decides whether an Emboscada answers
+    case 'play': return SERVER_FIRST_CARDS.has(held(action.cardId)?.name ?? '');
+    case 'ability': return view.players[0].board[action.slot]?.name === 'Mercador da Cruzada';
+    case 'ambush': return held(action.cardId)?.name === 'Formação Quebrada';
+    default: return false;
+  }
+};
+// What is on screen: used to tell whether the server's step changed anything the player can see.
+const visibleKey = (s: GameState) => JSON.stringify([
+  s.players.map((p, i) => [p.gold, i === 0 ? p.hand.map(c => c.id) : p.hand.length, p.board.map(c => (c ? `${c.id}:${c.atk}:${c.hp}` : '')), p.graveyard.map(c => c.id)]),
+  s.turn.active, s.turn.phase, s.turn.round, s.winner,
+]);
 
 const countByName = (cards: readonly CardData[]) => {
   const out: Record<string, number> = {};
@@ -4221,7 +4261,7 @@ export default function App() {
         const syncErr = await syncDeckStoreWithCloud(session.userId);
         if (!alive) return;
         if (syncErr) { setProfileError(syncErr); setProfileLoading(false); return; }
-        saveProfile({ ...DEFAULT_PROFILE, name: row.username, avatarId: AVATAR_OPTIONS.some(a => a.id === row.avatar_id) ? row.avatar_id : DEFAULT_PROFILE.avatarId, level: row.level, xp: row.xp, coroas: row.coroas, nameSet: true });
+        saveProfile({ ...DEFAULT_PROFILE, name: row.username, avatarId: AVATAR_OPTIONS.some(a => a.id === row.avatar_id) ? row.avatar_id : DEFAULT_PROFILE.avatarId, level: row.level, xp: row.xp, coroas: row.coroas, xpToNext: xpToNext(row.level), nameSet: true });
         setProfileNamed(true);
       } else {
         setProfileNamed(false);
@@ -4786,7 +4826,11 @@ export default function App() {
   const matchLogRef = useRef<MatchLog | null>(null);
   // Online matches only (see OnlineMatch): the real-chairs replica, and who/what is on the other side.
   const onlineRef = useRef<OnlineMatch | null>(null);
-  const realEngineRef = useRef<GameState | null>(null);
+  const ambushResolveRef = useRef<((card: CardData | null) => void) | null>(null);
+  const cardPickerRef = useRef<unknown>(null);
+  const [turnClock, setTurnClock] = useState<{ deadline: number; skew: number } | null>(null);
+  const [clockNow, setClockNow] = useState(0);
+  const [matchReward, setMatchReward] = useState<RewardInfo | 'pending' | null>(null);
   const [opponentInfo, setOpponentInfo] = useState<{ name: string; avatarId: string; bot: boolean } | null>(null);
   const [waitingRemote, setWaitingRemote] = useState(false);
 
@@ -5046,118 +5090,217 @@ export default function App() {
     });
   };
 
-  // The one door into the rules: asks the engine to apply an action for a seat, then shows the result.
-  // What the screen shows: in an online match played from chair 1, the mirrored copy (me at the bottom).
-  const viewOf = (real: GameState): GameState => (onlineRef.current && onlineRef.current.mySeat === 1 ? mirrorSeats(real) : real);
+  // The one door into the rules. Local match: the engine applies the action and the result is shown. Online match:
+  // see dispatchOnline — the screen shows MY VIEW of the server's match.
+  type Dispatched = { ok: true; state: GameState; events: GameEvent[]; wait?: Promise<boolean> } | { ok: false; error: string };
+  const commitState = (state: GameState, events: GameEvent[], opts: { skip?: { hand?: boolean; boards?: boolean }; quietTurn?: boolean } = {}) => {
+    engineRef.current = state;
+    processEvents(events, opts);
+    syncView(state, opts.skip);
+  };
 
   const dispatchAction = (
     seat: Seat,
     action: EngineAction,
     opts: { skip?: { hand?: boolean; boards?: boolean }; quietTurn?: boolean } = {},
-  ): { ok: true; state: GameState; events: GameEvent[] } | { ok: false; error: string } => {
+  ): Dispatched => {
     const online = onlineRef.current;
-    const current = online ? realEngineRef.current : engineRef.current;
+    if (online) return dispatchOnline(online, seat, action, opts);
+    const current = engineRef.current;
     if (!current) return { ok: false, error: 'Não há partida em andamento.' };
-    // `seat` is a screen seat (0 = me, 1 = the opponent); online, the engine runs on the real chairs.
-    const realSeat: Seat = online ? (seat === 0 ? online.mySeat : otherSeat(online.mySeat)) : seat;
-    const r = applyAction(current, realSeat, action);
+    const r = applyAction(current, seat, action);
     if (r.ok === false) return r;
-    const mirrored = !!online && online.mySeat === 1;
-    const view = mirrored ? mirrorSeats(r.state) : r.state;
-    const events = mirrored ? mirrorEvents(r.events) : r.events;
-    if (online) realEngineRef.current = r.state;
-    engineRef.current = view;
-    matchLogRef.current?.actions.push({ seat: realSeat, action });
-    processEvents(events, opts);
-    syncView(view, opts.skip);
-    if (online && seat === 0 && action.type !== 'begin') sendOnline(online, action);
-    return { ok: true, state: view, events };
+    commitState(r.state, r.events, opts);
+    matchLogRef.current?.actions.push({ seat, action });
+    return { ok: true, state: r.state, events: r.events };
   };
 
   // ── Online plumbing ─────────────────────────────────────────────────────────
   const wakeWaiter = (online: OnlineMatch) => { const w = online.waiter; online.waiter = null; w?.(); };
-  // Steps recorded by the server: mine were already applied here, `begin` is applied by both sides on their own;
-  // the opponent's (a person or the bot) wait in line to be played out.
-  const ingestSteps = (online: OnlineMatch, steps: StepRow[]) => {
-    steps.forEach(st => {
-      if (st.n <= online.lastSeen) return;
-      online.lastSeen = st.n;
-      if (st.seat === online.mySeat || st.action.type === 'begin') return;
-      // The opponent giving up can happen at any moment (not only on their turn): end the match right away.
-      if (st.action.type === 'concede') { dispatchAction(1, st.action); return; }
-      online.remote.push(st.action);
+  const publishClock = (online: OnlineMatch) => setTurnClock(online.deadline !== null && !online.finished ? { deadline: online.deadline, skew: online.skew } : null);
+
+  const dispatchOnline = (
+    online: OnlineMatch,
+    seat: Seat,
+    action: EngineAction,
+    opts: { skip?: { hand?: boolean; boards?: boolean }; quietTurn?: boolean },
+  ): Dispatched => {
+    const cur = engineRef.current;
+    if (!cur) return { ok: false, error: 'Não há partida em andamento.' };
+    // `begin` was done by the server when the match was created: both sides just show it.
+    const shown = action.type === 'begin' ? online.beginRow : seat === 1 ? online.cursor : null;
+    if (action.type === 'begin' || seat === 1) {
+      if (seat === 1 && action.type !== 'begin') online.cursor = null;
+      if (!shown) return { ok: false, error: 'Nada do adversário para mostrar.' };
+      online.confirmed = shown.state;
+      commitState(shown.state, shown.events, opts);
+      return { ok: true, state: shown.state, events: shown.events };
+    }
+    if (cur.winner !== null) return { ok: false, error: 'A partida terminou.' };
+    if (online.ownQueue.some(q => !q.optimistic)) return { ok: false, error: 'Aguarde o servidor responder.' };
+    let applied: { state: GameState; events: GameEvent[] } | null = null;
+    if (!needsServer(action, cur)) {
+      try {
+        const r = applyAction(cur, 0, action);
+        if (r.ok === false) return r;
+        applied = r;
+      } catch { applied = null; }
+    }
+    let done: (ok: boolean) => void = () => {};
+    const wait = new Promise<boolean>(resolve => { done = resolve; });
+    online.ownQueue.push({ optimistic: !!applied, done });
+    if (applied) commitState(applied.state, applied.events, opts);
+    sendOnline(online, action);
+    return { ok: true, state: engineRef.current!, events: applied?.events ?? [], wait };
+  };
+
+  // A step of mine came back from the server. Mine were already shown (unless the server had to decide first).
+  const reconcileOwn = (online: OnlineMatch, row: ViewRow, own: { optimistic: boolean; done: (ok: boolean) => void }) => {
+    online.confirmed = row.state;
+    if (!own.optimistic) {
+      commitState(row.state, row.events);
+    } else if (online.ownQueue.length === 0) {
+      const cur = engineRef.current;
+      engineRef.current = row.state;
+      if (cur && visibleKey(cur) !== visibleKey(row.state)) syncView(row.state);
+      else setNpcHand(row.state.players[1].hand.map(toCardData));
+    }
+    own.done(true);
+  };
+  // A step of mine nobody asked for (my clock ran out and the server played my turn), or the opponent giving up
+  // while nothing is being presented.
+  const applyUnasked = (online: OnlineMatch, row: ViewRow) => {
+    if (!engineRef.current) { online.remote.push(row); return; }
+    online.confirmed = row.state;
+    online.ownQueue.splice(0).forEach(q => q.done(false));
+    const resolveAmbush = ambushResolveRef.current;
+    ambushResolveRef.current = null;
+    resolveAmbush?.(null);
+    setAmbushPrompt(null);
+    setCardPicker(null);
+    setSelectedCardIndex(null);
+    setSelectedAttackerIndex(null);
+    setPendingTacticAction(null);
+    commitState(row.state, row.events);
+  };
+  const ingestRows = (online: OnlineMatch, rows: ViewRow[]) => {
+    let any = false;
+    rows.forEach(row => {
+      if (row.n <= online.lastSeen) return;
+      online.lastSeen = row.n;
+      any = true;
+      online.deadline = row.deadline;
+      if (row.state.winner !== null) online.finished = true;
+      if (row.action.type === 'begin') { online.beginRow = row; return; }
+      if (row.actor === 0) {
+        const own = online.ownQueue.shift();
+        if (own) reconcileOwn(online, row, own); else applyUnasked(online, row);
+      } else if (row.action.type === 'concede' && !online.cursor && !online.waiting && online.remote.length === 0) {
+        // The opponent can give up at any moment, not only while their turn is being played out.
+        applyUnasked(online, row);
+      } else {
+        online.remote.push(row);
+      }
     });
-    if (steps.length) wakeWaiter(online);
+    if (any) { publishClock(online); wakeWaiter(online); }
+  };
+  const absorbAct = (online: OnlineMatch, r: Extract<ActResult, { ok: true }>) => {
+    online.skew = r.now - Date.now();
+    ingestRows(online, r.rows);
+    if (r.finished) online.finished = true;
+    if (r.reward) online.reward = r.reward;
+    online.deadline = r.finished ? null : r.deadline;
+    publishClock(online);
+  };
+  // The server refused something I had already shown: say why and go back to the last step the server confirmed.
+  const refuseOwn = (online: OnlineMatch, error: string) => {
+    showToast(error);
+    online.epoch += 1;
+    online.ownQueue.splice(0).forEach(q => q.done(false));
+    setAmbushPrompt(null);
+    setCardPicker(null);
+    setSelectedCardIndex(null);
+    setSelectedAttackerIndex(null);
+    setPendingTacticAction(null);
+    if (online.confirmed) { engineRef.current = online.confirmed; syncView(online.confirmed); }
+  };
+  // My actions go to the server one at a time, in order.
+  const sendOnline = (online: OnlineMatch, action: EngineAction) => {
+    const epoch = online.epoch;
+    online.sendChain = online.sendChain.then(async () => {
+      for (let attempt = 0; attempt < 6 && !online.stopped; attempt++) {
+        if (epoch !== online.epoch) return;
+        const r = await sendAction(online.init.id, action, online.lastSeen);
+        if (online.stopped) return;
+        if (r.ok === true) { absorbAct(online, r); return; }
+        if (!r.unavailable) { if (epoch === online.epoch) refuseOwn(online, r.error); return; }
+        await sleep(1500 * (attempt + 1));
+      }
+      if (!online.stopped && epoch === online.epoch) refuseOwn(online, 'Sem conexão com o servidor de partidas.');
+    });
   };
   const stopOnline = () => {
     const online = onlineRef.current;
-    if (online) { online.stopped = true; if (online.timer) window.clearTimeout(online.timer); wakeWaiter(online); }
+    if (online) {
+      online.stopped = true;
+      if (online.timer) window.clearTimeout(online.timer);
+      online.ownQueue.splice(0).forEach(q => q.done(false));
+      wakeWaiter(online);
+    }
     onlineRef.current = null;
-    realEngineRef.current = null;
     setOpponentInfo(null);
     setWaitingRemote(false);
+    setTurnClock(null);
   };
+  // Reads the steps I have not seen yet; every few seconds it also pokes the server so a turn clock that ran out
+  // gets enforced even if both players are idle.
   const startOnlinePolling = (online: OnlineMatch) => {
-    const tick = async () => {
+    const poll = async () => {
       if (online.stopped) return;
-      const steps = await fetchSteps(online.init.id, online.lastSeen);
+      const rows = await fetchViews(online.init.id, online.lastSeen);
       if (online.stopped) return;
-      if (steps && steps.length) ingestSteps(online, steps);
-      online.timer = window.setTimeout(tick, steps && steps.length ? 400 : 900);
-    };
-    online.timer = window.setTimeout(tick, 600);
-  };
-  // Rebuilds the whole match from the server's record (coming back to a match, or after a refused action).
-  const rebuildOnline = (online: OnlineMatch, steps: StepRow[]): boolean => {
-    let real = createMatch({ seed: online.init.seed, decks: online.init.decks, first: online.init.first }).state;
-    for (const st of steps) {
-      const r = applyAction(real, st.seat, st.action);
-      if (r.ok === false) { console.error('replay refused a recorded step', st, r.error); return false; }
-      real = r.state;
-    }
-    realEngineRef.current = real;
-    engineRef.current = viewOf(real);
-    online.remote = [];
-    online.lastSeen = steps.length ? steps[steps.length - 1].n : 0;
-    ghostsRef.current = { player: {}, npc: {} };
-    syncView(engineRef.current);
-    if (real.winner !== null) setGameOverWinner(viewOf(real).winner === 0 ? 'player' : 'npc');
-    return true;
-  };
-  const resyncOnline = async (online: OnlineMatch) => {
-    const steps = await fetchSteps(online.init.id, 0);
-    if (steps && !online.stopped) rebuildOnline(online, steps);
-  };
-  // My actions go to the server one at a time, in order. A refusal means this device and the server disagree:
-  // say so and rebuild from the server's record.
-  const sendOnline = (online: OnlineMatch, action: EngineAction) => {
-    online.sendChain = online.sendChain.then(async () => {
-      for (let attempt = 0; attempt < 6 && !online.stopped; attempt++) {
-        const r = await sendAction(online.init.id, action, online.lastSeen);
-        if (r.ok === true) { ingestSteps(online, r.steps); return; }
-        if (!r.unavailable) { showToast(r.error); await resyncOnline(online); return; }
-        await sleep(1500 * (attempt + 1));
+      if (rows && rows.length) ingestRows(online, rows);
+      if (!online.finished && Date.now() - online.lastTick > 5000) {
+        online.lastTick = Date.now();
+        const r = await tickMatch(online.init.id, online.lastSeen);
+        if (online.stopped) return;
+        if (r.ok === true) absorbAct(online, r);
       }
-      showToast('Sem conexão com o servidor de partidas.');
-    });
+      if (online.finished && !(rows && rows.length)) return;
+      online.timer = window.setTimeout(poll, rows && rows.length ? 400 : 1000);
+    };
+    online.timer = window.setTimeout(poll, 600);
   };
-  // The opponent's next action: the AI's decision in a local match, the next recorded step in an online one.
+  // The opponent's next action: the AI's decision in a local match, the next step from the server in an online one.
   const nextOpponentAction = async (): Promise<EngineAction | null> => {
     const online = onlineRef.current;
     if (!online) { const st = engineRef.current; return st ? aiNextAction(st, 1) : null; }
     const t0 = Date.now();
     let notified = false;
-    while (!online.stopped) {
-      const a = online.remote.shift();
-      if (a) { setWaitingRemote(false); return a; }
-      if (!notified && Date.now() - t0 > 2500) { notified = true; setWaitingRemote(true); }
-      await new Promise<void>(resolve => { online.waiter = resolve; window.setTimeout(resolve, 500); });
+    online.waiting = true;
+    try {
+      while (!online.stopped) {
+        const row = online.remote.shift();
+        if (row) { online.cursor = row; setWaitingRemote(false); return row.action; }
+        if (engineRef.current?.winner != null) return null;
+        if (!notified && Date.now() - t0 > 2500) { notified = true; setWaitingRemote(true); }
+        await new Promise<void>(resolve => { online.waiter = resolve; window.setTimeout(resolve, 500); });
+      }
+      return null;
+    } finally {
+      online.waiting = false;
     }
-    return null;
+  };
+  // Pays out into the profile kept on this device (the server already did it in the cloud).
+  const applyRewardToProfile = (r: RewardInfo) => {
+    const p = loadProfile();
+    saveProfile({ ...p, level: r.level, xp: r.xp_after, coroas: r.coroas_after, xpToNext: xpToNext(r.level) });
   };
 
   // A pick prompt the engine is waiting on from the player (a search, a reveal): show it, then send the answer.
+  cardPickerRef.current = cardPicker;
   const openPlayerPick = () => {
+    if (cardPickerRef.current) return;
     const pend = engineRef.current?.pending;
     if (pend && pend.kind === 'discard' && pend.seat === 0) {
       // Over the hand limit at the end of the turn: choose which cards go to the graveyard.
@@ -5165,6 +5308,7 @@ export default function App() {
       openCardPicker(`Mão acima do limite: descarte ${pend.count} carta${pend.count > 1 ? 's' : ''} para o cemitério`, hand12, pend.count, (picked) => {
         const r = dispatchAction(0, { type: 'discard', cardIds: picked.map(c => c.id) });
         if (r.ok === false) { showToast(r.error); return; }
+        cardPickerRef.current = null;
         setCardPicker(null);
       }, { minPicks: pend.count, alwaysConfirm: true });
       return;
@@ -5173,7 +5317,9 @@ export default function App() {
     openCardPicker(pend.title, pend.options.map(toCardData), pend.max, (picked) => {
       const r = dispatchAction(0, { type: 'choose', cardIds: picked.map(c => c.id) });
       if (r.ok === false) { showToast(r.error); return; }
+      cardPickerRef.current = null;
       setCardPicker(null);
+      if (r.wait) void r.wait.then(ok => { if (ok) openPlayerPick(); });
     });
   };
 
@@ -5181,6 +5327,8 @@ export default function App() {
   const playerAct = (action: EngineAction, opts: { skip?: { hand?: boolean; boards?: boolean } } = {}): boolean => {
     const r = dispatchAction(0, action, opts);
     if (r.ok === false) { showToast(r.error); return false; }
+    // A prompt that depends on what only the server knows (a deck search) opens once its answer is here.
+    if (r.wait) void r.wait.then(ok => { if (ok) openPlayerPick(); });
     openPlayerPick();
     return true;
   };
@@ -5199,9 +5347,16 @@ export default function App() {
         const defenderCard = s.players[0].board[pend.to];
         const options = s.players[0].hand.filter(h => pend.options.includes(h.id)).map(toCardData);
         const chosen = await new Promise<CardData | null>(resolve => {
+          ambushResolveRef.current = resolve;
           setAmbushPrompt({ defenderName: defenderCard?.name ?? '', attackerName: attackerCard?.name ?? '', options, resolve });
         });
-        dispatchAction(0, { type: 'ambush', cardId: chosen?.id ?? null });
+        ambushResolveRef.current = null;
+        // The prompt may have been settled for me meanwhile (online: my time ran out).
+        const still = engineRef.current?.pending;
+        if (!still || still.kind !== 'ambush' || still.seat !== 0) continue;
+        const r = dispatchAction(0, { type: 'ambush', cardId: chosen?.id ?? null });
+        if (r.ok === false) showToast(r.error);
+        else if (r.wait) await r.wait;
       } else {
         const a = await nextOpponentAction();
         if (!a) return;
@@ -5242,10 +5397,9 @@ export default function App() {
     const online = onlineRef.current;
     let created: { state: GameState };
     if (online) {
-      // Online: the match is the server's (its seed and both decks), seen from my chair.
-      const real = createMatch({ seed: online.init.seed, decks: online.init.decks, first: online.init.first });
-      realEngineRef.current = real.state;
-      created = { state: viewOf(real.state) };
+      // Online: the match is the server's; this is how it stands before the first turn, seen from my chair.
+      created = { state: online.init.start };
+      online.confirmed = online.init.start;
       engineRef.current = created.state;
     } else {
       const sel = matchSelectionRef.current;
@@ -5320,8 +5474,9 @@ export default function App() {
     setIntroDescendTargets(null);
 
     engineRef.current = null;
-    realEngineRef.current = null;
     matchLogRef.current = null;
+    setMatchReward(null);
+    setTurnClock(null);
     matchSelectionRef.current = sel;
     ghostsRef.current = { player: {}, npc: {} };
 
@@ -5374,35 +5529,40 @@ export default function App() {
   // An online match found by the queue (or the bot fallback): the same intro, then the server's match.
   const startOnlineMatch = (init: MatchInit) => {
     stopOnline();
-    const online: OnlineMatch = { init, mySeat: init.seat, lastSeen: 0, remote: [], waiter: null, timer: null, sendChain: Promise.resolve(), stopped: false };
+    const online: OnlineMatch = {
+      init, lastSeen: 0, remote: [], cursor: null, waiting: false, ownQueue: [], waiter: null, timer: null, sendChain: Promise.resolve(),
+      epoch: 0, stopped: false, finished: init.status === 'finished', confirmed: null, deadline: init.deadline, skew: init.now - Date.now(),
+      beginRow: null, lastTick: Date.now(), reward: null,
+    };
     onlineRef.current = online;
     setOpponentInfo(init.opponent);
-    const mine = init.decks[init.seat];
-    const theirs = init.decks[otherSeat(init.seat)];
-    const sel: DeckSelection = { cards: mine.cards, general: mine.general, npcDeckId: 'cardeal', npcGeneral: theirs.general };
-    if (init.resumed) {
+    const sel: DeckSelection = { cards: init.myDeck.cards, general: init.myDeck.general, npcDeckId: 'cardeal', npcGeneral: init.opponentGeneral };
+    resetGame(sel);
+    setGameMode('Quick Match');
+    if (init.resumed && init.latest) {
       // Coming back to a match already under way: no intro, straight to the board as it stands.
-      resetGame(sel);
       matchIntroTimeoutsRef.current.forEach(clearTimeout);
       matchIntroTimeoutsRef.current = [];
       setMatchIntroStage(null);
       setNpcKickoffPending(false);
-      setGameMode('Quick Match');
-      if (rebuildOnline(online, init.steps)) {
-        startOnlinePolling(online);
-        const view = engineRef.current;
-        if (view && view.winner === null) {
-          setViewState(view.turn.active === 0 ? 'hand' : 'field');
-          // an answer may be owed (an ambush or a pick) — or awaited from the other side
-          openPlayerPick();
-          void settleAmbush();
-        }
+      const view = init.latest.state;
+      online.lastSeen = init.latest.n;
+      online.confirmed = view;
+      engineRef.current = view;
+      ghostsRef.current = { player: {}, npc: {} };
+      syncView(view);
+      publishClock(online);
+      if (view.winner !== null) setGameOverWinner(view.winner === 0 ? 'player' : 'npc');
+      else {
+        setViewState(view.turn.active === 0 ? 'hand' : 'field');
+        // an answer may be owed (an ambush or a pick) — or awaited from the other side
+        openPlayerPick();
+        void settleAmbush();
       }
+      startOnlinePolling(online);
       return;
     }
-    ingestSteps(online, init.steps);   // anything the other side (or the bot) already did while we were loading
-    resetGame(sel);
-    setGameMode('Quick Match');
+    ingestRows(online, init.rows);   // the begin step, and anything the bot already did while we were loading
     startOnlinePolling(online);
   };
   // Leaving a match from the menu: online, that is a concession (the server records it) — then back to the menu.
@@ -5412,7 +5572,8 @@ export default function App() {
     if (online && live) {
       online.stopped = true;
       if (online.timer) window.clearTimeout(online.timer);
-      await sendAction(online.init.id, { type: 'concede' }, online.lastSeen);
+      const r = await sendAction(online.init.id, { type: 'concede' }, online.lastSeen);
+      if (r.ok === true && r.reward) applyRewardToProfile(r.reward);
     }
     stopOnline();
     setGameMode(null);
@@ -5438,7 +5599,9 @@ export default function App() {
         const s = engineRef.current;
         if (!action || !s || s.winner !== null) break;
         if (action.type === 'play') {
-          const card = s.players[1].hand.find(h => h.id === action.cardId);
+          // Online the opponent's hand is hidden: the card they play is shown in the step itself.
+          const shownPlay = onlineRef.current?.cursor?.events.find(e => e.t === 'play');
+          const card = shownPlay && shownPlay.t === 'play' ? shownPlay.card : s.players[1].hand.find(h => h.id === action.cardId);
           if (!card) break;
           // Show the card big in the corner and pause on it for a beat BEFORE it lands on the board.
           announceCardPlay(toCardData(card), 'npc');
@@ -5506,6 +5669,32 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [currentTurn, gameMode, gameOverWinner]);
 
+  // Online: the turn clock ticks on screen once a second.
+  useEffect(() => {
+    if (!turnClock) return;
+    setClockNow(Date.now());
+    const id = window.setInterval(() => setClockNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [turnClock]);
+
+  // Online: when the match is over, show what it paid (the server pays once, when the match ends).
+  useEffect(() => {
+    const online = onlineRef.current;
+    if (!gameOverWinner || !online) return;
+    let alive = true;
+    setMatchReward('pending');
+    (async () => {
+      for (let i = 0; i < 8 && alive; i++) {
+        const reward = online.reward ?? (await fetchResult(online.init.id))?.reward ?? null;
+        if (!alive) return;
+        if (reward) { online.reward = reward; applyRewardToProfile(reward); setMatchReward(reward); return; }
+        await sleep(1200);
+      }
+      if (alive) setMatchReward(null);
+    })();
+    return () => { alive = false; };
+  }, [gameOverWinner]);
+
   if (!assetsReady) {
     return <LoadingScreen onDone={() => setAssetsReady(true)} />;
   }
@@ -5545,7 +5734,7 @@ export default function App() {
             const row = r.data;
             const syncErr = await syncDeckStoreWithCloud(session.userId);
             if (syncErr) return syncErr;
-            saveProfile({ ...DEFAULT_PROFILE, name: row.username, avatarId: row.avatar_id, level: row.level, xp: row.xp, coroas: row.coroas, nameSet: true });
+            saveProfile({ ...DEFAULT_PROFILE, name: row.username, avatarId: row.avatar_id, level: row.level, xp: row.xp, coroas: row.coroas, xpToNext: xpToNext(row.level), nameSet: true });
           } else {
             saveProfile({ ...p, name, avatarId, nameSet: true });
           }
@@ -6237,7 +6426,11 @@ export default function App() {
       setIsImpacting(false);
       const r = dispatchAction(0, { type: 'attack', from, to: slotIndex });
       if (r.ok === false) showToast(r.error);
-      else await settleAmbush();
+      else {
+        // Online, the defender's hand decides whether an Emboscada answers: the result is the server's.
+        if (r.wait) await r.wait;
+        await settleAmbush();
+      }
       setSelectedAttackerIndex(null);
       setAttackAnim(null);
       setIsAnimating(false);
@@ -7865,9 +8058,21 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Online: whose turn it is to move, and how long they have left. */}
+      {turnClock && onlineRef.current && !gameOverWinner && matchIntroStage === null && engineRef.current && (() => {
+        const eng = engineRef.current!;
+        const mine = (eng.pending ? eng.pending.seat : eng.turn.active) === 0;
+        const left = Math.max(0, Math.ceil((turnClock.deadline - (clockNow + turnClock.skew)) / 1000));
+        const urgent = left <= 20;
+        return (
+          <div className={`fixed top-3 left-1/2 -translate-x-1/2 z-[206] px-3 py-1 rounded-full bg-black/80 border text-[10px] font-black uppercase tracking-widest pointer-events-none tabular-nums ${urgent ? 'border-red-500/80 text-red-300' : 'border-zinc-500/60 text-zinc-200'}`}>
+            {mine ? 'Seu tempo' : 'Tempo do adversário'} {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}
+          </div>
+        );
+      })()}
       {/* Online: the opponent has not answered yet. */}
       {waitingRemote && !gameOverWinner && (
-        <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[206] px-3 py-1 rounded-full bg-black/80 border border-amber-400/60 text-amber-200 text-[10px] font-black uppercase tracking-widest pointer-events-none">
+        <div className="fixed top-11 left-1/2 -translate-x-1/2 z-[206] px-3 py-1 rounded-full bg-black/80 border border-amber-400/60 text-amber-200 text-[10px] font-black uppercase tracking-widest pointer-events-none">
           Aguardando o adversário…
         </div>
       )}
@@ -8017,7 +8222,7 @@ export default function App() {
         })()}
       </AnimatePresence>
 
-      <AnimatePresence>{matchIntroStage === 'coin' && <CoinToss key="coin-toss" onResolved={continueMatchIntro} forced={onlineRef.current ? (onlineRef.current.init.first === onlineRef.current.mySeat ? 'player' : 'npc') : undefined} />}</AnimatePresence>
+      <AnimatePresence>{matchIntroStage === 'coin' && <CoinToss key="coin-toss" onResolved={continueMatchIntro} forced={onlineRef.current ? (onlineRef.current.init.iGoFirst ? 'player' : 'npc') : undefined} />}</AnimatePresence>
       {/* Nothing behind the intro can be tapped (the turn button used to be reachable through it). */}
       {(npcKickoffPending || matchIntroStage !== null) && <div className="fixed inset-0 z-[700]" />}
 
@@ -8154,6 +8359,19 @@ export default function App() {
             <p className="text-zinc-300 text-sm md:text-base text-center max-w-xs">
               {gameOverWinner === 'player' ? 'O General inimigo caiu em batalha.' : 'Seu General caiu em batalha.'}
             </p>
+            {matchReward === 'pending' && <p className="text-amber-200/80 text-xs uppercase tracking-widest">Calculando recompensas…</p>}
+            {matchReward && matchReward !== 'pending' && (
+              <div className="flex flex-col items-center gap-1 px-5 py-3 rounded-xl border border-amber-400/50 bg-black/60 text-center">
+                {matchReward.reason === 'too_short' && <p className="text-zinc-300 text-xs">Partida curta demais para render recompensas.</p>}
+                {matchReward.reason === 'abandoned' && <p className="text-zinc-300 text-xs">Partida abandonada: sem recompensas.</p>}
+                {(matchReward.reason === 'win' || matchReward.reason === 'loss') && (
+                  <>
+                    <p className="text-amber-300 font-black text-sm tracking-wide">+{matchReward.xp} XP · +{matchReward.coroas} Coroas</p>
+                    {matchReward.levels_gained > 0 && <p className="text-emerald-300 font-black text-xs uppercase tracking-widest">Subiu para o nível {matchReward.level}!</p>}
+                  </>
+                )}
+              </div>
+            )}
             <button
               onClick={() => { playUiClickSfx(); stopOnline(); setGameMode(null); }}
               className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-full font-black uppercase tracking-widest text-white shadow-[0_0_30px_rgba(99,102,241,0.6)] transition-colors"
