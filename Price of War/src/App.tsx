@@ -83,6 +83,8 @@ import fxHpDownSheet from './assets/fx-hp-down-sheet.webp';
 import fxReinforceSheet from './assets/fx-reinforce-sheet.webp';
 import fxSwapSheet from './assets/fx-swap-sheet.webp';
 import uiEffectReinforceStill from './assets/ui-effect-reinforce.webp';
+import uiEffectAtkUpStill from './assets/ui-effect-atk-up.webp';
+import uiEffectHpUpStill from './assets/ui-effect-hp-up.webp';
 import maskGold from './assets/mask-gold.webp';
 import maskGoldRim from './assets/mask-gold-rim.webp';
 import maskSilver from './assets/mask-silver.webp';
@@ -193,7 +195,7 @@ import batalhaBannerSfxUrl from './assets/sfx-batalha-banner.wav';
 // something heavy hitting the ground" calls for a stone/masonry thud, not a musical
 // stinger.
 import batalhaImpactSfxUrl from './assets/sfx-batalha-impacto.wav';
-import { DECK_RECIPES, requireCardDef, type DeckId } from './engine/catalog';
+import { DECK_RECIPES, requireCardDef, getCardDef, type DeckId } from './engine/catalog';
 import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActivePhases, createMatch, deckSetupFromRecipe, newMatchLog, type MatchLog } from './engine/game';
 import { aiNextAction } from './engine/ai';
 import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
@@ -754,54 +756,46 @@ const IconPop = ({ x, y, size = 92, icon, label }: { x: number; y: number; size?
     </motion.div>
   );
 };
-const StatUpBadge = ({ kind, amount, iconSrc }: { kind: 'atk' | 'hp'; amount: number; iconSrc?: string }) => {
-  const color = kind === 'atk' ? '#ffb347' : '#6ee7a0';
-  return (
-    <div className="flex flex-col items-center gap-1">
-      {/* the icon is cut out (no plate behind it): the glow is a filter on this wrapper, the reveal mask is on the child */}
-      <div style={{ width: 132, height: 132, filter: `drop-shadow(0 0 12px ${color}aa) drop-shadow(0 3px 5px rgba(0,0,0,0.75))` }}>
-        <div className="reveal-in w-full h-full flex items-center justify-center">
-          {iconSrc
-            ? <img src={iconSrc} alt="" className="w-full h-full object-contain" />
-            : <SpriteIcon icon={kind === 'atk' ? 'atk-up' : 'hp-up'} delay={250} className="w-full h-full" />}
-        </div>
-      </div>
-      <motion.span initial={{ opacity: 0, scale: 0.4, y: 6 }} animate={{ opacity: 1, scale: [0.4, 1.35, 1], y: 0 }} transition={{ delay: 0.5, duration: 0.45, times: [0, 0.6, 1] }}
-        className="font-black" style={{ fontFamily: "'Cinzel', serif", fontSize: 30, color: '#fff7e0', textShadow: `0 2px 0 #000, 0 0 14px ${color}` }}>
-        +{amount} <span style={{ fontSize: 15, letterSpacing: '0.12em', color }}>{kind === 'atk' ? 'ATAQUE' : 'VIDA'}</span>
-      </motion.span>
-    </div>
-  );
-};
-
-// Equipping, as a small scene: the unit floats up, the equipment card arrives in front, slides in UNDERneath, the bonus
-// shows, then both settle back into the slot. Positions are offsets from the slot's own rectangle, so it works for either
-// side of the board; the slot itself is held empty on screen meanwhile (holdsRef).
-const EquipFxLayer = ({ fx, vw, vh }: { fx: { side: 'player' | 'npc'; unit: CardData; unitAfter: CardData; weapon: CardData; atk: number; hp: number; stage: 'lift' | 'arrive' | 'under' | 'bonus' | 'return'; rect: { x: number; y: number; w: number; h: number } }; vw: number; vh: number }) => {
+// Equipping, as a small scene on the board itself: the unit lifts a little, the equipment card slides in from the hand into
+// the slot underneath it, the unit sets down on top of it with a flash, a ring and sparks, and the bonus icon pops over it.
+// Positions are offsets from the slot's own rectangle, so it works for either side of the board; the slot itself is held
+// empty on screen meanwhile (holdsRef).
+const EquipFxLayer = ({ fx, vw, vh }: { fx: { side: 'player' | 'npc'; unit: CardData; unitAfter: CardData; weapon: CardData; atk: number; hp: number; stage: 'lift' | 'arrive' | 'land'; rect: { x: number; y: number; w: number; h: number } }; vw: number; vh: number }) => {
   const { rect, stage } = fx;
-  const S = Math.min(3.6, (vw * 0.5) / rect.w);               // how big the card gets in the middle of the screen
-  const dx = vw / 2 - rect.x, dy = vh * 0.40 - rect.y;
   const peek = 0.16;                                          // the same offset the board draws a stacked weapon at (9 px on a 56 px card)
-  const home = stage === 'return';
-  const unitPose = home ? { x: 0, y: 0, scale: 1 } : { x: dx, y: dy, scale: S };
-  const weaponPose = stage === 'lift' ? { x: dx, y: dy + vh * 0.55, scale: S * 1.15, rotate: -8, opacity: 0 }
-    : stage === 'arrive' ? { x: dx - rect.w * S * 0.10, y: dy + rect.h * S * 0.06, scale: S * 1.04, rotate: -5, opacity: 1 }
-    : stage === 'return' ? { x: rect.w * peek, y: rect.w * peek, scale: 0.9, rotate: 0, opacity: 1 }
-    : { x: dx + rect.w * S * peek, y: dy + rect.w * S * peek, scale: S * 0.9, rotate: 0, opacity: 1 };
+  const weaponHome = { x: rect.w * peek, y: rect.w * peek, scale: 0.9, rotate: 0, opacity: 1 };
+  const fromHand = { x: (vw / 2 - rect.x) * 0.5, y: vh - rect.y + rect.h * 0.4, scale: 1.1, rotate: -6, opacity: 0 };
+  const weaponPose = stage === 'lift' ? fromHand : weaponHome;
+  const unitPose = stage === 'lift' || stage === 'arrive' ? { x: 0, y: -rect.h * 0.2, scale: 1.1, rotate: 0 } : { x: 0, y: 0, scale: 1, rotate: 0 };
   const base: React.CSSProperties = { position: 'fixed', left: rect.x - rect.w / 2, top: rect.y - rect.h / 2, width: rect.w, height: rect.h };
-  const spring = { type: 'spring' as const, stiffness: 170, damping: 19 };
+  const lifted = stage !== 'land';
+  const sparks = Array.from({ length: 10 }, (_, i) => i);
   return (
     <>
-      <motion.div className="fixed inset-0 pointer-events-none bg-black" style={{ zIndex: 470 }} initial={{ opacity: 0 }} animate={{ opacity: home ? 0 : 0.5 }} transition={{ duration: 0.4 }} />
-      <motion.div className="pointer-events-none" style={{ ...base, zIndex: stage === 'arrive' ? 483 : 481, filter: CARD_THICKNESS_SHADOW }} initial={{ opacity: 0, rotate: -8, scale: 0.8, x: dx, y: dy + vh * 0.55 }} animate={weaponPose} transition={spring}>
+      {/* a soft shadow on the board under the lifted unit */}
+      <motion.div className="fixed pointer-events-none rounded-full" style={{ left: rect.x - rect.w * 0.45, top: rect.y + rect.h * 0.34, width: rect.w * 0.9, height: rect.h * 0.16, background: 'radial-gradient(ellipse, rgba(0,0,0,0.55), transparent 70%)', zIndex: 480 }}
+        animate={{ opacity: lifted ? 0.9 : 0.35, scaleX: lifted ? 0.85 : 1 }} transition={{ duration: 0.3 }} />
+      <motion.div className="pointer-events-none" style={{ ...base, zIndex: 481, filter: CARD_THICKNESS_SHADOW }} initial={fromHand} animate={weaponPose}
+        transition={stage === 'arrive' ? { type: 'spring', stiffness: 150, damping: 18 } : { duration: 0.2 }}>
         <CardFace card={fx.weapon} variant="field" />
       </motion.div>
-      <motion.div className="pointer-events-none" style={{ ...base, zIndex: 482, filter: CARD_THICKNESS_SHADOW }} initial={{ x: 0, y: 0, scale: 1 }} animate={unitPose} transition={stage === 'lift' ? { type: 'spring', stiffness: 150, damping: 17 } : spring}>
-        {(fx.unit.isFullArt ? <CardFaceFullArtMini card={stage === 'bonus' || stage === 'return' ? fx.unitAfter : fx.unit} /> : <CardFaceStandardMini card={stage === 'bonus' || stage === 'return' ? fx.unitAfter : fx.unit} />)}
+      <motion.div className="pointer-events-none" style={{ ...base, zIndex: 482, filter: CARD_THICKNESS_SHADOW }} initial={{ x: 0, y: 0, scale: 1, rotate: 0 }} animate={unitPose}
+        transition={stage === 'land' ? { type: 'spring', stiffness: 420, damping: 22 } : { type: 'spring', stiffness: 260, damping: 20 }}>
+        <motion.div className="absolute inset-0" animate={stage === 'land' ? { filter: ['brightness(1.9) saturate(1.3)', 'brightness(1)'] } : { filter: 'brightness(1)' }} transition={{ duration: 0.45 }}>
+          {fx.unit.isFullArt ? <CardFaceFullArtMini card={stage === 'land' ? fx.unitAfter : fx.unit} /> : <CardFaceStandardMini card={stage === 'land' ? fx.unitAfter : fx.unit} />}
+        </motion.div>
       </motion.div>
-      {stage === 'bonus' && (
-        <div className="fixed pointer-events-none flex justify-center" style={{ left: 0, width: vw, top: vh * 0.40 - rect.h * S * 0.5 - 190, zIndex: 490 }}>
-          <StatUpBadge kind={fx.atk > 0 ? 'atk' : 'hp'} amount={fx.atk > 0 ? fx.atk : fx.hp} />
+      {stage === 'land' && (
+        <div className="fixed pointer-events-none" style={{ left: rect.x, top: rect.y, width: 0, height: 0, zIndex: 484 }}>
+          {[0, 0.12].map((delay, k) => (
+            <motion.div key={k} className="absolute rounded-full" style={{ left: -rect.w * 0.6, top: -rect.w * 0.6, width: rect.w * 1.2, height: rect.w * 1.2, border: `${3 - k}px solid ${k ? '#fff3c4' : '#ffb347'}`, boxShadow: '0 0 14px #ffb347aa, inset 0 0 12px #ffb34755' }}
+              initial={{ scale: 0.4, opacity: 0.95 }} animate={{ scale: 2.6 + k * 0.5, opacity: 0 }} transition={{ duration: 0.65, delay, ease: 'easeOut' }} />
+          ))}
+          {sparks.map(i => {
+            const ang = (i / sparks.length) * Math.PI * 2 + 0.3, dist = rect.w * (0.9 + (i % 3) * 0.3);
+            return <motion.span key={i} className="absolute rounded-full" style={{ left: -3, top: -3, width: 6, height: 6, background: '#ffe29a', boxShadow: '0 0 8px 2px #ffb347' }}
+              initial={{ x: 0, y: 0, opacity: 1, scale: 1 }} animate={{ x: Math.cos(ang) * dist, y: Math.sin(ang) * dist * 0.8 - 6, opacity: 0, scale: 0.3 }} transition={{ duration: 0.6, ease: 'easeOut' }} />;
+          })}
         </div>
       )}
     </>
@@ -4955,7 +4949,7 @@ export default function App() {
   // applied everything (the slot is simply held empty on screen meanwhile, see holdsRef).
   const [equipFx, setEquipFx] = useState<null | {
     id: number; side: 'player' | 'npc'; slot: number; unit: CardData; unitAfter: CardData; weapon: CardData; atk: number; hp: number;
-    stage: 'lift' | 'arrive' | 'under' | 'bonus' | 'return';
+    stage: 'lift' | 'arrive' | 'land';
     rect: { x: number; y: number; w: number; h: number };
   }>(null);
   const equipFxIdRef = useRef(0);
@@ -5399,14 +5393,15 @@ export default function App() {
           holdsRef.current[side][e.slot] = null;             // the real card waits (hidden) while its copy performs
           setEquipFx({ id, side, slot: e.slot, unit, unitAfter, weapon, atk: e.atk, hp: e.hp, stage: 'lift', rect: { x: slotEl.left + slotEl.width / 2, y: slotEl.top + slotEl.height / 2, w: slotEl.width, h: slotEl.height } });
           playCardLiftSfx();
-          const at = (ms: number, stage: 'arrive' | 'under' | 'bonus' | 'return') => window.setTimeout(() => setEquipFx(f => (f?.id === id ? { ...f, stage } : f)), ms);
-          at(600, 'arrive'); at(1150, 'under'); at(1600, 'bonus'); at(3500, 'return');
-          window.setTimeout(() => playCardPlaySfx(), 1650);
+          const at = (ms: number, stage: 'arrive' | 'land') => window.setTimeout(() => setEquipFx(f => (f?.id === id ? { ...f, stage } : f)), ms);
+          at(450, 'arrive'); at(1150, 'land');
+          window.setTimeout(() => playCardPlaySfx(), 1200);
+          popOverSlot(side, e.slot, e.atk > 0 ? 'atk-up' : 'hp-up', `+${e.atk > 0 ? e.atk : e.hp}`, 1500);
           window.setTimeout(() => {
             delete holdsRef.current[side][e.slot];
             setEquipFx(f => (f?.id === id ? null : f));
             if (engineRef.current) syncView(engineRef.current);
-          }, 4050);
+          }, 2250);
           break;
         }
         case 'reinforce': {
@@ -9144,6 +9139,18 @@ const CardSlot = ({
               onClick above) now shows the same enlarged preview this used to open
               on its own. */}
           {card.isFullArt ? <CardFaceFullArtMini card={card} /> : <CardFaceStandardMini card={card} />}
+          {/* Permanent marks: a card whose ATK or HP is above what is printed on it (equipment, buffs) wears the matching icon over that stat */}
+          {slotId && /-\d$/.test(slotId) && (() => {
+            const def = getCardDef(card.name);
+            if (!def || card.cardType === 'General') return null;
+            const atkNow = card.atk + (card.pendingCombatBonus?.atk ?? 0) + (card.formationBuffAtk ?? 0);
+            return (
+              <>
+                {atkNow > def.atk && <img src={uiEffectAtkUpStill} alt="" aria-hidden draggable={false} className="absolute pointer-events-none select-none" style={{ left: '0%', bottom: '21%', width: '40%', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.85))', zIndex: 6 }} />}
+                {card.hp > def.hp && <img src={uiEffectHpUpStill} alt="" aria-hidden draggable={false} className="absolute pointer-events-none select-none" style={{ right: '0%', bottom: '21%', width: '40%', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.85))', zIndex: 6 }} />}
+              </>
+            );
+          })()}
           {/* Reforço mark: an Infantaria in the Retaguarda is the reserve that steps forward when the card in front falls */}
           {card.cardType === 'Infantaria' && slotId && /-[5-9]$/.test(slotId) && (
             <img src={uiEffectReinforceStill} alt="" aria-hidden draggable={false} className="absolute pointer-events-none select-none" style={{ left: '50%', bottom: '-9%', width: '46%', transform: 'translateX(-50%)', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.8))', zIndex: 6 }} />

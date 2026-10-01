@@ -78,9 +78,10 @@ Evento `reinforce` do motor, depois de `destroyed`. No cliente: a carta caída q
 
 ## Equipar (Armamento) e máscaras de revelação
 
-`equip` (evento do motor, agora com `atk`/`hp` do bônus) → `EquipFxLayer`: a unidade sobe flutuando para o meio da tela (a casa fica vazia, `holdsRef`),
-a carta de equipamento chega por baixo, passa para trás da unidade (o mesmo desvio que o tabuleiro desenha), os números sobem, aparece o bônus
-(`StatUpBadge`, ícone trocável por arte via `iconSrc`) e as duas voltam para a casa. ~3,4 s; o toque no tabuleiro fica bloqueado nesse tempo.
+`equip` (evento do motor, com `atk`/`hp` do bônus) → `EquipFxLayer`, na escala do próprio tabuleiro: a unidade levanta só um pouco (com sombra no chão),
+a carta de equipamento entra vinda da mão para a casa, por baixo, e a unidade pousa em cima com clarão, dois anéis dourados e faíscas; o ícone do bônus
+(espada +N ou coração +N, `IconPop`) aparece sobre a carta. ~2,2 s; a casa fica escondida (`holdsRef`) e o toque no tabuleiro bloqueado nesse tempo.
+Depois disso a carta carrega **marcas permanentes** (`CardSlot`): espada+ sobre o ATK quando está acima do impresso na carta (equipamento, bônus) e coração+ sobre a vida.
 `.reveal-in` / `.reveal-out` (index.css, `@property --rv`): qualquer imagem pode surgir de dentro para fora ou de fora para dentro.
 
 ## Ícones de efeito (arte pintada + animação por código)
