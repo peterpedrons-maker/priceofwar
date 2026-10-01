@@ -49,8 +49,8 @@ Everything that happened comes back as events (`turn_start`, `gold`, `draw`, `at
 
 ## Rules decided in the engine
 
-- 15 gold and 10 cards each; one card drawn at the start of every turn, always (there is no cap on starting a turn with cards); +5 gold per turn from round 2, stacking.
-- The hand limit (12) is only checked at the END of a turn: with more, the player must choose which cards to discard, down to 12 (`state.pending.kind === 'discard'`), the cards go to the graveyard, and only then does the turn pass.
+- 15 gold and 7 cards each; one card drawn at the start of every turn, always (there is no cap on starting a turn with cards); +5 gold per turn from round 2, stacking.
+- The hand limit (10) is only checked at the END of a turn: with more, the player must choose which cards to discard, down to 10 (`state.pending.kind === 'discard'`), the cards go to the graveyard, and only then does the turn pass.
 - Combat opens from the 2nd turn of the match: the first player cannot attack in their first turn.
 - Avanço Coordenado is played in Movimentação (after moving); every other card in Preparação.
 - Relíquia goes only in slot 10, Terreno only in slot 11.

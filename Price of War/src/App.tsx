@@ -1481,7 +1481,7 @@ const HAND_CARD_STEP = HAND_CARD_WIDTH * 0.5;
 const HAND_FULL_SPREAD_COUNT = 7;
 // Tapping a hand card lifts it out of the fan and enlarges it so it can be read; the other cards stay on
 // screen, and only those lying over it fade so the card shows through them.
-const HAND_SELECT_SCALE = 1.4;
+const HAND_SELECT_SCALE = 1.65;
 const handStepFor = (count: number) =>
   count <= HAND_FULL_SPREAD_COUNT ? HAND_CARD_STEP : (HAND_CARD_STEP * (HAND_FULL_SPREAD_COUNT - 1)) / (count - 1);
 
@@ -4566,6 +4566,26 @@ export default function App() {
     setTimeout(() => setBoardShock(false), 500);
   };
   const handCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // Where the tapped hand card is on screen right now (it animates up and grows): the Jogar / Cancelar bar
+  // is placed against it, so the two buttons always sit right above the card they belong to.
+  const [selRect, setSelRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+  useEffect(() => {
+    const id = selectedCardIndex !== null ? hand[selectedCardIndex]?.id : undefined;
+    if (!id) { setSelRect(null); return; }
+    let raf = 0;
+    const t0 = performance.now();
+    const track = () => {
+      const el = handCardRefs.current[id];
+      if (el) {
+        const r = el.getBoundingClientRect();
+        setSelRect(prev => (prev && Math.abs(prev.left - r.left) < 0.5 && Math.abs(prev.top - r.top) < 0.5 && Math.abs(prev.width - r.width) < 0.5)
+          ? prev : { left: r.left, top: r.top, width: r.width, height: r.height });
+      }
+      if (performance.now() - t0 < 900) raf = requestAnimationFrame(track);
+    };
+    raf = requestAnimationFrame(track);
+    return () => cancelAnimationFrame(raf);
+  }, [selectedCardIndex, hand.length]);
 
   // Where a targetable Tática's tap-to-target lands, stashed here (not resolved
   // immediately) because handlePlayCardButtonClick's own commit — spending the
@@ -5364,12 +5384,8 @@ export default function App() {
       // next tap.
       const card = hand[index];
       const dropKind = getCardDropKind(card);
-      if (dropKind === 'blocked' || dropKind === 'immediate') {
-        showToast('Toque na carta novamente para jogá-la.');
-      } else if (dropKind === 'ownTarget' || dropKind === 'enemyTarget') {
-        const tacticKind = TARGETABLE_TACTICS[card.name];
-        if (tacticKind) showToast(TACTIC_TARGET_PROMPTS[tacticKind]);
-      }
+      // (the Jogar / Cancelar bar next to the card says what to do next, so no toast here)
+      void dropKind; void card;
     }
   };
 
@@ -5991,6 +6007,18 @@ export default function App() {
   // desired on-screen distance by handScale compensates, so these two helpers always land
   // the previewed card at the same real screen position regardless of hand size/width.
   const previewScaleFactor = isMobile ? handScale : 1;
+
+  // A tapped hand card grows around its own centre; at either end of a wide hand that would push it past the
+  // screen edge, so slide it back inside (in the tray's own scaled units).
+  const getTappedCardShift = (index: number) => {
+    if (!isMobile) return 0;
+    const cardX = -handTotalWidth / 2 + HAND_CARD_WIDTH / 2 + index * handStep;
+    const centre = windowSize.width / 2 + cardX * handScale;
+    const half = (HAND_CARD_WIDTH * HAND_SELECT_SCALE * handScale) / 2;
+    const margin = 6;
+    const shift = Math.max(0, margin - (centre - half)) - Math.max(0, centre + half - (windowSize.width - margin));
+    return shift / handScale;
+  };
 
   const getSelectedCardX = (index: number) => {
     const startX = -handTotalWidth / 2 + HAND_CARD_WIDTH / 2;
@@ -7057,10 +7085,10 @@ export default function App() {
                 animate={{
                   // The tapped card shows in full; the ones lying over it fade so it reads through them; the rest of
                   // the hand stays as it was. An Emboscada prompt dims everything but the card in question.
-                  opacity: tapSelected ? 1 : coveredBySelected ? 0.2 : viewState === 'field'
+                  opacity: tapSelected ? 1 : coveredBySelected ? 0 : viewState === 'field'
                     ? (isFocused ? 1 : 0.4)
                     : (ambushPrompt && !isFocused ? 0.3 : 1),
-                  x: isFocused && viewState === 'field' ? getSelectedCardX(i) : 0,
+                  x: isFocused && viewState === 'field' ? getSelectedCardX(i) : tapSelected ? getTappedCardShift(i) : 0,
                   // Float the previewed card up near the vertical center of the real screen
                   // instead of sitting down at the hand's normal resting height (see
                   // getSelectedCardY above for how mobile's handScale is compensated for).
@@ -7140,37 +7168,20 @@ export default function App() {
                         card itself, instead of a flat 2D shadow that stayed undistorted
                         while the actual card was still perspective-foreshortened mid-flip. */}
                     <motion.div
-                      className="absolute inset-0 rounded-xl"
-                      // filter lives here too, not a separate wrapper, for the same
-                      // foreshortening reason the comment above gives for boxShadow — see
-                      // CARD_THICKNESS_SHADOW's own comment for what it's doing.
-                      style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', filter: cardGlowFilter(card, isFocused ? '0 0 22px rgba(212,175,55,0.95)' : '0 0 0 transparent') }}
-                      animate={{
-                        boxShadow: cardBoxShadow(card, isFocused
-                          ? "inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 120px rgba(212, 175, 55, 0.95)"
-                          : "inset 0 0 0 1px rgba(212,175,55,0.45), 0 10px 30px rgba(0,0,0,0.5)")
+                      className="absolute inset-0"
+                      // Only the card's own art is drawn — no frame, line or box around it. A tapped card gets a soft glow
+                      // that follows the art's outline (drop-shadow), not a rectangle.
+                      style={{
+                        backfaceVisibility: 'hidden', transform: 'rotateY(180deg)',
+                        filter: isAmbushCandidate
+                          ? `${CARD_THICKNESS_SHADOW} drop-shadow(0 0 12px rgba(239,68,68,0.9))`
+                          : tapSelected
+                            ? `${CARD_THICKNESS_SHADOW} drop-shadow(0 0 10px rgba(212,175,55,0.85))`
+                            : cardGlowFilter(card, isFocused ? '0 0 22px rgba(212,175,55,0.95)' : '0 0 0 transparent'),
                       }}
-                      whileHover={{
-                        boxShadow: cardBoxShadow(card, isFocused
-                          ? "0 0 80px rgba(212, 175, 55, 0.8)"
-                          : "0 0 25px rgba(212, 175, 55, 0.5)")
-                      }}
-                      transition={{ duration: 0.4, ease: "easeOut" }}
                     >
-                  {/* No more Info button here — a plain tap now shows this exact card as
-                      an enlarged floating preview (see the "Hand card tap preview"
-                      overlay further down), big enough to read on its own and to tap a
-                      highlighted board destination from, so the separate "i" button +
-                      modal round-trip this used to open (still used by board cards, see
-                      CardSlot) isn't needed for hand cards anymore. */}
+                  {/* The tapped card steps up in the hand (see tapSelected / the Jogar-Cancelar bar further down). */}
                   <CardFace card={card} variant="hand" />
-
-                  {/* Selection Glow — red for an Emboscada interrupt (matches the old
-                      "Emboscada disponível!" warning color), gold for a normal
-                      hand-card selection. */}
-                  {isFocused && (
-                    <div className={`absolute inset-0 rounded-xl border-2 pointer-events-none ${isAmbushCandidate ? 'shadow-[inset_0_0_30px_rgba(239,68,68,0.6)] border-[#ef4444]' : 'shadow-[inset_0_0_30px_rgba(212,175,55,0.6)] border-[#d4af37]'}`} />
-                  )}
 
                   {/* Emboscada interrupt — "here's the card, activate it or not?" anchored
                       right on the eligible card itself instead of a separate dialog, so
@@ -7225,6 +7236,58 @@ export default function App() {
           'field' itself), so it was one more thing sitting in the corner without a
           real job, plus it was colliding with the opponent's hand fan up there. */}
 
+      {/* The tapped hand card's action bar: what to do next, in plain words, and the two buttons — Jogar and
+          Cancelar — right above the card they belong to (see selRect). Cards that go to an empty slot have no Jogar:
+          the player taps one of the glowing slots. */}
+      {selectedCardIndex !== null && viewState === 'hand' && !ambushPrompt && hand[selectedCardIndex] && selRect && !flyingCard && !preZoomSlot && (() => {
+        const card = hand[selectedCardIndex];
+        const kind = getCardDropKind(card);
+        const canAfford = playerMana >= card.cost;
+        const barW = Math.min(250, windowSize.width - 16);
+        const left = Math.min(Math.max(selRect.left + selRect.width / 2 - barW / 2, 8), windowSize.width - barW - 8);
+        // Relíquia/Terreno go to the slots right beside the General, just above the hand — keep the bar clear of them.
+        const topBar = kind === 'place' && (card.cardType === 'Relíquia' || card.cardType === 'Terreno');
+        const hint =
+          kind === 'place' ? 'Toque num espaço brilhante do seu campo'
+          : kind === 'ownTarget' || kind === 'enemyTarget' ? 'Toque em JOGAR e escolha o alvo (ou toque direto nele)'
+          : kind === 'immediate' ? 'Toque em JOGAR para usar a carta'
+          : 'Ativa sozinha quando você for atacado';
+        const canPlay = kind === 'immediate' || kind === 'ownTarget' || kind === 'enemyTarget';
+        return (
+          <motion.div
+            key={card.id}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="fixed z-[262] flex flex-col items-center gap-1.5 pointer-events-auto"
+            style={{ left, width: barW, ...(topBar ? { top: 52 } : { top: Math.max(8, selRect.top - 74) }) }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span
+              className="px-2.5 py-1 rounded-md bg-black/80 border border-amber-400/70 text-amber-200 text-[10px] font-black uppercase tracking-wide text-center leading-tight"
+              style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}
+            >
+              {hint}
+            </span>
+            <div className="flex gap-2 w-full">
+              {canPlay && (
+                <button
+                  onClick={() => { playUiClickSfx(); handlePlayCardButtonClick(); }}
+                  disabled={!canAfford}
+                  className="flex-1 py-2 rounded-full bg-emerald-600 active:bg-emerald-700 disabled:bg-zinc-700 disabled:text-zinc-400 text-white font-black text-xs uppercase tracking-wider border-2 border-emerald-300 disabled:border-zinc-500 shadow-[0_4px_16px_rgba(16,185,129,0.6)] disabled:shadow-none"
+                >
+                  {canAfford ? 'Jogar' : 'Sem ouro'}
+                </button>
+              )}
+              <button
+                onClick={() => { playUiClickSfx(); setSelectedCardIndex(null); }}
+                className="flex-1 py-2 rounded-full bg-zinc-900/90 active:bg-zinc-800 text-red-300 font-black text-xs uppercase tracking-wider border-2 border-red-500/80"
+              >
+                Cancelar
+              </button>
+            </div>
+          </motion.div>
+        );
+      })()}
       {/* Flying card — plays from hand to the chosen board slot along real screen coordinates.
           Rises to a large "presentation" size above the slot, holds briefly, then descends
           straight down into place. Kept simple on purpose: no wobble, dip, or shake. */}
@@ -7520,7 +7583,7 @@ export default function App() {
           by accident. Same fixed spot every time, so it's learnable at a glance
           instead of rediscovered per session. */}
       <AnimatePresence>
-        {(selectedCardIndex !== null || !!pendingTacticAction || !!pendingGeneralHeal || !!pendingHospitalario) && (
+        {((selectedCardIndex !== null && viewState === 'field') || !!pendingTacticAction || !!pendingGeneralHeal || !!pendingHospitalario) && (
           <motion.button
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}

@@ -5,10 +5,10 @@ import type { Card, CardType, TurnPhase } from './types';
 
 // ── Match economy ───────────────────────────────────────────────────────────
 export const START_GOLD = 15;
-export const START_HAND = 10;
+export const START_HAND = 7;
 export const GOLD_PER_TURN = 5;
 export const GOLD_FROM_ROUND = 2;
-export const HAND_LIMIT = 12;
+export const HAND_LIMIT = 10;
 
 // The few fields the board rules read. The engine's Card and the client's CardData both satisfy it, so the
 // UI can ask the very same questions of what it is showing.

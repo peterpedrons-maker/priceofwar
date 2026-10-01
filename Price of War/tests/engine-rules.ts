@@ -2,6 +2,7 @@
 import { requireCardDef } from '../src/engine/catalog';
 import { aiNextAction } from '../src/engine/ai';
 import { applyAction, combatOpen, createMatch, deckSetupFromRecipe, newMatchLog, replayMatch } from '../src/engine/game';
+import { HAND_LIMIT, START_HAND } from '../src/engine/rules';
 import type { Action, Card, GameEvent, GameState, Seat } from '../src/engine/types';
 
 let passed = 0, failed = 0;
@@ -47,11 +48,11 @@ const names = (cards: Card[]) => cards.map(c => c.name);
 const combat = (s: GameState) => { s.turn.round = 2; s.turn.phase = 'combate'; return s; };
 
 // ── economy and turn flow ───────────────────────────────────────────────────
-test('opening: 15 gold, 10 cards each, then 11 after the first draw', () => {
+test('opening: 15 gold, 7 cards each, then 8 after the first draw', () => {
   const created = createMatch({ seed: 1, decks: [deckSetupFromRecipe('cardeal'), deckSetupFromRecipe('capitao')], first: 0 }).state;
-  eq(created.players.map(p => [p.gold, p.hand.length]), [[15, 10], [15, 10]]);
+  eq(created.players.map(p => [p.gold, p.hand.length]), [[15, START_HAND], [15, START_HAND]]);
   const s = act(created, 0, { type: 'begin' }).s;
-  eq([s.players[0].gold, s.players[0].hand.length, s.players[1].hand.length], [15, 11, 10]);
+  eq([s.players[0].gold, s.players[0].hand.length, s.players[1].hand.length], [15, START_HAND + 1, START_HAND]);
 });
 test('gold +5 from round 2, stacking; the second player gets it too', () => {
   let s = act(createMatch({ seed: 2, decks: [deckSetupFromRecipe('cardeal'), deckSetupFromRecipe('capitao')], first: 0 }).state, 0, { type: 'begin' }).s;
@@ -83,11 +84,11 @@ test('the round counter goes up after the second player, whoever starts', () => 
   s = act(s, 0, { type: 'advance' }).s; s = act(s, 0, { type: 'advance' }).s; s = act(s, 0, { type: 'advance' }).s;
   eq([s.turn.active, s.turn.round], [1, 2]);
 });
-test('the turn draw has no cap: with 12 cards in hand you still draw (the limit is only checked at the end of the turn)', () => {
+test('the turn draw has no cap: at the hand limit you still draw (the limit is only checked at the end of the turn)', () => {
   let s = fresh();
-  for (let i = 0; i < 12; i++) give(s, 1, 'Batedor');
+  for (let i = 0; i < HAND_LIMIT; i++) give(s, 1, 'Batedor');
   s = act(s, 0, { type: 'advance' }).s; s = act(s, 0, { type: 'advance' }).s;
-  eq([s.turn.active, s.players[1].hand.length], [1, 13]);
+  eq([s.turn.active, s.players[1].hand.length], [1, HAND_LIMIT + 1]);
 });
 test('Avanço Coordenado is playable in Movimentação, other cards are not', () => {
   let s = fresh({ a: 'capitao' }); s.turn.phase = 'movimentacao';
@@ -98,9 +99,9 @@ test('Avanço Coordenado is playable in Movimentação, other cards are not', ()
   s = act(s, 0, { type: 'play', cardId: av.id, target: 2 }).s;
   eq(s.players[0].board[2]!.atk, 3);
 });
-test('over the hand limit at the end of the turn: must discard down to 12 before the turn passes', () => {
+test('over the hand limit at the end of the turn: must discard down to the limit before the turn passes', () => {
   let s = fresh();
-  for (let i = 0; i < 14; i++) give(s, 0, 'Batedor');
+  for (let i = 0; i < HAND_LIMIT + 2; i++) give(s, 0, 'Batedor');
   s = act(s, 0, { type: 'advance' }).s;           // -> Movimentação (no combat in the very first turn)
   s = act(s, 0, { type: 'advance' }).s;           // last phase: the turn does not end yet
   eq([s.turn.active, s.pending?.kind, (s.pending as any).count], [0, 'discard', 2]);
@@ -109,21 +110,21 @@ test('over the hand limit at the end of the turn: must discard down to 12 before
   refused(s, 1, { type: 'discard', cardIds: [] }, 'turno');
   const ids = s.players[0].hand.slice(0, 2).map(c => c.id);
   s = act(s, 0, { type: 'discard', cardIds: ids }).s;
-  eq([s.turn.active, s.pending, s.players[0].hand.length, s.players[0].graveyard.length], [1, null, 12, 2]);
+  eq([s.turn.active, s.pending, s.players[0].hand.length, s.players[0].graveyard.length], [1, null, HAND_LIMIT, 2]);
 });
 test('exactly at the limit nothing has to be discarded', () => {
   let s = fresh();
-  for (let i = 0; i < 12; i++) give(s, 0, 'Batedor');
+  for (let i = 0; i < HAND_LIMIT; i++) give(s, 0, 'Batedor');
   s = act(act(s, 0, { type: 'advance' }).s, 0, { type: 'advance' }).s;
   eq([s.turn.active, s.pending], [1, null]);
 });
-test('cards that draw can take the hand past 12 during the turn', () => {
+test('cards that draw can take the hand past the limit during the turn', () => {
   let s = fresh({ a: 'cardeal' });
-  for (let i = 0; i < 12; i++) give(s, 0, 'Batedor');
+  for (let i = 0; i < HAND_LIMIT; i++) give(s, 0, 'Batedor');
   const c = give(s, 0, 'Recrutamento Seletivo');
   s = act(s, 0, { type: 'play', cardId: c.id }).s;
   s = act(s, 0, { type: 'choose', cardIds: [(s.pending as any).options[0].id] }).s;
-  eq(s.players[0].hand.length, 13);
+  eq(s.players[0].hand.length, HAND_LIMIT + 1);
 });
 test('only the active seat can act, and nothing after the match ends', () => {
   const s = fresh();
@@ -602,7 +603,7 @@ test('AI discards down to the limit by itself', () => {
   for (let i = 0; i < 14; i++) give(s, 1, i % 2 ? 'Reforços Ocultos' : 'Cavaleiro da Luz');
   s.players[1].gold = 0;
   const r = aiTurn(s, 1);
-  eq([r.s.turn.active, r.s.players[1].hand.length], [0, 12]);
+  eq([r.s.turn.active, r.s.players[1].hand.length], [0, HAND_LIMIT]);
 });
 test('a replay of the recorded actions reaches the same state (and a cheated action is rejected)', () => {
   const opts = { seed: 11, decks: [deckSetupFromRecipe('cardeal'), deckSetupFromRecipe('capitao')] as [any, any], first: 0 as Seat };
