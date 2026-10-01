@@ -50,3 +50,45 @@ export const updateProfileFields = async (userId: string, patch: { username?: st
     return { ok: true, data: data as CloudProfile };
   } catch (e) { return fail(e); }
 };
+
+// ── Collection and decks ─────────────────────────────────────────────────────
+export type CloudDeck = { slot: number; name: string; general: string; cards: Record<string, number> };
+export type CloudStore = { collection: Record<string, number>; decks: CloudDeck[] };
+
+export const fetchStore = async (userId: string): Promise<CloudResult<CloudStore>> => {
+  try {
+    const c = await getClient();
+    const [col, dk] = await Promise.all([
+      c.from('collection').select('card_name, copies').eq('user_id', userId).limit(5000),
+      c.from('decks').select('slot, name, general, cards').eq('user_id', userId),
+    ]);
+    if (col.error) return fail(col.error);
+    if (dk.error) return fail(dk.error);
+    const collection: Record<string, number> = {};
+    (col.data ?? []).forEach((r: any) => { if (r.card_name && r.copies > 0) collection[r.card_name] = r.copies; });
+    const decks: CloudDeck[] = (dk.data ?? []).map((r: any) => ({ slot: r.slot, name: r.name ?? '', general: r.general ?? '', cards: (r.cards && typeof r.cards === 'object') ? r.cards : {} }));
+    return { ok: true, data: { collection, decks } };
+  } catch (e) { return fail(e); }
+};
+
+// Writes the whole local store (the collection only grows for now, so nothing is ever deleted).
+export const pushStore = async (userId: string, store: { collection: Record<string, number>; decks: CloudDeck[] }): Promise<CloudResult<null>> => {
+  try {
+    const c = await getClient();
+    const rows = Object.entries(store.collection)
+      .filter(([, n]) => n > 0)
+      .map(([card_name, copies]) => ({ user_id: userId, card_name, copies: Math.min(Math.floor(copies), 999) }));
+    for (let i = 0; i < rows.length; i += 300) {
+      const { error } = await c.from('collection').upsert(rows.slice(i, i + 300), { onConflict: 'user_id,card_name' });
+      if (error) return fail(error);
+    }
+    if (store.decks.length > 0) {
+      const { error } = await c.from('decks').upsert(
+        store.decks.map(d => ({ user_id: userId, slot: d.slot, name: d.name, general: d.general, cards: d.cards })),
+        { onConflict: 'user_id,slot' },
+      );
+      if (error) return fail(error);
+    }
+    return { ok: true, data: null };
+  } catch (e) { return fail(e); }
+};

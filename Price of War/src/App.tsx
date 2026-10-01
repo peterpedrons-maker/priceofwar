@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { fetchProfile, usernameAvailable, createProfile, updateProfileFields } from './services/cloud';
+import { fetchProfile, usernameAvailable, createProfile, updateProfileFields, fetchStore, pushStore, type CloudDeck } from './services/cloud';
 import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authErrorDetail, authMode, type Session } from './services/auth';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate, type MotionValue } from 'motion/react';
 import { X, ArrowUp, ArrowDown } from 'lucide-react';
@@ -2153,7 +2153,7 @@ const cardByName = (name: string): CardData | undefined => CARD_INSTANCES_BY_NAM
 const isGeneralName = (name: string) => cardByName(name)?.cardType === 'General';
 
 type DeckSlot = { id: string; name: string; general: string; cards: Record<string, number> };
-type DeckStore = { collection: Record<string, number>; slots: DeckSlot[] };
+type DeckStore = { collection: Record<string, number>; slots: DeckSlot[]; owner?: string };
 // What a match needs from a deck: the draw pool, the General, and which prebuilt deck the AI takes.
 type DeckSelection = { pool: readonly CardData[]; general: CardData; npcDeckId: DeckId };
 
@@ -2205,7 +2205,7 @@ const sanitizeDeckStore = (raw: any): DeckStore | null => {
       cards,
     };
   });
-  return { collection, slots };
+  return { collection, slots, owner: typeof raw.owner === 'string' ? raw.owner : undefined };
 };
 const loadDeckStore = (): DeckStore => {
   try {
@@ -2219,8 +2219,59 @@ const loadDeckStore = (): DeckStore => {
   saveDeckStore(fresh);
   return fresh;
 };
+// Local copy first (instant, works offline); when a signed-in account is syncing, the same store is also
+// pushed to the cloud a moment later (see syncDeckStoreWithCloud).
+let cloudUserId: string | null = null;
+let pushTimer: number | undefined;
+let pushing = false;
+let pushAgain = false;
+const toCloudDecks = (store: DeckStore): CloudDeck[] => store.slots.map((sl, i) => ({ slot: i + 1, name: sl.name, general: sl.general, cards: sl.cards }));
+const runPush = async () => {
+  if (!cloudUserId) return;
+  if (pushing) { pushAgain = true; return; }
+  pushing = true;
+  try {
+    const store = loadDeckStore();
+    const r = await pushStore(cloudUserId, { collection: store.collection, decks: toCloudDecks(store) });
+    if (r.ok === false) { console.error('cloud save failed', r.message); window.clearTimeout(pushTimer); pushTimer = window.setTimeout(runPush, 8000); }
+  } finally {
+    pushing = false;
+    if (pushAgain) { pushAgain = false; void runPush(); }
+  }
+};
 const saveDeckStore = (store: DeckStore) => {
+  if (cloudUserId) store.owner = cloudUserId;
   try { localStorage.setItem(DECK_STORE_KEY, JSON.stringify(store)); } catch { /* private mode etc. */ }
+  if (cloudUserId) { window.clearTimeout(pushTimer); pushTimer = window.setTimeout(runPush, 700); }
+};
+const stopCloudSync = () => { cloudUserId = null; window.clearTimeout(pushTimer); };
+// Called once after sign-in. The cloud copy wins when the account already has one. A brand-new account
+// takes this device's store if nobody has claimed it yet (so what you built before accounts moves up),
+// otherwise it starts from a fresh starter store. Resolves to an error message, or null.
+const syncDeckStoreWithCloud = async (userId: string): Promise<string | null> => {
+  const r = await fetchStore(userId);
+  if (r.ok === false) return r.message;
+  const { collection, decks } = r.data;
+  if (Object.keys(collection).length > 0) {
+    const slots = [1, 2].map(n => {
+      const d = decks.find(x => x.slot === n);
+      return { id: `slot${n}`, name: d?.name || `Deck ${n}`, general: d?.general || '', cards: d?.cards ?? {} };
+    });
+    const merged = sanitizeDeckStore({ collection, slots, owner: userId });
+    if (merged) {
+      try { localStorage.setItem(DECK_STORE_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
+      cloudUserId = userId;
+      return null;
+    }
+  }
+  const local = loadDeckStore();
+  const base: DeckStore = local.owner === undefined || local.owner === userId ? local : buildStarterStore();
+  base.owner = userId;
+  try { localStorage.setItem(DECK_STORE_KEY, JSON.stringify(base)); } catch { /* ignore */ }
+  const up = await pushStore(userId, { collection: base.collection, decks: toCloudDecks(base) });
+  if (up.ok === false) return up.message;
+  cloudUserId = userId;
+  return null;
 };
 
 const deckCardCount = (slot: DeckSlot) => Object.values(slot.cards).reduce((a, b) => a + b, 0);
@@ -4639,14 +4690,17 @@ export default function App() {
   const [profileTry, setProfileTry] = useState(0);
   useEffect(() => {
     if (authMode !== 'supabase') return;
-    if (!session) { setProfileNamed(false); setProfileLoading(false); setProfileError(''); return; }
+    if (!session) { stopCloudSync(); setProfileNamed(false); setProfileLoading(false); setProfileError(''); return; }
     let alive = true;
     setProfileLoading(true); setProfileError('');
-    fetchProfile(session.userId).then(r => {
+    fetchProfile(session.userId).then(async r => {
       if (!alive) return;
       if (r.ok === false) { setProfileError(r.message); setProfileLoading(false); return; }
       if (r.data) {
         const row = r.data;
+        const syncErr = await syncDeckStoreWithCloud(session.userId);
+        if (!alive) return;
+        if (syncErr) { setProfileError(syncErr); setProfileLoading(false); return; }
         saveProfile({ ...DEFAULT_PROFILE, name: row.username, avatarId: AVATAR_OPTIONS.some(a => a.id === row.avatar_id) ? row.avatar_id : DEFAULT_PROFILE.avatarId, level: row.level, xp: row.xp, coroas: row.coroas, nameSet: true });
         setProfileNamed(true);
       } else {
@@ -5921,6 +5975,8 @@ export default function App() {
             const r = await createProfile(session.userId, name, avatarId);
             if (r.ok === false) return r.message;
             const row = r.data;
+            const syncErr = await syncDeckStoreWithCloud(session.userId);
+            if (syncErr) return syncErr;
             saveProfile({ ...DEFAULT_PROFILE, name: row.username, avatarId: row.avatar_id, level: row.level, xp: row.xp, coroas: row.coroas, nameSet: true });
           } else {
             saveProfile({ ...p, name, avatarId, nameSet: true });
