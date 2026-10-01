@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 're
 import { fetchProfile, usernameAvailable, createProfile, updateProfileFields, fetchStore, pushStore, type CloudDeck } from './services/cloud';
 import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authErrorDetail, authMode, type Session } from './services/auth';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate, type MotionValue } from 'motion/react';
-import { X, ArrowUp, ArrowDown, Swords, ShieldPlus } from 'lucide-react';
+import { X, ArrowUp, ArrowDown, ShieldPlus } from 'lucide-react';
 import { TurnTracker } from './TurnTracker';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
@@ -76,6 +76,7 @@ import haloInvalidTargetImage from './assets/halo-invalid-target.png';
 import haloSelectionImage from './assets/halo-selection.png';
 import badgeSwordImage from './assets/badge-sword.png';
 import badgeShieldImage from './assets/badge-shield.png';
+import fxAtkUpSheet from './assets/fx-atk-up-sheet.webp';
 import maskGold from './assets/mask-gold.webp';
 import maskGoldRim from './assets/mask-gold-rim.webp';
 import maskSilver from './assets/mask-silver.webp';
@@ -703,12 +704,33 @@ const AbilityReadyGlow = ({ x, y, w, h, onClick, card = null, kind = 'utility' }
 
 // The bonus that shows when something raises a card's stats (equipment now; heals and buffs later). The icon is meant to be
 // painted art (`iconSrc`); until it exists a plain symbol stands in. It always arrives through a reveal mask.
+// A sprite sheet played once (and held on its last frame), after an optional delay.
+const SpriteOnce = ({ sheet, cols, rows, frames, fps, delay = 0, className = '' }: { sheet: string; cols: number; rows: number; frames: number; fps: number; delay?: number; className?: string }) => {
+  const [frame, setFrame] = useState(-1);
+  useEffect(() => {
+    let raf = 0;
+    const t0 = performance.now() + delay;
+    const loop = (now: number) => {
+      setFrame(Math.max(-1, Math.min(frames - 1, Math.floor(((now - t0) / 1000) * fps))));
+      if ((now - t0) / 1000 * fps < frames) raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  if (frame < 0) return <div className={className} />;
+  const col = frame % cols, row = Math.floor(frame / cols);
+  return <div className={className} style={{ backgroundImage: `url(${sheet})`, backgroundRepeat: 'no-repeat', backgroundSize: `${cols * 100}% ${rows * 100}%`, backgroundPosition: `${(col / (cols - 1)) * 100}% ${(row / (rows - 1)) * 100}%` }} />;
+};
 const StatUpBadge = ({ kind, amount, iconSrc }: { kind: 'atk' | 'hp'; amount: number; iconSrc?: string }) => {
   const color = kind === 'atk' ? '#ffb347' : '#7fc3ff';
   return (
     <div className="flex flex-col items-center gap-1">
-      <div className="reveal-in relative flex items-center justify-center rounded-full" style={{ width: 74, height: 74, background: 'radial-gradient(circle at 50% 38%, #3a2a16, #120c06 72%)', boxShadow: `0 0 0 2px ${color}, 0 0 22px 4px ${color}88, inset 0 0 14px #000a` }}>
-        {iconSrc ? <img src={iconSrc} alt="" className="w-[78%] h-[78%] object-contain" /> : kind === 'atk' ? <Swords size={38} color={color} strokeWidth={2.2} /> : <ShieldPlus size={38} color={color} strokeWidth={2.2} />}
+      <div className="reveal-in relative flex items-center justify-center rounded-full" style={{ width: 96, height: 96, background: 'radial-gradient(circle at 50% 38%, #3a2a16, #120c06 72%)', boxShadow: `0 0 0 2px ${color}, 0 0 22px 4px ${color}88, inset 0 0 14px #000a` }}>
+        {iconSrc
+          ? <img src={iconSrc} alt="" className="w-[78%] h-[78%] object-contain" />
+          : kind === 'atk'
+            ? <SpriteOnce sheet={fxAtkUpSheet} cols={6} rows={6} frames={36} fps={30} delay={380} className="w-[96%] h-[96%]" />
+            : <ShieldPlus size={46} color={color} strokeWidth={2.2} />}
       </div>
       <motion.span initial={{ opacity: 0, scale: 0.4, y: 6 }} animate={{ opacity: 1, scale: [0.4, 1.35, 1], y: 0 }} transition={{ delay: 0.35, duration: 0.45, times: [0, 0.6, 1] }}
         className="font-black" style={{ fontFamily: "'Cinzel', serif", fontSize: 30, color: '#fff7e0', textShadow: `0 2px 0 #000, 0 0 14px ${color}` }}>
@@ -744,7 +766,7 @@ const EquipFxLayer = ({ fx, vw, vh }: { fx: { side: 'player' | 'npc'; unit: Card
         {(fx.unit.isFullArt ? <CardFaceFullArtMini card={stage === 'bonus' || stage === 'return' ? fx.unitAfter : fx.unit} /> : <CardFaceStandardMini card={stage === 'bonus' || stage === 'return' ? fx.unitAfter : fx.unit} />)}
       </motion.div>
       {stage === 'bonus' && (
-        <div className="fixed pointer-events-none flex justify-center" style={{ left: 0, width: vw, top: vh * 0.40 - rect.h * S * 0.5 - 128, zIndex: 490 }}>
+        <div className="fixed pointer-events-none flex justify-center" style={{ left: 0, width: vw, top: vh * 0.40 - rect.h * S * 0.5 - 150, zIndex: 490 }}>
           <StatUpBadge kind={fx.atk > 0 ? 'atk' : 'hp'} amount={fx.atk > 0 ? fx.atk : fx.hp} />
         </div>
       )}
@@ -5321,13 +5343,13 @@ export default function App() {
           setEquipFx({ id, side, slot: e.slot, unit, unitAfter, weapon, atk: e.atk, hp: e.hp, stage: 'lift', rect: { x: slotEl.left + slotEl.width / 2, y: slotEl.top + slotEl.height / 2, w: slotEl.width, h: slotEl.height } });
           playCardLiftSfx();
           const at = (ms: number, stage: 'arrive' | 'under' | 'bonus' | 'return') => window.setTimeout(() => setEquipFx(f => (f?.id === id ? { ...f, stage } : f)), ms);
-          at(600, 'arrive'); at(1150, 'under'); at(1600, 'bonus'); at(2900, 'return');
+          at(600, 'arrive'); at(1150, 'under'); at(1600, 'bonus'); at(3500, 'return');
           window.setTimeout(() => playCardPlaySfx(), 1650);
           window.setTimeout(() => {
             delete holdsRef.current[side][e.slot];
             setEquipFx(f => (f?.id === id ? null : f));
             if (engineRef.current) syncView(engineRef.current);
-          }, 3450);
+          }, 4050);
           break;
         }
         case 'reinforce': {
