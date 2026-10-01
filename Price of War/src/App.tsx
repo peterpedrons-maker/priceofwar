@@ -530,9 +530,18 @@ const getValidAttackTargets = (
 // re-introduces the "nothing to do yet" step that merge was avoiding, but the user
 // asked for the explicit Yu-Gi-Oh-style phase breakdown anyway; a phase with nothing
 // to do is just a tap-through, not a real cost.
+// Match economy (rules the user set): everyone starts with 15 gold and 10 cards, draws one card at the
+// start of EVERY turn (the very first one included), and from the second round on earns +5 gold a turn,
+// stacking with whatever was not spent. A hand holds up to 12. Combat is open from the second turn of the
+// match on: the player who goes first cannot attack in their first turn, the second player already can.
+const START_GOLD = 15;
+const START_HAND = 10;
+const GOLD_PER_TURN = 5;
+const GOLD_FROM_ROUND = 2;
+const HAND_LIMIT = 12;
 export type TurnPhase = 'preparacao' | 'combate' | 'movimentacao';
-const phasesForTurn = (turn: number): TurnPhase[] =>
-  turn >= 3 ? ['preparacao', 'combate', 'movimentacao'] : ['preparacao', 'movimentacao'];
+const phasesForTurn = (combatOpen: boolean): TurnPhase[] =>
+  combatOpen ? ['preparacao', 'combate', 'movimentacao'] : ['preparacao', 'movimentacao'];
 // Short labels for the small always-on phase-tag column (see PhaseTagColumn below)
 // planted at each field's own edge — brought back in a smaller, out-of-the-way
 // form after the original center-HUD version was removed for being unreadable at
@@ -1970,6 +1979,11 @@ const HAND_CARD_HEIGHT = 320; // h-80
 // Cards overlap like a real hand of cards instead of sitting apart with a gap —
 // each card only advances this much past the previous one.
 const HAND_CARD_STEP = HAND_CARD_WIDTH * 0.5;
+// Big hands (a match opens with 10-11 cards, up to HAND_LIMIT) overlap MORE instead of fanning
+// out wider: the fan never gets wider than 7 cards' worth, so the cards stay a readable size.
+const HAND_FULL_SPREAD_COUNT = 7;
+const handStepFor = (count: number) =>
+  count <= HAND_FULL_SPREAD_COUNT ? HAND_CARD_STEP : (HAND_CARD_STEP * (HAND_FULL_SPREAD_COUNT - 1)) / (count - 1);
 
 // ── DECK CAPITÃO ────────────────────────────────────────────────────────────
 // Ported from the earlier full-art version of this project (commit 8a3d7b8,
@@ -5174,9 +5188,10 @@ export default function App() {
   // stay the SAME size while dealing the opening hand (1 card growing to 5) instead of
   // visibly shrinking card by card as each new one arrives — it only starts shrinking
   // further once the hand genuinely grows past a normal opening hand's size.
-  const HAND_SCALE_REFERENCE_COUNT = 5;
+  const HAND_SCALE_REFERENCE_COUNT = HAND_FULL_SPREAD_COUNT;
   const handScaleCount = Math.max(hand.length, HAND_SCALE_REFERENCE_COUNT);
-  const handTotalWidth = handScaleCount > 0 ? HAND_CARD_WIDTH + (handScaleCount - 1) * HAND_CARD_STEP : HAND_CARD_WIDTH;
+  const handStep = handStepFor(handScaleCount);
+  const handTotalWidth = handScaleCount > 0 ? HAND_CARD_WIDTH + (handScaleCount - 1) * handStep : HAND_CARD_WIDTH;
   const handFanMaxAngleRad = (FAN_SPREAD_DEG / 2) * (Math.PI / 180);
   const handFanExtraWidth = handScaleCount > 1 ? HAND_CARD_HEIGHT * Math.sin(handFanMaxAngleRad) : 0;
   // The 0.88 safety factor accounts for what the width-only math above doesn't: the fan's
@@ -5196,6 +5211,8 @@ export default function App() {
   useEffect(() => { handRef.current = hand; }, [hand]);
   const handScaleRef = useRef(handScale);
   useEffect(() => { handScaleRef.current = handScale; }, [handScale]);
+  const handStepRef = useRef(handStep);
+  useEffect(() => { handStepRef.current = handStep; }, [handStep]);
   // The AI-turn effect (below) fires on the same currentTurn change as the redraw
   // effect that hands the NPC its per-turn card — reading npcHand directly there would
   // close over the pre-redraw value, since that update lands in a later render this
@@ -5280,7 +5297,7 @@ export default function App() {
     const lastEl = lastId ? handCardRefs.current[lastId] : null;
     if (lastEl) {
       const r = lastEl.getBoundingClientRect();
-      return { x: r.left + r.width / 2 + (HAND_CARD_STEP - HAND_CARD_WIDTH) * handScaleRef.current, y: r.top + r.height / 2 };
+      return { x: r.left + r.width / 2 + (handStepRef.current - HAND_CARD_WIDTH) * handScaleRef.current, y: r.top + r.height / 2 };
     }
     return { x: windowSize.width / 2, y: windowSize.height - 140 };
   };
@@ -5433,7 +5450,7 @@ export default function App() {
       matchIntroTimeoutsRef.current.push(id);
     };
     firstSideRef.current = first;
-    if (first === 'npc') setNpcKickoffPending(true);
+    setNpcKickoffPending(true);   // nothing can be tapped until both hands are dealt
     const BATTLE_START = 250;
     // "BATALHA" slams down between the two still-frozen portraits — the declaration lands BEFORE either
     // General has taken their place on the board.
@@ -5449,31 +5466,41 @@ export default function App() {
       playCardPlaySfx();
       setIntroDescendTargets(null);
       setMatchIntroStage(null);
-      suppressInitialPhaseBannerRef.current = false;
-      // Going first: the usual phase ribbon. Going second: the opponent opens once the hands are dealt.
-      if (first === 'player') announcePhase('preparacao');
     }, LAND);
 
-    // Kept comfortably past the viewport-settle window (see viewportSettled) so the deck's on-screen
-    // position is already final by the time the first card's flight measures it.
-    const DEAL_START = LAND + 500;
-    const DEAL_STEP = 820;
-    for (let i = 0; i < 5; i++) {
+    // Both starting hands (START_HAND cards each) are dealt fast, a card every DEAL_STEP ms, so the match
+    // starts quickly. Kept comfortably past the viewport-settle window (see viewportSettled) so the deck's
+    // on-screen position is already final by the time the first card's flight measures it.
+    const DEAL_START = LAND + 400;
+    const DEAL_STEP = 230;
+    const drawOne = () => {
+      const newCard = drawFromDeck();
+      const origin = computeDrawOrigin(playerDeckRef, handRef.current.length);
+      if (origin) drawOriginsRef.current[newCard.id] = origin;
+      setHand(prev => [...prev, newCard]);
+    };
+    for (let i = 0; i < START_HAND; i++) {
       const t = DEAL_START + i * DEAL_STEP;
-      schedule(() => {
-        const newCard = drawFromDeck();
-        const origin = computeDrawOrigin(playerDeckRef, handRef.current.length);
-        if (origin) drawOriginsRef.current[newCard.id] = origin;
-        setHand(prev => [...prev, newCard]);
-      }, t);
-      schedule(() => setNpcHand(prev => [...prev, drawFromNpcDeck()]), t + 400);
+      schedule(drawOne, t);
+      schedule(() => setNpcHand(prev => [...prev, drawFromNpcDeck()]), t + 110);
     }
-    if (first === 'npc') {
+    const DEALT = DEAL_START + START_HAND * DEAL_STEP + DRAW_FLIGHT_MS * 0.6;
+    if (first === 'player') {
+      // The first player draws as their turn begins (11 cards), then the usual phase ribbon.
       schedule(() => {
+        suppressInitialPhaseBannerRef.current = false;
+        drawOne();
+        setNpcKickoffPending(false);
+        announcePhase('preparacao');
+      }, DEALT);
+    } else {
+      // The opponent opens: its draw happens as its turn starts (see the turn effect).
+      schedule(() => {
+        suppressInitialPhaseBannerRef.current = false;
         setNpcKickoffPending(false);
         announceTurnChange('npc');
         setCurrentTurn('npc');
-      }, DEAL_START + 5 * DEAL_STEP + 900);
+      }, DEALT);
     }
   };
 
@@ -5509,8 +5536,8 @@ export default function App() {
     setNpcGeneralAbilityUses(0);
     setGeneralAbilityPrompt(null);
     setPendingGeneralHeal(null);
-    setPlayerMana(10);
-    setNpcMana(10);
+    setPlayerMana(START_GOLD);
+    setNpcMana(START_GOLD);
     setSelectedCardIndex(null);
     setSelectedAttackerIndex(null);
     setViewState('hand');
@@ -5537,13 +5564,13 @@ export default function App() {
   useEffect(() => {
     if (currentTurn === 'player') {
       // Ouro (gold) is a persistent economy, not a Hearthstone-style mana crystal that
-      // refills to a fixed amount every turn: it starts at 10, sits still through turns
-      // 1-2, then grows by +4 every turn from turn 3 onward with no upper cap — and
+      // refills to a fixed amount every turn: it starts at START_GOLD, sits still through round
+      // 1, then grows by GOLD_PER_TURN every turn from round 2 onward with no upper cap — and
       // whatever wasn't spent carries over. So a big play can be saved up for instead
       // of always being locked to what a single turn's allowance affords.
-      if (turnNumber >= 3) {
-        setPlayerMana(prev => prev + 4);
-        spawnFloatingNumberAtId('player-gold-badge', 4, 'gold-gain');
+      if (turnNumber >= GOLD_FROM_ROUND) {
+        setPlayerMana(prev => prev + GOLD_PER_TURN);
+        spawnFloatingNumberAtId('player-gold-badge', GOLD_PER_TURN, 'gold-gain');
       }
       // The NPC's turn forces viewState to 'field' (zoomed out to watch it play), which
       // leaves the hand tray dimmed and pushed down off-screen (see the Hand UI's own
@@ -5592,7 +5619,7 @@ export default function App() {
       if (pendingPlayerGeneralAbilityBlock) setPendingPlayerGeneralAbilityBlock(false);
       setPlayerActivatedAbilityIds(new Set());
       setPlayerAttackCounts({});
-      if (turnNumber > 1 && hand.length < 10) {
+      if (!suppressInitialPhaseBannerRef.current && hand.length < HAND_LIMIT) {
         const newCard = drawFromDeck();
         const origin = computeDrawOrigin(playerDeckRef, hand.length);
         if (origin) drawOriginsRef.current[newCard.id] = origin;
@@ -5606,9 +5633,9 @@ export default function App() {
         setHand(prev => prev.length >= 2 ? prev : [...prev, ...Array.from({ length: 2 - prev.length }, () => drawFromDeck())]);
       }
     } else {
-      if (turnNumber >= 3) {
-        setNpcMana(prev => prev + 4);
-        spawnFloatingNumberAtId('npc-gold-badge', 4, 'gold-gain');
+      if (turnNumber >= GOLD_FROM_ROUND) {
+        setNpcMana(prev => prev + GOLD_PER_TURN);
+        spawnFloatingNumberAtId('npc-gold-badge', GOLD_PER_TURN, 'gold-gain');
       }
       setViewState('field');
       setNpcGeneralAbilityUses(0);
@@ -5620,7 +5647,7 @@ export default function App() {
       // until a further render — a ref mutation is immediate).
       npcGeneralAbilityBlockedThisTurnRef.current = pendingNpcGeneralAbilityBlock;
       if (pendingNpcGeneralAbilityBlock) setPendingNpcGeneralAbilityBlock(false);
-      if (turnNumber > 1 && npcHand.length < 10) {
+      if (npcHand.length < HAND_LIMIT) {
         setNpcHand(prev => [...prev, drawFromNpcDeck()]);
       }
       // Intendente do Exército, NPC side — same passive check as the player's own above.
@@ -5648,7 +5675,7 @@ export default function App() {
         showBanner('Fase de Preparação', 'O adversário joga suas cartas');
         await new Promise(resolve => setTimeout(resolve, PHASE_BANNER_DURATION_MS + 150));
         let npcCombatAnnounced = false;
-        const { actions, playedCardIds } = playAiTurn(npcSlots, playerSlots, npcMana, npcHandRef.current, getValidAttackTargets, turnNumber);
+        const { actions, playedCardIds } = playAiTurn(npcSlots, playerSlots, npcMana, npcHandRef.current, getValidAttackTargets, turnNumber >= 2 || firstSideRef.current !== 'npc');
         if (playedCardIds.length > 0) {
           setNpcHand(prev => prev.filter(c => !playedCardIds.includes(c.id)));
         }
@@ -6363,7 +6390,10 @@ export default function App() {
   // it always has — tapping it ends the turn directly, no extra step. Only from turn 3
   // on, when Batalha exists as a second phase, does it briefly show a named transition
   // ("AVANÇAR: BATALHA") before settling back to "SEU TURNO" for the actual end-turn tap.
-  const activePhases = phasesForTurn(turnNumber);
+  // Combat is open from the 2nd turn of the match: always from round 2 on, and in round 1 only for the
+  // player who goes second.
+  const combatOpenNow = turnNumber >= 2 || currentTurn !== firstSideRef.current;
+  const activePhases = phasesForTurn(combatOpenNow);
   const isLastPhaseOfTurn = activePhases[activePhases.length - 1] === turnPhase;
 
   // Cálice da Graça (Relíquia, the slot-10 special slot) used to grant a second use per
@@ -7344,7 +7374,7 @@ export default function App() {
 
   const getSelectedCardX = (index: number) => {
     const startX = -handTotalWidth / 2 + HAND_CARD_WIDTH / 2;
-    const cardX = startX + index * HAND_CARD_STEP;
+    const cardX = startX + index * handStep;
     // Tuck the previewed card right up against a side edge while the player picks a
     // slot, so it blocks as little of the board (and its slot indicators) as possible,
     // while staying fully on-screen so the player always knows what they're about to play.
@@ -7448,7 +7478,7 @@ export default function App() {
   const renderPhaseTagColumn = (activePhase: TurnPhase | null) => (
     <div className="flex flex-col gap-0.5">
       {PHASE_TAG_ORDER.map(p => {
-        const isLocked = p === 'combate' && turnNumber < 3;
+        const isLocked = p === 'combate' && !combatOpenNow;
         const isCurrent = activePhase === p;
         return (
           <div
@@ -8005,7 +8035,7 @@ export default function App() {
               ratio, grew separately once the gold badges beside this button dropped
               their old side-by-side label (stacked below the coin instead — see that
               badge's own comment) and stopped needing as much of the row's own width.
-              The "Turno N" / "Combate no Turno 3" line lives in a THIRD zone here, in the
+              The "Turno N" / "Combate no Turno 2" line lives in a THIRD zone here, in the
               frame's own bottom border margin (below the track's opaque panel, still
               within the art's own silhouette) rather than as a sibling below the frame —
               text-shadow (not a flat backdrop, there's no dedicated panel back there)
@@ -8169,7 +8199,7 @@ export default function App() {
                     above) closes it. */}
                 <div className="absolute flex items-center" style={{ top: '55.5%', left: '5%', width: '90%', height: '21%' }}>
                   {PHASE_TAG_ORDER.map(p => {
-                    const isLocked = p === 'combate' && turnNumber < 3;
+                    const isLocked = p === 'combate' && !combatOpenNow;
                     const isCurrent = p === activePhaseForStepper;
                     const nodeImg = isLocked ? nodeLockedImage : isCurrent ? nodeCurrentImage : nodeFutureImage;
                     return (
@@ -8197,7 +8227,7 @@ export default function App() {
                     );
                   })}
                 </div>
-                {/* The "Turno N" readout + (while locked) the "Combate no Turno 3" hint —
+                {/* The "Turno N" readout + (while locked) the "Combate no Turno 2" hint —
                     matches the info line under the user's own reference mockup. Sits in
                     the frame's bottom border margin (below the track's own art, still
                     within the whole asset's silhouette) with a text-shadow instead of a
@@ -8211,7 +8241,7 @@ export default function App() {
                     line. leading-none added for the same reason the stepper line has it
                     (see its own comment): without it, the default line-height reserves
                     different amounts of space above/below words with a descender (the
-                    "ç" in Combate No Turno 3 has none, this line's other words do) than
+                    "ç" in Combate No Turno 2 has none, this line's other words do) than
                     words without one, so "centered" text can look like it's sitting on a
                     slightly different baseline even though nothing is actually misaligned
                     in the font itself. */}
@@ -8221,11 +8251,11 @@ export default function App() {
                 >
                   <img src={hourglassImage} className="w-[4.5px] h-[5.5px] md:w-[6px] md:h-[7px] shrink-0" alt="" />
                   {`Turno ${turnNumber}`}
-                  {turnNumber < 3 && (
+                  {!combatOpenNow && (
                     <>
                       <span className="text-amber-200/50">|</span>
                       <img src={nodeLockedImage} className="w-[4.5px] h-[5px] md:w-[6px] md:h-[6px] shrink-0 object-contain" alt="" />
-                      Combate no Turno 3
+                      Combate no Turno 2
                     </>
                   )}
                 </div>
@@ -8398,6 +8428,7 @@ export default function App() {
                 // time. key alone is enough for React to keep reusing this same DOM node.
                 key={card.id}
                 ref={(el) => { handCardRefs.current[card.id] = el; }}
+                data-hand-card
                 className={`w-56 h-80 shrink-0 cursor-pointer relative group ${viewState === 'field' || (selectedCardIndex !== null && !isFocused) ? 'pointer-events-none' : 'pointer-events-auto'}`}
                 // A freshly drawn card (see computeDrawOrigin) mounts sitting right at the
                 // real on-board deck's position/size and animates itself — this same
@@ -8410,7 +8441,7 @@ export default function App() {
                 }
                 style={{
                   transformOrigin: 'bottom center',
-                  marginLeft: i === 0 ? 0 : HAND_CARD_STEP - HAND_CARD_WIDTH,
+                  marginLeft: i === 0 ? 0 : handStep - HAND_CARD_WIDTH,
                 }}
                 animate={{
                   // Hidden while tap-previewed (see the fixed "Hand card tap preview"

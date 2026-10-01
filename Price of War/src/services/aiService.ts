@@ -41,7 +41,7 @@ export const playAiTurn = (
   npcMana: number,
   npcHand: CardData[],
   getValidAttackTargets: ValidTargetsFn,
-  turnNumber: number
+  canAttack: boolean
 ): { actions: AiAction[]; playedCardIds: string[] } => {
   const actions: AiAction[] = [];
   const playedCardIds: string[] = [];
@@ -73,7 +73,7 @@ export const playAiTurn = (
   // restriction (see handleSlotClick's turnPhase !== 'batalha' check in App.tsx):
   // without this, the AI could freely swing on turns 1-2 while the player couldn't,
   // a lopsided head start that isn't part of the actual rules.
-  if (turnNumber < 3) return { actions, playedCardIds };
+  if (!canAttack) return { actions, playedCardIds };
 
   // Each NPC minion swings at whatever it can actually reach given the lane-blocking
   // rules (see getValidAttackTargets), preferring the General when it's exposed,
