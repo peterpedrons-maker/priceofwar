@@ -725,14 +725,17 @@ const StatUpBadge = ({ kind, amount, iconSrc }: { kind: 'atk' | 'hp'; amount: nu
   const color = kind === 'atk' ? '#ffb347' : '#7fc3ff';
   return (
     <div className="flex flex-col items-center gap-1">
-      <div className="reveal-in relative flex items-center justify-center rounded-full" style={{ width: 96, height: 96, background: 'radial-gradient(circle at 50% 38%, #3a2a16, #120c06 72%)', boxShadow: `0 0 0 2px ${color}, 0 0 22px 4px ${color}88, inset 0 0 14px #000a` }}>
-        {iconSrc
-          ? <img src={iconSrc} alt="" className="w-[78%] h-[78%] object-contain" />
-          : kind === 'atk'
-            ? <SpriteOnce sheet={fxAtkUpSheet} cols={6} rows={6} frames={36} fps={30} delay={380} className="w-[96%] h-[96%]" />
-            : <ShieldPlus size={46} color={color} strokeWidth={2.2} />}
+      {/* the icon is cut out (no plate behind it): the glow is a filter on this wrapper, the reveal mask is on the child */}
+      <div style={{ width: 132, height: 132, filter: `drop-shadow(0 0 12px ${color}aa) drop-shadow(0 3px 5px rgba(0,0,0,0.75))` }}>
+        <div className="reveal-in w-full h-full flex items-center justify-center">
+          {iconSrc
+            ? <img src={iconSrc} alt="" className="w-full h-full object-contain" />
+            : kind === 'atk'
+              ? <SpriteOnce sheet={fxAtkUpSheet} cols={6} rows={6} frames={36} fps={30} delay={250} className="w-full h-full" />
+              : <ShieldPlus size={72} color={color} strokeWidth={2.2} />}
+        </div>
       </div>
-      <motion.span initial={{ opacity: 0, scale: 0.4, y: 6 }} animate={{ opacity: 1, scale: [0.4, 1.35, 1], y: 0 }} transition={{ delay: 0.35, duration: 0.45, times: [0, 0.6, 1] }}
+      <motion.span initial={{ opacity: 0, scale: 0.4, y: 6 }} animate={{ opacity: 1, scale: [0.4, 1.35, 1], y: 0 }} transition={{ delay: 0.5, duration: 0.45, times: [0, 0.6, 1] }}
         className="font-black" style={{ fontFamily: "'Cinzel', serif", fontSize: 30, color: '#fff7e0', textShadow: `0 2px 0 #000, 0 0 14px ${color}` }}>
         +{amount} <span style={{ fontSize: 15, letterSpacing: '0.12em', color }}>{kind === 'atk' ? 'ATAQUE' : 'VIDA'}</span>
       </motion.span>
@@ -766,7 +769,7 @@ const EquipFxLayer = ({ fx, vw, vh }: { fx: { side: 'player' | 'npc'; unit: Card
         {(fx.unit.isFullArt ? <CardFaceFullArtMini card={stage === 'bonus' || stage === 'return' ? fx.unitAfter : fx.unit} /> : <CardFaceStandardMini card={stage === 'bonus' || stage === 'return' ? fx.unitAfter : fx.unit} />)}
       </motion.div>
       {stage === 'bonus' && (
-        <div className="fixed pointer-events-none flex justify-center" style={{ left: 0, width: vw, top: vh * 0.40 - rect.h * S * 0.5 - 150, zIndex: 490 }}>
+        <div className="fixed pointer-events-none flex justify-center" style={{ left: 0, width: vw, top: vh * 0.40 - rect.h * S * 0.5 - 190, zIndex: 490 }}>
           <StatUpBadge kind={fx.atk > 0 ? 'atk' : 'hp'} amount={fx.atk > 0 ? fx.atk : fx.hp} />
         </div>
       )}

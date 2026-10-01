@@ -1,5 +1,5 @@
 """Animates the painted 'Ataque +' icon (art-prompts/reference/ui-effect-atk-up.jpg): the sword starts upright, lays itself
-down to its drawn angle with a little overshoot, and when it lands the plus sign pops in with a ring and sparks.
+down to its drawn angle with a little overshoot, and when it lands the plus sign fades in softly with a warm halo and a few sparks.
 The still is cut apart by code (background keyed out, the plus separated from the sword), so any later repaint of the same
 icon can be dropped in and rebuilt:  python3 tools/vfx/atk_up_icon.py [preview]
    src/assets/fx-atk-up-sheet.webp   36 frames, 6 cols x 6 rows, 256x256, transparent (plays once, ends on the original image)"""
@@ -99,22 +99,20 @@ for k in range(NF):
     if land > 0.02:
         sw = add_light(sw, (sw[..., 3] / 255) * land, (255, 170, 80), 0.45)
     # plus: pops in from the landing (0.58..0.86): small, spinning, overshoot, then home
-    pt = min(1, max(0, (t - 0.58) / 0.28))
+    pt = min(1, max(0, (t - 0.56) / 0.40))                  # the plus fades in slowly (0.56..0.96), it does not pop
     frame = sw
     if pt > 0:
-        ps = 0.15 + 1.0 * back(pt, 2.6) if pt < 1 else 1.0
-        ps = max(0.05, ps)
-        pa = ease(min(1, pt / 0.35))
-        rot = -140 * (1 - ease(pt))
-        pl = transform(plus_layer, plus_c, rot, ps, 0, 0, alpha_mul=pa)
+        ps = 0.78 + 0.22 * ease(pt) + 0.06 * math.sin(math.pi * pt)      # eases up from a bit smaller, a tiny swell on the way
+        pa = ease(min(1, pt / 0.85)) ** 1.2
+        pl = transform(plus_layer, plus_c, 0, ps, 0, 8 * (1 - ease(pt)), alpha_mul=pa)
         frame = over(frame, pl)
-        # ring + sparks at the plus
-        ring_r = 20 + 230 * ease(pt); ring = np.exp(-((np.hypot(xx - plus_c[0], yy - plus_c[1]) - ring_r) / (10 + 8 * pt)) ** 2) * (1 - pt) ** 1.2 * 0.9
-        frame = add_light(frame, ring, (255, 205, 120), 1.0)
+        # a soft warm halo that breathes in with it, and a few sparks drifting up and away (no hard ring)
+        halo = np.exp(-(np.hypot(xx - plus_c[0], yy - plus_c[1]) / (150 + 60 * pt)) ** 2) * math.sin(math.pi * min(1, pt)) * 0.35
+        frame = add_light(frame, halo, (255, 190, 100), 1.0)
         for i in range(14):
-            d = spark_v[i] * ease(pt)
-            px = plus_c[0] + math.cos(spark_a[i]) * d; py = plus_c[1] + math.sin(spark_a[i]) * d - 40 * pt
-            m = np.exp(-((xx - px) ** 2 + (yy - py) ** 2) / (2 * (spark_s[i] * (1 - 0.5 * pt)) ** 2)) * (1 - pt) ** 0.8
+            d = spark_v[i] * 0.55 * ease(pt)
+            px = plus_c[0] + math.cos(spark_a[i]) * d; py = plus_c[1] + math.sin(spark_a[i]) * d - 60 * pt
+            m = np.exp(-((xx - px) ** 2 + (yy - py) ** 2) / (2 * (spark_s[i] * (1 - 0.5 * pt)) ** 2)) * math.sin(math.pi * pt) ** 1.5
             frame = add_light(frame, m, (255, 190, 90), 1.0)
     frames.append(Image.fromarray(np.clip(frame, 0, 255).astype(np.uint8), 'RGBA').resize((256, 256), Image.LANCZOS))
 
@@ -133,7 +131,7 @@ if len(sys.argv) > 1 and sys.argv[1] == 'preview':
         disc = Image.new('RGBA', (240, 240), (0, 0, 0, 0)); d = np.zeros((240, 240, 4), np.uint8)
         r = np.hypot(np.mgrid[0:240, 0:240][0] - 120, np.mgrid[0:240, 0:240][1] - 120)
         d[..., :3] = np.array([30, 22, 12]); d[..., 3] = np.clip((118 - r) * 40, 0, 255); disc = Image.fromarray(d, 'RGBA')
-        bg.alpha_composite(disc, (20, 30)); bg.alpha_composite(f.resize((240, 240), Image.LANCZOS), (20, 30))
+        bg.alpha_composite(f.resize((240, 240), Image.LANCZOS), (20, 30))
         bg.alpha_composite(f.resize((74, 74), Image.LANCZOS), (330, 110))      # the size it has in the game
         bg.alpha_composite(f.resize((150, 150), Image.LANCZOS), (410, 75))
         out.append(bg.convert('RGB').quantize(96))
