@@ -10,7 +10,13 @@ export const GOLD_PER_TURN = 5;
 export const GOLD_FROM_ROUND = 2;
 export const HAND_LIMIT = 12;
 
-export type Board = (Card | null)[];
+// The few fields the board rules read. The engine's Card and the client's CardData both satisfy it, so the
+// UI can ask the very same questions of what it is showing.
+export type Unit = {
+  name: string; cardType?: CardType; atk: number; hp: number;
+  pendingCombatBonus?: { atk: number; hp: number }; formationBuffAtk?: number; dmgReduction?: number;
+};
+export type Board = (Unit | null)[];
 
 export const phasesForTurn = (combatOpen: boolean): TurnPhase[] =>
   combatOpen ? ['preparacao', 'combate', 'movimentacao'] : ['preparacao', 'movimentacao'];
@@ -35,7 +41,7 @@ export const adjacentSlots = (slot: number): number[] =>
   [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(j => areSlotsAdjacent(slot, j));
 
 // Cavaleiro Tático swaps with anyone in its own row; every other unit only with orthogonal neighbours.
-export const canReposition = (mover: Card | null, from: number, to: number): boolean => {
+export const canReposition = (mover: Unit | null, from: number, to: number): boolean => {
   if (!mover || from === to) return false;
   if (mover.name === 'Cavaleiro Tático') return getMoveRow(from) === getMoveRow(to) && isUnitSlot(from) && isUnitSlot(to);
   return areSlotsAdjacent(from, to);
@@ -89,7 +95,7 @@ export const IMMEDIATE_CARD_NAMES = new Set([
 
 export type CardDropKind = 'place' | 'ownTarget' | 'enemyTarget' | 'immediate' | 'blocked';
 // What playing a given hand card means, decided purely from the card itself.
-export const getCardDropKind = (card: Card): CardDropKind => {
+export const getCardDropKind = (card: { name: string; cardType?: CardType }): CardDropKind => {
   if (IMMEDIATE_CARD_NAMES.has(card.name)) return 'immediate';
   const kind = TARGETABLE_TACTICS[card.name];
   if (kind) return ENEMY_TARGET_KINDS.has(kind) ? 'enemyTarget' : 'ownTarget';
@@ -110,22 +116,22 @@ export const canPlaceInSlot = (cardType: CardType | undefined, slot: number): bo
 // ── Damage and aura rules ───────────────────────────────────────────────────
 export const isAliveAt = (board: Board, slot: number, name: string) => board[slot]?.name === name;
 
-export const isCardDamaged = (card: Card): boolean => card.hp < (getCardDef(card.name)?.hp ?? card.hp);
+export const isCardDamaged = (card: Unit): boolean => card.hp < (getCardDef(card.name)?.hp ?? card.hp);
 
-export const hasLiderBuff = (card: Card, own: Board): boolean => {
+export const hasLiderBuff = (card: Unit, own: Board): boolean => {
   if (card.cardType !== 'Infantaria' && card.cardType !== 'Arqueiro') return false;
   return [0, 1, 2, 3, 4].some(i => own[i]?.name === 'Comandante da Ordem');
 };
-export const getAuraCombatHpBonus = (card: Card, own: Board): number => (hasLiderBuff(card, own) ? 1 : 0);
+export const getAuraCombatHpBonus = (card: Unit, own: Board): number => (hasLiderBuff(card, own) ? 1 : 0);
 
 // Infiltrado da Ordem in the Vanguarda of the ATTACKING side blocks the defender's Emboscadas.
 export const hasEspiaoInVanguarda = (board: Board): boolean => [0, 1, 2, 3, 4].some(i => board[i]?.name === 'Infiltrado da Ordem');
 export const hasEspiaoOnBoard = (board: Board): boolean => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => board[i]?.name === 'Infiltrado da Ordem');
 
-export const getMaxAttacksPerTurn = (card: Card): number => (card.name === 'Arqueiro da Ordem' ? 2 : 1);
+export const getMaxAttacksPerTurn = (card: { name: string }): number => (card.name === 'Arqueiro da Ordem' ? 2 : 1);
 
 // A unit's ATK after every static aura that touches it, plus any one-time bonus it holds.
-export const getEffectiveAtk = (card: Card, ownIndex: number, own: Board, enemy: Board): number => {
+export const getEffectiveAtk = (card: Unit, ownIndex: number, own: Board, enemy: Board): number => {
   let atk = card.atk + (card.pendingCombatBonus?.atk ?? 0);
   atk += card.formationBuffAtk ?? 0;
   if (isAliveAt(own, 10, 'Estandarte da Legião')) atk += 1;

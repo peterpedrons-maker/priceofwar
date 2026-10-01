@@ -10,7 +10,6 @@ import nodeLockedImage from './assets/icon-lock-turn.webp';
 import chevronDoubleImage from './assets/icon-chevron-double.webp';
 import hourglassImage from './assets/icon-hourglass.webp';
 import plaqueMaskImage from './assets/plaque-mask.webp';
-import { playAiTurn, AiAction } from './services/aiService';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
 import startScreenBgImage from './assets/start-screen-bg.webp';
@@ -179,6 +178,17 @@ import batalhaBannerSfxUrl from './assets/sfx-batalha-banner.wav';
 // something heavy hitting the ground" calls for a stone/masonry thud, not a musical
 // stinger.
 import batalhaImpactSfxUrl from './assets/sfx-batalha-impacto.wav';
+import { DECK_RECIPES, requireCardDef, type DeckId } from './engine/catalog';
+import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActivePhases, createMatch, deckSetupFromRecipe } from './engine/game';
+import { aiNextAction } from './engine/ai';
+import {
+  EQUIP_ALLOWED_TYPES, TACTIC_TARGET_PROMPTS, TARGETABLE_TACTICS, GOLD_PER_TURN, HAND_LIMIT, START_GOLD, START_HAND,
+  areSlotsAdjacent, canPlaceInSlot, canReposition, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction,
+  getLaneCol, getMaxAttacksPerTurn, getMoveRow, getValidAttackTargets, isBackline, isCardDamaged, isFrontline, phasesForTurn,
+  type TacticTargetKind,
+} from './engine/rules';
+import type { Action as EngineAction, Card as EngineCard, GameEvent, GameState, Seat, TurnPhase } from './engine/types';
+export type { TurnPhase, TacticTargetKind };
 
 // Every card/board/UI image in the game besides the start screen's own background
 // and logo (those two load first, in the loading screen's initial black-screen
@@ -362,7 +372,7 @@ const playBatalhaImpactSfx = () => {
   audio.play().catch(() => {});
 };
 
-export type CardType = 'Infantaria' | 'Cavalaria' | 'Arqueiro' | 'Artilharia' | 'General' | 'Relíquia' | 'Terreno' | 'Tática' | 'Emboscada';
+export type CardType = import('./engine/types').CardType;
 
 export type CardData = {
   id: string;
@@ -420,18 +430,8 @@ export type SlotHint = 'valid' | 'invalid';
 // getValidAttackTargets) is a combat rule, not a placement rule, so it has no
 // business being color-coded here (see getRowRoleHint just below for where that
 // distinction actually gets surfaced instead).
-const getSlotHint = (cardType: CardType | undefined, slotIndex: number): SlotHint => {
-  if (slotIndex === 12) return 'invalid'; // General slot is fixed, never playable from hand
-  // Emboscada cards only resolve via the ambush interrupt (see maybeActivatePlayerAmbush)
-  // and Táticas either resolve immediately or via their own on-board targeting flow (see
-  // TARGETABLE_TACTICS) — neither is ever dropped onto a slot like a creature.
-  if (cardType === 'Emboscada' || cardType === 'Tática') return 'invalid';
-  const isSpecialSlot = slotIndex === 10 || slotIndex === 11; // beside the General: Relíquia/Terreno only
-  const isFieldOnlyCard = cardType === 'Relíquia' || cardType === 'Terreno';
-  if (isSpecialSlot) return isFieldOnlyCard ? 'valid' : 'invalid';
-  if (isFieldOnlyCard) return 'invalid';
-  return 'valid';
-};
+const getSlotHint = (cardType: CardType | undefined, slotIndex: number): SlotHint =>
+  canPlaceInSlot(cardType, slotIndex) ? 'valid' : 'invalid';
 
 // Annotates a valid empty-slot placement hint with what that row actually lets the
 // unit DO, instead of leaving Vanguarda/Retaguarda visually identical during
@@ -444,76 +444,6 @@ const getRowRoleHint = (cardType: CardType | undefined, slotIndex: number): 'com
   if (isFrontline(slotIndex)) return 'combat';
   if (isBackline(slotIndex)) return 'support';
   return undefined;
-};
-
-// Lane-based combat targeting — ported from an earlier, fully-art version of this
-// project (see git history: commit 8a3d7b8, later reverted for being too broken to
-// keep) so the tactical rules survive even though that build didn't. Each side has 5
-// lanes (columns 0-4): a Vanguarda (front) slot and a Retaguarda (back) slot per lane,
-// plus a center lane holding the General (col 2) and the two special slots beside it
-// (10 at col 1, 11 at col 3).
-const isFrontline = (slotIndex: number) => slotIndex >= 0 && slotIndex <= 4;
-const isBackline = (slotIndex: number) => slotIndex >= 5 && slotIndex <= 9;
-const getLaneCol = (slotIndex: number) => {
-  if (isFrontline(slotIndex)) return slotIndex;
-  if (isBackline(slotIndex)) return slotIndex - 5;
-  return -1; // General/Relíquia/Terreno don't occupy a lane themselves
-};
-
-const getValidAttackTargets = (
-  attackerIndex: number,
-  attackerSlots: (CardData | null)[],
-  enemySlots: (CardData | null)[]
-): Set<number> => {
-  const validTargets = new Set<number>();
-  const attacker = attackerSlots[attackerIndex];
-  if (!attacker) return validTargets;
-
-  // The General/Relíquia/Terreno don't initiate attacks.
-  const attackerCol = getLaneCol(attackerIndex);
-  if (attackerCol === -1) return validTargets;
-
-  // Infantaria posted in the Retaguarda doesn't attack at all — a positioning
-  // trade-off for whatever defensive perk it gets back there.
-  if (attacker.cardType === 'Infantaria' && isBackline(attackerIndex)) return validTargets;
-
-  // A non-ranged attacker with an enemy directly in front (same lane, enemy
-  // Vanguarda) is FORCED to target only that card — no reaching past it. Ranged
-  // units (Arqueiro/Artilharia) ignore this and can always consider all 3 lanes.
-  const isRanged = attacker.cardType === 'Arqueiro' || attacker.cardType === 'Artilharia';
-  const directFrontalEnemy = !isRanged && !!enemySlots[attackerCol];
-  const scanCols = directFrontalEnemy
-    ? [attackerCol]
-    : [attackerCol - 1, attackerCol, attackerCol + 1].filter(c => c >= 0 && c <= 4);
-
-  scanCols.forEach(col => {
-    const frontIdx = col;
-    const backIdx = col + 5;
-    if (enemySlots[frontIdx]) {
-      validTargets.add(frontIdx);
-    } else if (enemySlots[backIdx]) {
-      // The Retaguarda card in this lane is only reachable while its own
-      // Vanguarda is empty.
-      validTargets.add(backIdx);
-    }
-  });
-
-  // Center lane (General at col 2, the two special slots at col 1/3): reachable
-  // only when the attacker's scan angle includes that column AND the whole lane
-  // leading to it (front + back) is completely clear of blockers.
-  const centerLane: { col: number; target: number }[] = [
-    { col: 1, target: 10 },
-    { col: 2, target: 12 },
-    { col: 3, target: 11 },
-  ];
-  centerLane.forEach(({ col, target }) => {
-    if (!enemySlots[target]) return;
-    if (!scanCols.includes(col)) return;
-    const isPathClear = !enemySlots[col] && !enemySlots[col + 5];
-    if (isPathClear) validTargets.add(target);
-  });
-
-  return validTargets;
 };
 
 // Turn phases — Compra (draw) is automatic and instant (see the currentTurn effect)
@@ -530,18 +460,6 @@ const getValidAttackTargets = (
 // re-introduces the "nothing to do yet" step that merge was avoiding, but the user
 // asked for the explicit Yu-Gi-Oh-style phase breakdown anyway; a phase with nothing
 // to do is just a tap-through, not a real cost.
-// Match economy (rules the user set): everyone starts with 15 gold and 10 cards, draws one card at the
-// start of EVERY turn (the very first one included), and from the second round on earns +5 gold a turn,
-// stacking with whatever was not spent. A hand holds up to 12. Combat is open from the second turn of the
-// match on: the player who goes first cannot attack in their first turn, the second player already can.
-const START_GOLD = 15;
-const START_HAND = 10;
-const GOLD_PER_TURN = 5;
-const GOLD_FROM_ROUND = 2;
-const HAND_LIMIT = 12;
-export type TurnPhase = 'preparacao' | 'combate' | 'movimentacao';
-const phasesForTurn = (combatOpen: boolean): TurnPhase[] =>
-  combatOpen ? ['preparacao', 'combate', 'movimentacao'] : ['preparacao', 'movimentacao'];
 // Short labels for the small always-on phase-tag column (see PhaseTagColumn below)
 // planted at each field's own edge — brought back in a smaller, out-of-the-way
 // form after the original center-HUD version was removed for being unreadable at
@@ -604,427 +522,6 @@ const PHASE_BANNER_MOTION: Record<'in' | 'hold' | 'out', { animate: { opacity: n
   in: { animate: { opacity: 1, x: 0, y: PHASE_BANNER_Y }, transition: { duration: PHASE_BANNER_STAGE_MS.in / 1000, ease: 'easeOut' } },
   hold: { animate: { opacity: 1, x: 0, y: PHASE_BANNER_Y }, transition: { duration: 0, ease: 'linear' } },
   out: { animate: { opacity: 0, x: -420, y: PHASE_BANNER_Y }, transition: { duration: PHASE_BANNER_STAGE_MS.out / 1000, ease: 'easeIn' } },
-};
-
-// Reposition adjacency — only Vanguarda/Retaguarda slots (0-9) take part; the
-// General/Relíquia/Terreno slots (10-12) are fixed, same as everywhere else they're
-// special-cased in this file. A 2-row x 5-column grid, orthogonal adjacency only
-// (no diagonals), matching the old version's grid-distance rule.
-const getMoveRow = (slotIndex: number) => (slotIndex <= 4 ? 0 : 1);
-const getMoveCol = (slotIndex: number) => (slotIndex <= 4 ? slotIndex : slotIndex - 5);
-const areSlotsAdjacent = (a: number, b: number) => {
-  if (a < 0 || a > 9 || b < 0 || b > 9 || a === b) return false;
-  const dr = Math.abs(getMoveRow(a) - getMoveRow(b));
-  const dc = Math.abs(getMoveCol(a) - getMoveCol(b));
-  return dr + dc === 1;
-};
-
-// ── Deck Capitão mechanics ──────────────────────────────────────────────────
-// Every card's `effect` string used to be flavor text only — none of it actually
-// ran. This block gives Deck Capitão's abilities real behavior. Matched by
-// `name` rather than `id`: drawFromDeck/drawFromNpcDeck stamp every drawn card
-// with a fresh random id (`hand_<timestamp>_<random>`) to keep React keys and
-// draw-animation bookkeeping unique per copy, which means the deck array's own
-// descriptive ids (e.g. 'c_tactical_soldier_0') don't survive onto the board —
-// only `name` does, and it's identical across every copy of a given card, so
-// it's the stable thing to key off. Deck Cardeal Pedro's much larger and more
-// varied set of abilities (healing, card draw, summon-on-play, equip-style
-// buffs, deck/graveyard search) needs its own new subsystems (equipment
-// attachment, reveal-and-choose UI for draws/searches) this pass doesn't build
-// — those are still flavor-text-only, same as before. A few Capitão abilities
-// are ALSO left as flavor-only where they need a kind of UI this pass doesn't
-// add either (a free-standing "pick a unit and buff/move it" targeting mode for
-// a Tática card): Reformar Linhas, Avanço Coordenado, Reposicionamento Rápido,
-// Linha Fechada, Ordem de Retirada, and Batedor's "move after combat" (there's
-// no post-Batalha phase to move again in — see phasesForTurn — so this would
-// need a real phase-system change, not just a targeting UI). Escudeiro de
-// Linha's "Protege unidades atrás" needs nothing new: getValidAttackTargets
-// already blocks a lane's Retaguarda card from being attacked while its own
-// Vanguarda is occupied, for any unit, so this is already generically true.
-
-// Is the named card alive and on the field at this exact slot? Used for every
-// singleton (General/Relíquia/Terreno) aura check below.
-const isAliveAt = (slots: (CardData | null)[], index: number, name: string) =>
-  slots[index]?.name === name && !slots[index]?.isDestroyed;
-
-// A unit's ATK after every static Deck Capitão aura that touches it, plus any
-// one-time "next combat" bonus it's currently holding (see pendingCombatBonus —
-// granted by Comandante Aurelion's active below). Called from both combat
-// resolution paths (handleNpcSlotClick and the AI turn loop) for whichever side
-// is attacking or defending — auras are computed from board state, not stored,
-// so they always reflect what's alive on the field right now.
-const getEffectiveAtk = (
-  card: CardData,
-  ownIndex: number,
-  ownSlots: (CardData | null)[],
-  enemySlots: (CardData | null)[]
-): number => {
-  let atk = card.atk + (card.pendingCombatBonus?.atk ?? 0);
-  // Capitão de Formação: "Ao mover: adjacentes +1 ATK" — temporary, cleared at
-  // the start of the next player turn (see formationBuffAtk's own comment).
-  atk += card.formationBuffAtk ?? 0;
-  // Estandarte da Legião (Relíquia, own slot 10): all allies +1 ATK.
-  if (isAliveAt(ownSlots, 10, 'Estandarte da Legião')) atk += 1;
-  // Veterano de Guerra: +2 ATK to itself while standing in column index 2
-  // ("coluna 3", 1-indexed) — a positional self-buff, not an aura on others.
-  if (card.name === 'Veterano de Guerra' && getLaneCol(ownIndex) === 2) atk += 2;
-  // Lanceiro de Controle: the enemy unit directly facing its lane (same slot
-  // index, mirrored across the board) gets -1 ATK while the Lanceiro is alive.
-  const facingEnemy = enemySlots[ownIndex];
-  if (facingEnemy && !facingEnemy.isDestroyed && facingEnemy.name === 'Lanceiro de Controle') atk -= 1;
-  // Pântano Maldito (Terreno, enemy's own slot 11): enemy Vanguarda -1 ATK.
-  if (isFrontline(ownIndex) && isAliveAt(enemySlots, 11, 'Pântano Maldito')) atk -= 1;
-  // Comandante da Ordem (Deck Cardeal): +1 ATK for allied Infantaria/Arqueiro
-  // while it's standing in the Vanguarda (see hasLiderBuff below).
-  if (hasLiderBuff(card, ownSlots)) atk += 1;
-  return Math.max(0, atk);
-};
-
-// How much incoming damage a slot's occupant shrugs off before it's subtracted
-// from HP — Comandante Aurelion's passive and Fortaleza de Pedra, both flat -1
-// reductions that stack if somehow both apply.
-const getIncomingDamageReduction = (ownIndex: number, ownSlots: (CardData | null)[]): number => {
-  let reduction = 0;
-  // Comandante Aurelion passive: units adjacent to the General (the Relíquia/
-  // Terreno slots on either side of him) take -1 damage.
-  if ((ownIndex === 10 || ownIndex === 11) && isAliveAt(ownSlots, 12, 'Comandante Aurelion, Mestre da Formação')) reduction += 1;
-  // Fortaleza de Pedra (Terreno, own slot 11): own Retaguarda takes -1 damage.
-  if (isBackline(ownIndex) && isAliveAt(ownSlots, 11, 'Fortaleza de Pedra')) reduction += 1;
-  // Linha Fechada: a permanent per-unit stamp (see resolveOwnTacticTarget), not an aura.
-  reduction += ownSlots[ownIndex]?.dmgReduction ?? 0;
-  return reduction;
-};
-
-// Comandante Aurelion's active: "Após Remanejamento, até 2 unidades que se
-// moveram ganham +1/+1 no próximo combate." Called once, right as Preparação
-// ends (see the turn button's onClick) — tags up to 2 of this turn's movedSlots
-// with a one-time bonus, consumed (see getEffectiveAtk / the combat blocks'
-// pendingCombatBonus.hp handling) the next time that unit actually fights.
-// NPC-side is out of scope: aiService.ts never repositions its own units (see
-// its Relíquia/Terreno skip), so movedSlots-style tracking has nothing to read
-// there even if the AI ends up playing this same deck (see resetGame).
-const grantAurelionBuff = (slots: (CardData | null)[], moved: Set<number>): (CardData | null)[] => {
-  if (!isAliveAt(slots, 12, 'Comandante Aurelion, Mestre da Formação') || moved.size === 0) return slots;
-  const targets = [...moved].filter(i => slots[i]).slice(0, 2);
-  if (targets.length === 0) return slots;
-  const next = [...slots];
-  targets.forEach(i => { next[i] = { ...next[i]!, pendingCombatBonus: { atk: 1, hp: 1 } }; });
-  return next;
-};
-
-// Capitão de Formação: "Ao mover: adjacentes +1 ATK." Called right after a
-// reposition move lands (see handleSlotClick) — stamps whoever is standing
-// next to its NEW position, surviving even if the Capitão later moves away or
-// dies (read via getEffectiveAtk, not baked into card.atk directly), but only
-// until the end of the current turn (see formationBuffAtk's own comment and
-// the player-turn-start reset). Originally a genuinely permanent +1 ATK on
-// every trigger with no cap — combined with Reformar Linhas letting the same
-// Capitão be re-picked-up and moved several times in one turn (see
-// bonusRepositions), that let a single 3-cost card snowball unlimited
-// permanent ATK for free, forever. Capping it to "this turn only" keeps the
-// combo real (still a burst worth setting up) without the infinite stack.
-const applyFormationCaptainBuff = (slots: (CardData | null)[], moverNewIndex: number): (CardData | null)[] => {
-  const mover = slots[moverNewIndex];
-  if (!mover || mover.name !== 'Capitão de Formação') return slots;
-  const next = [...slots];
-  for (let j = 0; j <= 9; j++) {
-    if (areSlotsAdjacent(moverNewIndex, j) && next[j]) {
-      next[j] = { ...next[j]!, formationBuffAtk: (next[j]!.formationBuffAtk ?? 0) + 1 };
-    }
-  }
-  return next;
-};
-
-// Soldado Tático: "Troca com aliado adjacente no fim do turno." Runs for
-// whichever side's turn just ended (see the turn button's onClick and the AI
-// turn loop's own end) — every Soldado Tático still on the Vanguarda/Retaguarda
-// grid swaps with one adjacent ally, if it has one. A slot only takes part in one
-// swap per pass so two adjacent Soldados don't bounce back and forth.
-const applyEndOfTurnSwaps = (slots: (CardData | null)[]): (CardData | null)[] => {
-  const next = [...slots];
-  const settled = new Set<number>();
-  for (let i = 0; i <= 9; i++) {
-    if (settled.has(i)) continue;
-    const card = next[i];
-    if (!card || card.name !== 'Soldado Tático') continue;
-    const partner = [i - 1, i + 1, i - 5, i + 5].find(j => areSlotsAdjacent(i, j) && next[j] && !settled.has(j));
-    if (partner !== undefined) {
-      [next[i], next[partner]] = [next[partner], next[i]];
-      settled.add(i);
-      settled.add(partner);
-    }
-  }
-  return next;
-};
-
-// Cavaleiro Tático: "Troca com qualquer aliado na linha" — its own reposition
-// range is the whole Vanguarda or Retaguarda row it's standing in, not just the
-// orthogonal-neighbor rule every other unit uses (see areSlotsAdjacent). Shared
-// by the move-target highlight (validMoveTargets) and the actual move's own
-// validity check (handleSlotClick) so both agree on what's legal.
-const canReposition = (moverCard: CardData | null, from: number, to: number): boolean => {
-  if (!moverCard || from === to) return false;
-  if (moverCard.name === 'Cavaleiro Tático') return getMoveRow(from) === getMoveRow(to);
-  return areSlotsAdjacent(from, to);
-};
-
-// Which specific effect a chosen Emboscada card performs when activated,
-// replacing the old one-size-fits-all "+2/+2 to the defender" placeholder now
-// that Deck Capitão's three Emboscadas have actual written mechanics. Any
-// Emboscada without a case here (Deck Cardeal's "Reforços Ocultos" isn't wired
-// yet) still gets that original generic buff as a fallback.
-const resolveAmbushEffect = (
-  ambushCard: CardData,
-  attackerSlots: (CardData | null)[],
-  attackerIndex: number,
-  defenderSlots: (CardData | null)[],
-  defenderIndex: number
-): {
-  attackerSlots: (CardData | null)[];
-  defenderSlots: (CardData | null)[];
-  defenderIndex: number;
-  defender: CardData | null;
-  cancelled: boolean;
-} => {
-  const defender = defenderSlots[defenderIndex];
-
-  // Bloqueio Instantâneo: cancels the attack outright if the defender has an
-  // adjacent ally to lean on — no damage to either side.
-  if (ambushCard.name === 'Bloqueio Instantâneo') {
-    const hasAdjacentAlly = defenderIndex <= 9 &&
-      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(j => areSlotsAdjacent(defenderIndex, j) && defenderSlots[j]);
-    return { attackerSlots, defenderSlots, defenderIndex, defender, cancelled: hasAdjacentAlly };
-  }
-
-  // Contra-Manobra: swaps the defender out for an adjacent ally, who takes the
-  // hit in their place.
-  if (ambushCard.name === 'Contra-Manobra') {
-    if (defenderIndex <= 9) {
-      const partner = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].find(j => areSlotsAdjacent(defenderIndex, j) && defenderSlots[j]);
-      if (partner !== undefined) {
-        const nextDefenderSlots = [...defenderSlots];
-        [nextDefenderSlots[defenderIndex], nextDefenderSlots[partner]] = [nextDefenderSlots[partner], nextDefenderSlots[defenderIndex]];
-        return { attackerSlots, defenderSlots: nextDefenderSlots, defenderIndex: partner, defender: nextDefenderSlots[partner], cancelled: false };
-      }
-    }
-    return { attackerSlots, defenderSlots, defenderIndex, defender, cancelled: false };
-  }
-
-  // Formação Quebrada: yanks the ATTACKER to a random empty slot on their own
-  // side, so the attack never lands.
-  if (ambushCard.name === 'Formação Quebrada') {
-    const emptySlots = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => i !== attackerIndex && !attackerSlots[i]);
-    const nextAttackerSlots = [...attackerSlots];
-    if (emptySlots.length > 0) {
-      const target = emptySlots[Math.floor(Math.random() * emptySlots.length)];
-      nextAttackerSlots[target] = nextAttackerSlots[attackerIndex];
-      nextAttackerSlots[attackerIndex] = null;
-    }
-    return { attackerSlots: nextAttackerSlots, defenderSlots, defenderIndex, defender, cancelled: true };
-  }
-
-  // Reforços Ocultos (Deck Cardeal): +2 ATK / +1 HP — same shape as the generic
-  // fallback below but +1 HP, not +2, so it gets its own exact case.
-  if (ambushCard.name === 'Reforços Ocultos') {
-    const buffed = defender ? { ...defender, atk: defender.atk + 2, hp: defender.hp + 1 } : null;
-    const nextDefenderSlots = [...defenderSlots];
-    if (buffed) nextDefenderSlots[defenderIndex] = buffed;
-    return { attackerSlots, defenderSlots: nextDefenderSlots, defenderIndex, defender: buffed, cancelled: false };
-  }
-
-  // Fallback — the original generic buff, for any Emboscada without its own case.
-  const buffed = defender ? { ...defender, atk: defender.atk + 2, hp: defender.hp + 2 } : null;
-  const nextDefenderSlots = [...defenderSlots];
-  if (buffed) nextDefenderSlots[defenderIndex] = buffed;
-  return { attackerSlots, defenderSlots: nextDefenderSlots, defenderIndex, defender: buffed, cancelled: false };
-};
-
-// The 4 Deck Capitão Táticas that resolve by picking a target on the board
-// instead of just sitting there as an inert 0/0 card — see handlePlayCardButtonClick
-// (which puts the game into "pick a target" mode instead of the normal slot-placement
-// flow) and resolveOwnTacticTarget/resolveEnemyTacticTarget (which actually apply the
-// effect once a target is clicked). Reformar Linhas isn't here: it doesn't target
-// anything, it just grants bonus reposition moves immediately (see bonusRepositions).
-export type TacticTargetKind =
-  | 'avanco_coordenado' | 'reposicionamento_rapido' | 'linha_fechada' | 'ordem_retirada'
-  | 'balesta' | 'catapulta' | 'equip_armadura' | 'equip_corcelete' | 'equip_flecha' | 'equip_espada';
-const TARGETABLE_TACTICS: Record<string, TacticTargetKind> = {
-  'Avanço Coordenado': 'avanco_coordenado',
-  'Reposicionamento Rápido': 'reposicionamento_rapido',
-  'Linha Fechada': 'linha_fechada',
-  'Ordem de Retirada': 'ordem_retirada',
-  'Balestra de Precisão': 'balesta',
-  'Catapulta de Guerra': 'catapulta',
-  'Armadura de Guerra': 'equip_armadura',
-  'Couraça Reforçada': 'equip_corcelete',
-  'Flechas Venenosas': 'equip_flecha',
-  'Espada Longa': 'equip_espada',
-};
-const TACTIC_TARGET_PROMPTS: Record<TacticTargetKind, string> = {
-  avanco_coordenado: 'Escolha uma unidade sua que já se moveu neste turno.',
-  reposicionamento_rapido: 'Escolha uma unidade inimiga para deslocar.',
-  linha_fechada: 'Escolha uma unidade sua — os aliados ao lado dela recebem menos dano.',
-  ordem_retirada: 'Escolha uma unidade sua na Vanguarda.',
-  balesta: 'Escolha uma unidade inimiga para causar 3 de dano.',
-  catapulta: 'Escolha uma fileira inimiga (clique em qualquer slot dela).',
-  equip_armadura: 'Escolha uma Infantaria sua para equipar (+2 HP).',
-  equip_corcelete: 'Escolha um Arqueiro ou Infantaria sua para equipar (+1 HP).',
-  equip_flecha: 'Escolha um Arqueiro seu para equipar (+1 ATK).',
-  equip_espada: 'Escolha uma Cavalaria ou Infantaria sua para equipar (+2 ATK).',
-};
-// Which own-board card types each equipment Tática accepts.
-const EQUIP_ALLOWED_TYPES: Record<string, CardType[]> = {
-  equip_armadura: ['Infantaria'],
-  equip_corcelete: ['Arqueiro', 'Infantaria'],
-  equip_flecha: ['Arqueiro'],
-  equip_espada: ['Cavalaria', 'Infantaria'],
-};
-
-// What "um soldado" means across the reveal/search Táticas below (Retorno do
-// Soldado, Recrutamento Seletivo, Chamado às Armas) — any regular unit, not a
-// General/Relíquia/Terreno/Tática/Emboscada.
-const SOLDIER_TYPES: CardType[] = ['Infantaria', 'Cavalaria', 'Arqueiro', 'Artilharia'];
-
-// ── Drag-to-play classification ──────────────────────────────────────────────
-// What dragging a given hand card up onto the board should actually do, decided
-// purely from the card's own name/type — mirrors handlePlayCardButtonClick's own
-// dispatch order exactly (immediate-effect names first, then TARGETABLE_TACTICS,
-// then Emboscada/unimplemented-Tática rejection, then the plain creature/
-// equipment fallthrough) so the two never disagree about what a card does.
-// 'place': drop on an empty own slot (plain creature/Relíquia/Terreno).
-// 'ownTarget'/'enemyTarget': drop on an occupied own/enemy slot (buffs, equips,
-// damage Táticas — see TARGETABLE_TACTICS/EQUIP_ALLOWED_TYPES above).
-// 'immediate': no board target at all (resolves or opens a picker on release,
-// wherever it's released) — Reformar Linhas, Tributo de Guerra, Trabuco de
-// Cerco, and every reveal/search Tática.
-// 'blocked': Emboscada or a not-yet-implemented Tática — dragging just surfaces
-// the same explanatory toast handlePlayCardButtonClick already shows.
-type CardDropKind = 'place' | 'ownTarget' | 'enemyTarget' | 'immediate' | 'blocked';
-const ENEMY_TARGET_TACTIC_KINDS = new Set<TacticTargetKind>(['reposicionamento_rapido', 'balesta', 'catapulta']);
-const IMMEDIATE_NO_TARGET_CARD_NAMES = new Set([
-  'Reformar Linhas', 'Tributo de Guerra', 'Trabuco de Cerco',
-  'Retorno do Soldado', 'Graal da Dádiva', 'Doutrina Renovada',
-  'Recrutamento Seletivo', 'Recrutar Veteranos', 'Chamado às Armas',
-]);
-const getCardDropKind = (card: CardData): CardDropKind => {
-  if (IMMEDIATE_NO_TARGET_CARD_NAMES.has(card.name)) return 'immediate';
-  const tacticKind = TARGETABLE_TACTICS[card.name];
-  if (tacticKind) return ENEMY_TARGET_TACTIC_KINDS.has(tacticKind) ? 'enemyTarget' : 'ownTarget';
-  if (card.cardType === 'Emboscada' || card.cardType === 'Tática') return 'blocked';
-  return 'place';
-};
-
-// ── Deck Cardeal Pedro mechanics ─────────────────────────────────────────────
-// A first pass at this deck's own abilities — much larger and more varied than
-// Deck Capitão's (healing, card draw, summon-on-play, equip-style buffs,
-// deck/graveyard search), so this covers what's tractable without a brand new
-// subsystem: direct-damage Táticas, the 4 equipment cards (reused as a permanent
-// stat stamp via the same targeting flow as Deck Capitão's Táticas, not a real
-// attach/detach system), Nobre da Cruzada's summon-on-play, Comandante da Ordem's
-// aura, Jorge, Lança Sagrada's splash damage, and Reforços Ocultos' exact ambush
-// effect. Cardeal Pedro, Voz da Fé's own heal ability + Cálice da Graça and Recruta
-// Devoto's "Ao ser curado" trigger are wired too — see the
-// generalAbilityPrompt/pendingGeneralHeal state, activateGeneralHeal/
-// resolveGeneralHeal, and playerGeneralAbilityAvailable's "you may activate
-// this" prompt on the General slot (Yu-Gi-Oh-style: the game itself notices
-// the ability is usable and surfaces it, rather than it just sitting there as
-// unusable flavor text). The same prompt pattern now also covers Mercador
-// da Cruzada and Cavaleiro Hospitalário (see getPlayerCreatureAbilityKind and their
-// activate/resolve functions) — a per-card Sparkles button on their own board
-// slot instead of only the General's. Intendente do Exército is a passive
-// version of the same "once per turn" idea, piggybacked on the turn-start draw
-// effect instead of a button. Infiltrado da Ordem and Fanático da Cruzada's "General
-// type" text is handled pragmatically, not with a real faction system — see
-// hasEspiaoInVanguarda/hasEspiaoOnBoard and the Fanático da Cruzada comment at its
-// attack-time ATK bonus. Atirador da Cruzada's death-trigger draw is hooked into
-// every withEquippedWeapons call site (see drawForAtiradorInfluente). Arqueiro
-// Profissional's double-attack introduced the game's first "already attacked
-// this turn" tracking (playerAttackCounts, reset every player turn; the AI
-// just queues two attack actions for it in aiService.ts) — every other unit
-// implicitly caps at 1 via the same mechanism now (getMaxAttacksPerTurn).
-// Still left as flavor-only: the reveal/search/graveyard-pick Táticas (O
-// Soldado Retorna, Graal da Dádiva, Doutrina Renovada, Recrutamento Seletivo,
-// Recrutar Veteranos, Chamado às Armas are actually already wired — see
-// openCardPicker call sites — so nothing here is left un-wired for lack of a
-// picker UI anymore). The AI doesn't know how to pick a target for the
-// targeted Táticas — see AI_UNSUPPORTED_TACTICS in aiService.ts, which leaves
-// them in its hand rather than wasting them as an inert placed card.
-
-// Any Armamento cards riding along on a unit (see equippedWeapons/CardData) go to
-// the graveyard together with it when it dies — nothing strips them off first, so
-// every "push these destroyed cards onto the graveyard" site needs to expand
-// through this rather than pushing the destroyed unit alone.
-const withEquippedWeapons = (cards: CardData[]): CardData[] =>
-  cards.flatMap(c => (c.equippedWeapons?.length ? [c, ...c.equippedWeapons] : [c]));
-
-// Applies flat damage to one slot, same simple "hp minus damage, destroyed at 0"
-// rule combat uses — but for effects (Trabuco de Cerco/Catapulta de Guerra/Balestra de Precisão/Jorge's splash)
-// that hit a slot directly rather than through the normal attacker-vs-defender
-// exchange. Returns the updated slots array and, if something died, that card
-// (already flagged) for the caller to push onto the graveyard.
-const applyDamageToSlot = (
-  slots: (CardData | null)[],
-  index: number,
-  amount: number
-): { slots: (CardData | null)[]; destroyed: CardData | null } => {
-  const card = slots[index];
-  if (!card) return { slots, destroyed: null };
-  const next = [...slots];
-  const newHp = card.hp - amount;
-  if (newHp <= 0) {
-    next[index] = null;
-    return { slots: next, destroyed: { ...card, hp: newHp, isDestroyed: true } };
-  }
-  next[index] = { ...card, hp: newHp };
-  return { slots: next, destroyed: null };
-};
-
-// Comandante da Ordem: "Na Vanguarda: Infantaria e Arqueiros aliados ganham +1 ATK
-// e +1 HP durante o combate." A positional aura (must itself be standing in the
-// Vanguarda) — the ATK half is folded into getEffectiveAtk below; the HP half is
-// its own helper since it's added directly to HP in the combat blocks (same spot
-// pendingCombatBonus.hp applies), not a damage-reduction value.
-const hasLiderBuff = (card: CardData, ownSlots: (CardData | null)[]): boolean => {
-  if (card.cardType !== 'Infantaria' && card.cardType !== 'Arqueiro') return false;
-  return [0, 1, 2, 3, 4].some(i => {
-    const c = ownSlots[i];
-    return c && !c.isDestroyed && c.name === 'Comandante da Ordem';
-  });
-};
-const getAuraCombatHpBonus = (card: CardData, ownSlots: (CardData | null)[]): number =>
-  hasLiderBuff(card, ownSlots) ? 1 : 0;
-
-// Infiltrado da Ordem: "Na Vanguarda: impede Emboscadas inimigas." — checked from the
-// ATTACKING side (see maybeActivatePlayerAmbush/maybeActivateNpcAmbush) to see
-// through the DEFENDER's Emboscada, so this only ever looks at slots 0-4.
-const hasEspiaoInVanguarda = (slots: (CardData | null)[]): boolean =>
-  [0, 1, 2, 3, 4].some(i => slots[i] && !slots[i]?.isDestroyed && slots[i]?.name === 'Infiltrado da Ordem');
-// Infiltrado da Ordem's other half ("Se o General aliado receber dano...") cares about
-// it being anywhere on the board, not specifically the Vanguarda — see the General
-// damage checks in handleNpcSlotClick and the AI turn loop.
-const hasEspiaoOnBoard = (slots: (CardData | null)[]): boolean =>
-  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => slots[i] && !slots[i]?.isDestroyed && slots[i]?.name === 'Infiltrado da Ordem');
-
-// Arqueiro da Ordem: "Pode atacar duas vezes por rodada." Every other unit
-// still only gets one swing per turn (see playerAttackCounts/handleSlotClick).
-const getMaxAttacksPerTurn = (card: CardData): number => card.name === 'Arqueiro da Ordem' ? 2 : 1;
-
-// Nobre da Cruzada: "Ao entrar em campo: invoca Soldados Leais (1 ATK / 1 HP) nos
-// slots adjacentes livres da mesma fileira." (tokens were 1/2 — see the deck's own
-// balance pass comment near Nobre da Cruzada's CardData entry: 4/5 plus two 2-HP
-// bodies was 6 ATK / 9 HP total across 3 slots for 3 mana, well past anything else
-// at that cost). Called right after ANY card lands on a slot (player or AI) — a
-// no-op unless that card is actually Nobre da Cruzada.
-const applyNobreReligiosoSummon = (slots: (CardData | null)[], placedIndex: number): (CardData | null)[] => {
-  const placed = slots[placedIndex];
-  if (!placed || placed.name !== 'Nobre da Cruzada' || placedIndex > 9) return slots;
-  const next = [...slots];
-  [placedIndex - 1, placedIndex + 1].forEach(j => {
-    if (areSlotsAdjacent(placedIndex, j) && !next[j]) {
-      next[j] = { id: `soldado_leal_${Date.now()}_${j}`, name: 'Soldado Leal', atk: 1, hp: 1, cost: 0, art: '', effect: '', cardType: 'Infantaria' };
-    }
-  });
-  return next;
 };
 
 // Both Generals now come from whichever deck each side is playing (see DECKS
@@ -1985,143 +1482,77 @@ const HAND_FULL_SPREAD_COUNT = 7;
 const handStepFor = (count: number) =>
   count <= HAND_FULL_SPREAD_COUNT ? HAND_CARD_STEP : (HAND_CARD_STEP * (HAND_FULL_SPREAD_COUNT - 1)) / (count - 1);
 
-// ── DECK CAPITÃO ────────────────────────────────────────────────────────────
-// Ported from the earlier full-art version of this project (commit 8a3d7b8,
-// constant DECK_1) — its own General, Criaturas, Táticas, Emboscadas, one
-// Relíquia and two Terrenos. Every ability here is wired up now (move/swap
-// rules, the +1/-1 ATK auras, the reposition Táticas, the 3 Emboscadas —
-// search this file for each card's name to find its logic). The one gap is
-// the AI: it doesn't reposition units at all, so the move-triggered
-// abilities (Capitão de Formação, Batedor, Cavaleiro Tático's wider swap,
-// Aurelion's own active ability) only ever fire for the player, and the
-// targeted Táticas are left in the AI's hand entirely (see
-// AI_UNSUPPORTED_TACTICS in aiService.ts) rather than risk it wasting them.
-const DECK_CAPITAO: CardData[] = [
-  { id: 'gen1', name: 'Comandante Aurelion, Mestre da Formação', atk: 0, hp: 20, cost: 0, art: comandanteAurelionFullArt, isFullArt: true, effect: 'Após Remanejamento: até 2 unidades que se moveram ganham +1/+1 no próximo combate. Passiva: unidades adjacentes recebem -1 de dano.', cardType: 'General' },
+// ── Decks ────────────────────────────────────────────────────────────────────
+// Every card's stats and rules text live in the engine's catalog (src/engine/catalog.ts) — the one
+// place the rules read from, for the local game and for online play alike. The client only adds the
+// artwork, looked up by card name.
+const ART_BY_NAME: Record<string, string> = {
+  "Comandante Aurelion, Mestre da Formação": comandanteAurelionFullArt,
+  "Soldado Tático": soldadoTaticoArt,
+  "Escudeiro de Linha": escudeiroDeLinhaArt,
+  "Capitão de Formação": capitaoDeFormacaoFullArt,
+  "Batedor": batedorArt,
+  "Lanceiro de Controle": lanceiroDeControleArt,
+  "Cavaleiro Tático": cavaleiroTaticoFullArt,
+  "Veterano de Guerra": veteranoDeGuerraFullArt,
+  "Reformar Linhas": reformarLinhasFullArt,
+  "Avanço Coordenado": avancoCoordenadoArt,
+  "Reposicionamento Rápido": reposicionamentoRapidoArt,
+  "Linha Fechada": linhaFechadaArt,
+  "Ordem de Retirada": ordemDeRetiradaArt,
+  "Bloqueio Instantâneo": bloqueioInstantaneoArt,
+  "Contra-Manobra": contraManobraFullArt,
+  "Formação Quebrada": formacaoQuebradaArt,
+  "Estandarte da Legião": estandarteDaLegiaoFullArt,
+  "Fortaleza de Pedra": fortalezaDePedraFullArt,
+  "Pântano Maldito": pantanoMalditoArt,
+  "Cardeal Pedro, Voz da Fé": cardealPedroFullArt,
+  "Cálice da Graça": caliceDaVidaFullArt,
+  "Devotos da Cruzada": multidaoDeFieisArt,
+  "Mercador da Cruzada": comercianteDasCruzadasArt,
+  "Infiltrado da Ordem": espiaoSabotadorArt,
+  "Fanático da Cruzada": soldadoFanaticoArt,
+  "Recruta Devoto": recrutaDevotoArt,
+  "Intendente do Exército": vigiaDeMantimentosArt,
+  "Soldados da Ordem": infantariaTreinadaArt,
+  "Jorge, Lança Sagrada": jorgeOLanceiroFullArt,
+  "Cavaleiro Hospitalário": hospitalarioArt,
+  "Nobre da Cruzada": nobreReligiosoFullArt,
+  "Cavaleiro da Luz": cavaleiroDaLuzFullArt,
+  "Comandante da Ordem": liderDeEsquadraoFullArt,
+  "Arqueiro da Ordem": arqueiroProfissionalArt,
+  "Atirador da Cruzada": atiradorInfluenteArt,
+  "Trabuco de Cerco": trabucoDeCercoFullArt,
+  "Catapulta de Guerra": catapultaDeGuerraArt,
+  "Balestra de Precisão": balestraDePrecisaoArt,
+  "Armadura de Guerra": armaduraDeGuerraArt,
+  "Couraça Reforçada": couracaReforcadaArt,
+  "Flechas Venenosas": flechasVenenosasArt,
+  "Espada Longa": espadaLongaArt,
+  "Reforços Ocultos": reforcosOcultosArt,
+  "Retorno do Soldado": retornoDoSoldadoFullArt,
+  "Graal da Dádiva": graalDaDadivaArt,
+  "Doutrina Renovada": doutrinaRenovadaArt,
+  "Recrutamento Seletivo": recrutamentoSeletivoArt,
+  "Recrutar Veteranos": recrutarVeteranosArt,
+  "Tributo de Guerra": tributoDeGuerraArt,
+  "Chamado às Armas": chamadoAsArmasArt,
+};
 
-  // Criaturas (27)
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_tactical_soldier_${i}`, name: 'Soldado Tático', atk: 3, hp: 3, cost: 2, art: soldadoTaticoArt, effect: 'Troca com aliado adjacente no fim do turno.', cardType: 'Infantaria' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_line_squire_${i}`, name: 'Escudeiro de Linha', atk: 2, hp: 4, cost: 2, art: escudeiroDeLinhaArt, effect: 'Protege unidades atrás.', cardType: 'Infantaria' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_formation_captain_${i}`, name: 'Capitão de Formação', atk: 3, hp: 4, cost: 3, art: capitaoDeFormacaoFullArt, isFullArt: true, effect: 'Ao mover: adjacentes +1 ATK.', cardType: 'Infantaria' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_scout_${i}`, name: 'Batedor', atk: 1, hp: 2, cost: 1, art: batedorArt, effect: 'Move após combate.', cardType: 'Infantaria' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_control_lancer_${i}`, name: 'Lanceiro de Controle', atk: 3, hp: 2, cost: 2, art: lanceiroDeControleArt, effect: 'Inimigo à sua frente recebe -1 ATK.', cardType: 'Infantaria' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `c_tactical_knight_${i}`, name: 'Cavaleiro Tático', atk: 4, hp: 4, cost: 3, art: cavaleiroTaticoFullArt, isFullArt: true, effect: 'Troca com qualquer aliado na linha.', cardType: 'Cavalaria' })),
-  ...Array(3).fill(null).map((_, i): CardData => ({ id: `c_veteran_${i}`, name: 'Veterano de Guerra', atk: 4, hp: 3, cost: 3, art: veteranoDeGuerraFullArt, isFullArt: true, effect: '+2 ATK na coluna 3.', cardType: 'Infantaria' })),
-
-  // Táticas (20)
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `t_reform_lines_${i}`, name: 'Reformar Linhas', atk: 0, hp: 0, cost: 2, art: reformarLinhasFullArt, isFullArt: true, effect: 'Reorganiza até 3 unidades.', cardType: 'Tática' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `t_coordinated_advance_${i}`, name: 'Avanço Coordenado', atk: 0, hp: 0, cost: 2, art: avancoCoordenadoArt, effect: 'Após mover: +2 ATK.', cardType: 'Tática' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `t_quick_reposition_${i}`, name: 'Reposicionamento Rápido', atk: 0, hp: 0, cost: 1, art: reposicionamentoRapidoArt, effect: 'Move inimigo 1 slot.', cardType: 'Tática' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `t_closed_line_${i}`, name: 'Linha Fechada', atk: 0, hp: 0, cost: 2, art: linhaFechadaArt, effect: 'Adjacentes recebem menos dano.', cardType: 'Tática' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `t_retreat_order_${i}`, name: 'Ordem de Retirada', atk: 0, hp: 0, cost: 2, art: ordemDeRetiradaArt, effect: 'Move para a Retaguarda + cura.', cardType: 'Tática' })),
-
-  // Emboscadas (12)
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `a_instant_block_${i}`, name: 'Bloqueio Instantâneo', atk: 0, hp: 0, cost: 2, art: bloqueioInstantaneoArt, effect: 'Cancela ataque se houver adjacente.', cardType: 'Emboscada' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `a_counter_maneuver_${i}`, name: 'Contra-Manobra', atk: 0, hp: 0, cost: 3, art: contraManobraFullArt, isFullArt: true, effect: 'Troca posições durante o ataque.', cardType: 'Emboscada' })),
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `a_broken_formation_${i}`, name: 'Formação Quebrada', atk: 0, hp: 0, cost: 2, art: formacaoQuebradaArt, effect: 'Move inimigo aleatoriamente.', cardType: 'Emboscada' })),
-
-  // Relíquia (1)
-  { id: 'relic_banner_0', name: 'Estandarte da Legião', atk: 0, hp: 5, cost: 3, art: estandarteDaLegiaoFullArt, effect: 'Permanente. Todas as unidades aliadas ganham +1 ATK enquanto esta relíquia estiver no campo.', cardType: 'Relíquia', isFullArt: true },
-
-  // Terrenos (2)
-  { id: 'terrain_fortress_0', name: 'Fortaleza de Pedra', atk: 0, hp: 8, cost: 3, art: fortalezaDePedraFullArt, isFullArt: true, effect: 'Permanente. Unidades aliadas na Retaguarda recebem -1 de dano de ataques inimigos.', cardType: 'Terreno' },
-  { id: 'terrain_swamp_0', name: 'Pântano Maldito', atk: 0, hp: 6, cost: 2, art: pantanoMalditoArt, effect: 'Permanente. Unidades inimigas na Vanguarda sofrem -1 ATK enquanto este terreno estiver no campo.', cardType: 'Terreno' },
-];
-
-// ── DECK CARDEAL PEDRO ──────────────────────────────────────────────────────
-// Ported from the same commit (constant DECK_CARDEAL). Every card there had
-// its own unique ability keyed by `effectKey` (heal, draw, summon, buff on
-// equip...) — none of that runs yet, same flavor-text-only scope as above.
-// Three of the old commit's card types don't exist in this game's CardType
-// union: Leve and Plebeu fold into Infantaria (they're stat-bearing frontline
-// bodies same as any other Infantaria card), and Armamento (equipment) folds
-// into Tática (a 0/0 card whose whole point is its one-time effect).
-const DECK_CARDEAL: CardData[] = [
-  { id: 'cardeal_gen', name: 'Cardeal Pedro, Voz da Fé', atk: 0, hp: 20, cost: 0, art: cardealPedroFullArt, effect: 'Fase Principal: pague 2 ouro para curar 1 HP em um soldado aliado, mesmo com HP cheio.', cardType: 'General', isFullArt: true },
-  { id: 'cardeal_relic', name: 'Cálice da Graça', atk: 0, hp: 5, cost: 3, art: caliceDaVidaFullArt, effect: 'Permanente. A cura do General Cardeal Pedro aumenta de 1 para 2 HP.', cardType: 'Relíquia', isFullArt: true },
-
-  // Plebeus → Infantaria
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `cardeal_fiel_${i}`, name: 'Devotos da Cruzada', atk: 0, hp: 3, cost: 1, art: multidaoDeFieisArt, effect: '—', cardType: 'Infantaria' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_comerciante_${i}`, name: 'Mercador da Cruzada', atk: 1, hp: 1, cost: 1, art: comercianteDasCruzadasArt, effect: 'Uma vez por turno: veja as 2 cartas do topo do deck. Adicione 1 à mão e coloque a outra no fundo.', cardType: 'Infantaria' })),
-
-  // Infantaria
-  { id: 'cardeal_espiao', name: 'Infiltrado da Ordem', atk: 1, hp: 2, cost: 1, art: espiaoSabotadorArt, effect: 'Na Vanguarda: impede Emboscadas inimigas. Se o General aliado receber dano, no próximo turno não poderá usar sua habilidade.', cardType: 'Infantaria' },
-  { id: 'cardeal_fanatico', name: 'Fanático da Cruzada', atk: 1, hp: 2, cost: 1, art: soldadoFanaticoArt, effect: 'Ao atacar: se o General inimigo for de tipo oposto, ganha +2 ATK.', cardType: 'Infantaria' },
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_aprendiz_${i}`, name: 'Recruta Devoto', atk: 0, hp: 2, cost: 1, art: recrutaDevotoArt, effect: 'Ao ser curado: recebe +1 ATK permanente.', cardType: 'Infantaria' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_vigia_${i}`, name: 'Intendente do Exército', atk: 2, hp: 3, cost: 2, art: vigiaDeMantimentosArt, effect: 'Uma vez por turno: se você tiver menos de 2 cartas na mão, compre até ficar com 2.', cardType: 'Infantaria' })),
-  // Balance pass: was 3/5 (8 total) — Capitão's own cost-2 creatures cap around 6
-  // total stats (3/3 or 2/4); trimmed to 3/4 so a vanilla body no longer sits well
-  // above the game's own cost-2 curve with no condition attached.
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_inf_treinada_${i}`, name: 'Soldados da Ordem', atk: 3, hp: 4, cost: 2, art: infantariaTreinadaArt, effect: '—', cardType: 'Infantaria' })),
-
-  // Cavaleiros
-  // Same Full Art testing swap as Nobre da Cruzada/Comandante da Ordem/Cavaleiro
-  // da Luz/Trabuco de Cerco/Retorno do Soldado above.
-  ...Array(3).fill(null).map((_, i): CardData => ({ id: `cardeal_jorge_${i}`, name: 'Jorge, Lança Sagrada', atk: 4, hp: 6, cost: 3, art: jorgeOLanceiroFullArt, isFullArt: true, effect: 'Ao atacar a Vanguarda: causa 2 de dano à unidade na Retaguarda da mesma coluna.', cardType: 'Cavalaria' })),
-  // Balance pass: was 2/4 — the best-in-slot heal+damage engine at cost 2 (Capitão's
-  // own cost-2 creatures cap around 6 total stats; this had 6 total AND a strong
-  // repeatable ability on top). Trimmed to 2/3 so the ability is still what you're
-  // really paying for, not the body too.
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_hosp_${i}`, name: 'Cavaleiro Hospitalário', atk: 2, hp: 3, cost: 2, art: hospitalarioArt, effect: 'Uma vez por turno: cure 1 HP de um aliado e cause 1 de dano a um inimigo na Vanguarda.', cardType: 'Cavalaria' })),
-  // Testing the Full Art print for this card (see CardFaceFullArt) instead of its
-  // Padrão one now that both exist — once boosters exist this becomes a real
-  // per-copy choice instead of swapping the one CardData entry's own art/isFullArt.
-  // Balance pass: token stats trimmed from 1/2 to 1/1 (see applyNobreReligiosoSummon's
-  // own comment) — 4/5 plus two 2-HP bodies was 6 ATK/9 HP total across 3 slots for 3
-  // mana, well past any other card at that cost in either deck.
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_nobre_${i}`, name: 'Nobre da Cruzada', atk: 4, hp: 5, cost: 3, art: nobreReligiosoFullArt, isFullArt: true, effect: 'Ao entrar em campo: invoca Soldados Leais (1 ATK / 1 HP) nos slots adjacentes livres da mesma fileira.', cardType: 'Cavalaria' })),
-  // Same Full Art testing swap as Nobre da Cruzada/Comandante da Ordem above.
-  // Balance pass: was 5/7 vanilla — 12 total stats for cost 3 with zero condition,
-  // the single strongest stat-line in the whole deck at that cost (compare Jorge's
-  // 4/6 and Comandante's 5/5, both of which at least carry an ability for the same
-  // total). Trimmed to 4/5 (9 total) so a plain vanilla body no longer outclasses
-  // every card here that actually does something for its cost.
-  ...Array(4).fill(null).map((_, i): CardData => ({ id: `cardeal_cavaleiro_${i}`, name: 'Cavaleiro da Luz', atk: 4, hp: 5, cost: 3, art: cavaleiroDaLuzFullArt, isFullArt: true, effect: '—', cardType: 'Cavalaria' })),
-  // Same Full Art testing swap as Nobre da Cruzada above.
-  { id: 'cardeal_lider', name: 'Comandante da Ordem', atk: 5, hp: 5, cost: 3, art: liderDeEsquadraoFullArt, isFullArt: true, effect: 'Na Vanguarda: Infantaria e Arqueiros aliados ganham +1 ATK e +1 HP durante o combate.', cardType: 'Cavalaria' },
-
-  // Arqueiros
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_arq_pro_${i}`, name: 'Arqueiro da Ordem', atk: 1, hp: 4, cost: 2, art: arqueiroProfissionalArt, effect: 'Pode atacar duas vezes por rodada.', cardType: 'Arqueiro' })),
-  // Balance pass: was "compre 3 cartas" (see drawForAtiradorInfluente's own comment)
-  // — 3 free cards off a death that's going to happen anyway in combat was way out
-  // of line with every other card-advantage effect in the deck (Mercador da Cruzada,
-  // Intendente do Exército). Trimmed to 2.
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_atirador_${i}`, name: 'Atirador da Cruzada', atk: 1, hp: 3, cost: 2, art: atiradorInfluenteArt, effect: 'Ao ir ao cemitério: compre 2 cartas.', cardType: 'Arqueiro' })),
-
-  // Táticas de dano
-  // Same Full Art testing swap as Nobre da Cruzada/Comandante da Ordem above —
-  // both Padrão and Full Art exist for this one, using Full Art for now.
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_trabuco_${i}`, name: 'Trabuco de Cerco', atk: 0, hp: 0, cost: 3, art: trabucoDeCercoFullArt, isFullArt: true, effect: 'Causa 2 de dano a TODAS as unidades inimigas.', cardType: 'Tática' })),
-  ...Array(3).fill(null).map((_, i): CardData => ({ id: `cardeal_catapulta_${i}`, name: 'Catapulta de Guerra', atk: 0, hp: 0, cost: 2, art: catapultaDeGuerraArt, effect: 'Escolha uma fileira inimiga. Todas as unidades naquela fileira recebem 2 de dano.', cardType: 'Tática' })),
-  // Balance pass: was cost 1 — single-target removal that kills almost any 1-2 drop
-  // outright, cheaper than Catapulta de Guerra's own 2-damage full ROW at cost 2.
-  // Raised to cost 2, still efficient but no longer a 1-mana blowout.
-  { id: 'cardeal_balesta', name: 'Balestra de Precisão', atk: 0, hp: 0, cost: 2, art: balestraDePrecisaoArt, effect: 'Causa 3 de dano a uma unidade inimiga à sua escolha.', cardType: 'Tática' },
-
-  // Armamentos → Tática
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_armadura_${i}`, name: 'Armadura de Guerra', atk: 0, hp: 0, cost: 1, art: armaduraDeGuerraArt, effect: 'Infantaria equipada recebe +2 HP.', cardType: 'Tática' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_corcelete_${i}`, name: 'Couraça Reforçada', atk: 0, hp: 0, cost: 1, art: couracaReforcadaArt, effect: 'Arqueiro, Plebeu ou Infantaria equipada recebe +1 HP.', cardType: 'Tática' })),
-  { id: 'cardeal_flecha', name: 'Flechas Venenosas', atk: 0, hp: 0, cost: 1, art: flechasVenenosasArt, effect: 'Arqueiro equipado recebe +1 ATK.', cardType: 'Tática' },
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_espada_${i}`, name: 'Espada Longa', atk: 0, hp: 0, cost: 1, art: espadaLongaArt, effect: 'Cavalaria, Infantaria ou Plebeu equipado recebe +2 ATK.', cardType: 'Tática' })),
-
-  // Emboscadas
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_forcas_${i}`, name: 'Reforços Ocultos', atk: 0, hp: 0, cost: 1, art: reforcosOcultosArt, effect: 'Durante um ataque inimigo: um soldado aliado recebe +2 ATK e +1 HP até o fim do turno.', cardType: 'Emboscada' })),
-
-  // Táticas de utilidade
-  // Same Full Art testing swap as Nobre da Cruzada/Comandante da Ordem above — both
-  // Padrão and Full Art exist for this one, using Full Art for now.
-  { id: 'cardeal_soldado_retorna', name: 'Retorno do Soldado', atk: 0, hp: 0, cost: 1, art: retornoDoSoldadoFullArt, isFullArt: true, effect: 'Adicione um soldado do cemitério à sua mão.', cardType: 'Tática' },
-  { id: 'cardeal_busca_graal', name: 'Graal da Dádiva', atk: 0, hp: 0, cost: 1, art: graalDaDadivaArt, effect: 'Adicione uma carta de Terreno ou Relíquia do deck à sua mão.', cardType: 'Tática' },
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_nova_tatica_${i}`, name: 'Doutrina Renovada', atk: 0, hp: 0, cost: 1, art: doutrinaRenovadaArt, effect: 'Adicione uma carta de Tática do deck à sua mão.', cardType: 'Tática' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_esc_dedo_${i}`, name: 'Recrutamento Seletivo', atk: 0, hp: 0, cost: 1, art: recrutamentoSeletivoArt, effect: 'Adicione um soldado do deck à sua mão.', cardType: 'Tática' })),
-  // Balance pass: was cost 1 — getting 2 guaranteed cards (not just 1, like
-  // Recrutamento Seletivo/Doutrina Renovada at the same original cost) off a 4-card
-  // look was the most efficient card-selection in the deck by a wide margin. Raised
-  // to cost 2 to match its actually-double payoff.
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_esc_tropas_${i}`, name: 'Recrutar Veteranos', atk: 0, hp: 0, cost: 2, art: recrutarVeteranosArt, effect: 'Veja as 4 cartas do topo. Adicione 2 à mão e coloque 2 no fundo do deck.', cardType: 'Tática' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_impostos_${i}`, name: 'Tributo de Guerra', atk: 0, hp: 0, cost: 0, art: tributoDeGuerraArt, effect: 'Ganhe 1 ouro adicional neste turno.', cardType: 'Tática' })),
-  ...Array(2).fill(null).map((_, i): CardData => ({ id: `cardeal_reuniao_${i}`, name: 'Chamado às Armas', atk: 0, hp: 0, cost: 2, art: chamadoAsArmasArt, effect: 'Invoque do deck até 2 soldados com 0 ATK para slots livres na Vanguarda. Embaralhe o deck.', cardType: 'Tática' })),
-];
+const cardDataFromName = (name: string, id: string): CardData => {
+  const def = requireCardDef(name);
+  return { id, name: def.name, atk: def.atk, hp: def.hp, cost: def.cost, art: ART_BY_NAME[name] ?? '', effect: def.effect, cardType: def.cardType, ...(def.isFullArt ? { isFullArt: true } : {}) };
+};
+const buildDeckCards = (deck: DeckId): CardData[] => {
+  const recipe = DECK_RECIPES[deck];
+  const cards: CardData[] = [cardDataFromName(recipe.general, `${deck}_general`)];
+  Object.entries(recipe.cards).forEach(([name, n]) => {
+    for (let i = 0; i < n; i++) cards.push(cardDataFromName(name, `${deck}_${name}_${i}`));
+  });
+  return cards;
+};
+const DECK_CAPITAO: CardData[] = buildDeckCards('capitao');
+const DECK_CARDEAL: CardData[] = buildDeckCards('cardeal');
 
 // The playable pool each side actually draws from during a match — the General
 // isn't a draw, it's placed straight onto the board at kickoff (see resetGame).
@@ -2141,7 +1572,6 @@ const DECKS = {
     pool: DECK_CARDEAL.filter(c => c.cardType !== 'General'),
   },
 } as const;
-type DeckId = keyof typeof DECKS;
 
 // ── Collection and saved decks (local-only for now) ─────────────────────────
 // What the deck editor edits. The player owns a COLLECTION (card name -> copies) and builds
@@ -2169,7 +1599,7 @@ const isGeneralName = (name: string) => cardByName(name)?.cardType === 'General'
 type DeckSlot = { id: string; name: string; general: string; cards: Record<string, number> };
 type DeckStore = { collection: Record<string, number>; slots: DeckSlot[]; owner?: string };
 // What a match needs from a deck: the draw pool, the General, and which prebuilt deck the AI takes.
-type DeckSelection = { pool: readonly CardData[]; general: CardData; npcDeckId: DeckId };
+type DeckSelection = { cards: Record<string, number>; general: string; npcDeckId: DeckId };
 
 const countByName = (cards: readonly CardData[]) => {
   const out: Record<string, number> = {};
@@ -2297,30 +1727,12 @@ const deckProblem = (slot: DeckSlot): string | null => {
   return null;
 };
 const buildDeckSelection = (slot: DeckSlot): DeckSelection => {
-  const general = cardByName(slot.general) ?? DECKS.cardeal.general;
-  const pool: CardData[] = [];
-  Object.entries(slot.cards).forEach(([name, n]) => {
-    const base = CARD_INSTANCES_BY_NAME[name] ?? [];
-    // Copies beyond what the prebuilt decks hold (won from boosters) are clones with their own ids.
-    for (let k = 0; k < n && base.length > 0; k++) pool.push(base[k] ?? { ...base[0], id: `${base[0].id}_copy${k}` });
-  });
+  const general = cardByName(slot.general)?.name ?? DECKS.cardeal.general.name;
   // The AI plays the prebuilt deck of the OTHER faction, as before.
-  const isCapitaoGeneral = DECK_CAPITAO.some(c => c.cardType === 'General' && c.name === general.name);
-  return { pool, general, npcDeckId: isCapitaoGeneral ? 'cardeal' : 'capitao' };
+  const isCapitaoGeneral = general === DECKS.capitao.general.name;
+  return { cards: { ...slot.cards }, general, npcDeckId: isCapitaoGeneral ? 'cardeal' : 'capitao' };
 };
-const DEFAULT_DECK_SELECTION: DeckSelection = { pool: DECKS.capitao.pool, general: DECKS.capitao.general, npcDeckId: 'cardeal' };
-
-// Cavaleiro Hospitalário's "cure 1 HP de um aliado" only makes sense targeting someone who's
-// actually hurt — but CardData has no separate max-HP field, hp IS current HP (see
-// resolveGeneralHeal, which has no such restriction and just heals whatever's
-// clicked). So "damaged" is derived here instead: a card's starting HP is whatever
-// its own deck-pool entry says, looked up by name (first match — every copy of a
-// given card shares the same base stats).
-const BASE_HP_BY_NAME: Record<string, number> = {};
-[...DECK_CAPITAO, ...DECK_CARDEAL].forEach(c => {
-  if (!(c.name in BASE_HP_BY_NAME)) BASE_HP_BY_NAME[c.name] = c.hp;
-});
-const isCardDamaged = (card: CardData): boolean => card.hp < (BASE_HP_BY_NAME[card.name] ?? card.hp);
+const DEFAULT_DECK_SELECTION: DeckSelection = { cards: countByName(DECKS.capitao.pool), general: DECKS.capitao.general.name, npcDeckId: 'cardeal' };
 
 // ── Player profile (local-only for now) ─────────────────────────────────────
 // No account/backend yet (see the user's own multiplayer/Supabase roadmap) — this
@@ -4867,7 +4279,7 @@ export default function App() {
   // pendingGeneralHeal, except it can move straight to 'damage' without ever
   // showing 'heal' (see activateHospitalario) when there's no damaged ally to
   // heal, so the card isn't wasted just because the heal half has no target.
-  const [pendingHospitalario, setPendingHospitalario] = useState<{ step: 'heal' | 'damage' } | null>(null);
+  const [pendingHospitalario, setPendingHospitalario] = useState<{ step: 'heal' | 'damage'; slot: number; healTarget?: number } | null>(null);
 
   // Arqueiro da Ordem's "Pode atacar duas vezes por rodada" is the game's
   // first case of any unit attacking more than once a turn, which means this is
@@ -5127,7 +4539,6 @@ export default function App() {
   const [repositionFlight, setRepositionFlight] = useState<{
     originIndex: number; destIndex: number;
     moverCard: CardData; swappedCard: CardData | null;
-    isBatedorFreeMove: boolean; wasAlreadyMoved: boolean;
     mover: { fromX: number; fromY: number; toX: number; toY: number; w: number; h: number };
     swapped: { fromX: number; fromY: number; toX: number; toY: number; w: number; h: number } | null;
   } | null>(null);
@@ -5156,7 +4567,6 @@ export default function App() {
   // this up the moment that render happens — see its own comment. Side is still
   // called 'npc' (not 'enemy') to match dragHoverSlot's old naming everywhere else
   // this side/index pair shows up (slot DOM ids, handleNpcSlotClick, ...).
-  const pendingDropTargetRef = useRef<{ side: 'own' | 'npc', index: number } | null>(null);
 
   const isMobile = windowSize.width < 768;
   // Board container is a fixed 1000x1400px canvas (see the 3D Board div below) that gets
@@ -5228,61 +4638,27 @@ export default function App() {
   // happens, instead of hardcoding coordinates that would drift if the layout changes.
   const playerDeckRef = useRef<HTMLDivElement>(null);
   const npcDeckRef = useRef<HTMLDivElement>(null);
-  // Which deck's pool each side is currently drawing from — set in resetGame from
-  // the deck chosen at the Quick Match picker, so this can't just be a constant
-  // anymore now that there are two real decks instead of one shared card pool.
-  const playerDeckPoolRef = useRef<readonly CardData[]>(DECKS.capitao.pool);
-  const npcDeckPoolRef = useRef<readonly CardData[]>(DECKS.cardeal.pool);
-  // Each side's General comes from the same chosen deck as its draw pool — set
-  // alongside it in resetGame instead of the fixed GENERAL_PLAYER/GENERAL_NPC
-  // constants this replaced.
-  const generalPlayerRef = useRef<CardData>(DECKS.capitao.general);
-  const generalNpcRef = useRef<CardData>(DECKS.cardeal.general);
-  // A shuffled draw pile, reshuffled from the active deck once exhausted — draws
-  // come from here instead of a plain random pick so the same card can't turn up
-  // twice in a row purely by chance (with only 10 card types and a 5-card opening
-  // hand, picking WITH replacement made an immediate repeat likely on almost every
-  // match, which read as the game "swapping" a card for another copy of itself
-  // rather than dealing a fresh one).
-  const deckQueueRef = useRef<CardData[]>([]);
-  const drawFromDeck = (): CardData => {
-    if (deckQueueRef.current.length === 0) {
-      deckQueueRef.current = [...playerDeckPoolRef.current].sort(() => Math.random() - 0.5);
-    }
-    const card = deckQueueRef.current.shift()!;
-    playCardDrawSfx();
-    return { ...card, id: `hand_${Date.now()}_${Math.random()}` };
-  };
-  // The opponent's own independent shuffled draw pile — same mechanism as the
-  // player's, kept separate so the two sides don't deplete/reshuffle one shared queue.
-  const npcDeckQueueRef = useRef<CardData[]>([]);
-  const drawFromNpcDeck = (): CardData => {
-    if (npcDeckQueueRef.current.length === 0) {
-      npcDeckQueueRef.current = [...npcDeckPoolRef.current].sort(() => Math.random() - 0.5);
-    }
-    const card = npcDeckQueueRef.current.shift()!;
-    playCardDrawSfx();
-    return { ...card, id: `npc_hand_${Date.now()}_${Math.random()}` };
-  };
-
-  // Atirador da Cruzada: "Ao ir ao cemitério: compre 2 cartas." (was 3 — see the
-  // deck's own balance pass comment near its CardData entry). Called from every
-  // "push these destroyed cards onto the graveyard" call site (the same ones
-  // withEquippedWeapons already touches — see its own comment), so it fires
-  // whether the player's or the NPC's copy is the one that died. Takes the raw
-  // (pre-withEquippedWeapons) destroyed list since an equipped weapon can never
-  // itself be named 'Atirador da Cruzada'. No hand-size cap — same as every other
-  // draw in this game (drawFromDeck/drawFromNpcDeck have none either).
-  const drawForAtiradorInfluente = (destroyedCards: CardData[], isPlayerOwner: boolean) => {
-    const count = destroyedCards.filter(c => c.name === 'Atirador da Cruzada').length;
-    for (let i = 0; i < count * 2; i++) {
-      if (isPlayerOwner) {
-        setHand(prev => [...prev, drawFromDeck()]);
-      } else {
-        setNpcHand(prev => [...prev, drawFromNpcDeck()]);
-      }
-    }
-  };
+  // The match itself lives in the rules engine (src/engine): this ref holds its full state, and every
+  // rule decision — the player's taps, the opponent AI, later the online server — goes through
+  // applyAction. The React states below (hand, boards, gold, graveyards, turn, phase …) are only a
+  // mirror of it, for drawing: syncView copies the engine's truth into them.
+  const engineRef = useRef<GameState | null>(null);
+  // Test hook: with ?debug in the address the full engine state can be read from the console / a test.
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has('debug')) return;
+    (window as any).__powEngine = () => engineRef.current;
+    // Lets a test set up a situation (give a card, move a unit…) and have the screen follow.
+    (window as any).__powSet = (mutate: (s: GameState) => void) => {
+      const next = JSON.parse(JSON.stringify(engineRef.current)) as GameState;
+      mutate(next);
+      engineRef.current = next;
+      syncViewRef.current(next);
+    };
+  }, []);
+  const syncViewRef = useRef<(s: GameState) => void>(() => {});
+  // The deck the player picked for the match in progress (the engine match is created once the coin
+  // toss has decided who goes first).
+  const matchSelectionRef = useRef<DeckSelection>(DEFAULT_DECK_SELECTION);
 
   // Where a newly drawn card should land: right next to the last real hand card (or the
   // tray's own resting spot if the hand is still empty) — an approximation of the new
@@ -5421,12 +4797,189 @@ export default function App() {
     }
   }, [matchIntroStage]);
 
-  // Brings both Generals onto the board (after the VS reveal above plays out), then
-  // deals both starting hands (5 cards each) with a staggered "drawn from the deck"
-  // beat — the player's own draw-animation viewState for their hand, and
-  // incrementally revealing the opponent's face-down hand for theirs — so the match
-  // visibly begins instead of the board and both hands just appearing fully set up
-  // the instant the match starts.
+  // ── Engine bridge ───────────────────────────────────────────────────────────
+  // Draws an engine card: the engine knows nothing about artwork, so it is looked up by name here.
+  const toCardData = (c: EngineCard): CardData => ({
+    id: c.id, name: c.name, atk: c.atk, hp: c.hp, cost: c.cost, art: ART_BY_NAME[c.name] ?? '', effect: c.effect,
+    cardType: c.cardType, isFullArt: c.isFullArt, pendingCombatBonus: c.pendingCombatBonus, dmgReduction: c.dmgReduction,
+    formationBuffAtk: c.formationBuffAtk, equippedWeapons: c.equippedWeapons?.map(toCardData),
+  });
+  // A unit that just died stays on its slot for a moment, flagged destroyed, so its explosion can play
+  // before the slot clears (the engine removes it at once).
+  const ghostsRef = useRef<{ player: Record<number, CardData>; npc: Record<number, CardData> }>({ player: {}, npc: {} });
+  const boardView = (board: (EngineCard | null)[], ghosts: Record<number, CardData>): (CardData | null)[] =>
+    board.map((c, i) => (c ? toCardData(c) : ghosts[i] ?? null));
+
+  // Copies the engine state into the React mirror states. `skip` lets an animation hold back the hand or
+  // the boards until it lands (a card in flight, for instance).
+  const syncView = (s: GameState, skip: { hand?: boolean; boards?: boolean } = {}) => {
+    const me = s.players[0];
+    const foe = s.players[1];
+    const mine = s.turn.active === 0;
+    setPlayerMana(me.gold);
+    setNpcMana(foe.gold);
+    if (!skip.hand) setHand(me.hand.map(toCardData));
+    setNpcHand(foe.hand.map(toCardData));
+    if (!skip.boards) {
+      setPlayerSlots(boardView(me.board, ghostsRef.current.player));
+      setNpcSlots(boardView(foe.board, ghostsRef.current.npc));
+    }
+    setPlayerGraveyard(me.graveyard.map(toCardData));
+    setNpcGraveyard(foe.graveyard.map(toCardData));
+    setCurrentTurn(mine ? 'player' : 'npc');
+    setTurnNumber(s.turn.round);
+    setTurnPhase(s.turn.phase);
+    setMovedSlots(new Set(mine ? s.turn.moved : []));
+    setBonusRepositions(mine ? s.turn.bonusRepositions : 0);
+    setBatedorFreeMove(mine ? s.turn.batedorFree : null);
+    setPlayerAttackCounts(mine ? s.turn.attackCounts : {});
+    setPlayerActivatedAbilityIds(new Set(s.turn.activated));
+    setPlayerGeneralAbilityUses(me.generalAbilityUses);
+    setNpcGeneralAbilityUses(foe.generalAbilityUses);
+    playerGeneralAbilityBlockedThisTurnRef.current = me.generalAbilityBlocked;
+  };
+
+  syncViewRef.current = (s: GameState) => syncView(s);
+
+  // Turns what happened into the sights and sounds of it.
+  const processEvents = (events: GameEvent[], opts: { quietTurn?: boolean } = {}) => {
+    let drawIndex = 0;
+    let turnJustStarted = false;
+    const ownerId = (seat: Seat) => (seat === 0 ? 'player' : 'npc');
+    events.forEach(e => {
+      switch (e.t) {
+        case 'turn_start':
+          turnJustStarted = true;
+          setSelectedMoverIndex(null);
+          if (e.seat === 0) {
+            setViewState('hand');
+            if (!opts.quietTurn) {
+              announceTurnChange('player');
+              window.setTimeout(() => announcePhase('preparacao'), PHASE_BANNER_DURATION_MS);
+            }
+          } else {
+            setViewState('field');
+            if (!opts.quietTurn) announceTurnChange('npc');
+          }
+          break;
+        case 'phase':
+          if (e.seat === 0 && !turnJustStarted) announcePhase(e.phase);
+          break;
+        case 'gold':
+          spawnFloatingNumberAtId(`${ownerId(e.seat)}-gold-badge`, Math.abs(e.delta), e.delta > 0 ? 'gold-gain' : 'gold-spend');
+          break;
+        case 'draw':
+          if (e.reason === 'deal') break;
+          if (e.seat === 0) {
+            const origin = computeDrawOrigin(playerDeckRef, handRef.current.length + drawIndex);
+            if (origin) drawOriginsRef.current[e.card.id] = origin;
+            drawIndex += 1;
+          }
+          playCardDrawSfx();
+          break;
+        case 'play':
+          if (e.card.cardType === 'Tática') playTacticSfx();
+          break;
+        case 'ability':
+          playTacticSfx();
+          break;
+        case 'ambush':
+          playTacticSfx();
+          if (e.seat === 1) showToast(`O oponente ativou uma Emboscada: ${e.card.name}!`);
+          break;
+        case 'damage':
+          spawnFloatingNumberAtId(`${ownerId(e.seat)}-${e.slot}`, e.amount, 'damage');
+          break;
+        case 'heal':
+          spawnFloatingNumberAtId(`${ownerId(e.seat)}-${e.slot}`, e.amount, 'heal');
+          break;
+        case 'destroyed': {
+          const ghosts = e.seat === 0 ? ghostsRef.current.player : ghostsRef.current.npc;
+          ghosts[e.slot] = { ...toCardData(e.card), isDestroyed: true };
+          window.setTimeout(() => {
+            delete ghosts[e.slot];
+            if (engineRef.current) syncView(engineRef.current);
+          }, 1000);
+          break;
+        }
+        case 'log':
+          // The AI's own prompts and its ambush line have their own wording elsewhere.
+          if (e.seat === 1 && (e.text.includes('ativar Emboscada?') || e.text.startsWith('Emboscada ativada'))) break;
+          showToast(e.text);
+          break;
+        case 'winner':
+          setGameOverWinner(e.seat === 0 ? 'player' : 'npc');
+          break;
+        default:
+          break;
+      }
+    });
+  };
+
+  // The one door into the rules: asks the engine to apply an action for a seat, then shows the result.
+  const dispatchAction = (
+    seat: Seat,
+    action: EngineAction,
+    opts: { skip?: { hand?: boolean; boards?: boolean }; quietTurn?: boolean } = {},
+  ): { ok: true; state: GameState; events: GameEvent[] } | { ok: false; error: string } => {
+    const current = engineRef.current;
+    if (!current) return { ok: false, error: 'Não há partida em andamento.' };
+    const r = applyAction(current, seat, action);
+    if (r.ok === false) return r;
+    engineRef.current = r.state;
+    processEvents(r.events, opts);
+    syncView(r.state, opts.skip);
+    return r;
+  };
+
+  // A pick prompt the engine is waiting on from the player (a search, a reveal): show it, then send the answer.
+  const openPlayerPick = () => {
+    const pend = engineRef.current?.pending;
+    if (!pend || pend.kind !== 'pick' || pend.seat !== 0) return;
+    openCardPicker(pend.title, pend.options.map(toCardData), pend.max, (picked) => {
+      const r = dispatchAction(0, { type: 'choose', cardIds: picked.map(c => c.id) });
+      if (r.ok === false) { showToast(r.error); return; }
+      setCardPicker(null);
+    });
+  };
+
+  // What the player's own taps use: dispatch, say why when the rules refuse, open any prompt that follows.
+  const playerAct = (action: EngineAction, opts: { skip?: { hand?: boolean; boards?: boolean } } = {}): boolean => {
+    const r = dispatchAction(0, action, opts);
+    if (r.ok === false) { showToast(r.error); return false; }
+    openPlayerPick();
+    return true;
+  };
+
+  const sleep = (ms: number) => new Promise<void>(resolve => window.setTimeout(resolve, ms));
+
+  // After an attack: if the defender may spring an Emboscada, wait for the answer — the human is asked on
+  // screen, the AI decides by itself.
+  const settleAmbush = async (): Promise<void> => {
+    for (let guard = 0; guard < 4; guard++) {
+      const s = engineRef.current;
+      const pend = s?.pending;
+      if (!s || !pend || pend.kind !== 'ambush') return;
+      if (pend.seat === 0) {
+        const attackerCard = s.players[pend.attacker].board[pend.from];
+        const defenderCard = s.players[0].board[pend.to];
+        const options = s.players[0].hand.filter(h => pend.options.includes(h.id)).map(toCardData);
+        const chosen = await new Promise<CardData | null>(resolve => {
+          setAmbushPrompt({ defenderName: defenderCard?.name ?? '', attackerName: attackerCard?.name ?? '', options, resolve });
+        });
+        dispatchAction(0, { type: 'ambush', cardId: chosen?.id ?? null });
+      } else {
+        const a = aiNextAction(s, 1);
+        if (a.type === 'ambush' && a.cardId) await sleep(500);
+        dispatchAction(1, a);
+      }
+    }
+  };
+
+  // Brings both Generals onto the board (after the VS reveal above plays out), then deals both starting
+  // hands with a staggered "drawn from the deck" beat — the player's own draw animation for their hand,
+  // and incrementally revealing the opponent's face-down hand for theirs — so the match visibly begins
+  // instead of the board and both hands just appearing fully set up the instant the match starts.
   const startMatchIntro = () => {
     const schedule = (fn: () => void, delay: number) => {
       const id = window.setTimeout(fn, delay);
@@ -5442,14 +4995,23 @@ export default function App() {
     schedule(() => setMatchIntroStage('coin'), INTRO_START + 900);
   };
 
-  // Everything after the toss: BATALHA, the Generals landing, both hands dealt, and — when the
-  // opponent won the toss — the opponent's first turn.
+  // Everything after the toss: the engine match is created, BATALHA, the Generals landing, both hands dealt,
+  // and — when the opponent won the toss — the opponent's first turn.
   const continueMatchIntro = (first: 'player' | 'npc') => {
     const schedule = (fn: () => void, delay: number) => {
       const id = window.setTimeout(fn, delay);
       matchIntroTimeoutsRef.current.push(id);
     };
     firstSideRef.current = first;
+    const firstSeat: Seat = first === 'player' ? 0 : 1;
+    const sel = matchSelectionRef.current;
+    const created = createMatch({
+      seed: Math.floor(Math.random() * 0x7fffffff),
+      decks: [{ general: sel.general, cards: sel.cards }, deckSetupFromRecipe(sel.npcDeckId)],
+      first: firstSeat,
+    });
+    engineRef.current = created.state;
+    const dealt = created.state;
     setNpcKickoffPending(true);   // nothing can be tapped until both hands are dealt
     const BATTLE_START = 250;
     // "BATALHA" slams down between the two still-frozen portraits — the declaration lands BEFORE either
@@ -5461,8 +5023,8 @@ export default function App() {
     schedule(() => setMatchIntroStage('descend'), DESCEND_START);
     const LAND = DESCEND_START + 750;
     schedule(() => {
-      setPlayerSlots(prev => { const next = [...prev]; next[12] = generalPlayerRef.current; return next; });
-      setNpcSlots(prev => { const next = [...prev]; next[12] = generalNpcRef.current; return next; });
+      setPlayerSlots(prev => { const next = [...prev]; next[12] = toCardData(dealt.players[0].board[12]!); return next; });
+      setNpcSlots(prev => { const next = [...prev]; next[12] = toCardData(dealt.players[1].board[12]!); return next; });
       playCardPlaySfx();
       setIntroDescendTargets(null);
       setMatchIntroStage(null);
@@ -5473,35 +5035,33 @@ export default function App() {
     // on-screen position is already final by the time the first card's flight measures it.
     const DEAL_START = LAND + 400;
     const DEAL_STEP = 230;
-    const drawOne = () => {
-      const newCard = drawFromDeck();
-      const origin = computeDrawOrigin(playerDeckRef, handRef.current.length);
-      if (origin) drawOriginsRef.current[newCard.id] = origin;
-      setHand(prev => [...prev, newCard]);
-    };
     for (let i = 0; i < START_HAND; i++) {
       const t = DEAL_START + i * DEAL_STEP;
-      schedule(drawOne, t);
-      schedule(() => setNpcHand(prev => [...prev, drawFromNpcDeck()]), t + 110);
+      schedule(() => {
+        const card = toCardData(dealt.players[0].hand[i]);
+        const origin = computeDrawOrigin(playerDeckRef, handRef.current.length);
+        if (origin) drawOriginsRef.current[card.id] = origin;
+        playCardDrawSfx();
+        setHand(prev => [...prev, card]);
+      }, t);
+      schedule(() => {
+        playCardDrawSfx();
+        setNpcHand(prev => [...prev, toCardData(dealt.players[1].hand[i])]);
+      }, t + 110);
     }
     const DEALT = DEAL_START + START_HAND * DEAL_STEP + DRAW_FLIGHT_MS * 0.6;
-    if (first === 'player') {
-      // The first player draws as their turn begins (11 cards), then the usual phase ribbon.
-      schedule(() => {
-        suppressInitialPhaseBannerRef.current = false;
-        drawOne();
+    schedule(() => {
+      if (first === 'player') {
+        // The first player draws as their turn begins (11 cards), then the usual phase ribbon.
+        dispatchAction(firstSeat, { type: 'begin' }, { quietTurn: true });
         setNpcKickoffPending(false);
         announcePhase('preparacao');
-      }, DEALT);
-    } else {
-      // The opponent opens: its draw happens as its turn starts (see the turn effect).
-      schedule(() => {
-        suppressInitialPhaseBannerRef.current = false;
+      } else {
+        // The opponent opens: its draw happens as its turn starts, and its runner takes it from there.
         setNpcKickoffPending(false);
-        announceTurnChange('npc');
-        setCurrentTurn('npc');
-      }, DEALT);
-    }
+        dispatchAction(firstSeat, { type: 'begin' });
+      }
+    }, DEALT);
   };
 
   // `sel` is the deck the PLAYER picked (one of their saved decks, see buildDeckSelection);
@@ -5511,14 +5071,10 @@ export default function App() {
     matchIntroTimeoutsRef.current = [];
     setMatchIntroStage(null);
     setIntroDescendTargets(null);
-    suppressInitialPhaseBannerRef.current = true;
 
-    playerDeckPoolRef.current = sel.pool;
-    npcDeckPoolRef.current = DECKS[sel.npcDeckId].pool;
-    generalPlayerRef.current = sel.general;
-    generalNpcRef.current = DECKS[sel.npcDeckId].general;
-    deckQueueRef.current = [];
-    npcDeckQueueRef.current = [];
+    engineRef.current = null;
+    matchSelectionRef.current = sel;
+    ghostsRef.current = { player: {}, npc: {} };
 
     firstSideRef.current = 'player';
     setNpcKickoffPending(false);
@@ -5532,10 +5088,14 @@ export default function App() {
     setPendingTacticAction(null);
     setBatedorFreeMove(null);
     setAmbushPrompt(null);
+    setCardPicker(null);
     setPlayerGeneralAbilityUses(0);
     setNpcGeneralAbilityUses(0);
     setGeneralAbilityPrompt(null);
     setPendingGeneralHeal(null);
+    setPendingHospitalario(null);
+    setPlayerAttackCounts({});
+    setPlayerActivatedAbilityIds(new Set());
     setPlayerMana(START_GOLD);
     setNpcMana(START_GOLD);
     setSelectedCardIndex(null);
@@ -5561,409 +5121,65 @@ export default function App() {
     setGameMode(mode);
   };
 
+  // The opponent's turn: the AI looks at the engine state and answers with one action at a time — exactly
+  // the actions a human would send — and each one is dressed with the same pauses, banners and effects as
+  // before. When the AI passes the last phase, the engine itself hands the turn to the player.
   useEffect(() => {
-    if (currentTurn === 'player') {
-      // Ouro (gold) is a persistent economy, not a Hearthstone-style mana crystal that
-      // refills to a fixed amount every turn: it starts at START_GOLD, sits still through round
-      // 1, then grows by GOLD_PER_TURN every turn from round 2 onward with no upper cap — and
-      // whatever wasn't spent carries over. So a big play can be saved up for instead
-      // of always being locked to what a single turn's allowance affords.
-      if (turnNumber >= GOLD_FROM_ROUND) {
-        setPlayerMana(prev => prev + GOLD_PER_TURN);
-        spawnFloatingNumberAtId('player-gold-badge', GOLD_PER_TURN, 'gold-gain');
-      }
-      // The NPC's turn forces viewState to 'field' (zoomed out to watch it play), which
-      // leaves the hand tray dimmed and pushed down off-screen (see the Hand UI's own
-      // animate below) — nothing ever brought it back once play returned to the
-      // player, so the hand looked like it had vanished. Bring it back to 'hand' here.
-      setViewState('hand');
-      // Fresh turn, fresh phase cycle — back to Preparação and every unit's move
-      // available again. A single banner here (not a Compra-then-Preparação pair —
-      // see git history) sidesteps a real bug that pairing had: its second banner
-      // was scheduled to fire at the exact millisecond the first one's own cleanup
-      // timer did, and depending on timer ordering the second could get its state
-      // clobbered by the first's before ever finishing its entrance.
-      // Same reasoning applies to "Seu Turno" below: fire it THEN chain the phase
-      // banner after its own full cycle, rather than the two racing for the same
-      // phaseBanner state in the same tick (which just clobbers one before it can
-      // ever render). Only for an actual handoff (turnNumber > 1) — the very first
-      // turn of a match has no "other side just finished" to announce.
-      if (turnNumber > 1 || firstSideRef.current === 'npc') {
-        announceTurnChange('player');
-        window.setTimeout(() => announcePhase('preparacao'), PHASE_BANNER_DURATION_MS);
-      } else if (!suppressInitialPhaseBannerRef.current) {
-        // Suppressed at a fresh match's very first turn — the VS reveal
-        // (startMatchIntro) calls announcePhase itself once its own "BATALHA"
-        // banner has cleared, instead of this firing immediately and racing it.
-        announcePhase('preparacao');
-      }
-      setTurnPhase('preparacao');
-      setMovedSlots(new Set());
-      setSelectedMoverIndex(null);
-      setBonusRepositions(0);
-      setBatedorFreeMove(null);
-      // Capitão de Formação's move-triggered +1 ATK (see formationBuffAtk's own
-      // comment) expires here, at the start of the very next player turn — same
-      // reset point as movedSlots/bonusRepositions above, so it survives exactly
-      // through the rest of the turn it was granted in (including Combate) and
-      // no longer.
-      setPlayerSlots(prev => prev.map(c => c && c.formationBuffAtk ? { ...c, formationBuffAtk: 0 } : c));
-      setNpcSlots(prev => prev.map(c => c && c.formationBuffAtk ? { ...c, formationBuffAtk: 0 } : c));
-      setPlayerGeneralAbilityUses(0);
-      // See pendingPlayerGeneralAbilityBlock's own comment for why this is a ref,
-      // not state: playerGeneralAbilityAvailable reads it straight off at render
-      // time, and a ref mutation (unlike a sibling setState call made in this same
-      // effect) is visible on the very next render this effect's own other
-      // setState calls already force.
-      playerGeneralAbilityBlockedThisTurnRef.current = pendingPlayerGeneralAbilityBlock;
-      if (pendingPlayerGeneralAbilityBlock) setPendingPlayerGeneralAbilityBlock(false);
-      setPlayerActivatedAbilityIds(new Set());
-      setPlayerAttackCounts({});
-      if (!suppressInitialPhaseBannerRef.current && hand.length < HAND_LIMIT) {
-        const newCard = drawFromDeck();
-        const origin = computeDrawOrigin(playerDeckRef, hand.length);
-        if (origin) drawOriginsRef.current[newCard.id] = origin;
-        setHand(prev => [...prev, newCard]);
-      }
-      // Intendente do Exército: "Uma vez por turno: se você tiver menos de 2 cartas
-      // na mão, compre até ficar com 2." A passive check (no button, unlike
-      // Mercador da Cruzada/Cavaleiro Hospitalário) piggybacked on this same
-      // once-per-turn-start effect instead of a separate per-turn guard.
-      if ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => playerSlots[i] && !playerSlots[i]?.isDestroyed && playerSlots[i]?.name === 'Intendente do Exército')) {
-        setHand(prev => prev.length >= 2 ? prev : [...prev, ...Array.from({ length: 2 - prev.length }, () => drawFromDeck())]);
-      }
-    } else {
-      if (turnNumber >= GOLD_FROM_ROUND) {
-        setNpcMana(prev => prev + GOLD_PER_TURN);
-        spawnFloatingNumberAtId('npc-gold-badge', GOLD_PER_TURN, 'gold-gain');
-      }
-      setViewState('field');
-      setNpcGeneralAbilityUses(0);
-      // Same ref-not-state reasoning as the player branch above, but here it's
-      // load-bearing for a different reason: the AI-turn-runner effect below
-      // fires in this exact same currentTurn-change pass, and its closure would
-      // otherwise still see the pre-update value if this were plain state (a
-      // sibling effect's setState isn't visible to another effect's closure
-      // until a further render — a ref mutation is immediate).
-      npcGeneralAbilityBlockedThisTurnRef.current = pendingNpcGeneralAbilityBlock;
-      if (pendingNpcGeneralAbilityBlock) setPendingNpcGeneralAbilityBlock(false);
-      if (npcHand.length < HAND_LIMIT) {
-        setNpcHand(prev => [...prev, drawFromNpcDeck()]);
-      }
-      // Intendente do Exército, NPC side — same passive check as the player's own above.
-      if ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => npcSlots[i] && !npcSlots[i]?.isDestroyed && npcSlots[i]?.name === 'Intendente do Exército')) {
-        setNpcHand(prev => prev.length >= 2 ? prev : [...prev, ...Array.from({ length: 2 - prev.length }, () => drawFromNpcDeck())]);
-      }
-    }
-  }, [currentTurn, turnNumber]);
-
-  useEffect(() => {
-    if (currentTurn === 'npc' && gameMode === 'Quick Match' && !isAnimating && !gameOverWinner) {
-      const runAiTurn = async () => {
-        setIsAnimating(true);
-        // No real gated phases on the AI's side (it just runs its whole turn as one
-        // sequence), but the phase-tag column mirrored onto its own field (see
-        // npcVisiblePhase below) reads better showing SOMETHING than always sitting
-        // dark — Preparação while it's still placing cards, Combate once it starts
-        // attacking. There's no Movimentação beat since the AI never repositions its
-        // own units (see the end-of-turn comment further down).
-        // The opponent passes through the same phases as the player, with the same banners and
-        // sounds (the "Turno do Adversário" banner is still on screen when this starts, so wait
-        // for it first). The AI never repositions, so there is no Movimentação beat.
-        await new Promise(resolve => setTimeout(resolve, Math.max(0, PHASE_BANNER_DURATION_MS - 1000) + 150));
-        setNpcVisiblePhase('preparacao');
-        showBanner('Fase de Preparação', 'O adversário joga suas cartas');
-        await new Promise(resolve => setTimeout(resolve, PHASE_BANNER_DURATION_MS + 150));
-        let npcCombatAnnounced = false;
-        const { actions, playedCardIds } = playAiTurn(npcSlots, playerSlots, npcMana, npcHandRef.current, getValidAttackTargets, turnNumber >= 2 || firstSideRef.current !== 'npc');
-        if (playedCardIds.length > 0) {
-          setNpcHand(prev => prev.filter(c => !playedCardIds.includes(c.id)));
-        }
-
-        let currentNpcSlots = [...npcSlots];
-        let currentPlayerSlots = [...playerSlots];
-        let currentNpcMana = npcMana;
-        let playerGeneralFell = false;
-
-        // Cardeal Pedro, Voz da Fé's General ability (see resolveGeneralHeal/GENERAL_ABILITIES
-        // below for the player-facing version of the exact same rule) has no target
-        // to pick for the AI — it just always heals its currently weakest ally,
-        // once per turn, whenever it can afford the 2-gold cost. Cálice da Graça
-        // boosts the heal amount instead of granting a second use (see
-        // playerGeneralAbilityMaxUses's own comment for why the double-use version
-        // was removed).
-        // Infiltrado da Ordem: blocked for exactly the turn after the General took
-        // damage (see npcGeneralAbilityBlockedThisTurnRef's own comment above).
-        if (currentNpcSlots[12]?.name === 'Cardeal Pedro, Voz da Fé' && !npcGeneralAbilityBlockedThisTurnRef.current && currentNpcMana >= 2) {
-          const allyIndices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => currentNpcSlots[i]);
-          if (allyIndices.length > 0) {
-            const weakest = allyIndices.reduce((a, b) => currentNpcSlots[a]!.hp <= currentNpcSlots[b]!.hp ? a : b);
-            currentNpcMana -= 2;
-            const healAmount = currentNpcSlots[10]?.name === 'Cálice da Graça' ? 2 : 1;
-            let healed = { ...currentNpcSlots[weakest]!, hp: currentNpcSlots[weakest]!.hp + healAmount };
-            // Recruta Devoto: "Ao ser curado: recebe +1 ATK permanente." Fine to allow
-            // even at full HP now — the ability always costs 2 gold, so this is a
-            // deliberate paid trade-off instead of a free repeatable exploit.
-            if (healed.name === 'Recruta Devoto') healed = { ...healed, atk: healed.atk + 1 };
-            currentNpcSlots[weakest] = healed;
-            setNpcGeneralAbilityUses(1);
-            setNpcSlots([...currentNpcSlots]);
-            setNpcMana(currentNpcMana);
-            showToast('O oponente usou a habilidade do General!');
-            await new Promise(resolve => setTimeout(resolve, 700));
+    if (currentTurn !== 'npc' || gameMode !== 'Quick Match' || isAnimating || gameOverWinner || !engineRef.current) return;
+    const runAiTurn = async () => {
+      setIsAnimating(true);
+      // The "Turno do Adversário" banner is still on screen when this starts, so wait for it first.
+      await sleep(Math.max(0, PHASE_BANNER_DURATION_MS - 1000) + 150);
+      setNpcVisiblePhase('preparacao');
+      showBanner('Fase de Preparação', 'O adversário joga suas cartas');
+      await sleep(PHASE_BANNER_DURATION_MS + 150);
+      let combatAnnounced = false;
+      for (let guard = 0; guard < 300; guard++) {
+        const s = engineRef.current;
+        if (!s || s.winner !== null || s.turn.active !== 1) break;
+        const action = aiNextAction(s, 1);
+        if (action.type === 'play') {
+          const card = s.players[1].hand.find(h => h.id === action.cardId);
+          if (!card) break;
+          // Show the card big in the corner and pause on it for a beat BEFORE it lands on the board.
+          announceCardPlay(toCardData(card), 'npc');
+          await sleep(1000);
+          if (dispatchAction(1, action).ok === false) break;
+          await sleep(700);
+        } else if (action.type === 'attack') {
+          setNpcVisiblePhase('combate');
+          if (!combatAnnounced) {
+            combatAnnounced = true;
+            showBanner('Fase de Combate', 'O adversário ataca suas unidades');
+            await sleep(PHASE_BANNER_DURATION_MS + 150);
           }
+          setAttackAnim({ attackerIndex: action.from, targetIndex: action.to, isPlayerAttacking: false });
+          await sleep(300);
+          playAttackSfx();
+          setIsImpacting(true);
+          await sleep(200);
+          setIsImpacting(false);
+          const r = dispatchAction(1, action);
+          if (r.ok === false) { setAttackAnim(null); break; }
+          await settleAmbush();
+          setAttackAnim(null);
+          const killed = r.events.some(e => e.t === 'destroyed');
+          await sleep(killed ? 1000 : 300);
+        } else if (action.type === 'ability') {
+          showToast(action.slot === 12 ? 'O oponente usou a habilidade do General!' : 'O oponente usou uma habilidade!');
+          if (dispatchAction(1, action).ok === false) break;
+          await sleep(700);
+        } else {
+          // advance / choose / ambush: no ceremony
+          if (dispatchAction(1, action).ok === false) break;
         }
-
-        // Mercador da Cruzada / Cavaleiro Hospitalário: the same once-per-turn creature
-        // abilities as the player's own copies (see activateComercianteDasCruzadas/
-        // activateHospitalario below), just auto-run with no UI — every living copy
-        // on the NPC's board fires once, same as the player only ever gets one
-        // activation per copy per turn.
-        for (let i = 0; i <= 9; i++) {
-          const ownedCard = currentNpcSlots[i];
-          if (!ownedCard || ownedCard.isDestroyed) continue;
-          if (ownedCard.name === 'Mercador da Cruzada') {
-            if (npcDeckQueueRef.current.length < 2) {
-              npcDeckQueueRef.current = [...npcDeckQueueRef.current, ...[...npcDeckPoolRef.current].sort(() => Math.random() - 0.5)];
-            }
-            const revealed = npcDeckQueueRef.current.splice(0, 2);
-            if (revealed.length > 0) {
-              // Not real strategy, just a simple heuristic: prefer an actual
-              // creature over a 0/0 Tática/Emboscada, otherwise take the first.
-              const creatureIdx = revealed.findIndex(c => c.cardType !== 'Tática' && c.cardType !== 'Emboscada');
-              const pickIdx = creatureIdx !== -1 ? creatureIdx : 0;
-              const chosen = revealed[pickIdx];
-              const leftovers = revealed.filter((_, idx) => idx !== pickIdx);
-              npcDeckQueueRef.current = [...npcDeckQueueRef.current, ...leftovers];
-              setNpcHand(prev => [...prev, { ...chosen, id: `npc_hand_${Date.now()}_${Math.random()}` }]);
-            }
-          } else if (ownedCard.name === 'Cavaleiro Hospitalário') {
-            const allyIndices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(j => currentNpcSlots[j] && !currentNpcSlots[j]!.isDestroyed && isCardDamaged(currentNpcSlots[j]!));
-            if (allyIndices.length > 0) {
-              const weakest = allyIndices.reduce((a, b) => currentNpcSlots[a]!.hp <= currentNpcSlots[b]!.hp ? a : b);
-              let healed = { ...currentNpcSlots[weakest]!, hp: currentNpcSlots[weakest]!.hp + 1 };
-              if (healed.name === 'Recruta Devoto') healed = { ...healed, atk: healed.atk + 1 };
-              currentNpcSlots[weakest] = healed;
-            }
-            const enemyVanguardaIndices = [0, 1, 2, 3, 4].filter(j => currentPlayerSlots[j] && !currentPlayerSlots[j]!.isDestroyed);
-            if (enemyVanguardaIndices.length > 0) {
-              const dmgTarget = enemyVanguardaIndices[Math.floor(Math.random() * enemyVanguardaIndices.length)];
-              const dmg = applyDamageToSlot(currentPlayerSlots, dmgTarget, 1);
-              currentPlayerSlots = dmg.slots;
-              if (dmg.destroyed) {
-                setPlayerGraveyard(g => [...g, ...withEquippedWeapons([dmg.destroyed!])]);
-                drawForAtiradorInfluente([dmg.destroyed], true);
-              }
-            }
-          }
-        }
-        setNpcSlots([...currentNpcSlots]);
-        setPlayerSlots([...currentPlayerSlots]);
-
-        for (const action of actions) {
-          if (action.type === 'play_card') {
-            // General (12) is fixed at game start; Relíquia/Terreno slots (10/11) are off-limits to the AI's generic minions
-            if (action.slotIndex >= 10) continue;
-            // Show the card big in the corner and pause on it for a beat BEFORE it lands
-            // on the board — the opponent used to slap cards down almost instantly, too
-            // fast to read on a small phone screen, and this fixes both problems at once.
-            announceCardPlay(action.card, 'npc');
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            currentNpcSlots[action.slotIndex] = action.card;
-            // Nobre da Cruzada: "Ao entrar em campo: invoca Soldados Leais..." —
-            // applies regardless of which side plays it.
-            currentNpcSlots = applyNobreReligiosoSummon(currentNpcSlots, action.slotIndex);
-            currentNpcMana -= action.card.cost;
-            setNpcSlots([...currentNpcSlots]);
-            setNpcMana(currentNpcMana);
-            spawnFloatingNumberAtId('npc-gold-badge', action.card.cost, 'gold-spend');
-            await new Promise(resolve => setTimeout(resolve, 700));
-          } else if (action.type === 'attack') {
-            setNpcVisiblePhase('combate');
-            if (!npcCombatAnnounced) {
-              npcCombatAnnounced = true;
-              showBanner('Fase de Combate', 'O adversário ataca suas unidades');
-              await new Promise(resolve => setTimeout(resolve, PHASE_BANNER_DURATION_MS + 150));
-            }
-            setAttackAnim({ attackerIndex: action.attackerSlot, targetIndex: action.targetSlot, isPlayerAttacking: false });
-            await new Promise(resolve => setTimeout(resolve, 300));
-
-            playAttackSfx();
-            setIsImpacting(true);
-            await new Promise(resolve => setTimeout(resolve, 200));
-            setIsImpacting(false);
-
-            const attacker = currentNpcSlots[action.attackerSlot];
-            if (!attacker) continue;
-
-            let hasDestroyed = false;
-
-            let defender = currentPlayerSlots[action.targetSlot];
-            let targetSlot = action.targetSlot;
-            if (defender) {
-              const ambushCard = await maybeActivatePlayerAmbush(attacker, defender, currentNpcSlots);
-              let cancelled = false;
-              if (ambushCard) {
-                const resolved = resolveAmbushEffect(ambushCard, currentNpcSlots, action.attackerSlot, currentPlayerSlots, action.targetSlot);
-                currentNpcSlots = resolved.attackerSlots;
-                currentPlayerSlots = resolved.defenderSlots;
-                targetSlot = resolved.defenderIndex;
-                defender = resolved.defender;
-                cancelled = resolved.cancelled;
-                setNpcSlots([...currentNpcSlots]);
-                setPlayerSlots([...currentPlayerSlots]);
-              }
-
-              if (!cancelled && defender) {
-                let attackerAtk = getEffectiveAtk(attacker, action.attackerSlot, currentNpcSlots, currentPlayerSlots);
-                // Fanático da Cruzada — see the exact same check (and its comment) in
-                // handleNpcSlotClick above; this is the AI-side mirror of it.
-                if (attacker.name === 'Fanático da Cruzada' && currentPlayerSlots[12] && currentPlayerSlots[12]?.name !== 'Cardeal Pedro, Voz da Fé') attackerAtk += 2;
-                const defenderAtk = getEffectiveAtk(defender, targetSlot, currentPlayerSlots, currentNpcSlots);
-                const attackerReduction = getIncomingDamageReduction(action.attackerSlot, currentNpcSlots);
-                const defenderReduction = getIncomingDamageReduction(targetSlot, currentPlayerSlots);
-                const attackerHpBonus = (attacker.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(attacker, currentNpcSlots);
-                const defenderHpBonus = (defender.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(defender, currentPlayerSlots);
-                const damageToDefender = Math.max(0, attackerAtk - defenderReduction);
-                const damageToAttacker = Math.max(0, defenderAtk - attackerReduction);
-
-                // Infiltrado da Ordem — see the exact same check (and its comment) in
-                // handleNpcSlotClick above; here the DEFENDER's side is the player.
-                if (targetSlot === 12 && damageToDefender > 0 && hasEspiaoOnBoard(currentPlayerSlots)) {
-                  setPendingPlayerGeneralAbilityBlock(true);
-                  showToast('Infiltrado da Ordem: a habilidade do seu General foi bloqueada no seu próximo turno!');
-                }
-
-                const updatedAttacker = {
-                  ...attacker,
-                  hp: attacker.hp + attackerHpBonus - damageToAttacker,
-                  pendingCombatBonus: undefined,
-                };
-                const updatedDefender = {
-                  ...defender,
-                  hp: defender.hp + defenderHpBonus - damageToDefender,
-                  pendingCombatBonus: undefined,
-                };
-
-                // Hearthstone-style floating combat numbers — mirrors the player-
-                // attacking block in handleNpcSlotClick above.
-                spawnFloatingNumberAtId(`npc-${action.attackerSlot}`, damageToAttacker, 'damage');
-                spawnFloatingNumberAtId(`player-${targetSlot}`, damageToDefender, 'damage');
-
-                if (updatedAttacker.hp <= 0) {
-                  currentNpcSlots[action.attackerSlot] = { ...updatedAttacker, isDestroyed: true };
-                  hasDestroyed = true;
-                } else {
-                  currentNpcSlots[action.attackerSlot] = updatedAttacker;
-                }
-
-                if (updatedDefender.hp <= 0) {
-                  currentPlayerSlots[targetSlot] = { ...updatedDefender, isDestroyed: true };
-                  hasDestroyed = true;
-                  if (updatedDefender.cardType === 'General') {
-                    playerGeneralFell = true;
-                  }
-                } else {
-                  currentPlayerSlots[targetSlot] = updatedDefender;
-                }
-
-                // Jorge, Lança Sagrada: "Ao atacar a Vanguarda: causa 2 de dano à
-                // unidade na Retaguarda da mesma coluna." A splash side-effect,
-                // independent of whether the main target survived.
-                if (attacker.name === 'Jorge, Lança Sagrada' && isFrontline(targetSlot) && currentPlayerSlots[targetSlot + 5]) {
-                  spawnFloatingNumberAtId(`player-${targetSlot + 5}`, 2, 'damage');
-                  const splash = applyDamageToSlot(currentPlayerSlots, targetSlot + 5, 2);
-                  currentPlayerSlots = splash.slots;
-                  if (splash.destroyed) {
-                    setPlayerGraveyard(g => [...g, ...withEquippedWeapons([splash.destroyed!])]);
-                    drawForAtiradorInfluente([splash.destroyed], true);
-                    hasDestroyed = true;
-                  }
-                }
-              }
-
-              setNpcSlots([...currentNpcSlots]);
-              setPlayerSlots([...currentPlayerSlots]);
-            }
-
-            setAttackAnim(null);
-
-            if (playerGeneralFell) break;
-
-            if (hasDestroyed) {
-              await new Promise(resolve => setTimeout(resolve, 1000));
-              const destroyedNpcCards = currentNpcSlots.filter((c): c is CardData => !!c?.isDestroyed);
-              const destroyedPlayerCards = currentPlayerSlots.filter((c): c is CardData => !!c?.isDestroyed);
-              if (destroyedNpcCards.length) {
-                setNpcGraveyard(g => [...g, ...withEquippedWeapons(destroyedNpcCards)]);
-                drawForAtiradorInfluente(destroyedNpcCards, false);
-              }
-              if (destroyedPlayerCards.length) {
-                setPlayerGraveyard(g => [...g, ...withEquippedWeapons(destroyedPlayerCards)]);
-                drawForAtiradorInfluente(destroyedPlayerCards, true);
-              }
-              currentNpcSlots = currentNpcSlots.map(c => c?.isDestroyed ? null : c);
-              currentPlayerSlots = currentPlayerSlots.map(c => c?.isDestroyed ? null : c);
-              setNpcSlots([...currentNpcSlots]);
-              setPlayerSlots([...currentPlayerSlots]);
-            } else {
-              await new Promise(resolve => setTimeout(resolve, 300));
-            }
-          }
-        }
-
-        if (playerGeneralFell) {
-          setGameOverWinner('npc');
-          setNpcVisiblePhase(null);
-          setIsAnimating(false);
-          return;
-        }
-
-        // The NPC's own turn just ended too — same Soldado Tático end-of-turn swap
-        // as the player's side (see applyEndOfTurnSwaps), in case the AI ends up
-        // playing Deck Capitão this match (see resetGame). Aurelion's active isn't
-        // mirrored here: it only fires off actual repositioning, and the AI never
-        // repositions its own units (see the Relíquia/Terreno skip above).
-        currentNpcSlots = applyEndOfTurnSwaps(currentNpcSlots);
-        setNpcSlots([...currentNpcSlots]);
-
-        setNpcVisiblePhase(null);
-        setCurrentTurn('player');
-        if (firstSideRef.current === 'player') setTurnNumber(prev => prev + 1);
-        setIsAnimating(false);
-      };
-      
-      const timer = setTimeout(runAiTurn, 1000);
-      return () => clearTimeout(timer);
-    }
+      }
+      setNpcVisiblePhase(null);
+      setIsAnimating(false);
+    };
+    const timer = setTimeout(runAiTurn, 1000);
+    return () => clearTimeout(timer);
   }, [currentTurn, gameMode, gameOverWinner]);
-
-  // Bridges the one-render gap between handlePlayCardButtonClick committing a
-  // targetable Tática (spending its mana/hand slot and setting pendingTacticAction
-  // — see the TARGETABLE_TACTICS branch there, defined further down) and
-  // resolveOwnTacticTarget/resolveEnemyTacticTarget actually being safe to call,
-  // since both read pendingTacticAction straight off state rather than taking it
-  // as a parameter. Declared up here (ahead of the assetsReady/gameMode early
-  // returns below, unlike resolveOwnTacticTarget itself) because this IS a hook —
-  // conditionally skipping a useEffect call on some renders but not others breaks
-  // React's hook-order tracking. Referencing resolveOwnTacticTarget/
-  // resolveEnemyTacticTarget before their own declaration further down is safe
-  // here specifically because this callback only actually runs after the whole
-  // component function (including those declarations) has finished executing for
-  // that render. pendingDropTargetRef is set by handleSlotClick's/
-  // handleNpcSlotClick's own occupied-slot-tap branches right before they call
-  // handlePlayCardButtonClick (see getCardDropKind's ownTarget/enemyTarget kinds)
-  // — any other path into pendingTacticAction leaves it null and this effect is a
-  // no-op, same as before that tap-to-target flow existed.
-  useEffect(() => {
-    if (pendingTacticAction && pendingDropTargetRef.current) {
-      const target = pendingDropTargetRef.current;
-      pendingDropTargetRef.current = null;
-      if (target.side === 'own') resolveOwnTacticTarget(target.index);
-      else resolveEnemyTacticTarget(target.index);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingTacticAction]);
 
   if (!assetsReady) {
     return <LoadingScreen onDone={() => setAssetsReady(true)} />;
@@ -6101,269 +5317,32 @@ export default function App() {
     }
   };
 
+  // The "play" tap on a selected hand card. Cards that need a board target arm a target-picking mode (nothing
+  // is spent until the target is chosen); everything else is handed straight to the engine, which also says
+  // why a card cannot be played (Emboscadas, searches with nothing to find, not enough gold…).
   const handlePlayCardButtonClick = () => {
     const card = hand[selectedCardIndex!];
-    if (playerMana < card.cost) {
-      showToast("Ouro insuficiente!");
-      return;
-    }
-
-    // Reformar Linhas: no target to pick, it just grants bonus reposition moves —
-    // resolve it immediately instead of zooming to the board for nothing.
-    if (card.name === 'Reformar Linhas') {
-      setPlayerMana(prev => prev - card.cost);
-      spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
-      setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
-      playTacticSfx();
-      setPlayerGraveyard(g => [...g, card]);
-      setBonusRepositions(prev => prev + 3);
-      setSelectedCardIndex(null);
-      showToast('Reformar Linhas: +3 reposicionamentos bônus neste turno!');
-      return;
-    }
-
-    // Tributo de Guerra (Deck Cardeal): immediate, no target.
-    if (card.name === 'Tributo de Guerra') {
-      setPlayerMana(prev => prev - card.cost + 1);
-      const netGoldChange = 1 - card.cost;
-      if (netGoldChange >= 0) spawnFloatingNumberAtId('player-gold-badge', netGoldChange, 'gold-gain');
-      else spawnFloatingNumberAtId('player-gold-badge', -netGoldChange, 'gold-spend');
-      setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
-      playTacticSfx();
-      setPlayerGraveyard(g => [...g, card]);
-      setSelectedCardIndex(null);
-      showToast('Tributo de Guerra: +1 ouro neste turno!');
-      return;
-    }
-
-    // Trabuco de Cerco (Deck Cardeal): "Causa 2 de dano a TODAS as unidades inimigas" —
-    // immediate AOE, no target to pick. Hits every enemy creature/General (0-9,
-    // 12) — the Relíquia/Terreno slots (10/11) aren't "unidades".
-    if (card.name === 'Trabuco de Cerco') {
-      setPlayerMana(prev => prev - card.cost);
-      spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
-      setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
-      playTacticSfx();
-      setPlayerGraveyard(g => [...g, card]);
-      setSelectedCardIndex(null);
-      let nextNpcSlots = [...npcSlots];
-      const destroyed: CardData[] = [];
-      let npcGeneralFell = false;
-      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12].forEach(i => {
-        if (!nextNpcSlots[i]) return;
-        spawnFloatingNumberAtId(`npc-${i}`, 2, 'damage');
-        const result = applyDamageToSlot(nextNpcSlots, i, 2);
-        nextNpcSlots = result.slots;
-        if (result.destroyed) {
-          destroyed.push(result.destroyed);
-          if (result.destroyed.cardType === 'General') npcGeneralFell = true;
-        }
-      });
-      setNpcSlots(nextNpcSlots);
-      if (destroyed.length) {
-        setNpcGraveyard(g => [...g, ...withEquippedWeapons(destroyed)]);
-        drawForAtiradorInfluente(destroyed, false);
+    if (!card) return;
+    const kind = getCardDropKind(card);
+    if (kind === 'ownTarget' || kind === 'enemyTarget') {
+      if (playerMana < card.cost) {
+        showToast("Ouro insuficiente!");
+        return;
       }
-      showToast('Trabuco de Cerco: 2 de dano a todas as unidades inimigas!');
-      if (npcGeneralFell) setGameOverWinner('player');
-      return;
-    }
-
-    // The other 4 targetable Táticas (see TARGETABLE_TACTICS) — commit to playing
-    // the card now (same as any other card, mana spent and out of hand), then wait
-    // for the player to click its target instead of a slot to place it in.
-    const kind = TARGETABLE_TACTICS[card.name];
-    if (kind) {
-      setPlayerMana(prev => prev - card.cost);
-      spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
-      setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
-      playTacticSfx();
-      setPendingTacticAction({ card, kind });
+      const tacticKind = TARGETABLE_TACTICS[card.name];
+      setPendingTacticAction({ card, kind: tacticKind });
       setSelectedCardIndex(null);
       setViewState('field');
-      showToast(TACTIC_TARGET_PROMPTS[kind]);
+      showToast(TACTIC_TARGET_PROMPTS[tacticKind]);
       return;
     }
-
-    // Retorno do Soldado: reclaim one soldier from your own graveyard.
-    if (card.name === 'Retorno do Soldado') {
-      const candidates = playerGraveyard.filter(c => SOLDIER_TYPES.includes(c.cardType as CardType));
-      if (candidates.length === 0) {
-        setSelectedCardIndex(null);
-        showToast('Não há soldados no cemitério.');
-        return;
-      }
-      setPlayerMana(prev => prev - card.cost);
-      spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
-      setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
-      playTacticSfx();
-      setSelectedCardIndex(null);
-      openCardPicker('Escolha um soldado do cemitério para adicionar à mão', candidates, 1, (picked) => {
-        const chosen = picked[0];
-        setPlayerGraveyard(g => g.filter(c => c.id !== chosen.id).concat(card));
-        setHand(prev => [...prev, { ...chosen, id: `hand_${Date.now()}_${Math.random()}`, isDestroyed: undefined }]);
-        setCardPicker(null);
-        showToast(`${chosen.name} voltou para sua mão!`);
-      });
+    if (kind === 'place') {
+      // Placed straight from handleSlotClick's own empty-slot branch the instant its destination is tapped.
+      setViewState('field');
       return;
     }
-
-    // Graal da Dádiva: search the deck for a Terreno or Relíquia.
-    if (card.name === 'Graal da Dádiva') {
-      const candidates = playerDeckPoolRef.current.filter(c => c.cardType === 'Terreno' || c.cardType === 'Relíquia');
-      if (candidates.length === 0) {
-        setSelectedCardIndex(null);
-        showToast('Não há Terreno ou Relíquia no deck.');
-        return;
-      }
-      setPlayerMana(prev => prev - card.cost);
-      spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
-      setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
-      playTacticSfx();
-      setSelectedCardIndex(null);
-      openCardPicker('Escolha uma carta de Terreno ou Relíquia do deck', candidates, 1, (picked) => {
-        const chosen = picked[0];
-        setHand(prev => [...prev, { ...chosen, id: `hand_${Date.now()}_${Math.random()}` }]);
-        setPlayerGraveyard(g => [...g, card]);
-        setCardPicker(null);
-        showToast(`${chosen.name} adicionada à mão!`);
-      });
-      return;
-    }
-
-    // Doutrina Renovada: search the deck for any Tática.
-    if (card.name === 'Doutrina Renovada') {
-      const candidates = playerDeckPoolRef.current.filter(c => c.cardType === 'Tática');
-      if (candidates.length === 0) {
-        setSelectedCardIndex(null);
-        showToast('Não há Táticas no deck.');
-        return;
-      }
-      setPlayerMana(prev => prev - card.cost);
-      spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
-      setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
-      playTacticSfx();
-      setSelectedCardIndex(null);
-      openCardPicker('Escolha uma Tática do deck para adicionar à mão', candidates, 1, (picked) => {
-        const chosen = picked[0];
-        setHand(prev => [...prev, { ...chosen, id: `hand_${Date.now()}_${Math.random()}` }]);
-        setPlayerGraveyard(g => [...g, card]);
-        setCardPicker(null);
-        showToast(`${chosen.name} adicionada à mão!`);
-      });
-      return;
-    }
-
-    // Recrutamento Seletivo: search the deck for any soldier.
-    if (card.name === 'Recrutamento Seletivo') {
-      const candidates = playerDeckPoolRef.current.filter(c => SOLDIER_TYPES.includes(c.cardType as CardType));
-      if (candidates.length === 0) {
-        setSelectedCardIndex(null);
-        showToast('Não há soldados no deck.');
-        return;
-      }
-      setPlayerMana(prev => prev - card.cost);
-      spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
-      setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
-      playTacticSfx();
-      setSelectedCardIndex(null);
-      openCardPicker('Escolha um soldado do deck para adicionar à mão', candidates, 1, (picked) => {
-        const chosen = picked[0];
-        setHand(prev => [...prev, { ...chosen, id: `hand_${Date.now()}_${Math.random()}` }]);
-        setPlayerGraveyard(g => [...g, card]);
-        setCardPicker(null);
-        showToast(`${chosen.name} adicionada à mão!`);
-      });
-      return;
-    }
-
-    // Recrutar Veteranos: reveal the real top 4 of the deck (not just the pool —
-    // this one actually cares about draw order), keep 2, bottom 2.
-    if (card.name === 'Recrutar Veteranos') {
-      if (deckQueueRef.current.length < 4) {
-        deckQueueRef.current = [...deckQueueRef.current, ...[...playerDeckPoolRef.current].sort(() => Math.random() - 0.5)];
-      }
-      const revealed = deckQueueRef.current.splice(0, 4);
-      setPlayerMana(prev => prev - card.cost);
-      spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
-      setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
-      playTacticSfx();
-      setSelectedCardIndex(null);
-      openCardPicker('Veja as 4 cartas do topo — escolha 2 para a mão', revealed, 2, (picked) => {
-        const pickedIds = new Set(picked.map(c => c.id));
-        const leftovers = revealed.filter(c => !pickedIds.has(c.id));
-        deckQueueRef.current = [...deckQueueRef.current, ...leftovers];
-        setHand(prev => [...prev, ...picked.map(c => ({ ...c, id: `hand_${Date.now()}_${Math.random()}` }))]);
-        setPlayerGraveyard(g => [...g, card]);
-        setCardPicker(null);
-        showToast(`${picked.length} carta(s) adicionada(s) à mão!`);
-      });
-      return;
-    }
-
-    // Chamado às Armas: summon up to 2 zero-ATK soldiers straight from the deck
-    // into empty Vanguarda slots, then shuffle.
-    if (card.name === 'Chamado às Armas') {
-      const candidates = playerDeckPoolRef.current.filter(c => SOLDIER_TYPES.includes(c.cardType as CardType) && c.atk === 0);
-      const emptyVanguarda = [0, 1, 2, 3, 4].filter(i => !playerSlots[i]);
-      if (candidates.length === 0 || emptyVanguarda.length === 0) {
-        setSelectedCardIndex(null);
-        showToast(candidates.length === 0 ? 'Não há soldados de 0 ATK no deck.' : 'Não há slots livres na Vanguarda.');
-        return;
-      }
-      setPlayerMana(prev => prev - card.cost);
-      spawnFloatingNumberAtId('player-gold-badge', card.cost, 'gold-spend');
-      setHand(prev => prev.filter((_, i) => i !== selectedCardIndex));
-      playTacticSfx();
-      setSelectedCardIndex(null);
-      openCardPicker(
-        `Escolha até ${Math.min(2, emptyVanguarda.length)} soldado(s) de 0 ATK para invocar na Vanguarda`,
-        candidates,
-        Math.min(2, emptyVanguarda.length),
-        (picked) => {
-          setPlayerSlots(prev => {
-            const next = [...prev];
-            picked.forEach((chosen, i) => {
-              const slot = emptyVanguarda[i];
-              if (slot !== undefined) next[slot] = { ...chosen, id: `hand_${Date.now()}_${Math.random()}_${i}` };
-            });
-            return next;
-          });
-          deckQueueRef.current = [...playerDeckPoolRef.current].sort(() => Math.random() - 0.5);
-          setPlayerGraveyard(g => [...g, card]);
-          setCardPicker(null);
-          showToast(`${picked.length} soldado(s) invocado(s)! Deck embaralhado.`);
-        }
-      );
-      return;
-    }
-
-    // Emboscada cards have no placement behavior at all — they only resolve via the
-    // ambush interrupt when the OPPONENT attacks (see maybeActivatePlayerAmbush).
-    // Dropping one on the board like a creature would just waste it as an inert 0/0
-    // body forever, so keep it in hand instead.
-    if (card.cardType === 'Emboscada') {
-      setSelectedCardIndex(null);
-      showToast('Emboscadas ativam sozinhas quando você é atacado — mantenha na mão.');
-      return;
-    }
-    // Any other Tática reaching this point isn't handled by the immediate/targetable
-    // branches above, meaning it has no implemented effect yet (see the Deck Cardeal
-    // mechanics note above this component) — same reasoning as Emboscada.
-    if (card.cardType === 'Tática') {
-      setSelectedCardIndex(null);
-      showToast('Essa Tática ainda não pode ser jogada.');
-      return;
-    }
-
-    // Every branch above returns for its own specific card kind (immediate,
-    // targetable Tática, Emboscada, unimplemented Tática) — reaching here means
-    // `card` is a plain creature/Relíquia/Terreno ('place' kind, see
-    // getCardDropKind). Those are placed straight from handleSlotClick's own
-    // empty-slot branch the instant their destination is tapped, without ever
-    // routing through this function, so this is an unreachable safety fallback
-    // rather than a real code path.
-    setViewState('field');
+    setSelectedCardIndex(null);
+    playerAct({ type: 'play', cardId: card.id });
   };
 
   // True for the whole hand-off from "card selected" to "card landed on the board" — the
@@ -6375,8 +5354,9 @@ export default function App() {
   // (see getValidAttackTargets) — a plain per-render computation rather than a Hook
   // (this component conditionally returns early above for the main menu, so anything
   // declared here can't be a Hook call without breaking React's rules-of-hooks).
-  const validAttackTargets = selectedAttackerIndex !== null
-    ? getValidAttackTargets(selectedAttackerIndex, playerSlots, npcSlots)
+  const eng = engineRef.current;
+  const validAttackTargets = selectedAttackerIndex !== null && eng
+    ? getValidAttackTargets(selectedAttackerIndex, eng.players[0].board, eng.players[1].board)
     : new Set<number>();
 
   // Which slots (0-9) the currently-selected mover can reposition into this
@@ -6392,8 +5372,8 @@ export default function App() {
   // ("AVANÇAR: BATALHA") before settling back to "SEU TURNO" for the actual end-turn tap.
   // Combat is open from the 2nd turn of the match: always from round 2 on, and in round 1 only for the
   // player who goes second.
-  const combatOpenNow = turnNumber >= 2 || currentTurn !== firstSideRef.current;
-  const activePhases = phasesForTurn(combatOpenNow);
+  const combatOpenNow = eng ? engineCombatOpen(eng) : false;
+  const activePhases = eng ? engineActivePhases(eng) : phasesForTurn(false);
   const isLastPhaseOfTurn = activePhases[activePhases.length - 1] === turnPhase;
 
   // Cálice da Graça (Relíquia, the slot-10 special slot) used to grant a second use per
@@ -6411,7 +5391,7 @@ export default function App() {
   // unlimited stack this used to be before the ability had any cost at all.
   const playerGeneralAbilityAvailable =
     playerSlots[12]?.name === 'Cardeal Pedro, Voz da Fé' && !playerSlots[12]?.isDestroyed &&
-    currentTurn === 'player' && turnPhase === 'preparacao' &&
+    currentTurn === 'player' && turnPhase === 'preparacao' && !eng?.pending && !gameOverWinner &&
     playerGeneralAbilityUses < playerGeneralAbilityMaxUses &&
     playerMana >= 2 &&
     // Infiltrado da Ordem: blocked for exactly the one turn following the General
@@ -6425,7 +5405,7 @@ export default function App() {
   // per-card instead of only the General (see the Sparkles button rendered next
   // to each of these below, and activateComercianteDasCruzadas/activateHospitalario).
   const getPlayerCreatureAbilityKind = (slotIndex: number): 'comerciante' | 'hospitalario' | null => {
-    if (currentTurn !== 'player' || turnPhase !== 'preparacao') return null;
+    if (currentTurn !== 'player' || turnPhase !== 'preparacao' || eng?.pending || gameOverWinner) return null;
     const card = playerSlots[slotIndex];
     if (!card || card.isDestroyed || playerActivatedAbilityIds.has(card.id)) return null;
     if (card.name === 'Mercador da Cruzada') return 'comerciante';
@@ -6560,180 +5540,23 @@ export default function App() {
     );
   };
 
-  // Player is defending: pause and let them choose (or decline) — the actual prompt UI
-  // lives right on the eligible card(s) in the hand fan (see the "isAmbushCandidate"
-  // branch in the hand render below), not a separate modal, so the player keeps seeing
-  // their whole hand while deciding. This toast is just the "why did my hand just pop
-  // up" context, since that part has nowhere else to live.
-  const maybeActivatePlayerAmbush = (attacker: CardData, defender: CardData, attackerSlots: (CardData | null)[]): Promise<CardData | null> => {
-    // Infiltrado da Ordem: "Na Vanguarda: impede Emboscadas inimigas." The DEFENDER
-    // here is the player — this card has to be read on the ATTACKER's (the NPC's)
-    // side to matter, since it's the attacker's own Espião that "sees through"
-    // the defender's ambush. Easy to get backwards: it does NOT protect whoever
-    // it's standing in front of on defense, only whoever it's attacking WITH.
-    if (hasEspiaoInVanguarda(attackerSlots)) return Promise.resolve(null);
-    const options = handRef.current.filter(c => c.cardType === 'Emboscada');
-    if (options.length === 0) return Promise.resolve(null);
-    showToast(`${attacker.name} está atacando ${defender.name} — ativar Emboscada?`);
-    return new Promise(resolve => {
-      setAmbushPrompt({ defenderName: defender.name, attackerName: attacker.name, options, resolve });
-    });
+  // Plays the armed Tática on the tapped board slot. Nothing was spent while it was only armed, so a refused
+  // target (wrong type, out of reach…) just explains itself and lets the player tap another one.
+  const playPendingTactic = (slotIndex: number) => {
+    if (!pendingTacticAction) return;
+    if (!playerAct({ type: 'play', cardId: pendingTacticAction.card.id, target: slotIndex })) return;
+    setPendingTacticAction(null);
+    setViewState('hand');
   };
-
-  // AI is defending: no UI, just a simple heuristic — activate if the hit would
-  // otherwise destroy the unit. Always picks the first Emboscada card it's holding.
-  const maybeActivateNpcAmbush = async (attacker: CardData, defender: CardData, attackerSlots: (CardData | null)[]): Promise<CardData | null> => {
-    // Same rule as maybeActivatePlayerAmbush above, mirrored: the player is
-    // attacking here, so it's the PLAYER's own Infiltrado da Ordem (not the NPC's,
-    // even though the NPC is the one defending) that blocks the NPC's Emboscada.
-    if (hasEspiaoInVanguarda(attackerSlots)) return null;
-    const options = npcHandRef.current.filter(c => c.cardType === 'Emboscada');
-    if (options.length === 0) return null;
-    const wouldDie = defender.hp - attacker.atk <= 0;
-    if (!wouldDie) return null;
-    const chosen = options[0];
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setNpcHand(prev => prev.filter(c => c.id !== chosen.id));
-    setNpcGraveyard(g => [...g, chosen]);
-    showToast(`O oponente ativou uma Emboscada: ${chosen.name}!`);
-    playTacticSfx();
-    return chosen;
-  };
-
-  // Resolves Avanço Coordenado / Linha Fechada / Ordem de Retirada once the player
-  // clicks their target on their OWN board (see pendingTacticAction). Reposicionamento
-  // Rápido targets the enemy board instead — see resolveEnemyTacticTarget.
+  // Avanço Coordenado / Linha Fechada / Ordem de Retirada / the equips target the player's OWN board.
   const resolveOwnTacticTarget = (slotIndex: number) => {
-    if (!pendingTacticAction) return;
-    const { card, kind } = pendingTacticAction;
-    if (kind === 'reposicionamento_rapido' || kind === 'balesta' || kind === 'catapulta') return;
-    const target = playerSlots[slotIndex];
-
-    if (kind === 'avanco_coordenado') {
-      if (slotIndex > 9 || !target) { showToast('Escolha uma unidade sua no campo.'); return; }
-      if (!movedSlots.has(slotIndex)) { showToast('Essa unidade não se moveu neste turno.'); return; }
-      setPlayerSlots(prev => {
-        const next = [...prev];
-        next[slotIndex] = { ...next[slotIndex]!, atk: next[slotIndex]!.atk + 2 };
-        return next;
-      });
-      showToast(`${target.name} recebeu +2 ATK!`);
-    } else if (kind === 'linha_fechada') {
-      if (slotIndex > 9 || !target) { showToast('Escolha uma unidade sua no campo.'); return; }
-      setPlayerSlots(prev => {
-        const next = [...prev];
-        for (let j = 0; j <= 9; j++) {
-          if (areSlotsAdjacent(slotIndex, j) && next[j]) {
-            next[j] = { ...next[j]!, dmgReduction: (next[j]!.dmgReduction ?? 0) + 1 };
-          }
-        }
-        return next;
-      });
-      showToast('Linha Fechada: aliados adjacentes recebem menos dano!');
-    } else if (kind === 'ordem_retirada') {
-      if (!isFrontline(slotIndex) || !target) { showToast('Escolha uma unidade sua na Vanguarda.'); return; }
-      const backIndex = slotIndex + 5;
-      if (playerSlots[backIndex]) { showToast('A Retaguarda dessa coluna já está ocupada.'); return; }
-      setPlayerSlots(prev => {
-        const next = [...prev];
-        next[backIndex] = { ...next[slotIndex]!, hp: next[slotIndex]!.hp + 2 };
-        next[slotIndex] = null;
-        return next;
-      });
-      showToast(`${target.name} recuou para a Retaguarda e recuperou 2 HP!`);
-    } else if (kind === 'equip_armadura' || kind === 'equip_corcelete' || kind === 'equip_flecha' || kind === 'equip_espada') {
-      // Deck Cardeal's 4 "Armamento" Táticas — the one explicit exception to
-      // "Táticas are single-use and go straight to the graveyard": an equipped
-      // weapon stays in play, visually stacked behind the unit it's on (see
-      // CardSlot), until that unit dies (see graveyardWithEquipment).
-      const allowedTypes = EQUIP_ALLOWED_TYPES[kind];
-      if (slotIndex > 9 || !target || !target.cardType || !allowedTypes.includes(target.cardType)) {
-        showToast(`Escolha uma unidade do tipo certo: ${allowedTypes.join(' ou ')}.`);
-        return;
-      }
-      const atkBonus = kind === 'equip_flecha' ? 1 : kind === 'equip_espada' ? 2 : 0;
-      const hpBonus = kind === 'equip_armadura' ? 2 : kind === 'equip_corcelete' ? 1 : 0;
-      setPlayerSlots(prev => {
-        const next = [...prev];
-        const equipped = next[slotIndex]!;
-        next[slotIndex] = {
-          ...equipped,
-          atk: equipped.atk + atkBonus,
-          hp: equipped.hp + hpBonus,
-          equippedWeapons: [...(equipped.equippedWeapons ?? []), card],
-        };
-        return next;
-      });
-      showToast(`${target.name} equipado: ${card.name}!`);
-      setPendingTacticAction(null);
-      setViewState('hand');
-      return;
-    }
-
-    setPlayerGraveyard(g => [...g, card]);
-    setPendingTacticAction(null);
-    setViewState('hand');
+    if (!pendingTacticAction || getCardDropKind(pendingTacticAction.card) === 'enemyTarget') return;
+    playPendingTactic(slotIndex);
   };
-
-  // Resolves Reposicionamento Rápido once the player clicks the enemy unit to
-  // displace — the only Deck Capitão Tática that targets the opponent's board.
+  // Reposicionamento Rápido / Balestra de Precisão / Catapulta de Guerra target the ENEMY board.
   const resolveEnemyTacticTarget = (slotIndex: number) => {
-    if (!pendingTacticAction) return;
-    const { card, kind } = pendingTacticAction;
-    if (kind !== 'reposicionamento_rapido' && kind !== 'balesta' && kind !== 'catapulta') return;
-
-    if (kind === 'reposicionamento_rapido') {
-      if (slotIndex > 9 || !npcSlots[slotIndex]) { showToast('Escolha uma unidade inimiga no campo.'); return; }
-      const emptyAdjacent = [slotIndex - 1, slotIndex + 1, slotIndex - 5, slotIndex + 5]
-        .filter(j => areSlotsAdjacent(slotIndex, j) && !npcSlots[j]);
-      if (emptyAdjacent.length > 0) {
-        const dest = emptyAdjacent[Math.floor(Math.random() * emptyAdjacent.length)];
-        setNpcSlots(prev => {
-          const next = [...prev];
-          next[dest] = next[slotIndex];
-          next[slotIndex] = null;
-          return next;
-        });
-        showToast('Reposicionamento Rápido: unidade inimiga deslocada!');
-      } else {
-        showToast('Não havia slot livre adjacente para deslocar a unidade.');
-      }
-    } else if (kind === 'balesta') {
-      if (slotIndex > 9 || !npcSlots[slotIndex]) { showToast('Escolha uma unidade inimiga no campo.'); return; }
-      const result = applyDamageToSlot(npcSlots, slotIndex, 3);
-      setNpcSlots(result.slots);
-      if (result.destroyed) {
-        setNpcGraveyard(g => [...g, ...withEquippedWeapons([result.destroyed!])]);
-        drawForAtiradorInfluente([result.destroyed], false);
-        if (result.destroyed.cardType === 'General') setGameOverWinner('player');
-      }
-      showToast('Balestra de Precisão: 3 de dano causado!');
-    } else if (kind === 'catapulta') {
-      if (slotIndex > 9) { showToast('Escolha uma fileira inimiga (Vanguarda ou Retaguarda).'); return; }
-      const row = getMoveRow(slotIndex) === 0 ? [0, 1, 2, 3, 4] : [5, 6, 7, 8, 9];
-      let nextNpcSlots = [...npcSlots];
-      const destroyed: CardData[] = [];
-      let npcGeneralFell = false;
-      row.forEach(i => {
-        const result = applyDamageToSlot(nextNpcSlots, i, 2);
-        nextNpcSlots = result.slots;
-        if (result.destroyed) {
-          destroyed.push(result.destroyed);
-          if (result.destroyed.cardType === 'General') npcGeneralFell = true;
-        }
-      });
-      setNpcSlots(nextNpcSlots);
-      if (destroyed.length) {
-        setNpcGraveyard(g => [...g, ...withEquippedWeapons(destroyed)]);
-        drawForAtiradorInfluente(destroyed, false);
-      }
-      if (npcGeneralFell) setGameOverWinner('player');
-      showToast('Catapulta de Guerra: 2 de dano em toda a fileira!');
-    }
-
-    setPlayerGraveyard(g => [...g, card]);
-    setPendingTacticAction(null);
-    setViewState('hand');
+    if (!pendingTacticAction || getCardDropKind(pendingTacticAction.card) !== 'enemyTarget') return;
+    playPendingTactic(slotIndex);
   };
 
   // Toggles one option in/out of the current cardPicker selection — used by the
@@ -6749,85 +5572,48 @@ export default function App() {
     });
   };
 
-  // Commits to activating the General's ability with a chosen cost/amount (the first
-  // "Ativar habilidade?" step — see generalAbilityPrompt's modal below) and opens
-  // targeting for the actual ally to heal, same two-step shape as a targetable Tática.
-  const activateGeneralHeal = (amount: number, cost: number) => {
-    if (cost > 0) {
-      setPlayerMana(prev => prev - cost);
-      spawnFloatingNumberAtId('player-gold-badge', cost, 'gold-spend');
-    }
-    setPlayerGeneralAbilityUses(prev => prev + 1);
+  // Cardeal Pedro's ability: the "Ativar habilidade?" prompt commits to it, then the player taps the ally to
+  // heal. The 2 gold are only charged by the engine when the heal actually lands.
+  const activateGeneralHeal = (amount: number, _cost: number) => {
     setPendingGeneralHeal({ amount });
     setGeneralAbilityPrompt(null);
-    playTacticSfx();
     showToast('Escolha um soldado aliado para curar.');
   };
-
-  // Resolves the heal once the player clicks their chosen ally (see pendingGeneralHeal
-  // above and its dispatch at the top of handleSlotClick).
   const resolveGeneralHeal = (slotIndex: number) => {
     if (!pendingGeneralHeal) return;
-    const target = playerSlots[slotIndex];
-    // Any ally, damaged or not — see playerGeneralAbilityAvailable's own comment for
-    // why overhealing a full-HP unit (e.g. Recruta Devoto, for its "+1 ATK ao ser
-    // curado") is fine now that the ability always costs 2 gold to use at all.
-    if (slotIndex > 9 || !target) { showToast('Escolha um soldado aliado no campo.'); return; }
-    const amount = pendingGeneralHeal.amount;
-    setPlayerSlots(prev => {
-      const next = [...prev];
-      let healed = { ...next[slotIndex]!, hp: next[slotIndex]!.hp + amount };
-      // Recruta Devoto: "Ao ser curado: recebe +1 ATK permanente."
-      if (healed.name === 'Recruta Devoto') healed = { ...healed, atk: healed.atk + 1 };
-      next[slotIndex] = healed;
-      return next;
-    });
-    spawnFloatingNumberAtId(`player-${slotIndex}`, amount, 'heal');
-    showToast(`${target.name} recuperou ${amount} HP!`);
+    if (!playerAct({ type: 'ability', slot: 12, target: slotIndex })) return;
     setPendingGeneralHeal(null);
   };
 
-  // Mercador da Cruzada: "Uma vez por turno: veja as 2 cartas do topo do
-  // deck. Adicione 1 à mão e coloque a outra no fundo." Same reveal-then-choose
-  // shape as Recrutar Veteranos above (see openCardPicker there), just N=2/keep=1
-  // and triggered from the card's own on-board prompt instead of a hand Tática.
-  const activateComercianteDasCruzadas = (card: CardData) => {
-    playTacticSfx();
-    setPlayerActivatedAbilityIds(prev => new Set(prev).add(card.id));
-    if (deckQueueRef.current.length < 2) {
-      deckQueueRef.current = [...deckQueueRef.current, ...[...playerDeckPoolRef.current].sort(() => Math.random() - 0.5)];
-    }
-    const revealed = deckQueueRef.current.splice(0, 2);
-    openCardPicker('Mercador da Cruzada: veja as 2 cartas do topo — escolha 1 para a mão', revealed, 1, (picked) => {
-      const chosen = picked[0];
-      const other = revealed.find(c => c.id !== chosen.id);
-      if (other) deckQueueRef.current = [...deckQueueRef.current, other];
-      setHand(prev => [...prev, { ...chosen, id: `hand_${Date.now()}_${Math.random()}` }]);
-      setCardPicker(null);
-      showToast(`${chosen.name} adicionada à mão!`);
-    });
+  // Mercador da Cruzada: reveal the top 2, keep 1 — the engine opens the pick prompt.
+  const activateComercianteDasCruzadas = (slot: number) => {
+    playerAct({ type: 'ability', slot });
   };
 
-  // Cavaleiro Hospitalário: "Uma vez por turno: cure 1 HP de um aliado e cause 1 de dano a
-  // um inimigo na Vanguarda." Two independent halves, each with its own target
-  // (see pendingHospitalario/resolveHospitalarioHeal/resolveHospitalarioDamage) —
-  // starts on whichever half actually has a target so a fully-healthy board (or
-  // an empty enemy Vanguarda) never wastes the whole activation.
-  const activateHospitalario = (card: CardData) => {
-    playTacticSfx();
-    setPlayerActivatedAbilityIds(prev => new Set(prev).add(card.id));
-    const hasDamagedAlly = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => playerSlots[i] && !playerSlots[i]?.isDestroyed && isCardDamaged(playerSlots[i]!));
-    if (hasDamagedAlly) {
-      setPendingHospitalario({ step: 'heal' });
-      showToast('Cavaleiro Hospitalário: escolha um aliado ferido para curar 1 HP.');
+  // Cavaleiro Hospitalário: heal an injured ally and hit an enemy Vanguarda card — two taps, sent to the engine
+  // together. Starts on whichever half has a target so a healthy board (or an empty enemy Vanguarda) never wastes it.
+  const hospitalarioTargets = () => {
+    const eng = engineRef.current;
+    const me = eng?.players[0].board ?? [];
+    const foe = eng?.players[1].board ?? [];
+    return {
+      hasDamaged: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => me[i] && isCardDamaged(me[i]!)),
+      hasEnemyFront: [0, 1, 2, 3, 4].some(i => foe[i]),
+    };
+  };
+  const activateHospitalario = (slot: number) => {
+    const { hasDamaged, hasEnemyFront } = hospitalarioTargets();
+    if (!hasDamaged && !hasEnemyFront) {
+      showToast('Cavaleiro Hospitalário: nenhum alvo disponível.');
       return;
     }
-    const hasEnemyVanguarda = [0, 1, 2, 3, 4].some(i => npcSlots[i] && !npcSlots[i]?.isDestroyed);
-    if (hasEnemyVanguarda) {
-      setPendingHospitalario({ step: 'damage' });
-      showToast('Cavaleiro Hospitalário: escolha um inimigo na Vanguarda para causar 1 de dano.');
+    playTacticSfx();
+    if (hasDamaged) {
+      setPendingHospitalario({ step: 'heal', slot });
+      showToast('Cavaleiro Hospitalário: escolha um aliado ferido para curar 1 HP.');
     } else {
-      showToast('Cavaleiro Hospitalário: nenhum alvo disponível para nenhuma das duas metades.');
+      setPendingHospitalario({ step: 'damage', slot });
+      showToast('Cavaleiro Hospitalário: escolha um inimigo na Vanguarda para causar 1 de dano.');
     }
   };
 
@@ -6862,54 +5648,42 @@ export default function App() {
     const kind = getPlayerCreatureAbilityKind(i);
     if (!kind) return;
     pushAbilityPrompt(`ability-${i}`, `player-${i}`, () => {
-      if (kind === 'comerciante') activateComercianteDasCruzadas(playerSlots[i]!);
-      else activateHospitalario(playerSlots[i]!);
+      if (kind === 'comerciante') activateComercianteDasCruzadas(i);
+      else activateHospitalario(i);
     });
   });
   if (playerGeneralAbilityAvailable) {
     pushAbilityPrompt('ability-general', 'player-12', () => setGeneralAbilityPrompt({ kind: 'cardeal_heal' }));
   }
 
-  // Resolves Cavaleiro Hospitalário's heal half once the player clicks their own board (see
-  // pendingHospitalario's dispatch at the top of handleSlotClick).
+  const commitHospitalario = (slot: number, target?: number, target2?: number) => {
+    if (!playerAct({ type: 'ability', slot, target, target2 })) return;
+    setPendingHospitalario(null);
+  };
+  // Heal half: the player tapped their own board.
   const resolveHospitalarioHeal = (slotIndex: number) => {
     if (!pendingHospitalario) return;
-    const target = playerSlots[slotIndex];
+    const target = engineRef.current?.players[0].board[slotIndex];
     if (slotIndex > 9 || !target || !isCardDamaged(target)) { showToast('Escolha um aliado ferido no campo.'); return; }
-    setPlayerSlots(prev => {
-      const next = [...prev];
-      let healed = { ...next[slotIndex]!, hp: next[slotIndex]!.hp + 1 };
-      // Recruta Devoto: "Ao ser curado: recebe +1 ATK permanente."
-      if (healed.name === 'Recruta Devoto') healed = { ...healed, atk: healed.atk + 1 };
-      next[slotIndex] = healed;
-      return next;
-    });
-    showToast(`${target.name} recuperou 1 HP!`);
-    const hasEnemyVanguarda = [0, 1, 2, 3, 4].some(i => npcSlots[i] && !npcSlots[i]?.isDestroyed);
-    if (hasEnemyVanguarda) {
-      setPendingHospitalario({ step: 'damage' });
+    if (hospitalarioTargets().hasEnemyFront) {
+      setPendingHospitalario({ step: 'damage', slot: pendingHospitalario.slot, healTarget: slotIndex });
       showToast('Cavaleiro Hospitalário: escolha um inimigo na Vanguarda para causar 1 de dano.');
     } else {
-      setPendingHospitalario(null);
+      commitHospitalario(pendingHospitalario.slot, slotIndex);
     }
   };
-
-  // Resolves Cavaleiro Hospitalário's damage half once the player clicks the enemy board
-  // (see pendingHospitalario's dispatch at the top of handleNpcSlotClick).
+  // Damage half: the player tapped the enemy board.
   const resolveHospitalarioDamage = (slotIndex: number) => {
     if (!pendingHospitalario) return;
-    if (!isFrontline(slotIndex) || !npcSlots[slotIndex] || npcSlots[slotIndex]?.isDestroyed) {
-      showToast('Escolha um inimigo na Vanguarda.');
-      return;
-    }
-    const result = applyDamageToSlot(npcSlots, slotIndex, 1);
-    setNpcSlots(result.slots);
-    if (result.destroyed) {
-      setNpcGraveyard(g => [...g, ...withEquippedWeapons([result.destroyed!])]);
-      drawForAtiradorInfluente([result.destroyed], false);
-    }
-    showToast('Cavaleiro Hospitalário causou 1 de dano!');
-    setPendingHospitalario(null);
+    if (!isFrontline(slotIndex) || !npcSlots[slotIndex]) { showToast('Escolha um inimigo na Vanguarda.'); return; }
+    commitHospitalario(pendingHospitalario.slot, pendingHospitalario.healTarget, slotIndex);
+  };
+
+  // Plays a hand card that needs a board target straight onto the tapped slot (one tap: select, then tap the target).
+  const playHandCardOnTarget = (card: CardData, slotIndex: number) => {
+    if (!playerAct({ type: 'play', cardId: card.id, target: slotIndex })) return;
+    setSelectedCardIndex(null);
+    setViewState('hand');
   };
 
   const handleSlotClick = (slotIndex: number, slotEl?: HTMLElement) => {
@@ -6920,14 +5694,11 @@ export default function App() {
     if (pendingGeneralHeal) { resolveGeneralHeal(slotIndex); return; }
     if (pendingHospitalario?.step === 'heal') { resolveHospitalarioHeal(slotIndex); return; }
 
-    // Batedor's free post-combat move (see batedorFreeMove) opens this same
-    // reposition flow even during Combate, but only for that one exact unit.
+    // Batedor's free post-combat move (see batedorFree) opens this same reposition flow even during Combate,
+    // but only for that one exact unit.
     const isBatedorFreeMove = batedorFreeMove !== null;
     if ((turnPhase === 'movimentacao' || isBatedorFreeMove) && selectedCardIndex === null) {
-      // Reposition — only while no hand card is mid-selection (if one is, a click on
-      // an empty slot means "play it here", handled below). Only Vanguarda/Retaguarda
-      // units reposition — General/Relíquia/Terreno (10-12) are fixed, same as
-      // everywhere else in this file.
+      // Only Vanguarda/Retaguarda units reposition — General/Relíquia/Terreno (10-12) are fixed.
       if (slotIndex > 9) {
         if (playerSlots[slotIndex]) showToast("Essa carta não pode ser reposicionada.");
         return;
@@ -6938,8 +5709,7 @@ export default function App() {
           showToast("Só dá pra mover o Batedor que acabou de atacar.");
           return;
         }
-        // Reformar Linhas' bonus moves (see bonusRepositions) let an already-moved
-        // unit be picked back up anyway.
+        // Reformar Linhas' bonus moves let an already-moved unit be picked back up anyway.
         if (!isBatedorFreeMove && movedSlots.has(slotIndex) && bonusRepositions <= 0) {
           showToast("Essa unidade já se reposicionou nesse turno.");
           return;
@@ -6949,75 +5719,51 @@ export default function App() {
       }
       if (selectedMoverIndex === slotIndex) { setSelectedMoverIndex(null); return; }
       if (!canReposition(playerSlots[selectedMoverIndex], selectedMoverIndex, slotIndex)) {
-        // Clicking a different one of your own (unmoved) units re-selects it instead
-        // of just failing — reads nicer than forcing a deselect first.
+        // Clicking a different one of your own (unmoved) units re-selects it instead of just failing.
         if (!isBatedorFreeMove && playerSlots[slotIndex] && !movedSlots.has(slotIndex)) { setSelectedMoverIndex(slotIndex); return; }
         showToast("Só dá pra reposicionar para um slot adjacente!");
         return;
       }
-      const wasAlreadyMoved = movedSlots.has(selectedMoverIndex);
       const mover = playerSlots[selectedMoverIndex];
       const occupant = playerSlots[slotIndex];
       const originIndex = selectedMoverIndex;
       const destIndex = slotIndex;
+      // Ask the rules first (nothing changes yet) so a refused move explains itself before anything slides.
+      const dry = applyAction(engineRef.current!, 0, { type: 'move', from: originIndex, to: destIndex });
+      if (dry.ok === false) { showToast(dry.error); return; }
       setSelectedMoverIndex(null);
 
-      // Slide both slots' real on-screen rects into a repositionFlight (see its own
-      // comment) instead of swapping the state right away — the actual slot swap
-      // (and Capitão de Formação's buff) only commits once that slide lands, in the
-      // flight overlay's own onAnimationComplete below.
+      // Slide both slots' real on-screen rects into a repositionFlight (see its own comment) instead of
+      // swapping right away — the engine commits the move once that slide lands.
       const originRect = document.getElementById(`player-${originIndex}`)?.getBoundingClientRect();
       const destRect = document.getElementById(`player-${destIndex}`)?.getBoundingClientRect();
       if (!mover || !originRect || !destRect) {
-        // Defensive fallback (should never happen — both slots are on-screen
-        // whenever they're clickable) so a reposition never silently gets stuck.
-        const newSlots = [...playerSlots];
-        newSlots[originIndex] = occupant ?? null;
-        newSlots[destIndex] = mover ?? null;
-        setPlayerSlots(applyFormationCaptainBuff(newSlots, destIndex));
-      } else {
-        playCardLiftSfx();
-        setRepositionFlight({
-          originIndex, destIndex, moverCard: mover, swappedCard: occupant ?? null,
-          isBatedorFreeMove, wasAlreadyMoved,
-          mover: {
-            fromX: originRect.left + originRect.width / 2, fromY: originRect.top + originRect.height / 2,
-            toX: destRect.left + destRect.width / 2, toY: destRect.top + destRect.height / 2,
-            w: originRect.width, h: originRect.height,
-          },
-          swapped: occupant ? {
-            fromX: destRect.left + destRect.width / 2, fromY: destRect.top + destRect.height / 2,
-            toX: originRect.left + originRect.width / 2, toY: originRect.top + originRect.height / 2,
-            w: destRect.width, h: destRect.height,
-          } : null,
-        });
+        // Defensive fallback (should never happen — both slots are on-screen whenever they're clickable).
+        dispatchAction(0, { type: 'move', from: originIndex, to: destIndex });
         return;
       }
-
-      if (isBatedorFreeMove) {
-        setBatedorFreeMove(null);
-        showToast("Batedor se reposicionou após o combate!");
-        return;
-      }
-      setMovedSlots(prev => {
-        const next = new Set(prev);
-        next.add(originIndex);
-        next.add(destIndex);
-        return next;
+      playCardLiftSfx();
+      setRepositionFlight({
+        originIndex, destIndex, moverCard: mover, swappedCard: occupant ?? null,
+        mover: {
+          fromX: originRect.left + originRect.width / 2, fromY: originRect.top + originRect.height / 2,
+          toX: destRect.left + destRect.width / 2, toY: destRect.top + destRect.height / 2,
+          w: originRect.width, h: originRect.height,
+        },
+        swapped: occupant ? {
+          fromX: destRect.left + destRect.width / 2, fromY: destRect.top + destRect.height / 2,
+          toX: originRect.left + originRect.width / 2, toY: originRect.top + originRect.height / 2,
+          w: destRect.width, h: destRect.height,
+        } : null,
       });
-      if (wasAlreadyMoved) setBonusRepositions(prev => Math.max(0, prev - 1));
       return;
     }
     if (selectedCardIndex !== null && !playerSlots[slotIndex]) {
       const cardToPlay = hand[selectedCardIndex];
 
-      // Only a plain creature/Relíquia/Terreno actually gets placed INTO a slot —
-      // a targetable Tática (ownTarget/enemyTarget) has its own occupied-slot
-      // target-tap branch further down, and an immediate/blocked card has no board
-      // destination at all (see handleCardClick's second-tap-plays behavior). An
-      // empty slot is never a valid tap target for those, so guide the player back
-      // to whichever gesture actually plays this specific card instead of trying
-      // to drop it onto the board like a creature body.
+      // Only a plain creature/Relíquia/Terreno actually gets placed INTO a slot — a targetable Tática has its own
+      // occupied-slot target-tap branch further down, and an immediate/blocked card has no board destination at
+      // all. Guide the player back to whichever gesture actually plays this specific card.
       const dropKind = getCardDropKind(cardToPlay);
       if (dropKind !== 'place') {
         if (dropKind === 'ownTarget' || dropKind === 'enemyTarget') {
@@ -7029,42 +5775,24 @@ export default function App() {
         return;
       }
 
-      // Slot 12 is the fixed General slot — never played from hand.
-      if (slotIndex === 12) {
-        showToast("O General não pode ser substituído!");
-        return;
-      }
-      // Slots 10/11 are the special slots beside the General — Relíquia/Terreno only.
-      if ((slotIndex === 10 || slotIndex === 11) && cardToPlay.cardType !== 'Relíquia' && cardToPlay.cardType !== 'Terreno') {
-        showToast("Esse slot é só para Relíquia ou Terreno!");
-        return;
-      }
-      if (slotIndex <= 9 && (cardToPlay.cardType === 'Relíquia' || cardToPlay.cardType === 'Terreno')) {
-        showToast("Relíquia/Terreno só pode ir no slot especial ao lado do General!");
-        return;
-      }
-
-      if (playerMana < cardToPlay.cost) {
-        showToast("Ouro insuficiente!");
-        return;
-      }
-
-      setPlayerMana(prev => prev - cardToPlay.cost);
-      spawnFloatingNumberAtId('player-gold-badge', cardToPlay.cost, 'gold-spend');
+      // Ask the rules first (nothing changes yet): gold, slot rules and phase all explain themselves.
+      const dry = applyAction(engineRef.current!, 0, { type: 'play', cardId: cardToPlay.id, slot: slotIndex });
+      if (dry.ok === false) { showToast(dry.error); return; }
 
       const fromEl = handCardRefs.current[cardToPlay.id];
       const fromRect = fromEl?.getBoundingClientRect();
 
       if (fromRect && slotEl) {
-        // Let the camera zoom/pan toward the slot and settle first — only once it has
-        // stopped moving do we measure the slot's real on-screen position and start the
-        // card's flight, so the landing spot doesn't drift out from under it mid-flight.
-        // Crucially, the card stays selected and visible in its floating preview spot for
-        // this whole hold — we don't touch the hand yet, so it never disappears.
+        // The engine takes the card and the gold right away; the board and the hand on screen catch up as the
+        // card flies in (see the flyingCard overlay), so only the gold is shown now.
+        dispatchAction(0, { type: 'play', cardId: cardToPlay.id, slot: slotIndex }, { skip: { hand: true, boards: true } });
+        // Let the camera zoom/pan toward the slot and settle first — only once it has stopped moving do we
+        // measure the slot's real on-screen position and start the card's flight, so the landing spot doesn't
+        // drift out from under it mid-flight. The card stays selected and visible in its floating preview spot
+        // for this whole hold — we don't touch the hand yet, so it never disappears.
         setPreZoomSlot({ slotIndex });
         setTimeout(() => {
-          // Re-measure the card's own rect too, right before handing off to the flying
-          // overlay, in case anything shifted during the hold.
+          // Re-measure the card's own rect too, right before handing off to the flying overlay.
           const latestFromRect = fromEl.getBoundingClientRect();
           const toRect = slotEl.getBoundingClientRect();
           setPreZoomSlot(null);
@@ -7081,9 +5809,8 @@ export default function App() {
             toW: toRect.width,
             toH: toRect.height,
           });
-          // Only now remove the card from the hand and clear the selection — the flying
-          // overlay takes over in this exact same update, so there's no frame where the
-          // card isn't rendered anywhere.
+          // Only now remove the card from the hand and clear the selection — the flying overlay takes over in
+          // this exact same update, so there's no frame where the card isn't rendered anywhere.
           setHand(prevHand => {
             const idx = prevHand.findIndex(c => c.id === cardToPlay.id);
             if (idx === -1) return prevHand;
@@ -7096,34 +5823,23 @@ export default function App() {
         }, 520);
       } else {
         // Couldn't measure a position (shouldn't normally happen) — place instantly.
-        const newHand = [...hand];
-        newHand.splice(selectedCardIndex, 1);
-        setHand(newHand);
+        dispatchAction(0, { type: 'play', cardId: cardToPlay.id, slot: slotIndex });
         setSelectedCardIndex(null);
         setViewState('hand');
-        const newSlots = [...playerSlots];
-        newSlots[slotIndex] = cardToPlay;
-        setPlayerSlots(applyNobreReligiosoSummon(newSlots, slotIndex));
       }
     } else if (selectedCardIndex === null && playerSlots[slotIndex] && turnPhase === 'preparacao') {
-      // Nothing to do here in Preparação beyond the preview its own onInfoClick
-      // already opened — reposition happens in Movimentação, attacking in Combate.
+      // Nothing to do here in Preparação beyond the preview its own onInfoClick already opened — reposition
+      // happens in Movimentação, attacking in Combate.
       return;
     } else if (selectedCardIndex === null && playerSlots[slotIndex]) {
-      // Only turnPhase === 'combate' reaches here (movimentacao was caught by the
-      // very first branch above, preparacao by the one just above) — Combate never
-      // unlocks before turn 3 (see phasesForTurn), so there's nothing left to guard.
-      // Arqueiro da Ordem gets 2 attacks this turn; every other unit gets 1
-      // (see getMaxAttacksPerTurn/playerAttackCounts).
+      // Only turnPhase === 'combate' reaches here. Arqueiro da Ordem gets 2 attacks this turn; every other unit
+      // gets 1 (see getMaxAttacksPerTurn/playerAttackCounts).
       const usedAttacks = playerAttackCounts[slotIndex] ?? 0;
       if (usedAttacks >= getMaxAttacksPerTurn(playerSlots[slotIndex]!)) {
         showToast("Essa unidade já atacou neste turno.");
         return;
       }
-      // Infantaria posted in the Retaguarda has zero valid attack targets, always
-      // (see getValidAttackTargets' own identical check) — block the selection
-      // itself with a clear reason instead of letting the player select it and
-      // only discover why every enemy slot then reads as unreachable.
+      // Infantaria posted in the Retaguarda has zero valid attack targets, always.
       if (playerSlots[slotIndex]!.cardType === 'Infantaria' && isBackline(slotIndex)) {
         showToast("Infantaria na Retaguarda não pode atacar.");
         return;
@@ -7134,20 +5850,12 @@ export default function App() {
         setSelectedAttackerIndex(slotIndex);
       }
     } else if (selectedCardIndex !== null && playerSlots[slotIndex]) {
-      // An occupied own slot is exactly the target an 'ownTarget' Tática (an equip
-      // or a buff — see getCardDropKind/TARGETABLE_TACTICS) needs tapped to play:
-      // commit it now (spends the mana/removes it from hand and opens targeting —
-      // see handlePlayCardButtonClick) with this slot pre-stashed as the target, so
-      // the existing pendingTacticAction effect resolves it against this exact
-      // slot the moment that commit lands, in one tap instead of two.
+      // An occupied own slot is exactly the target an 'ownTarget' Tática (an equip or a buff) needs tapped to play.
       const cardToPlay = hand[selectedCardIndex];
       if (getCardDropKind(cardToPlay) === 'ownTarget') {
-        pendingDropTargetRef.current = { side: 'own', index: slotIndex };
-        handlePlayCardButtonClick();
+        playHandCardOnTarget(cardToPlay, slotIndex);
         return;
       }
-      // Any other kind of card selected but this slot is already occupied — used to
-      // be a silent no-op with no feedback at all.
       showToast("Esse slot já está ocupado!");
     }
   };
@@ -7158,19 +5866,12 @@ export default function App() {
     if (pendingTacticAction) { resolveEnemyTacticTarget(slotIndex); return; }
     if (pendingHospitalario?.step === 'damage') { resolveHospitalarioDamage(slotIndex); return; }
 
-    // A hand card is selected (not yet committed) and the player tapped the
-    // opponent's board — the only card kind that ever wants that is an
-    // 'enemyTarget' Tática (a damage/displace effect — see getCardDropKind), and
-    // only on an occupied enemy slot. Commit it now with this slot pre-stashed as
-    // the target (same one-tap bridge as the 'ownTarget' branch in handleSlotClick)
-    // — anything else here (an empty enemy slot, or any other card kind selected)
-    // just isn't a valid destination for whatever's selected, so say so instead of
-    // silently doing nothing.
+    // A hand card is selected (not yet committed) and the player tapped the opponent's board — the only card kind
+    // that ever wants that is an 'enemyTarget' Tática, and only on an occupied enemy slot.
     if (selectedCardIndex !== null) {
       const cardToPlay = hand[selectedCardIndex];
       if (getCardDropKind(cardToPlay) === 'enemyTarget' && npcSlots[slotIndex]) {
-        pendingDropTargetRef.current = { side: 'npc', index: slotIndex };
-        handlePlayCardButtonClick();
+        playHandCardOnTarget(cardToPlay, slotIndex);
       } else {
         showToast("Essa carta não pode ser jogada no campo do adversário.");
       }
@@ -7181,178 +5882,39 @@ export default function App() {
         showToast("Alvo fora de alcance — tem uma carta bloqueando o caminho!");
         return;
       }
+      const from = selectedAttackerIndex;
+      // Ask the rules first (nothing changes yet) — then play out the lunge and let the engine resolve the hit.
+      const dry = applyAction(engineRef.current!, 0, { type: 'attack', from, to: slotIndex });
+      if (dry.ok === false) { showToast(dry.error); return; }
       setIsAnimating(true);
-      setAttackAnim({ attackerIndex: selectedAttackerIndex, targetIndex: slotIndex, isPlayerAttacking: true });
-      
-      await new Promise(resolve => setTimeout(resolve, 300));
-
+      setAttackAnim({ attackerIndex: from, targetIndex: slotIndex, isPlayerAttacking: true });
+      await sleep(300);
       playAttackSfx();
       setIsImpacting(true);
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await sleep(200);
       setIsImpacting(false);
-      
-      const attacker = playerSlots[selectedAttackerIndex];
-      let defender = npcSlots[slotIndex];
-      let targetSlot = slotIndex;
-
-      if (attacker && defender) {
-        const ambushCard = await maybeActivateNpcAmbush(attacker, defender, playerSlots);
-        let attackerSlotsAfterAmbush: (CardData | null)[] = playerSlots;
-        let defenderSlotsAfterAmbush: (CardData | null)[] = npcSlots;
-        let cancelled = false;
-        if (ambushCard) {
-          const resolved = resolveAmbushEffect(ambushCard, playerSlots, selectedAttackerIndex, npcSlots, slotIndex);
-          attackerSlotsAfterAmbush = resolved.attackerSlots;
-          defenderSlotsAfterAmbush = resolved.defenderSlots;
-          targetSlot = resolved.defenderIndex;
-          defender = resolved.defender;
-          cancelled = resolved.cancelled;
-        }
-
-        const newPlayerSlots = [...attackerSlotsAfterAmbush];
-        const newNpcSlots = [...defenderSlotsAfterAmbush];
-
-        let hasDestroyed = false;
-        let npcGeneralFell = false;
-
-        if (!cancelled && defender) {
-          let attackerAtk = getEffectiveAtk(attacker, selectedAttackerIndex, newPlayerSlots, newNpcSlots);
-          // Fanático da Cruzada: "Ao atacar: se o General inimigo for de tipo oposto,
-          // ganha +2 ATK." The game has no real General-faction/type concept — with
-          // only 2 decks existing today, "tipo oposto" is simplified to "the enemy
-          // General isn't Cardeal Pedro, Voz da Fé" (this card only exists in Deck Cardeal, so
-          // its "opposite type" enemy is always Deck Capitão's General in practice).
-          // Revisit this exact check if a third deck/General is ever added.
-          if (attacker.name === 'Fanático da Cruzada' && newNpcSlots[12] && newNpcSlots[12]?.name !== 'Cardeal Pedro, Voz da Fé') attackerAtk += 2;
-          const defenderAtk = getEffectiveAtk(defender, targetSlot, newNpcSlots, newPlayerSlots);
-          const attackerReduction = getIncomingDamageReduction(selectedAttackerIndex, newPlayerSlots);
-          const defenderReduction = getIncomingDamageReduction(targetSlot, newNpcSlots);
-          const attackerHpBonus = (attacker.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(attacker, newPlayerSlots);
-          const defenderHpBonus = (defender.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(defender, newNpcSlots);
-          const damageToDefender = Math.max(0, attackerAtk - defenderReduction);
-          const damageToAttacker = Math.max(0, defenderAtk - attackerReduction);
-
-          // Infiltrado da Ordem: "Se o General aliado receber dano, no próximo turno
-          // não poderá usar sua habilidade." Checked on the DEFENDER's (NPC's) own
-          // side, since it's their own General and their own Espião.
-          if (targetSlot === 12 && damageToDefender > 0 && hasEspiaoOnBoard(newNpcSlots)) {
-            setPendingNpcGeneralAbilityBlock(true);
-            showToast('Infiltrado da Ordem: a habilidade do General inimigo foi bloqueada no próximo turno dele!');
-          }
-
-          const updatedAttacker = {
-            ...attacker,
-            hp: attacker.hp + attackerHpBonus - damageToAttacker,
-            pendingCombatBonus: undefined,
-          };
-          const updatedDefender = {
-            ...defender,
-            hp: defender.hp + defenderHpBonus - damageToDefender,
-            pendingCombatBonus: undefined,
-          };
-
-          // Hearthstone-style floating combat numbers, fired right as both sides'
-          // new HP is decided so they land in sync with the impact flash above.
-          spawnFloatingNumberAtId(`player-${selectedAttackerIndex}`, damageToAttacker, 'damage');
-          spawnFloatingNumberAtId(`npc-${targetSlot}`, damageToDefender, 'damage');
-
-          if (updatedAttacker.hp <= 0) {
-            newPlayerSlots[selectedAttackerIndex] = { ...updatedAttacker, isDestroyed: true };
-            hasDestroyed = true;
-          } else {
-            newPlayerSlots[selectedAttackerIndex] = updatedAttacker;
-            // Batedor: "Move após combate" — a free reposition right after it lands
-            // an attack and survives, even though Batalha doesn't normally allow
-            // moving (see handleSlotClick's own isBatedorFreeMove bypass).
-            if (attacker.name === 'Batedor') setBatedorFreeMove(selectedAttackerIndex);
-          }
-
-          if (updatedDefender.hp <= 0) {
-            newNpcSlots[targetSlot] = { ...updatedDefender, isDestroyed: true };
-            hasDestroyed = true;
-            if (updatedDefender.cardType === 'General') npcGeneralFell = true;
-          } else {
-            newNpcSlots[targetSlot] = updatedDefender;
-          }
-
-          // Jorge, Lança Sagrada: "Ao atacar a Vanguarda: causa 2 de dano à unidade
-          // na Retaguarda da mesma coluna." A splash side-effect, independent of
-          // whether the main target survived.
-          const splashTarget = attacker.name === 'Jorge, Lança Sagrada' && isFrontline(targetSlot) ? newNpcSlots[targetSlot + 5] : null;
-          if (splashTarget) {
-            const splashHp = splashTarget.hp - 2;
-            spawnFloatingNumberAtId(`npc-${targetSlot + 5}`, 2, 'damage');
-            if (splashHp <= 0) {
-              newNpcSlots[targetSlot + 5] = null;
-              setNpcGraveyard(g => [...g, ...withEquippedWeapons([{ ...splashTarget, hp: splashHp, isDestroyed: true }])]);
-              drawForAtiradorInfluente([splashTarget], false);
-              hasDestroyed = true;
-              if (splashTarget.cardType === 'General') npcGeneralFell = true;
-            } else {
-              newNpcSlots[targetSlot + 5] = { ...splashTarget, hp: splashHp };
-            }
-          }
-        }
-
-        setPlayerSlots(newPlayerSlots);
-        setNpcSlots(newNpcSlots);
-        // Arqueiro da Ordem / getMaxAttacksPerTurn — recorded even if the
-        // attacker didn't survive or the attack was ambush-cancelled; either way
-        // it "attacked" this turn and the slot is either gone or spent.
-        setPlayerAttackCounts(prev => ({ ...prev, [selectedAttackerIndex]: (prev[selectedAttackerIndex] ?? 0) + 1 }));
-        setSelectedAttackerIndex(null);
-        setAttackAnim(null);
-
-        if (npcGeneralFell) {
-          setGameOverWinner('player');
-          setIsAnimating(false);
-          return;
-        }
-
-        if (hasDestroyed) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          const destroyedPlayerCards = newPlayerSlots.filter((c): c is CardData => !!c?.isDestroyed);
-          const destroyedNpcCards = newNpcSlots.filter((c): c is CardData => !!c?.isDestroyed);
-          if (destroyedPlayerCards.length) {
-            setPlayerGraveyard(g => [...g, ...withEquippedWeapons(destroyedPlayerCards)]);
-            drawForAtiradorInfluente(destroyedPlayerCards, true);
-          }
-          if (destroyedNpcCards.length) {
-            setNpcGraveyard(g => [...g, ...withEquippedWeapons(destroyedNpcCards)]);
-            drawForAtiradorInfluente(destroyedNpcCards, false);
-          }
-          setPlayerSlots(prev => prev.map(c => c?.isDestroyed ? null : c));
-          setNpcSlots(prev => prev.map(c => c?.isDestroyed ? null : c));
-        }
-      }
+      const r = dispatchAction(0, { type: 'attack', from, to: slotIndex });
+      if (r.ok === false) showToast(r.error);
+      else await settleAmbush();
+      setSelectedAttackerIndex(null);
+      setAttackAnim(null);
       setIsAnimating(false);
     }
   };
 
   const handleBackgroundClick = () => {
     if (isCardInFlightTransition) return; // don't cancel a card mid hand-off to the board
+    // Nothing is spent until a target is actually chosen, so backing out of any target-picking mode is free.
     if (pendingTacticAction) {
-      // The card's mana/hand cost is already spent (see handlePlayCardButtonClick) —
-      // tapping away without picking a target just fizzles it into the graveyard
-      // instead of leaving the player stuck if they change their mind or have no
-      // valid target.
-      setPlayerGraveyard(g => [...g, pendingTacticAction.card]);
       setPendingTacticAction(null);
       setViewState('hand');
       return;
     }
     if (pendingGeneralHeal) {
-      // Same reasoning as pendingTacticAction above: the activation (and any gold
-      // cost) is already committed, so backing out here just wastes it rather than
-      // refunding — otherwise there'd be no real cost to peeking at the board first.
-      showToast('Habilidade desperdiçada — nenhum alvo escolhido.');
       setPendingGeneralHeal(null);
       return;
     }
     if (pendingHospitalario) {
-      // Same reasoning again — the card is already marked used (see
-      // activateHospitalario) whether or not either half actually lands.
-      showToast('Cavaleiro Hospitalário desperdiçado — nenhum alvo escolhido.');
       setPendingHospitalario(null);
       return;
     }
@@ -7966,23 +6528,10 @@ export default function App() {
             setSelectedCardIndex(null);
             setSelectedAttackerIndex(null);
             setSelectedMoverIndex(null);
-            if (isLastPhaseOfTurn) {
-              // Movimentação (always the last phase — see phasesForTurn) is ending —
-              // this is "Após Remanejamento" for Comandante Aurelion (see
-              // grantAurelionBuff) and Soldado Tático's end-of-turn swap, both of
-              // which read this turn's movedSlots, so they fire here rather than
-              // when Preparação used to end, back when it was the phase movement
-              // itself happened in.
-              setPlayerSlots(prev => applyEndOfTurnSwaps(grantAurelionBuff(prev, movedSlots)));
-              announceTurnChange('npc');
-              if (firstSideRef.current === 'npc') setTurnNumber(prev => prev + 1);
-              setCurrentTurn('npc');
-            } else {
-              const idx = activePhases.indexOf(turnPhase);
-              const nextPhase = activePhases[idx + 1];
-              setTurnPhase(nextPhase);
-              announcePhase(nextPhase);
-            }
+            // Advancing ends the phase — and, from the last phase, the turn (Aurelion's bonus, the Soldado Tático swap,
+            // the opponent's turn starting) — all decided by the engine.
+            const r = dispatchAction(0, { type: 'advance' });
+            if (r.ok === false) showToast(r.error);
           }}
         >
           {/* A single rectangular button carrying its own text, replacing the old
@@ -8583,10 +7132,7 @@ export default function App() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setHand(prev => prev.filter(c => c.id !== card.id));
-                          setPlayerGraveyard(g => [...g, card]);
-                          showToast(`Emboscada ativada: ${card.name}!`);
-                          playTacticSfx();
+                          // The engine takes the card out of the hand and into the graveyard when it hears the answer.
                           ambushPrompt!.resolve(card);
                           setAmbushPrompt(null);
                         }}
@@ -8709,12 +7255,8 @@ export default function App() {
               }}
               transition={{ duration: 0.95, ease: ["easeOut", "linear", "easeIn"] }}
               onAnimationComplete={() => {
-                setPlayerSlots(prev => {
-                  const next = [...prev];
-                  next[flyingCard.slotIndex] = flyingCard.card;
-                  // Nobre da Cruzada: "Ao entrar em campo: invoca Soldados Leais..."
-                  return applyNobreReligiosoSummon(next, flyingCard.slotIndex);
-                });
+                // The engine already holds the card (and any tokens it summoned): show the board as it is now.
+                if (engineRef.current) syncView(engineRef.current);
                 playCardPlaySfx();
                 // Impact burst + brief camera shake right as the card lands. A full-art
                 // card (see CardData.isFullArt) gets the bigger version of both, plus
@@ -8776,26 +7318,9 @@ export default function App() {
               // Only the mover's own leg commits the actual slot swap — attaching this
               // to both legs of a swap would just run the same commit twice.
               onAnimationComplete={isPrimary ? () => {
-                setPlayerSlots(prev => {
-                  const next = [...prev];
-                  next[repositionFlight.originIndex] = repositionFlight.swappedCard;
-                  next[repositionFlight.destIndex] = repositionFlight.moverCard;
-                  // Capitão de Formação: "Ao mover: adjacentes +1 ATK" (this-turn-only,
-                  // see applyFormationCaptainBuff's own comment).
-                  return applyFormationCaptainBuff(next, repositionFlight.destIndex);
-                });
-                if (repositionFlight.isBatedorFreeMove) {
-                  setBatedorFreeMove(null);
-                  showToast("Batedor se reposicionou após o combate!");
-                } else {
-                  setMovedSlots(prev => {
-                    const next = new Set(prev);
-                    next.add(repositionFlight.originIndex);
-                    next.add(repositionFlight.destIndex);
-                    return next;
-                  });
-                  if (repositionFlight.wasAlreadyMoved) setBonusRepositions(prev => Math.max(0, prev - 1));
-                }
+                // The slide landed: the engine commits the move (swap, Capitão de Formação's buff, once-per-turn
+                // bookkeeping, Batedor's free move) and the board shows the result.
+                dispatchAction(0, { type: 'move', from: repositionFlight.originIndex, to: repositionFlight.destIndex });
                 setRepositionFlight(null);
               } : undefined}
               style={{ position: 'fixed', zIndex: 480, filter: CARD_THICKNESS_SHADOW }}
@@ -9114,7 +7639,7 @@ export default function App() {
                 }
                 transition={panelTransition}
               >
-                {portraitFrame(generalPlayerRef.current)}
+                {portraitFrame(cardDataFromName(matchSelectionRef.current.general, 'intro-player'))}
               </motion.div>
               {/* NPC's General — slides in from the right, mirrored */}
               <motion.div
@@ -9128,7 +7653,7 @@ export default function App() {
                 }
                 transition={panelTransition}
               >
-                {portraitFrame(generalNpcRef.current)}
+                {portraitFrame(DECKS[matchSelectionRef.current.npcDeckId].general)}
               </motion.div>
             </motion.div>
           );
