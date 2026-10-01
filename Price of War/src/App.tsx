@@ -76,7 +76,7 @@ import haloInvalidTargetImage from './assets/halo-invalid-target.png';
 import haloSelectionImage from './assets/halo-selection.png';
 import badgeSwordImage from './assets/badge-sword.png';
 import badgeShieldImage from './assets/badge-shield.png';
-import abilityReadyBorderImage from './assets/border-ability-ready.png';
+import fxAbilityReadySheet from './assets/fx-ability-ready.webp';
 import multidaoDeFieisArt from './assets/card-multidao-de-fieis.webp';
 import comercianteDasCruzadasArt from './assets/card-comerciante-das-cruzadas.webp';
 import espiaoSabotadorArt from './assets/card-espiao-sabotador.webp';
@@ -642,27 +642,59 @@ const TargetingHud = ({ source, mode, kind, title, hint, windowH, promptButtons,
   );
 };
 
-// An ability that can be used right now: the card's glowing frame breathes and shimmers, with a few embers drifting up.
-const AbilityReadyGlow = ({ x, y, w, h, onClick }: { x: number; y: number; w: number; h: number; onClick: () => void; key?: React.Key }) => (
-  <div className="fixed pointer-events-none" style={{ left: x - w * 0.62, top: y - h * 0.62, width: w * 1.24, height: h * 1.24 }}>
-    <motion.button
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
-      className="pointer-events-auto absolute inset-0"
-      animate={{ scale: [1, 1.07, 1], filter: ['drop-shadow(0 0 6px rgba(251,191,36,0.7))', 'drop-shadow(0 0 20px rgba(251,191,36,1))', 'drop-shadow(0 0 6px rgba(251,191,36,0.7))'] }}
-      transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
-      style={{ backgroundImage: `url(${abilityReadyBorderImage})`, backgroundSize: '100% 100%' }}
-    />
-    {[0, 1, 2, 3, 4].map(i => (
-      <motion.span
-        key={i}
-        className="absolute rounded-full"
-        style={{ left: `${18 + i * 16}%`, bottom: '14%', width: 4, height: 4, background: '#fde68a', boxShadow: '0 0 6px 1px #fbbf24' }}
-        animate={{ y: [0, -h * 0.55], opacity: [0, 1, 0] }}
-        transition={{ duration: 1.5 + (i % 2) * 0.4, repeat: Infinity, delay: i * 0.3, ease: 'easeOut' }}
+// An ability that can be used right now: light flows round the card's edge, comets circle it, wisps rise along the sides
+// and a soft sheen glides over it (tools/vfx/ability_ready.py). One gold sheet; the colour of the effect is a hue turn:
+// heal green, damage red, anything else stays gold. Same frame geometry as the punch sheet (card + 50 px each side).
+const READY_FRAMES = 36, READY_COLS = 6, READY_ROWS = 6, READY_FPS = 20;
+const READY_HUE: Record<'heal' | 'damage' | 'utility', number> = { heal: 85, damage: -38, utility: 0 };
+if (typeof Image !== 'undefined') { const warm = new Image(); warm.src = fxAbilityReadySheet; }
+const AbilityReadyGlow = ({ x, y, w, h, onClick, kind = 'utility' }: { x: number; y: number; w: number; h: number; onClick: () => void; kind?: 'heal' | 'damage' | 'utility'; key?: React.Key }) => {
+  const [frame, setFrame] = useState(0);
+  useEffect(() => {
+    let raf = 0;
+    const t0 = performance.now();
+    const loop = (now: number) => {
+      setFrame(Math.floor(((now - t0) / 1000) * READY_FPS) % READY_FRAMES);
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  const col = frame % READY_COLS, row = Math.floor(frame / READY_COLS);
+  const fw = w * PUNCH_FRAME_W, fh = h * PUNCH_FRAME_H;
+  return (
+    <div className="fixed pointer-events-none" style={{ left: x - fw / 2, top: y - fh / 2, width: fw, height: fh }}>
+      {/* the sheet is drawn for a 232 px card; on a phone it is about a quarter of that, so a blurred copy thickens it */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage: `url(${fxAbilityReadySheet})`, backgroundRepeat: 'no-repeat',
+          backgroundSize: `${READY_COLS * 100}% ${READY_ROWS * 100}%`,
+          backgroundPosition: `${(col / (READY_COLS - 1)) * 100}% ${(row / (READY_ROWS - 1)) * 100}%`,
+          filter: `${READY_HUE[kind] ? `hue-rotate(${READY_HUE[kind]}deg) saturate(1.15) ` : ''}blur(2.2px) brightness(1.5)`,
+          mixBlendMode: 'screen', opacity: 0.9,
+        }}
       />
-    ))}
-  </div>
-);
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage: `url(${fxAbilityReadySheet})`, backgroundRepeat: 'no-repeat',
+          backgroundSize: `${READY_COLS * 100}% ${READY_ROWS * 100}%`,
+          backgroundPosition: `${(col / (READY_COLS - 1)) * 100}% ${(row / (READY_ROWS - 1)) * 100}%`,
+          filter: READY_HUE[kind] ? `hue-rotate(${READY_HUE[kind]}deg) saturate(1.15)` : undefined,
+          mixBlendMode: 'screen',
+        }}
+      />
+      {/* the tappable area is the card itself */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onClick(); }}
+        className="pointer-events-auto absolute"
+        aria-label="Ativar efeito"
+        style={{ left: PUNCH_PAD_X / PUNCH_FRAME_W * 100 + '%', top: PUNCH_PAD_Y / PUNCH_FRAME_H * 100 + '%', width: 100 / PUNCH_FRAME_W + '%', height: 100 / PUNCH_FRAME_H + '%' }}
+      />
+    </div>
+  );
+};
 
 // The physical blow: a sprite sheet drawn over the card that was hit (impact star and speed lines, shock ring, dust,
 // flying chips, a flash, a bruise, cracks that glow and then go dark). Made by tools/vfx/punch_overlay.py. The card's own
@@ -6369,12 +6401,12 @@ export default function App() {
   // unclickable. getBoundingClientRect always reflects the real, current, post-transform
   // position, so this can ride along with a card-play zoom for its brief duration —
   // a working prompt on rare occasion sliding slightly beats a permanently broken one.
-  const abilityReadyPrompts: { key: string; x: number; y: number; w: number; h: number; onClick: () => void }[] = [];
-  const pushAbilityPrompt = (key: string, slotId: string, onClick: () => void) => {
+  const abilityReadyPrompts: { key: string; x: number; y: number; w: number; h: number; onClick: () => void; kind: 'heal' | 'damage' | 'utility' }[] = [];
+  const pushAbilityPrompt = (key: string, slotId: string, onClick: () => void, kind: 'heal' | 'damage' | 'utility' = 'utility') => {
     const el = document.getElementById(slotId);
     if (!el) return;
     const r = el.getBoundingClientRect();
-    abilityReadyPrompts.push({ key, x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, onClick });
+    abilityReadyPrompts.push({ key, x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, onClick, kind });
   };
   [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(i => {
     const kind = getPlayerCreatureAbilityKind(i);
@@ -6382,11 +6414,11 @@ export default function App() {
     pushAbilityPrompt(`ability-${i}`, `player-${i}`, () => {
       if (kind === 'comerciante') activateComercianteDasCruzadas(i);
       else activateHospitalario(i);
-    });
+    }, kind === 'hospitalario' ? 'heal' : 'utility');
   });
   if (playerGeneralAbilityAvailable) {
     // One tap: straight into picking the ally to heal (Cancelar backs out) — no "ativar?" step in between.
-    pushAbilityPrompt('ability-general', 'player-12', () => activateGeneralHeal(playerSlots[10]?.name === 'Cálice da Graça' ? 2 : 1, 2));
+    pushAbilityPrompt('ability-general', 'player-12', () => activateGeneralHeal(playerSlots[10]?.name === 'Cálice da Graça' ? 2 : 1, 2), 'heal');
   }
 
   // What the player is being asked to target right now, if anything (see TargetingHud): the source card, what the
@@ -7941,7 +7973,7 @@ export default function App() {
       {abilityReadyPrompts.length > 0 && !targetingMode && (
         <div className="fixed inset-0 z-40 pointer-events-none">
           {abilityReadyPrompts.map(p => (
-            <AbilityReadyGlow key={p.key} x={p.x} y={p.y} w={p.w} h={p.h} onClick={p.onClick} />
+            <AbilityReadyGlow key={p.key} x={p.x} y={p.y} w={p.w} h={p.h} onClick={p.onClick} kind={p.kind} />
           ))}
         </div>
       )}
