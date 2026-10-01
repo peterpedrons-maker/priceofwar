@@ -21,6 +21,20 @@ const PALETTE = {
   foe: { b1: '#f23a3a', b2: '#a50f19', glow: '#ff7a7a' },
 };
 
+// The plate has to fit the gap between the two Vanguarda rows (about 45 px on a 390-px-wide phone, growing and
+// shrinking with the width), so it is drawn at a fraction of its 250-px design size.
+const PLATE_W = 250, PLATE_H = 250 * 341 / 1400;
+const trackerScale = (vw: number) => 0.7 * Math.min(1.3, Math.max(0.9, vw / 390));
+const useTrackerScale = () => {
+  const [vw, setVw] = useState(() => (typeof window === 'undefined' ? 390 : window.innerWidth));
+  useEffect(() => {
+    const on = () => setVw(window.innerWidth);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  return trackerScale(vw);
+};
+
 type Props = {
   mine: boolean;
   // The phase shown as "now" (null on the adversary's turn before it is known).
@@ -36,6 +50,7 @@ type Props = {
 };
 
 export function TurnTracker({ mine, phase, locked, caption, name, tappable }: Props) {
+  const scale = useTrackerScale();
   const pal = PALETTE[mine ? 'me' : 'foe'];
   const shown = phase ?? 'preparacao';
   const nowIndex = TRACKER_PHASES.indexOf(shown);
@@ -66,10 +81,12 @@ export function TurnTracker({ mine, phase, locked, caption, name, tappable }: Pr
   const vars = {
     '--b1': base.b1, '--b2': base.b2, '--glow': pal.glow,
     '--bt': BAND_TOP, '--bb': BAND_BOTTOM, '--my': MEDALLION_Y,
+    '--fb': 1.08, transform: `scale(${scale})`,
     '--mband': `url(${trackerBand})`, '--mneu': `url(${trackerNeutral})`, '--mart': `url(${trackerArt})`,
   } as CSSProperties;
 
   return (
+    <div className="trk-box" style={{ width: PLATE_W * scale, height: PLATE_H * scale }}>
     <div className="trk" style={vars} onPointerDown={() => { if (tappable) setSweep(n => n + 1); }}>
       <div className="trk-layer trk-neutral" />
       <div className="trk-layer trk-band">
@@ -87,13 +104,14 @@ export function TurnTracker({ mine, phase, locked, caption, name, tappable }: Pr
       <div className="trk-diamond" />
       <div className="trk-lab" key={label + caption}>
         <em>{caption}</em>
-        <b className={label.length > 11 ? 'long' : ''}>{label}</b>
+        <b className={label.length > 10 ? 'long' : ''}>{label}</b>
         {tappable && <s>››</s>}
       </div>
       {TRACKER_PHASES.map((p, i) => {
         const state = locked.includes(p) ? 'lock' : !mine && phase === null ? 'future' : i < nowIndex ? 'done' : i === nowIndex ? 'now' : 'future';
         return <div key={p} className={`trk-m ${state}`} style={{ left: `${MEDALLION_X[i]}%` }} />;
       })}
+    </div>
     </div>
   );
 }
