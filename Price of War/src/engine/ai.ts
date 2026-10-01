@@ -295,7 +295,8 @@ export const aiNextAction = (state: GameState, seat: Seat, rand: Rand = Math.ran
     return { type: 'choose', cardIds: bestIds(pend.options, Math.max(pend.min, Math.min(pend.max, pend.options.length))) };
   }
 
-  if (t.phase === 'preparacao') {
+  if (t.phase === 'preparacao' || t.phase === 'pos_combate') {
+    const afterCombat = t.phase === 'pos_combate';
     // 1) Cardeal Pedro: pay 2 gold to heal the weakest ally (a deliberate trade-off, once per turn).
     const general = me.board[12];
     if (general?.name === 'Cardeal Pedro, Voz da Fé' && me.generalAbilityUses < 1 && !me.generalAbilityBlocked && me.gold >= 2) {
@@ -333,8 +334,8 @@ export const aiNextAction = (state: GameState, seat: Seat, rand: Rand = Math.ran
       if (card.cardType === 'Relíquia' && !me.board[10]) return { type: 'play', cardId: card.id, slot: 10 };
       if (card.cardType === 'Terreno' && !me.board[11]) return { type: 'play', cardId: card.id, slot: 11 };
     }
-    // 4) Creatures, in hand order, front rows first.
-    for (const card of me.hand) {
+    // 4) Creatures, in hand order, front rows first (not after combat: units cannot come out of the hand then).
+    for (const card of afterCombat ? [] : me.hand) {
       if (!isSoldier(card) || !afford(card)) continue;
       const empty = UNIT_SLOTS.filter(i => !me.board[i]);
       if (empty.length === 0) break;

@@ -14,7 +14,7 @@ import {
   EQUIP_ALLOWED_TYPES, SOLDIER_TYPES, TARGETABLE_TACTICS,
   adjacentSlots, areSlotsAdjacent, canPlaceInSlot, canReposition, getAuraCombatHpBonus, getCardDropKind,
   getEffectiveAtk, getIncomingDamageReduction, getMaxAttacksPerTurn, getMoveRow, getValidAttackTargets,
-  hasEspiaoInVanguarda, hasEspiaoOnBoard, isBackline, isCardDamaged, isFrontline, isUnitSlot, phasesForTurn,
+  hasEspiaoInVanguarda, hasEspiaoOnBoard, isBackline, isCardDamaged, isFrontline, isUnitSlot, restingPhasesForTurn, abilityPhases, POST_COMBAT_CARD_TYPES,
   withEquippedWeapons, type Board,
 } from './rules';
 import {
@@ -89,7 +89,7 @@ const log = (c: Ctx, seat: Seat, text: string, priv = false) => { c.ev.push(priv
 const P = (c: Ctx, seat: Seat) => c.s.players[seat];
 
 export const combatOpen = (s: GameState): boolean => s.turn.round >= 2 || s.turn.active !== s.turn.first;
-export const activePhases = (s: GameState): TurnPhase[] => phasesForTurn(combatOpen(s));
+export const activePhases = (s: GameState): TurnPhase[] => restingPhasesForTurn(combatOpen(s));
 
 // ── Small state helpers ─────────────────────────────────────────────────────
 const addGold = (c: Ctx, seat: Seat, delta: number, reason: 'turn' | 'spend' | 'gain') => {
@@ -196,16 +196,13 @@ const startTurn = (c: Ctx, seat: Seat) => {
   const t = c.s.turn;
   const p = P(c, seat);
   t.active = seat;
-  t.phase = 'preparacao';
+  t.phase = 'compra';
   t.moved = [];
   t.bonusRepositions = 0;
   t.batedorFree = null;
   t.attackCounts = {};
   t.activated = [];
   c.ev.push({ t: 'turn_start', seat, round: t.round });
-
-  // Gold is a growing, saved-up pile: nothing in round 1, then +5 every turn without a cap.
-  if (t.round >= GOLD_FROM_ROUND) addGold(c, seat, GOLD_PER_TURN, 'turn');
 
   // Capitão de Formação's buff only lasts until its owner's next turn begins.
   p.board.forEach((card, i) => { if (card?.formationBuffAtk) p.board[i] = { ...card, formationBuffAtk: 0 }; });
@@ -214,12 +211,33 @@ const startTurn = (c: Ctx, seat: Seat) => {
   p.generalAbilityBlocked = p.pendingGeneralBlock;
   p.pendingGeneralBlock = false;
 
-  // No cap on drawing: the hand limit is only enforced at the END of a turn (see advance).
-  drawCards(c, seat, 1, 'turn');
-  // Intendente do Exército: with fewer than 2 cards in hand, draw up to 2.
-  if (p.board.some((card, i) => i <= 9 && card?.name === 'Intendente do Exército') && p.hand.length < 2) {
-    drawCards(c, seat, 2 - p.hand.length, 'effect');
+  const skip = p.skip ?? {};
+  p.skip = undefined;
+
+  // Compra. No cap on drawing: the hand limit is only enforced at the END of a turn (see advance).
+  c.ev.push({ t: 'phase', seat, phase: 'compra' });
+  if (skip.compra) {
+    c.ev.push({ t: 'skip', seat, phase: 'compra' });
+    log(c, seat, 'A fase de Compra foi pulada!');
+  } else {
+    drawCards(c, seat, 1, 'turn');
+    // Intendente do Exército: with fewer than 2 cards in hand, draw up to 2.
+    if (p.board.some((card, i) => i <= 9 && card?.name === 'Intendente do Exército') && p.hand.length < 2) {
+      drawCards(c, seat, 2 - p.hand.length, 'effect');
+    }
   }
+
+  // Suprimentos. Gold is a growing, saved-up pile: nothing in round 1, then +5 every turn without a cap.
+  t.phase = 'suprimentos';
+  c.ev.push({ t: 'phase', seat, phase: 'suprimentos' });
+  if (skip.suprimentos) {
+    c.ev.push({ t: 'skip', seat, phase: 'suprimentos' });
+    log(c, seat, 'A fase de Suprimentos foi pulada!');
+  } else if (t.round >= GOLD_FROM_ROUND) {
+    addGold(c, seat, GOLD_PER_TURN, 'turn');
+  }
+
+  t.phase = 'preparacao';
   c.ev.push({ t: 'phase', seat, phase: 'preparacao' });
 };
 
@@ -278,10 +296,16 @@ const playCard = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'play' }>) => {
   const enemy = P(c, enemySeat);
   const card = p.hand.find(h => h.id === a.cardId);
   if (!card) return fail('Essa carta não está na sua mão.');
-  // Cards are played in Preparação — except Avanço Coordenado ("Após mover: +2 ATK"), which can only ever be
-  // used on a unit that already moved this turn, and moving happens in Movimentação.
-  const inMovement = c.s.turn.phase === 'movimentacao' && card.name === 'Avanço Coordenado';
-  if (c.s.turn.phase !== 'preparacao' && !inMovement) fail('Jogar cartas só na fase de Preparação!');
+  // Cards are played in Preparação. After combat only Táticas, Relíquias and Terrenos still come out of the hand.
+  // Avanço Coordenado ("Após mover: +2 ATK") can only ever be used on a unit that already moved this turn,
+  // and moving happens in Movimentação, so it is playable there too.
+  const phase = c.s.turn.phase;
+  const inMovement = phase === 'movimentacao' && card.name === 'Avanço Coordenado';
+  if (phase === 'pos_combate') {
+    if (!POST_COMBAT_CARD_TYPES.includes(card.cardType)) fail('Depois do combate só dá pra jogar Táticas, Relíquias e Terrenos!');
+  } else if (phase !== 'preparacao' && !inMovement) {
+    fail('Jogar cartas só nas fases de Preparação e Pós-combate!');
+  }
   if (p.gold < card.cost) fail('Ouro insuficiente!');
 
   // Spends the cost and takes the card out of the hand — only called once everything is validated.
@@ -473,11 +497,13 @@ const playCard = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'play' }>) => {
 // ── Abilities ───────────────────────────────────────────────────────────────
 const useAbility = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'ability' }>) => {
   assertCanAct(c, seat);
-  if (c.s.turn.phase !== 'preparacao') fail('Habilidades só na fase de Preparação.');
   const p = P(c, seat);
   const enemySeat = otherSeat(seat);
   const card = p.board[a.slot];
   if (!card) return fail('Não há carta nesse slot.');
+  if (!abilityPhases(card.name).includes(c.s.turn.phase)) {
+    fail(abilityPhases(card.name).includes('pos_combate') ? 'Essa habilidade só vale na Preparação e no Pós-combate.' : 'Habilidades só na fase de Preparação.');
+  }
   const usedUp = c.s.turn.activated.includes(card.id);
 
   if (a.slot === GENERAL_SLOT) {

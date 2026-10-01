@@ -472,16 +472,22 @@ const getRowRoleHint = (cardType: CardType | undefined, slotIndex: number): 'com
 // that size; this one only has to fit a narrow column, not share a row with the
 // gold badges and turn button.
 const PHASE_TAG_LABELS: Record<TurnPhase, string> = {
+  compra: 'Compra',
+  suprimentos: 'Supr.',
   preparacao: 'Prep.',
   combate: 'Combate',
+  pos_combate: 'Pós',
   movimentacao: 'Mov.',
 };
-const PHASE_TAG_ORDER: TurnPhase[] = ['preparacao', 'combate', 'movimentacao'];
+const PHASE_TAG_ORDER: TurnPhase[] = ['preparacao', 'combate', 'pos_combate', 'movimentacao'];
 // The ceremonial "FASE DE X" wording for the center-screen announcement banner
 // (see announcePhase) — this is now the ONLY place a phase's name is shown to the
 // player (the small always-on tracker chip was removed, see git history: too tiny
 // to read, and redundant now that every transition gets this banner).
 const PHASE_BANNER_TEXT: Record<TurnPhase, { title: string; subtitle: string }> = {
+  compra: { title: 'Fase de Compra', subtitle: 'Você compra uma carta' },
+  suprimentos: { title: 'Fase de Suprimentos', subtitle: 'Você recebe ouro' },
+  pos_combate: { title: 'Fase de Pós-combate', subtitle: 'Táticas, Relíquias e Terrenos' },
   preparacao: { title: 'Fase de Preparação', subtitle: 'Jogue cartas e ative habilidades' },
   combate: { title: 'Fase de Combate', subtitle: 'Ataque com suas unidades' },
   movimentacao: { title: 'Fase de Movimentação', subtitle: 'Reposicione suas unidades' },
@@ -492,7 +498,10 @@ const PHASE_BANNER_TEXT: Record<TurnPhase, { title: string; subtitle: string }> 
 // already know the phase names by heart, so this shrinks the FONT instead of
 // the words to make everything fit.
 const PHASE_SHORT_LABEL: Record<TurnPhase, string> = {
+  compra: 'Compra',
+  suprimentos: 'Suprimentos',
   preparacao: 'Preparação',
+  pos_combate: 'Pós-combate',
   combate: 'Combate',
   movimentacao: 'Movimentação',
 };
@@ -5741,11 +5750,20 @@ export default function App() {
       await sleep(PHASE_BANNER_DURATION_MS + 150);
       let combatAnnounced = false;
       let movementAnnounced = false;
+      let postCombatAnnounced = false;
       for (let guard = 0; guard < 300; guard++) {
         if (!engineRef.current || engineRef.current.winner !== null || engineRef.current.turn.active !== 1) break;
         const action = await nextOpponentAction();
         const s = engineRef.current;
         if (!action || !s || s.winner !== null) break;
+        if (s.turn.phase === 'pos_combate' && (action.type === 'play' || action.type === 'ability')) {
+          setNpcVisiblePhase('pos_combate');
+          if (!postCombatAnnounced) {
+            postCombatAnnounced = true;
+            showBanner('Fase de Pós-combate', 'O adversário joga Táticas, Relíquias e Terrenos');
+            await sleep(PHASE_BANNER_DURATION_MS + 150);
+          }
+        }
         if (action.type === 'play') {
           // Online the opponent's hand is hidden: the card they play is shown in the step itself.
           const shownPlay = onlineRef.current?.cursor?.events.find(e => e.t === 'play');
@@ -5954,8 +5972,13 @@ export default function App() {
     if (viewState === 'field') return; // hand cards are non-interactive once zoomed to the board
     if (phaseTransitionLock) return; // see announcePhase — a phase banner is still on screen
     // Avanço Coordenado is the one card played after moving, in Movimentação.
-    if (turnPhase !== 'preparacao' && !(turnPhase === 'movimentacao' && hand[index]?.name === 'Avanço Coordenado')) {
-      showToast("Jogar cartas só na fase de Preparação!");
+    if (turnPhase === 'pos_combate') {
+      if (!['Tática', 'Relíquia', 'Terreno'].includes(hand[index]?.cardType ?? '')) {
+        showToast('Depois do combate só dá pra jogar Táticas, Relíquias e Terrenos!');
+        return;
+      }
+    } else if (turnPhase !== 'preparacao' && !(turnPhase === 'movimentacao' && hand[index]?.name === 'Avanço Coordenado')) {
+      showToast("Jogar cartas só nas fases de Preparação e Pós-combate!");
       return;
     }
     if (selectedCardIndex === index) {
@@ -6069,7 +6092,7 @@ export default function App() {
   // unlimited stack this used to be before the ability had any cost at all.
   const playerGeneralAbilityAvailable =
     playerSlots[12]?.name === 'Cardeal Pedro, Voz da Fé' && !playerSlots[12]?.isDestroyed &&
-    currentTurn === 'player' && turnPhase === 'preparacao' && !eng?.pending && !gameOverWinner &&
+    currentTurn === 'player' && (turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !eng?.pending && !gameOverWinner &&
     playerGeneralAbilityUses < playerGeneralAbilityMaxUses &&
     playerMana >= 2 &&
     // Infiltrado da Ordem: blocked for exactly the one turn following the General
@@ -6083,10 +6106,10 @@ export default function App() {
   // per-card instead of only the General (see the Sparkles button rendered next
   // to each of these below, and activateComercianteDasCruzadas/activateHospitalario).
   const getPlayerCreatureAbilityKind = (slotIndex: number): 'comerciante' | 'hospitalario' | null => {
-    if (currentTurn !== 'player' || turnPhase !== 'preparacao' || eng?.pending || gameOverWinner) return null;
+    if (currentTurn !== 'player' || (turnPhase !== 'preparacao' && turnPhase !== 'pos_combate') || eng?.pending || gameOverWinner) return null;
     const card = playerSlots[slotIndex];
     if (!card || card.isDestroyed || playerActivatedAbilityIds.has(card.id)) return null;
-    if (card.name === 'Mercador da Cruzada') return 'comerciante';
+    if (card.name === 'Mercador da Cruzada') return turnPhase === 'preparacao' ? 'comerciante' : null;
     if (card.name === 'Cavaleiro Hospitalário') return 'hospitalario';
     return null;
   };
@@ -6558,7 +6581,7 @@ export default function App() {
         setSelectedCardIndex(null);
         setViewState('hand');
       }
-    } else if (selectedCardIndex === null && playerSlots[slotIndex] && turnPhase === 'preparacao') {
+    } else if (selectedCardIndex === null && playerSlots[slotIndex] && (turnPhase === 'preparacao' || turnPhase === 'pos_combate')) {
       // Nothing to do here in Preparação beyond the preview its own onInfoClick already opened — reposition
       // happens in Movimentação, attacking in Combate.
       return;
@@ -6995,7 +7018,7 @@ export default function App() {
               // on top of the board, hiding whatever that tap was actually doing.
               // Preparação keeps the preview (reading a card there is still the point
               // of tapping it — nothing else consumes that tap in that phase).
-              onInfoClick={turnPhase === 'preparacao' && !targetingMode ? setDetailedCard : undefined}
+              onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode ? setDetailedCard : undefined}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
@@ -7010,7 +7033,7 @@ export default function App() {
                 slotId="npc-12"
                 card={npcSlots[12]}
                 onClick={() => handleNpcSlotClick(12)}
-                onInfoClick={turnPhase === 'preparacao' && !targetingMode ? setDetailedCard : undefined}
+                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
@@ -7025,7 +7048,7 @@ export default function App() {
               slotId="npc-11"
               card={npcSlots[11]}
               onClick={() => handleNpcSlotClick(11)}
-              onInfoClick={turnPhase === 'preparacao' && !targetingMode ? setDetailedCard : undefined}
+              onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode ? setDetailedCard : undefined}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
@@ -7050,7 +7073,7 @@ export default function App() {
                 slotId={`npc-${i}`}
                 card={repositionFlight?.side === 'npc' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
-                onInfoClick={turnPhase === 'preparacao' && !targetingMode ? setDetailedCard : undefined}
+                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
@@ -7071,7 +7094,7 @@ export default function App() {
                 slotId={`npc-${i}`}
                 card={repositionFlight?.side === 'npc' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
-                onInfoClick={turnPhase === 'preparacao' && !targetingMode ? setDetailedCard : undefined}
+                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
@@ -7103,7 +7126,7 @@ export default function App() {
                 card={repositionFlight?.side === 'player' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : playerSlots[i]}
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
-                onInfoClick={turnPhase === 'preparacao' && !targetingMode ? setDetailedCard : undefined}
+                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
@@ -7131,7 +7154,7 @@ export default function App() {
                 card={repositionFlight?.side === 'player' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : playerSlots[i]}
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
-                onInfoClick={turnPhase === 'preparacao' && !targetingMode ? setDetailedCard : undefined}
+                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
@@ -7163,7 +7186,7 @@ export default function App() {
               card={playerSlots[10]}
               onClick={(el) => handleSlotClick(10, el)}
               isSelected={selectedAttackerIndex === 10}
-              onInfoClick={turnPhase === 'preparacao' && !targetingMode ? setDetailedCard : undefined}
+              onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode ? setDetailedCard : undefined}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
@@ -7178,7 +7201,7 @@ export default function App() {
                 card={playerSlots[12]}
                 onClick={(el) => handleSlotClick(12, el)}
                 isSelected={selectedAttackerIndex === 12}
-                onInfoClick={turnPhase === 'preparacao' && !targetingMode ? setDetailedCard : undefined}
+                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
@@ -7192,7 +7215,7 @@ export default function App() {
               card={playerSlots[11]}
               onClick={(el) => handleSlotClick(11, el)}
               isSelected={selectedAttackerIndex === 11}
-              onInfoClick={turnPhase === 'preparacao' && !targetingMode ? setDetailedCard : undefined}
+              onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode ? setDetailedCard : undefined}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}

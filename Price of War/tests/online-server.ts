@@ -282,7 +282,7 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     const afk = m2.state.turn.active as Seat;
     clock += 101000; await handleGame(db2, userOf(db2, afk === 0 ? 1 : 0), { op: 'tick', matchId: g.id }, cfg);
     // the AFK player's turn was passed; make them miss again
-    for (let i = 0; i < 4 && db2.matches[0].status === 'active'; i++) {
+    for (let i = 0; i < 80 && db2.matches[0].status === 'active'; i++) {
       const mv = (db2.matches[0].state.pending ? db2.matches[0].state.pending.seat : db2.matches[0].state.turn.active) as Seat;
       if (mv === afk) { clock += 101000; await handleGame(db2, userOf(db2, afk === 0 ? 1 : 0), { op: 'tick', matchId: g.id }, cfg); }
       else { const mm = db2.matches[0]; await handleGame(db2, userOf(db2, mv), { op: 'act', matchId: g.id, action: aiNextAction(mm.state, mv, () => 0.4) }, cfg); }

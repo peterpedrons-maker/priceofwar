@@ -10,7 +10,9 @@ export type CardType =
 export type Seat = 0 | 1;
 export const otherSeat = (s: Seat): Seat => (s === 0 ? 1 : 0);
 
-export type TurnPhase = 'preparacao' | 'combate' | 'movimentacao';
+// Turn flow: Compra and Suprimentos run by themselves at the start of the turn (cards can skip them);
+// the seat only ever rests in Preparação, Combate, Pós-combate and Movimentação.
+export type TurnPhase = 'compra' | 'suprimentos' | 'preparacao' | 'combate' | 'pos_combate' | 'movimentacao';
 
 // What the catalog stores for a card name (no artwork, no per-copy data).
 export interface CardDef {
@@ -67,6 +69,8 @@ export interface PlayerState {
   generalAbilityUses: number;
   generalAbilityBlocked: boolean;
   pendingGeneralBlock: boolean;
+  // Set by card effects: skips the automatic Compra / Suprimentos of this seat's next turn start.
+  skip?: { compra?: boolean; suprimentos?: boolean };
 }
 
 export interface TurnState {
@@ -157,6 +161,8 @@ export type Action =
 export type GameEvent =
   | { t: 'turn_start'; seat: Seat; round: number }
   | { t: 'phase'; seat: Seat; phase: TurnPhase }
+  // An automatic phase (Compra / Suprimentos) was skipped by a card effect.
+  | { t: 'skip'; seat: Seat; phase: TurnPhase }
   | { t: 'gold'; seat: Seat; delta: number; reason: 'turn' | 'spend' | 'gain' }
   | { t: 'draw'; seat: Seat; card: Card; reason: 'turn' | 'effect' | 'deal' }
   | { t: 'play'; seat: Seat; card: Card; slot?: number }
