@@ -1276,6 +1276,29 @@ Wide 4:1 aspect ratio, exactly 1024x256 pixels. The edge of the attached gold co
 
 ---
 
+## 4w. Painel das fases do turno — moldura + ícones juntos (pendente)
+
+**Status:** pendente (prompt entregue ao usuário para gerar). Substitui o botão do centro do tabuleiro (`button-frame.webp` + `button-plaque.webp`),
+que não encaixava. No jogo esse painel mede só uns **200 x 45 px** entre as duas moedas de ouro, então a arte precisa ser simples e legível
+pequena (ícones legíveis a 24 px). O texto (nome da fase e verbo: "Finalizar", "Encerrar turno") é escrito por código na faixa de cima; o brilho
+colorido da fase atual, o visto das fases já feitas e o cadeado das fases fechadas também são por código, em cima de cada medalhão.
+Ordem dos ícones: Compra, Suprimentos, Preparação, Combate, Pós-combate, Movimentação. Ao integrar: recortar o cinza com transparência gradual (como 4r),
+medir o centro dos seis medalhões na arte pronta e usar essas posições para os brilhos.
+
+<details>
+<summary>Prompt</summary>
+
+**Painel de fases (4,4:1)** → `ui-turn-tracker.webp`
+```
+Top-down-neutral game UI illustration of a single wide, elegant gold-line turn-tracker plate for a medieval-fantasy mobile card game, on a wide 4.4:1 canvas (1760x400) on a flat solid mid-gray background (RGB 125,125,125), perfectly symmetrical left to right and centered with about 3% of empty margin on every side. Same fine polished-gold line style as this game's thin menu frames: one crisp gold line about 1.5% of the image height thick with a second, finer darker-gold hairline just inside it, no thick bronze bands, no rope, no heavy texture; tiny curled leaf flourishes only at the four outer corners and one small pointed diamond notch at the middle of the top edge. The plate has two parts separated by one thin gold line. (1) The upper 58%: a long label band with softly chamfered ends, whose inside is a flat solid mid-gray (RGB 125,125,125), completely empty, because the phase name is written there in code. (2) The lower 42%: a stepper row of exactly six identical round medallions, evenly spaced across the full width on one horizontal line and joined by a single thin gold line running through their centers. Each medallion is a thin gold ring (diameter about 36% of the image height) with a second fine inner hairline, and inside each sits a dark near-black warm-brown disc (RGB 24,17,11) carrying one bold, simple gold-line icon, centered and readable even at 24 px wide. From left to right the six icons are: (1) a single upright playing card with a tiny curled corner, (2) a gold coin with a small crown stamped on it, (3) a heater shield with a small plus-shaped cross emblem, (4) two crossed swords, (5) a lightning bolt over a small unrolled scroll, (6) two curved arrows swapping places, one pointing right above and one pointing left below. All six icons use exactly the same line weight, the same gold and the same simple style, with no other color and no glow. No text, no letters, no numbers, no gems, no extra symbols, no shadow, no perspective, flat straight-on front view. Crisp clean edges, subtle warm highlight on the gold only, painterly medieval-fantasy game UI style (Gwent / Hearthstone menu quality), no watermark, wide landscape orientation, 4.4:1 (1760x400)
+```
+
+**Se a IA bagunçar o conjunto**, gerar em duas peças: a moldura sem os ícones (mesmo prompt, trocando "carrying one bold, simple gold-line icon" por "left empty") e os seis ícones numa fileira, cada um num disco escuro, 6:1.
+
+</details>
+
+---
+
 ## 3. Moldura Full Art (dourada) — referência de layout
 
 **Arquivo:** [`reference/full-art-frame-gold-v1.png`](./reference/full-art-frame-gold-v1.png)
