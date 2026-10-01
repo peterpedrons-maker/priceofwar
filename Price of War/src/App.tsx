@@ -658,7 +658,7 @@ const TargetingHud = ({ source, mode, kind, title, hint, windowH, promptButtons,
 // included, never a rounded rectangle), placed with the same box the board draws that card's frame in.
 // Colour by effect: heal green, damage red, anything else gold.
 const READY_COLORS: Record<'heal' | 'damage' | 'utility', { c1: string; c2: string }> = {
-  heal: { c1: '#2fe08a', c2: '#d9ffe9' },
+  heal: { c1: '#86efbd', c2: '#f0fff7' },
   damage: { c1: '#ff4b3a', c2: '#ffdcd3' },
   utility: { c1: '#ffbf3c', c2: '#fff4c4' },
 };
