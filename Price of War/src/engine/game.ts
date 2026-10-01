@@ -14,7 +14,7 @@ import {
   EQUIP_ALLOWED_TYPES, SOLDIER_TYPES, TARGETABLE_TACTICS,
   adjacentSlots, areSlotsAdjacent, canPlaceInSlot, canReposition, getAuraCombatHpBonus, getCardDropKind,
   getEffectiveAtk, getIncomingDamageReduction, getMaxAttacksPerTurn, getMoveRow, getValidAttackTargets,
-  hasEspiaoInVanguarda, hasEspiaoOnBoard, isBackline, isCardDamaged, isFrontline, isUnitSlot, restingPhasesForTurn, abilityPhases, POST_COMBAT_CARD_TYPES,
+  hasEspiaoInVanguarda, hasEspiaoOnBoard, isBackline, isCardDamaged, isFrontline, isUnitSlot, canReinforce, REINFORCE_ATK, restingPhasesForTurn, abilityPhases, POST_COMBAT_CARD_TYPES,
   withEquippedWeapons, type Board,
 } from './rules';
 import {
@@ -133,6 +133,24 @@ const sendDestroyed = (c: Ctx, seat: Seat, entries: { slot: number; card: Card }
   const atiradores = cards.filter(card => card.name === 'Atirador da Cruzada').length;
   if (atiradores > 0) drawCards(c, seat, atiradores * 2, 'effect');
   if (cards.some(card => card.cardType === 'General')) setWinner(c, otherSeat(seat));
+  reinforceFrom(c, seat, entries.map(e => e.slot));
+};
+
+// Reforço: for every fallen Vanguarda slot that is empty now, the Infantaria right behind it moves up.
+const reinforceFrom = (c: Ctx, seat: Seat, fallenSlots: number[]) => {
+  if (c.s.winner !== null) return;
+  const board = P(c, seat).board;
+  [...fallenSlots].sort((a, b) => a - b).forEach(slot => {
+    if (slot < 0 || slot > 4 || board[slot]) return;
+    const behind = board[slot + 5];
+    if (!canReinforce(behind)) return;
+    const moved: Card = { ...behind!, pendingCombatBonus: { atk: (behind!.pendingCombatBonus?.atk ?? 0) + REINFORCE_ATK, hp: behind!.pendingCombatBonus?.hp ?? 0 } };
+    board[slot] = moved;
+    board[slot + 5] = null;
+    c.ev.push({ t: 'reinforce', seat, from: slot + 5, to: slot, card: moved });
+    c.ev.push({ t: 'buff', seat, slot, atk: REINFORCE_ATK, hp: 0 });
+    log(c, seat, `Reforço! ${moved.name} avançou para a Vanguarda com +${REINFORCE_ATK} ATK.`);
+  });
 };
 
 const setWinner = (c: Ctx, seat: Seat) => {

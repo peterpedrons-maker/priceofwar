@@ -414,7 +414,8 @@ test('Trabuco de Cerco: 2 damage to every enemy unit and the General', () => {
   const s = fresh(); const c = give(s, 0, 'Trabuco de Cerco');
   put(s, 1, 0, 'Batedor'); put(s, 1, 5, 'Soldado Tático');
   const r = act(s, 0, { type: 'play', cardId: c.id }).s;
-  eq([r.players[1].board[0], r.players[1].board[5]!.hp, r.players[1].board[12]!.hp], [null, 1, 18]);
+  // the Batedor falls; the Soldado Tático behind it (1 HP left) steps forward (Reforço)
+  eq([r.players[1].board[0]?.name, r.players[1].board[0]?.hp, r.players[1].board[5], r.players[1].board[12]!.hp], ['Soldado Tático', 1, null, 18]);
 });
 test('targeted Táticas validate before spending anything', () => {
   const s = fresh({ a: 'capitao' });
@@ -573,6 +574,53 @@ test('Capitão de Formação: neighbours +1 ATK after it moves, gone at its owne
   s = act(s, 0, { type: 'advance' }).s; for (let i = 0; i < 4; i++) s = act(s, 1, { type: 'advance' }).s;
   eq([s.turn.active, s.players[0].board[2]!.formationBuffAtk], [0, 0]);
 });
+// ── Reforço ─────────────────────────────────────────────────────────────────
+test('Reforço: when a Vanguarda card falls, the Infantaria behind it steps forward with +1 ATK', () => {
+  let s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
+  put(s, 0, 2, 'Cavaleiro da Luz'); put(s, 1, 2, 'Devotos da Cruzada'); put(s, 1, 7, 'Escudeiro de Linha');
+  const r = act(s, 0, { type: 'attack', from: 2, to: 2 });
+  const foe = r.s.players[1].board;
+  eq([foe[2]?.name, foe[7]], ['Escudeiro de Linha', null]);
+  eq(foe[2]!.pendingCombatBonus, { atk: 1, hp: 0 });
+  const ev = r.ev.find(e => e.t === 'reinforce') as any;
+  eq([ev.seat, ev.from, ev.to, ev.card.name], [1, 7, 2, 'Escudeiro de Linha']);
+  ok(r.ev.findIndex(e => e.t === 'destroyed') < r.ev.findIndex(e => e.t === 'reinforce'), 'the fall comes before the step forward');
+});
+test('Reforço: only Infantaria steps forward, and only when the front slot is really empty', () => {
+  let s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
+  put(s, 0, 2, 'Cavaleiro da Luz'); put(s, 1, 2, 'Devotos da Cruzada'); put(s, 1, 7, 'Arqueiro da Ordem');
+  let r = act(s, 0, { type: 'attack', from: 2, to: 2 });
+  eq([r.s.players[1].board[2], r.s.players[1].board[7]?.name], [null, 'Arqueiro da Ordem']);
+  ok(!r.ev.some(e => e.t === 'reinforce'), 'an archer does not reinforce');
+  s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
+  put(s, 0, 2, 'Batedor'); put(s, 1, 2, 'Veterano de Guerra'); put(s, 1, 7, 'Escudeiro de Linha');
+  r = act(s, 0, { type: 'attack', from: 2, to: 2 });
+  eq([r.s.players[1].board[2]?.name, r.s.players[1].board[7]?.name], ['Veterano de Guerra', 'Escudeiro de Linha']);
+  ok(!r.ev.some(e => e.t === 'reinforce'), 'nothing falls, nothing moves');
+});
+test('Reforço: also after effects — Balestra, and Catapulta clearing a whole row', () => {
+  let s = fresh({ a: 'cardeal', b: 'capitao' });
+  put(s, 1, 1, 'Recruta Devoto'); put(s, 1, 6, 'Soldados da Ordem');
+  const bal = give(s, 0, 'Balestra de Precisão');
+  let r = act(s, 0, { type: 'play', cardId: bal.id, target: 1 });
+  eq([r.s.players[1].board[1]?.name, r.s.players[1].board[6]], ['Soldados da Ordem', null]);
+  s = fresh({ a: 'cardeal', b: 'capitao' });
+  [0, 1, 2].forEach(i => { put(s, 1, i, 'Recruta Devoto'); put(s, 1, i + 5, 'Soldados da Ordem'); });
+  const cat = give(s, 0, 'Catapulta de Guerra');
+  r = act(s, 0, { type: 'play', cardId: cat.id, target: 0 });
+  eq([0, 1, 2].map(i => r.s.players[1].board[i]?.name), ['Soldados da Ordem', 'Soldados da Ordem', 'Soldados da Ordem']);
+  eq([5, 6, 7].map(i => r.s.players[1].board[i]), [null, null, null]);
+});
+test('Reforço: the bonus is one combat only', () => {
+  let s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
+  put(s, 0, 2, 'Cavaleiro da Luz'); put(s, 1, 2, 'Devotos da Cruzada'); put(s, 1, 7, 'Escudeiro de Linha');
+  s = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
+  put(s, 0, 3, 'Batedor').hp = 10;
+  s.turn.attackCounts = {};
+  s = act(s, 0, { type: 'attack', from: 2, to: 2 }).s; // the reinforced unit fights now (and spends the bonus)
+  eq(s.players[1].board[2]?.pendingCombatBonus, undefined);
+});
+
 test('Batedor moves once, free, right after attacking', () => {
   let s = combat(fresh({ a: 'capitao' })); put(s, 0, 2, 'Batedor'); put(s, 1, 2, 'Devotos da Cruzada').hp = 30;
   s = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;

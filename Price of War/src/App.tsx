@@ -4799,6 +4799,8 @@ export default function App() {
   const [repositionFlight, setRepositionFlight] = useState<{
     // Whose board the slide happens on (the opponent now repositions too).
     side: 'player' | 'npc';
+    // Reforço: a card stepping forward after a fall. The engine already did it, so the slide only shows it.
+    reinforce?: boolean;
     originIndex: number; destIndex: number;
     moverCard: CardData; swappedCard: CardData | null;
     mover: { fromX: number; fromY: number; toX: number; toY: number; w: number; h: number };
@@ -5105,8 +5107,11 @@ export default function App() {
   // A unit that just died stays on its slot for a moment, flagged destroyed, so its explosion can play
   // before the slot clears (the engine removes it at once).
   const ghostsRef = useRef<{ player: Record<number, CardData>; npc: Record<number, CardData> }>({ player: {}, npc: {} });
-  const boardView = (board: (EngineCard | null)[], ghosts: Record<number, CardData>): (CardData | null)[] =>
-    board.map((c, i) => (c ? toCardData(c) : ghosts[i] ?? null));
+  // Reforço: the engine has already moved the card up, but the screen first lets the fallen card burn in its slot
+  // and shows the reinforcement still behind it until its slide starts (holds: slot -> what to show there).
+  const holdsRef = useRef<{ player: Record<number, CardData | null>; npc: Record<number, CardData | null> }>({ player: {}, npc: {} });
+  const boardView = (board: (EngineCard | null)[], ghosts: Record<number, CardData>, holds: Record<number, CardData | null> = {}): (CardData | null)[] =>
+    board.map((c, i) => (i in holds ? (holds[i] ?? ghosts[i] ?? null) : c ? toCardData(c) : ghosts[i] ?? null));
 
   // Copies the engine state into the React mirror states. `skip` lets an animation hold back the hand or
   // the boards until it lands (a card in flight, for instance).
@@ -5119,8 +5124,8 @@ export default function App() {
     if (!skip.hand) setHand(me.hand.map(toCardData));
     setNpcHand(foe.hand.map(toCardData));
     if (!skip.boards) {
-      setPlayerSlots(boardView(me.board, ghostsRef.current.player));
-      setNpcSlots(boardView(foe.board, ghostsRef.current.npc));
+      setPlayerSlots(boardView(me.board, ghostsRef.current.player, holdsRef.current.player));
+      setNpcSlots(boardView(foe.board, ghostsRef.current.npc, holdsRef.current.npc));
     }
     setPlayerGraveyard(me.graveyard.map(toCardData));
     setNpcGraveyard(foe.graveyard.map(toCardData));
@@ -5202,6 +5207,26 @@ export default function App() {
             delete ghosts[e.slot];
             if (engineRef.current) syncView(engineRef.current);
           }, 1300);
+          break;
+        }
+        case 'reinforce': {
+          // The fallen card burns first; then the reinforcement slides up into its place.
+          const side = e.seat === 0 ? 'player' : 'npc';
+          const holds = holdsRef.current[side];
+          const mover = toCardData(e.card);
+          holds[e.to] = null;                                              // keep showing the burning ghost
+          holds[e.from] = { ...mover, pendingCombatBonus: mover.pendingCombatBonus && { ...mover.pendingCombatBonus, atk: Math.max(0, mover.pendingCombatBonus.atk - 1) } };
+          window.setTimeout(() => {
+            const fromEl = document.getElementById(`${side}-${e.from}`)?.getBoundingClientRect();
+            const toEl = document.getElementById(`${side}-${e.to}`)?.getBoundingClientRect();
+            delete holds[e.to]; delete holds[e.from];
+            if (!fromEl || !toEl) { if (engineRef.current) syncView(engineRef.current); return; }
+            setRepositionFlight({
+              side, reinforce: true, originIndex: e.from, destIndex: e.to, moverCard: mover, swappedCard: null,
+              mover: { fromX: fromEl.left + fromEl.width / 2, fromY: fromEl.top + fromEl.height / 2, toX: toEl.left + toEl.width / 2, toY: toEl.top + toEl.height / 2, w: fromEl.width, h: fromEl.height },
+              swapped: null,
+            });
+          }, 1450);
           break;
         }
         case 'log':
@@ -5608,7 +5633,7 @@ export default function App() {
     setMatchReward(null);
     setTurnClock(null);
     matchSelectionRef.current = sel;
-    ghostsRef.current = { player: {}, npc: {} };
+    ghostsRef.current = { player: {}, npc: {} }; holdsRef.current = { player: {}, npc: {} };
 
     firstSideRef.current = 'player';
     setNpcKickoffPending(false);
@@ -5678,7 +5703,7 @@ export default function App() {
       online.lastSeen = init.latest.n;
       online.confirmed = view;
       engineRef.current = view;
-      ghostsRef.current = { player: {}, npc: {} };
+      ghostsRef.current = { player: {}, npc: {} }; holdsRef.current = { player: {}, npc: {} };
       syncView(view);
       publishClock(online);
       if (view.winner !== null) setGameOverWinner(view.winner === 0 ? 'player' : 'npc');
@@ -7739,10 +7764,10 @@ export default function App() {
         ].map(({ leg, card, isPrimary }) => {
           // A small hop, not the hand-play showcase hover (see flyingCard) — this is a
           // card being nudged a few slots over, not a brand new card entering play.
-          const LIFT = 30;
+          const LIFT = repositionFlight.reinforce ? 0 : 30;   // a reinforcement charges straight forward
           const midX = (leg.fromX + leg.toX) / 2;
-          const midY = Math.min(leg.fromY, leg.toY) - LIFT;
-          const tilt = leg.toX === leg.fromX ? 0 : (leg.toX > leg.fromX ? 5 : -5);
+          const midY = repositionFlight.reinforce ? (leg.fromY + leg.toY) / 2 : Math.min(leg.fromY, leg.toY) - LIFT;
+          const tilt = repositionFlight.reinforce ? 0 : leg.toX === leg.fromX ? 0 : (leg.toX > leg.fromX ? 5 : -5);
           return (
             <motion.div
               key={card.id}
@@ -7755,13 +7780,20 @@ export default function App() {
                 top: [leg.fromY - leg.h / 2, midY - leg.h / 2, leg.toY - leg.h / 2],
                 rotate: [0, tilt, 0],
               }}
-              transition={{ duration: 0.4, ease: "easeInOut" }}
+              transition={repositionFlight.reinforce ? { duration: 0.34, ease: [0.55, 0, 0.9, 0.55] } : { duration: 0.4, ease: "easeInOut" }}
               // Only the mover's own leg commits the actual slot swap — attaching this
               // to both legs of a swap would just run the same commit twice.
               onAnimationComplete={isPrimary ? () => {
                 // The slide landed: the engine commits the move (swap, Capitão de Formação's buff, once-per-turn
                 // bookkeeping, Batedor's free move) and the board shows the result.
                 // (the opponent's moves are committed by its own turn runner, which waits for this slide)
+                if (repositionFlight.reinforce) {
+                  const r = document.getElementById(`${repositionFlight.side}-${repositionFlight.destIndex}`)?.getBoundingClientRect();
+                  if (r) { playCardPlaySfx(); setImpactBurst({ x: r.left + r.width / 2, y: r.top + r.height * 0.55 }); window.setTimeout(() => setImpactBurst(null), 900); }
+                  setRepositionFlight(null);
+                  if (engineRef.current) syncView(engineRef.current);
+                  return;
+                }
                 if (repositionFlight.side === 'player') dispatchAction(0, { type: 'move', from: repositionFlight.originIndex, to: repositionFlight.destIndex });
                 setRepositionFlight(null);
               } : undefined}

@@ -176,6 +176,8 @@ var ABILITY_PHASES = {
   "Cavaleiro Hospital\xE1rio": ["preparacao", "pos_combate"]
 };
 var abilityPhases = (cardName) => ABILITY_PHASES[cardName] ?? ["preparacao"];
+var REINFORCE_ATK = 1;
+var canReinforce = (card) => !!card && card.cardType === "Infantaria";
 var POST_COMBAT_CARD_TYPES = ["T\xE1tica", "Rel\xEDquia", "Terreno"];
 var isFrontline = (slot) => slot >= 0 && slot <= 4;
 var isBackline = (slot) => slot >= 5 && slot <= 9;
@@ -396,6 +398,22 @@ var sendDestroyed = (c, seat, entries) => {
   const atiradores = cards.filter((card) => card.name === "Atirador da Cruzada").length;
   if (atiradores > 0) drawCards(c, seat, atiradores * 2, "effect");
   if (cards.some((card) => card.cardType === "General")) setWinner(c, otherSeat(seat));
+  reinforceFrom(c, seat, entries.map((e) => e.slot));
+};
+var reinforceFrom = (c, seat, fallenSlots) => {
+  if (c.s.winner !== null) return;
+  const board = P(c, seat).board;
+  [...fallenSlots].sort((a, b) => a - b).forEach((slot) => {
+    if (slot < 0 || slot > 4 || board[slot]) return;
+    const behind = board[slot + 5];
+    if (!canReinforce(behind)) return;
+    const moved = { ...behind, pendingCombatBonus: { atk: (behind.pendingCombatBonus?.atk ?? 0) + REINFORCE_ATK, hp: behind.pendingCombatBonus?.hp ?? 0 } };
+    board[slot] = moved;
+    board[slot + 5] = null;
+    c.ev.push({ t: "reinforce", seat, from: slot + 5, to: slot, card: moved });
+    c.ev.push({ t: "buff", seat, slot, atk: REINFORCE_ATK, hp: 0 });
+    log(c, seat, `Refor\xE7o! ${moved.name} avan\xE7ou para a Vanguarda com +${REINFORCE_ATK} ATK.`);
+  });
 };
 var setWinner = (c, seat) => {
   if (c.s.winner !== null) return;

@@ -56,6 +56,7 @@ Everything that happened comes back as events (`turn_start`, `gold`, `draw`, `at
 - The hand limit (10) is only checked at the END of a turn: with more, the player must choose which cards to discard, down to 10 (`state.pending.kind === 'discard'`), the cards go to the graveyard, and only then does the turn pass.
 - Combat opens from the 2nd turn of the match: the first player cannot attack in their first turn.
 - Cards are played in Preparação. In Pós-combate only Táticas, Relíquias and Terrenos (never units from the hand — Chamado às Armas still summons). Avanço Coordenado is also playable in Movimentação (after moving).
+- **Reforço:** when a Vanguarda card is destroyed (combat, Táticas, abilities — everything goes through `sendDestroyed`), the Infantaria standing right behind it in the Retaguarda steps forward for free, with +1 ATK in its next combat (`pendingCombatBonus`), and a `reinforce` event is emitted (after the `destroyed` one). `canReinforce` in `rules.ts` is the single place that decides who may do it: today every Infantaria; later it can become a card keyword ("Infantaria Reforço") and cards can add their own effect on `reinforce`.
 - Relíquia goes only in slot 10, Terreno only in slot 11.
 - Bonus HP in combat (Comandante da Ordem's aura, Aurelion's +1/+1) lasts only for that combat.
 - Contra-Manobra: the adjacent ally steps into the targeted slot and takes the hit.

@@ -69,3 +69,9 @@ preparação, combate, pós-combate, movimentação) com estados `done` (✓), `
 `lock` (cadeado, Combate/Pós-combate antes de abrir o combate). Animações em CSS (`.trk-*` em `index.css`): brilho que passa
 pela faixa a cada mudança de fase ou toque, e varredura diagonal verde↔vermelho quando o turno troca.
 Compra e Suprimentos passam sozinhas no painel (`autoPhase` no cliente, ou `npcVisiblePhase` no turno do adversário).
+
+## Reforço (carta que avança quando a da frente cai)
+
+Evento `reinforce` do motor, depois de `destroyed`. No cliente: a carta caída queima na casa (1,3 s), a reforço continua visível atrás
+(`holdsRef` faz o quadro mostrar o ghost na frente e a reforço atrás), e aos 1,45 s ela desliza reta para a frente (`repositionFlight` com
+`reinforce: true`, 0,34 s, ease de aceleração) e cai com poeira. Só depois o quadro volta a mostrar o estado real do motor.

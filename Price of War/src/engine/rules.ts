@@ -36,6 +36,11 @@ const ABILITY_PHASES: Record<string, TurnPhase[]> = {
 };
 export const abilityPhases = (cardName: string): TurnPhase[] => ABILITY_PHASES[cardName] ?? ['preparacao'];
 
+// Reforço: when a Vanguarda card falls, the Infantaria standing right behind it (same column, Retaguarda) steps
+// forward into the empty slot for free and enters it with +1 ATK in its next combat.
+export const REINFORCE_ATK = 1;
+export const canReinforce = (card: { cardType?: CardType } | null | undefined): boolean => !!card && card.cardType === 'Infantaria';
+
 // After combat only these may still come out of the hand (units may not).
 export const POST_COMBAT_CARD_TYPES: CardType[] = ['Tática', 'Relíquia', 'Terreno'];
 
