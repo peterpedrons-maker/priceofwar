@@ -19,6 +19,14 @@ with `npm run build:edge` after changing rules — it is committed, so you norma
 name it exactly `game` → replace the sample code with the whole contents of `supabase/functions/game/index.ts` → Deploy.
 In the function's settings, turn **off** "Verify JWT" (the function checks the player's login itself).
 
+**Option A2 — automatic, from GitHub (best from a phone, nothing to paste):** the repository has a workflow,
+*Deploy game server*, that publishes the function by itself. One-time setup:
+1. Supabase → your avatar (top right) → **Account preferences → Access Tokens → Generate new token**; copy it.
+2. GitHub → this repository → **Settings → Secrets and variables → Actions → New repository secret**:
+   name `SUPABASE_ACCESS_TOKEN`, value = the token.
+3. GitHub → **Actions → Deploy game server → the latest run → Re-run all jobs** (or push any change under `supabase/`).
+   When it turns green the function is live — nothing else to do (Verify JWT is already off).
+
 **Option B — CLI** (from the repository root):
 ```
 npx supabase login
