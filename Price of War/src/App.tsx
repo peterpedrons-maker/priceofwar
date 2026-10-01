@@ -3,13 +3,7 @@ import { fetchProfile, usernameAvailable, createProfile, updateProfileFields, fe
 import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authErrorDetail, authMode, type Session } from './services/auth';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate, type MotionValue } from 'motion/react';
 import { X, ArrowUp, ArrowDown } from 'lucide-react';
-import turnButtonFrameImage from './assets/button-frame.webp';
-import nodeCurrentImage from './assets/node-current.webp';
-import nodeFutureImage from './assets/node-future.webp';
-import nodeLockedImage from './assets/icon-lock-turn.webp';
-import chevronDoubleImage from './assets/icon-chevron-double.webp';
-import hourglassImage from './assets/icon-hourglass.webp';
-import plaqueMaskImage from './assets/plaque-mask.webp';
+import { TurnTracker } from './TurnTracker';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
 import startScreenBgImage from './assets/start-screen-bg.webp';
@@ -466,20 +460,6 @@ const getRowRoleHint = (cardType: CardType | undefined, slotIndex: number): 'com
 // re-introduces the "nothing to do yet" step that merge was avoiding, but the user
 // asked for the explicit Yu-Gi-Oh-style phase breakdown anyway; a phase with nothing
 // to do is just a tap-through, not a real cost.
-// Short labels for the small always-on phase-tag column (see PhaseTagColumn below)
-// planted at each field's own edge — brought back in a smaller, out-of-the-way
-// form after the original center-HUD version was removed for being unreadable at
-// that size; this one only has to fit a narrow column, not share a row with the
-// gold badges and turn button.
-const PHASE_TAG_LABELS: Record<TurnPhase, string> = {
-  compra: 'Compra',
-  suprimentos: 'Supr.',
-  preparacao: 'Prep.',
-  combate: 'Combate',
-  pos_combate: 'Pós',
-  movimentacao: 'Mov.',
-};
-const PHASE_TAG_ORDER: TurnPhase[] = ['preparacao', 'combate', 'pos_combate', 'movimentacao'];
 // The ceremonial "FASE DE X" wording for the center-screen announcement banner
 // (see announcePhase) — this is now the ONLY place a phase's name is shown to the
 // player (the small always-on tracker chip was removed, see git history: too tiny
@@ -491,19 +471,6 @@ const PHASE_BANNER_TEXT: Record<TurnPhase, { title: string; subtitle: string }> 
   preparacao: { title: 'Fase de Preparação', subtitle: 'Jogue cartas e ative habilidades' },
   combate: { title: 'Fase de Combate', subtitle: 'Ataque com suas unidades' },
   movimentacao: { title: 'Fase de Movimentação', subtitle: 'Reposicione suas unidades' },
-};
-// The Avançar button's own stepper row (see its render below) always spells out
-// all three full names, Combate included even on turns 1-2 when it's locked —
-// an abbreviated "Prep."/"Mov." read as meaningless to a player who doesn't
-// already know the phase names by heart, so this shrinks the FONT instead of
-// the words to make everything fit.
-const PHASE_SHORT_LABEL: Record<TurnPhase, string> = {
-  compra: 'Compra',
-  suprimentos: 'Suprimentos',
-  preparacao: 'Preparação',
-  pos_combate: 'Pós-combate',
-  combate: 'Combate',
-  movimentacao: 'Movimentação',
 };
 // The banner is driven as a 3-stage state machine (see announcePhase/phaseBanner)
 // instead of one motion.div animating a 5-point opacity/x KEYFRAME array — that
@@ -4499,6 +4466,8 @@ export default function App() {
   // — this just drives the phase-tag column mirrored onto its own field, so that
   // column shows something instead of always sitting dark. null outside its turn.
   const [npcVisiblePhase, setNpcVisiblePhase] = useState<TurnPhase | null>(null);
+  // Compra / Suprimentos run by themselves at the start of the player's turn; this lets the panel show them in passing.
+  const [autoPhase, setAutoPhase] = useState<TurnPhase | null>(null);
   // Slots (0-9) that have already moved/swapped this reposition phase — each unit
   // gets one reposition action per own turn, then it's locked until the next one.
   const [movedSlots, setMovedSlots] = useState<Set<number>>(new Set());
@@ -5185,6 +5154,10 @@ export default function App() {
           if (e.seat === 0) {
             setViewState('hand');
             if (!opts.quietTurn) {
+              // Compra and Suprimentos play out on the panel while the turn banner is up.
+              setAutoPhase('compra');
+              window.setTimeout(() => setAutoPhase('suprimentos'), 750);
+              window.setTimeout(() => setAutoPhase(null), 1500);
               announceTurnChange('player');
               window.setTimeout(() => announcePhase('preparacao'), PHASE_BANNER_DURATION_MS);
             }
@@ -5744,7 +5717,10 @@ export default function App() {
     const runAiTurn = async () => {
       setIsAnimating(true);
       // The "Turno do Adversário" banner is still on screen when this starts, so wait for it first.
-      await sleep(Math.max(0, PHASE_BANNER_DURATION_MS - 1000) + 150);
+      setNpcVisiblePhase('compra');
+      await sleep(750);
+      setNpcVisiblePhase('suprimentos');
+      await sleep(Math.max(0, PHASE_BANNER_DURATION_MS - 1000 - 750) + 150);
       setNpcVisiblePhase('preparacao');
       showBanner('Fase de Preparação', 'O adversário joga suas cartas');
       await sleep(PHASE_BANNER_DURATION_MS + 150);
@@ -6809,34 +6785,6 @@ export default function App() {
     return getSlotHint(previewedCard.cardType, slotIndex);
   };
 
-  // Small always-on phase-tag column planted at a field's own edge (see the two
-  // call sites below) — activePhase is null on the side whose turn it isn't, which
-  // dims every tag (isCurrent never matches null). Combate's lock (turn 3+) is
-  // shown on both sides for consistency, even on the NPC's — the AI is gated by
-  // the exact same turnNumber check inside playAiTurn.
-  const renderPhaseTagColumn = (activePhase: TurnPhase | null) => (
-    <div className="flex flex-col gap-0.5">
-      {PHASE_TAG_ORDER.map(p => {
-        const isLocked = p === 'combate' && !combatOpenNow;
-        const isCurrent = activePhase === p;
-        return (
-          <div
-            key={p}
-            className={`px-1 py-px rounded border text-center text-[5px] md:text-[6px] font-black uppercase tracking-wide whitespace-nowrap ${
-              isCurrent
-                ? 'bg-amber-500 border-amber-300 text-zinc-950 shadow-[0_0_6px_rgba(245,158,11,0.7)]'
-                : isLocked
-                  ? 'bg-zinc-950/80 border-zinc-700 text-zinc-600'
-                  : 'bg-zinc-950/70 border-zinc-600 text-zinc-400'
-            }`}
-          >
-            {PHASE_TAG_LABELS[p]}
-          </div>
-        );
-      })}
-    </div>
-  );
-
   // Highlights EVERY occupied slot a selected targetable Tática (equip/buff/damage)
   // could legally land on — the 'place' kind (plain creatures/Relíquia/Terreno)
   // already gets its highlight for free from the hint system just above, since it
@@ -7275,7 +7223,7 @@ export default function App() {
           regardless of what boardScale currently is — only its POSITION is meant to
           track the board, not its size. */}
       <div
-        className="absolute z-40 flex flex-row items-center gap-3 md:gap-5"
+        className="absolute z-40 flex flex-row items-center gap-1 md:gap-4"
         style={{
           left: 500,
           top: 600.5,
@@ -7295,7 +7243,7 @@ export default function App() {
             its current size below. */}
         <div className="flex flex-col items-center gap-0.5 shrink-0">
           <div id="npc-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
-            <GoldBadge value={npcMana} className="w-14 md:w-16" />
+            <GoldBadge value={npcMana} className="w-[52px] md:w-16" />
           </div>
           <span className="text-[6px] md:text-[7px] font-black uppercase tracking-wide text-red-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] whitespace-nowrap">
             {opponentInfo?.name ?? 'Adversário'}
@@ -7307,7 +7255,7 @@ export default function App() {
           onClick={(e) => {
             e.stopPropagation();
             if (currentTurn !== 'player') return;
-            if (phaseTransitionLock) return; // a banner from the last tap is still playing out
+            if (phaseTransitionLock || autoPhase) return; // a banner from the last tap (or the automatic phases) is still playing out
             playUiClickSfx();
             setSelectedCardIndex(null);
             setSelectedAttackerIndex(null);
@@ -7317,280 +7265,27 @@ export default function App() {
             playerAct({ type: 'advance' });
           }}
         >
-          {/* A single rectangular button carrying its own text, replacing the old
-              circular button + a separate "whose turn" label above it + a separate
-              "Encerrar Turno" label below it (see git history) — that stack read as
-              three things instead of one, and the top/bottom labels' text was tiny
-              for how much vertical space the whole cluster spent. A FIXED WIDTH (not
-              sized to its own text) — the text changes length by state (Avançar/
-              Encerrar/Adversário), and letting the box follow that used to visibly
-              push the gold badges on either side of it wider/narrower every time the
-              turn or phase changed. The pulsing glow (still just the same decorative
-              loop the old circular button had) is what actually signals "tap me"
-              while it's the player's turn. Text: "Avançar" reads more honestly than
-              the old "Seu Turno" did — tapping this advances to the NEXT phase, not
-              the player's own turn ending, which only "Encerrar" (the very last
-              phase) actually does.
-
-              The player-turn version is built from a real art asset (button-frame.png,
-              cropped from a reference sheet the user had an AI generate) instead of a
-              plain CSS gradient box. Width and height are both fixed pixel values now,
-              not the art's own native 1344:400 ratio locked via `aspectRatio` (see git
-              history) — that kept the border from ever stretching, but also meant
-              widening the box to fit bigger, more readable text always grew its height
-              in lockstep, and this box's height is hard-capped by the ~48px gap between
-              the board's own rows (see below). A mild ~25% horizontal stretch past the
-              art's native ratio reads as fine given how simple its border geometry is
-              (straight bevels and diamond accent points, no fine circular detail that
-              stretching would visibly warp) — the tradeoff for legible text at this
-              width. An earlier pass kept a plain amber CSS
-              gradient behind it, meant to show through the plaque's transparent cutout —
-              but that div was a plain rounded rectangle, and the frame's actual silhouette
-              is an angular diamond-cut shape well INSIDE that rectangle's corners, so the
-              gradient's own rounded corners poked out past the art (visibly, right where
-              the diamond accents are) instead of being fully hidden behind it. Dropped
-              entirely: the plaque's cutout now just shows the board through it, same as
-              the track's own art (already fully opaque, no backdrop needed there).
-              Both content zones below (top/left/width/height as percentages) are measured
-              directly from the art's own transparent-plaque and opaque-track bounds (see
-              the analysis behind this comment in git history) rather than eyeballed —
-              this frame's border reads as quite thick relative to the whole asset, so a
-              rough guess visibly off-centers text from the panel it should sit inside,
-              not just looking a bit loose. Its track area has two chevrons pre-drawn, so
-              the three phase groups use justify-around to fall roughly into the three
-              lanes those imply, rather than drawing our own separator glyphs on top.
-
-              Height is capped to fit the actual gap between the board's own npc/player
-              Vanguarda rows (measured ~48px tall at this viewport) — a previous version
-              locked to the art's own aspect ratio and grew past that gap, overlapping
-              both neighboring rows by ~10px each side. Width, freed from that same
-              ratio, grew separately once the gold badges beside this button dropped
-              their old side-by-side label (stacked below the coin instead — see that
-              badge's own comment) and stopped needing as much of the row's own width.
-              The "Turno N" / "Combate no Turno 2" line lives in a THIRD zone here, in the
-              frame's own bottom border margin (below the track's opaque panel, still
-              within the art's own silhouette) rather than as a sibling below the frame —
-              text-shadow (not a flat backdrop, there's no dedicated panel back there)
-              keeps it legible over that textured trim. No pulsing box-shadow glow either
-              anymore — it animated on this element's own bounding BOX, a plain rectangle
-              that doesn't match the frame art's angular diamond-cut silhouette, so it
-              read as a separate ghost rectangle floating around the ornate border rather
-              than a glow coming from it. */}
+          {/* The turn panel (see TurnTracker): six phase medallions under a band that is green on the player's turn
+              and red on the adversary's. Tapping it advances the phase — from the last one it ends the turn. */}
           {(() => {
-            // Shared by both branches below (see their own comments) — the same framed
-            // layout now renders for BOTH turns, not just the player's: the opponent's
-            // turn used to be a plain "Adversário" box with no phase info at all, but
-            // the stepper is just as informative during their turn (it's watching the
-            // SAME npcVisiblePhase this button's neighboring side-column already reads —
-            // see renderPhaseTagColumn's own npc call site — just baked into this same
-            // framed layout for consistency instead of a second, differently-styled
-            // display). Combate's lock and the turn counter are global to the match, not
-            // per-side, so they read identically either way.
             const isPlayerTurn = currentTurn === 'player';
-            const activePhaseForStepper = isPlayerTurn ? turnPhase : npcVisiblePhase;
-            const mainLabel = isPlayerTurn
-              ? (isLastPhaseOfTurn ? 'Encerrar Turno' : `Finalizar ${PHASE_SHORT_LABEL[turnPhase]}`)
-              : 'Adversário';
+            const shownPhase = isPlayerTurn ? (autoPhase ?? turnPhase) : npcVisiblePhase;
+            const locked: TurnPhase[] = combatOpenNow ? [] : ['combate', 'pos_combate'];
+            const automatic = isPlayerTurn && (shownPhase === 'compra' || shownPhase === 'suprimentos');
+            const caption = !isPlayerTurn ? 'Turno do'
+              : shownPhase === 'compra' ? '+1 carta'
+              : shownPhase === 'suprimentos' ? (turnNumber >= 2 ? '+5 ouro' : 'Sem ouro')
+              : isLastPhaseOfTurn ? 'Encerrar' : 'Finalizar';
             return (
-              <motion.div
-                className={`relative w-[182px] md:w-[204px] h-[40px] md:h-[46px] font-black uppercase tracking-wide ${isPlayerTurn ? 'cursor-pointer' : 'cursor-not-allowed'}`}
-                whileTap={isPlayerTurn ? { scale: 0.95 } : undefined}
-              >
-                {/* The plaque's own cutout is fully transparent in the art (see the frame's
-                    comment above) — this fills just that cutout's exact shape with color
-                    (green for the player's turn, red for the opponent's, matching the
-                    theme "Adversário" already had elsewhere) instead of the whole box, so
-                    it can't poke out past the frame's angular corners the way a plain
-                    rounded-rect backdrop did before. Built from a separate mask asset (see
-                    git history for how it's derived from the same source sheet's alpha
-                    channel) applied as a CSS mask — the mask image itself carries no
-                    color, just the plaque's silhouette, so the actual color comes from this
-                    div's own background and can change with isPlayerTurn without needing a
-                    second image asset per color. */}
-                <div
-                  className="absolute inset-0 pointer-events-none"
-                  style={{
-                    WebkitMaskImage: `url(${plaqueMaskImage})`,
-                    maskImage: `url(${plaqueMaskImage})`,
-                    WebkitMaskSize: '100% 100%',
-                    maskSize: '100% 100%',
-                    WebkitMaskRepeat: 'no-repeat',
-                    maskRepeat: 'no-repeat',
-                    background: isPlayerTurn
-                      ? 'linear-gradient(to bottom, #4ade80, #15803d)'
-                      : 'linear-gradient(to bottom, #f87171, #7f1d1d)',
-                  }}
+              <motion.div whileTap={isPlayerTurn && !automatic ? { scale: 0.96 } : undefined}>
+                <TurnTracker
+                  mine={isPlayerTurn}
+                  phase={shownPhase}
+                  locked={locked}
+                  caption={caption}
+                  name={isPlayerTurn ? undefined : 'ADVERSÁRIO'}
+                  tappable={isPlayerTurn && !automatic}
                 />
-                <div
-                  className="absolute inset-0 pointer-events-none"
-                  style={{ backgroundImage: `url(${turnButtonFrameImage})`, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat' }}
-                />
-                {/* All three zones below are measured pixel-for-pixel from the actual art
-                    (its transparent "plaque" cutout, its opaque "track" panel, and the
-                    plain border margin below that), not eyeballed — the frame's own
-                    decorative border is quite thick relative to its total size, so a rough
-                    guess here visibly off-centers content from the panel it's supposed to
-                    sit inside instead of just looking a bit loose. Text color: the plaque's
-                    own cutout shows the board through it (see the frame's own comment
-                    above), so plain dark text (right for the amber CSS backdrop this used
-                    to sit on) blended into whatever happened to be behind it — a bright
-                    color with a strong dark text-shadow (same treatment as the turn-info
-                    zone below) keeps it legible over any board texture instead of reading
-                    as colorless. */}
-                <div className="absolute flex items-center justify-center gap-1" style={{ top: '14%', left: '13%', width: '74%', height: '30%' }}>
-                  {/* Both children measure as centered on the SAME row (verified via
-                      getBoundingClientRect, not eyeballed) — the visible mismatch is bold
-                      all-caps text's own glyphs sitting higher in their line box than a
-                      tightly-cropped icon's ink fills its own box, not a layout bug, so
-                      it's corrected with a small manual nudge instead of a flex property.
-                      Text/icon sizes below are ~11% smaller than when this zone's own %
-                      dimensions were first tuned (this whole button shrank by that much —
-                      see its own w-/h- classes above) — this zone's own box shrank with
-                      it, but the font size doesn't automatically follow a % width, so
-                      "Finalizar Preparação" (the longest real label — Movimentação is
-                      always the LAST phase of a turn, so "Finalizar Movimentação" itself
-                      never actually renders) started overflowing the plaque's edges by a
-                      few px. Verified via getBoundingClientRect again at this size: it
-                      now clears both edges by ~2.5px with the icon+text group centered
-                      within a fraction of a pixel. */}
-                  {isPlayerTurn && (
-                    <img src={chevronDoubleImage} className="w-[7.5px] h-[5.5px] md:w-[9px] md:h-[6.5px] shrink-0 -translate-y-[1.5px]" alt="" />
-                  )}
-                  <span
-                    className="text-[8px] md:text-[10px] leading-none whitespace-nowrap text-white"
-                    style={{ textShadow: '0 1px 2px rgba(0,0,0,0.95)' }}
-                  >
-                    {mainLabel}
-                  </span>
-                </div>
-                {/* A mini phase stepper baked right into the button instead of a plain
-                    "Avançar" — ALL THREE phases, always, Combate included even on turns
-                    1-2 when it's locked — showing only the phases a turn currently has
-                    used to make Combate vanish outright until turn 3, which read as if
-                    it didn't exist rather than as "not yet". Each phase gets a small
-                    ring badge (green = THIS is the phase being played right now, red =
-                    every other phase, padlock = locked) instead of a colored pill — the
-                    ask was specifically for only the active phase to read as "on", with
-                    every other one (played already or still ahead) reading as "off"
-                    rather than some third, in-between "available" state — full names
-                    stay in text alongside it either way, so a player who doesn't
-                    recognize the badge yet still has the word. The current phase's own
-                    ring glows too (an animated drop-shadow, which follows the ring PNG's
-                    actual round alpha shape instead of a rectangular box-shadow around
-                    its bounding box) so "this one's active" reads at a glance even
-                    before noticing the color — npcVisiblePhase never reaches
-                    'movimentacao' (the AI never repositions), so that ring simply never
-                    lights up on the opponent's turn, which is correct.
-
-                    flex-1 on each phase (equal thirds), not justify-around on organically-
-                    sized items — "Movimentação" was by far the longest name, and letting
-                    it claim whatever width it wanted left less room for justify-around's
-                    own gap math to work with, visibly cramming its ring against the
-                    border and uneven-spacing "Combate" next to it. Equal columns make
-                    every phase's available width the same regardless of its own name's
-                    length; at the font size below (chosen by measuring "Movimentação"'s
-                    own rendered width, not eyeballed) the full word now fits with margin
-                    to spare, so it's spelled out in full like every other label.
-
-                    Both node-current.webp and node-future.webp started as the same dark,
-                    muted reference-sheet art (olive-green and neutral gray) — barely
-                    distinguishable from each other at this render size, let alone
-                    readable as "on" vs "off" at a glance. Recolored the ring band's own
-                    pixels in both (see git history for how — the green ring's own hue
-                    cleanly separated its ring band from its gold border in a way the
-                    neutral gray one couldn't on its own, so that same mask, shape-matched
-                    onto the gray source, drove the red recolor too), keeping the gold
-                    border accents and each ring's own light/shadow shading intact.
-
-                    leading-none on each span, matching the main label above (which
-                    already had it for the same reason): without it, the browser's
-                    default line-height reserves extra space around each word's own
-                    glyphs, and how much space differs slightly per word depending on
-                    ascenders/descenders — collapsing it to the font's own metrics keeps
-                    items-center's centering based on the actual ink instead of that
-                    reserved space, verified against getBoundingClientRect (all three
-                    words now measure to the exact same top/bottom). object-contain on
-                    the icon below matters specifically for the padlock: its own source
-                    art (icon-lock-turn.webp) is a portrait 53x64 canvas, not the near-
-                    square 64x61/64x60 the two ring badges use, so without it the padlock
-                    was stretched wider to fill this same square box instead of keeping
-                    its own proportions — same fix applied to its other use in the
-                    turn-info line below.
-
-                    The icon's own -translate-y-[0.8px]: even with leading-none, the
-                    icon's box (sized to its own height, 8.5px) and the text's own line
-                    box (collapsed to the font's real metrics, ~5.2px) each get centered
-                    independently by items-center — correct per CSS, but a cap-height-only
-                    word's ink isn't perfectly centered within ITS OWN line box either
-                    (fonts generally reserve a bit more room above than below), so the
-                    two centered boxes' actual ink still landed ~0.8px apart. Verified via
-                    getBoundingClientRect: identical for all three phases (same offset,
-                    same direction), so this is one shared, measurable icon-vs-text gap,
-                    not three separately misaligned words — nudging the icon by that exact
-                    measured amount (same fix pattern as the chevron in the main label
-                    above) closes it. */}
-                <div className="absolute flex items-center" style={{ top: '55.5%', left: '5%', width: '90%', height: '21%' }}>
-                  {PHASE_TAG_ORDER.map(p => {
-                    const isLocked = p === 'combate' && !combatOpenNow;
-                    const isCurrent = p === activePhaseForStepper;
-                    const nodeImg = isLocked ? nodeLockedImage : isCurrent ? nodeCurrentImage : nodeFutureImage;
-                    return (
-                      <span
-                        key={p}
-                        className={`flex-1 flex items-center justify-center gap-[1.5px] text-[4.5px] md:text-[5.5px] font-medium tracking-normal leading-none whitespace-nowrap ${
-                          isCurrent ? 'text-amber-200' : 'text-zinc-400'
-                        }`}
-                      >
-                        <motion.img
-                          src={nodeImg}
-                          className="w-[8.5px] h-[8.5px] md:w-[10px] md:h-[10px] shrink-0 object-contain -translate-y-[0.8px]"
-                          alt=""
-                          animate={isCurrent ? {
-                            filter: [
-                              'drop-shadow(0 0 1.5px rgba(57,255,20,0.9)) drop-shadow(0 0 0.5px rgba(190,255,170,1))',
-                              'drop-shadow(0 0 3.5px rgba(57,255,20,1)) drop-shadow(0 0 1px rgba(190,255,170,1))',
-                              'drop-shadow(0 0 1.5px rgba(57,255,20,0.9)) drop-shadow(0 0 0.5px rgba(190,255,170,1))',
-                            ],
-                          } : undefined}
-                          transition={isCurrent ? { duration: 1.4, repeat: Infinity } : undefined}
-                        />
-                        {PHASE_SHORT_LABEL[p]}
-                      </span>
-                    );
-                  })}
-                </div>
-                {/* The "Turno N" readout + (while locked) the "Combate no Turno 2" hint —
-                    matches the info line under the user's own reference mockup. Sits in
-                    the frame's bottom border margin (below the track's own art, still
-                    within the whole asset's silhouette) with a text-shadow instead of a
-                    background — there's no dedicated flat panel back there to match.
-                    Always shown (not just on the player's turn, and not just while
-                    Combate is locked) since both the turn counter and the lock hint are
-                    global to the match, not tied to whose turn it currently is. Font size
-                    (and its own icons, scaled the same ~18% down) now matches the phase
-                    stepper line just above it exactly — it used to run noticeably bigger
-                    than that line per the user's own explicit ask to bring the two in
-                    line. leading-none added for the same reason the stepper line has it
-                    (see its own comment): without it, the default line-height reserves
-                    different amounts of space above/below words with a descender (the
-                    "ç" in Combate No Turno 2 has none, this line's other words do) than
-                    words without one, so "centered" text can look like it's sitting on a
-                    slightly different baseline even though nothing is actually misaligned
-                    in the font itself. */}
-                <div
-                  className="absolute flex items-center justify-center gap-1 text-[4.5px] md:text-[5.5px] font-black uppercase tracking-wide leading-none text-amber-200 whitespace-nowrap"
-                  style={{ top: '80%', left: '4%', width: '92%', height: '16%', textShadow: '0 1px 1px rgba(0,0,0,0.9)' }}
-                >
-                  <img src={hourglassImage} className="w-[4.5px] h-[5.5px] md:w-[6px] md:h-[7px] shrink-0" alt="" />
-                  {`Turno ${turnNumber}`}
-                  {!combatOpenNow && (
-                    <>
-                      <span className="text-amber-200/50">|</span>
-                      <img src={nodeLockedImage} className="w-[4.5px] h-[5px] md:w-[6px] md:h-[6px] shrink-0 object-contain" alt="" />
-                      Combate no Turno 2
-                    </>
-                  )}
-                </div>
               </motion.div>
             );
           })()}
@@ -7600,7 +7295,7 @@ export default function App() {
             stacked-and-shrunk treatment (see that badge's own comment for why). */}
         <div className="flex flex-col items-center gap-0.5 shrink-0">
           <div id="player-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
-            <GoldBadge value={playerMana} className="w-14 md:w-16" />
+            <GoldBadge value={playerMana} className="w-[52px] md:w-16" />
           </div>
           <span className="text-[6px] md:text-[7px] font-black uppercase tracking-wide text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] whitespace-nowrap">
             Jogador
@@ -7608,35 +7303,6 @@ export default function App() {
         </div>
       </div>
       </motion.div>
-
-      {/* Phase-tag columns — one planted near each field's own edge, diagonally
-          opposite each other (NPC's near the top-left, the player's own near the
-          bottom-right) so each sits right next to that side's own field instead of
-          competing for the center strip the gold/turn-button HUD uses (see that HUD's
-          own comment just above — unlike this pair, it's now a board-local child of
-          the board's own OUTER motion.div instead of viewport-pixel math). These stay
-          on plain viewport pixels on purpose: the board can render WIDER than the
-          viewport at this boardScale (see the zoom bump), so anchoring to the board's
-          OWN left/right edge, which these originally did, put them off-screen half the
-          time — the board's actual columns sit comfortably inset from the board's raw
-          edges, but the raw edges themselves are exactly what a card-play zoom can push
-          past the visible screen. Reuses boardTopMargin/boardHeightMultiplier from
-          above — same viewport-space math, just at 24%/76% down the board's own
-          height instead of 60%, and pinned to the screen's actual left/right edges
-          instead of centered. */}
-      <div
-        className="absolute left-1 md:left-3 z-30 pointer-events-none"
-        style={{ top: boardTopMargin + 0.24 * 1250 * boardHeightMultiplier, transform: 'translateY(-50%)' }}
-      >
-        {renderPhaseTagColumn(currentTurn === 'npc' ? npcVisiblePhase : null)}
-      </div>
-      <div
-        className="absolute right-1 md:right-3 z-30 pointer-events-none"
-        style={{ top: boardTopMargin + 0.76 * 1250 * boardHeightMultiplier, transform: 'translateY(-50%)' }}
-      >
-        {renderPhaseTagColumn(currentTurn === 'player' ? turnPhase : null)}
-      </div>
-
 
       {/* Opponent Hand (Floating) — one face-down card back per card actually in
           npcHand, revealed one at a time during the match-intro deal (see

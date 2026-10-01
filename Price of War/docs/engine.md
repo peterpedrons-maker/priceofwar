@@ -49,10 +49,13 @@ Everything that happened comes back as events (`turn_start`, `gold`, `draw`, `at
 
 ## Rules decided in the engine
 
-- 15 gold and 7 cards each; one card drawn at the start of every turn, always (there is no cap on starting a turn with cards); +5 gold per turn from round 2, stacking.
+- Turn phases: **Compra → Suprimentos → Preparação → Combate → Pós-combate → Movimentação**, then the end-of-turn discard check. Compra (draw 1, Intendente) and Suprimentos (+5 gold from round 2, stacking) run by themselves inside `startTurn`; the seat only rests in the last four (`activePhases`). `phasesForTurn(combatOpen)` lists all six for the UI. A card effect can skip them: set `players[seat].skip = { compra?, suprimentos? }` before that seat's next turn start (emits a `skip` event instead of drawing / paying).
+- Combate and Pós-combate only exist once combat is open; the first player's first turn goes Preparação → Movimentação.
+- Which phase an active ability works in is `abilityPhases(cardName)` in `rules.ts` (default Preparação; the General's heal and Cavaleiro Hospitalário also in Pós-combate).
+- 15 gold and 7 cards each; one card drawn at the start of every turn, always (there is no cap on starting a turn with cards).
 - The hand limit (10) is only checked at the END of a turn: with more, the player must choose which cards to discard, down to 10 (`state.pending.kind === 'discard'`), the cards go to the graveyard, and only then does the turn pass.
 - Combat opens from the 2nd turn of the match: the first player cannot attack in their first turn.
-- Avanço Coordenado is played in Movimentação (after moving); every other card in Preparação.
+- Cards are played in Preparação. In Pós-combate only Táticas, Relíquias and Terrenos (never units from the hand — Chamado às Armas still summons). Avanço Coordenado is also playable in Movimentação (after moving).
 - Relíquia goes only in slot 10, Terreno only in slot 11.
 - Bonus HP in combat (Comandante da Ordem's aura, Aurelion's +1/+1) lasts only for that combat.
 - Contra-Manobra: the adjacent ally steps into the targeted slot and takes the hit.
