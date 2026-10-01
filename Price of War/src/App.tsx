@@ -535,7 +535,13 @@ const PHASE_BANNER_MOTION: Record<'in' | 'hold' | 'out', { animate: { opacity: n
 
 // The hit-stop: the attacker has landed and the whole board holds still for a beat (a few frames) before the hit
 // connects. That micro-pause is what makes an attack feel heavy.
-const HIT_STOP_MS = 70;
+const HIT_STOP_MS = 90;
+// The attack itself: the card pulls back to gather momentum (slow, ease-out), then strikes much faster (ease-in) with a
+// corner leading, like hitting with the edge of the card. Total ATTACK_MS; the wind-up takes ATTACK_WINDUP_FRAC of it.
+const ATTACK_MS = 400;
+const ATTACK_WINDUP_FRAC = 0.74;
+const ATTACK_WINDUP_PX = 46;
+const ATTACK_TILT_DEG = 17;
 const IMPACT_MS = 230;
 
 // Evenly-spaced directions for SlashEffect's spark burst below.
@@ -623,8 +629,8 @@ const PunchFx = ({ x, y, w, h, heavy = false }: { x: number; y: number; w: numbe
 // A destroyed card burning away on its own art. Two sprite sheets made by tools/vfx/burn_sheets.py work over ANY card:
 // the mask (opaque = the card is still there) is applied as a CSS mask to the live card face, and the fire sheet — the
 // glowing edge, scorch, embers and smoke — is drawn over it. The fire starts low and in the middle (where the blow
-// landed) and spreads outward. 18 frames at 24 fps = 0.75 s, inside the 1 s the destroyed card is kept on the board.
-const BURN_FRAMES = 18, BURN_COLS = 6, BURN_ROWS = 3, BURN_FPS = 24;
+// landed) and spreads outward. 18 frames at 16 fps = 1.1 s, inside the 1.3 s the destroyed card is kept on the board.
+const BURN_FRAMES = 18, BURN_COLS = 6, BURN_ROWS = 3, BURN_FPS = 16;
 if (typeof Image !== 'undefined') { [fxBurnMask, fxBurnFire].forEach(src => { const warm = new Image(); warm.src = src; }); }
 const BurningCard = ({ children }: { children: React.ReactNode }) => {
   const [frame, setFrame] = useState(0);
@@ -5115,7 +5121,7 @@ export default function App() {
           window.setTimeout(() => {
             delete ghosts[e.slot];
             if (engineRef.current) syncView(engineRef.current);
-          }, 1000);
+          }, 1300);
           break;
         }
         case 'log':
@@ -5658,7 +5664,7 @@ export default function App() {
             await sleep(PHASE_BANNER_DURATION_MS + 150);
           }
           setAttackAnim({ attackerIndex: action.from, targetIndex: action.to, isPlayerAttacking: false });
-          await sleep(300);
+          await sleep(ATTACK_MS);
           await sleep(HIT_STOP_MS);   // the lunge lands and everything holds for a beat before the hit
           playAttackSfx();
           setIsImpacting(true);
@@ -5670,7 +5676,7 @@ export default function App() {
           await settleAmbush();
           setAttackAnim(null);
           const killed = r.events.some(e => e.t === 'destroyed');
-          await sleep(killed ? 1000 : 300);
+          await sleep(killed ? 1250 : 300);
         } else if (action.type === 'move') {
           // Repositioning: the same slide the player's own moves get, on the opponent's board.
           setNpcVisiblePhase(s.turn.phase === 'combate' ? 'combate' : 'movimentacao');
@@ -6473,7 +6479,7 @@ export default function App() {
       if (dry.ok === false) { showToast(dry.error); return; }
       setIsAnimating(true);
       setAttackAnim({ attackerIndex: from, targetIndex: slotIndex, isPlayerAttacking: true });
-      await sleep(300);
+      await sleep(ATTACK_MS);
       await sleep(HIT_STOP_MS);   // the lunge lands and everything holds for a beat before the hit
       playAttackSfx();
       setIsImpacting(true);
@@ -8966,7 +8972,7 @@ const CardSlot = ({
             // just teleporting to its lunge position. A full-art card landing
             // elsewhere on the board makes this one flinch (see shockActive).
             y: isAttacking
-              ? [0, attackY > 0 ? -22 : 22, attackY]
+              ? [0, attackY > 0 ? -ATTACK_WINDUP_PX : ATTACK_WINDUP_PX, attackY]
               : isImpactingTarget
                 // the defender is knocked back, away from whoever hit it, and settles
                 ? [0, attackDirection === 'up' ? 12 : -12, 0]
@@ -8984,7 +8990,7 @@ const CardSlot = ({
             // A quick "punch" scale-up on the attacker right as it connects, and a
             // matching flinch (brief shrink) on whatever it's hitting — the same
             // push/give pairing a real collision has.
-            scale: isImpactingAttacker ? 1.32 : isAttacking ? 1.2 : isImpactingTarget ? 0.95 : 1,
+            scale: isImpactingAttacker ? 1.32 : isAttacking ? [1, 0.93, 1.2] : isImpactingTarget ? 0.95 : 1,
             // Physical landing weight (see justLanded above) — a squash-and-settle
             // on just the vertical axis, like the card actually has mass hitting the
             // table, instead of the plain uniform scale-in every card used to get.
@@ -8993,17 +8999,25 @@ const CardSlot = ({
             // Stretch on the way in, squash on contact (volume stays put, so it reads as weight).
             scaleX: isImpactingAttacker ? 1.08 : isImpactingTarget ? 1.09 : isAttacking ? 0.96 : 1,
             // the card that takes the blow is thrown off-axis for a moment and rights itself
-            rotate: isImpactingTarget ? [0, attackDirection === 'up' ? -5 : 5, 2, 0] : 0,
+            rotate: isAttacking
+              // pulls back leaning one way, then the card comes in turned so a corner leads the blow
+              ? [0, attackDirection === 'up' ? ATTACK_TILT_DEG * 0.5 : -ATTACK_TILT_DEG * 0.5, attackDirection === 'up' ? -ATTACK_TILT_DEG : ATTACK_TILT_DEG]
+              : isImpactingTarget ? [0, attackDirection === 'up' ? -5 : 5, 2, 0] : 0,
             rotateX: isAttacking ? (attackDirection === 'up' ? 20 : -20) : 0,
           }}
           transition={{
-            duration: isAttacking ? 0.3 : 0.2,
-            times: isAttacking ? [0, 0.4, 1] : undefined,
-            scale: { type: "spring", stiffness: 400, damping: 15 },
+            duration: isAttacking ? ATTACK_MS / 1000 : 0.2,
+            times: isAttacking ? [0, ATTACK_WINDUP_FRAC, 1] : undefined,
+            scale: isAttacking && !isImpactingAttacker
+              ? { duration: ATTACK_MS / 1000, times: [0, ATTACK_WINDUP_FRAC, 1], ease: ['easeOut', 'easeIn'] }
+              : { type: "spring", stiffness: 400, damping: 15 },
             scaleY: justLanded ? { duration: 0.38, ease: "easeOut", times: [0, 0.35, 0.6, 0.85, 1] } : { type: "spring", stiffness: 520, damping: 16 },
             scaleX: { type: "spring", stiffness: 520, damping: 16 },
-            rotate: isImpactingTarget ? { duration: 0.3, ease: "easeOut", times: [0, 0.3, 0.65, 1] } : { duration: 0.2 },
-            y: isImpactingTarget ? { duration: 0.3, ease: "easeOut", times: [0, 0.35, 1] } : shockActive ? { duration: 0.4, ease: "easeOut" } : undefined,
+            rotate: isAttacking && !isImpactingAttacker
+              ? { duration: ATTACK_MS / 1000, times: [0, ATTACK_WINDUP_FRAC, 1], ease: ['easeOut', 'easeIn'] }
+              : isImpactingTarget ? { duration: 0.3, ease: "easeOut", times: [0, 0.3, 0.65, 1] } : { duration: 0.2 },
+            // ease-out into the pull-back, ease-in into the strike: it accelerates all the way to the hit
+            y: isAttacking ? { duration: ATTACK_MS / 1000, times: [0, ATTACK_WINDUP_FRAC, 1], ease: ['easeOut', 'easeIn'] } : isImpactingTarget ? { duration: 0.3, ease: "easeOut", times: [0, 0.35, 1] } : shockActive ? { duration: 0.4, ease: "easeOut" } : undefined,
             x: damageFlash
               ? { duration: 0.45, ease: "easeOut" }
               : (isImpactingAttacker || isImpactingTarget) ? { duration: 0.25, ease: "easeOut" } : undefined,

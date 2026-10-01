@@ -12,7 +12,7 @@ Notas do que funciona (pesquisa + o que já está no jogo). Leia antes de mexer 
 
 ## Ataque (feito)
 `handleNpcSlotClick` (jogador) e o executor do turno do adversário seguem a mesma sequência:
-investida 300 ms → **hit stop** `HIT_STOP_MS` (70 ms parado) → impacto `IMPACT_MS` (230 ms: som, clarão, anel,
+recuo lento para pegar embalo (ease-out, 46 px, carta inclinada ~8°) e golpe bem mais rápido (ease-in, ~100 ms) com a carta virada ~17° para a quina bater primeiro — `ATTACK_MS` 400 ms no total → **hit stop** `HIT_STOP_MS` (90 ms parado) → impacto `IMPACT_MS` (230 ms: som, clarão, anel,
 tremor do tabuleiro) → o motor aplica o dano.
 - Atacante: recua, estica (scaleY 1,08) na ida e achata (scaleX 1,08) no contato (`CardSlot`).
 - Defensor: é empurrado 12 px para longe do atacante e volta; `ImpactSparks` solta faíscas em risco (mais e mais longe
@@ -34,8 +34,8 @@ depois escurecem. Os dois primeiros quadros são o pico segurado (hit stop).
 - `src/assets/fx-burn-mask.webp` (22 KB): máscara por quadro (opaco = a carta ainda existe), aplicada com CSS `mask-image`
   sobre o rosto da carta de verdade — a carta queima sobre a própria arte.
 - `src/assets/fx-burn-fire.webp` (330 KB): borda de fogo brilhando, faixa chamuscada, brasas e fumaça por cima.
-O fogo começa embaixo, no meio (onde a pancada pegou) e se espalha. `BurningCard` toca 18 quadros a 24 fps (0,75 s), dentro do
-1 s que a carta destruída fica no tabuleiro (`ghostsRef`). Trocar o ponto de origem, a velocidade ou a cor é só mexer no script
+O fogo começa embaixo, no meio (onde a pancada pegou) e se espalha. `BurningCard` toca 18 quadros a 16 fps (1,1 s), dentro dos
+1,3 s que a carta destruída fica no tabuleiro (`ghostsRef`). Trocar o ponto de origem, a velocidade ou a cor é só mexer no script
 e rodar de novo.
 
 ## Como conferir uma animação (sem aparelho)
