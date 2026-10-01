@@ -125,6 +125,8 @@ import bannerBatalhaImage from './assets/banner-batalha.webp';
 import bannerVitoriaImage from './assets/banner-vitoria.webp';
 import bannerDerrotaImage from './assets/banner-derrota.webp';
 import fxPunchSheet from './assets/fx-punch-sheet.webp';
+import fxBurnMask from './assets/fx-burn-mask.webp';
+import fxBurnFire from './assets/fx-burn-fire.webp';
 import caliceDaVidaFullArt from './assets/card-calice-da-vida-full.webp';
 import nobreReligiosoFullArt from './assets/card-nobre-religioso-full.webp';
 import liderDeEsquadraoFullArt from './assets/card-lider-de-esquadrao-full.webp';
@@ -618,57 +620,51 @@ const PunchFx = ({ x, y, w, h, heavy = false }: { x: number; y: number; w: numbe
   );
 };
 
-const ExplosionEffect = () => (
-  <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
-    {/* Explosion */}
-    <motion.div
-      initial={{ scale: 0.5, opacity: 1 }}
-      animate={{ scale: 3, opacity: 0 }}
-      transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
-      className="absolute flex items-center justify-center"
-    >
-      <div className="w-32 h-32 bg-orange-500 rounded-full blur-xl mix-blend-screen" />
-      <div className="absolute w-24 h-24 bg-yellow-300 rounded-full blur-lg mix-blend-screen" />
-      <div className="absolute w-16 h-16 bg-white rounded-full blur-md mix-blend-screen" />
-    </motion.div>
-    {/* Card shards — a few jagged fragments tumbling outward on top of the ember
-        particles below, so this reads as the CARD itself breaking apart, not
-        just a generic fire burst. */}
-    {[...Array(7)].map((_, i) => {
-      const angle = (i / 7) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
-      const dist = 60 + Math.random() * 50;
-      return (
-        <motion.div
-          key={`shard-${i}`}
-          className="absolute w-3 h-4 md:w-4 md:h-5 bg-[#c5b599] border border-[#8c7a5f] rounded-[2px]"
-          initial={{ x: 0, y: 0, rotate: 0, opacity: 1 }}
-          animate={{
-            x: Math.cos(angle) * dist,
-            y: Math.sin(angle) * dist,
-            rotate: (Math.random() - 0.5) * 480,
-            opacity: 0,
-          }}
-          transition={{ duration: 0.55, ease: "easeOut", delay: 0.05 }}
-        />
-      );
-    })}
-    {/* Ember particles */}
-    {[...Array(12)].map((_, i) => (
-      <motion.div
-        key={i}
-        className="absolute w-2 h-2 bg-yellow-400 rounded-full"
-        initial={{ x: 0, y: 0, scale: 1 }}
-        animate={{ 
-          x: (Math.random() - 0.5) * 300, 
-          y: (Math.random() - 0.5) * 300,
-          scale: 0,
-          opacity: 0
+// A destroyed card burning away on its own art. Two sprite sheets made by tools/vfx/burn_sheets.py work over ANY card:
+// the mask (opaque = the card is still there) is applied as a CSS mask to the live card face, and the fire sheet — the
+// glowing edge, scorch, embers and smoke — is drawn over it. The fire starts low and in the middle (where the blow
+// landed) and spreads outward. 18 frames at 24 fps = 0.75 s, inside the 1 s the destroyed card is kept on the board.
+const BURN_FRAMES = 18, BURN_COLS = 6, BURN_ROWS = 3, BURN_FPS = 24;
+if (typeof Image !== 'undefined') { [fxBurnMask, fxBurnFire].forEach(src => { const warm = new Image(); warm.src = src; }); }
+const BurningCard = ({ children }: { children: React.ReactNode }) => {
+  const [frame, setFrame] = useState(0);
+  useEffect(() => {
+    let raf = 0;
+    const t0 = performance.now();
+    const loop = (now: number) => {
+      const i = Math.floor((now - t0) / (1000 / BURN_FPS));
+      setFrame(Math.min(i, BURN_FRAMES));
+      if (i < BURN_FRAMES) raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  if (frame >= BURN_FRAMES) return null;
+  const col = frame % BURN_COLS, row = Math.floor(frame / BURN_COLS);
+  const pos = `${(col / (BURN_COLS - 1)) * 100}% ${(row / (BURN_ROWS - 1)) * 100}%`;
+  const size = `${BURN_COLS * 100}% ${BURN_ROWS * 100}%`;
+  return (
+    <>
+      <div
+        className="absolute inset-0 z-40 pointer-events-none rounded-lg overflow-hidden w-full h-full"
+        style={{
+          WebkitMaskImage: `url(${fxBurnMask})`, maskImage: `url(${fxBurnMask})`,
+          WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat', WebkitMaskSize: size, maskSize: size,
+          WebkitMaskPosition: pos, maskPosition: pos,
         }}
-        transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
+      >
+        {children}
+      </div>
+      <div
+        className="absolute z-[45] pointer-events-none"
+        style={{
+          left: `${-PUNCH_PAD_X * 100}%`, top: `${-PUNCH_PAD_Y * 100}%`, width: `${PUNCH_FRAME_W * 100}%`, height: `${PUNCH_FRAME_H * 100}%`,
+          backgroundImage: `url(${fxBurnFire})`, backgroundRepeat: 'no-repeat', backgroundSize: size, backgroundPosition: pos,
+        }}
       />
-    ))}
-  </div>
-);
+    </>
+  );
+};
 
 // The on-board Graveyard pile — an empty placeholder box until a card actually dies.
 // Shows the actual top (most recently destroyed) card as a real thumbnail now, not
@@ -9076,20 +9072,9 @@ const CardSlot = ({
               card breaking apart instead of a generic dying rectangle, and no
               longer goes blank for cards with no art file yet (see DECK_CAPITAO,
               still art: '' everywhere) since it isn't just an <img> tag anymore. */}
-          <motion.div
-            initial={{ scale: 1, opacity: 1, rotateZ: 0, filter: "brightness(1) grayscale(0)" }}
-            animate={{
-              scale: [1, 1.1, 0.8, 0.4],
-              opacity: [1, 1, 0.6, 0],
-              rotateZ: [0, -5, 5, -10, 10, 0],
-              filter: ["brightness(1) grayscale(0)", "brightness(2.2) grayscale(0.4)", "brightness(0.5) grayscale(0.9)", "brightness(0) grayscale(1)"],
-            }}
-            transition={{ duration: 0.8, ease: "easeInOut" }}
-            className="absolute inset-0 z-40 pointer-events-none rounded-lg overflow-hidden w-full h-full"
-          >
+          <BurningCard>
             {card.isFullArt ? <CardFaceFullArtMini card={card} /> : <CardFaceStandardMini card={card} />}
-          </motion.div>
-          <ExplosionEffect />
+          </BurningCard>
         </>
       )}
     </motion.div>
