@@ -76,7 +76,18 @@ import haloInvalidTargetImage from './assets/halo-invalid-target.png';
 import haloSelectionImage from './assets/halo-selection.png';
 import badgeSwordImage from './assets/badge-sword.png';
 import badgeShieldImage from './assets/badge-shield.png';
-import fxAbilityReadySheet from './assets/fx-ability-ready.webp';
+import maskGold from './assets/mask-gold.webp';
+import maskGoldRim from './assets/mask-gold-rim.webp';
+import maskSilver from './assets/mask-silver.webp';
+import maskSilverRim from './assets/mask-silver-rim.webp';
+import maskChampagne from './assets/mask-champagne.webp';
+import maskChampagneRim from './assets/mask-champagne-rim.webp';
+import maskFullartGold from './assets/mask-fullart-gold.webp';
+import maskFullartGoldRim from './assets/mask-fullart-gold-rim.webp';
+import maskFullartTatica from './assets/mask-fullart-tatica.webp';
+import maskFullartTaticaRim from './assets/mask-fullart-tatica-rim.webp';
+import maskFullartEmboscada from './assets/mask-fullart-emboscada.webp';
+import maskFullartEmboscadaRim from './assets/mask-fullart-emboscada-rim.webp';
 import multidaoDeFieisArt from './assets/card-multidao-de-fieis.webp';
 import comercianteDasCruzadasArt from './assets/card-comerciante-das-cruzadas.webp';
 import espiaoSabotadorArt from './assets/card-espiao-sabotador.webp';
@@ -642,55 +653,49 @@ const TargetingHud = ({ source, mode, kind, title, hint, windowH, promptButtons,
   );
 };
 
-// An ability that can be used right now: light flows round the card's edge, comets circle it, wisps rise along the sides
-// and a soft sheen glides over it (tools/vfx/ability_ready.py). One gold sheet; the colour of the effect is a hue turn:
-// heal green, damage red, anything else stays gold. Same frame geometry as the punch sheet (card + 50 px each side).
-const READY_FRAMES = 36, READY_COLS = 6, READY_ROWS = 6, READY_FPS = 20;
-const READY_HUE: Record<'heal' | 'damage' | 'utility', number> = { heal: 85, damage: -38, utility: 0 };
-if (typeof Image !== 'undefined') { const warm = new Image(); warm.src = fxAbilityReadySheet; }
-const AbilityReadyGlow = ({ x, y, w, h, onClick, kind = 'utility' }: { x: number; y: number; w: number; h: number; onClick: () => void; kind?: 'heal' | 'damage' | 'utility'; key?: React.Key }) => {
-  const [frame, setFrame] = useState(0);
-  useEffect(() => {
-    let raf = 0;
-    const t0 = performance.now();
-    const loop = (now: number) => {
-      setFrame(Math.floor(((now - t0) / 1000) * READY_FPS) % READY_FRAMES);
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, []);
-  const col = frame % READY_COLS, row = Math.floor(frame / READY_COLS);
-  const fw = w * PUNCH_FRAME_W, fh = h * PUNCH_FRAME_H;
+// An ability that can be used right now: light flows over the WHOLE card, up and down, and a rim light pulses along its
+// edge. Everything is cut with the card's exact silhouette (tools/vfx/card_masks.py — wings, spikes and notched corners
+// included, never a rounded rectangle), placed with the same box the board draws that card's frame in.
+// Colour by effect: heal green, damage red, anything else gold.
+const READY_COLORS: Record<'heal' | 'damage' | 'utility', { c1: string; c2: string }> = {
+  heal: { c1: '#2fe08a', c2: '#d9ffe9' },
+  damage: { c1: '#ff4b3a', c2: '#ffdcd3' },
+  utility: { c1: '#ffbf3c', c2: '#fff4c4' },
+};
+const SILHOUETTES = {
+  gold: [maskGold, maskGoldRim], silver: [maskSilver, maskSilverRim], champagne: [maskChampagne, maskChampagneRim],
+  'fullart-gold': [maskFullartGold, maskFullartGoldRim], 'fullart-tatica': [maskFullartTatica, maskFullartTaticaRim], 'fullart-emboscada': [maskFullartEmboscada, maskFullartEmboscadaRim],
+} as const;
+const silhouetteFor = (card: CardData | null): { masks: readonly [string, string]; box: React.CSSProperties } => {
+  if (card?.isFullArt) {
+    const cfg = fullArtMiniConfigForType(card.cardType);
+    const key = cfg.image === cardFullArtFrameEmboscadaImage ? 'fullart-emboscada' : cfg.image === cardFullArtFrameTaticaImage ? 'fullart-tatica' : 'fullart-gold';
+    return { masks: SILHOUETTES[key], box: { ...cfg.wrapper } };
+  }
+  const key = card?.cardType === 'Tática' || card?.cardType === 'Terreno' ? 'silver' : card?.cardType === 'Emboscada' ? 'champagne' : 'gold';
+  return { masks: SILHOUETTES[key], box: { width: '122%', height: '145.5%', top: '50%', left: '50%', transform: 'translate(-50%, -46%)' } };
+};
+const AbilityReadyGlow = ({ x, y, w, h, onClick, card = null, kind = 'utility' }: { x: number; y: number; w: number; h: number; onClick: () => void; card?: CardData | null; kind?: 'heal' | 'damage' | 'utility'; key?: React.Key }) => {
+  const { masks, box } = silhouetteFor(card);
+  const col = READY_COLORS[kind];
+  const maskCss = (url: string): React.CSSProperties => ({
+    WebkitMaskImage: `url(${url})`, maskImage: `url(${url})`, WebkitMaskSize: '100% 100%', maskSize: '100% 100%', WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
+  });
   return (
-    <div className="fixed pointer-events-none" style={{ left: x - fw / 2, top: y - fh / 2, width: fw, height: fh }}>
-      {/* the sheet is drawn for a 232 px card; on a phone it is about a quarter of that, so a blurred copy thickens it */}
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage: `url(${fxAbilityReadySheet})`, backgroundRepeat: 'no-repeat',
-          backgroundSize: `${READY_COLS * 100}% ${READY_ROWS * 100}%`,
-          backgroundPosition: `${(col / (READY_COLS - 1)) * 100}% ${(row / (READY_ROWS - 1)) * 100}%`,
-          filter: `${READY_HUE[kind] ? `hue-rotate(${READY_HUE[kind]}deg) saturate(1.15) ` : ''}blur(2.2px) brightness(1.5)`,
-          mixBlendMode: 'screen', opacity: 0.9,
-        }}
-      />
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage: `url(${fxAbilityReadySheet})`, backgroundRepeat: 'no-repeat',
-          backgroundSize: `${READY_COLS * 100}% ${READY_ROWS * 100}%`,
-          backgroundPosition: `${(col / (READY_COLS - 1)) * 100}% ${(row / (READY_ROWS - 1)) * 100}%`,
-          filter: READY_HUE[kind] ? `hue-rotate(${READY_HUE[kind]}deg) saturate(1.15)` : undefined,
-          mixBlendMode: 'screen',
-        }}
-      />
-      {/* the tappable area is the card itself */}
+    <div className="fixed pointer-events-none" style={{ left: x - w / 2, top: y - h / 2, width: w, height: h, ['--c1' as string]: col.c1, ['--c2' as string]: col.c2 }}>
+      {/* the glow outside the edge follows the silhouette because it is a filter on the masked layers' parent */}
+      <div className="absolute ar-outer" style={box}>
+        <div className="absolute inset-0 ar-fill" style={maskCss(masks[0])}>
+          <div className="absolute inset-0 ar-wash" />
+          <div className="absolute inset-0 ar-band ar-band-a" />
+          <div className="absolute inset-0 ar-band ar-band-b" />
+        </div>
+        <div className="absolute inset-0 ar-rim" style={maskCss(masks[1])} />
+      </div>
       <button
         onClick={(e) => { e.stopPropagation(); onClick(); }}
-        className="pointer-events-auto absolute"
+        className="pointer-events-auto absolute inset-0"
         aria-label="Ativar efeito"
-        style={{ left: PUNCH_PAD_X / PUNCH_FRAME_W * 100 + '%', top: PUNCH_PAD_Y / PUNCH_FRAME_H * 100 + '%', width: 100 / PUNCH_FRAME_W + '%', height: 100 / PUNCH_FRAME_H + '%' }}
       />
     </div>
   );
@@ -6401,12 +6406,13 @@ export default function App() {
   // unclickable. getBoundingClientRect always reflects the real, current, post-transform
   // position, so this can ride along with a card-play zoom for its brief duration —
   // a working prompt on rare occasion sliding slightly beats a permanently broken one.
-  const abilityReadyPrompts: { key: string; x: number; y: number; w: number; h: number; onClick: () => void; kind: 'heal' | 'damage' | 'utility' }[] = [];
+  const abilityReadyPrompts: { key: string; x: number; y: number; w: number; h: number; onClick: () => void; kind: 'heal' | 'damage' | 'utility'; card: CardData | null }[] = [];
   const pushAbilityPrompt = (key: string, slotId: string, onClick: () => void, kind: 'heal' | 'damage' | 'utility' = 'utility') => {
     const el = document.getElementById(slotId);
+    const slotCard = playerSlots[Number(slotId.split('-')[1])] ?? null;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    abilityReadyPrompts.push({ key, x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, onClick, kind });
+    abilityReadyPrompts.push({ key, x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, onClick, kind, card: slotCard });
   };
   [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(i => {
     const kind = getPlayerCreatureAbilityKind(i);
@@ -7973,7 +7979,7 @@ export default function App() {
       {abilityReadyPrompts.length > 0 && !targetingMode && (
         <div className="fixed inset-0 z-40 pointer-events-none">
           {abilityReadyPrompts.map(p => (
-            <AbilityReadyGlow key={p.key} x={p.x} y={p.y} w={p.w} h={p.h} onClick={p.onClick} kind={p.kind} />
+            <AbilityReadyGlow key={p.key} x={p.x} y={p.y} w={p.w} h={p.h} onClick={p.onClick} kind={p.kind} card={p.card} />
           ))}
         </div>
       )}

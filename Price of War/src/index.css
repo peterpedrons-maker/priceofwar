@@ -40,3 +40,24 @@
 @keyframes trk-now { 0%, 100% { box-shadow: 0 0 0 1.4px rgba(255,255,255,.53), 0 0 7px 1px var(--glow), inset 0 0 6px var(--glow); } 50% { box-shadow: 0 0 0 1.4px rgba(255,255,255,.8), 0 0 13px 3px var(--glow), inset 0 0 10px var(--glow); } }
 .trk-m.lock::after { content: ''; position: absolute; right: -3px; bottom: -3px; width: 10px; height: 10px; border-radius: 50%; border: 1px solid #7a7466; background: #1a1510 center/7px no-repeat;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><rect x='2.5' y='5.5' width='7' height='5' rx='1' fill='%23c9bfa6'/><path d='M4 5.5V4a2 2 0 0 1 4 0v1.5' stroke='%23c9bfa6' stroke-width='1.2' fill='none'/></svg>"); }
+
+/* ── "This card has an effect ready" (AbilityReadyGlow in App.tsx): light flowing over the whole card ───────────── */
+.ar-outer { filter: drop-shadow(0 0 3px var(--c1)) drop-shadow(0 0 8px var(--c1)); animation: ar-pulse 1.5s ease-in-out infinite; }
+@keyframes ar-pulse { 0%, 100% { opacity: .78; } 50% { opacity: 1; } }
+.ar-fill { overflow: hidden; }
+.ar-wash { background: var(--c1); opacity: .07; animation: ar-wash 1.5s ease-in-out infinite; }
+@keyframes ar-wash { 0%, 100% { opacity: .04; } 50% { opacity: .13; } }
+/* two soft bands of light crossing the card in opposite directions, so it reads as a current, not a blink */
+.ar-band { background-repeat: no-repeat; background-size: 100% 250%; mix-blend-mode: screen; will-change: background-position; }
+.ar-band-a {
+  background-image: linear-gradient(180deg, transparent 0%, transparent 42%, var(--c1) 47%, var(--c2) 50%, var(--c1) 53%, transparent 58%, transparent 100%);
+  opacity: .5; animation: ar-up 1.9s ease-in-out infinite alternate;
+}
+.ar-band-b {
+  background-image: linear-gradient(180deg, transparent 0%, transparent 44%, var(--c1) 48%, var(--c2) 50%, var(--c1) 52%, transparent 56%, transparent 100%);
+  opacity: .38; animation: ar-down 2.6s ease-in-out infinite alternate;
+}
+@keyframes ar-up { from { background-position: 0 100%; } to { background-position: 0 0%; } }
+@keyframes ar-down { from { background-position: 0 0%; } to { background-position: 0 100%; } }
+.ar-rim { background: var(--c2); animation: ar-rim 1.1s ease-in-out infinite; }
+@keyframes ar-rim { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
