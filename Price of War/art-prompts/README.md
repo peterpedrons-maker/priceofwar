@@ -1329,6 +1329,29 @@ Game UI illustration sheet of eight identical-format teaching medallions for a f
 
 ---
 
+## 4y. Ícones de efeito (um por vez) — Ataque +
+
+**Status:** primeiro da série, prompt entregue ao usuário para gerar. Os ícones de efeito aparecem quando algo muda os números de uma carta
+(equipar, curar, bônus). Cada um surge com a máscara de revelação (`.reveal-in`, de dentro para fora) dentro de um disco escuro feito por código
+(74 px na tela), então a arte é só o emblema, quadrada, com o motivo centralizado e sobra de ~10% em volta. **Estilo da série:** emblema pintado
+com contorno fino dourado, núcleo bem iluminado e brilho da cor do efeito (laranja = ataque, azul = vida/defesa, verde = cura, vermelho = dano).
+Ordem prevista: 1 Ataque +, 2 Vida/Defesa +, 3 Cura, 4 Dano, 5 Reforço (hoje é o escudo azul feito em `tools/vfx/reinforce_badge.py`), 6 Mover.
+Ao integrar: recortar o cinza (como 4r), salvar como `ui-effect-<nome>.webp` e passar em `iconSrc` do `StatUpBadge`.
+
+<details>
+<summary>Prompt</summary>
+
+**Ícone Ataque + (1:1)** → `ui-effect-atk-up.webp`
+```
+Single game-effect emblem icon for a fantasy card game, centered on a flat solid mid-gray background (RGB 125,125,125), square 1:1 canvas (1024x1024), the whole emblem about 80% of the canvas with even gray margin all around, perfectly symmetrical left to right. Subject: one upright longsword seen straight from the front, point facing up, painted in rich detail: a polished steel blade with a bright central fuller groove and a crisp light edge, a faint hot orange-red glow running along both cutting edges as if the steel were heated, a gold crossguard with small curled leaf ends and a tiny red gem at its center, a dark leather-wrapped grip, and a round gold pommel. Above the blade tip float two stacked bold upward-pointing chevrons (arrows meaning "increase"), the upper one smaller and brighter, drawn as thick glowing orange-gold bars with a thin light-gold outline and a soft warm glow. A few tiny glowing orange sparks rise around the blade. The whole emblem is outlined with one crisp thin polished-gold line and a finer darker hairline, in the same thin-gold-line fantasy UI style as the rest of the game's frames. Warm orange-gold light from the center of the blade, dark neutral shading toward the edges so the emblem reads clearly even at 70 px wide on a dark background. No circle, no frame, no background scenery, no text, no letters, no numbers, no shadow on the gray, no watermark, flat straight-on front view, crisp clean edges, painterly high-quality fantasy game icon (Hearthstone / Gwent quality), 1:1 (1024x1024)
+```
+
+**Se a IA colocar um disco ou moldura em volta**, repetir com a frase "no circle, no round plate, no badge shape, only the sword and the two chevrons". **Se a espada vier torta**, repetir com "perfectly vertical, perfectly centered, mirror-symmetrical".
+
+</details>
+
+---
+
 ## 3. Moldura Full Art (dourada) — referência de layout
 
 **Arquivo:** [`reference/full-art-frame-gold-v1.png`](./reference/full-art-frame-gold-v1.png)
