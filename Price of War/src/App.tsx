@@ -124,6 +124,7 @@ import pantanoMalditoArt from './assets/card-pantano-maldito.webp';
 import bannerBatalhaImage from './assets/banner-batalha.webp';
 import bannerVitoriaImage from './assets/banner-vitoria.webp';
 import bannerDerrotaImage from './assets/banner-derrota.webp';
+import fxPunchSheet from './assets/fx-punch-sheet.webp';
 import caliceDaVidaFullArt from './assets/card-calice-da-vida-full.webp';
 import nobreReligiosoFullArt from './assets/card-nobre-religioso-full.webp';
 import liderDeEsquadraoFullArt from './assets/card-lider-de-esquadrao-full.webp';
@@ -579,27 +580,41 @@ const SlashEffect = () => (
   </div>
 );
 
-// Sparks kicked out of the defender at the moment of the hit: thin streaks flying outward (not round dots) so they
-// read as metal striking metal. `heavy` (a General taking the hit) throws more of them, farther.
-const ImpactSparks = ({ heavy = false }: { heavy?: boolean }) => {
-  const sparks = useMemo(() => Array.from({ length: heavy ? 14 : 9 }, (_, i) => {
-    const angle = (i / (heavy ? 14 : 9)) * Math.PI * 2 + (Math.random() - 0.5) * 0.7;
-    // the board is drawn at a fraction of its size on a phone, so these are big numbers on purpose
-    return { angle, dist: (heavy ? 130 : 90) + Math.random() * (heavy ? 110 : 80), len: 22 + Math.random() * 22, hot: i % 3 === 0 };
-  }), [heavy]);
+// The physical blow: a sprite sheet drawn over the card that was hit (impact star and speed lines, shock ring, dust,
+// flying chips, a flash, a bruise, cracks that glow and then go dark). Made by tools/vfx/punch_overlay.py. The card's own
+// shove, squash and tremor happen live in CardSlot; this is only what goes on top. Each frame is the card plus padding,
+// so it is placed by percentages of the card and follows its size.
+const PUNCH_FRAMES = 14, PUNCH_COLS = 5, PUNCH_ROWS = 3, PUNCH_FPS = 30;
+const PUNCH_FRAME_W = 1.431, PUNCH_FRAME_H = 1.347, PUNCH_PAD_X = 0.2155, PUNCH_PAD_Y = 0.1736;   // frame size / padding as a fraction of the card
+if (typeof Image !== 'undefined') { const warm = new Image(); warm.src = fxPunchSheet; }
+const PunchFx = ({ x, y, w, h, heavy = false }: { x: number; y: number; w: number; h: number; heavy?: boolean }) => {
+  const [frame, setFrame] = useState(0);
+  useEffect(() => {
+    let raf = 0;
+    const t0 = performance.now();
+    const loop = (now: number) => {
+      const i = Math.floor((now - t0) / (1000 / PUNCH_FPS));
+      if (i >= PUNCH_FRAMES) { setFrame(-1); return; }
+      setFrame(i);
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  if (frame < 0) return null;
+  const col = frame % PUNCH_COLS, row = Math.floor(frame / PUNCH_COLS);
+  const k = heavy ? 1.7 : 1.4;   // the cards are small on a phone: the blow is drawn bigger than the card
+  const fw = w * PUNCH_FRAME_W * k, fh = h * PUNCH_FRAME_H * k;
   return (
-    <div className="absolute inset-0 z-[55] flex items-center justify-center pointer-events-none">
-      {sparks.map((sp, i) => (
-        <motion.div
-          key={i}
-          className={`absolute h-[4px] rounded-full ${sp.hot ? 'bg-white' : 'bg-amber-300'}`}
-          style={{ width: sp.len, rotate: `${(sp.angle * 180) / Math.PI}deg`, boxShadow: '0 0 10px rgba(253,186,60,0.95)' }}
-          initial={{ x: 0, y: 0, opacity: 1, scaleX: 1 }}
-          animate={{ x: Math.cos(sp.angle) * sp.dist, y: Math.sin(sp.angle) * sp.dist + 8, opacity: [1, 1, 0], scaleX: [1, 1, 0.2] }}
-          transition={{ duration: 0.42, ease: 'easeOut', times: [0, 0.55, 1] }}
-        />
-      ))}
-    </div>
+    <div
+      className="fixed pointer-events-none z-[190]"
+      style={{
+        left: x + w / 2 - fw / 2, top: y + h / 2 - fh / 2, width: fw, height: fh,
+        backgroundImage: `url(${fxPunchSheet})`, backgroundRepeat: 'no-repeat',
+        backgroundSize: `${PUNCH_COLS * 100}% ${PUNCH_ROWS * 100}%`,
+        backgroundPosition: `${(col / (PUNCH_COLS - 1)) * 100}% ${(row / (PUNCH_ROWS - 1)) * 100}%`,
+      }}
+    />
   );
 };
 
@@ -4599,6 +4614,8 @@ export default function App() {
   const [announcedCard, setAnnouncedCard] = useState<{ card: CardData, side: 'player' | 'npc' } | null>(null);
 
   const [isImpacting, setIsImpacting] = useState(false);
+  // The physical-hit sprite, drawn in a layer above the board over whichever card was hit (see PunchFx).
+  const [punchFx, setPunchFx] = useState<{ key: number; x: number; y: number; w: number; h: number; heavy: boolean } | null>(null);
   const [attackAnim, setAttackAnim] = useState<{ attackerIndex: number, targetIndex: number, isPlayerAttacking: boolean } | null>(null);
   // Forces a re-render every animation frame while an attack is in flight, purely so
   // activeAttackLine (below) re-measures the attacking card's live position instead of
@@ -5649,6 +5666,7 @@ export default function App() {
           await sleep(HIT_STOP_MS);   // the lunge lands and everything holds for a beat before the hit
           playAttackSfx();
           setIsImpacting(true);
+          triggerPunch(0, action.to);
           await sleep(IMPACT_MS);
           setIsImpacting(false);
           const r = dispatchAction(1, action);
@@ -6046,8 +6064,18 @@ export default function App() {
   // never goes through that selection step, so without this the opponent hitting
   // the player was the one attack in the game with no line at all showing what
   // was attacking what.
+  // Plays the blow over the target card: `targetSeat` is the screen seat (0 = me) of the card being hit.
+  const triggerPunch = (targetSeat: Seat, index: number) => {
+    const el = getCardVisualEl(`${targetSeat === 0 ? 'player' : 'npc'}-${index}`);
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const key = Date.now();
+    setPunchFx({ key, x: r.left, y: r.top, w: r.width, h: r.height, heavy: index === 12 });
+    window.setTimeout(() => setPunchFx(prev => (prev && prev.key === key ? null : prev)), 700);
+  };
+
   const activeAttackLine: { x1: number; y1: number; x2: number; y2: number; isPlayerAttacking: boolean } | null = (() => {
-    if (!attackAnim) return null;
+    if (!attackAnim || isImpacting) return null;   // the arrow gets out of the way when the blow lands
     const fromId = attackAnim.isPlayerAttacking ? `player-${attackAnim.attackerIndex}` : `npc-${attackAnim.attackerIndex}`;
     const toId = attackAnim.isPlayerAttacking ? `npc-${attackAnim.targetIndex}` : `player-${attackAnim.targetIndex}`;
     const fromEl = getCardVisualEl(fromId);
@@ -6453,6 +6481,7 @@ export default function App() {
       await sleep(HIT_STOP_MS);   // the lunge lands and everything holds for a beat before the hit
       playAttackSfx();
       setIsImpacting(true);
+      triggerPunch(1, slotIndex);
       await sleep(IMPACT_MS);
       setIsImpacting(false);
       const r = dispatchAction(0, { type: 'attack', from, to: slotIndex });
@@ -8096,6 +8125,8 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {punchFx && <React.Fragment key={punchFx.key}><PunchFx x={punchFx.x} y={punchFx.y} w={punchFx.w} h={punchFx.h} heavy={punchFx.heavy} /></React.Fragment>}
+
       {/* Online: whose turn it is to move, and how long they have left. */}
       {turnClock && onlineRef.current && !gameOverWinner && matchIntroStage === null && engineRef.current && (() => {
         const eng = engineRef.current!;
@@ -8776,13 +8807,6 @@ const CardSlot = ({
   // within/into this slot, not just its hp changing), but reads prevCardIdRef
   // BEFORE that effect updates it, so this has to run first.
   const [justLanded, setJustLanded] = useState(false);
-  // The sparks outlive the short impact window they start in, so they get their own timer.
-  const [sparkBurst, setSparkBurst] = useState<number | null>(null);
-  useEffect(() => {
-    if (!isImpactingTarget) return;
-    setSparkBurst(Date.now());
-    window.setTimeout(() => setSparkBurst(null), 520);
-  }, [isImpactingTarget]);
   useEffect(() => {
     if (card && prevCardIdRef.current !== card.id) {
       setJustLanded(true);
@@ -8964,14 +8988,16 @@ const CardSlot = ({
             // A quick "punch" scale-up on the attacker right as it connects, and a
             // matching flinch (brief shrink) on whatever it's hitting — the same
             // push/give pairing a real collision has.
-            scale: isImpactingAttacker ? 1.32 : isAttacking ? 1.2 : isImpactingTarget ? 0.9 : 1,
+            scale: isImpactingAttacker ? 1.32 : isAttacking ? 1.2 : isImpactingTarget ? 0.95 : 1,
             // Physical landing weight (see justLanded above) — a squash-and-settle
             // on just the vertical axis, like the card actually has mass hitting the
             // table, instead of the plain uniform scale-in every card used to get.
             // Left undefined the rest of the time so it just follows `scale` above.
-            scaleY: justLanded ? [0.55, 1.18, 0.92, 1.03, 1] : isImpactingAttacker ? 0.9 : isAttacking ? 1.08 : 1,
+            scaleY: justLanded ? [0.55, 1.18, 0.92, 1.03, 1] : isImpactingAttacker ? 0.9 : isImpactingTarget ? 0.88 : isAttacking ? 1.08 : 1,
             // Stretch on the way in, squash on contact (volume stays put, so it reads as weight).
-            scaleX: isImpactingAttacker ? 1.08 : isAttacking ? 0.96 : 1,
+            scaleX: isImpactingAttacker ? 1.08 : isImpactingTarget ? 1.09 : isAttacking ? 0.96 : 1,
+            // the card that takes the blow is thrown off-axis for a moment and rights itself
+            rotate: isImpactingTarget ? [0, attackDirection === 'up' ? -5 : 5, 2, 0] : 0,
             rotateX: isAttacking ? (attackDirection === 'up' ? 20 : -20) : 0,
           }}
           transition={{
@@ -8980,6 +9006,7 @@ const CardSlot = ({
             scale: { type: "spring", stiffness: 400, damping: 15 },
             scaleY: justLanded ? { duration: 0.38, ease: "easeOut", times: [0, 0.35, 0.6, 0.85, 1] } : { type: "spring", stiffness: 520, damping: 16 },
             scaleX: { type: "spring", stiffness: 520, damping: 16 },
+            rotate: isImpactingTarget ? { duration: 0.3, ease: "easeOut", times: [0, 0.3, 0.65, 1] } : { duration: 0.2 },
             y: isImpactingTarget ? { duration: 0.3, ease: "easeOut", times: [0, 0.35, 1] } : shockActive ? { duration: 0.4, ease: "easeOut" } : undefined,
             x: damageFlash
               ? { duration: 0.45, ease: "easeOut" }
@@ -8997,8 +9024,7 @@ const CardSlot = ({
           // empty home slot mid-lunge, visibly detached from the card itself.
           data-card-visual={slotId}
         >
-          {(isImpactingAttacker || isImpactingTarget) && <SlashEffect />}
-          {sparkBurst !== null && <React.Fragment key={sparkBurst}><ImpactSparks heavy={card.cardType === 'General'} /></React.Fragment>}
+          {isImpactingAttacker && <SlashEffect />}
 
           {/* Floating damage number — see damageFlash above. Rises and fades over
               the same window as the shake it plays alongside, so both read as one
