@@ -1299,6 +1299,32 @@ Top-down-neutral game UI illustration of a single wide, elegant gold-line turn-t
 
 ---
 
+## 4x. Lições do tabuleiro — medalhões ilustrados (pendente)
+
+**Status:** pendente (prompt entregue ao usuário para gerar). O jogo quase não explica regras (ex.: Infantaria na Retaguarda não ataca e nada avisa).
+Em vez de texto longo nas cartas ou ícones minúsculos nas casas, cada regra vira um **medalhão ilustrado** (uma mini cena com personagens, entendida sem ler)
+com uma **fita vazia embaixo**, onde o código escreve uma frase curta (2 a 4 palavras, fonte Cinzel, discreta). Assim quem só olha entende pela cena,
+e quem para para ler encontra a explicação. O texto fica no código (e não desenhado pela IA) para nunca sair errado ou com letra torta.
+Uso no jogo: ao selecionar uma carta, o medalhão da regra daquele tipo aparece na faixa de dica e, em menor escala, sobre as casas válidas;
+ao tocar numa unidade sem alcance, aparece o medalhão "sem alcance". Ao integrar: recortar o cinza (como 4r), separar os oito medalhões pela grade 4x2.
+Ordem (esquerda p/ direita, em cima e depois embaixo): Vanguarda ataca, Retaguarda apoia, Ataque de perto, Ataque à distância, Sem alcance, Cura, Dano, Trocar de lugar.
+
+<details>
+<summary>Prompt</summary>
+
+**Folha de lições (8 medalhões, 1,6:1)** → `ui-lessons-sheet.webp`
+```
+Game UI illustration sheet of eight identical-format teaching medallions for a medieval-fantasy mobile card game, arranged in a clean grid of 4 columns by 2 rows on a wide 1.6:1 canvas (2048x1280), on a flat solid mid-gray background (RGB 125,125,125), evenly spaced with generous gray margins between them. Every medallion is the same size: a round medallion about 78% of its cell width, framed by a thin polished-gold ring (one crisp gold line plus a finer darker-gold hairline just inside it, no thick bronze, no rope), and directly below it a small flat gold-line ribbon banner about 62% of the medallion width whose inside is a flat solid mid-gray (RGB 125,125,125), completely empty, because a short caption will be added later in code. Inside each ring is a small painted scene on a dark warm-brown vignette background, in a clear storybook style: our soldiers wear white tabards with gold trim and a small red cross, the enemy soldiers wear dark crimson-black armor, all drawn simple, bold and readable at 60 px, side view, one clear idea per medallion, a few thick glowing gold arrows and symbols to show direction, no clutter. The eight scenes, left to right, top row then bottom row: (1) FRONT LINE ATTACKS: a white-and-gold soldier at the very front of a short line charging forward with a raised sword toward a dark enemy soldier across a small gap, one bold gold arrow pointing from him to the enemy. (2) REAR LINE SUPPORTS: a white-and-gold soldier standing BEHIND a front soldier, holding up a banner with a soft golden glow over the front soldier, the enemy tiny and far away, a short dotted gold line from the rear soldier that ends against the back of the front soldier. (3) MELEE HITS WHAT IS STRAIGHT AHEAD: a mounted knight facing exactly one dark enemy directly in front of him, one single straight gold arrow between them, the lanes beside them empty and dim. (4) RANGED ATTACKS FROM FAR: an archer standing behind the line drawing a bow, three gold arrows fanning out in a wide V toward three different dark enemies. (5) OUT OF RANGE: a white-and-gold infantry soldier in the back with his sword lowered, a short gold arrow leaving him and stopping against the shield wall of his own front soldier, a small round gold prohibition sign (circle with a diagonal slash) floating above the stopped arrow. (6) HEAL: an open hand of soft green light hovering over a kneeling wounded white-and-gold soldier, small green sparkles and tiny plus-shaped crosses rising. (7) DAMAGE: a flaming red-orange bolt striking a dark enemy soldier, sparks and a small impact star, the enemy knocked back. (8) SWAP PLACES: two white-and-gold soldiers side by side swapping positions, two curved gold arrows between them, one pointing right above and one pointing left below. Consistent lighting from the upper left, subtle warm highlight on the gold only. No text, no letters, no numbers, no extra symbols beyond those described, no shadow on the gray, no perspective on the layout, flat straight-on front view of the sheet. Crisp clean edges, painterly medieval-fantasy game UI style (Gwent / Hearthstone quality), no watermark, wide landscape orientation, 1.6:1 (2048x1280)
+```
+
+**Se a IA bagunçar a folha**, gerar em duas folhas de quatro (4x1, 2048x720, mesmo prompt trocando "4 columns by 2 rows" por "4 columns by 1 row" e deixando só as quatro cenas de cada metade), ou um medalhão por vez (1:1.25, 1024x1280) repetindo o parágrafo do medalhão e uma única cena.
+
+**Depois dessa folha** (próxima rodada, se gostar do resultado): Relíquia (baú/estandarte no slot especial), Terreno (paisagem que muda o campo), Emboscada (carta virada para baixo que reage ao ataque) e Armamento (arma acoplada à unidade), no mesmo formato.
+
+</details>
+
+---
+
 ## 3. Moldura Full Art (dourada) — referência de layout
 
 **Arquivo:** [`reference/full-art-frame-gold-v1.png`](./reference/full-art-frame-gold-v1.png)
