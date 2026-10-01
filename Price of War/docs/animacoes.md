@@ -38,6 +38,17 @@ O fogo começa embaixo, no meio (onde a pancada pegou) e se espalha. `BurningCar
 1,3 s que a carta destruída fica no tabuleiro (`ghostsRef`). Trocar o ponto de origem, a velocidade ou a cor é só mexer no script
 e rodar de novo.
 
+## Escolher alvo de um efeito (feito)
+Tudo que pede um alvo no tabuleiro (habilidade do General, Cavaleiro Hospitalário, Táticas com alvo) usa o mesmo visual,
+`TargetingHud` + a camada de alvos em `App.tsx` (`targetingMode` calcula carta de origem, tipo do efeito, frase e alvos legais):
+- a carta de origem fica grande e brilhando no canto inferior esquerdo (aura pulsando na cor do efeito, faíscas subindo);
+  no caso do General ela vem do centro (onde pergunta "Pagar 2 ouro / Não ativar") e assenta no canto;
+- uma barra ao lado diz o que fazer (rótulo colorido Cura / Dano / Reforço / Deslocar + frase) e tem o botão Cancelar;
+- os alvos legais recebem o alvo vermelho do ataque (`halo-valid-target`), recolorido por CSS: verde cura, vermelho dano,
+  dourado reforço, azul deslocar; as outras cartas escurecem; tocar numa carta não abre mais o zoom enquanto se escolhe;
+- habilidades prontas (`AbilityReadyGlow`): a moldura respira em dourado e solta brasas.
+Para um efeito novo com alvo basta adicionar um ramo em `targetingMode`.
+
 ## Como conferir uma animação (sem aparelho)
 O `page.screenshot` é lento demais para pegar efeitos de 0,3 s. Use o relógio falso do Playwright:
 `page.clock.install()` no início, `page.clock.pauseAt(...)` antes do clique e depois `clock.runFor(45)` + captura em

@@ -588,6 +588,106 @@ const SlashEffect = () => (
   </div>
 );
 
+// ── Choosing a target for an effect (Hearthstone-style) ─────────────────────────────────────────────────────────────
+// Whatever asks the player to pick a board target — the General's ability, Cavaleiro Hospitalário, a Tática from the
+// hand — shows the same thing: the source card parked big and glowing in the bottom-left corner, a bar saying what to
+// do, the legal targets marked with the attack reticle (recoloured by what the effect does) and everything else dimmed.
+type TargetKind = 'heal' | 'damage' | 'buff' | 'move';
+const TARGET_STYLE: Record<TargetKind, { label: string; color: string; halo: string }> = {
+  heal: { label: 'Cura', color: '#34d399', halo: 'hue-rotate(112deg) saturate(1.2) drop-shadow(0 0 10px rgba(52,211,153,0.95))' },
+  damage: { label: 'Dano', color: '#ef4444', halo: 'drop-shadow(0 0 10px rgba(239,68,68,0.95))' },
+  buff: { label: 'Reforço', color: '#fbbf24', halo: 'hue-rotate(40deg) saturate(1.2) drop-shadow(0 0 10px rgba(251,191,36,0.95))' },
+  move: { label: 'Deslocar', color: '#60a5fa', halo: 'hue-rotate(205deg) saturate(1.2) drop-shadow(0 0 10px rgba(96,165,250,0.95))' },
+};
+const HUD_CARD_SCALE = 0.47;      // of the 224x320 hand-card box: ~105 px wide, a bit more than twice a card on the board
+
+const TargetingHud = ({ source, mode, kind, title, hint, windowH, promptButtons, onCancel }: {
+  source: CardData; mode: 'prompt' | 'targeting'; kind: TargetKind; title: string; hint: string; windowH: number;
+  promptButtons?: React.ReactNode; onCancel: () => void; key?: React.Key;
+}) => {
+  const st = TARGET_STYLE[kind];
+  // In the prompt the card floats mid-left, big, with its buttons; once the effect is armed it settles in the corner.
+  const promptScale = FIELD_PREVIEW_SCALE.mobile;
+  const promptY = -(windowH * 0.55 - 12 - 160 * promptScale);
+  return (
+    <>
+      <div className="fixed left-2 md:left-6 z-[210] pointer-events-none" style={{ bottom: 12 }}>
+        <motion.div
+          initial={{ scale: 0.25, opacity: 0, y: 50 }}
+          animate={mode === 'prompt' ? { scale: promptScale, y: promptY, opacity: 1 } : { scale: HUD_CARD_SCALE, y: 0, opacity: 1 }}
+          exit={{ scale: 0.3, opacity: 0, y: 40 }}
+          transition={{ type: 'spring', damping: 21, stiffness: 230 }}
+          style={{ transformOrigin: 'bottom left' }}
+          className="relative w-56 h-80 pointer-events-auto"
+        >
+          {/* Only the card's art is drawn — no frame or box. It shines with a pulsing glow that follows the art's own
+              outline (drop-shadow), in the colour of what the effect does, and sparks rise off it. */}
+          <motion.div
+            className="absolute inset-0"
+            animate={{ filter: [`${CARD_THICKNESS_SHADOW} drop-shadow(0 0 5px ${st.color}aa)`, `${CARD_THICKNESS_SHADOW} drop-shadow(0 0 22px ${st.color})`, `${CARD_THICKNESS_SHADOW} drop-shadow(0 0 5px ${st.color}aa)`] }}
+            transition={{ duration: 1.3, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <CardFace card={source} variant="hand" />
+          </motion.div>
+          {[0, 1, 2, 3, 4, 5, 6].map(i => (
+            <motion.span
+              key={i}
+              className="absolute rounded-full pointer-events-none"
+              style={{ left: `${8 + i * 13}%`, bottom: '4%', width: 7, height: 7, background: st.color, boxShadow: `0 0 10px 2px ${st.color}` }}
+              animate={{ y: [0, -150 - (i % 3) * 40], opacity: [0, 1, 0], scale: [0.6, 1, 0.3] }}
+              transition={{ duration: 1.7 + (i % 3) * 0.3, repeat: Infinity, delay: i * 0.23, ease: 'easeOut' }}
+            />
+          ))}
+          {mode === 'prompt' && promptButtons && (
+            <div className="absolute top-full mt-3 left-0 z-40 flex flex-col items-start gap-2 whitespace-nowrap">{promptButtons}</div>
+          )}
+        </motion.div>
+      </div>
+      {mode === 'targeting' && (
+        <motion.div
+          initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+          className="fixed z-[210] flex flex-col gap-1.5 rounded-xl px-3 py-2 bg-black/80 backdrop-blur-sm pointer-events-auto"
+          style={{ left: 8 + 224 * HUD_CARD_SCALE + 14, right: 8, bottom: 14, border: `2px solid ${st.color}`, boxShadow: `0 0 18px ${st.color}66` }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest text-black" style={{ background: st.color, fontFamily: "'Cinzel', serif" }}>{st.label}</span>
+            <span className="text-[11px] font-black uppercase tracking-wide text-[#e8dcc0] leading-tight" style={{ fontFamily: "'Cinzel', serif" }}>{title}</span>
+          </div>
+          <p className="text-[13px] leading-snug text-white">{hint}</p>
+          <button
+            onClick={(e) => { e.stopPropagation(); onCancel(); }}
+            className="self-start mt-0.5 flex items-center gap-1 px-3 py-1 rounded-full bg-zinc-800 border border-zinc-500 text-zinc-200 text-[11px] font-black uppercase tracking-wider"
+          >
+            <X className="w-3 h-3" strokeWidth={3} /> Cancelar
+          </button>
+        </motion.div>
+      )}
+    </>
+  );
+};
+
+// An ability that can be used right now: the card's glowing frame breathes and shimmers, with a few embers drifting up.
+const AbilityReadyGlow = ({ x, y, w, h, onClick }: { x: number; y: number; w: number; h: number; onClick: () => void; key?: React.Key }) => (
+  <div className="fixed pointer-events-none" style={{ left: x - w * 0.62, top: y - h * 0.62, width: w * 1.24, height: h * 1.24 }}>
+    <motion.button
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      className="pointer-events-auto absolute inset-0"
+      animate={{ scale: [1, 1.07, 1], filter: ['drop-shadow(0 0 6px rgba(251,191,36,0.7))', 'drop-shadow(0 0 20px rgba(251,191,36,1))', 'drop-shadow(0 0 6px rgba(251,191,36,0.7))'] }}
+      transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+      style={{ backgroundImage: `url(${abilityReadyBorderImage})`, backgroundSize: '100% 100%' }}
+    />
+    {[0, 1, 2, 3, 4].map(i => (
+      <motion.span
+        key={i}
+        className="absolute rounded-full"
+        style={{ left: `${18 + i * 16}%`, bottom: '14%', width: 4, height: 4, background: '#fde68a', boxShadow: '0 0 6px 1px #fbbf24' }}
+        animate={{ y: [0, -h * 0.55], opacity: [0, 1, 0] }}
+        transition={{ duration: 1.5 + (i % 2) * 0.4, repeat: Infinity, delay: i * 0.3, ease: 'easeOut' }}
+      />
+    ))}
+  </div>
+);
+
 // The physical blow: a sprite sheet drawn over the card that was hit (impact star and speed lines, shock ring, dust,
 // flying chips, a flash, a bruise, cracks that glow and then go dark). Made by tools/vfx/punch_overlay.py. The card's own
 // shove, squash and tremor happen live in CardSlot; this is only what goes on top. Each frame is the card plus padding,
@@ -5912,7 +6012,6 @@ export default function App() {
       setPendingTacticAction({ card, kind: tacticKind });
       setSelectedCardIndex(null);
       setViewState('field');
-      showToast(TACTIC_TARGET_PROMPTS[tacticKind]);
       return;
     }
     if (kind === 'place') {
@@ -6036,6 +6135,20 @@ export default function App() {
   // them to one fixed top-level layer (same trick as the attack lines) sidesteps
   // that entirely.
   const activeHalos: { key: string; x: number; y: number; w: number; h: number; image: string; scale: number; glow: string }[] = [];
+  if (selectedMoverIndex !== null) {
+    const selfEl = document.getElementById(`player-${selectedMoverIndex}`);
+    if (selfEl) {
+      const r = selfEl.getBoundingClientRect();
+      activeHalos.push({ key: 'mover', x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, image: haloSelectionImage, scale: 1.15, glow: 'drop-shadow(0 0 10px rgba(96,165,250,0.8))' });
+    }
+    validMoveTargets.forEach(i => {
+      if (!playerSlots[i]) return;   // an empty destination keeps the slot's own outline
+      const el = document.getElementById(`player-${i}`);
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      activeHalos.push({ key: `move-${i}`, x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, image: haloValidTargetImage, scale: 1.15, glow: TARGET_STYLE.move.halo });
+    });
+  }
   if (selectedAttackerIndex !== null) {
     const selfEl = document.getElementById(`player-${selectedAttackerIndex}`);
     if (selfEl) {
@@ -6167,12 +6280,13 @@ export default function App() {
   const activateGeneralHeal = (amount: number, _cost: number) => {
     setPendingGeneralHeal({ amount });
     setGeneralAbilityPrompt(null);
-    showToast('Escolha um soldado aliado para curar.');
+    setViewState('field');
   };
   const resolveGeneralHeal = (slotIndex: number) => {
     if (!pendingGeneralHeal) return;
     if (!playerAct({ type: 'ability', slot: 12, target: slotIndex })) return;
     setPendingGeneralHeal(null);
+    setViewState('hand');
   };
 
   // Mercador da Cruzada: reveal the top 2, keep 1 — the engine opens the pick prompt.
@@ -6198,13 +6312,8 @@ export default function App() {
       return;
     }
     playTacticSfx();
-    if (hasDamaged) {
-      setPendingHospitalario({ step: 'heal', slot });
-      showToast('Cavaleiro Hospitalário: escolha um aliado ferido para curar 1 HP.');
-    } else {
-      setPendingHospitalario({ step: 'damage', slot });
-      showToast('Cavaleiro Hospitalário: escolha um inimigo na Vanguarda para causar 1 de dano.');
-    }
+    setViewState('field');
+    setPendingHospitalario(hasDamaged ? { step: 'heal', slot } : { step: 'damage', slot });
   };
 
   // "You may activate this" prompts (the General's own Fase-Principal ability, plus
@@ -6246,9 +6355,41 @@ export default function App() {
     pushAbilityPrompt('ability-general', 'player-12', () => setGeneralAbilityPrompt({ kind: 'cardeal_heal' }));
   }
 
+  // What the player is being asked to target right now, if anything (see TargetingHud): the source card, what the
+  // effect does, the sentence to show, and the board slots it can legally land on.
+  type TargetingMode = { source: CardData; kind: TargetKind; title: string; hint: string; valid: { side: 'player' | 'npc'; index: number }[] };
+  const mine = (pred: (c: CardData, i: number) => boolean) => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => playerSlots[i] && pred(playerSlots[i]!, i)).map(i => ({ side: 'player' as const, index: i }));
+  const foes = (pred: (c: CardData, i: number) => boolean) => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => npcSlots[i] && pred(npcSlots[i]!, i)).map(i => ({ side: 'npc' as const, index: i }));
+  // The legal targets of a Tática that needs one (used both when it is armed and while it is only selected in the hand).
+  const tacticTargeting = (card: CardData, kind: TacticTargetKind): TargetingMode => {
+    const hint = TACTIC_TARGET_PROMPTS[kind];
+    if (kind === 'balesta' || kind === 'catapulta') return { source: card, kind: 'damage', title: card.name, hint, valid: foes(() => true) };
+    if (kind === 'reposicionamento_rapido') return { source: card, kind: 'move', title: card.name, hint, valid: foes(() => true) };
+    const own = kind === 'avanco_coordenado' ? mine((_c, i) => movedSlots.has(i))
+      : kind === 'ordem_retirada' ? mine((_c, i) => isFrontline(i))
+      : kind === 'linha_fechada' ? mine(() => true)
+      : mine(c => (EQUIP_ALLOWED_TYPES[kind] ?? []).includes(c.cardType as CardType));
+    return { source: card, kind: 'buff', title: card.name, hint, valid: own };
+  };
+  const targetingMode: TargetingMode | null = (() => {
+    if (pendingGeneralHeal && playerSlots[12]) {
+      return { source: playerSlots[12]!, kind: 'heal', title: 'Habilidade do General', hint: `Toque em um soldado aliado para curar ${pendingGeneralHeal.amount} HP.`, valid: mine(() => true) };
+    }
+    if (pendingHospitalario && playerSlots[pendingHospitalario.slot]) {
+      const source = playerSlots[pendingHospitalario.slot]!;
+      return pendingHospitalario.step === 'heal'
+        ? { source, kind: 'heal', title: source.name, hint: 'Toque em um aliado ferido para curar 1 HP.', valid: mine(c => isCardDamaged(c)) }
+        : { source, kind: 'damage', title: source.name, hint: 'Toque em um inimigo da Vanguarda para causar 1 de dano.', valid: foes((_c, i) => isFrontline(i)) };
+    }
+    if (pendingTacticAction) return tacticTargeting(pendingTacticAction.card, pendingTacticAction.kind);
+    return null;
+  })();
+  const cancelTargeting = () => { playUiClickSfx(); handleBackgroundClick(); };
+
   const commitHospitalario = (slot: number, target?: number, target2?: number) => {
     if (!playerAct({ type: 'ability', slot, target, target2 })) return;
     setPendingHospitalario(null);
+    setViewState('hand');
   };
   // Heal half: the player tapped their own board.
   const resolveHospitalarioHeal = (slotIndex: number) => {
@@ -6257,7 +6398,6 @@ export default function App() {
     if (slotIndex > 9 || !target || !isCardDamaged(target)) { showToast('Escolha um aliado ferido no campo.'); return; }
     if (hospitalarioTargets().hasEnemyFront) {
       setPendingHospitalario({ step: 'damage', slot: pendingHospitalario.slot, healTarget: slotIndex });
-      showToast('Cavaleiro Hospitalário: escolha um inimigo na Vanguarda para causar 1 de dano.');
     } else {
       commitHospitalario(pendingHospitalario.slot, slotIndex);
     }
@@ -6509,10 +6649,12 @@ export default function App() {
     }
     if (pendingGeneralHeal) {
       setPendingGeneralHeal(null);
+      setViewState('hand');
       return;
     }
     if (pendingHospitalario) {
       setPendingHospitalario(null);
+      setViewState('hand');
       return;
     }
     if (viewState === 'field') {
@@ -6627,6 +6769,9 @@ export default function App() {
   // flips to 'field' now during the flight animation itself, see handleSlotClick)
   // is enough: this card stays "previewed" the entire time it's selected.
   const previewedCard = selectedCardIndex !== null ? hand[selectedCardIndex] : null;
+  // A targetable Tática that is only selected in the hand already marks where it could land (no HUD yet: the card itself is up).
+  const previewTargeting = !targetingMode && previewedCard && TARGETABLE_TACTICS[previewedCard.name] ? tacticTargeting(previewedCard, TARGETABLE_TACTICS[previewedCard.name]) : null;
+  const targetLayer = targetingMode ?? previewTargeting;
   const getPlayerSlotHint = (slotIndex: number): SlotHint | undefined => {
     if (!previewedCard || playerSlots[slotIndex]) return undefined;
     // A targetable Tática (ownTarget/enemyTarget — see getCardDropKind) already has
@@ -6850,7 +6995,7 @@ export default function App() {
               // on top of the board, hiding whatever that tap was actually doing.
               // Preparação keeps the preview (reading a card there is still the point
               // of tapping it — nothing else consumes that tap in that phase).
-              onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
+              onInfoClick={turnPhase === 'preparacao' && !targetingMode ? setDetailedCard : undefined}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
@@ -6865,7 +7010,7 @@ export default function App() {
                 slotId="npc-12"
                 card={npcSlots[12]}
                 onClick={() => handleNpcSlotClick(12)}
-                onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
+                onInfoClick={turnPhase === 'preparacao' && !targetingMode ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
@@ -6880,7 +7025,7 @@ export default function App() {
               slotId="npc-11"
               card={npcSlots[11]}
               onClick={() => handleNpcSlotClick(11)}
-              onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
+              onInfoClick={turnPhase === 'preparacao' && !targetingMode ? setDetailedCard : undefined}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
@@ -6905,7 +7050,7 @@ export default function App() {
                 slotId={`npc-${i}`}
                 card={repositionFlight?.side === 'npc' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
-                onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
+                onInfoClick={turnPhase === 'preparacao' && !targetingMode ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
@@ -6926,7 +7071,7 @@ export default function App() {
                 slotId={`npc-${i}`}
                 card={repositionFlight?.side === 'npc' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
-                onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
+                onInfoClick={turnPhase === 'preparacao' && !targetingMode ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
@@ -6958,7 +7103,7 @@ export default function App() {
                 card={repositionFlight?.side === 'player' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : playerSlots[i]}
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
-                onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
+                onInfoClick={turnPhase === 'preparacao' && !targetingMode ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
@@ -6986,7 +7131,7 @@ export default function App() {
                 card={repositionFlight?.side === 'player' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : playerSlots[i]}
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
-                onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
+                onInfoClick={turnPhase === 'preparacao' && !targetingMode ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
@@ -7018,7 +7163,7 @@ export default function App() {
               card={playerSlots[10]}
               onClick={(el) => handleSlotClick(10, el)}
               isSelected={selectedAttackerIndex === 10}
-              onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
+              onInfoClick={turnPhase === 'preparacao' && !targetingMode ? setDetailedCard : undefined}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
@@ -7033,7 +7178,7 @@ export default function App() {
                 card={playerSlots[12]}
                 onClick={(el) => handleSlotClick(12, el)}
                 isSelected={selectedAttackerIndex === 12}
-                onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
+                onInfoClick={turnPhase === 'preparacao' && !targetingMode ? setDetailedCard : undefined}
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
@@ -7047,7 +7192,7 @@ export default function App() {
               card={playerSlots[11]}
               onClick={(el) => handleSlotClick(11, el)}
               isSelected={selectedAttackerIndex === 11}
-              onInfoClick={turnPhase === 'preparacao' ? setDetailedCard : undefined}
+              onInfoClick={turnPhase === 'preparacao' && !targetingMode ? setDetailedCard : undefined}
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
@@ -8067,27 +8212,45 @@ export default function App() {
       )}
       {/* "You may activate this" prompts — see abilityReadyPrompts above for why
           these moved out of each CardSlot and into this same top-level fixed layer. */}
-      {abilityReadyPrompts.length > 0 && (
+      {abilityReadyPrompts.length > 0 && !targetingMode && !generalAbilityPrompt && (
         <div className="fixed inset-0 z-40 pointer-events-none">
           {abilityReadyPrompts.map(p => (
-            <motion.button
-              key={p.key}
-              onClick={(e) => { e.stopPropagation(); p.onClick(); }}
-              animate={{ opacity: [1, 0.3, 1] }}
-              transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
-              className="pointer-events-auto"
-              style={{
-                position: 'fixed', left: p.x, top: p.y,
-                width: p.w * 1.12, height: p.h * 1.12,
-                marginLeft: -(p.w * 1.12) / 2, marginTop: -(p.h * 1.12) / 2,
-                backgroundImage: `url(${abilityReadyBorderImage})`,
-                backgroundSize: '100% 100%',
-                filter: 'drop-shadow(0 0 10px rgba(239,68,68,0.8))',
-              }}
-            />
+            <AbilityReadyGlow key={p.key} x={p.x} y={p.y} w={p.w} h={p.h} onClick={p.onClick} />
           ))}
         </div>
       )}
+      {/* Choosing a target: the legal ones wear the attack reticle (coloured by what the effect does), everything else is dimmed. */}
+      {targetLayer && (() => {
+        const st = TARGET_STYLE[targetLayer.kind];
+        const validKeys = new Set(targetLayer.valid.map(v => `${v.side}-${v.index}`));
+        const rects: { key: string; r: DOMRect; valid: boolean }[] = [];
+        (['player', 'npc'] as const).forEach(side => {
+          const slots = side === 'player' ? playerSlots : npcSlots;
+          [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].forEach(i => {
+            if (!slots[i]) return;
+            const el = getCardVisualEl(`${side}-${i}`);
+            if (el) rects.push({ key: `${side}-${i}`, r: el.getBoundingClientRect(), valid: validKeys.has(`${side}-${i}`) });
+          });
+        });
+        return (
+          <div className="fixed inset-0 z-[45] pointer-events-none">
+            {rects.filter(x => !x.valid).map(x => (
+              <div key={`dim-${x.key}`} className="absolute rounded-lg bg-black/55" style={{ left: x.r.left, top: x.r.top, width: x.r.width, height: x.r.height }} />
+            ))}
+            {rects.filter(x => x.valid).map(x => (
+              <motion.img
+                key={`ret-${x.key}`}
+                src={haloValidTargetImage}
+                alt=""
+                className="absolute"
+                animate={{ scale: [1, 1.12, 1], opacity: [0.85, 1, 0.85] }}
+                transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
+                style={{ left: x.r.left + x.r.width / 2 - (x.r.width * 1.2) / 2, top: x.r.top + x.r.height / 2 - (x.r.height * 1.2) / 2, width: x.r.width * 1.2, height: x.r.height * 1.2, objectFit: 'contain', filter: st.halo }}
+              />
+            ))}
+          </div>
+        );
+      })()}
       {(attackLines.some(line => line.valid) || activeAttackLine) && (
         <svg className="fixed inset-0 z-40 pointer-events-none" width="100%" height="100%">
           {attackLines.filter(line => line.valid).map((line, idx) => renderTravelingArrow(
@@ -8113,7 +8276,7 @@ export default function App() {
           by accident. Same fixed spot every time, so it's learnable at a glance
           instead of rediscovered per session. */}
       <AnimatePresence>
-        {((selectedCardIndex !== null && viewState === 'field') || !!pendingTacticAction || !!pendingGeneralHeal || !!pendingHospitalario) && (
+        {selectedCardIndex !== null && viewState === 'field' && !targetingMode && (
           <motion.button
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -8494,7 +8657,7 @@ export default function App() {
                     }}
                   >
                     <div
-                      className={`relative w-full aspect-[2/3] rounded-xl ${isSelected ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)]' : ''}`}
+                      className={`relative w-full aspect-[2/3] rounded-xl transition-transform ${isSelected ? 'scale-[1.06] drop-shadow-[0_0_14px_rgba(52,211,153,0.95)]' : ''}`}
                       style={{ filter: CARD_THICKNESS_SHADOW }}
                     >
                       <CardFace card={opt} variant="hand" />
@@ -8685,7 +8848,7 @@ export default function App() {
             }}
           >
             <div
-              className={`relative w-full h-full rounded-xl ${detailedCard.isFullArt ? '' : 'shadow-[0_0_100px_rgba(0,0,0,0.8),inset_0_0_0_1px_rgba(212,175,55,0.45)]'}`}
+              className={`relative w-full h-full rounded-xl ${detailedCard.isFullArt ? '' : 'shadow-[0_0_100px_rgba(0,0,0,0.8)]'}`}
               style={{ filter: cardGlowFilter(detailedCard, '0 0 40px rgba(0,0,0,0.8)') }}
             >
               <CardFace card={detailedCard} variant="hand" />
@@ -8708,40 +8871,40 @@ export default function App() {
           heal amount set by Cálice da Graça — see activateGeneralHeal's call site
           below), so this is a plain ativar/não instead of a further cost-choice step. */}
       <AnimatePresence>
-        {generalAbilityPrompt && playerSlots[12] && (
-          <div
-            className="fixed z-[210] left-2 md:left-6 pointer-events-none"
-            style={{ top: '45%', transform: 'translateY(-50%)' }}
-          >
-            <motion.div
-              initial={{ scale: 0.85, opacity: 0 }}
-              animate={{ scale: isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop, opacity: 1 }}
-              exit={{ scale: 0.85, opacity: 0 }}
-              transition={{ type: "spring", damping: 22, stiffness: 280 }}
-              style={{ transformOrigin: 'center left', filter: CARD_THICKNESS_SHADOW }}
-              className="relative w-56 h-80 pointer-events-auto"
-            >
-              <CardFace card={playerSlots[12]!} variant="hand" />
-              <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(212,175,55,0.6)] rounded-xl border-2 border-[#d4af37] pointer-events-none" />
-
-              <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 z-40 flex gap-2 whitespace-nowrap">
-                <button
-                  onClick={() => activateGeneralHeal(playerSlots[10]?.name === 'Cálice da Graça' ? 2 : 1, 2)}
-                  disabled={playerMana < 2}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(16,185,129,0.7)] border-2 border-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
-                >
-                  Pagar 2 ouro: curar {playerSlots[10]?.name === 'Cálice da Graça' ? 2 : 1} HP
-                </button>
-                <button
-                  onClick={() => { playUiClickSfx(); setGeneralAbilityPrompt(null); }}
-                  className="px-5 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(0,0,0,0.6)] border-2 border-zinc-500"
-                >
-                  Não ativar
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
+        {(generalAbilityPrompt || targetingMode) && (() => {
+          const prompting = !!generalAbilityPrompt && playerSlots[12];
+          const source = prompting ? playerSlots[12]! : targetingMode!.source;
+          const kind: TargetKind = prompting ? 'heal' : targetingMode!.kind;
+          return (
+            <TargetingHud
+              key="targeting-hud"
+              source={source}
+              mode={prompting ? 'prompt' : 'targeting'}
+              kind={kind}
+              title={prompting ? 'Habilidade do General' : targetingMode!.title}
+              hint={prompting ? '' : targetingMode!.hint}
+              windowH={windowSize.height}
+              onCancel={prompting ? () => setGeneralAbilityPrompt(null) : cancelTargeting}
+              promptButtons={prompting ? (
+                <>
+                  <button
+                    onClick={() => activateGeneralHeal(playerSlots[10]?.name === 'Cálice da Graça' ? 2 : 1, 2)}
+                    disabled={playerMana < 2}
+                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(16,185,129,0.7)] border-2 border-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
+                  >
+                    Pagar 2 ouro: curar {playerSlots[10]?.name === 'Cálice da Graça' ? 2 : 1} HP
+                  </button>
+                  <button
+                    onClick={() => { playUiClickSfx(); setGeneralAbilityPrompt(null); }}
+                    className="px-5 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(0,0,0,0.6)] border-2 border-zinc-500"
+                  >
+                    Não ativar
+                  </button>
+                </>
+              ) : undefined}
+            />
+          );
+        })()}
       </AnimatePresence>
 
     </div>
@@ -8870,7 +9033,7 @@ const CardSlot = ({
         // …) rather than instead of it, so none of that existing board logic changes.
         if (card && !card.isDestroyed && onInfoClick) onInfoClick(card);
       }}
-      className={`w-[7.5rem] h-[9.5rem] md:w-[9.5rem] md:h-[12.5rem] rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${hintClass} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${isMoverSelected ? 'ring-4 ring-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.7)]' : ''} ${isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''} ${isTacticDragTarget ? 'ring-4 ring-fuchsia-400 shadow-[0_0_30px_rgba(232,121,249,0.75)]' : ''}`}
+      className={`w-[7.5rem] h-[9.5rem] md:w-[9.5rem] md:h-[12.5rem] rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${!card ? hintClass : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${!card && isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''}`}
     >
       {!card && hint && (
         // Placement drop indicator on every legal empty slot at once while a hand
