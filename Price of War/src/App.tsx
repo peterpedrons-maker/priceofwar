@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { fetchProfile, usernameAvailable, createProfile, updateProfileFields, fetchStore, pushStore, type CloudDeck } from './services/cloud';
 import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authErrorDetail, authMode, type Session } from './services/auth';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate, type MotionValue } from 'motion/react';
@@ -530,6 +530,11 @@ const PHASE_BANNER_MOTION: Record<'in' | 'hold' | 'out', { animate: { opacity: n
 // Both Generals now come from whichever deck each side is playing (see DECKS
 // below) — picked at match start in resetGame, not fixed constants like before.
 
+// The hit-stop: the attacker has landed and the whole board holds still for a beat (a few frames) before the hit
+// connects. That micro-pause is what makes an attack feel heavy.
+const HIT_STOP_MS = 70;
+const IMPACT_MS = 230;
+
 // Evenly-spaced directions for SlashEffect's spark burst below.
 const SLASH_SPARK_ANGLES = Array.from({ length: 6 }, (_, i) => (i / 6) * Math.PI * 2);
 
@@ -573,6 +578,30 @@ const SlashEffect = () => (
     ))}
   </div>
 );
+
+// Sparks kicked out of the defender at the moment of the hit: thin streaks flying outward (not round dots) so they
+// read as metal striking metal. `heavy` (a General taking the hit) throws more of them, farther.
+const ImpactSparks = ({ heavy = false }: { heavy?: boolean }) => {
+  const sparks = useMemo(() => Array.from({ length: heavy ? 14 : 9 }, (_, i) => {
+    const angle = (i / (heavy ? 14 : 9)) * Math.PI * 2 + (Math.random() - 0.5) * 0.7;
+    // the board is drawn at a fraction of its size on a phone, so these are big numbers on purpose
+    return { angle, dist: (heavy ? 130 : 90) + Math.random() * (heavy ? 110 : 80), len: 22 + Math.random() * 22, hot: i % 3 === 0 };
+  }), [heavy]);
+  return (
+    <div className="absolute inset-0 z-[55] flex items-center justify-center pointer-events-none">
+      {sparks.map((sp, i) => (
+        <motion.div
+          key={i}
+          className={`absolute h-[4px] rounded-full ${sp.hot ? 'bg-white' : 'bg-amber-300'}`}
+          style={{ width: sp.len, rotate: `${(sp.angle * 180) / Math.PI}deg`, boxShadow: '0 0 10px rgba(253,186,60,0.95)' }}
+          initial={{ x: 0, y: 0, opacity: 1, scaleX: 1 }}
+          animate={{ x: Math.cos(sp.angle) * sp.dist, y: Math.sin(sp.angle) * sp.dist + 8, opacity: [1, 1, 0], scaleX: [1, 1, 0.2] }}
+          transition={{ duration: 0.42, ease: 'easeOut', times: [0, 0.55, 1] }}
+        />
+      ))}
+    </div>
+  );
+};
 
 const ExplosionEffect = () => (
   <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
@@ -5617,9 +5646,10 @@ export default function App() {
           }
           setAttackAnim({ attackerIndex: action.from, targetIndex: action.to, isPlayerAttacking: false });
           await sleep(300);
+          await sleep(HIT_STOP_MS);   // the lunge lands and everything holds for a beat before the hit
           playAttackSfx();
           setIsImpacting(true);
-          await sleep(200);
+          await sleep(IMPACT_MS);
           setIsImpacting(false);
           const r = dispatchAction(1, action);
           if (r.ok === false) { setAttackAnim(null); break; }
@@ -6420,9 +6450,10 @@ export default function App() {
       setIsAnimating(true);
       setAttackAnim({ attackerIndex: from, targetIndex: slotIndex, isPlayerAttacking: true });
       await sleep(300);
+      await sleep(HIT_STOP_MS);   // the lunge lands and everything holds for a beat before the hit
       playAttackSfx();
       setIsImpacting(true);
-      await sleep(200);
+      await sleep(IMPACT_MS);
       setIsImpacting(false);
       const r = dispatchAction(0, { type: 'attack', from, to: slotIndex });
       if (r.ok === false) showToast(r.error);
@@ -6663,7 +6694,13 @@ export default function App() {
   // own motion.div since the HUD (see where it's rendered) specifically relies on being
   // a child of the OUTER layer and not this INNER one to share the board's exact resting
   // position with zero lag (see that comment) without inheriting whatever this ever does.
-  const gridZoomDelta = { x: 0, y: 0, scale: 1 };
+  // The board gives a short tremor when a hit lands (a General being hit shakes harder). Kept to a few pixels and a
+  // third of a second — the camera must never read as moving. Pixel sizes are divided by the board's own scale so
+  // they mean real screen pixels.
+  const shakePx = (attackAnim && isImpacting ? (attackAnim.targetIndex === 12 ? 6 : 3) : 0) / gridBaseAnim.scale;
+  const gridZoomDelta = shakePx > 0
+    ? { x: [0, -shakePx, shakePx, -shakePx * 0.7, shakePx * 0.5, 0], y: [0, shakePx * 0.6, -shakePx * 0.5, shakePx * 0.3, -shakePx * 0.2, 0], scale: 1 }
+    : { x: 0, y: 0, scale: 1 };
 
   // The root stage (see the outer `justify-center` div below) centers the board's
   // fixed 1000x1250 box inside the full viewport height, leaving an equal empty
@@ -6727,6 +6764,7 @@ export default function App() {
       <motion.div
         className="absolute inset-0 grid grid-rows-2 gap-12 p-8"
         animate={gridZoomDelta}
+        transition={shakePx > 0 ? { duration: 0.3, ease: 'easeOut' } : { duration: 0.12 }}
         onClick={(e) => {
           e.stopPropagation();
           if (isCardInFlightTransition) return; // don't cancel a card mid hand-off to the board
@@ -8738,6 +8776,13 @@ const CardSlot = ({
   // within/into this slot, not just its hp changing), but reads prevCardIdRef
   // BEFORE that effect updates it, so this has to run first.
   const [justLanded, setJustLanded] = useState(false);
+  // The sparks outlive the short impact window they start in, so they get their own timer.
+  const [sparkBurst, setSparkBurst] = useState<number | null>(null);
+  useEffect(() => {
+    if (!isImpactingTarget) return;
+    setSparkBurst(Date.now());
+    window.setTimeout(() => setSparkBurst(null), 520);
+  }, [isImpactingTarget]);
   useEffect(() => {
     if (card && prevCardIdRef.current !== card.id) {
       setJustLanded(true);
@@ -8902,7 +8947,10 @@ const CardSlot = ({
             // elsewhere on the board makes this one flinch (see shockActive).
             y: isAttacking
               ? [0, attackY > 0 ? -22 : 22, attackY]
-              : (shockActive ? [0, -14, 2, 0] : 0),
+              : isImpactingTarget
+                // the defender is knocked back, away from whoever hit it, and settles
+                ? [0, attackDirection === 'up' ? 12 : -12, 0]
+                : (shockActive ? [0, -14, 2, 0] : 0),
             // Collision tremor — BOTH the attacker and the defender rattle the
             // instant the hit actually lands (isImpactingAttacker/isImpactingTarget,
             // both tied to the same isImpacting window), not just whichever card
@@ -8921,15 +8969,18 @@ const CardSlot = ({
             // on just the vertical axis, like the card actually has mass hitting the
             // table, instead of the plain uniform scale-in every card used to get.
             // Left undefined the rest of the time so it just follows `scale` above.
-            scaleY: justLanded ? [0.55, 1.18, 0.92, 1.03, 1] : undefined,
+            scaleY: justLanded ? [0.55, 1.18, 0.92, 1.03, 1] : isImpactingAttacker ? 0.9 : isAttacking ? 1.08 : 1,
+            // Stretch on the way in, squash on contact (volume stays put, so it reads as weight).
+            scaleX: isImpactingAttacker ? 1.08 : isAttacking ? 0.96 : 1,
             rotateX: isAttacking ? (attackDirection === 'up' ? 20 : -20) : 0,
           }}
           transition={{
             duration: isAttacking ? 0.3 : 0.2,
             times: isAttacking ? [0, 0.4, 1] : undefined,
             scale: { type: "spring", stiffness: 400, damping: 15 },
-            scaleY: justLanded ? { duration: 0.38, ease: "easeOut", times: [0, 0.35, 0.6, 0.85, 1] } : undefined,
-            y: shockActive ? { duration: 0.4, ease: "easeOut" } : undefined,
+            scaleY: justLanded ? { duration: 0.38, ease: "easeOut", times: [0, 0.35, 0.6, 0.85, 1] } : { type: "spring", stiffness: 520, damping: 16 },
+            scaleX: { type: "spring", stiffness: 520, damping: 16 },
+            y: isImpactingTarget ? { duration: 0.3, ease: "easeOut", times: [0, 0.35, 1] } : shockActive ? { duration: 0.4, ease: "easeOut" } : undefined,
             x: damageFlash
               ? { duration: 0.45, ease: "easeOut" }
               : (isImpactingAttacker || isImpactingTarget) ? { duration: 0.25, ease: "easeOut" } : undefined,
@@ -8947,6 +8998,7 @@ const CardSlot = ({
           data-card-visual={slotId}
         >
           {(isImpactingAttacker || isImpactingTarget) && <SlashEffect />}
+          {sparkBurst !== null && <React.Fragment key={sparkBurst}><ImpactSparks heavy={card.cardType === 'General'} /></React.Fragment>}
 
           {/* Floating damage number — see damageFlash above. Rises and fades over
               the same window as the shake it plays alongside, so both read as one
@@ -8955,12 +9007,12 @@ const CardSlot = ({
             <motion.div
               key={damageFlash.key}
               initial={{ opacity: 0, y: 0, scale: 0.6 }}
-              animate={{ opacity: [0, 1, 1, 0], y: -36, scale: 1.15 }}
+              animate={{ opacity: [0, 1, 1, 0], y: -36, scale: [0.6, 1.5, 1.15] }}
               transition={{ duration: 0.9, ease: 'easeOut', opacity: { times: [0, 0.15, 0.7, 1] } }}
               className="absolute inset-0 flex items-center justify-center pointer-events-none z-40"
             >
               <span
-                className="font-black text-lg md:text-2xl text-red-500"
+                className={`font-black ${damageFlash.amount >= 4 ? 'text-2xl md:text-4xl' : 'text-lg md:text-2xl'} text-red-500`}
                 style={{ fontFamily: "'Cinzel', serif", textShadow: '0 2px 3px rgba(0,0,0,0.9), 0 0 10px rgba(239,68,68,0.6)' }}
               >
                 -{damageFlash.amount}
