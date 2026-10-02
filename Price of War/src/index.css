@@ -76,3 +76,19 @@
   animation: reveal-out .75s cubic-bezier(.2,.7,.2,1) forwards;
 }
 @keyframes reveal-out { from { --rv: 0%; } to { --rv: 116%; } }
+
+/* ── Tutorial ─────────────────────────────────────────────────────────────── */
+.tut-sil { --c1: #ffbf3c; --c2: #fff2c0; filter: drop-shadow(0 0 3px var(--c1)) drop-shadow(0 0 9px var(--c1)); animation: tut-glow 1.5s ease-in-out infinite; }
+.tut-sil-rim { background: var(--c2); }
+@keyframes tut-glow { 0%, 100% { opacity: .72; } 50% { opacity: 1; } }
+.tut-ring { border: 3.5px solid #ffd477; box-shadow: 0 0 10px #ffbf3c, 0 0 22px rgba(255,191,60,.65), inset 0 0 8px rgba(255,191,60,.45); animation: tut-glow 1.5s ease-in-out infinite; }
+/* the tapping hand: it presses down and comes back, and it also fades softly in and out (a slow blink) */
+.tut-hand { animation: tut-tap 1.5s ease-in-out infinite, tut-blink 1.9s ease-in-out infinite; transform-origin: 42% 5%; }
+@keyframes tut-tap { 0%, 55%, 100% { transform: translateY(0) scale(1); } 25% { transform: translateY(11px) scale(.94); } }
+@keyframes tut-blink { 0%, 100% { opacity: 1; } 50% { opacity: .42; } }
+.tut-blink { animation: tut-blink 1.6s ease-in-out infinite; }
+.tut-ripple { border: 3px solid rgba(255,238,170,.95); opacity: 0; animation: tut-ripple 1.5s ease-out infinite; }
+.tut-ripple2 { animation-delay: .22s; }
+@keyframes tut-ripple { 0%, 22% { transform: scale(.4); opacity: 0; } 30% { opacity: .95; } 100% { transform: scale(5); opacity: 0; } }
+.tut-next { animation: tut-next 1.6s ease-in-out infinite; }
+@keyframes tut-next { 0%, 100% { box-shadow: 0 0 6px rgba(255,200,90,.35); } 50% { box-shadow: 0 0 16px rgba(255,200,90,.85); } }

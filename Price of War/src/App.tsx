@@ -90,6 +90,8 @@ import uiEffectAtkUpStill from './assets/ui-effect-atk-up.webp';
 import uiEffectHpUpStill from './assets/ui-effect-hp-up.webp';
 import maskGold from './assets/mask-gold.webp';
 import maskGoldRim from './assets/mask-gold-rim.webp';
+import maskHandGold from './assets/mask-hand-gold.webp';
+import maskHandGoldRim from './assets/mask-hand-gold-rim.webp';
 import maskSilver from './assets/mask-silver.webp';
 import maskSilverRim from './assets/mask-silver-rim.webp';
 import maskChampagne from './assets/mask-champagne.webp';
@@ -203,6 +205,8 @@ import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActi
 import { aiNextAction } from './engine/ai';
 import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
+import { STEPS as TUT_STEPS, BEATS as TUT_BEATS, COIN_STEP as TUT_COIN_STEP, OUTRO as TUT_OUTRO, CHAPTERS as TUT_CHAPTERS, createTutorialMatch, nextEnemyAction as tutEnemyAction, type Step as TutStep, type Tgt as TutTgt, type Until as TutUntil } from './tutorial/script';
+import { NpcPanel, TapHand, Spotlight, TutorialList, TutorialIntro, markTutorialDone, type Hole as TutHole } from './tutorial/ui';
 import { DECK_MAX_CARDS, DECK_MAX_COPIES, DECK_MIN_CARDS } from './engine/deck';
 import {
   EQUIP_ALLOWED_TYPES, TACTIC_TARGET_PROMPTS, TARGETABLE_TACTICS, GOLD_PER_TURN, HAND_LIMIT, START_GOLD, START_HAND,
@@ -678,6 +682,7 @@ const READY_COLORS: Record<'heal' | 'damage' | 'utility', { c1: string; c2: stri
   utility: { c1: '#ffbf3c', c2: '#fff4c4' },
 };
 const SILHOUETTES = {
+  'hand-gold': [maskHandGold, maskHandGoldRim],
   gold: [maskGold, maskGoldRim], silver: [maskSilver, maskSilverRim], champagne: [maskChampagne, maskChampagneRim],
   'fullart-gold': [maskFullartGold, maskFullartGoldRim], 'fullart-tatica': [maskFullartTatica, maskFullartTaticaRim], 'fullart-emboscada': [maskFullartEmboscada, maskFullartEmboscadaRim],
 } as const;
@@ -713,6 +718,120 @@ const AbilityReadyGlow = ({ x, y, w, h, onClick, card = null, kind = 'utility' }
         aria-label="Ativar efeito"
       />
     </div>
+  );
+};
+
+// ── Tutorial stage ──────────────────────────────────────────────────────────────────────────────────────────────
+// Dims the board, leaves what the step points at in plain colour (a card on the board is cut out with its exact
+// silhouette — the same masks and boxes as AbilityReadyGlow — never a rounded rectangle), shows the tapping hand in a
+// "do" step, and the instructor's panel. It also publishes the rectangles the player may touch, which the App's tap gate
+// reads (see the tutorial block in App).
+type TutRect = { x: number; y: number; w: number; h: number };
+const tutPct = (v: unknown, base: number): number => typeof v === 'string' ? (v.endsWith('%') ? parseFloat(v) / 100 * base : parseFloat(v)) : typeof v === 'number' ? v : 0;
+const tutSilBox = (box: React.CSSProperties, r: TutRect) => {
+  const bw = box.width !== undefined ? tutPct(box.width, r.w) : r.w;
+  const bh = box.height !== undefined ? tutPct(box.height, r.h) : r.h;
+  let bx = r.x + (box.left !== undefined ? tutPct(box.left, r.w) : 0);
+  let by = r.y + (box.top !== undefined ? tutPct(box.top, r.h) : 0);
+  const m = typeof box.transform === 'string' ? box.transform.match(/translate\(\s*(-?[\d.]+)%\s*,\s*(-?[\d.]+)%\s*\)/) : null;
+  if (m) { bx += parseFloat(m[1]) / 100 * bw; by += parseFloat(m[2]) / 100 * bh; }
+  return { bx, by, bw, bh };
+};
+const tutElRect = (el: Element): TutRect => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
+const tutPad = (r: TutRect, p: number): TutRect => ({ x: r.x - p, y: r.y - p, w: r.w + 2 * p, h: r.h + 2 * p });
+const tutUnion = (rs: TutRect[]): TutRect | null => {
+  if (!rs.length) return null;
+  const x0 = Math.min(...rs.map(r => r.x)), y0 = Math.min(...rs.map(r => r.y)), x1 = Math.max(...rs.map(r => r.x + r.w)), y1 = Math.max(...rs.map(r => r.y + r.h));
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+};
+type TutResolved = { holes: TutHole[]; allow: TutRect[]; point: { x: number; y: number } | null };
+const TUT_EMPTY: TutResolved = { holes: [], allow: [], point: null };
+const visibleHandCards = () => [...document.querySelectorAll<HTMLElement>('[data-hand-card]')].filter(e => parseFloat(getComputedStyle(e).opacity) > 0.05);
+const resolveTutTarget = (t: TutTgt, cardAt: (side: 'player' | 'npc', idx: number) => CardData | null): TutResolved => {
+  if ('hand' in t) {
+    const u = tutUnion(visibleHandCards().map(tutElRect)); if (!u) return TUT_EMPTY;
+    const r = tutPad(u, 6);
+    return { holes: [{ ...r, round: 22 }], allow: [r], point: { x: r.x + r.w * 0.5, y: r.y + r.h * 0.5 } };
+  }
+  if ('handCard' in t) {
+    const els = visibleHandCards();
+    const el = els.find(e => e.dataset.cardName === t.handCard); if (!el) return TUT_EMPTY;
+    const r = tutElRect(el);
+    const m = new DOMMatrixReadOnly(getComputedStyle(el).transform);
+    const ang = Math.atan2(m.b, m.a);
+    const rotated = Math.abs(ang) > 0.02;
+    const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+    // the card's own (unrotated) size on screen, recovered from the bounding box of the tilted card
+    const co = Math.abs(Math.cos(ang)), si = Math.abs(Math.sin(ang)), det = co * co - si * si || 1;
+    const w0 = rotated ? (r.w * co - r.h * si) / det : r.w, h0 = rotated ? (r.h * co - r.w * si) / det : r.h;
+    const [fill, rim] = SILHOUETTES['hand-gold'];
+    const sb = tutSilBox({ width: '122%', height: '145.5%', top: '50%', left: '50%', transform: 'translate(-50%, -46%)' }, { x: cx - w0 / 2, y: cy - h0 / 2, w: w0, h: h0 });
+    if (!rotated) {
+      return { holes: [{ ...r, round: 16, sil: { fill, rim, ...sb } }], allow: [r], point: { x: r.x + r.w * 0.5, y: r.y + r.h * 0.42 } };
+    }
+    // a card in the fan: the whole fan stays lit, the glowing rim follows this one card's exact shape, tilted like the card
+    const fan = tutUnion(els.map(tutElRect))!;
+    return {
+      holes: [{ ...tutPad(fan, 6), round: 22, noRing: true }, { x: r.x, y: r.y, w: r.w, h: r.h, sil: { fill, rim, ...sb, rotate: `rotate(${ang}rad)`, origin: `${cx - sb.bx}px ${cy - sb.by}px`, rimOnly: true } }],
+      allow: [{ x: r.x, y: r.y + r.h * 0.15, w: r.w * 0.34, h: r.h * 0.85 }],
+      point: { x: r.x + r.w * 0.2, y: r.y + r.h * 0.2 },
+    };
+  }
+  const els = ('sels' in t ? t.sels : [t.sel]).map(q => document.querySelector(q)).filter((e): e is Element => !!e);
+  if (!els.length) return TUT_EMPTY;
+  if ('sel' in t) {
+    const r = tutElRect(els[0]);
+    const m = t.sel.match(/^#(player|npc)-(\d+)$/);
+    const card = m ? cardAt(m[1] as 'player' | 'npc', Number(m[2])) : null;
+    if (card && !card.isDestroyed) {
+      const { masks, box } = silhouetteFor(card);
+      return { holes: [{ ...r, sil: { fill: masks[0], rim: masks[1], ...tutSilBox(box, r) } }], allow: [r], point: { x: r.x + r.w * 0.5, y: r.y + r.h * 0.5 } };
+    }
+    const p = tutPad(r, t.pad ?? 5);
+    return { holes: [{ ...p, round: 14 }], allow: [p], point: { x: p.x + p.w * 0.5, y: p.y + p.h * 0.5 } };
+  }
+  const u = tutPad(tutUnion(els.map(tutElRect))!, t.pad ?? 6);
+  return { holes: [{ ...u, round: 16 }], allow: [u], point: { x: u.x + u.w * 0.5, y: u.y + u.h * 0.5 } };
+};
+
+const TutorialStage = ({ step, cardAt, allowRef, picked, replay, canBack, onNext, onBack, onRepeat, onSkip, nextLabel }: {
+  step: TutStep; cardAt: (side: 'player' | 'npc', idx: number) => CardData | null; allowRef: React.MutableRefObject<TutRect[]>; picked: boolean; replay: number;
+  canBack: boolean; onNext: () => void; onBack: () => void; onRepeat: () => void; onSkip: () => void; nextLabel?: string; key?: React.Key;
+}) => {
+  const [view, setView] = useState<{ holes: TutHole[]; point: { x: number; y: number } | null; avgY: number }>({ holes: [], point: null, avgY: 0.5 });
+  const lastKey = useRef('');
+  const cardAtRef = useRef(cardAt); cardAtRef.current = cardAt;
+  const pickedRef = useRef(picked); pickedRef.current = picked;
+  useEffect(() => {
+    let raf = 0;
+    const tick = () => {
+      const at = (s: 'player' | 'npc', i: number) => cardAtRef.current(s, i);
+      const targets = step.targets ?? [];
+      const res = targets.map(t => resolveTutTarget(t, at));
+      const holes = res.flatMap(r => r.holes);
+      const allowRes = step.allow ? step.allow.map(t => resolveTutTarget(t, at)) : res;
+      allowRef.current = step.kind === 'do' ? allowRes.flatMap(r => r.allow) : [];
+      let point: { x: number; y: number } | null = null;
+      if (step.kind === 'do') {
+        const pr = step.point ? resolveTutTarget(step.point, at) : (pickedRef.current && res.length > 1 ? res[1] : res[0]);
+        point = pr?.point ?? null;
+      }
+      const avgY = holes.length ? holes.reduce((a, h) => a + h.y + h.h / 2, 0) / holes.length / window.innerHeight : 0.5;
+      const key = JSON.stringify([holes.map(h => [h.x, h.y, h.w, h.h, h.sil?.bx, h.sil?.by, h.sil?.rotate].map(v => typeof v === 'number' ? Math.round(v) : v)), point && [Math.round(point.x), Math.round(point.y)]]);
+      if (key !== lastKey.current) { lastKey.current = key; setView({ holes, point, avgY }); }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { cancelAnimationFrame(raf); allowRef.current = []; lastKey.current = ''; };
+  }, [step.id]);
+  const position = step.panel ?? (view.holes.length === 0 ? 'top' : view.avgY < 0.5 ? 'bottom' : 'top');
+  return (
+    <>
+      {!step.quiet && view.holes.length > 0 && <Spotlight holes={view.holes} />}
+      {step.kind === 'do' && view.point && <TapHand x={view.point.x} y={view.point.y} />}
+      <NpcPanel step={step} chapter={step.chapter} chapters={TUT_CHAPTERS} position={position} replay={replay} canBack={canBack}
+        onNext={step.kind === 'read' ? onNext : undefined} onBack={onBack} onRepeat={onRepeat} onSkip={onSkip} nextLabel={nextLabel} />
+    </>
   );
 };
 
@@ -940,8 +1059,9 @@ const BurningCard = ({ children }: { children: React.ReactNode }) => {
 // wired by each call site below) to open the full graveyard browser overlay — the
 // pile itself only ever shows the ONE top card, so opening it is the only way to see
 // what else has piled up underneath.
-const GraveyardPile = ({ cards, onClick }: { cards: CardData[]; onClick?: () => void }) => (
+const GraveyardPile = ({ cards, onClick, tut }: { cards: CardData[]; onClick?: () => void; tut?: string }) => (
   <div
+    data-tut={tut}
     className={`w-28 h-36 md:w-36 md:h-48 border-2 border-zinc-700 rounded-xl bg-zinc-900/80 flex items-center justify-center shadow-lg relative overflow-hidden ${onClick ? 'cursor-pointer active:scale-95 transition-transform' : ''}`}
     onClick={onClick}
   >
@@ -2743,7 +2863,7 @@ const MenuIconButton = ({ icon, label, onClick }: { icon: string; label: string;
   );
 };
 
-const MainMenu = ({ onSelectMode, session }: { onSelectMode: (mode: string) => void; session: Session | null }) => {
+const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode: string) => void; onTutorials: () => void; session: Session | null }) => {
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
   const bgX = useTransform(mouseX, [-500, 500], [-8, 8]);
@@ -2889,7 +3009,7 @@ const MainMenu = ({ onSelectMode, session }: { onSelectMode: (mode: string) => v
         style={{ paddingBottom: 'max(14px, env(safe-area-inset-bottom))', background: 'linear-gradient(to top, rgba(0,0,0,0.75), transparent)' }}
       >
         <MenuIconButton icon={uiIconConfigImage} label="Config." onClick={() => setSettingsOpen(true)} />
-        <MenuIconButton icon={uiIconTutoriaisImage} label="Tutoriais" onClick={() => setComingSoon({ title: 'Tutoriais', message: 'Em breve.' })} />
+        <MenuIconButton icon={uiIconTutoriaisImage} label="Tutoriais" onClick={onTutorials} />
         <MenuIconButton icon={uiIconRankingImage} label="Ranking" onClick={() => setComingSoon({ title: 'Ranking', message: 'O sistema de partidas ranqueadas ainda está por vir.' })} />
         <MenuIconButton icon={uiIconSomImage} label="Som" onClick={() => setComingSoon({ title: 'Som', message: 'Em breve.' })} />
       </div>
@@ -4580,6 +4700,18 @@ export default function App() {
     return () => { alive = false; off(); };
   }, []);
   const [gameMode, setGameMode] = useState<string | null>(null);
+  // ── Tutorial (see src/tutorial): the director's state ──
+  type TutState = { id: string; idx: number; beat: TutStep[] | null; beatIdx: number; beatDone: (() => void) | null; token: number; enemyRound: number; enemyDone: number };
+  const tutRef = useRef<TutState | null>(null);
+  const [tutOn, setTutOn] = useState(false);                         // a tutorial is running (gates the taps)
+  const [tutShown, setTutShown] = useState<TutStep | null>(null);    // the step on screen (null while the board settles or the trainer plays)
+  const [tutReplay, setTutReplay] = useState(0);
+  const [tutTracker, setTutTracker] = useState<TurnPhase | null>(null);   // phase the turn panel shows during a step
+  const [tutIntro, setTutIntro] = useState(false);
+  const [tutListOpen, setTutListOpen] = useState(false);
+  const tutAllowRef = useRef<{ x: number; y: number; w: number; h: number }[]>([]);
+  const tutBusyRef = useRef(false);
+  const tutCoinRef = useRef<{ acked: boolean; resolved: 'player' | 'npc' | null }>({ acked: false, resolved: null });
   // Quick Match asks which deck to play before actually starting the match —
   // see DECKS above and the DeckPickerModal rendered in the !gameMode branch.
   const [deckPickerOpen, setDeckPickerOpen] = useState(false);
@@ -4865,6 +4997,7 @@ export default function App() {
   const [detailedCard, setDetailedCard] = useState<CardData | null>(null);
   useEffect(() => {
     if (!detailedCard) return;
+    if (tutOn) { setDetailedCard(null); return; }   // the tutorial lights the board itself; no pop-up previews over it
     const t = window.setTimeout(() => setDetailedCard(null), 2200);
     return () => clearTimeout(t);
   }, [detailedCard]);
@@ -5537,6 +5670,7 @@ export default function App() {
     if (r.ok === false) return r;
     commitState(r.state, r.events, opts);
     matchLogRef.current?.actions.push({ seat, action });
+    if (tutRef.current && seat === 0) tutFromAction(current, action);
     return { ok: true, state: r.state, events: r.events };
   };
 
@@ -5699,6 +5833,13 @@ export default function App() {
   // The opponent's next action: the AI's decision in a local match, the next step from the server in an online one.
   const nextOpponentAction = async (): Promise<EngineAction | null> => {
     const online = onlineRef.current;
+    if (tutRef.current) {
+      // The tutorial's trainer plays a fixed script (src/tutorial/script.ts), not the AI.
+      const st = engineRef.current, t = tutRef.current;
+      if (!st) return null;
+      if (t.enemyRound !== st.turn.round) { t.enemyRound = st.turn.round; t.enemyDone = 0; }
+      return tutEnemyAction(st, t.enemyDone++);
+    }
     if (!online) { const st = engineRef.current; return st ? aiNextAction(st, 1) : null; }
     const t0 = Date.now();
     let notified = false;
@@ -5759,6 +5900,166 @@ export default function App() {
   };
 
   const sleep = (ms: number) => new Promise<void>(resolve => window.setTimeout(resolve, ms));
+
+  // ── Tutorial director ──────────────────────────────────────────────────────────────────────────────────────────
+  // Walks the steps of src/tutorial/script.ts. A step is shown once the board is quiet (no banner, no animation); a
+  // "do" step ends when the player really does the thing (tutSignal, fed by dispatchAction and a few taps); the
+  // trainer's turn calls tutBeat() to talk between its moves. While a tutorial runs, the gate below lets the player
+  // touch only what the step lights up.
+  tutBusyRef.current = !!(phaseTransitionLock || autoPhase || attackAnim || repositionFlight || matchIntroStage || npcKickoffPending || equipFx || announcedCard);
+  if (typeof window !== 'undefined' && window.location.search.includes('debug')) {
+    (window as any).__tutDebug = () => ({ shown: tutShown ? { id: tutShown.id, kind: tutShown.kind, until: tutShown.until ?? null } : null, current: tutCurrent()?.id ?? null, busy: tutBusyRef.current });
+  }
+  const tutCurrent = (): TutStep | null => {
+    const t = tutRef.current; if (!t) return null;
+    return t.beat ? (t.beat[t.beatIdx] ?? null) : (t.idx >= 0 ? (TUT_STEPS[t.idx] ?? null) : null);
+  };
+  const tutCanBack = (): boolean => {
+    const t = tutRef.current; if (!t || !tutShown) return false;
+    if (t.beat) return t.beatIdx > 0;
+    return t.idx > 0 && TUT_STEPS[t.idx - 1].kind === 'read';
+  };
+  const tutShow = async (step: TutStep, immediate = false): Promise<void> => {
+    const t = tutRef.current; if (!t) return;
+    const token = ++t.token;
+    setTutShown(null);
+    if (!immediate) for (let i = 0; i < 80 && tutBusyRef.current && tutRef.current?.token === token; i++) await sleep(120);
+    if (tutRef.current?.token !== token) return;
+    if (step.enter === 'unselect') { setSelectedCardIndex(null); setSelectedAttackerIndex(null); setSelectedMoverIndex(null); }
+    if (step.enter === 'begin') dispatchAction(0, { type: 'begin' }, { quietTurn: true });
+    if (step.enter === 'announce-prep') announcePhase('preparacao');
+    setTutTracker(step.tracker ?? null);
+    if (step.kind === 'wait') { await sleep(step.ms ?? 1000); if (tutRef.current?.token === token) tutNext(); return; }
+    setTutReplay(0);
+    setTutShown(step);
+  };
+  const tutGo = (idx: number) => {
+    const t = tutRef.current; if (!t) return;
+    t.idx = idx; t.beat = null;
+    const step = TUT_STEPS[idx];
+    if (!step) { setTutShown(null); return; }
+    if (step.kind === 'enemy') { setTutShown(null); setTutTracker(null); return; }   // the trainer plays; the turn coming back moves us on
+    void tutShow(step);
+  };
+  const tutNext = (delay = 0) => {
+    if (!tutRef.current) return;
+    const go = () => {
+      const t = tutRef.current; if (!t) return;
+      if (t.beat) {
+        if (t.beatIdx + 1 < t.beat.length) { t.beatIdx++; void tutShow(t.beat[t.beatIdx], true); }
+        else { const done = t.beatDone; t.beat = null; t.beatDone = null; setTutShown(null); setTutTracker(null); done?.(); }
+        return;
+      }
+      tutGo(t.idx + 1);
+    };
+    setTutShown(null);
+    if (delay > 0) window.setTimeout(go, delay); else go();
+  };
+  const tutBack = () => {
+    const t = tutRef.current; if (!t) return;
+    if (t.beat) { if (t.beatIdx > 0) { t.beatIdx--; void tutShow(t.beat[t.beatIdx], true); } return; }
+    if (t.idx > 0) tutGo(t.idx - 1);
+  };
+  const tutMatches = (u: TutUntil, g: TutUntil): boolean => {
+    if (u.t !== g.t) return false;
+    switch (u.t) {
+      case 'tracker': return true;
+      case 'advance': return g.t === 'advance' && u.from === g.from;
+      case 'select': return g.t === 'select' && u.card === g.card;
+      case 'play': return g.t === 'play' && u.card === g.card && u.slot === g.slot;
+      case 'attack': return g.t === 'attack' && u.from === g.from && u.to === g.to;
+      case 'move': return g.t === 'move' && u.from === g.from && u.to === g.to;
+      case 'slotTap': return g.t === 'slotTap' && u.slot === g.slot;
+    }
+  };
+  const tutSignal = (g: TutUntil) => {
+    const step = tutCurrent();
+    if (!step || step.kind !== 'do' || !step.until || !tutMatches(step.until, g)) return;
+    tutNext({ tracker: 150, advance: 600, select: 300, play: 800, move: 1000, attack: 1700, slotTap: 400 }[g.t]);
+  };
+  const tutFromAction = (before: GameState, a: EngineAction) => {
+    if (a.type === 'play') { const c = before.players[0].hand.find(h => h.id === a.cardId); if (c && a.slot !== undefined) tutSignal({ t: 'play', card: c.name, slot: a.slot }); }
+    else if (a.type === 'attack') tutSignal({ t: 'attack', from: a.from, to: a.to });
+    else if (a.type === 'move') tutSignal({ t: 'move', from: a.from, to: a.to });
+    else if (a.type === 'advance') tutSignal({ t: 'advance', from: before.turn.phase });
+  };
+  // The trainer's turn pauses here to talk (beats are keyed `enemy<round>:<moment>` in the script).
+  const tutBeat = async (key: string): Promise<void> => {
+    const t = tutRef.current, st = engineRef.current;
+    const steps = t && st ? TUT_BEATS[`enemy${st.turn.round}:${key}`] : undefined;
+    if (!t || !steps) return;
+    if (key === 'afterAttack') await sleep(1700);   // let the fall and the Reforço slide finish before explaining them
+    await new Promise<void>(resolve => { t.beat = steps; t.beatIdx = 0; t.beatDone = resolve; void tutShow(steps[0], true); });
+  };
+  const tutExit = () => {
+    tutRef.current = null;
+    setTutOn(false); setTutShown(null); setTutTracker(null); setTutIntro(false);
+    matchIntroTimeoutsRef.current.forEach(clearTimeout); matchIntroTimeoutsRef.current = [];
+    setMatchIntroStage(null); setGameOverWinner(null);
+    stopOnline(); setGameMode(null);
+  };
+  const tutFinish = () => { const id = tutRef.current?.id; if (id) markTutorialDone(id); tutExit(); setTutListOpen(true); };
+  const startTutorial = (id: string) => {
+    setTutListOpen(false);
+    tutRef.current = { id, idx: -1, beat: null, beatIdx: 0, beatDone: null, token: 0, enemyRound: 0, enemyDone: 0 };
+    setTutOn(true); setTutIntro(true);
+  };
+  const tutLaunchDuel = () => { setTutIntro(false); stopOnline(); resetGame(); setGameMode('Quick Match'); };
+  // The coin: the instructor explains it while it spins; the duel goes on once it has landed AND he has been heard.
+  const tutCoinResolved = (first: 'player' | 'npc') => { tutCoinRef.current.resolved = first; if (tutCoinRef.current.acked) continueMatchIntro(first); };
+  useEffect(() => {
+    const t = tutRef.current;
+    if (!t || matchIntroStage !== 'coin') return;
+    tutCoinRef.current = { acked: false, resolved: null };
+    t.beat = [TUT_COIN_STEP]; t.beatIdx = 0;
+    t.beatDone = () => { tutCoinRef.current.acked = true; if (tutCoinRef.current.resolved) continueMatchIntro(tutCoinRef.current.resolved); };
+    void tutShow(TUT_COIN_STEP, true);
+  }, [matchIntroStage]);
+  // The trainer's turn is over (the turn came back): the next step.
+  useEffect(() => {
+    const t = tutRef.current;
+    if (!t || currentTurn !== 'player' || t.beat) return;
+    if (TUT_STEPS[t.idx]?.kind === 'enemy') tutNext();
+  }, [currentTurn]);
+  // Touching a card in the hand answers a "read this card" step.
+  useEffect(() => {
+    if (!tutRef.current || selectedCardIndex === null) return;
+    const c = handRef.current[selectedCardIndex];
+    if (c) tutSignal({ t: 'select', card: c.name });
+  }, [selectedCardIndex]);
+  // Victory: the instructor closes the tutorial.
+  useEffect(() => {
+    const t = tutRef.current;
+    if (!t || gameOverWinner !== 'player') return;
+    const id = window.setTimeout(() => {
+      const outro: TutStep = { id: 'outro', kind: 'read', expr: 'cheer', chapter: TUT_CHAPTERS, title: TUT_OUTRO.title, lines: TUT_OUTRO.lines, quiet: true, panel: 'bottom' };
+      t.beat = [outro]; t.beatIdx = 0; t.beatDone = tutFinish;
+      void tutShow(outro, true);
+    }, 2600);
+    return () => window.clearTimeout(id);
+  }, [gameOverWinner]);
+  // The gate: while a tutorial runs, every touch is swallowed unless it lands on the instructor's panel or, in a "do"
+  // step, inside a rectangle the step lights up (the stage keeps tutAllowRef up to date).
+  useEffect(() => {
+    if (!tutOn) return;
+    const types = ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'dblclick', 'touchstart', 'touchend', 'contextmenu'];
+    const handler = (e: Event) => {
+      const target = e.target as Element | null;
+      if (target?.closest?.('[data-tut-ui]')) return;
+      const step = tutCurrent();
+      let x = NaN, y = NaN;
+      if (typeof TouchEvent !== 'undefined' && e instanceof TouchEvent) { const tt = e.changedTouches[0] ?? e.touches[0]; if (tt) { x = tt.clientX; y = tt.clientY; } }
+      else if ('clientX' in e) { x = (e as MouseEvent).clientX; y = (e as MouseEvent).clientY; }
+      if (step?.kind === 'do' && tutAllowRef.current.some(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h)) {
+        if (e.type === 'click' && step.until?.t === 'slotTap') { const slot = step.until.slot; window.setTimeout(() => tutSignal({ t: 'slotTap', slot }), 0); }
+        return;
+      }
+      e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
+    };
+    types.forEach(n => window.addEventListener(n, handler, true));
+    return () => types.forEach(n => window.removeEventListener(n, handler, true));
+  }, [tutOn]);
 
   // After an attack: if the defender may spring an Emboscada, wait for the answer — the human is asked on
   // screen, the AI decides by itself.
@@ -5823,7 +6124,12 @@ export default function App() {
     const firstSeat: Seat = first === 'player' ? 0 : 1;
     const online = onlineRef.current;
     let created: { state: GameState };
-    if (online) {
+    if (tutRef.current) {
+      // Tutorial: the fixed duel (hands and draws set in advance), no seed, no match log.
+      created = { state: createTutorialMatch() };
+      matchLogRef.current = null;
+      engineRef.current = created.state;
+    } else if (online) {
       // Online: the match is the server's; this is how it stands before the first turn, seen from my chair.
       created = { state: online.init.start };
       online.confirmed = online.init.start;
@@ -5879,6 +6185,12 @@ export default function App() {
     }
     const DEALT = DEAL_START + START_HAND * DEAL_STEP + DRAW_FLIGHT_MS * 0.6;
     schedule(() => {
+      if (tutRef.current) {
+        // Tutorial: nothing starts by itself. The instructor walks through the board and asks for the first draw.
+        setNpcKickoffPending(false);
+        tutGo(0);
+        return;
+      }
       if (first === 'player') {
         // The first player draws as their turn begins (11 cards), then the usual phase ribbon.
         dispatchAction(firstSeat, { type: 'begin' }, { quietTurn: true });
@@ -6023,6 +6335,7 @@ export default function App() {
       let combatAnnounced = false;
       let movementAnnounced = false;
       let postCombatAnnounced = false;
+      await tutBeat('start');
       for (let guard = 0; guard < 300; guard++) {
         if (!engineRef.current || engineRef.current.winner !== null || engineRef.current.turn.active !== 1) break;
         const action = await nextOpponentAction();
@@ -6071,6 +6384,7 @@ export default function App() {
           setAttackAnim(null);
           const killed = r.events.some(e => e.t === 'destroyed');
           await sleep(killed ? 1250 : 300);
+          await tutBeat('afterAttack');
         } else if (action.type === 'move') {
           // Repositioning: the same slide the player's own moves get, on the opponent's board.
           setNpcVisiblePhase(s.turn.phase === 'combate' ? 'combate' : 'movimentacao');
@@ -6192,7 +6506,7 @@ export default function App() {
   if (!gameMode) {
     return (
       <div className="relative w-full h-dvh bg-zinc-950 text-white">
-        <MainMenu session={session} onSelectMode={(mode) => {
+        <MainMenu session={session} onTutorials={() => setTutListOpen(true)} onSelectMode={(mode) => {
           // Desafios (mode 'Campaign') is the only menu entry that starts a match
           // for now: pick a deck, then play as 'Quick Match' — the one game mode the
           // NPC's turn logic is actually wired to (see the gameMode === 'Quick Match'
@@ -6201,6 +6515,10 @@ export default function App() {
           else if (mode === 'OnlineCasual') { setDeckPickerFor('casual'); setDeckPickerOpen(true); }
           else startGame(mode);
         }} />
+        <AnimatePresence>
+          {tutListOpen && <TutorialList key="tut-list" onClose={() => setTutListOpen(false)} onPlay={startTutorial} />}
+          {tutIntro && <TutorialIntro key="tut-intro" onStart={tutLaunchDuel} onClose={tutExit} />}
+        </AnimatePresence>
         <AnimatePresence>
           {deckPickerOpen && (
             <DeckPickerModal
@@ -6381,6 +6699,7 @@ export default function App() {
     playerSlots[12]?.name === 'Cardeal Pedro, Voz da Fé' && !playerSlots[12]?.isDestroyed &&
     currentTurn === 'player' && (turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !eng?.pending && !gameOverWinner &&
     playerGeneralAbilityUses < playerGeneralAbilityMaxUses &&
+    !tutOn &&   // every ability is off in the tutorial (Tutorial 2 teaches them)
     playerMana >= 2 &&
     // Infiltrado da Ordem: blocked for exactly the one turn following the General
     // taking damage (see playerGeneralAbilityBlockedThisTurnRef's own comment).
@@ -7178,6 +7497,9 @@ export default function App() {
   return (
     <div
       className="relative w-full h-dvh bg-[#140f0a] overflow-hidden flex flex-col items-center justify-center touch-none"
+      // overflow:hidden still lets the browser scroll this box (focus, scrollIntoView): the board and everything fixed inside it
+      // would slide sideways, so it is always put back.
+      onScroll={(e) => { const el = e.currentTarget; if (el.scrollLeft !== 0) el.scrollLeft = 0; if (el.scrollTop !== 0) el.scrollTop = 0; }}
       style={{ perspective: '1200px' }}
       onClick={handleBackgroundClick}
     >
@@ -7442,7 +7764,7 @@ export default function App() {
               instead of the old diagonal-corners layout (see git history). */}
           <div className="relative flex justify-center gap-3 md:gap-6 items-center">
             <div className="pointer-events-auto">
-              <GraveyardPile cards={playerGraveyard} onClick={() => setViewingGraveyard('player')} />
+              <GraveyardPile cards={playerGraveyard} onClick={() => setViewingGraveyard('player')} tut="graveyard" />
             </div>
             <CardSlot
               slotId="player-10"
@@ -7489,6 +7811,7 @@ export default function App() {
             />
             <motion.div
               ref={playerDeckRef}
+              data-tut="deck"
               className="w-28 h-36 md:w-36 md:h-48 relative group pointer-events-none"
             >
               <CardBack offset={6} brightness={0.3} />
@@ -7567,9 +7890,12 @@ export default function App() {
 
         <div
           className="flex flex-col items-center gap-0.5 cursor-pointer shrink-0"
+          data-tut="tracker"
           onClick={(e) => {
             e.stopPropagation();
             if (currentTurn !== 'player') return;
+            // Tutorial: a "touch COMPRA / SUPRIMENTOS" step is answered by the instructor, not by the engine.
+            if (tutRef.current && tutCurrent()?.until?.t === 'tracker') { playUiClickSfx(); tutSignal({ t: 'tracker' }); return; }
             if (phaseTransitionLock || autoPhase) return; // a banner from the last tap (or the automatic phases) is still playing out
             playUiClickSfx();
             setSelectedCardIndex(null);
@@ -7584,7 +7910,7 @@ export default function App() {
               and red on the adversary's. Tapping it advances the phase — from the last one it ends the turn. */}
           {(() => {
             const isPlayerTurn = currentTurn === 'player';
-            const shownPhase = isPlayerTurn ? (autoPhase ?? turnPhase) : npcVisiblePhase;
+            const shownPhase = tutTracker ?? (isPlayerTurn ? (autoPhase ?? turnPhase) : npcVisiblePhase);
             const locked: TurnPhase[] = combatOpenNow ? [] : ['combate', 'pos_combate'];
             const automatic = isPlayerTurn && (shownPhase === 'compra' || shownPhase === 'suprimentos');
             return (
@@ -7594,7 +7920,7 @@ export default function App() {
                   phase={shownPhase}
                   locked={locked}
                   name={isPlayerTurn ? undefined : 'ADVERSÁRIO'}
-                  tappable={isPlayerTurn && !automatic}
+                  tappable={isPlayerTurn && (!automatic || tutTracker !== null)}
                 />
               </motion.div>
             );
@@ -7742,6 +8068,7 @@ export default function App() {
                 key={card.id}
                 ref={(el) => { handCardRefs.current[card.id] = el; }}
                 data-hand-card
+                data-card-name={card.name}
                 className={`w-56 h-80 shrink-0 cursor-pointer relative group ${viewState === 'field' || coveredBySelected ? 'pointer-events-none' : 'pointer-events-auto'}`}
                 // A freshly drawn card (see computeDrawOrigin) mounts sitting right at the
                 // real on-board deck's position/size and animates itself — this same
@@ -8466,7 +8793,7 @@ export default function App() {
         })()}
       </AnimatePresence>
 
-      <AnimatePresence>{matchIntroStage === 'coin' && <CoinToss key="coin-toss" onResolved={continueMatchIntro} mySide={coinSide} forced={onlineRef.current ? (onlineRef.current.init.iGoFirst ? 'player' : 'npc') : undefined} />}</AnimatePresence>
+      <AnimatePresence>{matchIntroStage === 'coin' && <CoinToss key="coin-toss" onResolved={tutRef.current ? tutCoinResolved : continueMatchIntro} mySide={coinSide} forced={onlineRef.current ? (onlineRef.current.init.iGoFirst ? 'player' : 'npc') : tutRef.current ? 'player' : undefined} />}</AnimatePresence>
       {/* Nothing behind the intro can be tapped (the turn button used to be reachable through it). */}
       {(npcKickoffPending || matchIntroStage !== null) && <div className="fixed inset-0 z-[700]" />}
 
@@ -8616,15 +8943,29 @@ export default function App() {
                 )}
               </div>
             )}
+            {!tutOn && (
             <button
               onClick={() => { playUiClickSfx(); stopOnline(); setGameMode(null); }}
               className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-full font-black uppercase tracking-widest text-white shadow-[0_0_30px_rgba(99,102,241,0.6)] transition-colors"
             >
               Voltar ao Menu
             </button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
+
+      {tutOn && !tutShown && gameMode && (
+        <button data-tut-ui onClick={tutExit} className="fixed z-[955] top-2.5 left-2.5 px-3 h-8 rounded-full text-[11px] tracking-widest"
+          style={{ fontFamily: "'Cinzel', serif", background: 'rgba(10,8,6,.78)', border: '1.5px solid rgba(217,174,92,.6)', color: '#e6d3a3' }}>PULAR</button>
+      )}
+      {tutOn && tutShown && (
+        <TutorialStage key={tutShown.id} step={tutShown} allowRef={tutAllowRef} replay={tutReplay}
+          picked={selectedCardIndex !== null || selectedAttackerIndex !== null || selectedMoverIndex !== null}
+          cardAt={(side, idx) => { const c = engineRef.current?.players[side === 'player' ? 0 : 1].board[idx]; return c ? toCardData(c) : null; }}
+          canBack={tutCanBack()} onNext={() => tutNext()} onBack={tutBack} onRepeat={() => setTutReplay(n => n + 1)} onSkip={tutExit}
+          nextLabel={tutShown.id === 'outro' ? 'CONCLUIR' : undefined} />
+      )}
 
       {/* Card Picker — the reveal/search Táticas (Retorno do Soldado, Graal da
           Dádiva, Doutrina Renovada, Recrutamento Seletivo, Recrutar Veteranos, Chamado às Armas) all

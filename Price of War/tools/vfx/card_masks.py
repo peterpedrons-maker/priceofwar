@@ -15,6 +15,9 @@ FRAMES = {
     'fullart-gold': 'card-template-fullart-gold',
     'fullart-tatica': 'card-fullart-frame-tatica',
     'fullart-emboscada': 'card-fullart-frame-emboscada',
+    'hand-gold': 'card-template',               # the big card in hand / raised (tutorial highlights)
+    'hand-silver': 'card-template-silver',
+    'hand-champagne': 'card-template-champagne',
 }
 OUT_W = 384
 for name, src in FRAMES.items():
