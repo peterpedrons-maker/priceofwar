@@ -63,7 +63,7 @@ export const NpcPanel = ({ step, chapter, chapters, position, replay, canBack, o
   const isDo = step.kind === 'do';
   return (
     <>
-      <GameButton tutUi size={10} tone="neutral" onClick={onSkip} className="fixed z-[955] top-2.5 left-2.5">PULAR</GameButton>
+      <GameButton tutUi size={10} tone="neutral" onClick={onSkip} className="fixed z-[955] top-2.5 right-2.5">PULAR</GameButton>
       <motion.div
         key={`${step.id}:${replay}`} data-tut-ui
         initial={{ opacity: 0, y: position === 'top' ? -14 : 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.28 }}

@@ -8920,7 +8920,7 @@ export default function App() {
       </AnimatePresence>
 
       {tutOn && !tutShown && gameMode && (
-        <GameButton tutUi size={10} onClick={tutExit} className="fixed z-[955] top-2.5 left-2.5">PULAR</GameButton>
+        <GameButton tutUi size={10} onClick={tutExit} className="fixed z-[955] top-2.5 right-2.5">PULAR</GameButton>
       )}
       {tutOn && tutShown && (
         <TutorialStage key={tutShown.id} step={tutShown} allowRef={tutAllowRef} replay={tutReplay}
