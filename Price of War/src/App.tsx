@@ -5881,7 +5881,8 @@ export default function App() {
   // "do" step ends when the player really does the thing (tutSignal, fed by dispatchAction and a few taps); the
   // trainer's turn calls tutBeat() to talk between its moves. While a tutorial runs, the gate below lets the player
   // touch only what the step lights up.
-  tutBusyRef.current = !!(phaseTransitionLock || autoPhase || attackAnim || repositionFlight || matchIntroStage || npcKickoffPending || equipFx || announcedCard);
+  // "Busy" = something is still moving on the board: a banner, a card flying in from the hand, an attack, a slide, an equip.
+  tutBusyRef.current = !!(phaseTransitionLock || autoPhase || attackAnim || repositionFlight || matchIntroStage || npcKickoffPending || equipFx || announcedCard || preZoomSlot || flyingCard || cameraSettling || isAnimating);
   if (typeof window !== 'undefined' && window.location.search.includes('debug')) {
     (window as any).__tutDebug = () => ({ shown: tutShown ? { id: tutShown.id, kind: tutShown.kind, until: tutShown.until ?? null } : null, current: tutCurrent()?.id ?? null, busy: tutBusyRef.current });
   }
@@ -5898,7 +5899,9 @@ export default function App() {
     const t = tutRef.current; if (!t) return;
     const token = ++t.token;
     setTutShown(null);
-    if (!immediate) for (let i = 0; i < 80 && tutBusyRef.current && tutRef.current?.token === token; i++) await sleep(120);
+    // Wait for the board to be quiet (a card still flying into its slot, a hit, a slide…) and stay quiet for a moment,
+    // so a new box never pops up while something is still being placed.
+    if (!immediate) for (let i = 0, calm = 0; i < 120 && calm < 4 && tutRef.current?.token === token; i++) { await sleep(120); calm = tutBusyRef.current ? 0 : calm + 1; }
     if (tutRef.current?.token !== token) return;
     if (step.enter === 'unselect') { setSelectedCardIndex(null); setSelectedAttackerIndex(null); setSelectedMoverIndex(null); }
     if (step.enter === 'begin') dispatchAction(0, { type: 'begin' }, { quietTurn: true });
@@ -8215,7 +8218,7 @@ export default function App() {
       {/* The tapped hand card's action bar: what to do next, in plain words, and the two buttons — Jogar and
           Cancelar — right above the card they belong to (see selRect). Cards that go to an empty slot have no Jogar:
           the player taps one of the glowing slots. */}
-      {selectedCardIndex !== null && viewState === 'hand' && !ambushPrompt && hand[selectedCardIndex] && selRect && !flyingCard && !preZoomSlot && (() => {
+      {!tutOn && selectedCardIndex !== null && viewState === 'hand' && !ambushPrompt && hand[selectedCardIndex] && selRect && !flyingCard && !preZoomSlot && (() => {
         const card = hand[selectedCardIndex];
         const kind = getCardDropKind(card);
         const canAfford = playerMana >= card.cost;
@@ -8576,7 +8579,7 @@ export default function App() {
           by accident. Same fixed spot every time, so it's learnable at a glance
           instead of rediscovered per session. */}
       <AnimatePresence>
-        {selectedCardIndex !== null && viewState === 'field' && !targetingMode && (
+        {!tutOn && selectedCardIndex !== null && viewState === 'field' && !targetingMode && (
           <motion.button
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
