@@ -15,7 +15,6 @@ export const TUTORIALS: TutorialMeta[] = [
 // The instructor's face. Art lives in src/assets/npc-instrutor-<expression>.webp; until it exists a silhouette stands in.
 export type Expr = 'neutral' | 'point' | 'happy' | 'warn' | 'think' | 'cheer';
 export const NPC_NAME = 'Aldric';
-export const NPC_TITLE = 'Mestre de Armas';
 
 // What a step lights up (and, in a "do" step, lets the player touch).
 export type Tgt =
@@ -113,7 +112,7 @@ const GOLD_FOE: Tgt = { sel: '#npc-gold-badge', pad: 8 };
 
 // Before the match: the instructor says hello (a full screen of its own).
 export const INTRO_LINES: string[][] = [
-  ['Salve, comandante! Eu sou Aldric, Mestre de Armas deste reino.', 'Já treinei muita gente, e hoje é a sua vez.'],
+  ['Salve, comandante! Eu sou Aldric.', 'Já treinei muita gente, e hoje é a sua vez.'],
   ['Neste duelo eu vou te mostrar tudo, passo a passo:', 'a moeda, o ouro, as cartas, as fases do turno, o combate e o Reforço.'],
   ['Pode ficar tranquilo: este duelo é só treino, e você vai vencer.', 'Quem aprende bem, luta bem!'],
   ['Se perder alguma explicação, toque em REPETIR. Para rever a anterior, toque em VOLTAR.', 'Pronto? Então vamos começar!'],

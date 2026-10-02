@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { motion } from 'motion/react';
 import handSprite from '../assets/tut-hand.webp';
 import { GameBox, GameButton, ThinFrame } from '../ui/ThinFrame';
-import { INTRO_LINES, NPC_NAME, NPC_TITLE, TUTORIALS, type Expr, type Step } from './script';
+import { INTRO_LINES, NPC_NAME, TUTORIALS, type Expr, type Step } from './script';
 
 // ── The instructor ───────────────────────────────────────────────────────────
 // Art: src/assets/npc-instrutor-<neutral|point|happy|warn|think|cheer>.webp. Missing pictures fall back to a silhouette.
@@ -205,7 +205,7 @@ export const TutorialList = ({ onClose, onPlay }: { onClose: () => void; onPlay:
               <NpcPhoto expr="happy" w={56} h={70} />
               <div>
                 <h2 className="text-[20px] font-bold tracking-wide" style={{ fontFamily: FONT_HEAD, color: '#ffe3a1' }}>TUTORIAIS</h2>
-                <p className="text-[15px] leading-tight" style={{ fontFamily: FONT_BODY, fontWeight: 600, color: '#d9c79b' }}>Aprenda com {NPC_NAME}, o {NPC_TITLE}.</p>
+                <p className="text-[15px] leading-tight" style={{ fontFamily: FONT_BODY, fontWeight: 600, color: '#d9c79b' }}>Aprenda com {NPC_NAME}.</p>
               </div>
             </div>
             {TUTORIALS.map((t, i) => (
@@ -244,7 +244,7 @@ export const TutorialIntro = ({ onStart, onClose }: { onStart: () => void; onClo
       <div className="w-full max-w-[420px]">
         <GameBox px={18}>
           <div className="px-1 pb-1">
-            <div className="text-[13px] font-bold tracking-wide" style={{ fontFamily: FONT_HEAD, color: '#ffe3a1' }}>{NPC_NAME.toUpperCase()} · {NPC_TITLE.toUpperCase()}</div>
+            <div className="text-[13px] font-bold tracking-wide" style={{ fontFamily: FONT_HEAD, color: '#ffe3a1' }}>{NPC_NAME.toUpperCase()}</div>
             <div className="mt-1.5 flex flex-col gap-1.5 min-h-[92px]">
               {INTRO_LINES[page].map((ln, i) => (
                 <motion.p key={`${page}-${replay}-${i}`} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.5, duration: 0.4 }}

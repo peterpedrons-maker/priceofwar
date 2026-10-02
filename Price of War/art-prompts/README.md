@@ -1378,7 +1378,7 @@ Single game-effect emblem icon for a fantasy card game, centered on a flat solid
 
 ---
 
-## 4z. Aldric, o Mestre de Armas — instrutor do tutorial (6 expressões, pendente)
+## 4z. Aldric — instrutor do tutorial (6 expressões, pendente)
 
 **Status:** **entregue e integrado** (6 expressões, recortadas em quadrado 512x512 por `src/assets/npc-instrutor-*.webp`, fundo cinza mantido dentro do medalhão). Para trocar uma expressão, basta salvar a nova imagem em `src/assets/` com estes nomes e o jogo passa a usá-las sozinho (sem mexer em código): `npc-instrutor-neutral.webp`, `npc-instrutor-point.webp`, `npc-instrutor-happy.webp`, `npc-instrutor-warn.webp`, `npc-instrutor-think.webp`, `npc-instrutor-cheer.webp`. Elas aparecem recortadas em um medalhão redondo de ouro ao lado de cada fala (com o nome ALDRIC embaixo) e grandes na conversa de abertura.
 
