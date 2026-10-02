@@ -14,7 +14,7 @@ import {
   EQUIP_ALLOWED_TYPES, SOLDIER_TYPES, TARGETABLE_TACTICS,
   adjacentSlots, areSlotsAdjacent, canPlaceInSlot, canReposition, getAuraCombatHpBonus, getCardDropKind,
   getEffectiveAtk, getIncomingDamageReduction, getMaxAttacksPerTurn, getMoveRow, getValidAttackTargets,
-  hasEspiaoInVanguarda, hasEspiaoOnBoard, isBackline, isCardDamaged, isFrontline, isUnitSlot, canReinforce, REINFORCE_ATK, restingPhasesForTurn, abilityPhases, POST_COMBAT_CARD_TYPES,
+  hasEspiaoInVanguarda, hasEspiaoOnBoard, isBackline, isCardDamaged, isFrontline, isUnitSlot, canReinforce, REINFORCE_SHIELD, restingPhasesForTurn, abilityPhases, POST_COMBAT_CARD_TYPES,
   withEquippedWeapons, type Board,
 } from './rules';
 import {
@@ -144,12 +144,12 @@ const reinforceFrom = (c: Ctx, seat: Seat, fallenSlots: number[]) => {
     if (slot < 0 || slot > 4 || board[slot]) return;
     const behind = board[slot + 5];
     if (!canReinforce(behind)) return;
-    const moved: Card = { ...behind!, pendingCombatBonus: { atk: (behind!.pendingCombatBonus?.atk ?? 0) + REINFORCE_ATK, hp: behind!.pendingCombatBonus?.hp ?? 0 } };
+    const moved: Card = { ...behind! };
     board[slot] = moved;
     board[slot + 5] = null;
     c.ev.push({ t: 'reinforce', seat, from: slot + 5, to: slot, card: moved });
-    c.ev.push({ t: 'buff', seat, slot, atk: REINFORCE_ATK, hp: 0 });
-    log(c, seat, `Reforço! ${moved.name} avançou para a Vanguarda com +${REINFORCE_ATK} ATK.`);
+    grantShield(c, seat, slot, REINFORCE_SHIELD);
+    log(c, seat, `Reforço! ${moved.name} avançou para a Vanguarda com Escudo ${REINFORCE_SHIELD}.`);
   });
 };
 
@@ -159,18 +159,47 @@ const setWinner = (c: Ctx, seat: Seat) => {
   c.ev.push({ t: 'winner', seat });
 };
 
+// ── Escudo and Bloqueio ──────────────────────────────────────────────────────
+// Damage that reaches a card meets its Bloqueio first (the whole instance is negated, however big), then its Escudo (it eats
+// N points of the damage), and only what is left touches HP. Returns the card with those used up, and what gets through.
+const soak = (c: Ctx, seat: Seat, slot: number, card: Card, amount: number): { card: Card; through: number } => {
+  if (amount <= 0 || (!card.block && !(card.shield && card.shield > 0))) return { card, through: Math.max(0, amount) };
+  if (card.block) {
+    c.ev.push({ t: 'shield_hit', seat, slot, absorbed: amount, left: card.shield ?? 0, broken: false, blocked: true });
+    return { card: { ...card, block: undefined }, through: 0 };
+  }
+  const absorbed = Math.min(card.shield!, amount);
+  const left = card.shield! - absorbed;
+  c.ev.push({ t: 'shield_hit', seat, slot, absorbed, left, broken: left === 0, blocked: false });
+  return { card: { ...card, shield: left > 0 ? left : undefined }, through: amount - absorbed };
+};
+// Cards that give an Escudo / a Bloqueio call these (the engine is ready; the cards themselves come later).
+export const grantShield = (c: Ctx, seat: Seat, slot: number, amount: number) => {
+  const board = P(c, seat).board; const card = board[slot];
+  if (!card || amount <= 0) return;
+  board[slot] = { ...card, shield: (card.shield ?? 0) + amount };
+  c.ev.push({ t: 'shield', seat, slot, shield: amount, block: false });
+};
+export const grantBlock = (c: Ctx, seat: Seat, slot: number) => {
+  const board = P(c, seat).board; const card = board[slot];
+  if (!card || card.block) return;
+  board[slot] = { ...card, block: true };
+  c.ev.push({ t: 'shield', seat, slot, shield: 0, block: true });
+};
+
 // Flat damage straight to a slot (effects, splash) — no armor math, destroyed at 0 HP.
 const damageSlot = (c: Ctx, seat: Seat, slot: number, amount: number): { slot: number; card: Card } | null => {
   const board = P(c, seat).board;
   const card = board[slot];
   if (!card) return null;
-  c.ev.push({ t: 'damage', seat, slot, amount });
-  const hp = card.hp - amount;
+  const soaked = soak(c, seat, slot, card, amount);
+  if (soaked.through > 0 || amount === 0) c.ev.push({ t: 'damage', seat, slot, amount: soaked.through });
+  const hp = soaked.card.hp - soaked.through;
   if (hp <= 0) {
     board[slot] = null;
-    return { slot, card: { ...card, hp } };
+    return { slot, card: { ...soaked.card, hp } };
   }
-  board[slot] = { ...card, hp };
+  board[slot] = { ...soaked.card, hp };
   return null;
 };
 
@@ -747,18 +776,23 @@ const resolveCombat = (c: Ctx, aSeat: Seat, from: number, to: number, ambush: Ca
   const damageToDefender = Math.max(0, attackerAtk - defenderReduction);
   const damageToAttacker = Math.max(0, defenderAtk - attackerReduction);
 
+  // Escudo / Bloqueio soak what they can before HP is touched (the retaliation of the blow is not affected by them).
+  const defSoak = soak(c, dSeat, target, defender, damageToDefender);
+  const atkSoak = soak(c, aSeat, from, attacker, damageToAttacker);
+  const throughToDefender = defSoak.through, throughToAttacker = atkSoak.through;
+
   // Infiltrado da Ordem: a General that takes damage cannot use its ability on its next turn.
-  if (target === 12 && damageToDefender > 0 && hasEspiaoOnBoard(dBoard)) {
+  if (target === 12 && throughToDefender > 0 && hasEspiaoOnBoard(dBoard)) {
     P(c, dSeat).pendingGeneralBlock = true;
     log(c, dSeat, 'Infiltrado da Ordem: a habilidade do General foi bloqueada no próximo turno!');
   }
 
   // Bonus HP (Comandante da Ordem's aura, Aurelion's one-time +1/+1) is a buffer that exists only for this
   // combat: damage eats into it first and whatever is left of it disappears afterwards.
-  const newAttacker: Card = { ...attacker, hp: attacker.hp - Math.max(0, damageToAttacker - attackerHpBonus), pendingCombatBonus: undefined };
-  const newDefender: Card = { ...defender, hp: defender.hp - Math.max(0, damageToDefender - defenderHpBonus), pendingCombatBonus: undefined };
-  c.ev.push({ t: 'damage', seat: aSeat, slot: from, amount: damageToAttacker });
-  c.ev.push({ t: 'damage', seat: dSeat, slot: target, amount: damageToDefender });
+  const newAttacker: Card = { ...atkSoak.card, hp: attacker.hp - Math.max(0, throughToAttacker - attackerHpBonus), pendingCombatBonus: undefined };
+  const newDefender: Card = { ...defSoak.card, hp: defender.hp - Math.max(0, throughToDefender - defenderHpBonus), pendingCombatBonus: undefined };
+  c.ev.push({ t: 'damage', seat: aSeat, slot: from, amount: throughToAttacker });
+  c.ev.push({ t: 'damage', seat: dSeat, slot: target, amount: throughToDefender });
 
   if (newAttacker.hp <= 0) { aBoard[from] = null; dead.push({ seat: aSeat, slot: from, card: newAttacker }); }
   else {

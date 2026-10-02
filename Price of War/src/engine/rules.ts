@@ -15,6 +15,7 @@ export const HAND_LIMIT = 10;
 export type Unit = {
   name: string; cardType?: CardType; atk: number; hp: number;
   pendingCombatBonus?: { atk: number; hp: number }; formationBuffAtk?: number; dmgReduction?: number;
+  shield?: number; block?: boolean;
 };
 export type Board = (Unit | null)[];
 
@@ -37,8 +38,8 @@ const ABILITY_PHASES: Record<string, TurnPhase[]> = {
 export const abilityPhases = (cardName: string): TurnPhase[] => ABILITY_PHASES[cardName] ?? ['preparacao'];
 
 // Reforço: when a Vanguarda card falls, the Infantaria standing right behind it (same column, Retaguarda) steps
-// forward into the empty slot for free and enters it with +1 ATK in its next combat.
-export const REINFORCE_ATK = 1;
+// forward into the empty slot for free and arrives with an Escudo of REINFORCE_SHIELD points.
+export const REINFORCE_SHIELD = 2;
 export const canReinforce = (card: { cardType?: CardType } | null | undefined): boolean => !!card && card.cardType === 'Infantaria';
 
 // After combat only these may still come out of the hand (units may not).

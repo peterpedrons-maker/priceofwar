@@ -162,8 +162,11 @@ const bestSlot = (s: GameState, seat: Seat, card: Card, empty: number[], rand: R
 const attackScore = (me: Board, foe: Board, from: number, to: number): number => {
   const a = me[from]!;
   const d = foe[to]!;
-  const dmg = Math.max(0, getEffectiveAtk(a, from, me, foe) - getIncomingDamageReduction(to, foe));
-  const back = Math.max(0, getEffectiveAtk(d, to, foe, me) - getIncomingDamageReduction(from, me));
+  const raw = Math.max(0, getEffectiveAtk(a, from, me, foe) - getIncomingDamageReduction(to, foe));
+  const rawBack = Math.max(0, getEffectiveAtk(d, to, foe, me) - getIncomingDamageReduction(from, me));
+  // An Escudo / Bloqueio on either side eats part (or all) of the blow before HP is touched.
+  const soak = (card: { shield?: number; block?: boolean }, dmgIn: number) => (card.block ? 0 : Math.max(0, dmgIn - (card.shield ?? 0)));
+  const dmg = soak(d, raw), back = soak(a, rawBack);
   const kills = dmg >= d.hp;
   const dies = back >= a.hp;
   let score = kills ? d.atk * 1.2 + d.hp + 2 : dmg * 0.6;

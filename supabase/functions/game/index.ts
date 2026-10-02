@@ -176,7 +176,7 @@ var ABILITY_PHASES = {
   "Cavaleiro Hospital\xE1rio": ["preparacao", "pos_combate"]
 };
 var abilityPhases = (cardName) => ABILITY_PHASES[cardName] ?? ["preparacao"];
-var REINFORCE_ATK = 1;
+var REINFORCE_SHIELD = 2;
 var canReinforce = (card) => !!card && card.cardType === "Infantaria";
 var POST_COMBAT_CARD_TYPES = ["T\xE1tica", "Rel\xEDquia", "Terreno"];
 var isFrontline = (slot) => slot >= 0 && slot <= 4;
@@ -407,12 +407,12 @@ var reinforceFrom = (c, seat, fallenSlots) => {
     if (slot < 0 || slot > 4 || board[slot]) return;
     const behind = board[slot + 5];
     if (!canReinforce(behind)) return;
-    const moved = { ...behind, pendingCombatBonus: { atk: (behind.pendingCombatBonus?.atk ?? 0) + REINFORCE_ATK, hp: behind.pendingCombatBonus?.hp ?? 0 } };
+    const moved = { ...behind };
     board[slot] = moved;
     board[slot + 5] = null;
     c.ev.push({ t: "reinforce", seat, from: slot + 5, to: slot, card: moved });
-    c.ev.push({ t: "buff", seat, slot, atk: REINFORCE_ATK, hp: 0 });
-    log(c, seat, `Refor\xE7o! ${moved.name} avan\xE7ou para a Vanguarda com +${REINFORCE_ATK} ATK.`);
+    grantShield(c, seat, slot, REINFORCE_SHIELD);
+    log(c, seat, `Refor\xE7o! ${moved.name} avan\xE7ou para a Vanguarda com Escudo ${REINFORCE_SHIELD}.`);
   });
 };
 var setWinner = (c, seat) => {
@@ -420,17 +420,36 @@ var setWinner = (c, seat) => {
   c.s.winner = seat;
   c.ev.push({ t: "winner", seat });
 };
+var soak = (c, seat, slot, card, amount) => {
+  if (amount <= 0 || !card.block && !(card.shield && card.shield > 0)) return { card, through: Math.max(0, amount) };
+  if (card.block) {
+    c.ev.push({ t: "shield_hit", seat, slot, absorbed: amount, left: card.shield ?? 0, broken: false, blocked: true });
+    return { card: { ...card, block: void 0 }, through: 0 };
+  }
+  const absorbed = Math.min(card.shield, amount);
+  const left = card.shield - absorbed;
+  c.ev.push({ t: "shield_hit", seat, slot, absorbed, left, broken: left === 0, blocked: false });
+  return { card: { ...card, shield: left > 0 ? left : void 0 }, through: amount - absorbed };
+};
+var grantShield = (c, seat, slot, amount) => {
+  const board = P(c, seat).board;
+  const card = board[slot];
+  if (!card || amount <= 0) return;
+  board[slot] = { ...card, shield: (card.shield ?? 0) + amount };
+  c.ev.push({ t: "shield", seat, slot, shield: amount, block: false });
+};
 var damageSlot = (c, seat, slot, amount) => {
   const board = P(c, seat).board;
   const card = board[slot];
   if (!card) return null;
-  c.ev.push({ t: "damage", seat, slot, amount });
-  const hp = card.hp - amount;
+  const soaked = soak(c, seat, slot, card, amount);
+  if (soaked.through > 0 || amount === 0) c.ev.push({ t: "damage", seat, slot, amount: soaked.through });
+  const hp = soaked.card.hp - soaked.through;
   if (hp <= 0) {
     board[slot] = null;
-    return { slot, card: { ...card, hp } };
+    return { slot, card: { ...soaked.card, hp } };
   }
-  board[slot] = { ...card, hp };
+  board[slot] = { ...soaked.card, hp };
   return null;
 };
 var healSlot = (c, seat, slot, amount) => {
@@ -953,14 +972,17 @@ var resolveCombat = (c, aSeat, from, to, ambush) => {
   const defenderHpBonus = (defender.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(defender, dBoard);
   const damageToDefender = Math.max(0, attackerAtk - defenderReduction);
   const damageToAttacker = Math.max(0, defenderAtk - attackerReduction);
-  if (target === 12 && damageToDefender > 0 && hasEspiaoOnBoard(dBoard)) {
+  const defSoak = soak(c, dSeat, target, defender, damageToDefender);
+  const atkSoak = soak(c, aSeat, from, attacker, damageToAttacker);
+  const throughToDefender = defSoak.through, throughToAttacker = atkSoak.through;
+  if (target === 12 && throughToDefender > 0 && hasEspiaoOnBoard(dBoard)) {
     P(c, dSeat).pendingGeneralBlock = true;
     log(c, dSeat, "Infiltrado da Ordem: a habilidade do General foi bloqueada no pr\xF3ximo turno!");
   }
-  const newAttacker = { ...attacker, hp: attacker.hp - Math.max(0, damageToAttacker - attackerHpBonus), pendingCombatBonus: void 0 };
-  const newDefender = { ...defender, hp: defender.hp - Math.max(0, damageToDefender - defenderHpBonus), pendingCombatBonus: void 0 };
-  c.ev.push({ t: "damage", seat: aSeat, slot: from, amount: damageToAttacker });
-  c.ev.push({ t: "damage", seat: dSeat, slot: target, amount: damageToDefender });
+  const newAttacker = { ...atkSoak.card, hp: attacker.hp - Math.max(0, throughToAttacker - attackerHpBonus), pendingCombatBonus: void 0 };
+  const newDefender = { ...defSoak.card, hp: defender.hp - Math.max(0, throughToDefender - defenderHpBonus), pendingCombatBonus: void 0 };
+  c.ev.push({ t: "damage", seat: aSeat, slot: from, amount: throughToAttacker });
+  c.ev.push({ t: "damage", seat: dSeat, slot: target, amount: throughToDefender });
   if (newAttacker.hp <= 0) {
     aBoard[from] = null;
     dead.push({ seat: aSeat, slot: from, card: newAttacker });
@@ -1214,8 +1236,10 @@ var bestSlot = (s, seat, card, empty, rand) => {
 var attackScore = (me, foe, from, to) => {
   const a = me[from];
   const d = foe[to];
-  const dmg = Math.max(0, getEffectiveAtk(a, from, me, foe) - getIncomingDamageReduction(to, foe));
-  const back = Math.max(0, getEffectiveAtk(d, to, foe, me) - getIncomingDamageReduction(from, me));
+  const raw = Math.max(0, getEffectiveAtk(a, from, me, foe) - getIncomingDamageReduction(to, foe));
+  const rawBack = Math.max(0, getEffectiveAtk(d, to, foe, me) - getIncomingDamageReduction(from, me));
+  const soak2 = (card, dmgIn) => card.block ? 0 : Math.max(0, dmgIn - (card.shield ?? 0));
+  const dmg = soak2(d, raw), back = soak2(a, rawBack);
   const kills = dmg >= d.hp;
   const dies = back >= a.hp;
   let score = kills ? d.atk * 1.2 + d.hp + 2 : dmg * 0.6;

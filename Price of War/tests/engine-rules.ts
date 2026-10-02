@@ -4,7 +4,7 @@ import { aiNextAction } from '../src/engine/ai';
 import { mirrorEvents, mirrorSeats } from '../src/engine/view';
 import { applyReward, rewardFor, xpToNext } from '../src/engine/rewards';
 import { applyAction, combatOpen, createMatch, deckSetupFromRecipe, newMatchLog, replayMatch } from '../src/engine/game';
-import { HAND_LIMIT, START_HAND } from '../src/engine/rules';
+import { HAND_LIMIT, REINFORCE_SHIELD, START_HAND } from '../src/engine/rules';
 import type { Action, Card, GameEvent, GameState, Seat } from '../src/engine/types';
 
 let passed = 0, failed = 0;
@@ -575,15 +575,16 @@ test('Capitão de Formação: neighbours +1 ATK after it moves, gone at its owne
   eq([s.turn.active, s.players[0].board[2]!.formationBuffAtk], [0, 0]);
 });
 // ── Reforço ─────────────────────────────────────────────────────────────────
-test('Reforço: when a Vanguarda card falls, the Infantaria behind it steps forward with +1 ATK', () => {
+test('Reforço: when a Vanguarda card falls, the Infantaria behind it steps forward with an Escudo', () => {
   let s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
   put(s, 0, 2, 'Cavaleiro da Luz'); put(s, 1, 2, 'Devotos da Cruzada'); put(s, 1, 7, 'Escudeiro de Linha');
   const r = act(s, 0, { type: 'attack', from: 2, to: 2 });
   const foe = r.s.players[1].board;
   eq([foe[2]?.name, foe[7]], ['Escudeiro de Linha', null]);
-  eq(foe[2]!.pendingCombatBonus, { atk: 1, hp: 0 });
+  eq([foe[2]!.shield, foe[2]!.pendingCombatBonus], [REINFORCE_SHIELD, undefined]);
   const ev = r.ev.find(e => e.t === 'reinforce') as any;
   eq([ev.seat, ev.from, ev.to, ev.card.name], [1, 7, 2, 'Escudeiro de Linha']);
+  ok(r.ev.some(e => e.t === 'shield' && (e as any).slot === 2 && (e as any).shield === REINFORCE_SHIELD), 'the Escudo is announced');
   ok(r.ev.findIndex(e => e.t === 'destroyed') < r.ev.findIndex(e => e.t === 'reinforce'), 'the fall comes before the step forward');
 });
 test('Reforço: only Infantaria steps forward, and only when the front slot is really empty', () => {
@@ -611,14 +612,49 @@ test('Reforço: also after effects — Balestra, and Catapulta clearing a whole 
   eq([0, 1, 2].map(i => r.s.players[1].board[i]?.name), ['Soldados da Ordem', 'Soldados da Ordem', 'Soldados da Ordem']);
   eq([5, 6, 7].map(i => r.s.players[1].board[i]), [null, null, null]);
 });
-test('Reforço: the bonus is one combat only', () => {
+
+// ── Escudo and Bloqueio ─────────────────────────────────────────────────────
+const shielded = (name: string, shield: number, block = false) => { const c = mk(name); if (shield) c.shield = shield; if (block) c.block = true; return c; };
+test('Escudo: a weak hit only wears it down — HP is untouched', () => {
   let s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
-  put(s, 0, 2, 'Cavaleiro da Luz'); put(s, 1, 2, 'Devotos da Cruzada'); put(s, 1, 7, 'Escudeiro de Linha');
-  s = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
-  put(s, 0, 3, 'Batedor').hp = 10;
-  s.turn.attackCounts = {};
-  s = act(s, 0, { type: 'attack', from: 2, to: 2 }).s; // the reinforced unit fights now (and spends the bonus)
-  eq(s.players[1].board[2]?.pendingCombatBonus, undefined);
+  put(s, 0, 2, 'Batedor');                                    // ATK 1
+  s.players[1].board[2] = shielded('Devotos da Cruzada', 3);
+  const r = act(s, 0, { type: 'attack', from: 2, to: 2 });
+  const d = r.s.players[1].board[2]!;
+  eq([d.shield, d.hp], [2, 3]);
+  const hit = r.ev.find(e => e.t === 'shield_hit') as any;
+  eq([hit.absorbed, hit.left, hit.broken, hit.blocked], [1, 2, false, false]);
+});
+test('Escudo: a hit bigger than it breaks it and the rest goes through to HP', () => {
+  let s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
+  put(s, 0, 2, 'Cavaleiro da Luz');                           // ATK 4
+  s.players[1].board[2] = shielded('Veterano de Guerra', 3);  // HP 3 -> takes 1
+  const r = act(s, 0, { type: 'attack', from: 2, to: 2 });
+  const d = r.s.players[1].board[2]!;
+  eq([d.shield, d.hp], [undefined, 2]);
+  eq((r.ev.find(e => e.t === 'shield_hit') as any).broken, true);
+});
+test('Bloqueio: negates one whole hit however big, then it is gone', () => {
+  let s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
+  put(s, 0, 2, 'Cavaleiro da Luz').hp = 20; put(s, 0, 3, 'Cavaleiro da Luz').hp = 20;   // sturdy: the retaliation still lands
+  s.players[1].board[2] = shielded('Veterano de Guerra', 0, true);
+  let r = act(s, 0, { type: 'attack', from: 2, to: 2 });
+  eq([r.s.players[1].board[2]!.block, r.s.players[1].board[2]!.hp], [undefined, 3]);
+  eq((r.ev.find(e => e.t === 'shield_hit') as any).blocked, true);
+  r = act(r.s, 0, { type: 'attack', from: 3, to: 2 });         // the second hit finds nothing in the way
+  ok((r.s.players[1].board[2]?.hp ?? 0) < 3, 'the second blow lands (the Veterano falls)');
+});
+test('Escudo / Bloqueio also soak damage from effects, and the attacker still takes the normal retaliation', () => {
+  let s = fresh({ a: 'cardeal', b: 'capitao' });
+  s.players[1].board[1] = shielded('Veterano de Guerra', 2);
+  const bal = give(s, 0, 'Balestra de Precisão');             // 3 damage
+  const r = act(s, 0, { type: 'play', cardId: bal.id, target: 1 });
+  eq([r.s.players[1].board[1]!.shield, r.s.players[1].board[1]!.hp], [undefined, 2]);
+  let t = combat(fresh({ a: 'capitao', b: 'cardeal' }));
+  put(t, 0, 2, 'Batedor'); t.players[0].board[2]!.hp = 5;
+  t.players[1].board[2] = { ...shielded('Soldados da Ordem', 0, true) };   // ATK 3
+  const r2 = act(t, 0, { type: 'attack', from: 2, to: 2 });
+  eq(r2.s.players[0].board[2]!.hp, 2);                        // the Batedor still takes the 3 back
 });
 
 test('Batedor moves once, free, right after attacking', () => {

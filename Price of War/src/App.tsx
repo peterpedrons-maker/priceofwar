@@ -82,6 +82,10 @@ import fxHpUpSheet from './assets/fx-hp-up-sheet.webp';
 import fxHpDownSheet from './assets/fx-hp-down-sheet.webp';
 import fxReinforceSheet from './assets/fx-reinforce-sheet.webp';
 import fxSwapSheet from './assets/fx-swap-sheet.webp';
+import fxShieldAppearSheet from './assets/fx-shield-appear-sheet.webp';
+import fxShieldLoopSheet from './assets/fx-shield-loop-sheet.webp';
+import fxShieldHitSheet from './assets/fx-shield-hit-sheet.webp';
+import fxShieldBreakSheet from './assets/fx-shield-break-sheet.webp';
 import uiEffectReinforceStill from './assets/ui-effect-reinforce.webp';
 import uiEffectAtkUpStill from './assets/ui-effect-atk-up.webp';
 import uiEffectHpUpStill from './assets/ui-effect-hp-up.webp';
@@ -414,6 +418,9 @@ export type CardData = {
   // next time this exact card instance attacks or defends (see getEffectiveAtk and
   // the combat resolution blocks' own pendingCombatBonus.hp handling).
   pendingCombatBonus?: { atk: number; hp: number };
+  // Escudo N (absorbs N damage) and Bloqueio (negates the next damage) — see the engine's soak().
+  shield?: number;
+  block?: boolean;
   // A permanent stack of "-1 damage taken" stamps — currently only granted by
   // Linha Fechada (see resolveOwnTacticTarget) to whoever was adjacent to the
   // chosen unit at cast time. Read in getIncomingDamageReduction alongside the
@@ -756,6 +763,46 @@ const IconPop = ({ x, y, size = 92, icon, label }: { x: number; y: number; size?
     </motion.div>
   );
 };
+// Escudo / Bloqueio on a card: a translucent shield-shaped bubble of glass around it (tools/vfx/shield_aura.py). Escudo is
+// ice-blue and carries its value; Bloqueio is the same bubble turned gold. The sheets share the punch sheet's frame geometry
+// (the card area plus 50 px on every side), so they are placed by percentages of the card.
+const SHIELD_SHEETS = {
+  appear: { sheet: fxShieldAppearSheet, rows: 2, frames: 10, fps: 24 },
+  loop: { sheet: fxShieldLoopSheet, rows: 4, frames: 24, fps: 20 },
+  hit: { sheet: fxShieldHitSheet, rows: 2, frames: 10, fps: 28 },
+  break: { sheet: fxShieldBreakSheet, rows: 3, frames: 18, fps: 28 },
+} as const;
+const GOLD_BUBBLE = 'hue-rotate(-165deg) saturate(1.5) brightness(1.1)';
+const ShieldAura = ({ kind, value }: { kind: 'shield' | 'block'; value?: number }) => {
+  const d = SHIELD_SHEETS.loop;
+  const [frame, setFrame] = useState(0);
+  useEffect(() => {
+    let raf = 0; const t0 = performance.now();
+    const loop = (now: number) => { setFrame(Math.floor(((now - t0) / 1000) * d.fps) % d.frames); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  const col = frame % 6, row = Math.floor(frame / 6);
+  return (
+    <div className="absolute pointer-events-none" style={{ left: `${-PUNCH_PAD_X * 100}%`, top: `${-PUNCH_PAD_Y * 100}%`, width: `${PUNCH_FRAME_W * 100}%`, height: `${PUNCH_FRAME_H * 100}%`, zIndex: 7 }}>
+      <div className="absolute inset-0" style={{ backgroundImage: `url(${d.sheet})`, backgroundRepeat: 'no-repeat', backgroundSize: `600% ${d.rows * 100}%`, backgroundPosition: `${(col / 5) * 100}% ${(row / (d.rows - 1)) * 100}%`, filter: kind === 'block' ? GOLD_BUBBLE : undefined }} />
+      {kind === 'shield' && value !== undefined && (
+        <div className="absolute flex items-center justify-center font-black" style={{ left: '50%', top: '8%', transform: 'translateX(-50%)', minWidth: 20, height: 20, padding: '0 5px', borderRadius: 10, background: 'linear-gradient(#5f7691, #2c3c52)', border: '1.5px solid #cfe7ff', boxShadow: '0 0 8px #7fb4ffaa, inset 0 1px 0 #ffffff55', color: '#f2f8ff', fontFamily: "'Cinzel', serif", fontSize: 12 }}>{value}</div>
+      )}
+    </div>
+  );
+};
+// The same bubble played once over a slot (it appearing, a hit it shrugs off, or it shattering).
+const ShieldFxOnce = ({ x, y, w, h, mode, gold }: { x: number; y: number; w: number; h: number; mode: 'appear' | 'hit' | 'break'; gold?: boolean; key?: React.Key }) => {
+  const d = SHIELD_SHEETS[mode];
+  const fw = w * PUNCH_FRAME_W, fh = h * PUNCH_FRAME_H;
+  return (
+    <div className="fixed pointer-events-none" style={{ left: x - fw / 2, top: y - fh / 2, width: fw, height: fh, zIndex: 492, filter: gold ? GOLD_BUBBLE : undefined }}>
+      <SpriteOnce sheet={d.sheet} cols={6} rows={d.rows} frames={d.frames} fps={d.fps} className="w-full h-full" />
+    </div>
+  );
+};
+
 // Equipping, as a small scene on the board itself: the unit lifts a little, the equipment card slides in from the hand into
 // the slot underneath it, the unit sets down on top of it with a flash, a ring and sparks, and the bonus icon pops over it.
 // Positions are offsets from the slot's own rectangle, so it works for either side of the board; the slot itself is held
@@ -4738,9 +4785,9 @@ export default function App() {
   // timeout (see spawnFloatingNumber below), not by the animation's onComplete —
   // onComplete doesn't fire reliably for elements added and removed within the same
   // render batch that a fast double-attack can produce.
-  const [floatingNumbers, setFloatingNumbers] = useState<{ id: number; x: number; y: number; text: string; kind: 'damage' | 'heal' | 'gold-gain' | 'gold-spend' }[]>([]);
+  const [floatingNumbers, setFloatingNumbers] = useState<{ id: number; x: number; y: number; text: string; kind: 'damage' | 'heal' | 'gold-gain' | 'gold-spend' | 'shield' }[]>([]);
   const floatingNumberIdRef = useRef(0);
-  const spawnFloatingNumber = (x: number, y: number, value: number, kind: 'damage' | 'heal' | 'gold-gain' | 'gold-spend') => {
+  const spawnFloatingNumber = (x: number, y: number, value: number, kind: 'damage' | 'heal' | 'gold-gain' | 'gold-spend' | 'shield') => {
     if (value === 0) return;
     const id = ++floatingNumberIdRef.current;
     const text = (kind === 'heal' || kind === 'gold-gain') ? `+${value}` : `-${value}`;
@@ -4755,7 +4802,7 @@ export default function App() {
   // Convenience wrapper for the overwhelmingly common case: the number belongs
   // over a specific board slot or the gold badge, identified the same way the
   // rest of this file already finds those elements (document.getElementById).
-  const spawnFloatingNumberAtId = (elementId: string, value: number, kind: 'damage' | 'heal' | 'gold-gain' | 'gold-spend') => {
+  const spawnFloatingNumberAtId = (elementId: string, value: number, kind: 'damage' | 'heal' | 'gold-gain' | 'gold-spend' | 'shield') => {
     const el = document.getElementById(elementId);
     if (!el) return;
     const r = el.getBoundingClientRect();
@@ -4828,6 +4875,10 @@ export default function App() {
   const [announcedCard, setAnnouncedCard] = useState<{ card: CardData, side: 'player' | 'npc' } | null>(null);
 
   const [isImpacting, setIsImpacting] = useState(false);
+  // True while a blow that an Escudo / Bloqueio swallows entirely lands: the defender stands still, no punch.
+  const [soakedBlow, setSoakedBlow] = useState(false);
+  const blowIsSoaked = (events: GameEvent[], defSeat: Seat, slot: number) =>
+    events.some(e => e.t === 'shield_hit' && e.seat === defSeat && e.slot === slot) && !events.some(e => e.t === 'damage' && e.seat === defSeat && e.slot === slot && e.amount > 0);
   // The physical-hit sprite, drawn in a layer above the board over whichever card was hit (see PunchFx).
   const [punchFx, setPunchFx] = useState<{ key: number; x: number; y: number; w: number; h: number; heavy: boolean } | null>(null);
   const [attackAnim, setAttackAnim] = useState<{ attackerIndex: number, targetIndex: number, isPlayerAttacking: boolean } | null>(null);
@@ -4956,6 +5007,16 @@ export default function App() {
   // Small effect icons floating over cards for a moment (see IconPop).
   const [iconPops, setIconPops] = useState<{ id: number; x: number; y: number; icon: EffectIcon; label?: string }[]>([]);
   const popIdRef = useRef(0);
+  const [shieldFx, setShieldFx] = useState<{ id: number; x: number; y: number; w: number; h: number; mode: 'appear' | 'hit' | 'break'; gold: boolean }[]>([]);
+  const shieldOverSlot = (side: 'player' | 'npc', slot: number, mode: 'appear' | 'hit' | 'break', gold = false, delay = 0) => {
+    window.setTimeout(() => {
+      const r = document.getElementById(`${side}-${slot}`)?.getBoundingClientRect();
+      if (!r) return;
+      const id = ++popIdRef.current;
+      setShieldFx(f => [...f, { id, x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, mode, gold }]);
+      window.setTimeout(() => setShieldFx(f => f.filter(q => q.id !== id)), 900);
+    }, delay);
+  };
   const popOverSlot = (side: 'player' | 'npc', slot: number, icon: EffectIcon, label?: string, delay = 0) => {
     window.setTimeout(() => {
       const r = document.getElementById(`${side}-${slot}`)?.getBoundingClientRect();
@@ -5261,7 +5322,7 @@ export default function App() {
   const toCardData = (c: EngineCard): CardData => ({
     id: c.id, name: c.name, atk: c.atk, hp: c.hp, cost: c.cost, art: ART_BY_NAME[c.name] ?? '', effect: c.effect,
     cardType: c.cardType, isFullArt: c.isFullArt, pendingCombatBonus: c.pendingCombatBonus, dmgReduction: c.dmgReduction,
-    formationBuffAtk: c.formationBuffAtk, equippedWeapons: c.equippedWeapons?.map(toCardData),
+    formationBuffAtk: c.formationBuffAtk, equippedWeapons: c.equippedWeapons?.map(toCardData), shield: c.shield, block: c.block,
   });
   // A unit that just died stays on its slot for a moment, flagged destroyed, so its explosion can play
   // before the slot clears (the engine removes it at once).
@@ -5354,12 +5415,27 @@ export default function App() {
           if (e.seat === 1) showToast(`O oponente ativou uma Emboscada: ${e.card.name}!`);
           break;
         case 'damage':
-          spawnFloatingNumberAtId(`${ownerId(e.seat)}-${e.slot}`, e.amount, 'damage');
+          if (e.amount > 0) spawnFloatingNumberAtId(`${ownerId(e.seat)}-${e.slot}`, e.amount, 'damage');
           break;
         case 'heal':
           spawnFloatingNumberAtId(`${ownerId(e.seat)}-${e.slot}`, e.amount, 'heal');
           if (!opts.quietTurn) popOverSlot(e.seat === 0 ? 'player' : 'npc', e.slot, 'hp-up', `+${e.amount}`);
           break;
+        case 'shield': {
+          if (opts.quietTurn) break;
+          const side = e.seat === 0 ? 'player' : 'npc';
+          // after a Reforço the card is still sliding into place: the bubble waits for it to land
+          const afterReinforce = events.some(x => x.t === 'reinforce' && x.seat === e.seat && x.to === e.slot);
+          shieldOverSlot(side, e.slot, 'appear', e.block, afterReinforce ? 1900 : 0);
+          break;
+        }
+        case 'shield_hit': {
+          if (opts.quietTurn) break;
+          const side = e.seat === 0 ? 'player' : 'npc';
+          spawnFloatingNumberAtId(`${side}-${e.slot}`, e.absorbed, 'shield');
+          shieldOverSlot(side, e.slot, e.broken || e.blocked ? 'break' : 'hit', e.blocked);
+          break;
+        }
         case 'buff': {
           // Reforço announces itself (its own icon); anything else that adds ATK / HP gets the matching icon.
           if (opts.quietTurn || events.some(x => x.t === 'reinforce' && x.seat === e.seat && x.to === e.slot)) break;
@@ -5415,7 +5491,7 @@ export default function App() {
             const fromEl = document.getElementById(`${side}-${e.from}`)?.getBoundingClientRect();
             const toEl = document.getElementById(`${side}-${e.to}`)?.getBoundingClientRect();
             delete holds[e.to]; delete holds[e.from];
-            popOverSlot(side, e.to, 'reinforce', 'REFORÇO +1', 420);
+            popOverSlot(side, e.to, 'reinforce', 'REFORÇO', 420);
             if (!fromEl || !toEl) { if (engineRef.current) syncView(engineRef.current); return; }
             setRepositionFlight({
               side, reinforce: true, originIndex: e.from, destIndex: e.to, moverCard: mover, swappedCard: null,
@@ -5982,10 +6058,14 @@ export default function App() {
           await sleep(ATTACK_MS);
           await sleep(HIT_STOP_MS);   // the lunge lands and everything holds for a beat before the hit
           playAttackSfx();
+          const dryNpc = applyAction(engineRef.current!, 1, action);
+          const soakedNpc = dryNpc.ok === true && blowIsSoaked(dryNpc.events, 0, action.to);
+          setSoakedBlow(soakedNpc);
           setIsImpacting(true);
-          triggerPunch(0, action.to);
+          if (!soakedNpc) triggerPunch(0, action.to);
           await sleep(IMPACT_MS);
           setIsImpacting(false);
+          setSoakedBlow(false);
           const r = dispatchAction(1, action);
           if (r.ok === false) { setAttackAnim(null); break; }
           await settleAmbush();
@@ -6854,10 +6934,13 @@ export default function App() {
       await sleep(ATTACK_MS);
       await sleep(HIT_STOP_MS);   // the lunge lands and everything holds for a beat before the hit
       playAttackSfx();
+      const soaked = blowIsSoaked(dry.events, 1, slotIndex);
+      setSoakedBlow(soaked);
       setIsImpacting(true);
-      triggerPunch(1, slotIndex);
+      if (!soaked) triggerPunch(1, slotIndex);
       await sleep(IMPACT_MS);
       setIsImpacting(false);
+      setSoakedBlow(false);
       const r = dispatchAction(0, { type: 'attack', from, to: slotIndex });
       if (r.ok === false) showToast(r.error);
       else {
@@ -7203,7 +7286,7 @@ export default function App() {
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
-              isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 10}
+              isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 10}
               attackDirection="down"
               isValidAttackTarget={validAttackTargets.has(10)}
               isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(10) && !!npcSlots[10]}
@@ -7218,7 +7301,7 @@ export default function App() {
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
-                isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 12}
+                isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 12}
                 attackDirection="down"
                 isValidAttackTarget={validAttackTargets.has(12)}
                 isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(12)}
@@ -7233,7 +7316,7 @@ export default function App() {
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
-              isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 11}
+              isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 11}
               attackDirection="down"
               isValidAttackTarget={validAttackTargets.has(11)}
               isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(11) && !!npcSlots[11]}
@@ -7258,7 +7341,7 @@ export default function App() {
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
-                isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
+                isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
                 attackDirection="down"
                 isValidAttackTarget={validAttackTargets.has(i)}
                 isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(i) && !!npcSlots[i]}
@@ -7279,7 +7362,7 @@ export default function App() {
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
-                isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
+                isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
                 attackDirection="down"
                 isValidAttackTarget={validAttackTargets.has(i)}
                 isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(i) && !!npcSlots[i]}
@@ -7311,7 +7394,7 @@ export default function App() {
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
-                isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
+                isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
                 attackDirection="up"
                 hint={getPlayerSlotHint(i)}
                 rowRoleHint={getPlayerSlotHint(i) === 'valid' ? getRowRoleHint(previewedCard?.cardType, i) : undefined}
@@ -7339,7 +7422,7 @@ export default function App() {
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
-                isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
+                isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
                 attackDirection="up"
                 hint={getPlayerSlotHint(i)}
                 rowRoleHint={getPlayerSlotHint(i) === 'valid' ? getRowRoleHint(previewedCard?.cardType, i) : undefined}
@@ -7371,7 +7454,7 @@ export default function App() {
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
-              isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 10}
+              isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 10}
               attackDirection="up"
               hint={getPlayerSlotHint(10)}
               isTacticDragTarget={isTacticTargetSlot('own', 10)}
@@ -7386,7 +7469,7 @@ export default function App() {
               shockActive={boardShock}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
-                isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 12}
+                isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 12}
                 attackDirection="up"
                 isTacticDragTarget={isTacticTargetSlot('own', 12)}
               />
@@ -7400,7 +7483,7 @@ export default function App() {
               shockActive={boardShock}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
-              isImpactingTarget={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 11}
+              isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 11}
               attackDirection="up"
               hint={getPlayerSlotHint(11)}
               isTacticDragTarget={isTacticTargetSlot('own', 11)}
@@ -7951,6 +8034,7 @@ export default function App() {
 
       {equipFx && <EquipFxLayer fx={equipFx} vw={windowSize.width} vh={windowSize.height} />}
       {iconPops.map(p => <IconPop key={p.id} x={p.x} y={p.y} icon={p.icon} label={p.label} />)}
+      {shieldFx.map(f => <ShieldFxOnce key={f.id} x={f.x} y={f.y} w={f.w} h={f.h} mode={f.mode} gold={f.gold} />)}
 
       {/* Reposition flight (see repositionFlight's own comment) — a low, quick slide
           between two real on-screen board slots, one leg per card involved (just the
@@ -8676,10 +8760,10 @@ export default function App() {
                 transform: 'translate(-50%, -50%)',
                 fontFamily: "'Cinzel', serif",
                 fontSize: fn.kind === 'damage' ? '30px' : '24px',
-                color: fn.kind === 'damage' ? '#ff5555' : fn.kind === 'heal' ? '#4ade80' : fn.kind === 'gold-gain' ? '#fde047' : '#fca5a5',
+                color: fn.kind === 'damage' ? '#ff5555' : fn.kind === 'shield' ? '#cfe7ff' : fn.kind === 'heal' ? '#4ade80' : fn.kind === 'gold-gain' ? '#fde047' : '#fca5a5',
                 WebkitTextStroke: '1.5px rgba(20,10,0,0.75)',
                 textShadow: `0 2px 3px rgba(0,0,0,0.9), 0 0 14px ${
-                  fn.kind === 'damage' ? 'rgba(255,60,60,0.85)' : fn.kind === 'heal' ? 'rgba(74,222,128,0.85)' : fn.kind === 'gold-gain' ? 'rgba(253,224,71,0.85)' : 'rgba(252,165,165,0.75)'
+                  fn.kind === 'damage' ? 'rgba(255,60,60,0.85)' : fn.kind === 'shield' ? 'rgba(130,190,255,0.9)' : fn.kind === 'heal' ? 'rgba(74,222,128,0.85)' : fn.kind === 'gold-gain' ? 'rgba(253,224,71,0.85)' : 'rgba(252,165,165,0.75)'
                 }`,
               }}
             >
@@ -9139,6 +9223,7 @@ const CardSlot = ({
               onClick above) now shows the same enlarged preview this used to open
               on its own. */}
           {card.isFullArt ? <CardFaceFullArtMini card={card} /> : <CardFaceStandardMini card={card} />}
+          {(card.block || (card.shield ?? 0) > 0) && <ShieldAura kind={card.block ? 'block' : 'shield'} value={card.block ? undefined : card.shield} />}
           {/* Permanent marks: a card whose ATK or HP is above what is printed on it (equipment, buffs) wears the matching icon over that stat */}
           {slotId && /-\d$/.test(slotId) && (() => {
             const def = getCardDef(card.name);

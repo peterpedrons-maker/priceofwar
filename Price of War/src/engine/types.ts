@@ -42,6 +42,10 @@ export interface Card {
   dmgReduction?: number;
   // A temporary ATK stack from Capitão de Formação's "Ao mover" — cleared at every turn start.
   formationBuffAtk?: number;
+  // Escudo N: absorbs the next N damage before the unit's HP is touched (any damage, any source); it stays until used up.
+  shield?: number;
+  // Bloqueio: negates the next instance of damage completely, whatever its size, and is used up doing so.
+  block?: boolean;
   // Armamentos stay attached until the unit dies, then go to the graveyard with it.
   equippedWeapons?: Card[];
   // Only on what a seat is not allowed to see (see redactFor): a face-down placeholder.
@@ -178,6 +182,10 @@ export type GameEvent =
   | { t: 'move'; seat: Seat; from: number; to: number; swapped: boolean }
   // Reforço: the card behind a fallen Vanguarda card stepped forward into its place.
   | { t: 'reinforce'; seat: Seat; from: number; to: number; card: Card }
+  // Escudo / Bloqueio gained (`shield` = how much Escudo was added; `block` = a Bloqueio was added).
+  | { t: 'shield'; seat: Seat; slot: number; shield: number; block: boolean }
+  // Damage met an Escudo or a Bloqueio: how much it soaked, what is left of the Escudo, and whether each one is gone now.
+  | { t: 'shield_hit'; seat: Seat; slot: number; absorbed: number; left: number; broken: boolean; blocked: boolean }
   | { t: 'equip'; seat: Seat; slot: number; card: Card; atk: number; hp: number }
   | { t: 'graveyard'; seat: Seat; card: Card }
   | { t: 'ability'; seat: Seat; slot: number; name: string }
