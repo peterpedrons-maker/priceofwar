@@ -9,7 +9,7 @@ Para criar outro tutorial: acrescentar em `TUTORIALS` e escrever o roteiro dele 
 | Arquivo | O que tem |
 | --- | --- |
 | `src/tutorial/script.ts` | Dados puros: a lista, a partida fixa (`createTutorialMatch`: mãos e compras escritas à mão), as jogadas do treinador (`ENEMY_SCRIPT`), os passos (`STEPS`) e as falas do treinador (`BEATS`). Testado sem tela em `tests/tutorial-script.ts` (o jogador vence no 4º turno). |
-| `src/tutorial/ui.tsx` | O Mestre de Armas (`NpcPortrait`, `NpcPanel`), a mãozinha (`TapHand`), o escurecimento com buracos (`Spotlight`), a lista e a conversa de abertura. |
+| `src/tutorial/ui.tsx` | O Aldric (`NpcPortrait`, `NpcPanel`), a mãozinha (`TapHand`), o escurecimento com buracos (`Spotlight`), a lista e a conversa de abertura. |
 | `src/App.tsx` | O diretor (`tutShow`, `tutNext`, `tutSignal`, `tutBeat`…), o palco (`TutorialStage`, que mede o tabuleiro e acende o que o passo aponta) e a trava de toques. |
 
 ## Passos
@@ -26,7 +26,7 @@ para parar e explicar entre as jogadas dele (`BEATS['enemy<rodada>:<momento>']`)
   dourado que pulsa usa a máscara de borda (`-rim`). Cartas da mão usam `mask-hand-*.webp` (gerados por `tools/vfx/card_masks.py`). Uma carta
   inclinada no leque da mão mantém o leque aceso e ganha só o contorno, inclinado igual a ela. Casas vazias, ouro e painel de fases são retângulos arredondados.
 - **Mãozinha:** `tut-hand.webp`; ela aperta e solta, emite ondas e **pisca devagar** (animações `tut-tap`, `tut-blink`, `tut-ripple` em `index.css`).
-- **O Mestre de Armas:** as imagens `src/assets/npc-instrutor-<neutral|point|happy|warn|think|cheer>.webp` são pegas sozinhas (`import.meta.glob`);
+- **O Aldric:** as imagens `src/assets/npc-instrutor-<neutral|point|happy|warn|think|cheer>.webp` são pegas sozinhas (`import.meta.glob`);
   sem elas aparece uma silhueta. Prompts em `art-prompts/README.md` (4z).
 - Cada fala tem **REPETIR** (toca de novo) e **VOLTAR** (volta ao passo de leitura anterior); **PULAR** sai do tutorial.
 

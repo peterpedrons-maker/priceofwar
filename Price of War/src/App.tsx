@@ -206,6 +206,7 @@ import { aiNextAction } from './engine/ai';
 import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
 import { STEPS as TUT_STEPS, BEATS as TUT_BEATS, COIN_STEP as TUT_COIN_STEP, OUTRO as TUT_OUTRO, CHAPTERS as TUT_CHAPTERS, createTutorialMatch, nextEnemyAction as tutEnemyAction, type Step as TutStep, type Tgt as TutTgt, type Until as TutUntil } from './tutorial/script';
+import { ThinFrame, GameBox, GameButton } from './ui/ThinFrame';
 import { NpcPanel, TapHand, Spotlight, TutorialList, TutorialIntro, markTutorialDone, type Hole as TutHole } from './tutorial/ui';
 import { DECK_MAX_CARDS, DECK_MAX_COPIES, DECK_MIN_CARDS } from './engine/deck';
 import {
@@ -541,14 +542,14 @@ const PHASE_BANNER_MOTION: Record<'in' | 'hold' | 'out', { animate: { opacity: n
 
 // The hit-stop: the attacker has landed and the whole board holds still for a beat (a few frames) before the hit
 // connects. That micro-pause is what makes an attack feel heavy.
-const HIT_STOP_MS = 90;
+const HIT_STOP_MS = 40;
 // The attack itself: the card pulls back to gather momentum (slow, ease-out), then strikes much faster (ease-in) with a
 // corner leading, like hitting with the edge of the card. Total ATTACK_MS; the wind-up takes ATTACK_WINDUP_FRAC of it.
 const ATTACK_MS = 400;
 const ATTACK_WINDUP_FRAC = 0.74;
 const ATTACK_WINDUP_PX = 46;
 const ATTACK_TILT_DEG = 17;
-const IMPACT_MS = 230;
+const IMPACT_MS = 150;
 
 // Evenly-spaced directions for SlashEffect's spark burst below.
 const SLASH_SPARK_ANGLES = Array.from({ length: 6 }, (_, i) => (i / 6) * Math.PI * 2);
@@ -652,20 +653,17 @@ const TargetingHud = ({ source, mode, kind, title, hint, windowH, promptButtons,
       {mode === 'targeting' && (
         <motion.div
           initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-          className="fixed z-[210] flex flex-col gap-1.5 rounded-xl px-3 py-2 bg-black/80 backdrop-blur-sm pointer-events-auto"
-          style={{ left: 8 + 224 * HUD_CARD_SCALE + 14, right: 8, bottom: 14, border: `2px solid ${st.color}`, boxShadow: `0 0 18px ${st.color}66` }}
+          className="fixed z-[210] pointer-events-auto"
+          style={{ left: 8 + 224 * HUD_CARD_SCALE + 14, right: 8, bottom: 14 }}
         >
-          <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest text-black" style={{ background: st.color, fontFamily: "'Cinzel', serif" }}>{st.label}</span>
-            <span className="text-[11px] font-black uppercase tracking-wide text-[#e8dcc0] leading-tight" style={{ fontFamily: "'Cinzel', serif" }}>{title}</span>
-          </div>
-          <p className="text-[13px] leading-snug text-white">{hint}</p>
-          <button
-            onClick={(e) => { e.stopPropagation(); onCancel(); }}
-            className="self-start mt-0.5 flex items-center gap-1 px-3 py-1 rounded-full bg-zinc-800 border border-zinc-500 text-zinc-200 text-[11px] font-black uppercase tracking-wider"
-          >
-            <X className="w-3 h-3" strokeWidth={3} /> Cancelar
-          </button>
+          <GameBox px={14} className="flex flex-col gap-1.5 px-1 py-0.5">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest text-black" style={{ background: st.color, fontFamily: "'Cinzel', serif" }}>{st.label}</span>
+              <span className="text-[11px] font-bold uppercase tracking-wide text-[#f0e0bb] leading-tight" style={{ fontFamily: "'Cinzel', serif" }}>{title}</span>
+            </div>
+            <p className="text-[15px] leading-snug text-[#f1e4c4]" style={{ fontFamily: "'Crimson Pro', serif", fontWeight: 600 }}>{hint}</p>
+            <GameButton tone="danger" className="self-start" icon={<X className="w-3 h-3" strokeWidth={3} />} onClick={(e) => { e.stopPropagation(); onCancel(); }}>Cancelar</GameButton>
+          </GameBox>
         </motion.div>
       )}
     </>
@@ -2401,30 +2399,7 @@ const WindowTitle = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-// The same thin gold-line frame art, drawn as a small 9-slice: `px` is the border width
-// (the corner flourishes are scaled to it). Used around options and buttons inside
-// windows in place of the CSS outlines they had — the user wants one line style for
-// everything for now, with more decoration later. Slice 31 = the corner size in the
-// 810px frame art.
-const ThinFrame = ({ px, className = '', style, children }: { px: number; className?: string; style?: React.CSSProperties; children: React.ReactNode }) => (
-  <div
-    className={className}
-    style={{
-      borderStyle: 'solid',
-      borderColor: 'transparent',
-      borderWidth: px,
-      borderImageSource: `url(${uiFrameMenuCardImage})`,
-      borderImageSlice: '31',
-      borderImageWidth: `${px}px`,
-      borderImageRepeat: 'stretch',
-      ...style,
-      backgroundOrigin: 'border-box',
-      backgroundClip: 'border-box',
-    }}
-  >
-    {children}
-  </div>
-);
+// ThinFrame / GameBox / GameButton (the thin gold-line frame and what is built from it) live in src/ui/ThinFrame.tsx.
 
 // A 9-slice frame drawn on its own layer, so the content on top is never pushed inwards by
 // the border. `slice` is in the source image's pixels and `width` is the CSS size each edge
@@ -8195,28 +8170,28 @@ export default function App() {
                       exit={{ opacity: 0, y: 8, scale: 0.9 }}
                       className="absolute -top-5 left-1/2 -translate-x-1/2 z-40 flex gap-2 pointer-events-auto whitespace-nowrap"
                     >
-                      <button
+                      <GameButton
+                        tone="primary" size={12}
                         onClick={(e) => {
                           e.stopPropagation();
                           // The engine takes the card out of the hand and into the graveyard when it hears the answer.
                           ambushPrompt!.resolve(card);
                           setAmbushPrompt(null);
                         }}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(16,185,129,0.7)] border-2 border-emerald-400"
                       >
                         Ativar
-                      </button>
-                      <button
+                      </GameButton>
+                      <GameButton
+                        tone="neutral" size={12}
                         onClick={(e) => {
                           e.stopPropagation();
                           playUiClickSfx();
                           ambushPrompt!.resolve(null);
                           setAmbushPrompt(null);
                         }}
-                        className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(0,0,0,0.6)] border-2 border-zinc-500"
                       >
                         Não
-                      </button>
+                      </GameButton>
                     </motion.div>
                   )}
                     </motion.div>
@@ -8263,28 +8238,16 @@ export default function App() {
             style={{ left, width: barW, ...(topBar ? { top: 52 } : { top: Math.max(8, selRect.top - 74) }) }}
             onClick={(e) => e.stopPropagation()}
           >
-            <span
-              className="px-2.5 py-1 rounded-md bg-black/80 border border-amber-400/70 text-amber-200 text-[10px] font-black uppercase tracking-wide text-center leading-tight"
-              style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}
-            >
-              {hint}
-            </span>
+            <GameBox px={13} className="w-full">
+              <span className="block px-1 py-0.5 text-center text-[13px] leading-tight" style={{ fontFamily: "'Crimson Pro', serif", fontWeight: 700, color: '#f1e4c4' }}>{hint}</span>
+            </GameBox>
             <div className="flex gap-2 w-full">
               {canPlay && (
-                <button
-                  onClick={() => { playUiClickSfx(); handlePlayCardButtonClick(); }}
-                  disabled={!canAfford}
-                  className="flex-1 py-2 rounded-full bg-emerald-600 active:bg-emerald-700 disabled:bg-zinc-700 disabled:text-zinc-400 text-white font-black text-xs uppercase tracking-wider border-2 border-emerald-300 disabled:border-zinc-500 shadow-[0_4px_16px_rgba(16,185,129,0.6)] disabled:shadow-none"
-                >
+                <GameButton tone="primary" disabled={!canAfford} className="flex-1" onClick={() => { playUiClickSfx(); handlePlayCardButtonClick(); }}>
                   {canAfford ? 'Jogar' : 'Sem ouro'}
-                </button>
+                </GameButton>
               )}
-              <button
-                onClick={() => { playUiClickSfx(); setSelectedCardIndex(null); }}
-                className="flex-1 py-2 rounded-full bg-zinc-900/90 active:bg-zinc-800 text-red-300 font-black text-xs uppercase tracking-wider border-2 border-red-500/80"
-              >
-                Cancelar
-              </button>
+              <GameButton tone="danger" className="flex-1" onClick={() => { playUiClickSfx(); setSelectedCardIndex(null); }}>Cancelar</GameButton>
             </div>
           </motion.div>
         );
@@ -8619,10 +8582,14 @@ export default function App() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
             onClick={() => { playUiClickSfx(); handleBackgroundClick(); }}
-            className="fixed top-3 left-3 md:top-4 md:left-4 z-[205] flex items-center gap-1.5 pl-2 pr-3 py-1.5 rounded-full bg-zinc-900/90 border-2 border-red-500/80 text-red-300 font-black text-[11px] md:text-xs uppercase tracking-wider shadow-[0_4px_16px_rgba(0,0,0,0.6)] pointer-events-auto"
+            className="fixed top-3 left-3 md:top-4 md:left-4 z-[205] pointer-events-auto active:scale-95"
           >
-            <X className="w-3.5 h-3.5 md:w-4 md:h-4" strokeWidth={3} />
-            Cancelar
+            <ThinFrame px={10} style={{ background: 'rgba(104,24,24,0.78)' }}>
+              <span className="flex items-center gap-1.5 px-3 py-[3px] uppercase tracking-[0.12em] whitespace-nowrap" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 11, color: '#ffd9d2' }}>
+                <X className="w-3.5 h-3.5" strokeWidth={3} />
+                Cancelar
+              </span>
+            </ThinFrame>
           </motion.button>
         )}
       </AnimatePresence>
@@ -8636,25 +8603,29 @@ export default function App() {
         const left = Math.max(0, Math.ceil((turnClock.deadline - (clockNow + turnClock.skew)) / 1000));
         const urgent = left <= 20;
         return (
-          <div className={`fixed top-3 left-1/2 -translate-x-1/2 z-[206] px-3 py-1 rounded-full bg-black/80 border text-[10px] font-black uppercase tracking-widest pointer-events-none tabular-nums ${urgent ? 'border-red-500/80 text-red-300' : 'border-zinc-500/60 text-zinc-200'}`}>
-            {mine ? 'Seu tempo' : 'Tempo do adversário'} {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}
+          <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[206] pointer-events-none">
+            <GameBox px={10} tint={urgent ? 'rgba(70,12,12,0.9)' : undefined}>
+              <span className="block px-2.5 py-0.5 text-[10px] uppercase tracking-widest tabular-nums whitespace-nowrap" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, color: urgent ? '#ffb4a8' : '#f0e0bb' }}>
+                {mine ? 'Seu tempo' : 'Tempo do adversário'} {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}
+              </span>
+            </GameBox>
           </div>
         );
       })()}
       {/* Online: the opponent has not answered yet. */}
       {waitingRemote && !gameOverWinner && (
-        <div className="fixed top-11 left-1/2 -translate-x-1/2 z-[206] px-3 py-1 rounded-full bg-black/80 border border-amber-400/60 text-amber-200 text-[10px] font-black uppercase tracking-widest pointer-events-none">
-          Aguardando o adversário…
+        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-[206] pointer-events-none">
+          <GameBox px={10}>
+            <span className="block px-2.5 py-0.5 text-[10px] uppercase tracking-widest whitespace-nowrap" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, color: '#ffd477' }}>Aguardando o adversário…</span>
+          </GameBox>
         </div>
       )}
       {/* Leaving a match: online, it counts as giving up. */}
       {gameMode && !gameOverWinner && matchIntroStage === null && (
-        <button
-          onClick={() => { if (window.confirm(onlineRef.current ? 'Desistir da partida? Você perde a batalha.' : 'Sair da partida?')) { playUiClickSfx(); void leaveMatch(); } }}
-          className="fixed top-3 right-3 z-[205] px-2.5 py-1 rounded-full bg-zinc-900/85 border border-zinc-500/70 text-zinc-300 text-[10px] font-black uppercase tracking-wider"
-        >
+        <GameButton className="fixed top-3 right-3 z-[205]" size={10}
+          onClick={() => { if (window.confirm(onlineRef.current ? 'Desistir da partida? Você perde a batalha.' : 'Sair da partida?')) { playUiClickSfx(); void leaveMatch(); } }}>
           {onlineRef.current ? 'Desistir' : 'Sair'}
-        </button>
+        </GameButton>
       )}
 
       {/* Toast Notification — same dark-crimson/gold-border/Crimson-Pro treatment as
@@ -8667,23 +8638,13 @@ export default function App() {
             initial={{ opacity: 0, y: -50, scale: 0.92 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -50, scale: 0.92 }}
-            className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] max-w-[90vw] px-6 py-3 rounded-xl border-2 border-amber-400/90 pointer-events-none"
-            style={{
-              background: 'linear-gradient(to bottom, #450a0a, #5a0e0e, #450a0a)',
-              boxShadow: '0 4px 18px rgba(0,0,0,0.7), 0 0 20px rgba(251,191,36,0.25)',
-            }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] max-w-[90vw] pointer-events-none"
           >
-            <span
-              className="block text-center text-sm md:text-base font-bold"
-              style={{
-                fontFamily: "'Crimson Pro', serif",
-                color: '#f5deb3',
-                WebkitTextStroke: '0.4px rgba(60,10,10,0.6)',
-                textShadow: '0 2px 4px rgba(0,0,0,0.9), 0 0 14px rgba(251,191,36,0.4)',
-              }}
-            >
-              {toastMessage}
-            </span>
+            <GameBox px={14} tint="rgba(54,10,10,0.92)" style={{ boxShadow: '0 4px 18px rgba(0,0,0,0.7)' }}>
+              <span className="block text-center px-3 py-1.5 text-[16px] md:text-base font-bold leading-snug" style={{ fontFamily: "'Crimson Pro', serif", color: '#f5deb3', textShadow: '0 2px 4px rgba(0,0,0,0.9)' }}>
+                {toastMessage}
+              </span>
+            </GameBox>
           </motion.div>
         )}
       </AnimatePresence>
@@ -8956,8 +8917,7 @@ export default function App() {
       </AnimatePresence>
 
       {tutOn && !tutShown && gameMode && (
-        <button data-tut-ui onClick={tutExit} className="fixed z-[955] top-2.5 left-2.5 px-3 h-8 rounded-full text-[11px] tracking-widest"
-          style={{ fontFamily: "'Cinzel', serif", background: 'rgba(10,8,6,.78)', border: '1.5px solid rgba(217,174,92,.6)', color: '#e6d3a3' }}>PULAR</button>
+        <GameButton tutUi size={10} onClick={tutExit} className="fixed z-[955] top-2.5 left-2.5">PULAR</GameButton>
       )}
       {tutOn && tutShown && (
         <TutorialStage key={tutShown.id} step={tutShown} allowRef={tutAllowRef} replay={tutReplay}
@@ -8987,9 +8947,9 @@ export default function App() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[220] flex flex-col items-center justify-center gap-4 p-4 bg-black/80 backdrop-blur-sm pointer-events-auto"
           >
-            <p className="text-center text-amber-400 font-black uppercase tracking-wide text-sm max-w-xs drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-              {cardPicker.title}
-            </p>
+            <GameBox px={14} className="max-w-xs">
+              <p className="px-3 py-1 text-center text-[#ffe3a1] font-bold uppercase tracking-wide text-[13px] leading-snug" style={{ fontFamily: "'Cinzel', serif" }}>{cardPicker.title}</p>
+            </GameBox>
             <div className="grid grid-cols-3 gap-3 overflow-y-auto max-h-[65vh] w-full max-w-md px-2 py-2 content-start">
               {cardPicker.options.map(opt => {
                 const isSelected = cardPicker.selected.some(c => c.id === opt.id);
@@ -9018,13 +8978,9 @@ export default function App() {
               })}
             </div>
             {(cardPicker.maxPicks > 1 || cardPicker.alwaysConfirm) && (
-              <button
-                onClick={() => { playUiClickSfx(); cardPicker.onConfirm(cardPicker.selected); }}
-                disabled={cardPicker.selected.length < cardPicker.minPicks}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-[0_4px_20px_rgba(16,185,129,0.7)] border-2 border-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
-              >
+              <GameButton tone="primary" size={12} disabled={cardPicker.selected.length < cardPicker.minPicks} onClick={() => { playUiClickSfx(); cardPicker.onConfirm(cardPicker.selected); }}>
                 Confirmar ({cardPicker.selected.length}/{cardPicker.maxPicks})
-              </button>
+              </GameButton>
             )}
           </motion.div>
         )}
@@ -9067,12 +9023,7 @@ export default function App() {
                   ))}
                 </div>
               )}
-              <button
-                onClick={() => { playUiClickSfx(); setViewingGraveyard(null); }}
-                className="px-5 py-2 bg-zinc-700 hover:bg-zinc-600 active:bg-zinc-800 rounded-full text-white font-black text-xs uppercase tracking-wider shadow-lg border-2 border-zinc-500"
-              >
-                Fechar
-              </button>
+              <GameButton size={12} onClick={() => { playUiClickSfx(); setViewingGraveyard(null); }}>Fechar</GameButton>
             </motion.div>
           );
         })()}

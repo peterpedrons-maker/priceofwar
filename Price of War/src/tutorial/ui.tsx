@@ -1,9 +1,11 @@
-// The tutorial's look: the instructor and his speech panel, the tapping hand, the dimming with exact-silhouette holes,
-// the list in the menu and the opening talk. Logic lives in App.tsx (it needs the engine and the board); the data in script.ts.
+// The tutorial's look: the instructor (Aldric) and his speech panel, the tapping hand, the dimming with exact-silhouette
+// holes, the list in the menu and the opening talk. Everything is drawn with the thin gold-line frame (src/ui/ThinFrame.tsx).
+// Logic lives in App.tsx (it needs the engine and the board); the data in script.ts.
 import React, { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { motion } from 'motion/react';
 import handSprite from '../assets/tut-hand.webp';
-import { INTRO_LINES, NPC_NAME, TUTORIALS, type Expr, type Step } from './script';
+import { GameBox, GameButton, ThinFrame } from '../ui/ThinFrame';
+import { INTRO_LINES, NPC_NAME, NPC_TITLE, TUTORIALS, type Expr, type Step } from './script';
 
 // ── The instructor ───────────────────────────────────────────────────────────
 // Art: src/assets/npc-instrutor-<neutral|point|happy|warn|think|cheer>.webp. Missing pictures fall back to a silhouette.
@@ -12,11 +14,14 @@ const NPC_ART = import.meta.glob('../assets/npc-instrutor-*.webp', { eager: true
 const npcArt = (e: Expr): string | null => NPC_ART[`../assets/npc-instrutor-${e}.webp`] ?? NPC_ART['../assets/npc-instrutor-neutral.webp'] ?? null;
 const GLYPH: Record<Expr, string> = { neutral: '', point: '☞', happy: '♥', warn: '!', think: '?', cheer: '★' };
 
-export const NpcPortrait = ({ expr, size = 78 }: { expr: Expr; size?: number }) => {
+const FONT_HEAD = "'Cinzel', serif";
+const FONT_BODY = "'Crimson Pro', serif";
+
+export const NpcPortrait = ({ expr, size = 78, tag = false }: { expr: Expr; size?: number; tag?: boolean }) => {
   const art = npcArt(expr);
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
-      <div className="absolute inset-0 rounded-full overflow-hidden" style={{ background: 'radial-gradient(circle at 50% 35%, #5b4326, #1b130b 75%)', border: '3px solid #d9ae5c', boxShadow: '0 0 0 2px #2a1c0a, 0 4px 14px rgba(0,0,0,.7), inset 0 0 12px rgba(0,0,0,.6)' }}>
+      <div className="absolute inset-0 rounded-full overflow-hidden" style={{ background: 'radial-gradient(circle at 50% 35%, #5b4326, #1b130b 75%)', border: '2px solid #d9ae5c', boxShadow: '0 0 0 1.5px #2a1c0a, 0 4px 14px rgba(0,0,0,.7), inset 0 0 12px rgba(0,0,0,.6)' }}>
         {art ? (
           <img src={art} alt={NPC_NAME} className="w-full h-full object-cover" draggable={false} />
         ) : (
@@ -34,12 +39,14 @@ export const NpcPortrait = ({ expr, size = 78 }: { expr: Expr; size?: number }) 
         <div className="absolute -right-1 -top-1 w-6 h-6 rounded-full flex items-center justify-center text-[13px] font-black"
           style={{ background: '#ffd477', color: '#2a1605', border: '2px solid #2a1c0a' }}>{GLYPH[expr]}</div>
       )}
+      {tag && (
+        <div className="absolute left-1/2 -translate-x-1/2" style={{ bottom: -9 }}>
+          <GameBox px={8}><span className="block px-1.5 text-[9px] tracking-[0.18em] uppercase whitespace-nowrap" style={{ fontFamily: FONT_HEAD, fontWeight: 700, color: '#ffe3a1' }}>{NPC_NAME}</span></GameBox>
+        </div>
+      )}
     </div>
   );
 };
-
-const FONT_HEAD = "'Cinzel', serif";
-const FONT_BODY = "'Crimson Pro', serif";
 
 // ── The speech panel ─────────────────────────────────────────────────────────
 export type PanelProps = {
@@ -56,40 +63,41 @@ export const NpcPanel = ({ step, chapter, chapters, position, replay, canBack, o
   const isDo = step.kind === 'do';
   return (
     <>
-      <button data-tut-ui onClick={onSkip} className="fixed z-[955] top-2.5 left-2.5 px-3 h-8 rounded-full text-[11px] tracking-widest"
-        style={{ fontFamily: FONT_HEAD, background: 'rgba(10,8,6,.78)', border: '1.5px solid rgba(217,174,92,.6)', color: '#e6d3a3' }}>PULAR</button>
+      <GameButton tutUi size={10} tone="neutral" onClick={onSkip} className="fixed z-[955] top-2.5 left-2.5">PULAR</GameButton>
       <motion.div
         key={`${step.id}:${replay}`} data-tut-ui
         initial={{ opacity: 0, y: position === 'top' ? -14 : 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.28 }}
         className="fixed z-[950] left-2.5 right-2.5 mx-auto max-w-[560px]"
         style={position === 'top' ? { top: 'max(64px, env(safe-area-inset-top))' } : { bottom: 'max(10px, env(safe-area-inset-bottom))' }}
       >
-        <div className="relative rounded-[18px] pl-[92px] pr-3.5 pt-2.5 pb-3" style={{ background: 'rgba(10,8,6,.93)', border: '2.5px solid #d9ae5c', boxShadow: '0 8px 30px rgba(0,0,0,.65), inset 0 0 0 5px rgba(217,174,92,.12)' }}>
-          <div className="absolute left-2.5 -top-5"><NpcPortrait expr={step.expr ?? 'neutral'} size={72} /></div>
-          <div className="flex items-center justify-between gap-2 min-h-[22px]">
-            <span className="text-[13px] leading-none font-bold tracking-wide" style={{ fontFamily: FONT_HEAD, color: '#ffe3a1' }}>{step.title ?? NPC_NAME.toUpperCase()}</span>
-            {chapter ? (
-              <span className="flex gap-[3px] shrink-0">
-                {Array.from({ length: chapters }, (_, i) => <i key={i} className="block w-[6px] h-[6px] rounded-full" style={{ background: i < chapter ? '#ffd477' : 'rgba(150,125,85,.5)' }} />)}
-              </span>
-            ) : null}
-          </div>
-          <div className="mt-1.5 flex flex-col gap-1">
-            {(step.lines ?? []).map((ln, i) => (
-              <motion.p key={`${replay}-${i}`} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.4, duration: 0.35 }}
-                className="text-[17px] leading-[1.28]" style={{ fontFamily: FONT_BODY, fontWeight: 600, color: '#f1e4c4' }}>{ln}</motion.p>
-            ))}
-            {step.note && <p className="text-[13px] leading-tight mt-0.5" style={{ fontFamily: FONT_BODY, fontWeight: 600, color: '#ffc866' }}>{step.note}</p>}
-          </div>
-          <div className="mt-2 flex items-center gap-2 -ml-[78px]">
-            <button onClick={onBack} disabled={!canBack} className="h-8 px-2.5 rounded-full text-[11px] tracking-wider whitespace-nowrap disabled:opacity-30" style={{ fontFamily: FONT_HEAD, border: '1.5px solid rgba(217,174,92,.55)', color: '#e6d3a3', background: 'rgba(40,28,10,.6)' }}>◂ VOLTAR</button>
-            <button onClick={onRepeat} className="h-8 px-2.5 rounded-full text-[11px] tracking-wider whitespace-nowrap" style={{ fontFamily: FONT_HEAD, border: '1.5px solid rgba(217,174,92,.55)', color: '#e6d3a3', background: 'rgba(40,28,10,.6)' }}>↻ REPETIR</button>
-            <span className="flex-1" />
-            {onNext && !isDo && (
-              <button onClick={onNext} className="h-9 px-4 rounded-full text-[13px] font-bold tracking-wider whitespace-nowrap tut-next" style={{ fontFamily: FONT_HEAD, background: 'linear-gradient(#a8741f,#6f4710)', border: '2px solid #ffe29a', color: '#fff5d8' }}>{nextLabel} ▸</button>
-            )}
-            {isDo && <span className="text-[12px] tracking-wide tut-blink" style={{ fontFamily: FONT_BODY, fontWeight: 700, color: '#ffd477' }}>Toque no brilho</span>}
-          </div>
+        <div className="relative">
+          <GameBox px={16} style={{ boxShadow: '0 8px 30px rgba(0,0,0,.65)' }}>
+            <div className="pl-[78px] pr-0.5 pb-0.5">
+              <div className="flex items-center justify-between gap-2 min-h-[20px]">
+                <span className="text-[13px] leading-none font-bold tracking-wide" style={{ fontFamily: FONT_HEAD, color: '#ffe3a1' }}>{step.title ?? NPC_NAME.toUpperCase()}</span>
+                {chapter ? (
+                  <span className="flex gap-[3px] shrink-0">
+                    {Array.from({ length: chapters }, (_, i) => <i key={i} className="block w-[5px] h-[5px] rounded-full" style={{ background: i < chapter ? '#ffd477' : 'rgba(150,125,85,.5)' }} />)}
+                  </span>
+                ) : null}
+              </div>
+              <div className="mt-1.5 flex flex-col gap-1">
+                {(step.lines ?? []).map((ln, i) => (
+                  <motion.p key={`${replay}-${i}`} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.4, duration: 0.35 }}
+                    className="text-[17px] leading-[1.28]" style={{ fontFamily: FONT_BODY, fontWeight: 600, color: '#f1e4c4' }}>{ln}</motion.p>
+                ))}
+                {step.note && <p className="text-[13px] leading-tight mt-0.5" style={{ fontFamily: FONT_BODY, fontWeight: 600, color: '#ffc866' }}>{step.note}</p>}
+              </div>
+            </div>
+            <div className="mt-2 flex items-center gap-1.5">
+              <GameButton compact size={10} disabled={!canBack} onClick={onBack}>◂ Voltar</GameButton>
+              <GameButton compact size={10} onClick={onRepeat}>↻ Repetir</GameButton>
+              <span className="flex-1" />
+              {onNext && !isDo && <GameButton compact tone="gold" size={12} className="tut-next" onClick={onNext}>{nextLabel} ▸</GameButton>}
+              {isDo && <span className="text-[12px] tracking-wide tut-blink whitespace-nowrap" style={{ fontFamily: FONT_BODY, fontWeight: 700, color: '#ffd477' }}>Toque no brilho</span>}
+            </div>
+          </GameBox>
+          <div className="absolute left-3 -top-6"><NpcPortrait expr={step.expr ?? 'neutral'} size={68} tag /></div>
         </div>
       </motion.div>
     </>
@@ -162,28 +170,33 @@ export const TutorialList = ({ onClose, onPlay }: { onClose: () => void; onPlay:
   const done = loadTutorialsDone();
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[300] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.78)' }} onClick={onClose}>
-      <motion.div initial={{ scale: 0.94, y: 12 }} animate={{ scale: 1, y: 0 }} onClick={e => e.stopPropagation()}
-        className="w-full max-w-[400px] rounded-[20px] p-4 flex flex-col gap-3" style={{ background: 'linear-gradient(#17110a,#0c0905)', border: '3px solid #d9ae5c', boxShadow: '0 10px 40px rgba(0,0,0,.8)' }}>
-        <div className="flex items-center gap-3">
-          <NpcPortrait expr="happy" size={58} />
-          <div>
-            <h2 className="text-[20px] font-bold tracking-wide" style={{ fontFamily: FONT_HEAD, color: '#ffe3a1' }}>TUTORIAIS</h2>
-            <p className="text-[14px]" style={{ fontFamily: FONT_BODY, fontWeight: 600, color: '#d9c79b' }}>Aprenda com o {NPC_NAME}.</p>
-          </div>
-        </div>
-        {TUTORIALS.map((t, i) => (
-          <div key={t.id} className="rounded-xl p-3 flex items-center gap-3" style={{ background: 'rgba(40,28,10,.55)', border: '1.5px solid rgba(217,174,92,.45)', opacity: t.available ? 1 : 0.55 }}>
-            <div className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-[16px] font-black" style={{ background: done.includes(t.id) ? '#2f7d4a' : '#6f4710', border: '2px solid #ffe29a', color: '#fff5d8', fontFamily: FONT_HEAD }}>{done.includes(t.id) ? '✓' : i + 1}</div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[14px] font-bold leading-tight" style={{ fontFamily: FONT_HEAD, color: '#ffe3a1' }}>{t.title}</div>
-              <div className="text-[14px] leading-tight mt-0.5" style={{ fontFamily: FONT_BODY, fontWeight: 600, color: '#d9c79b' }}>{t.blurb}</div>
+      <motion.div initial={{ scale: 0.94, y: 12 }} animate={{ scale: 1, y: 0 }} onClick={e => e.stopPropagation()} className="w-full max-w-[400px]" style={{ filter: 'drop-shadow(0 10px 30px rgba(0,0,0,.8))' }}>
+        <GameBox px={20} tint="rgba(14,9,5,0.96)">
+          <div className="flex flex-col gap-3 p-1">
+            <div className="flex items-center gap-3">
+              <NpcPortrait expr="happy" size={58} />
+              <div>
+                <h2 className="text-[20px] font-bold tracking-wide" style={{ fontFamily: FONT_HEAD, color: '#ffe3a1' }}>TUTORIAIS</h2>
+                <p className="text-[15px] leading-tight" style={{ fontFamily: FONT_BODY, fontWeight: 600, color: '#d9c79b' }}>Aprenda com {NPC_NAME}, o {NPC_TITLE}.</p>
+              </div>
             </div>
-            {t.available
-              ? <button onClick={() => onPlay(t.id)} className="h-9 px-3 rounded-full text-[12px] font-bold tracking-wider shrink-0" style={{ fontFamily: FONT_HEAD, background: 'linear-gradient(#a8741f,#6f4710)', border: '2px solid #ffe29a', color: '#fff5d8' }}>{done.includes(t.id) ? 'REPETIR' : 'JOGAR'}</button>
-              : <span className="text-[11px] tracking-wider shrink-0" style={{ fontFamily: FONT_HEAD, color: '#9d8a5f' }}>EM BREVE</span>}
+            {TUTORIALS.map((t, i) => (
+              <ThinFrame key={t.id} px={11} style={{ background: 'rgba(40,28,10,.45)', opacity: t.available ? 1 : 0.55 }}>
+                <div className="p-1.5 flex items-center gap-3">
+                  <div className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-[16px] font-black" style={{ background: done.includes(t.id) ? '#2f7d4a' : '#6f4710', border: '1.5px solid #ffe29a', color: '#fff5d8', fontFamily: FONT_HEAD }}>{done.includes(t.id) ? '✓' : i + 1}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[14px] font-bold leading-tight" style={{ fontFamily: FONT_HEAD, color: '#ffe3a1' }}>{t.title}</div>
+                    <div className="text-[15px] leading-tight mt-0.5" style={{ fontFamily: FONT_BODY, fontWeight: 600, color: '#d9c79b' }}>{t.blurb}</div>
+                  </div>
+                  {t.available
+                    ? <GameButton tone="gold" size={11} onClick={() => onPlay(t.id)}>{done.includes(t.id) ? 'Repetir' : 'Jogar'}</GameButton>
+                    : <span className="text-[11px] tracking-wider shrink-0" style={{ fontFamily: FONT_HEAD, color: '#9d8a5f' }}>EM BREVE</span>}
+                </div>
+              </ThinFrame>
+            ))}
+            <GameButton className="self-center" onClick={onClose}>Fechar</GameButton>
           </div>
-        ))}
-        <button onClick={onClose} className="self-center h-9 px-6 rounded-full text-[12px] tracking-widest" style={{ fontFamily: FONT_HEAD, border: '1.5px solid rgba(217,174,92,.6)', color: '#e6d3a3' }}>FECHAR</button>
+        </GameBox>
       </motion.div>
     </motion.div>
   );
@@ -198,25 +211,27 @@ export const TutorialIntro = ({ onStart, onClose }: { onStart: () => void; onClo
   return (
     <motion.div data-tut-ui initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[310] flex flex-col items-center justify-end p-4 pb-8"
       style={{ background: 'radial-gradient(circle at 50% 30%, #3a2a14 0%, #0b0805 75%)' }}>
-      <button onClick={onClose} className="absolute top-3 left-3 px-3 h-8 rounded-full text-[11px] tracking-widest" style={{ fontFamily: FONT_HEAD, background: 'rgba(10,8,6,.78)', border: '1.5px solid rgba(217,174,92,.6)', color: '#e6d3a3' }}>SAIR</button>
-      <div className="flex-1 flex items-center justify-center"><NpcPortrait expr={page === 0 ? 'happy' : last ? 'point' : 'neutral'} size={190} /></div>
-      <div className="w-full max-w-[420px] rounded-[18px] px-4 py-3" style={{ background: 'rgba(10,8,6,.93)', border: '2.5px solid #d9ae5c' }}>
-        <div className="text-[14px] font-bold tracking-wide" style={{ fontFamily: FONT_HEAD, color: '#ffe3a1' }}>{NPC_NAME.toUpperCase()}</div>
-        <div className="mt-1.5 flex flex-col gap-1.5 min-h-[88px]">
-          {INTRO_LINES[page].map((ln, i) => (
-            <motion.p key={`${page}-${replay}-${i}`} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.5, duration: 0.4 }}
-              className="text-[18px] leading-[1.3]" style={{ fontFamily: FONT_BODY, fontWeight: 600, color: '#f1e4c4' }}>{ln}</motion.p>
-          ))}
-        </div>
-        <div className="mt-2 flex items-center gap-2">
-          <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className="h-8 px-2.5 rounded-full text-[11px] tracking-wider whitespace-nowrap disabled:opacity-30" style={{ fontFamily: FONT_HEAD, border: '1.5px solid rgba(217,174,92,.55)', color: '#e6d3a3' }}>◂ VOLTAR</button>
-          <button onClick={() => setReplay(r => r + 1)} className="h-8 px-2.5 rounded-full text-[11px] tracking-wider whitespace-nowrap" style={{ fontFamily: FONT_HEAD, border: '1.5px solid rgba(217,174,92,.55)', color: '#e6d3a3' }}>↻ REPETIR</button>
-          <span className="flex-1" />
-          <button onClick={() => (last ? onStart() : setPage(p => p + 1))} className="h-10 px-5 rounded-full text-[14px] font-bold tracking-wider tut-next" style={{ fontFamily: FONT_HEAD, background: 'linear-gradient(#a8741f,#6f4710)', border: '2px solid #ffe29a', color: '#fff5d8' }}>{last ? 'COMEÇAR' : 'PRÓXIMO'} ▸</button>
-        </div>
+      <GameButton size={10} onClick={onClose} className="absolute top-3 left-3">Sair</GameButton>
+      <div className="flex-1 flex items-center justify-center"><NpcPortrait expr={page === 0 ? 'happy' : last ? 'point' : page === 2 ? 'cheer' : 'neutral'} size={200} tag /></div>
+      <div className="w-full max-w-[420px]">
+        <GameBox px={18}>
+          <div className="px-1 pb-1">
+            <div className="text-[13px] font-bold tracking-wide" style={{ fontFamily: FONT_HEAD, color: '#ffe3a1' }}>{NPC_NAME.toUpperCase()} · {NPC_TITLE.toUpperCase()}</div>
+            <div className="mt-1.5 flex flex-col gap-1.5 min-h-[92px]">
+              {INTRO_LINES[page].map((ln, i) => (
+                <motion.p key={`${page}-${replay}-${i}`} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.5, duration: 0.4 }}
+                  className="text-[19px] leading-[1.3]" style={{ fontFamily: FONT_BODY, fontWeight: 600, color: '#f1e4c4' }}>{ln}</motion.p>
+              ))}
+            </div>
+            <div className="mt-2 flex items-center gap-1.5">
+              <GameButton compact size={10} disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}>◂ Voltar</GameButton>
+              <GameButton compact size={10} onClick={() => setReplay(r => r + 1)}>↻ Repetir</GameButton>
+              <span className="flex-1" />
+              <GameButton compact tone="gold" size={12} className="tut-next" onClick={() => (last ? onStart() : setPage(p => p + 1))}>{last ? 'Começar' : 'Próximo'} ▸</GameButton>
+            </div>
+          </div>
+        </GameBox>
       </div>
     </motion.div>
   );
 };
-
-export { AnimatePresence };
