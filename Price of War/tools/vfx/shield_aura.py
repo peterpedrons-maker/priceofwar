@@ -21,13 +21,30 @@ ease = lambda x: x * x * (3 - 2 * x)
 def back(x, k=1.9): return 1 + (k + 1) * (x - 1) ** 3 + k * (x - 1) ** 2
 
 def shield_polygon(cx, cy, w, h):
+    """a classic heater shield: rounded top corners, a top edge with a shallow dip in the middle, straight sides, then two convex
+    circular arcs that meet in a point at the bottom (each arc leaves its side vertically, so the silhouette flows)"""
     top = cy - h * 0.47; bot = cy + h * 0.53
-    pts = [(cx - w / 2 + w * .12, top), (cx + w / 2 - w * .12, top), (cx + w / 2, top + h * .09), (cx + w / 2, top + h * .50)]
-    for t in np.linspace(0, 1, 40):
-        pts.append((cx + w / 2 * (1 - t) ** 1.55, top + h * .50 + (bot - top - h * .50) * t ** 0.9))
-    pts = pts[:-1]
-    mirror = [(2 * cx - x, y) for x, y in reversed(pts[3:])]
-    return pts + [(cx, bot)] + mirror + [(cx - w / 2, top + h * .09)]
+    a = w / 2; r = w * 0.10; dip = h * 0.028
+    y_side = top + h * 0.40
+    pts = []
+    # top edge, left to right (dip in the middle), starting after the left rounded corner
+    for u in np.linspace(0, 1, 40):
+        pts.append((cx - a + r + (w - 2 * r) * u, top + dip * (1 - (2 * u - 1) ** 2)))
+    # right rounded corner
+    for t in np.linspace(-math.pi / 2, 0, 10):
+        pts.append((cx + a - r + r * math.cos(t), top + r + r * math.sin(t)))
+    # right side, straight
+    pts.append((cx + a, y_side))
+    # right bottom arc to the point
+    b_ = bot - y_side; R = (a * a + b_ * b_) / (2 * a)
+    ccx, ccy = cx + a - R, y_side
+    th_end = math.atan2(b_, cx - ccx)
+    for th in np.linspace(0, th_end, 60):
+        pts.append((ccx + R * math.cos(th), ccy + R * math.sin(th)))
+    # mirror for the left half (reverse order)
+    right = pts
+    left = [(2 * cx - x, y) for x, y in reversed(right)]
+    return right + left
 
 CX, CY = RW / 2, RH / 2 + 4 * SS
 POLY = shield_polygon(CX, CY, (W + 44) * SS, (H + 62) * SS)
@@ -37,6 +54,10 @@ DIST = ndi.distance_transform_edt(MASK)
 MAXD = DIST.max()
 RIM = np.exp(-DIST / (5.0 * SS)) * MASK
 RIM2 = np.exp(-DIST / (14.0 * SS)) * MASK
+# a second, thinner rim set inside the first (the bevel that makes it read as a shield), and a faint ridge down the middle
+INNER = np.exp(-((DIST - 13.0 * SS) / (1.6 * SS)) ** 2) * MASK
+_ridge_x = np.abs(xx - (RW / 2))
+RIDGE = np.exp(-(_ridge_x / (3.5 * SS)) ** 2) * np.clip((DIST - 14 * SS) / (30 * SS), 0, 1) * MASK
 
 def render(t_loop=0.0, pulse=1.0):
     """the idle bubble at loop time t_loop in [0,1)"""
@@ -51,10 +72,10 @@ def render(t_loop=0.0, pulse=1.0):
     # fixed glass highlights: a curved glint at the upper left and a small one at the lower right
     gl1 = np.exp(-(((xx - (CX - W * SS * 0.30)) / (W * SS * 0.05)) ** 2 + ((yy - (CY - H * SS * 0.30)) / (H * SS * 0.18)) ** 2)) * MASK * 0.55
     gl2 = np.exp(-(((xx - (CX + W * SS * 0.30)) / (W * SS * 0.03)) ** 2 + ((yy - (CY + H * SS * 0.22)) / (H * SS * 0.07)) ** 2)) * MASK * 0.35
-    lum = fill * 0.9 + rim * 0.95 + RIM2 * 0.12 * pulse + sheen + gl1 + gl2
+    lum = fill * 0.9 + rim * 0.95 + RIM2 * 0.12 * pulse + sheen + gl1 + gl2 + INNER * 0.55 + RIDGE * 0.16
     lum = np.clip(lum, 0, 1.3)
     col = np.stack([np.interp(np.clip(lum, 0, 1), [0, .5, 1], c) for c in ([90, 150, 240], [120, 195, 255], [235, 248, 255])], axis=-1)
-    alpha = np.clip(fill * 0.9 + rim * 0.95 + RIM2 * 0.12 + sheen * 0.8 + gl1 * 0.8 + gl2 * 0.6, 0, 1) * MASK
+    alpha = np.clip(fill * 0.9 + rim * 0.95 + RIM2 * 0.12 + sheen * 0.8 + gl1 * 0.8 + gl2 * 0.6 + INNER * 0.5 + RIDGE * 0.14, 0, 1) * MASK
     # a soft glow outside the rim
     outside = ndi.gaussian_filter(MASK, 7 * SS) * (1 - MASK) * 0.35 * pulse
     col = np.where((MASK > 0.5)[..., None], col, np.array([140, 205, 255]))
@@ -99,7 +120,7 @@ hx, hy = CX, CY - H * SS * 0.36                      # where the blow lands (upp
 for k in range(10):
     t = k / 9
     r = np.hypot(xx - hx, yy - hy)
-    flash = np.exp(-(r / (26 * SS)) ** 2) * max(0, 1 - t * 2.6) * 1.4
+    flash = np.exp(-(r / (16 * SS)) ** 2) * max(0, 1 - t * 2.6) * 0.75
     ripple = np.exp(-((r - (10 + 150 * ease(t)) * SS) / (9 * SS)) ** 2) * (1 - t) ** 1.2 * MASK * 0.9
     pulse = 1 + 1.2 * math.exp(-((t - 0.1) / 0.18) ** 2)
     fr = render(0.3, pulse)
@@ -151,7 +172,7 @@ for k in range(NFB):
         oa = a_ + ca * (1 - a_)
         canvas[..., :3] = (arr[..., :3] * a_ + canvas[..., :3] * ca * (1 - a_)) / np.clip(oa, 1e-3, 1)
         canvas[..., 3:4] = oa * 255
-    fl = np.exp(-(np.hypot(xx - CX, yy - CY) / (90 * SS)) ** 2) * max(0, 1 - t * 4) * 1.1
+    fl = np.exp(-(np.hypot(xx - CX, yy - CY) / (55 * SS)) ** 2) * max(0, 1 - t * 4) * 0.5
     ring = np.exp(-((np.hypot(xx - CX, yy - CY) - (30 + 220 * ease(t)) * SS) / (7 * SS)) ** 2) * max(0, 1 - t * 1.4) * 0.8
     canvas = add_light(canvas, fl + ring + (crack if crack is not None else 0), (225, 245, 255), 1.0)
     brk.append(to_frame(canvas))
