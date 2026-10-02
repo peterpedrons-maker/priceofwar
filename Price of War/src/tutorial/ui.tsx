@@ -48,6 +48,32 @@ export const NpcPortrait = ({ expr, size = 78, tag = false }: { expr: Expr; size
   );
 };
 
+// The instructor as a rectangular photo inside a thin gold frame (w × h is the OUTER size, frame included).
+export const NpcPhoto = ({ expr, w = 78, h = 98, tag = false }: { expr: Expr; w?: number; h?: number; tag?: boolean }) => {
+  const art = npcArt(expr);
+  const px = Math.max(7, Math.round(w / 10));
+  return (
+    <div className="shrink-0 flex flex-col items-center gap-1" style={{ width: w }}>
+      <ThinFrame px={px} style={{ background: '#1b130b' }}>
+        <div className="relative overflow-hidden" style={{ width: w - px * 2, height: h - px * 2 }}>
+          {art ? (
+            <img src={art} alt={NPC_NAME} className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: '50% 22%' }} draggable={false} />
+          ) : (
+            <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="xMidYMid slice">
+              <rect width="100" height="100" fill="#3a2a14" />
+              <path d="M50 14c-17 0-28 11-28 27v10l-8 8v14h72V59l-8-8V41c0-16-11-27-28-27z" fill="#8b6b3a" stroke="#2a1c0a" strokeWidth="3" />
+              <path d="M32 46h36v13c0 9-8 15-18 15s-18-6-18-15z" fill="#d9b48a" stroke="#2a1c0a" strokeWidth="3" />
+              <circle cx="42" cy="54" r="2.6" fill="#2a1c0a" /><circle cx="58" cy="54" r="2.6" fill="#2a1c0a" />
+              <path d="M43 65q7 5 14 0" stroke="#2a1c0a" strokeWidth="2.6" fill="none" strokeLinecap="round" />
+            </svg>
+          )}
+        </div>
+      </ThinFrame>
+      {tag && <span className="text-[10px] tracking-[0.22em] uppercase whitespace-nowrap" style={{ fontFamily: FONT_HEAD, fontWeight: 700, color: '#ffe3a1' }}>{NPC_NAME}</span>}
+    </div>
+  );
+};
+
 // ── The speech panel ─────────────────────────────────────────────────────────
 export type PanelProps = {
   step: Pick<Step, 'id' | 'expr' | 'title' | 'lines' | 'note' | 'kind'>;
@@ -68,11 +94,13 @@ export const NpcPanel = ({ step, chapter, chapters, position, replay, canBack, o
         key={`${step.id}:${replay}`} data-tut-ui
         initial={{ opacity: 0, y: position === 'top' ? -14 : 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.28 }}
         className="fixed z-[950] left-2.5 right-2.5 mx-auto max-w-[560px]"
-        style={position === 'top' ? { top: 'max(64px, env(safe-area-inset-top))' } : { bottom: 'max(10px, env(safe-area-inset-bottom))' }}
+        style={position === 'top' ? { top: 'max(50px, env(safe-area-inset-top))' } : { bottom: 'max(10px, env(safe-area-inset-bottom))' }}
       >
         <div className="relative">
           <GameBox px={16} style={{ boxShadow: '0 8px 30px rgba(0,0,0,.65)' }}>
-            <div className="pl-[78px] pr-0.5 pb-0.5">
+            <div className="flex gap-2.5 pr-0.5 pb-0.5">
+              <NpcPhoto expr={step.expr ?? 'neutral'} tag />
+              <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2 min-h-[20px]">
                 <span className="text-[13px] leading-none font-bold tracking-wide" style={{ fontFamily: FONT_HEAD, color: '#ffe3a1' }}>{step.title ?? NPC_NAME.toUpperCase()}</span>
                 {chapter ? (
@@ -88,6 +116,7 @@ export const NpcPanel = ({ step, chapter, chapters, position, replay, canBack, o
                 ))}
                 {step.note && <p className="text-[13px] leading-tight mt-0.5" style={{ fontFamily: FONT_BODY, fontWeight: 600, color: '#ffc866' }}>{step.note}</p>}
               </div>
+              </div>
             </div>
             <div className="mt-2 flex items-center gap-1.5">
               <GameButton compact size={10} disabled={!canBack} onClick={onBack}>◂ Voltar</GameButton>
@@ -97,7 +126,6 @@ export const NpcPanel = ({ step, chapter, chapters, position, replay, canBack, o
               {isDo && <span className="text-[12px] tracking-wide tut-blink whitespace-nowrap" style={{ fontFamily: FONT_BODY, fontWeight: 700, color: '#ffd477' }}>Toque no brilho</span>}
             </div>
           </GameBox>
-          <div className="absolute left-3 -top-6"><NpcPortrait expr={step.expr ?? 'neutral'} size={68} tag /></div>
         </div>
       </motion.div>
     </>
@@ -174,7 +202,7 @@ export const TutorialList = ({ onClose, onPlay }: { onClose: () => void; onPlay:
         <GameBox px={20} tint="rgba(14,9,5,0.96)">
           <div className="flex flex-col gap-3 p-1">
             <div className="flex items-center gap-3">
-              <NpcPortrait expr="happy" size={58} />
+              <NpcPhoto expr="happy" w={56} h={70} />
               <div>
                 <h2 className="text-[20px] font-bold tracking-wide" style={{ fontFamily: FONT_HEAD, color: '#ffe3a1' }}>TUTORIAIS</h2>
                 <p className="text-[15px] leading-tight" style={{ fontFamily: FONT_BODY, fontWeight: 600, color: '#d9c79b' }}>Aprenda com {NPC_NAME}, o {NPC_TITLE}.</p>
@@ -212,7 +240,7 @@ export const TutorialIntro = ({ onStart, onClose }: { onStart: () => void; onClo
     <motion.div data-tut-ui initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[310] flex flex-col items-center justify-end p-4 pb-8"
       style={{ background: 'radial-gradient(circle at 50% 30%, #3a2a14 0%, #0b0805 75%)' }}>
       <GameButton size={10} onClick={onClose} className="absolute top-3 left-3">Sair</GameButton>
-      <div className="flex-1 flex items-center justify-center"><NpcPortrait expr={page === 0 ? 'happy' : last ? 'point' : page === 2 ? 'cheer' : 'neutral'} size={200} tag /></div>
+      <div className="flex-1 flex items-center justify-center"><NpcPhoto expr={page === 0 ? 'happy' : last ? 'point' : page === 2 ? 'cheer' : 'neutral'} w={250} h={312} tag /></div>
       <div className="w-full max-w-[420px]">
         <GameBox px={18}>
           <div className="px-1 pb-1">
