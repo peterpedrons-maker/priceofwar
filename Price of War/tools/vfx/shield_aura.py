@@ -46,8 +46,11 @@ def shield_polygon(cx, cy, w, h):
     left = [(2 * cx - x, y) for x, y in reversed(right)]
     return right + left
 
-CX, CY = RW / 2, RH / 2 + 4 * SS
-POLY = shield_polygon(CX, CY, (W + 44) * SS, (H + 62) * SS)
+# a contained shield: about four fifths of the card's width and three quarters of its height, centred on the card, so two
+# shielded cards side by side never touch
+CX, CY = RW / 2, RH / 2
+SHIELD_W, SHIELD_H = int(W * 0.84), int(H * 0.76)
+POLY = shield_polygon(CX, CY, SHIELD_W * SS, SHIELD_H * SS)
 m_img = Image.new('L', (RW, RH), 0); ImageDraw.Draw(m_img).polygon(POLY, fill=255)
 MASK = np.asarray(m_img, float) / 255
 DIST = ndi.distance_transform_edt(MASK)
@@ -55,9 +58,9 @@ MAXD = DIST.max()
 RIM = np.exp(-DIST / (5.0 * SS)) * MASK
 RIM2 = np.exp(-DIST / (14.0 * SS)) * MASK
 # a second, thinner rim set inside the first (the bevel that makes it read as a shield), and a faint ridge down the middle
-INNER = np.exp(-((DIST - 13.0 * SS) / (1.6 * SS)) ** 2) * MASK
+INNER = np.exp(-((DIST - 9.0 * SS) / (1.4 * SS)) ** 2) * MASK
 _ridge_x = np.abs(xx - (RW / 2))
-RIDGE = np.exp(-(_ridge_x / (3.5 * SS)) ** 2) * np.clip((DIST - 14 * SS) / (30 * SS), 0, 1) * MASK
+RIDGE = np.exp(-(_ridge_x / (3.5 * SS)) ** 2) * np.clip((DIST - 10 * SS) / (24 * SS), 0, 1) * MASK
 
 def render(t_loop=0.0, pulse=1.0):
     """the idle bubble at loop time t_loop in [0,1)"""
@@ -70,8 +73,8 @@ def render(t_loop=0.0, pulse=1.0):
     pos = -0.25 + 1.5 * t_loop
     sheen = np.exp(-((diag - pos) / 0.08) ** 2) * MASK * 0.55
     # fixed glass highlights: a curved glint at the upper left and a small one at the lower right
-    gl1 = np.exp(-(((xx - (CX - W * SS * 0.30)) / (W * SS * 0.05)) ** 2 + ((yy - (CY - H * SS * 0.30)) / (H * SS * 0.18)) ** 2)) * MASK * 0.55
-    gl2 = np.exp(-(((xx - (CX + W * SS * 0.30)) / (W * SS * 0.03)) ** 2 + ((yy - (CY + H * SS * 0.22)) / (H * SS * 0.07)) ** 2)) * MASK * 0.35
+    gl1 = np.exp(-(((xx - (CX - SHIELD_W * SS * 0.28)) / (SHIELD_W * SS * 0.06)) ** 2 + ((yy - (CY - SHIELD_H * SS * 0.28)) / (SHIELD_H * SS * 0.18)) ** 2)) * MASK * 0.55
+    gl2 = np.exp(-(((xx - (CX + SHIELD_W * SS * 0.28)) / (SHIELD_W * SS * 0.04)) ** 2 + ((yy - (CY + SHIELD_H * SS * 0.20)) / (SHIELD_H * SS * 0.07)) ** 2)) * MASK * 0.35
     lum = fill * 0.9 + rim * 0.95 + RIM2 * 0.12 * pulse + sheen + gl1 + gl2 + INNER * 0.55 + RIDGE * 0.16
     lum = np.clip(lum, 0, 1.3)
     col = np.stack([np.interp(np.clip(lum, 0, 1), [0, .5, 1], c) for c in ([90, 150, 240], [120, 195, 255], [235, 248, 255])], axis=-1)
@@ -108,7 +111,7 @@ base = render(0.0)
 for k in range(10):
     t = k / 9
     sc = 0.78 + 0.22 * back(min(1, t / 0.8), 2.4)
-    ring_r = (60 + 190 * ease(t)) * SS
+    ring_r = (26 + 95 * ease(t)) * SS
     ring = np.exp(-((np.hypot(xx - CX, yy - CY) - ring_r) / (6 * SS)) ** 2) * (1 - t) ** 1.3
     fr = add_light(base, ring, (210, 240, 255), 0.9)
     appear.append(to_frame(fr, sc, 0, 0, alpha_mul=ease(min(1, t / 0.5))))
@@ -116,12 +119,12 @@ for k in range(10):
 loop = [to_frame(render(k / 24, 1.0)) for k in range(24)]
 # ── hit that does not break it ────────────────────────────────────────────────
 hit = []
-hx, hy = CX, CY - H * SS * 0.36                      # where the blow lands (upper middle)
+hx, hy = CX, CY - SHIELD_H * SS * 0.30                      # where the blow lands (upper middle)
 for k in range(10):
     t = k / 9
     r = np.hypot(xx - hx, yy - hy)
     flash = np.exp(-(r / (16 * SS)) ** 2) * max(0, 1 - t * 2.6) * 0.75
-    ripple = np.exp(-((r - (10 + 150 * ease(t)) * SS) / (9 * SS)) ** 2) * (1 - t) ** 1.2 * MASK * 0.9
+    ripple = np.exp(-((r - (8 + 90 * ease(t)) * SS) / (7 * SS)) ** 2) * (1 - t) ** 1.2 * MASK * 0.9
     pulse = 1 + 1.2 * math.exp(-((t - 0.1) / 0.18) ** 2)
     fr = render(0.3, pulse)
     fr = add_light(fr, flash + ripple, (225, 245, 255), 1.0)
@@ -173,7 +176,7 @@ for k in range(NFB):
         canvas[..., :3] = (arr[..., :3] * a_ + canvas[..., :3] * ca * (1 - a_)) / np.clip(oa, 1e-3, 1)
         canvas[..., 3:4] = oa * 255
     fl = np.exp(-(np.hypot(xx - CX, yy - CY) / (55 * SS)) ** 2) * max(0, 1 - t * 4) * 0.5
-    ring = np.exp(-((np.hypot(xx - CX, yy - CY) - (30 + 220 * ease(t)) * SS) / (7 * SS)) ** 2) * max(0, 1 - t * 1.4) * 0.8
+    ring = np.exp(-((np.hypot(xx - CX, yy - CY) - (20 + 120 * ease(t)) * SS) / (6 * SS)) ** 2) * max(0, 1 - t * 1.4) * 0.8
     canvas = add_light(canvas, fl + ring + (crack if crack is not None else 0), (225, 245, 255), 1.0)
     brk.append(to_frame(canvas))
 

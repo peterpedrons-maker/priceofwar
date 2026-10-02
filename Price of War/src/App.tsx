@@ -86,7 +86,6 @@ import fxShieldAppearSheet from './assets/fx-shield-appear-sheet.webp';
 import fxShieldLoopSheet from './assets/fx-shield-loop-sheet.webp';
 import fxShieldHitSheet from './assets/fx-shield-hit-sheet.webp';
 import fxShieldBreakSheet from './assets/fx-shield-break-sheet.webp';
-import uiEffectReinforceStill from './assets/ui-effect-reinforce.webp';
 import uiEffectAtkUpStill from './assets/ui-effect-atk-up.webp';
 import uiEffectHpUpStill from './assets/ui-effect-hp-up.webp';
 import maskGold from './assets/mask-gold.webp';
@@ -787,7 +786,7 @@ const ShieldAura = ({ kind, value }: { kind: 'shield' | 'block'; value?: number 
     <div className="absolute pointer-events-none" style={{ left: `${-PUNCH_PAD_X * 100}%`, top: `${-PUNCH_PAD_Y * 100}%`, width: `${PUNCH_FRAME_W * 100}%`, height: `${PUNCH_FRAME_H * 100}%`, zIndex: 7 }}>
       <div className="absolute inset-0" style={{ backgroundImage: `url(${d.sheet})`, backgroundRepeat: 'no-repeat', backgroundSize: `600% ${d.rows * 100}%`, backgroundPosition: `${(col / 5) * 100}% ${(row / (d.rows - 1)) * 100}%`, filter: kind === 'block' ? GOLD_BUBBLE : undefined }} />
       {kind === 'shield' && value !== undefined && (
-        <div className="absolute flex items-center justify-center font-black" style={{ left: '50%', top: '8%', transform: 'translateX(-50%)', minWidth: 20, height: 20, padding: '0 5px', borderRadius: 10, background: 'linear-gradient(#5f7691, #2c3c52)', border: '1.5px solid #cfe7ff', boxShadow: '0 0 8px #7fb4ffaa, inset 0 1px 0 #ffffff55', color: '#f2f8ff', fontFamily: "'Cinzel', serif", fontSize: 12 }}>{value}</div>
+        <div className="absolute flex items-center justify-center font-black" style={{ left: '50%', top: '20.5%', transform: 'translateX(-50%)', minWidth: 20, height: 20, padding: '0 5px', borderRadius: 10, background: 'linear-gradient(#5f7691, #2c3c52)', border: '1.5px solid #cfe7ff', boxShadow: '0 0 8px #7fb4ffaa, inset 0 1px 0 #ffffff55', color: '#f2f8ff', fontFamily: "'Cinzel', serif", fontSize: 12 }}>{value}</div>
       )}
     </div>
   );
@@ -9236,10 +9235,6 @@ const CardSlot = ({
               </>
             );
           })()}
-          {/* Reforço mark: an Infantaria in the Retaguarda is the reserve that steps forward when the card in front falls */}
-          {card.cardType === 'Infantaria' && slotId && /-[5-9]$/.test(slotId) && (
-            <img src={uiEffectReinforceStill} alt="" aria-hidden draggable={false} className="absolute pointer-events-none select-none" style={{ left: '50%', bottom: '-9%', width: '46%', transform: 'translateX(-50%)', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.8))', zIndex: 6 }} />
-          )}
         </motion.div>
       )}
       {card && card.isDestroyed && (

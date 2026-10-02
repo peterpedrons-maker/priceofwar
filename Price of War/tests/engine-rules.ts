@@ -587,6 +587,12 @@ test('Reforço: when a Vanguarda card falls, the Infantaria behind it steps forw
   ok(r.ev.some(e => e.t === 'shield' && (e as any).slot === 2 && (e as any).shield === REINFORCE_SHIELD), 'the Escudo is announced');
   ok(r.ev.findIndex(e => e.t === 'destroyed') < r.ev.findIndex(e => e.t === 'reinforce'), 'the fall comes before the step forward');
 });
+test('Reforço: the Escudo comes only when the reserve ADVANCES — an Infantaria standing in the Retaguarda has none', () => {
+  let s = fresh({ a: 'cardeal', b: 'capitao' });
+  const inf = give(s, 0, 'Escudeiro de Linha');
+  s = act(s, 0, { type: 'play', cardId: inf.id, slot: 7 }).s;
+  eq([s.players[0].board[7]?.name, s.players[0].board[7]?.shield, s.players[0].board[7]?.block], ['Escudeiro de Linha', undefined, undefined]);
+});
 test('Reforço: only Infantaria steps forward, and only when the front slot is really empty', () => {
   let s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
   put(s, 0, 2, 'Cavaleiro da Luz'); put(s, 1, 2, 'Devotos da Cruzada'); put(s, 1, 7, 'Arqueiro da Ordem');
