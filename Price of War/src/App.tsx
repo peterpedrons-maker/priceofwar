@@ -206,6 +206,7 @@ import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActi
 import { aiNextAction } from './engine/ai';
 import { triggerOf, triggerKeyOf, pulseCard, usePulse, TRIGGER_GLOW } from './triggers';
 import { playSfx, preloadSfx, dbgMark } from './sfx';
+import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettings, subscribeAudio } from './audioSettings';
 import type { Trigger } from './engine/types';
 import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
@@ -260,10 +261,12 @@ const DRAW_FLIGHT_MS = 750;
 // Delayed by the same duration as the draw's own flight animation so the sound
 // lands when the card actually arrives in hand, not the instant it's dealt off
 // the deck — otherwise it reads as playing before the player has drawn anything.
+// Every <audio>-element sound goes through the player's effects volume (Som, in the menu).
+const sfxVol = (v: number) => Math.min(1, v * sfxLevel());
 const playCardDrawSfx = () => {
   window.setTimeout(() => {
     const audio = new Audio(cardDrawSfxUrl);
-    audio.volume = 0.6;
+    audio.volume = sfxVol(0.6);
     audio.play().catch(() => {});
   }, DRAW_FLIGHT_MS);
 };
@@ -276,7 +279,7 @@ const playCardDrawSfx = () => {
 // the thing that just happened on screen.
 const playCardPlaySfx = () => {
   const audio = new Audio(cardPlaySfxUrl);
-  audio.volume = 0.7;
+  audio.volume = sfxVol(0.7);
   audio.play().catch(() => {});
 };
 // The blow: sfx-combate-explosao.wav has its loud hit 42 ms in, so it is started just before the 40 ms hit-stop (HIT_STOP_MS)
@@ -286,7 +289,7 @@ const playAttackSfx = () => playSfx(attackSfxUrl, 0.48, 'sfx:attack');
 const playEffectSfx = () => playSfx(effectSfxUrl, 0.7, 'sfx:effect');
 const playTacticSfx = () => {
   const audio = new Audio(tacticSfxUrl);
-  audio.volume = 0.6;
+  audio.volume = sfxVol(0.6);
   audio.play().catch(() => {});
 };
 // Deliberately quieter than the others — this one can fire many times in a row
@@ -294,7 +297,7 @@ const playTacticSfx = () => {
 // in the background instead of competing with them.
 const playSelectSfx = () => {
   const audio = new Audio(selectSfxUrl);
-  audio.volume = 0.35;
+  audio.volume = sfxVol(0.35);
   audio.play().catch(() => {});
 };
 // A plain click for any non-card UI button (menu, deck picker, phase/turn button,
@@ -306,6 +309,8 @@ const playSelectSfx = () => {
 // a low two-note gong underneath.
 let bannerAudioCtx: AudioContext | null = null;
 const playBannerSfx = (kind: 'phase' | 'turn' = 'phase') => {
+  const lvl = sfxLevel();
+  if (lvl <= 0) return;
   try {
     const AC = window.AudioContext || (window as any).webkitAudioContext;
     if (!AC) return;
@@ -326,7 +331,7 @@ const playBannerSfx = (kind: 'phase' | 'turn' = 'phase') => {
     band.frequency.exponentialRampToValueAtTime(kind === 'turn' ? 1800 : 2600, t0 + 0.3);
     const ng = ctx.createGain();
     ng.gain.setValueAtTime(0.0001, t0);
-    ng.gain.exponentialRampToValueAtTime(0.32, t0 + 0.12);
+    ng.gain.exponentialRampToValueAtTime(0.32 * lvl, t0 + 0.12);
     ng.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     noise.connect(band).connect(ng).connect(ctx.destination);
     noise.start(t0);
@@ -337,7 +342,7 @@ const playBannerSfx = (kind: 'phase' | 'turn' = 'phase') => {
         o.frequency.setValueAtTime(f, t0 + i * 0.05);
         const g = ctx.createGain();
         g.gain.setValueAtTime(0.0001, t0 + i * 0.05);
-        g.gain.exponentialRampToValueAtTime(0.22, t0 + i * 0.05 + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.22 * lvl, t0 + i * 0.05 + 0.03);
         g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.1);
         o.connect(g).connect(ctx.destination);
         o.start(t0 + i * 0.05);
@@ -348,7 +353,7 @@ const playBannerSfx = (kind: 'phase' | 'turn' = 'phase') => {
 };
 const playUiClickSfx = () => {
   const audio = new Audio(uiClickSfxUrl);
-  audio.volume = 0.4;
+  audio.volume = sfxVol(0.4);
   audio.play().catch(() => {});
 };
 // The instant a card lifts off to fly somewhere — played from hand to the board
@@ -357,7 +362,7 @@ const playUiClickSfx = () => {
 // arrival) instead of only announcing itself once it's already landed.
 const playCardLiftSfx = () => {
   const audio = new Audio(cardLiftSfxUrl);
-  audio.volume = 0.45;
+  audio.volume = sfxVol(0.45);
   audio.play().catch(() => {});
 };
 // Any card actually losing HP — see CardSlot's own damageFlash effect, which
@@ -369,12 +374,12 @@ const playCardLiftSfx = () => {
 // from a regular soldier taking a hit.
 const playDamageSfx = () => {
   const audio = new Audio(damageSfxUrl);
-  audio.volume = 0.55;
+  audio.volume = sfxVol(0.55);
   audio.play().catch(() => {});
 };
 const playGeneralDamageSfx = () => {
   const audio = new Audio(generalDamageSfxUrl);
-  audio.volume = 0.65;
+  audio.volume = sfxVol(0.65);
   audio.play().catch(() => {});
 };
 // A card actually dying (isDestroyed flips true) — see CardSlot's own destroy
@@ -386,12 +391,12 @@ const playDestroySfx = () => playSfx(destroySfxUrl, 1.1, 'sfx:destroy');
 // Match-intro VS reveal (see startMatchIntro/MatchIntroOverlay further below).
 const playRevealGeneralSfx = () => {
   const audio = new Audio(revealGeneralSfxUrl);
-  audio.volume = 0.55;
+  audio.volume = sfxVol(0.55);
   audio.play().catch(() => {});
 };
 const playBatalhaBannerSfx = () => {
   const audio = new Audio(batalhaBannerSfxUrl);
-  audio.volume = 0.6;
+  audio.volume = sfxVol(0.6);
   audio.play().catch(() => {});
 };
 // The heavy stone-thud that lands exactly when BATALHA's own fall hits the board —
@@ -399,7 +404,7 @@ const playBatalhaBannerSfx = () => {
 // own impact fraction rather than firing alongside playBatalhaBannerSfx above.
 const playBatalhaImpactSfx = () => {
   const audio = new Audio(batalhaImpactSfxUrl);
-  audio.volume = 0.75;
+  audio.volume = sfxVol(0.75);
   audio.play().catch(() => {});
 };
 
@@ -2916,6 +2921,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
   const [deckEditorOpen, setDeckEditorOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [soundOpen, setSoundOpen] = useState(false);
   const updateProfile = (patch: Partial<PlayerProfile>) => {
     setProfile(prev => {
       const next = { ...prev, ...patch };
@@ -2983,6 +2989,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
         )}
         {deckEditorOpen && <DeckEditor onClose={() => setDeckEditorOpen(false)} />}
         {settingsOpen && <SettingsModal session={session} profileName={profile.name} onClose={() => setSettingsOpen(false)} />}
+        {soundOpen && <SoundModal onClose={() => setSoundOpen(false)} />}
         {shopOpen && <ShopScreen coroas={profile.coroas} onSpend={(n) => updateProfile({ coroas: Math.max(0, profile.coroas - n) })} onClose={() => setShopOpen(false)} />}
         {onlineOpen && (
           <OnlineModeModal
@@ -3052,7 +3059,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
         <MenuIconButton icon={uiIconConfigImage} label="Config." onClick={() => setSettingsOpen(true)} />
         <MenuIconButton icon={uiIconTutoriaisImage} label="Tutoriais" onClick={onTutorials} />
         <MenuIconButton icon={uiIconRankingImage} label="Ranking" onClick={() => setComingSoon({ title: 'Ranking', message: 'O sistema de partidas ranqueadas ainda está por vir.' })} />
-        <MenuIconButton icon={uiIconSomImage} label="Som" onClick={() => setComingSoon({ title: 'Som', message: 'Em breve.' })} />
+        <MenuIconButton icon={uiIconSomImage} label="Som" onClick={() => setSoundOpen(true)} />
       </div>
     </motion.div>
   );
@@ -4399,6 +4406,41 @@ const ProfileSetupScreen = ({ initialName, initialAvatar, onSubmit }: { initialN
   );
 };
 
+// Som: overall volume, music and effects (a bar each) and a mute switch. Saved on the device (src/audioSettings.ts) and applied live.
+const VolumeRow = ({ label, value, onChange, onRelease, dim }: { label: string; value: number; onChange: (v: number) => void; onRelease?: () => void; dim?: boolean }) => (
+  <div className={`w-full flex flex-col gap-1.5 transition-opacity ${dim ? 'opacity-45' : ''}`}>
+    <div className="flex items-baseline justify-between">
+      <span className="text-[11px] uppercase tracking-[0.18em] text-[#d8c9a3]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>{label}</span>
+      <span className="text-[12px] tabular-nums text-[#f3e3c3]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>{Math.round(value * 100)}%</span>
+    </div>
+    <input
+      type="range" min={0} max={100} step={1} value={Math.round(value * 100)} aria-label={label}
+      className="vol-range" style={{ ['--v' as string]: `${Math.round(value * 100)}%` }}
+      onChange={e => onChange(Number(e.target.value) / 100)}
+      onPointerUp={onRelease} onKeyUp={onRelease}
+    />
+  </div>
+);
+const SoundModal = ({ onClose }: { onClose: () => void }) => {
+  const a = useAudioSettings();
+  return (
+    <WindowOverlay onClose={onClose}>
+      <FramedWindow>
+        <div className="flex flex-col items-center gap-4 px-2 py-2 w-[min(78vw,320px)]">
+          <WindowTitle>Som</WindowTitle>
+          <VolumeRow label="Geral" value={a.master} dim={a.muted} onChange={v => setAudioSettings({ master: v })} />
+          <VolumeRow label="Música" value={a.music} dim={a.muted} onChange={v => setAudioSettings({ music: v })} />
+          <VolumeRow label="Efeitos" value={a.effects} dim={a.muted} onChange={v => setAudioSettings({ effects: v })} onRelease={() => playSelectSfx()} />
+          <div className="flex gap-3">
+            <WindowButton primary={a.muted} onClick={() => setAudioSettings({ muted: !a.muted })}>{a.muted ? 'Som desligado' : 'Mudo'}</WindowButton>
+            <WindowButton onClick={onClose}>Fechar</WindowButton>
+          </div>
+        </div>
+      </FramedWindow>
+    </WindowOverlay>
+  );
+};
+
 const SettingsModal = ({ session, profileName, onClose }: { session: Session | null; profileName: string; onClose: () => void }) => {
   const [confirming, setConfirming] = useState(false);
   const how = !session ? '' : session.guest ? 'Convidado' : session.provider === 'google' ? 'Google' : session.provider === 'discord' ? 'Discord' : 'E-mail';
@@ -4437,6 +4479,8 @@ const SettingsModal = ({ session, profileName, onClose }: { session: Session | n
 
 // Short metallic "ting" for the coin landing (Web Audio, no asset), shared audio context with the banners.
 const playCoinSfx = (kind: 'toss' | 'land') => {
+  const lvl = sfxLevel();
+  if (lvl <= 0) return;
   try {
     const AC = window.AudioContext || (window as any).webkitAudioContext;
     if (!AC) return;
@@ -4451,7 +4495,7 @@ const playCoinSfx = (kind: 'toss' | 'land') => {
       o.frequency.setValueAtTime(f, t0 + d);
       const g = ctx.createGain();
       g.gain.setValueAtTime(0.0001, t0 + d);
-      g.gain.exponentialRampToValueAtTime(kind === 'toss' ? 0.12 : 0.2, t0 + d + 0.01);
+      g.gain.exponentialRampToValueAtTime((kind === 'toss' ? 0.12 : 0.2) * lvl, t0 + d + 0.01);
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + (kind === 'toss' ? 0.25 : 0.7));
       o.connect(g).connect(ctx.destination);
       o.start(t0 + d);
@@ -4770,6 +4814,8 @@ export default function App() {
   const duelMusicCtxRef = useRef<AudioContext | null>(null);
   const duelMusicBufferRef = useRef<AudioBuffer | null>(null);
   const duelMusicSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const duelMusicGainRef = useRef<GainNode | null>(null);
+  useEffect(() => subscribeAudio(() => { if (duelMusicGainRef.current) duelMusicGainRef.current.gain.value = MUSIC_BASE_GAIN * musicLevel(); }), []);
   useEffect(() => {
     if (!gameMode) {
       duelMusicSourceRef.current?.stop();
@@ -4794,7 +4840,8 @@ export default function App() {
       source.buffer = duelMusicBufferRef.current;
       source.loop = true;
       const gain = ctx.createGain();
-      gain.gain.value = 0.19;    // the new track is louder than the old one: same perceived level
+      gain.gain.value = MUSIC_BASE_GAIN * musicLevel();   // 60% of the level it first shipped at; the player's Som settings scale it (and follow live, below)
+      duelMusicGainRef.current = gain;
       source.connect(gain).connect(ctx.destination);
       source.start();
       duelMusicSourceRef.current = source;
@@ -4857,6 +4904,8 @@ export default function App() {
   // waiting for them to click the actual ally to heal, same two-step shape as
   // pendingTacticAction above.
   const [pendingGeneralHeal, setPendingGeneralHeal] = useState<{ amount: number } | null>(null);
+  const pendingGeneralHealRef = useRef(pendingGeneralHeal);
+  pendingGeneralHealRef.current = pendingGeneralHeal;
 
   // Infiltrado da Ordem's "Se o General aliado receber dano, no próximo turno não
   // poderá usar sua habilidade." pendingPlayerGeneralAbilityBlock/
@@ -5268,7 +5317,7 @@ export default function App() {
   startTriggerFxRef.current = startTriggerFx;
   const holdForSeat = (seat: Seat) => () => {
     const pend = engineRef.current?.pending;
-    return (!!pend && pend.seat === seat) || (seat === 0 && !!pendingHospRef.current);
+    return (!!pend && pend.seat === seat) || (seat === 0 && (!!pendingHospRef.current || !!pendingGeneralHealRef.current));
   };
   // Convocação (a card with that trigger arrives on the board) and Queda (it falls): read straight off the boards, so they
   // fire at the moment the card is actually drawn there (landing animation done / burn begins), for either side.
@@ -5436,6 +5485,8 @@ export default function App() {
       startTriggerFxRef.current(side, slot, toCardDataRef.current(c), trig ?? triggerKeyOf(c.name) ?? 'comando', () => Date.now() < until);
       return true;
     };
+    // Test hook: the client-side flow state (what is pending, which effect floats, how many glows are still playing).
+    (window as any).__powFlow = () => ({ hosp: pendingHospRef.current, floating: trigActiveIdRef.current, glows: trigGlowPendingRef.current, general: pendingGeneralHealRef.current });
     (window as any).__powSet = (mutate: (s: GameState) => void) => {
       const next = JSON.parse(JSON.stringify(engineRef.current)) as GameState;
       mutate(next);
@@ -5695,7 +5746,7 @@ export default function App() {
         case 'ability': {
           playTacticSfx();
           const c = engineRef.current?.players[e.seat].board[e.slot];
-          if (c && triggerKeyOf(c.name) === 'comando') startTriggerFx(ownerId(e.seat), e.slot, toCardData(c), 'comando', holdForSeat(e.seat));
+          if (c) startTriggerFx(ownerId(e.seat), e.slot, toCardData(c), triggerKeyOf(c.name) ?? 'comando', holdForSeat(e.seat));   // any card or General: the same float + glow
           break;
         }
         case 'attack': {
@@ -7078,8 +7129,15 @@ export default function App() {
   // Cardeal Pedro's ability: the "Ativar habilidade?" prompt commits to it, then the player taps the ally to
   // heal. The 2 gold are only charged by the engine when the heal actually lands.
   const activateGeneralHeal = (amount: number, _cost: number) => {
-    setPendingGeneralHeal({ amount });
-    setViewState('field');
+    const start = () => { setPendingGeneralHeal({ amount }); setViewState('field'); };
+    const general = playerSlots[12];
+    if (general) {
+      // the General floats and glows first (like any card whose effect fires); the targets open after the glow
+      startTriggerFx('player', 12, general, 'comando', holdForSeat(0));
+      whenGlowDone(start);
+      return;
+    }
+    start();
   };
   const resolveGeneralHeal = (slotIndex: number) => {
     if (!pendingGeneralHeal) return;
@@ -7179,12 +7237,14 @@ export default function App() {
       : mine(c => (EQUIP_ALLOWED_TYPES[kind] ?? []).includes(c.cardType as CardType));
     return { source: card, kind: 'buff', title: card.name, hint, valid: own };
   };
+  // While an effect's card floats, its slot is held empty on screen: the card that is asking for a target is still that one.
+  const sourceAt = (slot: number): CardData | null => playerSlots[slot] ?? (trigFx && trigFx.side === 'player' && trigFx.slot === slot ? trigFx.card : null);
   const targetingMode: TargetingMode | null = (() => {
-    if (pendingGeneralHeal && playerSlots[12]) {
-      return { source: playerSlots[12]!, kind: 'heal', title: 'Habilidade do General', hint: `Toque em um soldado aliado para curar ${pendingGeneralHeal.amount} HP.`, valid: mine(() => true) };
+    if (pendingGeneralHeal && sourceAt(12)) {
+      return { source: sourceAt(12)!, kind: 'heal', title: 'Habilidade do General', hint: `Toque em um soldado aliado para curar ${pendingGeneralHeal.amount} HP.`, valid: mine(() => true) };
     }
-    if (pendingHospitalario && playerSlots[pendingHospitalario.slot]) {
-      const source = playerSlots[pendingHospitalario.slot]!;
+    if (pendingHospitalario && sourceAt(pendingHospitalario.slot)) {
+      const source = sourceAt(pendingHospitalario.slot)!;
       return pendingHospitalario.step === 'heal'
         ? { source, kind: 'heal', title: source.name, hint: 'Toque em um aliado ferido para curar 1 HP.', valid: mine(c => isCardDamaged(c)) }
         : { source, kind: 'damage', title: source.name, hint: 'Toque em um inimigo da Vanguarda para causar 1 de dano.', valid: foes((_c, i) => isFrontline(i)) };

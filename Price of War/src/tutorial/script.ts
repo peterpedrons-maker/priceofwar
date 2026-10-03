@@ -62,7 +62,7 @@ const PILE_E = ['Soldados da Ordem', 'Devotos da Cruzada', 'Soldados da Ordem', 
 let uid = 0;
 const fresh = (name: string): Card => {
   const d = requireCardDef(name);
-  return { id: `tut${++uid}`, name: d.name, cardType: d.cardType, atk: d.atk, hp: d.hp, cost: d.cost, effect: d.effect };
+  return { id: `tut${++uid}`, name: d.name, cardType: d.cardType, atk: d.atk, hp: d.hp, cost: d.cost, effect: d.effect, ...(d.trigger ? { trigger: d.trigger } : {}) };
 };
 
 // The match as it stands before the first turn: the Generals in place, the fixed hands dealt, the draw piles stacked.

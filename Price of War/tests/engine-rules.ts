@@ -20,7 +20,7 @@ const ok = (c: boolean, msg: string) => { if (!c) throw new Error(msg); };
 let n = 0;
 const mk = (name: string): Card => {
   const d = requireCardDef(name);
-  return { id: `x${++n}`, name: d.name, cardType: d.cardType, atk: d.atk, hp: d.hp, cost: d.cost, effect: d.effect };
+  return { id: `x${++n}`, name: d.name, cardType: d.cardType, atk: d.atk, hp: d.hp, cost: d.cost, effect: d.effect, ...(d.trigger ? { trigger: d.trigger } : {}) };
 };
 // A started match, seat 0 on turn, empty hands and boards (except Generals), plenty of gold.
 const fresh = (opts: { a?: 'capitao' | 'cardeal'; b?: 'capitao' | 'cardeal'; first?: Seat; round?: number; phase?: GameState['turn']['phase'] } = {}): GameState => {
@@ -412,10 +412,10 @@ test('Tributo de Guerra: free and +1 gold', () => {
 });
 test('Trabuco de Cerco: 2 damage to every enemy unit and the General', () => {
   const s = fresh(); const c = give(s, 0, 'Trabuco de Cerco');
-  put(s, 1, 0, 'Batedor'); put(s, 1, 5, 'Soldado Tático');
+  put(s, 1, 0, 'Batedor'); put(s, 1, 5, 'Soldados da Ordem');
   const r = act(s, 0, { type: 'play', cardId: c.id }).s;
-  // the Batedor falls; the Soldado Tático behind it (1 HP left) steps forward (Reforço)
-  eq([r.players[1].board[0]?.name, r.players[1].board[0]?.hp, r.players[1].board[5], r.players[1].board[12]!.hp], ['Soldado Tático', 1, null, 18]);
+  // the Batedor falls; the Soldados da Ordem behind it (2 HP left) steps forward (it is tagged Reforço)
+  eq([r.players[1].board[0]?.name, r.players[1].board[0]?.hp, r.players[1].board[5], r.players[1].board[12]!.hp], ['Soldados da Ordem', 2, null, 18]);
 });
 test('targeted Táticas validate before spending anything', () => {
   const s = fresh({ a: 'capitao' });
@@ -577,15 +577,22 @@ test('Capitão de Formação: neighbours +1 ATK after it moves, gone at its owne
 // ── Reforço ─────────────────────────────────────────────────────────────────
 test('Reforço: when a Vanguarda card falls, the Infantaria behind it steps forward with an Escudo', () => {
   let s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
-  put(s, 0, 2, 'Cavaleiro da Luz'); put(s, 1, 2, 'Devotos da Cruzada'); put(s, 1, 7, 'Escudeiro de Linha');
+  put(s, 0, 2, 'Cavaleiro da Luz'); put(s, 1, 2, 'Devotos da Cruzada'); put(s, 1, 7, 'Soldados da Ordem');
   const r = act(s, 0, { type: 'attack', from: 2, to: 2 });
   const foe = r.s.players[1].board;
-  eq([foe[2]?.name, foe[7]], ['Escudeiro de Linha', null]);
+  eq([foe[2]?.name, foe[7]], ['Soldados da Ordem', null]);
   eq([foe[2]!.shield, foe[2]!.pendingCombatBonus], [REINFORCE_SHIELD, undefined]);
   const ev = r.ev.find(e => e.t === 'reinforce') as any;
-  eq([ev.seat, ev.from, ev.to, ev.card.name], [1, 7, 2, 'Escudeiro de Linha']);
+  eq([ev.seat, ev.from, ev.to, ev.card.name], [1, 7, 2, 'Soldados da Ordem']);
   ok(r.ev.some(e => e.t === 'shield' && (e as any).slot === 2 && (e as any).shield === REINFORCE_SHIELD), 'the Escudo is announced');
   ok(r.ev.findIndex(e => e.t === 'destroyed') < r.ev.findIndex(e => e.t === 'reinforce'), 'the fall comes before the step forward');
+});
+test('Reforço: an Infantaria that is NOT tagged Reforço stays where it is when the card in front falls', () => {
+  const s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
+  put(s, 0, 2, 'Cavaleiro da Luz'); put(s, 1, 2, 'Devotos da Cruzada'); put(s, 1, 7, 'Escudeiro de Linha');
+  const r = act(s, 0, { type: 'attack', from: 2, to: 2 });
+  eq([r.s.players[1].board[2], r.s.players[1].board[7]?.name], [null, 'Escudeiro de Linha']);
+  ok(!r.ev.some(e => e.t === 'reinforce'), 'no Reforço without the tag');
 });
 test('Reforço: the Escudo comes only when the reserve ADVANCES — an Infantaria standing in the Retaguarda has none', () => {
   let s = fresh({ a: 'cardeal', b: 'capitao' });

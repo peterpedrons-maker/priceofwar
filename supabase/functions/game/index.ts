@@ -34,7 +34,7 @@ var CARD_DEFS = [
   { name: "Fan\xE1tico da Cruzada", cardType: "Infantaria", atk: 1, hp: 2, cost: 1, trigger: "ofensiva", effect: "Se o General inimigo for de tipo oposto, ganha +2 ATK." },
   { name: "Recruta Devoto", cardType: "Infantaria", atk: 0, hp: 2, cost: 1, effect: "Ao ser curado: recebe +1 ATK permanente." },
   { name: "Intendente do Ex\xE9rcito", trigger: "comando", cardType: "Infantaria", atk: 2, hp: 3, cost: 2, effect: "Uma vez por turno: se voc\xEA tiver menos de 2 cartas na m\xE3o, compre at\xE9 ficar com 2." },
-  { name: "Soldados da Ordem", cardType: "Infantaria", atk: 3, hp: 4, cost: 2, effect: "\u2014" },
+  { name: "Soldados da Ordem", cardType: "Infantaria", atk: 3, hp: 4, cost: 2, trigger: "reforco", effect: "Se a carta da frente da coluna cair, esta desce e ganha Escudo 2." },
   { name: "Jorge, Lan\xE7a Sagrada", cardType: "Cavalaria", atk: 4, hp: 6, cost: 3, isFullArt: true, trigger: "ofensiva", effect: "Contra a Vanguarda, causa 2 de dano \xE0 unidade na Retaguarda da mesma coluna." },
   { name: "Cavaleiro Hospital\xE1rio", trigger: "comando", cardType: "Cavalaria", atk: 2, hp: 3, cost: 2, effect: "Uma vez por turno: cure 1 HP de um aliado e cause 1 de dano a um inimigo na Vanguarda." },
   { name: "Nobre da Cruzada", cardType: "Cavalaria", atk: 4, hp: 5, cost: 3, isFullArt: true, trigger: "convocacao", effect: "Convoca Soldados Leais (1 ATK / 1 HP) nos slots adjacentes livres da mesma fileira." },
@@ -177,7 +177,7 @@ var ABILITY_PHASES = {
 };
 var abilityPhases = (cardName) => ABILITY_PHASES[cardName] ?? ["preparacao"];
 var REINFORCE_SHIELD = 2;
-var canReinforce = (card) => !!card && card.cardType === "Infantaria";
+var canReinforce = (card) => !!card && card.cardType === "Infantaria" && card.trigger === "reforco";
 var POST_COMBAT_CARD_TYPES = ["T\xE1tica", "Rel\xEDquia", "Terreno"];
 var isFrontline = (slot) => slot >= 0 && slot <= 4;
 var isBackline = (slot) => slot >= 5 && slot <= 9;
@@ -306,6 +306,7 @@ var cardFromName = (s, name, prefix = "c") => {
   s.uid += 1;
   const card = { id: `${prefix}${s.uid}`, name: def.name, cardType: def.cardType, atk: def.atk, hp: def.hp, cost: def.cost, effect: def.effect };
   if (def.isFullArt) card.isFullArt = true;
+  if (def.trigger) card.trigger = def.trigger;
   return card;
 };
 var createMatch = (opts) => {

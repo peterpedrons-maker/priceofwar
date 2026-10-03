@@ -34,7 +34,7 @@ export const CARD_DEFS: readonly CardDef[] = [
   { name: "Fanático da Cruzada", cardType: "Infantaria", atk: 1, hp: 2, cost: 1, trigger: "ofensiva", effect: "Se o General inimigo for de tipo oposto, ganha +2 ATK." },
   { name: "Recruta Devoto", cardType: "Infantaria", atk: 0, hp: 2, cost: 1, effect: "Ao ser curado: recebe +1 ATK permanente." },
   { name: "Intendente do Exército", trigger: "comando", cardType: "Infantaria", atk: 2, hp: 3, cost: 2, effect: "Uma vez por turno: se você tiver menos de 2 cartas na mão, compre até ficar com 2." },
-  { name: "Soldados da Ordem", cardType: "Infantaria", atk: 3, hp: 4, cost: 2, effect: "—" },
+  { name: "Soldados da Ordem", cardType: "Infantaria", atk: 3, hp: 4, cost: 2, trigger: "reforco", effect: "Se a carta da frente da coluna cair, esta desce e ganha Escudo 2." },
   { name: "Jorge, Lança Sagrada", cardType: "Cavalaria", atk: 4, hp: 6, cost: 3, isFullArt: true, trigger: "ofensiva", effect: "Contra a Vanguarda, causa 2 de dano à unidade na Retaguarda da mesma coluna." },
   { name: "Cavaleiro Hospitalário", trigger: "comando", cardType: "Cavalaria", atk: 2, hp: 3, cost: 2, effect: "Uma vez por turno: cure 1 HP de um aliado e cause 1 de dano a um inimigo na Vanguarda." },
   { name: "Nobre da Cruzada", cardType: "Cavalaria", atk: 4, hp: 5, cost: 3, isFullArt: true, trigger: "convocacao", effect: "Convoca Soldados Leais (1 ATK / 1 HP) nos slots adjacentes livres da mesma fileira." },

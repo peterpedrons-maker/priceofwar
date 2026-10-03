@@ -15,3 +15,11 @@ Outros sons (jogar carta, comprar, selecionar, tática, banner etc.) continuam c
 
 Para trocar um som mantendo a sincronia: encontre o instante do golpe forte no arquivo, corte o silêncio inicial para que ele caia no instante da imagem
 (ataque: 40 ms; queima: 0,44 s) e ajuste o volume pelo nível médio dos outros sons.
+
+## Ajustes de som do jogador (menu, botão Som)
+
+`src/audioSettings.ts`: volume **Geral**, **Música** e **Efeitos** (uma barra cada, de 0 a 100%) e um botão **Mudo**, salvos neste aparelho
+(`localStorage`, chave `pow.audio`) e aplicados na hora, inclusive na música que já está tocando. A posição da barra vira volume numa curva
+(posição ao quadrado): no meio da barra o som parece metade, e não três quartos. Todos os sons passam por `sfxLevel()` / `musicLevel()`:
+os de `<audio>` (`sfxVol`), os de `src/sfx.ts` e os sintetizados (banner de fase, moeda). A música do duelo, com a barra em 100%, fica a 60% do nível
+em que foi entregue (`MUSIC_BASE_GAIN` = 0,114).

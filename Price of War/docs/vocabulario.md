@@ -38,7 +38,9 @@ Prompts na seção 4z2 de `art-prompts/README.md`; arquivos esperados
   efeitos possíveis de uma carta com Reforço. Infantaria sem Reforço fica como reserva e só anda na Movimentação.
 - A carta com Reforço tem **um efeito principal**: o Reforço conta como esse efeito. Balanceamento pela ficha da carta.
 - A descida é automática; só pergunta algo se o efeito tiver escolha.
-- Hoje o motor ainda aplica a descida e o Escudo 2 a toda Infantaria (`canReinforce` / `reinforceFrom`); **mudança pendente**.
+- **No motor (feito):** só desce a Infantaria cujo cartão tem o gatilho `reforco` (`canReinforce` em `src/engine/rules.ts` lê `card.trigger`, copiado do
+  catálogo). A única carta marcada hoje é **Soldados da Ordem** ("Se a carta da frente da coluna cair, esta desce e ganha Escudo 2."), que também
+  mantém o Tutorial 1 funcionando. As outras Infantarias ficam onde estão; marque outras cartas com `trigger: "reforco"` no catálogo.
 
 ## 2. Verbos fixos
 

@@ -51,6 +51,7 @@ const cardFromName = (s: GameState, name: string, prefix = 'c'): Card => {
   s.uid += 1;
   const card: Card = { id: `${prefix}${s.uid}`, name: def.name, cardType: def.cardType, atk: def.atk, hp: def.hp, cost: def.cost, effect: def.effect };
   if (def.isFullArt) card.isFullArt = true;
+  if (def.trigger) card.trigger = def.trigger;
   return card;
 };
 

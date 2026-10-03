@@ -46,6 +46,8 @@ export interface Card {
   cost: number;
   effect: string;
   isFullArt?: boolean;
+  // Copied from the card's definition: today only Reforço matters to the rules (see canReinforce).
+  trigger?: Trigger;
   // A one-time "+X ATK / +X HP in its next combat" bonus (Comandante Aurelion's active).
   pendingCombatBonus?: { atk: number; hp: number };
   // A permanent stack of "-1 damage taken" stamps (Linha Fechada).
