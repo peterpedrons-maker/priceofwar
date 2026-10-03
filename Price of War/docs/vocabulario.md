@@ -4,8 +4,9 @@ Linguagem única para textos de carta, avisos da partida, dicas, tutorial e conv
 Regra de ouro: **cada ideia tem uma palavra só, e essa palavra é a mesma em todo lugar.**
 
 **Status:** vocabulário aprovado. Já no jogo: a troca "invocar → convocar" nos textos e a **infraestrutura dos gatilhos** (ícone na linha do tipo +
-nome em dourado no começo do efeito). **Nenhuma carta usa gatilho ainda**: cada carta recebe o seu quando o texto dela for revisado
-(campo `trigger` em `src/engine/catalog.ts`; sem o campo a carta fica como era).
+nome em dourado no começo do efeito). **Gatilhos já aplicados** em 13 cartas (tabela da seção 5; o campo `trigger` está em `src/engine/catalog.ts` e sem ele a carta fica como era).
+Ficaram de fora, por precisarem de decisão: Aurelion (dois gatilhos: Manobra + Postura), os Generais, Táticas/Emboscadas, Soldado Tático,
+Batedor e Cavaleiro Tático. Nenhuma carta usa Reforço ainda.
 
 ## 1. Gatilhos (o *quando* do efeito)
 
@@ -106,3 +107,8 @@ gatilho: o tipo da carta já é a identidade. Relíquias e Terrenos seguem com "
   para o centro não ganha altura; acima do limite a moldura, desenhada por cima, corta o ícone. Arte cheia: 1,5 em da fonte do tipo.
 - **Texto:** o nome do gatilho entra em dourado e negrito como primeira palavra do efeito ("Queda: ao cair, compre 2 cartas").
 - **Onde aparece:** carta aberta, carta levantada na mão e leque (parcial). Cartas pequenas do campo não mostram texto nem ícone.
+
+Textos já ajustados para não repetir o gatilho: Nobre da Cruzada ("Convoca Soldados Leais..."), Fanático da Cruzada ("Se o General inimigo
+for de tipo oposto, ganha +2 ATK."), Jorge ("Contra a Vanguarda, causa 2 de dano..."), Atirador da Cruzada ("Compre 2 cartas.", que no motor
+já só vale quando ela é destruída em campo) e Capitão de Formação ("Adjacentes ganham +1 ATK."). Comando e Postura mantêm o texto
+(o "uma vez por turno" continua escrito).
