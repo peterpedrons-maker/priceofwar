@@ -15,16 +15,15 @@ dourado e depois o efeito em texto normal, como no Yu-Gi-Oh ("Efeito Flip: ...")
 
 | Gatilho | Quando acontece | Verbo que o jogador usa | Símbolo do ícone |
 | --- | --- | --- | --- |
-| **Convocação** | ao entrar em campo | convocar | estandarte fincado numa casa |
-| **Ofensiva** | ao atacar (corpo a corpo ou à distância) | atacar | duas casas e um risco em zigue-zague de uma para a outra |
-| **Queda** | ao ser destruída em campo | cair | carta tombando dentro da casa, como dominó |
-| **Manobra** | ao mover ou trocar de lugar | manobrar | duas casas trocando de lugar por setas curvas |
-| **Comando** | você ativa, uma vez por turno | comandar | selo de cera pousando sobre uma casa |
-| **Postura** | passiva: vale enquanto a carta está em campo (e na posição certa) | — | torre firme em cima de uma casa |
-| **Reforço** | a carta da frente da mesma coluna foi destruída: esta desce e ativa o efeito | reforçar | coluna de duas casas: a de trás sobe para a vazia da frente |
+| **Convocação** | ao entrar em campo | convocar | corneta de guerra com flâmula |
+| **Ofensiva** | ao atacar (corpo a corpo ou à distância) | atacar | lança e flecha cruzadas |
+| **Queda** | ao ser destruída em campo | cair | elmo caído de lado, com pluma pendendo |
+| **Manobra** | ao mover ou trocar de lugar | manobrar | mapa de guerra com rota tracejada |
+| **Comando** | você ativa, uma vez por turno | comandar | manopla com o indicador apontando |
+| **Postura** | passiva: vale enquanto a carta está em campo (e na posição certa) | — | torre de castelo |
+| **Reforço** | a carta da frente da mesma coluna foi destruída: esta desce e ativa o efeito | reforçar | dois escudos, o de trás surgindo atrás do da frente |
 
-Ícones: medalhão redondo, **sempre da mesma cor** (bronze envelhecido sobre fundo escuro), todos construídos a partir da
-**casa do tabuleiro** (quadrado simples visto de cima), para lembrarem o jogo e não um medieval genérico; legíveis a ~40 px. Bronze foi escolhido por contrastar com as molduras de ouro, prata e champanhe das cartas.
+Ícones: medalhão redondo, **sempre da mesma cor** (bronze envelhecido sobre fundo escuro), cada um com **um objeto claro e reconhecível** (sem tabuleiro, sem diagrama), legíveis a ~40 px. Bronze foi escolhido por contrastar com as molduras de ouro, prata e champanhe das cartas.
 Prompts na seção 4z2 de `art-prompts/README.md`; arquivos esperados
 `art-prompts/reference/ui-trigger-<nome>.jpg`: `summon`, `offensive`, `fall`, `maneuver`, `command`, `stance`, `reinforce`.
 
