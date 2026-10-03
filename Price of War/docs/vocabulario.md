@@ -115,10 +115,11 @@ já só vale quando ela é destruída em campo) e Capitão de Formação ("Adjac
 
 ## 9. Brilho quando o efeito dispara (implementado)
 
-- **Cada gatilho tem a sua cor:** Convocação e Comando dourado, Ofensiva vermelho, Queda roxo, Manobra azul (`TRIGGER_FX` em `src/triggers.ts`).
+- **Um brilho só, dourado, para todos os gatilhos** (`TRIGGER_GLOW` em `src/triggers.ts`). O ícone e o nome do gatilho dizem qual efeito foi;
+  o brilho só diz "o efeito desta carta disparou". Sem faíscas e sem extras por gatilho (decisão do usuário).
 - **A carta brilha com o contorno exato dela** (nunca um retângulo): `TriggerBurst` em `src/App.tsx` usa as mesmas máscaras de silhueta do
-  `AbilityReadyGlow` (`silhouetteFor`). Camadas: brilho externo, lavagem de cor, faixa de luz atravessando, onda com o formato da carta que
-  cresce e some, faíscas; extras por gatilho (raios na Convocação, véu escuro e fiapos subindo na Queda, risco do golpe na Ofensiva).
+  `AbilityReadyGlow` (`silhouetteFor`). Camadas: brilho externo, lavagem de cor, faixa de luz atravessando e uma onda com o formato da carta
+  que cresce e some (CSS `tb-*` em `src/index.css`, cerca de 1 s).
 - **O ícone brilha onde já existe** (carta aberta ou em destaque), sem mudar de tamanho (`TriggerIcon`, classe `tb-icon`). As cartas pequenas
   do tabuleiro continuam sem ícone.
 - **Quando dispara:** Convocação quando a carta aparece no tabuleiro; Queda quando ela cai; Ofensiva no evento `attack`; Manobra no evento

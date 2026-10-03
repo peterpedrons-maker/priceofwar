@@ -203,7 +203,7 @@ import batalhaImpactSfxUrl from './assets/sfx-batalha-impacto.wav';
 import { DECK_RECIPES, requireCardDef, getCardDef, type DeckId } from './engine/catalog';
 import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActivePhases, createMatch, deckSetupFromRecipe, newMatchLog, type MatchLog } from './engine/game';
 import { aiNextAction } from './engine/ai';
-import { triggerOf, triggerKeyOf, pulseCard, usePulse, TRIGGER_FX } from './triggers';
+import { triggerOf, triggerKeyOf, pulseCard, usePulse, TRIGGER_GLOW } from './triggers';
 import type { Trigger } from './engine/types';
 import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
@@ -702,34 +702,27 @@ const TriggerIcon = ({ cardId, icon, trig, className = '', style }: { cardId: st
     <img
       key={pulse ? 'on' : 'off'} src={icon} alt="" aria-hidden draggable={false}
       className={`shrink-0 select-none pointer-events-none ${pulse ? 'tb-icon' : ''} ${className}`}
-      style={{ ...style, ...(pulse ? { ['--c1' as string]: TRIGGER_FX[pulse].c1 } : {}) }}
+      style={{ ...style, ...(pulse ? { ['--c1' as string]: TRIGGER_GLOW.c1 } : {}) }}
     />
   );
 };
-// A card's effect fires: it glows in the trigger's colour, a band of light crosses it, a shock ring of its own shape
-// grows and fades — all cut with the card's exact silhouette (same masks and box as AbilityReadyGlow), never a rectangle.
-const BURST_SPARKS = Array.from({ length: 14 }, (_, i) => ({ l: 8 + ((i * 53) % 84), t: 15 + ((i * 37) % 70), dx: ((i * 29) % 40) - 20, dy: -(18 + ((i * 17) % 40)), d: (i % 7) * 0.07 }));
-const TriggerBurst = ({ x, y, w, h, card, trig }: { x: number; y: number; w: number; h: number; card: CardData; trig: Trigger; key?: React.Key }) => {
+// A card's effect fires: it glows gold (the same for every trigger), a band of light crosses it and a shock ring of its own
+// shape grows and fades — all cut with the card's exact silhouette (same masks and box as AbilityReadyGlow), never a rectangle.
+const TriggerBurst = ({ x, y, w, h, card }: { x: number; y: number; w: number; h: number; card: CardData; key?: React.Key }) => {
   const { masks, box } = silhouetteFor(card);
-  const col = TRIGGER_FX[trig];
   const maskCss = (url: string): React.CSSProperties => ({
     WebkitMaskImage: `url(${url})`, maskImage: `url(${url})`, WebkitMaskSize: '100% 100%', maskSize: '100% 100%', WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
   });
   return (
-    <div className="fixed pointer-events-none" style={{ left: x - w / 2, top: y - h / 2, width: w, height: h, ['--c1' as string]: col.c1, ['--c2' as string]: col.c2 }}>
+    <div className="fixed pointer-events-none" style={{ left: x - w / 2, top: y - h / 2, width: w, height: h, ['--c1' as string]: TRIGGER_GLOW.c1, ['--c2' as string]: TRIGGER_GLOW.c2 }}>
       <div className="absolute tb-shockwrap" style={box}><div className="absolute inset-0 tb-shock" style={maskCss(masks[1])} /></div>
       <div className="absolute tb-outer" style={box}>
         <div className="absolute inset-0 tb-fill" style={maskCss(masks[0])}>
-          {trig === 'queda' && <div className="absolute inset-0 tb-dim" />}
           <div className="absolute inset-0 tb-wash" />
-          {trig === 'convocacao' && <div className="absolute inset-0 tb-rays" />}
-          {trig === 'ofensiva' && <div className="absolute inset-0 tb-slash" />}
           <div className="absolute inset-0 tb-shine" />
         </div>
         <div className="absolute inset-0 tb-rim" style={maskCss(masks[1])} />
       </div>
-      {trig === 'queda' && [0, 1, 2, 3].map(i => <div key={i} className="tb-wisp" style={{ left: `${6 + i * 22}%`, bottom: '8%', ['--d' as string]: `${0.05 + i * 0.09}s` }} />)}
-      {BURST_SPARKS.map((p, i) => <span key={i} className="tb-sp" style={{ left: `${p.l}%`, top: `${p.t}%`, ['--dx' as string]: `${p.dx}px`, ['--dy' as string]: `${p.dy}px`, ['--d' as string]: `${p.d}s` }} />)}
     </div>
   );
 };
@@ -8633,7 +8626,7 @@ export default function App() {
       )}
       {triggerBursts.length > 0 && (
         <div className="fixed inset-0 z-40 pointer-events-none">
-          {triggerBursts.map(b => <TriggerBurst key={b.id} x={b.x} y={b.y} w={b.w} h={b.h} card={b.card} trig={b.trig} />)}
+          {triggerBursts.map(b => <TriggerBurst key={b.id} x={b.x} y={b.y} w={b.w} h={b.h} card={b.card} />)}
         </div>
       )}
       {/* Choosing a target: the legal ones wear the attack reticle (coloured by what the effect does), everything else is dimmed. */}

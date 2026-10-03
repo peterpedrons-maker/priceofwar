@@ -15,16 +15,9 @@ export const TRIGGER_ICON: Record<Trigger, string> = {
   comando: iconComando, postura: iconPostura, reforco: iconReforco,
 };
 
-// Cor do brilho de cada gatilho: c1 = brilho/lavagem, c2 = o fio claro (contorno, faixa de luz, faíscas).
-export const TRIGGER_FX: Record<Trigger, { c1: string; c2: string }> = {
-  convocacao: { c1: '#ffc94d', c2: '#fff3c4' },
-  ofensiva: { c1: '#ff4b3a', c2: '#ffdcd3' },
-  queda: { c1: '#a35fff', c2: '#ecdcff' },
-  manobra: { c1: '#5aa9ff', c2: '#d9edff' },
-  comando: { c1: '#ffc94d', c2: '#fff3c4' },
-  postura: { c1: '#9fb4c8', c2: '#eef4fa' },
-  reforco: { c1: '#2fd0b5', c2: '#d9fff6' },
-};
+// O brilho de quando um efeito dispara é um só, dourado, para todos os gatilhos (o ícone e o nome já dizem qual foi).
+// c1 = brilho/lavagem, c2 = o fio claro (contorno, faixa de luz, onda).
+export const TRIGGER_GLOW = { c1: '#ffc94d', c2: '#fff3c4' };
 
 export const triggerKeyOf = (cardName: string): Trigger | undefined => getCardDef(cardName)?.trigger;
 
