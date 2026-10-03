@@ -177,6 +177,7 @@ import duelMusicUrl from './assets/music-duelo.mp3';
 import cardPlaySfxUrl from './assets/sfx-jogar-carta.wav';
 import attackSfxUrl from './assets/sfx-ataque.wav';
 import tacticSfxUrl from './assets/sfx-tatica.wav';
+import effectSfxUrl from './assets/sfx-efeito-magico.mp3';
 import selectSfxUrl from './assets/sfx-selecionar.wav';
 // Second round of SFX (see the same play* helpers further below) — same CC0 sourcing
 // approach as above, this time from lavenderdotpet/CC0-Public-Domain-Sounds on GitHub
@@ -280,6 +281,12 @@ const playCardPlaySfx = () => {
 const playAttackSfx = () => {
   const audio = new Audio(attackSfxUrl);
   audio.volume = 0.6;
+  audio.play().catch(() => {});
+};
+// A card's effect fires (its float + glow are timed to this clip: swell ~0.2 s, main hit ~0.73 s, ~1.9 s long).
+const playEffectSfx = () => {
+  const audio = new Audio(effectSfxUrl);
+  audio.volume = 0.7;
   audio.play().catch(() => {});
 };
 const playTacticSfx = () => {
@@ -724,6 +731,26 @@ const TriggerBurst = ({ x, y, w, h, card }: { x: number; y: number; w: number; h
         <div className="absolute inset-0 tb-rim" style={maskCss(masks[1])} />
       </div>
     </div>
+  );
+};
+// The card whose effect fires floats up off its slot (the real one is held empty meanwhile, holdsRef), glows in time with the
+// sound, and stays up for as long as someone still has to decide — the player to use it or not, later the opponent to block it —
+// then sets back down. Same lift pose as the equip scene (EquipFxLayer). Under the pick / target prompts (z 220), over the board.
+const TriggerFloatLayer = ({ fx }: { fx: { id: number; card: CardData; rect: { x: number; y: number; w: number; h: number }; stage: 'up' | 'down' } }) => {
+  const { rect, stage, card } = fx;
+  const up = stage === 'up';
+  const base: React.CSSProperties = { position: 'fixed', left: rect.x - rect.w / 2, top: rect.y - rect.h / 2, width: rect.w, height: rect.h };
+  return (
+    <>
+      <motion.div className="fixed pointer-events-none rounded-full" style={{ left: rect.x - rect.w * 0.45, top: rect.y + rect.h * 0.34, width: rect.w * 0.9, height: rect.h * 0.16, background: 'radial-gradient(ellipse, rgba(0,0,0,0.55), transparent 70%)', zIndex: 213 }}
+        initial={{ opacity: 0.35, scaleX: 1 }} animate={{ opacity: up ? 0.9 : 0.35, scaleX: up ? 0.85 : 1 }} transition={{ duration: 0.3 }} />
+      <motion.div className="pointer-events-none" style={{ ...base, zIndex: 214, filter: CARD_THICKNESS_SHADOW }}
+        initial={{ x: 0, y: 0, scale: 1 }} animate={up ? { x: 0, y: -rect.h * 0.2, scale: 1.1 } : { x: 0, y: 0, scale: 1 }}
+        transition={up ? { type: 'spring', stiffness: 220, damping: 20 } : { type: 'spring', stiffness: 380, damping: 26 }}>
+        {card.isFullArt ? <CardFaceFullArtMini card={card} /> : <CardFaceStandardMini card={card} />}
+      </motion.div>
+      {up && <div style={{ position: 'fixed', inset: 0, zIndex: 215, pointerEvents: 'none' }}><TriggerBurst key={fx.id} x={rect.x} y={rect.y - rect.h * 0.2} w={rect.w * 1.1} h={rect.h * 1.1} card={card} /></div>}
+    </>
   );
 };
 const AbilityReadyGlow = ({ x, y, w, h, onClick, card = null, kind = 'utility' }: { x: number; y: number; w: number; h: number; onClick: () => void; card?: CardData | null; kind?: 'heal' | 'damage' | 'utility'; key?: React.Key }) => {
@@ -4869,6 +4896,8 @@ export default function App() {
   // showing 'heal' (see activateHospitalario) when there's no damaged ally to
   // heal, so the card isn't wasted just because the heal half has no target.
   const [pendingHospitalario, setPendingHospitalario] = useState<{ step: 'heal' | 'damage'; slot: number; healTarget?: number } | null>(null);
+  const pendingHospRef = useRef(pendingHospitalario);
+  pendingHospRef.current = pendingHospitalario;
 
   // Arqueiro da Ordem's "Pode atacar duas vezes por rodada" is the game's
   // first case of any unit attacking more than once a turn, which means this is
@@ -5180,6 +5209,7 @@ export default function App() {
   // A card's effect fires (gatilho): its colour glows over the card's exact silhouette and its type-line icon pulses.
   const [triggerBursts, setTriggerBursts] = useState<{ id: number; x: number; y: number; w: number; h: number; card: CardData; trig: Trigger }[]>([]);
   const burstIdRef = useRef(0);
+  const startTriggerFxRef = useRef<(side: 'player' | 'npc', slot: number, card: CardData, trig: Trigger, hold?: () => boolean) => void>(() => {});
   // Fires a card's trigger burst (set by burstAt) — a ref so the test hook can reach it.
   const burstFnRef = useRef<(side: 'player' | 'npc', slot: number, card: CardData, trig: Trigger, delay?: number) => void>(() => {});
   const burstAt = (side: 'player' | 'npc', slot: number, card: CardData, trig: Trigger, delay = 0) => {
@@ -5188,14 +5218,65 @@ export default function App() {
       if (!r) return;
       const id = ++burstIdRef.current;
       setTriggerBursts(b => [...b, { id, x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, card, trig }]);
-      pulseCard(card.id, trig);
-      window.setTimeout(() => setTriggerBursts(b => b.filter(q => q.id !== id)), 1300);
+      pulseCard(card.id, trig, 2000);
+      playEffectSfx();
+      window.setTimeout(() => setTriggerBursts(b => b.filter(q => q.id !== id)), 1700);
     }, delay);
   };
   burstFnRef.current = burstAt;
+
+  // The full flow of an effect firing: the card floats up off its slot, glows in time with the sound, and STAYS up while
+  // someone still has to decide — `hold()` says so (the player choosing a card / a target now; later the opponent's chance
+  // to block the effect plugs into the same predicate) — then sets back down. Convocação, Manobra and Comando use it;
+  // Queda (the card is burning) and Ofensiva (the card is mid-attack) only glow in place (burstAt). The sound and glow are
+  // timed together (src/index.css, tb-*): swell ~0.2 s, main hit ~0.73 s.
+  const TRIG_GLOW_MS = 1500;
+  const [trigFx, setTrigFx] = useState<{ id: number; side: 'player' | 'npc'; slot: number; card: CardData; rect: { x: number; y: number; w: number; h: number }; stage: 'up' | 'down' } | null>(null);
+  const trigChainRef = useRef<Promise<void>>(Promise.resolve());
+  const trigActiveIdRef = useRef<string | null>(null);
+  // Glows still playing: whatever the effect asks the player (a pick, a target) waits for them to end (whenGlowDone).
+  const trigGlowPendingRef = useRef(0);
+  const trigGlowWaitersRef = useRef<(() => void)[]>([]);
+  const whenGlowDone = (fn: () => void) => { if (trigGlowPendingRef.current === 0) fn(); else trigGlowWaitersRef.current.push(fn); };
+  const endGlow = () => {
+    trigGlowPendingRef.current = Math.max(0, trigGlowPendingRef.current - 1);
+    if (trigGlowPendingRef.current === 0) { const w = trigGlowWaitersRef.current; trigGlowWaitersRef.current = []; w.forEach(f => f()); }
+  };
+  const startTriggerFx = (side: 'player' | 'npc', slot: number, card: CardData, trig: Trigger, hold?: () => boolean) => {
+    if (trigActiveIdRef.current === card.id) return;           // this card is already up: one float per effect
+    trigActiveIdRef.current = card.id;
+    trigGlowPendingRef.current += 1;
+    trigChainRef.current = trigChainRef.current.then(async () => {
+      const el = document.getElementById(`${side}-${slot}`);
+      if (!el) { trigActiveIdRef.current = null; endGlow(); return; }
+      const r = el.getBoundingClientRect();
+      const id = ++burstIdRef.current;
+      const holds = holdsRef.current[side];
+      holds[slot] = null;                                       // the real card waits, hidden, while its copy floats
+      if (engineRef.current) syncViewRef.current(engineRef.current);
+      setTrigFx({ id, side, slot, card, rect: { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height }, stage: 'up' });
+      pulseCard(card.id, trig, 2600);
+      playEffectSfx();
+      await sleep(TRIG_GLOW_MS);
+      endGlow();
+      await sleep(80);                                          // let whatever the glow's end opens (a pick, a target) register
+      for (let g = 0; hold && hold() && g < 1200; g++) await sleep(100);
+      setTrigFx(f => (f?.id === id ? { ...f, stage: 'down' } : f));
+      await sleep(380);
+      delete holds[slot];
+      setTrigFx(f => (f?.id === id ? null : f));
+      trigActiveIdRef.current = null;
+      if (engineRef.current) syncViewRef.current(engineRef.current);
+    });
+  };
+  startTriggerFxRef.current = startTriggerFx;
+  const holdForSeat = (seat: Seat) => () => {
+    const pend = engineRef.current?.pending;
+    return (!!pend && pend.seat === seat) || (seat === 0 && !!pendingHospRef.current);
+  };
   // Convocação (a card with that trigger arrives on the board) and Queda (it falls): read straight off the boards, so they
   // fire at the moment the card is actually drawn there (landing animation done / burn begins), for either side.
-  const burstSeenRef = useRef<{ ready: boolean; player: Record<string, boolean>; npc: Record<string, boolean> }>({ ready: false, player: {}, npc: {} });
+  const burstSeenRef = useRef<{ ready: boolean; player: Record<string, boolean>; npc: Record<string, boolean>; arrived: Set<string> }>({ ready: false, player: {}, npc: {}, arrived: new Set() });
   useEffect(() => {
     const seen = burstSeenRef.current;
     (['player', 'npc'] as const).forEach(side => {
@@ -5205,9 +5286,11 @@ export default function App() {
         if (!c || i > 9) return;
         const fell = !!c.isDestroyed;
         next[c.id] = fell;
+        if (!seen.ready) seen.arrived.add(c.id);
         const trig = triggerKeyOf(c.name);
         if (!seen.ready || !trig) return;
-        if (trig === 'convocacao' && !(c.id in prev) && !fell) burstAt(side, i, c, trig, 120);
+        // `arrived` remembers every card already announced: a card hidden while it floats and shown again is not a new arrival
+        if (trig === 'convocacao' && !fell && !seen.arrived.has(c.id)) { seen.arrived.add(c.id); startTriggerFx(side, i, c, trig); }
         if (trig === 'queda' && fell && prev[c.id] === false) burstAt(side, i, c, trig);
       });
       seen[side] = next;
@@ -5347,6 +5430,14 @@ export default function App() {
       const c = engineRef.current?.players[side === 'player' ? 0 : 1].board[slot];
       if (!c) return false;
       burstFnRef.current(side, slot, toCardDataRef.current(c), trig ?? triggerKeyOf(c.name) ?? 'comando');
+      return true;
+    };
+    // Test hook: the full effect flow (float, glow, sound) on a slot, holding the card up for `holdMs` more milliseconds.
+    (window as any).__powTrigger = (side: 'player' | 'npc', slot: number, holdMs = 0, trig?: Trigger) => {
+      const c = engineRef.current?.players[side === 'player' ? 0 : 1].board[slot];
+      if (!c) return false;
+      const until = Date.now() + 1500 + holdMs;
+      startTriggerFxRef.current(side, slot, toCardDataRef.current(c), trig ?? triggerKeyOf(c.name) ?? 'comando', () => Date.now() < until);
       return true;
     };
     (window as any).__powSet = (mutate: (s: GameState) => void) => {
@@ -5608,12 +5699,12 @@ export default function App() {
         case 'ability': {
           playTacticSfx();
           const c = engineRef.current?.players[e.seat].board[e.slot];
-          if (c && triggerKeyOf(c.name) === 'comando') burstAt(ownerId(e.seat), e.slot, toCardData(c), 'comando');
+          if (c && triggerKeyOf(c.name) === 'comando') startTriggerFx(ownerId(e.seat), e.slot, toCardData(c), 'comando', holdForSeat(e.seat));
           break;
         }
         case 'attack': {
           const c = engineRef.current?.players[e.seat].board[e.from];
-          if (c && triggerKeyOf(c.name) === 'ofensiva') burstAt(ownerId(e.seat), e.from, toCardData(c), 'ofensiva', 200);
+          if (c && triggerKeyOf(c.name) === 'ofensiva') burstAt(ownerId(e.seat), e.from, toCardData(c), 'ofensiva');
           break;
         }
         case 'ambush':
@@ -5661,7 +5752,7 @@ export default function App() {
         case 'move': {
           if (e.swapped && !opts.quietTurn) popOverSlot(e.seat === 0 ? 'player' : 'npc', e.to, 'swap', 'TROCA');
           const c = engineRef.current?.players[e.seat].board[e.to];
-          if (c && triggerKeyOf(c.name) === 'manobra' && !opts.quietTurn) burstAt(ownerId(e.seat), e.to, toCardData(c), 'manobra', 700);
+          if (c && triggerKeyOf(c.name) === 'manobra' && !opts.quietTurn) window.setTimeout(() => startTriggerFx(ownerId(e.seat), e.to, toCardData(c), 'manobra'), 700);
           break;
         }
         case 'equip': {
@@ -5944,6 +6035,8 @@ export default function App() {
   cardPickerRef.current = cardPicker;
   const openPlayerPick = () => {
     if (cardPickerRef.current) return;
+    // An effect is glowing right now (its card floats): what it asks the player appears once the glow is over.
+    if (trigGlowPendingRef.current > 0) { whenGlowDone(() => { if (!cardPickerRef.current) openPlayerPick(); }); return; }
     const pend = engineRef.current?.pending;
     if (pend && pend.kind === 'discard' && pend.seat === 0) {
       // Over the hand limit at the end of the turn: choose which cards go to the graveyard.
@@ -6291,6 +6384,7 @@ export default function App() {
     matchIntroTimeoutsRef.current = [];
     setMatchIntroStage(null);
     setIntroDescendTargets(null);
+    burstSeenRef.current = { ready: false, player: {}, npc: {}, arrived: new Set() };   // a new match: nothing has arrived yet
 
     engineRef.current = null;
     matchLogRef.current = null;
@@ -7019,9 +7113,16 @@ export default function App() {
       showToast('Cavaleiro Hospitalário: nenhum alvo disponível.');
       return;
     }
+    const start = () => { setViewState('field'); setPendingHospitalario(hasDamaged ? { step: 'heal', slot } : { step: 'damage', slot }); };
+    const card = playerSlots[slot];
+    if (card && triggerKeyOf(card.name) === 'comando') {
+      // the card floats and glows first; the targets open once the glow is over, and it stays up until the effect is resolved
+      startTriggerFx('player', slot, card, 'comando', holdForSeat(0));
+      whenGlowDone(start);
+      return;
+    }
     playTacticSfx();
-    setViewState('field');
-    setPendingHospitalario(hasDamaged ? { step: 'heal', slot } : { step: 'damage', slot });
+    start();
   };
 
   // "You may activate this" prompts (the General's own Fase-Principal ability, plus
@@ -8427,6 +8528,7 @@ export default function App() {
       </AnimatePresence>
 
       {equipFx && <EquipFxLayer fx={equipFx} vw={windowSize.width} vh={windowSize.height} />}
+      {trigFx && <TriggerFloatLayer fx={trigFx} />}
       {iconPops.map(p => <IconPop key={p.id} x={p.x} y={p.y} icon={p.icon} label={p.label} />)}
       {shieldFx.map(f => <ShieldFxOnce key={f.id} x={f.x} y={f.y} w={f.w} h={f.h} mode={f.mode} gold={f.gold} />)}
 

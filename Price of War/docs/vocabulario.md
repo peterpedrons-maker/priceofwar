@@ -126,3 +126,19 @@ já só vale quando ela é destruída em campo) e Capitão de Formação ("Adjac
   `move`; Comando no evento `ability`. Postura e Reforço não têm brilho de disparo (Postura é passiva; Reforço ainda não tem cartas).
 - **Comando, antes de ativar:** continua valendo o brilho de "efeito pronto" que já existia (`AbilityReadyGlow`).
 - **Teste manual:** com `?debug`, `window.__powBurst('player', slot)` toca o brilho da carta daquele espaço.
+
+## 10. Fluxo do efeito: a carta flutua, brilha com o som e espera a decisão (implementado)
+
+1. **A carta flutua** para fora do espaço (a de verdade fica escondida, `holdsRef`), com a mesma pose de elevação do equipar
+   (`TriggerFloatLayer`, z 213 a 215: acima do tabuleiro e **abaixo** dos pedidos de escolha e de alvo, z 220).
+2. **O brilho dourado toca sincronizado com o som** `src/assets/sfx-efeito-magico.mp3` (1,9 s): o som cresce a partir de ~0,2 s, tem um
+   primeiro golpe em ~0,4 s e o golpe principal em ~0,73 s. As animações `tb-*` em `src/index.css` seguem esses marcos (brilho sobe, pico em
+   ~0,73 s, onda em 0,7 s, ícone em 0,45 s). Se trocar o som, reajuste esses tempos.
+3. **A carta continua flutuando enquanto alguém ainda tem de decidir** (`startTriggerFx(..., hold)`, `holdForSeat`): o jogador escolhendo uma
+   carta ou um alvo (Mercador, Hospitalário). O que o efeito pergunta só aparece **depois do brilho** (`whenGlowDone`). Quando a decisão
+   termina, a carta pousa. Efeitos automáticos flutuam, brilham (~1,5 s) e pousam.
+4. **Bloqueio do adversário (futuro):** a janela em que o adversário decide se bloqueia o efeito entra no mesmo `hold`: enquanto ela estiver
+   aberta, a carta continua no ar. Hoje não existe bloqueio de efeitos, então só a decisão do jogador segura a carta.
+5. **Quais gatilhos flutuam:** Convocação (quando a carta aparece no tabuleiro), Manobra (depois que ela se move) e Comando (ao ativar).
+   **Queda** (a carta está queimando) e **Ofensiva** (a carta está no meio do ataque) só brilham no lugar e tocam o som, sem flutuar.
+6. Teste manual (`?debug`): `window.__powTrigger('player', slot, holdMs)` roda o fluxo completo; `window.__powBurst('player', slot)` só o brilho.
