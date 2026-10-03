@@ -4432,7 +4432,7 @@ const SoundModal = ({ onClose }: { onClose: () => void }) => {
           <VolumeRow label="Música" value={a.music} dim={a.muted} onChange={v => setAudioSettings({ music: v })} />
           <VolumeRow label="Efeitos" value={a.effects} dim={a.muted} onChange={v => setAudioSettings({ effects: v })} onRelease={() => playSelectSfx()} />
           <div className="flex gap-3">
-            <WindowButton primary={a.muted} onClick={() => setAudioSettings({ muted: !a.muted })}>{a.muted ? 'Som desligado' : 'Mudo'}</WindowButton>
+            <WindowButton primary={a.muted} onClick={() => setAudioSettings({ muted: !a.muted })}>{a.muted ? 'Ativar som' : 'Mudo'}</WindowButton>
             <WindowButton onClick={onClose}>Fechar</WindowButton>
           </div>
         </div>
