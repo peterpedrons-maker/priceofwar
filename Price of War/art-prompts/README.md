@@ -1513,7 +1513,7 @@ Todas as artes deste baralho já foram entregues e integradas no jogo
 
 ## 4z2. Ícones de gatilho — objetos claros em bronze (pendente, v4)
 
-**Status:** pendente (v4). Os sete gatilhos do `docs/vocabulario.md` ganham um medalhão redondo, **sempre bronze envelhecido sobre fundo escuro**, com **um objeto claro** dentro, sem tabuleiro nem casas (as versões com a casa do tabuleiro e as genéricas anteriores foram descartadas: abstratas demais ou comuns demais). Arquivos esperados: `art-prompts/reference/ui-trigger-<nome>.jpg`.
+**Status:** **entregue e integrado** (v5): o usuário gerou a folha com os sete medalhões (`reference/ui-trigger-sheet.jpg`); no jogo eles aparecem **sem aro**, em `src/assets/trigger-*.webp`, na linha do tipo (ver `docs/vocabulario.md`, seção 8). Os prompts abaixo ficam como histórico (v4). Os sete gatilhos do `docs/vocabulario.md` ganham um medalhão redondo, **sempre bronze envelhecido sobre fundo escuro**, com **um objeto claro** dentro, sem tabuleiro nem casas (as versões com a casa do tabuleiro e as genéricas anteriores foram descartadas: abstratas demais ou comuns demais). Arquivos esperados: `art-prompts/reference/ui-trigger-<nome>.jpg`.
 
 **Como pedir:** gerar primeiro a **Convocação**, aprovar, e usá-la como imagem de referência nas outras seis ("same medallion, same rim, same bronze color and same size as the reference"). Fundo cinza RGB 125,125,125 (eu recorto). Se vier colorido: "monochrome, only warm antique bronze on dark charcoal". Se vier detalhado: "even simpler, flat, one single object". Se aparecer tabuleiro, quadrados ou setas extras: "only the one object, nothing else".
 

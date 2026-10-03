@@ -1,11 +1,11 @@
 // Scenario tests, one per rule:  npx tsx tests/engine-rules.ts
-import { requireCardDef } from '../src/engine/catalog';
+import { CARD_DEFS, requireCardDef } from '../src/engine/catalog';
 import { aiNextAction } from '../src/engine/ai';
 import { mirrorEvents, mirrorSeats } from '../src/engine/view';
 import { applyReward, rewardFor, xpToNext } from '../src/engine/rewards';
 import { applyAction, combatOpen, createMatch, deckSetupFromRecipe, newMatchLog, replayMatch } from '../src/engine/game';
 import { HAND_LIMIT, REINFORCE_SHIELD, START_HAND } from '../src/engine/rules';
-import type { Action, Card, GameEvent, GameState, Seat } from '../src/engine/types';
+import { TRIGGER_LABEL, type Action, type Card, type GameEvent, type GameState, type Seat } from '../src/engine/types';
 
 let passed = 0, failed = 0;
 const test = (name: string, fn: () => void) => {
@@ -790,6 +790,14 @@ test('a replay of the recorded actions reaches the same state (and a cheated act
   eq(JSON.stringify((r as any).state), JSON.stringify(s));
   const tampered = { ...log, actions: [...log.actions, { seat: 0 as Seat, action: { type: 'play', cardId: 'nope', slot: 1 } as Action }] };
   ok(replayMatch(tampered).ok === false, 'a made-up action fails the replay');
+});
+
+test('vocabulary: 7 triggers with a label each, card triggers are valid, and no card text says "invocar"', () => {
+  eq(Object.keys(TRIGGER_LABEL).length, 7);
+  for (const d of CARD_DEFS) {
+    if (d.trigger) ok(d.trigger in TRIGGER_LABEL, `${d.name}: unknown trigger ${d.trigger}`);
+    ok(!/invoc|invoq/i.test(d.effect), `${d.name}: "invocar" should be "convocar"`);
+  }
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

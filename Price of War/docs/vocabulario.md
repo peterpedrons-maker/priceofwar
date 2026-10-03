@@ -3,8 +3,9 @@
 Linguagem única para textos de carta, avisos da partida, dicas, tutorial e conversa entre jogadores.
 Regra de ouro: **cada ideia tem uma palavra só, e essa palavra é a mesma em todo lugar.**
 
-**Status:** vocabulário aprovado (conversa de design). Ainda **não** aplicado às cartas, aos rótulos nem aos ícones;
-só a troca "invocar → convocar" já entrou nos textos. Os ícones (medalhões de bronze) estão em produção.
+**Status:** vocabulário aprovado. Já no jogo: a troca "invocar → convocar" nos textos e a **infraestrutura dos gatilhos** (ícone na linha do tipo +
+nome em dourado no começo do efeito). **Nenhuma carta usa gatilho ainda**: cada carta recebe o seu quando o texto dela for revisado
+(campo `trigger` em `src/engine/catalog.ts`; sem o campo a carta fica como era).
 
 ## 1. Gatilhos (o *quando* do efeito)
 
@@ -93,3 +94,15 @@ gatilho: o tipo da carta já é a identidade. Relíquias e Terrenos seguem com "
 - Atirador da Cruzada: "ao ir ao cemitério" → Queda (apenas destruída em campo; descarte por limite de mão não conta).
 - Cartas com "Remanejamento", "Reposicionamento" e "Reorganiza" nos textos: padronizar em **mover/trocar**.
 - Aplicar gatilhos e rótulos nas cartas só quando os ícones estiverem prontos e o mockup for aprovado.
+
+## 8. Como o gatilho aparece na carta (implementado)
+
+- **Dado:** `trigger?: Trigger` em cada entrada de `CARD_DEFS` (`src/engine/catalog.ts`); tipos e rótulos em `src/engine/types.ts`
+  (`Trigger`, `TRIGGER_LABEL`). Exemplo: `{ name: "Nobre da Cruzada", trigger: "convocacao", ... }`.
+- **Ícones:** `src/assets/trigger-<nome>.webp` (256 px, bronze, **sem aro**, borda esfumada nos 7% finais), ligados em `src/triggers.ts`.
+  Origem: folha enviada pelo usuário (`art-prompts/reference/ui-trigger-sheet.jpg`), recortada em círculo.
+- **Linha do tipo:** o ícone fica à direita do tipo (ex.: "INFANTARIA ●"). Moldura padrão: altura = 72% da caixa do tipo (7% da carta ≈ 5%
+  da altura). A abertura da faixa na arte tem ~4,4% da altura da carta, **constante entre 30% e 70% da largura**, então mover o ícone
+  para o centro não ganha altura; acima do limite a moldura, desenhada por cima, corta o ícone. Arte cheia: 1,5 em da fonte do tipo.
+- **Texto:** o nome do gatilho entra em dourado e negrito como primeira palavra do efeito ("Queda: ao cair, compre 2 cartas").
+- **Onde aparece:** carta aberta, carta levantada na mão e leque (parcial). Cartas pequenas do campo não mostram texto nem ícone.

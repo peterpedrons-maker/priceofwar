@@ -203,6 +203,7 @@ import batalhaImpactSfxUrl from './assets/sfx-batalha-impacto.wav';
 import { DECK_RECIPES, requireCardDef, getCardDef, type DeckId } from './engine/catalog';
 import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActivePhases, createMatch, deckSetupFromRecipe, newMatchLog, type MatchLog } from './engine/game';
 import { aiNextAction } from './engine/ai';
+import { triggerOf } from './triggers';
 import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
 import { STEPS as TUT_STEPS, BEATS as TUT_BEATS, COIN_STEP as TUT_COIN_STEP, OUTRO as TUT_OUTRO, CHAPTERS as TUT_CHAPTERS, createTutorialMatch, nextEnemyAction as tutEnemyAction, type Step as TutStep, type Tgt as TutTgt, type Until as TutUntil } from './tutorial/script';
@@ -1403,7 +1404,7 @@ const FitText = ({ text, className, style }: { text: string, className?: string,
 // single line), this changes the real font-size and lets the browser re-wrap at
 // each candidate size — a transform-scale big enough to fill vertical space would
 // also stretch each already-wrapped line past the box horizontally.
-const FitEffectText = ({ text, className, style, align = 'center' }: { text: string, className?: string, style?: React.CSSProperties, align?: 'center' | 'start' }) => {
+const FitEffectText = ({ text, className, style, align = 'center', lead }: { text: string, className?: string, style?: React.CSSProperties, align?: 'center' | 'start', lead?: { label: string, color: string } }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLParagraphElement>(null);
 
@@ -1435,7 +1436,7 @@ const FitEffectText = ({ text, className, style, align = 'center' }: { text: str
     const ro = new ResizeObserver(fit);
     ro.observe(container);
     return () => ro.disconnect();
-  }, [text]);
+  }, [text, lead?.label]);
 
   // 'start' — the Full Art plate's own Yu-Gi-Oh-style flow: text begins at the
   // top-left and wraps normally left-to-right instead of centering as a block,
@@ -1444,6 +1445,7 @@ const FitEffectText = ({ text, className, style, align = 'center' }: { text: str
   return (
     <div ref={containerRef} className={`w-full h-full flex overflow-hidden ${align === 'start' ? 'items-start justify-start' : 'items-center justify-center'}`}>
       <p ref={textRef} className={className} style={{ ...style, margin: 0 }}>
+        {lead && <b style={{ color: lead.color, fontWeight: 800 }}>{lead.label}: </b>}
         {text}
       </p>
     </div>
@@ -1483,6 +1485,7 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
   const showStats = !NO_STAT_TYPES.has(card.cardType as CardType);
   const cfg = fullArtMiniConfigForType(card.cardType);
   const lightBar = usesLightBar(cfg);
+  const trig = triggerOf(card.name);
   return (
     // Everything — art, frame image, and every badge/text box — shares this one
     // oversized, shifted coordinate space (same trick the Padrão layout below
@@ -1519,9 +1522,12 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
         <div className="absolute flex flex-col items-center px-2 pt-1.5 pb-1" style={{ left: '10.5%', right: '10.5%', top: '56%', height: '19%', background: 'linear-gradient(to bottom, rgba(15,12,6,0.28), rgba(10,8,4,0.42) 35%, rgba(8,6,3,0.48))' }}>
           {card.cardType && (
             <>
-              <span className={`${pv.type} font-black uppercase tracking-widest shrink-0`} style={{ fontFamily: "'Cinzel', serif", color: '#e9d8a6' }}>
-                {card.cardType}
-              </span>
+              <div className={`${pv.type} flex items-center justify-center shrink-0`}>
+                <span className="font-black uppercase tracking-widest" style={{ fontFamily: "'Cinzel', serif", color: '#e9d8a6' }}>
+                  {card.cardType}
+                </span>
+                {trig && <img src={trig.icon} alt="" aria-hidden draggable={false} className="shrink-0 select-none pointer-events-none" style={{ height: '1.5em', width: '1.5em', marginLeft: '0.45em' }} />}
+              </div>
               <div className="w-2/3 h-px shrink-0 my-1" style={{ background: 'rgba(201,162,39,0.6)' }} />
             </>
           )}
@@ -1532,6 +1538,7 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
           <div className="flex-1 w-full min-h-0">
             <FitEffectText
               text={card.effect}
+              lead={trig ? { label: trig.label, color: '#e3b45f' } : undefined}
               align="start"
               className={`${pv.effect} text-left leading-snug`}
               style={{ fontFamily: "'PT Serif', serif", color: '#f3e6c8' }}
@@ -1766,6 +1773,7 @@ const CardFaceStandardMini = ({ card }: { card: CardData }) => {
 const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof typeof CARD_FACE_VARIANTS }) => {
   const v = CARD_FACE_VARIANTS[variant];
   const showStats = !NO_STAT_TYPES.has(card.cardType as CardType);
+  const trig = triggerOf(card.name);
   if (card.isFullArt) return <CardFaceFullArt card={card} variant={variant} />;
   return (
     <>
@@ -1816,7 +1824,7 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
         {card.cardType && (
           <div className="absolute flex items-center justify-center px-1 overflow-hidden" style={{ top: '56%', left: '12%', right: '12%', height: '7%' }}>
             <span
-              className={`${v.type} font-black uppercase tracking-widest truncate w-full text-center`}
+              className={`${v.type} font-black uppercase tracking-widest truncate ${trig ? 'min-w-0' : 'w-full'} text-center`}
               style={{
                 fontFamily: "'Cinzel', serif",
                 color: card.cardType === 'Relíquia' ? '#6b3f00' : card.cardType === 'Terreno' ? '#17502a' : '#3a2408',
@@ -1825,6 +1833,9 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
             >
               {card.cardType}
             </span>
+            {/* Gatilho: ícone sem aro ao lado do tipo, no máximo da abertura da faixa (≈4,4% da altura da carta
+                dentro de uma caixa de 7%): acima disso a moldura, que é desenhada por cima, corta o ícone. */}
+            {trig && <img src={trig.icon} alt="" aria-hidden draggable={false} className="shrink-0 select-none pointer-events-none" style={{ height: '72%', aspectRatio: '1', marginLeft: '0.45em' }} />}
           </div>
         )}
 
@@ -1838,6 +1849,7 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
         <div className="absolute p-1" style={{ top: '64%', bottom: '13%', left: '8%', right: '11%' }}>
           <FitEffectText
             text={card.effect}
+            lead={trig ? { label: trig.label, color: '#7a4a12' } : undefined}
             align="start"
             className={`${v.effect} text-[#0d0901] font-semibold text-left leading-tight`}
             style={{ fontFamily: "'Crimson Pro', serif" }}

@@ -14,6 +14,14 @@ export const otherSeat = (s: Seat): Seat => (s === 0 ? 1 : 0);
 // the seat only ever rests in Preparação, Combate, Pós-combate and Movimentação.
 export type TurnPhase = 'compra' | 'suprimentos' | 'preparacao' | 'combate' | 'pos_combate' | 'movimentacao';
 
+// Gatilhos (o "quando" do efeito de uma carta) — vocabulário em docs/vocabulario.md. Só rótulo na carta por
+// enquanto: a regra de cada gatilho continua nas habilidades da própria carta.
+export type Trigger = 'convocacao' | 'ofensiva' | 'queda' | 'manobra' | 'comando' | 'postura' | 'reforco';
+export const TRIGGER_LABEL: Record<Trigger, string> = {
+  convocacao: 'Convocação', ofensiva: 'Ofensiva', queda: 'Queda', manobra: 'Manobra',
+  comando: 'Comando', postura: 'Postura', reforco: 'Reforço',
+};
+
 // What the catalog stores for a card name (no artwork, no per-copy data).
 export interface CardDef {
   name: string;
@@ -23,6 +31,8 @@ export interface CardDef {
   cost: number;
   effect: string;
   isFullArt?: boolean;
+  // Gatilho do efeito (ícone na linha do tipo + nome em dourado no começo do texto). Opcional: sem ele a carta fica como era.
+  trigger?: Trigger;
 }
 
 // One physical copy of a card inside a match. Field names intentionally match the client's CardData
