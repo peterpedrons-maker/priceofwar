@@ -74,8 +74,9 @@ import attackArrowBlueImage from './assets/attack-arrow-blue.png';
 import haloValidTargetImage from './assets/halo-valid-target.png';
 import haloInvalidTargetImage from './assets/halo-invalid-target.png';
 import haloSelectionImage from './assets/halo-selection.png';
-import badgeSwordImage from './assets/badge-sword.png';
-import badgeShieldImage from './assets/badge-shield.png';
+import hintSwordImage from './assets/hint-sword.webp';
+import hintShieldImage from './assets/hint-shield.webp';
+import hintSwordShieldImage from './assets/hint-sword-shield.webp';
 import fxAtkUpSheet from './assets/fx-atk-up-sheet.webp';
 import fxAtkDownSheet from './assets/fx-atk-down-sheet.webp';
 import fxHpUpSheet from './assets/fx-hp-up-sheet.webp';
@@ -204,7 +205,7 @@ import batalhaImpactSfxUrl from './assets/sfx-batalha-impacto.wav';
 import { DECK_RECIPES, requireCardDef, getCardDef, type DeckId } from './engine/catalog';
 import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActivePhases, createMatch, deckSetupFromRecipe, newMatchLog, type MatchLog } from './engine/game';
 import { aiNextAction } from './engine/ai';
-import { triggerOf, triggerKeyOf, pulseCard, usePulse, TRIGGER_GLOW } from './triggers';
+import { triggerOf, triggerKeyOf, pulseCard, usePulse, TRIGGER_GLOW, TRIGGER_ICON } from './triggers';
 import { playSfx, preloadSfx, dbgMark } from './sfx';
 import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettings, subscribeAudio } from './audioSettings';
 import type { Trigger } from './engine/types';
@@ -472,17 +473,22 @@ export type SlotHint = 'valid' | 'invalid';
 const getSlotHint = (cardType: CardType | undefined, slotIndex: number): SlotHint =>
   canPlaceInSlot(cardType, slotIndex) ? 'valid' : 'invalid';
 
-// Annotates a valid empty-slot placement hint with what that row actually lets the
-// unit DO, instead of leaving Vanguarda/Retaguarda visually identical during
-// selection — but only where the rules already draw that line: today that's just
-// Infantaria (see getValidAttackTargets' own isBackline check). Showing this badge
-// for every unit type would imply a restriction that isn't real for e.g. Arqueiro,
-// so nothing else gets one.
-const getRowRoleHint = (cardType: CardType | undefined, slotIndex: number): 'combat' | 'support' | undefined => {
-  if (cardType !== 'Infantaria') return undefined;
-  if (isFrontline(slotIndex)) return 'combat';
-  if (isBackline(slotIndex)) return 'support';
+// What a lit empty slot tells the player about the card being placed, by row and type: the Vanguarda is where a
+// unit attacks (and can be hit); in the Retaguarda an Infantaria is a reserve that does not attack, while any other
+// soldier still attacks from there and is protected (its column's front card has to fall first).
+export type RowRoleHint = 'attack' | 'reserve' | 'guard';
+const SOLDIER_CARD_TYPES: CardType[] = ['Infantaria', 'Cavalaria', 'Arqueiro', 'Artilharia'];
+const getRowRoleHint = (cardType: CardType | undefined, slotIndex: number): RowRoleHint | undefined => {
+  if (!cardType || !SOLDIER_CARD_TYPES.includes(cardType)) return undefined;
+  if (isFrontline(slotIndex)) return 'attack';
+  if (isBackline(slotIndex)) return cardType === 'Infantaria' ? 'reserve' : 'guard';
   return undefined;
+};
+// size = label font size in board px (the board is drawn ~0.46x on a phone, and the word has to fit the 120px slot).
+const ROW_ROLE_VIEW: Record<RowRoleHint, { icon: string; label: string; size: number; alt: string }> = {
+  attack:  { icon: hintSwordImage,       label: 'ATACA',     size: 27, alt: 'Ataca daqui; fica exposta' },
+  reserve: { icon: hintShieldImage,      label: 'RESERVA',   size: 22, alt: 'Reserva: não ataca' },
+  guard:   { icon: hintSwordShieldImage, label: 'PROTEGIDA', size: 18, alt: 'Ataca daqui; fica protegida' },
 };
 
 // Turn phases — Compra (draw) is automatic and instant (see the currentTurn effect)
@@ -7653,7 +7659,7 @@ export default function App() {
     // instead of "tap the highlighted target". No hint at all is the honest answer
     // for a slot this card was never going to touch anyway.
     const kind = getCardDropKind(previewedCard);
-    if (kind === 'ownTarget' || kind === 'enemyTarget') return undefined;
+    if (kind !== 'place') return undefined;   // only a card that goes into a slot lights (or crosses) the empty ones
     return getSlotHint(previewedCard.cardType, slotIndex);
   };
 
@@ -8422,41 +8428,7 @@ export default function App() {
                   {/* The tapped card steps up in the hand (see tapSelected / the Jogar-Cancelar bar further down). */}
                   <CardFace card={card} variant="hand" />
 
-                  {/* Emboscada interrupt — "here's the card, activate it or not?" anchored
-                      right on the eligible card itself instead of a separate dialog, so
-                      the rest of the hand stays visible the whole time (see
-                      maybeActivatePlayerAmbush). */}
-                  {isAmbushCandidate && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.9 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.9 }}
-                      className="absolute -top-5 left-1/2 -translate-x-1/2 z-40 flex gap-2 pointer-events-auto whitespace-nowrap"
-                    >
-                      <GameButton
-                        tone="primary" size={12}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // The engine takes the card out of the hand and into the graveyard when it hears the answer.
-                          ambushPrompt!.resolve(card);
-                          setAmbushPrompt(null);
-                        }}
-                      >
-                        Ativar
-                      </GameButton>
-                      <GameButton
-                        tone="neutral" size={12}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          playUiClickSfx();
-                          ambushPrompt!.resolve(null);
-                          setAmbushPrompt(null);
-                        }}
-                      >
-                        Não
-                      </GameButton>
-                    </motion.div>
-                  )}
+                  {/* An Emboscada the player may spring is answered in the big overlay (see ambushPrompt below), not on the hand. */}
                     </motion.div>
                   </motion.div>
                 </div>
@@ -8475,43 +8447,123 @@ export default function App() {
           'field' itself), so it was one more thing sitting in the corner without a
           real job, plus it was colliding with the opponent's hand fan up there. */}
 
-      {/* The tapped hand card's action bar: what to do next, in plain words, and the two buttons — Jogar and
-          Cancelar — right above the card they belong to (see selRect). Cards that go to an empty slot have no Jogar:
-          the player taps one of the glowing slots. */}
+      {/* Emboscada interrupt — the cards that can answer this attack, big and centred, each with its own Ativar, and one
+          wide Não ativar. (The question itself is the box at the top.) */}
+      <AnimatePresence>
+        {ambushPrompt && (() => {
+          const n = ambushPrompt.options.length;
+          const gap = 12;
+          const scale = Math.min(1.15, (windowSize.width - 24 - gap * (n - 1)) / (n * HAND_CARD_WIDTH));
+          return (
+            <motion.div
+              key="ambush-overlay"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-x-0 bottom-0 z-[268] flex flex-col items-center justify-end gap-3 pb-6 pointer-events-none"
+              style={{ top: 220, background: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 18%)' }}
+            >
+              <div className="flex items-start justify-center" style={{ gap }}>
+                {ambushPrompt.options.map(opt => (
+                  <div key={opt.id} className="flex flex-col items-center gap-2 pointer-events-auto" style={{ width: HAND_CARD_WIDTH * scale }}>
+                    <div style={{ width: HAND_CARD_WIDTH * scale, height: HAND_CARD_HEIGHT * scale, marginBottom: 8, filter: 'drop-shadow(0 0 14px rgba(239,68,68,0.9))' }}>
+                      <div style={{ width: HAND_CARD_WIDTH, height: HAND_CARD_HEIGHT, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+                        <CardFace card={opt} variant="hand" />
+                      </div>
+                    </div>
+                    <GameButton
+                      tone="primary" size={20} className="w-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // The engine takes the card out of the hand and into the graveyard when it hears the answer.
+                        ambushPrompt.resolve(opt);
+                        setAmbushPrompt(null);
+                      }}
+                    >
+                      Ativar
+                    </GameButton>
+                  </div>
+                ))}
+              </div>
+              <div className="pointer-events-auto" style={{ width: Math.min(260, windowSize.width - 40) }}>
+                <GameButton
+                  tone="neutral" size={18} className="w-full"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    playUiClickSfx();
+                    ambushPrompt.resolve(null);
+                    setAmbushPrompt(null);
+                  }}
+                >
+                  Não ativar
+                </GameButton>
+              </div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
+
+      {/* What to do with the tapped hand card, shown ON the board instead of in a box: a one-line pill at the top, the
+          lit slots / targets themselves (see CardSlot's placement hint), and — for an immediate-effect Tática, which has
+          no slot — a glowing "toque para ativar" zone right above the raised card. A compact Cancelar sits beside it. */}
       {!tutOn && selectedCardIndex !== null && viewState === 'hand' && !ambushPrompt && hand[selectedCardIndex] && selRect && !flyingCard && !preZoomSlot && (() => {
         const card = hand[selectedCardIndex];
         const kind = getCardDropKind(card);
         const canAfford = playerMana >= card.cost;
-        const barW = Math.min(250, windowSize.width - 16);
-        const left = Math.min(Math.max(selRect.left + selRect.width / 2 - barW / 2, 8), windowSize.width - barW - 8);
-        // Relíquia/Terreno go to the slots right beside the General, just above the hand — keep the bar clear of them.
-        const topBar = kind === 'place' && (card.cardType === 'Relíquia' || card.cardType === 'Terreno');
+        const isSoldier = SOLDIER_CARD_TYPES.includes(card.cardType);
         const hint =
-          kind === 'place' ? 'Toque num espaço brilhante do seu campo'
-          : kind === 'ownTarget' || kind === 'enemyTarget' ? 'Toque em JOGAR e escolha o alvo (ou toque direto nele)'
-          : kind === 'immediate' ? 'Toque em JOGAR para usar a carta'
-          : 'Ativa sozinha quando você for atacado';
-        const canPlay = kind === 'immediate' || kind === 'ownTarget' || kind === 'enemyTarget';
+          kind === 'place'
+            ? (card.cardType === 'Infantaria' ? 'Toque numa casa acesa · atrás ela não ataca'
+              : isSoldier ? 'Toque numa casa acesa · atrás ela fica protegida'
+              : 'Toque na casa acesa ao lado do General')
+          : kind === 'ownTarget' || kind === 'enemyTarget' ? (canAfford ? 'Escolha o alvo no campo' : 'Ouro insuficiente para esta carta')
+          : kind === 'immediate' ? (canAfford ? 'Efeito imediato' : 'Ouro insuficiente para esta carta')
+          : card.cardType === 'Emboscada' ? 'Emboscada armada · ativa sozinha quando você for atacado'
+          : 'Esta carta não pode ser jogada agora';
+        const zoneW = Math.min(268, windowSize.width - 24);
+        const zoneLeft = (windowSize.width - zoneW) / 2;
+        const cancelOnLeft = selRect.left + selRect.width / 2 > windowSize.width / 2;
         return (
-          <motion.div
-            key={card.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="fixed z-[262] flex flex-col items-center gap-1.5 pointer-events-auto"
-            style={{ left, width: barW, ...(topBar ? { top: 52 } : { top: Math.max(8, selRect.top - 74) }) }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <GameBox px={13} className="w-full">
-              <span className="block px-1 py-0.5 text-center text-[13px] leading-tight" style={{ fontFamily: "'Crimson Pro', serif", fontWeight: 700, color: '#f1e4c4' }}>{hint}</span>
-            </GameBox>
-            <div className="flex gap-2 w-full">
-              {canPlay && (
-                <GameButton tone="primary" disabled={!canAfford} className="flex-1" onClick={() => { playUiClickSfx(); handlePlayCardButtonClick(); }}>
-                  {canAfford ? 'Jogar' : 'Sem ouro'}
-                </GameButton>
-              )}
-              <GameButton tone="danger" className="flex-1" onClick={() => { playUiClickSfx(); setSelectedCardIndex(null); }}>Cancelar</GameButton>
-            </div>
+          <motion.div key={card.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="contents">
+            <div
+              className="fixed z-[262] left-1/2 -translate-x-1/2 px-3 py-1.5 text-center pointer-events-none"
+              style={{
+                top: 86, maxWidth: windowSize.width - 24, width: 'max-content', borderRadius: 6,
+                border: '1px solid rgba(232,220,192,0.55)', background: 'rgba(14,10,6,0.84)', color: '#f3e3c3',
+                fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: 1.25,
+                boxShadow: '0 2px 10px rgba(0,0,0,0.6)',
+              }}
+            >{hint}</div>
+            {kind === 'immediate' && (
+              <button
+                type="button"
+                className="fixed z-[262] flex items-center gap-2.5 px-3 text-left pointer-events-auto active:scale-[0.97] transition-transform"
+                style={{
+                  left: zoneLeft, width: zoneW, top: Math.max(8, selRect.top - 88), height: 74, borderRadius: 10,
+                  border: `2px solid ${canAfford ? 'rgba(255,201,77,0.9)' : 'rgba(150,140,120,0.5)'}`,
+                  background: canAfford ? 'radial-gradient(ellipse at 20% 50%, rgba(255,201,77,0.28), rgba(20,14,6,0.9) 70%)' : 'rgba(20,16,10,0.88)',
+                  boxShadow: canAfford ? '0 0 22px rgba(255,201,77,0.55), inset 0 0 18px rgba(255,201,77,0.18)' : 'none',
+                  animation: canAfford ? 'zone-pulse 1.6s ease-in-out infinite' : undefined,
+                }}
+                onClick={(e) => { e.stopPropagation(); playUiClickSfx(); handlePlayCardButtonClick(); }}
+              >
+                <img src={TRIGGER_ICON.comando} alt="" className="h-[52px] w-[52px] object-contain shrink-0" style={{ filter: canAfford ? 'drop-shadow(0 0 8px rgba(255,201,77,0.9))' : 'grayscale(1) opacity(0.6)' }} />
+                <span className="flex flex-col leading-tight min-w-0">
+                  <b style={{ fontFamily: "'Cinzel', serif", fontSize: 14, letterSpacing: '0.05em', whiteSpace: 'nowrap', color: canAfford ? '#ffd36a' : '#a89f8a', textShadow: '0 1px 2px #000' }}>
+                    {canAfford ? 'TOQUE PARA ATIVAR' : 'SEM OURO'}
+                  </b>
+                  <span className="truncate" style={{ fontFamily: "'Crimson Pro', serif", fontWeight: 700, fontSize: 13, color: '#f1e4c4' }}>{card.name}</span>
+                </span>
+              </button>
+            )}
+            <button
+              type="button"
+              className="fixed z-[262] pointer-events-auto active:scale-95 transition-transform"
+              style={{
+                top: Math.max(8, selRect.top + 22), ...(cancelOnLeft ? { left: 10 } : { right: 10 }),
+                padding: '7px 13px', borderRadius: 6, border: '1px solid rgba(232,170,160,0.6)', background: 'rgba(80,14,14,0.9)',
+                color: '#ffd9d2', fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase',
+              }}
+              onClick={(e) => { e.stopPropagation(); playUiClickSfx(); setSelectedCardIndex(null); }}
+            >✕ Cancelar</button>
           </motion.div>
         );
       })()}
@@ -9473,7 +9525,7 @@ const CardSlot = ({
   // selected unit DO once placed — 'combat' (Vanguarda) or 'support' (Retaguarda) —
   // see getRowRoleHint. Only ever set alongside hint === 'valid'; undefined means
   // "no distinction for this card type," not "Retaguarda."
-  rowRoleHint?: 'combat' | 'support',
+  rowRoleHint?: RowRoleHint,
   // True for every occupied slot a selected targetable Tática could legally land
   // on (see getCardDropKind/isTacticTargetSlot) — an equip/buff aimed at your own
   // board, or a damage Tática aimed at the enemy's. The empty-slot 'place' case
@@ -9555,9 +9607,9 @@ const CardSlot = ({
   const hintClass = hint === 'invalid'
     ? 'border-red-500/60 bg-red-950/30'
     : hint === 'valid'
-      ? rowRoleHint === 'combat'
+      ? rowRoleHint === 'attack'
         ? 'border-amber-400/80 bg-amber-500/15 shadow-[0_0_28px_rgba(245,158,11,0.6)]'
-        : rowRoleHint === 'support'
+        : rowRoleHint
           ? 'border-sky-400/80 bg-sky-500/15 shadow-[0_0_28px_rgba(14,165,233,0.6)]'
           : 'border-emerald-400/70 bg-emerald-500/10 shadow-[0_0_25px_rgba(52,211,153,0.5)]'
       : '';
@@ -9580,48 +9632,38 @@ const CardSlot = ({
       className={`w-[7.5rem] h-[9.5rem] md:w-[9.5rem] md:h-[12.5rem] rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${!card ? hintClass : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${!card && isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''}`}
     >
       {!card && hint && (
-        // Placement drop indicator on every legal empty slot at once while a hand
-        // card is tap-selected (see getPlayerSlotHint) — a bouncing green arrow if
-        // it can land here, a red X if it can't (wrong slot type, e.g. Relíquia/
-        // Terreno's own special slots). Vanguarda and Retaguarda show the exact
-        // same green arrow — placement itself doesn't care which row a creature
-        // ends up in (see getSlotHint); the small corner badge just below is what
-        // actually tells the two rows apart, and only for the one unit type whose
-        // COMBAT eligibility (not placement) really does differ by row.
+        // Placement hint on every legal empty slot at once while a hand card is tap-selected (see getPlayerSlotHint):
+        // a red X where it cannot go; where a soldier can go, the same sword / shield art as the stat effects plus a
+        // short word (ATACA, RESERVA, PROTEGIDA); a plain green arrow for the Relíquia / Terreno slots.
         <>
           {hint === 'invalid' ? (
             <X className="w-8 h-8 md:w-10 md:h-10 text-red-500/80 pointer-events-none" strokeWidth={3} />
+          ) : rowRoleHint ? (
+            <>
+              <motion.img
+                src={ROW_ROLE_VIEW[rowRoleHint].icon}
+                alt={ROW_ROLE_VIEW[rowRoleHint].alt}
+                animate={{ y: [0, -5, 0], scale: [1, 1.06, 1] }}
+                transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                className={`absolute left-1/2 top-[8%] -translate-x-1/2 w-[72%] h-auto object-contain pointer-events-none ${
+                  rowRoleHint === 'attack' ? 'drop-shadow-[0_0_14px_rgba(245,158,11,0.9)]' : 'drop-shadow-[0_0_14px_rgba(14,165,233,0.9)]'
+                }`}
+              />
+              <div
+                className="absolute inset-x-0 bottom-[7%] text-center leading-none pointer-events-none"
+                style={{ fontFamily: "'Cinzel', serif", color: rowRoleHint === 'attack' ? '#ffd36a' : '#8fd4ff', textShadow: '0 1px 2px #000, 0 0 6px #000' }}
+              >
+                <b className="block font-extrabold tracking-[0.03em]" style={{ fontSize: ROW_ROLE_VIEW[rowRoleHint].size }}>{ROW_ROLE_VIEW[rowRoleHint].label}</b>
+              </div>
+            </>
           ) : (
             <motion.div
               animate={{ y: [0, -6, 0] }}
               transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
               className="pointer-events-none"
             >
-              <ArrowUp
-                className={`w-8 h-8 md:w-10 md:h-10 pointer-events-none ${
-                  rowRoleHint === 'combat'
-                    ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.9)]'
-                    : rowRoleHint === 'support'
-                      ? 'text-sky-400 drop-shadow-[0_0_8px_rgba(14,165,233,0.9)]'
-                      : 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.9)]'
-                }`}
-                strokeWidth={3}
-              />
+              <ArrowUp className="w-8 h-8 md:w-10 md:h-10 pointer-events-none text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.9)]" strokeWidth={3} />
             </motion.div>
-          )}
-          {hint === 'valid' && rowRoleHint && (
-            // Bigger than the first pass at this (see git history) — a corner icon
-            // that small read as decoration, not information, and easy to miss on a
-            // real phone screen. Sized to actually be read at a glance, same idea as
-            // an ATK/HP badge, not a subtle hint.
-            <img
-              src={rowRoleHint === 'combat' ? badgeSwordImage : badgeShieldImage}
-              alt={rowRoleHint === 'combat' ? 'Pode atacar a partir daqui' : 'Não pode atacar a partir daqui'}
-              title={rowRoleHint === 'combat' ? 'Pode atacar a partir daqui' : 'Não pode atacar a partir daqui'}
-              className={`absolute top-1 right-1 md:top-1.5 md:right-1.5 w-8 h-8 md:w-10 md:h-10 object-contain pointer-events-none ${
-                rowRoleHint === 'combat' ? 'drop-shadow-[0_0_10px_rgba(245,158,11,0.9)]' : 'drop-shadow-[0_0_10px_rgba(14,165,233,0.9)]'
-              }`}
-            />
           )}
         </>
       )}

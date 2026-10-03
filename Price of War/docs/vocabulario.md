@@ -144,3 +144,11 @@ já só vale quando ela é destruída em campo) e Capitão de Formação ("Adjac
 5. **Quais gatilhos flutuam:** Convocação (quando a carta aparece no tabuleiro), Manobra (depois que ela se move) e Comando (ao ativar).
    **Queda** (a carta está queimando) e **Ofensiva** (a carta está no meio do ataque) só brilham no lugar e tocam o som, sem flutuar.
 6. Teste manual (`?debug`): `window.__powTrigger('player', slot, holdMs)` roda o fluxo completo; `window.__powBurst('player', slot)` só o brilho.
+
+## 11. Dicas no tabuleiro ao jogar uma carta
+Sem caixa de texto grande: uma pílula curta no topo, as casas acesas e um **Cancelar** compacto ao lado da carta levantada.
+- **Unidade** (Infantaria, Cavalaria, Arqueiro, Artilharia): Vanguarda acesa em dourado com a espada e **ATACA**; Retaguarda acesa em azul — Infantaria com o escudo e **RESERVA** (não ataca), as demais com espada + escudinho e **PROTEGIDA** (ataca de lá e só é atingida se a carta da frente da coluna cair). Ícones: `hint-sword`, `hint-shield`, `hint-sword-shield` (recortados de `ui-effect-atk-up` sem o "+" e de `ui-effect-reinforce`).
+- **Tática imediata**: zona dourada "TOQUE PARA ATIVAR" (ícone de Comando) logo acima da carta levantada; tocar nela joga a carta.
+- **Tática com alvo**: um toque na carta já abre a escolha de alvo (as unidades válidas ficam marcadas).
+- **Emboscada**: pílula "armada · ativa sozinha quando você for atacado"; não acende casa nenhuma.
+- **Emboscada pronta para ativar** (quando o adversário ataca): tela com as cartas que podem responder, grandes e centralizadas, cada uma com seu **Ativar**, e um **Não ativar** largo.
