@@ -175,7 +175,7 @@ import duelMusicUrl from './assets/music-duelo.mp3';
 // history) rather than a first guess. No attribution is legally required for CC0, but
 // noting the source here for anyone maintaining this later.
 import cardPlaySfxUrl from './assets/sfx-jogar-carta.wav';
-import attackSfxUrl from './assets/sfx-ataque.wav';
+import attackSfxUrl from './assets/sfx-combate-explosao.wav';
 import tacticSfxUrl from './assets/sfx-tatica.wav';
 import effectSfxUrl from './assets/sfx-efeito-magico.mp3';
 import selectSfxUrl from './assets/sfx-selecionar.wav';
@@ -189,7 +189,7 @@ import uiClickSfxUrl from './assets/sfx-clique-ui.wav';
 import cardLiftSfxUrl from './assets/sfx-levantar-carta.wav';
 import damageSfxUrl from './assets/sfx-dano.wav';
 import generalDamageSfxUrl from './assets/sfx-dano-general.wav';
-import destroySfxUrl from './assets/sfx-destruicao.wav';
+import destroySfxUrl from './assets/sfx-destruicao-fogo.wav';
 // Match-intro VS reveal (see startMatchIntro/MatchIntroOverlay further below) — a
 // whoosh for each General's portrait sliding into view, and a metallic stinger for
 // the "BATALHA" banner slam.
@@ -205,6 +205,7 @@ import { DECK_RECIPES, requireCardDef, getCardDef, type DeckId } from './engine/
 import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActivePhases, createMatch, deckSetupFromRecipe, newMatchLog, type MatchLog } from './engine/game';
 import { aiNextAction } from './engine/ai';
 import { triggerOf, triggerKeyOf, pulseCard, usePulse, TRIGGER_GLOW } from './triggers';
+import { playSfx, preloadSfx, dbgMark } from './sfx';
 import type { Trigger } from './engine/types';
 import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
@@ -278,17 +279,11 @@ const playCardPlaySfx = () => {
   audio.volume = 0.7;
   audio.play().catch(() => {});
 };
-const playAttackSfx = () => {
-  const audio = new Audio(attackSfxUrl);
-  audio.volume = 0.6;
-  audio.play().catch(() => {});
-};
+// The blow: sfx-combate-explosao.wav has its loud hit 42 ms in, so it is started just before the 40 ms hit-stop (HIT_STOP_MS)
+// and the hit lands on the same frame as the impact visuals (see the two attack flows).
+const playAttackSfx = () => playSfx(attackSfxUrl, 0.48, 'sfx:attack');
 // A card's effect fires (its float + glow are timed to this clip: swell ~0.2 s, main hit ~0.73 s, ~1.9 s long).
-const playEffectSfx = () => {
-  const audio = new Audio(effectSfxUrl);
-  audio.volume = 0.7;
-  audio.play().catch(() => {});
-};
+const playEffectSfx = () => playSfx(effectSfxUrl, 0.7, 'sfx:effect');
 const playTacticSfx = () => {
   const audio = new Audio(tacticSfxUrl);
   audio.volume = 0.6;
@@ -384,11 +379,10 @@ const playGeneralDamageSfx = () => {
 };
 // A card actually dying (isDestroyed flips true) — see CardSlot's own destroy
 // effect further below.
-const playDestroySfx = () => {
-  const audio = new Audio(destroySfxUrl);
-  audio.volume = 0.6;
-  audio.play().catch(() => {});
-};
+// A card burning away: sfx-destruicao-fogo.wav is the "fire burst" clip with its silent first 0.24 s cut, so the crackle starts
+// building at 0.2 s and the burst lands at 0.44 s — frame 7 at 16 fps, the burn animation's brightest frame (BURN_FPS).
+// Started on the frame the card starts burning (CardSlot's isDestroyed effect), it ends with the last of the fire (~1.1 s).
+const playDestroySfx = () => playSfx(destroySfxUrl, 1.1, 'sfx:destroy');
 // Match-intro VS reveal (see startMatchIntro/MatchIntroOverlay further below).
 const playRevealGeneralSfx = () => {
   const audio = new Audio(revealGeneralSfxUrl);
@@ -1074,6 +1068,7 @@ const BurningCard = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     let raf = 0;
     const t0 = performance.now();
+    dbgMark('visual:burn-start');
     const loop = (now: number) => {
       const i = Math.floor((now - t0) / (1000 / BURN_FPS));
       setFrame(Math.min(i, BURN_FRAMES));
@@ -4788,6 +4783,7 @@ export default function App() {
       // loading screen's own image preloading.
       const ctx = duelMusicCtxRef.current ?? (duelMusicCtxRef.current = new AudioContext());
       if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      [attackSfxUrl, destroySfxUrl, effectSfxUrl].forEach(preloadSfx);   // decoded now, so the first blow / burn starts on time
       if (!duelMusicBufferRef.current) {
         const arrayBuffer = await fetch(duelMusicUrl).then(r => r.arrayBuffer());
         if (cancelled) return;
@@ -4798,7 +4794,7 @@ export default function App() {
       source.buffer = duelMusicBufferRef.current;
       source.loop = true;
       const gain = ctx.createGain();
-      gain.gain.value = 0.25;
+      gain.gain.value = 0.19;    // the new track is louder than the old one: same perceived level
       source.connect(gain).connect(ctx.destination);
       source.start();
       duelMusicSourceRef.current = source;
@@ -6542,8 +6538,8 @@ export default function App() {
           }
           setAttackAnim({ attackerIndex: action.from, targetIndex: action.to, isPlayerAttacking: false });
           await sleep(ATTACK_MS);
+          playAttackSfx();            // before the hit-stop: the clip's loud hit is 42 ms in, the hit-stop is 40 ms
           await sleep(HIT_STOP_MS);   // the lunge lands and everything holds for a beat before the hit
-          playAttackSfx();
           const dryNpc = applyAction(engineRef.current!, 1, action);
           const soakedNpc = dryNpc.ok === true && blowIsSoaked(dryNpc.events, 0, action.to);
           setSoakedBlow(soakedNpc);
@@ -6984,6 +6980,7 @@ export default function App() {
   // was attacking what.
   // Plays the blow over the target card: `targetSeat` is the screen seat (0 = me) of the card being hit.
   const triggerPunch = (targetSeat: Seat, index: number) => {
+    dbgMark('visual:impact');
     const el = getCardVisualEl(`${targetSeat === 0 ? 'player' : 'npc'}-${index}`);
     if (!el) return;
     const r = el.getBoundingClientRect();
@@ -7431,8 +7428,8 @@ export default function App() {
       setIsAnimating(true);
       setAttackAnim({ attackerIndex: from, targetIndex: slotIndex, isPlayerAttacking: true });
       await sleep(ATTACK_MS);
+      playAttackSfx();            // before the hit-stop: the clip's loud hit is 42 ms in, the hit-stop is 40 ms
       await sleep(HIT_STOP_MS);   // the lunge lands and everything holds for a beat before the hit
-      playAttackSfx();
       const soaked = blowIsSoaked(dry.events, 1, slotIndex);
       setSoakedBlow(soaked);
       setIsImpacting(true);
