@@ -213,7 +213,7 @@ const healSlot = (c: Ctx, seat: Seat, slot: number, amount: number) => {
   c.ev.push({ t: 'heal', seat, slot, amount });
 };
 
-// Nobre da Cruzada: "Ao entrar em campo: invoca Soldados Leais nos slots adjacentes livres da mesma fileira."
+// Nobre da Cruzada: "Ao entrar em campo: convoca Soldados Leais nos slots adjacentes livres da mesma fileira."
 const applyNobreSummon = (c: Ctx, seat: Seat, slot: number) => {
   const board = P(c, seat).board;
   if (board[slot]?.name !== 'Nobre da Cruzada' || slot > 9) return;
@@ -462,7 +462,7 @@ const playCard = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'play' }>) => {
         if (slots.length === 0) fail('Não há slots livres na Vanguarda.');
         commit();
         const max = Math.min(2, slots.length);
-        openPick('summon', `Escolha até ${max} soldado(s) de 0 ATK para invocar na Vanguarda`, optionsFromNames(names), 1, max, { slots });
+        openPick('summon', `Escolha até ${max} soldado(s) de 0 ATK para convocar na Vanguarda`, optionsFromNames(names), 1, max, { slots });
         return;
       }
       default:
@@ -656,7 +656,7 @@ const choose = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'choose' }>) => {
       c.ev.push({ t: 'summon', seat, slot, card: copy });
     });
     p.drawPile = shuffled(c.s, p.deckList);
-    log(c, seat, `${picked.length} soldado(s) invocado(s)! Deck embaralhado.`);
+    log(c, seat, `${picked.length} soldado(s) convocado(s)! Deck embaralhado.`);
   }
   if (pend.source) discard(c, seat, pend.source);
 };

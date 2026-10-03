@@ -1997,7 +1997,7 @@ const DECKS = {
   cardeal: {
     id: 'cardeal' as const,
     name: 'Deck Cardeal Pedro',
-    description: 'Fé e ferro — cura, invocações e emboscadas sagradas.',
+    description: 'Fé e ferro — cura, convocações e emboscadas sagradas.',
     general: DECK_CARDEAL.find(c => c.cardType === 'General')!,
     pool: DECK_CARDEAL.filter(c => c.cardType !== 'General'),
   },

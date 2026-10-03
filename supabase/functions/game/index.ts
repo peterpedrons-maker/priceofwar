@@ -37,7 +37,7 @@ var CARD_DEFS = [
   { name: "Soldados da Ordem", cardType: "Infantaria", atk: 3, hp: 4, cost: 2, effect: "\u2014" },
   { name: "Jorge, Lan\xE7a Sagrada", cardType: "Cavalaria", atk: 4, hp: 6, cost: 3, isFullArt: true, effect: "Ao atacar a Vanguarda: causa 2 de dano \xE0 unidade na Retaguarda da mesma coluna." },
   { name: "Cavaleiro Hospital\xE1rio", cardType: "Cavalaria", atk: 2, hp: 3, cost: 2, effect: "Uma vez por turno: cure 1 HP de um aliado e cause 1 de dano a um inimigo na Vanguarda." },
-  { name: "Nobre da Cruzada", cardType: "Cavalaria", atk: 4, hp: 5, cost: 3, isFullArt: true, effect: "Ao entrar em campo: invoca Soldados Leais (1 ATK / 1 HP) nos slots adjacentes livres da mesma fileira." },
+  { name: "Nobre da Cruzada", cardType: "Cavalaria", atk: 4, hp: 5, cost: 3, isFullArt: true, effect: "Ao entrar em campo: convoca Soldados Leais (1 ATK / 1 HP) nos slots adjacentes livres da mesma fileira." },
   { name: "Cavaleiro da Luz", cardType: "Cavalaria", atk: 4, hp: 5, cost: 3, isFullArt: true, effect: "\u2014" },
   { name: "Comandante da Ordem", cardType: "Cavalaria", atk: 5, hp: 5, cost: 3, isFullArt: true, effect: "Na Vanguarda: Infantaria e Arqueiros aliados ganham +1 ATK e +1 HP durante o combate." },
   { name: "Arqueiro da Ordem", cardType: "Arqueiro", atk: 1, hp: 4, cost: 2, effect: "Pode atacar duas vezes por rodada." },
@@ -56,7 +56,7 @@ var CARD_DEFS = [
   { name: "Recrutamento Seletivo", cardType: "T\xE1tica", atk: 0, hp: 0, cost: 1, effect: "Adicione um soldado do deck \xE0 sua m\xE3o." },
   { name: "Recrutar Veteranos", cardType: "T\xE1tica", atk: 0, hp: 0, cost: 2, effect: "Veja as 4 cartas do topo. Adicione 2 \xE0 m\xE3o e coloque 2 no fundo do deck." },
   { name: "Tributo de Guerra", cardType: "T\xE1tica", atk: 0, hp: 0, cost: 0, effect: "Ganhe 1 ouro adicional neste turno." },
-  { name: "Chamado \xE0s Armas", cardType: "T\xE1tica", atk: 0, hp: 0, cost: 2, effect: "Invoque do deck at\xE9 2 soldados com 0 ATK para slots livres na Vanguarda. Embaralhe o deck." }
+  { name: "Chamado \xE0s Armas", cardType: "T\xE1tica", atk: 0, hp: 0, cost: 2, effect: "Convoque do deck at\xE9 2 soldados com 0 ATK para slots livres na Vanguarda. Embaralhe o deck." }
 ];
 var DECK_RECIPES = {
   capitao: {
@@ -88,7 +88,7 @@ var DECK_RECIPES = {
   cardeal: {
     id: "cardeal",
     name: "Deck Cardeal Pedro",
-    description: "F\xE9 e ferro \u2014 cura, invoca\xE7\xF5es e emboscadas sagradas.",
+    description: "F\xE9 e ferro \u2014 cura, convoca\xE7\xF5es e emboscadas sagradas.",
     general: "Cardeal Pedro, Voz da F\xE9",
     cards: {
       "C\xE1lice da Gra\xE7a": 1,
@@ -683,7 +683,7 @@ var playCard = (c, seat, a) => {
         if (slots.length === 0) fail("N\xE3o h\xE1 slots livres na Vanguarda.");
         commit();
         const max = Math.min(2, slots.length);
-        openPick("summon", `Escolha at\xE9 ${max} soldado(s) de 0 ATK para invocar na Vanguarda`, optionsFromNames(names), 1, max, { slots });
+        openPick("summon", `Escolha at\xE9 ${max} soldado(s) de 0 ATK para convocar na Vanguarda`, optionsFromNames(names), 1, max, { slots });
         return;
       }
       default:
@@ -873,7 +873,7 @@ var choose = (c, seat, a) => {
       c.ev.push({ t: "summon", seat, slot, card: copy });
     });
     p.drawPile = shuffled(c.s, p.deckList);
-    log(c, seat, `${picked.length} soldado(s) invocado(s)! Deck embaralhado.`);
+    log(c, seat, `${picked.length} soldado(s) convocado(s)! Deck embaralhado.`);
   }
   if (pend.source) discard(c, seat, pend.source);
 };
