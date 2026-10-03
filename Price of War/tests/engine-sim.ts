@@ -53,8 +53,12 @@ const play = (seed: number, a: DeckId, b: DeckId, first: Seat, maxRounds = 150) 
     if (action.type === 'discard') discards += action.cardIds.length;
     if (action.type === 'move') usage['(moves)'] = (usage['(moves)'] ?? 0) + 1;
     const before = JSON.stringify(state);
+    const deckBefore = state.players.map(p => p.drawPile.length);
+    const wasReveal = state.pending?.kind === 'pick' && state.pending.mode === 'top_reveal';
     const r = applyAction(state, seat, action);
     check(JSON.stringify(state) === before, `seed ${seed}: applyAction mutated its input`);
+    // The deck is finite: it only shrinks (the one exception is giving back the cards of a top reveal that were not kept).
+    if (r.ok) r.state.players.forEach((p, i) => check(p.drawPile.length <= deckBefore[i] + (wasReveal ? 4 : 0) && p.deckList.length === p.drawPile.length, `seed ${seed}: deck of seat ${i} grew or went out of sync after ${action.type} (${deckBefore[i]} -> ${p.drawPile.length}/${p.deckList.length})`));
     if (r.ok === false) { check(false, `seed ${seed}: AI action refused (${r.error}) ${JSON.stringify(action)}`); return false; }
     history.push({ seat, action });
     state = r.state;

@@ -76,8 +76,9 @@ export interface PlayerState {
   hand: Card[];
   board: (Card | null)[];
   graveyard: Card[];
-  // The deck is a list of card names (copies included). `drawPile` is the shuffled queue being drawn
-  // from, rebuilt from `deckList` whenever it runs out.
+  // The deck is a list of card names (copies included) and it is finite: `drawPile` is the shuffled queue being
+  // drawn from, `deckList` is the same cards without the draw order (what searches look through). A card that left
+  // the deck (drawn, searched, summoned) never comes back; when the deck runs out nothing is drawn.
   deckList: string[];
   drawPile: string[];
   general: string;

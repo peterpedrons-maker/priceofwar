@@ -73,6 +73,7 @@ export const createMatch = (opts: MatchOptions): { state: GameState; events: Gam
   const c: Ctx = { s, ev: [] };
   ([0, 1] as Seat[]).forEach(seat => {
     const p = s.players[seat];
+    p.drawPile = shuffled(s, p.deckList);   // the deck is shuffled once; from here on cards only leave it
     p.board[GENERAL_SLOT] = cardFromName(s, p.general, 'g');
     for (let i = 0; i < START_HAND; i++) drawCards(c, seat, 1, 'deal');
   });
@@ -99,12 +100,19 @@ const addGold = (c: Ctx, seat: Seat, delta: number, reason: 'turn' | 'spend' | '
   c.ev.push({ t: 'gold', seat, delta, reason });
 };
 
+// The deck is finite: every copy the player built is in `drawPile` (order) / `deckList` (what is left, unordered by draw)
+// until it is drawn, searched or revealed. A card that reached the hand, the board or the graveyard never goes back
+// into the deck — an empty deck simply draws nothing.
+const removeOne = (arr: string[], name: string) => { const i = arr.indexOf(name); if (i !== -1) arr.splice(i, 1); };
+const takeFromDeck = (p: PlayerState, name: string) => { removeOne(p.deckList, name); removeOne(p.drawPile, name); };
+
 const drawCards = (c: Ctx, seat: Seat, n: number, reason: 'turn' | 'effect' | 'deal') => {
   const p = P(c, seat);
   for (let i = 0; i < n; i++) {
-    if (p.drawPile.length === 0) p.drawPile = shuffled(c.s, p.deckList);
+    if (p.drawPile.length === 0) { if (reason !== 'deal') log(c, seat, 'O baralho acabou: não há carta para comprar.'); return; }
     const name = p.drawPile.shift();
-    if (!name) return; // an empty deck list: nothing to draw
+    if (!name) return;   // a hidden entry of a player view: the real draw happens on the server
+    removeOne(p.deckList, name);
     const card = cardFromName(c.s, name, 'h');
     p.hand.push(card);
     c.ev.push({ t: 'draw', seat, card, reason });
@@ -450,9 +458,11 @@ const playCard = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'play' }>) => {
         return;
       }
       case 'Recrutar Veteranos': {
+        if (p.drawPile.length === 0) fail('O baralho está vazio.');
         commit();
-        if (p.drawPile.length < 4) p.drawPile = [...p.drawPile, ...shuffled(c.s, p.deckList)];
-        const revealed = p.drawPile.splice(0, 4).map(n => cardFromName(c.s, n, 'o'));
+        const topNames = p.drawPile.splice(0, 4);
+        topNames.forEach(n => removeOne(p.deckList, n));
+        const revealed = topNames.map(n => cardFromName(c.s, n, 'o'));
         openPick('top_reveal', 'Veja as 4 cartas do topo — escolha 2 para a mão', revealed, 1, 2, { revealed: true });
         return;
       }
@@ -574,10 +584,12 @@ const useAbility = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'ability' }>)
 
   if (card.name === 'Mercador da Cruzada') {
     if (usedUp) fail('Essa habilidade já foi usada neste turno.');
+    if (p.drawPile.length === 0) fail('O baralho está vazio.');
     c.s.turn.activated.push(card.id);
     c.ev.push({ t: 'ability', seat, slot: a.slot, name: card.name });
-    if (p.drawPile.length < 2) p.drawPile = [...p.drawPile, ...shuffled(c.s, p.deckList)];
-    const revealed = p.drawPile.splice(0, 2).map(n => cardFromName(c.s, n, 'o'));
+    const topNames = p.drawPile.splice(0, 2);
+    topNames.forEach(n => removeOne(p.deckList, n));
+    const revealed = topNames.map(n => cardFromName(c.s, n, 'o'));
     const title = 'Mercador da Cruzada: veja as 2 cartas do topo — escolha 1 para a mão';
     c.s.pending = { kind: 'pick', seat, mode: 'top_reveal', title, options: revealed, min: 1, max: 1, source: null, revealed: true };
     c.ev.push({ t: 'pick', seat, title });
@@ -640,12 +652,16 @@ const choose = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'choose' }>) => {
     toHand(chosen);
     log(c, seat, `${chosen.name} voltou para sua mão!`);
   } else if (pend.mode === 'deck_search') {
+    takeFromDeck(p, picked[0].name);
+    p.drawPile = shuffled(c.s, p.drawPile);
     toHand(picked[0]);
     log(c, seat, `${picked[0].name} adicionada à mão!`, true);
   } else if (pend.mode === 'top_reveal') {
     picked.forEach(toHand);
     const pickedIds = new Set(picked.map(x => x.id));
-    p.drawPile.push(...pend.options.filter(o => !pickedIds.has(o.id)).map(o => o.name));
+    const back = pend.options.filter(o => !pickedIds.has(o.id)).map(o => o.name);
+    p.drawPile.push(...back);   // the cards not kept go under the deck — still part of it
+    p.deckList.push(...back);
     log(c, seat, `${picked.length} carta(s) adicionada(s) à mão!`);
   } else if (pend.mode === 'summon') {
     const slots = pend.slots ?? [];
@@ -654,9 +670,10 @@ const choose = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'choose' }>) => {
       if (slot === undefined || p.board[slot]) return;
       const copy = cardFromName(c.s, card.name, 'h');
       p.board[slot] = copy;
+      takeFromDeck(p, card.name);
       c.ev.push({ t: 'summon', seat, slot, card: copy });
     });
-    p.drawPile = shuffled(c.s, p.deckList);
+    p.drawPile = shuffled(c.s, p.drawPile);
     log(c, seat, `${picked.length} soldado(s) convocado(s)! Deck embaralhado.`);
   }
   if (pend.source) discard(c, seat, pend.source);

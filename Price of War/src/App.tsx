@@ -205,6 +205,7 @@ import batalhaImpactSfxUrl from './assets/sfx-batalha-impacto.wav';
 import { DECK_RECIPES, requireCardDef, getCardDef, type DeckId } from './engine/catalog';
 import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActivePhases, createMatch, deckSetupFromRecipe, newMatchLog, type MatchLog } from './engine/game';
 import { aiNextAction } from './engine/ai';
+import { glyphUrl, burstUrl, NUMBER_GLOW, type NumberKind } from './numberGlyphs';
 import { triggerOf, triggerKeyOf, pulseCard, usePulse, TRIGGER_GLOW, TRIGGER_ICON } from './triggers';
 import { playSfx, preloadSfx, dbgMark } from './sfx';
 import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettings, subscribeAudio } from './audioSettings';
@@ -1159,6 +1160,47 @@ const AtkBadge = ({ value, className = "" }: { value: number, className?: string
   </div>
 );
 
+// One floating number: a burst star pops behind it, the digits (image glyphs) swell, shake a little, drift up and fade.
+// The size grows with the amount for damage. Positioned by its wrapper (centre = where the number starts).
+const NUMBER_KIND_OF: Record<'damage' | 'heal' | 'gold-gain' | 'gold-spend' | 'shield', NumberKind> = {
+  damage: 'damage', heal: 'heal', 'gold-gain': 'gold', 'gold-spend': 'goldspend', shield: 'shield',
+};
+const FloatNumber = ({ text, kind }: { text: string; kind: keyof typeof NUMBER_KIND_OF }) => {
+  const k = NUMBER_KIND_OF[kind];
+  const amount = parseInt(text.replace(/\D/g, ''), 10) || 0;
+  const h = k === 'damage' ? Math.min(78, 44 + amount * 5) : 40;
+  const burst = burstUrl(k);
+  return (
+    <div className="relative flex items-center justify-center" style={{ height: h }}>
+      {burst && (
+        <motion.img
+          src={burst} alt=""
+          initial={{ scale: 0.2, opacity: 0, rotate: -14 }}
+          animate={{ scale: [0.2, 1.1, 1.55], opacity: [0, 1, 0], rotate: [-14, 0, 8] }}
+          transition={{ duration: 0.55, ease: 'easeOut', times: [0, 0.35, 1] }}
+          className="absolute pointer-events-none select-none max-w-none"
+          style={{ height: h * 2.3, width: h * 2.3, opacity: 0 }}
+          draggable={false}
+        />
+      )}
+      <motion.div
+        initial={{ scale: 0.3, opacity: 0, y: 0, rotate: -6 }}
+        animate={{ scale: [0.3, 1.6, 1.2, 1.2, 1], opacity: [0, 1, 1, 1, 0], y: [0, -6, -20, -46, -80], rotate: [-6, 5, -2, 0, 0] }}
+        transition={{ duration: 1.45, ease: 'easeOut', times: [0, 0.12, 0.3, 0.72, 1] }}
+        className="relative flex items-center"
+        style={{ filter: `drop-shadow(0 3px 3px rgba(0,0,0,0.7)) drop-shadow(0 0 10px ${NUMBER_GLOW[k]})` }}
+      >
+        {text.split('').map((ch, i) => {
+          const url = glyphUrl(k, ch);
+          if (!url) return null;
+          const isSign = ch === '-' || ch === '+';
+          return <img key={i} src={url} alt="" draggable={false} className="select-none" style={{ height: h * (isSign ? 1.05 : 1), marginLeft: i === 0 ? 0 : -h * 0.16 }} />;
+        })}
+      </motion.div>
+    </div>
+  );
+};
+
 // HUD-level HP readout for a General — unlike the plain AtkBadge/other stat
 // badges, this one is the player's own life total, so it gets the same
 // shake + floating "-N" combat feedback CardSlot gives a damaged board card
@@ -1190,18 +1232,6 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
         <path d="M50 90 C 50 90, 10 60, 10 30 C 10 10, 35 10, 50 30 C 65 10, 90 10, 90 30 C 90 60, 50 90, 50 90 Z" fill="#ef4444" stroke="#7f1d1d" strokeWidth="8" strokeLinejoin="round" />
       </svg>
       <span className="relative z-10 text-white font-black drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] leading-none">{value}</span>
-      {damageFlash && (
-        <motion.span
-          key={damageFlash.key}
-          initial={{ opacity: 0, y: 0, scale: 0.6 }}
-          animate={{ opacity: [0, 1, 1, 0], y: -22, scale: 1.15 }}
-          transition={{ duration: 0.9, ease: 'easeOut', opacity: { times: [0, 0.15, 0.7, 1] } }}
-          className="absolute -top-1 left-1/2 -translate-x-1/2 text-red-500 font-black text-xs whitespace-nowrap pointer-events-none z-20"
-          style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 6px rgba(239,68,68,0.8)' }}
-        >
-          -{damageFlash.amount}
-        </motion.span>
-      )}
     </motion.div>
   );
 };
@@ -5025,9 +5055,9 @@ export default function App() {
     // (e.g. an attacker and defender trading damage right next to each other, or
     // Trabuco de Cerco's AOE hitting a whole row at once) don't render as one
     // unreadable stack of overlapping digits.
-    const jitterX = x + (Math.random() - 0.5) * 20;
+    const jitterX = x + (Math.random() - 0.5) * 16;
     setFloatingNumbers(prev => [...prev, { id, x: jitterX, y, text, kind }]);
-    window.setTimeout(() => setFloatingNumbers(prev => prev.filter(f => f.id !== id)), 1300);
+    window.setTimeout(() => setFloatingNumbers(prev => prev.filter(f => f.id !== id)), 1600);
   };
   // Convenience wrapper for the overwhelmingly common case: the number belongs
   // over a specific board slot or the gold badge, identified the same way the
@@ -5036,7 +5066,7 @@ export default function App() {
     const el = document.getElementById(elementId);
     if (!el) return;
     const r = el.getBoundingClientRect();
-    spawnFloatingNumber(r.left + r.width / 2, r.top + r.height * 0.35, value, kind);
+    spawnFloatingNumber(r.left + r.width / 2, r.top + r.height * 0.42, value, kind);
   };
   // Center-screen phase announcement (Yu-Gi-Oh-style crimson ribbon banner that
   // rushes in from the right and back out to the left) — see the banner overlay
@@ -5512,6 +5542,7 @@ export default function App() {
   const onlineRef = useRef<OnlineMatch | null>(null);
   const ambushResolveRef = useRef<((card: CardData | null) => void) | null>(null);
   const cardPickerRef = useRef<unknown>(null);
+  const [deckCounts, setDeckCounts] = useState<[number, number]>([0, 0]);   // cards left in each deck (yours, opponent's)
   const [turnClock, setTurnClock] = useState<{ deadline: number; skew: number } | null>(null);
   const [clockNow, setClockNow] = useState(0);
   const [matchReward, setMatchReward] = useState<RewardInfo | 'pending' | null>(null);
@@ -5683,6 +5714,7 @@ export default function App() {
     const mine = s.turn.active === 0;
     setPlayerMana(me.gold);
     setNpcMana(foe.gold);
+    setDeckCounts([me.drawPile.length, foe.drawPile.length]);
     if (!skip.hand) setHand(me.hand.map(toCardData));
     setNpcHand(foe.hand.map(toCardData));
     if (!skip.boards) {
@@ -7888,9 +7920,14 @@ export default function App() {
               isTacticDragTarget={isTacticTargetSlot('npc', 11)}
             />
             <div ref={npcDeckRef} className="w-28 h-36 md:w-36 md:h-48 relative pointer-events-none">
-              <CardBack offset={6} brightness={0.3} />
-              <CardBack offset={3} brightness={0.55} />
-              <CardBack shadow />
+              <div className="absolute inset-0" style={{ opacity: deckCounts[1] === 0 ? 0.15 : 1 }}>
+                <CardBack offset={6} brightness={0.3} />
+                <CardBack offset={3} brightness={0.55} />
+                <CardBack shadow />
+              </div>
+              <div className="absolute inset-x-0 -bottom-1 flex justify-center pointer-events-none z-10">
+                <span className="px-2 rounded-md text-[22px] leading-tight font-extrabold" style={{ fontFamily: "'Cinzel', serif", color: deckCounts[1] === 0 ? '#ff9a8a' : '#ffe9b0', background: 'rgba(14,10,6,0.82)', border: '1px solid rgba(232,220,192,0.5)', textShadow: '0 1px 2px #000' }}>{deckCounts[1]}</span>
+              </div>
             </div>
           </div>
           {/* Retaguarda NPC (Backline) */}
@@ -8058,9 +8095,14 @@ export default function App() {
               data-tut="deck"
               className="w-28 h-36 md:w-36 md:h-48 relative group pointer-events-none"
             >
-              <CardBack offset={6} brightness={0.3} />
-              <CardBack offset={3} brightness={0.55} />
-              <CardBack shadow />
+              <div className="absolute inset-0" style={{ opacity: deckCounts[0] === 0 ? 0.15 : 1 }}>
+                <CardBack offset={6} brightness={0.3} />
+                <CardBack offset={3} brightness={0.55} />
+                <CardBack shadow />
+              </div>
+              <div className="absolute inset-x-0 -bottom-1 flex justify-center pointer-events-none z-10">
+                <span className="px-2 rounded-md text-[22px] leading-tight font-extrabold" style={{ fontFamily: "'Cinzel', serif", color: deckCounts[0] === 0 ? '#ff9a8a' : '#ffe9b0', background: 'rgba(14,10,6,0.82)', border: '1px solid rgba(232,220,192,0.5)', textShadow: '0 1px 2px #000' }}>{deckCounts[0]}</span>
+              </div>
             </motion.div>
           </div>
         </div>
@@ -9359,28 +9401,9 @@ export default function App() {
       <div className="fixed inset-0 z-[290] pointer-events-none overflow-hidden">
         <AnimatePresence>
           {floatingNumbers.map(fn => (
-            <motion.div
-              key={fn.id}
-              initial={{ opacity: 0, y: 0, scale: 0.5 }}
-              animate={{ opacity: [0, 1, 1, 0], y: -64, scale: [0.5, 1.25, 1, 1] }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 1.2, times: [0, 0.18, 0.75, 1], ease: 'easeOut' }}
-              className="absolute font-black select-none"
-              style={{
-                left: fn.x,
-                top: fn.y,
-                transform: 'translate(-50%, -50%)',
-                fontFamily: "'Cinzel', serif",
-                fontSize: fn.kind === 'damage' ? '30px' : '24px',
-                color: fn.kind === 'damage' ? '#ff5555' : fn.kind === 'shield' ? '#cfe7ff' : fn.kind === 'heal' ? '#4ade80' : fn.kind === 'gold-gain' ? '#fde047' : '#fca5a5',
-                WebkitTextStroke: '1.5px rgba(20,10,0,0.75)',
-                textShadow: `0 2px 3px rgba(0,0,0,0.9), 0 0 14px ${
-                  fn.kind === 'damage' ? 'rgba(255,60,60,0.85)' : fn.kind === 'shield' ? 'rgba(130,190,255,0.9)' : fn.kind === 'heal' ? 'rgba(74,222,128,0.85)' : fn.kind === 'gold-gain' ? 'rgba(253,224,71,0.85)' : 'rgba(252,165,165,0.75)'
-                }`,
-              }}
-            >
-              {fn.text}
-            </motion.div>
+            <div key={fn.id} className="absolute flex items-center justify-center" style={{ left: fn.x, top: fn.y, transform: 'translate(-50%, -50%)' }}>
+              <FloatNumber text={fn.text} kind={fn.kind} />
+            </div>
           ))}
         </AnimatePresence>
       </div>
@@ -9785,25 +9808,7 @@ const CardSlot = ({
         >
           {isImpactingAttacker && <SlashEffect />}
 
-          {/* Floating damage number — see damageFlash above. Rises and fades over
-              the same window as the shake it plays alongside, so both read as one
-              single "hit" beat instead of two separate, uncoordinated effects. */}
-          {damageFlash && (
-            <motion.div
-              key={damageFlash.key}
-              initial={{ opacity: 0, y: 0, scale: 0.6 }}
-              animate={{ opacity: [0, 1, 1, 0], y: -36, scale: [0.6, 1.5, 1.15] }}
-              transition={{ duration: 0.9, ease: 'easeOut', opacity: { times: [0, 0.15, 0.7, 1] } }}
-              className="absolute inset-0 flex items-center justify-center pointer-events-none z-40"
-            >
-              <span
-                className={`font-black ${damageFlash.amount >= 4 ? 'text-2xl md:text-4xl' : 'text-lg md:text-2xl'} text-red-500`}
-                style={{ fontFamily: "'Cinzel', serif", textShadow: '0 2px 3px rgba(0,0,0,0.9), 0 0 10px rgba(239,68,68,0.6)' }}
-              >
-                -{damageFlash.amount}
-              </span>
-            </motion.div>
-          )}
+          {/* (the floating damage number is drawn by the global FloatNumber layer; damageFlash here only drives the shake) */}
 
           {/* Equipped Armamentos — the one Tática exception that doesn't discard to
               the graveyard on use (see equippedWeapons/withEquippedWeapons): instead

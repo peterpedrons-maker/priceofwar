@@ -806,6 +806,29 @@ test('vocabulary: 7 triggers with a label each, card triggers are valid, and no 
     ok(!/invoc|invoq/i.test(d.effect), `${d.name}: "invocar" should be "convocar"`);
   }
 });
+test('the deck is finite: drawn and searched cards never come back, an empty deck draws nothing', () => {
+  let s = fresh();
+  const p = s.players[0];
+  const count = (arr: string[], n: string) => arr.filter(x => x === n).length;
+  eq(p.deckList.length, p.drawPile.length);
+  // a search takes that copy out of the deck for good
+  const before = { n: p.deckList.length, cálice: count(p.deckList, 'Cálice da Graça') };
+  const g = give(s, 0, 'Graal da Dádiva');
+  s = act(s, 0, { type: 'play', cardId: g.id }).s;
+  s = act(s, 0, { type: 'choose', cardIds: [(s.pending as any).options[0].id] }).s;
+  eq([s.players[0].deckList.length, s.players[0].drawPile.length], [before.n - 1, before.n - 1]);
+  eq(count(s.players[0].deckList, 'Cálice da Graça'), before.cálice - 1);
+  // the draw pile runs dry: nothing is drawn and nothing is reshuffled in
+  s.players[0].drawPile = ['Batedor']; s.players[0].deckList = ['Batedor'];
+  s.players[0].hand = [];
+  const m = give(s, 0, 'Mercador da Cruzada'); s.players[0].hand = [];
+  put(s, 0, 1, 'Mercador da Cruzada');
+  s = act(s, 0, { type: 'ability', slot: 1 }).s;
+  eq((s.pending as any).options.length, 1);   // only one card was left to reveal
+  s = act(s, 0, { type: 'choose', cardIds: [(s.pending as any).options[0].id] }).s;
+  eq([s.players[0].deckList.length, s.players[0].drawPile.length, names(s.players[0].hand)], [0, 0, ['Batedor']]);
+  void m;
+});
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

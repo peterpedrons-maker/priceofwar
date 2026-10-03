@@ -345,6 +345,7 @@ var createMatch = (opts) => {
   const c = { s, ev: [] };
   [0, 1].forEach((seat) => {
     const p = s.players[seat];
+    p.drawPile = shuffled(s, p.deckList);
     p.board[GENERAL_SLOT] = cardFromName(s, p.general, "g");
     for (let i = 0; i < START_HAND; i++) drawCards(c, seat, 1, "deal");
   });
@@ -366,12 +367,24 @@ var addGold = (c, seat, delta, reason) => {
   P(c, seat).gold += delta;
   c.ev.push({ t: "gold", seat, delta, reason });
 };
+var removeOne = (arr, name) => {
+  const i = arr.indexOf(name);
+  if (i !== -1) arr.splice(i, 1);
+};
+var takeFromDeck = (p, name) => {
+  removeOne(p.deckList, name);
+  removeOne(p.drawPile, name);
+};
 var drawCards = (c, seat, n, reason) => {
   const p = P(c, seat);
   for (let i = 0; i < n; i++) {
-    if (p.drawPile.length === 0) p.drawPile = shuffled(c.s, p.deckList);
+    if (p.drawPile.length === 0) {
+      if (reason !== "deal") log(c, seat, "O baralho acabou: n\xE3o h\xE1 carta para comprar.");
+      return;
+    }
     const name = p.drawPile.shift();
     if (!name) return;
+    removeOne(p.deckList, name);
     const card = cardFromName(c.s, name, "h");
     p.hand.push(card);
     c.ev.push({ t: "draw", seat, card, reason });
@@ -668,9 +681,11 @@ var playCard = (c, seat, a) => {
         return;
       }
       case "Recrutar Veteranos": {
+        if (p.drawPile.length === 0) fail("O baralho est\xE1 vazio.");
         commit();
-        if (p.drawPile.length < 4) p.drawPile = [...p.drawPile, ...shuffled(c.s, p.deckList)];
-        const revealed = p.drawPile.splice(0, 4).map((n) => cardFromName(c.s, n, "o"));
+        const topNames = p.drawPile.splice(0, 4);
+        topNames.forEach((n) => removeOne(p.deckList, n));
+        const revealed = topNames.map((n) => cardFromName(c.s, n, "o"));
         openPick("top_reveal", "Veja as 4 cartas do topo \u2014 escolha 2 para a m\xE3o", revealed, 1, 2, { revealed: true });
         return;
       }
@@ -798,10 +813,12 @@ var useAbility = (c, seat, a) => {
   if (!isUnitSlot(a.slot)) fail("Essa carta n\xE3o tem habilidade ativa.");
   if (card.name === "Mercador da Cruzada") {
     if (usedUp) fail("Essa habilidade j\xE1 foi usada neste turno.");
+    if (p.drawPile.length === 0) fail("O baralho est\xE1 vazio.");
     c.s.turn.activated.push(card.id);
     c.ev.push({ t: "ability", seat, slot: a.slot, name: card.name });
-    if (p.drawPile.length < 2) p.drawPile = [...p.drawPile, ...shuffled(c.s, p.deckList)];
-    const revealed = p.drawPile.splice(0, 2).map((n) => cardFromName(c.s, n, "o"));
+    const topNames = p.drawPile.splice(0, 2);
+    topNames.forEach((n) => removeOne(p.deckList, n));
+    const revealed = topNames.map((n) => cardFromName(c.s, n, "o"));
     const title = "Mercador da Cruzada: veja as 2 cartas do topo \u2014 escolha 1 para a m\xE3o";
     c.s.pending = { kind: "pick", seat, mode: "top_reveal", title, options: revealed, min: 1, max: 1, source: null, revealed: true };
     c.ev.push({ t: "pick", seat, title });
@@ -857,12 +874,16 @@ var choose = (c, seat, a) => {
     toHand(chosen);
     log(c, seat, `${chosen.name} voltou para sua m\xE3o!`);
   } else if (pend.mode === "deck_search") {
+    takeFromDeck(p, picked[0].name);
+    p.drawPile = shuffled(c.s, p.drawPile);
     toHand(picked[0]);
     log(c, seat, `${picked[0].name} adicionada \xE0 m\xE3o!`, true);
   } else if (pend.mode === "top_reveal") {
     picked.forEach(toHand);
     const pickedIds = new Set(picked.map((x) => x.id));
-    p.drawPile.push(...pend.options.filter((o) => !pickedIds.has(o.id)).map((o) => o.name));
+    const back = pend.options.filter((o) => !pickedIds.has(o.id)).map((o) => o.name);
+    p.drawPile.push(...back);
+    p.deckList.push(...back);
     log(c, seat, `${picked.length} carta(s) adicionada(s) \xE0 m\xE3o!`);
   } else if (pend.mode === "summon") {
     const slots = pend.slots ?? [];
@@ -871,9 +892,10 @@ var choose = (c, seat, a) => {
       if (slot === void 0 || p.board[slot]) return;
       const copy = cardFromName(c.s, card.name, "h");
       p.board[slot] = copy;
+      takeFromDeck(p, card.name);
       c.ev.push({ t: "summon", seat, slot, card: copy });
     });
-    p.drawPile = shuffled(c.s, p.deckList);
+    p.drawPile = shuffled(c.s, p.drawPile);
     log(c, seat, `${picked.length} soldado(s) convocado(s)! Deck embaralhado.`);
   }
   if (pend.source) discard(c, seat, pend.source);

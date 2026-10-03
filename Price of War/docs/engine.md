@@ -93,3 +93,6 @@ the opponent's steps arrive ready-made and are played out with the usual animati
 
 `rewards.ts` holds the payout rules (XP / Coroas per result, the minimum length for a match to pay, the level curve)
 and `deck.ts` the deck rules the server checks when a player enters the queue.
+
+## Baralho finito
+O baralho é exatamente o que o jogador montou: `drawPile` (ordem de compra) e `deckList` (o que ainda resta, sem a ordem) começam iguais e só **diminuem**. Comprar, buscar (Graal, Doutrina, Recrutamento), revelar (Mercador, Recrutar Veteranos) e convocar (Chamado às Armas) tiram a carta do baralho; ela nunca volta, só vai para mão, campo e cemitério. As cartas reveladas e não escolhidas voltam para o **fundo**. Baralho vazio = não compra nada ("O baralho acabou"). Há um contador de cartas no monte de cada lado do campo. Teste: `engine-rules` ("the deck is finite") e o invariante em `engine-sim`.
