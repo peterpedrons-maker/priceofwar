@@ -1,1 +1,94 @@
 @import "tailwindcss";
+
+/* ── Turn tracker (central panel): see src/TurnTracker.tsx ─────────────────── */
+.trk-box { position: relative; flex-shrink: 0; }
+.trk { position: absolute; left: 0; top: 0; transform-origin: 0 0; width: 250px; aspect-ratio: 1400 / 341; filter: drop-shadow(0 3px 6px rgba(0,0,0,.72)); -webkit-tap-highlight-color: transparent; }
+.trk-layer { position: absolute; inset: 0; }
+.trk-neutral { background: linear-gradient(180deg, rgba(46,36,26,.94), rgba(16,11,7,.96)); -webkit-mask: var(--mneu) 0 0/100% 100% no-repeat; mask: var(--mneu) 0 0/100% 100% no-repeat; }
+.trk-band { overflow: hidden; -webkit-mask: var(--mband) 0 0/100% 100% no-repeat; mask: var(--mband) 0 0/100% 100% no-repeat; }
+.trk-fill { position: absolute; inset: 0; background: linear-gradient(180deg, var(--b1), var(--b2)); }
+.trk-sheen { position: absolute; inset: 0 0 45% 0; background: linear-gradient(180deg, rgba(255,255,255,.19), rgba(255,255,255,0)); }
+.trk-art { background: var(--mart) 0 0/100% 100% no-repeat; }
+.trk-sweep { position: absolute; top: -20%; bottom: -20%; width: 22%; left: -28%; opacity: 0; mix-blend-mode: screen; transform: skewX(-18deg);
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.53) 42%, rgba(255,255,255,.82) 50%, rgba(255,255,255,.53) 58%, transparent);
+  animation: trk-sweep .55s ease-out forwards; }
+@keyframes trk-sweep { 0% { left: -28%; opacity: 0; } 12% { opacity: 1; } 85% { opacity: 1; } 100% { left: 107%; opacity: 0; } }
+.trk-wipe { position: absolute; inset: 0; animation: trk-wipe .7s cubic-bezier(.5,0,.3,1) forwards; }
+@keyframes trk-wipe {
+  from { clip-path: polygon(0 0, 0% 0, -14% 100%, 0 100%); }
+  to { clip-path: polygon(0 0, 114% 0, 100% 100%, 0 100%); }
+}
+.trk-wipe-edge { position: absolute; top: -20%; bottom: -20%; width: 5%; left: -11%; transform: skewX(-18deg); filter: blur(1px); opacity: 0;
+  background: linear-gradient(90deg, transparent, #fff, transparent); animation: trk-wipe-edge .7s cubic-bezier(.5,0,.3,1) forwards; }
+@keyframes trk-wipe-edge { 0% { left: -11%; opacity: 0; } 15% { opacity: .95; } 80% { opacity: .95; } 100% { left: 103%; opacity: 0; } }
+.trk-diamond { position: absolute; left: 50%; top: 1.2%; width: 6px; height: 6px; transform: translate(-50%, 0) rotate(45deg); background: #fff; box-shadow: 0 0 8px var(--glow); z-index: 3; }
+.trk-lab { position: absolute; left: 4.2%; right: 4.2%; top: calc(var(--bt) * 100%); height: calc((var(--bb) - var(--bt)) * 100%); display: flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap; z-index: 3; padding-top: 2px; animation: trk-lab-in .28s ease-out; }
+@keyframes trk-lab-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.trk-lab em { font-style: normal; font-family: 'Cinzel', serif; font-weight: 900; font-size: calc(8.5px * var(--fb, 1)); letter-spacing: .2em; text-transform: uppercase; color: #fff7d6; text-shadow: 0 1px 2px rgba(0,0,0,.8), 0 0 5px rgba(0,0,0,.65); }
+.trk-lab b { font-family: 'Cinzel Decorative', 'Cinzel', serif; font-weight: 900; font-size: calc(16px * var(--fb, 1)); letter-spacing: .06em; color: #fffaf0; text-shadow: 0 1px 2px #000, 0 0 6px rgba(0,0,0,.6), 0 0 12px var(--glow); }
+.trk-lab b.long { font-size: 15px; letter-spacing: .04em; }
+.trk-lab:has(b.long) em { font-size: 7px; letter-spacing: .14em; }
+.trk-lab s { text-decoration: none; color: #fff; font-weight: 900; font-size: calc(15px * var(--fb, 1)); letter-spacing: -2px; text-shadow: 0 1px 2px rgba(0,0,0,.7), 0 0 8px #fff; }
+.trk-lab b.long ~ s { font-size: 14px; }
+.trk-m { position: absolute; top: calc(var(--my) * 100%); width: 22px; height: 22px; transform: translate(-50%, -50%); border-radius: 50%; z-index: 3; }
+.trk-m.future { background: #0a0704; opacity: .3; mix-blend-mode: multiply; }
+.trk-m.done::before, .trk-m.lock::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: #000; opacity: .12; }
+.trk-m.lock::before { opacity: .55; }
+.trk-m.done::after { content: ''; position: absolute; right: -3px; top: -3px; width: 9px; height: 9px; border-radius: 50%; background: #2e7d4f center/100% no-repeat; border: 1px solid #c8f3d8;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M3 6.3l2 2 4-4.6' stroke='white' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>"); }
+.trk-m.now { box-shadow: 0 0 0 1.4px rgba(255,255,255,.53), 0 0 10px 2px var(--glow), inset 0 0 8px var(--glow); animation: trk-now 1.5s ease-in-out infinite; }
+@keyframes trk-now { 0%, 100% { box-shadow: 0 0 0 1.4px rgba(255,255,255,.53), 0 0 7px 1px var(--glow), inset 0 0 6px var(--glow); } 50% { box-shadow: 0 0 0 1.4px rgba(255,255,255,.8), 0 0 13px 3px var(--glow), inset 0 0 10px var(--glow); } }
+.trk-m.lock::after { content: ''; position: absolute; right: -3px; bottom: -3px; width: 10px; height: 10px; border-radius: 50%; border: 1px solid #7a7466; background: #1a1510 center/7px no-repeat;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><rect x='2.5' y='5.5' width='7' height='5' rx='1' fill='%23c9bfa6'/><path d='M4 5.5V4a2 2 0 0 1 4 0v1.5' stroke='%23c9bfa6' stroke-width='1.2' fill='none'/></svg>"); }
+
+/* ── "This card has an effect ready" (AbilityReadyGlow in App.tsx): light flowing over the whole card ───────────── */
+.ar-outer { filter: drop-shadow(0 0 3px var(--c1)) drop-shadow(0 0 8px var(--c1)); animation: ar-pulse 1.5s ease-in-out infinite; }
+@keyframes ar-pulse { 0%, 100% { opacity: .78; } 50% { opacity: 1; } }
+.ar-fill { overflow: hidden; }
+.ar-wash { background: var(--c1); opacity: .07; animation: ar-wash 1.5s ease-in-out infinite; }
+@keyframes ar-wash { 0%, 100% { opacity: .04; } 50% { opacity: .13; } }
+/* two soft bands of light crossing the card in opposite directions, so it reads as a current, not a blink */
+.ar-band { background-repeat: no-repeat; background-size: 100% 250%; mix-blend-mode: screen; will-change: background-position; }
+.ar-band-a {
+  background-image: linear-gradient(180deg, transparent 0%, transparent 42%, var(--c1) 47%, var(--c2) 50%, var(--c1) 53%, transparent 58%, transparent 100%);
+  opacity: .5; animation: ar-up 1.9s ease-in-out infinite alternate;
+}
+.ar-band-b {
+  background-image: linear-gradient(180deg, transparent 0%, transparent 44%, var(--c1) 48%, var(--c2) 50%, var(--c1) 52%, transparent 56%, transparent 100%);
+  opacity: .38; animation: ar-down 2.6s ease-in-out infinite alternate;
+}
+@keyframes ar-up { from { background-position: 0 100%; } to { background-position: 0 0%; } }
+@keyframes ar-down { from { background-position: 0 0%; } to { background-position: 0 100%; } }
+.ar-rim { background: var(--c2); animation: ar-rim 1.1s ease-in-out infinite; }
+@keyframes ar-rim { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+
+/* ── Reveal masks: an image appearing from the centre outwards (reveal-in) or from the edge inwards (reveal-out) ── */
+@property --rv { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
+.reveal-in {
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 var(--rv), transparent calc(var(--rv) + 16%));
+  mask-image: radial-gradient(circle at 50% 50%, #000 var(--rv), transparent calc(var(--rv) + 16%));
+  animation: reveal-in .75s cubic-bezier(.2,.7,.2,1) forwards;
+}
+@keyframes reveal-in { from { --rv: -16%; } to { --rv: 125%; } }
+.reveal-out {
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent calc(100% - var(--rv)), #000 calc(116% - var(--rv)));
+  mask-image: radial-gradient(circle at 50% 50%, transparent calc(100% - var(--rv)), #000 calc(116% - var(--rv)));
+  animation: reveal-out .75s cubic-bezier(.2,.7,.2,1) forwards;
+}
+@keyframes reveal-out { from { --rv: 0%; } to { --rv: 116%; } }
+
+/* ── Tutorial ─────────────────────────────────────────────────────────────── */
+.tut-sil { --c1: #ffbf3c; --c2: #fff2c0; filter: drop-shadow(0 0 3px var(--c1)) drop-shadow(0 0 9px var(--c1)); animation: tut-glow 1.5s ease-in-out infinite; }
+.tut-sil-rim { background: var(--c2); }
+@keyframes tut-glow { 0%, 100% { opacity: .72; } 50% { opacity: 1; } }
+.tut-ring { border: 3.5px solid #ffd477; box-shadow: 0 0 10px #ffbf3c, 0 0 22px rgba(255,191,60,.65), inset 0 0 8px rgba(255,191,60,.45); animation: tut-glow 1.5s ease-in-out infinite; }
+/* the tapping hand: it presses down and comes back, and it also fades softly in and out (a slow blink) */
+.tut-hand { animation: tut-tap 1.5s ease-in-out infinite, tut-blink 1.9s ease-in-out infinite; transform-origin: 42% 5%; }
+@keyframes tut-tap { 0%, 55%, 100% { transform: translateY(0) scale(1); } 25% { transform: translateY(11px) scale(.94); } }
+@keyframes tut-blink { 0%, 100% { opacity: 1; } 50% { opacity: .42; } }
+.tut-blink { animation: tut-blink 1.6s ease-in-out infinite; }
+.tut-ripple { border: 3px solid rgba(255,238,170,.95); opacity: 0; animation: tut-ripple 1.5s ease-out infinite; }
+.tut-ripple2 { animation-delay: .22s; }
+@keyframes tut-ripple { 0%, 22% { transform: scale(.4); opacity: 0; } 30% { opacity: .95; } 100% { transform: scale(5); opacity: 0; } }
+.tut-next { animation: tut-next 1.6s ease-in-out infinite; }
+@keyframes tut-next { 0%, 100% { box-shadow: 0 0 6px rgba(255,200,90,.35); } 50% { box-shadow: 0 0 16px rgba(255,200,90,.85); } }
