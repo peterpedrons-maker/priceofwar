@@ -62,6 +62,33 @@
 .ar-rim { background: var(--c2); animation: ar-rim 1.1s ease-in-out infinite; }
 @keyframes ar-rim { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 
+/* ── Trigger bursts (TriggerBurst in App.tsx): a card's effect fires. Every layer is cut with the card's exact silhouette ── */
+.tb-outer { opacity: 0; filter: drop-shadow(0 0 3px var(--c1)) drop-shadow(0 0 10px var(--c1)) drop-shadow(0 0 20px var(--c1)); animation: tb-glow 1.15s ease-out forwards; }
+@keyframes tb-glow { 0% { opacity: 0; } 14% { opacity: 1; } 55% { opacity: .9; } 100% { opacity: 0; } }
+.tb-fill { overflow: hidden; }
+.tb-wash { opacity: 0; background: radial-gradient(circle at 50% 50%, var(--c2) 0%, var(--c1) 55%, transparent 100%); animation: tb-wash 1s ease-out forwards; }
+@keyframes tb-wash { 0% { opacity: 0; } 10% { opacity: .6; } 45% { opacity: .2; } 100% { opacity: 0; } }
+.tb-shine { opacity: .9; mix-blend-mode: screen; background: linear-gradient(115deg, transparent 38%, var(--c2) 50%, transparent 62%) 130% 0 / 260% 100% no-repeat; animation: tb-shine .8s ease-in-out .08s forwards; }
+@keyframes tb-shine { from { background-position: 130% 0; } to { background-position: -30% 0; } }
+.tb-rim { opacity: 0; background: var(--c2); animation: tb-rim 1.1s ease-out forwards; }
+@keyframes tb-rim { 0% { opacity: 0; } 12% { opacity: 1; } 60% { opacity: .7; } 100% { opacity: 0; } }
+.tb-shockwrap { filter: drop-shadow(0 0 6px var(--c1)); }
+.tb-shock { opacity: 0; background: var(--c2); transform-origin: 50% 50%; animation: tb-shock .85s ease-out .05s forwards; }
+@keyframes tb-shock { 0% { transform: scale(1); opacity: .85; } 100% { transform: scale(1.22); opacity: 0; } }
+.tb-rays { opacity: 0; mix-blend-mode: screen; background: repeating-conic-gradient(from 0deg at 50% 50%, var(--c2) 0deg 5deg, transparent 5deg 22deg); -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 0%, transparent 78%); mask-image: radial-gradient(circle at 50% 50%, #000 0%, transparent 78%); animation: tb-rays 1s ease-out forwards; }
+@keyframes tb-rays { 0% { opacity: 0; transform: rotate(0deg) scale(.8); } 18% { opacity: .85; } 100% { opacity: 0; transform: rotate(14deg) scale(1.1); } }
+.tb-dim { opacity: 0; background: rgba(24, 6, 46, .7); animation: tb-dim 1.1s ease-in-out forwards; }
+@keyframes tb-dim { 0% { opacity: 0; } 25% { opacity: .75; } 70% { opacity: .55; } 100% { opacity: 0; } }
+.tb-slash { opacity: 0; background: linear-gradient(135deg, transparent 46.5%, #fff 49.2%, #fff 50.8%, transparent 53.5%); filter: drop-shadow(0 0 3px var(--c1)); animation: tb-slash .7s ease-out forwards; }
+@keyframes tb-slash { 0% { opacity: 0; clip-path: inset(0 100% 100% 0); } 25% { opacity: 1; clip-path: inset(0 0 0 0); } 100% { opacity: 0; clip-path: inset(0 0 0 0); } }
+.tb-sp { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: var(--c2); box-shadow: 0 0 6px 2px var(--c1); opacity: 0; animation: tb-sp .95s ease-out var(--d) forwards; }
+@keyframes tb-sp { 0% { opacity: 0; transform: translate(0, 0) scale(.6); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1); } }
+.tb-wisp { position: absolute; width: 22%; height: 30%; border-radius: 50%; background: radial-gradient(closest-side, var(--c1), transparent); filter: blur(4px); opacity: 0; animation: tb-wisp 1.1s ease-out var(--d) forwards; }
+@keyframes tb-wisp { 0% { opacity: 0; transform: translateY(0) scale(.8); } 30% { opacity: .85; } 100% { opacity: 0; transform: translateY(-70%) scale(1.15); } }
+/* the type-line icon lights up where it is drawn (carta aberta / em destaque); it never changes size */
+.tb-icon { animation: tb-icon 1.2s ease-in-out .35s both; }
+@keyframes tb-icon { 0%, 100% { filter: none; } 30%, 70% { filter: drop-shadow(0 0 3px var(--c1)) drop-shadow(0 0 9px var(--c1)) brightness(1.5); } 50% { filter: drop-shadow(0 0 2px var(--c1)) drop-shadow(0 0 5px var(--c1)) brightness(1.2); } }
+
 /* ── Reveal masks: an image appearing from the centre outwards (reveal-in) or from the edge inwards (reveal-out) ── */
 @property --rv { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
 .reveal-in {

@@ -112,3 +112,16 @@ Textos já ajustados para não repetir o gatilho: Nobre da Cruzada ("Convoca Sol
 for de tipo oposto, ganha +2 ATK."), Jorge ("Contra a Vanguarda, causa 2 de dano..."), Atirador da Cruzada ("Compre 2 cartas.", que no motor
 já só vale quando ela é destruída em campo) e Capitão de Formação ("Adjacentes ganham +1 ATK."). Comando e Postura mantêm o texto
 (o "uma vez por turno" continua escrito).
+
+## 9. Brilho quando o efeito dispara (implementado)
+
+- **Cada gatilho tem a sua cor:** Convocação e Comando dourado, Ofensiva vermelho, Queda roxo, Manobra azul (`TRIGGER_FX` em `src/triggers.ts`).
+- **A carta brilha com o contorno exato dela** (nunca um retângulo): `TriggerBurst` em `src/App.tsx` usa as mesmas máscaras de silhueta do
+  `AbilityReadyGlow` (`silhouetteFor`). Camadas: brilho externo, lavagem de cor, faixa de luz atravessando, onda com o formato da carta que
+  cresce e some, faíscas; extras por gatilho (raios na Convocação, véu escuro e fiapos subindo na Queda, risco do golpe na Ofensiva).
+- **O ícone brilha onde já existe** (carta aberta ou em destaque), sem mudar de tamanho (`TriggerIcon`, classe `tb-icon`). As cartas pequenas
+  do tabuleiro continuam sem ícone.
+- **Quando dispara:** Convocação quando a carta aparece no tabuleiro; Queda quando ela cai; Ofensiva no evento `attack`; Manobra no evento
+  `move`; Comando no evento `ability`. Postura e Reforço não têm brilho de disparo (Postura é passiva; Reforço ainda não tem cartas).
+- **Comando, antes de ativar:** continua valendo o brilho de "efeito pronto" que já existia (`AbilityReadyGlow`).
+- **Teste manual:** com `?debug`, `window.__powBurst('player', slot)` toca o brilho da carta daquele espaço.

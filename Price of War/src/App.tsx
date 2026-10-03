@@ -203,7 +203,8 @@ import batalhaImpactSfxUrl from './assets/sfx-batalha-impacto.wav';
 import { DECK_RECIPES, requireCardDef, getCardDef, type DeckId } from './engine/catalog';
 import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActivePhases, createMatch, deckSetupFromRecipe, newMatchLog, type MatchLog } from './engine/game';
 import { aiNextAction } from './engine/ai';
-import { triggerOf } from './triggers';
+import { triggerOf, triggerKeyOf, pulseCard, usePulse, TRIGGER_FX } from './triggers';
+import type { Trigger } from './engine/types';
 import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
 import { STEPS as TUT_STEPS, BEATS as TUT_BEATS, COIN_STEP as TUT_COIN_STEP, OUTRO as TUT_OUTRO, CHAPTERS as TUT_CHAPTERS, createTutorialMatch, nextEnemyAction as tutEnemyAction, type Step as TutStep, type Tgt as TutTgt, type Until as TutUntil } from './tutorial/script';
@@ -693,6 +694,44 @@ const silhouetteFor = (card: CardData | null): { masks: readonly [string, string
   }
   const key = card?.cardType === 'Tática' || card?.cardType === 'Terreno' ? 'silver' : card?.cardType === 'Emboscada' ? 'champagne' : 'gold';
   return { masks: SILHOUETTES[key], box: { width: '122%', height: '145.5%', top: '50%', left: '50%', transform: 'translate(-50%, -46%)' } };
+};
+// The gatilho icon in a card's type line. It lights up (halo, same size) when that card's effect fires.
+const TriggerIcon = ({ cardId, icon, trig, className = '', style }: { cardId: string; icon: string; trig: Trigger; className?: string; style?: React.CSSProperties }) => {
+  const pulse = usePulse(cardId);
+  return (
+    <img
+      key={pulse ? 'on' : 'off'} src={icon} alt="" aria-hidden draggable={false}
+      className={`shrink-0 select-none pointer-events-none ${pulse ? 'tb-icon' : ''} ${className}`}
+      style={{ ...style, ...(pulse ? { ['--c1' as string]: TRIGGER_FX[pulse].c1 } : {}) }}
+    />
+  );
+};
+// A card's effect fires: it glows in the trigger's colour, a band of light crosses it, a shock ring of its own shape
+// grows and fades — all cut with the card's exact silhouette (same masks and box as AbilityReadyGlow), never a rectangle.
+const BURST_SPARKS = Array.from({ length: 14 }, (_, i) => ({ l: 8 + ((i * 53) % 84), t: 15 + ((i * 37) % 70), dx: ((i * 29) % 40) - 20, dy: -(18 + ((i * 17) % 40)), d: (i % 7) * 0.07 }));
+const TriggerBurst = ({ x, y, w, h, card, trig }: { x: number; y: number; w: number; h: number; card: CardData; trig: Trigger; key?: React.Key }) => {
+  const { masks, box } = silhouetteFor(card);
+  const col = TRIGGER_FX[trig];
+  const maskCss = (url: string): React.CSSProperties => ({
+    WebkitMaskImage: `url(${url})`, maskImage: `url(${url})`, WebkitMaskSize: '100% 100%', maskSize: '100% 100%', WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
+  });
+  return (
+    <div className="fixed pointer-events-none" style={{ left: x - w / 2, top: y - h / 2, width: w, height: h, ['--c1' as string]: col.c1, ['--c2' as string]: col.c2 }}>
+      <div className="absolute tb-shockwrap" style={box}><div className="absolute inset-0 tb-shock" style={maskCss(masks[1])} /></div>
+      <div className="absolute tb-outer" style={box}>
+        <div className="absolute inset-0 tb-fill" style={maskCss(masks[0])}>
+          {trig === 'queda' && <div className="absolute inset-0 tb-dim" />}
+          <div className="absolute inset-0 tb-wash" />
+          {trig === 'convocacao' && <div className="absolute inset-0 tb-rays" />}
+          {trig === 'ofensiva' && <div className="absolute inset-0 tb-slash" />}
+          <div className="absolute inset-0 tb-shine" />
+        </div>
+        <div className="absolute inset-0 tb-rim" style={maskCss(masks[1])} />
+      </div>
+      {trig === 'queda' && [0, 1, 2, 3].map(i => <div key={i} className="tb-wisp" style={{ left: `${6 + i * 22}%`, bottom: '8%', ['--d' as string]: `${0.05 + i * 0.09}s` }} />)}
+      {BURST_SPARKS.map((p, i) => <span key={i} className="tb-sp" style={{ left: `${p.l}%`, top: `${p.t}%`, ['--dx' as string]: `${p.dx}px`, ['--dy' as string]: `${p.dy}px`, ['--d' as string]: `${p.d}s` }} />)}
+    </div>
+  );
 };
 const AbilityReadyGlow = ({ x, y, w, h, onClick, card = null, kind = 'utility' }: { x: number; y: number; w: number; h: number; onClick: () => void; card?: CardData | null; kind?: 'heal' | 'damage' | 'utility'; key?: React.Key }) => {
   const { masks, box } = silhouetteFor(card);
@@ -1526,7 +1565,7 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
                 <span className="font-black uppercase tracking-widest" style={{ fontFamily: "'Cinzel', serif", color: '#e9d8a6' }}>
                   {card.cardType}
                 </span>
-                {trig && <img src={trig.icon} alt="" aria-hidden draggable={false} className="shrink-0 select-none pointer-events-none" style={{ height: '1.5em', width: '1.5em', marginLeft: '0.45em' }} />}
+                {trig && <TriggerIcon cardId={card.id} icon={trig.icon} trig={trig.key} style={{ height: '1.5em', width: '1.5em', marginLeft: '0.45em' }} />}
               </div>
               <div className="w-2/3 h-px shrink-0 my-1" style={{ background: 'rgba(201,162,39,0.6)' }} />
             </>
@@ -1835,7 +1874,7 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
             </span>
             {/* Gatilho: ícone sem aro ao lado do tipo, no máximo da abertura da faixa (≈4,4% da altura da carta
                 dentro de uma caixa de 7%): acima disso a moldura, que é desenhada por cima, corta o ícone. */}
-            {trig && <img src={trig.icon} alt="" aria-hidden draggable={false} className="shrink-0 select-none pointer-events-none" style={{ height: '72%', aspectRatio: '1', marginLeft: '0.45em' }} />}
+            {trig && <TriggerIcon cardId={card.id} icon={trig.icon} trig={trig.key} style={{ height: '72%', aspectRatio: '1', marginLeft: '0.45em' }} />}
           </div>
         )}
 
@@ -5145,6 +5184,44 @@ export default function App() {
       window.setTimeout(() => setIconPops(p => p.filter(q => q.id !== id)), 2000);
     }, delay);
   };
+  // A card's effect fires (gatilho): its colour glows over the card's exact silhouette and its type-line icon pulses.
+  const [triggerBursts, setTriggerBursts] = useState<{ id: number; x: number; y: number; w: number; h: number; card: CardData; trig: Trigger }[]>([]);
+  const burstIdRef = useRef(0);
+  // Fires a card's trigger burst (set by burstAt) — a ref so the test hook can reach it.
+  const burstFnRef = useRef<(side: 'player' | 'npc', slot: number, card: CardData, trig: Trigger, delay?: number) => void>(() => {});
+  const burstAt = (side: 'player' | 'npc', slot: number, card: CardData, trig: Trigger, delay = 0) => {
+    window.setTimeout(() => {
+      const r = document.getElementById(`${side}-${slot}`)?.getBoundingClientRect();
+      if (!r) return;
+      const id = ++burstIdRef.current;
+      setTriggerBursts(b => [...b, { id, x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, card, trig }]);
+      pulseCard(card.id, trig);
+      window.setTimeout(() => setTriggerBursts(b => b.filter(q => q.id !== id)), 1300);
+    }, delay);
+  };
+  burstFnRef.current = burstAt;
+  // Convocação (a card with that trigger arrives on the board) and Queda (it falls): read straight off the boards, so they
+  // fire at the moment the card is actually drawn there (landing animation done / burn begins), for either side.
+  const burstSeenRef = useRef<{ ready: boolean; player: Record<string, boolean>; npc: Record<string, boolean> }>({ ready: false, player: {}, npc: {} });
+  useEffect(() => {
+    const seen = burstSeenRef.current;
+    (['player', 'npc'] as const).forEach(side => {
+      const slots = side === 'player' ? playerSlots : npcSlots;
+      const prev = seen[side]; const next: Record<string, boolean> = {};
+      slots.forEach((c, i) => {
+        if (!c || i > 9) return;
+        const fell = !!c.isDestroyed;
+        next[c.id] = fell;
+        const trig = triggerKeyOf(c.name);
+        if (!seen.ready || !trig) return;
+        if (trig === 'convocacao' && !(c.id in prev) && !fell) burstAt(side, i, c, trig, 120);
+        if (trig === 'queda' && fell && prev[c.id] === false) burstAt(side, i, c, trig);
+      });
+      seen[side] = next;
+    });
+    seen.ready = true;
+  }, [playerSlots, npcSlots]);
+
   // Holds the camera's zoomed-in focus for a brief moment after the card lands,
   // so the placement reads clearly before the view eases back to normal.
   const [cameraSettling, setCameraSettling] = useState<{ slotIndex: number } | null>(null);
@@ -5272,6 +5349,13 @@ export default function App() {
     (window as any).__powEngine = () => engineRef.current;
     (window as any).__powMatchLog = () => matchLogRef.current;
     // Lets a test set up a situation (give a card, move a unit…) and have the screen follow.
+    // Test hook: play the trigger burst of the card standing on a slot (or force a given trigger).
+    (window as any).__powBurst = (side: 'player' | 'npc', slot: number, trig?: Trigger) => {
+      const c = engineRef.current?.players[side === 'player' ? 0 : 1].board[slot];
+      if (!c) return false;
+      burstFnRef.current(side, slot, toCardDataRef.current(c), trig ?? triggerKeyOf(c.name) ?? 'comando');
+      return true;
+    };
     (window as any).__powSet = (mutate: (s: GameState) => void) => {
       const next = JSON.parse(JSON.stringify(engineRef.current)) as GameState;
       mutate(next);
@@ -5438,11 +5522,13 @@ export default function App() {
 
   // ── Engine bridge ───────────────────────────────────────────────────────────
   // Draws an engine card: the engine knows nothing about artwork, so it is looked up by name here.
+  const toCardDataRef = useRef<(c: EngineCard) => CardData>(() => ({ id: '', name: '', atk: 0, hp: 0, cost: 0, art: '', effect: '' }));
   const toCardData = (c: EngineCard): CardData => ({
     id: c.id, name: c.name, atk: c.atk, hp: c.hp, cost: c.cost, art: ART_BY_NAME[c.name] ?? '', effect: c.effect,
     cardType: c.cardType, isFullArt: c.isFullArt, pendingCombatBonus: c.pendingCombatBonus, dmgReduction: c.dmgReduction,
     formationBuffAtk: c.formationBuffAtk, equippedWeapons: c.equippedWeapons?.map(toCardData), shield: c.shield, block: c.block,
   });
+  toCardDataRef.current = toCardData;
   // A unit that just died stays on its slot for a moment, flagged destroyed, so its explosion can play
   // before the slot clears (the engine removes it at once).
   const ghostsRef = useRef<{ player: Record<number, CardData>; npc: Record<number, CardData> }>({ player: {}, npc: {} });
@@ -5526,9 +5612,17 @@ export default function App() {
         case 'play':
           if (e.card.cardType === 'Tática') playTacticSfx();
           break;
-        case 'ability':
+        case 'ability': {
           playTacticSfx();
+          const c = engineRef.current?.players[e.seat].board[e.slot];
+          if (c && triggerKeyOf(c.name) === 'comando') burstAt(ownerId(e.seat), e.slot, toCardData(c), 'comando');
           break;
+        }
+        case 'attack': {
+          const c = engineRef.current?.players[e.seat].board[e.from];
+          if (c && triggerKeyOf(c.name) === 'ofensiva') burstAt(ownerId(e.seat), e.from, toCardData(c), 'ofensiva', 200);
+          break;
+        }
         case 'ambush':
           playTacticSfx();
           if (e.seat === 1) showToast(`O oponente ativou uma Emboscada: ${e.card.name}!`);
@@ -5571,9 +5665,12 @@ export default function App() {
           }, 1300);
           break;
         }
-        case 'move':
+        case 'move': {
           if (e.swapped && !opts.quietTurn) popOverSlot(e.seat === 0 ? 'player' : 'npc', e.to, 'swap', 'TROCA');
+          const c = engineRef.current?.players[e.seat].board[e.to];
+          if (c && triggerKeyOf(c.name) === 'manobra' && !opts.quietTurn) burstAt(ownerId(e.seat), e.to, toCardData(c), 'manobra', 700);
           break;
+        }
         case 'equip': {
           if (opts.quietTurn) break;
           const side = e.seat === 0 ? 'player' : 'npc';
@@ -8532,6 +8629,11 @@ export default function App() {
           {abilityReadyPrompts.map(p => (
             <AbilityReadyGlow key={p.key} x={p.x} y={p.y} w={p.w} h={p.h} onClick={p.onClick} kind={p.kind} card={p.card} />
           ))}
+        </div>
+      )}
+      {triggerBursts.length > 0 && (
+        <div className="fixed inset-0 z-40 pointer-events-none">
+          {triggerBursts.map(b => <TriggerBurst key={b.id} x={b.x} y={b.y} w={b.w} h={b.h} card={b.card} trig={b.trig} />)}
         </div>
       )}
       {/* Choosing a target: the legal ones wear the attack reticle (coloured by what the effect does), everything else is dimmed. */}
