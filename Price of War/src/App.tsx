@@ -5391,6 +5391,7 @@ export default function App() {
   // Hand cards: a tap shows the card big in the middle of the screen (another tap puts it back); pressing, holding and dragging it plays it —
   // while it is held, the card floats under the finger (see `held`) and the board lights up where it can go.
   const [inspectId, setInspectId] = useState<string | null>(null);
+  const inspectOpenedAtRef = useRef(0);   // a touch's own click lands on the freshly opened scrim: ignore clicks right after opening
   const [held, setHeld] = useState<{ id: string; x: number; y: number } | null>(null);
   const dragRef = useRef<{ index: number; id: string; startX: number; startY: number; dragging: boolean; blocked: boolean } | null>(null);
   const dropFromRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -7304,7 +7305,8 @@ export default function App() {
 
   // ── Press, hold and drag a hand card ──────────────────────────────────────────────────────────────────────────
   const HELD_SCALE = 0.55;
-  const HELD_LIFT = 90;      // the held card floats this far above the finger, so the finger never hides it
+  const HELD_GAP = 38;       // the held card hangs below the finger (the finger stays above it, clear of the card), this far from the fingertip
+  const heldTop = (y: number) => Math.min(y + HELD_GAP, windowSize.height - 320 * HELD_SCALE - 6);   // top edge of the held card on screen
   const slotUnder = (x: number, y: number): { side: 'player' | 'npc'; index: number; el: HTMLElement } | null => {
     for (const e of document.elementsFromPoint(x, y)) {
       for (let n: HTMLElement | null = e as HTMLElement; n && n !== document.body; n = n.parentElement) {
@@ -7331,6 +7333,7 @@ export default function App() {
     if (!card) return;
     if (inspectId === card.id) { setInspectId(null); return; }
     playSelectSfx();
+    inspectOpenedAtRef.current = performance.now();
     setInspectId(card.id);
   };
   const beginPress = (e: React.PointerEvent, index: number) => {
@@ -7361,7 +7364,7 @@ export default function App() {
       if (!canPlaceInSlot(card.cardType, hit.index) || playerSlots[hit.index]) { showToast('Solte a carta numa casa acesa do seu campo.'); cancel(); return; }
       const dry = applyAction(engineRef.current!, 0, { type: 'play', cardId: card.id, slot: hit.index });
       if (dry.ok === false) { showToast(dry.error); cancel(); return; }
-      dropFromRef.current = { x, y: y - HELD_LIFT, w: 224 * HELD_SCALE, h: 320 * HELD_SCALE };
+      dropFromRef.current = { x, y: heldTop(y) + 160 * HELD_SCALE, w: 224 * HELD_SCALE, h: 320 * HELD_SCALE };
       handleSlotClick(hit.index, hit.el);   // the play clears the selection (and with it the held card) when the flight starts
       return;
     }
@@ -9533,7 +9536,7 @@ export default function App() {
               className="fixed inset-0 z-[258] flex items-center justify-center"
               style={{ background: 'rgba(4,2,0,0.72)' }}
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setInspectId(null)}
+              onClick={() => { if (performance.now() - inspectOpenedAtRef.current > 500) setInspectId(null); }}
             >
               <motion.div
                 key={card.id}
@@ -9553,12 +9556,12 @@ export default function App() {
         })()}
       </AnimatePresence>
 
-      {/* The card being held: it floats under the finger (a little above it), so the player knows which card was picked up. */}
+      {/* The card being held: it hangs below the finger, a little apart from it, so the player knows which card was picked up. */}
       {!tutOn && held && (() => {
         const card = hand.find(c => c.id === held.id);
         if (!card) return null;
         return (
-          <div className="fixed z-[320] pointer-events-none" style={{ left: held.x - 112, top: held.y - HELD_LIFT - 160, width: 224, height: 320 }}>
+          <div className="fixed z-[320] pointer-events-none" style={{ left: held.x - 112, top: heldTop(held.y) + 160 * HELD_SCALE - 160, width: 224, height: 320 }}>
             <motion.div
               initial={{ scale: 0.5, opacity: 0.4, rotate: 0 }}
               animate={{ scale: HELD_SCALE, opacity: 1, rotate: [-4, 3, -4] }}
