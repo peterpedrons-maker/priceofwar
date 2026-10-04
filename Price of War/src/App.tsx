@@ -690,10 +690,12 @@ const TargetingHud = ({ source, mode, kind, title, hint, windowH, promptButtons,
 // edge. Everything is cut with the card's exact silhouette (tools/vfx/card_masks.py — wings, spikes and notched corners
 // included, never a rounded rectangle), placed with the same box the board draws that card's frame in.
 // Colour by effect: heal green, damage red, anything else gold.
+// One gold for everything, the same as the glow of an effect that fires (TRIGGER_GLOW): green for a heal and red for a damage clashed with it.
+// What tells "can be used now" from "just fired" is the motion (light flowing over the card and a rim pulsing, versus a single burst).
 const READY_COLORS: Record<'heal' | 'damage' | 'utility', { c1: string; c2: string }> = {
-  heal: { c1: '#86efbd', c2: '#f0fff7' },
-  damage: { c1: '#ff4b3a', c2: '#ffdcd3' },
-  utility: { c1: '#ffbf3c', c2: '#fff4c4' },
+  heal: TRIGGER_GLOW,
+  damage: TRIGGER_GLOW,
+  utility: TRIGGER_GLOW,
 };
 const SILHOUETTES = {
   'hand-gold': [maskHandGold, maskHandGoldRim],
