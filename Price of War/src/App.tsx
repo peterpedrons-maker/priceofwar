@@ -5394,9 +5394,11 @@ export default function App() {
   // while it is held, the card floats under the finger (see `held`) and the board lights up where it can go.
   const [inspectId, setInspectId] = useState<string | null>(null);
   const inspectOpenedAtRef = useRef(0);   // a touch's own click lands on the freshly opened scrim: ignore clicks right after opening
-  const [held, setHeld] = useState<{ id: string } | null>(null);   // which card is held; where it is lives in refs (no React re-render per finger move)
+  const [held, setHeld] = useState<{ id: string; zone: { left: number; top: number; width: number; height: number; label: string } | null } | null>(null);   // which card is held; where it is lives in refs (no React re-render per finger move)
   const heldElRef = useRef<HTMLDivElement | null>(null);
-  const guideRef = useRef<SVGSVGElement | null>(null);
+  const guideInfoRef = useRef<GuideInfo | null>(null);
+  const zoneElRef = useRef<HTMLDivElement | null>(null);
+  const dragZoneRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null);
   const dragPointRef = useRef({ x: 0, y: 0 });
   const dragFrameRef = useRef<number | null>(null);
   const dragRef = useRef<{ index: number; id: string; startX: number; startY: number; dragging: boolean; blocked: boolean } | null>(null);
@@ -7312,7 +7314,7 @@ export default function App() {
 
   // ── Press, hold and drag a hand card ──────────────────────────────────────────────────────────────────────────
   const HELD_SCALE = 0.55;
-  const HELD_GAP = 48;       // the held card hangs below the finger (the finger stays above it, clear of the card), this far from the fingertip
+  const HELD_GAP = 92;       // the held card hangs below the finger (the finger stays above it, clear of the card), this far from the fingertip
   const heldTop = (y: number) => Math.min(y + HELD_GAP, windowSize.height - 320 * HELD_SCALE - 6);   // top edge of the held card on screen
   const slotUnder = (x: number, y: number): { side: 'player' | 'npc'; index: number; el: HTMLElement } | null => {
     for (const e of document.elementsFromPoint(x, y)) {
@@ -7383,10 +7385,11 @@ export default function App() {
       if (playerAct({ type: 'play', cardId: card.id, target: hit.index })) setViewState('hand');
       return;
     }
-    if (kind === 'immediate' && y < windowSize.height * 0.68) { handlePlayCardButtonClick(); return; }
+    const z = held?.zone;
+    if (kind === 'immediate' && z && x >= z.left && x <= z.left + z.width && y >= z.top && y <= z.top + z.height) { handlePlayCardButtonClick(); return; }
     cancel();
   };
-  // Called once per frame while a card is held: moves the floating card, lights the slot under the finger, draws the guide line.
+  // Called once per frame while a card is held: moves the floating card, lights the slot under the finger, aims the guide.
   const updateHeld = () => {
     const { x, y } = dragPointRef.current;
     const top = heldTop(y);
@@ -7397,22 +7400,12 @@ export default function App() {
     const drop = hit && card ? dropOk(card, hit) : null;
     document.querySelectorAll('[data-drag-over]').forEach(el => { if (el !== (drop ? hit?.el : null)) el.removeAttribute('data-drag-over'); });
     if (drop && hit) hit.el.setAttribute('data-drag-over', drop.tone);
-    // the guide: a glowing line from the top of the held card to the middle of the slot it would land in
-    const g = guideRef.current;
-    if (g) {
-      const path = g.querySelector('path');
-      if (drop && hit && path) {
-        const r = hit.el.getBoundingClientRect();
-        const x2 = r.left + r.width / 2, y2 = r.top + r.height / 2, x1 = x, y1 = top + 4;
-        const cy = Math.min(y1, y2) - 26;
-        path.setAttribute('d', `M ${x1} ${y1} Q ${(x1 + x2) / 2} ${cy} ${x2} ${y2}`);
-        path.setAttribute('stroke', drop.color);
-        (path as SVGElement).style.color = drop.color;
-        const dot = g.querySelector('circle');
-        dot?.setAttribute('cx', String(x2)); dot?.setAttribute('cy', String(y2)); dot?.setAttribute('fill', drop.color);
-        g.style.opacity = '1';
-      } else g.style.opacity = '0';
-    }
+    const zone = dragZoneRef.current;
+    const inZone = !!zone && x >= zone.left && x <= zone.left + zone.width && y >= zone.top && y <= zone.top + zone.height;
+    zoneElRef.current?.classList.toggle('over', inZone);
+    if (zone) guideInfoRef.current = { ex: zone.left + zone.width / 2, ey: zone.top + zone.height / 2, color: '#ffd36a', kind: 'blue' };
+    else if (drop && hit) { const r = hit.el.getBoundingClientRect(); guideInfoRef.current = { ex: r.left + r.width / 2, ey: r.top + r.height / 2, color: drop.color, kind: hit.side === 'npc' ? 'red' : 'blue' }; }
+    else guideInfoRef.current = null;
   };
   // Whether the card held would be accepted by the slot the finger is over (and what colour it lights): a unit in an empty slot of
   // its own; an aimed Tática on a valid target (red for damage, green for healing, gold for the rest).
@@ -7441,7 +7434,17 @@ export default function App() {
         setSelectedCardIndex(d.index);
         setSelectedAttackerIndex(null);
         dragPointRef.current = { x, y };
-        setHeld({ id: d.id });
+        // A Tática used at once has no slot: the whole of your own field lights up as the place to let go of it.
+        let zone: { left: number; top: number; width: number; height: number; label: string } | null = null;
+        if (card && getCardDropKind(card) === 'immediate') {
+          const rects = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => document.getElementById(`player-${i}`)?.getBoundingClientRect()).filter((r): r is DOMRect => !!r);
+          if (rects.length) {
+            const l = Math.min(...rects.map(r => r.left)) - 8, t = Math.min(...rects.map(r => r.top)) - 8;
+            zone = { left: l, top: t, width: Math.max(...rects.map(r => r.right)) + 8 - l, height: Math.max(...rects.map(r => r.bottom)) + 8 - t, label: IMMEDIATE_ZONE_LABEL[verbsOn(card.name, 'play')[0]?.kind ?? ''] ?? 'ATIVAR' };
+          }
+        }
+        dragZoneRef.current = zone;
+        setHeld({ id: d.id, zone });
         playCardLiftSfx();
         return;
       }
@@ -7452,8 +7455,8 @@ export default function App() {
       const d = dragRef.current;
       dragRef.current = null;
       clearDragOver();
+      guideInfoRef.current = null; dragZoneRef.current = null;
       if (dragFrameRef.current !== null) { cancelAnimationFrame(dragFrameRef.current); dragFrameRef.current = null; }
-      if (guideRef.current) guideRef.current.style.opacity = '0';
       if (!d || d.blocked) return;
       if (!d.dragging) { if (!cancelled) tapHandCard(d.index); return; }
       if (cancelled) { setSelectedCardIndex(null); return; }
@@ -7838,8 +7841,25 @@ export default function App() {
   const isTacticTargetSlot = (side: 'own' | 'npc', slotIndex: number): boolean => {
     if (!previewedCard) return false;
     const kind = getCardDropKind(previewedCard);
-    if (side === 'own') return kind === 'ownTarget' && !!playerSlots[slotIndex];
-    return kind === 'enemyTarget' && !!npcSlots[slotIndex];
+    if (kind !== (side === 'own' ? 'ownTarget' : 'enemyTarget')) return false;
+    return specSlots(targetSpecOf(previewedCard.name)).some(v => v.side === (side === 'own' ? 'player' : 'npc') && v.index === slotIndex);
+  };
+  // The short word on every valid target of the Tática being dragged ("DANO 3", "CURA 1", "+2 ATK"…), so the board says what the
+  // card does there, the way the unit slots say ATACA / RESERVA.
+  const tacticTagFor = (side: 'own' | 'npc', slotIndex: number): { text: string; color: string } | undefined => {
+    if (!previewedCard || !isTacticTargetSlot(side, slotIndex)) return undefined;
+    const v = verbsOn(previewedCard.name, 'play').find(x => 'target' in x && x.target);
+    if (!v) return undefined;
+    switch (v.kind) {
+      case 'damage': return { text: v.target?.area === 'row' ? `${v.amount} NA FILA` : `DANO ${v.amount}`, color: '#ff9a8a' };
+      case 'heal': return { text: `CURA ${v.amount}`, color: '#8affc0' };
+      case 'buff': return { text: v.atk ? `+${v.atk} ATK` : `+${v.hp} HP`, color: '#ffd36a' };
+      case 'equip': return { text: v.atk ? `+${v.atk} ATK` : `+${v.hp} HP`, color: '#ffd36a' };
+      case 'guard_adjacent': return { text: 'PROTEGE', color: '#ffd36a' };
+      case 'retreat': return { text: 'RECUA', color: '#9ad0ff' };
+      case 'displace': return { text: 'DESLOCA', color: '#9ad0ff' };
+      default: return { text: 'ALVO', color: '#ffd36a' };
+    }
   };
 
   // Computed once and shared by both the background art layer below and the board's
@@ -8022,6 +8042,7 @@ export default function App() {
               isValidAttackTarget={validAttackTargets.has(10)}
               isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(10) && !!npcSlots[10]}
               isTacticDragTarget={isTacticTargetSlot('npc', 10)}
+                tacticTag={tacticTagFor('npc', 10)}
             />
             <div className="relative">
               <CardSlot
@@ -8036,6 +8057,7 @@ export default function App() {
                 isValidAttackTarget={validAttackTargets.has(12)}
                 isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(12)}
                 isTacticDragTarget={isTacticTargetSlot('npc', 12)}
+                tacticTag={tacticTagFor('npc', 12)}
               />
             </div>
             <CardSlot
@@ -8050,6 +8072,7 @@ export default function App() {
               isValidAttackTarget={validAttackTargets.has(11)}
               isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(11) && !!npcSlots[11]}
               isTacticDragTarget={isTacticTargetSlot('npc', 11)}
+                tacticTag={tacticTagFor('npc', 11)}
             />
             <div ref={npcDeckRef} className="w-28 h-36 md:w-36 md:h-48 relative pointer-events-none">
               <div className="absolute inset-0" style={{ opacity: deckCounts[1] === 0 ? 0.15 : 1 }}>
@@ -8079,6 +8102,7 @@ export default function App() {
                 isValidAttackTarget={validAttackTargets.has(i)}
                 isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(i) && !!npcSlots[i]}
                 isTacticDragTarget={isTacticTargetSlot('npc', i)}
+                tacticTag={tacticTagFor('npc', i)}
               />
             ))}
           </div>
@@ -8099,6 +8123,7 @@ export default function App() {
                 isValidAttackTarget={validAttackTargets.has(i)}
                 isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(i) && !!npcSlots[i]}
                 isTacticDragTarget={isTacticTargetSlot('npc', i)}
+                tacticTag={tacticTagFor('npc', i)}
               />
             ))}
           </div>
@@ -8133,6 +8158,7 @@ export default function App() {
                 isValidMoveTarget={validMoveTargets.has(i)}
                 hasMoved={movedSlots.has(i)}
                 isTacticDragTarget={isTacticTargetSlot('own', i)}
+                tacticTag={tacticTagFor('own', i)}
               />
               </div>
               );
@@ -8160,6 +8186,7 @@ export default function App() {
                 isValidMoveTarget={validMoveTargets.has(i)}
                 hasMoved={movedSlots.has(i)}
                 isTacticDragTarget={isTacticTargetSlot('own', i)}
+                tacticTag={tacticTagFor('own', i)}
               />
               </div>
               );
@@ -8187,6 +8214,7 @@ export default function App() {
               attackDirection="up"
               hint={getPlayerSlotHint(10)}
               isTacticDragTarget={isTacticTargetSlot('own', 10)}
+                tacticTag={tacticTagFor('own', 10)}
             />
             <div className="relative">
               <CardSlot
@@ -8200,6 +8228,7 @@ export default function App() {
                 isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 12}
                 attackDirection="up"
                 isTacticDragTarget={isTacticTargetSlot('own', 12)}
+                tacticTag={tacticTagFor('own', 12)}
               />
             </div>
             <CardSlot
@@ -8214,6 +8243,7 @@ export default function App() {
               attackDirection="up"
               hint={getPlayerSlotHint(11)}
               isTacticDragTarget={isTacticTargetSlot('own', 11)}
+                tacticTag={tacticTagFor('own', 11)}
             />
             <motion.div
               ref={playerDeckRef}
@@ -9619,10 +9649,14 @@ export default function App() {
         const { x, y } = dragPointRef.current;
         return (
           <>
-            <svg ref={guideRef} className="fixed inset-0 w-full h-full pointer-events-none" style={{ zIndex: 319, opacity: 0, transition: 'opacity 90ms' }}>
-              <path d="" fill="none" strokeWidth={6} strokeLinecap="round" strokeDasharray="9 7" className="guide-flow" style={{ filter: 'drop-shadow(0 0 5px currentColor)' }} />
-              <circle r={9} cx={-50} cy={-50} className="guide-dot" />
-            </svg>
+            <DragGuide infoRef={guideInfoRef} getStart={() => ({ x: dragPointRef.current.x, y: heldTop(dragPointRef.current.y) + 6 })} />
+            {held.zone && (
+              <div ref={zoneElRef} className="drop-zone fixed pointer-events-none flex flex-col items-center justify-center text-center"
+                style={{ left: held.zone.left, top: held.zone.top, width: held.zone.width, height: held.zone.height, zIndex: 316 }}>
+                <span className="drop-zone-title">SOLTE AQUI</span>
+                <span className="drop-zone-sub">{held.zone.label}</span>
+              </div>
+            )}
             <div
               ref={heldElRef}
               className="fixed pointer-events-none"
@@ -9657,6 +9691,78 @@ export default function App() {
   );
 }
 
+// What a Tática used at once does, in a few words (shown in the zone where it is dropped).
+const IMMEDIATE_ZONE_LABEL: Record<string, string> = {
+  gold: 'GANHA OURO', draw: 'COMPRA CARTAS', refill_hand: 'COMPRA CARTAS', extra_moves: 'MOVE MAIS UNIDADES', damage: 'CAUSA DANO',
+  look_top: 'VÊ O TOPO DO BARALHO', search: 'BUSCA UMA CARTA', summon_deck: 'CONVOCA DO BARALHO',
+};
+// The guide drawn while a card is dragged: from the top of the held card to where it would land, with the game's own attack arrows (red toward
+// the enemy, blue toward your side) flowing along it and a light sweeping from one end to the other and back. Everything is driven by a
+// frame loop that reads refs, so it follows the finger without any React render.
+type GuideInfo = { ex: number; ey: number; color: string; kind: 'red' | 'blue' };
+const DragGuide = ({ infoRef, getStart }: { infoRef: React.MutableRefObject<GuideInfo | null>; getStart: () => { x: number; y: number } }) => {
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  useEffect(() => {
+    let raf = 0;
+    const ease = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+    const loop = () => {
+      raf = requestAnimationFrame(loop);
+      const svg = svgRef.current;
+      if (!svg) return;
+      const info = infoRef.current;
+      const q = (sel: string) => svg.querySelector(sel) as SVGElement | null;
+      if (!info) { svg.style.opacity = '0'; return; }
+      svg.style.opacity = '1';
+      const { x: sx, y: sy } = getStart();
+      const dx = info.ex - sx, dy = info.ey - sy, len = Math.max(1, Math.hypot(dx, dy));
+      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+      const now = performance.now() / 1000;
+      // the light: out and back along the line
+      const ph = (now % 1.4) / 1.4, p = ph < 0.5 ? ease(ph * 2) : ease((1 - ph) * 2);
+      const grad = q('#drag-guide-grad');
+      grad?.setAttribute('x1', String(sx)); grad?.setAttribute('y1', String(sy)); grad?.setAttribute('x2', String(info.ex)); grad?.setAttribute('y2', String(info.ey));
+      const stops = grad?.querySelectorAll('stop');
+      if (stops && stops.length === 3) {
+        stops[0].setAttribute('offset', String(Math.max(0, p - 0.32))); stops[1].setAttribute('offset', String(p)); stops[2].setAttribute('offset', String(Math.min(1, p + 0.32)));
+        stops.forEach((st, i) => { st.setAttribute('stop-color', i === 1 ? '#ffffff' : info.color); st.setAttribute('stop-opacity', i === 1 ? '1' : '0.28'); });
+      }
+      ['#drag-guide-glow', '#drag-guide-core'].forEach(id => { const l = q(id); l?.setAttribute('x1', String(sx)); l?.setAttribute('y1', String(sy)); l?.setAttribute('x2', String(info.ex)); l?.setAttribute('y2', String(info.ey)); });
+      q('#drag-guide-glow')?.setAttribute('stroke', 'url(#drag-guide-grad)');
+      q('#drag-guide-core')?.setAttribute('stroke', info.color);
+      // the arrows (the game's own art), two of them half a cycle apart, flying toward the target and fading at both ends
+      const h = Math.max(54, Math.min(120, len * 0.75)), native = info.kind === 'red' ? -90 : 90;
+      const w = h * (info.kind === 'red' ? 70 : 55) / 350;
+      ['a', 'b'].forEach((k, i) => {
+        const img = q(`#drag-guide-${info.kind}-${k}`);
+        const other = q(`#drag-guide-${info.kind === 'red' ? 'blue' : 'red'}-${k}`);
+        other?.setAttribute('opacity', '0');
+        if (!img) return;
+        const f = ((now / 0.85) + i * 0.5) % 1, e = ease(f);
+        const x = sx + dx * e, y = sy + dy * e;
+        img.setAttribute('width', String(w)); img.setAttribute('height', String(h)); img.setAttribute('x', String(-w / 2)); img.setAttribute('y', String(-h / 2));
+        img.setAttribute('transform', `translate(${x} ${y}) rotate(${angle - native})`);
+        img.setAttribute('opacity', String(Math.sin(Math.PI * f)));
+      });
+      const ring = q('#drag-guide-ring');
+      ring?.setAttribute('cx', String(info.ex)); ring?.setAttribute('cy', String(info.ey)); ring?.setAttribute('r', String(15 + 4 * Math.sin(now * 7))); ring?.setAttribute('stroke', info.color);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return (
+    <svg ref={svgRef} className="fixed inset-0 w-full h-full pointer-events-none" style={{ zIndex: 319, opacity: 0 }}>
+      <defs>
+        <linearGradient id="drag-guide-grad" gradientUnits="userSpaceOnUse"><stop offset="0" /><stop offset="0.5" /><stop offset="1" /></linearGradient>
+      </defs>
+      <line id="drag-guide-glow" strokeWidth={12} strokeLinecap="round" />
+      <line id="drag-guide-core" strokeWidth={2.5} strokeLinecap="round" opacity={0.7} />
+      <image id="drag-guide-red-a" href={attackArrowRedImage} /><image id="drag-guide-red-b" href={attackArrowRedImage} />
+      <image id="drag-guide-blue-a" href={attackArrowBlueImage} /><image id="drag-guide-blue-b" href={attackArrowBlueImage} />
+      <circle id="drag-guide-ring" fill="none" strokeWidth={4} />
+    </svg>
+  );
+};
+
 // ── How cards land on the board ─────────────────────────────────────────────────────────────────────────────────
 // A card that arrives without a flight of its own (an opponent's play, a summoned soldier) drops in from above, each one a little
 // different; when it touches down there is a thud and a puff of dust.
@@ -9670,7 +9776,7 @@ const CardSlot = ({
   isAttacking = false, isImpactingTarget = false, isImpactingAttacker = false, attackDirection = 'up', hint, rowRoleHint,
   isValidAttackTarget = false, isInvalidAttackTarget = false, slotId,
   isMoverSelected = false, isValidMoveTarget = false, hasMoved = false,
-  isTacticDragTarget = false,
+  isTacticDragTarget = false, tacticTag,
 }: {
   onClick?: (el: HTMLElement) => void, onInfoClick?: (card: CardData) => void, card?: CardData | null,
   isSelected?: boolean, isAttacking?: boolean, isImpactingTarget?: boolean, attackDirection?: 'up' | 'down',
@@ -9689,6 +9795,8 @@ const CardSlot = ({
   // board, or a damage Tática aimed at the enemy's. The empty-slot 'place' case
   // already has its own hint prop.
   isTacticDragTarget?: boolean,
+  // The word shown on a valid target of the Tática being dragged (see tacticTagFor).
+  tacticTag?: { text: string; color: string },
   // Shown on the opponent's slots while the player has an attacker selected: a green
   // glow on anything actually reachable this turn (see getValidAttackTargets), a
   // dimmed/grayed look on an occupied slot that's blocked or out of the attacker's
@@ -9869,6 +9977,14 @@ const CardSlot = ({
         >
           <ArrowDown className="w-7 h-7 md:w-9 md:h-9 text-fuchsia-400 drop-shadow-[0_0_10px_rgba(232,121,249,1)]" strokeWidth={3.5} />
         </motion.div>
+      )}
+      {isTacticDragTarget && tacticTag && (
+        <div className="absolute inset-x-0 bottom-[6%] z-30 flex justify-center pointer-events-none">
+          <span className="px-2 rounded-md font-extrabold leading-tight whitespace-nowrap"
+            style={{ fontFamily: "'Cinzel', serif", fontSize: 21, color: tacticTag.color, background: 'rgba(12,8,4,0.86)', border: `2px solid ${tacticTag.color}`, textShadow: '0 1px 2px #000', boxShadow: `0 0 14px ${tacticTag.color}aa` }}>
+            {tacticTag.text}
+          </span>
+        </div>
       )}
       {card && !card.isDestroyed && (
         <motion.div
