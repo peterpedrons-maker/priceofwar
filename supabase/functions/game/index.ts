@@ -310,8 +310,8 @@ var CARD_DEFS = [
     cost: 2,
     effect: "+1 HP a um aliado ferido e 1 de dano a um inimigo da Vanguarda.",
     abilities: [{ on: "ability", phases: ["preparacao", "movimentacao"], once: true, do: [
-      { kind: "heal", amount: 1, target: { ...OWN_UNIT, needs: "damaged", optional: true, prompt: "Toque em um aliado ferido para curar 1 HP." } },
-      { kind: "damage", amount: 1, target: { ...ENEMY_UNIT, where: "front", optional: true, prompt: "Toque em um inimigo da Vanguarda para causar 1 de dano." } }
+      { kind: "heal", amount: 1, target: { ...OWN_UNIT, needs: "damaged", optional: true, prompt: "Toque em um aliado ferido." } },
+      { kind: "damage", amount: 1, target: { ...ENEMY_UNIT, where: "front", optional: true, prompt: "Toque em um inimigo da Vanguarda." } }
     ] }]
   },
   {

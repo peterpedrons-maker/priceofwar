@@ -617,15 +617,34 @@ const SlashEffect = () => (
 // do, the legal targets marked with the attack reticle (recoloured by what the effect does) and everything else dimmed.
 type TargetKind = 'heal' | 'damage' | 'buff' | 'move';
 const TARGET_STYLE: Record<TargetKind, { label: string; color: string; halo: string }> = {
-  heal: { label: 'Cura', color: '#34d399', halo: 'hue-rotate(112deg) saturate(1.2) drop-shadow(0 0 10px rgba(52,211,153,0.95))' },
+  heal: { label: '+HP', color: '#34d399', halo: 'hue-rotate(112deg) saturate(1.2) drop-shadow(0 0 10px rgba(52,211,153,0.95))' },
   damage: { label: 'Dano', color: '#ef4444', halo: 'drop-shadow(0 0 10px rgba(239,68,68,0.95))' },
   buff: { label: 'Bônus', color: '#fbbf24', halo: 'hue-rotate(40deg) saturate(1.2) drop-shadow(0 0 10px rgba(251,191,36,0.95))' },
   move: { label: 'Deslocar', color: '#60a5fa', halo: 'hue-rotate(205deg) saturate(1.2) drop-shadow(0 0 10px rgba(96,165,250,0.95))' },
 };
 const HUD_CARD_SCALE = 0.47;      // of the 224x320 hand-card box: ~105 px wide, a bit more than twice a card on the board
 
-const TargetingHud = ({ source, mode, kind, title, hint, windowH, promptButtons, onCancel }: {
-  source: CardData; mode: 'prompt' | 'targeting'; kind: TargetKind; title: string; hint: string; windowH: number;
+// The amount an effect gives or takes, drawn with the same number art that floats over a card when it happens ("+1" green with HP, "-3" red
+// on its burst), so the figure on the bar is the one the player will then see on the board.
+const AmountBadge = ({ kind, amount }: { kind: 'heal' | 'damage'; amount: number }) => {
+  const nk: NumberKind = kind;
+  const burst = burstUrl(nk);
+  const text = `${kind === 'heal' ? '+' : '-'}${amount}`;
+  return (
+    <span className="relative inline-flex items-center shrink-0" style={{ height: 30, minWidth: 44, justifyContent: 'center' }}>
+      {kind === 'damage' && burst && <img src={burst} alt="" draggable={false} className="absolute pointer-events-none select-none max-w-none" style={{ height: 60, width: 60, left: '50%', top: '50%', transform: 'translate(-50%, -50%)', opacity: 0.85 }} />}
+      <span className="relative inline-flex items-center" style={{ filter: `drop-shadow(0 2px 2px rgba(0,0,0,0.7)) drop-shadow(0 0 7px ${NUMBER_GLOW[nk]})` }}>
+        {text.split('').map((ch, i) => {
+          const url = glyphUrl(nk, ch);
+          return url ? <img key={i} src={url} alt="" draggable={false} className="select-none" style={{ height: 28, marginLeft: i === 0 ? 0 : -4 }} /> : null;
+        })}
+      </span>
+      {kind === 'heal' && <b className="relative ml-1.5" style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: '#8ff0b9', textShadow: '0 1px 2px #000, 0 0 6px rgba(52,211,153,0.8)' }}>HP</b>}
+    </span>
+  );
+};
+const TargetingHud = ({ source, mode, kind, title, hint, amount, windowH, promptButtons, onCancel }: {
+  source: CardData; mode: 'prompt' | 'targeting'; kind: TargetKind; title: string; hint: string; amount?: number; windowH: number;
   promptButtons?: React.ReactNode; onCancel: () => void; key?: React.Key;
 }) => {
   const st = TARGET_STYLE[kind];
@@ -674,7 +693,9 @@ const TargetingHud = ({ source, mode, kind, title, hint, windowH, promptButtons,
         >
           <GameBox px={14} className="flex flex-col gap-1.5 px-1 py-0.5">
             <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest text-black" style={{ background: st.color, fontFamily: "'Cinzel', serif" }}>{st.label}</span>
+              {amount && (kind === 'heal' || kind === 'damage')
+                ? <AmountBadge kind={kind} amount={amount} />
+                : <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest text-black" style={{ background: st.color, fontFamily: "'Cinzel', serif" }}>{st.label}</span>}
               <span className="text-[11px] font-bold uppercase tracking-wide text-[#f0e0bb] leading-tight" style={{ fontFamily: "'Cinzel', serif" }}>{title}</span>
             </div>
             <p className="text-[15px] leading-snug text-[#f1e4c4]" style={{ fontFamily: "'Crimson Pro', serif", fontWeight: 600 }}>{hint}</p>
@@ -7372,7 +7393,7 @@ export default function App() {
 
   // What the player is being asked to target right now, if anything (see TargetingHud): the source card, what the
   // effect does, the sentence to show, and the board slots it can legally land on.
-  type TargetingMode = { source: CardData; kind: TargetKind; title: string; hint: string; valid: { side: 'player' | 'npc'; index: number }[] };
+  type TargetingMode = { source: CardData; kind: TargetKind; title: string; hint: string; amount?: number; valid: { side: 'player' | 'npc'; index: number }[] };
   const mine = (pred: (c: CardData, i: number) => boolean) => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => playerSlots[i] && pred(playerSlots[i]!, i)).map(i => ({ side: 'player' as const, index: i }));
   const foes = (pred: (c: CardData, i: number) => boolean) => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => npcSlots[i] && pred(npcSlots[i]!, i)).map(i => ({ side: 'npc' as const, index: i }));
   // The legal targets of a Tática that needs one (used both when it is armed and while it is only selected in the hand): read from
@@ -7391,7 +7412,8 @@ export default function App() {
   const tacticTargeting = (card: CardData): TargetingMode => {
     const spec = targetSpecOf(card.name);
     const verb = verbsOn(card.name, 'play').find(v => 'target' in v && v.target);
-    return { source: card, kind: effectTargetKind(verb), title: card.name, hint: spec?.prompt ?? 'Escolha um alvo no campo.', valid: specSlots(spec) };
+    const amount = verb && (verb.kind === 'heal' || verb.kind === 'damage') ? verb.amount : undefined;
+    return { source: card, kind: effectTargetKind(verb), title: card.name, hint: spec?.prompt ?? 'Escolha um alvo no campo.', amount, valid: specSlots(spec) };
   };
   // While an effect's card floats, its slot is held empty on screen: the card that is asking for a target is still that one.
   const sourceAt = (slot: number): CardData | null => playerSlots[slot] ?? (trigFx && trigFx.side === 'player' && trigFx.slot === slot ? trigFx.card : null);
@@ -7402,10 +7424,10 @@ export default function App() {
       const specs = ab ? targetSpecsOf(ab.do) : [];
       const spec = specs[pendingAbility.step];
       const verb = ab?.do.filter(v => 'target' in v && v.target)[pendingAbility.step];
-      const heal = verb?.kind === 'heal' ? verb.amount + (verb.withAuras ? auraTotal('healBonus', 12, playerSlots) : 0) : 0;
+      const amount = verb?.kind === 'heal' ? verb.amount + (verb.withAuras ? auraTotal('healBonus', 12, playerSlots) : 0) : verb?.kind === 'damage' ? verb.amount : undefined;
       return {
-        source, kind: effectTargetKind(verb), title: source.name,
-        hint: spec ? `${spec.prompt ?? 'Escolha um alvo.'}${heal ? ` (cura ${heal} HP)` : ''}` : '',
+        source, kind: effectTargetKind(verb), title: source.name, amount,
+        hint: spec ? (spec.prompt ?? 'Escolha um alvo.') : '',
         valid: ab && spec ? abilityStepCandidates(ab)[pendingAbility.step].map(index => ({ side: spec.side === 'own' ? 'player' as const : 'npc' as const, index })) : [],
       };
     }
@@ -9831,6 +9853,7 @@ export default function App() {
             kind={targetingMode.kind}
             title={targetingMode.title}
             hint={targetingMode.hint}
+            amount={targetingMode.amount}
             windowH={windowSize.height}
             onCancel={cancelTargeting}
           />
