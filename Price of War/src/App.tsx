@@ -5246,6 +5246,8 @@ export default function App() {
       if (phaseLockGenRef.current === gen) setPhaseTransitionLock(false);
     }, PHASE_BANNER_DURATION_MS);
   };
+  // While "Encerrar turno" runs through the remaining phases in one go, the per-phase banners stay quiet.
+  const skipPhaseBannersRef = useRef(false);
   const announcePhase = (phase: TurnPhase) => {
     const { title, subtitle } = PHASE_BANNER_TEXT[phase];
     showBanner(title, subtitle);
@@ -5915,7 +5917,7 @@ export default function App() {
           }
           break;
         case 'phase':
-          if (e.seat === 0 && !turnJustStarted) announcePhase(e.phase);
+          if (e.seat === 0 && !turnJustStarted && !skipPhaseBannersRef.current) announcePhase(e.phase);
           break;
         case 'gold':
           spawnFloatingNumberAtId(`${ownerId(e.seat)}-gold-badge`, Math.abs(e.delta), e.delta > 0 ? 'gold-gain' : 'gold-spend');
@@ -6333,6 +6335,27 @@ export default function App() {
     if (r.wait) void r.wait.then(ok => { if (ok) openPlayerPick(); });
     openPlayerPick();
     return true;
+  };
+
+  // "Encerrar turno": every phase still to come (Combate, Movimentação) is passed in one go, so the player never has to tap
+  // through them one by one. The engine does the rest (Aurelion's bonus, the swaps, the discard prompt if the hand is over
+  // the limit, the opponent's turn). It stops at anything the player still has to answer.
+  const endTurnNow = () => {
+    if (currentTurn !== 'player' || phaseTransitionLock || autoPhase || tutOn || !engineRef.current) return;
+    playUiClickSfx();
+    setSelectedCardIndex(null);
+    setSelectedAttackerIndex(null);
+    setSelectedMoverIndex(null);
+    skipPhaseBannersRef.current = true;
+    try {
+      for (let guard = 0; guard < 8; guard++) {
+        const eng = engineRef.current;
+        if (!eng || eng.winner !== null || eng.turn.active !== 0 || eng.pending) break;
+        const r = dispatchAction(0, { type: 'advance' });
+        if (r.ok === false) { showToast(r.error); break; }
+      }
+    } finally { skipPhaseBannersRef.current = false; }
+    openPlayerPick();
   };
 
   const sleep = (ms: number) => new Promise<void>(resolve => window.setTimeout(resolve, ms));
@@ -8486,10 +8509,12 @@ export default function App() {
           regardless of what boardScale currently is — only its POSITION is meant to
           track the board, not its size. */}
       <div
-        className="absolute z-40 flex flex-row items-center gap-1 md:gap-4"
+        className="absolute z-40 flex flex-row items-center justify-between pointer-events-none"
         style={{
           left: 500,
           top: 600.5,
+          // The coins sit at the edges of the board (the screen, on a phone); the turn panel and its button share the middle.
+          width: Math.max(280, Math.min(windowSize.width, 1000 * gridBaseAnim.scale) - 40),
           transform: `translate(-50%, -50%) scale(${1 / gridBaseAnim.scale})`,
           perspective: 600,
         }}
@@ -8506,15 +8531,16 @@ export default function App() {
             its current size below. */}
         <div className="flex flex-col items-center gap-0.5 shrink-0">
           <div id="npc-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
-            <GoldBadge value={npcMana} className="w-[52px] md:w-16" />
+            <GoldBadge value={npcMana} className="w-[46px] md:w-16" />
           </div>
           <span className="text-[6px] md:text-[7px] font-black uppercase tracking-wide text-red-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] whitespace-nowrap">
             {opponentInfo?.name ?? 'Adversário'}
           </span>
         </div>
 
+        <div className="flex flex-row items-center gap-1.5 shrink-0">
         <div
-          className="flex flex-col items-center gap-0.5 cursor-pointer shrink-0"
+          className="flex flex-col items-center gap-0.5 cursor-pointer shrink-0 pointer-events-auto"
           data-tut="tracker"
           onClick={(e) => {
             e.stopPropagation();
@@ -8552,11 +8578,36 @@ export default function App() {
           })()}
         </div>
 
+        {/* Encerrar turno: passes every phase left (Combate, Movimentação) at once. Always in its place so the row never
+            jumps; it only lights up on the player's own turn, once the automatic phases are done. */}
+        {(() => {
+          const isPlayerTurn = currentTurn === 'player';
+          const automatic = isPlayerTurn && (turnPhase === 'compra' || turnPhase === 'suprimentos' || autoPhase !== null);
+          const ready = isPlayerTurn && !automatic && !phaseTransitionLock && !tutOn;
+          return (
+            <motion.button
+              type="button" data-tut="end-turn" disabled={!ready} whileTap={ready ? { scale: 0.94 } : undefined}
+              onClick={(e) => { e.stopPropagation(); endTurnNow(); }}
+              className="pointer-events-auto shrink-0 flex items-center justify-center text-center leading-[1.05] uppercase"
+              style={{
+                width: 64, height: 44, borderRadius: 8, fontFamily: "'Cinzel', serif", fontWeight: 900, fontSize: 9, letterSpacing: '0.01em', padding: 0,
+                color: ready ? '#fff1c9' : '#9c8c6a', textShadow: '0 1px 2px rgba(0,0,0,0.85)',
+                background: ready ? 'linear-gradient(#c2432f, #7d1a12)' : 'linear-gradient(#3a342a, #26211a)',
+                border: `2px solid ${ready ? '#e8c766' : '#5b4f38'}`, boxShadow: ready ? '0 2px 6px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.25)' : 'none',
+                opacity: ready ? 1 : 0.6,
+              }}
+            >
+              Encerrar<br />turno
+            </motion.button>
+          );
+        })()}
+        </div>
+
         {/* Player's gold — same distance from the button as the NPC's above, same
             stacked-and-shrunk treatment (see that badge's own comment for why). */}
         <div className="flex flex-col items-center gap-0.5 shrink-0">
           <div id="player-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
-            <GoldBadge value={playerMana} className="w-[52px] md:w-16" />
+            <GoldBadge value={playerMana} className="w-[46px] md:w-16" />
           </div>
           <span className="text-[6px] md:text-[7px] font-black uppercase tracking-wide text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] whitespace-nowrap">
             Jogador

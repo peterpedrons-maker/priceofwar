@@ -104,3 +104,7 @@ o número azul que sobe é o quanto o escudo absorveu. Depois de um Reforço o e
 Arrastar uma carta da mão só começa quando nenhuma animação que mexe no campo está rodando (carta em voo, câmera assentando, deslize de movimento, banner de fase). Se você tenta arrastar nesse momento, aparece o aviso "Só um instante: a animação ainda está rodando." (antes a mão ignorava em silêncio). O efeito de equipar libera a mão assim que a carta pousa (fase `land`), sem esperar o brilho final.
 
 Enquanto o efeito de uma carta flutua (Manobra, Comando, Convocação) ou ela está sendo equipada, o espaço dela fica vazio na tela, mas para as regras a carta continua ali: `specSlots` (App.tsx) enxerga essas cartas, então uma Tática solta nessa unidade vale. Antes, logo depois de um movimento do Capitão de Formação, o Avanço Coordenado era ignorado por ~2,7 s.
+
+## Faixa do meio do campo: moedas nas bordas e "Encerrar turno"
+
+A faixa entre as duas Vanguardas agora ocupa a largura do campo: a moeda do adversário e a do jogador ficam nas bordas, e o rastreador de fases fica no meio com o botão **Encerrar turno** ao lado. O rastreador continua passando fase por fase. O botão passa todas as fases que faltam de uma vez (Combate e Movimentação inclusive), sem confirmação, e sem os banners de cada fase; o motor cuida do resto (bônus do Aurelion, trocas do Soldado Tático, descarte se a mão passar do limite, turno do adversário). Ele fica sempre no lugar para a faixa não mexer; só acende no seu turno, depois das fases automáticas, e fica apagado durante o tutorial.
