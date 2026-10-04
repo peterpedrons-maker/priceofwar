@@ -1,4 +1,6 @@
-# Reformulação dos textos das cartas (proposta)
+# Reformulação dos textos das cartas (aplicada)
+
+Aplicada em `src/engine/catalog.ts` (campo `effect`) com a etiqueta de bronze (estilo G) para a palavra do gatilho. O Cardeal Pedro ganhou o gatilho Comando.
 
 ## Estilo (formato de TCG)
 

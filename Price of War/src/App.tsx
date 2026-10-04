@@ -1500,7 +1500,19 @@ const FitText = ({ text, className, style }: { text: string, className?: string,
 // single line), this changes the real font-size and lets the browser re-wrap at
 // each candidate size — a transform-scale big enough to fill vertical space would
 // also stretch each already-wrapped line past the box horizontally.
-const FitEffectText = ({ text, className, style, align = 'center', lead }: { text: string, className?: string, style?: React.CSSProperties, align?: 'center' | 'start', lead?: { label: string, color: string } }) => {
+// The word that names an effect's trigger (Reforço, Postura, Comando…) as a small bronze label, with the trigger's own icon when there is
+// one; it sizes itself from the text around it (em), so it shrinks together with the effect text when that is fitted into the card.
+const KeywordPill = ({ label, icon }: { label: string; icon?: string; key?: React.Key }) => (
+  <span style={{
+    display: 'inline-block', fontFamily: "'Cinzel', serif", fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', fontSize: '0.68em',
+    color: '#fff3d0', background: 'linear-gradient(#b4742c, #7a4a12)', border: '1px solid #4a2a08', borderRadius: 5,
+    padding: icon ? '1px 0.7em 1px 0.3em' : '1px 0.7em', margin: '0 0.5em 0 0', verticalAlign: '0.1em', textShadow: '0 1px 1px rgba(0,0,0,0.5)', lineHeight: 1.35, whiteSpace: 'nowrap',
+  }}>
+    {icon && <img src={icon} alt="" draggable={false} style={{ width: '1.35em', height: '1.35em', objectFit: 'contain', display: 'inline-block', verticalAlign: 'middle', marginRight: '0.3em' }} />}
+    {label}
+  </span>
+);
+const FitEffectText = ({ text, className, style, align = 'center', lead }: { text: string, className?: string, style?: React.CSSProperties, align?: 'center' | 'start', lead?: { label: string, icon?: string } }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLParagraphElement>(null);
 
@@ -1541,8 +1553,8 @@ const FitEffectText = ({ text, className, style, align = 'center', lead }: { tex
   return (
     <div ref={containerRef} className={`w-full h-full flex overflow-hidden ${align === 'start' ? 'items-start justify-start' : 'items-center justify-center'}`}>
       <p ref={textRef} className={className} style={{ ...style, margin: 0 }}>
-        {lead && <b style={{ color: lead.color, fontWeight: 800 }}>{lead.label}: </b>}
-        {text}
+        {lead && <KeywordPill label={lead.label} icon={lead.icon} />}
+        {text.split(/(\*\*[^*]+\*\*)/).map((part, i) => (part.startsWith('**') ? <KeywordPill key={i} label={part.slice(2, -2)} /> : part))}
       </p>
     </div>
   );
@@ -1634,7 +1646,7 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
           <div className="flex-1 w-full min-h-0">
             <FitEffectText
               text={card.effect}
-              lead={trig ? { label: trig.label, color: '#e3b45f' } : undefined}
+              lead={trig ? { label: trig.label, icon: trig.icon } : undefined}
               align="start"
               className={`${pv.effect} text-left leading-snug`}
               style={{ fontFamily: "'PT Serif', serif", color: '#f3e6c8' }}
@@ -1945,7 +1957,7 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
         <div className="absolute p-1" style={{ top: '64%', bottom: '13%', left: '8%', right: '11%' }}>
           <FitEffectText
             text={card.effect}
-            lead={trig ? { label: trig.label, color: '#7a4a12' } : undefined}
+            lead={trig ? { label: trig.label, icon: trig.icon } : undefined}
             align="start"
             className={`${v.effect} text-[#0d0901] font-semibold text-left leading-tight`}
             style={{ fontFamily: "'Crimson Pro', serif" }}

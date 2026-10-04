@@ -152,3 +152,14 @@ Sem caixa de texto grande: uma pílula curta no topo, as casas acesas e um **Can
 - **Tática com alvo**: um toque na carta já abre a escolha de alvo (as unidades válidas ficam marcadas).
 - **Emboscada**: pílula "armada · ativa sozinha quando você for atacado"; não acende casa nenhuma.
 - **Emboscada pronta para ativar** (quando o adversário ataca): tela com as cartas que podem responder, grandes e centralizadas, cada uma com seu **Ativar**, e um **Não ativar** largo.
+
+
+## Textos das cartas (formato TCG)
+Os textos das cartas seguem `docs/textos-cartas.md`: frases curtas e telegráficas ("+1 HP a uma unidade aliada", "3 de dano a uma unidade inimiga"). A palavra do gatilho (Reforço, Postura, Comando…) aparece como uma **etiqueta de bronze** com o ícone do gatilho, antes do texto (`KeywordPill` em `src/App.tsx`); uma palavra a mais dentro do texto, sem ícone, escreve-se `**assim**` (ex.: Aurelion: **Fim do turno**, **Passiva**). O texto da carta não repete a palavra do gatilho: ela vem do campo `trigger`.
+
+O que cada palavra já quer dizer (não é repetido nas cartas):
+- **Comando**: habilidade ativa, 1 vez por turno (o Intendente do Exército é o único automático: age no início do turno).
+- **Manobra**: ao mover.
+- **Queda**: ao ser destruída.
+- **Ofensiva**: ao atacar. **Postura**: vale enquanto a carta estiver na posição indicada. **Convocação**: ao entrar em campo. **Reforço**: quando a carta da frente cai.
+- **Ganho de vida é sempre "+N HP"**: no jogo a vida não tem teto, então vale para qualquer unidade (só o Cavaleiro Hospitalário exige uma unidade "ferida").

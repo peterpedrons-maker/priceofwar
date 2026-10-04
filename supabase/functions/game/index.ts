@@ -16,7 +16,7 @@ var CARD_DEFS = [
     hp: 20,
     cost: 0,
     isFullArt: true,
-    effect: "Ap\xF3s Remanejamento: at\xE9 2 unidades que se moveram ganham +1/+1 no pr\xF3ximo combate. Passiva: unidades adjacentes recebem -1 de dano.",
+    effect: "**Fim do turno** At\xE9 2 unidades que se moveram ganham +1/+1 no pr\xF3ximo combate. **Passiva** Rel\xEDquia e Terreno recebem -1 de dano.",
     faction: "ordem",
     abilities: [{ on: "turn_end", do: [{ kind: "buff_moved", count: 2, atk: 1, hp: 1 }] }],
     passives: [{ kind: "aura", who: { side: "own", slots: [10, 11] }, reduce: 1 }]
@@ -27,7 +27,7 @@ var CARD_DEFS = [
     atk: 3,
     hp: 3,
     cost: 2,
-    effect: "Troca com aliado adjacente no fim do turno.",
+    effect: "No fim do turno, troca de lugar com um aliado ao lado.",
     abilities: [{ on: "turn_end", do: [{ kind: "swap_adjacent" }] }]
   },
   {
@@ -37,7 +37,7 @@ var CARD_DEFS = [
     atk: 2,
     hp: 4,
     cost: 2,
-    effect: "Na Vanguarda: a unidade logo atr\xE1s dele, na mesma coluna, recebe -1 de dano.",
+    effect: "Na Vanguarda, a carta atr\xE1s recebe -1 de dano.",
     passives: [{ kind: "aura", who: { side: "own", behind: true }, from: "front", reduce: 1 }]
   },
   {
@@ -48,7 +48,7 @@ var CARD_DEFS = [
     cost: 3,
     isFullArt: true,
     trigger: "manobra",
-    effect: "Adjacentes ganham +1 ATK.",
+    effect: "Aliados ao lado ganham +1 ATK at\xE9 o pr\xF3ximo turno.",
     abilities: [{ on: "move", do: [{ kind: "buff_adjacent", atk: 1 }] }]
   },
   {
@@ -57,7 +57,7 @@ var CARD_DEFS = [
     atk: 1,
     hp: 2,
     cost: 1,
-    effect: "Move ap\xF3s combate.",
+    effect: "Depois de atacar, move-se 1 casa de gra\xE7a.",
     abilities: [{ on: "after_attack", do: [{ kind: "free_move" }] }]
   },
   {
@@ -67,7 +67,7 @@ var CARD_DEFS = [
     atk: 3,
     hp: 2,
     cost: 2,
-    effect: "Inimigo \xE0 sua frente recebe -1 ATK.",
+    effect: "O inimigo \xE0 frente tem -1 ATK.",
     passives: [{ kind: "aura", who: { side: "enemy", facing: true }, atk: -1 }]
   },
   {
@@ -77,7 +77,7 @@ var CARD_DEFS = [
     hp: 4,
     cost: 3,
     isFullArt: true,
-    effect: "Troca com qualquer aliado na linha.",
+    effect: "Troca de lugar com qualquer aliado da fileira.",
     passives: [{ kind: "flag", flag: "row_swap" }]
   },
   {
@@ -88,7 +88,7 @@ var CARD_DEFS = [
     hp: 3,
     cost: 3,
     isFullArt: true,
-    effect: "+2 ATK na coluna 3.",
+    effect: "+2 ATK na coluna central.",
     passives: [{ kind: "aura", who: { side: "self" }, when: { col: 2 }, atk: 2 }]
   },
   {
@@ -98,7 +98,7 @@ var CARD_DEFS = [
     hp: 0,
     cost: 2,
     isFullArt: true,
-    effect: "Reorganiza at\xE9 3 unidades.",
+    effect: "3 movimentos extras neste turno.",
     abilities: [{ on: "play", do: [{ kind: "extra_moves", amount: 3 }] }]
   },
   {
@@ -107,7 +107,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 2,
-    effect: "Ap\xF3s mover: +2 ATK.",
+    effect: "+2 ATK a uma unidade que se moveu neste turno.",
     abilities: [{ on: "play", do: [
       { kind: "buff", atk: 2, target: { ...OWN_UNIT, needs: "moved", prompt: "Escolha uma unidade sua que j\xE1 se moveu neste turno." } }
     ] }]
@@ -118,7 +118,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 1,
-    effect: "Move inimigo 1 slot.",
+    effect: "Mova um inimigo para um espa\xE7o livre ao lado.",
     abilities: [{ on: "play", do: [
       { kind: "displace", target: { ...ENEMY_UNIT, prompt: "Escolha uma unidade inimiga para deslocar." } }
     ] }]
@@ -129,7 +129,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 2,
-    effect: "Adjacentes recebem menos dano.",
+    effect: "-1 de dano, para sempre, nos aliados ao lado da unidade escolhida.",
     abilities: [{ on: "play", do: [
       { kind: "guard_adjacent", amount: 1, target: { ...OWN_UNIT, prompt: "Escolha uma unidade sua \u2014 os aliados ao lado dela recebem menos dano." } }
     ] }]
@@ -140,7 +140,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 2,
-    effect: "Move para a Retaguarda + cura.",
+    effect: "Mova uma unidade da Vanguarda para a Retaguarda: +2 HP.",
     abilities: [{ on: "play", do: [
       { kind: "retreat", heal: 2, target: { ...OWN_UNIT, where: "front", prompt: "Escolha uma unidade sua na Vanguarda." } }
     ] }]
@@ -151,7 +151,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 2,
-    effect: "Cancela ataque se houver adjacente.",
+    effect: "Cancela um ataque a uma unidade com aliado ao lado.",
     abilities: [{ on: "ambush", do: [{ kind: "cancel_attack", ifAdjacentAlly: true }] }]
   },
   {
@@ -161,7 +161,7 @@ var CARD_DEFS = [
     hp: 0,
     cost: 3,
     isFullArt: true,
-    effect: "Troca posi\xE7\xF5es durante o ataque.",
+    effect: "Troca a unidade atacada com um aliado ao lado, que recebe o golpe.",
     abilities: [{ on: "ambush", do: [{ kind: "swap_defender" }] }]
   },
   {
@@ -170,7 +170,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 2,
-    effect: "Move inimigo aleatoriamente.",
+    effect: "Move o atacante para um espa\xE7o livre aleat\xF3rio. O ataque falha.",
     abilities: [{ on: "ambush", do: [{ kind: "displace_attacker" }] }]
   },
   {
@@ -180,7 +180,7 @@ var CARD_DEFS = [
     hp: 5,
     cost: 3,
     isFullArt: true,
-    effect: "Permanente. Todas as unidades aliadas ganham +1 ATK enquanto esta rel\xEDquia estiver no campo.",
+    effect: "+1 ATK \xE0s suas unidades.",
     passives: [{ kind: "aura", who: { side: "own" }, atk: 1 }]
   },
   {
@@ -190,7 +190,7 @@ var CARD_DEFS = [
     hp: 8,
     cost: 3,
     isFullArt: true,
-    effect: "Permanente. Unidades aliadas na Retaguarda recebem -1 de dano de ataques inimigos.",
+    effect: "Suas unidades na Retaguarda: -1 de dano de ataques.",
     passives: [{ kind: "aura", who: { side: "own", row: "back" }, reduce: 1 }]
   },
   {
@@ -199,18 +199,19 @@ var CARD_DEFS = [
     atk: 0,
     hp: 6,
     cost: 2,
-    effect: "Permanente. Unidades inimigas na Vanguarda sofrem -1 ATK enquanto este terreno estiver no campo.",
+    effect: "Inimigos na Vanguarda: -1 ATK.",
     passives: [{ kind: "aura", who: { side: "enemy", row: "front" }, atk: -1 }]
   },
   // ── cardeal ──
   {
     name: "Cardeal Pedro, Voz da F\xE9",
+    trigger: "comando",
     cardType: "General",
     atk: 0,
     hp: 20,
     cost: 0,
     isFullArt: true,
-    effect: "Fase Principal: pague 2 ouro para curar 1 HP em um soldado aliado, mesmo com HP cheio.",
+    effect: "Pague 2 de ouro: +1 HP a uma unidade aliada.",
     faction: "fe",
     abilities: [{ on: "ability", phases: ["preparacao", "movimentacao"], once: true, cost: 2, do: [
       { kind: "heal", amount: 1, withAuras: true, target: { ...OWN_UNIT, prompt: "Escolha um soldado aliado no campo." } }
@@ -223,10 +224,10 @@ var CARD_DEFS = [
     hp: 5,
     cost: 3,
     isFullArt: true,
-    effect: "Permanente. A cura do General Cardeal Pedro aumenta de 1 para 2 HP.",
+    effect: "Seu General d\xE1 +2 HP em vez de +1.",
     passives: [{ kind: "aura", who: { side: "own", slots: [12] }, healBonus: 1 }]
   },
-  { name: "Devotos da Cruzada", cardType: "Infantaria", atk: 0, hp: 3, cost: 1, effect: "\u2014" },
+  { name: "Devotos da Cruzada", cardType: "Infantaria", atk: 0, hp: 3, cost: 1, effect: "" },
   {
     name: "Mercador da Cruzada",
     trigger: "comando",
@@ -234,7 +235,7 @@ var CARD_DEFS = [
     atk: 1,
     hp: 1,
     cost: 1,
-    effect: "Uma vez por turno: veja as 2 cartas do topo do deck. Adicione 1 \xE0 m\xE3o e coloque a outra no fundo.",
+    effect: "Veja 2 cartas do topo do baralho, fique com 1 e mande a outra para o fundo.",
     abilities: [{ on: "ability", once: true, do: [{ kind: "look_top", count: 2, keepMin: 1, keepMax: 1 }] }]
   },
   {
@@ -244,7 +245,7 @@ var CARD_DEFS = [
     atk: 1,
     hp: 2,
     cost: 1,
-    effect: "Na Vanguarda: impede Emboscadas inimigas. Se o General aliado receber dano, no pr\xF3ximo turno n\xE3o poder\xE1 usar sua habilidade.",
+    effect: "Na Vanguarda, Emboscadas inimigas n\xE3o ativam. Se seu General sofrer dano, ele fica sem habilidade no pr\xF3ximo turno.",
     passives: [
       { kind: "flag", flag: "blocks_ambush", from: "front" },
       { kind: "flag", flag: "locks_general" }
@@ -257,7 +258,7 @@ var CARD_DEFS = [
     hp: 2,
     cost: 1,
     trigger: "ofensiva",
-    effect: "Se o General inimigo for de tipo oposto, ganha +2 ATK.",
+    effect: "+2 ATK contra General de fac\xE7\xE3o oposta.",
     abilities: [{ on: "attack", do: [{ kind: "attack_bonus", amount: 2, ifEnemyGeneral: "other_faction" }] }]
   },
   {
@@ -266,7 +267,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 2,
     cost: 1,
-    effect: "Ao ser curado: recebe +1 ATK permanente.",
+    effect: "Quando \xE9 curado: +1 ATK para sempre.",
     abilities: [{ on: "healed", do: [{ kind: "buff", atk: 1 }] }]
   },
   {
@@ -276,7 +277,7 @@ var CARD_DEFS = [
     atk: 2,
     hp: 3,
     cost: 2,
-    effect: "Uma vez por turno: se voc\xEA tiver menos de 2 cartas na m\xE3o, compre at\xE9 ficar com 2.",
+    effect: "No in\xEDcio do turno, compre at\xE9 ter 2 cartas na m\xE3o.",
     abilities: [{ on: "turn_start", do: [{ kind: "refill_hand", to: 2 }] }]
   },
   {
@@ -286,7 +287,7 @@ var CARD_DEFS = [
     hp: 4,
     cost: 2,
     trigger: "reforco",
-    effect: "Se a carta da frente da coluna cair, esta desce e ganha Escudo 2.",
+    effect: "Se a da frente cair, desce e ganha Escudo 2.",
     abilities: [{ on: "front_fell", do: [{ kind: "reinforce", shield: 2 }] }]
   },
   {
@@ -297,7 +298,7 @@ var CARD_DEFS = [
     cost: 3,
     isFullArt: true,
     trigger: "ofensiva",
-    effect: "Contra a Vanguarda, causa 2 de dano \xE0 unidade na Retaguarda da mesma coluna.",
+    effect: "Ao atacar a Vanguarda, 2 de dano \xE0 carta atr\xE1s.",
     abilities: [{ on: "attack", do: [{ kind: "splash_behind", amount: 2 }] }]
   },
   {
@@ -307,7 +308,7 @@ var CARD_DEFS = [
     atk: 2,
     hp: 3,
     cost: 2,
-    effect: "Uma vez por turno: cure 1 HP de um aliado e cause 1 de dano a um inimigo na Vanguarda.",
+    effect: "+1 HP a um aliado ferido e 1 de dano a um inimigo da Vanguarda.",
     abilities: [{ on: "ability", phases: ["preparacao", "movimentacao"], once: true, do: [
       { kind: "heal", amount: 1, target: { ...OWN_UNIT, needs: "damaged", optional: true, prompt: "Toque em um aliado ferido para curar 1 HP." } },
       { kind: "damage", amount: 1, target: { ...ENEMY_UNIT, where: "front", optional: true, prompt: "Toque em um inimigo da Vanguarda para causar 1 de dano." } }
@@ -321,10 +322,10 @@ var CARD_DEFS = [
     cost: 3,
     isFullArt: true,
     trigger: "convocacao",
-    effect: "Convoca Soldados Leais (1 ATK / 1 HP) nos slots adjacentes livres da mesma fileira.",
+    effect: "Soldados Leais (1/1) nos espa\xE7os livres ao lado.",
     abilities: [{ on: "place", do: [{ kind: "summon_token", token: "Soldado Leal" }] }]
   },
-  { name: "Cavaleiro da Luz", cardType: "Cavalaria", atk: 4, hp: 5, cost: 3, isFullArt: true, effect: "\u2014" },
+  { name: "Cavaleiro da Luz", cardType: "Cavalaria", atk: 4, hp: 5, cost: 3, isFullArt: true, effect: "" },
   {
     name: "Comandante da Ordem",
     trigger: "postura",
@@ -333,7 +334,7 @@ var CARD_DEFS = [
     hp: 5,
     cost: 3,
     isFullArt: true,
-    effect: "Na Vanguarda: Infantaria e Arqueiros aliados ganham +1 ATK e +1 HP durante o combate.",
+    effect: "Na Vanguarda, seus Infantaria e Arqueiros t\xEAm +1/+1 em combate.",
     passives: [{
       kind: "aura",
       who: { side: "own", types: ["Infantaria", "Arqueiro"] },
@@ -348,7 +349,7 @@ var CARD_DEFS = [
     atk: 1,
     hp: 4,
     cost: 2,
-    effect: "Pode atacar duas vezes por rodada.",
+    effect: "Ataca 2 vezes por rodada.",
     passives: [{ kind: "aura", who: { side: "self" }, attacks: 1 }]
   },
   {
@@ -368,7 +369,7 @@ var CARD_DEFS = [
     hp: 0,
     cost: 3,
     isFullArt: true,
-    effect: "Causa 2 de dano a TODAS as unidades inimigas.",
+    effect: "2 de dano a todas as unidades inimigas e ao General.",
     abilities: [{ on: "play", do: [{ kind: "damage", amount: 2, all: "enemy" }] }]
   },
   {
@@ -377,7 +378,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 2,
-    effect: "Escolha uma fileira inimiga. Todas as unidades naquela fileira recebem 2 de dano.",
+    effect: "2 de dano a todas as unidades de uma fileira inimiga.",
     abilities: [{ on: "play", do: [
       { kind: "damage", amount: 2, target: { ...ENEMY_UNIT, area: "row", prompt: "Escolha uma fileira inimiga (clique em qualquer slot dela)." } }
     ] }]
@@ -388,7 +389,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 2,
-    effect: "Causa 3 de dano a uma unidade inimiga \xE0 sua escolha.",
+    effect: "3 de dano a uma unidade inimiga.",
     abilities: [{ on: "play", do: [
       { kind: "damage", amount: 3, target: { ...ENEMY_UNIT, prompt: "Escolha uma unidade inimiga para causar 3 de dano." } }
     ] }]
@@ -399,7 +400,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 1,
-    effect: "Infantaria equipada recebe +2 HP.",
+    effect: "Equipe uma Infantaria: +2 HP.",
     abilities: [{ on: "play", do: [
       { kind: "equip", hp: 2, target: { ...OWN_UNIT, types: ["Infantaria"], prompt: "Escolha uma Infantaria sua para equipar (+2 HP)." } }
     ] }]
@@ -410,7 +411,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 1,
-    effect: "Arqueiro, Plebeu ou Infantaria equipada recebe +1 HP.",
+    effect: "Equipe uma Infantaria ou Arqueiro: +1 HP.",
     abilities: [{ on: "play", do: [
       { kind: "equip", hp: 1, target: { ...OWN_UNIT, types: ["Arqueiro", "Infantaria"], prompt: "Escolha um Arqueiro ou Infantaria sua para equipar (+1 HP)." } }
     ] }]
@@ -421,7 +422,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 1,
-    effect: "Arqueiro equipado recebe +1 ATK.",
+    effect: "Equipe um Arqueiro: +1 ATK.",
     abilities: [{ on: "play", do: [
       { kind: "equip", atk: 1, target: { ...OWN_UNIT, types: ["Arqueiro"], prompt: "Escolha um Arqueiro seu para equipar (+1 ATK)." } }
     ] }]
@@ -432,7 +433,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 1,
-    effect: "Cavalaria, Infantaria ou Plebeu equipado recebe +2 ATK.",
+    effect: "Equipe uma Infantaria ou Cavalaria: +2 ATK.",
     abilities: [{ on: "play", do: [
       { kind: "equip", atk: 2, target: { ...OWN_UNIT, types: ["Cavalaria", "Infantaria"], prompt: "Escolha uma Cavalaria ou Infantaria sua para equipar (+2 ATK)." } }
     ] }]
@@ -443,7 +444,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 1,
-    effect: "Durante um ataque inimigo: um soldado aliado recebe +2 ATK e +1 HP at\xE9 o fim do turno.",
+    effect: "A unidade atacada ganha +2 ATK e +1 HP at\xE9 o fim do turno.",
     abilities: [{ on: "ambush", do: [{ kind: "buff_defender", atk: 2, hp: 1 }] }]
   },
   {
@@ -453,7 +454,7 @@ var CARD_DEFS = [
     hp: 0,
     cost: 1,
     isFullArt: true,
-    effect: "Adicione um soldado do cemit\xE9rio \xE0 sua m\xE3o.",
+    effect: "Leve 1 soldado do cemit\xE9rio para a m\xE3o.",
     abilities: [{ on: "play", do: [{ kind: "search", zone: "graveyard", filter: { types: SOLDIERS } }] }]
   },
   {
@@ -462,7 +463,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 1,
-    effect: "Adicione uma carta de Terreno ou Rel\xEDquia do deck \xE0 sua m\xE3o.",
+    effect: "Leve 1 Terreno ou Rel\xEDquia do baralho para a m\xE3o.",
     abilities: [{ on: "play", do: [{ kind: "search", zone: "deck", filter: { types: ["Terreno", "Rel\xEDquia"] } }] }]
   },
   {
@@ -471,7 +472,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 1,
-    effect: "Adicione uma carta de T\xE1tica do deck \xE0 sua m\xE3o.",
+    effect: "Leve 1 T\xE1tica do baralho para a m\xE3o.",
     abilities: [{ on: "play", do: [{ kind: "search", zone: "deck", filter: { types: ["T\xE1tica"] } }] }]
   },
   {
@@ -480,7 +481,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 1,
-    effect: "Adicione um soldado do deck \xE0 sua m\xE3o.",
+    effect: "Leve 1 soldado do baralho para a m\xE3o.",
     abilities: [{ on: "play", do: [{ kind: "search", zone: "deck", filter: { types: SOLDIERS } }] }]
   },
   {
@@ -489,7 +490,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 2,
-    effect: "Veja as 4 cartas do topo. Adicione 2 \xE0 m\xE3o e coloque 2 no fundo do deck.",
+    effect: "Veja 4 cartas do topo: fique com 1 ou 2, o resto vai para o fundo.",
     abilities: [{ on: "play", do: [{ kind: "look_top", count: 4, keepMin: 1, keepMax: 2 }] }]
   },
   {
@@ -498,7 +499,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 0,
-    effect: "Ganhe 1 ouro adicional neste turno.",
+    effect: "+1 de ouro neste turno.",
     abilities: [{ on: "play", do: [{ kind: "gold", amount: 1 }] }]
   },
   {
@@ -507,7 +508,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 2,
-    effect: "Convoque do deck at\xE9 2 soldados com 0 ATK para slots livres na Vanguarda. Embaralhe o deck.",
+    effect: "Convoque at\xE9 2 soldados de 0 ATK do baralho para a Vanguarda. Embaralhe.",
     abilities: [{ on: "play", do: [{ kind: "summon_deck", max: 2, filter: { types: SOLDIERS, atk: 0 } }] }]
   }
 ];
