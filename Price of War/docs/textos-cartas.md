@@ -90,3 +90,14 @@ Cartas com gatilho (Reforço, Postura, Comando, …) mostram a palavra automatic
 - O texto vem de `src/engine/catalog.ts` (campo `effect`); é uma troca de strings, sem mexer em regras.
 - Para a palavra de gatilho: em `FitEffectText` (App.tsx) passar para o rótulo a **mesma cor do texto**, mantendo negrito e dois-pontos. Para o General e outras cartas sem gatilho, o negrito vem do próprio texto.
 - O tutorial cita alguns textos de carta; ficam como estão por enquanto.
+
+## Símbolos dentro do texto (aplicado)
+
+O catálogo continua com texto simples ("+2 ATK", "+1 HP", "3 de dano", "+1/+1"). Só na hora de desenhar a carta, `renderEffectText` (App.tsx, usado por `FitEffectText`) troca esses trechos pelos símbolos do jogo, sempre com o número **antes** do ícone:
+
+- `+2 ATK` → **+2** e a espada (`ui-icon-sword.webp`); `-1 ATK` também.
+- `+1 HP` → **+1** e o coração vermelho (`ui-icon-heart.webp`).
+- `+1/+1` → os dois, um depois do outro.
+- `3 de dano` → a estrela de dano com o 3 dentro. Redução ("-1 de dano") continua em palavras.
+
+Os ícones são a arte dos efeitos de buff sem o "+" desenhado (o sinal é texto). Tamanhos em `em`, um pouco menores que duas linhas para que símbolos em linhas vizinhas não se encostem. O coração do efeito "+HP" (sheet `fx-hp-up-sheet` e o still) agora é vermelho; `tools/vfx/recolor_hp_up_red.py` refaz a recoloração e recorta os ícones de texto.

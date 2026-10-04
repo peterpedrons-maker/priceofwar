@@ -89,6 +89,8 @@ import fxShieldHitSheet from './assets/fx-shield-hit-sheet.webp';
 import fxShieldBreakSheet from './assets/fx-shield-break-sheet.webp';
 import uiEffectAtkUpStill from './assets/ui-effect-atk-up.webp';
 import uiEffectHpUpStill from './assets/ui-effect-hp-up.webp';
+import uiIconSword from './assets/ui-icon-sword.webp';
+import uiIconHeart from './assets/ui-icon-heart.webp';
 import maskGold from './assets/mask-gold.webp';
 import maskGoldRim from './assets/mask-gold-rim.webp';
 import maskHandGold from './assets/mask-hand-gold.webp';
@@ -947,7 +949,7 @@ type EffectIcon = 'atk-up' | 'atk-down' | 'hp-up' | 'hp-down' | 'reinforce' | 's
 const EFFECT_ICONS: Record<EffectIcon, { sheet: string; rows: number; frames: number; color: string }> = {
   'atk-up': { sheet: fxAtkUpSheet, rows: 6, frames: 36, color: '#ffb347' },
   'atk-down': { sheet: fxAtkDownSheet, rows: 5, frames: 30, color: '#ff6a55' },
-  'hp-up': { sheet: fxHpUpSheet, rows: 5, frames: 30, color: '#6ee7a0' },
+  'hp-up': { sheet: fxHpUpSheet, rows: 5, frames: 30, color: '#ff8a7a' },
   'hp-down': { sheet: fxHpDownSheet, rows: 5, frames: 30, color: '#ff6a55' },
   'reinforce': { sheet: fxReinforceSheet, rows: 5, frames: 30, color: '#7fc3ff' },
   'swap': { sheet: fxSwapSheet, rows: 5, frames: 30, color: '#8fe3ff' },
@@ -1535,6 +1537,49 @@ const KeywordPill = ({ label, icon }: { label: string; icon?: string; key?: Reac
     {label}
   </span>
 );
+// Rule numbers inside the effect text turn into the game's own symbols: "+2 ATK" → "+2" and the sword, "+1 HP" → "+1" and a red
+// heart, "3 de dano" → the damage burst with the 3 inside. "+1/+1" becomes both. A reduction ("-1 de dano") stays words. The sizes
+// are in em, so the symbols shrink with the text when it is fitted; they are a little under two lines' worth so that symbols on
+// neighbouring lines never touch.
+const STAT_TOKEN = /\*\*[^*]+\*\*|[+-]\d+\/[+-]\d+|[+-]\d+ (?:ATK|HP)\b|\d+ de dano/g;
+const STAT_NUMBER_STYLE: React.CSSProperties = { fontFamily: "'Cinzel', serif", fontWeight: 900, fontSize: '1.3em', lineHeight: 1, verticalAlign: 'middle', textShadow: '0 1px 0 #000, 0 -1px 0 #000, 1px 0 0 #000, -1px 0 0 #000, 0 0 3px #000' };
+const StatSymbol = ({ amount, kind }: { amount: string; kind: 'atk' | 'hp'; key?: React.Key }) => (
+  <span style={{ display: 'inline-block', whiteSpace: 'nowrap', margin: '0 0.12em' }}>
+    <span style={{ ...STAT_NUMBER_STYLE, color: kind === 'atk' ? '#ffe08a' : '#ffb3a8' }}>{amount}</span>
+    <img src={kind === 'atk' ? uiIconSword : uiIconHeart} alt={kind === 'atk' ? 'ATK' : 'HP'} draggable={false}
+      style={{ height: '1.6em', width: 'auto', display: 'inline-block', verticalAlign: 'middle', margin: '-0.5em 0 -0.5em 0.12em' }} />
+  </span>
+);
+const DamageSymbol = ({ amount }: { amount: string; key?: React.Key }) => {
+  const burst = burstUrl('damage');
+  return (
+    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '1.8em', height: '1.4em', verticalAlign: 'middle', margin: '0 0.15em', whiteSpace: 'nowrap' }} aria-label={`${amount} de dano`}>
+      {burst && <img src={burst} alt="" draggable={false} style={{ position: 'absolute', left: '50%', top: '50%', width: '2.1em', height: '2.1em', maxWidth: 'none', transform: 'translate(-50%, -50%)' }} />}
+      <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.6))' }}>
+        {amount.split('').map((ch, i) => { const g = glyphUrl('damage', ch); return g ? <img key={i} src={g} alt="" draggable={false} style={{ height: '1.05em', marginLeft: i ? '-0.1em' : 0 }} /> : null; })}
+      </span>
+    </span>
+  );
+};
+const renderEffectText = (text: string): React.ReactNode[] => {
+  const out: React.ReactNode[] = [];
+  let last = 0, key = 0, m: RegExpExecArray | null;
+  STAT_TOKEN.lastIndex = 0;
+  while ((m = STAT_TOKEN.exec(text))) {
+    const t = m[0], at = m.index;
+    const prev = text[at - 1];
+    const damage = t.endsWith(' de dano');
+    if (damage && prev && /[-\d]/.test(prev)) continue;                  // "-1 de dano": a reduction, left as words
+    if (at > last) out.push(text.slice(last, at));
+    if (t.startsWith('**')) out.push(<KeywordPill key={key++} label={t.slice(2, -2)} />);
+    else if (damage) out.push(<DamageSymbol key={key++} amount={t.split(' ')[0]} />);
+    else if (t.includes('/')) { const [a, h] = t.split('/'); out.push(<StatSymbol key={key++} amount={a} kind="atk" />, <StatSymbol key={key++} amount={h} kind="hp" />); }
+    else out.push(<StatSymbol key={key++} amount={t.split(' ')[0]} kind={t.endsWith('ATK') ? 'atk' : 'hp'} />);
+    last = at + t.length;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+};
 const FitEffectText = ({ text, className, style, align = 'center', lead }: { text: string, className?: string, style?: React.CSSProperties, align?: 'center' | 'start', lead?: { label: string, icon?: string } }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLParagraphElement>(null);
@@ -1577,7 +1622,7 @@ const FitEffectText = ({ text, className, style, align = 'center', lead }: { tex
     <div ref={containerRef} className={`w-full h-full flex overflow-hidden ${align === 'start' ? 'items-start justify-start' : 'items-center justify-center'}`}>
       <p ref={textRef} className={className} style={{ ...style, margin: 0 }}>
         {lead && <KeywordPill label={lead.label} icon={lead.icon} />}
-        {text.split(/(\*\*[^*]+\*\*)/).map((part, i) => (part.startsWith('**') ? <KeywordPill key={i} label={part.slice(2, -2)} /> : part))}
+        {renderEffectText(text)}
       </p>
     </div>
   );
