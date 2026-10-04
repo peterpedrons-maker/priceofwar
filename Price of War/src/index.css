@@ -122,5 +122,16 @@
 
 @keyframes zone-pulse { 0%, 100% { box-shadow: 0 0 16px rgba(255,201,77,.45), inset 0 0 14px rgba(255,201,77,.14); } 50% { box-shadow: 0 0 30px rgba(255,201,77,.8), inset 0 0 22px rgba(255,201,77,.3); } }
 
-/* the slot under a dragged card */
-[data-drag-over] { box-shadow: 0 0 0 3px rgba(255,255,255,.95), 0 0 26px 8px rgba(255,226,140,.85) !important; border-radius: 10px; }
+
+/* the slot under a dragged card: it lights up (not just an outline) — gold for a unit, red for damage, green for healing */
+@keyframes slot-glow { 0%, 100% { filter: brightness(1.25); } 50% { filter: brightness(1.7); } }
+[data-drag-over] { border-radius: 10px; animation: slot-glow .9s ease-in-out infinite; }
+[data-drag-over="gold"]  { background-image: radial-gradient(ellipse at center, rgba(255,230,140,.85) 0%, rgba(255,196,60,.55) 55%, rgba(255,170,30,.25) 100%) !important; box-shadow: 0 0 0 3px #fff3c4, 0 0 30px 10px rgba(255,208,90,.95), inset 0 0 26px 6px rgba(255,236,170,.9) !important; }
+[data-drag-over="red"]   { background-image: radial-gradient(ellipse at center, rgba(255,150,130,.85) 0%, rgba(255,70,55,.55) 55%, rgba(255,40,30,.25) 100%) !important; box-shadow: 0 0 0 3px #ffd9d2, 0 0 30px 10px rgba(255,90,70,.95), inset 0 0 26px 6px rgba(255,170,150,.9) !important; }
+[data-drag-over="green"] { background-image: radial-gradient(ellipse at center, rgba(160,255,200,.85) 0%, rgba(70,230,140,.55) 55%, rgba(40,200,110,.25) 100%) !important; box-shadow: 0 0 0 3px #d6ffe8, 0 0 30px 10px rgba(90,240,160,.95), inset 0 0 26px 6px rgba(170,255,210,.9) !important; }
+/* the guide line from the held card to the slot: flowing dots */
+@keyframes guide-flow { to { stroke-dashoffset: -32; } }
+.guide-flow { animation: guide-flow .45s linear infinite; }
+/* soft light behind the held / inspected card, drawn with a gradient instead of a blur filter */
+.held-glow { position: absolute; inset: -14%; background: radial-gradient(ellipse at center, rgba(255,214,110,.5) 0%, rgba(255,214,110,0) 68%); pointer-events: none; }
+.inspect-glow { position: absolute; inset: -10%; background: radial-gradient(ellipse at center, rgba(255,208,100,.35) 0%, rgba(255,208,100,0) 70%); pointer-events: none; }

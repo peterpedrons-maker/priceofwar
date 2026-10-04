@@ -633,7 +633,7 @@ const TargetingHud = ({ source, mode, kind, title, hint, windowH, promptButtons,
   const promptY = -(windowH * 0.55 - 12 - 160 * promptScale);
   return (
     <>
-      <div className="fixed left-2 md:left-6 z-[210] pointer-events-none" style={{ bottom: 12 }}>
+      <div className="fixed left-2 md:left-6 z-[218] pointer-events-none" style={{ bottom: 12 }}>
         <motion.div
           initial={{ scale: 0.25, opacity: 0, y: 50 }}
           animate={mode === 'prompt' ? { scale: promptScale, y: promptY, opacity: 1 } : { scale: HUD_CARD_SCALE, y: 0, opacity: 1 }}
@@ -668,7 +668,7 @@ const TargetingHud = ({ source, mode, kind, title, hint, windowH, promptButtons,
       {mode === 'targeting' && (
         <motion.div
           initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-          className="fixed z-[210] pointer-events-auto"
+          className="fixed z-[218] pointer-events-auto"
           style={{ left: 8 + 224 * HUD_CARD_SCALE + 14, right: 8, bottom: 14 }}
         >
           <GameBox px={14} className="flex flex-col gap-1.5 px-1 py-0.5">
@@ -5245,6 +5245,8 @@ export default function App() {
     mover: { fromX: number; fromY: number; toX: number; toY: number; w: number; h: number };
     swapped: { fromX: number; fromY: number; toX: number; toY: number; w: number; h: number } | null;
   } | null>(null);
+  const repositionFlightRef = useRef(repositionFlight);
+  repositionFlightRef.current = repositionFlight;
   // Equipping an Armamento: the unit floats up to the middle of the screen, the equipment card arrives, slides in underneath
   // it, the bonus shows, and both settle back into the slot. `stage` drives where each card is; the engine has already
   // applied everything (the slot is simply held empty on screen meanwhile, see holdsRef).
@@ -5392,7 +5394,11 @@ export default function App() {
   // while it is held, the card floats under the finger (see `held`) and the board lights up where it can go.
   const [inspectId, setInspectId] = useState<string | null>(null);
   const inspectOpenedAtRef = useRef(0);   // a touch's own click lands on the freshly opened scrim: ignore clicks right after opening
-  const [held, setHeld] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [held, setHeld] = useState<{ id: string } | null>(null);   // which card is held; where it is lives in refs (no React re-render per finger move)
+  const heldElRef = useRef<HTMLDivElement | null>(null);
+  const guideRef = useRef<SVGSVGElement | null>(null);
+  const dragPointRef = useRef({ x: 0, y: 0 });
+  const dragFrameRef = useRef<number | null>(null);
   const dragRef = useRef<{ index: number; id: string; startX: number; startY: number; dragging: boolean; blocked: boolean } | null>(null);
   const dropFromRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
   const dragApiRef = useRef<{ move: (x: number, y: number) => void; up: (x: number, y: number, cancelled: boolean) => void } | null>(null);
@@ -5828,7 +5834,8 @@ export default function App() {
           break;
         }
         case 'move': {
-          if (e.swapped && !opts.quietTurn) popOverSlot(e.seat === 0 ? 'player' : 'npc', e.to, 'swap', 'TROCA');
+          const inFlight = repositionFlightRef.current && repositionFlightRef.current.originIndex === e.from && repositionFlightRef.current.destIndex === e.to;
+          if (e.swapped && !opts.quietTurn && !inFlight) popOverSlot(e.seat === 0 ? 'player' : 'npc', e.to, 'swap', 'TROCA');   // (a slide shows its own swap sign)
           const c = engineRef.current?.players[e.seat].board[e.to];
           if (c && triggerKeyOf(c.name) === 'manobra' && !opts.quietTurn) window.setTimeout(() => startTriggerFx(ownerId(e.seat), e.to, toCardData(c), 'manobra'), 700);
           break;
@@ -7305,7 +7312,7 @@ export default function App() {
 
   // ── Press, hold and drag a hand card ──────────────────────────────────────────────────────────────────────────
   const HELD_SCALE = 0.55;
-  const HELD_GAP = 38;       // the held card hangs below the finger (the finger stays above it, clear of the card), this far from the fingertip
+  const HELD_GAP = 48;       // the held card hangs below the finger (the finger stays above it, clear of the card), this far from the fingertip
   const heldTop = (y: number) => Math.min(y + HELD_GAP, windowSize.height - 320 * HELD_SCALE - 6);   // top edge of the held card on screen
   const slotUnder = (x: number, y: number): { side: 'player' | 'npc'; index: number; el: HTMLElement } | null => {
     for (const e of document.elementsFromPoint(x, y)) {
@@ -7379,6 +7386,47 @@ export default function App() {
     if (kind === 'immediate' && y < windowSize.height * 0.68) { handlePlayCardButtonClick(); return; }
     cancel();
   };
+  // Called once per frame while a card is held: moves the floating card, lights the slot under the finger, draws the guide line.
+  const updateHeld = () => {
+    const { x, y } = dragPointRef.current;
+    const top = heldTop(y);
+    if (heldElRef.current) heldElRef.current.style.transform = `translate3d(${x - 112}px, ${top + 160 * HELD_SCALE - 160}px, 0)`;
+    const hit = slotUnder(x, y);
+    const idx = dragRef.current?.index;
+    const card = idx !== undefined ? hand[idx] : undefined;
+    const drop = hit && card ? dropOk(card, hit) : null;
+    document.querySelectorAll('[data-drag-over]').forEach(el => { if (el !== (drop ? hit?.el : null)) el.removeAttribute('data-drag-over'); });
+    if (drop && hit) hit.el.setAttribute('data-drag-over', drop.tone);
+    // the guide: a glowing line from the top of the held card to the middle of the slot it would land in
+    const g = guideRef.current;
+    if (g) {
+      const path = g.querySelector('path');
+      if (drop && hit && path) {
+        const r = hit.el.getBoundingClientRect();
+        const x2 = r.left + r.width / 2, y2 = r.top + r.height / 2, x1 = x, y1 = top + 4;
+        const cy = Math.min(y1, y2) - 26;
+        path.setAttribute('d', `M ${x1} ${y1} Q ${(x1 + x2) / 2} ${cy} ${x2} ${y2}`);
+        path.setAttribute('stroke', drop.color);
+        (path as SVGElement).style.color = drop.color;
+        const dot = g.querySelector('circle');
+        dot?.setAttribute('cx', String(x2)); dot?.setAttribute('cy', String(y2)); dot?.setAttribute('fill', drop.color);
+        g.style.opacity = '1';
+      } else g.style.opacity = '0';
+    }
+  };
+  // Whether the card held would be accepted by the slot the finger is over (and what colour it lights): a unit in an empty slot of
+  // its own; an aimed Tática on a valid target (red for damage, green for healing, gold for the rest).
+  const dropOk = (card: CardData, hit: { side: 'player' | 'npc'; index: number }): { tone: 'gold' | 'red' | 'green'; color: string } | null => {
+    const kind = getCardDropKind(card);
+    if (kind === 'place') return hit.side === 'player' && canPlaceInSlot(card.cardType, hit.index) && !playerSlots[hit.index] ? { tone: 'gold', color: '#ffd36a' } : null;
+    if (kind === 'ownTarget' || kind === 'enemyTarget') {
+      const spec = targetSpecOf(card.name);
+      if (!spec || !specSlots(spec).some(v => v.side === hit.side && v.index === hit.index)) return null;
+      const verb = verbsOn(card.name, 'play').find(v => 'target' in v && v.target)?.kind;
+      return verb === 'damage' ? { tone: 'red', color: '#ff6a5a' } : verb === 'heal' ? { tone: 'green', color: '#66f0a0' } : { tone: 'gold', color: '#ffd36a' };
+    }
+    return null;
+  };
   dragApiRef.current = {
     move: (x, y) => {
       const d = dragRef.current;
@@ -7392,19 +7440,20 @@ export default function App() {
         setInspectId(null);
         setSelectedCardIndex(d.index);
         setSelectedAttackerIndex(null);
-        setHeld({ id: d.id, x, y });
+        dragPointRef.current = { x, y };
+        setHeld({ id: d.id });
         playCardLiftSfx();
         return;
       }
-      setHeld(h => (h ? { ...h, x, y } : h));
-      const hit = slotUnder(x, y);
-      document.querySelectorAll('[data-drag-over]').forEach(el => { if (el !== hit?.el) el.removeAttribute('data-drag-over'); });
-      hit?.el.setAttribute('data-drag-over', '1');
+      dragPointRef.current = { x, y };
+      if (dragFrameRef.current === null) dragFrameRef.current = requestAnimationFrame(() => { dragFrameRef.current = null; updateHeld(); });
     },
     up: (x, y, cancelled) => {
       const d = dragRef.current;
       dragRef.current = null;
       clearDragOver();
+      if (dragFrameRef.current !== null) { cancelAnimationFrame(dragFrameRef.current); dragFrameRef.current = null; }
+      if (guideRef.current) guideRef.current.style.opacity = '0';
       if (!d || d.blocked) return;
       if (!d.dragging) { if (!cancelled) tapHandCard(d.index); return; }
       if (cancelled) { setSelectedCardIndex(null); return; }
@@ -8641,21 +8690,15 @@ export default function App() {
           const hoverX = flyingCard.toX;
           const hoverY = flyingCard.toY - 70;
           const times = [0, 0.55, 0.7, 1];
+          // Only transform (x / y / scale) is animated, never left / top / width / height: those force a layout every frame,
+          // which is what made the big flying card stutter on phones.
           return (
             <motion.div
-              initial={{
-                left: flyingCard.fromX - HALF_W,
-                top: flyingCard.fromY - HALF_H,
-                width: HAND_CARD_WIDTH,
-                height: HAND_CARD_HEIGHT,
-                scale: startScale,
-              }}
+              initial={{ x: flyingCard.fromX - HALF_W, y: flyingCard.fromY - HALF_H, scale: startScale }}
               animate={{
                 // Rise up to the hover presentation, hold there, then drop straight down.
-                left: [flyingCard.fromX - HALF_W, hoverX - HALF_W, hoverX - HALF_W, flyingCard.toX - HALF_W],
-                top: [flyingCard.fromY - HALF_H, hoverY - HALF_H, hoverY - HALF_H, flyingCard.toY - HALF_H],
-                width: HAND_CARD_WIDTH,
-                height: HAND_CARD_HEIGHT,
+                x: [flyingCard.fromX - HALF_W, hoverX - HALF_W, hoverX - HALF_W, flyingCard.toX - HALF_W],
+                y: [flyingCard.fromY - HALF_H, hoverY - HALF_H, hoverY - HALF_H, flyingCard.toY - HALF_H],
                 scale: [startScale, startScale * hoverScale, startScale * hoverScale, endScale],
                 times,
               }}
@@ -8675,9 +8718,8 @@ export default function App() {
                 setTimeout(() => setCameraSettling(null), big ? 500 : 300);
               }}
               style={{
-                position: 'fixed', zIndex: 500, transformOrigin: 'center center',
+                position: 'fixed', left: 0, top: 0, width: HAND_CARD_WIDTH, height: HAND_CARD_HEIGHT, zIndex: 500, transformOrigin: 'center center', willChange: 'transform',
                 boxShadow: cardBoxShadow(flyingCard.card, 'inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 40px rgba(212,175,55,0.6)'),
-                filter: cardGlowFilter(flyingCard.card, '0 0 24px rgba(212,175,55,0.75)'),
               }}
               // Same frame, art, and layout as the hand card it came from — it should read
               // as the exact same card the whole time, not switch to a simplified design.
@@ -8714,13 +8756,10 @@ export default function App() {
           return (
             <motion.div
               key={card.id}
-              initial={{
-                left: leg.fromX - leg.w / 2, top: leg.fromY - leg.h / 2,
-                width: leg.w, height: leg.h, rotate: 0,
-              }}
+              initial={{ x: leg.fromX - leg.w / 2, y: leg.fromY - leg.h / 2, rotate: 0 }}
               animate={{
-                left: [leg.fromX - leg.w / 2, midX - leg.w / 2, leg.toX - leg.w / 2],
-                top: [leg.fromY - leg.h / 2, midY - leg.h / 2, leg.toY - leg.h / 2],
+                x: [leg.fromX - leg.w / 2, midX - leg.w / 2, leg.toX - leg.w / 2],
+                y: [leg.fromY - leg.h / 2, midY - leg.h / 2, leg.toY - leg.h / 2],
                 rotate: [0, tilt, 0],
               }}
               transition={repositionFlight.reinforce ? { duration: 0.34, ease: [0.55, 0, 0.9, 0.55] } : { duration: 0.4, ease: "easeInOut" }}
@@ -8740,10 +8779,21 @@ export default function App() {
                 if (repositionFlight.side === 'player') dispatchAction(0, { type: 'move', from: repositionFlight.originIndex, to: repositionFlight.destIndex });
                 setRepositionFlight(null);
               } : undefined}
-              style={{ position: 'fixed', zIndex: 480, filter: CARD_THICKNESS_SHADOW }}
+              style={{ position: 'fixed', left: 0, top: 0, width: leg.w, height: leg.h, zIndex: 480, filter: CARD_THICKNESS_SHADOW, willChange: 'transform' }}
               className="pointer-events-none rounded-lg flex flex-col p-1"
             >
               {card.isFullArt ? <CardFaceFullArtMini card={card} /> : <CardFaceStandardMini card={card} />}
+              {/* The swap sign rides on each card that changes places, for as long as it moves. */}
+              {repositionFlight.swapped && !repositionFlight.reinforce && (
+                <motion.div
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                  initial={{ opacity: 0, scale: 0.4 }} animate={{ opacity: [0, 1, 1, 0.9], scale: [0.4, 1.15, 1, 1] }} transition={{ duration: 0.4, times: [0, 0.3, 0.7, 1] }}
+                >
+                  <div style={{ width: '62%', height: '62%', filter: 'drop-shadow(0 0 8px rgba(120,200,255,0.9)) drop-shadow(0 2px 3px rgba(0,0,0,0.7))' }}>
+                    <SpriteIcon icon="swap" className="w-full h-full" />
+                  </div>
+                </motion.div>
+              )}
             </motion.div>
           );
         })}
@@ -9538,40 +9588,52 @@ export default function App() {
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => { if (performance.now() - inspectOpenedAtRef.current > 500) setInspectId(null); }}
             >
+              {/* Only opacity and a short slide are animated; the card is drawn at its final size from the first frame and carries no
+                  filter — a big scaled card with chained drop-shadows was what made opening it stutter on phones. */}
               <motion.div
                 key={card.id}
-                initial={{ scale: 0.45, y: windowSize.height * 0.35, opacity: 0 }}
-                animate={{ scale: k, y: -10, opacity: 1 }}
-                exit={{ scale: 0.45, y: windowSize.height * 0.4, opacity: 0 }}
-                transition={{ type: 'spring', damping: 22, stiffness: 240 }}
-                className="relative w-56 h-80 shrink-0"
-                style={{ touchAction: 'none', filter: `${CARD_THICKNESS_SHADOW} drop-shadow(0 0 18px rgba(212,175,55,0.7))` }}
+                initial={{ opacity: 0, y: 46 }}
+                animate={{ opacity: 1, y: -10 }}
+                exit={{ opacity: 0, y: 46 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+                className="relative shrink-0"
+                style={{ width: 224 * k, height: 320 * k, touchAction: 'none', willChange: 'transform, opacity' }}
                 onPointerDown={(e: React.PointerEvent) => { e.stopPropagation(); beginPress(e, idx); }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <CardFace card={card} variant="hand" />
+                <div className="inspect-glow" />
+                <div style={{ width: 224, height: 320, transform: `scale(${k})`, transformOrigin: 'top left', position: 'absolute', left: 0, top: 0 }}>
+                  <CardFace card={card} variant="hand" />
+                </div>
               </motion.div>
             </motion.div>
           );
         })()}
       </AnimatePresence>
 
-      {/* The card being held: it hangs below the finger, a little apart from it, so the player knows which card was picked up. */}
+      {/* The card being held: it hangs below the finger, a little apart from it, so the player knows which card was picked up. Its position is
+          written straight to the element while the finger moves (no React render per move) and it uses no filters, so it stays smooth. */}
       {!tutOn && held && (() => {
         const card = hand.find(c => c.id === held.id);
         if (!card) return null;
+        const { x, y } = dragPointRef.current;
         return (
-          <div className="fixed z-[320] pointer-events-none" style={{ left: held.x - 112, top: heldTop(held.y) + 160 * HELD_SCALE - 160, width: 224, height: 320 }}>
-            <motion.div
-              initial={{ scale: 0.5, opacity: 0.4, rotate: 0 }}
-              animate={{ scale: HELD_SCALE, opacity: 1, rotate: [-4, 3, -4] }}
-              transition={{ scale: { type: 'spring', damping: 16, stiffness: 300 }, opacity: { duration: 0.12 }, rotate: { duration: 1.6, repeat: Infinity, ease: 'easeInOut' } }}
-              className="absolute inset-0"
-              style={{ filter: 'drop-shadow(0 22px 14px rgba(0,0,0,0.55)) drop-shadow(0 0 16px rgba(255,214,110,0.75))' }}
+          <>
+            <svg ref={guideRef} className="fixed inset-0 w-full h-full pointer-events-none" style={{ zIndex: 319, opacity: 0, transition: 'opacity 90ms' }}>
+              <path d="" fill="none" strokeWidth={6} strokeLinecap="round" strokeDasharray="9 7" className="guide-flow" style={{ filter: 'drop-shadow(0 0 5px currentColor)' }} />
+              <circle r={9} cx={-50} cy={-50} className="guide-dot" />
+            </svg>
+            <div
+              ref={heldElRef}
+              className="fixed pointer-events-none"
+              style={{ left: 0, top: 0, width: 224, height: 320, zIndex: 320, willChange: 'transform', transform: `translate3d(${x - 112}px, ${heldTop(y) + 160 * HELD_SCALE - 160}px, 0)` }}
             >
-              <CardFace card={card} variant="hand" />
-            </motion.div>
-          </div>
+              <div style={{ width: 224, height: 320, transform: `scale(${HELD_SCALE}) rotate(-3deg)`, transformOrigin: 'center', position: 'relative' }}>
+                <div className="held-glow" />
+                <CardFace card={card} variant="hand" />
+              </div>
+            </div>
+          </>
         );
       })()}
 

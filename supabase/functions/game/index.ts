@@ -1735,6 +1735,7 @@ var tacticPlay = (s, seat, card) => {
   const ownUnits = UNIT_SLOTS.filter((i) => me.board[i]);
   const v = verbsOn(card.name, "play")[0];
   if (!v) return null;
+  const surplus = me.gold >= 8 || me.hand.length >= 6;
   const spec = targetSpecsOf([v])[0];
   const candidates = spec ? specCandidatesOn(spec, me.board, foe.board, s.turn.moved) : [];
   switch (v.kind) {
@@ -1744,7 +1745,7 @@ var tacticPlay = (s, seat, card) => {
       if (v.all) {
         const hit = [...enemyUnits, 12].filter((i) => foe.board[i]);
         const kills = hit.filter((i) => foe.board[i].hp <= v.amount).length;
-        return kills >= 1 && hit.length >= 3 || kills >= 2 || hit.length >= 5 ? play() : null;
+        return kills >= 1 && hit.length >= 3 || kills >= 2 || hit.length >= 5 || surplus && hit.length >= 2 ? play() : null;
       }
       if (spec?.area === "row") {
         const rows = [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]].map((row) => {
@@ -1752,22 +1753,23 @@ var tacticPlay = (s, seat, card) => {
           return { slot: row[0], count: units.length, kills: units.filter((i) => foe.board[i].hp <= v.amount).length };
         });
         const best = rows.reduce((a, b) => b.kills * 2 + b.count > a.kills * 2 + a.count ? b : a);
-        return best.kills >= 1 && best.count >= 2 || best.count >= 3 ? play(best.slot) : null;
+        return best.kills >= 1 && best.count >= 2 || best.count >= 3 || surplus && (best.count >= 2 || best.kills >= 1) ? play(best.slot) : null;
       }
       const killable = candidates.filter((i) => foe.board[i].hp <= v.amount);
-      if (killable.length === 0) return null;
-      return play(killable.reduce((a, b) => unitWorth(foe.board[a]) >= unitWorth(foe.board[b]) ? a : b));
+      const pool = killable.length > 0 ? killable : surplus ? candidates : [];
+      if (pool.length === 0) return null;
+      return play(pool.reduce((a, b) => unitWorth(foe.board[a]) >= unitWorth(foe.board[b]) ? a : b));
     }
     case "guard_adjacent": {
-      const scored = candidates.map((i) => ({ i, n: adjacentSlots(i).filter((j) => me.board[j]).length })).filter((x) => x.n >= 2);
+      const scored = candidates.map((i) => ({ i, n: adjacentSlots(i).filter((j) => me.board[j]).length })).filter((x) => x.n >= (surplus ? 1 : 2));
       return scored.length ? play(scored.reduce((a, b) => b.n > a.n ? b : a).i) : null;
     }
     case "retreat": {
-      const hurt = candidates.filter((i) => !me.board[i + 5] && isCardDamaged(me.board[i]));
+      const hurt = candidates.filter((i) => !me.board[i + 5] && (isCardDamaged(me.board[i]) || surplus && me.board[i].hp <= 2 && !!foe.board[i]));
       return hurt.length ? play(weakest(me.board, hurt)) : null;
     }
     case "extra_moves":
-      return planGain(s, seat, v.amount) - planGain(s, seat, 0) >= 1.5 ? play() : null;
+      return planGain(s, seat, v.amount) - planGain(s, seat, 0) >= (surplus ? 0.5 : 1.5) ? play() : null;
     case "buff": {
       if (spec?.needs === "moved" && s.turn.phase !== "movimentacao") return null;
       const useful = candidates.filter((i) => me.board[i].atk > 0);
@@ -1776,7 +1778,7 @@ var tacticPlay = (s, seat, card) => {
     case "displace": {
       if (!combatOpen(s) || !foe.board[12]) return null;
       const blockers = [2, 7].filter((i) => foe.board[i]);
-      if (blockers.length !== 1) return null;
+      if (surplus ? blockers.length < 1 : blockers.length !== 1) return null;
       const hitters = ownUnits.filter((i) => {
         const u = me.board[i];
         if (u.atk < 2 || u.cardType === "Infantaria" && i > 4) return false;
@@ -1784,7 +1786,7 @@ var tacticPlay = (s, seat, card) => {
       });
       const free = adjacentSlots(blockers[0]).filter((j) => !foe.board[j]);
       const opens = free.filter((j) => j !== 2 && j !== 7);
-      return hitters.length > 0 && free.length > 0 && opens.length / free.length >= 0.6 ? play(blockers[0]) : null;
+      return hitters.length > 0 && free.length > 0 && opens.length / free.length >= (surplus ? 0.5 : 0.6) ? play(blockers[0]) : null;
     }
     case "equip": {
       const targets = candidates.filter((i) => i <= 4);
