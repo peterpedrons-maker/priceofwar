@@ -8538,7 +8538,6 @@ export default function App() {
           </span>
         </div>
 
-        <div className="flex flex-row items-center gap-1.5 shrink-0">
         <div
           className="flex flex-col items-center gap-0.5 cursor-pointer shrink-0 pointer-events-auto"
           data-tut="tracker"
@@ -8565,42 +8564,17 @@ export default function App() {
             const locked: TurnPhase[] = combatOpenNow ? [] : ['combate'];
             const automatic = isPlayerTurn && (shownPhase === 'compra' || shownPhase === 'suprimentos');
             return (
-              <motion.div whileTap={isPlayerTurn && !automatic ? { scale: 0.96 } : undefined}>
-                <TurnTracker
-                  mine={isPlayerTurn}
-                  phase={shownPhase}
-                  locked={locked}
-                  name={isPlayerTurn ? undefined : 'ADVERSÁRIO'}
-                  tappable={isPlayerTurn && (!automatic || tutTracker !== null)}
-                />
-              </motion.div>
+              <TurnTracker
+                mine={isPlayerTurn}
+                phase={shownPhase}
+                locked={locked}
+                name={isPlayerTurn ? undefined : 'ADVERSÁRIO'}
+                tappable={isPlayerTurn && (!automatic || tutTracker !== null)}
+                onEnd={endTurnNow}
+                endReady={isPlayerTurn && !automatic && !phaseTransitionLock && !tutOn && autoPhase === null}
+              />
             );
           })()}
-        </div>
-
-        {/* Encerrar turno: passes every phase left (Combate, Movimentação) at once. Always in its place so the row never
-            jumps; it only lights up on the player's own turn, once the automatic phases are done. */}
-        {(() => {
-          const isPlayerTurn = currentTurn === 'player';
-          const automatic = isPlayerTurn && (turnPhase === 'compra' || turnPhase === 'suprimentos' || autoPhase !== null);
-          const ready = isPlayerTurn && !automatic && !phaseTransitionLock && !tutOn;
-          return (
-            <motion.button
-              type="button" data-tut="end-turn" disabled={!ready} whileTap={ready ? { scale: 0.94 } : undefined}
-              onClick={(e) => { e.stopPropagation(); endTurnNow(); }}
-              className="pointer-events-auto shrink-0 flex items-center justify-center text-center leading-[1.05] uppercase"
-              style={{
-                width: 64, height: 44, borderRadius: 8, fontFamily: "'Cinzel', serif", fontWeight: 900, fontSize: 9, letterSpacing: '0.01em', padding: 0,
-                color: ready ? '#fff1c9' : '#9c8c6a', textShadow: '0 1px 2px rgba(0,0,0,0.85)',
-                background: ready ? 'linear-gradient(#c2432f, #7d1a12)' : 'linear-gradient(#3a342a, #26211a)',
-                border: `2px solid ${ready ? '#e8c766' : '#5b4f38'}`, boxShadow: ready ? '0 2px 6px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.25)' : 'none',
-                opacity: ready ? 1 : 0.6,
-              }}
-            >
-              Encerrar<br />turno
-            </motion.button>
-          );
-        })()}
         </div>
 
         {/* Player's gold — same distance from the button as the NPC's above, same
