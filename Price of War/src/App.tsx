@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 're
 import { fetchProfile, usernameAvailable, createProfile, updateProfileFields, fetchStore, pushStore, type CloudDeck } from './services/cloud';
 import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authErrorDetail, authMode, type Session } from './services/auth';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate, type MotionValue } from 'motion/react';
-import { X, ArrowUp, ArrowDown, Pointer } from 'lucide-react';
+import { X, ArrowUp, ArrowDown } from 'lucide-react';
 import { TurnTracker } from './TurnTracker';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
@@ -210,6 +210,7 @@ import { triggerOf, triggerKeyOf, pulseCard, usePulse, TRIGGER_GLOW, TRIGGER_ICO
 import { playSfx, preloadSfx, dbgMark } from './sfx';
 import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettings, subscribeAudio } from './audioSettings';
 import { useGameSettings, setGameSettings } from './gameSettings';
+import tutHandSprite from './assets/tut-hand.webp';
 import type { Trigger } from './engine/types';
 import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
@@ -5414,7 +5415,7 @@ export default function App() {
   // Hand cards: a tap shows the card big in the middle of the screen (another tap puts it back); pressing, holding and dragging it plays it —
   // while it is held, the card floats under the finger (see `held`) and the board lights up where it can go.
   const [inspectId, setInspectId] = useState<string | null>(null);
-  // How many cards the player has already played by dragging: the "arraste" hint above the hand shows until they have done it a few times.
+  // How many cards the player has already played by dragging: the "arraste" hints show only until the first card is played.
   const gameSettings = useGameSettings();
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [dragLessons, setDragLessons] = useState<number>(() => { try { return Number(localStorage.getItem('pow.drags') || 0); } catch { return 0; } });
@@ -8672,49 +8673,46 @@ export default function App() {
         {ambushPrompt && (() => {
           const n = ambushPrompt.options.length;
           const gap = 12;
-          const scale = Math.min(1.15, (windowSize.width - 24 - gap * (n - 1)) / (n * HAND_CARD_WIDTH));
+          // One card: the two answers sit side by side under it. Several: an Ativar under each and one wide Não ativar. The card is sized
+          // so that everything fits between the top bar and the bottom edge, whatever the phone.
+          const single = n === 1;
+          // The card's frame hangs about 34 px below its 224x320 box, so that is reserved too; the question box above ends near y=215.
+          const topClear = 215, reserved = single ? 84 : 150, hang = 34;
+          const fitH = (windowSize.height - topClear - reserved - 20) / (HAND_CARD_HEIGHT + hang);
+          const scale = Math.max(0.5, Math.min(1, fitH, (windowSize.width - 24 - gap * (n - 1)) / (n * HAND_CARD_WIDTH)));
+          const answer = (opt: CardData) => { ambushPrompt.resolve(opt); setAmbushPrompt(null); };
+          const decline = () => { playUiClickSfx(); ambushPrompt.resolve(null); setAmbushPrompt(null); };
           return (
             <motion.div
               key="ambush-overlay"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-x-0 bottom-0 z-[268] flex flex-col items-center justify-end gap-3 pb-6 pointer-events-none"
-              style={{ top: 220, background: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 18%)' }}
+              className="fixed inset-x-0 bottom-0 z-[268] flex flex-col items-center justify-end gap-3 pb-4 pointer-events-none"
+              style={{ top: topClear, background: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 14%)' }}
             >
               <div className="flex items-start justify-center" style={{ gap }}>
                 {ambushPrompt.options.map(opt => (
                   <div key={opt.id} className="flex flex-col items-center gap-2 pointer-events-auto" style={{ width: HAND_CARD_WIDTH * scale }}>
-                    <div style={{ width: HAND_CARD_WIDTH * scale, height: HAND_CARD_HEIGHT * scale, marginBottom: 8, filter: 'drop-shadow(0 0 14px rgba(239,68,68,0.9))' }}>
+                    <div style={{ width: HAND_CARD_WIDTH * scale, height: (HAND_CARD_HEIGHT + hang) * scale, filter: 'drop-shadow(0 0 14px rgba(239,68,68,0.9))' }}>
                       <div style={{ width: HAND_CARD_WIDTH, height: HAND_CARD_HEIGHT, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
                         <CardFace card={opt} variant="hand" />
                       </div>
                     </div>
-                    <GameButton
-                      tone="primary" size={20} className="w-full"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // The engine takes the card out of the hand and into the graveyard when it hears the answer.
-                        ambushPrompt.resolve(opt);
-                        setAmbushPrompt(null);
-                      }}
-                    >
-                      Ativar
-                    </GameButton>
+                    {!single && (
+                      <GameButton tone="primary" size={18} className="w-full" onClick={(e) => { e.stopPropagation(); answer(opt); }}>Ativar</GameButton>
+                    )}
                   </div>
                 ))}
               </div>
-              <div className="pointer-events-auto" style={{ width: Math.min(260, windowSize.width - 40) }}>
-                <GameButton
-                  tone="neutral" size={18} className="w-full"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    playUiClickSfx();
-                    ambushPrompt.resolve(null);
-                    setAmbushPrompt(null);
-                  }}
-                >
-                  Não ativar
-                </GameButton>
-              </div>
+              {single ? (
+                <div className="pointer-events-auto flex gap-3" style={{ width: Math.min(320, windowSize.width - 32) }}>
+                  <GameButton tone="neutral" size={16} className="flex-1" onClick={(e) => { e.stopPropagation(); decline(); }}>Não ativar</GameButton>
+                  <GameButton tone="primary" size={16} className="flex-1" onClick={(e) => { e.stopPropagation(); answer(ambushPrompt.options[0]); }}>Ativar</GameButton>
+                </div>
+              ) : (
+                <div className="pointer-events-auto" style={{ width: Math.min(260, windowSize.width - 40) }}>
+                  <GameButton tone="neutral" size={16} className="w-full" onClick={(e) => { e.stopPropagation(); decline(); }}>Não ativar</GameButton>
+                </div>
+              )}
             </motion.div>
           );
         })()}
@@ -9086,7 +9084,7 @@ export default function App() {
           <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[206] pointer-events-none">
             <GameBox px={10} tint={urgent ? 'rgba(70,12,12,0.9)' : undefined}>
               <span className="block px-2.5 py-0.5 text-[10px] uppercase tracking-widest tabular-nums whitespace-nowrap" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, color: urgent ? '#ffb4a8' : '#f0e0bb' }}>
-                {mine ? 'Seu tempo' : 'Tempo do adversário'} {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}
+                {mine ? 'Você' : 'Rival'} {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}
               </span>
             </GameBox>
           </div>
@@ -9669,7 +9667,7 @@ export default function App() {
                   <div className="absolute inset-x-0 flex flex-col items-center gap-1 pointer-events-none" style={{ bottom: 22 }}>
                     {why ? (
                       <span className="px-3 py-1.5 rounded-md text-center" style={{ background: 'rgba(14,10,6,0.88)', border: '1px solid rgba(232,220,192,0.5)', color: '#f3e3c3', fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 12, letterSpacing: '0.06em', maxWidth: windowSize.width - 40 }}>{why}</span>
-                    ) : !gameSettings.hintsDrag ? null : (
+                    ) : !gameSettings.hintsDrag || dragLessons >= 1 ? null : (
                       <>
                         <DragFinger size={30} travel={46} />
                         <span className="px-3 py-1 rounded-md" style={{ background: 'rgba(14,10,6,0.88)', border: '1px solid rgba(255,214,110,0.7)', color: '#ffe9b0', fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
@@ -9687,7 +9685,7 @@ export default function App() {
 
       {/* While the player has not yet learned the gesture: a finger sliding from the hand up to the board, above the hand. */}
       <AnimatePresence>
-        {!tutOn && gameSettings.hintsDrag && !held && !inspectId && dragLessons < 3 && currentTurn === 'player' && turnPhase === 'preparacao' && viewState === 'hand' && !ambushPrompt && !targetingMode && !pendingAbility && !flyingCard && !preZoomSlot && !gameOverWinner
+        {!tutOn && gameSettings.hintsDrag && !held && !inspectId && dragLessons < 1 && currentTurn === 'player' && turnPhase === 'preparacao' && viewState === 'hand' && !ambushPrompt && !targetingMode && !pendingAbility && !flyingCard && !preZoomSlot && !gameOverWinner
           && hand.some(c => playerMana >= c.cost && getCardDropKind(c) !== 'blocked') && (
           <motion.div key="drag-hint" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             className="fixed left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none" style={{ bottom: 150, zIndex: 214 }}>
@@ -9707,7 +9705,7 @@ export default function App() {
         const { x, y } = dragPointRef.current;
         return (
           <>
-            {gameSettings.hintsDrag && <div className="fixed left-1/2 -translate-x-1/2 pointer-events-none px-4 py-1.5 rounded-md text-center" style={{ top: 84, zIndex: 321, background: 'rgba(14,10,6,0.9)', border: '1px solid rgba(255,214,110,0.8)', boxShadow: '0 0 16px rgba(255,200,80,0.45)', color: '#ffe9b0', fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+            {gameSettings.hintsDrag && dragLessons < 1 && <div className="fixed left-1/2 -translate-x-1/2 pointer-events-none px-4 py-1.5 rounded-md text-center" style={{ top: 84, zIndex: 321, background: 'rgba(14,10,6,0.9)', border: '1px solid rgba(255,214,110,0.8)', boxShadow: '0 0 16px rgba(255,200,80,0.45)', color: '#ffe9b0', fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
               {(() => {
                 const k = getCardDropKind(card);
                 return k === 'place' ? 'Solte na casa acesa' : k === 'enemyTarget' ? 'Solte em um alvo inimigo' : k === 'ownTarget' ? 'Solte em uma unidade sua' : 'Solte no seu campo';
@@ -9761,18 +9759,19 @@ const IMMEDIATE_ZONE_LABEL: Record<string, string> = {
   look_top: 'VÊ O TOPO DO BARALHO', search: 'BUSCA UMA CARTA', summon_deck: 'CONVOCA DO BARALHO',
 };
 // "Segure e arraste": a finger that presses on a card and slides up toward the board, over and over. `size` is the icon size in px.
-const DragFinger = ({ size = 34, travel = 54 }: { size?: number; travel?: number }) => (
-  <span className="relative inline-flex flex-col items-center" style={{ width: size * 1.4, height: size + travel }}>
-    <motion.span className="absolute left-1/2 -translate-x-1/2" style={{ top: 0, color: '#ffd36a' }}
-      animate={{ y: [0, travel * 0.15, 0], opacity: [0.35, 1, 0.35] }} transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}>
-      <ArrowUp strokeWidth={3.5} style={{ width: size * 0.7, height: size * 0.7, filter: 'drop-shadow(0 0 6px rgba(255,200,80,.9))' }} />
-    </motion.span>
-    <motion.span className="absolute left-1/2" style={{ bottom: 0, marginLeft: -size / 2, color: '#fff3d0' }}
-      animate={{ y: [0, -travel, -travel, 0], scale: [1, 0.9, 0.9, 1], opacity: [0, 1, 1, 0] }} transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut', times: [0, 0.55, 0.8, 1] }}>
-      <Pointer strokeWidth={2.2} style={{ width: size, height: size, fill: 'rgba(255,243,208,.25)', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,.8)) drop-shadow(0 0 8px rgba(255,214,110,.8))' }} />
-    </motion.span>
-  </span>
-);
+const DragFinger = ({ size = 34, travel = 54 }: { size?: number; travel?: number }) => {
+  const h = size * 1.75, w = h * 0.8;   // the tutorial's hand, drawn smaller
+  return (
+    <span className="relative inline-flex flex-col items-center" style={{ width: w + 16, height: h + travel }}>
+      <motion.span className="absolute left-1/2 -translate-x-1/2" style={{ top: 0, color: '#ffd36a' }}
+        animate={{ y: [0, travel * 0.15, 0], opacity: [0.35, 1, 0.35] }} transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}>
+        <ArrowUp strokeWidth={3.5} style={{ width: size * 0.7, height: size * 0.7, filter: 'drop-shadow(0 0 6px rgba(255,200,80,.9))' }} />
+      </motion.span>
+      <motion.img src={tutHandSprite} alt="" draggable={false} className="absolute left-1/2" style={{ bottom: 0, width: w, height: h, marginLeft: -w * 0.42, filter: 'drop-shadow(0 0 8px rgba(255,226,150,.85)) drop-shadow(0 2px 3px rgba(0,0,0,.7))' }}
+        animate={{ y: [0, -travel, -travel, 0], scale: [1, 0.92, 0.92, 1], opacity: [0, 1, 1, 0] }} transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut', times: [0, 0.55, 0.8, 1] }} />
+    </span>
+  );
+};
 
 // The guide drawn while a card is dragged: from the top of the held card to where it would land, with the game's own attack arrows (red toward
 // the enemy, blue toward your side) flowing along it and a light sweeping from one end to the other and back. Everything is driven by a
