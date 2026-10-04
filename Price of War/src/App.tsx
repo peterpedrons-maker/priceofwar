@@ -6020,7 +6020,7 @@ export default function App() {
           window.setTimeout(() => playCardPlaySfx(), 1200);
           popOverSlot(side, e.slot, e.atk > 0 ? 'atk-up' : 'hp-up', `+${e.atk > 0 ? e.atk : e.hp}`, 1500);
           window.setTimeout(() => {
-            delete holdsRef.current[side][e.slot];
+            if (equipFxIdRef.current === id) delete holdsRef.current[side][e.slot];   // (a newer equip on this slot keeps its own hold)
             setEquipFx(f => (f?.id === id ? null : f));
             if (engineRef.current) syncView(engineRef.current);
           }, 2250);
@@ -7449,9 +7449,14 @@ export default function App() {
     if (!spec) return [];
     const side = spec.side === 'own' ? 'player' as const : 'npc' as const;
     // a row effect can be aimed at any occupied slot of the side (the whole row is hit); the others follow the spec's filters
+    // A card whose effect is playing floats off its slot and the slot is held empty on screen (trigFx, equipFx): for the
+    // rules it is still there, so it stays a valid target — dropping a Tática on it works while the animation runs.
+    const solid = (list: (CardData | null)[], who: 'player' | 'npc') => list.map((c, i) =>
+      c ?? (trigFx && trigFx.side === who && trigFx.slot === i ? trigFx.card : equipFx && equipFx.side === who && equipFx.slot === i ? equipFx.unitAfter : null));
+    const ownSolid = solid(playerSlots, 'player'), foeSolid = solid(npcSlots, 'npc');
     const slots = spec.area === 'row'
-      ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => (spec.side === 'own' ? playerSlots : npcSlots)[i])
-      : specCandidatesOn(spec, playerSlots, npcSlots, [...movedSlots]);
+      ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => (spec.side === 'own' ? ownSolid : foeSolid)[i])
+      : specCandidatesOn(spec, ownSolid, foeSolid, [...movedSlots]);
     return slots.map(index => ({ side, index }));
   };
   const tacticTargeting = (card: CardData): TargetingMode => {
@@ -7504,7 +7509,11 @@ export default function App() {
   const clearDragOver = () => document.querySelectorAll('[data-drag-over]').forEach(el => el.removeAttribute('data-drag-over'));
   // Why this card cannot be dragged right now (null = it can); 'wait' = say nothing.
   const dragBlockReason = (card: CardData): string | null => {
-    if (gameOverWinner || isCardInFlightTransition || phaseTransitionLock || ambushPrompt || targetingMode || viewState === 'field') return 'wait';
+    if (gameOverWinner || ambushPrompt || targetingMode || viewState === 'field') return 'wait';
+    // 'busy': a card is in flight, the camera is settling or a phase banner is up — nothing is picked up, and it says so
+    // (the hand label stays quiet; the toast comes when a drag is tried). A finished equip animation does not hold the hand:
+    // once its card has landed, what is left is glow.
+    if (preZoomSlot || flyingCard || cameraSettling || repositionFlight || (equipFx && equipFx.stage !== 'land') || phaseTransitionLock) return 'busy';
     if (!canPlayInPhase(card, turnPhase)) {
       return turnPhase === 'movimentacao' ? 'Na Movimentação só dá pra jogar Táticas!' : 'Jogar cartas só nas fases de Preparação e Movimentação!';
     }
@@ -7603,7 +7612,7 @@ export default function App() {
         if (Math.hypot(x - d.startX, y - d.startY) < 10) return;
         const card = hand[d.index];
         const why = card ? dragBlockReason(card) : 'wait';
-        if (why) { d.blocked = true; if (why !== 'wait') showToast(why); return; }
+        if (why) { d.blocked = true; if (why !== 'wait') showToast(why === 'busy' ? 'Só um instante: a animação ainda está rodando.' : why); return; }
         d.dragging = true;
         setInspectId(null);
         setSelectedCardIndex(d.index);
@@ -9819,7 +9828,7 @@ export default function App() {
               {/* What to do next: drag it to the board (or why it cannot be played now). */}
               {(() => {
                 const why = dragBlockReason(card);
-                if (why === 'wait') return null;
+                if (why === 'wait' || why === 'busy') return null;
                 return (
                   <div className="absolute inset-x-0 flex flex-col items-center gap-1 pointer-events-none" style={{ bottom: 22 }}>
                     {why ? (

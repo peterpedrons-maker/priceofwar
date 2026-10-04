@@ -5,7 +5,7 @@ import { aiNextAction } from '../src/engine/ai';
 import { mirrorEvents, mirrorSeats } from '../src/engine/view';
 import { applyReward, rewardFor, xpToNext } from '../src/engine/rewards';
 import { applyAction, combatOpen, createMatch, deckSetupFromRecipe, newMatchLog, replayMatch } from '../src/engine/game';
-import { HAND_LIMIT, getIncomingDamageReduction, hasVerb, reinforceShield, START_HAND, targetSpecsOf, verbsOn } from '../src/engine/rules';
+import { HAND_LIMIT, getEffectiveAtk, getIncomingDamageReduction, hasVerb, reinforceShield, START_HAND, targetSpecsOf, verbsOn } from '../src/engine/rules';
 import { TRIGGER_LABEL, type Action, type Card, type GameEvent, type GameState, type Seat } from '../src/engine/types';
 
 let passed = 0, failed = 0;
@@ -876,6 +876,195 @@ test('Escudeiro de Linha: in the Vanguarda, the unit right behind takes 1 less d
   s.players[0].board[2] = null; put(s, 0, 6, 'Escudeiro de Linha');
   eq(getIncomingDamageReduction(7, s.players[0].board), 0);
 });
+
+// ── trigger audit: every effect fires when it should, and only then ──────────────────────────────────────────
+const atkOf = (s: GameState, seat: Seat, slot: number) => getEffectiveAtk(s.players[seat].board[slot]!, slot, s.players[seat].board, s.players[1 - seat].board);
+const endTurnOf = (s: GameState, seat: Seat) => { let g = 0; while (s.turn.active === seat && s.winner === null && g++ < 20) s = act(s, seat, { type: 'advance' }).s; return s; };
+
+test('Capitão de Formação (Manobra): moving it gives its neighbours +1 ATK, through the foe turn, gone when its owner\'s next turn starts', () => {
+  let s = fresh({ a: 'capitao', phase: 'movimentacao' }); s.turn.round = 3;
+  put(s, 0, 2, 'Capitão de Formação'); put(s, 0, 1, 'Soldado Tático'); put(s, 0, 4, 'Escudeiro de Linha'); put(s, 0, 0, 'Batedor');
+  s = act(s, 0, { type: 'move', from: 2, to: 3 }).s;                       // neighbours of slot 3: 2 (empty now) and 4
+  eq([s.players[0].board[4]!.formationBuffAtk, s.players[0].board[1]!.formationBuffAtk ?? 0], [1, 0], 'only the neighbours');
+  eq(atkOf(s, 0, 4), 3, 'Escudeiro 2 +1');
+  s = endTurnOf(s, 0);
+  eq(atkOf(s, 0, 4), 3, 'still on during the foe turn');
+  s = endTurnOf(s, 1);
+  eq(s.players[0].board[4]!.formationBuffAtk ?? 0, 0, 'gone once the owner\'s next turn starts');
+});
+test('Capitão de Formação does not fire for other units moving, nor for a move that only swaps another card', () => {
+  let s = fresh({ a: 'capitao', phase: 'movimentacao' }); s.turn.round = 3;
+  put(s, 0, 2, 'Capitão de Formação'); put(s, 0, 1, 'Soldado Tático'); put(s, 0, 0, 'Batedor');
+  s = act(s, 0, { type: 'move', from: 0, to: 5 }).s;
+  eq(s.players[0].board.map(c => c?.formationBuffAtk ?? 0).join(''), '0000000000000');
+});
+test('Aurelion: only 2 of the units that moved are buffed, units that stayed put are not, and the bonus is spent in the next combat', () => {
+  let s = fresh({ a: 'capitao', phase: 'movimentacao' }); s.turn.round = 3;
+  put(s, 0, 0, 'Batedor'); put(s, 0, 1, 'Soldado Tático'); put(s, 0, 2, 'Escudeiro de Linha'); put(s, 0, 4, 'Lanceiro de Controle');
+  s.turn.bonusRepositions = 3;
+  s = act(s, 0, { type: 'move', from: 0, to: 5 }).s;
+  s = act(s, 0, { type: 'move', from: 1, to: 6 }).s;
+  s = act(s, 0, { type: 'move', from: 2, to: 7 }).s;
+  s = act(s, 0, { type: 'advance' }).s;
+  const buffed = s.players[0].board.map((c, i) => (c?.pendingCombatBonus ? i : -1)).filter(i => i >= 0);
+  eq(buffed.length, 2, 'up to 2 units');
+  ok(!s.players[0].board[4]!.pendingCombatBonus, 'the unit that did not move gets nothing');
+});
+test('Lanceiro de Controle (Postura): the foe in front has -1 ATK only while the Lanceiro is in the Vanguarda', () => {
+  const s = fresh({ a: 'capitao', b: 'cardeal' });
+  put(s, 0, 2, 'Lanceiro de Controle'); put(s, 1, 2, 'Soldado Tático');
+  eq(atkOf(s, 1, 2), 2, 'Soldado Tático 3 -1');
+  const t = fresh({ a: 'capitao', b: 'cardeal' });
+  put(t, 0, 7, 'Lanceiro de Controle'); put(t, 1, 2, 'Soldado Tático');
+  eq(atkOf(t, 1, 2), 3, 'Lanceiro in the Retaguarda: no effect');
+});
+test('Jorge, Lança Sagrada (Ofensiva): hitting the Vanguarda also deals 2 to the card behind', () => {
+  let s = fresh({ a: 'capitao', b: 'cardeal' }); combat(s);
+  put(s, 0, 2, 'Jorge, Lança Sagrada'); put(s, 1, 2, 'Soldado Tático'); put(s, 1, 7, 'Escudeiro de Linha');
+  const before = s.players[1].board[7]!.hp;
+  s = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
+  eq(s.players[1].board[7]!.hp, before - 2, 'the card behind takes 2');
+});
+test('Fanático da Cruzada (Ofensiva): +2 ATK against a General of the other faction, not against units', () => {
+  const s = fresh({ a: 'cardeal', b: 'capitao' }); combat(s);
+  put(s, 0, 2, 'Fanático da Cruzada');
+  const base = atkOf(s, 0, 2);
+  let t = act(s, 0, { type: 'attack', from: 2, to: 12 });
+  ok(t.ev.some(e => e.t === 'attack'), 'the general can be reached');
+  const gHp = s.players[1].board[12]!.hp;
+  eq(gHp - t.s.players[1].board[12]!.hp, base + 2, 'ATK +2 on the General');
+  put(s, 1, 2, 'Batedor'); put(s, 0, 3, 'Fanático da Cruzada');
+});
+test('Intendente do Exército (Comando): at the start of its owner\'s turn the hand is refilled to 2', () => {
+  let s = fresh({ a: 'cardeal', b: 'capitao', phase: 'movimentacao' }); s.turn.round = 3;
+  put(s, 0, 2, 'Intendente do Exército');
+  s = endTurnOf(s, 0); s = endTurnOf(s, 1);
+  ok(s.turn.active === 0, 'back to seat 0');
+  ok(s.players[0].hand.length >= 2, 'at least 2 cards in hand');
+});
+test('Atirador da Cruzada (Queda): destroyed, its owner draws 2', () => {
+  let s = fresh({ a: 'cardeal', b: 'capitao' }); combat(s);
+  put(s, 1, 2, 'Atirador da Cruzada'); put(s, 0, 2, 'Jorge, Lança Sagrada');
+  s.turn.active = 0;
+  const hand = s.players[1].hand.length;
+  s = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
+  eq(s.players[1].board[2], null, 'the Atirador fell');
+  eq(s.players[1].hand.length, hand + 2, 'drew 2');
+});
+test('Nobre da Cruzada (Convocação): placing it summons Soldados Leais into the free slots beside it', () => {
+  let s = fresh({ a: 'cardeal', b: 'capitao', round: 3 }); s.turn.phase = 'preparacao';
+  const nobre = give(s, 0, 'Nobre da Cruzada');
+  s = act(s, 0, { type: 'play', cardId: nobre.id, slot: 2 }).s;
+  eq([s.players[0].board[1]?.name, s.players[0].board[3]?.name], ['Soldado Leal', 'Soldado Leal']);
+});
+test('Pântano Maldito: enemies in the Vanguarda have -1 ATK, the Retaguarda is spared', () => {
+  const s = fresh({ a: 'cardeal', b: 'capitao' });
+  put(s, 0, 11, 'Pântano Maldito'); put(s, 1, 2, 'Soldado Tático'); put(s, 1, 7, 'Arqueiro da Ordem');
+  eq(atkOf(s, 1, 2), 2, 'Vanguarda: 3 -1');
+  eq(atkOf(s, 1, 7), 1, 'Retaguarda: unchanged');
+});
+test('Catapulta de Guerra: 2 damage to every unit of one enemy row', () => {
+  let s = fresh({ a: 'cardeal', b: 'capitao', round: 3 }); s.turn.phase = 'preparacao';
+  put(s, 1, 0, 'Escudeiro de Linha'); put(s, 1, 1, 'Soldado Tático'); put(s, 1, 6, 'Arqueiro da Ordem');
+  const c = give(s, 0, 'Catapulta de Guerra');
+  const hp = [s.players[1].board[0]!.hp, s.players[1].board[1]!.hp, s.players[1].board[6]!.hp];
+  s = act(s, 0, { type: 'play', cardId: c.id, target: 1 }).s;
+  eq([s.players[1].board[0]!.hp, s.players[1].board[1]!.hp, s.players[1].board[6]!.hp], [hp[0] - 2, hp[1] - 2, hp[2]], 'the Vanguarda row only');
+});
+test('Armadura de Guerra / Couraça Reforçada / Flechas Venenosas equip the units they name, and refuse the others', () => {
+  let s = fresh({ a: 'cardeal', b: 'capitao', round: 3 }); s.turn.phase = 'preparacao';
+  put(s, 0, 0, 'Soldado Tático'); put(s, 0, 1, 'Arqueiro da Ordem'); put(s, 0, 2, 'Cavaleiro Tático');
+  const arm = give(s, 0, 'Armadura de Guerra'), cur = give(s, 0, 'Couraça Reforçada'), fle = give(s, 0, 'Flechas Venenosas');
+  refused(s, 0, { type: 'play', cardId: arm.id, target: 2 });                         // Cavalaria: no
+  refused(s, 0, { type: 'play', cardId: fle.id, target: 0 });                         // Infantaria: no
+  const hp0 = s.players[0].board[0]!.hp, hp1 = s.players[0].board[1]!.hp, a1 = s.players[0].board[1]!.atk;
+  s = act(s, 0, { type: 'play', cardId: arm.id, target: 0 }).s;
+  s = act(s, 0, { type: 'play', cardId: cur.id, target: 1 }).s;
+  s = act(s, 0, { type: 'play', cardId: fle.id, target: 1 }).s;
+  eq([s.players[0].board[0]!.hp, s.players[0].board[1]!.hp, s.players[0].board[1]!.atk], [hp0 + 2, hp1 + 1, a1 + 1]);
+});
+test('Doutrina Renovada: take a Tática from the deck to the hand', () => {
+  let s = fresh({ a: 'cardeal', b: 'capitao', round: 3 }); s.turn.phase = 'preparacao';
+  const c = give(s, 0, 'Doutrina Renovada');
+  const before = s.players[0].deckList.filter(n => requireCardDef(n).cardType === 'Tática').length;
+  s = act(s, 0, { type: 'play', cardId: c.id }).s;
+  ok(s.pending?.kind === 'pick', 'a pick prompt opens');
+  const pick = (s.pending as any).options[0];
+  eq(requireCardDef(pick.name).cardType, 'Tática');
+  s = act(s, 0, { type: 'choose', cardIds: [pick.id] }).s;
+  ok(s.players[0].hand.some(h => h.name === pick.name), 'it is in the hand (as a fresh copy)');
+  eq(s.players[0].deckList.filter(n => requireCardDef(n).cardType === 'Tática').length, before - 1);
+});
+test('Reposicionamento Rápido moves a foe to a free neighbouring slot; Linha Fechada\'s -1 stays for good; Ordem de Retirada sends the unit back and gives +2 HP', () => {
+  let s = fresh({ a: 'capitao', b: 'cardeal', round: 3 }); s.turn.phase = 'preparacao';
+  put(s, 1, 2, 'Soldado Tático');
+  const r = give(s, 0, 'Reposicionamento Rápido');
+  s = act(s, 0, { type: 'play', cardId: r.id, target: 2 }).s;
+  eq([s.players[1].board[2], [1, 3].some(i => s.players[1].board[i]?.name === 'Soldado Tático')], [null, true]);
+  put(s, 0, 2, 'Escudeiro de Linha'); put(s, 0, 1, 'Batedor'); put(s, 0, 3, 'Batedor');
+  const lf = give(s, 0, 'Linha Fechada');
+  s = act(s, 0, { type: 'play', cardId: lf.id, target: 2 }).s;
+  eq([s.players[0].board[1]!.dmgReduction, s.players[0].board[3]!.dmgReduction], [1, 1]);
+  s = endTurnOf(s, 0); s = endTurnOf(s, 1);
+  eq(s.players[0].board[1]!.dmgReduction, 1, 'permanent');
+  s.turn.phase = 'preparacao';
+  const hp = s.players[0].board[2]!.hp;
+  const ro = give(s, 0, 'Ordem de Retirada');
+  s = act(s, 0, { type: 'play', cardId: ro.id, target: 2 }).s;
+  eq([s.players[0].board[2], s.players[0].board.findIndex(c => c?.name === 'Escudeiro de Linha') >= 5], [null, true]);
+  eq(s.players[0].board.find(c => c?.name === 'Escudeiro de Linha')!.hp, hp + 2);
+});
+
+// The same triggers with the SECOND player as owner: nothing may assume seat 0.
+for (const me of [0, 1] as Seat[]) {
+  const foe = (1 - me) as Seat;
+  const start = (deck: 'capitao' | 'cardeal', other: 'capitao' | 'cardeal', phase?: GameState['turn']['phase']) =>
+    fresh({ a: me === 0 ? deck : other, b: me === 1 ? deck : other, first: me, round: 3, phase });
+  test(`seat ${me}: Capitão de Formação buffs its neighbours when it moves, and the buff ends when its owner's next turn starts`, () => {
+    let s = start('capitao', 'cardeal', 'movimentacao');
+    put(s, me, 2, 'Capitão de Formação'); put(s, me, 4, 'Escudeiro de Linha');
+    s = act(s, me, { type: 'move', from: 2, to: 3 }).s;
+    eq(s.players[me].board[4]!.formationBuffAtk, 1);
+    s = endTurnOf(s, me); s = endTurnOf(s, foe);
+    eq(s.players[me].board[4]!.formationBuffAtk ?? 0, 0);
+  });
+  test(`seat ${me}: Aurelion grants +1/+1 to the unit that moved, at the end of the turn`, () => {
+    let s = start('capitao', 'cardeal', 'movimentacao');
+    put(s, me, 1, 'Batedor');
+    s = act(s, me, { type: 'move', from: 1, to: 0 }).s;
+    s = act(s, me, { type: 'advance' }).s;
+    eq(s.players[me].board[0]?.pendingCombatBonus, { atk: 1, hp: 1 });
+  });
+  test(`seat ${me}: Jorge splashes the card behind, Fanático hits a General for +2, Atirador draws 2 when it falls`, () => {
+    let s = start('cardeal', 'capitao', 'combate');
+    put(s, me, 2, 'Jorge, Lança Sagrada'); put(s, foe, 2, 'Atirador da Cruzada'); put(s, foe, 7, 'Escudeiro de Linha');
+    const behind = s.players[foe].board[7]!.hp, hand = s.players[foe].hand.length;
+    s = act(s, me, { type: 'attack', from: 2, to: 2 }).s;
+    eq(s.players[foe].board[7]!.hp, behind - 2, 'splash');
+    eq(s.players[foe].board[2], null, 'Atirador fell');
+    eq(s.players[foe].hand.length, hand + 2, 'Queda draws 2');
+  });
+  test(`seat ${me}: Nobre summons its Soldados Leais, Soldados da Ordem reinforce, Tática equip works`, () => {
+    let s = start('cardeal', 'capitao', 'preparacao');
+    const nobre = give(s, me, 'Nobre da Cruzada');
+    s = act(s, me, { type: 'play', cardId: nobre.id, slot: 2 }).s;
+    eq([s.players[me].board[1]?.name, s.players[me].board[3]?.name], ['Soldado Leal', 'Soldado Leal']);
+    put(s, me, 0, 'Soldado Tático');
+    const sword = give(s, me, 'Espada Longa'); const atk = s.players[me].board[0]!.atk;
+    s = act(s, me, { type: 'play', cardId: sword.id, target: 0 }).s;
+    eq(s.players[me].board[0]!.atk, atk + 2);
+  });
+  test(`seat ${me}: Cavaleiro Hospitalário (Comando) heals an ally and hits a foe in the Vanguarda; the Cardeal heals for 2 gold`, () => {
+    let s = start('cardeal', 'capitao', 'preparacao');
+    put(s, me, 2, 'Cavaleiro Hospitalário'); put(s, me, 3, 'Soldado Tático'); put(s, foe, 1, 'Escudeiro de Linha');
+    s.players[me].board[3]!.hp -= 2; const hurt = s.players[me].board[3]!.hp, foeHp = s.players[foe].board[1]!.hp;
+    s = act(s, me, { type: 'ability', slot: 2, target: 3, target2: 1 }).s;
+    eq([s.players[me].board[3]!.hp, s.players[foe].board[1]!.hp], [hurt + 1, foeHp - 1]);
+    const gold = s.players[me].gold;
+    s = act(s, me, { type: 'ability', slot: 12, target: 3 }).s;
+    eq([s.players[me].gold, s.players[me].board[3]!.hp], [gold - 2, hurt + 2]);
+  });
+}
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);
