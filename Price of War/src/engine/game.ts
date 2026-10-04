@@ -41,7 +41,8 @@ const expandCards = (cards: DeckSetup['cards']): string[] =>
 export interface MatchOptions {
   seed: number;
   decks: [DeckSetup, DeckSetup];
-  // Who plays first (the coin toss decides this before the match is created).
+  // Who plays first (the coin toss decides this before the match is created). Online it is the toss winner, who then
+  // picks with the `choose_first` action before `begin`.
   first: Seat;
 }
 
@@ -925,6 +926,11 @@ export const applyAction = (state: GameState, seat: Seat, action: Action): Actio
         if (c.s.turn.started) fail('A partida já começou.');
         c.s.turn.started = true;
         startTurn(c, c.s.turn.first);
+        break;
+      case 'choose_first':
+        if (c.s.turn.started) fail('A partida já começou.');
+        if (seat !== c.s.turn.active) fail('Só quem ganhou a moeda escolhe quem começa.');
+        c.s.turn.first = c.s.turn.active = action.goFirst ? seat : otherSeat(seat);
         break;
       case 'play': playCard(c, seat, action); break;
       case 'attack': attack(c, seat, action); break;

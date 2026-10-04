@@ -2164,6 +2164,8 @@ type OnlineMatch = {
   deadline: number | null;
   skew: number;
   beginRow: ViewRow | null;
+  // Who goes first, once the toss winner's `choose_first` step is known (from my side: 'player' = me).
+  pick: 'player' | 'npc' | null;
   lastTick: number;
   reward: RewardInfo | null;
 };
@@ -4586,11 +4588,14 @@ const CoinRim = () => (
 // the coin is tossed, and whoever holds the side that lands up plays first. Online the server hands out the sides
 // (so two players can never pick the same one) and already knows who goes first (`forced`); against the AI the
 // side and the landing are drawn here. `onResolved` hands the winner back to the match intro.
-// Against the AI (`canChoose`) the winner of the toss then picks to play first or second; when the AI wins, it picks at random.
-// Online and in the tutorial the result still decides it (`forced`).
-const CoinToss = ({ onResolved, mySide, forced, canChoose = false }: { onResolved: (first: 'player' | 'npc') => void; mySide: 'cara' | 'coroa'; forced?: 'player' | 'npc'; canChoose?: boolean; key?: React.Key }) => {
+// The winner of the toss then picks to play first or second (`canChoose`). Against the AI the player picks here, and when the
+// AI wins it picks at random. Online (`remote`) the server holds the choice: the winner sends it with `choose`, and `pick`
+// (who goes first, once known) comes back from the server for both players. In the tutorial the result still decides it.
+type RemotePick = { choose: (who: 'player' | 'npc') => Promise<boolean>; pick: 'player' | 'npc' | null };
+const CoinToss = ({ onResolved, mySide, forced, canChoose = false, remote }: { onResolved: (first: 'player' | 'npc') => void; mySide: 'cara' | 'coroa'; forced?: 'player' | 'npc'; canChoose?: boolean; remote?: RemotePick; key?: React.Key }) => {
   const [aiPick] = useState<'player' | 'npc'>(() => (Math.random() < 0.5 ? 'npc' : 'player'));
   const [myPick, setMyPick] = useState<'player' | 'npc' | null>(null);
+  const [sending, setSending] = useState(false);
   const [phase, setPhase] = useState<'assign' | 'flip' | 'result'>('assign');
   const [result] = useState<'cara' | 'coroa'>(() => (forced ? (forced === 'player' ? mySide : mySide === 'cara' ? 'coroa' : 'cara') : Math.random() < 0.5 ? 'cara' : 'coroa'));
   const timers = useRef<number[]>([]);
@@ -4600,12 +4605,18 @@ const CoinToss = ({ onResolved, mySide, forced, canChoose = false }: { onResolve
     t.push(window.setTimeout(() => { setPhase('flip'); playCoinSfx('toss'); }, 2000));
     t.push(window.setTimeout(() => { setPhase('result'); playCoinSfx('land'); }, 3900));
     if (!canChoose) t.push(window.setTimeout(() => onResolved(mySide === result ? 'player' : 'npc'), 5700));
-    else if (mySide !== result) t.push(window.setTimeout(() => onResolved(aiPick), 7600));
     return () => { t.forEach(clearTimeout); };
   }, []);
   const label = (side: 'cara' | 'coroa') => (side === 'cara' ? 'Cara' : 'Coroa');
   const other = mySide === 'cara' ? 'coroa' : 'cara';
   const won = mySide === result;
+  // Who goes first, once somebody has decided (null while the winner is still choosing).
+  const decided = !canChoose ? null : remote ? remote.pick : won ? myPick : aiPick;
+  useEffect(() => {
+    if (!canChoose || phase !== 'result' || decided === null) return;
+    const t = window.setTimeout(() => onResolved(decided), won ? 700 : 2200);
+    return () => window.clearTimeout(t);
+  }, [phase, decided]);
   const finalTurns = 9 * 360 + (result === 'cara' ? 0 : 180);
   const restTurns = mySide === 'cara' ? 0 : 180;   // while waiting, the coin shows the player's own face
   return (
@@ -4638,14 +4649,19 @@ const CoinToss = ({ onResolved, mySide, forced, canChoose = false }: { onResolve
         {phase === 'result' && (
           <motion.div className="flex flex-col items-center gap-1" initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}>
             <span className="text-[13px] uppercase tracking-[0.2em] text-[#dccfae]" style={{ fontFamily: "'Cinzel', serif", textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>Deu {label(result)}!</span>
-            <span className="text-[20px] uppercase tracking-[0.12em]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, color: won || (canChoose && aiPick === 'player') ? '#8fe0a4' : '#f0a595', textShadow: '0 2px 6px rgba(0,0,0,0.9)' }}>{canChoose ? (won ? 'Você escolhe!' : (aiPick === 'npc' ? 'O adversário começa!' : 'Você começa!')) : (won ? 'Você começa!' : 'O adversário começa!')}</span>
-            {canChoose && !won && <span className="text-[12px] text-[#dccfae]" style={{ fontFamily: "'PT Serif', serif", textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>O adversário escolheu ir {aiPick === 'npc' ? 'primeiro' : 'depois'}.</span>}
-            {canChoose && won && (
+            <span className="text-[20px] uppercase tracking-[0.12em]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, color: decided === 'player' || (canChoose && won && decided === null) || (!canChoose && won) ? '#8fe0a4' : canChoose && decided === null ? '#f3e3c3' : '#f0a595', textShadow: '0 2px 6px rgba(0,0,0,0.9)' }}>{canChoose ? (decided === null ? (won ? 'Você escolhe!' : 'O adversário escolhe…') : (decided === 'player' ? 'Você começa!' : 'O adversário começa!')) : (won ? 'Você começa!' : 'O adversário começa!')}</span>
+            {canChoose && !won && <span className="text-[12px] text-[#dccfae]" style={{ fontFamily: "'PT Serif', serif", textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>{decided === null ? 'Aguardando a decisão dele…' : `O adversário escolheu ir ${decided === 'npc' ? 'primeiro' : 'depois'}.`}</span>}
+            {canChoose && won && decided === null && (
               <div className="flex gap-3 mt-3 pointer-events-auto">
                 {([['player', 'Começar'], ['npc', 'Ir depois']] as const).map(([who, text]) => (
                   <GameButton key={who} tone={who === 'player' ? 'primary' : 'neutral'} size={15}
-                    className={myPick !== null && myPick !== who ? 'opacity-40' : ''}
-                    onClick={() => { if (myPick !== null) return; setMyPick(who); window.setTimeout(() => onResolved(who), 700); }}>{text}</GameButton>
+                    className={sending || myPick !== null ? 'opacity-40' : ''}
+                    onClick={() => {
+                      if (sending || myPick !== null) return;
+                      if (!remote) { setMyPick(who); return; }
+                      setSending(true);
+                      void remote.choose(who).then(ok => { if (!ok) setSending(false); });
+                    }}>{text}</GameButton>
                 ))}
               </div>
             )}
@@ -5697,6 +5713,8 @@ export default function App() {
   // board slot ('descend'). null means no reveal is in progress.
   // The side of the coin this player was given for the opening toss (the server hands it out online).
   const [coinSide, setCoinSide] = useState<'cara' | 'coroa'>('cara');
+  // Online: who goes first once the toss winner has chosen (null until then).
+  const [onlinePick, setOnlinePick] = useState<'player' | 'npc' | null>(null);
   const [matchIntroStage, setMatchIntroStage] = useState<null | 'panels' | 'coin' | 'battle' | 'descend'>(null);
   // Who plays first, decided by the coin toss (the turn counter then advances after the SECOND player's turn).
   const firstSideRef = useRef<'player' | 'npc'>('player');
@@ -6048,6 +6066,11 @@ export default function App() {
       online.deadline = row.deadline;
       if (row.state.winner !== null) online.finished = true;
       if (row.action.type === 'begin') { online.beginRow = row; return; }
+      if (row.action.type === 'choose_first') {
+        // The toss winner's choice: who goes first, seen from my chair (the chooser is me when actor is 0).
+        online.pick = (row.actor === 0) === row.action.goFirst ? 'player' : 'npc';
+        return;
+      }
       if (row.actor === 0) {
         const own = online.ownQueue.shift();
         if (own) reconcileOwn(online, row, own); else applyUnasked(online, row);
@@ -6059,6 +6082,21 @@ export default function App() {
       }
     });
     if (any) { publishClock(online); wakeWaiter(online); }
+    if (online.pick && online.beginRow) setOnlinePick(online.pick);
+  };
+  // The toss winner sends the choice; the answer carries the match's first steps.
+  const chooseFirstOnline = async (who: 'player' | 'npc'): Promise<boolean> => {
+    const online = onlineRef.current;
+    if (!online) return false;
+    for (let attempt = 0; attempt < 4 && !online.stopped; attempt++) {
+      const r = await sendAction(online.init.id, { type: 'choose_first', goFirst: who === 'player' }, online.lastSeen);
+      if (online.stopped) return false;
+      if (r.ok === true) { absorbAct(online, r); return true; }
+      if (!r.unavailable) { showToast(r.error); return false; }
+      await sleep(1500 * (attempt + 1));
+    }
+    showToast('Sem conexão com o servidor de partidas.');
+    return false;
   };
   const absorbAct = (online: OnlineMatch, r: Extract<ActResult, { ok: true }>) => {
     online.skew = r.now - Date.now();
@@ -6433,8 +6471,9 @@ export default function App() {
       engineRef.current = created.state;
     } else if (online) {
       // Online: the match is the server's; this is how it stands before the first turn, seen from my chair.
-      created = { state: online.init.start };
-      online.confirmed = online.init.start;
+      const st = online.init.start;
+      created = { state: { ...st, turn: { ...st.turn, first: firstSeat, active: firstSeat } } };   // `start` was made before the toss winner chose
+      online.confirmed = created.state;
       engineRef.current = created.state;
     } else {
       const sel = matchSelectionRef.current;
@@ -6572,9 +6611,10 @@ export default function App() {
     const online: OnlineMatch = {
       init, lastSeen: 0, remote: [], cursor: null, waiting: false, ownQueue: [], waiter: null, timer: null, sendChain: Promise.resolve(),
       epoch: 0, stopped: false, finished: init.status === 'finished', confirmed: null, deadline: init.deadline, skew: init.now - Date.now(),
-      beginRow: null, lastTick: Date.now(), reward: null,
+      beginRow: null, pick: null, lastTick: Date.now(), reward: null,
     };
     onlineRef.current = online;
+    setOnlinePick(null);
     setOpponentInfo(init.opponent);
     const sel: DeckSelection = { cards: init.myDeck.cards, general: init.myDeck.general, npcDeckId: 'cardeal', npcGeneral: init.opponentGeneral };
     resetGame(sel);
@@ -9247,7 +9287,7 @@ export default function App() {
         })()}
       </AnimatePresence>
 
-      <AnimatePresence>{matchIntroStage === 'coin' && <CoinToss key="coin-toss" onResolved={tutRef.current ? tutCoinResolved : continueMatchIntro} mySide={coinSide} canChoose={!onlineRef.current && !tutRef.current} forced={onlineRef.current ? (onlineRef.current.init.iGoFirst ? 'player' : 'npc') : tutRef.current ? 'player' : undefined} />}</AnimatePresence>
+      <AnimatePresence>{matchIntroStage === 'coin' && <CoinToss key="coin-toss" onResolved={tutRef.current ? tutCoinResolved : continueMatchIntro} mySide={coinSide} canChoose={!tutRef.current && !(onlineRef.current && onlineRef.current.init.iWonToss === undefined)} remote={onlineRef.current ? { choose: chooseFirstOnline, pick: onlinePick } : undefined} forced={onlineRef.current ? (onlineRef.current.init.iWonToss ?? onlineRef.current.init.iGoFirst ? 'player' : 'npc') : tutRef.current ? 'player' : undefined} />}</AnimatePresence>
       {/* Nothing behind the intro can be tapped (the turn button used to be reachable through it). */}
       {(npcKickoffPending || matchIntroStage !== null) && <div className="fixed inset-0 z-[700]" />}
 

@@ -102,3 +102,6 @@ O que cada carta faz está no catálogo, descrito por tipos de efeito (sem códi
 
 ## Opções do jogador
 `src/gameSettings.ts` (`pow.settings` no localStorage, `useGameSettings`): avisos opcionais, todos ligados por padrão — `hintsDrag` (dedo sobre a mão, "segure e arraste", "solte aqui") e `hintsBoard` (palavras Ataca/Reserva/Protegida e etiquetas dos alvos de Tática). O modal `OptionsModal` (App.tsx) reúne esses avisos e o áudio; abre pelo botão "Opções" do menu e pelo botão no canto superior esquerdo durante a partida. O tutorial (`tutOn`) não é afetado.
+
+## Quem começa
+`createMatch({ first })` recebe o vencedor da moeda. Localmente (contra a IA) o cliente já cria a partida com a escolha feita. Online, a partida nasce com `first` = vencedor e ele manda `{ type: 'choose_first', goFirst }` antes do `begin`: só vale antes do início e só para quem é `turn.active` (o vencedor); ajusta `turn.first` e `turn.active`. `begin` começa o turno de `turn.first`.

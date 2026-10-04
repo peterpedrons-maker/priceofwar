@@ -31,6 +31,9 @@ export interface RewardInfo {
 export interface MatchInit {
   id: string;
   iGoFirst: boolean;
+  // Who won the coin toss (that player chooses to go first or second), and whether the choice was already made.
+  iWonToss?: boolean;
+  chosen?: boolean;
   mySide?: 'cara' | 'coroa';
   myDeck: DeckJson;
   opponentGeneral: string;

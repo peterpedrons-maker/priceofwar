@@ -29,8 +29,12 @@ export const defaultConfig = (): GameConfig => ({ botAfterMs: 15000, turnMs: 150
 
 export interface MatchInit {
   id: string;
-  // True when the player goes first (decided by the server's coin toss).
+  // True when the player goes first. Until the toss winner has chosen (`chosen` false) this is just "I won the toss".
   iGoFirst: boolean;
+  // Who won the coin toss: that player picks to play first or second (the `choose_first` action).
+  iWonToss: boolean;
+  // Whether the choice was already made (a bot that won the toss chooses at once).
+  chosen: boolean;
   // The side of the coin this player was given: seat order is random, so seat 0 = Cara, seat 1 = Coroa is fair.
   mySide: 'cara' | 'coroa';
   myDeck: DeckJson;
@@ -38,7 +42,7 @@ export interface MatchInit {
   opponent: { name: string; avatarId: string; bot: boolean };
   // The match as dealt, before anything happened (hands drawn, Generals placed).
   start: GameState;
-  // A new match: every step so far (at least `begin`). A match you are coming back to: empty, see `latest`.
+  // A new match: every step so far (`choose_first` and `begin`; none while the toss winner has not chosen). A match you are coming back to: empty, see `latest`.
   rows: ViewRow[];
   latest: ViewRow | null;
   status: 'active' | 'finished';
@@ -171,7 +175,10 @@ const enforceClock = async (db: Db, m: MatchRow, cfg: GameConfig): Promise<Match
       applyStep(m, w, mover, { type: 'concede' }, cfg, viewer => [{ t: 'log', seat: viewer, text: viewer === mover ? 'O tempo acabou de novo: você perdeu a partida.' : 'O adversário esgotou o tempo: vitória!' }]);
     } else {
       let first = true;
-      for (let i = 0; i < AUTO_STEP_LIMIT && w.state.winner === null && moverOf(w.state) === mover; i++) {
+      // Nobody chose yet (the toss winner let the clock run out): the match just opens, with them going first.
+      const unopened = w.state.turn.started === false;
+      if (unopened) openMatch(m, w, true, cfg);
+      for (let i = 0; !unopened && i < AUTO_STEP_LIMIT && w.state.winner === null && moverOf(w.state) === mover; i++) {
         const action: Action = w.state.pending ? aiNextAction(w.state, mover, () => 0.5) : { type: 'advance' };
         const note = first ? (viewer: Seat): GameEvent[] => [{ t: 'log', seat: viewer, text: viewer === mover ? 'O tempo acabou: seu turno foi encerrado automaticamente.' : 'O adversário demorou demais: turno encerrado automaticamente.' }] : undefined;
         if (applyStep(m, w, mover, action, cfg, note).ok === false) break;
@@ -191,6 +198,14 @@ const enforceClock = async (db: Db, m: MatchRow, cfg: GameConfig): Promise<Match
 };
 
 // ── Starting a match ────────────────────────────────────────────────────────
+// The toss winner's choice and the opening of the first turn: two steps (choose_first, then begin by whoever goes first).
+const openMatch = (m: MatchRow, w: Work, goFirst: boolean, cfg: GameConfig) => {
+  const winner = w.state.turn.active;
+  if (applyStep(m, w, winner, { type: 'choose_first', goFirst }, cfg).ok === false) throw new Error('choose_first refused');
+  w.key = ''; // so the clock starts with the first turn, even when the same person goes first
+  if (applyStep(m, w, w.state.turn.active, { type: 'begin' }, cfg).ok === false) throw new Error('begin refused');
+};
+
 const viewRowsOf = (db: Db, m: MatchRow, seat: Seat, since: number) => db.views(m.id, seat, since);
 
 const initOf = async (db: Db, m: MatchRow, userId: string, cfg: GameConfig): Promise<MatchInit> => {
@@ -198,10 +213,10 @@ const initOf = async (db: Db, m: MatchRow, userId: string, cfg: GameConfig): Pro
   const oppId = userOfSeat(m, otherSeat(seat));
   const prof = oppId ? await db.profile(oppId) : null;
   const rows = await viewRowsOf(db, m, seat, 0);
-  const resumed = rows.some(r => r.actor === 0 && r.action.type !== 'begin') || cfg.now() - Date.parse(m.created_at) > 60000;
-  const start = viewFor(createMatch({ seed: m.seed, decks: m.decks, first: m.first }).state, seat);
+  const resumed = rows.length > 0 && (rows.some(r => r.actor === 0 && r.action.type !== 'begin' && r.action.type !== 'choose_first') || cfg.now() - Date.parse(m.created_at) > 60000);
+  const start = viewFor(createMatch({ seed: m.seed, decks: m.decks, first: m.state.turn.first }).state, seat);
   return {
-    id: m.id, iGoFirst: m.first === seat, mySide: seat === 0 ? 'cara' : 'coroa', myDeck: m.decks[seat], opponentGeneral: m.decks[otherSeat(seat)].general,
+    id: m.id, iGoFirst: m.state.turn.first === seat, iWonToss: m.first === seat, chosen: m.steps_count > 0, mySide: seat === 0 ? 'cara' : 'coroa', myDeck: m.decks[seat], opponentGeneral: m.decks[otherSeat(seat)].general,
     opponent: oppId ? { name: prof?.username ?? 'Jogador', avatarId: prof?.avatar_id ?? 'batedora', bot: false } : { ...BOT_PROFILE, bot: true },
     start, rows: resumed ? [] : rows, latest: resumed ? (rows[rows.length - 1] ?? null) : null,
     status: m.status, winner: m.winner === null ? null : (m.winner === seat ? 0 : 1), resumed, deadline: m.turn_deadline, now: cfg.now(),
@@ -210,6 +225,7 @@ const initOf = async (db: Db, m: MatchRow, userId: string, cfg: GameConfig): Pro
 
 const startMatch = async (db: Db, cfg: GameConfig, a: { user: string | null; deck: DeckJson }, b: { user: string | null; deck: DeckJson }): Promise<MatchRow> => {
   const seed = Math.floor(cfg.random() * 0x7fffffff) + 1;
+  // The coin toss: its winner picks to play first or second (see `choose_first`); `first` stays the winner's chair.
   const first = (cfg.random() < 0.5 ? 0 : 1) as Seat;
   // Seat order is random too, so being the first to queue is no advantage.
   const [p0, p1] = cfg.random() < 0.5 ? [b, a] : [a, b];
@@ -222,9 +238,14 @@ const startMatch = async (db: Db, cfg: GameConfig, a: { user: string | null; dec
   };
   const m: MatchRow = { ...draft, id: '', created_at: new Date(cfg.now()).toISOString() };
   const w = startWork(m);
-  w.key = ''; // so the clock starts with the first turn
-  if (applyStep(m, w, first, { type: 'begin' }, cfg).ok === false) throw new Error('begin refused');
-  runBot(m, w, cfg);
+  if (bot_seat === first) {
+    // The bot won the toss: it chooses at random, and the match opens at once.
+    openMatch(m, w, cfg.random() < 0.5, cfg);
+    runBot(m, w, cfg);
+  } else {
+    // A person won the toss: the match waits (no step yet) for their choice, on the usual clock.
+    w.deadline = cfg.now() + cfg.promptMs;
+  }
   return db.createMatch({ ...draft, ...patchOf(m, w) }, w.steps, w.views);
 };
 
@@ -281,7 +302,7 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
       const seat = m ? playerOf(m, userId) : null;
       if (m && seat !== null && cfg.now() - Date.parse(m.created_at) < 60000) {
         const rows = await db.views(m.id, seat, 0);
-        if (!rows.some(r => r.actor === 0 && r.action.type !== 'begin')) {
+        if (!rows.some(r => r.actor === 0 && r.action.type !== 'begin' && r.action.type !== 'choose_first')) {
           const w = startWork(m);
           if (applyStep(m, w, seat, { type: 'concede' }, cfg).ok === true) await db.saveMatch(m.id, m.steps_count, patchOf({ ...m, end_reason: 'concede' }, w, { end_reason: 'concede' }), w.steps, w.views);
         }
@@ -308,6 +329,11 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
         const act = (req as Extract<GameRequest, { op: 'act' }>).action;
         const applied = applyStep(m, w, seat, act, cfg);
         if (applied.ok === false) return { ok: false, error: applied.error };
+        // The toss winner's choice opens the match: the first player's `begin` follows by itself.
+        if (act.type === 'choose_first') {
+          w.key = '';
+          if (applyStep(m, w, w.state.turn.active, { type: 'begin' }, cfg).ok === false) return { ok: false, error: 'Não foi possível começar a partida.' };
+        }
         runBot(m, w, cfg);
         const endReason: EndReason | null = act.type === 'concede' ? 'concede' : w.state.winner !== null ? 'general' : m.end_reason;
         const saved = await db.saveMatch(m.id, m.steps_count, patchOf({ ...m, timeouts }, w, { timeouts, end_reason: endReason }), w.steps, w.views);

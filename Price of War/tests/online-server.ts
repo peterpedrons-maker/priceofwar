@@ -42,14 +42,24 @@ const deckOf = (d: 'cardeal' | 'capitao') => {
 };
 const matched = (r: GameResponse): MatchInit => { if (r.ok !== true || r.status !== 'matched') throw new Error('not matched: ' + JSON.stringify(r)); return r.match; };
 
-// A match between two people, ready to play.
-const pvp = async (db: MemoryDb) => {
+const userOf = (db: MemoryDb, seat: Seat) => (seat === 0 ? db.matches[0].seat0 : db.matches[0].seat1)!;
+// The toss winner's choice, sent like a client would. `m.first` is the winner's chair.
+const choose = async (db: MemoryDb, goFirst: boolean) => handleGame(db, userOf(db, db.matches[0].first), { op: 'act', matchId: db.matches[0].id, action: { type: 'choose_first', goFirst } }, cfg);
+// A match against the bot, opened: when a person won the toss they go first (a bot that won already chose).
+const botMatch = async (db: MemoryDb) => {
+  const init = matched(await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal'), vsBot: true }, cfg));
+  if (db.matches[0].steps_count === 0) { const r = await choose(db, true); ok(r.ok === true, 'choice accepted: ' + JSON.stringify(r)); }
+  return init;
+};
+// A match between two people. By default the toss winner chooses to go first, so it is ready to play;
+// `choice: null` leaves it waiting for the choice.
+const pvp = async (db: MemoryDb, choice: boolean | null = true) => {
   await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal') }, cfg);
   const b = matched(await handleGame(db, 'B', { op: 'queue', ...deckOf('capitao') }, cfg));
   const a = matched(await handleGame(db, 'A', { op: 'status' }, cfg));
+  if (choice !== null) { const r = await choose(db, choice); ok(r.ok === true, 'choice accepted: ' + JSON.stringify(r)); }
   return { a, b, id: a.id };
 };
-const userOf = (db: MemoryDb, seat: Seat) => (seat === 0 ? db.matches[0].seat0 : db.matches[0].seat1)!;
 // Plays the match with the AI choosing for whoever has to move, through the server, until `stop` says so.
 const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['matches']['at']> & object) => boolean, limit = 800) => {
   for (let i = 0; i < limit; i++) {
@@ -75,9 +85,11 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
 
   await test('queue: two players are matched; each gets only their own view (no seed, no opponent deck or hand)', async () => {
     const db = fresh();
-    const { a, b } = await pvp(db);
+    const { a, b } = await pvp(db, null);
     eq(a.id, b.id);
-    ok(a.iGoFirst !== b.iGoFirst, 'exactly one goes first');
+    ok(a.iWonToss !== b.iWonToss, 'exactly one wins the toss');
+    eq([a.chosen, b.chosen, a.rows.length, b.rows.length], [false, false, 0, 0], 'nothing happens until the winner chooses');
+    ok(db.matches[0].turn_deadline !== null && db.matches[0].turn_deadline! > clock, 'the choice has a clock');
     ok(a.mySide !== b.mySide && [a.mySide, b.mySide].includes('cara') && [a.mySide, b.mySide].includes('coroa'), 'one is Cara, the other Coroa');
     eq([a.opponent.name, b.opponent.name], ['Bruno', 'Alice']);
     eq(a.myDeck.general, DECK_RECIPES.cardeal.general);
@@ -86,10 +98,82 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
       ok(!('seed' in init) && !('decks' in init), 'no seed / decks in what a player receives');
       ok(init.start.players[1].hand.every(c => c.hidden) && init.start.players[0].hand.every(c => !c.hidden), 'start view: own hand shown, opponent hand hidden');
       eq(init.start.players[0].hand.length, 7);
-      eq([init.rows.length, init.rows[0].action.type, init.rows[0].actor === 0], [1, 'begin', init.iGoFirst]);
-      ok(init.rows[0].deadline !== null, 'the clock started');
     }
     eq(db.queue.length, 0);
+    // the winner chooses to go first: choose_first then begin, both by the winner
+    const winner = a.iWonToss ? 'A' : 'B';
+    const r = await handleGame(db, winner, { op: 'act', matchId: a.id, action: { type: 'choose_first', goFirst: true } }, cfg);
+    ok(r.ok === true && r.status === 'acted', 'choice accepted');
+    for (const user of ['A', 'B']) {
+      const rows = await db.views(a.id, user === 'A' ? (db.matches[0].seat0 === 'A' ? 0 : 1) : (db.matches[0].seat0 === 'B' ? 0 : 1), 0);
+      eq(rows.map(x => x.action.type), ['choose_first', 'begin']);
+      eq(rows.map(x => x.actor === 0), user === winner ? [true, true] : [false, false]);
+      ok(rows[1].deadline !== null, 'the turn clock started');
+    }
+  });
+
+  await test('the toss winner chooses to go second: the other player opens the match; only the winner may choose, once', async () => {
+    const db = fresh();
+    const { a, b } = await pvp(db, null);
+    const loser = a.iWonToss ? 'B' : 'A';
+    const winner = a.iWonToss ? 'A' : 'B';
+    const m = db.matches[0];
+    const no = await handleGame(db, loser, { op: 'act', matchId: a.id, action: { type: 'choose_first', goFirst: true } }, cfg);
+    ok(no.ok === false && /moeda/.test(no.error), 'the loser cannot choose: ' + JSON.stringify(no));
+    const early = await handleGame(db, winner, { op: 'act', matchId: a.id, action: { type: 'advance' } }, cfg);
+    ok(early.ok === false, 'nothing else before the choice');
+    eq(db.matches[0].steps_count, 0, 'refusals record nothing');
+    const r = await handleGame(db, winner, { op: 'act', matchId: a.id, action: { type: 'choose_first', goFirst: false } }, cfg);
+    ok(r.ok === true, 'accepted');
+    const after = db.matches[0];
+    ok(after.state.turn.started && after.state.turn.first === (m.first === 0 ? 1 : 0) && after.state.turn.active === after.state.turn.first, 'the other chair goes first');
+    eq(after.first, m.first, 'the stored toss winner does not change');
+    const again = await handleGame(db, winner, { op: 'act', matchId: a.id, action: { type: 'choose_first', goFirst: true } }, cfg);
+    ok(again.ok === false, 'no second choice: ' + JSON.stringify(again));
+    // the first player can play; the winner (second) cannot yet
+    const firstUser = after.state.turn.first === 0 ? after.seat0! : after.seat1!;
+    ok((await handleGame(db, winner, { op: 'act', matchId: a.id, action: { type: 'advance' } }, cfg)).ok === false, 'not the winner\'s turn');
+    ok((await handleGame(db, firstUser, { op: 'act', matchId: a.id, action: { type: 'advance' } }, cfg)).ok === true, 'the first player acts');
+    // a player's own init after the choice
+    const initWinner = matched(await handleGame(db, winner, { op: 'queue', ...deckOf('cardeal') }, cfg));
+    eq([initWinner.iWonToss, initWinner.iGoFirst, initWinner.chosen], [true, false, true]);
+    void b;
+  });
+
+  await test('the toss winner lets the clock run out: the match opens with them going first, no forfeit', async () => {
+    const db = fresh();
+    const { id, a } = await pvp(db, null);
+    const winner = a.iWonToss ? 'A' : 'B';
+    const loser = a.iWonToss ? 'B' : 'A';
+    clock += 41000;
+    const t = await handleGame(db, loser, { op: 'tick', matchId: id, since: 0 }, cfg);
+    ok(t.ok === true && t.status === 'acted', 'tick ok');
+    const m = db.matches[0];
+    ok(m.status === 'active' && m.state.turn.started && m.state.turn.first === m.first, 'opened with the winner first');
+    eq(m.timeouts[m.first], 1);
+    ok(m.turn_deadline! > clock, 'fresh turn clock');
+    eq((await db.steps(id, 0)).map(x => x.action.type), ['choose_first', 'begin']);
+    void winner;
+  });
+
+  await test('a bot that wins the toss chooses at random and the match opens at once', async () => {
+    const seen = new Set<boolean>();
+    let botWon = 0;
+    for (let i = 0; i < 40; i++) {
+      const db = fresh();
+      const init = matched(await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal'), vsBot: true }, cfg));
+      const m = db.matches[0];
+      if (m.first === m.bot_seat) {
+        botWon++;
+        ok(init.chosen && m.state.turn.started, 'opened by the bot');
+        seen.add(m.state.turn.first === m.bot_seat);
+      } else {
+        ok(!init.chosen && m.steps_count === 0 && init.rows.length === 0, 'waits for the human');
+        ok(init.iWonToss, 'the human won the toss');
+      }
+    }
+    ok(botWon > 5 && botWon < 35, 'the bot wins about half the tosses: ' + botWon);
+    ok(seen.size === 2, 'sometimes it goes first, sometimes second');
   });
 
   await test('a whole match through the server: every view hides the other hand; steps replay to the stored state', async () => {
@@ -123,7 +207,7 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     ok((await handleGame(db, 'Z', { op: 'act', matchId: id, action: { type: 'advance' } }, cfg)).ok === false, 'stranger');
     ok((await handleGame(db, active, { op: 'act', matchId: id, action: { type: 'begin' } }, cfg)).ok === false, 'client cannot send begin');
     ok((await handleGame(db, active, { op: 'act', matchId: id, action: { type: 'play', cardId: 'made-up', slot: 1 } }, cfg)).ok === false, 'made-up card');
-    eq(db.matches[0].steps_count, 1, 'nothing recorded for refused actions');
+    eq(db.matches[0].steps_count, 2, 'nothing recorded for refused actions (only choose_first and begin)');
     const r5 = await handleGame(db, active, { op: 'act', matchId: id, action: { type: 'concede' } }, cfg);
     ok(r5.ok === true && r5.status === 'acted' && r5.finished, 'concede ends the match');
     const r6 = await handleGame(db, active, { op: 'act', matchId: id, action: { type: 'advance' } }, cfg);
@@ -132,7 +216,7 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
 
   await test('vs bot: the bot seat plays through the same server; the human always has the move', async () => {
     const db = fresh();
-    const init = matched(await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal'), vsBot: true }, cfg));
+    const init = await botMatch(db);
     eq(init.opponent.bot, true);
     const m0 = db.matches[0];
     eq(m0.bot_seat === 0 ? m0.seat0 : m0.seat1, null);
@@ -167,7 +251,7 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal') }, cfg);
     await handleGame(db, 'A', { op: 'cancel' }, cfg);
     eq(db.queue.length, 0);
-    const first = matched(await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal'), vsBot: true }, cfg));
+    const first = await botMatch(db);
     // act a bit so the match is under way
     const m = db.matches[0];
     const mover = (m.state.pending ? m.state.pending.seat : m.state.turn.active) as Seat;
@@ -192,7 +276,7 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
 
   await test('two writers at once: only one wins the compare-and-swap', async () => {
     const db = fresh();
-    const init = matched(await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal'), vsBot: true }, cfg));
+    const init = await botMatch(db);
     const m = (await db.getMatch(init.id))!;
     const patch = { state: m.state, steps_count: m.steps_count + 1, status: 'active' as const, winner: null, turn_deadline: m.turn_deadline, timeouts: m.timeouts, end_reason: null };
     const a = await db.saveMatch(m.id, m.steps_count, patch, [{ n: m.steps_count + 1, seat: 0, action: { type: 'advance' } as Action }], []);
@@ -202,7 +286,7 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
 
   await test('turn clock: the first time out passes the turn for you, the second forfeits the match', async () => {
     const db = fresh();
-    const init = matched(await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal'), vsBot: true }, cfg));
+    const init = await botMatch(db);
     const mySeat: Seat = db.matches[0].seat0 === 'A' ? 0 : 1;
     ok(db.matches[0].turn_deadline !== null && db.matches[0].turn_deadline! > clock, 'a deadline is running');
     // it is my move (the bot has already played if it opened). let the clock run out.

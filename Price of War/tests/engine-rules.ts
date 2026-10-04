@@ -78,6 +78,19 @@ test('combat: closed for the first player in turn 1, open for the second player,
   s = act(s, 1, { type: 'advance' }).s;
   eq(s.turn.phase, 'combate');
 });
+test('choose_first: the toss winner picks first or second before begin; nobody else, and not after the match started', () => {
+  const create = () => createMatch({ seed: 5, decks: [deckSetupFromRecipe('cardeal'), deckSetupFromRecipe('capitao')], first: 1 }).state;
+  const s = create();
+  refused(s, 0, { type: 'choose_first', goFirst: true }, 'moeda');
+  const first = act(s, 1, { type: 'choose_first', goFirst: true }).s;
+  eq([first.turn.first, first.turn.active, first.turn.started], [1, 1, false]);
+  const second = act(s, 1, { type: 'choose_first', goFirst: false }).s;
+  eq([second.turn.first, second.turn.active], [0, 0]);
+  refused(second, 1, { type: 'choose_first', goFirst: true }, 'moeda');   // the other chair is the active one now
+  const begun = act(second, 0, { type: 'begin' }).s;
+  eq([begun.turn.phase, begun.players[0].hand.length], ['preparacao', 8]);
+  refused(begun, 0, { type: 'choose_first', goFirst: false }, 'já começou');
+});
 test('the round counter goes up after the second player, whoever starts', () => {
   let s = fresh({ first: 1 });
   eq(s.turn.round, 1);

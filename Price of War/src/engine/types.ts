@@ -262,6 +262,8 @@ export interface GameState {
 export type Action =
   // Starts the very first turn (draw for the first seat). Sent once after the opening hands.
   | { type: 'begin' }
+  // Before `begin`: whoever won the coin toss (the seat that is `turn.active` at creation) decides to play first or second.
+  | { type: 'choose_first'; goFirst: boolean }
   // Plays a hand card. `slot` is the destination for creatures/Relíquia/Terreno; `target` is the board
   // slot a targeted Tática aims at (own board or enemy board depending on the card).
   | { type: 'play'; cardId: string; slot?: number; target?: number }

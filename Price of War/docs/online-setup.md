@@ -85,3 +85,6 @@ MOCK_BOT_MS=4000 npx tsx tests/mock-supabase.ts
 VITE_SUPABASE_URL=http://localhost:54321 VITE_SUPABASE_ANON_KEY=test.anon.key npm run build
 ```
 (`MOCK_TURN_MS` / `MOCK_PROMPT_MS` shorten the turn clock for tests.)
+
+## Quem começa (cara ou coroa)
+O servidor sorteia o vencedor da moeda ao criar a partida (`matches.first` guarda a cadeira do vencedor, e não muda). A partida fica **sem nenhum passo** até o vencedor escolher: ele manda a ação `choose_first` (`goFirst: true` = começar, `false` = ir depois) e o servidor grava dois passos, `choose_first` e `begin` (feito por quem vai começar). Contra o bot: se o bot vence a moeda, ele escolhe ao acaso e a partida já abre; se o jogador vence, ele escolhe como qualquer um. A escolha tem o relógio de resposta (`promptMs`): se esgotar, a partida abre com o vencedor começando, e conta como um tempo esgotado. Nenhuma coluna nova no banco: o estado "esperando escolha" é `steps_count = 0`.

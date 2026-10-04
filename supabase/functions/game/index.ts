@@ -1551,6 +1551,11 @@ var applyAction = (state, seat, action) => {
         c.s.turn.started = true;
         startTurn(c, c.s.turn.first);
         break;
+      case "choose_first":
+        if (c.s.turn.started) fail("A partida j\xE1 come\xE7ou.");
+        if (seat !== c.s.turn.active) fail("S\xF3 quem ganhou a moeda escolhe quem come\xE7a.");
+        c.s.turn.first = c.s.turn.active = action.goFirst ? seat : otherSeat(seat);
+        break;
       case "play":
         playCard(c, seat, action);
         break;
@@ -2091,7 +2096,9 @@ var enforceClock = async (db, m, cfg) => {
       applyStep(m, w, mover, { type: "concede" }, cfg, (viewer) => [{ t: "log", seat: viewer, text: viewer === mover ? "O tempo acabou de novo: voc\xEA perdeu a partida." : "O advers\xE1rio esgotou o tempo: vit\xF3ria!" }]);
     } else {
       let first = true;
-      for (let i = 0; i < AUTO_STEP_LIMIT && w.state.winner === null && moverOf(w.state) === mover; i++) {
+      const unopened = w.state.turn.started === false;
+      if (unopened) openMatch(m, w, true, cfg);
+      for (let i = 0; !unopened && i < AUTO_STEP_LIMIT && w.state.winner === null && moverOf(w.state) === mover; i++) {
         const action = w.state.pending ? aiNextAction(w.state, mover, () => 0.5) : { type: "advance" };
         const note = first ? (viewer) => [{ t: "log", seat: viewer, text: viewer === mover ? "O tempo acabou: seu turno foi encerrado automaticamente." : "O advers\xE1rio demorou demais: turno encerrado automaticamente." }] : void 0;
         if (applyStep(m, w, mover, action, cfg, note).ok === false) break;
@@ -2109,17 +2116,25 @@ var enforceClock = async (db, m, cfg) => {
   }
   return m;
 };
+var openMatch = (m, w, goFirst, cfg) => {
+  const winner = w.state.turn.active;
+  if (applyStep(m, w, winner, { type: "choose_first", goFirst }, cfg).ok === false) throw new Error("choose_first refused");
+  w.key = "";
+  if (applyStep(m, w, w.state.turn.active, { type: "begin" }, cfg).ok === false) throw new Error("begin refused");
+};
 var viewRowsOf = (db, m, seat, since) => db.views(m.id, seat, since);
 var initOf = async (db, m, userId, cfg) => {
   const seat = playerOf(m, userId);
   const oppId = userOfSeat(m, otherSeat(seat));
   const prof = oppId ? await db.profile(oppId) : null;
   const rows = await viewRowsOf(db, m, seat, 0);
-  const resumed = rows.some((r) => r.actor === 0 && r.action.type !== "begin") || cfg.now() - Date.parse(m.created_at) > 6e4;
-  const start = viewFor(createMatch({ seed: m.seed, decks: m.decks, first: m.first }).state, seat);
+  const resumed = rows.length > 0 && (rows.some((r) => r.actor === 0 && r.action.type !== "begin" && r.action.type !== "choose_first") || cfg.now() - Date.parse(m.created_at) > 6e4);
+  const start = viewFor(createMatch({ seed: m.seed, decks: m.decks, first: m.state.turn.first }).state, seat);
   return {
     id: m.id,
-    iGoFirst: m.first === seat,
+    iGoFirst: m.state.turn.first === seat,
+    iWonToss: m.first === seat,
+    chosen: m.steps_count > 0,
     mySide: seat === 0 ? "cara" : "coroa",
     myDeck: m.decks[seat],
     opponentGeneral: m.decks[otherSeat(seat)].general,
@@ -2159,9 +2174,12 @@ var startMatch = async (db, cfg, a, b) => {
   };
   const m = { ...draft, id: "", created_at: new Date(cfg.now()).toISOString() };
   const w = startWork(m);
-  w.key = "";
-  if (applyStep(m, w, first, { type: "begin" }, cfg).ok === false) throw new Error("begin refused");
-  runBot(m, w, cfg);
+  if (bot_seat === first) {
+    openMatch(m, w, cfg.random() < 0.5, cfg);
+    runBot(m, w, cfg);
+  } else {
+    w.deadline = cfg.now() + cfg.promptMs;
+  }
   return db.createMatch({ ...draft, ...patchOf(m, w) }, w.steps, w.views);
 };
 var finishIfStale = async (db, cfg, m) => {
@@ -2212,7 +2230,7 @@ var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
       const seat = m ? playerOf(m, userId) : null;
       if (m && seat !== null && cfg.now() - Date.parse(m.created_at) < 6e4) {
         const rows = await db.views(m.id, seat, 0);
-        if (!rows.some((r) => r.actor === 0 && r.action.type !== "begin")) {
+        if (!rows.some((r) => r.actor === 0 && r.action.type !== "begin" && r.action.type !== "choose_first")) {
           const w = startWork(m);
           if (applyStep(m, w, seat, { type: "concede" }, cfg).ok === true) await db.saveMatch(m.id, m.steps_count, patchOf({ ...m, end_reason: "concede" }, w, { end_reason: "concede" }), w.steps, w.views);
         }
@@ -2239,6 +2257,10 @@ var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
         const act = req.action;
         const applied = applyStep(m, w, seat, act, cfg);
         if (applied.ok === false) return { ok: false, error: applied.error };
+        if (act.type === "choose_first") {
+          w.key = "";
+          if (applyStep(m, w, w.state.turn.active, { type: "begin" }, cfg).ok === false) return { ok: false, error: "N\xE3o foi poss\xEDvel come\xE7ar a partida." };
+        }
         runBot(m, w, cfg);
         const endReason = act.type === "concede" ? "concede" : w.state.winner !== null ? "general" : m.end_reason;
         const saved = await db.saveMatch(m.id, m.steps_count, patchOf({ ...m, timeouts }, w, { timeouts, end_reason: endReason }), w.steps, w.views);
