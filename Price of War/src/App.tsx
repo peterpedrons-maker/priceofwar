@@ -4586,7 +4586,11 @@ const CoinRim = () => (
 // the coin is tossed, and whoever holds the side that lands up plays first. Online the server hands out the sides
 // (so two players can never pick the same one) and already knows who goes first (`forced`); against the AI the
 // side and the landing are drawn here. `onResolved` hands the winner back to the match intro.
-const CoinToss = ({ onResolved, mySide, forced }: { onResolved: (first: 'player' | 'npc') => void; mySide: 'cara' | 'coroa'; forced?: 'player' | 'npc'; key?: React.Key }) => {
+// Against the AI (`canChoose`) the winner of the toss then picks to play first or second; when the AI wins, it picks at random.
+// Online and in the tutorial the result still decides it (`forced`).
+const CoinToss = ({ onResolved, mySide, forced, canChoose = false }: { onResolved: (first: 'player' | 'npc') => void; mySide: 'cara' | 'coroa'; forced?: 'player' | 'npc'; canChoose?: boolean; key?: React.Key }) => {
+  const [aiPick] = useState<'player' | 'npc'>(() => (Math.random() < 0.5 ? 'npc' : 'player'));
+  const [myPick, setMyPick] = useState<'player' | 'npc' | null>(null);
   const [phase, setPhase] = useState<'assign' | 'flip' | 'result'>('assign');
   const [result] = useState<'cara' | 'coroa'>(() => (forced ? (forced === 'player' ? mySide : mySide === 'cara' ? 'coroa' : 'cara') : Math.random() < 0.5 ? 'cara' : 'coroa'));
   const timers = useRef<number[]>([]);
@@ -4595,7 +4599,8 @@ const CoinToss = ({ onResolved, mySide, forced }: { onResolved: (first: 'player'
     // The side is shown on its own for a beat, then the coin goes up by itself.
     t.push(window.setTimeout(() => { setPhase('flip'); playCoinSfx('toss'); }, 2000));
     t.push(window.setTimeout(() => { setPhase('result'); playCoinSfx('land'); }, 3900));
-    t.push(window.setTimeout(() => onResolved(mySide === result ? 'player' : 'npc'), 5700));
+    if (!canChoose) t.push(window.setTimeout(() => onResolved(mySide === result ? 'player' : 'npc'), 5700));
+    else if (mySide !== result) t.push(window.setTimeout(() => onResolved(aiPick), 7600));
     return () => { t.forEach(clearTimeout); };
   }, []);
   const label = (side: 'cara' | 'coroa') => (side === 'cara' ? 'Cara' : 'Coroa');
@@ -4626,14 +4631,24 @@ const CoinToss = ({ onResolved, mySide, forced }: { onResolved: (first: 'player'
             <span className="text-[12px] uppercase tracking-[0.22em] text-[#dccfae]" style={{ fontFamily: "'Cinzel', serif", textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>Você é</span>
             <span className="text-[30px] uppercase tracking-[0.12em] text-[#fff1c9]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, textShadow: '0 2px 8px rgba(0,0,0,0.95)' }}>{label(mySide)}</span>
             <span className="text-[12px] text-[#dccfae] text-center" style={{ fontFamily: "'PT Serif', serif", textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>
-              {phase === 'assign' ? `O adversário é ${label(other)}. Quem ganhar o sorteio começa.` : 'A moeda está no ar…'}
+              {phase === 'assign' ? `O adversário é ${label(other)}. Quem ganhar o sorteio escolhe quem começa.` : 'A moeda está no ar…'}
             </span>
           </motion.div>
         )}
         {phase === 'result' && (
           <motion.div className="flex flex-col items-center gap-1" initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}>
             <span className="text-[13px] uppercase tracking-[0.2em] text-[#dccfae]" style={{ fontFamily: "'Cinzel', serif", textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>Deu {label(result)}!</span>
-            <span className="text-[20px] uppercase tracking-[0.12em]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, color: won ? '#8fe0a4' : '#f0a595', textShadow: '0 2px 6px rgba(0,0,0,0.9)' }}>{won ? 'Você começa!' : 'O adversário começa!'}</span>
+            <span className="text-[20px] uppercase tracking-[0.12em]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, color: won || (canChoose && aiPick === 'player') ? '#8fe0a4' : '#f0a595', textShadow: '0 2px 6px rgba(0,0,0,0.9)' }}>{canChoose ? (won ? 'Você escolhe!' : (aiPick === 'npc' ? 'O adversário começa!' : 'Você começa!')) : (won ? 'Você começa!' : 'O adversário começa!')}</span>
+            {canChoose && !won && <span className="text-[12px] text-[#dccfae]" style={{ fontFamily: "'PT Serif', serif", textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>O adversário escolheu ir {aiPick === 'npc' ? 'primeiro' : 'depois'}.</span>}
+            {canChoose && won && (
+              <div className="flex gap-3 mt-3 pointer-events-auto">
+                {([['player', 'Começar'], ['npc', 'Ir depois']] as const).map(([who, text]) => (
+                  <GameButton key={who} tone={who === 'player' ? 'primary' : 'neutral'} size={15}
+                    className={myPick !== null && myPick !== who ? 'opacity-40' : ''}
+                    onClick={() => { if (myPick !== null) return; setMyPick(who); window.setTimeout(() => onResolved(who), 700); }}>{text}</GameButton>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
       </div>
@@ -9232,7 +9247,7 @@ export default function App() {
         })()}
       </AnimatePresence>
 
-      <AnimatePresence>{matchIntroStage === 'coin' && <CoinToss key="coin-toss" onResolved={tutRef.current ? tutCoinResolved : continueMatchIntro} mySide={coinSide} forced={onlineRef.current ? (onlineRef.current.init.iGoFirst ? 'player' : 'npc') : tutRef.current ? 'player' : undefined} />}</AnimatePresence>
+      <AnimatePresence>{matchIntroStage === 'coin' && <CoinToss key="coin-toss" onResolved={tutRef.current ? tutCoinResolved : continueMatchIntro} mySide={coinSide} canChoose={!onlineRef.current && !tutRef.current} forced={onlineRef.current ? (onlineRef.current.init.iGoFirst ? 'player' : 'npc') : tutRef.current ? 'player' : undefined} />}</AnimatePresence>
       {/* Nothing behind the intro can be tapped (the turn button used to be reachable through it). */}
       {(npcKickoffPending || matchIntroStage !== null) && <div className="fixed inset-0 z-[700]" />}
 
