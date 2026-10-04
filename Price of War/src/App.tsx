@@ -9742,7 +9742,9 @@ export default function App() {
           const idx = hand.findIndex(c => c.id === inspectId);
           const card = idx >= 0 ? hand[idx] : null;
           if (!card || held) return null;
-          const k = Math.min(Math.min(windowSize.width - 36, 340) / 224, (windowSize.height * 0.74) / 320);
+          // The same size and place as the card that opens when a card on the board is tapped (detailedCard above).
+          const k = BOARD_PREVIEW_SCALE;
+          const lift = -windowSize.height * (0.5 - PREVIEW_Y_FRACTION);
           return (
             <motion.div
               key="inspect-scrim"
@@ -9756,7 +9758,7 @@ export default function App() {
               <motion.div
                 key={card.id}
                 initial={{ opacity: 0, y: 46 }}
-                animate={{ opacity: 1, y: -10 }}
+                animate={{ opacity: 1, y: lift }}
                 exit={{ opacity: 0, y: 46 }}
                 transition={{ duration: 0.18, ease: 'easeOut' }}
                 className="relative shrink-0"
