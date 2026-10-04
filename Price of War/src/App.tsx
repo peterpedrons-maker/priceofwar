@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { fetchProfile, usernameAvailable, createProfile, updateProfileFields, fetchStore, pushStore, type CloudDeck } from './services/cloud';
 import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authErrorDetail, authMode, type Session } from './services/auth';
-import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate, type MotionValue, useAnimationControls } from 'motion/react';
+import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate, type MotionValue } from 'motion/react';
 import { X, ArrowUp, ArrowDown } from 'lucide-react';
 import { TurnTracker } from './TurnTracker';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
@@ -685,11 +685,11 @@ const TargetingHud = ({ source, mode, kind, title, hint, windowH, promptButtons,
   );
 };
 
-// A hand card the player tapped, shown the way an effect that is being aimed is: the card at the bottom-left, big, and beside it a text
-// panel (outside the card, in a readable size) with what the card does and what to do next, plus the buttons.
+// A hand card the player tapped, shown the way an effect that is being aimed is: the card at the bottom-left, big, and beside it a panel with
+// only what the card says (its effect, in a readable size), plus Cancelar — and Ativar for a Tática that is used at once.
 const HAND_HUD_CARD_SCALE = 0.56;
-const HandCardHud = ({ card, accent, hint, effectText, trig, canAfford, onActivate, onCancel }: {
-  card: CardData; accent: string; hint: string; effectText: string; trig: { label: string; icon: string } | null; canAfford: boolean;
+const HandCardHud = ({ card, accent, effectText, trig, canAfford, onActivate, onCancel }: {
+  card: CardData; accent: string; effectText: string; trig: { label: string; icon: string } | null; canAfford: boolean;
   onActivate?: () => void; onCancel: () => void; key?: React.Key;
 }) => (
   <>
@@ -716,19 +716,13 @@ const HandCardHud = ({ card, accent, hint, effectText, trig, canAfford, onActiva
       className="fixed z-[212] pointer-events-auto"
       style={{ left: 8 + 224 * HAND_HUD_CARD_SCALE + 12, right: 8, bottom: 12 }}
     >
-      <GameBox px={14} className="flex flex-col gap-1.5 px-1 py-0.5">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest text-black" style={{ background: accent, fontFamily: "'Cinzel', serif" }}>{card.cardType}</span>
-          <span className="text-[11px] font-bold uppercase tracking-wide text-[#f0e0bb] leading-tight" style={{ fontFamily: "'Cinzel', serif" }}>{card.name}</span>
-          <span className="ml-auto text-[12px] font-extrabold text-[#ffe08a]" style={{ fontFamily: "'Cinzel', serif" }}>{card.cost} ouro</span>
-        </div>
+      <GameBox px={14} className="flex flex-col gap-2 px-1 py-0.5">
         {effectText && effectText !== '—' && (
-          <p className="text-[15px] leading-snug text-[#f1e4c4]" style={{ fontFamily: "'Crimson Pro', serif", fontWeight: 600 }}>
+          <p className="text-[16px] leading-snug text-[#f1e4c4]" style={{ fontFamily: "'Crimson Pro', serif", fontWeight: 600 }}>
             {trig && <><img src={trig.icon} alt="" className="inline-block h-[1.15em] w-[1.15em] align-[-0.2em] mr-1 object-contain" /><b className="mr-1" style={{ color: '#ffd36a', fontFamily: "'Cinzel', serif", fontSize: '0.86em' }}>{trig.label}.</b></>}
             {effectText}
           </p>
         )}
-        <p className="text-[13px] leading-snug text-[#cdb98c] italic" style={{ fontFamily: "'Crimson Pro', serif", fontWeight: 600 }}>{hint}</p>
         <div className="flex gap-2 min-w-0">
           {onActivate && (
             <GameButton tone="primary" compact disabled={!canAfford} className="flex-1 min-w-0" onClick={(e) => { e.stopPropagation(); onActivate(); }}>{canAfford ? 'Ativar' : 'Sem ouro'}</GameButton>
@@ -5435,71 +5429,14 @@ export default function App() {
     setImpactBurst(prev => [...prev, { id, x, y, big }]);
     window.setTimeout(() => setImpactBurst(prev => prev.filter(b => b.id !== id)), big ? 1000 : 820);
   };
-  // Board hops (see HopSpec): when a card lands, the cards around it jump — all of them if it is a full-art card — each with its
-  // own height, tilt and timing, the delay growing with the distance from where the card landed.
-  const [hops, setHops] = useState<Record<string, HopSpec>>({});
-  const hopIdRef = useRef(0);
-  const startBoardHop = (originId: string, big: boolean) => {
-    const origin = document.getElementById(originId)?.getBoundingClientRect();
-    if (!origin) return;
-    const ox = origin.left + origin.width / 2, oy = origin.top + origin.height / 2;
-    const id = ++hopIdRef.current;
-    const next: Record<string, HopSpec> = {};
-    (['player', 'npc'] as const).forEach(side => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].forEach(i => {
-      const sid = `${side}-${i}`;
-      const el = document.getElementById(sid);
-      if (sid === originId || !el || !el.querySelector('[data-card-visual]')) return;
-      const r = el.getBoundingClientRect();
-      const dist = Math.hypot(r.left + r.width / 2 - ox, r.top + r.height / 2 - oy);
-      if (!big && dist > origin.width * 1.75) return;   // an ordinary card only nudges its neighbours
-      const rnd = Math.random;
-      next[sid] = {
-        id,
-        delay: dist / (big ? 1000 : 800) + rnd() * (big ? 0.16 : 0.07),
-        h: (big ? 64 : 24) * (0.7 + rnd() * 0.75),
-        rot: (rnd() < 0.5 ? -1 : 1) * (2 + rnd() * (big ? 6 : 3)),
-        dur: (big ? 0.5 : 0.42) + rnd() * 0.14,
-      };
-    }));
-    setHops(prev => ({ ...prev, ...next }));
-    window.setTimeout(() => setHops(prev => {
-      const c = { ...prev };
-      Object.keys(next).forEach(k => { if (c[k]?.id === id) delete c[k]; });
-      return c;
-    }), 1800);
-  };
   // A dropped card touched down: the thud, the dust, and the board reacting (see arrivalDrops).
   arrivalListener = (slotId, card) => {
     const r = document.getElementById(slotId)?.getBoundingClientRect();
     if (!r) return;
     playCardPlaySfx();
     fireImpactBurst(r.left + r.width / 2, r.top + r.height * 0.6, !!card.isFullArt);
-    startBoardHop(slotId, !!card.isFullArt);
   };
   const handCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  // Where the tapped hand card is on screen right now (it animates up and grows): the Jogar / Cancelar bar
-  // is placed against it, so the two buttons always sit right above the card they belong to.
-  // Experimental (?handhud): the tapped hand card shown like an aimed effect — big at the bottom-left with a text panel beside it.
-  const handHud = typeof window !== 'undefined' && /[?&]handhud\b/.test(window.location.search);
-  const [selRect, setSelRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
-  useEffect(() => {
-    const id = selectedCardIndex !== null ? hand[selectedCardIndex]?.id : undefined;
-    if (!id) { setSelRect(null); return; }
-    let raf = 0;
-    const t0 = performance.now();
-    const track = () => {
-      const el = handCardRefs.current[id];
-      if (el) {
-        const r = el.getBoundingClientRect();
-        setSelRect(prev => (prev && Math.abs(prev.left - r.left) < 0.5 && Math.abs(prev.top - r.top) < 0.5 && Math.abs(prev.width - r.width) < 0.5)
-          ? prev : { left: r.left, top: r.top, width: r.width, height: r.height });
-      }
-      if (performance.now() - t0 < 900) raf = requestAnimationFrame(track);
-    };
-    raf = requestAnimationFrame(track);
-    return () => cancelAnimationFrame(raf);
-  }, [selectedCardIndex, hand.length]);
-
   // Where a targetable Tática's tap-to-target lands, stashed here (not resolved
   // immediately) because handlePlayCardButtonClick's own commit — spending the
   // mana, removing the card from hand, setting pendingTacticAction — has to land
@@ -7956,7 +7893,6 @@ export default function App() {
               // Preparação keeps the preview (reading a card there is still the point
               // of tapping it — nothing else consumes that tap in that phase).
               onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
-              hop={hops["npc-10"]}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
               isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 10}
@@ -7971,7 +7907,6 @@ export default function App() {
                 card={npcSlots[12]}
                 onClick={() => handleNpcSlotClick(12)}
                 onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
-              hop={hops["npc-12"]}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
                 isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 12}
@@ -7986,7 +7921,6 @@ export default function App() {
               card={npcSlots[11]}
               onClick={() => handleNpcSlotClick(11)}
               onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
-              hop={hops["npc-11"]}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
               isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 11}
@@ -8016,7 +7950,6 @@ export default function App() {
                 card={repositionFlight?.side === 'npc' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
                 onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
-              hop={hops[`npc-${i}`]}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
@@ -8037,7 +7970,6 @@ export default function App() {
                 card={repositionFlight?.side === 'npc' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
                 onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
-              hop={hops[`npc-${i}`]}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
@@ -8069,7 +8001,6 @@ export default function App() {
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
                 onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
-              hop={hops[`player-${i}`]}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
@@ -8097,7 +8028,6 @@ export default function App() {
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
                 onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
-              hop={hops[`player-${i}`]}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
@@ -8129,7 +8059,6 @@ export default function App() {
               onClick={(el) => handleSlotClick(10, el)}
               isSelected={selectedAttackerIndex === 10}
               onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
-              hop={hops["player-10"]}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
               isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 10}
@@ -8144,7 +8073,6 @@ export default function App() {
                 onClick={(el) => handleSlotClick(12, el)}
                 isSelected={selectedAttackerIndex === 12}
                 onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
-              hop={hops["player-12"]}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
                 isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 12}
@@ -8158,7 +8086,6 @@ export default function App() {
               onClick={(el) => handleSlotClick(11, el)}
               isSelected={selectedAttackerIndex === 11}
               onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
-              hop={hops["player-11"]}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
               isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 11}
@@ -8415,10 +8342,10 @@ export default function App() {
               const isAmbushCandidate = ambushPrompt?.options.some(o => o.id === card.id) ?? false;
               const isFocused = selectedCardIndex === i || isAmbushCandidate;
               // The card the player tapped, in the hand view: it steps up out of the fan (see HAND_SELECT_SCALE).
-              const hudSelected = handHud && !tutOn && viewState === 'hand' && selectedCardIndex === i && !isAmbushCandidate;
+              const hudSelected = !tutOn && viewState === 'hand' && selectedCardIndex === i && !isAmbushCandidate;
               const tapSelected = viewState === 'hand' && selectedCardIndex === i && !isAmbushCandidate && !hudSelected;
               // Cards in front of it whose area overlaps it fade away (and let taps through to it).
-              const coveredBySelected = viewState === 'hand' && selectedCardIndex !== null && !ambushPrompt && !(handHud && !tutOn)
+              const coveredBySelected = viewState === 'hand' && selectedCardIndex !== null && !ambushPrompt && tutOn
                 && i > selectedCardIndex && (i - selectedCardIndex) * handStep < HAND_CARD_WIDTH * HAND_SELECT_SCALE;
               return (
               <motion.div
@@ -8620,72 +8547,6 @@ export default function App() {
         })()}
       </AnimatePresence>
 
-      {/* What to do with the tapped hand card, shown ON the board instead of in a box: a one-line pill at the top, the
-          lit slots / targets themselves (see CardSlot's placement hint), and — for an immediate-effect Tática, which has
-          no slot — a glowing "toque para ativar" zone right above the raised card. A compact Cancelar sits beside it. */}
-      {!tutOn && !handHud && selectedCardIndex !== null && viewState === 'hand' && !ambushPrompt && hand[selectedCardIndex] && selRect && !flyingCard && !preZoomSlot && (() => {
-        const card = hand[selectedCardIndex];
-        const kind = getCardDropKind(card);
-        const canAfford = playerMana >= card.cost;
-        const isSoldier = SOLDIER_CARD_TYPES.includes(card.cardType);
-        const hint =
-          kind === 'place'
-            ? (card.cardType === 'Infantaria' ? 'Toque numa casa acesa · atrás ela não ataca'
-              : isSoldier ? 'Toque numa casa acesa · atrás ela fica protegida'
-              : 'Toque na casa acesa ao lado do General')
-          : kind === 'ownTarget' || kind === 'enemyTarget' ? (canAfford ? 'Escolha o alvo no campo' : 'Ouro insuficiente para esta carta')
-          : kind === 'immediate' ? (canAfford ? 'Efeito imediato' : 'Ouro insuficiente para esta carta')
-          : card.cardType === 'Emboscada' ? 'Emboscada armada · ativa sozinha quando você for atacado'
-          : 'Esta carta não pode ser jogada agora';
-        const zoneW = Math.min(268, windowSize.width - 24);
-        const zoneLeft = (windowSize.width - zoneW) / 2;
-        const cancelOnLeft = selRect.left + selRect.width / 2 > windowSize.width / 2;
-        return (
-          <motion.div key={card.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="contents">
-            <div
-              className="fixed z-[262] left-1/2 -translate-x-1/2 px-3 py-1.5 text-center pointer-events-none"
-              style={{
-                top: 86, maxWidth: windowSize.width - 24, width: 'max-content', borderRadius: 6,
-                border: '1px solid rgba(232,220,192,0.55)', background: 'rgba(14,10,6,0.84)', color: '#f3e3c3',
-                fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: 1.25,
-                boxShadow: '0 2px 10px rgba(0,0,0,0.6)',
-              }}
-            >{hint}</div>
-            {kind === 'immediate' && (
-              <button
-                type="button"
-                className="fixed z-[262] flex items-center gap-2.5 px-3 text-left pointer-events-auto active:scale-[0.97] transition-transform"
-                style={{
-                  left: zoneLeft, width: zoneW, top: Math.max(8, selRect.top - 88), height: 74, borderRadius: 10,
-                  border: `2px solid ${canAfford ? 'rgba(255,201,77,0.9)' : 'rgba(150,140,120,0.5)'}`,
-                  background: canAfford ? 'radial-gradient(ellipse at 20% 50%, rgba(255,201,77,0.28), rgba(20,14,6,0.9) 70%)' : 'rgba(20,16,10,0.88)',
-                  boxShadow: canAfford ? '0 0 22px rgba(255,201,77,0.55), inset 0 0 18px rgba(255,201,77,0.18)' : 'none',
-                  animation: canAfford ? 'zone-pulse 1.6s ease-in-out infinite' : undefined,
-                }}
-                onClick={(e) => { e.stopPropagation(); playUiClickSfx(); handlePlayCardButtonClick(); }}
-              >
-                <img src={TRIGGER_ICON.comando} alt="" className="h-[52px] w-[52px] object-contain shrink-0" style={{ filter: canAfford ? 'drop-shadow(0 0 8px rgba(255,201,77,0.9))' : 'grayscale(1) opacity(0.6)' }} />
-                <span className="flex flex-col leading-tight min-w-0">
-                  <b style={{ fontFamily: "'Cinzel', serif", fontSize: 14, letterSpacing: '0.05em', whiteSpace: 'nowrap', color: canAfford ? '#ffd36a' : '#a89f8a', textShadow: '0 1px 2px #000' }}>
-                    {canAfford ? 'TOQUE PARA ATIVAR' : 'SEM OURO'}
-                  </b>
-                  <span className="truncate" style={{ fontFamily: "'Crimson Pro', serif", fontWeight: 700, fontSize: 13, color: '#f1e4c4' }}>{card.name}</span>
-                </span>
-              </button>
-            )}
-            <button
-              type="button"
-              className="fixed z-[262] pointer-events-auto active:scale-95 transition-transform"
-              style={{
-                top: Math.max(8, selRect.top + 22), ...(cancelOnLeft ? { left: 10 } : { right: 10 }),
-                padding: '7px 13px', borderRadius: 6, border: '1px solid rgba(232,170,160,0.6)', background: 'rgba(80,14,14,0.9)',
-                color: '#ffd9d2', fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase',
-              }}
-              onClick={(e) => { e.stopPropagation(); playUiClickSfx(); setSelectedCardIndex(null); }}
-            >✕ Cancelar</button>
-          </motion.div>
-        );
-      })()}
       {/* Flying card — plays from hand to the chosen board slot along real screen coordinates.
           Rises to a large "presentation" size above the slot, holds briefly, then descends
           straight down into place. Kept simple on purpose: no wobble, dip, or shake. */}
@@ -8733,7 +8594,6 @@ export default function App() {
                 // makes every other card on the board flinch (see triggerFullArtReaction).
                 const big = !!flyingCard.card.isFullArt;
                 fireImpactBurst(flyingCard.toX, flyingCard.toY, big);
-                startBoardHop(`player-${flyingCard.slotIndex}`, big);
                 // Keep the camera's zoomed focus on the slot for a beat before easing back.
                 setCameraSettling({ slotIndex: flyingCard.slotIndex });
                 setFlyingCard(null);
@@ -9587,27 +9447,16 @@ export default function App() {
         })()}
       </AnimatePresence>
 
-      {/* (?handhud) The tapped hand card, big at the bottom-left with its text panel (see HandCardHud). */}
+      {/* The tapped hand card, big at the bottom-left with the text of its effect beside it (see HandCardHud). */}
       <AnimatePresence>
-        {handHud && !tutOn && selectedCardIndex !== null && viewState === 'hand' && !ambushPrompt && hand[selectedCardIndex] && !flyingCard && !preZoomSlot && !targetingMode && (() => {
+        {!tutOn && selectedCardIndex !== null && viewState === 'hand' && !ambushPrompt && hand[selectedCardIndex] && !flyingCard && !preZoomSlot && !targetingMode && (() => {
           const card = hand[selectedCardIndex];
           const kind = getCardDropKind(card);
-          const canAfford = playerMana >= card.cost;
-          const isSoldier = SOLDIER_CARD_TYPES.includes(card.cardType);
-          const hint =
-            kind === 'place'
-              ? (card.cardType === 'Infantaria' ? 'Toque numa casa acesa do seu campo. Na Retaguarda ela não ataca.'
-                : isSoldier ? 'Toque numa casa acesa do seu campo. Na Retaguarda ela fica protegida.'
-                : 'Toque na casa acesa ao lado do General.')
-            : kind === 'ownTarget' || kind === 'enemyTarget' ? (canAfford ? 'Escolha o alvo no campo.' : 'Ouro insuficiente para esta carta.')
-            : kind === 'immediate' ? (canAfford ? 'Efeito imediato: toque em Ativar.' : 'Ouro insuficiente para esta carta.')
-            : card.cardType === 'Emboscada' ? 'Armada: ativa sozinha quando você for atacado.'
-            : 'Esta carta não pode ser jogada agora.';
           const accent = card.cardType === 'Tática' ? '#cdd5e0' : card.cardType === 'Emboscada' ? '#e9d3a3' : '#ffd36a';
           return (
             <HandCardHud
               key={`hand-hud-${card.id}`}
-              card={card} accent={accent} hint={hint} effectText={card.effect} trig={triggerOf(card.name)} canAfford={canAfford}
+              card={card} accent={accent} effectText={card.effect} trig={triggerOf(card.name)} canAfford={playerMana >= card.cost}
               onActivate={kind === 'immediate' ? () => { playUiClickSfx(); handlePlayCardButtonClick(); } : undefined}
               onCancel={() => { playUiClickSfx(); setSelectedCardIndex(null); }}
             />
@@ -9637,10 +9486,7 @@ export default function App() {
 
 // ── How cards land on the board ─────────────────────────────────────────────────────────────────────────────────
 // A card that arrives without a flight of its own (an opponent's play, a summoned soldier) drops in from above, each one a little
-// different; when it touches down the board reacts: nearby cards hop, and a full-art card makes the whole board jump. Every card hops
-// with its own height, tilt, timing and a small delay that grows with the distance from where the card landed, so it never looks
-// like one animation played on all of them at once.
-export type HopSpec = { id: number; delay: number; h: number; rot: number; dur: number };
+// different; when it touches down there is a thud and a puff of dust.
 // Cards that will drop in the next time they appear on the board (set by processEvents, read once by the CardSlot that shows them).
 const arrivalDrops = new Map<string, { delay: number }>();
 // Called by a slot when a dropped card touches down (App draws the dust and starts the hops).
@@ -9651,7 +9497,7 @@ const CardSlot = ({
   isAttacking = false, isImpactingTarget = false, isImpactingAttacker = false, attackDirection = 'up', hint, rowRoleHint,
   isValidAttackTarget = false, isInvalidAttackTarget = false, slotId,
   isMoverSelected = false, isValidMoveTarget = false, hasMoved = false,
-  hop, isTacticDragTarget = false,
+  isTacticDragTarget = false,
 }: {
   onClick?: (el: HTMLElement) => void, onInfoClick?: (card: CardData) => void, card?: CardData | null,
   isSelected?: boolean, isAttacking?: boolean, isImpactingTarget?: boolean, attackDirection?: 'up' | 'down',
@@ -9684,23 +9530,8 @@ const CardSlot = ({
   // a unit picked up to move, the adjacent slots it can move/swap into, and a unit
   // that already used its reposition this turn (dimmed, still clickable to inspect).
   isMoverSelected?: boolean, isValidMoveTarget?: boolean, hasMoved?: boolean,
-  // A hop this card has to perform right now (see startBoardHop): its own height, tilt, delay and duration.
-  hop?: HopSpec,
 }) => {
   const attackY = attackDirection === 'up' ? -150 : 150;
-
-  // The hop (see startBoardHop): a one-shot keyframe run with this card's own numbers.
-  const hopControls = useAnimationControls();
-  useEffect(() => {
-    if (!hop) return;
-    void hopControls.start({
-      y: [0, -hop.h, 0, -hop.h * 0.2, 0],
-      rotate: [0, hop.rot, -hop.rot * 0.5, hop.rot * 0.15, 0],
-      scale: [1, 1.1, 1, 1.03, 1],
-      scaleY: [1, 1.05, 0.88, 1.02, 1],
-      transition: { duration: hop.dur, delay: hop.delay, times: [0, 0.38, 0.62, 0.8, 1], ease: ['easeOut', 'easeIn', 'easeOut', 'easeIn'] },
-    });
-  }, [hop?.id]);
 
   // Drop-in arrival (see arrivalDrops): decided once per card that appears in this slot.
   const arrivalRef = useRef<{ id: string; delay: number; rot: number } | null>(null);
@@ -9870,7 +9701,7 @@ const CardSlot = ({
         <motion.div
           key={`arrive-${card.id}`}
           className="w-full h-full"
-          style={{ position: 'relative', zIndex: arrival || hop ? 40 : undefined }}
+          style={{ position: 'relative', zIndex: arrival ? 40 : undefined }}
           initial={arrival ? { y: -230, scale: 1.45, rotate: arrival.rot, opacity: 0 } : false}
           animate={{ y: 0, scale: 1, rotate: 0, opacity: 1 }}
           transition={arrival ? {
@@ -9880,10 +9711,6 @@ const CardSlot = ({
             rotate: { type: 'spring', stiffness: 150, damping: 11 },
             opacity: { duration: 0.1, delay: arrival.delay },
           } : { duration: 0 }}
-        >
-        <motion.div
-          className="w-full h-full"
-          animate={hopControls}
         >
         <motion.div
           key={card.id}
@@ -10002,7 +9829,6 @@ const CardSlot = ({
               </>
             );
           })()}
-        </motion.div>
         </motion.div>
         </motion.div>
       )}
