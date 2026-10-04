@@ -525,14 +525,14 @@ var DECK_RECIPES = {
       "Lanceiro de Controle": 4,
       "Cavaleiro T\xE1tico": 4,
       "Veterano de Guerra": 3,
-      "Reformar Linhas": 2,
-      "Avan\xE7o Coordenado": 2,
-      "Reposicionamento R\xE1pido": 2,
-      "Linha Fechada": 2,
-      "Ordem de Retirada": 2,
-      "Bloqueio Instant\xE2neo": 3,
-      "Contra-Manobra": 3,
-      "Forma\xE7\xE3o Quebrada": 3,
+      "Reformar Linhas": 4,
+      "Avan\xE7o Coordenado": 4,
+      "Reposicionamento R\xE1pido": 4,
+      "Linha Fechada": 4,
+      "Ordem de Retirada": 4,
+      "Bloqueio Instant\xE2neo": 4,
+      "Contra-Manobra": 4,
+      "Forma\xE7\xE3o Quebrada": 4,
       "Estandarte da Legi\xE3o": 1,
       "Fortaleza de Pedra": 1,
       "P\xE2ntano Maldito": 1
@@ -577,15 +577,7 @@ var DECK_RECIPES = {
     }
   }
 };
-var BALANCE = {
-  "Soldado T\xE1tico": { atk: 2, hp: 1 },
-  "Escudeiro de Linha": { atk: 2, hp: 1 },
-  "Capit\xE3o de Forma\xE7\xE3o": { atk: 2, hp: 1 },
-  "Batedor": { atk: 2, hp: 1 },
-  "Lanceiro de Controle": { atk: 2, hp: 1 },
-  "Cavaleiro T\xE1tico": { atk: 2, hp: 1 },
-  "Veterano de Guerra": { atk: 2, hp: 1 }
-};
+var BALANCE = {};
 if (!globalThis.__POW_RAW_STATS__) {
   CARD_DEFS.forEach((c) => {
     const d = BALANCE[c.name];

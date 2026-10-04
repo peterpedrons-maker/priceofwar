@@ -160,14 +160,14 @@ export const DECK_RECIPES: Record<DeckId, DeckRecipe> = {
       "Lanceiro de Controle": 4,
       "Cavaleiro Tático": 4,
       "Veterano de Guerra": 3,
-      "Reformar Linhas": 2,
-      "Avanço Coordenado": 2,
-      "Reposicionamento Rápido": 2,
-      "Linha Fechada": 2,
-      "Ordem de Retirada": 2,
-      "Bloqueio Instantâneo": 3,
-      "Contra-Manobra": 3,
-      "Formação Quebrada": 3,
+      "Reformar Linhas": 4,
+      "Avanço Coordenado": 4,
+      "Reposicionamento Rápido": 4,
+      "Linha Fechada": 4,
+      "Ordem de Retirada": 4,
+      "Bloqueio Instantâneo": 4,
+      "Contra-Manobra": 4,
+      "Formação Quebrada": 4,
       "Estandarte da Legião": 1,
       "Fortaleza de Pedra": 1,
       "Pântano Maldito": 1,
@@ -211,14 +211,10 @@ export const DECK_RECIPES: Record<DeckId, DeckRecipe> = {
 };
 
 // ── Balance ─────────────────────────────────────────────────────────────────
-// Numbers tuned after play-testing live here, apart from the card definitions, so the base stats stay readable and the rules tests
-// (which set `globalThis.__POW_RAW_STATS__` before loading this file) keep running on the untouched ones.
-//  - Capitão: its units (a positional deck that needs strong bodies) gain +2 ATK / +1 HP. Measured over AI-vs-AI matches (tests/ai-arena.ts
-//    and docs/balanceamento.md): the deck won about 2% of its matches against the Cardeal before, about 45% with this.
-export const BALANCE: Record<string, { atk?: number; hp?: number; cost?: number }> = {
-  "Soldado Tático": { atk: 2, hp: 1 }, "Escudeiro de Linha": { atk: 2, hp: 1 }, "Capitão de Formação": { atk: 2, hp: 1 }, "Batedor": { atk: 2, hp: 1 },
-  "Lanceiro de Controle": { atk: 2, hp: 1 }, "Cavaleiro Tático": { atk: 2, hp: 1 }, "Veterano de Guerra": { atk: 2, hp: 1 },
-};
+// Numbers tuned after play-testing can live here, apart from the card definitions, so the base stats stay readable and the rules tests
+// (which set `globalThis.__POW_RAW_STATS__` before loading this file) keep running on the untouched ones. Empty for now: a +2 ATK / +1 HP
+// buff on the Capitão units was tried and taken back (too much); see docs/balanceamento.md.
+export const BALANCE: Record<string, { atk?: number; hp?: number; cost?: number }> = {};
 if (!(globalThis as { __POW_RAW_STATS__?: boolean }).__POW_RAW_STATS__) {
   CARD_DEFS.forEach(c => {
     const d = BALANCE[c.name];
