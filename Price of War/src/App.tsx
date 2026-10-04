@@ -685,6 +685,61 @@ const TargetingHud = ({ source, mode, kind, title, hint, windowH, promptButtons,
   );
 };
 
+// A hand card the player tapped, shown the way an effect that is being aimed is: the card at the bottom-left, big, and beside it a text
+// panel (outside the card, in a readable size) with what the card does and what to do next, plus the buttons.
+const HAND_HUD_CARD_SCALE = 0.56;
+const HandCardHud = ({ card, accent, hint, effectText, trig, canAfford, onActivate, onCancel }: {
+  card: CardData; accent: string; hint: string; effectText: string; trig: { label: string; icon: string } | null; canAfford: boolean;
+  onActivate?: () => void; onCancel: () => void; key?: React.Key;
+}) => (
+  <>
+    <div className="fixed left-2 z-[212] pointer-events-none" style={{ bottom: 12 }}>
+      <motion.div
+        initial={{ scale: 0.3, opacity: 0, y: 60 }}
+        animate={{ scale: HAND_HUD_CARD_SCALE, opacity: 1, y: 0 }}
+        exit={{ scale: 0.3, opacity: 0, y: 50 }}
+        transition={{ type: 'spring', damping: 21, stiffness: 240 }}
+        style={{ transformOrigin: 'bottom left' }}
+        className="relative w-56 h-80"
+      >
+        <motion.div
+          className="absolute inset-0"
+          animate={{ filter: [`${CARD_THICKNESS_SHADOW} drop-shadow(0 0 5px ${accent}aa)`, `${CARD_THICKNESS_SHADOW} drop-shadow(0 0 20px ${accent})`, `${CARD_THICKNESS_SHADOW} drop-shadow(0 0 5px ${accent}aa)`] }}
+          transition={{ duration: 1.3, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <CardFace card={card} variant="hand" />
+        </motion.div>
+      </motion.div>
+    </div>
+    <motion.div
+      initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+      className="fixed z-[212] pointer-events-auto"
+      style={{ left: 8 + 224 * HAND_HUD_CARD_SCALE + 12, right: 8, bottom: 12 }}
+    >
+      <GameBox px={14} className="flex flex-col gap-1.5 px-1 py-0.5">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest text-black" style={{ background: accent, fontFamily: "'Cinzel', serif" }}>{card.cardType}</span>
+          <span className="text-[11px] font-bold uppercase tracking-wide text-[#f0e0bb] leading-tight" style={{ fontFamily: "'Cinzel', serif" }}>{card.name}</span>
+          <span className="ml-auto text-[12px] font-extrabold text-[#ffe08a]" style={{ fontFamily: "'Cinzel', serif" }}>{card.cost} ouro</span>
+        </div>
+        {effectText && effectText !== '—' && (
+          <p className="text-[15px] leading-snug text-[#f1e4c4]" style={{ fontFamily: "'Crimson Pro', serif", fontWeight: 600 }}>
+            {trig && <><img src={trig.icon} alt="" className="inline-block h-[1.15em] w-[1.15em] align-[-0.2em] mr-1 object-contain" /><b className="mr-1" style={{ color: '#ffd36a', fontFamily: "'Cinzel', serif", fontSize: '0.86em' }}>{trig.label}.</b></>}
+            {effectText}
+          </p>
+        )}
+        <p className="text-[13px] leading-snug text-[#cdb98c] italic" style={{ fontFamily: "'Crimson Pro', serif", fontWeight: 600 }}>{hint}</p>
+        <div className="flex gap-2 min-w-0">
+          {onActivate && (
+            <GameButton tone="primary" compact disabled={!canAfford} className="flex-1 min-w-0" onClick={(e) => { e.stopPropagation(); onActivate(); }}>{canAfford ? 'Ativar' : 'Sem ouro'}</GameButton>
+          )}
+          <GameButton tone="danger" compact={!!onActivate} className={onActivate ? 'flex-1 min-w-0' : 'self-start'} icon={onActivate ? undefined : <X className="w-3 h-3" strokeWidth={3} />} onClick={(e) => { e.stopPropagation(); onCancel(); }}>Cancelar</GameButton>
+        </div>
+      </GameBox>
+    </motion.div>
+  </>
+);
+
 // An ability that can be used right now: light flows over the WHOLE card, up and down, and a rim light pulses along its
 // edge. Everything is cut with the card's exact silhouette (tools/vfx/card_masks.py — wings, spikes and notched corners
 // included, never a rounded rectangle), placed with the same box the board draws that card's frame in.
@@ -5424,6 +5479,8 @@ export default function App() {
   const handCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   // Where the tapped hand card is on screen right now (it animates up and grows): the Jogar / Cancelar bar
   // is placed against it, so the two buttons always sit right above the card they belong to.
+  // Experimental (?handhud): the tapped hand card shown like an aimed effect — big at the bottom-left with a text panel beside it.
+  const handHud = typeof window !== 'undefined' && /[?&]handhud\b/.test(window.location.search);
   const [selRect, setSelRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
   useEffect(() => {
     const id = selectedCardIndex !== null ? hand[selectedCardIndex]?.id : undefined;
@@ -8358,9 +8415,10 @@ export default function App() {
               const isAmbushCandidate = ambushPrompt?.options.some(o => o.id === card.id) ?? false;
               const isFocused = selectedCardIndex === i || isAmbushCandidate;
               // The card the player tapped, in the hand view: it steps up out of the fan (see HAND_SELECT_SCALE).
-              const tapSelected = viewState === 'hand' && selectedCardIndex === i && !isAmbushCandidate;
+              const hudSelected = handHud && !tutOn && viewState === 'hand' && selectedCardIndex === i && !isAmbushCandidate;
+              const tapSelected = viewState === 'hand' && selectedCardIndex === i && !isAmbushCandidate && !hudSelected;
               // Cards in front of it whose area overlaps it fade away (and let taps through to it).
-              const coveredBySelected = viewState === 'hand' && selectedCardIndex !== null && !ambushPrompt
+              const coveredBySelected = viewState === 'hand' && selectedCardIndex !== null && !ambushPrompt && !(handHud && !tutOn)
                 && i > selectedCardIndex && (i - selectedCardIndex) * handStep < HAND_CARD_WIDTH * HAND_SELECT_SCALE;
               return (
               <motion.div
@@ -8399,7 +8457,7 @@ export default function App() {
                   // instead of sitting down at the hand's normal resting height (see
                   // getSelectedCardY above for how mobile's handScale is compensated for).
                   // (the resting hand sits partly below the screen edge on mobile, so the lift also brings it back up)
-                  y: isFocused && viewState === 'field' ? getSelectedCardY() : tapSelected ? getFanLift(i) - (isMobile ? HAND_CARD_HEIGHT * 0.22 : 0) - 24 : getFanLift(i),
+                  y: isFocused && viewState === 'field' ? getSelectedCardY() : hudSelected ? getFanLift(i) - 22 : tapSelected ? getFanLift(i) - (isMobile ? HAND_CARD_HEIGHT * 0.22 : 0) - 24 : getFanLift(i),
                   scale: isFocused && viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) : tapSelected ? HAND_SELECT_SCALE : 1,
                   rotateZ: isFocused || viewState === 'field' ? 0 : getFanRotation(i),
                   zIndex: isFocused && !tapSelected ? 150 : i + 1,
@@ -8481,7 +8539,7 @@ export default function App() {
                         backfaceVisibility: 'hidden', transform: 'rotateY(180deg)',
                         filter: isAmbushCandidate
                           ? `${CARD_THICKNESS_SHADOW} drop-shadow(0 0 12px rgba(239,68,68,0.9))`
-                          : tapSelected
+                          : tapSelected || hudSelected
                             ? `${CARD_THICKNESS_SHADOW} drop-shadow(0 0 10px rgba(212,175,55,0.85))`
                             : cardGlowFilter(card, isFocused ? '0 0 22px rgba(212,175,55,0.95)' : '0 0 0 transparent'),
                       }}
@@ -8565,7 +8623,7 @@ export default function App() {
       {/* What to do with the tapped hand card, shown ON the board instead of in a box: a one-line pill at the top, the
           lit slots / targets themselves (see CardSlot's placement hint), and — for an immediate-effect Tática, which has
           no slot — a glowing "toque para ativar" zone right above the raised card. A compact Cancelar sits beside it. */}
-      {!tutOn && selectedCardIndex !== null && viewState === 'hand' && !ambushPrompt && hand[selectedCardIndex] && selRect && !flyingCard && !preZoomSlot && (() => {
+      {!tutOn && !handHud && selectedCardIndex !== null && viewState === 'hand' && !ambushPrompt && hand[selectedCardIndex] && selRect && !flyingCard && !preZoomSlot && (() => {
         const card = hand[selectedCardIndex];
         const kind = getCardDropKind(card);
         const canAfford = playerMana >= card.cost;
@@ -9525,6 +9583,34 @@ export default function App() {
               <X className="text-white w-5 h-5" />
             </button>
           </motion.div>
+          );
+        })()}
+      </AnimatePresence>
+
+      {/* (?handhud) The tapped hand card, big at the bottom-left with its text panel (see HandCardHud). */}
+      <AnimatePresence>
+        {handHud && !tutOn && selectedCardIndex !== null && viewState === 'hand' && !ambushPrompt && hand[selectedCardIndex] && !flyingCard && !preZoomSlot && !targetingMode && (() => {
+          const card = hand[selectedCardIndex];
+          const kind = getCardDropKind(card);
+          const canAfford = playerMana >= card.cost;
+          const isSoldier = SOLDIER_CARD_TYPES.includes(card.cardType);
+          const hint =
+            kind === 'place'
+              ? (card.cardType === 'Infantaria' ? 'Toque numa casa acesa do seu campo. Na Retaguarda ela não ataca.'
+                : isSoldier ? 'Toque numa casa acesa do seu campo. Na Retaguarda ela fica protegida.'
+                : 'Toque na casa acesa ao lado do General.')
+            : kind === 'ownTarget' || kind === 'enemyTarget' ? (canAfford ? 'Escolha o alvo no campo.' : 'Ouro insuficiente para esta carta.')
+            : kind === 'immediate' ? (canAfford ? 'Efeito imediato: toque em Ativar.' : 'Ouro insuficiente para esta carta.')
+            : card.cardType === 'Emboscada' ? 'Armada: ativa sozinha quando você for atacado.'
+            : 'Esta carta não pode ser jogada agora.';
+          const accent = card.cardType === 'Tática' ? '#cdd5e0' : card.cardType === 'Emboscada' ? '#e9d3a3' : '#ffd36a';
+          return (
+            <HandCardHud
+              key={`hand-hud-${card.id}`}
+              card={card} accent={accent} hint={hint} effectText={card.effect} trig={triggerOf(card.name)} canAfford={canAfford}
+              onActivate={kind === 'immediate' ? () => { playUiClickSfx(); handlePlayCardButtonClick(); } : undefined}
+              onCancel={() => { playUiClickSfx(); setSelectedCardIndex(null); }}
+            />
           );
         })()}
       </AnimatePresence>
