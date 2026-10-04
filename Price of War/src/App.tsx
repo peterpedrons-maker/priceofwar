@@ -202,7 +202,7 @@ import batalhaBannerSfxUrl from './assets/sfx-batalha-banner.wav';
 // something heavy hitting the ground" calls for a stone/masonry thud, not a musical
 // stinger.
 import batalhaImpactSfxUrl from './assets/sfx-batalha-impacto.wav';
-import { DECK_RECIPES, requireCardDef, getCardDef, type DeckId } from './engine/catalog';
+import { DECK_RECIPES, requireCardDef, getCardDef, starterDeckCards, type DeckId } from './engine/catalog';
 import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActivePhases, createMatch, deckSetupFromRecipe, newMatchLog, type MatchLog } from './engine/game';
 import { aiNextAction } from './engine/ai';
 import { glyphUrl, burstUrl, NUMBER_GLOW, type NumberKind } from './numberGlyphs';
@@ -2194,22 +2194,39 @@ const countByName = (cards: readonly CardData[]) => {
   return out;
 };
 
+const CAPITAO_STARTER_NAME = 'Deck Capitão';
+// Everybody starts with both prebuilt decks: the Cardeal list in slot 1 and the Capitão list in slot 2, each ready to play (the whole
+// collection of both, so either can also be rebuilt).
 const buildStarterStore = (): DeckStore => {
-  const starterCards = countByName(DECKS.cardeal.pool);
-  const collection: Record<string, number> = { ...starterCards, [DECKS.cardeal.general.name]: 1 };
-  // Test extras: a random sample of Capitão cards (and its General), see the note above.
-  const capitaoCounts = countByName(DECKS.capitao.pool);
-  Object.keys(capitaoCounts).sort(() => Math.random() - 0.5).slice(0, 14).forEach(name => {
-    collection[name] = (collection[name] ?? 0) + 1 + Math.floor(Math.random() * Math.min(3, capitaoCounts[name]));
-  });
+  const cardealCards = starterDeckCards('cardeal');
+  const capitaoCards = starterDeckCards('capitao');
+  const collection: Record<string, number> = {
+    ...countByName(DECKS.cardeal.pool), [DECKS.cardeal.general.name]: 1,
+  };
+  Object.entries(DECK_RECIPES.capitao.cards).forEach(([name, n]) => { collection[name] = Math.max(collection[name] ?? 0, n); });
   collection[DECKS.capitao.general.name] = 1;
   return {
     collection,
     slots: [
-      { id: 'slot1', name: DECKS.cardeal.name, general: DECKS.cardeal.general.name, cards: { ...starterCards } },
-      { id: 'slot2', name: 'Deck 2', general: DECKS.cardeal.general.name, cards: {} },
+      { id: 'slot1', name: DECKS.cardeal.name, general: DECKS.cardeal.general.name, cards: { ...cardealCards } },
+      { id: 'slot2', name: CAPITAO_STARTER_NAME, general: DECKS.capitao.general.name, cards: { ...capitaoCards } },
     ],
   };
+};
+// Accounts and devices made before the Capitão deck was released: give them the whole Capitão collection and, when slot 2 is still empty,
+// the ready Capitão deck in it (a slot the player has built on is never touched). Returns whether anything changed.
+const ensureStarterDecks = (store: DeckStore): boolean => {
+  let changed = false;
+  Object.entries(DECK_RECIPES.capitao.cards).forEach(([name, n]) => {
+    if ((store.collection[name] ?? 0) < n) { store.collection[name] = n; changed = true; }
+  });
+  if ((store.collection[DECKS.capitao.general.name] ?? 0) < 1) { store.collection[DECKS.capitao.general.name] = 1; changed = true; }
+  const slot2 = store.slots[1];
+  if (slot2 && Object.keys(slot2.cards).length === 0) {
+    slot2.name = CAPITAO_STARTER_NAME; slot2.general = DECKS.capitao.general.name; slot2.cards = { ...starterDeckCards('capitao') };
+    changed = true;
+  }
+  return changed;
 };
 
 // Drops anything the catalog no longer knows and clamps counts to what is owned, so a stale
@@ -2243,7 +2260,7 @@ const loadDeckStore = (): DeckStore => {
     const raw = localStorage.getItem(DECK_STORE_KEY);
     if (raw) {
       const ok = sanitizeDeckStore(JSON.parse(raw));
-      if (ok) return ok;
+      if (ok) { if (ensureStarterDecks(ok)) saveDeckStore(ok); return ok; }
     }
   } catch { /* fall through to a fresh starter */ }
   const fresh = buildStarterStore();
@@ -2299,8 +2316,10 @@ const syncDeckStoreWithCloud = async (userId: string): Promise<string | null> =>
     });
     const merged = sanitizeDeckStore({ collection, slots, owner: userId });
     if (merged) {
+      const grew = ensureStarterDecks(merged);
       try { localStorage.setItem(DECK_STORE_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
       cloudUserId = userId;
+      if (grew) { const up = await pushStore(userId, { collection: merged.collection, decks: toCloudDecks(merged) }); if (up.ok === false) return up.message; }
       return null;
     }
   }

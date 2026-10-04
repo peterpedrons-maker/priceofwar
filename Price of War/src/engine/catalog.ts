@@ -224,6 +224,15 @@ if (!(globalThis as { __POW_RAW_STATS__?: boolean }).__POW_RAW_STATS__) {
   });
 }
 
+// The prebuilt lists as a player can use them: a deck holds at most 60 cards (see deck.ts) and the Capitão list has 62, so two copies of its least
+// useful cards are left out. The AI still plays the full recipe.
+const STARTER_TRIM: Partial<Record<DeckId, Record<string, number>>> = { capitao: { "Reformar Linhas": 1, "Reposicionamento Rápido": 1 } };
+export const starterDeckCards = (id: DeckId): Record<string, number> => {
+  const cards = { ...DECK_RECIPES[id].cards };
+  Object.entries(STARTER_TRIM[id] ?? {}).forEach(([name, n]) => { cards[name] = Math.max(0, (cards[name] ?? 0) - n); if (cards[name] === 0) delete cards[name]; });
+  return cards;
+};
+
 const BY_NAME: Record<string, CardDef> = {};
 CARD_DEFS.forEach(c => { BY_NAME[c.name] = c; });
 
