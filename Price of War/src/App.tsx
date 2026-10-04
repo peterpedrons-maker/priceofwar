@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 're
 import { fetchProfile, usernameAvailable, createProfile, updateProfileFields, fetchStore, pushStore, type CloudDeck } from './services/cloud';
 import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authErrorDetail, authMode, type Session } from './services/auth';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate, type MotionValue } from 'motion/react';
-import { X, ArrowUp, ArrowDown } from 'lucide-react';
+import { X, ArrowUp, ArrowDown, Pointer } from 'lucide-react';
 import { TurnTracker } from './TurnTracker';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
@@ -5393,6 +5393,9 @@ export default function App() {
   // Hand cards: a tap shows the card big in the middle of the screen (another tap puts it back); pressing, holding and dragging it plays it —
   // while it is held, the card floats under the finger (see `held`) and the board lights up where it can go.
   const [inspectId, setInspectId] = useState<string | null>(null);
+  // How many cards the player has already played by dragging: the "arraste" hint above the hand shows until they have done it a few times.
+  const [dragLessons, setDragLessons] = useState<number>(() => { try { return Number(localStorage.getItem('pow.drags') || 0); } catch { return 0; } });
+  const noteDragPlay = () => setDragLessons(n => { const v = n + 1; try { localStorage.setItem('pow.drags', String(v)); } catch { /* no storage */ } return v; });
   const inspectOpenedAtRef = useRef(0);   // a touch's own click lands on the freshly opened scrim: ignore clicks right after opening
   const [held, setHeld] = useState<{ id: string; zone: { left: number; top: number; width: number; height: number; label: string } | null } | null>(null);   // which card is held; where it is lives in refs (no React re-render per finger move)
   const heldElRef = useRef<HTMLDivElement | null>(null);
@@ -7373,6 +7376,7 @@ export default function App() {
       if (!canPlaceInSlot(card.cardType, hit.index) || playerSlots[hit.index]) { showToast('Solte a carta numa casa acesa do seu campo.'); cancel(); return; }
       const dry = applyAction(engineRef.current!, 0, { type: 'play', cardId: card.id, slot: hit.index });
       if (dry.ok === false) { showToast(dry.error); cancel(); return; }
+      noteDragPlay();
       dropFromRef.current = { x, y: heldTop(y) + 160 * HELD_SCALE, w: 224 * HELD_SCALE, h: 320 * HELD_SCALE };
       handleSlotClick(hit.index, hit.el);   // the play clears the selection (and with it the held card) when the flight starts
       return;
@@ -7382,11 +7386,11 @@ export default function App() {
       const ok = !!hit && specSlots(spec).some(v => v.side === hit.side && v.index === hit.index);
       if (!ok || !hit) { showToast(spec?.prompt ?? 'Solte a carta num alvo válido.'); cancel(); return; }
       setSelectedCardIndex(null);
-      if (playerAct({ type: 'play', cardId: card.id, target: hit.index })) setViewState('hand');
+      if (playerAct({ type: 'play', cardId: card.id, target: hit.index })) { setViewState('hand'); noteDragPlay(); }
       return;
     }
     const z = held?.zone;
-    if (kind === 'immediate' && z && x >= z.left && x <= z.left + z.width && y >= z.top && y <= z.top + z.height) { handlePlayCardButtonClick(); return; }
+    if (kind === 'immediate' && z && x >= z.left && x <= z.left + z.width && y >= z.top && y <= z.top + z.height) { noteDragPlay(); handlePlayCardButtonClick(); return; }
     cancel();
   };
   // Called once per frame while a card is held: moves the floating card, lights the slot under the finger, aims the guide.
@@ -9636,9 +9640,42 @@ export default function App() {
                   <CardFace card={card} variant="hand" />
                 </div>
               </motion.div>
+              {/* What to do next: drag it to the board (or why it cannot be played now). */}
+              {(() => {
+                const why = dragBlockReason(card);
+                if (why === 'wait') return null;
+                return (
+                  <div className="absolute inset-x-0 flex flex-col items-center gap-1 pointer-events-none" style={{ bottom: 22 }}>
+                    {why ? (
+                      <span className="px-3 py-1.5 rounded-md text-center" style={{ background: 'rgba(14,10,6,0.88)', border: '1px solid rgba(232,220,192,0.5)', color: '#f3e3c3', fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 12, letterSpacing: '0.06em', maxWidth: windowSize.width - 40 }}>{why}</span>
+                    ) : (
+                      <>
+                        <DragFinger size={30} travel={46} />
+                        <span className="px-3 py-1 rounded-md" style={{ background: 'rgba(14,10,6,0.88)', border: '1px solid rgba(255,214,110,0.7)', color: '#ffe9b0', fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                          Segure e arraste para o campo
+                        </span>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
             </motion.div>
           );
         })()}
+      </AnimatePresence>
+
+      {/* While the player has not yet learned the gesture: a finger sliding from the hand up to the board, above the hand. */}
+      <AnimatePresence>
+        {!tutOn && !held && !inspectId && dragLessons < 3 && currentTurn === 'player' && turnPhase === 'preparacao' && viewState === 'hand' && !ambushPrompt && !targetingMode && !pendingAbility && !flyingCard && !preZoomSlot && !gameOverWinner
+          && hand.some(c => playerMana >= c.cost && getCardDropKind(c) !== 'blocked') && (
+          <motion.div key="drag-hint" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="fixed left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none" style={{ bottom: 150, zIndex: 214 }}>
+            <DragFinger size={36} travel={60} />
+            <span className="px-3 py-1 rounded-md text-center" style={{ background: 'rgba(14,10,6,0.88)', border: '1px solid rgba(255,214,110,0.75)', color: '#ffe9b0', fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+              Arraste a carta para o campo
+            </span>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* The card being held: it hangs below the finger, a little apart from it, so the player knows which card was picked up. Its position is
@@ -9649,6 +9686,12 @@ export default function App() {
         const { x, y } = dragPointRef.current;
         return (
           <>
+            <div className="fixed left-1/2 -translate-x-1/2 pointer-events-none px-4 py-1.5 rounded-md text-center" style={{ top: 84, zIndex: 321, background: 'rgba(14,10,6,0.9)', border: '1px solid rgba(255,214,110,0.8)', boxShadow: '0 0 16px rgba(255,200,80,0.45)', color: '#ffe9b0', fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+              {(() => {
+                const k = getCardDropKind(card);
+                return k === 'place' ? 'Solte na casa acesa' : k === 'enemyTarget' ? 'Solte em um alvo inimigo' : k === 'ownTarget' ? 'Solte em uma unidade sua' : 'Solte no seu campo';
+              })()}
+            </div>
             <DragGuide infoRef={guideInfoRef} getStart={() => ({ x: dragPointRef.current.x, y: heldTop(dragPointRef.current.y) + 6 })} />
             {held.zone && (
               <div ref={zoneElRef} className="drop-zone fixed pointer-events-none flex flex-col items-center justify-center text-center"
@@ -9696,6 +9739,20 @@ const IMMEDIATE_ZONE_LABEL: Record<string, string> = {
   gold: 'GANHA OURO', draw: 'COMPRA CARTAS', refill_hand: 'COMPRA CARTAS', extra_moves: 'MOVE MAIS UNIDADES', damage: 'CAUSA DANO',
   look_top: 'VÊ O TOPO DO BARALHO', search: 'BUSCA UMA CARTA', summon_deck: 'CONVOCA DO BARALHO',
 };
+// "Segure e arraste": a finger that presses on a card and slides up toward the board, over and over. `size` is the icon size in px.
+const DragFinger = ({ size = 34, travel = 54 }: { size?: number; travel?: number }) => (
+  <span className="relative inline-flex flex-col items-center" style={{ width: size * 1.4, height: size + travel }}>
+    <motion.span className="absolute left-1/2 -translate-x-1/2" style={{ top: 0, color: '#ffd36a' }}
+      animate={{ y: [0, travel * 0.15, 0], opacity: [0.35, 1, 0.35] }} transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}>
+      <ArrowUp strokeWidth={3.5} style={{ width: size * 0.7, height: size * 0.7, filter: 'drop-shadow(0 0 6px rgba(255,200,80,.9))' }} />
+    </motion.span>
+    <motion.span className="absolute left-1/2" style={{ bottom: 0, marginLeft: -size / 2, color: '#fff3d0' }}
+      animate={{ y: [0, -travel, -travel, 0], scale: [1, 0.9, 0.9, 1], opacity: [0, 1, 1, 0] }} transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut', times: [0, 0.55, 0.8, 1] }}>
+      <Pointer strokeWidth={2.2} style={{ width: size, height: size, fill: 'rgba(255,243,208,.25)', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,.8)) drop-shadow(0 0 8px rgba(255,214,110,.8))' }} />
+    </motion.span>
+  </span>
+);
+
 // The guide drawn while a card is dragged: from the top of the held card to where it would land, with the game's own attack arrows (red toward
 // the enemy, blue toward your side) flowing along it and a light sweeping from one end to the other and back. Everything is driven by a
 // frame loop that reads refs, so it follows the finger without any React render.
