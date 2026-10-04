@@ -8,11 +8,11 @@
 import { getCardDef } from './catalog';
 import { combatOpen } from './game';
 import {
-  EQUIP_ALLOWED_TYPES, SOLDIER_TYPES, TARGETABLE_TACTICS, adjacentSlots, canReposition, getEffectiveAtk,
-  getIncomingDamageReduction, getLaneCol, getMaxAttacksPerTurn, getValidAttackTargets, isCardDamaged,
-  type Board, type TacticTargetKind,
+  SOLDIER_TYPES, abilityOn, abilityPhases, adjacentSlots, canReposition, getEffectiveAtk, getIncomingDamageReduction,
+  getLaneCol, getMaxAttacksPerTurn, getValidAttackTargets, hasVerb, isCardDamaged, specCandidatesOn, targetSpecsOf, verbsOn,
+  type Board,
 } from './rules';
-import type { Action, Card, GameState, Seat } from './types';
+import type { Action, Card, CardFilter, GameState, Seat, Verb } from './types';
 import { otherSeat } from './types';
 
 export type Rand = () => number;
@@ -91,7 +91,7 @@ const moveOptions = (s: GameState, seat: Seat, only?: number): MoveOption[] => {
   const t = s.turn;
   const free = only !== undefined; // Batedor's free move is not limited by "already moved"
   const base = boardScore(me, foe);
-  const aurelion = me[12]?.name === 'Comandante Aurelion, Mestre da Formação' && t.moved.length < 2;
+  const aurelion = hasVerb(me[12]?.name ?? '', 'buff_moved') && t.moved.length < 2;   // a General that rewards the units that moved
   const out: MoveOption[] = [];
   for (const from of UNIT_SLOTS) {
     const u = me[from];
@@ -101,7 +101,7 @@ const moveOptions = (s: GameState, seat: Seat, only?: number): MoveOption[] => {
       if (!canReposition(u, from, to)) continue;
       const after = swapped(me, from, to);
       let delta = boardScore(after, foe) - base;
-      if (u.name === 'Capitão de Formação') delta += 0.5 * adjacentSlots(to).filter(j => after[j]).length; // buffs the neighbours' ATK
+      if (hasVerb(u.name, 'buff_adjacent')) delta += 0.5 * adjacentSlots(to).filter(j => after[j]).length;      // buffs the neighbours' ATK when it moves
       if (aurelion && !free) delta += 0.6;                                                                    // Aurelion's +1/+1 for movers
       out.push({ from, to, delta });
     }
@@ -177,55 +177,63 @@ const attackScore = (me: Board, foe: Board, from: number, to: number): number =>
 };
 
 // ── Which Tática to play, on what ───────────────────────────────────────────
-// Returns the action to send, or null when the card has no worthwhile use right now. `gold` is what is left to spend.
-const tacticPlay = (s: GameState, seat: Seat, card: Card, rand: Rand): Action | null => {
+// The AI reads what a Tática DOES (its verbs, by type), never which card it is: a new card made of the same effect types is played
+// with the same judgement. Returns the action to send, or null when the card has no worthwhile use right now.
+const matches = (c: { cardType?: string; atk: number }, f: CardFilter) =>
+  (!f.types || f.types.includes(c.cardType as never)) && (f.atk === undefined || c.atk === f.atk);
+
+const tacticPlay = (s: GameState, seat: Seat, card: Card): Action | null => {
   const me = s.players[seat];
   const foe = s.players[otherSeat(seat)];
   const play = (target?: number): Action => ({ type: 'play', cardId: card.id, target });
   const enemyUnits = UNIT_SLOTS.filter(i => foe.board[i]);
   const ownUnits = UNIT_SLOTS.filter(i => me.board[i]);
+  const v: Verb | undefined = verbsOn(card.name, 'play')[0];
+  if (!v) return null;
+  const spec = targetSpecsOf([v])[0];
+  const candidates = spec ? specCandidatesOn(spec, me.board, foe.board, s.turn.moved) : [];
 
-  switch (card.name) {
-    case 'Tributo de Guerra':
+  switch (v.kind) {
+    case 'gold':
       return play();
-    case 'Trabuco de Cerco': {
-      // 2 damage to every enemy unit and the General: worth it when it kills something or hits a crowd.
-      const hit = [...enemyUnits, 12].filter(i => foe.board[i]);
-      const kills = hit.filter(i => foe.board[i]!.hp <= 2).length;
-      return kills >= 1 && hit.length >= 3 || kills >= 2 || hit.length >= 5 ? play() : null;
-    }
-    case 'Balestra de Precisão': {
-      const killable = enemyUnits.filter(i => foe.board[i]!.hp <= 3);
+    case 'damage': {
+      if (v.all) {
+        // Damage to every enemy unit and the General: worth it when it kills something or hits a crowd.
+        const hit = [...enemyUnits, 12].filter(i => foe.board[i]);
+        const kills = hit.filter(i => foe.board[i]!.hp <= v.amount).length;
+        return kills >= 1 && hit.length >= 3 || kills >= 2 || hit.length >= 5 ? play() : null;
+      }
+      if (spec?.area === 'row') {
+        const rows = [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]].map(row => {
+          const units = row.filter(i => foe.board[i]);
+          return { slot: row[0], count: units.length, kills: units.filter(i => foe.board[i]!.hp <= v.amount).length };
+        });
+        const best = rows.reduce((a, b) => (b.kills * 2 + b.count > a.kills * 2 + a.count ? b : a));
+        return best.kills >= 1 && best.count >= 2 || best.count >= 3 ? play(best.slot) : null;
+      }
+      const killable = candidates.filter(i => foe.board[i]!.hp <= v.amount);
       if (killable.length === 0) return null;
       return play(killable.reduce((a, b) => (unitWorth(foe.board[a]!) >= unitWorth(foe.board[b]!) ? a : b)));
     }
-    case 'Catapulta de Guerra': {
-      const rows = [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]].map(row => {
-        const units = row.filter(i => foe.board[i]);
-        return { slot: row[0], count: units.length, kills: units.filter(i => foe.board[i]!.hp <= 2).length };
-      });
-      const best = rows.reduce((a, b) => (b.kills * 2 + b.count > a.kills * 2 + a.count ? b : a));
-      return best.kills >= 1 && best.count >= 2 || best.count >= 3 ? play(best.slot) : null;
-    }
-    case 'Linha Fechada': {
+    case 'guard_adjacent': {
       // Stamp the neighbours of the unit that has the most allies around it.
-      const scored = ownUnits.map(i => ({ i, n: adjacentSlots(i).filter(j => me.board[j]).length })).filter(x => x.n >= 2);
+      const scored = candidates.map(i => ({ i, n: adjacentSlots(i).filter(j => me.board[j]).length })).filter(x => x.n >= 2);
       return scored.length ? play(scored.reduce((a, b) => (b.n > a.n ? b : a)).i) : null;
     }
-    case 'Ordem de Retirada': {
-      const hurt = [0, 1, 2, 3, 4].filter(i => me.board[i] && !me.board[i + 5] && isCardDamaged(me.board[i]!));
+    case 'retreat': {
+      const hurt = candidates.filter(i => !me.board[i + 5] && isCardDamaged(me.board[i]!));
       return hurt.length ? play(weakest(me.board, hurt)) : null;
     }
-    case 'Reformar Linhas':
-      // +3 extra repositions this turn: worth a card when the formation can really improve with them.
-      return planGain(s, seat, 3) - planGain(s, seat, 0) >= 1.5 ? play() : null;
-    case 'Avanço Coordenado': {
-      // +2 ATK to a unit that already moved this turn (only playable in Movimentação, after moving).
-      if (s.turn.phase !== 'movimentacao') return null;
-      const movers = s.turn.moved.filter(i => me.board[i] && i <= 9 && me.board[i]!.atk > 0);
-      return movers.length ? play(movers.reduce((a, b) => (me.board[b]!.atk > me.board[a]!.atk ? b : a))) : null;
+    case 'extra_moves':
+      // Extra repositions this turn: worth a card when the formation can really improve with them.
+      return planGain(s, seat, v.amount) - planGain(s, seat, 0) >= 1.5 ? play() : null;
+    case 'buff': {
+      // A bonus for a unit that already moved this turn can only be used (and is only worth it) after the moving is done.
+      if (spec?.needs === 'moved' && s.turn.phase !== 'movimentacao') return null;
+      const useful = candidates.filter(i => me.board[i]!.atk > 0);
+      return useful.length ? play(useful.reduce((a, b) => (me.board[b]!.atk > me.board[a]!.atk ? b : a))) : null;
     }
-    case 'Reposicionamento Rápido': {
+    case 'displace': {
       // Pull the only blocker out of the enemy General's lane — when I have hitters ready to use the opening.
       if (!combatOpen(s) || !foe.board[12]) return null;
       const blockers = [2, 7].filter(i => foe.board[i]);
@@ -239,35 +247,46 @@ const tacticPlay = (s: GameState, seat: Seat, card: Card, rand: Rand): Action | 
       const opens = free.filter(j => j !== 2 && j !== 7);   // landing back in the lane would not help
       return hitters.length > 0 && free.length > 0 && opens.length / free.length >= 0.6 ? play(blockers[0]) : null;
     }
-    case 'Armadura de Guerra':
-    case 'Couraça Reforçada':
-    case 'Flechas Venenosas':
-    case 'Espada Longa': {
-      const kind = TARGETABLE_TACTICS[card.name] as TacticTargetKind;
-      const allowed = EQUIP_ALLOWED_TYPES[kind];
+    case 'equip': {
       // Best on a front-row unit that can actually fight.
-      const targets = ownUnits.filter(i => allowed.includes(me.board[i]!.cardType) && i <= 4);
+      const targets = candidates.filter(i => i <= 4);
       if (targets.length === 0) return null;
       return play(targets.reduce((a, b) => (unitWorth(me.board[b]!) > unitWorth(me.board[a]!) ? b : a)));
     }
-    case 'Retorno do Soldado':
-      return me.graveyard.some(isSoldier) ? play() : null;
-    case 'Graal da Dádiva':
-      return me.deckList.some(n => { const t = getCardDef(n)?.cardType; return t === 'Terreno' || t === 'Relíquia'; }) && me.hand.length <= 9 ? play() : null;
-    case 'Doutrina Renovada':
-      return me.hand.length <= 8 && me.deckList.some(n => getCardDef(n)?.cardType === 'Tática') ? play() : null;
-    case 'Recrutamento Seletivo':
-    case 'Recrutar Veteranos':
-      return me.hand.length <= 8 ? play() : null;
-    case 'Chamado às Armas': {
-      const free = [0, 1, 2, 3, 4].filter(i => !me.board[i]).length;
-      const has = me.deckList.some(n => { const d = getCardDef(n)!; return isSoldier(d) && d.atk === 0; });
-      return free >= 1 && has ? play() : null;
-    }
+    case 'search':
+      if (v.zone === 'graveyard') return me.graveyard.some(g => matches(g, v.filter)) ? play() : null;
+      return me.hand.length <= 8 && me.deckList.some(n => matches(getCardDef(n)!, v.filter)) ? play() : null;
+    case 'look_top':
+      return me.hand.length <= 8 && me.drawPile.length > 0 ? play() : null;
+    case 'summon_deck':
+      return [0, 1, 2, 3, 4].some(i => !me.board[i]) && me.deckList.some(n => matches(getCardDef(n)!, v.filter)) ? play() : null;
     default:
-      void rand;
       return null;
   }
+};
+
+// The action that uses a unit's (or the General's) active ability, choosing a target for each choice it asks for — or null when
+// there is nothing worth doing with it right now.
+const abilityAction = (s: GameState, seat: Seat, slot: number, rand: Rand): Action | null => {
+  const me = s.players[seat];
+  const foe = s.players[otherSeat(seat)];
+  const card = me.board[slot];
+  const ab = card ? abilityOn(card.name, 'ability') : undefined;
+  if (!card || !ab) return null;
+  if (!abilityPhases(card.name).includes(s.turn.phase)) return null;
+  if (slot === 12 ? me.generalAbilityUses >= 1 || me.generalAbilityBlocked : ab.once && s.turn.activated.includes(card.id)) return null;
+  if (me.gold < (ab.cost ?? 0)) return null;
+  const picks: (number | undefined)[] = [];
+  let any = false;
+  for (const spec of targetSpecsOf(ab.do)) {
+    const cands = specCandidatesOn(spec, me.board, foe.board, s.turn.moved);
+    if (cands.length === 0) { if (spec.optional) { picks.push(undefined); continue; } return null; }
+    any = true;
+    // Help the weakest of my own units; spread harm over the enemy's at random.
+    picks.push(spec.side === 'own' ? weakest(me.board, cands) : randomOf(rand, cands));
+  }
+  if (picks.length > 0 && !any) return null;
+  return { type: 'ability', slot, target: picks[0], target2: picks[1] };
 };
 
 // ── Picks and discards ──────────────────────────────────────────────────────
@@ -300,36 +319,22 @@ export const aiNextAction = (state: GameState, seat: Seat, rand: Rand = Math.ran
 
   if (t.phase === 'preparacao' || t.phase === 'pos_combate') {
     const afterCombat = t.phase === 'pos_combate';
-    // 1) Cardeal Pedro: pay 2 gold to heal the weakest ally (a deliberate trade-off, once per turn).
-    const general = me.board[12];
-    if (general?.name === 'Cardeal Pedro, Voz da Fé' && me.generalAbilityUses < 1 && !me.generalAbilityBlocked && me.gold >= 2) {
-      const allies = UNIT_SLOTS.filter(i => me.board[i]);
-      if (allies.length > 0) return { type: 'ability', slot: 12, target: weakest(me.board, allies) };
-    }
+    // 1) The General's active ability (it costs gold: a deliberate trade-off, once per turn).
+    const generalAction = abilityAction(state, seat, 12, rand);
+    if (generalAction) return generalAction;
     // 2) Once-per-turn creature abilities.
     for (const i of UNIT_SLOTS) {
-      const card = me.board[i];
-      if (!card || t.activated.includes(card.id)) continue;
-      if (card.name === 'Mercador da Cruzada') return { type: 'ability', slot: i };
-      if (card.name === 'Cavaleiro Hospitalário') {
-        const damaged = UNIT_SLOTS.filter(j => me.board[j] && isCardDamaged(me.board[j]!));
-        const enemyFront = [0, 1, 2, 3, 4].filter(j => foe.board[j]);
-        if (damaged.length === 0 && enemyFront.length === 0) continue;
-        return {
-          type: 'ability', slot: i,
-          target: damaged.length > 0 ? weakest(me.board, damaged) : undefined,
-          target2: enemyFront.length > 0 ? randomOf(rand, enemyFront) : undefined,
-        };
-      }
+      const action = abilityAction(state, seat, i, rand);
+      if (action) return action;
     }
 
     const afford = (c: Card) => c.cost <= me.gold;
     // 3) Free money, then removal that pays off, then the permanent auras.
-    for (const card of me.hand) if (card.name === 'Tributo de Guerra') { const a = tacticPlay(state, seat, card, rand); if (a) return a; }
+    const firstVerb = (card: Card): string | undefined => verbsOn(card.name, 'play')[0]?.kind;
+    for (const card of me.hand) if (card.cardType === 'Tática' && firstVerb(card) === 'gold') { const a = tacticPlay(state, seat, card); if (a) return a; }
     for (const card of me.hand) {
-      if (!afford(card) || card.cardType !== 'Tática') continue;
-      if (!['Balestra de Precisão', 'Trabuco de Cerco', 'Catapulta de Guerra'].includes(card.name)) continue;
-      const a = tacticPlay(state, seat, card, rand);
+      if (!afford(card) || card.cardType !== 'Tática' || firstVerb(card) !== 'damage') continue;
+      const a = tacticPlay(state, seat, card);
       if (a) return a;
     }
     for (const card of me.hand) {
@@ -347,8 +352,8 @@ export const aiNextAction = (state: GameState, seat: Seat, rand: Rand = Math.ran
     // 5) With the board set, spend what is left on buffs, graveyard/deck help and the rest.
     for (const card of me.hand) {
       if (card.cardType !== 'Tática' || !afford(card)) continue;
-      if (['Balestra de Precisão', 'Trabuco de Cerco', 'Catapulta de Guerra', 'Tributo de Guerra'].includes(card.name)) continue;
-      const a = tacticPlay(state, seat, card, rand);
+      if (firstVerb(card) === 'damage' || firstVerb(card) === 'gold') continue;
+      const a = tacticPlay(state, seat, card);
       if (a) return a;
     }
     return { type: 'advance' };
@@ -379,8 +384,9 @@ export const aiNextAction = (state: GameState, seat: Seat, rand: Rand = Math.ran
   const m = bestMove(state, seat, 0.75);
   if (m) return { type: 'move', from: m.from, to: m.to };
   for (const card of me.hand) {
-    if (card.name !== 'Avanço Coordenado' || card.cost > me.gold) continue;
-    const a = tacticPlay(state, seat, card, rand);
+    // Tácticas that can be played now, in Movimentação (a bonus for a unit that just moved).
+    if (card.cardType !== 'Tática' || card.cost > me.gold || !(abilityOn(card.name, 'play')?.phases ?? []).includes('movimentacao')) continue;
+    const a = tacticPlay(state, seat, card);
     if (a) return a;
   }
   return { type: 'advance' };

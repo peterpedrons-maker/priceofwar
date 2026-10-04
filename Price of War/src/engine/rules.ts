@@ -1,7 +1,7 @@
 // Pure rule helpers: constants and "what is true about this board" questions. Nothing here changes
 // anything; game.ts uses these to decide and to apply.
 import { getCardDef } from './catalog';
-import type { Card, CardType, TurnPhase } from './types';
+import type { Ability, AbilityOn, Card, CardType, Passive, TargetSpec, TurnPhase, Verb, Who } from './types';
 
 // ── Match economy ───────────────────────────────────────────────────────────
 export const START_GOLD = 15;
@@ -30,18 +30,87 @@ export const AUTOMATIC_PHASES: TurnPhase[] = ['compra', 'suprimentos'];
 export const restingPhasesForTurn = (combatOpen: boolean): TurnPhase[] =>
   phasesForTurn(combatOpen).filter(p => !AUTOMATIC_PHASES.includes(p));
 
-// Phases in which a board card's active ability can be used. Everything defaults to Preparação.
-const ABILITY_PHASES: Record<string, TurnPhase[]> = {
-  'Cardeal Pedro, Voz da Fé': ['preparacao', 'pos_combate'],
-  'Cavaleiro Hospitalário': ['preparacao', 'pos_combate'],
-};
-export const abilityPhases = (cardName: string): TurnPhase[] => ABILITY_PHASES[cardName] ?? ['preparacao'];
+// ── Efeitos lidos do catálogo ───────────────────────────────────────────────────────────────────────────────────
+// O que uma carta faz está nos dados dela (CardDef.abilities / passives, veja types.ts); aqui só se consulta.
+export const abilitiesOf = (name: string): Ability[] => getCardDef(name)?.abilities ?? [];
+export const passivesOf = (name: string): Passive[] => getCardDef(name)?.passives ?? [];
+export const abilityOn = (name: string, on: AbilityOn): Ability | undefined => abilitiesOf(name).find(a => a.on === on);
+export const verbsOn = (name: string, on: AbilityOn): Verb[] => abilitiesOf(name).filter(a => a.on === on).flatMap(a => a.do);
+export const hasVerb = (name: string, kind: Verb['kind']): boolean => abilitiesOf(name).some(a => a.do.some(v => v.kind === kind));
 
-// Reforço: when a Vanguarda card falls, the Infantaria standing right behind it (same column, Retaguarda) steps
-// forward into the empty slot for free and arrives with an Escudo of REINFORCE_SHIELD points.
-export const REINFORCE_SHIELD = 2;
-// Only an Infantaria TAGGED Reforço steps forward when the card in front falls — it is no longer something every Infantaria does.
-export const canReinforce = (card: { cardType?: CardType; trigger?: string } | null | undefined): boolean => !!card && card.cardType === 'Infantaria' && card.trigger === 'reforco';
+// Phases in which a board card's active ability can be used. Everything defaults to Preparação.
+export const abilityPhases = (cardName: string): TurnPhase[] => abilityOn(cardName, 'ability')?.phases ?? ['preparacao'];
+
+// Units (slots 0-9) that satisfy a target spec's filters, seen from the seat whose boards are `own` / `enemy`.
+export const specCandidatesOn = (spec: TargetSpec, own: Board, enemy: Board, moved: number[]): number[] => {
+  const board = spec.side === 'own' ? own : enemy;
+  return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => {
+    const u = board[i];
+    if (!u) return false;
+    if (spec.where === 'front' && !isFrontline(i)) return false;
+    if (spec.where === 'back' && !isBackline(i)) return false;
+    if (spec.types && !(u.cardType && spec.types.includes(u.cardType))) return false;
+    if (spec.needs === 'damaged' && !isCardDamaged(u)) return false;
+    if (spec.needs === 'moved' && spec.side === 'own' && !moved.includes(i)) return false;
+    return true;
+  });
+};
+
+// The board choices an ability / Tática asks for, in order (the first is the action's `target`, the second `target2`).
+export const targetSpecsOf = (verbs: Verb[]): TargetSpec[] => verbs.flatMap(v => ('target' in v && v.target ? [v.target] : []));
+export const playTargetSpecs = (cardName: string): TargetSpec[] => targetSpecsOf(verbsOn(cardName, 'play'));
+// The (single) board target of a Tática, if it needs one.
+export const targetSpecOf = (cardName: string): TargetSpec | undefined => playTargetSpecs(cardName)[0];
+
+// True when the result of these effects depends on what only the server knows (the deck, the opponent's hand, the dice): the
+// client waits for the server's step instead of predicting it.
+export const needsHiddenInfo = (verbs: Verb[]): boolean =>
+  verbs.some(v => v.kind === 'look_top' || v.kind === 'summon_deck' || v.kind === 'displace' || v.kind === 'displace_attacker' || (v.kind === 'search' && v.zone === 'deck'));
+
+// Reforço: when a Vanguarda card falls, the card right behind it (same column, Retaguarda) steps forward into the empty
+// slot for free and arrives with an Escudo. Only a card that carries the `reinforce` effect does it; 0 = none.
+export const reinforceShield = (card: { name: string } | null | undefined): number => {
+  const v = card ? verbsOn(card.name, 'front_fell').find(x => x.kind === 'reinforce') : undefined;
+  return v && v.kind === 'reinforce' ? v.shield : 0;
+};
+export const canReinforce = (card: { name: string } | null | undefined): boolean => reinforceShield(card) > 0;
+
+// ── Auras e marcas (passivas) ───────────────────────────────────────────────────────────────────────────────────
+type AuraStat = 'atk' | 'combatHp' | 'reduce' | 'healBonus' | 'attacks';
+const rowOk = (row: 'front' | 'back' | undefined, slot: number) => !row || (row === 'front' ? isFrontline(slot) : isBackline(slot));
+const whoMatches = (who: Who, sourceSlot: number, targetSlot: number, target: { cardType?: CardType } | null): boolean => {
+  if (who.side === 'self') return sourceSlot === targetSlot;
+  if (who.facing && sourceSlot !== targetSlot) return false;
+  if (!rowOk(who.row, targetSlot)) return false;
+  if (who.types && !(target?.cardType && who.types.includes(target.cardType))) return false;
+  if (who.slots && !who.slots.includes(targetSlot)) return false;
+  return true;
+};
+// Sum of one stat over every aura that touches the card standing in `slot` of `own` (auras from its own side and from the enemy's).
+export const auraTotal = (stat: AuraStat, slot: number, own: Board, enemy: Board = []): number => {
+  const target = own[slot] ?? null;
+  let total = 0;
+  const scan = (board: Board, side: 'own' | 'enemy') => {
+    for (let src = 0; src <= 12; src++) {
+      const source = board[src];
+      if (!source) continue;
+      for (const p of passivesOf(source.name)) {
+        if (p.kind !== 'aura' || p[stat] === undefined) continue;
+        if (p.who.side === 'enemy' ? side !== 'enemy' : side !== 'own') continue;
+        if (!rowOk(p.from, src)) continue;
+        if (p.when && getLaneCol(slot) !== p.when.col) continue;
+        if (!whoMatches(p.who, src, slot, target)) continue;
+        total += p[stat]!;
+      }
+    }
+  };
+  scan(own, 'own');
+  scan(enemy, 'enemy');
+  return total;
+};
+// A flag some card on the board carries (and whose position condition holds).
+export const boardHasFlag = (board: Board, flag: 'row_swap' | 'blocks_ambush' | 'locks_general'): boolean =>
+  board.some((c, i) => !!c && passivesOf(c.name).some(p => p.kind === 'flag' && p.flag === flag && rowOk(p.from, i)));
 
 // After combat only these may still come out of the hand (units may not).
 export const POST_COMBAT_CARD_TYPES: CardType[] = ['Tática', 'Relíquia', 'Terreno'];
@@ -65,66 +134,26 @@ export const areSlotsAdjacent = (a: number, b: number) => {
 export const adjacentSlots = (slot: number): number[] =>
   [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(j => areSlotsAdjacent(slot, j));
 
-// Cavaleiro Tático swaps with anyone in its own row; every other unit only with orthogonal neighbours.
+// A unit with the `row_swap` mark (Cavaleiro Tático) swaps with anyone in its own row; every other unit only with orthogonal neighbours.
 export const canReposition = (mover: Unit | null, from: number, to: number): boolean => {
   if (!mover || from === to) return false;
-  if (mover.name === 'Cavaleiro Tático') return getMoveRow(from) === getMoveRow(to) && isUnitSlot(from) && isUnitSlot(to);
+  if (passivesOf(mover.name).some(p => p.kind === 'flag' && p.flag === 'row_swap')) return getMoveRow(from) === getMoveRow(to) && isUnitSlot(from) && isUnitSlot(to);
   return areSlotsAdjacent(from, to);
 };
 
 // ── Card kinds ──────────────────────────────────────────────────────────────
 export const SOLDIER_TYPES: CardType[] = ['Infantaria', 'Cavalaria', 'Arqueiro', 'Artilharia'];
 
-export type TacticTargetKind =
-  | 'avanco_coordenado' | 'reposicionamento_rapido' | 'linha_fechada' | 'ordem_retirada'
-  | 'balesta' | 'catapulta' | 'equip_armadura' | 'equip_corcelete' | 'equip_flecha' | 'equip_espada';
-
-export const TARGETABLE_TACTICS: Record<string, TacticTargetKind> = {
-  'Avanço Coordenado': 'avanco_coordenado',
-  'Reposicionamento Rápido': 'reposicionamento_rapido',
-  'Linha Fechada': 'linha_fechada',
-  'Ordem de Retirada': 'ordem_retirada',
-  'Balestra de Precisão': 'balesta',
-  'Catapulta de Guerra': 'catapulta',
-  'Armadura de Guerra': 'equip_armadura',
-  'Couraça Reforçada': 'equip_corcelete',
-  'Flechas Venenosas': 'equip_flecha',
-  'Espada Longa': 'equip_espada',
-};
-export const ENEMY_TARGET_KINDS = new Set<TacticTargetKind>(['reposicionamento_rapido', 'balesta', 'catapulta']);
-export const TACTIC_TARGET_PROMPTS: Record<TacticTargetKind, string> = {
-  avanco_coordenado: 'Escolha uma unidade sua que já se moveu neste turno.',
-  reposicionamento_rapido: 'Escolha uma unidade inimiga para deslocar.',
-  linha_fechada: 'Escolha uma unidade sua — os aliados ao lado dela recebem menos dano.',
-  ordem_retirada: 'Escolha uma unidade sua na Vanguarda.',
-  balesta: 'Escolha uma unidade inimiga para causar 3 de dano.',
-  catapulta: 'Escolha uma fileira inimiga (clique em qualquer slot dela).',
-  equip_armadura: 'Escolha uma Infantaria sua para equipar (+2 HP).',
-  equip_corcelete: 'Escolha um Arqueiro ou Infantaria sua para equipar (+1 HP).',
-  equip_flecha: 'Escolha um Arqueiro seu para equipar (+1 ATK).',
-  equip_espada: 'Escolha uma Cavalaria ou Infantaria sua para equipar (+2 ATK).',
-};
-export const EQUIP_ALLOWED_TYPES: Record<string, CardType[]> = {
-  equip_armadura: ['Infantaria'],
-  equip_corcelete: ['Arqueiro', 'Infantaria'],
-  equip_flecha: ['Arqueiro'],
-  equip_espada: ['Cavalaria', 'Infantaria'],
-};
-
-// Táticas that resolve at once, with no board target (some open a pick prompt).
-export const IMMEDIATE_CARD_NAMES = new Set([
-  'Reformar Linhas', 'Tributo de Guerra', 'Trabuco de Cerco',
-  'Retorno do Soldado', 'Graal da Dádiva', 'Doutrina Renovada',
-  'Recrutamento Seletivo', 'Recrutar Veteranos', 'Chamado às Armas',
-]);
-
 export type CardDropKind = 'place' | 'ownTarget' | 'enemyTarget' | 'immediate' | 'blocked';
-// What playing a given hand card means, decided purely from the card itself.
+// What playing a given hand card means, decided purely from the card itself: units, Relíquias and Terrenos are placed in a slot;
+// a Tática with a board choice (its effects have a `target`) is aimed; one without is used at once; an Emboscada waits in the hand.
 export const getCardDropKind = (card: { name: string; cardType?: CardType }): CardDropKind => {
-  if (IMMEDIATE_CARD_NAMES.has(card.name)) return 'immediate';
-  const kind = TARGETABLE_TACTICS[card.name];
-  if (kind) return ENEMY_TARGET_KINDS.has(kind) ? 'enemyTarget' : 'ownTarget';
-  if (card.cardType === 'Emboscada' || card.cardType === 'Tática') return 'blocked';
+  if (card.cardType === 'Emboscada') return 'blocked';
+  if (card.cardType === 'Tática') {
+    if (!abilityOn(card.name, 'play')) return 'blocked';
+    const spec = targetSpecOf(card.name);
+    return spec ? (spec.side === 'enemy' ? 'enemyTarget' : 'ownTarget') : 'immediate';
+  }
   return 'place';
 };
 
@@ -143,38 +172,26 @@ export const isAliveAt = (board: Board, slot: number, name: string) => board[slo
 
 export const isCardDamaged = (card: Unit): boolean => card.hp < (getCardDef(card.name)?.hp ?? card.hp);
 
-export const hasLiderBuff = (card: Unit, own: Board): boolean => {
-  if (card.cardType !== 'Infantaria' && card.cardType !== 'Arqueiro') return false;
-  return [0, 1, 2, 3, 4].some(i => own[i]?.name === 'Comandante da Ordem');
-};
-export const getAuraCombatHpBonus = (card: Unit, own: Board): number => (hasLiderBuff(card, own) ? 1 : 0);
+// Extra HP a unit has only during combat (an aura like Comandante da Ordem's).
+export const getAuraCombatHpBonus = (slot: number, own: Board): number => auraTotal('combatHp', slot, own);
+// An Emboscada is blocked while the ATTACKER's side has a card that stops them (Infiltrado da Ordem in its Vanguarda).
+export const blocksAmbush = (board: Board): boolean => boardHasFlag(board, 'blocks_ambush');
+// A card on the board that locks the General's ability when the General takes damage.
+export const locksGeneralOnDamage = (board: Board): boolean => boardHasFlag(board, 'locks_general');
 
-// Infiltrado da Ordem in the Vanguarda of the ATTACKING side blocks the defender's Emboscadas.
-export const hasEspiaoInVanguarda = (board: Board): boolean => [0, 1, 2, 3, 4].some(i => board[i]?.name === 'Infiltrado da Ordem');
-export const hasEspiaoOnBoard = (board: Board): boolean => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => board[i]?.name === 'Infiltrado da Ordem');
-
-export const getMaxAttacksPerTurn = (card: { name: string }): number => (card.name === 'Arqueiro da Ordem' ? 2 : 1);
+export const getMaxAttacksPerTurn = (card: { name: string }): number =>
+  1 + passivesOf(card.name).reduce((n, p) => n + (p.kind === 'aura' && p.who.side === 'self' && p.attacks ? p.attacks : 0), 0);
 
 // A unit's ATK after every static aura that touches it, plus any one-time bonus it holds.
 export const getEffectiveAtk = (card: Unit, ownIndex: number, own: Board, enemy: Board): number => {
   let atk = card.atk + (card.pendingCombatBonus?.atk ?? 0);
   atk += card.formationBuffAtk ?? 0;
-  if (isAliveAt(own, 10, 'Estandarte da Legião')) atk += 1;
-  if (card.name === 'Veterano de Guerra' && getLaneCol(ownIndex) === 2) atk += 2;
-  const facing = enemy[ownIndex];
-  if (facing && facing.name === 'Lanceiro de Controle') atk -= 1;
-  if (isFrontline(ownIndex) && isAliveAt(enemy, 11, 'Pântano Maldito')) atk -= 1;
-  if (hasLiderBuff(card, own)) atk += 1;
+  atk += auraTotal('atk', ownIndex, own, enemy);
   return Math.max(0, atk);
 };
 
-export const getIncomingDamageReduction = (ownIndex: number, own: Board): number => {
-  let reduction = 0;
-  if ((ownIndex === 10 || ownIndex === 11) && isAliveAt(own, 12, 'Comandante Aurelion, Mestre da Formação')) reduction += 1;
-  if (isBackline(ownIndex) && isAliveAt(own, 11, 'Fortaleza de Pedra')) reduction += 1;
-  reduction += own[ownIndex]?.dmgReduction ?? 0;
-  return reduction;
-};
+export const getIncomingDamageReduction = (ownIndex: number, own: Board, enemy: Board = []): number =>
+  auraTotal('reduce', ownIndex, own, enemy) + (own[ownIndex]?.dmgReduction ?? 0);
 
 // Lane-based targeting: which enemy slots the unit at `attackerIndex` can reach right now.
 export const getValidAttackTargets = (attackerIndex: number, attackerBoard: Board, enemyBoard: Board): Set<number> => {

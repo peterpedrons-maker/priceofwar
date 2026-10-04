@@ -96,3 +96,6 @@ and `deck.ts` the deck rules the server checks when a player enters the queue.
 
 ## Baralho finito
 O baralho é exatamente o que o jogador montou: `drawPile` (ordem de compra) e `deckList` (o que ainda resta, sem a ordem) começam iguais e só **diminuem**. Comprar, buscar (Graal, Doutrina, Recrutamento), revelar (Mercador, Recrutar Veteranos) e convocar (Chamado às Armas) tiram a carta do baralho; ela nunca volta, só vai para mão, campo e cemitério. As cartas reveladas e não escolhidas voltam para o **fundo**. Baralho vazio = não compra nada ("O baralho acabou"). Há um contador de cartas no monte de cada lado do campo. Teste: `engine-rules` ("the deck is finite") e o invariante em `engine-sim`.
+
+## Efeitos por tipo
+O que cada carta faz está no catálogo, descrito por tipos de efeito (sem código por nome de carta). Vocabulário, `on`, alvos, passivas e como criar uma carta: [`docs/efeitos.md`](efeitos.md).

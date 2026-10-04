@@ -11,15 +11,14 @@ import { DECK_RECIPES, getCardDef, requireCardDef, type DeckId } from './catalog
 import { pickRandom, seedFrom, shuffled } from './rng';
 import {
   GOLD_FROM_ROUND, GOLD_PER_TURN, HAND_LIMIT, START_GOLD, START_HAND,
-  EQUIP_ALLOWED_TYPES, SOLDIER_TYPES, TARGETABLE_TACTICS,
-  adjacentSlots, areSlotsAdjacent, canPlaceInSlot, canReposition, getAuraCombatHpBonus, getCardDropKind,
-  getEffectiveAtk, getIncomingDamageReduction, getMaxAttacksPerTurn, getMoveRow, getValidAttackTargets,
-  hasEspiaoInVanguarda, hasEspiaoOnBoard, isBackline, isCardDamaged, isFrontline, isUnitSlot, canReinforce, REINFORCE_SHIELD, restingPhasesForTurn, abilityPhases, POST_COMBAT_CARD_TYPES,
-  withEquippedWeapons, type Board,
+  SOLDIER_TYPES, abilityOn, abilityPhases, adjacentSlots, areSlotsAdjacent, auraTotal, blocksAmbush, canPlaceInSlot, canReposition,
+  getAuraCombatHpBonus, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction, getMaxAttacksPerTurn, getMoveRow,
+  getValidAttackTargets, isBackline, isCardDamaged, isFrontline, isUnitSlot, locksGeneralOnDamage, reinforceShield, canReinforce,
+  restingPhasesForTurn, specCandidatesOn, targetSpecsOf, verbsOn, POST_COMBAT_CARD_TYPES, withEquippedWeapons, type Board,
 } from './rules';
 import {
   GENERAL_SLOT, SLOT_COUNT, otherSeat,
-  type Action, type ActionResult, type Card, type GameEvent, type GameState, type PlayerState, type Seat, type TurnPhase,
+  type AbilityOn, type Action, type ActionResult, type Card, type CardFilter, type GameEvent, type GameState, type PlayerState, type Seat, type TargetSpec, type TurnPhase, type Verb,
 } from './types';
 
 // ── Setup ───────────────────────────────────────────────────────────────────
@@ -131,21 +130,20 @@ const discard = (c: Ctx, seat: Seat, card: Card) => {
   c.ev.push({ t: 'graveyard', seat, card });
 };
 
-// Cards leaving the board for good: their Armamentos go along, Atirador da Cruzada pays out, and a
-// fallen General ends the match.
+// Cards leaving the board for good: their Armamentos go along, their Queda effects pay out, and a fallen General ends the
+// match.
 const sendDestroyed = (c: Ctx, seat: Seat, entries: { slot: number; card: Card }[]) => {
   if (entries.length === 0) return;
   const p = P(c, seat);
   entries.forEach(({ slot, card }) => c.ev.push({ t: 'destroyed', seat, slot, card }));
   const cards = entries.map(e => e.card);
   withEquippedWeapons(cards).forEach(card => { p.graveyard.push(card); c.ev.push({ t: 'graveyard', seat, card }); });
-  const atiradores = cards.filter(card => card.name === 'Atirador da Cruzada').length;
-  if (atiradores > 0) drawCards(c, seat, atiradores * 2, 'effect');
+  entries.forEach(({ slot, card }) => runAbilities(c, seat, card, slot, 'destroyed'));
   if (cards.some(card => card.cardType === 'General')) setWinner(c, otherSeat(seat));
   reinforceFrom(c, seat, entries.map(e => e.slot));
 };
 
-// Reforço: for every fallen Vanguarda slot that is empty now, the Infantaria right behind it moves up.
+// Reforço: for every fallen Vanguarda slot that is empty now, the card right behind it (if it has the `reinforce` effect) moves up.
 const reinforceFrom = (c: Ctx, seat: Seat, fallenSlots: number[]) => {
   if (c.s.winner !== null) return;
   const board = P(c, seat).board;
@@ -153,12 +151,13 @@ const reinforceFrom = (c: Ctx, seat: Seat, fallenSlots: number[]) => {
     if (slot < 0 || slot > 4 || board[slot]) return;
     const behind = board[slot + 5];
     if (!canReinforce(behind)) return;
+    const shield = reinforceShield(behind);
     const moved: Card = { ...behind! };
     board[slot] = moved;
     board[slot + 5] = null;
     c.ev.push({ t: 'reinforce', seat, from: slot + 5, to: slot, card: moved });
-    grantShield(c, seat, slot, REINFORCE_SHIELD);
-    log(c, seat, `Reforço! ${moved.name} avançou para a Vanguarda com Escudo ${REINFORCE_SHIELD}.`);
+    grantShield(c, seat, slot, shield);
+    log(c, seat, `Reforço! ${moved.name} avançou para a Vanguarda com Escudo ${shield}.`);
   });
 };
 
@@ -212,39 +211,13 @@ const damageSlot = (c: Ctx, seat: Seat, slot: number, amount: number): { slot: n
   return null;
 };
 
-// Recruta Devoto: "Ao ser curado: recebe +1 ATK permanente."
+// Healing a card: +HP, and the card's own `healed` effects (Recruta Devoto) react.
 const healSlot = (c: Ctx, seat: Seat, slot: number, amount: number) => {
   const board = P(c, seat).board;
   const card = board[slot]!;
-  let healed: Card = { ...card, hp: card.hp + amount };
-  if (healed.name === 'Recruta Devoto') healed = { ...healed, atk: healed.atk + 1 };
-  board[slot] = healed;
+  board[slot] = { ...card, hp: card.hp + amount };
   c.ev.push({ t: 'heal', seat, slot, amount });
-};
-
-// Nobre da Cruzada: "Ao entrar em campo: convoca Soldados Leais nos slots adjacentes livres da mesma fileira."
-const applyNobreSummon = (c: Ctx, seat: Seat, slot: number) => {
-  const board = P(c, seat).board;
-  if (board[slot]?.name !== 'Nobre da Cruzada' || slot > 9) return;
-  [slot - 1, slot + 1].forEach(j => {
-    if (areSlotsAdjacent(slot, j) && !board[j]) {
-      const token = cardFromName(c.s, 'Soldado Leal', 't');
-      board[j] = token;
-      c.ev.push({ t: 'summon', seat, slot: j, card: token });
-    }
-  });
-};
-
-// Capitão de Formação: "Ao mover: adjacentes +1 ATK" (this turn only).
-const applyFormationCaptainBuff = (c: Ctx, seat: Seat, slot: number) => {
-  const board = P(c, seat).board;
-  if (board[slot]?.name !== 'Capitão de Formação') return;
-  adjacentSlots(slot).forEach(j => {
-    if (board[j]) {
-      board[j] = { ...board[j]!, formationBuffAtk: (board[j]!.formationBuffAtk ?? 0) + 1 };
-      c.ev.push({ t: 'buff', seat, slot: j, atk: 1, hp: 0 });
-    }
-  });
+  runAbilities(c, seat, board[slot]!, slot, 'healed');
 };
 
 // ── Turn flow ───────────────────────────────────────────────────────────────
@@ -260,7 +233,7 @@ const startTurn = (c: Ctx, seat: Seat) => {
   t.activated = [];
   c.ev.push({ t: 'turn_start', seat, round: t.round });
 
-  // Capitão de Formação's buff only lasts until its owner's next turn begins.
+  // A `buff_adjacent` bonus (Capitão de Formação) only lasts until its owner's next turn begins.
   p.board.forEach((card, i) => { if (card?.formationBuffAtk) p.board[i] = { ...card, formationBuffAtk: 0 }; });
 
   p.generalAbilityUses = 0;
@@ -277,10 +250,8 @@ const startTurn = (c: Ctx, seat: Seat) => {
     log(c, seat, 'A fase de Compra foi pulada!');
   } else {
     drawCards(c, seat, 1, 'turn');
-    // Intendente do Exército: with fewer than 2 cards in hand, draw up to 2.
-    if (p.board.some((card, i) => i <= 9 && card?.name === 'Intendente do Exército') && p.hand.length < 2) {
-      drawCards(c, seat, 2 - p.hand.length, 'effect');
-    }
+    // `turn_start` effects (Intendente do Exército refills the hand).
+    for (let i = 0; i <= 9; i++) { const card = p.board[i]; if (card) runAbilities(c, seat, card, i, 'turn_start'); }
   }
 
   // Suprimentos. Gold is a growing, saved-up pile: nothing in round 1, then +5 every turn without a cap.
@@ -297,22 +268,17 @@ const startTurn = (c: Ctx, seat: Seat) => {
   c.ev.push({ t: 'phase', seat, phase: 'preparacao' });
 };
 
-// Comandante Aurelion: "Após Remanejamento: até 2 unidades que se moveram ganham +1/+1 no próximo combate."
-const grantAurelionBuff = (c: Ctx, seat: Seat) => {
+// `turn_end` effects, once the owner's turn is over: bonuses for the units that moved (Aurelion), then swaps (Soldado Tático).
+const runTurnEnd = (c: Ctx, seat: Seat) => {
   const board = P(c, seat).board;
-  if (board[GENERAL_SLOT]?.name !== 'Comandante Aurelion, Mestre da Formação' || c.s.turn.moved.length === 0) return;
-  c.s.turn.moved.filter(i => board[i]).slice(0, 2).forEach(i => {
-    board[i] = { ...board[i]!, pendingCombatBonus: { atk: 1, hp: 1 } };
-    c.ev.push({ t: 'buff', seat, slot: i, atk: 1, hp: 1 });
+  [12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(slot => {
+    const card = board[slot];
+    if (card) verbsOn(card.name, 'turn_end').forEach(v => { if (v.kind === 'buff_moved') grantMovedBuff(c, seat, v); });
   });
-};
-
-// Soldado Tático: swaps with an adjacent ally at the end of its owner's turn (once per pass).
-const applyEndOfTurnSwaps = (c: Ctx, seat: Seat) => {
-  const board = P(c, seat).board;
   const settled = new Set<number>();
   for (let i = 0; i <= 9; i++) {
-    if (settled.has(i) || board[i]?.name !== 'Soldado Tático') continue;
+    const card = board[i];
+    if (settled.has(i) || !card || !verbsOn(card.name, 'turn_end').some(v => v.kind === 'swap_adjacent')) continue;
     const partner = [i - 1, i + 1, i - 5, i + 5].find(j => areSlotsAdjacent(i, j) && board[j] && !settled.has(j));
     if (partner !== undefined) {
       [board[i], board[partner]] = [board[partner], board[i]];
@@ -326,8 +292,7 @@ const applyEndOfTurnSwaps = (c: Ctx, seat: Seat) => {
 const endTurn = (c: Ctx) => {
   const t = c.s.turn;
   const seat = t.active;
-  grantAurelionBuff(c, seat);
-  applyEndOfTurnSwaps(c, seat);
+  runTurnEnd(c, seat);
   // The round counter goes up when the SECOND player of the round has finished.
   if (seat !== t.first) t.round += 1;
   startTurn(c, otherSeat(seat));
@@ -342,24 +307,247 @@ const assertCanAct = (c: Ctx, seat: Seat, allowPending = false) => {
   if (s.pending && !allowPending) fail('Responda à escolha pendente primeiro.');
 };
 
-// ── Playing a card ──────────────────────────────────────────────────────────
-const uniqueByName = (names: string[]) => [...new Set(names)];
+// ── Effects, by type ────────────────────────────────────────────────────────────────────────────────────────────
+// A card's abilities live in the catalog (CardDef.abilities, see types.ts and docs/efeitos.md): WHEN they happen and a list of
+// verbs (the effect types). This section is the one place that knows how to run each verb; no card is mentioned by name.
+interface Fx {
+  seat: Seat;
+  source: Card;              // the card whose effect this is
+  slot: number | null;       // where it stands (null for a Tática, which is not on the board)
+  targets: (number | undefined)[];   // the board slots the player chose, one per targeted verb, in order
+}
 
+const uniqueByName = (names: string[]) => [...new Set(names)];
+const matchesFilter = (def: { cardType: string; atk: number }, f: CardFilter) =>
+  (!f.types || f.types.includes(def.cardType as never)) && (f.atk === undefined || def.atk === f.atk);
+const filterLabel = (f: CardFilter) =>
+  !f.types ? 'carta' : f.types.length === SOLDIER_TYPES.length && SOLDIER_TYPES.every(t => f.types!.includes(t)) ? 'soldado' : f.types.join(' ou ');
+
+const specCandidates = (c: Ctx, seat: Seat, spec: TargetSpec): number[] =>
+  specCandidatesOn(spec, P(c, seat).board, P(c, otherSeat(seat)).board, c.s.turn.moved);
+
+// Fails with the sentence the player sees when `slot` is not a legal choice for `spec`.
+const checkTarget = (c: Ctx, seat: Seat, spec: TargetSpec, slot: number | undefined) => {
+  const own = spec.side === 'own';
+  if (spec.area === 'row') {
+    if (slot === undefined || slot < 0 || slot > 9) fail(`Escolha uma fileira ${own ? 'sua' : 'inimiga'} (Vanguarda ou Retaguarda).`);
+    return;
+  }
+  const board = own ? P(c, seat).board : P(c, otherSeat(seat)).board;
+  const row = spec.where === 'front' ? (own ? ' na Vanguarda' : ' na Vanguarda') : spec.where === 'back' ? ' na Retaguarda' : ' no campo';
+  const generic = own ? `Escolha uma unidade sua${row}.` : spec.where ? `Escolha um inimigo${row}.` : 'Escolha uma unidade inimiga no campo.';
+  if (slot === undefined || slot < 0 || slot > 9 || !board[slot]) return fail(generic);
+  if (spec.where === 'front' && !isFrontline(slot)) return fail(generic);
+  if (spec.where === 'back' && !isBackline(slot)) return fail(generic);
+  if (spec.types && !spec.types.includes(board[slot]!.cardType)) return fail(`Escolha uma unidade do tipo certo: ${spec.types.join(' ou ')}.`);
+  if (spec.needs === 'damaged' && !isCardDamaged(board[slot]!)) return fail('Escolha um aliado ferido no campo.');
+  if (spec.needs === 'moved' && own && !c.s.turn.moved.includes(slot)) return fail('Essa unidade não se moveu neste turno.');
+};
+
+// Which of an ability's targeted verbs actually need a choice right now (an `optional` target with no candidate is skipped).
+const activeTargets = (c: Ctx, seat: Seat, verbs: Verb[]): { spec: TargetSpec; index: number; skipped: boolean }[] =>
+  targetSpecsOf(verbs).map((spec, index) => ({ spec, index, skipped: !!spec.optional && specCandidates(c, seat, spec).length === 0 }));
+
+// Checks the player's choices for a list of verbs (called before anything is paid or moved).
+const validateTargets = (c: Ctx, seat: Seat, verbs: Verb[], picks: (number | undefined)[]) => {
+  const targets = activeTargets(c, seat, verbs);
+  if (targets.length > 0 && targets.every(t => t.spec.optional) && targets.every(t => t.skipped)) fail('Nenhum alvo disponível.');
+  targets.forEach(t => { if (!t.skipped) checkTarget(c, seat, t.spec, picks[t.index]); });
+};
+
+// Checks what a verb needs from the match itself (cards to look at, free slots…), before anything is paid.
+const checkVerb = (c: Ctx, seat: Seat, v: Verb) => {
+  const p = P(c, seat);
+  if (v.kind === 'look_top' && p.drawPile.length === 0) fail('O baralho está vazio.');
+  if (v.kind === 'search') {
+    if (v.zone === 'graveyard' && !p.graveyard.some(g => matchesFilter(g, v.filter))) fail(`Não há ${filterLabel(v.filter)} no cemitério.`);
+    if (v.zone === 'deck' && !p.deckList.some(n => matchesFilter(getCardDef(n)!, v.filter))) fail(`Não há ${filterLabel(v.filter)} no deck.`);
+  }
+  if (v.kind === 'summon_deck') {
+    if (!p.deckList.some(n => matchesFilter(getCardDef(n)!, v.filter))) fail('Não há cartas assim no deck.');
+    if (![0, 1, 2, 3, 4].some(i => !p.board[i])) fail('Não há slots livres na Vanguarda.');
+  }
+  if (v.kind === 'retreat') { /* the chosen unit's back slot is checked with the target */ }
+};
+// The same, for a verb that has a chosen target (slot-dependent rules).
+const checkVerbTarget = (c: Ctx, seat: Seat, v: Verb, slot: number) => {
+  if (v.kind === 'retreat' && P(c, seat).board[slot + 5]) fail('A Retaguarda dessa coluna já está ocupada.');
+};
+
+const openPick = (c: Ctx, fx: Fx, mode: 'graveyard_soldier' | 'deck_search' | 'top_reveal' | 'summon', title: string, options: Card[], min: number, max: number, extra: { revealed?: boolean; slots?: number[] } = {}) => {
+  // A Tática keeps resolving until the choice is made (it goes to the graveyard then); a board ability has no card to discard.
+  c.s.pending = { kind: 'pick', seat: fx.seat, mode, title, options, min, max, source: fx.slot === null ? fx.source : null, ...extra };
+  c.ev.push({ t: 'pick', seat: fx.seat, title });
+};
+
+// Runs one verb. `slot` is the board slot the player chose for it (only targeted verbs get one).
+const runVerb = (c: Ctx, fx: Fx, v: Verb, slot: number | undefined) => {
+  const { seat } = fx;
+  const enemySeat = otherSeat(seat);
+  const p = P(c, seat);
+  const own = p.board;
+  const foe = P(c, enemySeat).board;
+  const name = fx.source.name;
+  switch (v.kind) {
+    case 'gold':
+      addGold(c, seat, v.amount, 'gain');
+      log(c, seat, `${name}: +${v.amount} ouro neste turno!`);
+      return;
+    case 'draw':
+      drawCards(c, seat, v.amount, 'effect');
+      return;
+    case 'refill_hand':
+      if (p.hand.length < v.to) drawCards(c, seat, v.to - p.hand.length, 'effect');
+      return;
+    case 'extra_moves':
+      c.s.turn.bonusRepositions += v.amount;
+      log(c, seat, `${name}: +${v.amount} reposicionamentos bônus neste turno!`);
+      return;
+    case 'damage': {
+      const dead: { slot: number; card: Card }[] = [];
+      let slots: number[];
+      if (v.all === 'enemy') slots = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12];
+      else if (v.target?.area === 'row') slots = getMoveRow(slot!) === 0 ? [0, 1, 2, 3, 4] : [5, 6, 7, 8, 9];
+      else slots = [slot!];
+      slots.forEach(i => { const d = damageSlot(c, enemySeat, i, v.amount); if (d) dead.push(d); });
+      log(c, seat, v.all ? `${name}: ${v.amount} de dano a todas as unidades inimigas!` : v.target?.area === 'row' ? `${name}: ${v.amount} de dano em toda a fileira!` : `${name}: ${v.amount} de dano causado!`);
+      sendDestroyed(c, enemySeat, dead);
+      return;
+    }
+    case 'heal': {
+      const amount = v.amount + (v.withAuras ? auraTotal('healBonus', GENERAL_SLOT, own) : 0);
+      healSlot(c, seat, slot!, amount);
+      log(c, seat, `${own[slot!]!.name} recuperou ${amount} HP!`);
+      return;
+    }
+    case 'buff': {
+      const at = v.target ? slot! : fx.slot!;
+      const card = own[at];
+      if (!card) return;
+      own[at] = { ...card, atk: card.atk + (v.atk ?? 0), hp: card.hp + (v.hp ?? 0) };
+      c.ev.push({ t: 'buff', seat, slot: at, atk: v.atk ?? 0, hp: v.hp ?? 0 });
+      if (v.target) log(c, seat, `${own[at]!.name} recebeu ${v.atk ? `+${v.atk} ATK` : `+${v.hp} HP`}!`);
+      return;
+    }
+    case 'equip': {
+      const target = own[slot!]!;
+      own[slot!] = { ...target, atk: target.atk + (v.atk ?? 0), hp: target.hp + (v.hp ?? 0), equippedWeapons: [...(target.equippedWeapons ?? []), fx.source] };
+      c.ev.push({ t: 'equip', seat, slot: slot!, card: fx.source, atk: v.atk ?? 0, hp: v.hp ?? 0 });
+      log(c, seat, `${target.name} equipado: ${name}!`);
+      return;
+    }
+    case 'guard_adjacent':
+      adjacentSlots(slot!).forEach(j => { if (own[j]) own[j] = { ...own[j]!, dmgReduction: (own[j]!.dmgReduction ?? 0) + v.amount }; });
+      log(c, seat, `${name}: aliados adjacentes recebem menos dano!`);
+      return;
+    case 'buff_adjacent':
+      adjacentSlots(fx.slot!).forEach(j => {
+        if (own[j]) {
+          own[j] = { ...own[j]!, formationBuffAtk: (own[j]!.formationBuffAtk ?? 0) + v.atk };
+          c.ev.push({ t: 'buff', seat, slot: j, atk: v.atk, hp: 0 });
+        }
+      });
+      return;
+    case 'retreat': {
+      const back = slot! + 5;
+      const moved = { ...own[slot!]!, hp: own[slot!]!.hp + v.heal };
+      own[back] = moved;
+      own[slot!] = null;
+      c.ev.push({ t: 'move', seat, from: slot!, to: back, swapped: false });
+      c.ev.push({ t: 'heal', seat, slot: back, amount: v.heal });
+      log(c, seat, `${moved.name} recuou para a Retaguarda e recuperou ${v.heal} HP!`);
+      return;
+    }
+    case 'displace': {
+      const free = adjacentSlots(slot!).filter(j => !foe[j]);
+      if (free.length > 0) {
+        const dest = pickRandom(c.s, free);
+        foe[dest] = foe[slot!];
+        foe[slot!] = null;
+        c.ev.push({ t: 'move', seat: enemySeat, from: slot!, to: dest, swapped: false });
+        log(c, seat, `${name}: unidade inimiga deslocada!`);
+      } else {
+        log(c, seat, 'Não havia slot livre adjacente para deslocar a unidade.');
+      }
+      return;
+    }
+    case 'free_move':
+      c.s.turn.batedorFree = fx.slot;
+      return;
+    case 'look_top': {
+      const top = p.drawPile.splice(0, v.count);
+      top.forEach(n => removeOne(p.deckList, n));
+      const revealed = top.map(n => cardFromName(c.s, n, 'o'));
+      const keep = v.keepMin === v.keepMax ? `${v.keepMax}` : `até ${v.keepMax}`;
+      const body = `veja as ${top.length} cartas do topo — escolha ${keep} para a mão`;
+      openPick(c, fx, 'top_reveal', fx.slot === null ? body[0].toUpperCase() + body.slice(1) : `${name}: ${body}`, revealed, Math.min(v.keepMin, revealed.length), v.keepMax, { revealed: true });
+      return;
+    }
+    case 'search': {
+      const label = filterLabel(v.filter);
+      if (v.zone === 'graveyard') {
+        openPick(c, fx, 'graveyard_soldier', `Escolha um ${label} do cemitério para adicionar à mão`, p.graveyard.filter(g => matchesFilter(g, v.filter)), 1, 1);
+      } else {
+        const names = p.deckList.filter(n => matchesFilter(getCardDef(n)!, v.filter));
+        openPick(c, fx, 'deck_search', `Escolha ${label === 'carta' ? 'uma carta' : `um ${label}`} do deck para adicionar à mão`, uniqueByName(names).map(n => cardFromName(c.s, n, 'o')), 1, 1);
+      }
+      return;
+    }
+    case 'summon_deck': {
+      const names = p.deckList.filter(n => matchesFilter(getCardDef(n)!, v.filter));
+      const slots = [0, 1, 2, 3, 4].filter(i => !p.board[i]);
+      const max = Math.min(v.max, slots.length);
+      openPick(c, fx, 'summon', `Escolha até ${max} carta(s) do deck para convocar na Vanguarda`, uniqueByName(names).map(n => cardFromName(c.s, n, 'o')), 1, max, { slots });
+      return;
+    }
+    case 'summon_token': {
+      const at = fx.slot!;
+      if (at > 9) return;
+      [at - 1, at + 1].forEach(j => {
+        if (areSlotsAdjacent(at, j) && !own[j]) {
+          const token = cardFromName(c.s, v.token, 't');
+          own[j] = token;
+          c.ev.push({ t: 'summon', seat, slot: j, card: token });
+        }
+      });
+      return;
+    }
+    default:
+      // attack_bonus, splash_behind, reinforce, buff_moved, swap_adjacent and the Emboscada verbs are run by the part of the
+      // game they belong to (combat, Reforço, end of turn, ambush) — see their own sections.
+      return;
+  }
+};
+
+// Runs a card's own automatic abilities of one kind (place, destroyed, healed, turn_start…): no player choice involved.
+const runAbilities = (c: Ctx, seat: Seat, card: Card, slot: number, on: AbilityOn) => {
+  const fx: Fx = { seat, source: card, slot, targets: [] };
+  verbsOn(card.name, on).forEach(v => runVerb(c, fx, v, undefined));
+};
+
+// Aurelion-style bonus: the units that moved this turn (up to `count`) get a one-time combat bonus.
+const grantMovedBuff = (c: Ctx, seat: Seat, v: Extract<Verb, { kind: 'buff_moved' }>) => {
+  const board = P(c, seat).board;
+  if (c.s.turn.moved.length === 0) return;
+  c.s.turn.moved.filter(i => board[i]).slice(0, v.count).forEach(i => {
+    board[i] = { ...board[i]!, pendingCombatBonus: { atk: v.atk, hp: v.hp } };
+    c.ev.push({ t: 'buff', seat, slot: i, atk: v.atk, hp: v.hp });
+  });
+};
+
+// ── Playing a card ──────────────────────────────────────────────────────────
 const playCard = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'play' }>) => {
   assertCanAct(c, seat);
   const p = P(c, seat);
-  const enemySeat = otherSeat(seat);
-  const enemy = P(c, enemySeat);
   const card = p.hand.find(h => h.id === a.cardId);
   if (!card) return fail('Essa carta não está na sua mão.');
-  // Cards are played in Preparação. After combat only Táticas, Relíquias and Terrenos still come out of the hand.
-  // Avanço Coordenado ("Após mover: +2 ATK") can only ever be used on a unit that already moved this turn,
-  // and moving happens in Movimentação, so it is playable there too.
+  const playAbility = card.cardType === 'Tática' ? abilityOn(card.name, 'play') : undefined;
+  // Cards are played in Preparação. After combat only Táticas, Relíquias and Terrenos still come out of the hand; a Tática can list
+  // extra phases for itself (Avanço Coordenado can also be played in Movimentação, right after the move it rewards).
   const phase = c.s.turn.phase;
-  const inMovement = phase === 'movimentacao' && card.name === 'Avanço Coordenado';
   if (phase === 'pos_combate') {
     if (!POST_COMBAT_CARD_TYPES.includes(card.cardType)) fail('Depois do combate só dá pra jogar Táticas, Relíquias e Terrenos!');
-  } else if (phase !== 'preparacao' && !inMovement) {
+  } else if (phase !== 'preparacao' && !(playAbility?.phases ?? []).includes(phase)) {
     fail('Jogar cartas só nas fases de Preparação e Pós-combate!');
   }
   if (p.gold < card.cost) fail('Ouro insuficiente!');
@@ -370,23 +558,12 @@ const playCard = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'play' }>) => {
     addGold(c, seat, -card.cost, 'spend');
     c.ev.push({ t: 'play', seat, card });
   };
-  const toGraveyard = () => discard(c, seat, card);
-
-  // Opens a pick prompt (search / reveal).
-  const openPick = (mode: 'graveyard_soldier' | 'deck_search' | 'top_reveal' | 'summon', title: string, options: Card[], min: number, max: number, extra: { revealed?: boolean; slots?: number[] } = {}) => {
-    c.s.pending = { kind: 'pick', seat, mode, title, options, min, max, source: card, ...extra };
-    c.ev.push({ t: 'pick', seat, title });
-  };
-  const optionsFromNames = (names: string[]) => uniqueByName(names).map(n => cardFromName(c.s, n, 'o'));
-  const requireTarget = (needsSlot: number | undefined, message: string): number => {
-    if (needsSlot === undefined) return fail(message);
-    return needsSlot;
-  };
 
   const kind = getCardDropKind(card);
 
   if (kind === 'place') {
-    const slot = requireTarget(a.slot, 'Escolha um slot para a carta.');
+    const slot = a.slot;
+    if (slot === undefined) return fail('Escolha um slot para a carta.');
     if (slot === 12) fail('O General não pode ser substituído!');
     if ((slot === 10 || slot === 11) && card.cardType !== 'Relíquia' && card.cardType !== 'Terreno') fail('Esse slot é só para Relíquia ou Terreno!');
     if (slot <= 9 && (card.cardType === 'Relíquia' || card.cardType === 'Terreno')) fail('Relíquia/Terreno só pode ir no slot especial ao lado do General!');
@@ -397,234 +574,70 @@ const playCard = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'play' }>) => {
     commit();
     p.board[slot] = card;
     c.ev.push({ t: 'place', seat, slot, card });
-    applyNobreSummon(c, seat, slot);
+    runAbilities(c, seat, card, slot, 'place');
     return;
   }
 
-  if (kind === 'blocked') {
+  if (!playAbility) {
     if (card.cardType === 'Emboscada') fail('Emboscadas ativam sozinhas quando você é atacado — mantenha na mão.');
     fail('Essa Tática ainda não pode ser jogada.');
   }
 
-  if (kind === 'immediate') {
-    switch (card.name) {
-      case 'Reformar Linhas':
-        commit(); toGraveyard();
-        c.s.turn.bonusRepositions += 3;
-        log(c, seat, 'Reformar Linhas: +3 reposicionamentos bônus neste turno!');
-        return;
-      case 'Tributo de Guerra':
-        commit(); toGraveyard();
-        addGold(c, seat, 1, 'gain');
-        log(c, seat, 'Tributo de Guerra: +1 ouro neste turno!');
-        return;
-      case 'Trabuco de Cerco': {
-        commit(); toGraveyard();
-        const dead: { slot: number; card: Card }[] = [];
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12].forEach(i => {
-          const d = damageSlot(c, enemySeat, i, 2);
-          if (d) dead.push(d);
-        });
-        log(c, seat, 'Trabuco de Cerco: 2 de dano a todas as unidades inimigas!');
-        sendDestroyed(c, enemySeat, dead);
-        return;
-      }
-      case 'Retorno do Soldado': {
-        const options = p.graveyard.filter(g => SOLDIER_TYPES.includes(g.cardType));
-        if (options.length === 0) fail('Não há soldados no cemitério.');
-        commit();
-        openPick('graveyard_soldier', 'Escolha um soldado do cemitério para adicionar à mão', options, 1, 1);
-        return;
-      }
-      case 'Graal da Dádiva': {
-        const names = p.deckList.filter(n => { const t = getCardDef(n)?.cardType; return t === 'Terreno' || t === 'Relíquia'; });
-        if (names.length === 0) fail('Não há Terreno ou Relíquia no deck.');
-        commit();
-        openPick('deck_search', 'Escolha uma carta de Terreno ou Relíquia do deck', optionsFromNames(names), 1, 1);
-        return;
-      }
-      case 'Doutrina Renovada': {
-        const names = p.deckList.filter(n => getCardDef(n)?.cardType === 'Tática');
-        if (names.length === 0) fail('Não há Táticas no deck.');
-        commit();
-        openPick('deck_search', 'Escolha uma Tática do deck para adicionar à mão', optionsFromNames(names), 1, 1);
-        return;
-      }
-      case 'Recrutamento Seletivo': {
-        const names = p.deckList.filter(n => SOLDIER_TYPES.includes(getCardDef(n)!.cardType));
-        if (names.length === 0) fail('Não há soldados no deck.');
-        commit();
-        openPick('deck_search', 'Escolha um soldado do deck para adicionar à mão', optionsFromNames(names), 1, 1);
-        return;
-      }
-      case 'Recrutar Veteranos': {
-        if (p.drawPile.length === 0) fail('O baralho está vazio.');
-        commit();
-        const topNames = p.drawPile.splice(0, 4);
-        topNames.forEach(n => removeOne(p.deckList, n));
-        const revealed = topNames.map(n => cardFromName(c.s, n, 'o'));
-        openPick('top_reveal', 'Veja as 4 cartas do topo — escolha 2 para a mão', revealed, 1, 2, { revealed: true });
-        return;
-      }
-      case 'Chamado às Armas': {
-        const names = p.deckList.filter(n => { const d = getCardDef(n)!; return SOLDIER_TYPES.includes(d.cardType) && d.atk === 0; });
-        const slots = [0, 1, 2, 3, 4].filter(i => !p.board[i]);
-        if (names.length === 0) fail('Não há soldados de 0 ATK no deck.');
-        if (slots.length === 0) fail('Não há slots livres na Vanguarda.');
-        commit();
-        const max = Math.min(2, slots.length);
-        openPick('summon', `Escolha até ${max} soldado(s) de 0 ATK para convocar na Vanguarda`, optionsFromNames(names), 1, max, { slots });
-        return;
-      }
-      default:
-        fail('Essa Tática ainda não pode ser jogada.');
-    }
-  }
-
-  // Targeted Táticas.
-  const tactic = TARGETABLE_TACTICS[card.name];
-  const slot = requireTarget(a.target, 'Escolha um alvo no campo.');
-  const own = p.board;
-  const foe = enemy.board;
-
-  if (tactic === 'avanco_coordenado') {
-    if (slot > 9 || !own[slot]) fail('Escolha uma unidade sua no campo.');
-    if (!c.s.turn.moved.includes(slot)) fail('Essa unidade não se moveu neste turno.');
-    commit(); toGraveyard();
-    own[slot] = { ...own[slot]!, atk: own[slot]!.atk + 2 };
-    c.ev.push({ t: 'buff', seat, slot, atk: 2, hp: 0 });
-    log(c, seat, `${own[slot]!.name} recebeu +2 ATK!`);
-  } else if (tactic === 'linha_fechada') {
-    if (slot > 9 || !own[slot]) fail('Escolha uma unidade sua no campo.');
-    commit(); toGraveyard();
-    adjacentSlots(slot).forEach(j => { if (own[j]) own[j] = { ...own[j]!, dmgReduction: (own[j]!.dmgReduction ?? 0) + 1 }; });
-    log(c, seat, 'Linha Fechada: aliados adjacentes recebem menos dano!');
-  } else if (tactic === 'ordem_retirada') {
-    if (!isFrontline(slot) || !own[slot]) fail('Escolha uma unidade sua na Vanguarda.');
-    const back = slot + 5;
-    if (own[back]) fail('A Retaguarda dessa coluna já está ocupada.');
-    commit(); toGraveyard();
-    const moved = { ...own[slot]!, hp: own[slot]!.hp + 2 };
-    own[back] = moved;
-    own[slot] = null;
-    c.ev.push({ t: 'move', seat, from: slot, to: back, swapped: false });
-    c.ev.push({ t: 'heal', seat, slot: back, amount: 2 });
-    log(c, seat, `${moved.name} recuou para a Retaguarda e recuperou 2 HP!`);
-  } else if (tactic === 'equip_armadura' || tactic === 'equip_corcelete' || tactic === 'equip_flecha' || tactic === 'equip_espada') {
-    const allowed = EQUIP_ALLOWED_TYPES[tactic];
-    const target = own[slot];
-    if (slot > 9 || !target || !allowed.includes(target.cardType)) fail(`Escolha uma unidade do tipo certo: ${allowed.join(' ou ')}.`);
-    commit();
-    const atkBonus = tactic === 'equip_flecha' ? 1 : tactic === 'equip_espada' ? 2 : 0;
-    const hpBonus = tactic === 'equip_armadura' ? 2 : tactic === 'equip_corcelete' ? 1 : 0;
-    own[slot] = { ...target!, atk: target!.atk + atkBonus, hp: target!.hp + hpBonus, equippedWeapons: [...(target!.equippedWeapons ?? []), card] };
-    c.ev.push({ t: 'equip', seat, slot, card, atk: atkBonus, hp: hpBonus });
-    log(c, seat, `${target!.name} equipado: ${card.name}!`);
-  } else if (tactic === 'reposicionamento_rapido') {
-    if (slot > 9 || !foe[slot]) fail('Escolha uma unidade inimiga no campo.');
-    commit(); toGraveyard();
-    const free = adjacentSlots(slot).filter(j => !foe[j]);
-    if (free.length > 0) {
-      const dest = pickRandom(c.s, free);
-      foe[dest] = foe[slot];
-      foe[slot] = null;
-      c.ev.push({ t: 'move', seat: enemySeat, from: slot, to: dest, swapped: false });
-      log(c, seat, 'Reposicionamento Rápido: unidade inimiga deslocada!');
-    } else {
-      log(c, seat, 'Não havia slot livre adjacente para deslocar a unidade.');
-    }
-  } else if (tactic === 'balesta') {
-    if (slot > 9 || !foe[slot]) fail('Escolha uma unidade inimiga no campo.');
-    commit(); toGraveyard();
-    const d = damageSlot(c, enemySeat, slot, 3);
-    log(c, seat, 'Balestra de Precisão: 3 de dano causado!');
-    if (d) sendDestroyed(c, enemySeat, [d]);
-  } else if (tactic === 'catapulta') {
-    if (slot > 9) fail('Escolha uma fileira inimiga (Vanguarda ou Retaguarda).');
-    commit(); toGraveyard();
-    const row = getMoveRow(slot) === 0 ? [0, 1, 2, 3, 4] : [5, 6, 7, 8, 9];
-    const dead: { slot: number; card: Card }[] = [];
-    row.forEach(i => { const d = damageSlot(c, enemySeat, i, 2); if (d) dead.push(d); });
-    log(c, seat, 'Catapulta de Guerra: 2 de dano em toda a fileira!');
-    sendDestroyed(c, enemySeat, dead);
-  } else {
-    fail('Essa Tática ainda não pode ser jogada.');
-  }
+  // A Tática: check what it needs, pay, and run its verbs in order.
+  const verbs = playAbility!.do;
+  if (targetSpecsOf(verbs).length > 0 && a.target === undefined) fail('Escolha um alvo no campo.');
+  validateTargets(c, seat, verbs, [a.target]);
+  verbs.forEach(v => checkVerb(c, seat, v));
+  const specVerbs = verbs.filter(v => 'target' in v && v.target);
+  specVerbs.forEach((v, i) => checkVerbTarget(c, seat, v, [a.target][i]!));
+  commit();
+  // A Tática goes to the graveyard when it is used — unless it stays attached (equip) or still has a choice to resolve (pick).
+  const stays = verbs.some(v => v.kind === 'equip');
+  const picks = verbs.some(v => v.kind === 'look_top' || v.kind === 'search' || v.kind === 'summon_deck');
+  if (!stays && !picks) discard(c, seat, card);
+  const fx: Fx = { seat, source: card, slot: null, targets: [a.target] };
+  let ti = 0;
+  verbs.forEach(v => runVerb(c, fx, v, 'target' in v && v.target ? [a.target][ti++] : undefined));
 };
 
 // ── Abilities ───────────────────────────────────────────────────────────────
 const useAbility = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'ability' }>) => {
   assertCanAct(c, seat);
   const p = P(c, seat);
-  const enemySeat = otherSeat(seat);
   const card = p.board[a.slot];
   if (!card) return fail('Não há carta nesse slot.');
-  if (!abilityPhases(card.name).includes(c.s.turn.phase)) {
-    fail(abilityPhases(card.name).includes('pos_combate') ? 'Essa habilidade só vale na Preparação e no Pós-combate.' : 'Habilidades só na fase de Preparação.');
+  const ability = abilityOn(card.name, 'ability');
+  if (!ability) return fail(a.slot === GENERAL_SLOT ? 'Esse General não tem habilidade ativa.' : 'Essa carta não tem habilidade ativa.');
+  if (!isUnitSlot(a.slot) && a.slot !== GENERAL_SLOT) fail('Essa carta não tem habilidade ativa.');
+  const phases = abilityPhases(card.name);
+  if (!phases.includes(c.s.turn.phase)) {
+    fail(phases.includes('pos_combate') ? 'Essa habilidade só vale na Preparação e no Pós-combate.' : 'Habilidades só na fase de Preparação.');
   }
-  const usedUp = c.s.turn.activated.includes(card.id);
-
-  if (a.slot === GENERAL_SLOT) {
-    if (card.name !== 'Cardeal Pedro, Voz da Fé') fail('Esse General não tem habilidade ativa.');
+  const isGeneral = a.slot === GENERAL_SLOT;
+  if (isGeneral) {
     if (p.generalAbilityUses >= 1) fail('A habilidade do General já foi usada neste turno.');
     if (p.generalAbilityBlocked) fail('Infiltrado da Ordem: a habilidade do General está bloqueada neste turno.');
-    if (p.gold < 2) fail('Ouro insuficiente!');
-    const target = a.target;
-    if (target === undefined || target > 9 || !p.board[target]) fail('Escolha um soldado aliado no campo.');
-    const amount = p.board[10]?.name === 'Cálice da Graça' ? 2 : 1;
-    addGold(c, seat, -2, 'spend');
-    p.generalAbilityUses += 1;
-    c.ev.push({ t: 'ability', seat, slot: a.slot, name: card.name });
-    healSlot(c, seat, target!, amount);
-    log(c, seat, `${p.board[target!]!.name} recuperou ${amount} HP!`);
-    return;
+  } else if (ability.once && c.s.turn.activated.includes(card.id)) {
+    fail('Essa habilidade já foi usada neste turno.');
   }
+  const cost = ability.cost ?? 0;
+  if (p.gold < cost) fail('Ouro insuficiente!');
+  const picks = [a.target, a.target2];
+  validateTargets(c, seat, ability.do, picks);
+  ability.do.forEach(v => checkVerb(c, seat, v));
+  const targets = activeTargets(c, seat, ability.do);
+  ability.do.filter(v => 'target' in v && v.target).forEach((v, i) => { if (!targets[i].skipped) checkVerbTarget(c, seat, v, picks[i]!); });
 
-  if (!isUnitSlot(a.slot)) fail('Essa carta não tem habilidade ativa.');
-
-  if (card.name === 'Mercador da Cruzada') {
-    if (usedUp) fail('Essa habilidade já foi usada neste turno.');
-    if (p.drawPile.length === 0) fail('O baralho está vazio.');
-    c.s.turn.activated.push(card.id);
-    c.ev.push({ t: 'ability', seat, slot: a.slot, name: card.name });
-    const topNames = p.drawPile.splice(0, 2);
-    topNames.forEach(n => removeOne(p.deckList, n));
-    const revealed = topNames.map(n => cardFromName(c.s, n, 'o'));
-    const title = 'Mercador da Cruzada: veja as 2 cartas do topo — escolha 1 para a mão';
-    c.s.pending = { kind: 'pick', seat, mode: 'top_reveal', title, options: revealed, min: 1, max: 1, source: null, revealed: true };
-    c.ev.push({ t: 'pick', seat, title });
-    return;
-  }
-
-  if (card.name === 'Cavaleiro Hospitalário') {
-    if (usedUp) fail('Essa habilidade já foi usada neste turno.');
-    const foe = P(c, enemySeat).board;
-    const hasDamaged = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => p.board[i] && isCardDamaged(p.board[i]!));
-    const hasEnemyFront = [0, 1, 2, 3, 4].some(i => foe[i]);
-    if (!hasDamaged && !hasEnemyFront) fail('Cavaleiro Hospitalário: nenhum alvo disponível.');
-    if (hasDamaged) {
-      const t1 = a.target;
-      if (t1 === undefined || t1 > 9 || !p.board[t1] || !isCardDamaged(p.board[t1]!)) fail('Escolha um aliado ferido no campo.');
-    }
-    if (hasEnemyFront) {
-      const t2 = a.target2;
-      if (t2 === undefined || !isFrontline(t2) || !foe[t2]) fail('Escolha um inimigo na Vanguarda.');
-    }
-    c.s.turn.activated.push(card.id);
-    c.ev.push({ t: 'ability', seat, slot: a.slot, name: card.name });
-    if (hasDamaged) {
-      healSlot(c, seat, a.target!, 1);
-      log(c, seat, `${p.board[a.target!]!.name} recuperou 1 HP!`);
-    }
-    if (hasEnemyFront) {
-      const d = damageSlot(c, enemySeat, a.target2!, 1);
-      log(c, seat, 'Cavaleiro Hospitalário causou 1 de dano!');
-      if (d) sendDestroyed(c, enemySeat, [d]);
-    }
-    return;
-  }
-
-  fail('Essa carta não tem habilidade ativa.');
+  if (cost > 0) addGold(c, seat, -cost, 'spend');
+  if (isGeneral) p.generalAbilityUses += 1;
+  else c.s.turn.activated.push(card.id);
+  c.ev.push({ t: 'ability', seat, slot: a.slot, name: card.name });
+  const fx: Fx = { seat, source: card, slot: a.slot, targets: picks };
+  let ti = 0;
+  ability.do.forEach(v => {
+    if ('target' in v && v.target) { const i = ti++; if (!targets[i].skipped) runVerb(c, fx, v, picks[i]); }
+    else runVerb(c, fx, v, undefined);
+  });
 };
 
 // ── Picks (search / reveal) ─────────────────────────────────────────────────
@@ -697,7 +710,7 @@ const attack = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'attack' }>) => {
   c.ev.push({ t: 'attack', seat, from: a.from, to: a.to });
 
   // The defender may answer with an Emboscada — unless the attacker has an Infiltrado in its Vanguarda.
-  const options = hasEspiaoInVanguarda(p.board) ? [] : enemy.hand.filter(h => h.cardType === 'Emboscada').map(h => h.id);
+  const options = blocksAmbush(p.board) ? [] : enemy.hand.filter(h => h.cardType === 'Emboscada').map(h => h.id);
   if (options.length > 0) {
     c.s.pending = { kind: 'ambush', seat: enemySeat, attacker: seat, from: a.from, to: a.to, options };
     log(c, enemySeat, `${attacker.name} está atacando ${enemy.board[a.to]!.name} — ativar Emboscada?`);
@@ -722,42 +735,38 @@ const respondAmbush = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'ambush' }
   resolveCombat(c, pend.attacker, pend.from, pend.to, chosen);
 };
 
-// What a chosen Emboscada does to the attack that triggered it. Mutates the two boards.
+// What a chosen Emboscada does to the attack that triggered it (its `ambush` verbs, in order). Mutates the two boards.
 const resolveAmbushEffect = (
   c: Ctx, ambush: Card, attackerBoard: Board, attackerIndex: number, defenderBoard: Board, defenderIndex: number,
 ): { defenderIndex: number; cancelled: boolean } => {
   const unitSlots = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-  if (ambush.name === 'Bloqueio Instantâneo') {
-    // Cancels the attack if the defender has an adjacent ally to lean on.
-    const hasAlly = defenderIndex <= 9 && unitSlots.some(j => areSlotsAdjacent(defenderIndex, j) && defenderBoard[j]);
-    return { defenderIndex, cancelled: hasAlly };
-  }
-  if (ambush.name === 'Contra-Manobra') {
-    // Swaps the defender with an adjacent ally, who takes the hit instead.
-    if (defenderIndex <= 9) {
-      const partner = unitSlots.find(j => areSlotsAdjacent(defenderIndex, j) && defenderBoard[j]);
-      if (partner !== undefined) {
-        // The ally steps into the targeted slot and takes the hit; the original defender takes the ally's place.
-        [defenderBoard[defenderIndex], defenderBoard[partner]] = [defenderBoard[partner], defenderBoard[defenderIndex]];
-        return { defenderIndex, cancelled: false };
+  let cancelled = false;
+  verbsOn(ambush.name, 'ambush').forEach(v => {
+    if (v.kind === 'cancel_attack') {
+      // Cancels the attack — if asked to, only when the defender has an adjacent ally to lean on.
+      const hasAlly = defenderIndex <= 9 && unitSlots.some(j => areSlotsAdjacent(defenderIndex, j) && defenderBoard[j]);
+      if (!v.ifAdjacentAlly || hasAlly) cancelled = true;
+    } else if (v.kind === 'swap_defender') {
+      // The defender swaps with an adjacent ally, who takes the hit instead.
+      if (defenderIndex <= 9) {
+        const partner = unitSlots.find(j => areSlotsAdjacent(defenderIndex, j) && defenderBoard[j]);
+        if (partner !== undefined) [defenderBoard[defenderIndex], defenderBoard[partner]] = [defenderBoard[partner], defenderBoard[defenderIndex]];
       }
+    } else if (v.kind === 'displace_attacker') {
+      // Yanks the ATTACKER to a random empty slot of its own side, so the attack never lands.
+      const empty = unitSlots.filter(i => i !== attackerIndex && !attackerBoard[i]);
+      if (empty.length > 0) {
+        const dest = pickRandom(c.s, empty);
+        attackerBoard[dest] = attackerBoard[attackerIndex];
+        attackerBoard[attackerIndex] = null;
+      }
+      cancelled = true;
+    } else if (v.kind === 'buff_defender') {
+      const defender = defenderBoard[defenderIndex];
+      if (defender) defenderBoard[defenderIndex] = { ...defender, atk: defender.atk + v.atk, hp: defender.hp + v.hp };
     }
-    return { defenderIndex, cancelled: false };
-  }
-  if (ambush.name === 'Formação Quebrada') {
-    // Yanks the ATTACKER to a random empty slot of its own side, so the attack never lands.
-    const empty = unitSlots.filter(i => i !== attackerIndex && !attackerBoard[i]);
-    if (empty.length > 0) {
-      const dest = pickRandom(c.s, empty);
-      attackerBoard[dest] = attackerBoard[attackerIndex];
-      attackerBoard[attackerIndex] = null;
-    }
-    return { defenderIndex, cancelled: true };
-  }
-  const buff = ambush.name === 'Reforços Ocultos' ? { atk: 2, hp: 1 } : { atk: 2, hp: 2 };
-  const defender = defenderBoard[defenderIndex];
-  if (defender) defenderBoard[defenderIndex] = { ...defender, atk: defender.atk + buff.atk, hp: defender.hp + buff.hp };
-  return { defenderIndex, cancelled: false };
+  });
+  return { defenderIndex, cancelled };
 };
 
 const resolveCombat = (c: Ctx, aSeat: Seat, from: number, to: number, ambush: Card | null) => {
@@ -784,13 +793,18 @@ const resolveCombat = (c: Ctx, aSeat: Seat, from: number, to: number, ambush: Ca
   const dead: { seat: Seat; slot: number; card: Card }[] = [];
 
   let attackerAtk = getEffectiveAtk(attacker, from, aBoard, dBoard);
-  // Fanático da Cruzada: +2 ATK against a General that is not Cardeal Pedro (a stand-in for "tipo oposto").
-  if (attacker.name === 'Fanático da Cruzada' && dBoard[12] && dBoard[12]!.name !== 'Cardeal Pedro, Voz da Fé') attackerAtk += 2;
+  // `attack_bonus` (Ofensiva): extra ATK for this attack, possibly only against a General of another faction.
+  verbsOn(attacker.name, 'attack').forEach(v => {
+    if (v.kind !== 'attack_bonus') return;
+    const foeGeneral = dBoard[GENERAL_SLOT] ? getCardDef(dBoard[GENERAL_SLOT]!.name) : undefined;
+    const myGeneral = aBoard[GENERAL_SLOT] ? getCardDef(aBoard[GENERAL_SLOT]!.name) : undefined;
+    if (!v.ifEnemyGeneral || (foeGeneral && foeGeneral.faction !== myGeneral?.faction)) attackerAtk += v.amount;
+  });
   const defenderAtk = getEffectiveAtk(defender, target, dBoard, aBoard);
-  const attackerReduction = getIncomingDamageReduction(from, aBoard);
-  const defenderReduction = getIncomingDamageReduction(target, dBoard);
-  const attackerHpBonus = (attacker.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(attacker, aBoard);
-  const defenderHpBonus = (defender.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(defender, dBoard);
+  const attackerReduction = getIncomingDamageReduction(from, aBoard, dBoard);
+  const defenderReduction = getIncomingDamageReduction(target, dBoard, aBoard);
+  const attackerHpBonus = (attacker.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(from, aBoard);
+  const defenderHpBonus = (defender.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(target, dBoard);
   const damageToDefender = Math.max(0, attackerAtk - defenderReduction);
   const damageToAttacker = Math.max(0, defenderAtk - attackerReduction);
 
@@ -800,9 +814,9 @@ const resolveCombat = (c: Ctx, aSeat: Seat, from: number, to: number, ambush: Ca
   const throughToDefender = defSoak.through, throughToAttacker = atkSoak.through;
 
   // Infiltrado da Ordem: a General that takes damage cannot use its ability on its next turn.
-  if (target === 12 && throughToDefender > 0 && hasEspiaoOnBoard(dBoard)) {
+  if (target === 12 && throughToDefender > 0 && locksGeneralOnDamage(dBoard)) {
     P(c, dSeat).pendingGeneralBlock = true;
-    log(c, dSeat, 'Infiltrado da Ordem: a habilidade do General foi bloqueada no próximo turno!');
+    log(c, dSeat, 'A habilidade do General foi bloqueada no próximo turno!');
   }
 
   // Bonus HP (Comandante da Ordem's aura, Aurelion's one-time +1/+1) is a buffer that exists only for this
@@ -815,17 +829,18 @@ const resolveCombat = (c: Ctx, aSeat: Seat, from: number, to: number, ambush: Ca
   if (newAttacker.hp <= 0) { aBoard[from] = null; dead.push({ seat: aSeat, slot: from, card: newAttacker }); }
   else {
     aBoard[from] = newAttacker;
-    // Batedor: "Move após combate" — one free reposition right after landing an attack and surviving.
-    if (attacker.name === 'Batedor') t.batedorFree = from;
+    // `after_attack` effects (Batedor's free reposition) — only for a unit that survived.
+    runAbilities(c, aSeat, newAttacker, from, 'after_attack');
   }
   if (newDefender.hp <= 0) { dBoard[target] = null; dead.push({ seat: dSeat, slot: target, card: newDefender }); }
   else dBoard[target] = newDefender;
 
-  // Jorge, Lança Sagrada: attacking a Vanguarda card also hits the Retaguarda card in the same column for 2.
-  if (attacker.name === 'Jorge, Lança Sagrada' && isFrontline(target) && dBoard[target + 5]) {
-    const d = damageSlot(c, dSeat, target + 5, 2);
+  // `splash_behind` (Ofensiva): hitting a Vanguarda card also hurts the card behind it in the same column.
+  verbsOn(attacker.name, 'attack').forEach(v => {
+    if (v.kind !== 'splash_behind' || !isFrontline(target) || !dBoard[target + 5]) return;
+    const d = damageSlot(c, dSeat, target + 5, v.amount);
     if (d) dead.push({ seat: dSeat, ...d });
-  }
+  });
 
   ([aSeat, dSeat] as Seat[]).forEach(seat => sendDestroyed(c, seat, dead.filter(d => d.seat === seat)));
 };
@@ -852,7 +867,7 @@ const move = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'move' }>) => {
   board[a.from] = occupant;
   board[a.to] = mover;
   c.ev.push({ t: 'move', seat, from: a.from, to: a.to, swapped: !!occupant });
-  applyFormationCaptainBuff(c, seat, a.to);
+  runAbilities(c, seat, mover, a.to, 'move');
 
   if (free) {
     t.batedorFree = null;

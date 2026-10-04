@@ -22,6 +22,105 @@ export const TRIGGER_LABEL: Record<Trigger, string> = {
   comando: 'Comando', postura: 'Postura', reforco: 'Reforço',
 };
 
+// ── Efeitos: o "quê" de uma carta, descrito por TIPO ────────────────────────────────────────────────────────────
+// Uma carta não tem código próprio: o catálogo lista, em dados, as habilidades dela (`abilities`: quando acontece +
+// o que acontece) e o que ela faz sozinha enquanto está em campo (`passives`). O motor só sabe executar cada TIPO de
+// efeito ("verbo") — criar uma carta nova é combinar tipos que já existem. Vocabulário completo: docs/efeitos.md.
+
+// Quem pode ser escolhido como alvo de um efeito.
+export interface TargetSpec {
+  side: 'own' | 'enemy';
+  // 'unit': uma unidade (slot 0-9). 'row': qualquer slot da fileira — o efeito vale para a fileira inteira.
+  area: 'unit' | 'row';
+  where?: 'front' | 'back';          // só unidades dessa fileira
+  types?: CardType[];                // só unidades desses tipos
+  needs?: 'moved' | 'damaged';       // só unidades que se moveram neste turno / que estão feridas
+  // Alvo "se houver": só é exigido quando alguma unidade serve (a habilidade precisa de ao menos um alvo válido).
+  optional?: boolean;
+  prompt?: string;                   // frase mostrada ao jogador na hora de escolher
+}
+
+export interface CardFilter { types?: CardType[]; atk?: number }
+
+// Os tipos de efeito que o motor sabe executar. Os que têm `target` pedem uma escolha no tabuleiro (na ordem em que
+// aparecem na lista: o primeiro usa `target`, o segundo `target2` da ação).
+export type Verb =
+  // Recursos
+  | { kind: 'gold'; amount: number }
+  | { kind: 'draw'; amount: number }
+  | { kind: 'refill_hand'; to: number }
+  | { kind: 'extra_moves'; amount: number }
+  // Dano e cura (`all: 'enemy'` = todas as unidades inimigas e o General, sem escolher)
+  | { kind: 'damage'; amount: number; target?: TargetSpec; all?: 'enemy' }
+  | { kind: 'heal'; amount: number; target: TargetSpec; withAuras?: boolean }
+  // Atributos e proteção
+  | { kind: 'buff'; atk?: number; hp?: number; target?: TargetSpec }       // sem `target`: a própria carta, para sempre
+  | { kind: 'equip'; atk?: number; hp?: number; target: TargetSpec }       // fica presa à unidade até ela cair
+  | { kind: 'guard_adjacent'; amount: number; target: TargetSpec }         // aliados ao lado do alvo sofrem menos dano
+  | { kind: 'buff_adjacent'; atk: number }                                 // aliados ao lado: +ATK até o próximo turno do dono
+  | { kind: 'buff_moved'; count: number; atk: number; hp: number }        // unidades que se moveram: bônus no próximo combate
+  | { kind: 'reinforce'; shield: number }                                  // desce e ganha Escudo quando a carta da frente cai
+  // Posição
+  | { kind: 'retreat'; heal: number; target: TargetSpec }                  // alvo na Vanguarda vai para a Retaguarda e cura
+  | { kind: 'displace'; target: TargetSpec }                               // alvo inimigo vai para um slot livre ao lado
+  | { kind: 'swap_adjacent' }                                              // troca de lugar com um aliado ao lado
+  | { kind: 'free_move' }                                                  // um reposicionamento grátis
+  // Cartas
+  | { kind: 'look_top'; count: number; keepMin: number; keepMax: number }  // vê o topo do baralho, fica com algumas
+  | { kind: 'search'; zone: 'deck' | 'graveyard'; filter: CardFilter }     // escolhe uma carta e leva para a mão
+  | { kind: 'summon_deck'; max: number; filter: CardFilter }               // convoca soldados do baralho na Vanguarda
+  | { kind: 'summon_token'; token: string }                                // convoca fichas nos slots livres ao lado
+  // Combate
+  | { kind: 'attack_bonus'; amount: number; ifEnemyGeneral?: 'other_faction' }
+  | { kind: 'splash_behind'; amount: number }                              // atingiu a Vanguarda: dano na carta de trás
+  // Emboscada (resolvem o ataque que a ativou)
+  | { kind: 'cancel_attack'; ifAdjacentAlly?: boolean }
+  | { kind: 'swap_defender' }
+  | { kind: 'displace_attacker' }
+  | { kind: 'buff_defender'; atk: number; hp: number };
+
+// QUANDO o efeito acontece.
+export type AbilityOn =
+  | 'play'          // Tática jogada da mão
+  | 'ability'       // habilidade ativa, tocada por quem joga (Comando)
+  | 'place'         // a carta entrou em campo (Convocação)
+  | 'attack'        // a carta atacou (Ofensiva)
+  | 'after_attack'  // logo depois de atacar e sobreviver
+  | 'destroyed'     // a carta caiu (Queda)
+  | 'move'          // a carta se reposicionou (Manobra)
+  | 'healed'        // a carta foi curada
+  | 'turn_start' | 'turn_end'
+  | 'front_fell'    // a carta da frente da coluna caiu (Reforço)
+  | 'ambush';       // Emboscada ativada
+
+export interface Ability {
+  on: AbilityOn;
+  // 'ability': fases em que dá para usar (padrão: Preparação). 'play': fases EXTRAS além de Preparação e Pós-combate.
+  phases?: TurnPhase[];
+  once?: boolean;     // 'ability': uma vez por turno
+  cost?: number;      // 'ability': ouro pago ao usar
+  do: Verb[];
+}
+
+// Quem recebe o bônus de uma aura.
+export interface Who {
+  side: 'self' | 'own' | 'enemy';
+  row?: 'front' | 'back';
+  types?: CardType[];
+  slots?: number[];       // slots específicos (Relíquia 10, Terreno 11, General 12)
+  facing?: boolean;       // 'enemy': só a carta no mesmo slot, de frente para esta
+}
+
+// O que a carta faz sozinha enquanto está em campo (sem ninguém tocar).
+export type Passive =
+  | {
+      kind: 'aura'; who: Who;
+      from?: 'front' | 'back';          // só vale se esta carta estiver nessa fileira
+      when?: { col: number };           // só vale se o alvo estiver nessa coluna
+      atk?: number; combatHp?: number; reduce?: number; healBonus?: number; attacks?: number;
+    }
+  | { kind: 'flag'; flag: 'row_swap' | 'blocks_ambush' | 'locks_general'; from?: 'front' };
+
 // What the catalog stores for a card name (no artwork, no per-copy data).
 export interface CardDef {
   name: string;
@@ -33,6 +132,11 @@ export interface CardDef {
   isFullArt?: boolean;
   // Gatilho do efeito (ícone na linha do tipo + nome em dourado no começo do texto). Opcional: sem ele a carta fica como era.
   trigger?: Trigger;
+  // O que a carta faz, por tipo de efeito (veja acima). Uma carta sem nenhum dos dois é só estatística.
+  abilities?: Ability[];
+  passives?: Passive[];
+  // Só nos Generais: a "tendência" (Fanático da Cruzada compara com a do General inimigo).
+  faction?: string;
 }
 
 // One physical copy of a card inside a match. Field names intentionally match the client's CardData

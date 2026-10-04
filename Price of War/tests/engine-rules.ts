@@ -1,10 +1,10 @@
 // Scenario tests, one per rule:  npx tsx tests/engine-rules.ts
-import { CARD_DEFS, requireCardDef } from '../src/engine/catalog';
+import { CARD_DEFS, getCardDef, requireCardDef } from '../src/engine/catalog';
 import { aiNextAction } from '../src/engine/ai';
 import { mirrorEvents, mirrorSeats } from '../src/engine/view';
 import { applyReward, rewardFor, xpToNext } from '../src/engine/rewards';
 import { applyAction, combatOpen, createMatch, deckSetupFromRecipe, newMatchLog, replayMatch } from '../src/engine/game';
-import { HAND_LIMIT, REINFORCE_SHIELD, START_HAND } from '../src/engine/rules';
+import { HAND_LIMIT, hasVerb, reinforceShield, START_HAND, targetSpecsOf, verbsOn } from '../src/engine/rules';
 import { TRIGGER_LABEL, type Action, type Card, type GameEvent, type GameState, type Seat } from '../src/engine/types';
 
 let passed = 0, failed = 0;
@@ -581,10 +581,10 @@ test('Reforço: when a Vanguarda card falls, the Infantaria behind it steps forw
   const r = act(s, 0, { type: 'attack', from: 2, to: 2 });
   const foe = r.s.players[1].board;
   eq([foe[2]?.name, foe[7]], ['Soldados da Ordem', null]);
-  eq([foe[2]!.shield, foe[2]!.pendingCombatBonus], [REINFORCE_SHIELD, undefined]);
+  eq([foe[2]!.shield, foe[2]!.pendingCombatBonus], [reinforceShield({ name: 'Soldados da Ordem' }), undefined]);
   const ev = r.ev.find(e => e.t === 'reinforce') as any;
   eq([ev.seat, ev.from, ev.to, ev.card.name], [1, 7, 2, 'Soldados da Ordem']);
-  ok(r.ev.some(e => e.t === 'shield' && (e as any).slot === 2 && (e as any).shield === REINFORCE_SHIELD), 'the Escudo is announced');
+  ok(r.ev.some(e => e.t === 'shield' && (e as any).slot === 2 && (e as any).shield === reinforceShield({ name: 'Soldados da Ordem' })), 'the Escudo is announced');
   ok(r.ev.findIndex(e => e.t === 'destroyed') < r.ev.findIndex(e => e.t === 'reinforce'), 'the fall comes before the step forward');
 });
 test('Reforço: an Infantaria that is NOT tagged Reforço stays where it is when the card in front falls', () => {
@@ -828,6 +828,30 @@ test('the deck is finite: drawn and searched cards never come back, an empty dec
   s = act(s, 0, { type: 'choose', cardIds: [(s.pending as any).options[0].id] }).s;
   eq([s.players[0].deckList.length, s.players[0].drawPile.length, names(s.players[0].hand)], [0, 0, ['Batedor']]);
   void m;
+});
+test('the catalog describes every card by effect types, with nothing left half-defined', () => {
+  const defs = CARD_DEFS;
+  for (const d of defs) {
+    const abilities = d.abilities ?? [];
+    if (d.cardType === 'Tática') ok(abilities.some(a => a.on === 'play'), `${d.name}: a Tática needs a "play" ability`);
+    if (d.cardType === 'Emboscada') ok(abilities.some(a => a.on === 'ambush'), `${d.name}: an Emboscada needs an "ambush" ability`);
+    if (d.cardType !== 'Tática') ok(!abilities.some(a => a.on === 'play'), `${d.name}: only a Tática has a "play" ability`);
+    if (d.cardType !== 'Emboscada') ok(!abilities.some(a => a.on === 'ambush'), `${d.name}: only an Emboscada has an "ambush" ability`);
+    abilities.forEach(a => {
+      ok(a.do.length > 0, `${d.name}: an ability with no effects`);
+      a.do.forEach(v => {
+        if ('target' in v && v.target) ok(!!v.target.prompt, `${d.name}: a target without the sentence shown to the player`);
+        if (v.kind === 'summon_token') ok(!!getCardDef(v.token), `${d.name}: unknown token ${v.token}`);
+      });
+    });
+    // every Tática with a board choice has exactly one for the single `target` of a play action
+    if (d.cardType === 'Tática') ok(targetSpecsOf(verbsOn(d.name, 'play')).length <= 1, `${d.name}: a Tática can ask for only one board choice`);
+    if (d.cardType === 'General') ok(!!d.faction, `${d.name}: a General needs a faction`);
+  }
+  // the vocabulary tags on the cards agree with what the cards actually do
+  ok(CARD_DEFS.filter(d => d.trigger === 'reforco').every(d => hasVerb(d.name, 'reinforce')), 'a Reforço-tagged card must carry the reinforce effect');
+  ok(CARD_DEFS.filter(d => hasVerb(d.name, 'reinforce')).every(d => d.trigger === 'reforco'), 'a card with the reinforce effect must carry the Reforço tag');
+  ok(CARD_DEFS.filter(d => d.trigger === 'comando').every(d => (d.abilities ?? []).some(a => a.on === 'ability' || a.on === 'turn_start')), 'a Comando card must have an active or start-of-turn ability');
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

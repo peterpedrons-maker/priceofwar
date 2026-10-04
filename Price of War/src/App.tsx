@@ -217,13 +217,13 @@ import { ThinFrame, GameBox, GameButton } from './ui/ThinFrame';
 import { NpcPanel, TapHand, Spotlight, TutorialList, TutorialIntro, markTutorialDone, type Hole as TutHole } from './tutorial/ui';
 import { DECK_MAX_CARDS, DECK_MAX_COPIES, DECK_MIN_CARDS } from './engine/deck';
 import {
-  EQUIP_ALLOWED_TYPES, TACTIC_TARGET_PROMPTS, TARGETABLE_TACTICS, GOLD_PER_TURN, HAND_LIMIT, START_GOLD, START_HAND,
-  areSlotsAdjacent, canPlaceInSlot, canReposition, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction,
-  getLaneCol, getMaxAttacksPerTurn, getMoveRow, getValidAttackTargets, isBackline, isCardDamaged, isFrontline, phasesForTurn,
-  type TacticTargetKind,
+  GOLD_PER_TURN, HAND_LIMIT, START_GOLD, START_HAND,
+  abilityOn, abilityPhases, areSlotsAdjacent, auraTotal, canPlaceInSlot, canReposition, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction,
+  getLaneCol, getMaxAttacksPerTurn, getMoveRow, getValidAttackTargets, isBackline, isCardDamaged, isFrontline, needsHiddenInfo, phasesForTurn,
+  specCandidatesOn, targetSpecOf, targetSpecsOf, verbsOn,
 } from './engine/rules';
 import { otherSeat, type Action as EngineAction, type Card as EngineCard, type GameEvent, type GameState, type Seat, type TurnPhase } from './engine/types';
-export type { TurnPhase, TacticTargetKind };
+export type { TurnPhase };
 
 // Every card/board/UI image in the game besides the start screen's own background
 // and logo (those two load first, in the loading screen's initial black-screen
@@ -2169,17 +2169,13 @@ type OnlineMatch = {
 
 // Actions whose result depends on what only the server knows (the deck, the opponent's hand): they are shown only
 // once the server's step arrives, instead of being applied to the view at once.
-const SERVER_FIRST_CARDS = new Set([
-  'Recrutar Veteranos', 'Chamado às Armas', 'Reposicionamento Rápido',
-  'Graal da Dádiva', 'Doutrina Renovada', 'Recrutamento Seletivo',
-]);
 const needsServer = (action: EngineAction, view: GameState): boolean => {
   const held = (id: string | null | undefined) => (id ? view.players[0].hand.find(h => h.id === id) : undefined);
   switch (action.type) {
     case 'attack': case 'concede': return true;   // the defender's hand decides whether an Emboscada answers
-    case 'play': return SERVER_FIRST_CARDS.has(held(action.cardId)?.name ?? '');
-    case 'ability': return view.players[0].board[action.slot]?.name === 'Mercador da Cruzada';
-    case 'ambush': return held(action.cardId)?.name === 'Formação Quebrada';
+    case 'play': return needsHiddenInfo(verbsOn(held(action.cardId)?.name ?? '', 'play'));
+    case 'ability': return needsHiddenInfo(verbsOn(view.players[0].board[action.slot]?.name ?? '', 'ability'));
+    case 'ambush': return needsHiddenInfo(verbsOn(held(action.cardId)?.name ?? '', 'ambush'));
     default: return false;
   }
 };
@@ -4917,7 +4913,7 @@ export default function App() {
   // target on the board (see TARGETABLE_TACTICS / resolveOwnTacticTarget /
   // resolveEnemyTacticTarget) — the card is already out of hand and mana already
   // spent by this point, same as a normal card that's mid-flight to a slot.
-  const [pendingTacticAction, setPendingTacticAction] = useState<{ card: CardData; kind: TacticTargetKind } | null>(null);
+  const [pendingTacticAction, setPendingTacticAction] = useState<{ card: CardData } | null>(null);
   // Batedor: "Move após combate" — the slot it's standing in right after it survives
   // an attack, so handleSlotClick can grant it exactly one free reposition even
   // though it's the Batalha phase (see the reposition branch's own phase check).
@@ -4939,9 +4935,11 @@ export default function App() {
   // Set once the player has committed to activating and chosen an amount — now
   // waiting for them to click the actual ally to heal, same two-step shape as
   // pendingTacticAction above.
-  const [pendingGeneralHeal, setPendingGeneralHeal] = useState<{ amount: number } | null>(null);
-  const pendingGeneralHealRef = useRef(pendingGeneralHeal);
-  pendingGeneralHealRef.current = pendingGeneralHeal;
+  // An ability of a card on the board (the General's, Mercador's, Hospitalário's…) that asks for board choices: `step` is which of
+  // its targeted effects is being chosen now and `picks` what was chosen so far (see activateAbility).
+  const [pendingAbility, setPendingAbility] = useState<{ slot: number; step: number; picks: (number | undefined)[] } | null>(null);
+  const pendingAbilityRef = useRef(pendingAbility);
+  pendingAbilityRef.current = pendingAbility;
 
   // Infiltrado da Ordem's "Se o General aliado receber dano, no próximo turno não
   // poderá usar sua habilidade." pendingPlayerGeneralAbilityBlock/
@@ -4971,15 +4969,6 @@ export default function App() {
   // names, since both cards have 2 copies that could be on the field at once, each
   // usable independently. Resets every player turn (see the currentTurn effect).
   const [playerActivatedAbilityIds, setPlayerActivatedAbilityIds] = useState<Set<string>>(new Set());
-  // Cavaleiro Hospitalário's two independent halves (heal an ally, then damage an enemy
-  // Vanguarda unit) — same two-step "commit, then click a target" shape as
-  // pendingGeneralHeal, except it can move straight to 'damage' without ever
-  // showing 'heal' (see activateHospitalario) when there's no damaged ally to
-  // heal, so the card isn't wasted just because the heal half has no target.
-  const [pendingHospitalario, setPendingHospitalario] = useState<{ step: 'heal' | 'damage'; slot: number; healTarget?: number } | null>(null);
-  const pendingHospRef = useRef(pendingHospitalario);
-  pendingHospRef.current = pendingHospitalario;
-
   // Arqueiro da Ordem's "Pode atacar duas vezes por rodada" is the game's
   // first case of any unit attacking more than once a turn, which means this is
   // also the game's first "already attacked this turn" tracker — every other
@@ -5353,7 +5342,7 @@ export default function App() {
   startTriggerFxRef.current = startTriggerFx;
   const holdForSeat = (seat: Seat) => () => {
     const pend = engineRef.current?.pending;
-    return (!!pend && pend.seat === seat) || (seat === 0 && (!!pendingHospRef.current || !!pendingGeneralHealRef.current));
+    return (!!pend && pend.seat === seat) || (seat === 0 && !!pendingAbilityRef.current);
   };
   // Convocação (a card with that trigger arrives on the board) and Queda (it falls): read straight off the boards, so they
   // fire at the moment the card is actually drawn there (landing animation done / burn begins), for either side.
@@ -5522,7 +5511,7 @@ export default function App() {
       return true;
     };
     // Test hook: the client-side flow state (what is pending, which effect floats, how many glows are still playing).
-    (window as any).__powFlow = () => ({ hosp: pendingHospRef.current, floating: trigActiveIdRef.current, glows: trigGlowPendingRef.current, general: pendingGeneralHealRef.current });
+    (window as any).__powFlow = () => ({ ability: pendingAbilityRef.current, floating: trigActiveIdRef.current, glows: trigGlowPendingRef.current });
     (window as any).__powSet = (mutate: (s: GameState) => void) => {
       const next = JSON.parse(JSON.stringify(engineRef.current)) as GameState;
       mutate(next);
@@ -6493,8 +6482,7 @@ export default function App() {
     setCardPicker(null);
     setPlayerGeneralAbilityUses(0);
     setNpcGeneralAbilityUses(0);
-    setPendingGeneralHeal(null);
-    setPendingHospitalario(null);
+    setPendingAbility(null);
     setPlayerAttackCounts({});
     setPlayerActivatedAbilityIds(new Set());
     setPlayerMana(START_GOLD);
@@ -6824,13 +6812,13 @@ export default function App() {
   const handleCardClick = (index: number) => {
     if (viewState === 'field') return; // hand cards are non-interactive once zoomed to the board
     if (phaseTransitionLock) return; // see announcePhase — a phase banner is still on screen
-    // Avanço Coordenado is the one card played after moving, in Movimentação.
+    // A Tática can list extra phases it may be played in (Avanço Coordenado: Movimentação, right after the move it rewards).
     if (turnPhase === 'pos_combate') {
       if (!['Tática', 'Relíquia', 'Terreno'].includes(hand[index]?.cardType ?? '')) {
         showToast('Depois do combate só dá pra jogar Táticas, Relíquias e Terrenos!');
         return;
       }
-    } else if (turnPhase !== 'preparacao' && !(turnPhase === 'movimentacao' && hand[index]?.name === 'Avanço Coordenado')) {
+    } else if (turnPhase !== 'preparacao' && !(abilityOn(hand[index]?.name ?? '', 'play')?.phases ?? []).includes(turnPhase)) {
       showToast("Jogar cartas só nas fases de Preparação e Pós-combate!");
       return;
     }
@@ -6863,7 +6851,7 @@ export default function App() {
       if ((firstTapKind === 'ownTarget' || firstTapKind === 'enemyTarget') && playerMana >= hand[index].cost) {
         playSelectSfx();
         setSelectedAttackerIndex(null);
-        setPendingTacticAction({ card: hand[index], kind: TARGETABLE_TACTICS[hand[index].name] });
+        setPendingTacticAction({ card: hand[index] });
         setSelectedCardIndex(null);
         setViewState('field');
         return;
@@ -6895,8 +6883,7 @@ export default function App() {
         showToast("Ouro insuficiente!");
         return;
       }
-      const tacticKind = TARGETABLE_TACTICS[card.name];
-      setPendingTacticAction({ card, kind: tacticKind });
+      setPendingTacticAction({ card });
       setSelectedCardIndex(null);
       setViewState('field');
       return;
@@ -6954,29 +6941,40 @@ export default function App() {
   // "Ao ser curado: recebe +1 ATK permanente") still grants its ATK bonus, but paying
   // 2 gold for it every turn is a deliberate trade-off now instead of the free,
   // unlimited stack this used to be before the ability had any cost at all.
+  // The units each of an ability's targeted effects could land on right now (empty = nothing to choose; fine for an `optional` one).
+  const abilityStepCandidates = (ab: NonNullable<ReturnType<typeof abilityOn>>) =>
+    targetSpecsOf(ab.do).map(spec => specCandidatesOn(spec, playerSlots, npcSlots, [...movedSlots]));
+  // An ability with choices can be used only if there is something to choose (any one of them, when they are all optional).
+  function abilityHasTargets(ab: NonNullable<ReturnType<typeof abilityOn>>): boolean {
+    const specs = targetSpecsOf(ab.do);
+    if (specs.length === 0) return true;
+    const cands = abilityStepCandidates(ab);
+    return specs.every(sp => sp.optional) ? cands.some(x => x.length > 0) : cands.every(x => x.length > 0);
+  }
+
+  const playerGeneralAbility = playerSlots[12] ? abilityOn(playerSlots[12]!.name, 'ability') : undefined;
   const playerGeneralAbilityAvailable =
-    playerSlots[12]?.name === 'Cardeal Pedro, Voz da Fé' && !playerSlots[12]?.isDestroyed &&
-    currentTurn === 'player' && (turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !eng?.pending && !gameOverWinner &&
+    !!playerGeneralAbility && !playerSlots[12]?.isDestroyed &&
+    currentTurn === 'player' && abilityPhases(playerSlots[12]!.name).includes(turnPhase) && !eng?.pending && !gameOverWinner &&
     playerGeneralAbilityUses < playerGeneralAbilityMaxUses &&
     !tutOn &&   // every ability is off in the tutorial (Tutorial 2 teaches them)
-    playerMana >= 2 &&
+    playerMana >= (playerGeneralAbility.cost ?? 0) &&
     // Infiltrado da Ordem: blocked for exactly the one turn following the General
     // taking damage (see playerGeneralAbilityBlockedThisTurnRef's own comment).
     !playerGeneralAbilityBlockedThisTurnRef.current &&
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => playerSlots[i] && !playerSlots[i]?.isDestroyed);
+    abilityHasTargets(playerGeneralAbility);
 
-  // Mercador da Cruzada / Cavaleiro Hospitalário: which once-per-turn creature ability
-  // (if any) is available to activate on this exact player slot right now — same
-  // "you may activate this" shape as playerGeneralAbilityAvailable above, just
-  // per-card instead of only the General (see the Sparkles button rendered next
-  // to each of these below, and activateComercianteDasCruzadas/activateHospitalario).
-  const getPlayerCreatureAbilityKind = (slotIndex: number): 'comerciante' | 'hospitalario' | null => {
+  // Which once-per-turn creature ability (if any) is available to activate on this exact player slot right now — same "you may
+  // activate this" shape as playerGeneralAbilityAvailable above, just per-card (see the glowing prompt on each of these below and
+  // activateAbility). The kind picks the prompt's look: a heal, a hit, or a plain utility.
+  const getPlayerCreatureAbilityKind = (slotIndex: number): 'heal' | 'damage' | 'utility' | null => {
     if (currentTurn !== 'player' || (turnPhase !== 'preparacao' && turnPhase !== 'pos_combate') || eng?.pending || gameOverWinner) return null;
     const card = playerSlots[slotIndex];
     if (!card || card.isDestroyed || playerActivatedAbilityIds.has(card.id)) return null;
-    if (card.name === 'Mercador da Cruzada') return turnPhase === 'preparacao' ? 'comerciante' : null;
-    if (card.name === 'Cavaleiro Hospitalário') return 'hospitalario';
-    return null;
+    const ab = abilityOn(card.name, 'ability');
+    if (!ab || !abilityPhases(card.name).includes(turnPhase)) return null;
+    const first = ab.do[0]?.kind;
+    return first === 'heal' ? 'heal' : first === 'damage' ? 'damage' : 'utility';
   };
 
   // Resolves a slot id to the exact element the card's own art currently renders in —
@@ -7164,58 +7162,51 @@ export default function App() {
     });
   };
 
-  // Cardeal Pedro's ability: the "Ativar habilidade?" prompt commits to it, then the player taps the ally to
-  // heal. The 2 gold are only charged by the engine when the heal actually lands.
-  const activateGeneralHeal = (amount: number, _cost: number) => {
-    const start = () => { setPendingGeneralHeal({ amount }); setViewState('field'); };
-    const general = playerSlots[12];
-    if (general) {
-      // the General floats and glows first (like any card whose effect fires); the targets open after the glow
-      startTriggerFx('player', 12, general, 'comando', holdForSeat(0));
-      whenGlowDone(start);
-      return;
-    }
-    start();
+  // Activating the ability of a card on the board (the General's, a unit's): with no choices it is sent at once (the engine opens
+  // any pick prompt itself); with choices, the card floats and glows first, then the player is asked for each target in turn
+  // (see pendingAbility) and the whole thing is sent together. Nothing is spent until the engine accepts it.
+  const abilityOf = (slot: number) => (playerSlots[slot] ? abilityOn(playerSlots[slot]!.name, 'ability') : undefined);
+  // The first step (from `from`) that needs a choice: an optional target with no candidate is skipped.
+  const nextAbilityStep = (ab: NonNullable<ReturnType<typeof abilityOn>>, from: number): number => {
+    const specs = targetSpecsOf(ab.do);
+    const cands = abilityStepCandidates(ab);
+    for (let i = from; i < specs.length; i++) if (!(specs[i].optional && cands[i].length === 0)) return i;
+    return -1;
   };
-  const resolveGeneralHeal = (slotIndex: number) => {
-    if (!pendingGeneralHeal) return;
-    if (!playerAct({ type: 'ability', slot: 12, target: slotIndex })) return;
-    setPendingGeneralHeal(null);
-    setViewState('hand');
-  };
-
-  // Mercador da Cruzada: reveal the top 2, keep 1 — the engine opens the pick prompt.
-  const activateComercianteDasCruzadas = (slot: number) => {
-    playerAct({ type: 'ability', slot });
-  };
-
-  // Cavaleiro Hospitalário: heal an injured ally and hit an enemy Vanguarda card — two taps, sent to the engine
-  // together. Starts on whichever half has a target so a healthy board (or an empty enemy Vanguarda) never wastes it.
-  const hospitalarioTargets = () => {
-    const eng = engineRef.current;
-    const me = eng?.players[0].board ?? [];
-    const foe = eng?.players[1].board ?? [];
-    return {
-      hasDamaged: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(i => me[i] && isCardDamaged(me[i]!)),
-      hasEnemyFront: [0, 1, 2, 3, 4].some(i => foe[i]),
-    };
-  };
-  const activateHospitalario = (slot: number) => {
-    const { hasDamaged, hasEnemyFront } = hospitalarioTargets();
-    if (!hasDamaged && !hasEnemyFront) {
-      showToast('Cavaleiro Hospitalário: nenhum alvo disponível.');
-      return;
-    }
-    const start = () => { setViewState('field'); setPendingHospitalario(hasDamaged ? { step: 'heal', slot } : { step: 'damage', slot }); };
+  const activateAbility = (slot: number) => {
+    const ab = abilityOf(slot);
     const card = playerSlots[slot];
-    if (card && triggerKeyOf(card.name) === 'comando') {
-      // the card floats and glows first; the targets open once the glow is over, and it stays up until the effect is resolved
-      startTriggerFx('player', slot, card, 'comando', holdForSeat(0));
-      whenGlowDone(start);
-      return;
-    }
-    playTacticSfx();
-    start();
+    if (!ab || !card) return;
+    if (targetSpecsOf(ab.do).length === 0) { playerAct({ type: 'ability', slot }); return; }
+    if (!abilityHasTargets(ab)) { showToast(`${card.name}: nenhum alvo disponível.`); return; }
+    const step = nextAbilityStep(ab, 0);
+    const start = () => { setViewState('field'); setPendingAbility({ slot, step, picks: [] }); };
+    // the card floats and glows first; the targets open once the glow is over, and it stays up until the effect is resolved
+    startTriggerFx('player', slot, card, triggerKeyOf(card.name) ?? 'comando', holdForSeat(0));
+    whenGlowDone(start);
+  };
+  // The player tapped a board slot while an ability waits for its next choice.
+  // Which side of the board the pending ability's current choice is on.
+  const abilityStepSide = (): 'own' | 'enemy' | null => {
+    if (!pendingAbility) return null;
+    const name = playerSlots[pendingAbility.slot]?.name ?? trigFx?.card.name ?? '';
+    const ab = abilityOn(name, 'ability');
+    return ab ? targetSpecsOf(ab.do)[pendingAbility.step]?.side ?? null : null;
+  };
+  const resolveAbilityTarget = (slotIndex: number) => {
+    const pend = pendingAbility;
+    const ab = pend ? abilityOf(pend.slot) ?? (playerSlots[pend.slot] ? undefined : abilityOn(trigFx?.card.name ?? '', 'ability')) : undefined;
+    if (!pend || !ab) return;
+    const specs = targetSpecsOf(ab.do);
+    const spec = specs[pend.step];
+    const allowed = abilityStepCandidates(ab)[pend.step];
+    if (!allowed.includes(slotIndex)) { showToast(spec.prompt ?? 'Escolha um alvo válido.'); return; }
+    const picks = [...pend.picks]; picks[pend.step] = slotIndex;
+    const next = nextAbilityStep(ab, pend.step + 1);
+    if (next >= 0) { setPendingAbility({ slot: pend.slot, step: next, picks }); return; }
+    if (!playerAct({ type: 'ability', slot: pend.slot, target: picks[0], target2: picks[1] })) return;
+    setPendingAbility(null);
+    setViewState('hand');
   };
 
   // "You may activate this" prompts (the General's own Fase-Principal ability, plus
@@ -7249,14 +7240,12 @@ export default function App() {
   [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(i => {
     const kind = getPlayerCreatureAbilityKind(i);
     if (!kind) return;
-    pushAbilityPrompt(`ability-${i}`, `player-${i}`, () => {
-      if (kind === 'comerciante') activateComercianteDasCruzadas(i);
-      else activateHospitalario(i);
-    }, kind === 'hospitalario' ? 'heal' : 'utility');
+    pushAbilityPrompt(`ability-${i}`, `player-${i}`, () => activateAbility(i), kind === 'utility' ? 'utility' : kind);
   });
   if (playerGeneralAbilityAvailable) {
-    // One tap: straight into picking the ally to heal (Cancelar backs out) — no "ativar?" step in between.
-    pushAbilityPrompt('ability-general', 'player-12', () => activateGeneralHeal(playerSlots[10]?.name === 'Cálice da Graça' ? 2 : 1, 2), 'heal');
+    // One tap: straight into picking the target (Cancelar backs out) — no "ativar?" step in between.
+    const first = playerGeneralAbility!.do[0]?.kind;
+    pushAbilityPrompt('ability-general', 'player-12', () => activateAbility(12), first === 'damage' ? 'damage' : 'heal');
   }
 
   // What the player is being asked to target right now, if anything (see TargetingHud): the source card, what the
@@ -7264,56 +7253,44 @@ export default function App() {
   type TargetingMode = { source: CardData; kind: TargetKind; title: string; hint: string; valid: { side: 'player' | 'npc'; index: number }[] };
   const mine = (pred: (c: CardData, i: number) => boolean) => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => playerSlots[i] && pred(playerSlots[i]!, i)).map(i => ({ side: 'player' as const, index: i }));
   const foes = (pred: (c: CardData, i: number) => boolean) => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => npcSlots[i] && pred(npcSlots[i]!, i)).map(i => ({ side: 'npc' as const, index: i }));
-  // The legal targets of a Tática that needs one (used both when it is armed and while it is only selected in the hand).
-  const tacticTargeting = (card: CardData, kind: TacticTargetKind): TargetingMode => {
-    const hint = TACTIC_TARGET_PROMPTS[kind];
-    if (kind === 'balesta' || kind === 'catapulta') return { source: card, kind: 'damage', title: card.name, hint, valid: foes(() => true) };
-    if (kind === 'reposicionamento_rapido') return { source: card, kind: 'move', title: card.name, hint, valid: foes(() => true) };
-    const own = kind === 'avanco_coordenado' ? mine((_c, i) => movedSlots.has(i))
-      : kind === 'ordem_retirada' ? mine((_c, i) => isFrontline(i))
-      : kind === 'linha_fechada' ? mine(() => true)
-      : mine(c => (EQUIP_ALLOWED_TYPES[kind] ?? []).includes(c.cardType as CardType));
-    return { source: card, kind: 'buff', title: card.name, hint, valid: own };
+  // The legal targets of a Tática that needs one (used both when it is armed and while it is only selected in the hand): read from
+  // the card's own target spec, whatever card it is.
+  const effectTargetKind = (verb: { kind: string } | undefined): TargetKind =>
+    verb?.kind === 'heal' ? 'heal' : verb?.kind === 'damage' ? 'damage' : verb?.kind === 'displace' ? 'move' : 'buff';
+  const specSlots = (spec: ReturnType<typeof targetSpecOf>) => {
+    if (!spec) return [];
+    const side = spec.side === 'own' ? 'player' as const : 'npc' as const;
+    // a row effect can be aimed at any occupied slot of the side (the whole row is hit); the others follow the spec's filters
+    const slots = spec.area === 'row'
+      ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => (spec.side === 'own' ? playerSlots : npcSlots)[i])
+      : specCandidatesOn(spec, playerSlots, npcSlots, [...movedSlots]);
+    return slots.map(index => ({ side, index }));
+  };
+  const tacticTargeting = (card: CardData): TargetingMode => {
+    const spec = targetSpecOf(card.name);
+    const verb = verbsOn(card.name, 'play').find(v => 'target' in v && v.target);
+    return { source: card, kind: effectTargetKind(verb), title: card.name, hint: spec?.prompt ?? 'Escolha um alvo no campo.', valid: specSlots(spec) };
   };
   // While an effect's card floats, its slot is held empty on screen: the card that is asking for a target is still that one.
   const sourceAt = (slot: number): CardData | null => playerSlots[slot] ?? (trigFx && trigFx.side === 'player' && trigFx.slot === slot ? trigFx.card : null);
   const targetingMode: TargetingMode | null = (() => {
-    if (pendingGeneralHeal && sourceAt(12)) {
-      return { source: sourceAt(12)!, kind: 'heal', title: 'Habilidade do General', hint: `Toque em um soldado aliado para curar ${pendingGeneralHeal.amount} HP.`, valid: mine(() => true) };
+    if (pendingAbility && sourceAt(pendingAbility.slot)) {
+      const source = sourceAt(pendingAbility.slot)!;
+      const ab = abilityOn(source.name, 'ability');
+      const specs = ab ? targetSpecsOf(ab.do) : [];
+      const spec = specs[pendingAbility.step];
+      const verb = ab?.do.filter(v => 'target' in v && v.target)[pendingAbility.step];
+      const heal = verb?.kind === 'heal' ? verb.amount + (verb.withAuras ? auraTotal('healBonus', 12, playerSlots) : 0) : 0;
+      return {
+        source, kind: effectTargetKind(verb), title: source.name,
+        hint: spec ? `${spec.prompt ?? 'Escolha um alvo.'}${heal ? ` (cura ${heal} HP)` : ''}` : '',
+        valid: ab && spec ? abilityStepCandidates(ab)[pendingAbility.step].map(index => ({ side: spec.side === 'own' ? 'player' as const : 'npc' as const, index })) : [],
+      };
     }
-    if (pendingHospitalario && sourceAt(pendingHospitalario.slot)) {
-      const source = sourceAt(pendingHospitalario.slot)!;
-      return pendingHospitalario.step === 'heal'
-        ? { source, kind: 'heal', title: source.name, hint: 'Toque em um aliado ferido para curar 1 HP.', valid: mine(c => isCardDamaged(c)) }
-        : { source, kind: 'damage', title: source.name, hint: 'Toque em um inimigo da Vanguarda para causar 1 de dano.', valid: foes((_c, i) => isFrontline(i)) };
-    }
-    if (pendingTacticAction) return tacticTargeting(pendingTacticAction.card, pendingTacticAction.kind);
+    if (pendingTacticAction) return tacticTargeting(pendingTacticAction.card);
     return null;
   })();
   const cancelTargeting = () => { playUiClickSfx(); handleBackgroundClick(); };
-
-  const commitHospitalario = (slot: number, target?: number, target2?: number) => {
-    if (!playerAct({ type: 'ability', slot, target, target2 })) return;
-    setPendingHospitalario(null);
-    setViewState('hand');
-  };
-  // Heal half: the player tapped their own board.
-  const resolveHospitalarioHeal = (slotIndex: number) => {
-    if (!pendingHospitalario) return;
-    const target = engineRef.current?.players[0].board[slotIndex];
-    if (slotIndex > 9 || !target || !isCardDamaged(target)) { showToast('Escolha um aliado ferido no campo.'); return; }
-    if (hospitalarioTargets().hasEnemyFront) {
-      setPendingHospitalario({ step: 'damage', slot: pendingHospitalario.slot, healTarget: slotIndex });
-    } else {
-      commitHospitalario(pendingHospitalario.slot, slotIndex);
-    }
-  };
-  // Damage half: the player tapped the enemy board.
-  const resolveHospitalarioDamage = (slotIndex: number) => {
-    if (!pendingHospitalario) return;
-    if (!isFrontline(slotIndex) || !npcSlots[slotIndex]) { showToast('Escolha um inimigo na Vanguarda.'); return; }
-    commitHospitalario(pendingHospitalario.slot, pendingHospitalario.healTarget, slotIndex);
-  };
 
   // Plays a hand card that needs a board target straight onto the tapped slot (one tap: select, then tap the target).
   const playHandCardOnTarget = (card: CardData, slotIndex: number) => {
@@ -7327,8 +7304,7 @@ export default function App() {
     if (phaseTransitionLock) return; // see announcePhase — a phase banner is still on screen
 
     if (pendingTacticAction) { resolveOwnTacticTarget(slotIndex); return; }
-    if (pendingGeneralHeal) { resolveGeneralHeal(slotIndex); return; }
-    if (pendingHospitalario?.step === 'heal') { resolveHospitalarioHeal(slotIndex); return; }
+    if (pendingAbility && abilityStepSide() === 'own') { resolveAbilityTarget(slotIndex); return; }
 
     // Batedor's free post-combat move (see batedorFree) opens this same reposition flow even during Combate,
     // but only for that one exact unit.
@@ -7404,8 +7380,7 @@ export default function App() {
       const dropKind = getCardDropKind(cardToPlay);
       if (dropKind !== 'place') {
         if (dropKind === 'ownTarget' || dropKind === 'enemyTarget') {
-          const tacticKind = TARGETABLE_TACTICS[cardToPlay.name];
-          showToast(tacticKind ? TACTIC_TARGET_PROMPTS[tacticKind] : "Escolha uma unidade no campo.");
+          showToast(targetSpecOf(cardToPlay.name)?.prompt ?? "Escolha uma unidade no campo.");
         } else {
           showToast("Toque na carta novamente para jogá-la.");
         }
@@ -7501,7 +7476,7 @@ export default function App() {
     if (gameOverWinner) return;
     if (phaseTransitionLock) return; // see announcePhase — a phase banner is still on screen
     if (pendingTacticAction) { resolveEnemyTacticTarget(slotIndex); return; }
-    if (pendingHospitalario?.step === 'damage') { resolveHospitalarioDamage(slotIndex); return; }
+    if (pendingAbility && abilityStepSide() === 'enemy') { resolveAbilityTarget(slotIndex); return; }
 
     // A hand card is selected (not yet committed) and the player tapped the opponent's board — the only card kind
     // that ever wants that is an 'enemyTarget' Tática, and only on an occupied enemy slot.
@@ -7556,13 +7531,8 @@ export default function App() {
       setViewState('hand');
       return;
     }
-    if (pendingGeneralHeal) {
-      setPendingGeneralHeal(null);
-      setViewState('hand');
-      return;
-    }
-    if (pendingHospitalario) {
-      setPendingHospitalario(null);
+    if (pendingAbility) {
+      setPendingAbility(null);
       setViewState('hand');
       return;
     }
@@ -7679,7 +7649,7 @@ export default function App() {
   // is enough: this card stays "previewed" the entire time it's selected.
   const previewedCard = selectedCardIndex !== null ? hand[selectedCardIndex] : null;
   // A targetable Tática that is only selected in the hand already marks where it could land (no HUD yet: the card itself is up).
-  const previewTargeting = !targetingMode && previewedCard && TARGETABLE_TACTICS[previewedCard.name] ? tacticTargeting(previewedCard, TARGETABLE_TACTICS[previewedCard.name]) : null;
+  const previewTargeting = !targetingMode && previewedCard && targetSpecOf(previewedCard.name) ? tacticTargeting(previewedCard) : null;
   const targetLayer = targetingMode ?? previewTargeting;
   const getPlayerSlotHint = (slotIndex: number): SlotHint | undefined => {
     if (!previewedCard || playerSlots[slotIndex]) return undefined;
