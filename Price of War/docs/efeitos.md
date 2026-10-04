@@ -81,6 +81,5 @@ Cada efeito com `target` pede uma escolha no tabuleiro, na ordem em que aparecem
 Se a carta precisar de uma regra que nenhum tipo cobre, o certo é **criar um tipo novo**: declare-o em `types.ts` (`Verb`), ensine
 `runVerb` em `game.ts` a executá-lo e, se for uma Tática, dê um critério de uso em `ai.ts` (`tacticPlay`). Aí ele vale para todas as cartas futuras.
 
-## O que ainda não é efeito
-- **Escudeiro de Linha** ("Protege unidades atrás") tem o rótulo Postura mas ainda não tem efeito no motor (era só texto).
+## O que não é efeito
 - A tela tem fluxos próprios só para *como pedir* os alvos (qual toque vem primeiro), nunca para *o que a carta faz*.

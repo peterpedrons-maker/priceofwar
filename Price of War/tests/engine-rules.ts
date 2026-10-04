@@ -4,7 +4,7 @@ import { aiNextAction } from '../src/engine/ai';
 import { mirrorEvents, mirrorSeats } from '../src/engine/view';
 import { applyReward, rewardFor, xpToNext } from '../src/engine/rewards';
 import { applyAction, combatOpen, createMatch, deckSetupFromRecipe, newMatchLog, replayMatch } from '../src/engine/game';
-import { HAND_LIMIT, hasVerb, reinforceShield, START_HAND, targetSpecsOf, verbsOn } from '../src/engine/rules';
+import { HAND_LIMIT, getIncomingDamageReduction, hasVerb, reinforceShield, START_HAND, targetSpecsOf, verbsOn } from '../src/engine/rules';
 import { TRIGGER_LABEL, type Action, type Card, type GameEvent, type GameState, type Seat } from '../src/engine/types';
 
 let passed = 0, failed = 0;
@@ -852,6 +852,15 @@ test('the catalog describes every card by effect types, with nothing left half-d
   ok(CARD_DEFS.filter(d => d.trigger === 'reforco').every(d => hasVerb(d.name, 'reinforce')), 'a Reforço-tagged card must carry the reinforce effect');
   ok(CARD_DEFS.filter(d => hasVerb(d.name, 'reinforce')).every(d => d.trigger === 'reforco'), 'a card with the reinforce effect must carry the Reforço tag');
   ok(CARD_DEFS.filter(d => d.trigger === 'comando').every(d => (d.abilities ?? []).some(a => a.on === 'ability' || a.on === 'turn_start')), 'a Comando card must have an active or start-of-turn ability');
+});
+test('Escudeiro de Linha: in the Vanguarda, the unit right behind takes 1 less damage (only that one, only while he is in front)', () => {
+  let s = fresh({ a: 'capitao', b: 'cardeal' });
+  put(s, 0, 2, 'Escudeiro de Linha'); put(s, 0, 7, 'Soldado Tático'); put(s, 0, 8, 'Batedor'); put(s, 0, 3, 'Batedor');
+  const board = s.players[0].board;
+  eq([getIncomingDamageReduction(7, board), getIncomingDamageReduction(8, board), getIncomingDamageReduction(3, board), getIncomingDamageReduction(2, board)], [1, 0, 0, 0]);
+  // he moved to the back: his protection no longer applies
+  s.players[0].board[2] = null; put(s, 0, 6, 'Escudeiro de Linha');
+  eq(getIncomingDamageReduction(7, s.players[0].board), 0);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

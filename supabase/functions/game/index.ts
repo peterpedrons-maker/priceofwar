@@ -30,7 +30,16 @@ var CARD_DEFS = [
     effect: "Troca com aliado adjacente no fim do turno.",
     abilities: [{ on: "turn_end", do: [{ kind: "swap_adjacent" }] }]
   },
-  { name: "Escudeiro de Linha", trigger: "postura", cardType: "Infantaria", atk: 2, hp: 4, cost: 2, effect: "Protege unidades atr\xE1s." },
+  {
+    name: "Escudeiro de Linha",
+    trigger: "postura",
+    cardType: "Infantaria",
+    atk: 2,
+    hp: 4,
+    cost: 2,
+    effect: "Na Vanguarda: a unidade logo atr\xE1s dele, na mesma coluna, recebe -1 de dano.",
+    passives: [{ kind: "aura", who: { side: "own", behind: true }, from: "front", reduce: 1 }]
+  },
   {
     name: "Capit\xE3o de Forma\xE7\xE3o",
     cardType: "Infantaria",
@@ -646,6 +655,7 @@ var rowOk = (row, slot) => !row || (row === "front" ? isFrontline(slot) : isBack
 var whoMatches = (who, sourceSlot, targetSlot, target) => {
   if (who.side === "self") return sourceSlot === targetSlot;
   if (who.facing && sourceSlot !== targetSlot) return false;
+  if (who.behind && targetSlot !== sourceSlot + 5) return false;
   if (!rowOk(who.row, targetSlot)) return false;
   if (who.types && !(target?.cardType && who.types.includes(target.cardType))) return false;
   if (who.slots && !who.slots.includes(targetSlot)) return false;

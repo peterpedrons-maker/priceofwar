@@ -109,6 +109,7 @@ export interface Who {
   types?: CardType[];
   slots?: number[];       // slots específicos (Relíquia 10, Terreno 11, General 12)
   facing?: boolean;       // 'enemy': só a carta no mesmo slot, de frente para esta
+  behind?: boolean;       // 'own': só a carta logo atrás desta (mesma coluna, na Retaguarda)
 }
 
 // O que a carta faz sozinha enquanto está em campo (sem ninguém tocar).

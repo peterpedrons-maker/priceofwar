@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { fetchProfile, usernameAvailable, createProfile, updateProfileFields, fetchStore, pushStore, type CloudDeck } from './services/cloud';
 import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authErrorDetail, authMode, type Session } from './services/auth';
-import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate, type MotionValue } from 'motion/react';
+import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate, type MotionValue, useAnimationControls } from 'motion/react';
 import { X, ArrowUp, ArrowDown } from 'lucide-react';
 import { TurnTracker } from './TurnTracker';
 import boardBattlefieldImage from './assets/board-battlefield.webp';
@@ -5372,15 +5372,54 @@ export default function App() {
   // so the placement reads clearly before the view eases back to normal.
   const [cameraSettling, setCameraSettling] = useState<{ slotIndex: number } | null>(null);
   // A brief flash/ring burst at the screen position where a played card just landed.
-  const [impactBurst, setImpactBurst] = useState<{ x: number; y: number; big?: boolean } | null>(null);
-  // A "full art" card (see CardData.isFullArt) landing makes the whole board react —
-  // a stronger camera shake (see getBoardAnimation's cameraSettling branch) and every
-  // other card on the field flinches (see CardSlot's shockActive). Just a boolean pulse:
-  // true for one beat, then back to false.
-  const [boardShock, setBoardShock] = useState(false);
-  const triggerFullArtReaction = () => {
-    setBoardShock(true);
-    setTimeout(() => setBoardShock(false), 500);
+  const [impactBurst, setImpactBurst] = useState<{ id: number; x: number; y: number; big?: boolean }[]>([]);
+  const impactIdRef = useRef(0);
+  // Several bursts can be alive at once (summoned soldiers landing one after another); each cleans itself up.
+  const fireImpactBurst = (x: number, y: number, big = false) => {
+    const id = ++impactIdRef.current;
+    setImpactBurst(prev => [...prev, { id, x, y, big }]);
+    window.setTimeout(() => setImpactBurst(prev => prev.filter(b => b.id !== id)), big ? 1000 : 820);
+  };
+  // Board hops (see HopSpec): when a card lands, the cards around it jump — all of them if it is a full-art card — each with its
+  // own height, tilt and timing, the delay growing with the distance from where the card landed.
+  const [hops, setHops] = useState<Record<string, HopSpec>>({});
+  const hopIdRef = useRef(0);
+  const startBoardHop = (originId: string, big: boolean) => {
+    const origin = document.getElementById(originId)?.getBoundingClientRect();
+    if (!origin) return;
+    const ox = origin.left + origin.width / 2, oy = origin.top + origin.height / 2;
+    const id = ++hopIdRef.current;
+    const next: Record<string, HopSpec> = {};
+    (['player', 'npc'] as const).forEach(side => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].forEach(i => {
+      const sid = `${side}-${i}`;
+      const el = document.getElementById(sid);
+      if (sid === originId || !el || !el.querySelector('[data-card-visual]')) return;
+      const r = el.getBoundingClientRect();
+      const dist = Math.hypot(r.left + r.width / 2 - ox, r.top + r.height / 2 - oy);
+      if (!big && dist > origin.width * 1.75) return;   // an ordinary card only nudges its neighbours
+      const rnd = Math.random;
+      next[sid] = {
+        id,
+        delay: dist / (big ? 1000 : 800) + rnd() * (big ? 0.16 : 0.07),
+        h: (big ? 64 : 24) * (0.7 + rnd() * 0.75),
+        rot: (rnd() < 0.5 ? -1 : 1) * (2 + rnd() * (big ? 6 : 3)),
+        dur: (big ? 0.5 : 0.42) + rnd() * 0.14,
+      };
+    }));
+    setHops(prev => ({ ...prev, ...next }));
+    window.setTimeout(() => setHops(prev => {
+      const c = { ...prev };
+      Object.keys(next).forEach(k => { if (c[k]?.id === id) delete c[k]; });
+      return c;
+    }), 1800);
+  };
+  // A dropped card touched down: the thud, the dust, and the board reacting (see arrivalDrops).
+  arrivalListener = (slotId, card) => {
+    const r = document.getElementById(slotId)?.getBoundingClientRect();
+    if (!r) return;
+    playCardPlaySfx();
+    fireImpactBurst(r.left + r.width / 2, r.top + r.height * 0.6, !!card.isFullArt);
+    startBoardHop(slotId, !!card.isFullArt);
   };
   const handCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   // Where the tapped hand card is on screen right now (it animates up and grows): the Jogar / Cancelar bar
@@ -5730,6 +5769,7 @@ export default function App() {
   // Turns what happened into the sights and sounds of it.
   const processEvents = (events: GameEvent[], opts: { quietTurn?: boolean } = {}) => {
     let drawIndex = 0;
+    let summonIndex = 0;
     let turnJustStarted = false;
     const ownerId = (seat: Seat) => (seat === 0 ? 'player' : 'npc');
     events.forEach(e => {
@@ -5769,6 +5809,15 @@ export default function App() {
           break;
         case 'play':
           if (e.card.cardType === 'Tática') playTacticSfx();
+          break;
+        case 'place':
+          // The opponent's cards have no flight from a hand on screen: they drop in from above (see CardSlot's arrival).
+          if (e.seat === 1) arrivalDrops.set(e.card.id, { delay: 0.05 });
+          break;
+        case 'summon':
+          // Summoned soldiers drop in one after another, never all at the same instant.
+          arrivalDrops.set(e.card.id, { delay: 0.2 + summonIndex * 0.16 + Math.random() * 0.12 });
+          summonIndex += 1;
           break;
         case 'ability': {
           playTacticSfx();
@@ -7850,7 +7899,7 @@ export default function App() {
               // Preparação keeps the preview (reading a card there is still the point
               // of tapping it — nothing else consumes that tap in that phase).
               onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
-              shockActive={boardShock}
+              hop={hops["npc-10"]}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
               isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 10}
@@ -7865,7 +7914,7 @@ export default function App() {
                 card={npcSlots[12]}
                 onClick={() => handleNpcSlotClick(12)}
                 onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
-              shockActive={boardShock}
+              hop={hops["npc-12"]}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
                 isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 12}
@@ -7880,7 +7929,7 @@ export default function App() {
               card={npcSlots[11]}
               onClick={() => handleNpcSlotClick(11)}
               onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
-              shockActive={boardShock}
+              hop={hops["npc-11"]}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
               isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 11}
@@ -7910,7 +7959,7 @@ export default function App() {
                 card={repositionFlight?.side === 'npc' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
                 onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
-              shockActive={boardShock}
+              hop={hops[`npc-${i}`]}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
@@ -7931,7 +7980,7 @@ export default function App() {
                 card={repositionFlight?.side === 'npc' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
                 onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
-              shockActive={boardShock}
+              hop={hops[`npc-${i}`]}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
@@ -7963,7 +8012,7 @@ export default function App() {
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
                 onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
-              shockActive={boardShock}
+              hop={hops[`player-${i}`]}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
@@ -7991,7 +8040,7 @@ export default function App() {
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
                 onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
-              shockActive={boardShock}
+              hop={hops[`player-${i}`]}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
@@ -8023,7 +8072,7 @@ export default function App() {
               onClick={(el) => handleSlotClick(10, el)}
               isSelected={selectedAttackerIndex === 10}
               onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
-              shockActive={boardShock}
+              hop={hops["player-10"]}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
               isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 10}
@@ -8038,7 +8087,7 @@ export default function App() {
                 onClick={(el) => handleSlotClick(12, el)}
                 isSelected={selectedAttackerIndex === 12}
                 onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
-              shockActive={boardShock}
+              hop={hops["player-12"]}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
                 isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 12}
@@ -8052,7 +8101,7 @@ export default function App() {
               onClick={(el) => handleSlotClick(11, el)}
               isSelected={selectedAttackerIndex === 11}
               onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
-              shockActive={boardShock}
+              hop={hops["player-11"]}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
               isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 11}
@@ -8625,9 +8674,8 @@ export default function App() {
                 // card (see CardData.isFullArt) gets the bigger version of both, plus
                 // makes every other card on the board flinch (see triggerFullArtReaction).
                 const big = !!flyingCard.card.isFullArt;
-                setImpactBurst({ x: flyingCard.toX, y: flyingCard.toY, big });
-                setTimeout(() => setImpactBurst(null), big ? 950 : 780);
-                if (big) triggerFullArtReaction();
+                fireImpactBurst(flyingCard.toX, flyingCard.toY, big);
+                startBoardHop(`player-${flyingCard.slotIndex}`, big);
                 // Keep the camera's zoomed focus on the slot for a beat before easing back.
                 setCameraSettling({ slotIndex: flyingCard.slotIndex });
                 setFlyingCard(null);
@@ -8691,7 +8739,7 @@ export default function App() {
                 // (the opponent's moves are committed by its own turn runner, which waits for this slide)
                 if (repositionFlight.reinforce) {
                   const r = document.getElementById(`${repositionFlight.side}-${repositionFlight.destIndex}`)?.getBoundingClientRect();
-                  if (r) { playCardPlaySfx(); setImpactBurst({ x: r.left + r.width / 2, y: r.top + r.height * 0.55 }); window.setTimeout(() => setImpactBurst(null), 900); }
+                  if (r) { playCardPlaySfx(); fireImpactBurst(r.left + r.width / 2, r.top + r.height * 0.55); }
                   setRepositionFlight(null);
                   if (engineRef.current) syncView(engineRef.current);
                   return;
@@ -8711,8 +8759,8 @@ export default function App() {
       {/* Impact burst — flash, double shockwave, radiating sparks and a ground shadow pulse
           where the card just landed. */}
       <AnimatePresence>
-        {impactBurst && (() => {
-          const big = !!impactBurst.big;
+        {impactBurst.map(burst => (() => {
+          const big = !!burst.big;
           const mult = big ? 1.6 : 1;
           // Real dust, not sparkle: dry earth tones, no glow/blur, and an actual arc —
           // kicked up fast, then gravity pulls each speck back down as it fades, instead
@@ -8724,7 +8772,8 @@ export default function App() {
               initial={{ opacity: 1 }}
               animate={{ opacity: 0 }}
               transition={{ duration: big ? 0.95 : 0.75 }}
-              style={{ position: 'fixed', left: impactBurst.x, top: impactBurst.y, zIndex: 499 }}
+              key={burst.id}
+              style={{ position: 'fixed', left: burst.x, top: burst.y, zIndex: 499 }}
               className="pointer-events-none -translate-x-1/2 -translate-y-1/2"
             >
               {/* Ground shadow pulse — a flattened ring suggesting weight hitting the field */}
@@ -8808,7 +8857,7 @@ export default function App() {
               })}
             </motion.div>
           );
-        })()}
+        })())}
       </AnimatePresence>
 
       {/* Attack Targeting Lines — see renderTravelingArrow above. Candidate targets
@@ -9500,12 +9549,23 @@ export default function App() {
   );
 }
 
+// ── How cards land on the board ─────────────────────────────────────────────────────────────────────────────────
+// A card that arrives without a flight of its own (an opponent's play, a summoned soldier) drops in from above, each one a little
+// different; when it touches down the board reacts: nearby cards hop, and a full-art card makes the whole board jump. Every card hops
+// with its own height, tilt, timing and a small delay that grows with the distance from where the card landed, so it never looks
+// like one animation played on all of them at once.
+export type HopSpec = { id: number; delay: number; h: number; rot: number; dur: number };
+// Cards that will drop in the next time they appear on the board (set by processEvents, read once by the CardSlot that shows them).
+const arrivalDrops = new Map<string, { delay: number }>();
+// Called by a slot when a dropped card touches down (App draws the dust and starts the hops).
+let arrivalListener: ((slotId: string, card: CardData) => void) | null = null;
+
 const CardSlot = ({
   onClick, onInfoClick, card, isSelected = false,
   isAttacking = false, isImpactingTarget = false, isImpactingAttacker = false, attackDirection = 'up', hint, rowRoleHint,
   isValidAttackTarget = false, isInvalidAttackTarget = false, slotId,
   isMoverSelected = false, isValidMoveTarget = false, hasMoved = false,
-  shockActive = false, isTacticDragTarget = false,
+  hop, isTacticDragTarget = false,
 }: {
   onClick?: (el: HTMLElement) => void, onInfoClick?: (card: CardData) => void, card?: CardData | null,
   isSelected?: boolean, isAttacking?: boolean, isImpactingTarget?: boolean, attackDirection?: 'up' | 'down',
@@ -9538,11 +9598,37 @@ const CardSlot = ({
   // a unit picked up to move, the adjacent slots it can move/swap into, and a unit
   // that already used its reposition this turn (dimmed, still clickable to inspect).
   isMoverSelected?: boolean, isValidMoveTarget?: boolean, hasMoved?: boolean,
-  // True for one brief pulse whenever a full-art card lands anywhere on the board (see
-  // CardData.isFullArt / triggerFullArtReaction) — every occupied slot flinches at once.
-  shockActive?: boolean,
+  // A hop this card has to perform right now (see startBoardHop): its own height, tilt, delay and duration.
+  hop?: HopSpec,
 }) => {
   const attackY = attackDirection === 'up' ? -150 : 150;
+
+  // The hop (see startBoardHop): a one-shot keyframe run with this card's own numbers.
+  const hopControls = useAnimationControls();
+  useEffect(() => {
+    if (!hop) return;
+    void hopControls.start({
+      y: [0, -hop.h, 0, -hop.h * 0.2, 0],
+      rotate: [0, hop.rot, -hop.rot * 0.5, hop.rot * 0.15, 0],
+      scale: [1, 1.1, 1, 1.03, 1],
+      scaleY: [1, 1.05, 0.88, 1.02, 1],
+      transition: { duration: hop.dur, delay: hop.delay, times: [0, 0.38, 0.62, 0.8, 1], ease: ['easeOut', 'easeIn', 'easeOut', 'easeIn'] },
+    });
+  }, [hop?.id]);
+
+  // Drop-in arrival (see arrivalDrops): decided once per card that appears in this slot.
+  const arrivalRef = useRef<{ id: string; delay: number; rot: number } | null>(null);
+  if (card && arrivalRef.current?.id !== card.id) {
+    const a = arrivalDrops.get(card.id);
+    arrivalRef.current = { id: card.id, delay: a ? a.delay : -1, rot: (Math.random() - 0.5) * 22 };
+  }
+  const arrival = card && arrivalRef.current && arrivalRef.current.delay >= 0 ? arrivalRef.current : null;
+  useEffect(() => {
+    if (!card || !arrival) return;
+    arrivalDrops.delete(card.id);
+    const t = window.setTimeout(() => { if (slotId) arrivalListener?.(slotId, card); }, (arrival.delay + 0.4) * 1000);
+    return () => window.clearTimeout(t);
+  }, [card?.id]);
 
   // Damage feedback — a brief shake plus a floating "-N" whenever this exact card
   // (same id) loses HP between renders, whatever the source: normal attack combat,
@@ -9696,16 +9782,33 @@ const CardSlot = ({
       )}
       {card && !card.isDestroyed && (
         <motion.div
+          key={`arrive-${card.id}`}
+          className="w-full h-full"
+          style={{ position: 'relative', zIndex: arrival || hop ? 40 : undefined }}
+          initial={arrival ? { y: -230, scale: 1.45, rotate: arrival.rot, opacity: 0 } : false}
+          animate={{ y: 0, scale: 1, rotate: 0, opacity: 1 }}
+          transition={arrival ? {
+            delay: arrival.delay,
+            y: { type: 'spring', stiffness: 190, damping: 12.5, mass: 1 },
+            scale: { type: 'spring', stiffness: 210, damping: 14 },
+            rotate: { type: 'spring', stiffness: 150, damping: 11 },
+            opacity: { duration: 0.1, delay: arrival.delay },
+          } : { duration: 0 }}
+        >
+        <motion.div
+          className="w-full h-full"
+          animate={hopControls}
+        >
+        <motion.div
           key={card.id}
-          // A card arriving in a slot (a General at match start, an AI or opponent
-          // play) should visibly appear, not just pop into existence — a quick
-          // scale/drop-in with a touch of overshoot reads as it "landing" here.
+          // (A card that arrives on its own is dropped in by the wrapper above — see arrival; one that came with
+          // its own flight just appears where it landed.)
           // Opponent cards used to render rotated 180° (as if laid out facing them,
           // across the table) — per the user's explicit ask, EVERY card on the board
           // now reads upright from the player's own side, opponent's included, since
           // being able to actually read the enemy's ATK/HP/effect text at a glance
           // matters more than the "laid out facing them" physical-table conceit.
-          initial={{ opacity: 0, scale: 0.4, y: -24 }}
+          initial={{ opacity: 1, scale: 1, y: 0 }}
           animate={{
             opacity: 1,
             // Hearthstone-style wind-up: the attacker pulls back a little FIRST
@@ -9718,7 +9821,7 @@ const CardSlot = ({
               : isImpactingTarget
                 // the defender is knocked back, away from whoever hit it, and settles
                 ? [0, attackDirection === 'up' ? 12 : -12, 0]
-                : (shockActive ? [0, -14, 2, 0] : 0),
+                : 0,
             // Collision tremor — BOTH the attacker and the defender rattle the
             // instant the hit actually lands (isImpactingAttacker/isImpactingTarget,
             // both tied to the same isImpacting window), not just whichever card
@@ -9759,7 +9862,7 @@ const CardSlot = ({
               ? { duration: ATTACK_MS / 1000, times: [0, ATTACK_WINDUP_FRAC, 1], ease: ['easeOut', 'easeIn'] }
               : isImpactingTarget ? { duration: 0.3, ease: "easeOut", times: [0, 0.3, 0.65, 1] } : { duration: 0.2 },
             // ease-out into the pull-back, ease-in into the strike: it accelerates all the way to the hit
-            y: isAttacking ? { duration: ATTACK_MS / 1000, times: [0, ATTACK_WINDUP_FRAC, 1], ease: ['easeOut', 'easeIn'] } : isImpactingTarget ? { duration: 0.3, ease: "easeOut", times: [0, 0.35, 1] } : shockActive ? { duration: 0.4, ease: "easeOut" } : undefined,
+            y: isAttacking ? { duration: ATTACK_MS / 1000, times: [0, ATTACK_WINDUP_FRAC, 1], ease: ['easeOut', 'easeIn'] } : isImpactingTarget ? { duration: 0.3, ease: "easeOut", times: [0, 0.35, 1] } : undefined,
             x: damageFlash
               ? { duration: 0.45, ease: "easeOut" }
               : (isImpactingAttacker || isImpactingTarget) ? { duration: 0.25, ease: "easeOut" } : undefined,
@@ -9813,6 +9916,8 @@ const CardSlot = ({
               </>
             );
           })()}
+        </motion.div>
+        </motion.div>
         </motion.div>
       )}
       {card && card.isDestroyed && (

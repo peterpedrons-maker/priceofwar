@@ -81,6 +81,7 @@ const rowOk = (row: 'front' | 'back' | undefined, slot: number) => !row || (row 
 const whoMatches = (who: Who, sourceSlot: number, targetSlot: number, target: { cardType?: CardType } | null): boolean => {
   if (who.side === 'self') return sourceSlot === targetSlot;
   if (who.facing && sourceSlot !== targetSlot) return false;
+  if (who.behind && targetSlot !== sourceSlot + 5) return false;
   if (!rowOk(who.row, targetSlot)) return false;
   if (who.types && !(target?.cardType && who.types.includes(target.cardType))) return false;
   if (who.slots && !who.slots.includes(targetSlot)) return false;
