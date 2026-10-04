@@ -32,7 +32,7 @@ export const CARD_DEFS: readonly CardDef[] = [
   { name: "Reformar Linhas", cardType: "Tática", atk: 0, hp: 0, cost: 2, isFullArt: true, effect: "Reorganiza até 3 unidades.",
     abilities: [{ on: 'play', do: [{ kind: 'extra_moves', amount: 3 }] }] },
   { name: "Avanço Coordenado", cardType: "Tática", atk: 0, hp: 0, cost: 2, effect: "Após mover: +2 ATK.",
-    abilities: [{ on: 'play', phases: ['movimentacao'], do: [
+    abilities: [{ on: 'play', do: [
       { kind: 'buff', atk: 2, target: { ...OWN_UNIT, needs: 'moved', prompt: 'Escolha uma unidade sua que já se moveu neste turno.' } },
     ] }] },
   { name: "Reposicionamento Rápido", cardType: "Tática", atk: 0, hp: 0, cost: 1, effect: "Move inimigo 1 slot.",
@@ -62,7 +62,7 @@ export const CARD_DEFS: readonly CardDef[] = [
   // ── cardeal ──
   { name: "Cardeal Pedro, Voz da Fé", cardType: "General", atk: 0, hp: 20, cost: 0, isFullArt: true, effect: "Fase Principal: pague 2 ouro para curar 1 HP em um soldado aliado, mesmo com HP cheio.",
     faction: "fe",
-    abilities: [{ on: 'ability', phases: ['preparacao', 'pos_combate'], once: true, cost: 2, do: [
+    abilities: [{ on: 'ability', phases: ['preparacao', 'movimentacao'], once: true, cost: 2, do: [
       { kind: 'heal', amount: 1, withAuras: true, target: { ...OWN_UNIT, prompt: 'Escolha um soldado aliado no campo.' } },
     ] }] },
   { name: "Cálice da Graça", cardType: "Relíquia", atk: 0, hp: 5, cost: 3, isFullArt: true, effect: "Permanente. A cura do General Cardeal Pedro aumenta de 1 para 2 HP.",
@@ -86,7 +86,7 @@ export const CARD_DEFS: readonly CardDef[] = [
   { name: "Jorge, Lança Sagrada", cardType: "Cavalaria", atk: 4, hp: 6, cost: 3, isFullArt: true, trigger: "ofensiva", effect: "Contra a Vanguarda, causa 2 de dano à unidade na Retaguarda da mesma coluna.",
     abilities: [{ on: 'attack', do: [{ kind: 'splash_behind', amount: 2 }] }] },
   { name: "Cavaleiro Hospitalário", trigger: "comando", cardType: "Cavalaria", atk: 2, hp: 3, cost: 2, effect: "Uma vez por turno: cure 1 HP de um aliado e cause 1 de dano a um inimigo na Vanguarda.",
-    abilities: [{ on: 'ability', phases: ['preparacao', 'pos_combate'], once: true, do: [
+    abilities: [{ on: 'ability', phases: ['preparacao', 'movimentacao'], once: true, do: [
       { kind: 'heal', amount: 1, target: { ...OWN_UNIT, needs: 'damaged', optional: true, prompt: 'Toque em um aliado ferido para curar 1 HP.' } },
       { kind: 'damage', amount: 1, target: { ...ENEMY_UNIT, where: 'front', optional: true, prompt: 'Toque em um inimigo da Vanguarda para causar 1 de dano.' } },
     ] }] },

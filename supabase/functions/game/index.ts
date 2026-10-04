@@ -108,7 +108,7 @@ var CARD_DEFS = [
     hp: 0,
     cost: 2,
     effect: "Ap\xF3s mover: +2 ATK.",
-    abilities: [{ on: "play", phases: ["movimentacao"], do: [
+    abilities: [{ on: "play", do: [
       { kind: "buff", atk: 2, target: { ...OWN_UNIT, needs: "moved", prompt: "Escolha uma unidade sua que j\xE1 se moveu neste turno." } }
     ] }]
   },
@@ -212,7 +212,7 @@ var CARD_DEFS = [
     isFullArt: true,
     effect: "Fase Principal: pague 2 ouro para curar 1 HP em um soldado aliado, mesmo com HP cheio.",
     faction: "fe",
-    abilities: [{ on: "ability", phases: ["preparacao", "pos_combate"], once: true, cost: 2, do: [
+    abilities: [{ on: "ability", phases: ["preparacao", "movimentacao"], once: true, cost: 2, do: [
       { kind: "heal", amount: 1, withAuras: true, target: { ...OWN_UNIT, prompt: "Escolha um soldado aliado no campo." } }
     ] }]
   },
@@ -308,7 +308,7 @@ var CARD_DEFS = [
     hp: 3,
     cost: 2,
     effect: "Uma vez por turno: cure 1 HP de um aliado e cause 1 de dano a um inimigo na Vanguarda.",
-    abilities: [{ on: "ability", phases: ["preparacao", "pos_combate"], once: true, do: [
+    abilities: [{ on: "ability", phases: ["preparacao", "movimentacao"], once: true, do: [
       { kind: "heal", amount: 1, target: { ...OWN_UNIT, needs: "damaged", optional: true, prompt: "Toque em um aliado ferido para curar 1 HP." } },
       { kind: "damage", amount: 1, target: { ...ENEMY_UNIT, where: "front", optional: true, prompt: "Toque em um inimigo da Vanguarda para causar 1 de dano." } }
     ] }]
@@ -621,7 +621,7 @@ var START_HAND = 7;
 var GOLD_PER_TURN = 5;
 var GOLD_FROM_ROUND = 2;
 var HAND_LIMIT = 10;
-var phasesForTurn = (combatOpen2) => combatOpen2 ? ["compra", "suprimentos", "preparacao", "combate", "pos_combate", "movimentacao"] : ["compra", "suprimentos", "preparacao", "movimentacao"];
+var phasesForTurn = (combatOpen2) => combatOpen2 ? ["compra", "suprimentos", "preparacao", "combate", "movimentacao"] : ["compra", "suprimentos", "preparacao", "movimentacao"];
 var AUTOMATIC_PHASES = ["compra", "suprimentos"];
 var restingPhasesForTurn = (combatOpen2) => phasesForTurn(combatOpen2).filter((p) => !AUTOMATIC_PHASES.includes(p));
 var abilitiesOf = (name) => getCardDef(name)?.abilities ?? [];
@@ -683,7 +683,7 @@ var auraTotal = (stat, slot, own, enemy = []) => {
   return total;
 };
 var boardHasFlag = (board, flag) => board.some((c, i) => !!c && passivesOf(c.name).some((p) => p.kind === "flag" && p.flag === flag && rowOk(p.from, i)));
-var POST_COMBAT_CARD_TYPES = ["T\xE1tica", "Rel\xEDquia", "Terreno"];
+var canPlayInPhase = (card, phase) => phase === "preparacao" || phase === "movimentacao" && card.cardType === "T\xE1tica";
 var isFrontline = (slot) => slot >= 0 && slot <= 4;
 var isBackline = (slot) => slot >= 5 && slot <= 9;
 var isUnitSlot = (slot) => slot >= 0 && slot <= 9;
@@ -1218,10 +1218,8 @@ var playCard = (c, seat, a) => {
   if (!card) return fail("Essa carta n\xE3o est\xE1 na sua m\xE3o.");
   const playAbility = card.cardType === "T\xE1tica" ? abilityOn(card.name, "play") : void 0;
   const phase = c.s.turn.phase;
-  if (phase === "pos_combate") {
-    if (!POST_COMBAT_CARD_TYPES.includes(card.cardType)) fail("Depois do combate s\xF3 d\xE1 pra jogar T\xE1ticas, Rel\xEDquias e Terrenos!");
-  } else if (phase !== "preparacao" && !(playAbility?.phases ?? []).includes(phase)) {
-    fail("Jogar cartas s\xF3 nas fases de Prepara\xE7\xE3o e P\xF3s-combate!");
+  if (!canPlayInPhase(card, phase)) {
+    fail(phase === "movimentacao" ? "Na Movimenta\xE7\xE3o s\xF3 d\xE1 pra jogar T\xE1ticas!" : "Jogar cartas s\xF3 nas fases de Prepara\xE7\xE3o e Movimenta\xE7\xE3o!");
   }
   if (p.gold < card.cost) fail("Ouro insuficiente!");
   const commit = () => {
@@ -1274,7 +1272,7 @@ var useAbility = (c, seat, a) => {
   if (!isUnitSlot(a.slot) && a.slot !== GENERAL_SLOT) fail("Essa carta n\xE3o tem habilidade ativa.");
   const phases = abilityPhases(card.name);
   if (!phases.includes(c.s.turn.phase)) {
-    fail(phases.includes("pos_combate") ? "Essa habilidade s\xF3 vale na Prepara\xE7\xE3o e no P\xF3s-combate." : "Habilidades s\xF3 na fase de Prepara\xE7\xE3o.");
+    fail(phases.includes("movimentacao") ? "Essa habilidade s\xF3 vale na Prepara\xE7\xE3o e na Movimenta\xE7\xE3o." : "Habilidades s\xF3 na fase de Prepara\xE7\xE3o.");
   }
   const isGeneral = a.slot === GENERAL_SLOT;
   if (isGeneral) {
@@ -1850,8 +1848,7 @@ var aiNextAction = (state, seat, rand = Math.random) => {
     }
     return { type: "choose", cardIds: bestIds(pend.options, Math.max(pend.min, Math.min(pend.max, pend.options.length))) };
   }
-  if (t.phase === "preparacao" || t.phase === "pos_combate") {
-    const afterCombat = t.phase === "pos_combate";
+  if (t.phase === "preparacao") {
     const generalAction = abilityAction(state, seat, 12, rand);
     if (generalAction) return generalAction;
     for (const i of UNIT_SLOTS) {
@@ -1874,7 +1871,7 @@ var aiNextAction = (state, seat, rand = Math.random) => {
       if (card.cardType === "Rel\xEDquia" && !me.board[10]) return { type: "play", cardId: card.id, slot: 10 };
       if (card.cardType === "Terreno" && !me.board[11]) return { type: "play", cardId: card.id, slot: 11 };
     }
-    for (const card of afterCombat ? [] : me.hand) {
+    for (const card of me.hand) {
       if (!isSoldier(card) || !afford(card)) continue;
       const empty = UNIT_SLOTS.filter((i) => !me.board[i]);
       if (empty.length === 0) break;
@@ -1906,10 +1903,12 @@ var aiNextAction = (state, seat, rand = Math.random) => {
     if (best && best.score >= -1.5) return { type: "attack", from: best.from, to: best.to };
     return { type: "advance" };
   }
+  const moveAbility = abilityAction(state, seat, 12, rand) ?? UNIT_SLOTS.map((i) => abilityAction(state, seat, i, rand)).find(Boolean);
+  if (moveAbility) return moveAbility;
   const m = bestMove(state, seat, 0.75);
   if (m) return { type: "move", from: m.from, to: m.to };
   for (const card of me.hand) {
-    if (card.cardType !== "T\xE1tica" || card.cost > me.gold || !(abilityOn(card.name, "play")?.phases ?? []).includes("movimentacao")) continue;
+    if (card.cardType !== "T\xE1tica" || card.cost > me.gold) continue;
     const a = tacticPlay(state, seat, card);
     if (a) return a;
   }

@@ -1,4 +1,4 @@
-// The central turn panel: six phase medallions under a name band. The band is green on the player's turn and red on
+// The central turn panel: five phase medallions under a name band. The band is green on the player's turn and red on
 // the adversary's; the lower area stays neutral. Art, band mask and neutral mask share one 1400x341 canvas.
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import trackerArt from './assets/ui-turn-tracker-art.webp';
@@ -6,15 +6,15 @@ import trackerBand from './assets/ui-turn-tracker-band.webp';
 import trackerNeutral from './assets/ui-turn-tracker-neutral.webp';
 import type { TurnPhase } from './engine/types';
 
-export const TRACKER_PHASES: TurnPhase[] = ['compra', 'suprimentos', 'preparacao', 'combate', 'pos_combate', 'movimentacao'];
+export const TRACKER_PHASES: TurnPhase[] = ['compra', 'suprimentos', 'preparacao', 'combate', 'movimentacao'];
 // Where each medallion sits along the plate (percent of its width), measured on the art.
-const MEDALLION_X = [10.85, 25.92, 41.08, 56.2, 71.51, 86.9];
+const MEDALLION_X = [10.86, 29.86, 48.86, 67.86, 86.86];
 // Band / medallion row geometry (fractions of the plate height), measured on the art.
 const BAND_TOP = 0.1038, BAND_BOTTOM = 0.4654, MEDALLION_Y = 0.6975;
 
 export const TRACKER_NAMES: Record<TurnPhase, string> = {
   compra: 'COMPRA', suprimentos: 'SUPRIMENTOS', preparacao: 'PREPARAÇÃO',
-  combate: 'COMBATE', pos_combate: 'PÓS-COMBATE', movimentacao: 'MOVIMENTAÇÃO',
+  combate: 'COMBATE', movimentacao: 'MOVIMENTAÇÃO',
 };
 const PALETTE = {
   me: { b1: '#17c777', b2: '#07803f', glow: '#5af0a8' },
@@ -39,7 +39,7 @@ type Props = {
   mine: boolean;
   // The phase shown as "now" (null on the adversary's turn before it is known).
   phase: TurnPhase | null;
-  // Phases that exist in the rules but cannot be reached yet (Combate / Pós-combate before combat opens).
+  // Phases that exist in the rules but cannot be reached yet (Combate before combat opens).
   locked: TurnPhase[];
   // Optional small line before the name. The panel normally shows just the name and a chevron for "tap to go on".
   caption?: string;

@@ -64,9 +64,9 @@ loop. Dá quadros de 45 ms certinhos.
 ## Painel do turno (`src/TurnTracker.tsx`)
 
 Arte única (`ui-turn-tracker-art.webp`, 1400×341) + duas máscaras (`-band`, `-neutral`) do mesmo tamanho. Faixa do nome
-verde no turno do jogador e vermelha no do adversário; a parte de baixo fica neutra. Seis medalhões (compra, suprimentos,
-preparação, combate, pós-combate, movimentação) com estados `done` (✓), `now` (brilho pulsando), `future` (escurecido) e
-`lock` (cadeado, Combate/Pós-combate antes de abrir o combate). Animações em CSS (`.trk-*` em `index.css`): brilho que passa
+verde no turno do jogador e vermelha no do adversário; a parte de baixo fica neutra. Cinco medalhões (compra, suprimentos,
+preparação, combate, movimentação) com estados `done` (✓), `now` (brilho pulsando), `future` (escurecido) e
+`lock` (cadeado, Combate antes de abrir o combate). Animações em CSS (`.trk-*` em `index.css`): brilho que passa
 pela faixa a cada mudança de fase ou toque, e varredura diagonal verde↔vermelho quando o turno troca.
 Compra e Suprimentos passam sozinhas no painel (`autoPhase` no cliente, ou `npcVisiblePhase` no turno do adversário).
 

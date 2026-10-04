@@ -321,8 +321,7 @@ export const aiNextAction = (state: GameState, seat: Seat, rand: Rand = Math.ran
     return { type: 'choose', cardIds: bestIds(pend.options, Math.max(pend.min, Math.min(pend.max, pend.options.length))) };
   }
 
-  if (t.phase === 'preparacao' || t.phase === 'pos_combate') {
-    const afterCombat = t.phase === 'pos_combate';
+  if (t.phase === 'preparacao') {
     // 1) The General's active ability (it costs gold: a deliberate trade-off, once per turn).
     const generalAction = abilityAction(state, seat, 12, rand);
     if (generalAction) return generalAction;
@@ -346,8 +345,8 @@ export const aiNextAction = (state: GameState, seat: Seat, rand: Rand = Math.ran
       if (card.cardType === 'Relíquia' && !me.board[10]) return { type: 'play', cardId: card.id, slot: 10 };
       if (card.cardType === 'Terreno' && !me.board[11]) return { type: 'play', cardId: card.id, slot: 11 };
     }
-    // 4) Creatures, in hand order, front rows first (not after combat: units cannot come out of the hand then).
-    for (const card of afterCombat ? [] : me.hand) {
+    // 4) Creatures, in hand order, front rows first.
+    for (const card of me.hand) {
       if (!isSoldier(card) || !afford(card)) continue;
       const empty = UNIT_SLOTS.filter(i => !me.board[i]);
       if (empty.length === 0) break;
@@ -384,12 +383,13 @@ export const aiNextAction = (state: GameState, seat: Seat, rand: Rand = Math.ran
     return { type: 'advance' };
   }
 
-  // Movimentação: rearrange the formation while it pays off, then give a unit that moved the Avanço Coordenado bonus.
+  // Movimentação: abilities, then rearrange the formation while it pays off, then Táticas (only those come out of the hand now).
+  const moveAbility = abilityAction(state, seat, 12, rand) ?? UNIT_SLOTS.map(i => abilityAction(state, seat, i, rand)).find(Boolean);
+  if (moveAbility) return moveAbility;
   const m = bestMove(state, seat, 0.75);
   if (m) return { type: 'move', from: m.from, to: m.to };
   for (const card of me.hand) {
-    // Tácticas that can be played now, in Movimentação (a bonus for a unit that just moved).
-    if (card.cardType !== 'Tática' || card.cost > me.gold || !(abilityOn(card.name, 'play')?.phases ?? []).includes('movimentacao')) continue;
+    if (card.cardType !== 'Tática' || card.cost > me.gold) continue;
     const a = tacticPlay(state, seat, card);
     if (a) return a;
   }

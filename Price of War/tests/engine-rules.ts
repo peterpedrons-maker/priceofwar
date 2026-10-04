@@ -83,7 +83,7 @@ test('the round counter goes up after the second player, whoever starts', () => 
   eq(s.turn.round, 1);
   s = act(s, 1, { type: 'advance' }).s; s = act(s, 1, { type: 'advance' }).s;
   eq([s.turn.active, s.turn.round], [0, 1]);
-  for (let i = 0; i < 4; i++) s = act(s, 0, { type: 'advance' }).s; // Preparação → Combate → Pós-combate → Movimentação → end
+  for (let i = 0; i < 3; i++) s = act(s, 0, { type: 'advance' }).s; // Preparação → Combate → Movimentação → end
   eq([s.turn.active, s.turn.round], [1, 2]);
 });
 test('the turn draw has no cap: at the hand limit you still draw (the limit is only checked at the end of the turn)', () => {
@@ -100,13 +100,13 @@ test('turn start runs Compra then Suprimentos by itself and rests in Preparaçã
   eq(order, ['turn_start', 'phase', 'draw', 'phase', 'phase']);
   eq(r.s.turn.phase, 'preparacao');
 });
-test('full turn with combat open: Preparação → Combate → Pós-combate → Movimentação', () => {
+test('full turn with combat open: Preparação → Combate → Movimentação', () => {
   let s = fresh({ round: 2 });
   const seen: string[] = [s.turn.phase];
   while (s.turn.active === 0) { s = act(s, 0, { type: 'advance' }).s; if (s.turn.active === 0) seen.push(s.turn.phase); }
-  eq(seen, ['preparacao', 'combate', 'pos_combate', 'movimentacao']);
+  eq(seen, ['preparacao', 'combate', 'movimentacao']);
 });
-test('the first turn of the match has no Combate and no Pós-combate', () => {
+test('the first turn of the match has no Combate', () => {
   let s = fresh();
   s = act(s, 0, { type: 'advance' }).s;
   eq(s.turn.phase, 'movimentacao');
@@ -121,31 +121,30 @@ test('skip flags: a card can skip the next Compra / Suprimentos', () => {
   eq(ev.filter(e => e.t === 'skip').map(e => (e as any).phase), ['compra', 'suprimentos']);
   eq(s.players[1].skip, undefined);
 });
-test('Pós-combate: Táticas, Relíquias and Terrenos only — never units from the hand', () => {
-  const s = fresh({ round: 2, phase: 'pos_combate' });
+test('Movimentação: Táticas only — never units, Relíquias or Terrenos from the hand', () => {
+  const s = fresh({ round: 2, phase: 'movimentacao' });
   const soldier = give(s, 0, 'Batedor'); const relic = give(s, 0, 'Cálice da Graça'); const tac = give(s, 0, 'Chamado às Armas');
-  refused(s, 0, { type: 'play', cardId: soldier.id, slot: 1 }, 'Depois do combate');
-  const r = act(s, 0, { type: 'play', cardId: relic.id, slot: 10 }).s;
-  ok(r.players[0].board[10]?.name === 'Cálice da Graça', 'relic placed');
-  const t = act(r, 0, { type: 'play', cardId: tac.id }).s;
-  ok(t.pending?.kind === 'pick', 'Chamado às Armas opens its pick in Pós-combate');
+  refused(s, 0, { type: 'play', cardId: soldier.id, slot: 1 }, 'Movimentação');
+  refused(s, 0, { type: 'play', cardId: relic.id, slot: 10 }, 'Movimentação');
+  const t = act(s, 0, { type: 'play', cardId: tac.id }).s;
+  ok(t.pending?.kind === 'pick', 'Chamado às Armas opens its pick in Movimentação');
 });
-test('ability phases: General heal and Cavaleiro Hospitalário also work in Pós-combate, Mercador only in Preparação', () => {
-  let s = fresh({ a: 'cardeal', round: 2, phase: 'pos_combate' });
+test('ability phases: General heal and Cavaleiro Hospitalário also work in Movimentação, Mercador only in Preparação', () => {
+  let s = fresh({ a: 'cardeal', round: 2, phase: 'movimentacao' });
   put(s, 0, 3, 'Batedor').hp -= 1;
   s = act(s, 0, { type: 'ability', slot: 12, target: 3 }).s;
   const m = put(s, 0, 4, 'Mercador da Cruzada');
   refused(s, 0, { type: 'ability', slot: 4 }, 'Preparação');
   ok(!!m, 'placed');
   const c = fresh({ a: 'cardeal', round: 2, phase: 'combate' }); put(c, 0, 3, 'Batedor');
-  refused(c, 0, { type: 'ability', slot: 12, target: 3 }, 'Pós-combate');
+  refused(c, 0, { type: 'ability', slot: 12, target: 3 }, 'Movimentação');
 });
-test('Avanço Coordenado is playable in Movimentação, other cards are not', () => {
+test('Avanço Coordenado is playable in Movimentação, units are not', () => {
   let s = fresh({ a: 'capitao' }); s.turn.phase = 'movimentacao';
   put(s, 0, 1, 'Batedor');
-  const av = give(s, 0, 'Avanço Coordenado'); const other = give(s, 0, 'Linha Fechada');
+  const av = give(s, 0, 'Avanço Coordenado'); const other = give(s, 0, 'Batedor');
   s = act(s, 0, { type: 'move', from: 1, to: 2 }).s;
-  refused(s, 0, { type: 'play', cardId: other.id, target: 2 }, 'Preparação');
+  refused(s, 0, { type: 'play', cardId: other.id, slot: 3 }, 'Movimentação');
   s = act(s, 0, { type: 'play', cardId: av.id, target: 2 }).s;
   eq(s.players[0].board[2]!.atk, 3);
 });
@@ -197,7 +196,7 @@ test('creature placement, gold, slot rules', () => {
   s.players[0].gold = 1;
   refused(s, 0, { type: 'play', cardId: c.id, slot: 3 }, 'Ouro');
 });
-test('Relíquia goes in slot 10, Terreno in slot 11 only; only in Preparação', () => {
+test('Relíquia goes in slot 10, Terreno in slot 11 only; only in Preparação (not in Movimentação)', () => {
   const s = fresh();
   const rel = give(s, 0, 'Estandarte da Legião');
   const ter = give(s, 0, 'Fortaleza de Pedra');
@@ -207,7 +206,7 @@ test('Relíquia goes in slot 10, Terreno in slot 11 only; only in Preparação',
   const r = act(act(s, 0, { type: 'play', cardId: rel.id, slot: 10 }).s, 0, { type: 'play', cardId: ter.id, slot: 11 }).s;
   eq([r.players[0].board[10]?.name, r.players[0].board[11]?.name], ['Estandarte da Legião', 'Fortaleza de Pedra']);
   const late = fresh(); const c = give(late, 0, 'Batedor'); late.turn.phase = 'movimentacao';
-  refused(late, 0, { type: 'play', cardId: c.id, slot: 1 }, 'Preparação');
+  refused(late, 0, { type: 'play', cardId: c.id, slot: 1 }, 'Movimentação');
 });
 test('Nobre da Cruzada summons Soldados Leais on free neighbours', () => {
   const s = fresh();
@@ -336,7 +335,6 @@ test('Infiltrado da Ordem: damaging the General blocks its ability next turn', (
   put(s, 0, 2, 'Cavaleiro da Luz'); put(s, 1, 5, 'Infiltrado da Ordem');
   let r = act(s, 0, { type: 'attack', from: 2, to: 12 }).s;
   eq(r.players[1].pendingGeneralBlock, true);
-  r = act(r, 0, { type: 'advance' }).s; // -> pos_combate
   r = act(r, 0, { type: 'advance' }).s; // -> movimentacao
   r = act(r, 0, { type: 'advance' }).s; // -> seat 1 turn
   eq(r.players[1].generalAbilityBlocked, true);
@@ -571,7 +569,7 @@ test('Capitão de Formação: neighbours +1 ATK after it moves, gone at its owne
   let s = fresh({ a: 'capitao' }); put(s, 0, 0, 'Capitão de Formação'); put(s, 0, 2, 'Batedor'); s.turn.phase = 'movimentacao';
   s = act(s, 0, { type: 'move', from: 0, to: 1 }).s;
   eq(s.players[0].board[2]!.formationBuffAtk, 1);
-  s = act(s, 0, { type: 'advance' }).s; for (let i = 0; i < 4; i++) s = act(s, 1, { type: 'advance' }).s;
+  s = act(s, 0, { type: 'advance' }).s; while (s.turn.active === 1) s = act(s, 1, { type: 'advance' }).s;
   eq([s.turn.active, s.players[0].board[2]!.formationBuffAtk], [0, 0]);
 });
 // ── Reforço ─────────────────────────────────────────────────────────────────
@@ -720,6 +718,7 @@ test('AI uses Balestra on a unit it can kill, Trabuco/Catapulta when they pay of
 test('AI repositions: brings back-row Infantaria forward, and covers an exposed General lane', () => {
   let s = fresh({ a: 'capitao', b: 'cardeal', first: 1 });
   s.turn.active = 1; s.turn.first = 1; s.turn.phase = 'movimentacao';
+  s.players[1].generalAbilityUses = 1; // keep the General's heal out of this test
   put(s, 1, 6, 'Soldados da Ordem'); // 3/4 Infantaria stuck in the back row: cannot attack there
   put(s, 0, 2, 'Soldado Tático');    // the enemy has something that can hit
   const a1 = aiNextAction(s, 1, () => 0.5);
@@ -729,6 +728,7 @@ test('AI repositions: brings back-row Infantaria forward, and covers an exposed 
   // exposed lane: units everywhere except columns 2
   let t = fresh({ a: 'capitao', b: 'cardeal', first: 1 });
   t.turn.active = 1; t.turn.first = 1; t.turn.phase = 'movimentacao';
+  t.players[1].generalAbilityUses = 1;
   put(t, 1, 1, 'Soldados da Ordem'); put(t, 1, 3, 'Soldados da Ordem'); put(t, 0, 2, 'Soldado Tático');
   const moves: string[] = [];
   for (let i = 0; i < 6 && t.turn.active === 1; i++) { const a = aiNextAction(t, 1, () => 0.5); if (a.type === 'move') moves.push(`${a.from}>${a.to}`); t = act(t, 1, a).s; }

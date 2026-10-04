@@ -19,10 +19,10 @@ export type Unit = {
 };
 export type Board = (Unit | null)[];
 
-// Every phase of a turn, in order — what the UI shows. Combate and Pós-combate only exist once combat is open.
+// Every phase of a turn, in order — what the UI shows. Combate only exists once combat is open.
 export const phasesForTurn = (combatOpen: boolean): TurnPhase[] =>
   combatOpen
-    ? ['compra', 'suprimentos', 'preparacao', 'combate', 'pos_combate', 'movimentacao']
+    ? ['compra', 'suprimentos', 'preparacao', 'combate', 'movimentacao']
     : ['compra', 'suprimentos', 'preparacao', 'movimentacao'];
 
 // The phases the seat actually stops in (the first two are automatic), i.e. what `advance` walks through.
@@ -113,8 +113,10 @@ export const auraTotal = (stat: AuraStat, slot: number, own: Board, enemy: Board
 export const boardHasFlag = (board: Board, flag: 'row_swap' | 'blocks_ambush' | 'locks_general'): boolean =>
   board.some((c, i) => !!c && passivesOf(c.name).some(p => p.kind === 'flag' && p.flag === flag && rowOk(p.from, i)));
 
-// After combat only these may still come out of the hand (units may not).
-export const POST_COMBAT_CARD_TYPES: CardType[] = ['Tática', 'Relíquia', 'Terreno'];
+// Which cards may be played from the hand in a phase: everything in Preparação; in Movimentação (after combat) only Táticas — no more units,
+// Relíquias or Terrenos come down then.
+export const canPlayInPhase = (card: { cardType?: CardType }, phase: TurnPhase): boolean =>
+  phase === 'preparacao' || (phase === 'movimentacao' && card.cardType === 'Tática');
 
 // ── Geometry ────────────────────────────────────────────────────────────────
 export const isFrontline = (slot: number) => slot >= 0 && slot <= 4;

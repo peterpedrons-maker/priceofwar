@@ -11,8 +11,8 @@ export type Seat = 0 | 1;
 export const otherSeat = (s: Seat): Seat => (s === 0 ? 1 : 0);
 
 // Turn flow: Compra and Suprimentos run by themselves at the start of the turn (cards can skip them);
-// the seat only ever rests in Preparação, Combate, Pós-combate and Movimentação.
-export type TurnPhase = 'compra' | 'suprimentos' | 'preparacao' | 'combate' | 'pos_combate' | 'movimentacao';
+// the seat only ever rests in Preparação, Combate and Movimentação (cartas descem na Preparação; na Movimentação só Táticas e habilidades).
+export type TurnPhase = 'compra' | 'suprimentos' | 'preparacao' | 'combate' | 'movimentacao';
 
 // Gatilhos (o "quando" do efeito de uma carta) — vocabulário em docs/vocabulario.md. Só rótulo na carta por
 // enquanto: a regra de cada gatilho continua nas habilidades da própria carta.
@@ -95,7 +95,7 @@ export type AbilityOn =
 
 export interface Ability {
   on: AbilityOn;
-  // 'ability': fases em que dá para usar (padrão: Preparação). 'play': fases EXTRAS além de Preparação e Pós-combate.
+  // 'ability': fases em que dá para usar (padrão: Preparação). Uma Tática pode ser jogada na Preparação e na Movimentação.
   phases?: TurnPhase[];
   once?: boolean;     // 'ability': uma vez por turno
   cost?: number;      // 'ability': ouro pago ao usar

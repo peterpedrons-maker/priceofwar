@@ -209,6 +209,7 @@ import { glyphUrl, burstUrl, NUMBER_GLOW, type NumberKind } from './numberGlyphs
 import { triggerOf, triggerKeyOf, pulseCard, usePulse, TRIGGER_GLOW, TRIGGER_ICON } from './triggers';
 import { playSfx, preloadSfx, dbgMark } from './sfx';
 import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettings, subscribeAudio } from './audioSettings';
+import { useGameSettings, setGameSettings } from './gameSettings';
 import type { Trigger } from './engine/types';
 import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
@@ -218,7 +219,7 @@ import { NpcPanel, TapHand, Spotlight, TutorialList, TutorialIntro, markTutorial
 import { DECK_MAX_CARDS, DECK_MAX_COPIES, DECK_MIN_CARDS } from './engine/deck';
 import {
   GOLD_PER_TURN, HAND_LIMIT, START_GOLD, START_HAND,
-  abilityOn, abilityPhases, areSlotsAdjacent, auraTotal, canPlaceInSlot, canReposition, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction,
+  abilityOn, abilityPhases, canPlayInPhase, areSlotsAdjacent, auraTotal, canPlaceInSlot, canReposition, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction,
   getLaneCol, getMaxAttacksPerTurn, getMoveRow, getValidAttackTargets, isBackline, isCardDamaged, isFrontline, needsHiddenInfo, phasesForTurn,
   specCandidatesOn, targetSpecOf, targetSpecsOf, verbsOn,
 } from './engine/rules';
@@ -513,10 +514,9 @@ const ROW_ROLE_VIEW: Record<RowRoleHint, { icon: string; label: string; size: nu
 const PHASE_BANNER_TEXT: Record<TurnPhase, { title: string; subtitle: string }> = {
   compra: { title: 'Fase de Compra', subtitle: 'Você compra uma carta' },
   suprimentos: { title: 'Fase de Suprimentos', subtitle: 'Você recebe ouro' },
-  pos_combate: { title: 'Fase de Pós-combate', subtitle: 'Táticas, Relíquias e Terrenos' },
   preparacao: { title: 'Fase de Preparação', subtitle: 'Jogue cartas e ative habilidades' },
   combate: { title: 'Fase de Combate', subtitle: 'Ataque com suas unidades' },
-  movimentacao: { title: 'Fase de Movimentação', subtitle: 'Reposicione suas unidades' },
+  movimentacao: { title: 'Fase de Movimentação', subtitle: 'Mova tropas e jogue Táticas' },
 };
 // The banner is driven as a 3-stage state machine (see announcePhase/phaseBanner)
 // instead of one motion.div animating a 5-point opacity/x KEYFRAME array — that
@@ -3021,7 +3021,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
         )}
         {deckEditorOpen && <DeckEditor onClose={() => setDeckEditorOpen(false)} />}
         {settingsOpen && <SettingsModal session={session} profileName={profile.name} onClose={() => setSettingsOpen(false)} />}
-        {soundOpen && <SoundModal onClose={() => setSoundOpen(false)} />}
+        {soundOpen && <OptionsModal onClose={() => setSoundOpen(false)} />}
         {shopOpen && <ShopScreen coroas={profile.coroas} onSpend={(n) => updateProfile({ coroas: Math.max(0, profile.coroas - n) })} onClose={() => setShopOpen(false)} />}
         {onlineOpen && (
           <OnlineModeModal
@@ -3091,7 +3091,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
         <MenuIconButton icon={uiIconConfigImage} label="Config." onClick={() => setSettingsOpen(true)} />
         <MenuIconButton icon={uiIconTutoriaisImage} label="Tutoriais" onClick={onTutorials} />
         <MenuIconButton icon={uiIconRankingImage} label="Ranking" onClick={() => setComingSoon({ title: 'Ranking', message: 'O sistema de partidas ranqueadas ainda está por vir.' })} />
-        <MenuIconButton icon={uiIconSomImage} label="Som" onClick={() => setSoundOpen(true)} />
+        <MenuIconButton icon={uiIconSomImage} label="Opções" onClick={() => setSoundOpen(true)} />
       </div>
     </motion.div>
   );
@@ -4453,16 +4453,37 @@ const VolumeRow = ({ label, value, onChange, onRelease, dim }: { label: string; 
     />
   </div>
 );
-const SoundModal = ({ onClose }: { onClose: () => void }) => {
+const ToggleRow = ({ label, sub, on, onChange }: { label: string; sub: string; on: boolean; onChange: (v: boolean) => void }) => (
+  <button onClick={() => { playUiClickSfx(); onChange(!on); }} className="w-full flex items-center justify-between gap-3 text-left active:scale-[0.98] transition" role="switch" aria-checked={on}>
+    <span className="flex flex-col">
+      <span className="text-[11px] uppercase tracking-[0.14em] text-[#d8c9a3]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>{label}</span>
+      <span className="text-[11px] leading-snug text-[#a89a78]" style={{ fontFamily: "'PT Serif', serif" }}>{sub}</span>
+    </span>
+    <span className="shrink-0 relative rounded-full transition-colors" style={{ width: 44, height: 24, background: on ? 'rgba(180,134,36,0.9)' : 'rgba(60,48,30,0.9)', border: '1px solid rgba(232,220,192,0.55)' }}>
+      <span className="absolute top-[2px] rounded-full transition-all" style={{ width: 18, height: 18, left: on ? 22 : 2, background: on ? '#fff0c4' : '#9b8d6c' }} />
+    </span>
+  </button>
+);
+// Opções: the optional on-screen hints and the sound (overall, music, effects, mute). Reachable from the menu and during a match.
+const OptionsModal = ({ onClose }: { onClose: () => void }) => {
   const a = useAudioSettings();
+  const g = useGameSettings();
   return (
     <WindowOverlay onClose={onClose}>
       <FramedWindow>
-        <div className="flex flex-col items-center gap-4 px-2 py-2 w-[min(78vw,320px)]">
-          <WindowTitle>Som</WindowTitle>
-          <VolumeRow label="Geral" value={a.master} dim={a.muted} onChange={v => setAudioSettings({ master: v })} />
-          <VolumeRow label="Música" value={a.music} dim={a.muted} onChange={v => setAudioSettings({ music: v })} />
-          <VolumeRow label="Efeitos" value={a.effects} dim={a.muted} onChange={v => setAudioSettings({ effects: v })} onRelease={() => playSelectSfx()} />
+        <div className="flex flex-col items-center gap-4 px-2 py-2 w-[min(82vw,330px)]">
+          <WindowTitle>Opções</WindowTitle>
+          <div className="w-full flex flex-col gap-3">
+            <span className="text-[10px] uppercase tracking-[0.2em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>Avisos na tela</span>
+            <ToggleRow label="Dicas de arrastar" sub="Dedo sobre a mão, “segure e arraste” e “solte aqui”." on={g.hintsDrag} onChange={v => setGameSettings({ hintsDrag: v })} />
+            <ToggleRow label="Dicas no tabuleiro" sub="Palavras nas casas (Ataca, Reserva, Protegida) e nos alvos das Táticas." on={g.hintsBoard} onChange={v => setGameSettings({ hintsBoard: v })} />
+          </div>
+          <div className="w-full flex flex-col gap-3">
+            <span className="text-[10px] uppercase tracking-[0.2em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>Som</span>
+            <VolumeRow label="Geral" value={a.master} dim={a.muted} onChange={v => setAudioSettings({ master: v })} />
+            <VolumeRow label="Música" value={a.music} dim={a.muted} onChange={v => setAudioSettings({ music: v })} />
+            <VolumeRow label="Efeitos" value={a.effects} dim={a.muted} onChange={v => setAudioSettings({ effects: v })} onRelease={() => playSelectSfx()} />
+          </div>
           <div className="flex gap-3">
             <WindowButton primary={a.muted} onClick={() => setAudioSettings({ muted: !a.muted })}>{a.muted ? 'Ativar som' : 'Mudo'}</WindowButton>
             <WindowButton onClick={onClose}>Fechar</WindowButton>
@@ -5394,6 +5415,8 @@ export default function App() {
   // while it is held, the card floats under the finger (see `held`) and the board lights up where it can go.
   const [inspectId, setInspectId] = useState<string | null>(null);
   // How many cards the player has already played by dragging: the "arraste" hint above the hand shows until they have done it a few times.
+  const gameSettings = useGameSettings();
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const [dragLessons, setDragLessons] = useState<number>(() => { try { return Number(localStorage.getItem('pow.drags') || 0); } catch { return 0; } });
   const noteDragPlay = () => setDragLessons(n => { const v = n + 1; try { localStorage.setItem('pow.drags', String(v)); } catch { /* no storage */ } return v; });
   const inspectOpenedAtRef = useRef(0);   // a touch's own click lands on the freshly opened scrim: ignore clicks right after opening
@@ -6597,18 +6620,17 @@ export default function App() {
       await sleep(PHASE_BANNER_DURATION_MS + 150);
       let combatAnnounced = false;
       let movementAnnounced = false;
-      let postCombatAnnounced = false;
       await tutBeat('start');
       for (let guard = 0; guard < 300; guard++) {
         if (!engineRef.current || engineRef.current.winner !== null || engineRef.current.turn.active !== 1) break;
         const action = await nextOpponentAction();
         const s = engineRef.current;
         if (!action || !s || s.winner !== null) break;
-        if (s.turn.phase === 'pos_combate' && (action.type === 'play' || action.type === 'ability')) {
-          setNpcVisiblePhase('pos_combate');
-          if (!postCombatAnnounced) {
-            postCombatAnnounced = true;
-            showBanner('Fase de Pós-combate', 'O adversário joga Táticas, Relíquias e Terrenos');
+        if (s.turn.phase === 'movimentacao' && (action.type === 'play' || action.type === 'ability')) {
+          setNpcVisiblePhase('movimentacao');
+          if (!movementAnnounced) {
+            movementAnnounced = true;
+            showBanner('Fase de Movimentação', 'O adversário move tropas e joga Táticas');
             await sleep(PHASE_BANNER_DURATION_MS + 150);
           }
         }
@@ -6828,14 +6850,9 @@ export default function App() {
   const handleCardClick = (index: number) => {
     if (viewState === 'field') return; // hand cards are non-interactive once zoomed to the board
     if (phaseTransitionLock) return; // see announcePhase — a phase banner is still on screen
-    // A Tática can list extra phases it may be played in (Avanço Coordenado: Movimentação, right after the move it rewards).
-    if (turnPhase === 'pos_combate') {
-      if (!['Tática', 'Relíquia', 'Terreno'].includes(hand[index]?.cardType ?? '')) {
-        showToast('Depois do combate só dá pra jogar Táticas, Relíquias e Terrenos!');
-        return;
-      }
-    } else if (turnPhase !== 'preparacao' && !(abilityOn(hand[index]?.name ?? '', 'play')?.phases ?? []).includes(turnPhase)) {
-      showToast("Jogar cartas só nas fases de Preparação e Pós-combate!");
+    // Units, Relíquias and Terrenos only in Preparação; Táticas also in Movimentação.
+    if (!canPlayInPhase(hand[index] ?? {}, turnPhase)) {
+      showToast(turnPhase === 'movimentacao' ? 'Na Movimentação só dá pra jogar Táticas!' : 'Jogar cartas só nas fases de Preparação e Movimentação!');
       return;
     }
     if (selectedCardIndex === index) {
@@ -6984,7 +7001,7 @@ export default function App() {
   // activate this" shape as playerGeneralAbilityAvailable above, just per-card (see the glowing prompt on each of these below and
   // activateAbility). The kind picks the prompt's look: a heal, a hit, or a plain utility.
   const getPlayerCreatureAbilityKind = (slotIndex: number): 'heal' | 'damage' | 'utility' | null => {
-    if (currentTurn !== 'player' || (turnPhase !== 'preparacao' && turnPhase !== 'pos_combate') || eng?.pending || gameOverWinner) return null;
+    if (currentTurn !== 'player' || (turnPhase !== 'preparacao' && turnPhase !== 'movimentacao') || eng?.pending || gameOverWinner) return null;
     const card = playerSlots[slotIndex];
     if (!card || card.isDestroyed || playerActivatedAbilityIds.has(card.id)) return null;
     const ab = abilityOn(card.name, 'ability');
@@ -7332,10 +7349,8 @@ export default function App() {
   // Why this card cannot be dragged right now (null = it can); 'wait' = say nothing.
   const dragBlockReason = (card: CardData): string | null => {
     if (gameOverWinner || isCardInFlightTransition || phaseTransitionLock || ambushPrompt || targetingMode || viewState === 'field') return 'wait';
-    if (turnPhase === 'pos_combate') {
-      if (!['Tática', 'Relíquia', 'Terreno'].includes(card.cardType ?? '')) return 'Depois do combate só dá pra jogar Táticas, Relíquias e Terrenos!';
-    } else if (turnPhase !== 'preparacao' && !(abilityOn(card.name, 'play')?.phases ?? []).includes(turnPhase)) {
-      return 'Jogar cartas só nas fases de Preparação e Pós-combate!';
+    if (!canPlayInPhase(card, turnPhase)) {
+      return turnPhase === 'movimentacao' ? 'Na Movimentação só dá pra jogar Táticas!' : 'Jogar cartas só nas fases de Preparação e Movimentação!';
     }
     if (getCardDropKind(card) === 'blocked') return card.cardType === 'Emboscada' ? 'Emboscadas ativam sozinhas quando você é atacado — mantenha na mão.' : 'Esta carta não pode ser jogada agora.';
     return null;
@@ -7611,7 +7626,7 @@ export default function App() {
         setSelectedCardIndex(null);
         setViewState('hand');
       }
-    } else if (selectedCardIndex === null && playerSlots[slotIndex] && (turnPhase === 'preparacao' || turnPhase === 'pos_combate')) {
+    } else if (selectedCardIndex === null && playerSlots[slotIndex] && turnPhase === 'preparacao') {
       // Nothing to do here in Preparação beyond the preview its own onInfoClick already opened — reposition
       // happens in Movimentação, attacking in Combate.
       return;
@@ -8038,7 +8053,7 @@ export default function App() {
               // on top of the board, hiding whatever that tap was actually doing.
               // Preparação keeps the preview (reading a card there is still the point
               // of tapping it — nothing else consumes that tap in that phase).
-              onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
+              onInfoClick={turnPhase === 'preparacao' && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 10}
               isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 10}
@@ -8053,7 +8068,7 @@ export default function App() {
                 slotId="npc-12"
                 card={npcSlots[12]}
                 onClick={() => handleNpcSlotClick(12)}
-                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
+                onInfoClick={turnPhase === 'preparacao' && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 12}
                 isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 12}
@@ -8068,7 +8083,7 @@ export default function App() {
               slotId="npc-11"
               card={npcSlots[11]}
               onClick={() => handleNpcSlotClick(11)}
-              onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
+              onInfoClick={turnPhase === 'preparacao' && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
               isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === 11}
               isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === 11}
@@ -8098,7 +8113,7 @@ export default function App() {
                 slotId={`npc-${i}`}
                 card={repositionFlight?.side === 'npc' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
-                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
+                onInfoClick={turnPhase === 'preparacao' && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
@@ -8119,7 +8134,7 @@ export default function App() {
                 slotId={`npc-${i}`}
                 card={repositionFlight?.side === 'npc' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : npcSlots[i]}
                 onClick={() => handleNpcSlotClick(i)}
-                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
+                onInfoClick={turnPhase === 'preparacao' && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
                 isAttacking={attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === false && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === true && attackAnim?.targetIndex === i}
@@ -8151,7 +8166,7 @@ export default function App() {
                 card={repositionFlight?.side === 'player' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : playerSlots[i]}
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
-                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
+                onInfoClick={turnPhase === 'preparacao' && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
@@ -8179,7 +8194,7 @@ export default function App() {
                 card={repositionFlight?.side === 'player' && (i === repositionFlight.originIndex || i === repositionFlight.destIndex) ? null : playerSlots[i]}
                 onClick={(el) => handleSlotClick(i, el)}
                 isSelected={selectedAttackerIndex === i}
-                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
+                onInfoClick={turnPhase === 'preparacao' && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === i}
                 isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === i}
@@ -8211,7 +8226,7 @@ export default function App() {
               card={playerSlots[10]}
               onClick={(el) => handleSlotClick(10, el)}
               isSelected={selectedAttackerIndex === 10}
-              onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
+              onInfoClick={turnPhase === 'preparacao' && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 10}
               isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 10}
@@ -8226,7 +8241,7 @@ export default function App() {
                 card={playerSlots[12]}
                 onClick={(el) => handleSlotClick(12, el)}
                 isSelected={selectedAttackerIndex === 12}
-                onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
+                onInfoClick={turnPhase === 'preparacao' && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
                 isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
                 isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 12}
                 isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 12}
@@ -8240,7 +8255,7 @@ export default function App() {
               card={playerSlots[11]}
               onClick={(el) => handleSlotClick(11, el)}
               isSelected={selectedAttackerIndex === 11}
-              onInfoClick={(turnPhase === 'preparacao' || turnPhase === 'pos_combate') && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
+              onInfoClick={turnPhase === 'preparacao' && !targetingMode && selectedCardIndex === null && !equipFx ? setDetailedCard : undefined}
               isAttacking={attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
               isImpactingAttacker={isImpacting && attackAnim?.isPlayerAttacking === true && attackAnim?.attackerIndex === 11}
               isImpactingTarget={isImpacting && !soakedBlow && attackAnim?.isPlayerAttacking === false && attackAnim?.targetIndex === 11}
@@ -8356,7 +8371,7 @@ export default function App() {
           {(() => {
             const isPlayerTurn = currentTurn === 'player';
             const shownPhase = tutTracker ?? (isPlayerTurn ? (autoPhase ?? turnPhase) : npcVisiblePhase);
-            const locked: TurnPhase[] = combatOpenNow ? [] : ['combate', 'pos_combate'];
+            const locked: TurnPhase[] = combatOpenNow ? [] : ['combate'];
             const automatic = isPlayerTurn && (shownPhase === 'compra' || shownPhase === 'suprimentos');
             return (
               <motion.div whileTap={isPlayerTurn && !automatic ? { scale: 0.96 } : undefined}>
@@ -9055,6 +9070,12 @@ export default function App() {
 
       {punchFx && <React.Fragment key={punchFx.key}><PunchFx x={punchFx.x} y={punchFx.y} w={punchFx.w} h={punchFx.h} heavy={punchFx.heavy} /></React.Fragment>}
 
+      {/* Opções (dicas e som) during a match, at the extreme top-left; it steps aside for the Cancelar button that shares the corner. */}
+      {gameMode && matchIntroStage === null && !tutOn && !(selectedCardIndex !== null && viewState === 'field' && !targetingMode) && (
+        <GameButton className="fixed top-3 left-3 z-[205]" size={10} onClick={() => setOptionsOpen(true)}>Opções</GameButton>
+      )}
+      <AnimatePresence>{optionsOpen && <OptionsModal onClose={() => setOptionsOpen(false)} />}</AnimatePresence>
+
       {/* Online: whose turn it is to move, and how long they have left. */}
       {turnClock && onlineRef.current && !gameOverWinner && matchIntroStage === null && engineRef.current && (() => {
         const eng = engineRef.current!;
@@ -9648,7 +9669,7 @@ export default function App() {
                   <div className="absolute inset-x-0 flex flex-col items-center gap-1 pointer-events-none" style={{ bottom: 22 }}>
                     {why ? (
                       <span className="px-3 py-1.5 rounded-md text-center" style={{ background: 'rgba(14,10,6,0.88)', border: '1px solid rgba(232,220,192,0.5)', color: '#f3e3c3', fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 12, letterSpacing: '0.06em', maxWidth: windowSize.width - 40 }}>{why}</span>
-                    ) : (
+                    ) : !gameSettings.hintsDrag ? null : (
                       <>
                         <DragFinger size={30} travel={46} />
                         <span className="px-3 py-1 rounded-md" style={{ background: 'rgba(14,10,6,0.88)', border: '1px solid rgba(255,214,110,0.7)', color: '#ffe9b0', fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
@@ -9666,7 +9687,7 @@ export default function App() {
 
       {/* While the player has not yet learned the gesture: a finger sliding from the hand up to the board, above the hand. */}
       <AnimatePresence>
-        {!tutOn && !held && !inspectId && dragLessons < 3 && currentTurn === 'player' && turnPhase === 'preparacao' && viewState === 'hand' && !ambushPrompt && !targetingMode && !pendingAbility && !flyingCard && !preZoomSlot && !gameOverWinner
+        {!tutOn && gameSettings.hintsDrag && !held && !inspectId && dragLessons < 3 && currentTurn === 'player' && turnPhase === 'preparacao' && viewState === 'hand' && !ambushPrompt && !targetingMode && !pendingAbility && !flyingCard && !preZoomSlot && !gameOverWinner
           && hand.some(c => playerMana >= c.cost && getCardDropKind(c) !== 'blocked') && (
           <motion.div key="drag-hint" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             className="fixed left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none" style={{ bottom: 150, zIndex: 214 }}>
@@ -9686,12 +9707,12 @@ export default function App() {
         const { x, y } = dragPointRef.current;
         return (
           <>
-            <div className="fixed left-1/2 -translate-x-1/2 pointer-events-none px-4 py-1.5 rounded-md text-center" style={{ top: 84, zIndex: 321, background: 'rgba(14,10,6,0.9)', border: '1px solid rgba(255,214,110,0.8)', boxShadow: '0 0 16px rgba(255,200,80,0.45)', color: '#ffe9b0', fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+            {gameSettings.hintsDrag && <div className="fixed left-1/2 -translate-x-1/2 pointer-events-none px-4 py-1.5 rounded-md text-center" style={{ top: 84, zIndex: 321, background: 'rgba(14,10,6,0.9)', border: '1px solid rgba(255,214,110,0.8)', boxShadow: '0 0 16px rgba(255,200,80,0.45)', color: '#ffe9b0', fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
               {(() => {
                 const k = getCardDropKind(card);
                 return k === 'place' ? 'Solte na casa acesa' : k === 'enemyTarget' ? 'Solte em um alvo inimigo' : k === 'ownTarget' ? 'Solte em uma unidade sua' : 'Solte no seu campo';
               })()}
-            </div>
+            </div>}
             <DragGuide infoRef={guideInfoRef} getStart={() => ({ x: dragPointRef.current.x, y: heldTop(dragPointRef.current.y) + 6 })} />
             {held.zone && (
               <div ref={zoneElRef} className="drop-zone fixed pointer-events-none flex flex-col items-center justify-center text-center"
@@ -9869,6 +9890,7 @@ const CardSlot = ({
   // that already used its reposition this turn (dimmed, still clickable to inspect).
   isMoverSelected?: boolean, isValidMoveTarget?: boolean, hasMoved?: boolean,
 }) => {
+  const hintsBoard = useGameSettings().hintsBoard;
   const attackY = attackDirection === 'up' ? -150 : 150;
 
   // Drop-in arrival (see arrivalDrops): decided once per card that appears in this slot.
@@ -9983,12 +10005,12 @@ const CardSlot = ({
                   rowRoleHint === 'attack' ? 'drop-shadow-[0_0_14px_rgba(245,158,11,0.9)]' : 'drop-shadow-[0_0_14px_rgba(14,165,233,0.9)]'
                 }`}
               />
-              <div
+              {hintsBoard && <div
                 className="absolute inset-x-0 bottom-[7%] text-center leading-none pointer-events-none"
                 style={{ fontFamily: "'Cinzel', serif", color: rowRoleHint === 'attack' ? '#ffd36a' : '#8fd4ff', textShadow: '0 1px 2px #000, 0 0 6px #000' }}
               >
                 <b className="block font-extrabold tracking-[0.03em]" style={{ fontSize: ROW_ROLE_VIEW[rowRoleHint].size }}>{ROW_ROLE_VIEW[rowRoleHint].label}</b>
-              </div>
+              </div>}
             </>
           ) : (
             <motion.div
@@ -10035,7 +10057,7 @@ const CardSlot = ({
           <ArrowDown className="w-7 h-7 md:w-9 md:h-9 text-fuchsia-400 drop-shadow-[0_0_10px_rgba(232,121,249,1)]" strokeWidth={3.5} />
         </motion.div>
       )}
-      {isTacticDragTarget && tacticTag && (
+      {isTacticDragTarget && tacticTag && hintsBoard && (
         <div className="absolute inset-x-0 bottom-[6%] z-30 flex justify-center pointer-events-none">
           <span className="px-2 rounded-md font-extrabold leading-tight whitespace-nowrap"
             style={{ fontFamily: "'Cinzel', serif", fontSize: 21, color: tacticTag.color, background: 'rgba(12,8,4,0.86)', border: `2px solid ${tacticTag.color}`, textShadow: '0 1px 2px #000', boxShadow: `0 0 14px ${tacticTag.color}aa` }}>

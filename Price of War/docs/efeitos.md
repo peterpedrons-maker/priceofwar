@@ -19,7 +19,7 @@ que aparece na carta; quem faz a regra são as habilidades abaixo. Um teste (`en
 
 | `on` | Quando acontece | Exemplo de uso |
 |---|---|---|
-| `play` | Tática jogada da mão (`phases`: fases **extras** além de Preparação e Pós-combate) | Tributo de Guerra, Balestra |
+| `play` | Tática jogada da mão (`phases`: fases **extras** além de Preparação; Táticas valem também na Movimentação) | Tributo de Guerra, Balestra |
 | `ability` | habilidade ativa, tocada por quem joga (`phases`, `once`, `cost`) | Mercador, Hospitalário, General Cardeal |
 | `place` | a carta entrou em campo | Nobre da Cruzada (convoca fichas) |
 | `attack` | a carta atacou | Fanático (+ATK), Jorge (dano atrás) |

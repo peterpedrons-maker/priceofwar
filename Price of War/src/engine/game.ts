@@ -14,7 +14,7 @@ import {
   SOLDIER_TYPES, abilityOn, abilityPhases, adjacentSlots, areSlotsAdjacent, auraTotal, blocksAmbush, canPlaceInSlot, canReposition,
   getAuraCombatHpBonus, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction, getMaxAttacksPerTurn, getMoveRow,
   getValidAttackTargets, isBackline, isCardDamaged, isFrontline, isUnitSlot, locksGeneralOnDamage, reinforceShield, canReinforce,
-  restingPhasesForTurn, specCandidatesOn, targetSpecsOf, verbsOn, POST_COMBAT_CARD_TYPES, withEquippedWeapons, type Board,
+  restingPhasesForTurn, specCandidatesOn, targetSpecsOf, verbsOn, canPlayInPhase, withEquippedWeapons, type Board,
 } from './rules';
 import {
   GENERAL_SLOT, SLOT_COUNT, otherSeat,
@@ -542,13 +542,10 @@ const playCard = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'play' }>) => {
   const card = p.hand.find(h => h.id === a.cardId);
   if (!card) return fail('Essa carta não está na sua mão.');
   const playAbility = card.cardType === 'Tática' ? abilityOn(card.name, 'play') : undefined;
-  // Cards are played in Preparação. After combat only Táticas, Relíquias and Terrenos still come out of the hand; a Tática can list
-  // extra phases for itself (Avanço Coordenado can also be played in Movimentação, right after the move it rewards).
+  // Cards are played in Preparação. In Movimentação (after combat) only Táticas still come out of the hand — no more units, Relíquias or Terrenos.
   const phase = c.s.turn.phase;
-  if (phase === 'pos_combate') {
-    if (!POST_COMBAT_CARD_TYPES.includes(card.cardType)) fail('Depois do combate só dá pra jogar Táticas, Relíquias e Terrenos!');
-  } else if (phase !== 'preparacao' && !(playAbility?.phases ?? []).includes(phase)) {
-    fail('Jogar cartas só nas fases de Preparação e Pós-combate!');
+  if (!canPlayInPhase(card, phase)) {
+    fail(phase === 'movimentacao' ? 'Na Movimentação só dá pra jogar Táticas!' : 'Jogar cartas só nas fases de Preparação e Movimentação!');
   }
   if (p.gold < card.cost) fail('Ouro insuficiente!');
 
@@ -611,7 +608,7 @@ const useAbility = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'ability' }>)
   if (!isUnitSlot(a.slot) && a.slot !== GENERAL_SLOT) fail('Essa carta não tem habilidade ativa.');
   const phases = abilityPhases(card.name);
   if (!phases.includes(c.s.turn.phase)) {
-    fail(phases.includes('pos_combate') ? 'Essa habilidade só vale na Preparação e no Pós-combate.' : 'Habilidades só na fase de Preparação.');
+    fail(phases.includes('movimentacao') ? 'Essa habilidade só vale na Preparação e na Movimentação.' : 'Habilidades só na fase de Preparação.');
   }
   const isGeneral = a.slot === GENERAL_SLOT;
   if (isGeneral) {

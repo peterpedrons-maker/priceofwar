@@ -97,8 +97,8 @@ export const nextEnemyAction = (s: GameState, done: number): Action | null => {
 export type PlayerMove = { play: string; slot: number } | { attack: [number, number] } | { move: [number, number] } | { advance: true };
 export const PLAYER_PATH: PlayerMove[][] = [
   [{ play: 'Devotos da Cruzada', slot: 1 }, { play: 'Soldados da Ordem', slot: 6 }, { play: 'Cavaleiro da Luz', slot: 3 }, ADV, ADV],
-  [{ play: 'Cavaleiro da Luz', slot: 2 }, { play: 'Soldados da Ordem', slot: 7 }, ADV, { attack: [2, 1] }, { attack: [1, 12] }, { attack: [3, 3] }, ADV, ADV, ADV],
-  [ADV, { attack: [1, 12] }, { attack: [2, 12] }, { attack: [3, 12] }, ADV, ADV, { move: [7, 6] }, ADV],
+  [{ play: 'Cavaleiro da Luz', slot: 2 }, { play: 'Soldados da Ordem', slot: 7 }, ADV, { attack: [2, 1] }, { attack: [1, 12] }, { attack: [3, 3] }, ADV, ADV],
+  [ADV, { attack: [1, 12] }, { attack: [2, 12] }, { attack: [3, 12] }, ADV, { move: [7, 6] }, ADV],
   [ADV, { attack: [2, 2] }, { attack: [3, 12] }, { attack: [1, 12] }],
 ];
 
@@ -165,8 +165,7 @@ export const STEPS: Step[] = [
   { id: 'atq3', kind: 'do', expr: 'point', chapter: 11, title: 'DERRUBE O OBSTÁCULO', lines: ['O Cavaleiro da direita ataca a Devotos inimiga.', 'Ela tem ataque 0, então não revida.'], targets: [G(3), E(3)], until: { t: 'attack', from: 3, to: 3 } },
   { id: 'sem-alcance', kind: 'do', expr: 'warn', chapter: 11, title: 'E A RESERVA?', lines: ['Toque na Soldados que ficou na Retaguarda.', 'Vamos ver se ela pode atacar.'], targets: [G(7)], until: { t: 'slotTap', slot: 7 } },
   { id: 'sem-alcance-ok', kind: 'read', expr: 'think', chapter: 11, title: 'RESERVA NÃO ATACA', lines: ['Viu? Infantaria na Retaguarda não ataca.', 'Ela espera a hora de descer.'], targets: [G(7)], panel: 'top', enter: 'unselect' },
-  { id: 'pos', kind: 'do', expr: 'neutral', chapter: 12, title: 'PÓS-COMBATE', lines: ['Aqui só entram Táticas, Relíquias e Terrenos.', 'Você não tem nenhuma agora, então toque para avançar.'], targets: [TRACKER], until: { t: 'advance', from: 'combate' }, panel: 'top', tracker: 'pos_combate' },
-  { id: 'pos2', kind: 'do', expr: 'neutral', chapter: 12, title: 'PÓS-COMBATE', lines: ['Toque em FINALIZAR para ir à Movimentação.'], targets: [TRACKER], until: { t: 'advance', from: 'pos_combate' }, panel: 'top' },
+  { id: 'pos', kind: 'do', expr: 'neutral', chapter: 12, title: 'PÓS-COMBATE', lines: ['Aqui só entram Táticas, Relíquias e Terrenos.', 'Você não tem nenhuma agora, então toque para avançar.'], targets: [TRACKER], until: { t: 'advance', from: 'combate' }, panel: 'top', tracker: 'movimentacao' },
   { id: 'mov2', kind: 'do', expr: 'neutral', chapter: 12, title: 'MOVIMENTAÇÃO', lines: ['Mover é opcional, e hoje vamos pular.', 'Toque em FINALIZAR TURNO.'], targets: [TRACKER], until: { t: 'advance', from: 'movimentacao' }, panel: 'top' },
   { id: 'enemy2', kind: 'enemy' },
   // 13. turn 3
@@ -176,8 +175,7 @@ export const STEPS: Step[] = [
   { id: 't3-a2', kind: 'do', expr: 'point', chapter: 13, title: 'MAIS UM GOLPE', lines: ['Agora o Cavaleiro do meio ataca o General.'], targets: [G(2), E(12)], until: { t: 'attack', from: 2, to: 12 } },
   { id: 't3-a3', kind: 'do', expr: 'point', chapter: 13, title: 'E OUTRO MAIS', lines: ['Por fim, o Cavaleiro da direita.'], targets: [G(3), E(12)], until: { t: 'attack', from: 3, to: 12 } },
   { id: 't3-geral', kind: 'read', expr: 'cheer', chapter: 13, title: 'ELE ESTÁ FRACO!', lines: ['O General inimigo está com 6 de vida.', 'No próximo turno ele cai.'], targets: [E(12)], panel: 'bottom' },
-  { id: 't3-pos', kind: 'do', expr: 'neutral', chapter: 13, title: 'PÓS-COMBATE', lines: ['Toque para avançar.'], targets: [TRACKER], until: { t: 'advance', from: 'combate' }, panel: 'top', tracker: 'pos_combate' },
-  { id: 't3-pos2', kind: 'do', expr: 'neutral', chapter: 13, title: 'PÓS-COMBATE', lines: ['Toque para ir à Movimentação.'], targets: [TRACKER], until: { t: 'advance', from: 'pos_combate' }, panel: 'top' },
+  { id: 't3-pos', kind: 'do', expr: 'neutral', chapter: 13, title: 'PÓS-COMBATE', lines: ['Toque para avançar.'], targets: [TRACKER], until: { t: 'advance', from: 'combate' }, panel: 'top', tracker: 'movimentacao' },
   { id: 't3-move', kind: 'do', expr: 'point', chapter: 13, title: 'HORA DE MOVER', lines: ['Mova a Soldados da reserva para trás da Soldados da frente.', 'Toque nela e depois na casa indicada. Assim ela protege a carta da frente.'], targets: [G(7), G(6)], until: { t: 'move', from: 7, to: 6 } },
   { id: 't3-fim', kind: 'do', expr: 'point', chapter: 13, title: 'FIM DO TURNO', lines: ['Toque em FINALIZAR TURNO.'], targets: [TRACKER], until: { t: 'advance', from: 'movimentacao' }, panel: 'top' },
   { id: 'enemy3', kind: 'enemy' },

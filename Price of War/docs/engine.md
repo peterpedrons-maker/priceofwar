@@ -49,13 +49,13 @@ Everything that happened comes back as events (`turn_start`, `gold`, `draw`, `at
 
 ## Rules decided in the engine
 
-- Turn phases: **Compra → Suprimentos → Preparação → Combate → Pós-combate → Movimentação**, then the end-of-turn discard check. Compra (draw 1, Intendente) and Suprimentos (+5 gold from round 2, stacking) run by themselves inside `startTurn`; the seat only rests in the last four (`activePhases`). `phasesForTurn(combatOpen)` lists all six for the UI. A card effect can skip them: set `players[seat].skip = { compra?, suprimentos? }` before that seat's next turn start (emits a `skip` event instead of drawing / paying).
-- Combate and Pós-combate only exist once combat is open; the first player's first turn goes Preparação → Movimentação.
-- Which phase an active ability works in is `abilityPhases(cardName)` in `rules.ts` (default Preparação; the General's heal and Cavaleiro Hospitalário also in Pós-combate).
+- Turn phases: **Compra → Suprimentos → Preparação → Combate → Movimentação**, then the end-of-turn discard check. Compra (draw 1, Intendente) and Suprimentos (+5 gold from round 2, stacking) run by themselves inside `startTurn`; the seat only rests in the last three (`activePhases`). `phasesForTurn(combatOpen)` lists all five for the UI. A card effect can skip them: set `players[seat].skip = { compra?, suprimentos? }` before that seat's next turn start (emits a `skip` event instead of drawing / paying).
+- Combate only exists once combat is open; the first player's first turn goes Preparação → Movimentação.
+- Which phase an active ability works in is `abilityPhases(cardName)` in `rules.ts` (default Preparação; the General's heal and Cavaleiro Hospitalário also in Movimentação).
 - 15 gold and 7 cards each; one card drawn at the start of every turn, always (there is no cap on starting a turn with cards).
 - The hand limit (10) is only checked at the END of a turn: with more, the player must choose which cards to discard, down to 10 (`state.pending.kind === 'discard'`), the cards go to the graveyard, and only then does the turn pass.
 - Combat opens from the 2nd turn of the match: the first player cannot attack in their first turn.
-- Cards are played in Preparação. In Pós-combate only Táticas, Relíquias and Terrenos (never units from the hand — Chamado às Armas still summons). Avanço Coordenado is also playable in Movimentação (after moving).
+- Cards are played in Preparação. In Movimentação only Táticas can come out of the hand (`canPlayInPhase` in `rules.ts`; never units, Relíquias or Terrenos — Chamado às Armas still summons), plus moving troops and the abilities above. Avanço Coordenado is meant for Movimentação (after moving).
 - **Escudo e Bloqueio** (`Card.shield`, `Card.block`): damage — from combat or from any effect — meets a card's Bloqueio first (the whole instance is negated, however big, and the Bloqueio is spent), then its Escudo (it absorbs up to N points and is worn down by them; anything over N goes on to HP). The order, everywhere damage is dealt (`attack` and `damageSlot`, via `soak()`): reduction (Fortaleza / Linha Fechada) → Bloqueio → Escudo → bonus-HP buffer → HP. The attacker's retaliation is not affected by the defender's Escudo/Bloqueio. Events: `shield` (gained) and `shield_hit` (absorbed / left / broken / blocked). `grantShield` / `grantBlock` are the hooks for future cards, boosters and General abilities; no card grants them yet except Reforço.
 - **Reforço:** when a Vanguarda card is destroyed (combat, Táticas, abilities — everything goes through `sendDestroyed`), the Infantaria standing right behind it in the Retaguarda steps forward for free and arrives with an Escudo of `REINFORCE_SHIELD` points (2), and a `reinforce` event is emitted (after the `destroyed` one, followed by the `shield` one). `canReinforce` in `rules.ts` is the single place that decides who may do it: today every Infantaria; later it can become a card keyword ("Infantaria Reforço") and cards can add their own effect on `reinforce`.
 - Relíquia goes only in slot 10, Terreno only in slot 11.
@@ -99,3 +99,6 @@ O baralho é exatamente o que o jogador montou: `drawPile` (ordem de compra) e `
 
 ## Efeitos por tipo
 O que cada carta faz está no catálogo, descrito por tipos de efeito (sem código por nome de carta). Vocabulário, `on`, alvos, passivas e como criar uma carta: [`docs/efeitos.md`](efeitos.md).
+
+## Opções do jogador
+`src/gameSettings.ts` (`pow.settings` no localStorage, `useGameSettings`): avisos opcionais, todos ligados por padrão — `hintsDrag` (dedo sobre a mão, "segure e arraste", "solte aqui") e `hintsBoard` (palavras Ataca/Reserva/Protegida e etiquetas dos alvos de Tática). O modal `OptionsModal` (App.tsx) reúne esses avisos e o áudio; abre pelo botão "Opções" do menu e pelo botão no canto superior esquerdo durante a partida. O tutorial (`tutOn`) não é afetado.
