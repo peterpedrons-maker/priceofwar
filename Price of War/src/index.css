@@ -121,3 +121,6 @@
   background: radial-gradient(circle at 35% 30%, #fff3c4, #d4af37 60%, #8a6a14); box-shadow: 0 1px 4px rgba(0, 0, 0, .6); }
 
 @keyframes zone-pulse { 0%, 100% { box-shadow: 0 0 16px rgba(255,201,77,.45), inset 0 0 14px rgba(255,201,77,.14); } 50% { box-shadow: 0 0 30px rgba(255,201,77,.8), inset 0 0 22px rgba(255,201,77,.3); } }
+
+/* the slot under a dragged card */
+[data-drag-over] { box-shadow: 0 0 0 3px rgba(255,255,255,.95), 0 0 26px 8px rgba(255,226,140,.85) !important; border-radius: 10px; }

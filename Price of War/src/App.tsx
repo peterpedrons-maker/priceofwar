@@ -685,55 +685,6 @@ const TargetingHud = ({ source, mode, kind, title, hint, windowH, promptButtons,
   );
 };
 
-// A hand card the player tapped, shown the way an effect that is being aimed is: the card at the bottom-left, big, and beside it a panel with
-// only what the card says (its effect, in a readable size), plus Cancelar — and Ativar for a Tática that is used at once.
-const HAND_HUD_CARD_SCALE = 0.56;
-const HandCardHud = ({ card, accent, effectText, trig, canAfford, onActivate, onCancel }: {
-  card: CardData; accent: string; effectText: string; trig: { label: string; icon: string } | null; canAfford: boolean;
-  onActivate?: () => void; onCancel: () => void; key?: React.Key;
-}) => (
-  <>
-    <div className="fixed left-2 z-[212] pointer-events-none" style={{ bottom: 12 }}>
-      <motion.div
-        initial={{ scale: 0.3, opacity: 0, y: 60 }}
-        animate={{ scale: HAND_HUD_CARD_SCALE, opacity: 1, y: 0 }}
-        exit={{ scale: 0.3, opacity: 0, y: 50 }}
-        transition={{ type: 'spring', damping: 21, stiffness: 240 }}
-        style={{ transformOrigin: 'bottom left' }}
-        className="relative w-56 h-80"
-      >
-        <motion.div
-          className="absolute inset-0"
-          animate={{ filter: [`${CARD_THICKNESS_SHADOW} drop-shadow(0 0 5px ${accent}aa)`, `${CARD_THICKNESS_SHADOW} drop-shadow(0 0 20px ${accent})`, `${CARD_THICKNESS_SHADOW} drop-shadow(0 0 5px ${accent}aa)`] }}
-          transition={{ duration: 1.3, repeat: Infinity, ease: 'easeInOut' }}
-        >
-          <CardFace card={card} variant="hand" />
-        </motion.div>
-      </motion.div>
-    </div>
-    <motion.div
-      initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-      className="fixed z-[212] pointer-events-auto"
-      style={{ left: 8 + 224 * HAND_HUD_CARD_SCALE + 12, right: 8, bottom: 12 }}
-    >
-      <GameBox px={14} className="flex flex-col gap-2 px-1 py-0.5">
-        {effectText && effectText !== '—' && (
-          <p className="text-[16px] leading-snug text-[#f1e4c4]" style={{ fontFamily: "'Crimson Pro', serif", fontWeight: 600 }}>
-            {trig && <><img src={trig.icon} alt="" className="inline-block h-[1.15em] w-[1.15em] align-[-0.2em] mr-1 object-contain" /><b className="mr-1" style={{ color: '#ffd36a', fontFamily: "'Cinzel', serif", fontSize: '0.86em' }}>{trig.label}.</b></>}
-            {effectText}
-          </p>
-        )}
-        <div className="flex gap-2 min-w-0">
-          {onActivate && (
-            <GameButton tone="primary" compact disabled={!canAfford} className="flex-1 min-w-0" onClick={(e) => { e.stopPropagation(); onActivate(); }}>{canAfford ? 'Ativar' : 'Sem ouro'}</GameButton>
-          )}
-          <GameButton tone="danger" compact={!!onActivate} className={onActivate ? 'flex-1 min-w-0' : 'self-start'} icon={onActivate ? undefined : <X className="w-3 h-3" strokeWidth={3} />} onClick={(e) => { e.stopPropagation(); onCancel(); }}>Cancelar</GameButton>
-        </div>
-      </GameBox>
-    </motion.div>
-  </>
-);
-
 // An ability that can be used right now: light flows over the WHOLE card, up and down, and a rim light pulses along its
 // edge. Everything is cut with the card's exact silhouette (tools/vfx/card_masks.py — wings, spikes and notched corners
 // included, never a rounded rectangle), placed with the same box the board draws that card's frame in.
@@ -5437,6 +5388,15 @@ export default function App() {
     fireImpactBurst(r.left + r.width / 2, r.top + r.height * 0.6, !!card.isFullArt);
   };
   const handCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // Hand cards: a tap shows the card big in the middle of the screen (another tap puts it back); pressing, holding and dragging it plays it —
+  // while it is held, the card floats under the finger (see `held`) and the board lights up where it can go.
+  const [inspectId, setInspectId] = useState<string | null>(null);
+  const [held, setHeld] = useState<{ id: string; x: number; y: number } | null>(null);
+  const dragRef = useRef<{ index: number; id: string; startX: number; startY: number; dragging: boolean; blocked: boolean } | null>(null);
+  const dropFromRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  const dragApiRef = useRef<{ move: (x: number, y: number) => void; up: (x: number, y: number, cancelled: boolean) => void } | null>(null);
+  useEffect(() => { if (selectedCardIndex === null) setHeld(null); }, [selectedCardIndex]);
+  useEffect(() => { if (inspectId && !hand.some(c => c.id === inspectId)) setInspectId(null); }, [hand, inspectId]);
   // Where a targetable Tática's tap-to-target lands, stashed here (not resolved
   // immediately) because handlePlayCardButtonClick's own commit — spending the
   // mana, removing the card from hand, setting pendingTacticAction — has to land
@@ -7342,6 +7302,113 @@ export default function App() {
     setViewState('hand');
   };
 
+  // ── Press, hold and drag a hand card ──────────────────────────────────────────────────────────────────────────
+  const HELD_SCALE = 0.55;
+  const HELD_LIFT = 90;      // the held card floats this far above the finger, so the finger never hides it
+  const slotUnder = (x: number, y: number): { side: 'player' | 'npc'; index: number; el: HTMLElement } | null => {
+    for (const e of document.elementsFromPoint(x, y)) {
+      for (let n: HTMLElement | null = e as HTMLElement; n && n !== document.body; n = n.parentElement) {
+        const m = /^(player|npc)-(\d+)$/.exec(n.id);
+        if (m) return { side: m[1] as 'player' | 'npc', index: Number(m[2]), el: n };
+      }
+    }
+    return null;
+  };
+  const clearDragOver = () => document.querySelectorAll('[data-drag-over]').forEach(el => el.removeAttribute('data-drag-over'));
+  // Why this card cannot be dragged right now (null = it can); 'wait' = say nothing.
+  const dragBlockReason = (card: CardData): string | null => {
+    if (gameOverWinner || isCardInFlightTransition || phaseTransitionLock || ambushPrompt || targetingMode || viewState === 'field') return 'wait';
+    if (turnPhase === 'pos_combate') {
+      if (!['Tática', 'Relíquia', 'Terreno'].includes(card.cardType ?? '')) return 'Depois do combate só dá pra jogar Táticas, Relíquias e Terrenos!';
+    } else if (turnPhase !== 'preparacao' && !(abilityOn(card.name, 'play')?.phases ?? []).includes(turnPhase)) {
+      return 'Jogar cartas só nas fases de Preparação e Pós-combate!';
+    }
+    if (getCardDropKind(card) === 'blocked') return card.cardType === 'Emboscada' ? 'Emboscadas ativam sozinhas quando você é atacado — mantenha na mão.' : 'Esta carta não pode ser jogada agora.';
+    return null;
+  };
+  const tapHandCard = (index: number) => {
+    const card = hand[index];
+    if (!card) return;
+    if (inspectId === card.id) { setInspectId(null); return; }
+    playSelectSfx();
+    setInspectId(card.id);
+  };
+  const beginPress = (e: React.PointerEvent, index: number) => {
+    if (dragRef.current || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    const card = hand[index];
+    if (!card) return;
+    dragRef.current = { index, id: card.id, startX: e.clientX, startY: e.clientY, dragging: false, blocked: false };
+    const move = (ev: PointerEvent) => dragApiRef.current?.move(ev.clientX, ev.clientY);
+    const up = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      dragApiRef.current?.up(ev.clientX, ev.clientY, ev.type === 'pointercancel');
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  };
+  // Where the held card was let go: the play it means (a slot for a unit, a target for an aimed Tática, the board for the rest).
+  const dropHeldCard = (index: number, x: number, y: number) => {
+    const card = hand[index];
+    const cancel = () => setSelectedCardIndex(null);
+    if (!card) { cancel(); return; }
+    const kind = getCardDropKind(card);
+    const hit = slotUnder(x, y);
+    if (kind === 'place') {
+      if (!hit || hit.side !== 'player') { cancel(); return; }
+      if (!canPlaceInSlot(card.cardType, hit.index) || playerSlots[hit.index]) { showToast('Solte a carta numa casa acesa do seu campo.'); cancel(); return; }
+      const dry = applyAction(engineRef.current!, 0, { type: 'play', cardId: card.id, slot: hit.index });
+      if (dry.ok === false) { showToast(dry.error); cancel(); return; }
+      dropFromRef.current = { x, y: y - HELD_LIFT, w: 224 * HELD_SCALE, h: 320 * HELD_SCALE };
+      handleSlotClick(hit.index, hit.el);   // the play clears the selection (and with it the held card) when the flight starts
+      return;
+    }
+    if (kind === 'ownTarget' || kind === 'enemyTarget') {
+      const spec = targetSpecOf(card.name);
+      const ok = !!hit && specSlots(spec).some(v => v.side === hit.side && v.index === hit.index);
+      if (!ok || !hit) { showToast(spec?.prompt ?? 'Solte a carta num alvo válido.'); cancel(); return; }
+      setSelectedCardIndex(null);
+      if (playerAct({ type: 'play', cardId: card.id, target: hit.index })) setViewState('hand');
+      return;
+    }
+    if (kind === 'immediate' && y < windowSize.height * 0.68) { handlePlayCardButtonClick(); return; }
+    cancel();
+  };
+  dragApiRef.current = {
+    move: (x, y) => {
+      const d = dragRef.current;
+      if (!d || d.blocked) return;
+      if (!d.dragging) {
+        if (Math.hypot(x - d.startX, y - d.startY) < 10) return;
+        const card = hand[d.index];
+        const why = card ? dragBlockReason(card) : 'wait';
+        if (why) { d.blocked = true; if (why !== 'wait') showToast(why); return; }
+        d.dragging = true;
+        setInspectId(null);
+        setSelectedCardIndex(d.index);
+        setSelectedAttackerIndex(null);
+        setHeld({ id: d.id, x, y });
+        playCardLiftSfx();
+        return;
+      }
+      setHeld(h => (h ? { ...h, x, y } : h));
+      const hit = slotUnder(x, y);
+      document.querySelectorAll('[data-drag-over]').forEach(el => { if (el !== hit?.el) el.removeAttribute('data-drag-over'); });
+      hit?.el.setAttribute('data-drag-over', '1');
+    },
+    up: (x, y, cancelled) => {
+      const d = dragRef.current;
+      dragRef.current = null;
+      clearDragOver();
+      if (!d || d.blocked) return;
+      if (!d.dragging) { if (!cancelled) tapHandCard(d.index); return; }
+      if (cancelled) { setSelectedCardIndex(null); return; }
+      dropHeldCard(d.index, x, y);
+    },
+  };
+
   const handleSlotClick = (slotIndex: number, slotEl?: HTMLElement) => {
     if (gameOverWinner || isCardInFlightTransition) return;
     if (phaseTransitionLock) return; // see announcePhase — a phase banner is still on screen
@@ -7447,8 +7514,11 @@ export default function App() {
         // for this whole hold — we don't touch the hand yet, so it never disappears.
         setPreZoomSlot({ slotIndex });
         setTimeout(() => {
-          // Re-measure the card's own rect too, right before handing off to the flying overlay.
-          const latestFromRect = fromEl.getBoundingClientRect();
+          // Re-measure the card's own rect too, right before handing off to the flying overlay (a dragged card starts flying from where it was dropped).
+          const drop = dropFromRef.current;
+          dropFromRef.current = null;
+          const hr = fromEl.getBoundingClientRect();
+          const latestFromRect = drop ? { left: drop.x - drop.w / 2, top: drop.y - drop.h / 2, width: drop.w, height: drop.h } : hr;
           const toRect = slotEl.getBoundingClientRect();
           setPreZoomSlot(null);
           playCardLiftSfx();
@@ -8342,8 +8412,8 @@ export default function App() {
               const isAmbushCandidate = ambushPrompt?.options.some(o => o.id === card.id) ?? false;
               const isFocused = selectedCardIndex === i || isAmbushCandidate;
               // The card the player tapped, in the hand view: it steps up out of the fan (see HAND_SELECT_SCALE).
-              const hudSelected = !tutOn && viewState === 'hand' && selectedCardIndex === i && !isAmbushCandidate;
-              const tapSelected = viewState === 'hand' && selectedCardIndex === i && !isAmbushCandidate && !hudSelected;
+              const isHeld = held?.id === card.id;   // being dragged: its place in the hand stays, dimmed
+              const tapSelected = tutOn && viewState === 'hand' && selectedCardIndex === i && !isAmbushCandidate;
               // Cards in front of it whose area overlaps it fade away (and let taps through to it).
               const coveredBySelected = viewState === 'hand' && selectedCardIndex !== null && !ambushPrompt && tutOn
                 && i > selectedCardIndex && (i - selectedCardIndex) * handStep < HAND_CARD_WIDTH * HAND_SELECT_SCALE;
@@ -8372,11 +8442,13 @@ export default function App() {
                 style={{
                   transformOrigin: 'bottom center',
                   marginLeft: i === 0 ? 0 : handStep - HAND_CARD_WIDTH,
+                  touchAction: tutOn ? undefined : 'none',
                 }}
+                onPointerDown={tutOn || ambushPrompt ? undefined : (e: React.PointerEvent) => beginPress(e, i)}
                 animate={{
                   // The tapped card shows in full; the ones lying over it fade so it reads through them; the rest of
                   // the hand stays as it was. An Emboscada prompt dims everything but the card in question.
-                  opacity: tapSelected ? 1 : coveredBySelected ? 0 : viewState === 'field'
+                  opacity: isHeld ? 0.22 : tapSelected ? 1 : coveredBySelected ? 0 : viewState === 'field'
                     ? (isFocused ? 1 : 0.4)
                     : (ambushPrompt && !isFocused ? 0.3 : 1),
                   x: isFocused && viewState === 'field' ? getSelectedCardX(i) : tapSelected ? getTappedCardShift(i) : 0,
@@ -8384,7 +8456,7 @@ export default function App() {
                   // instead of sitting down at the hand's normal resting height (see
                   // getSelectedCardY above for how mobile's handScale is compensated for).
                   // (the resting hand sits partly below the screen edge on mobile, so the lift also brings it back up)
-                  y: isFocused && viewState === 'field' ? getSelectedCardY() : hudSelected ? getFanLift(i) - 22 : tapSelected ? getFanLift(i) - (isMobile ? HAND_CARD_HEIGHT * 0.22 : 0) - 24 : getFanLift(i),
+                  y: isFocused && viewState === 'field' ? getSelectedCardY() : tapSelected ? getFanLift(i) - (isMobile ? HAND_CARD_HEIGHT * 0.22 : 0) - 24 : getFanLift(i),
                   scale: isFocused && viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) : tapSelected ? HAND_SELECT_SCALE : 1,
                   rotateZ: isFocused || viewState === 'field' ? 0 : getFanRotation(i),
                   zIndex: isFocused && !tapSelected ? 150 : i + 1,
@@ -8420,7 +8492,7 @@ export default function App() {
                   // own selection logic (which would just bounce off the Preparação-phase
                   // check anyway, but with an unrelated toast).
                   if (ambushPrompt) return;
-                  handleCardClick(i);
+                  if (tutOn) handleCardClick(i);   // outside the tutorial the press handlers decide: a tap shows the card, a drag plays it
                 }}
               >
                 {/* The 3D flip lives on its own dedicated element, nested inside the outer
@@ -8466,7 +8538,7 @@ export default function App() {
                         backfaceVisibility: 'hidden', transform: 'rotateY(180deg)',
                         filter: isAmbushCandidate
                           ? `${CARD_THICKNESS_SHADOW} drop-shadow(0 0 12px rgba(239,68,68,0.9))`
-                          : tapSelected || hudSelected
+                          : tapSelected
                             ? `${CARD_THICKNESS_SHADOW} drop-shadow(0 0 10px rgba(212,175,55,0.85))`
                             : cardGlowFilter(card, isFocused ? '0 0 22px rgba(212,175,55,0.95)' : '0 0 0 transparent'),
                       }}
@@ -9447,22 +9519,58 @@ export default function App() {
         })()}
       </AnimatePresence>
 
-      {/* The tapped hand card, big at the bottom-left with the text of its effect beside it (see HandCardHud). */}
+      {/* A hand card the player tapped: big in the middle of the screen so it can be read on the card itself. Tapping it again puts it back
+          in the hand; pressing and dragging it plays it. */}
       <AnimatePresence>
-        {!tutOn && selectedCardIndex !== null && viewState === 'hand' && !ambushPrompt && hand[selectedCardIndex] && !flyingCard && !preZoomSlot && !targetingMode && (() => {
-          const card = hand[selectedCardIndex];
-          const kind = getCardDropKind(card);
-          const accent = card.cardType === 'Tática' ? '#cdd5e0' : card.cardType === 'Emboscada' ? '#e9d3a3' : '#ffd36a';
+        {!tutOn && inspectId && (() => {
+          const idx = hand.findIndex(c => c.id === inspectId);
+          const card = idx >= 0 ? hand[idx] : null;
+          if (!card || held) return null;
+          const k = Math.min(Math.min(windowSize.width - 36, 340) / 224, (windowSize.height * 0.74) / 320);
           return (
-            <HandCardHud
-              key={`hand-hud-${card.id}`}
-              card={card} accent={accent} effectText={card.effect} trig={triggerOf(card.name)} canAfford={playerMana >= card.cost}
-              onActivate={kind === 'immediate' ? () => { playUiClickSfx(); handlePlayCardButtonClick(); } : undefined}
-              onCancel={() => { playUiClickSfx(); setSelectedCardIndex(null); }}
-            />
+            <motion.div
+              key="inspect-scrim"
+              className="fixed inset-0 z-[258] flex items-center justify-center"
+              style={{ background: 'rgba(4,2,0,0.72)' }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setInspectId(null)}
+            >
+              <motion.div
+                key={card.id}
+                initial={{ scale: 0.45, y: windowSize.height * 0.35, opacity: 0 }}
+                animate={{ scale: k, y: -10, opacity: 1 }}
+                exit={{ scale: 0.45, y: windowSize.height * 0.4, opacity: 0 }}
+                transition={{ type: 'spring', damping: 22, stiffness: 240 }}
+                className="relative w-56 h-80 shrink-0"
+                style={{ touchAction: 'none', filter: `${CARD_THICKNESS_SHADOW} drop-shadow(0 0 18px rgba(212,175,55,0.7))` }}
+                onPointerDown={(e: React.PointerEvent) => { e.stopPropagation(); beginPress(e, idx); }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <CardFace card={card} variant="hand" />
+              </motion.div>
+            </motion.div>
           );
         })()}
       </AnimatePresence>
+
+      {/* The card being held: it floats under the finger (a little above it), so the player knows which card was picked up. */}
+      {!tutOn && held && (() => {
+        const card = hand.find(c => c.id === held.id);
+        if (!card) return null;
+        return (
+          <div className="fixed z-[320] pointer-events-none" style={{ left: held.x - 112, top: held.y - HELD_LIFT - 160, width: 224, height: 320 }}>
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0.4, rotate: 0 }}
+              animate={{ scale: HELD_SCALE, opacity: 1, rotate: [-4, 3, -4] }}
+              transition={{ scale: { type: 'spring', damping: 16, stiffness: 300 }, opacity: { duration: 0.12 }, rotate: { duration: 1.6, repeat: Infinity, ease: 'easeInOut' } }}
+              className="absolute inset-0"
+              style={{ filter: 'drop-shadow(0 22px 14px rgba(0,0,0,0.55)) drop-shadow(0 0 16px rgba(255,214,110,0.75))' }}
+            >
+              <CardFace card={card} variant="hand" />
+            </motion.div>
+          </div>
+        );
+      })()}
 
       {/* Target picking (see TargetingHud): the source card tucked in the corner, what the effect does, Cancelar. */}
       <AnimatePresence>
