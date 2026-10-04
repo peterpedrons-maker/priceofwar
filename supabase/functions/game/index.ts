@@ -525,14 +525,14 @@ var DECK_RECIPES = {
       "Lanceiro de Controle": 4,
       "Cavaleiro T\xE1tico": 4,
       "Veterano de Guerra": 3,
-      "Reformar Linhas": 4,
-      "Avan\xE7o Coordenado": 4,
-      "Reposicionamento R\xE1pido": 4,
-      "Linha Fechada": 4,
-      "Ordem de Retirada": 4,
-      "Bloqueio Instant\xE2neo": 4,
-      "Contra-Manobra": 4,
-      "Forma\xE7\xE3o Quebrada": 4,
+      "Reformar Linhas": 2,
+      "Avan\xE7o Coordenado": 2,
+      "Reposicionamento R\xE1pido": 2,
+      "Linha Fechada": 2,
+      "Ordem de Retirada": 2,
+      "Bloqueio Instant\xE2neo": 3,
+      "Contra-Manobra": 3,
+      "Forma\xE7\xE3o Quebrada": 3,
       "Estandarte da Legi\xE3o": 1,
       "Fortaleza de Pedra": 1,
       "P\xE2ntano Maldito": 1
@@ -577,6 +577,25 @@ var DECK_RECIPES = {
     }
   }
 };
+var BALANCE = {
+  "Soldado T\xE1tico": { atk: 2, hp: 1 },
+  "Escudeiro de Linha": { atk: 2, hp: 1 },
+  "Capit\xE3o de Forma\xE7\xE3o": { atk: 2, hp: 1 },
+  "Batedor": { atk: 2, hp: 1 },
+  "Lanceiro de Controle": { atk: 2, hp: 1 },
+  "Cavaleiro T\xE1tico": { atk: 2, hp: 1 },
+  "Veterano de Guerra": { atk: 2, hp: 1 }
+};
+if (!globalThis.__POW_RAW_STATS__) {
+  CARD_DEFS.forEach((c) => {
+    const d = BALANCE[c.name];
+    if (!d) return;
+    const def = c;
+    def.atk += d.atk ?? 0;
+    def.hp += d.hp ?? 0;
+    def.cost += d.cost ?? 0;
+  });
+}
 var BY_NAME = {};
 CARD_DEFS.forEach((c) => {
   BY_NAME[c.name] = c;
@@ -1740,7 +1759,7 @@ var tacticPlay = (s, seat, card) => {
   if (!v) return null;
   const surplus = me.gold >= 8 || me.hand.length >= 6;
   const spec = targetSpecsOf([v])[0];
-  const candidates = spec ? specCandidatesOn(spec, me.board, foe.board, s.turn.moved) : [];
+  const candidates2 = spec ? specCandidatesOn(spec, me.board, foe.board, s.turn.moved) : [];
   switch (v.kind) {
     case "gold":
       return play();
@@ -1758,24 +1777,24 @@ var tacticPlay = (s, seat, card) => {
         const best = rows.reduce((a, b) => b.kills * 2 + b.count > a.kills * 2 + a.count ? b : a);
         return best.kills >= 1 && best.count >= 2 || best.count >= 3 || surplus && (best.count >= 2 || best.kills >= 1) ? play(best.slot) : null;
       }
-      const killable = candidates.filter((i) => foe.board[i].hp <= v.amount);
-      const pool = killable.length > 0 ? killable : surplus ? candidates : [];
+      const killable = candidates2.filter((i) => foe.board[i].hp <= v.amount);
+      const pool = killable.length > 0 ? killable : surplus ? candidates2 : [];
       if (pool.length === 0) return null;
       return play(pool.reduce((a, b) => unitWorth(foe.board[a]) >= unitWorth(foe.board[b]) ? a : b));
     }
     case "guard_adjacent": {
-      const scored = candidates.map((i) => ({ i, n: adjacentSlots(i).filter((j) => me.board[j]).length })).filter((x) => x.n >= (surplus ? 1 : 2));
+      const scored = candidates2.map((i) => ({ i, n: adjacentSlots(i).filter((j) => me.board[j]).length })).filter((x) => x.n >= (surplus ? 1 : 2));
       return scored.length ? play(scored.reduce((a, b) => b.n > a.n ? b : a).i) : null;
     }
     case "retreat": {
-      const hurt = candidates.filter((i) => !me.board[i + 5] && (isCardDamaged(me.board[i]) || surplus && me.board[i].hp <= 2 && !!foe.board[i]));
+      const hurt = candidates2.filter((i) => !me.board[i + 5] && (isCardDamaged(me.board[i]) || surplus && me.board[i].hp <= 2 && !!foe.board[i]));
       return hurt.length ? play(weakest(me.board, hurt)) : null;
     }
     case "extra_moves":
       return planGain(s, seat, v.amount) - planGain(s, seat, 0) >= (surplus ? 0.5 : 1.5) ? play() : null;
     case "buff": {
       if (spec?.needs === "moved" && s.turn.phase !== "movimentacao") return null;
-      const useful = candidates.filter((i) => me.board[i].atk > 0);
+      const useful = candidates2.filter((i) => me.board[i].atk > 0);
       return useful.length ? play(useful.reduce((a, b) => me.board[b].atk > me.board[a].atk ? b : a)) : null;
     }
     case "displace": {
@@ -1792,7 +1811,7 @@ var tacticPlay = (s, seat, card) => {
       return hitters.length > 0 && free.length > 0 && opens.length / free.length >= (surplus ? 0.5 : 0.6) ? play(blockers[0]) : null;
     }
     case "equip": {
-      const targets = candidates.filter((i) => i <= 4);
+      const targets = candidates2.filter((i) => i <= 4);
       if (targets.length === 0) return null;
       return play(targets.reduce((a, b) => unitWorth(me.board[b]) > unitWorth(me.board[a]) ? b : a));
     }
@@ -1834,7 +1853,7 @@ var abilityAction = (s, seat, slot, rand) => {
   return { type: "ability", slot, target: picks[0], target2: picks[1] };
 };
 var bestIds = (cards, n) => [...cards].sort((a, b) => cardValue(b) - cardValue(a)).slice(0, n).map((c) => c.id);
-var aiNextAction = (state, seat, rand = Math.random) => {
+var aiLegacyAction = (state, seat, rand = Math.random) => {
   const me = state.players[seat];
   const foe = state.players[otherSeat(seat)];
   const t = state.turn;
@@ -1918,6 +1937,240 @@ var aiNextAction = (state, seat, rand = Math.random) => {
     if (a) return a;
   }
   return { type: "advance" };
+};
+var holdValue = (c) => cardValue(c) * 0.5;
+var attackPotential = (att, def) => {
+  let total = 0;
+  for (const i of UNIT_SLOTS) {
+    const a = att.board[i];
+    if (!a || getEffectiveAtk(a, i, att.board, def.board) <= 0) continue;
+    let best = 0;
+    for (const to of getValidAttackTargets(i, att.board, def.board)) best = Math.max(best, attackScore(att.board, def.board, i, to));
+    total += best;
+  }
+  return total;
+};
+var sideValue = (p, q) => {
+  let v = 0;
+  for (const i of UNIT_SLOTS) {
+    const u = p.board[i];
+    if (!u) continue;
+    const atk = getEffectiveAtk(u, i, p.board, q.board);
+    v += atk * 1.2 + u.hp + (u.shield ?? 0) * 0.6 + (u.block ? 2 : 0) + (u.dmgReduction ?? 0) * u.hp * 0.12 + (u.equippedWeapons?.length ?? 0) * 0.4;
+  }
+  if (p.board[10]) v += 5;
+  if (p.board[11]) v += 5;
+  return v + boardScore(p.board, q.board);
+};
+var evalState = (s, seat) => {
+  if (s.winner !== null) return s.winner === seat ? 1e5 : -1e5;
+  const me = s.players[seat];
+  const foe = s.players[otherSeat(seat)];
+  let score = sideValue(me, foe) - sideValue(foe, me);
+  score += 1.8 * (me.board[12]?.hp ?? 0) - 1.8 * (foe.board[12]?.hp ?? 0);
+  score += me.hand.map(holdValue).sort((a, b) => b - a).slice(0, HAND_LIMIT).reduce((a, b) => a + b, 0);
+  score += 0.08 * (me.gold - foe.gold);
+  score -= 0.6 * attackPotential(foe, me);
+  score += 0.3 * attackPotential(me, foe);
+  return score;
+};
+var sortedDesc = (items, f) => [...items].sort((a, b) => f(b) - f(a));
+var forSearch = (s, seat, rand) => {
+  const st = JSON.parse(JSON.stringify(s));
+  st.players[otherSeat(seat)].hand = [];
+  st.rng = Math.floor(rand() * 2147483647) + 1;
+  const mine = st.players[seat].drawPile;
+  for (let i = mine.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [mine[i], mine[j]] = [mine[j], mine[i]];
+  }
+  return st;
+};
+var candidates = (s, seat, rand) => {
+  const t = s.turn;
+  const me = s.players[seat];
+  const foe = s.players[otherSeat(seat)];
+  const out = [];
+  const main = t.phase === "preparacao" || t.phase === "movimentacao";
+  if (main) {
+    for (const slot of [12, ...UNIT_SLOTS]) {
+      const card = me.board[slot];
+      const ab = card ? abilityOn(card.name, "ability") : void 0;
+      if (!card || !ab || !abilityPhases(card.name).includes(t.phase)) continue;
+      if (slot === 12 ? me.generalAbilityUses >= 1 || me.generalAbilityBlocked : ab.once && t.activated.includes(card.id)) continue;
+      if (me.gold < (ab.cost ?? 0)) continue;
+      const specs = targetSpecsOf(ab.do);
+      if (specs.length === 0) {
+        out.push({ type: "ability", slot });
+        continue;
+      }
+      const options = specs.map((spec) => {
+        const cands = specCandidatesOn(spec, me.board, foe.board, t.moved);
+        const board = spec.side === "own" ? me.board : foe.board;
+        const picks = sortedDesc(cands, (i) => spec.side === "own" ? 10 - board[i].hp : unitWorth(board[i])).slice(0, 2);
+        if (spec.optional || picks.length === 0) picks.push(void 0);
+        return picks;
+      });
+      for (const a of options[0]) for (const b of options[1] ?? [void 0]) {
+        if (options[0].length === 1 && a === void 0 && !specs[0].optional) continue;
+        out.push({ type: "ability", slot, target: a, target2: b });
+      }
+    }
+    const seen = /* @__PURE__ */ new Set();
+    for (const card of me.hand) {
+      if (card.cost > me.gold || seen.has(card.name) || !canPlayInPhase(card, t.phase)) continue;
+      seen.add(card.name);
+      if (isSoldier(card)) {
+        const empty = UNIT_SLOTS.filter((i) => !me.board[i]);
+        const scored = empty.map((i) => {
+          const next = [...me.board];
+          next[i] = card;
+          return { i, v: boardScore(next, foe.board) };
+        });
+        sortedDesc(scored, (x) => x.v).slice(0, 2).forEach((x) => out.push({ type: "play", cardId: card.id, slot: x.i }));
+      } else if (card.cardType === "Rel\xEDquia") {
+        if (!me.board[10]) out.push({ type: "play", cardId: card.id, slot: 10 });
+      } else if (card.cardType === "Terreno") {
+        if (!me.board[11]) out.push({ type: "play", cardId: card.id, slot: 11 });
+      } else if (card.cardType === "T\xE1tica" && abilityOn(card.name, "play")) {
+        const spec = targetSpecsOf(verbsOn(card.name, "play"))[0];
+        if (!spec) {
+          out.push({ type: "play", cardId: card.id });
+          continue;
+        }
+        if (spec.area === "row") {
+          [0, 5].forEach((r) => out.push({ type: "play", cardId: card.id, target: r }));
+          continue;
+        }
+        const board = spec.side === "own" ? me.board : foe.board;
+        const cands = specCandidatesOn(spec, me.board, foe.board, t.moved);
+        const picks = new Set(sortedDesc(cands, (i) => unitWorth(board[i])).slice(0, 3));
+        if (cands.length) picks.add(cands.reduce((a, b) => board[a].hp <= board[b].hp ? a : b));
+        picks.forEach((i) => out.push({ type: "play", cardId: card.id, target: i }));
+      }
+    }
+  }
+  if (t.phase === "combate") {
+    const attacks = [];
+    for (const i of UNIT_SLOTS) {
+      const a = me.board[i];
+      if (!a || getEffectiveAtk(a, i, me.board, foe.board) <= 0 || (t.attackCounts[i] ?? 0) >= getMaxAttacksPerTurn(a)) continue;
+      for (const to of getValidAttackTargets(i, me.board, foe.board)) attacks.push({ from: i, to, v: attackScore(me.board, foe.board, i, to) });
+    }
+    sortedDesc(attacks, (x) => x.v).slice(0, 8).forEach((x) => out.push({ type: "attack", from: x.from, to: x.to }));
+    if (t.batedorFree !== null) moveOptions(s, seat, t.batedorFree).slice(0, 3).forEach((m) => out.push({ type: "move", from: m.from, to: m.to }));
+  }
+  if (t.phase === "movimentacao") {
+    sortedDesc(moveOptions(s, seat).filter((m) => m.delta > -1.5), (m) => m.delta).slice(0, 5).forEach((m) => out.push({ type: "move", from: m.from, to: m.to }));
+  }
+  out.push({ type: "advance" });
+  return out;
+};
+var lastPhaseOf = (s) => s.turn.phase === "movimentacao";
+var fingerprint = (s, seat) => {
+  const me = s.players[seat];
+  const foe = s.players[otherSeat(seat)];
+  const t = s.turn;
+  const b = (board) => board.map((c) => c ? `${c.id}.${c.atk}.${c.hp}.${c.shield ?? 0}${c.block ? "b" : ""}.${c.formationBuffAtk ?? 0}.${c.dmgReduction ?? 0}.${c.pendingCombatBonus ? 1 : 0}.${(c.equippedWeapons ?? []).length}` : "-").join(",");
+  return [
+    t.round,
+    t.active,
+    t.phase,
+    s.pending ? s.pending.kind + s.pending.seat : "",
+    me.gold,
+    foe.gold,
+    me.hand.map((h) => h.id).join(","),
+    b(me.board),
+    b(foe.board),
+    foe.hand.length,
+    t.moved.join(","),
+    t.bonusRepositions,
+    t.batedorFree,
+    JSON.stringify(t.attackCounts),
+    t.activated.join(","),
+    me.generalAbilityUses
+  ].join("|");
+};
+var SEARCH = { beam: 7, depth: 16, sims: 900 };
+var settle = (s, seat, rand) => {
+  let st = s;
+  for (let i = 0; i < 4 && st.pending && st.pending.seat === seat; i++) {
+    const r = applyAction(st, seat, answerPending(st, seat));
+    if (r.ok === false) return null;
+    st = r.state;
+  }
+  return st.pending && st.pending.seat === seat ? null : st;
+};
+var planTurn = (state, seat, rand) => {
+  const root = { state: forSearch(state, seat, rand), actions: [], keys: [], score: 0, done: false };
+  root.score = evalState(root.state, seat);
+  let frontier = [root];
+  let sims = 0;
+  let best = null;
+  for (let depth = 0; depth < SEARCH.depth && sims < SEARCH.sims; depth++) {
+    const next = [];
+    const seen = /* @__PURE__ */ new Set();
+    for (const line of frontier) {
+      if (line.done) {
+        next.push(line);
+        continue;
+      }
+      for (const a of candidates(line.state, seat, rand)) {
+        const key = fingerprint(line.state, seat);
+        if (a.type === "advance" && lastPhaseOf(line.state)) {
+          const over = { state: line.state, actions: [...line.actions, a], keys: [...line.keys, key], score: evalState(line.state, seat), done: true };
+          next.push(over);
+          continue;
+        }
+        if (sims >= SEARCH.sims) break;
+        sims++;
+        const r = applyAction(line.state, seat, a);
+        if (r.ok === false) continue;
+        const st = r.state.pending ? settle(r.state, seat, rand) : r.state;
+        if (!st) continue;
+        const fp = fingerprint(st, seat);
+        if (seen.has(fp)) continue;
+        seen.add(fp);
+        next.push({ state: st, actions: [...line.actions, a], keys: [...line.keys, key], score: evalState(st, seat) + rand() * 1e-3, done: st.winner !== null });
+      }
+    }
+    if (next.length === 0) break;
+    frontier = sortedDesc(next, (l) => l.score).slice(0, SEARCH.beam);
+    if (frontier.every((l) => l.done)) break;
+  }
+  best = sortedDesc(frontier, (l) => l.score)[0] ?? root;
+  return { actions: best.actions, keys: best.keys };
+};
+var memo = /* @__PURE__ */ new Map();
+var answerPending = (state, seat) => {
+  const me = state.players[seat];
+  const pend = state.pending;
+  if (pend.kind === "ambush") {
+    const attacker = state.players[pend.attacker].board[pend.from];
+    const defender = me.board[pend.to];
+    const options = me.hand.filter((h) => pend.options.includes(h.id));
+    if (attacker && defender && options.length > 0 && defender.hp - attacker.atk <= 0) return { type: "ambush", cardId: options[0].id };
+    return { type: "ambush", cardId: null };
+  }
+  if (pend.kind === "discard") {
+    const worst = [...me.hand].sort((a, b) => cardValue(a) - cardValue(b)).slice(0, pend.count).map((c) => c.id);
+    return { type: "discard", cardIds: worst };
+  }
+  return { type: "choose", cardIds: bestIds(pend.options, Math.max(pend.min, Math.min(pend.max, pend.options.length))) };
+};
+var aiNextAction = (state, seat, rand = Math.random) => {
+  if (state.pending && state.pending.seat === seat) return answerPending(state, seat);
+  const t = state.turn;
+  if (t.active !== seat || state.winner !== null || !["preparacao", "combate", "movimentacao"].includes(t.phase)) return aiLegacyAction(state, seat, rand);
+  const key = fingerprint(state, seat);
+  const known = memo.get(key);
+  if (known && applyAction(state, seat, known).ok) return known;
+  const plan = planTurn(state, seat, rand);
+  if (memo.size > 400) memo.clear();
+  plan.actions.forEach((a, i) => memo.set(plan.keys[i], a));
+  const first = plan.actions[0];
+  if (first && applyAction(state, seat, first).ok) return first;
+  return aiLegacyAction(state, seat, rand);
 };
 
 // src/engine/deck.ts

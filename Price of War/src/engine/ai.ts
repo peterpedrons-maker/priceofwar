@@ -6,13 +6,13 @@
 // Call aiNextAction repeatedly (applying each result) until the turn passes; it returns
 // { type: 'advance' } when it has nothing more to do in a phase.
 import { getCardDef } from './catalog';
-import { combatOpen } from './game';
+import { applyAction, combatOpen } from './game';
 import {
-  SOLDIER_TYPES, abilityOn, abilityPhases, adjacentSlots, canReposition, getEffectiveAtk, getIncomingDamageReduction,
+  HAND_LIMIT, SOLDIER_TYPES, abilityOn, canPlayInPhase, abilityPhases, adjacentSlots, canReposition, getEffectiveAtk, getIncomingDamageReduction,
   getLaneCol, getMaxAttacksPerTurn, getValidAttackTargets, hasVerb, isCardDamaged, specCandidatesOn, targetSpecsOf, verbsOn,
   type Board,
 } from './rules';
-import type { Action, Card, CardFilter, GameState, Seat, Verb } from './types';
+import type { Action, Card, CardFilter, GameState, PlayerState, Seat, Verb } from './types';
 import { otherSeat } from './types';
 
 export type Rand = () => number;
@@ -296,7 +296,8 @@ const abilityAction = (s: GameState, seat: Seat, slot: number, rand: Rand): Acti
 // ── Picks and discards ──────────────────────────────────────────────────────
 const bestIds = (cards: Card[], n: number) => [...cards].sort((a, b) => cardValue(b) - cardValue(a)).slice(0, n).map(c => c.id);
 
-export const aiNextAction = (state: GameState, seat: Seat, rand: Rand = Math.random): Action => {
+// The first, move-by-move AI: each decision looks at one card or one unit on its own. Kept for comparison (tests/ai-arena.ts) and as a fallback.
+export const aiLegacyAction = (state: GameState, seat: Seat, rand: Rand = Math.random): Action => {
   const me = state.players[seat];
   const foe = state.players[otherSeat(seat)];
   const t = state.turn;
@@ -394,4 +395,249 @@ export const aiNextAction = (state: GameState, seat: Seat, rand: Rand = Math.ran
     if (a) return a;
   }
   return { type: 'advance' };
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+// The planner: it thinks about the whole turn, not one card at a time.
+//
+// It searches the turn the way a player does in their head — "if I play this, then move that, then attack with this one,
+// where does that leave me?" — by trying real actions on a private copy of the match (the same applyAction everybody uses,
+// so it can never plan something the rules forbid) and scoring where each line ends up (`evalState`). Holding a card back is
+// a line too: a card in hand is worth something, so it is played only when what it does on the table is worth more.
+// What it may not know is hidden in the copy: the opponent's hand (so no ambush is counted on or feared) and the order of
+// its own deck.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+// How much one card kept in the hand is worth (a card in hand is an option for later turns, and cards are what the game runs short of).
+const holdValue = (c: Card): number => cardValue(c) * 0.5;
+
+// What the units on the board could do to each other on the attacker's next turn (positive scores only; a kill on the General is huge).
+const attackPotential = (att: PlayerState, def: PlayerState): number => {
+  let total = 0;
+  for (const i of UNIT_SLOTS) {
+    const a = att.board[i];
+    if (!a || getEffectiveAtk(a, i, att.board, def.board) <= 0) continue;
+    let best = 0;
+    for (const to of getValidAttackTargets(i, att.board, def.board)) best = Math.max(best, attackScore(att.board, def.board, i, to));
+    total += best;
+  }
+  return total;
+};
+
+// One side's strength on the table, seen against the other.
+const sideValue = (p: PlayerState, q: PlayerState): number => {
+  let v = 0;
+  for (const i of UNIT_SLOTS) {
+    const u = p.board[i];
+    if (!u) continue;
+    const atk = getEffectiveAtk(u, i, p.board, q.board);
+    v += atk * 1.2 + u.hp + (u.shield ?? 0) * 0.6 + (u.block ? 2 : 0) + (u.dmgReduction ?? 0) * u.hp * 0.12 + (u.equippedWeapons?.length ?? 0) * 0.4;
+  }
+  if (p.board[10]) v += 5;
+  if (p.board[11]) v += 5;
+  return v + boardScore(p.board, q.board);
+};
+
+// The whole position, from `seat`'s point of view: higher is better.
+const evalState = (s: GameState, seat: Seat): number => {
+  if (s.winner !== null) return s.winner === seat ? 1e5 : -1e5;
+  const me = s.players[seat];
+  const foe = s.players[otherSeat(seat)];
+  let score = sideValue(me, foe) - sideValue(foe, me);
+  score += 1.8 * (me.board[12]?.hp ?? 0) - 1.8 * (foe.board[12]?.hp ?? 0);
+  score += me.hand.map(holdValue).sort((a, b) => b - a).slice(0, HAND_LIMIT).reduce((a, b) => a + b, 0);   // cards beyond the limit are discarded
+  score += 0.08 * (me.gold - foe.gold);
+  // What each side could do to the other next turn (the one to move next is the opponent: its threat counts for more).
+  score -= 0.6 * attackPotential(foe, me);
+  score += 0.3 * attackPotential(me, foe);
+  return score;
+};
+
+const sortedDesc = <T,>(items: T[], f: (t: T) => number) => [...items].sort((a, b) => f(b) - f(a));
+
+// A private copy to search in: what the AI could not know is taken out (the foe's hand) or scrambled (its own draw order).
+const forSearch = (s: GameState, seat: Seat, rand: Rand): GameState => {
+  const st: GameState = JSON.parse(JSON.stringify(s));
+  st.players[otherSeat(seat)].hand = [];
+  st.rng = Math.floor(rand() * 0x7fffffff) + 1;
+  const mine = st.players[seat].drawPile;
+  for (let i = mine.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [mine[i], mine[j]] = [mine[j], mine[i]]; }
+  return st;
+};
+
+// The actions worth trying from here. Not every legal one: the likeliest few of each kind, so the search stays small.
+const candidates = (s: GameState, seat: Seat, rand: Rand): Action[] => {
+  const t = s.turn;
+  const me = s.players[seat];
+  const foe = s.players[otherSeat(seat)];
+  const out: Action[] = [];
+  const main = t.phase === 'preparacao' || t.phase === 'movimentacao';
+
+  if (main) {
+    // Active abilities (the General's included), with the likeliest targets.
+    for (const slot of [12, ...UNIT_SLOTS]) {
+      const card = me.board[slot];
+      const ab = card ? abilityOn(card.name, 'ability') : undefined;
+      if (!card || !ab || !abilityPhases(card.name).includes(t.phase)) continue;
+      if (slot === 12 ? me.generalAbilityUses >= 1 || me.generalAbilityBlocked : ab.once && t.activated.includes(card.id)) continue;
+      if (me.gold < (ab.cost ?? 0)) continue;
+      const specs = targetSpecsOf(ab.do);
+      if (specs.length === 0) { out.push({ type: 'ability', slot }); continue; }
+      const options = specs.map(spec => {
+        const cands = specCandidatesOn(spec, me.board, foe.board, t.moved);
+        const board = spec.side === 'own' ? me.board : foe.board;
+        const picks: (number | undefined)[] = sortedDesc(cands, i => (spec.side === 'own' ? 10 - board[i]!.hp : unitWorth(board[i]!))).slice(0, 2);
+        if (spec.optional || picks.length === 0) picks.push(undefined);
+        return picks;
+      });
+      for (const a of options[0]) for (const b of options[1] ?? [undefined]) {
+        if (options[0].length === 1 && a === undefined && !specs[0].optional) continue;
+        out.push({ type: 'ability', slot, target: a, target2: b });
+      }
+    }
+    // Cards from the hand.
+    const seen = new Set<string>();
+    for (const card of me.hand) {
+      if (card.cost > me.gold || seen.has(card.name) || !canPlayInPhase(card, t.phase)) continue;
+      seen.add(card.name);
+      if (isSoldier(card)) {
+        const empty = UNIT_SLOTS.filter(i => !me.board[i]);
+        const scored = empty.map(i => { const next: Board = [...me.board]; next[i] = card; return { i, v: boardScore(next, foe.board) }; });
+        sortedDesc(scored, x => x.v).slice(0, 2).forEach(x => out.push({ type: 'play', cardId: card.id, slot: x.i }));
+      } else if (card.cardType === 'Relíquia') { if (!me.board[10]) out.push({ type: 'play', cardId: card.id, slot: 10 }); }
+      else if (card.cardType === 'Terreno') { if (!me.board[11]) out.push({ type: 'play', cardId: card.id, slot: 11 }); }
+      else if (card.cardType === 'Tática' && abilityOn(card.name, 'play')) {
+        const spec = targetSpecsOf(verbsOn(card.name, 'play'))[0];
+        if (!spec) { out.push({ type: 'play', cardId: card.id }); continue; }
+        if (spec.area === 'row') { [0, 5].forEach(r => out.push({ type: 'play', cardId: card.id, target: r })); continue; }
+        const board = spec.side === 'own' ? me.board : foe.board;
+        const cands = specCandidatesOn(spec, me.board, foe.board, t.moved);
+        const picks = new Set<number>(sortedDesc(cands, i => unitWorth(board[i]!)).slice(0, 3));
+        if (cands.length) picks.add(cands.reduce((a, b) => (board[a]!.hp <= board[b]!.hp ? a : b)));
+        picks.forEach(i => out.push({ type: 'play', cardId: card.id, target: i }));
+      }
+    }
+  }
+
+  if (t.phase === 'combate') {
+    const attacks: { from: number; to: number; v: number }[] = [];
+    for (const i of UNIT_SLOTS) {
+      const a = me.board[i];
+      if (!a || getEffectiveAtk(a, i, me.board, foe.board) <= 0 || (t.attackCounts[i] ?? 0) >= getMaxAttacksPerTurn(a)) continue;
+      for (const to of getValidAttackTargets(i, me.board, foe.board)) attacks.push({ from: i, to, v: attackScore(me.board, foe.board, i, to) });
+    }
+    sortedDesc(attacks, x => x.v).slice(0, 8).forEach(x => out.push({ type: 'attack', from: x.from, to: x.to }));
+    if (t.batedorFree !== null) moveOptions(s, seat, t.batedorFree).slice(0, 3).forEach(m => out.push({ type: 'move', from: m.from, to: m.to }));
+  }
+
+  if (t.phase === 'movimentacao') {
+    sortedDesc(moveOptions(s, seat).filter(m => m.delta > -1.5), m => m.delta).slice(0, 5).forEach(m => out.push({ type: 'move', from: m.from, to: m.to }));
+  }
+  out.push({ type: 'advance' });
+  return out;
+};
+
+const lastPhaseOf = (s: GameState) => s.turn.phase === 'movimentacao';
+
+// What the planner needs to tell two positions apart (also the key of the plan it remembers).
+const fingerprint = (s: GameState, seat: Seat): string => {
+  const me = s.players[seat];
+  const foe = s.players[otherSeat(seat)];
+  const t = s.turn;
+  const b = (board: (Card | null)[]) => board.map(c => (c ? `${c.id}.${c.atk}.${c.hp}.${c.shield ?? 0}${c.block ? 'b' : ''}.${c.formationBuffAtk ?? 0}.${c.dmgReduction ?? 0}.${c.pendingCombatBonus ? 1 : 0}.${(c.equippedWeapons ?? []).length}` : '-')).join(',');
+  return [t.round, t.active, t.phase, s.pending ? s.pending.kind + s.pending.seat : '', me.gold, foe.gold, me.hand.map(h => h.id).join(','), b(me.board), b(foe.board), foe.hand.length,
+    t.moved.join(','), t.bonusRepositions, t.batedorFree, JSON.stringify(t.attackCounts), t.activated.join(','), me.generalAbilityUses].join('|');
+};
+
+interface Line { state: GameState; actions: Action[]; keys: string[]; score: number; done: boolean }
+
+const SEARCH = { beam: 7, depth: 16, sims: 900 };
+
+// Settles any prompt the search itself opens (a pick after a search card, say) with the ordinary answer.
+const settle = (s: GameState, seat: Seat, rand: Rand): GameState | null => {
+  let st = s;
+  for (let i = 0; i < 4 && st.pending && st.pending.seat === seat; i++) {
+    const r = applyAction(st, seat, answerPending(st, seat));
+    if (r.ok === false) return null;
+    st = r.state;
+  }
+  return st.pending && st.pending.seat === seat ? null : st;
+};
+
+// The best line for the rest of this turn, as the list of actions to take (the last one passes the turn on).
+const planTurn = (state: GameState, seat: Seat, rand: Rand): { actions: Action[]; keys: string[] } => {
+  const root: Line = { state: forSearch(state, seat, rand), actions: [], keys: [], score: 0, done: false };
+  root.score = evalState(root.state, seat);
+  let frontier: Line[] = [root];
+  let sims = 0;
+  let best: Line | null = null;
+  for (let depth = 0; depth < SEARCH.depth && sims < SEARCH.sims; depth++) {
+    const next: Line[] = [];
+    const seen = new Set<string>();
+    for (const line of frontier) {
+      if (line.done) { next.push(line); continue; }
+      for (const a of candidates(line.state, seat, rand)) {
+        const key = fingerprint(line.state, seat);
+        if (a.type === 'advance' && lastPhaseOf(line.state)) {
+          // Passing the turn on: the line ends here, scored as the position it leaves (the opponent's draw is not looked at).
+          const over: Line = { state: line.state, actions: [...line.actions, a], keys: [...line.keys, key], score: evalState(line.state, seat), done: true };
+          next.push(over);
+          continue;
+        }
+        if (sims >= SEARCH.sims) break;
+        sims++;
+        const r = applyAction(line.state, seat, a);
+        if (r.ok === false) continue;
+        const st = r.state.pending ? settle(r.state, seat, rand) : r.state;
+        if (!st) continue;
+        const fp = fingerprint(st, seat);
+        if (seen.has(fp)) continue;
+        seen.add(fp);
+        next.push({ state: st, actions: [...line.actions, a], keys: [...line.keys, key], score: evalState(st, seat) + rand() * 0.001, done: st.winner !== null });
+      }
+    }
+    if (next.length === 0) break;
+    frontier = sortedDesc(next, l => l.score).slice(0, SEARCH.beam);
+    if (frontier.every(l => l.done)) break;
+  }
+  best = sortedDesc(frontier, l => l.score)[0] ?? root;
+  // A line cut short by the search limits is finished by passing the turn on (the engine handles the phases).
+  return { actions: best.actions, keys: best.keys };
+};
+
+// Plans already made, by the position they start from: the next call for the same position gets the same answer without searching again.
+const memo = new Map<string, Action>();
+
+const answerPending = (state: GameState, seat: Seat): Action => {
+  const me = state.players[seat];
+  const pend = state.pending!;
+  if (pend.kind === 'ambush') {
+    const attacker = state.players[pend.attacker].board[pend.from];
+    const defender = me.board[pend.to];
+    const options = me.hand.filter(h => pend.options.includes(h.id));
+    // Spring it only when the hit would otherwise kill the unit.
+    if (attacker && defender && options.length > 0 && defender.hp - attacker.atk <= 0) return { type: 'ambush', cardId: options[0].id };
+    return { type: 'ambush', cardId: null };
+  }
+  if (pend.kind === 'discard') {
+    const worst = [...me.hand].sort((a, b) => cardValue(a) - cardValue(b)).slice(0, pend.count).map(c => c.id);
+    return { type: 'discard', cardIds: worst };
+  }
+  return { type: 'choose', cardIds: bestIds(pend.options, Math.max(pend.min, Math.min(pend.max, pend.options.length))) };
+};
+
+export const aiNextAction = (state: GameState, seat: Seat, rand: Rand = Math.random): Action => {
+  if (state.pending && state.pending.seat === seat) return answerPending(state, seat);
+  const t = state.turn;
+  if (t.active !== seat || state.winner !== null || !['preparacao', 'combate', 'movimentacao'].includes(t.phase)) return aiLegacyAction(state, seat, rand);
+  const key = fingerprint(state, seat);
+  const known = memo.get(key);
+  if (known && applyAction(state, seat, known).ok) return known;
+  const plan = planTurn(state, seat, rand);
+  if (memo.size > 400) memo.clear();
+  plan.actions.forEach((a, i) => memo.set(plan.keys[i], a));
+  const first = plan.actions[0];
+  if (first && applyAction(state, seat, first).ok) return first;
+  return aiLegacyAction(state, seat, rand);
 };

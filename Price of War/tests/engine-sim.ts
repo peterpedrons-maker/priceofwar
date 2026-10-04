@@ -4,7 +4,7 @@
 //  3. Fuzz: random (mostly illegal) actions never crash and a refused action changes nothing.
 //  4. Redaction: the opponent's hand and deck order are never exposed.
 import { DECK_RECIPES, type DeckId } from '../src/engine/catalog';
-import { aiNextAction } from '../src/engine/ai';
+import { aiLegacyAction, aiNextAction } from '../src/engine/ai';
 import { applyAction, createMatch, deckSetupFromRecipe, replayMatch } from '../src/engine/game';
 import { nextRandom, seedFrom } from '../src/engine/rng';
 import { eventsFor, redactFor, viewFor } from '../src/engine/view';
@@ -43,7 +43,8 @@ const invariants = (s: GameState, where: string) => {
   check(new Set(ids).size === ids.length, `${where}: duplicate card ids`);
 };
 
-const play = (seed: number, a: DeckId, b: DeckId, first: Seat, maxRounds = 150) => {
+// `planner`: the turn-planning AI (slower, a few matches are enough to check it never plays an illegal action); the others use the quick one.
+const play = (seed: number, a: DeckId, b: DeckId, first: Seat, maxRounds = 150, planner = false) => {
   let { state } = createMatch({ seed, decks: [deckSetupFromRecipe(a), deckSetupFromRecipe(b)], first });
   const history: { seat: Seat; action: Action }[] = [];
   const rand = () => nextRandom(rng);
@@ -69,7 +70,7 @@ const play = (seed: number, a: DeckId, b: DeckId, first: Seat, maxRounds = 150) 
   let guard = 0;
   while (state.winner === null && state.turn.round <= maxRounds && guard++ < 20000) {
     const seat = state.pending ? state.pending.seat : state.turn.active;
-    if (!step(seat, aiNextAction(state, seat, rand))) break;
+    if (!step(seat, (planner ? aiNextAction : aiLegacyAction)(state, seat, rand))) break;
   }
   return { state, history, createdWith: { seed, a, b, first } };
 };
@@ -82,7 +83,7 @@ const winsByDeck: Record<string, number> = {};
 for (let seed = 1; seed <= 120; seed++) {
   const a = decks[seed % 2], b = decks[(seed >> 1) % 2];
   const first = (seed % 3 === 0 ? 1 : 0) as Seat;
-  const r = play(seed, a, b, first);
+  const r = play(seed, a, b, first, 150, seed <= 12);
   if (!r) continue;
   total++;
   if (r.state.winner !== null) {
@@ -130,7 +131,7 @@ for (let m = 0; m < 60; m++) {
       { type: 'advance' }, { type: 'advance' },
     ];
     // half the time follow the AI so the match actually progresses; the other half is noise
-    const action = R(2) ? aiNextAction(state, state.pending ? state.pending.seat : state.turn.active, () => nextRandom(rnd)) : kinds[R(kinds.length)];
+    const action = R(2) ? aiLegacyAction(state, state.pending ? state.pending.seat : state.turn.active, () => nextRandom(rnd)) : kinds[R(kinds.length)];
     const before = JSON.stringify(state);
     const r = applyAction(state, seat, action);
     if (r.ok === true) { accepted++; state = r.state; invariants(state, `fuzz ${m}/${i} ${action.type}`); }
@@ -165,7 +166,7 @@ console.log('Redaction…');
   const r2 = { rng: seedFrom(3) };
   for (let i = 0; i < 160 && s.winner === null; i++) {
     const seat = (s.pending ? s.pending.seat : s.turn.active) as Seat;
-    const res = applyAction(s, seat, aiNextAction(s, seat, () => nextRandom(r2)));
+    const res = applyAction(s, seat, aiLegacyAction(s, seat, () => nextRandom(r2)));
     if (res.ok === false) break;
     s = res.state;
     for (const viewer of [0, 1] as Seat[]) {

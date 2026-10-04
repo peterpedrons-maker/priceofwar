@@ -309,7 +309,9 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     clock += 101000; await handleGame(db, 'A', { op: 'tick', matchId: init.id }, cfg);
     clock += 101000; await handleGame(db, 'A', { op: 'tick', matchId: init.id }, cfg);
     const m2 = db.matches[0];
-    eq([m2.status, m2.winner, m2.end_reason], ['finished', db.matches[0].bot_seat, 'timeout']);
+    eq([m2.status, m2.winner], ['finished', db.matches[0].bot_seat]);
+    // the forfeit comes with the second timeout — unless the (stronger) bot had already felled the idle player's General by then
+    ok(m2.end_reason === 'timeout' || m2.state.players[mySeat].board[12] === null, 'ended by the clock or by the General falling: ' + m2.end_reason);
   });
 
   await test('turn clock between two people: the waiting player\'s tick enforces it, and both are told', async () => {
@@ -362,7 +364,7 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     ok(r.ok === true && r.status === 'result' && r.reward?.reason === 'too_short', 'too short to pay: ' + JSON.stringify(r));
     const db2 = fresh();
     const g = await pvp(db2);
-    await drive(db2, g.id, mm => mm.state.turn.round >= 4);
+    await drive(db2, g.id, mm => mm.state.turn.round >= 2);   // early: the planner finishes matches fast
     const m2 = db2.matches[0];
     const afk = m2.state.turn.active as Seat;
     clock += 101000; await handleGame(db2, userOf(db2, afk === 0 ? 1 : 0), { op: 'tick', matchId: g.id }, cfg);
@@ -370,7 +372,7 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     for (let i = 0; i < 80 && db2.matches[0].status === 'active'; i++) {
       const mv = (db2.matches[0].state.pending ? db2.matches[0].state.pending.seat : db2.matches[0].state.turn.active) as Seat;
       if (mv === afk) { clock += 101000; await handleGame(db2, userOf(db2, afk === 0 ? 1 : 0), { op: 'tick', matchId: g.id }, cfg); }
-      else { const mm = db2.matches[0]; await handleGame(db2, userOf(db2, mv), { op: 'act', matchId: g.id, action: aiNextAction(mm.state, mv, () => 0.4) }, cfg); }
+      else { const mm = db2.matches[0]; await handleGame(db2, userOf(db2, mv), { op: 'act', matchId: g.id, action: mm.state.pending ? aiNextAction(mm.state, mv, () => 0.4) : { type: 'advance' } }, cfg); }   // the one who stayed just passes, so the match cannot end any other way
     }
     const f = db2.matches[0];
     eq([f.status, f.end_reason], ['finished', 'timeout']);
