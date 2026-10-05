@@ -141,16 +141,16 @@
         </defs>
         <rect x="-200" y="-40" width="790" height="620" fill="url(#wallg)"/>
         <rect x="-200" y="-40" width="790" height="620" fill="url(#stones)"/>
-        <!-- arched window -->
-        <path d="M128 312V150A67 67 0 0 1 262 150V312Z" fill="#5a4630"/>
-        <path d="M137 304V150A58 58 0 0 1 253 150V304Z" fill="url(#sky)"/>
-        <circle cx="214" cy="128" r="13" fill="#fff3cf" opacity=".9"/><circle cx="214" cy="128" r="26" fill="#fff3cf" opacity=".18"/>
-        <path d="M137 262q30-14 64-4t52-6v52H137z" fill="#1b1410" opacity=".85"/>
-        <path d="M195 92V304M137 206H253" stroke="#4a3826" stroke-width="5"/>
-        <path d="M137 304V150A58 58 0 0 1 253 150V304Z" fill="none" stroke="#7c6648" stroke-width="3"/>
-        <rect x="120" y="304" width="150" height="14" rx="3" fill="#6d5a42"/><rect x="120" y="304" width="150" height="3" fill="rgba(255,235,190,.25)"/>
+        <!-- arched window (small and high up, like a real wall window) -->
+        <path d="M124 262V160A56 56 0 0 1 236 160V262Z" fill="#5a4630"/>
+        <path d="M132 254V160A48 48 0 0 1 228 160V254Z" fill="url(#sky)"/>
+        <circle cx="203" cy="146" r="11" fill="#fff3cf" opacity=".9"/><circle cx="203" cy="146" r="22" fill="#fff3cf" opacity=".18"/>
+        <path d="M132 218q24-12 52-4t44-6v46H132z" fill="#1b1410" opacity=".85"/>
+        <path d="M180 112V254M132 192H228" stroke="#4a3826" stroke-width="4"/>
+        <path d="M132 254V160A48 48 0 0 1 228 160V254Z" fill="none" stroke="#7c6648" stroke-width="2.5"/>
+        <rect x="114" y="254" width="132" height="12" rx="3" fill="#6d5a42"/><rect x="114" y="254" width="132" height="3" fill="rgba(255,235,190,.25)"/>
         <g class="beamg" style="mix-blend-mode:screen">
-          <polygon points="140,310 252,310 340,860 20,860" fill="url(#beam)" filter="url(#blur6)" opacity=".55"/>
+          <polygon points="134,262 226,262 330,860 40,860" fill="url(#beam)" filter="url(#blur6)" opacity=".5"/>
         </g>
       </svg></div>
 
@@ -165,17 +165,16 @@
         </defs>
         <!-- banners -->
         <g><rect x="44" y="40" width="64" height="5" rx="2" fill="url(#gold)"/>
-          <path d="M50 45h52v170l-26-30-26 30z" fill="url(#cloth)"/><path d="M50 45h52v170l-26-30-26 30z" fill="none" stroke="#d9b25a" stroke-width="2"/>
-          <path d="M76 82v62M60 104h32" stroke="#e8c46a" stroke-width="5" stroke-linecap="round"/>
-          <path d="M282 40h64v5H282z" fill="url(#gold)"/><path d="M288 45h52v170l-26-30-26 30z" fill="url(#cloth)"/><path d="M288 45h52v170l-26-30-26 30z" fill="none" stroke="#d9b25a" stroke-width="2"/>
-          <path d="M314 82v62M298 104h32" stroke="#e8c46a" stroke-width="5" stroke-linecap="round"/></g>
+          <path d="M50 45h52v118l-26-28-26 28z" fill="url(#cloth)"/><path d="M50 45h52v118l-26-28-26 28z" fill="none" stroke="#d9b25a" stroke-width="2"/>
+          <path d="M76 68v58M60 88h32" stroke="#e8c46a" stroke-width="5" stroke-linecap="round"/>
+          </g>
         <!-- torches -->
-        <g><rect x="118" y="262" width="8" height="34" rx="2" fill="#2d2118"/><path d="M112 262h20l-4 10h-12z" fill="#4a3826"/>
+        <g><g transform="translate(-8,-30)"><rect x="118" y="262" width="8" height="34" rx="2" fill="#2d2118"/><path d="M112 262h20l-4 10h-12z" fill="#4a3826"/>
           <circle cx="122" cy="246" r="46" fill="url(#fireglow)" style="mix-blend-mode:screen"><animate attributeName="r" values="44;50;46;52;44" dur="1.6s" repeatCount="indefinite"/></circle>
           <path class="flame" d="M122 218c9 10 12 18 8 28-3 6-13 6-16 0-4-10 2-18 8-28z" fill="#ffb347"/><path class="flame b" d="M122 230c5 6 7 11 4 16-2 3-8 3-9 0-2-5 1-10 5-16z" fill="#fff0b0"/>
-          <rect x="268" y="262" width="8" height="34" rx="2" fill="#2d2118"/><path d="M262 262h20l-4 10h-12z" fill="#4a3826"/>
+          </g><g transform="translate(-30,-100)"><rect x="268" y="262" width="8" height="34" rx="2" fill="#2d2118"/><path d="M262 262h20l-4 10h-12z" fill="#4a3826"/>
           <circle cx="272" cy="246" r="46" fill="url(#fireglow)" style="mix-blend-mode:screen"><animate attributeName="r" values="48;44;52;46;48" dur="1.4s" repeatCount="indefinite"/></circle>
-          <path class="flame b" d="M272 218c9 10 12 18 8 28-3 6-13 6-16 0-4-10 2-18 8-28z" fill="#ffb347"/><path class="flame" d="M272 230c5 6 7 11 4 16-2 3-8 3-9 0-2-5 1-10 5-16z" fill="#fff0b0"/></g>
+          <path class="flame b" d="M272 218c9 10 12 18 8 28-3 6-13 6-16 0-4-10 2-18 8-28z" fill="#ffb347"/><path class="flame" d="M272 230c5 6 7 11 4 16-2 3-8 3-9 0-2-5 1-10 5-16z" fill="#fff0b0"/></g></g>
 
         <!-- the shelf: stacked tomes, the collection book standing, a candle -->
         <g>
@@ -201,24 +200,27 @@
       </svg>
         <button class="hot" id="hotBook" style="left:44px;top:276px;width:116px;height:130px" aria-label="Abrir coleção"><span class="glow" style="inset:-6px"></span></button>
         <div class="plaque" style="left:96px;top:424px">COLEÇÃO <i id="bdgBook">50/50</i></div>
-        <!-- the merchant's door (Loja) -->
+        <!-- the merchant's door (Loja): taller than the window, as a door is -->
         <svg viewBox="0 0 390 844" style="position:absolute;left:30px;top:30px;width:390px;height:844px;overflow:visible">
-          <defs><linearGradient id="doorin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a0f08"/><stop offset="1" stop-color="#6a3c14"/></linearGradient><radialGradient id="lantern"><stop offset="0" stop-color="#ffd27a" stop-opacity=".9"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></radialGradient></defs>
-          <g transform="translate(-18,0)"><path d="M292 530V428A46 46 0 0 1 384 428V530Z" fill="#6d5a42"/>
-          <path d="M300 530V428A38 38 0 0 1 376 428V530Z" fill="url(#doorin)"/>
-          <ellipse cx="338" cy="500" rx="30" ry="40" fill="url(#lantern)" style="mix-blend-mode:screen"><animate attributeName="opacity" values=".6;1;.7" dur="2s" repeatCount="indefinite"/></ellipse>
-          <!-- the hooded merchant -->
-          <path d="M318 530c0-34 8-52 20-52s20 18 20 52z" fill="#2d1c34"/><circle cx="338" cy="470" r="11" fill="#2d1c34"/><path d="M327 472q11-16 22 0q-3 12-11 12t-11-12z" fill="#0d0710"/><circle cx="333" cy="473" r="1.5" fill="#ffd27a"/><circle cx="343" cy="473" r="1.5" fill="#ffd27a"/>
-          <rect x="352" y="496" width="14" height="18" rx="3" fill="#5a3a18" stroke="#d9b25a"/><path d="M356 496v-6h6v6" stroke="#d9b25a" stroke-width="2" fill="none"/>
-          <!-- the open door leaf -->
-          <path d="M300 530V428A38 38 0 0 1 320 396L310 400V540Z" fill="#7a4a22" stroke="#2a1608" stroke-width="2"/>
-          <path d="M292 530V428A46 46 0 0 1 384 428V530" fill="none" stroke="#8a7658" stroke-width="3"/>
-          <!-- hanging sign -->
-          <path d="M386 352H332" stroke="#2a2a30" stroke-width="4"/><path d="M342 352v8M376 352v8" stroke="#2a2a30" stroke-width="2"/>
-          <rect x="324" y="360" width="62" height="30" rx="4" fill="url(#wood)" stroke="#2a1608" stroke-width="2"/><circle cx="355" cy="375" r="9" fill="url(#gold)" stroke="#6b4a14" stroke-width="1.5"/><path d="M355 369v12M351 372h8M351 378h8" stroke="#6b4a14" stroke-width="1.6" stroke-linecap="round"/>
-        </g></svg>
-        <button class="hot" id="hotShop" style="left:266px;top:344px;width:104px;height:190px" aria-label="Ir à loja"><span class="glow" style="inset:-2px"></span></button>
-        <div class="plaque" style="left:316px;top:504px">LOJA</div>
+          <defs><linearGradient id="doorin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#150b06"/><stop offset="1" stop-color="#6a3c14"/></linearGradient><radialGradient id="lantern"><stop offset="0" stop-color="#ffd27a" stop-opacity=".95"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></radialGradient></defs>
+          <!-- hanging shop sign -->
+          <path d="M268 196H376" stroke="#2a2a30" stroke-width="5" stroke-linecap="round"/><path d="M300 198v10M344 198v10" stroke="#2a2a30" stroke-width="2.4"/>
+          <rect x="288" y="208" width="76" height="34" rx="4" fill="url(#wood)" stroke="#2a1608" stroke-width="2.4"/><circle cx="326" cy="225" r="11" fill="url(#gold)" stroke="#6b4a14" stroke-width="1.6"/><path d="M326 217v16M321 221h10M321 229h10" stroke="#6b4a14" stroke-width="1.8" stroke-linecap="round"/>
+          <!-- stone arch and the dark opening -->
+          <path d="M248 530V316A67 67 0 0 1 382 316V530Z" fill="#6d5a42"/><path d="M248 530V316A67 67 0 0 1 382 316V530" fill="none" stroke="rgba(255,235,190,.25)" stroke-width="2"/>
+          <path d="M259 530V316A56 56 0 0 1 371 316V530Z" fill="url(#doorin)"/>
+          <ellipse cx="318" cy="470" rx="50" ry="70" fill="url(#lantern)" style="mix-blend-mode:screen"><animate attributeName="opacity" values=".55;.95;.65" dur="2s" repeatCount="indefinite"/></ellipse>
+          <!-- the hooded merchant, door-sized: a sack on his back, a lantern in his hand -->
+          <ellipse cx="282" cy="430" rx="22" ry="34" fill="#8a6a3a"/><path d="M270 400q12-8 24 0" fill="none" stroke="#5a3a18" stroke-width="3"/>
+          <path d="M276 530C276 456 288 404 316 392C344 404 358 456 358 530Z" fill="#2d1c34"/><path d="M276 530C276 456 288 404 316 392" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="3"/>
+          <circle cx="316" cy="364" r="25" fill="#2d1c34"/><path d="M298 366q18-26 36 0q-4 20-18 20t-18-20z" fill="#0d0710"/><circle cx="309" cy="368" r="2.4" fill="#ffd27a"/><circle cx="323" cy="368" r="2.4" fill="#ffd27a"/>
+          <path d="M338 420l22 22" stroke="#2d1c34" stroke-width="14" stroke-linecap="round"/>
+          <path d="M360 440v-12h6v12" fill="none" stroke="#d9b25a" stroke-width="2.4"/><rect x="353" y="442" width="22" height="30" rx="4" fill="#5a3a18" stroke="#d9b25a" stroke-width="2"/><circle cx="364" cy="457" r="22" fill="url(#lantern)" style="mix-blend-mode:screen"/><rect x="358" y="448" width="12" height="18" rx="2" fill="#ffe29a"/>
+          <!-- the open door leaf on the left -->
+          <path d="M259 530V316A56 56 0 0 1 276 276L266 282V540Z" fill="#7a4a22" stroke="#2a1608" stroke-width="2"/><path d="M266 340h10M266 420h10M266 500h10" stroke="#2a2a30" stroke-width="4"/>
+        </svg>
+        <button class="hot" id="hotShop" style="left:244px;top:196px;width:144px;height:336px" aria-label="Ir à loja"><span class="glow" style="inset:-2px"></span></button>
+        <div class="plaque" style="left:316px;top:500px">LOJA</div>
 
       </div>
 
