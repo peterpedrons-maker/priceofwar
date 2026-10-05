@@ -20,9 +20,11 @@ function roundedShape(w: number, h: number, r: number) {
   s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r);
   s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y); return s;
 }
-// The back plate: the same rectangle as the card body, its corners cut by the art's own alpha (the mesh is turned around, so its UVs stay as they are)
+// The back plate: the card's back art, cut by its own alpha (the mesh is turned around, so its UVs stay as they are). Its gold frame sits a
+// little inside the art's box, so it is scaled up until the frame overhangs the gold body on every side, like the front art does: no body shows around it.
+const BACK_SX = 1.08, BACK_SY = 1.12;
 function backGeometry() {
-  return new THREE.PlaneGeometry(W, H);
+  return new THREE.PlaneGeometry(W * BACK_SX, H * BACK_SY);
 }
 
 export default function CardViewer3D({ cards, index, onIndex, onClose }: { cards: Viewer3DCard[]; index: number; onIndex: (i: number) => void; onClose: () => void }) {

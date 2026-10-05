@@ -788,12 +788,6 @@ const ImpactFx = ({ x, y, w, big }: { x: number; y: number; w: number; big: bool
     const t0 = performance.now(); const dur = big ? 1.8 : 1.35; let raf = 0;
     const loop = (now: number) => {
       const t = (now - t0) / 1000; ctx.clearRect(0, 0, S, S);
-      const rings = big ? 2 : 1;
-      for (let r = 0; r < rings; r++) {                                          // flat shock ring(s) on the ground
-        const u = (t - r * 0.09) / (big ? 0.6 : 0.45); if (u < 0 || u > 1) continue;
-        ctx.globalAlpha = (1 - u) * 0.9; ctx.strokeStyle = '#fff1c4'; ctx.lineWidth = (3.6 * (1 - u) + 0.8) * Math.min(1.6, k);
-        ctx.beginPath(); ctx.ellipse(cx, ground - 8 * k, lerp(18, (big ? 130 : 92), easeOut(u)) * k, lerp(5, (big ? 30 : 22), easeOut(u)) * k, 0, 0, 7); ctx.stroke();
-      }
       if (t < 0.14) { const u = t / 0.14; const g = ctx.createRadialGradient(cx, ground - 10 * k, 0, cx, ground - 10 * k, lerp(14, big ? 90 : 56, u) * k); g.addColorStop(0, `rgba(255,243,200,${0.85 * (1 - u)})`); g.addColorStop(1, 'rgba(255,243,200,0)'); ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, ground - 10 * k, lerp(14, big ? 90 : 56, u) * k, 0, 7); ctx.fill(); }
       puffs.forEach(p => {
         const u = (t - p.delay) / p.life; if (u < 0 || u > 1) return;
