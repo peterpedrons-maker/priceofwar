@@ -1,7 +1,7 @@
 // The Sala de Coleção: one painted room (a single image) with things to tap. Each one zooms the camera into it and opens what it stands for:
 // the book (the whole collection, in a binder with clear plastic sheets over the pages), the door (the shop), the war table (the deck editor).
 // The room is drawn on a 768 x 1376 stage that is fitted to the screen's height; dragging (or tilting the phone) looks around a little.
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject, type PointerEvent as RPointerEvent, type RefObject } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties, type MutableRefObject, type PointerEvent as RPointerEvent, type RefObject } from 'react';
 import { CARD_DEFS } from './engine/catalog';
 import { cardSlug } from './card3d';
 import roomImage from './assets/room-collection.webp';
@@ -174,13 +174,21 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
 }
 
 // ───────────────────────────── the collection book ─────────────────────────────
+const NS = 9;                 // a page that turns is cut into this many slices, each hinged on the one before it, so the paper really bends
+const SS = BOOK_W / NS;       // width of one slice
+const BEND = 78;              // degrees of bend at the middle of a turn
+type Rect = { x: number; y: number; w: number; h: number };
+type Phase = 'slide' | 'fly' | 'settled' | 'back1' | 'insert';
+
 function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; opening: boolean; onOpened: () => void; onClose: () => void }) {
   const pages = Math.ceil(entries.length / PER);
   const rootRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<HTMLDivElement>(null);
   const coverRef = useRef<HTMLDivElement>(null);
-  const leafRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const leafRefs = useRef<(HTMLDivElement | null)[]>([]);       // the flat pages (what is on screen when nothing is turning)
   const shadeRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const segRefs = useRef<(HTMLDivElement | null)[]>([]);        // the bendable pages (only the ones next to the current page exist)
+  const segCache = useRef<Map<number, { el: HTMLDivElement; strips: HTMLElement[]; shades: HTMLElement[][] }>>(new Map());
   const pos = useRef(0);
   const anim = useRef(0);
   const drag = useRef<{ x: number; base: number; moved: number; t: number; lx: number; v: number; target: EventTarget | null } | null>(null);
@@ -191,24 +199,50 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
   const owned = (i: number) => !missing || !MISSING.has(i);
   const count = entries.filter((_, i) => owned(i)).length;
 
+  const segOf = (i: number) => {
+    const el = segRefs.current[i]; if (!el) return null;
+    let c = segCache.current.get(i);
+    if (!c || c.el !== el) {
+      const strips = [...el.querySelectorAll<HTMLElement>('[data-strip]')];
+      c = { el, strips, shades: strips.map(st => [...st.querySelectorAll<HTMLElement>(':scope > .bk-sface > [data-sh]')]) };
+      segCache.current.set(i, c);
+    }
+    return c;
+  };
+  // Every frame of a turn: the page that is turning bends. The slice at the spine turns least, each next one turns a little more than the
+  // one before, so the free edge leads and the paper curves; at rest and at the end the bend is zero and it lies flat.
   const layout = () => {
     const p = pos.current, base = Math.floor(p + 1e-6), frac = p - base;
     leafRefs.current.forEach((leaf, i) => {
       if (!leaf) return;
-      const a = clamp(p - i, 0, 1);
-      leaf.style.transform = `rotateY(${(-180 * a).toFixed(2)}deg)`;
-      leaf.style.zIndex = String(i < base ? i : i === base ? 100 : 60 - i);
-      leaf.style.display = a >= 0.999 || i > base + 1 ? 'none' : '';
-      const sh = shadeRefs.current[i]; if (sh) { let d = a > 0 ? 0.55 * Math.sin(a * Math.PI) : 0; if (i === base + 1 && frac > 0) d = 0.4 * (1 - frac); sh.style.opacity = d.toFixed(3); }
+      const a = clamp(p - i, 0, 1), turning = a > 0.0004 && a < 0.9996, z = String(i < base ? i : i === base ? 100 : 60 - i);
+      const seg = turning ? segOf(i) : null;
+      leaf.style.zIndex = z;
+      if (seg) {
+        leaf.style.display = 'none';
+        seg.el.style.display = ''; seg.el.style.zIndex = z;
+        const b = BEND * Math.sin(Math.PI * a), a0 = 180 * a - b / 2, d = b / (NS - 1);
+        seg.strips.forEach((st, j) => {
+          const rel = j === 0 ? a0 : d; st.style.transform = `rotateY(${(-rel).toFixed(2)}deg)`;
+          const abs = a0 + j * d, sh = (0.06 + 0.4 * Math.abs(Math.sin((abs * Math.PI) / 180))).toFixed(3);
+          seg.shades[j].forEach(x => { x.style.opacity = sh; });
+        });
+      } else {
+        const hidden = a >= 0.9996 || i > base + 1;
+        leaf.style.display = hidden ? 'none' : '';
+        leaf.style.transform = turning ? `rotateY(${(-180 * a).toFixed(2)}deg)` : '';   // (only if its bendable twin is not there yet)
+        const sh = shadeRefs.current[i]; if (sh) sh.style.opacity = (i === base + 1 && frac > 0 ? 0.4 * (1 - frac) : 0).toFixed(3);
+        const sg = segRefs.current[i]; if (sg) sg.style.display = 'none';
+      }
     });
-    const pg = Math.round(p); setPage(pg);
+    setPage(Math.round(p));
   };
   const glide = (to: number, ms = 520) => new Promise<void>(res => {
     cancelAnimationFrame(anim.current); const from = pos.current, s = performance.now();
     const step = (n: number) => { const u = clamp((n - s) / ms, 0, 1), e = 1 - Math.pow(1 - u, 3); pos.current = from + (to - from) * e; layout(); if (u < 1) anim.current = requestAnimationFrame(step); else res(); };
     anim.current = requestAnimationFrame(step);
   });
-  const go = (d: number) => glide(clamp(Math.round(pos.current) + d, 0, pages - 1));
+  const go = (d: number) => glide(clamp(Math.round(pos.current) + d, 0, pages - 1), 760);
 
   // the cover swings open on the spine, then the page is there
   const setCover = (v: number) => { const el = coverRef.current; if (!el) return; el.style.transform = `rotateY(${(-180 * v).toFixed(2)}deg)`; el.style.visibility = v >= 0.999 ? 'hidden' : 'visible'; };
@@ -217,7 +251,7 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
     const step = (n: number) => { const u = clamp((n - s) / ms, 0, 1); fn(from + (to - from) * ease(u)); if (u < 1) requestAnimationFrame(step); else res(); };
     requestAnimationFrame(step);
   });
-  useEffect(() => { layout(); }, [missing]);
+  useEffect(() => { layout(); }, [missing, page]);
   useEffect(() => {
     let dead = false;
     (async () => { if (opening) { setCover(0); await wait(200); if (dead) return; await tween(setCover, 0, 1, 950); if (dead) return; setUi(true); onOpened(); } })();
@@ -226,59 +260,94 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
   const close = async () => { setUi(false); await glide(0, 300); setCover(1); if (coverRef.current) coverRef.current.style.visibility = 'visible'; await tween(setCover, 1, 0, 720); onClose(); };
 
   // ── turning pages with the finger ──
-  const down = (e: RPointerEvent) => { if (!ui) return; cancelAnimationFrame(anim.current); drag.current = { x: e.clientX, base: pos.current, moved: 0, t: performance.now(), lx: e.clientX, v: 0, target: e.target }; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); };
+  const down = (e: RPointerEvent) => { if (!ui || lift) return; cancelAnimationFrame(anim.current); drag.current = { x: e.clientX, base: pos.current, moved: 0, t: performance.now(), lx: e.clientX, v: 0, target: e.target }; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); };
   const move = (e: RPointerEvent) => {
     const d = drag.current; if (!d) return; const dx = e.clientX - d.x; d.moved = Math.max(d.moved, Math.abs(dx));
     const now = performance.now(); d.v = (e.clientX - d.lx) / Math.max(1, now - d.t); d.lx = e.clientX; d.t = now;
-    pos.current = clamp(d.base - dx / 300, 0, pages - 1); layout();
+    pos.current = clamp(d.base - dx / 260, 0, pages - 1); layout();
   };
   const up = () => {
     const d = drag.current; if (!d) return; drag.current = null;
     if (d.moved < 8) { pos.current = d.base; layout(); const pk = (d.target as HTMLElement | null)?.closest?.('[data-card]') as HTMLElement | null; if (pk) openCard(Number(pk.dataset.card), pk); return; }
     let to = Math.round(pos.current); if (Math.abs(d.v) > 0.45) to = d.v < 0 ? Math.floor(d.base) + 1 : Math.ceil(d.base) - 1;
-    glide(clamp(to, 0, pages - 1), 420);
+    glide(clamp(to, 0, pages - 1), 620);
   };
 
-  // ── a card taken out of the sheet: these plastic pages load from the top, so it slides UP out of its slot first, then comes forward over a
-  //    darkened page, and the 3D viewer takes over. Closing runs the same way backwards (forward-to-slot, then down into the plastic). ──
-  type Rect = { x: number; y: number; w: number; h: number };
-  type Phase = 'start' | 'slide' | 'fly' | 'settled' | 'back1' | 'back2';
-  const [lift, setLift] = useState<null | { i: number; src: string; from: Rect; to: Rect; phase: Phase }>(null);
+  // ── a card taken out of its plastic: the sleeve opens at the top, so the card slides UP and all the way out of its slot (under the plastic),
+  //    and only then comes forward over a darkened page; the 3D viewer takes over. Closing is the same, backwards: the card returns above its
+  //    slot, then slides back down into the plastic. ──
+  const [lift, setLift] = useState<null | { i: number; src: string; up: Rect | null; to: Rect; phase: Phase }>(null);
+  const [flyGo, setFlyGo] = useState(false);
   const [viewerReady, setViewerReady] = useState(false);
-  const liftImg = useRef<HTMLImageElement | null>(null);
+  const liftCell = useRef<HTMLElement | null>(null);
   const openCard = (i: number, pk: HTMLElement) => {
     if (lift) return; const img = pk.querySelector('img') as HTMLImageElement | null; if (!img) return;
-    const r = img.getBoundingClientRect(), W = window.innerWidth, H = window.innerHeight, ar = img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 0.7;
+    const W = window.innerWidth, H = window.innerHeight, ar = img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 0.7;
     const h = Math.min(H * 0.7, (W * 0.92) / ar), w = h * ar;
-    liftImg.current = img; img.style.visibility = 'hidden'; setViewerReady(false);
-    setLift({ i, src: img.src, from: { x: r.left, y: r.top, w: r.width, h: r.height }, to: { x: (W - w) / 2, y: (H - h) / 2 + H * 0.01, w, h }, phase: 'start' });
+    liftCell.current = pk; setViewerReady(false); setFlyGo(false);
+    pk.style.transition = 'transform 780ms cubic-bezier(.5,.05,.25,1)'; pk.style.willChange = 'transform';
+    requestAnimationFrame(() => requestAnimationFrame(() => { pk.style.transform = 'translateY(-102%) scale(1.03)'; }));
+    setLift({ i, src: img.src, up: null, to: { x: (W - w) / 2, y: (H - h) / 2 + H * 0.01, w, h }, phase: 'slide' });
   };
   useEffect(() => {
     if (!lift) return;
-    let dead = false; const later = (ms: number, fn: () => void) => { const t = setTimeout(() => { if (!dead) fn(); }, ms); return t; };
-    if (lift.phase === 'start') { requestAnimationFrame(() => requestAnimationFrame(() => { if (!dead) setLift(l => (l ? { ...l, phase: 'slide' } : l)); })); }
-    if (lift.phase === 'slide') later(430, () => setLift(l => (l ? { ...l, phase: 'fly' } : l)));
-    if (lift.phase === 'fly') later(640, () => setLift(l => (l ? { ...l, phase: 'settled' } : l)));
-    if (lift.phase === 'back1') later(520, () => setLift(l => (l ? { ...l, phase: 'back2' } : l)));
-    if (lift.phase === 'back2') later(470, () => { if (liftImg.current) liftImg.current.style.visibility = ''; setLift(null); setViewerReady(false); });
+    let dead = false; const later = (ms: number, fn: () => void) => setTimeout(() => { if (!dead) fn(); }, ms);
+    const pk = liftCell.current, img = pk?.querySelector('img') as HTMLImageElement | null;
+    if (lift.phase === 'slide') later(830, () => { if (!img || !pk) return; const r = img.getBoundingClientRect(); pk.style.visibility = 'hidden'; setLift(l => (l ? { ...l, up: { x: r.left, y: r.top, w: r.width, h: r.height }, phase: 'fly' } : l)); });
+    if (lift.phase === 'fly') { setFlyGo(false); requestAnimationFrame(() => requestAnimationFrame(() => { if (!dead) setFlyGo(true); })); later(1000, () => setLift(l => (l ? { ...l, phase: 'settled' } : l)));
+    }
+    if (lift.phase === 'back1') later(860, () => setLift(l => (l ? { ...l, phase: 'insert' } : l)));
+    if (lift.phase === 'insert' && pk) {
+      pk.style.visibility = 'visible'; pk.style.transition = 'transform 820ms cubic-bezier(.4,0,.2,1)'; requestAnimationFrame(() => requestAnimationFrame(() => { pk.style.transform = ''; }));
+      later(900, () => { pk.style.transition = ''; pk.style.willChange = ''; setLift(null); setViewerReady(false); });
+    }
     return () => { dead = true; };
   }, [lift?.phase, lift?.i]);
   const showViewer = !!lift && lift.phase === 'settled' && viewerReady;
   const closeCard = () => { setLift(l => (l && l.phase === 'settled' ? { ...l, phase: 'back1' } : l)); };
-  const slideRect = (f: Rect): Rect => ({ x: f.x - f.w * 0.02, y: f.y - f.h * 0.52, w: f.w * 1.04, h: f.h * 1.04 });
-  const liftRect = (l: NonNullable<typeof lift>): Rect => (l.phase === 'start' || l.phase === 'back2' ? l.from : l.phase === 'slide' || l.phase === 'back1' ? slideRect(l.from) : l.to);
-  const liftMs: Record<Phase, number> = { start: 0, slide: 400, fly: 600, settled: 0, back1: 520, back2: 440 };
-  // 'back1' goes from the centre to above the slot, 'slide' from the slot to above it: both use the soft ease, the flight the springy one
-  const liftEase = (ph: Phase) => (ph === 'fly' ? 'cubic-bezier(.2,.9,.25,1)' : 'cubic-bezier(.4,0,.2,1)');
 
-  const pageEntries = (p: number) => entries.slice(p * PER, p * PER + PER);
   const sheetLines = (() => { const l = (dir: string, at: string) => `linear-gradient(${dir}, transparent calc(${at} - 1.5px), rgba(255,255,255,.30) calc(${at} - 1.5px), rgba(255,255,255,.30) calc(${at} + .5px), rgba(0,0,0,.35) calc(${at} + .5px), rgba(0,0,0,.35) calc(${at} + 1.5px), transparent calc(${at} + 1.5px))`; return [l('90deg', '33.333%'), l('90deg', '66.666%'), l('180deg', '33.333%'), l('180deg', '66.666%')].join(','); })();
+
+  // one page, drawn once and used both flat and (cut into slices) while it bends: the page art, the nine cards, and ONE clear sheet over it all
+  const pageFront = (p: number) => (
+    <>
+      <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${pageImage})`, backgroundSize: '100% 100%' }} />
+      <div style={{ position: 'absolute', left: '8.8%', right: '3.5%', top: '3.2%', bottom: '3.4%', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(3, 1fr)' }}>
+        {Array.from({ length: PER }, (_, k) => {
+          const i = p * PER + k, e = entries[i];
+          if (!e) return <div key={k} />;
+          if (!owned(i)) return <div key={k} style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ width: '78%', height: '82%', borderRadius: 7, border: '1px solid rgba(232,196,106,.16)', background: 'rgba(0,0,0,.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(232,196,106,.3)', fontSize: 24 }}>?</div></div>;
+          const t = thumbOf(e.name);
+          return (
+            <div key={k} data-card={i} style={{ position: 'relative', padding: '6% 5%' }}>
+              {t && <img src={t} alt={e.name} loading="lazy" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.7))' }} />}
+              {t && e.full && <div className="bk-foil" style={{ inset: '6% 5%', WebkitMaskImage: `url(${t})`, maskImage: `url(${t})` }} />}
+            </div>
+          );
+        })}
+      </div>
+      <div className="bk-sheet" />
+    </>
+  );
+  const slice = (j: number, p: number): ReactNode => (
+    <div key={j} data-strip style={{ position: 'absolute', left: j === 0 ? 0 : SS, top: 0, width: SS, height: BOOK_H, transformOrigin: '0 50%', transformStyle: 'preserve-3d' }}>
+      <div className="bk-sface" style={{ width: SS + 0.8, height: BOOK_H }}>
+        <div style={{ position: 'absolute', left: -j * SS, top: 0, width: BOOK_W, height: BOOK_H }}>{pageFront(p)}</div>
+        <div data-sh style={{ position: 'absolute', inset: 0, background: '#000', opacity: 0, pointerEvents: 'none' }} />
+      </div>
+      <div className="bk-sface" style={{ width: SS + 0.8, height: BOOK_H, transform: 'rotateY(180deg)', backgroundImage: `url(${insideImage})`, backgroundSize: `${BOOK_W}px ${BOOK_H}px`, backgroundPosition: `${-(BOOK_W - (j + 1) * SS)}px 0` }}>
+        <div data-sh style={{ position: 'absolute', inset: 0, background: '#000', opacity: 0, pointerEvents: 'none' }} />
+      </div>
+      {j < NS - 1 && slice(j + 1, p)}
+    </div>
+  );
 
   return (
     <div ref={rootRef} style={{ position: 'absolute', inset: 0, zIndex: 20, background: 'radial-gradient(ellipse at 50% 40%, #2a1a10 0%, #0d0905 75%)', animation: 'binderin .25s ease both' }}>
       <style>{`
         @keyframes binderin { from { opacity:0 } to { opacity:1 } }
         .bk-face { position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden; overflow:hidden; border-radius:3px 9px 9px 3px; background-size:100% 100%; }
+        .bk-sface { position:absolute; left:0; top:0; backface-visibility:hidden; -webkit-backface-visibility:hidden; overflow:hidden; }
         .bk-sheet { position:absolute; left:8.8%; right:3.5%; top:3.2%; bottom:3.4%; border-radius:9px; pointer-events:none;
           background-image: ${sheetLines}, linear-gradient(112deg, transparent 36%, rgba(255,255,255,.17) 47%, rgba(255,255,255,.05) 56%, transparent 66%), linear-gradient(160deg, rgba(255,255,255,.07), rgba(255,255,255,0) 40%, rgba(255,255,255,.04));
           background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 280% 100%, 100% 100%; background-position: 0 0, 0 0, 0 0, 0 0, calc(var(--sheen,0) * 100%) 0, 0 0;
@@ -301,34 +370,21 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
         {/* the back board and the page block under the pages */}
         <div style={{ position: 'absolute', inset: '-8px -9px -8px -12px', borderRadius: '8px 14px 14px 8px', backgroundImage: `url(${coverImage})`, backgroundSize: '100% 100%', filter: 'brightness(.5)', boxShadow: '0 18px 40px rgba(0,0,0,.7)' }} />
         <div style={{ position: 'absolute', right: -5, top: 3, bottom: 3, width: 8, borderRadius: '0 4px 4px 0', background: 'repeating-linear-gradient(180deg,#d9c9a0 0 2px,#b9a878 2px 3px)', boxShadow: 'inset -2px 0 3px rgba(0,0,0,.4)' }} />
-        {(
-          Array.from({ length: pages }, (_, p) => (
-            <div key={p} ref={el => { leafRefs.current[p] = el; }} style={{ position: 'absolute', inset: 0, transformOrigin: '0 50%', transformStyle: 'preserve-3d', display: p > 1 ? 'none' : undefined, zIndex: 60 - p, willChange: 'transform' }}>
-              <div className="bk-face" style={{ backgroundImage: `url(${pageImage})` }}>
-                <div style={{ position: 'absolute', left: '8.8%', right: '3.5%', top: '3.2%', bottom: '3.4%', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(3, 1fr)' }}>
-                  {Array.from({ length: PER }, (_, k) => {
-                    const i = p * PER + k, e = entries[i];
-                    if (!e) return <div key={k} />;
-                    if (!owned(i)) return <div key={k} style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ width: '78%', height: '82%', borderRadius: 7, border: '1px solid rgba(232,196,106,.16)', background: 'rgba(0,0,0,.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(232,196,106,.3)', fontSize: 24 }}>?</div></div>;
-                    const t = thumbOf(e.name);
-                    return (
-                      <div key={k} data-card={i} style={{ position: 'relative', padding: '6% 5%' }}>
-                        {t && <img src={t} alt={e.name} loading="lazy" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.7))' }} />}
-                        {t && e.full && <div className="bk-foil" style={{ inset: '6% 5%', WebkitMaskImage: `url(${t})`, maskImage: `url(${t})` }} />}
-                      </div>
-                    );
-                  })}
-                </div>
-                {/* ONE clear plastic sheet over the whole page, the card slots only divided inside it */}
-                <div className="bk-sheet" />
+        {Array.from({ length: pages }, (_, p) => (
+          <div key={p}>
+            <div ref={el => { leafRefs.current[p] = el; }} style={{ position: 'absolute', inset: 0, transformOrigin: '0 50%', transformStyle: 'preserve-3d', display: p > 1 ? 'none' : undefined, zIndex: 60 - p, willChange: 'transform' }}>
+              <div className="bk-face">
+                {pageFront(p)}
                 <div ref={el => { shadeRefs.current[p] = el; }} style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg,#000,rgba(0,0,0,.6))', opacity: 0, pointerEvents: 'none' }} />
               </div>
-              <div className="bk-face" style={{ transform: 'rotateY(180deg)', backgroundImage: `url(${insideImage})`, borderRadius: '9px 3px 3px 9px' }}>
-                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(270deg,rgba(0,0,0,.55),rgba(0,0,0,.05) 40%)' }} />
-              </div>
             </div>
-          ))
-        )}
+            {Math.abs(p - page) <= 1 && (p === page || p === page - 1) && (
+              <div ref={el => { segRefs.current[p] = el; }} style={{ position: 'absolute', inset: 0, display: 'none', transformStyle: 'preserve-3d' }}>
+                {slice(0, p)}
+              </div>
+            )}
+          </div>
+        ))}
         {/* the cover, hinged on the spine */}
         <div ref={coverRef} style={{ position: 'absolute', left: -BOOK_W * 0.043, top: -BOOK_H * 0.0225, width: BOOK_W * 1.1, height: BOOK_H * 1.045, transformOrigin: '5% 50%', transformStyle: 'preserve-3d', zIndex: 150 }}>
           <div className="bk-face" style={{ backgroundImage: `url(${coverImage})`, borderRadius: 0, filter: 'drop-shadow(0 10px 18px rgba(0,0,0,.6))' }} />
@@ -347,15 +403,18 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
       </div>
 
       {lift && (() => {
-        const r = liftRect(lift), ms = liftMs[lift.phase] / 1000, ease = liftEase(lift.phase);
+        const showCard = lift.phase === 'fly' || lift.phase === 'settled' || lift.phase === 'back1';
+        const r = lift.phase === 'settled' ? lift.to : lift.phase === 'fly' ? (flyGo ? lift.to : lift.up ?? lift.to) : lift.up ?? lift.to;
+        const trans = lift.phase === 'fly' ? (flyGo ? 'transform .95s cubic-bezier(.2,.8,.2,1), width .95s cubic-bezier(.2,.8,.2,1), height .95s cubic-bezier(.2,.8,.2,1)' : 'none') : lift.phase === 'back1' ? 'transform .82s cubic-bezier(.4,0,.2,1), width .82s cubic-bezier(.4,0,.2,1), height .82s cubic-bezier(.4,0,.2,1)' : 'none';
         return (
           <>
-            <div style={{ position: 'fixed', inset: 0, zIndex: 880, background: 'radial-gradient(ellipse at 50% 45%, rgba(13,9,5,.72), rgba(5,3,2,.94))', opacity: lift.phase === 'fly' || lift.phase === 'settled' ? 1 : lift.phase === 'slide' ? 0.35 : 0, transition: 'opacity .5s', pointerEvents: 'none' }} />
-            <img src={lift.src} alt="" draggable={false} style={{
-              position: 'fixed', left: 0, top: 0, zIndex: 890, pointerEvents: 'none', objectFit: 'contain', width: r.w, height: r.h, transform: `translate(${r.x}px, ${r.y}px)`,
-              filter: lift.phase === 'start' || lift.phase === 'back2' ? 'drop-shadow(0 2px 3px rgba(0,0,0,.6))' : 'drop-shadow(0 18px 24px rgba(0,0,0,.75))',
-              opacity: showViewer ? 0 : 1, transition: lift.phase === 'start' ? 'none' : `transform ${ms}s ${ease}, width ${ms}s ${ease}, height ${ms}s ${ease}, opacity .25s, filter .4s`,
-            }} />
+            <div style={{ position: 'fixed', inset: 0, zIndex: 880, background: 'radial-gradient(ellipse at 50% 45%, rgba(13,9,5,.72), rgba(5,3,2,.94))', opacity: lift.phase === 'fly' || lift.phase === 'settled' ? 1 : 0, transition: 'opacity .7s', pointerEvents: 'none' }} />
+            {showCard && (
+              <img src={lift.src} alt="" draggable={false} style={{
+                position: 'fixed', left: 0, top: 0, zIndex: 890, pointerEvents: 'none', objectFit: 'contain', width: r.w, height: r.h, transform: `translate(${r.x}px, ${r.y}px)`,
+                filter: 'drop-shadow(0 18px 24px rgba(0,0,0,.75))', opacity: showViewer ? 0 : 1, transition: `${trans === 'none' ? '' : trans + ', '}opacity .25s`,
+              }} />
+            )}
             <div style={{ position: 'fixed', inset: 0, zIndex: 900, opacity: showViewer ? 1 : 0, pointerEvents: showViewer ? 'auto' : 'none', transition: 'opacity .25s' }}>
               <Suspense fallback={null}>
                 <CardViewer3D cards={entries} index={lift.i} onIndex={() => {}} onClose={closeCard} onReady={() => setViewerReady(true)} hideArrows />

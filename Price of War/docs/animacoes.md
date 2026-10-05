@@ -182,9 +182,12 @@ Cada objeto é uma área de toque sobre a imagem: a câmera dá zoom nele e abre
 - **Livro** (estante): zoom, a capa abre e vira o álbum. Cada página tem 9 cartas sob **uma única folha de plástico** (`.bk-sheet`):
   as divisões são linhas dentro da folha, com brilho que se move. Deslizar vira a página; tocar numa carta a tira do bolso, ela vem
   para a frente sobre o fundo escurecido e vira o visualizador 3D (`CardViewer3D`, props `onReady` e `hideArrows`).
-  A folha de plástico acompanha a moldura dourada da própria página; ao virar, a folha gira na lombada e mostra o verso do papel
-  (não some): é um giro rígido em 3D com sombra, acompanhando o dedo. A carta sai do bolso para cima (o plástico abre por cima),
-  depois vem para a frente; ao fechar o 3D ela volta para a frente do bolso e desce para dentro dele.
+  A folha de plástico acompanha a moldura dourada da própria página. A página que vira é cortada em 9 fatias, cada uma articulada na
+  anterior (`NS`, `BEND` em `CollectionRoom.tsx`): a fatia da lombada gira menos e cada seguinte um pouco mais, então o papel curva
+  de verdade e as cartas se deformam junto; o verso do papel aparece depois dos 90°. Só as páginas ao lado da atual têm a versão em
+  fatias (o resto é plano), para não pesar. A carta sai do bolso por completo: sobe por baixo do plástico até ficar toda acima do
+  slot (~0,8 s) e só então vem para a frente (~1 s) enquanto o fundo escurece; ao fechar o 3D ela volta acima do slot e desce para
+  dentro do plástico.
 - **Porta / placa**: zoom e abre a loja (`ShopScreen`). Ao fechar a loja, a câmera recua e o jogador continua na sala.
 - **Mesa com o tabuleiro**: zoom (a câmera nunca passa da borda da imagem) e a sala escurece por baixo; o editor de deck (`DeckEditor`,
   prop `overRoom`, translúcido) abre por cima, com o mesmo caminho de volta.
