@@ -11,7 +11,7 @@ const CardViewer3D = lazy(() => import('./CardViewer3D'));
 const Viewer3DPage = () => {
   const cards = CARD_DEFS.map(d => ({ name: d.name, type: d.cardType, full: !!d.isFullArt }));
   const [i, setI] = useState(Math.max(0, Math.min(cards.length - 1, Number(new URLSearchParams(location.search).get('card')) || 0)));
-  return <Suspense fallback={null}><CardViewer3D cards={cards} index={i} onIndex={setI} onClose={() => { location.href = location.pathname; }} /></Suspense>;
+  return <Suspense fallback={null}><CardViewer3D cards={cards} index={i} onIndex={setI} onClose={() => { if (new URLSearchParams(location.search).has('embed')) parent.postMessage('close3d', '*'); else location.href = location.pathname; }} /></Suspense>;
 };
 const only3d = new URLSearchParams(location.search).has('3d');
 

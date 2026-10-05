@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0d0905">
+<title>Quarto do Comandante · mockup</title>
+<style>
+  :root { --gold:#e8c46a; --gold2:#b5842a; --ink:#0d0905; --wood1:#7a4a22; --wood2:#3f2612; --paper:#f1e2bd; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; height:100%; background:#050302; overflow:hidden; font-family:"Cinzel","Trajan Pro",Georgia,serif; color:#ffe9b0; touch-action:none; user-select:none; -webkit-user-select:none; }
+  #app { position:relative; width:100%; max-width:480px; height:100dvh; margin:0 auto; overflow:hidden; background:var(--ink); }
+
+  /* ───────────── the room ───────────── */
+  #fit { position:absolute; left:50%; top:50%; width:390px; height:844px; transform-origin:center; }
+  #stage { position:absolute; inset:0; transition:transform .62s cubic-bezier(.55,0,.25,1), filter .62s; will-change:transform; }
+  .layer { pointer-events:none; position:absolute; left:-30px; top:-30px; width:450px; height:904px; will-change:transform; }
+  .layer > svg { position:absolute; left:30px; top:30px; width:390px; height:844px; overflow:visible; }
+  .layer > .hot, .layer > .plaque { margin:30px 0 0 30px; }
+  .hot { pointer-events:auto; position:absolute; border:0; background:none; padding:0; cursor:pointer; color:inherit; font:inherit; }
+  .hot .glow { position:absolute; inset:-14px; border-radius:50%; background:radial-gradient(closest-side, rgba(255,214,120,.55), rgba(255,190,80,.18) 55%, transparent 75%); mix-blend-mode:screen; animation:pulse 2.6s ease-in-out infinite; pointer-events:none; }
+  .hot:active .glow { animation:none; opacity:1; transform:scale(1.15); }
+  @keyframes pulse { 0%,100% { opacity:.35; transform:scale(.94);} 50% { opacity:.95; transform:scale(1.05);} }
+  .plaque { position:absolute; left:50%; transform:translateX(-50%); white-space:nowrap; font-size:10.5px; letter-spacing:.14em; font-weight:700; padding:4px 10px 3px; border-radius:7px; color:#ffe9b0;
+    background:linear-gradient(#6d4523,#3b2311); border:1px solid #d9b25a; box-shadow:0 2px 6px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,235,170,.35); text-shadow:0 1px 1px #000; display:flex; gap:7px; align-items:center; }
+  .plaque i { font-style:normal; font-size:9.5px; letter-spacing:.04em; background:linear-gradient(#f6d77a,#b5842a); color:#2a1606; padding:1px 6px; border-radius:9px; text-shadow:none; }
+  .plaque::before, .plaque::after { content:""; width:3px; height:3px; border-radius:50%; background:#f6d77a; box-shadow:0 0 3px #000; }
+  @keyframes flick { 0%,100% { transform:scale(1,1) translateY(0); opacity:.95;} 30% { transform:scale(.94,1.1) translateY(-1px); opacity:1;} 60% { transform:scale(1.05,.95); opacity:.85;} }
+  .flame { transform-box:fill-box; transform-origin:50% 100%; animation:flick .9s infinite; }
+  .flame.b { animation-duration:1.2s; animation-delay:-.4s; }
+  .lid { transform-box:view-box; transform-origin:231px 612px; transition:transform .5s cubic-bezier(.3,1.4,.5,1); }
+  .chest-open .lid { transform:rotate(-24deg); }
+  #dust { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; mix-blend-mode:screen; }
+  #vig { position:absolute; inset:0; pointer-events:none; background:radial-gradient(ellipse at 50% 46%, transparent 38%, rgba(0,0,0,.55) 100%); }
+
+  /* HUD over the room */
+  .topbar { position:absolute; left:0; right:0; top:0; padding:calc(env(safe-area-inset-top) + 10px) 12px 8px; display:flex; align-items:center; gap:10px; z-index:20; pointer-events:none; }
+  .topbar > * { pointer-events:auto; }
+  .chip { border:1px solid rgba(217,178,90,.55); background:rgba(14,10,6,.62); color:#ffe9b0; border-radius:10px; padding:7px 11px; font:inherit; font-size:11px; letter-spacing:.1em; font-weight:700; backdrop-filter:blur(4px); }
+  .title { flex:1; text-align:center; font-size:13px; letter-spacing:.2em; text-shadow:0 1px 3px #000; }
+  .plaque, .hot .glow { transition:opacity .25s; }
+  #room.zoom .plaque, #room.zoom .hot .glow { opacity:0 !important; animation:none; }
+  .tag { position:absolute; left:50%; transform:translateX(-50%); width:max-content; max-width:92%; padding:6px 12px; border-radius:10px; background:rgba(14,10,6,.72); border:1px solid rgba(217,178,90,.35); text-align:center; top:calc(env(safe-area-inset-top) + 46px); z-index:20; font-size:9.5px; letter-spacing:.12em; color:rgba(255,233,176,.7); text-shadow:0 1px 2px #000; pointer-events:none; transition:opacity .5s; }
+  .tag b { color:#ff9a6a; }
+
+  /* ───────────── the collection binder ───────────── */
+  .view { position:absolute; inset:0; z-index:30; opacity:0; pointer-events:none; transition:opacity .22s; background:radial-gradient(ellipse at 50% 40%, #2a1a10 0%, #0d0905 75%); }
+  .view.on { opacity:1; pointer-events:auto; }
+  #book { position:absolute; left:50%; top:calc(50% + 6px); width:350px; height:494px; margin:-247px 0 0 -175px; perspective:1700px; transform-style:preserve-3d; }
+  .bk-back { position:absolute; inset:-7px -7px -7px -9px; border-radius:8px 16px 16px 8px; background:linear-gradient(135deg,#6b2a1c,#2e0f09); box-shadow:0 18px 40px rgba(0,0,0,.7), inset 0 0 0 2px rgba(232,196,106,.55), inset 0 0 30px rgba(0,0,0,.6); }
+  .leaf { position:absolute; inset:0; transform-origin:0 50%; transform-style:preserve-3d; }
+  .face { position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden; border-radius:4px 12px 12px 4px; overflow:hidden;
+    background:linear-gradient(100deg,#0b0705,#18110c 14%,#120c08), #120c08; box-shadow: inset 0 0 0 1px rgba(255,255,255,.05); }
+  .face::before { content:""; position:absolute; inset:0; background:repeating-radial-gradient(circle at 30% 20%, rgba(255,255,255,.012) 0 1px, transparent 1px 3px); pointer-events:none; }
+  .grid { position:absolute; inset:16px 12px 26px 28px; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr); gap:7px; }
+  .pocket { position:relative; border-radius:7px; background:linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.012) 55%, rgba(255,255,255,.04)); border:1px solid rgba(255,255,255,.13);
+    box-shadow: inset 0 2px 0 rgba(255,255,255,.14), inset 0 -8px 14px rgba(0,0,0,.35), 0 1px 3px rgba(0,0,0,.6); overflow:hidden; }
+  .pocket .cimg { position:absolute; inset:5% 4% 4%; }
+  .pocket img { width:100%; height:100%; object-fit:contain; display:block; filter:drop-shadow(0 2px 3px rgba(0,0,0,.7)); }
+  .pocket .foilfx { position:absolute; inset:0; mix-blend-mode:color-dodge; opacity:.34; background:linear-gradient(115deg,#ff5fa2,#ffe46b,#5ff0ff,#9b6bff,#ff5fa2); background-size:300% 100%; background-position:calc(var(--sheen,0)*100%) 0;
+    -webkit-mask-size:contain; mask-size:contain; -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat; -webkit-mask-position:center; mask-position:center; }
+  .pocket::after { content:""; position:absolute; inset:0; pointer-events:none; background:linear-gradient(112deg, transparent 38%, rgba(255,255,255,.2) 49%, rgba(255,255,255,.04) 56%, transparent 64%); background-size:260% 100%; background-position:calc(var(--sheen,0)*100%) 0; }
+  .pocket.empty { background:rgba(255,255,255,.025); border:1px dashed rgba(232,196,106,.22); box-shadow:inset 0 0 14px rgba(0,0,0,.6); }
+  .pocket.empty::after { display:none; }
+  .pocket.empty .ph { position:absolute; inset:9% 12%; border-radius:6px; border:1px solid rgba(232,196,106,.14); background:linear-gradient(rgba(255,255,255,.03),rgba(0,0,0,.2)); display:flex; align-items:center; justify-content:center; font-size:22px; color:rgba(232,196,106,.28); }
+  .pocket .nm { position:absolute; left:0; right:0; bottom:3px; text-align:center; font-size:7.5px; letter-spacing:.04em; color:rgba(232,196,106,.35); padding:0 3px; line-height:1.1; }
+  .pgn { position:absolute; left:0; right:0; bottom:7px; text-align:center; font-size:9.5px; letter-spacing:.2em; color:rgba(232,196,106,.55); }
+  .shade { position:absolute; inset:0; background:linear-gradient(90deg,#000,rgba(0,0,0,.6)); opacity:0; pointer-events:none; }
+  .rings { position:absolute; left:-12px; top:0; bottom:0; width:24px; z-index:200; pointer-events:none; transform:translateZ(300px); }
+  .ring { position:absolute; left:2px; width:22px; height:30px; border-radius:11px; border:3px solid #d9b25a; border-left-color:#8a6420; border-bottom-color:#7a5518; box-shadow:0 2px 4px rgba(0,0,0,.7), inset 0 0 3px rgba(255,235,170,.6); background:transparent; }
+  /* the leather cover */
+  #cover { z-index:150; }
+  #cover .front { background:linear-gradient(135deg,#7d3523 0%,#55200f 55%,#32100a 100%); border-radius:4px 14px 14px 4px; box-shadow: inset 0 0 0 2px rgba(0,0,0,.35), inset 0 0 40px rgba(0,0,0,.55); }
+  #cover .front::before { background:repeating-radial-gradient(circle at 60% 30%, rgba(255,210,150,.035) 0 1px, transparent 1px 3px), repeating-linear-gradient(45deg, rgba(0,0,0,.08) 0 2px, transparent 2px 5px); }
+  #cover .front .frame { position:absolute; inset:14px 14px 14px 22px; border:2px solid #d9b25a; border-radius:6px; box-shadow:inset 0 0 0 4px rgba(50,16,10,.9), inset 0 0 0 5px rgba(217,178,90,.55), 0 0 10px rgba(0,0,0,.5); }
+  #cover .front .crest { position:absolute; left:50%; top:38%; transform:translate(-50%,-50%); width:130px; height:130px; border-radius:50%; border:3px solid #e8c46a; background:radial-gradient(circle at 50% 35%, #a8451d, #5a1a0b 70%); box-shadow:0 0 0 5px rgba(50,16,10,.9), 0 0 0 6px rgba(217,178,90,.6), 0 6px 14px rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; }
+  #cover .front .crest svg { width:84px; height:84px; filter:drop-shadow(0 2px 2px rgba(0,0,0,.6)); }
+  #cover .front .ttl { position:absolute; left:0; right:0; top:62%; text-align:center; font-weight:700; letter-spacing:.24em; font-size:20px; color:#f2cf78; text-shadow:0 2px 2px #000, 0 0 12px rgba(255,190,80,.35); }
+  #cover .front .sub { position:absolute; left:0; right:0; top:71%; text-align:center; letter-spacing:.3em; font-size:10px; color:#d9b25a; }
+  #cover .front .clasp { position:absolute; right:-6px; top:46%; width:34px; height:56px; border-radius:6px; background:linear-gradient(90deg,#b5842a,#f6d77a 50%,#b5842a); box-shadow:0 2px 6px rgba(0,0,0,.7); }
+  #cover .front .clasp::after { content:""; position:absolute; left:11px; top:22px; width:12px; height:12px; border-radius:50%; background:#3b2311; box-shadow:inset 0 1px 2px #000; }
+  #cover .back { position:absolute; inset:0; transform:rotateY(180deg); backface-visibility:hidden; -webkit-backface-visibility:hidden; background:linear-gradient(90deg,#2b0f08,#4a1a10); border-radius:14px 4px 4px 14px; }
+  .corner { position:absolute; width:34px; height:34px; border:3px solid #e8c46a; }
+  .c1 { left:11px; top:11px; border-right:0; border-bottom:0; border-radius:8px 0 0 0; } .c2 { right:11px; top:11px; border-left:0; border-bottom:0; border-radius:0 8px 0 0; }
+  .c3 { left:11px; bottom:11px; border-right:0; border-top:0; border-radius:0 0 0 8px; } .c4 { right:11px; bottom:11px; border-left:0; border-top:0; border-radius:0 0 8px 0; }
+  .bhead { position:absolute; left:0; right:0; top:0; padding:calc(env(safe-area-inset-top) + 10px) 12px 8px; display:flex; align-items:center; gap:8px; z-index:40; opacity:0; transition:opacity .35s; }
+  .bfoot { position:absolute; left:0; right:0; bottom:0; padding:10px 14px calc(env(safe-area-inset-bottom) + 14px); display:flex; align-items:center; justify-content:space-between; gap:10px; z-index:40; opacity:0; transition:opacity .35s; }
+  .ui-on .bhead, .ui-on .bfoot { opacity:1; }
+  .arrow { width:46px; height:46px; border-radius:12px; border:1px solid rgba(217,178,90,.55); background:rgba(14,10,6,.65); color:#ffe9b0; font-size:24px; display:flex; align-items:center; justify-content:center; font-family:inherit; }
+  .arrow:disabled { opacity:.25; }
+  .dots { display:flex; gap:7px; align-items:center; }
+  .dots b { width:7px; height:7px; border-radius:50%; background:rgba(232,196,106,.25); transition:all .25s; }
+  .dots b.on { background:#f6d77a; box-shadow:0 0 8px #f6d77a; transform:scale(1.35); }
+  .toggle { font-size:9.5px; letter-spacing:.08em; padding:6px 9px; }
+  .toggle.on { background:rgba(232,196,106,.22); }
+  .hint { position:absolute; left:0; right:0; top:calc(50% + 268px); text-align:center; font-size:10px; letter-spacing:.14em; color:rgba(255,233,176,.55); z-index:40; opacity:0; transition:opacity .35s; pointer-events:none; }
+  .ui-on .hint { opacity:1; }
+
+  /* bottom sheet (chest) */
+  .sheet { position:absolute; left:0; right:0; bottom:0; z-index:35; transform:translateY(105%); transition:transform .45s cubic-bezier(.2,.9,.25,1); padding:16px 16px calc(env(safe-area-inset-bottom) + 18px); background:linear-gradient(#2a1a10,#150d08); border-top:2px solid #d9b25a; border-radius:18px 18px 0 0; box-shadow:0 -12px 40px rgba(0,0,0,.7); }
+  .sheet.on { transform:none; }
+  .sheet h3 { margin:0 0 4px; letter-spacing:.2em; font-size:14px; text-align:center; }
+  .sheet p { margin:0 0 12px; font-size:11px; color:rgba(255,233,176,.6); text-align:center; font-family:Georgia,serif; letter-spacing:.02em; }
+  .packs { display:flex; gap:10px; justify-content:center; margin-bottom:14px; }
+  .pack { width:94px; text-align:center; }
+  .pack img { width:100%; border-radius:8px; filter:drop-shadow(0 6px 8px rgba(0,0,0,.7)); animation:bob 3s ease-in-out infinite; }
+  .pack:nth-child(2) img { animation-delay:-1s; } .pack:nth-child(3) img { animation-delay:-2s; }
+  @keyframes bob { 0%,100% { transform:translateY(0) rotate(-1.5deg);} 50% { transform:translateY(-5px) rotate(1.5deg);} }
+  .pack span { display:block; margin-top:6px; font-size:9px; letter-spacing:.14em; color:#d9b25a; }
+  .btn { display:block; width:100%; border:1px solid #d9b25a; border-radius:12px; background:linear-gradient(#f6d77a,#b5842a); color:#2a1606; font:inherit; font-weight:700; letter-spacing:.2em; font-size:12px; padding:13px; }
+  .btn.ghost { background:none; color:#ffe9b0; margin-top:8px; border-color:rgba(217,178,90,.4); }
+
+  /* 3D inspector (the real viewer, loaded in a frame) */
+  #viewer { position:absolute; inset:0; z-index:60; opacity:0; pointer-events:none; transition:opacity .25s; background:#0d0905; }
+  #viewer.on { opacity:1; pointer-events:auto; }
+  #viewer iframe { width:100%; height:100%; border:0; display:block; }
+  #toast { position:absolute; left:50%; top:calc(env(safe-area-inset-top) + 58px); transform:translate(-50%,-12px); z-index:80; padding:9px 14px; border-radius:10px; background:rgba(14,10,6,.9); border:1px solid #d9b25a; font-size:11px; letter-spacing:.08em; opacity:0; transition:all .3s; pointer-events:none; white-space:nowrap; }
+  #toast.on { opacity:1; transform:translate(-50%,0); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ░░░ the room ░░░ -->
+  <div id="room">
+    <div id="fit"><div id="stage">
+
+      <!-- far wall: stone, window, light -->
+      <div class="layer" data-d="0.25"><svg viewBox="0 0 390 844">
+        <defs>
+          <linearGradient id="wallg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#241810"/><stop offset=".6" stop-color="#3a281b"/><stop offset="1" stop-color="#2a1d13"/></linearGradient>
+          <pattern id="stones" width="78" height="80" patternUnits="userSpaceOnUse">
+            <rect width="78" height="80" fill="none"/>
+            <path d="M0 0H78M0 40H78M0 80H78M0 0V40M39 40V80" stroke="rgba(0,0,0,.45)" stroke-width="2" fill="none"/>
+            <path d="M0 2H78M0 42H78" stroke="rgba(255,220,170,.06)" stroke-width="1" fill="none"/>
+            <rect x="6" y="8" width="26" height="12" fill="rgba(255,255,255,.025)"/><rect x="48" y="50" width="22" height="14" fill="rgba(0,0,0,.08)"/><rect x="50" y="10" width="18" height="10" fill="rgba(0,0,0,.07)"/>
+          </pattern>
+          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#16224a"/><stop offset=".55" stop-color="#7a5a86"/><stop offset="1" stop-color="#f2b565"/></linearGradient>
+          <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe1a0" stop-opacity=".5"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></linearGradient>
+          <filter id="blur6"><feGaussianBlur stdDeviation="6"/></filter><filter id="blur2"><feGaussianBlur stdDeviation="2"/></filter>
+        </defs>
+        <rect x="-40" y="-40" width="470" height="620" fill="url(#wallg)"/>
+        <rect x="-40" y="-40" width="470" height="620" fill="url(#stones)"/>
+        <!-- arched window -->
+        <path d="M128 312V150A67 67 0 0 1 262 150V312Z" fill="#5a4630"/>
+        <path d="M137 304V150A58 58 0 0 1 253 150V304Z" fill="url(#sky)"/>
+        <circle cx="214" cy="128" r="13" fill="#fff3cf" opacity=".9"/><circle cx="214" cy="128" r="26" fill="#fff3cf" opacity=".18"/>
+        <path d="M137 262q30-14 64-4t52-6v52H137z" fill="#1b1410" opacity=".85"/>
+        <path d="M195 92V304M137 206H253" stroke="#4a3826" stroke-width="5"/>
+        <path d="M137 304V150A58 58 0 0 1 253 150V304Z" fill="none" stroke="#7c6648" stroke-width="3"/>
+        <rect x="120" y="304" width="150" height="14" rx="3" fill="#6d5a42"/><rect x="120" y="304" width="150" height="3" fill="rgba(255,235,190,.25)"/>
+        <g class="beamg" style="mix-blend-mode:screen">
+          <polygon points="140,310 252,310 340,860 20,860" fill="url(#beam)" filter="url(#blur6)" opacity=".55"/>
+        </g>
+      </svg></div>
+
+      <!-- wall decoration: banners, torches, the shelf with the book -->
+      <div class="layer" data-d="0.55"><svg viewBox="0 0 390 844">
+        <defs>
+          <linearGradient id="cloth" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6e1414"/><stop offset=".5" stop-color="#a02424"/><stop offset="1" stop-color="#5e1010"/></linearGradient>
+          <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a5628"/><stop offset="1" stop-color="#4a2a12"/></linearGradient>
+          <linearGradient id="leather" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8a3a24"/><stop offset="1" stop-color="#3d150d"/></linearGradient>
+          <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6d77a"/><stop offset="1" stop-color="#b5842a"/></linearGradient>
+          <radialGradient id="fireglow"><stop offset="0" stop-color="#ffc060" stop-opacity=".75"/><stop offset="1" stop-color="#ff8a30" stop-opacity="0"/></radialGradient>
+        </defs>
+        <!-- banners -->
+        <g><rect x="44" y="40" width="64" height="5" rx="2" fill="url(#gold)"/>
+          <path d="M50 45h52v170l-26-30-26 30z" fill="url(#cloth)"/><path d="M50 45h52v170l-26-30-26 30z" fill="none" stroke="#d9b25a" stroke-width="2"/>
+          <path d="M76 82v62M60 104h32" stroke="#e8c46a" stroke-width="5" stroke-linecap="round"/>
+          <path d="M282 40h64v5H282z" fill="url(#gold)"/><path d="M288 45h52v170l-26-30-26 30z" fill="url(#cloth)"/><path d="M288 45h52v170l-26-30-26 30z" fill="none" stroke="#d9b25a" stroke-width="2"/>
+          <path d="M314 82v62M298 104h32" stroke="#e8c46a" stroke-width="5" stroke-linecap="round"/></g>
+        <!-- torches -->
+        <g><rect x="118" y="262" width="8" height="34" rx="2" fill="#2d2118"/><path d="M112 262h20l-4 10h-12z" fill="#4a3826"/>
+          <circle cx="122" cy="246" r="46" fill="url(#fireglow)" style="mix-blend-mode:screen"><animate attributeName="r" values="44;50;46;52;44" dur="1.6s" repeatCount="indefinite"/></circle>
+          <path class="flame" d="M122 218c9 10 12 18 8 28-3 6-13 6-16 0-4-10 2-18 8-28z" fill="#ffb347"/><path class="flame b" d="M122 230c5 6 7 11 4 16-2 3-8 3-9 0-2-5 1-10 5-16z" fill="#fff0b0"/>
+          <rect x="268" y="262" width="8" height="34" rx="2" fill="#2d2118"/><path d="M262 262h20l-4 10h-12z" fill="#4a3826"/>
+          <circle cx="272" cy="246" r="46" fill="url(#fireglow)" style="mix-blend-mode:screen"><animate attributeName="r" values="48;44;52;46;48" dur="1.4s" repeatCount="indefinite"/></circle>
+          <path class="flame b" d="M272 218c9 10 12 18 8 28-3 6-13 6-16 0-4-10 2-18 8-28z" fill="#ffb347"/><path class="flame" d="M272 230c5 6 7 11 4 16-2 3-8 3-9 0-2-5 1-10 5-16z" fill="#fff0b0"/></g>
+
+        <!-- the shelf: stacked tomes, the collection book standing, a candle -->
+        <g>
+          <path d="M30 412l-12 30h12zM150 412l12 30h-12z" fill="#3a2210"/>
+          <rect x="14" y="398" width="164" height="15" rx="3" fill="url(#wood)"/><rect x="14" y="398" width="164" height="3" fill="rgba(255,225,170,.28)"/>
+          <rect x="22" y="380" width="44" height="9" rx="1.5" fill="#34303f"/><rect x="25" y="389" width="42" height="9" rx="1.5" fill="#5a2a1a"/><rect x="22" y="380" width="44" height="2" fill="rgba(255,255,255,.2)"/>
+          <!-- the big closed book (the Coleção object) -->
+          <g transform="translate(70,300) ">
+            <rect x="0" y="0" width="76" height="98" rx="4" fill="url(#leather)"/><rect x="0" y="0" width="76" height="98" rx="4" fill="none" stroke="#2a0e08" stroke-width="2"/>
+            <rect x="0" y="0" width="12" height="98" rx="3" fill="#3d150d"/><path d="M12 0v98" stroke="rgba(255,210,150,.35)" stroke-width="1.5"/>
+            <path d="M3 14h6M3 40h6M3 66h6M3 84h6" stroke="#e8c46a" stroke-width="2.4"/>
+            <rect x="20" y="9" width="49" height="80" rx="3" fill="none" stroke="#d9b25a" stroke-width="1.8"/>
+            <circle cx="44.5" cy="40" r="15" fill="#6d230f" stroke="#e8c46a" stroke-width="2"/><path d="M44.5 29v22M36 38h17" stroke="#f2cf78" stroke-width="2.6" stroke-linecap="round"/>
+            <path d="M26 66h37M30 72h29" stroke="#e8c46a" stroke-width="2.2" stroke-linecap="round" opacity=".85"/>
+            <path d="M0 4q-1 0 0 0" stroke="none"/><rect x="66" y="42" width="14" height="20" rx="3" fill="url(#gold)" stroke="#6b4a14"/><circle cx="73" cy="52" r="2.4" fill="#3b2311"/>
+            <path d="M0 0h76v98H0z" fill="url(#leather)" opacity="0"/>
+          </g>
+          <!-- candle -->
+          <rect x="146" y="364" width="14" height="34" rx="2" fill="#efe2c0"/><rect x="146" y="364" width="14" height="5" fill="#d8c79c"/>
+          <circle cx="153" cy="352" r="38" fill="url(#fireglow)" style="mix-blend-mode:screen"/>
+          <path class="flame" d="M153 337c5 6 7 11 4 16-2 3-8 3-9 0-2-5 1-10 5-16z" fill="#ffd27a"/>
+        </g>
+      </svg>
+        <button class="hot" id="hotBook" style="left:44px;top:276px;width:116px;height:130px" aria-label="Abrir coleção"><span class="glow" style="inset:-6px"></span></button>
+        <div class="plaque" style="left:96px;top:424px">COLEÇÃO <i id="bdgBook">50/50</i></div>
+      </div>
+
+      <!-- floor -->
+      <div class="layer" data-d="0.75"><svg viewBox="0 0 390 844">
+        <defs>
+          <linearGradient id="floorg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1b10"/><stop offset=".5" stop-color="#4a2e18"/><stop offset="1" stop-color="#3a2410"/></linearGradient>
+          <linearGradient id="rugg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a1a1a"/><stop offset="1" stop-color="#7a2424"/></linearGradient>
+          <radialGradient id="shadowg"><stop offset="0" stop-color="#000" stop-opacity=".7"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+        </defs>
+        <rect x="-40" y="528" width="470" height="12" fill="#1a110a"/><rect x="-40" y="540" width="470" height="330" fill="url(#floorg)"/>
+        <g stroke="rgba(0,0,0,.45)" stroke-width="2">
+          <line x1="-30" y1="540" x2="-300" y2="880"/><line x1="40" y1="540" x2="-100" y2="880"/><line x1="115" y1="540" x2="100" y2="880"/><line x1="195" y1="540" x2="195" y2="880"/><line x1="275" y1="540" x2="290" y2="880"/><line x1="350" y1="540" x2="490" y2="880"/><line x1="420" y1="540" x2="690" y2="880"/>
+        </g>
+        <g stroke="rgba(255,220,170,.06)" stroke-width="1"><path d="M-40 585H430M-40 640H430M-40 705H430M-40 785H430"/></g>
+        <path d="M130 585h130l60 240H70z" fill="url(#rugg)"/><path d="M130 585h130l60 240H70z" fill="none" stroke="#d9b25a" stroke-width="3"/><path d="M142 597h106l50 216H92z" fill="none" stroke="rgba(217,178,90,.55)" stroke-width="1.6" stroke-dasharray="5 4"/>
+        <ellipse cx="195" cy="700" rx="46" ry="26" fill="none" stroke="rgba(217,178,90,.5)" stroke-width="2"/><path d="M195 676v48M171 700h48" stroke="rgba(217,178,90,.5)" stroke-width="2"/>
+        <ellipse cx="195" cy="470" rx="320" ry="120" fill="rgba(0,0,0,.18)" style="mix-blend-mode:multiply" opacity="0"/>
+      </svg></div>
+
+      <!-- furniture -->
+      <div class="layer" data-d="1.0" id="furn"><svg viewBox="0 0 390 844">
+        <ellipse cx="300" cy="708" rx="86" ry="14" fill="url(#shadowg)"/><ellipse cx="95" cy="776" rx="70" ry="12" fill="url(#shadowg)"/>
+        <!-- chest with boosters -->
+        <g id="chest">
+          <g id="packs">
+            <image href="booster.webp" x="248" y="560" width="46" height="70" transform="rotate(-10 271 595)"/>
+            <image href="booster.webp" x="288" y="552" width="46" height="70" transform="rotate(7 311 587)"/>
+            <image href="booster.webp" x="268" y="546" width="46" height="70" transform="rotate(-1 291 581)"/>
+          </g>
+          <rect x="235" y="610" width="130" height="90" rx="6" fill="url(#wood)"/>
+          <g stroke="rgba(0,0,0,.35)" stroke-width="2"><path d="M235 640H365M235 668H365"/></g>
+          <rect x="255" y="610" width="14" height="90" fill="#2a2a30"/><rect x="331" y="610" width="14" height="90" fill="#2a2a30"/>
+          <rect x="235" y="690" width="130" height="10" rx="3" fill="#2a2a30"/>
+          <g class="lid"><path d="M231 612Q231 563 300 563Q369 563 369 612Z" fill="url(#wood)"/><path d="M231 612Q231 563 300 563Q369 563 369 612" fill="none" stroke="rgba(255,225,170,.3)" stroke-width="2"/>
+            <path d="M255 612V570M345 612V570" stroke="#2a2a30" stroke-width="14" opacity=".9"/><rect x="231" y="605" width="138" height="9" rx="3" fill="#2a2a30"/>
+            <rect x="288" y="601" width="24" height="26" rx="4" fill="url(#gold)" stroke="#6b4a14"/><circle cx="300" cy="613" r="3.2" fill="#3b2311"/></g>
+          <rect x="241" y="700" width="14" height="9" rx="2" fill="#2a1608"/><rect x="345" y="700" width="14" height="9" rx="2" fill="#2a1608"/>
+        </g>
+        <!-- pedestal with the glass dome and a lit card -->
+        <g>
+          <path d="M45 776h100l-8-22H53z" fill="#6c6252"/><rect x="68" y="650" width="54" height="106" fill="#8a7e6a"/><path d="M80 650v106M95 650v106M110 650v106" stroke="rgba(0,0,0,.22)" stroke-width="2"/><rect x="50" y="636" width="90" height="16" rx="3" fill="#a2967f"/><rect x="50" y="636" width="90" height="3" fill="rgba(255,255,255,.3)"/>
+          <ellipse cx="95" cy="590" rx="60" ry="46" fill="url(#fireglow)" style="mix-blend-mode:screen"><animate attributeName="opacity" values=".6;1;.7" dur="2.4s" repeatCount="indefinite"/></ellipse>
+          <g transform="rotate(-5 95 598)"><rect x="73" y="560" width="44" height="64" rx="3" fill="#1a110a" stroke="#e8c46a" stroke-width="2"/><image href="cards/comandante-aurelion-mestre-da-formacao.webp" x="75" y="562" width="40" height="60" preserveAspectRatio="xMidYMid meet"/></g>
+          <path d="M59 636Q59 546 95 546Q131 546 131 636Z" fill="rgba(170,215,255,.1)" stroke="rgba(255,255,255,.4)" stroke-width="1.6"/><path d="M70 600Q70 566 84 556" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="95" cy="545" r="4" fill="url(#gold)"/>
+          <!-- magnifying glass leaning on the base -->
+          <path d="M160 786l24-34" stroke="#6b4a14" stroke-width="7" stroke-linecap="round"/><circle cx="152" cy="760" r="19" fill="rgba(190,225,255,.18)" stroke="url(#gold)" stroke-width="5"/><path d="M143 752q4-6 11-6" stroke="rgba(255,255,255,.7)" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        </g>
+        <!-- war table (foreground, cropped) -->
+        <g>
+          <path d="M150 782h260v80H150z" fill="url(#wood)"/><path d="M150 782h260" stroke="rgba(255,225,170,.4)" stroke-width="3"/>
+          <path d="M176 790h190l10 40H166z" fill="#e6d3a2"/><path d="M176 790h190l10 40H166z" fill="none" stroke="#a68a50" stroke-width="2"/>
+          <path d="M190 802q30-8 50 2t60-4M184 814q40 8 70-2t70 6" stroke="rgba(90,60,30,.5)" stroke-width="1.6" fill="none"/><path d="M270 796l6 10M276 796l-6 10" stroke="#a02424" stroke-width="2.4"/>
+          <rect x="213" y="793" width="9" height="13" rx="2" fill="#2f4f8a"/><rect x="226" y="796" width="9" height="13" rx="2" fill="#2f4f8a"/><rect x="316" y="799" width="9" height="13" rx="2" fill="#a02424"/><rect x="329" y="796" width="9" height="13" rx="2" fill="#a02424"/>
+          <rect x="378" y="752" width="12" height="32" rx="2" fill="#efe2c0"/><circle cx="384" cy="742" r="30" fill="url(#fireglow)" style="mix-blend-mode:screen"/><path class="flame" d="M384 730c4 5 6 9 3 13-2 3-7 3-8 0-1-4 1-8 5-13z" fill="#ffd27a"/>
+        </g>
+      </svg>
+        <button class="hot" id="hotChest" style="left:226px;top:548px;width:148px;height:162px" aria-label="Abrir boosters"><span class="glow"></span></button>
+        <div class="plaque" style="left:300px;top:718px">BOOSTERS <i id="bdgChest">3</i></div>
+        <button class="hot" id="hotDome" style="left:34px;top:536px;width:130px;height:240px" aria-label="Inspecionar cartas em 3D"><span class="glow" style="inset:0 -4px 90px"></span></button>
+        <div class="plaque" style="left:98px;top:784px">INSPECIONAR</div>
+        <button class="hot" id="hotWar" style="left:150px;top:782px;width:240px;height:70px" aria-label="Meu Deck"><span class="glow" style="inset:-2px;border-radius:14px"></span></button>
+        <div class="plaque" style="left:268px;top:836px;transform:translate(-50%,-100%)">MEU DECK</div>
+      </div>
+
+    </div></div>
+    <canvas id="dust"></canvas>
+    <div id="vig"></div>
+    <div class="topbar"><button class="chip" id="btnMenu">‹ MENU</button><div class="title">QUARTO</div><div class="chip" style="opacity:.0;pointer-events:none">‹ MENU</div></div>
+    <div class="tag" id="tag"><b>MOCKUP</b> · formas simples, a arte final entra depois<br>Arraste para olhar em volta · toque nos objetos</div>
+  </div>
+
+  <!-- ░░░ the collection binder ░░░ -->
+  <div class="view" id="binder">
+    <div class="bhead"><button class="chip" id="bClose">‹ QUARTO</button><div class="title" id="bTitle">COLEÇÃO</div><button class="chip toggle" id="bToggle">SIMULAR FALTANTES</button></div>
+    <div id="book">
+      <div class="bk-back"></div>
+      <div id="leaves"></div>
+      <div class="rings"><i class="ring" style="top:70px"></i><i class="ring" style="top:232px"></i><i class="ring" style="top:394px"></i></div>
+      <div class="leaf" id="cover">
+        <div class="face front"><div class="frame"></div><i class="corner c1"></i><i class="corner c2"></i><i class="corner c3"></i><i class="corner c4"></i>
+          <div class="crest"><svg viewBox="0 0 64 64" fill="none" stroke="#f2cf78" stroke-width="3.4" stroke-linecap="round"><path d="M32 8v48M20 22h24"/><path d="M12 54L30 36M52 54L34 36" stroke-width="3"/><path d="M12 54l-4 3M52 54l4 3" stroke-width="4"/></svg></div>
+          <div class="ttl">COLEÇÃO</div><div class="sub">PRICE OF WAR</div><div class="clasp"></div></div>
+        <div class="back"></div>
+      </div>
+    </div>
+    <div class="hint">DESLIZE PARA VIRAR · TOQUE NA CARTA PARA VER EM 3D</div>
+    <div class="bfoot"><button class="arrow" id="bPrev" aria-label="Página anterior">‹</button><div style="text-align:center"><div class="dots" id="dots"></div><div id="bNum" style="margin-top:7px;font-size:10px;letter-spacing:.2em;color:rgba(255,233,176,.65)"></div></div><button class="arrow" id="bNext" aria-label="Próxima página">›</button></div>
+  </div>
+
+  <!-- chest sheet -->
+  <div class="sheet" id="sheetChest">
+    <h3>SEUS BOOSTERS</h3><p>Pacotes lacrados que você ainda não abriu.</p>
+    <div class="packs"><div class="pack"><img src="booster.webp" alt=""><span>CARDEAL</span></div><div class="pack"><img src="booster.webp" alt=""><span>CARDEAL</span></div><div class="pack"><img src="booster.webp" alt=""><span>CARDEAL</span></div></div>
+    <button class="btn" id="btnOpenPack">ABRIR PACOTE</button><button class="btn ghost" id="btnCloseChest">FECHAR O BAÚ</button>
+  </div>
+
+  <div id="viewer"><iframe id="vframe" title="Carta em 3D" src="about:blank"></iframe></div>
+  <div id="toast"></div>
+</div>
+
+<script src="cards.js"></script>
+<script>
+(() => {
+  const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+  const app = $('#app'), fit = $('#fit'), stage = $('#stage'), layers = $$('.layer');
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  let busy = false, scale = 1;
+  const toast = (m) => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 1900); };
+
+  // The room is drawn on a 390 x 844 stage and scaled to cover the screen.
+  const doFit = () => { scale = Math.max(app.clientWidth / 390, app.clientHeight / 844); fit.style.transform = `translate(-50%,-50%) scale(${scale})`; };
+  addEventListener('resize', doFit); doFit();
+
+  // ── parallax: dragging (or tilting the phone) moves each layer at its own speed ──
+  const tgt = { x: 0, y: 0 }, cur = { x: 0, y: 0 }; let drag = null, moved = 0, tiltOn = false, first = true;
+  const room = $('#room');
+  room.addEventListener('pointerdown', e => { if (e.target.closest('.chip')) return; drag = { x: e.clientX, y: e.clientY, bx: tgt.x, by: tgt.y }; moved = 0; });
+  addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; moved = Math.max(moved, Math.hypot(dx, dy)); tgt.x = clamp(drag.bx + dx / 130, -1, 1); tgt.y = clamp(drag.by + dy / 260, -.6, .6); if (moved > 8 && first) { first = false; $('#tag').style.opacity = 0; } });
+  addEventListener('pointerup', () => { drag = null; }); addEventListener('pointercancel', () => { drag = null; });
+  addEventListener('deviceorientation', e => { if (drag || e.gamma == null) return; tiltOn = true; tgt.x = clamp((e.gamma || 0) / 22, -1, 1); tgt.y = clamp(((e.beta || 50) - 50) / 60, -.6, .6); });
+
+  // ── dust motes drifting through the light ──
+  const cv = $('#dust'), cx = cv.getContext('2d'); let motes = [];
+  const sizeDust = () => { cv.width = app.clientWidth * 1; cv.height = app.clientHeight * 1; motes = Array.from({ length: 46 }, () => ({ x: Math.random() * cv.width, y: Math.random() * cv.height, r: .6 + Math.random() * 1.7, s: .08 + Math.random() * .22, p: Math.random() * 6 })); };
+  addEventListener('resize', sizeDust); sizeDust();
+
+  const t0 = performance.now(); let sheen = 0;
+  const loop = (now) => {
+    const t = (now - t0) / 1000;
+    if (!drag && !tiltOn) { tgt.x += (0 - tgt.x) * .012; tgt.y += (0 - tgt.y) * .012; }
+    cur.x += (tgt.x - cur.x) * .09; cur.y += (tgt.y - cur.y) * .09;
+    const sx = cur.x + Math.sin(t * .35) * .06, sy = cur.y + Math.cos(t * .3) * .03;
+    layers.forEach(l => { const d = +l.dataset.d; l.style.transform = `translate3d(${(-sx * 26 * d).toFixed(2)}px,${(-sy * 18 * d).toFixed(2)}px,0)`; });
+    cx.clearRect(0, 0, cv.width, cv.height);
+    motes.forEach(m => { m.y -= m.s; m.x += Math.sin(t * .6 + m.p) * .18; if (m.y < -4) { m.y = cv.height + 4; m.x = Math.random() * cv.width; } const a = .25 + .35 * Math.sin(t * 1.3 + m.p) ** 2; cx.globalAlpha = a; cx.fillStyle = '#ffe3a8'; cx.beginPath(); cx.arc(m.x, m.y, m.r, 0, 7); cx.fill(); });
+    sheen = (Math.sin(t * .55) * .5 + .5) * .6 + pos * .35; $('#binder').style.setProperty('--sheen', sheen.toFixed(3));
+    requestAnimationFrame(loop);
+  };
+
+  // ───────────── the collection (the whole catalog for now: both starter decks, no restrictions) ─────────────
+  const cards = window.CARDS, PER = 9, N = Math.ceil(cards.length / PER);
+  const FALTAM = new Set([4, 7, 13, 19, 22, 28, 33, 38, 41, 45]);
+  let simulate = false, pos = 0, uiOn = false, coverOpen = 0;
+  const leavesEl = $('#leaves'), leafEls = [];
+  const owned = i => !simulate || !FALTAM.has(i);
+  const buildLeaves = () => {
+    leavesEl.innerHTML = ''; leafEls.length = 0;
+    for (let p = 0; p < N; p++) {
+      const leaf = document.createElement('div'); leaf.className = 'leaf';
+      const face = document.createElement('div'); face.className = 'face';
+      const grid = document.createElement('div'); grid.className = 'grid';
+      for (let k = 0; k < PER; k++) {
+        const i = p * PER + k, pk = document.createElement('div');
+        if (i >= cards.length) { pk.className = 'pocket empty'; pk.innerHTML = '<div class="ph"></div>'; }
+        else if (!owned(i)) { pk.className = 'pocket empty'; pk.innerHTML = `<div class="ph">?</div><div class="nm">${cards[i].n.split(',')[0]}</div>`; }
+        else {
+          const c = cards[i]; pk.className = 'pocket'; pk.dataset.i = i;
+          pk.innerHTML = `<div class="cimg"><img loading="lazy" draggable="false" src="cards/${c.s}.webp" alt="${c.n}">${c.f ? `<div class="foilfx" style="-webkit-mask-image:url(cards/${c.s}.webp);mask-image:url(cards/${c.s}.webp)"></div>` : ''}</div>`;
+        }
+        grid.appendChild(pk);
+      }
+      const num = document.createElement('div'); num.className = 'pgn'; num.textContent = `— ${p + 1} —`;
+      const shade = document.createElement('div'); shade.className = 'shade';
+      face.append(grid, num, shade); leaf.appendChild(face); leavesEl.appendChild(leaf); leafEls.push({ leaf, shade });
+    }
+    layout();
+  };
+  const layout = () => {
+    const base = Math.floor(pos + 1e-6), frac = pos - base;
+    leafEls.forEach(({ leaf, shade }, i) => {
+      const a = clamp(pos - i, 0, 1);
+      leaf.style.transform = `rotateY(${(-180 * a).toFixed(2)}deg)`;
+      leaf.style.zIndex = i < base ? i : (i === base ? 100 : 60 - i);
+      leaf.style.display = (a >= .999 || i > base + 1) ? 'none' : '';
+      let d = a > 0 ? .55 * Math.sin(a * Math.PI) : 0;
+      if (i === base + 1 && frac > 0) d = .4 * (1 - frac);
+      shade.style.opacity = d.toFixed(3);
+    });
+    $('#bPrev').disabled = pos < .5; $('#bNext').disabled = pos > N - 1.5;
+    const pg = Math.round(pos); $$('#dots b').forEach((b, i) => b.classList.toggle('on', i === pg));
+    $('#bNum').textContent = `PÁGINA ${pg + 1} DE ${N}`;
+  };
+  const dotsEl = $('#dots'); for (let i = 0; i < N; i++) dotsEl.appendChild(document.createElement('b'));
+  const setCount = () => { const n = cards.filter((_, i) => owned(i)).length; $('#bdgBook').textContent = `${n}/${cards.length}`; $('#bTitle').textContent = `COLEÇÃO ${n}/${cards.length}`; };
+
+  let anim = 0;
+  const glide = (to, ms = 520) => new Promise(res => { cancelAnimationFrame(anim); const from = pos, s = performance.now(); const step = (n) => { const u = clamp((n - s) / ms, 0, 1), e = 1 - Math.pow(1 - u, 3); pos = from + (to - from) * e; layout(); if (u < 1) anim = requestAnimationFrame(step); else res(); }; anim = requestAnimationFrame(step); });
+  const go = (d) => glide(clamp(Math.round(pos) + d, 0, N - 1));
+
+  // drag a page: the leaf follows the finger around the spine, then settles on the nearest page
+  let pd = null;
+  const bookEl = $('#book');
+  bookEl.addEventListener('pointerdown', e => { if (!uiOn) return; cancelAnimationFrame(anim); pd = { x: e.clientX, base: pos, moved: 0, t: performance.now(), lx: e.clientX, v: 0, target: e.target }; bookEl.setPointerCapture(e.pointerId); });
+  bookEl.addEventListener('pointermove', e => { if (!pd) return; const dx = e.clientX - pd.x; pd.moved = Math.max(pd.moved, Math.abs(dx)); const now = performance.now(); pd.v = (e.clientX - pd.lx) / Math.max(1, now - pd.t); pd.lx = e.clientX; pd.t = now; pos = clamp(pd.base - dx / 300, 0, N - 1); layout(); });
+  const endDrag = (e) => {
+    if (!pd) return; const p = pd; pd = null;
+    if (p.moved < 8) { const pk = p.target.closest && p.target.closest('.pocket[data-i]'); pos = p.base; layout(); if (pk) openViewer(+pk.dataset.i); return; }
+    let to = Math.round(pos); if (Math.abs(p.v) > .45) to = p.v < 0 ? Math.floor(p.base) + 1 : Math.ceil(p.base) - 1;
+    glide(clamp(to, 0, N - 1), 420);
+  };
+  bookEl.addEventListener('pointerup', endDrag); bookEl.addEventListener('pointercancel', endDrag);
+  $('#bPrev').onclick = () => go(-1); $('#bNext').onclick = () => go(1);
+  $('#bToggle').onclick = () => { simulate = !simulate; $('#bToggle').classList.toggle('on', simulate); const keep = pos; buildLeaves(); pos = keep; layout(); setCount(); toast(simulate ? 'Simulando cartas que o jogador ainda não tem' : 'Coleção completa (as duas decks, sem restrição)'); };
+
+  // ── opening / closing the book: the camera pushes into it, the cover swings open ──
+  const setCover = (v) => { coverOpen = v; $('#cover').style.transform = `rotateY(${-180 * v}deg)`; $('#cover').style.display = v >= .999 ? 'none' : ''; };
+  const tween = (fn, from, to, ms, ease = u => u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2) => new Promise(res => { const s = performance.now(); const step = (n) => { const u = clamp((n - s) / ms, 0, 1); fn(from + (to - from) * ease(u)); u < 1 ? requestAnimationFrame(step) : res(); }; requestAnimationFrame(step); });
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const BOOK = { x: 108, y: 349 };     // the book on the shelf, in stage coordinates
+  const openBook = async () => {
+    if (busy) return; busy = true;
+    room.classList.add('zoom'); stage.style.transformOrigin = `${BOOK.x}px ${BOOK.y}px`; stage.style.transform = `translate(${195 - BOOK.x}px, ${422 - BOOK.y}px) scale(4.1)`; stage.style.filter = 'brightness(.9)';
+    await wait(520); pos = 0; layout(); setCover(0); $('#binder').classList.add('on'); await wait(240);
+    await tween(setCover, 0, 1, 900); uiOn = true; $('#binder').classList.add('ui-on'); busy = false;
+  };
+  const closeBook = async () => {
+    if (busy) return; busy = true; uiOn = false; $('#binder').classList.remove('ui-on'); await glide(0, 300); await wait(320);
+    $('#cover').style.display = ''; await tween(setCover, 1, 0, 700); await wait(120);
+    $('#binder').classList.remove('on'); stage.style.transform = ''; stage.style.filter = ''; await wait(620); room.classList.remove('zoom'); busy = false;
+  };
+  $('#hotBook').onclick = () => { if (moved > 8) return; openBook(); };
+  $('#bClose').onclick = closeBook;
+
+  // ── 3D inspection: the game's real viewer, in a frame ──
+  const vf = $('#vframe'), vw = $('#viewer');
+  const openViewer = (i) => { vf.src = `../../?3d&embed&card=${i}`; vw.classList.add('on'); };
+  addEventListener('message', e => { if (e.data === 'close3d') { vw.classList.remove('on'); setTimeout(() => { vf.src = 'about:blank'; }, 260); } });
+  $('#hotDome').onclick = () => { if (moved > 8) return; openViewer(0); };
+
+  // ── chest ──
+  const sheet = $('#sheetChest');
+  $('#hotChest').onclick = () => { if (moved > 8) return; $('#chest').classList.add('chest-open'); sheet.classList.add('on'); };
+  $('#btnCloseChest').onclick = () => { $('#chest').classList.remove('chest-open'); sheet.classList.remove('on'); };
+  $('#btnOpenPack').onclick = () => toast('A abertura de pacotes entra numa próxima etapa');
+  $('#hotWar').onclick = () => { if (moved > 8) return; toast('Meu Deck: abre o editor de deck que já existe'); };
+  $('#btnMenu').onclick = () => toast('Voltaria ao menu inicial');
+
+
+  setTimeout(() => { $('#tag').style.opacity = 0; }, 7000);
+  buildLeaves(); setCover(0); setCount(); requestAnimationFrame(loop);
+  const q = new URLSearchParams(location.search); if (q.get('open') === 'book') { stage.style.transition = 'none'; setTimeout(() => { stage.style.transition = ''; openBook(); }, 50); }
+})();
+</script>
+</body>
+</html>
