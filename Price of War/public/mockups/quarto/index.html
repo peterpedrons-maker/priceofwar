@@ -73,7 +73,7 @@
   #cover .front { background:linear-gradient(135deg,#7d3523 0%,#55200f 55%,#32100a 100%); border-radius:4px 14px 14px 4px; box-shadow: inset 0 0 0 2px rgba(0,0,0,.35), inset 0 0 40px rgba(0,0,0,.55); }
   #cover .front::before { background:repeating-radial-gradient(circle at 60% 30%, rgba(255,210,150,.035) 0 1px, transparent 1px 3px), repeating-linear-gradient(45deg, rgba(0,0,0,.08) 0 2px, transparent 2px 5px); }
   #cover .front .frame { position:absolute; inset:14px 14px 14px 22px; border:2px solid #d9b25a; border-radius:6px; box-shadow:inset 0 0 0 4px rgba(50,16,10,.9), inset 0 0 0 5px rgba(217,178,90,.55), 0 0 10px rgba(0,0,0,.5); }
-  #cover .front .crest { position:absolute; left:50%; top:38%; transform:translate(-50%,-50%); width:130px; height:130px; border-radius:50%; border:3px solid #e8c46a; background:radial-gradient(circle at 50% 35%, #a8451d, #5a1a0b 70%); box-shadow:0 0 0 5px rgba(50,16,10,.9), 0 0 0 6px rgba(217,178,90,.6), 0 6px 14px rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; }
+  #cover .front .crest { display:none; position:absolute; left:50%; top:38%; transform:translate(-50%,-50%); width:130px; height:130px; border-radius:50%; border:3px solid #e8c46a; background:radial-gradient(circle at 50% 35%, #a8451d, #5a1a0b 70%); box-shadow:0 0 0 5px rgba(50,16,10,.9), 0 0 0 6px rgba(217,178,90,.6), 0 6px 14px rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; }
   #cover .front .crest svg { width:84px; height:84px; filter:drop-shadow(0 2px 2px rgba(0,0,0,.6)); }
   #cover .front .ttl { position:absolute; left:0; right:0; top:62%; text-align:center; font-weight:700; letter-spacing:.24em; font-size:20px; color:#f2cf78; text-shadow:0 2px 2px #000, 0 0 12px rgba(255,190,80,.35); }
   #cover .front .sub { position:absolute; left:0; right:0; top:71%; text-align:center; letter-spacing:.3em; font-size:10px; color:#d9b25a; }
@@ -175,7 +175,7 @@
         <!-- banners -->
         <g><rect x="44" y="40" width="64" height="5" rx="2" fill="url(#gold)"/>
           <path d="M50 45h52v118l-26-28-26 28z" fill="url(#cloth)"/><path d="M50 45h52v118l-26-28-26 28z" fill="none" stroke="#d9b25a" stroke-width="2"/>
-          <path d="M76 68v58M60 88h32" stroke="#e8c46a" stroke-width="5" stroke-linecap="round"/>
+          
           </g>
         <!-- torches -->
         <g><g transform="translate(-8,-30)"><rect x="118" y="262" width="8" height="34" rx="2" fill="#2d2118"/><path d="M112 262h20l-4 10h-12z" fill="#4a3826"/>
@@ -196,8 +196,8 @@
             <rect x="0" y="0" width="12" height="98" rx="3" fill="#3d150d"/><path d="M12 0v98" stroke="rgba(255,210,150,.35)" stroke-width="1.5"/>
             <path d="M3 14h6M3 40h6M3 66h6M3 84h6" stroke="#e8c46a" stroke-width="2.4"/>
             <rect x="20" y="9" width="49" height="80" rx="3" fill="none" stroke="#d9b25a" stroke-width="1.8"/>
-            <circle cx="44.5" cy="40" r="15" fill="#6d230f" stroke="#e8c46a" stroke-width="2"/><path d="M44.5 29v22M36 38h17" stroke="#f2cf78" stroke-width="2.6" stroke-linecap="round"/>
-            <path d="M26 66h37M30 72h29" stroke="#e8c46a" stroke-width="2.2" stroke-linecap="round" opacity=".85"/>
+            
+            
             <path d="M0 4q-1 0 0 0" stroke="none"/><rect x="66" y="42" width="14" height="20" rx="3" fill="url(#gold)" stroke="#6b4a14"/><circle cx="73" cy="52" r="2.4" fill="#3b2311"/>
             <path d="M0 0h76v98H0z" fill="url(#leather)" opacity="0"/>
           </g>
@@ -214,7 +214,7 @@
           <defs><linearGradient id="doorin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#150b06"/><stop offset="1" stop-color="#6a3c14"/></linearGradient><radialGradient id="lantern"><stop offset="0" stop-color="#ffd27a" stop-opacity=".95"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></radialGradient></defs>
           <!-- hanging shop sign -->
           <path d="M268 196H376" stroke="#2a2a30" stroke-width="5" stroke-linecap="round"/><path d="M300 198v10M344 198v10" stroke="#2a2a30" stroke-width="2.4"/>
-          <rect x="288" y="208" width="76" height="34" rx="4" fill="url(#wood)" stroke="#2a1608" stroke-width="2.4"/><circle cx="326" cy="225" r="11" fill="url(#gold)" stroke="#6b4a14" stroke-width="1.6"/><path d="M326 217v16M321 221h10M321 229h10" stroke="#6b4a14" stroke-width="1.8" stroke-linecap="round"/>
+          <rect x="288" y="208" width="76" height="34" rx="4" fill="url(#wood)" stroke="#2a1608" stroke-width="2.4"/>
           <!-- stone arch and the dark opening -->
           <path d="M248 530V316A67 67 0 0 1 382 316V530Z" fill="#6d5a42"/><path d="M248 530V316A67 67 0 0 1 382 316V530" fill="none" stroke="rgba(255,235,190,.25)" stroke-width="2"/>
           <path d="M259 530V316A56 56 0 0 1 371 316V530Z" fill="url(#doorin)"/>
@@ -242,14 +242,14 @@
           <line x1="-30" y1="540" x2="-300" y2="880"/><line x1="40" y1="540" x2="-100" y2="880"/><line x1="115" y1="540" x2="100" y2="880"/><line x1="195" y1="540" x2="195" y2="880"/><line x1="275" y1="540" x2="290" y2="880"/><line x1="350" y1="540" x2="490" y2="880"/><line x1="420" y1="540" x2="690" y2="880"/>
         </g>
         <g stroke="rgba(255,220,170,.06)" stroke-width="1"><path d="M-200 585H590M-200 640H590M-200 705H590M-200 785H590"/></g>
-        <path d="M130 585h130l60 240H70z" fill="url(#rugg)"/><path d="M130 585h130l60 240H70z" fill="none" stroke="#d9b25a" stroke-width="3"/><path d="M142 597h106l50 216H92z" fill="none" stroke="rgba(217,178,90,.55)" stroke-width="1.6" stroke-dasharray="5 4"/>
-        <ellipse cx="195" cy="700" rx="46" ry="26" fill="none" stroke="rgba(217,178,90,.5)" stroke-width="2"/><path d="M195 676v48M171 700h48" stroke="rgba(217,178,90,.5)" stroke-width="2"/>
+        <path d="M130 585h130l60 240H70z" fill="url(#rugg)"/><path d="M130 585h130l60 240H70z" fill="none" stroke="#d9b25a" stroke-width="3"/>
+        
         <ellipse cx="195" cy="470" rx="320" ry="120" fill="rgba(0,0,0,.18)" style="mix-blend-mode:multiply" opacity="0"/>
       </svg></div>
 
       <!-- furniture -->
       <div class="layer" data-d="1.0" id="furn"><svg viewBox="0 0 390 844">
-        <ellipse cx="300" cy="708" rx="86" ry="14" fill="url(#shadowg)"/><ellipse cx="73" cy="724" rx="52" ry="10" fill="url(#shadowg)"/>
+        
         <!-- round table with a cloth: empty for now, the player's own boosters will be laid on it later -->
         <g id="packsTable">
           <rect x="293" y="652" width="14" height="52" fill="#4a2a12"/><ellipse cx="300" cy="704" rx="30" ry="6" fill="#3a2210"/>
