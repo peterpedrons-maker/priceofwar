@@ -1251,15 +1251,15 @@ Portrait 5:8 aspect ratio, exactly 1000x1600 pixels. Game asset: a single sealed
 ## 4aa. Sala de Coleção — camadas da cena (pendente)
 
 **Status:** pendente (gerar). O protótipo navegável está em `public/mockups/quarto/` (com formas simples) e já define o que cada
-camada precisa mostrar e onde ela fica. A sala é uma sala de verdade (não um quarto): tapete, estante, mesa, baú/pacotes, mesa de guerra
+camada precisa mostrar e onde ela fica. A sala é uma sala de verdade (não um quarto): tapete, estante, uma mesa redonda vazia (onde os boosters do jogador vão aparecer no futuro), mesa de guerra
 e uma **porta que leva à loja do vendedor**, identificada só pela placa pendurada (sem personagem na porta).
 
 Como na loja (4u), todas as camadas usam o **mesmo canvas 9:16 (1024x1792)**, assim se encaixam sem ajuste e o parallax fica coerente.
 Camadas recortadas usam **fundo cinza RGB 125,125,125** (eu recorto, como nas outras). Camadas "opacas" preenchem o canvas inteiro.
 Anexar a imagem **A** (referência da cena) em todas as demais, e para qualquer objeto que já existe no jogo anexar também a referência dele:
-o booster (`booster-cardeal`) e a tela da loja, para o estilo bater.
+a tela da loja, para o estilo bater.
 
-**Ordem sugerida:** A (referência) → B (parede) → C (chão) → D (estante + livro) → E (mesa de boosters) → F (mesa de guerra) →
+**Ordem sugerida:** A (referência) → B (parede) → C (chão) → D (estante + livro) → E (mesa redonda vazia) → F (mesa de guerra) →
 G (barril) → I (feixe de luz) → J1–J4 (o livro aberto: capa, miolo, argolas, verso da capa).
 
 **Consistência (vale para todos os prompts):** luz quente de velas e tochas vindo do lado esquerdo e de baixo, luz fria de lua pela janela
@@ -1277,7 +1277,7 @@ marca d'água ou interface.
 | Prateleira + livro da coleção | 4%–46% (livro 18%–37%) | tábua em 47% (livro 35%–47%) |
 | Porta da loja (arco de pedra, bem mais alta que a janela, vazia) | 64%–98% | 29%–63% |
 | Placa da loja pendurada | 74%–93% | 23%–29% |
-| Mesa com os pacotes (boosters) | 60%–93% | 67%–84% |
+| Mesa redonda vazia (os boosters entram aqui depois, desenhados pelo jogo) | 60%–93% | 67%–84% |
 | Barril com espadas | 9%–28% | 66%–86% |
 | Mesa de guerra (cortada pela borda de baixo) | 38%–100% | 93%–100% |
 | Tapete | 18%–82% | 70%–98% |
@@ -1287,7 +1287,7 @@ marca d'água ou interface.
 
 **A · Cena de referência**
 ```
-Portrait 9:16 aspect ratio, exactly 1024x1792 pixels. Painterly medieval-fantasy illustration, the interior of a medieval collector's hall (a stately private room in a castle where a card collector keeps a prized collection), seen from standing eye level, strict frontal one-point perspective. The back wall is dark grey-brown stone blocks above a dark wooden floor, the wall meets the floor at 62% of the image height. High on the wall, slightly left of center, a SMALL arched window (about 28% of the image width, 20% of the height) showing a violet-and-amber dusk sky and a pale moon, with a stone sill; a soft shaft of cool moonlight falls diagonally from it onto the floor. A short crimson banner with a gold cross hangs on the far left, and two wall torches with warm flames flank the window area. On the left, a wooden wall shelf at 47% height holds a large closed leather-bound collection book with a gold cross emblem and gold corner fittings, a stack of old tomes and a lit white candle. On the right wall a TALL arched stone doorway, much taller and larger than the window (it rises from the floor to about 29% height, about 33% of the image width), its heavy wooden door standing open on the left, with a hanging iron-bracket wooden shop sign above it showing a gold coin; the doorway is empty and dark, warmly lit from inside by a hanging brass lantern, with no people anywhere in the image. On the floor: a long crimson rug with gold border and a round medallion, a round wooden table with a red cloth on the right holding three sealed foil booster packs (cream-and-gold wrapper, golden cross and dove) with a soft golden glow, a wooden barrel with two swords standing in it on the left, and at the very bottom right the edge of a heavy wooden war table with a parchment map, small blue and red figurines and a lit candle. Warm candlelight, rich shadows, palette of warm brown wood, gold, crimson and cool violet moonlight. Same high-quality painterly game-art style as a premium collectible card game, matching the attached shop reference. No text, no letters, no watermark, no UI.
+Portrait 9:16 aspect ratio, exactly 1024x1792 pixels. Painterly medieval-fantasy illustration, the interior of a medieval collector's hall (a stately private room in a castle where a card collector keeps a prized collection), seen from standing eye level, strict frontal one-point perspective. The back wall is dark grey-brown stone blocks above a dark wooden floor, the wall meets the floor at 62% of the image height. High on the wall, slightly left of center, a SMALL arched window (about 28% of the image width, 20% of the height) showing a violet-and-amber dusk sky and a pale moon, with a stone sill; a soft shaft of cool moonlight falls diagonally from it onto the floor. A short crimson banner with a gold cross hangs on the far left, and two wall torches with warm flames flank the window area. On the left, a wooden wall shelf at 47% height holds a large closed leather-bound collection book with a gold cross emblem and gold corner fittings, a stack of old tomes and a lit white candle. On the right wall a TALL arched stone doorway, much taller and larger than the window (it rises from the floor to about 29% height, about 33% of the image width), its heavy wooden door standing open on the left, with a hanging iron-bracket wooden shop sign above it showing a gold coin; the doorway is empty and dark, warmly lit from inside by a hanging brass lantern, with no people anywhere in the image. On the floor: a long crimson rug with gold border and a round medallion, a round wooden table with a red cloth on the right, its top completely EMPTY (nothing standing on it), a wooden barrel with two swords standing in it on the left, and at the very bottom right the edge of a heavy wooden war table with a parchment map, small blue and red figurines and a lit candle. Warm candlelight, rich shadows, palette of warm brown wood, gold, crimson and cool violet moonlight. Same high-quality painterly game-art style as a premium collectible card game, matching the attached shop reference. No text, no letters, no watermark, no UI.
 ```
 
 **B · Parede de fundo (opaca, com janela e a porta, sem mais nada)**
@@ -1305,9 +1305,9 @@ Portrait 9:16 aspect ratio, exactly 1024x1792 pixels. Painterly medieval-fantasy
 Portrait 9:16 aspect ratio, exactly 1024x1792 pixels. Painterly medieval-fantasy game-art on a flat solid mid-gray background (RGB 125,125,125). A wooden wall shelf on two carved brackets, seen frontally, plank at 47% of the image height spanning x 4%-46%. On it: a large closed leather-bound collection book standing upright and facing the viewer (x 18%-37%, y 35%-47%), deep reddish-brown leather, gold corner fittings, a gold clasp on the right edge, three gold bands on the spine, a gold-framed cover with a round crimson medallion bearing a gold cross; to its left a short stack of two old tomes lying flat; to its right a thick white candle with a small lit flame and soft glow. Everything else is plain flat gray. Same lighting and style as the attached reference image. No text, no letters, no watermark.
 ```
 
-**E · Mesa com os pacotes (boosters)**
+**E · Mesa redonda vazia**
 ```
-Portrait 9:16 aspect ratio, exactly 1024x1792 pixels. Painterly medieval-fantasy game-art on a flat solid mid-gray background (RGB 125,125,125). Only the area x 60%-93%, y 64%-86% contains art: a small round wooden table seen from slightly above, draped with a crimson cloth with a gold trim and soft folds, a central pedestal leg and a round base, and on its top three sealed collectible card booster packs standing upright and leaning slightly (cream-and-gold foil wrapper with crimped zig-zag edges, golden cross and dove emblem, exactly like the attached booster reference), with a soft warm golden glow around them. Everything else is plain flat gray. Same lighting and style as the attached reference image. No text, no watermark, no shadow on the background.
+Portrait 9:16 aspect ratio, exactly 1024x1792 pixels. Painterly medieval-fantasy game-art on a flat solid mid-gray background (RGB 125,125,125). Only the area x 60%-93%, y 64%-86% contains art: a small round wooden table seen from slightly above, draped with a crimson cloth with a gold trim and soft folds, a central pedestal leg and a round base. The round table top is completely EMPTY and flat, clearly visible with nothing on it (no packs, no objects, no candle), so other items can be placed on it later. Everything else is plain flat gray. Same lighting and style as the attached reference image. No text, no watermark, no shadow on the background.
 ```
 
 **F · Mesa de guerra (Meu Deck)**
@@ -1347,7 +1347,7 @@ Portrait 5:7 aspect ratio, exactly 1000x1400 pixels. Game asset: the inside of t
 
 </details>
 
-**Reaproveitados do jogo (não gerar de novo):** o booster Cardeal (4u), a plaquinha de madeira dos rótulos (`button-plaque`), a moldura de cada carta e as próprias cartas (as miniaturas do fichário saem das texturas de `src/assets/card3d`).
+**Reaproveitados do jogo (não gerar de novo):** a plaquinha de madeira dos rótulos (`button-plaque`), a moldura de cada carta e as próprias cartas (as miniaturas do fichário saem das texturas de `src/assets/card3d`).
 
 **O que faço quando as imagens chegarem:** recorto os fundos cinza, ajusto as posições com o mapa acima e troco as formas simples do protótipo pela arte, na tela de verdade do jogo (a Sala de Coleção) e no mockup.
 
