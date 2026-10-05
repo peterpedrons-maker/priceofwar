@@ -149,9 +149,9 @@ python3 tools/card3d/to-webp.py
 
 O verso é o `card-backplate` do jogo **cortado na própria arte** (a imagem original tem margens transparentes; sem cortar, o verso ficava menor que a frente, com o corpo dourado aparecendo em volta). Brilho de folha holográfica: forte no General e nas full art, sutil nas outras.
 
-## Mockup do quarto (coleção em fichário)
+## Mockup da sala de coleção (coleção em fichário)
 
-`public/mockups/quarto/` é um protótipo navegável (HTML solto, sem build): o quarto em camadas com parallax, o livro da coleção
+`public/mockups/quarto/` é um protótipo navegável (HTML solto, sem build): a sala em camadas com parallax, o livro da coleção
 abrindo, páginas de fichário com 9 bolsos que viram com o dedo, e o visualizador 3D real (`?3d&embed`) dentro de um frame.
-As miniaturas em `cards/` saem das texturas de `src/assets/card3d` (recortadas e reduzidas a 300 px). A arte do quarto é só
+As miniaturas em `cards/` saem das texturas de `src/assets/card3d` (recortadas e reduzidas a 300 px). A arte da sala é só
 formas simples (SVG), para validar a navegação antes da arte final. Link: `/priceofwar/mockups/quarto/`.
