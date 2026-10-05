@@ -5964,6 +5964,8 @@ export default function App() {
         case 'place':
           // The opponent's cards have no flight from a hand on screen: they drop in from above (see CardSlot's arrival).
           if (e.seat === 1) arrivalDrops.set(e.card.id, { delay: 0.05 });
+          // Postura: the stance is on the moment the card stands in the Vanguarda — the same gold glow as any effect, once it has landed.
+          if (!opts.quietTurn && triggerKeyOf(e.card.name) === 'postura' && isFrontline(e.slot)) burstAt(ownerId(e.seat), e.slot, toCardData(e.card), 'postura', e.seat === 0 ? 1000 : 600);
           break;
         case 'summon':
           // Summoned soldiers drop in one after another, never all at the same instant.
@@ -6028,6 +6030,12 @@ export default function App() {
           if (e.swapped && !opts.quietTurn && !inFlight) popOverSlot(e.seat === 0 ? 'player' : 'npc', e.to, 'swap', 'TROCA');   // (a slide shows its own swap sign)
           const c = engineRef.current?.players[e.seat].board[e.to];
           if (c && triggerKeyOf(c.name) === 'manobra' && !opts.quietTurn) window.setTimeout(() => startTriggerFx(ownerId(e.seat), e.to, toCardData(c), 'manobra'), 700);
+          // Postura: a card that moves INTO the Vanguarda (and the one it swapped with, going the other way) glows as its stance switches on.
+          if (!opts.quietTurn) {
+            if (c && triggerKeyOf(c.name) === 'postura' && isFrontline(e.to) && !isFrontline(e.from)) burstAt(ownerId(e.seat), e.to, toCardData(c), 'postura', 250);
+            const other = e.swapped ? engineRef.current?.players[e.seat].board[e.from] : null;
+            if (other && triggerKeyOf(other.name) === 'postura' && isFrontline(e.from) && !isFrontline(e.to)) burstAt(ownerId(e.seat), e.from, toCardData(other), 'postura', 250);
+          }
           break;
         }
         case 'equip': {
@@ -6074,6 +6082,8 @@ export default function App() {
               swapped: null,
             });
           }, 1450);
+          // Reforço: the card that moved up glows gold once its slide has landed.
+          if (!opts.quietTurn && triggerKeyOf(e.card.name) === 'reforco') burstAt(side, e.to, mover, 'reforco', 1450 + 480);
           break;
         }
         case 'log':
