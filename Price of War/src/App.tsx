@@ -222,7 +222,7 @@ import { NpcPanel, TapHand, Spotlight, TutorialList, TutorialIntro, markTutorial
 import { DECK_MAX_CARDS, DECK_MAX_COPIES, DECK_MIN_CARDS } from './engine/deck';
 import {
   GOLD_PER_TURN, HAND_LIMIT, START_GOLD, START_HAND,
-  abilityOn, abilityPhases, canPlayInPhase, areSlotsAdjacent, auraTotal, canPlaceInSlot, canReposition, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction,
+  abilityOn, abilityPhases, canPlayInPhase, areSlotsAdjacent, auraTotal, canPlaceInSlot, canReposition, getAuraCombatHpBonus, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction,
   getLaneCol, getMaxAttacksPerTurn, getMoveRow, getValidAttackTargets, isBackline, isCardDamaged, isFrontline, needsHiddenInfo, phasesForTurn,
   specCandidatesOn, targetSpecOf, targetSpecsOf, verbsOn,
 } from './engine/rules';
@@ -457,7 +457,19 @@ export type CardData = {
   // out from behind this one (see CardSlot), until this unit dies (see
   // graveyardWithEquipment, which sends any equipped weapons along with it).
   equippedWeapons?: CardData[];
+  // What the numbers on a board card really are right now, and whether that is better (1), worse (-1) or the same (0) as
+  // what the card is printed with: ATK after every aura, buff and weapon, HP after damage and the bonuses that hold in
+  // combat. Only set for cards on the board (see boardView); the numbers are drawn from it, in green / red when they differ.
+  shown?: { atk: number; hp: number; atkTone: StatTone; hpTone: StatTone };
 };
+type StatTone = -1 | 0 | 1;
+const STAT_TONE_COLOR: Record<StatTone, string | undefined> = { 1: '#8dff7a', 0: undefined, [-1]: '#ff9a8a' };
+const STAT_TONE_GRADIENT: Record<1 | -1, string> = {
+  1: 'linear-gradient(180deg, #F4FFE9 0%, #A5F07A 32%, #45C23F 62%, #1F8030 100%)',
+  [-1]: 'linear-gradient(180deg, #FFEBE6 0%, #FF9580 32%, #E8442F 62%, #9E1E13 100%)',
+};
+// The numbers a card face draws: the live ones when the card sits on the board, the printed ones everywhere else.
+const statsOf = (card: CardData) => card.shown ?? { atk: card.atk, hp: card.hp, atkTone: 0 as StatTone, hpTone: 0 as StatTone };
 
 // Slot layout per side (13 slots):
 //   0-4  = Vanguarda (frontline, 5 columns)
@@ -1291,7 +1303,7 @@ const GoldBadge = ({ value, className = "" }: { value: number; className?: strin
 // size that looks right on one overflows its coin/blade/heart badge on a
 // smaller one. This measures its own box and shrinks (never grows past the
 // base size) exactly enough to always fit, on any container size.
-const GoldNumber = ({ value, className = "", dark = false }: { value: number, className?: string, dark?: boolean }) => {
+const GoldNumber = ({ value, className = "", dark = false, tone = 0 }: { value: number, className?: string, dark?: boolean, tone?: StatTone }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
 
@@ -1321,7 +1333,8 @@ const GoldNumber = ({ value, className = "", dark = false }: { value: number, cl
         className={`font-black leading-none ${className}`}
         style={{
           fontFamily: "'Cinzel', serif",
-          background: dark
+          background: tone !== 0 ? STAT_TONE_GRADIENT[tone]
+            : dark
             ? 'linear-gradient(180deg, #6b4a1e 0%, #3f2a0d 55%, #2b1a06 100%)'
             : 'linear-gradient(180deg, #FFFFFF 0%, #FDE08B 30%, #D4AF37 60%, #AA7200 100%)',
           WebkitBackgroundClip: 'text',
@@ -1753,10 +1766,10 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
         {showStats && (
           <>
             <div className="absolute flex items-center justify-center" style={{ left: '16%', top: '85.7%', width: '14%', height: '11%', transform: 'translate(-50%, -50%)' }}>
-              <GoldNumber value={card.atk} className={v.combatStat} />
+              <GoldNumber value={statsOf(card).atk} tone={statsOf(card).atkTone} className={v.combatStat} />
             </div>
             <div className="absolute flex items-center justify-center" style={{ left: '84%', top: '85.7%', width: '14%', height: '11%', transform: 'translate(-50%, -50%)' }}>
-              <GoldNumber value={card.hp} className={v.combatStat} />
+              <GoldNumber value={statsOf(card).hp} tone={statsOf(card).hpTone} className={v.combatStat} />
             </div>
           </>
         )}
@@ -1866,13 +1879,13 @@ const CardFaceFullArtMini = ({ card }: { card: CardData }) => {
         {showStats && (
           <>
             <div className="absolute flex items-center justify-center" style={{ left: '16%', top: '85.7%', width: '14%', height: '11%', transform: 'translate(-50%, -50%)' }}>
-              <span className="font-black text-base md:text-xl" style={{ fontFamily: "'Cinzel', serif", color: '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
-                {card.atk}
+              <span className="font-black text-base md:text-xl" style={{ fontFamily: "'Cinzel', serif", color: STAT_TONE_COLOR[statsOf(card).atkTone] ?? '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
+                {statsOf(card).atk}
               </span>
             </div>
             <div className="absolute flex items-center justify-center" style={{ left: '84%', top: '85.7%', width: '14%', height: '11%', transform: 'translate(-50%, -50%)' }}>
-              <span className="font-black text-base md:text-xl" style={{ fontFamily: "'Cinzel', serif", color: '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
-                {card.hp}
+              <span className="font-black text-base md:text-xl" style={{ fontFamily: "'Cinzel', serif", color: STAT_TONE_COLOR[statsOf(card).hpTone] ?? '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
+                {statsOf(card).hp}
               </span>
             </div>
           </>
@@ -1930,13 +1943,13 @@ const CardFaceStandardMini = ({ card }: { card: CardData }) => {
         {showStats && (
           <>
             <div className="absolute flex items-center justify-center" style={{ left: '11%', top: '88%', width: '20%', height: '12%', transform: 'translate(-50%, -50%)' }}>
-              <span className="font-black text-base md:text-xl" style={{ fontFamily: "'Cinzel', serif", color: '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
-                {card.atk}
+              <span className="font-black text-base md:text-xl" style={{ fontFamily: "'Cinzel', serif", color: STAT_TONE_COLOR[statsOf(card).atkTone] ?? '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
+                {statsOf(card).atk}
               </span>
             </div>
             <div className="absolute flex items-center justify-center" style={{ left: '89%', top: '88%', width: '20%', height: '12%', transform: 'translate(-50%, -50%)' }}>
-              <span className="font-black text-base md:text-xl" style={{ fontFamily: "'Cinzel', serif", color: '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
-                {card.hp}
+              <span className="font-black text-base md:text-xl" style={{ fontFamily: "'Cinzel', serif", color: STAT_TONE_COLOR[statsOf(card).hpTone] ?? '#F5DEA0', textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.85)' }}>
+                {statsOf(card).hp}
               </span>
             </div>
           </>
@@ -2036,10 +2049,10 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
         {showStats && (
           <>
             <div className="absolute flex items-center justify-center" style={{ left: '1%', bottom: '-2%', width: '20%', height: '13%' }}>
-              <GoldNumber value={card.atk} className={v.combatStat} />
+              <GoldNumber value={statsOf(card).atk} tone={statsOf(card).atkTone} className={v.combatStat} />
             </div>
             <div className="absolute flex items-center justify-center" style={{ right: '0%', bottom: '-2%', width: '20%', height: '13%' }}>
-              <GoldNumber value={card.hp} className={v.combatStat} />
+              <GoldNumber value={statsOf(card).hp} tone={statsOf(card).hpTone} className={v.combatStat} />
             </div>
           </>
         )}
@@ -5855,8 +5868,22 @@ export default function App() {
   // Reforço: the engine has already moved the card up, but the screen first lets the fallen card burn in its slot
   // and shows the reinforcement still behind it until its slide starts (holds: slot -> what to show there).
   const holdsRef = useRef<{ player: Record<number, CardData | null>; npc: Record<number, CardData | null> }>({ player: {}, npc: {} });
-  const boardView = (board: (EngineCard | null)[], ghosts: Record<number, CardData>, holds: Record<number, CardData | null> = {}): (CardData | null)[] =>
-    board.map((c, i) => (i in holds ? (holds[i] ?? ghosts[i] ?? null) : c ? toCardData(c) : ghosts[i] ?? null));
+  // The live numbers of a board card (see CardData.shown): ATK through every aura, buff and weapon (getEffectiveAtk, the same
+  // function combat uses); HP as it stands plus what holds in combat. Green when better than printed, red when worse; for HP
+  // "worse" means hurt — below what the card could have (its printed HP plus what its weapons add).
+  const shownStats = (c: EngineCard, i: number, own: (EngineCard | null)[], foe: (EngineCard | null)[]): CardData['shown'] => {
+    const def = getCardDef(c.name);
+    if (!def) return undefined;
+    const atk = getEffectiveAtk(c, i, own, foe);
+    const hp = c.hp + (c.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(i, own);
+    const weaponHp = (c.equippedWeapons ?? []).reduce((n, w) => n + ((verbsOn(w.name, 'play').find(v => v.kind === 'equip') as { hp?: number } | undefined)?.hp ?? 0), 0);
+    const maxHp = def.hp + weaponHp;
+    const atkTone: StatTone = atk > def.atk ? 1 : atk < def.atk ? -1 : 0;
+    const hpTone: StatTone = c.hp < maxHp ? -1 : hp > def.hp ? 1 : 0;
+    return { atk, hp, atkTone, hpTone };
+  };
+  const boardView = (board: (EngineCard | null)[], ghosts: Record<number, CardData>, holds: Record<number, CardData | null> = {}, foe: (EngineCard | null)[] = []): (CardData | null)[] =>
+    board.map((c, i) => (i in holds ? (holds[i] ?? ghosts[i] ?? null) : c ? { ...toCardData(c), shown: shownStats(c, i, board, foe) } : ghosts[i] ?? null));
 
   // Copies the engine state into the React mirror states. `skip` lets an animation hold back the hand or
   // the boards until it lands (a card in flight, for instance).
@@ -5870,8 +5897,8 @@ export default function App() {
     if (!skip.hand) setHand(me.hand.map(toCardData));
     setNpcHand(foe.hand.map(toCardData));
     if (!skip.boards) {
-      setPlayerSlots(boardView(me.board, ghostsRef.current.player, holdsRef.current.player));
-      setNpcSlots(boardView(foe.board, ghostsRef.current.npc, holdsRef.current.npc));
+      setPlayerSlots(boardView(me.board, ghostsRef.current.player, holdsRef.current.player, foe.board));
+      setNpcSlots(boardView(foe.board, ghostsRef.current.npc, holdsRef.current.npc, me.board));
     }
     setPlayerGraveyard(me.graveyard.map(toCardData));
     setNpcGraveyard(foe.graveyard.map(toCardData));
