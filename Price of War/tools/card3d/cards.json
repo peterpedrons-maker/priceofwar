@@ -1,0 +1,502 @@
+[
+ {
+  "slug": "comandante-aurelion-mestre-da-formacao",
+  "name": "Comandante Aurelion, Mestre da Formação",
+  "type": "General",
+  "atk": 0,
+  "hp": 20,
+  "cost": 0,
+  "effect": "**Fim do turno** Até 2 unidades que se moveram ganham +1/+1 no próximo combate. **Passiva** Relíquia e Terreno recebem -1 de dano.",
+  "full": true
+ },
+ {
+  "slug": "soldado-tatico",
+  "name": "Soldado Tático",
+  "type": "Infantaria",
+  "atk": 3,
+  "hp": 3,
+  "cost": 2,
+  "effect": "No fim do turno, troca de lugar com um aliado ao lado.",
+  "full": false
+ },
+ {
+  "slug": "escudeiro-de-linha",
+  "name": "Escudeiro de Linha",
+  "type": "Infantaria",
+  "atk": 2,
+  "hp": 4,
+  "cost": 2,
+  "effect": "Na Vanguarda, a carta atrás recebe -1 de dano.",
+  "full": false
+ },
+ {
+  "slug": "capitao-de-formacao",
+  "name": "Capitão de Formação",
+  "type": "Infantaria",
+  "atk": 3,
+  "hp": 4,
+  "cost": 3,
+  "effect": "Aliados ao lado ganham +1 ATK até o próximo turno.",
+  "full": true
+ },
+ {
+  "slug": "batedor",
+  "name": "Batedor",
+  "type": "Infantaria",
+  "atk": 1,
+  "hp": 2,
+  "cost": 1,
+  "effect": "Depois de atacar, move-se 1 casa de graça.",
+  "full": false
+ },
+ {
+  "slug": "lanceiro-de-controle",
+  "name": "Lanceiro de Controle",
+  "type": "Infantaria",
+  "atk": 3,
+  "hp": 2,
+  "cost": 2,
+  "effect": "O inimigo à frente tem -1 ATK.",
+  "full": false
+ },
+ {
+  "slug": "cavaleiro-tatico",
+  "name": "Cavaleiro Tático",
+  "type": "Cavalaria",
+  "atk": 4,
+  "hp": 4,
+  "cost": 3,
+  "effect": "Troca de lugar com qualquer aliado da fileira.",
+  "full": true
+ },
+ {
+  "slug": "veterano-de-guerra",
+  "name": "Veterano de Guerra",
+  "type": "Infantaria",
+  "atk": 4,
+  "hp": 3,
+  "cost": 3,
+  "effect": "+2 ATK na coluna central.",
+  "full": true
+ },
+ {
+  "slug": "reformar-linhas",
+  "name": "Reformar Linhas",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "3 movimentos extras neste turno.",
+  "full": true
+ },
+ {
+  "slug": "avanco-coordenado",
+  "name": "Avanço Coordenado",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "+2 ATK a uma unidade que se moveu neste turno.",
+  "full": false
+ },
+ {
+  "slug": "reposicionamento-rapido",
+  "name": "Reposicionamento Rápido",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Mova um inimigo para um espaço livre ao lado.",
+  "full": false
+ },
+ {
+  "slug": "linha-fechada",
+  "name": "Linha Fechada",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "-1 de dano, para sempre, nos aliados ao lado da unidade escolhida.",
+  "full": false
+ },
+ {
+  "slug": "ordem-de-retirada",
+  "name": "Ordem de Retirada",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Mova uma unidade da Vanguarda para a Retaguarda: +2 HP.",
+  "full": false
+ },
+ {
+  "slug": "bloqueio-instantaneo",
+  "name": "Bloqueio Instantâneo",
+  "type": "Emboscada",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Cancela um ataque a uma unidade com aliado ao lado.",
+  "full": false
+ },
+ {
+  "slug": "contra-manobra",
+  "name": "Contra-Manobra",
+  "type": "Emboscada",
+  "atk": 0,
+  "hp": 0,
+  "cost": 3,
+  "effect": "Troca a unidade atacada com um aliado ao lado, que recebe o golpe.",
+  "full": true
+ },
+ {
+  "slug": "formacao-quebrada",
+  "name": "Formação Quebrada",
+  "type": "Emboscada",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Move o atacante para um espaço livre aleatório. O ataque falha.",
+  "full": false
+ },
+ {
+  "slug": "estandarte-da-legiao",
+  "name": "Estandarte da Legião",
+  "type": "Relíquia",
+  "atk": 0,
+  "hp": 5,
+  "cost": 3,
+  "effect": "+1 ATK às suas unidades.",
+  "full": true
+ },
+ {
+  "slug": "fortaleza-de-pedra",
+  "name": "Fortaleza de Pedra",
+  "type": "Terreno",
+  "atk": 0,
+  "hp": 8,
+  "cost": 3,
+  "effect": "Suas unidades na Retaguarda: -1 de dano de ataques.",
+  "full": true
+ },
+ {
+  "slug": "pantano-maldito",
+  "name": "Pântano Maldito",
+  "type": "Terreno",
+  "atk": 0,
+  "hp": 6,
+  "cost": 2,
+  "effect": "Inimigos na Vanguarda: -1 ATK.",
+  "full": false
+ },
+ {
+  "slug": "cardeal-pedro-voz-da-fe",
+  "name": "Cardeal Pedro, Voz da Fé",
+  "type": "General",
+  "atk": 0,
+  "hp": 20,
+  "cost": 0,
+  "effect": "Pague 2 de ouro: +1 HP a uma unidade aliada.",
+  "full": true
+ },
+ {
+  "slug": "calice-da-graca",
+  "name": "Cálice da Graça",
+  "type": "Relíquia",
+  "atk": 0,
+  "hp": 5,
+  "cost": 3,
+  "effect": "Seu General dá +2 HP em vez de +1.",
+  "full": true
+ },
+ {
+  "slug": "devotos-da-cruzada",
+  "name": "Devotos da Cruzada",
+  "type": "Infantaria",
+  "atk": 0,
+  "hp": 3,
+  "cost": 1,
+  "effect": "",
+  "full": false
+ },
+ {
+  "slug": "mercador-da-cruzada",
+  "name": "Mercador da Cruzada",
+  "type": "Infantaria",
+  "atk": 1,
+  "hp": 1,
+  "cost": 1,
+  "effect": "Veja 2 cartas do topo do baralho, fique com 1 e mande a outra para o fundo.",
+  "full": false
+ },
+ {
+  "slug": "infiltrado-da-ordem",
+  "name": "Infiltrado da Ordem",
+  "type": "Infantaria",
+  "atk": 1,
+  "hp": 2,
+  "cost": 1,
+  "effect": "Na Vanguarda, Emboscadas inimigas não ativam. Se seu General sofrer dano, ele fica sem habilidade no próximo turno.",
+  "full": false
+ },
+ {
+  "slug": "fanatico-da-cruzada",
+  "name": "Fanático da Cruzada",
+  "type": "Infantaria",
+  "atk": 1,
+  "hp": 2,
+  "cost": 1,
+  "effect": "+2 ATK contra General de facção oposta.",
+  "full": false
+ },
+ {
+  "slug": "recruta-devoto",
+  "name": "Recruta Devoto",
+  "type": "Infantaria",
+  "atk": 0,
+  "hp": 2,
+  "cost": 1,
+  "effect": "Quando é curado: +1 ATK para sempre.",
+  "full": false
+ },
+ {
+  "slug": "intendente-do-exercito",
+  "name": "Intendente do Exército",
+  "type": "Infantaria",
+  "atk": 2,
+  "hp": 3,
+  "cost": 2,
+  "effect": "No início do turno, compre até ter 2 cartas na mão.",
+  "full": false
+ },
+ {
+  "slug": "soldados-da-ordem",
+  "name": "Soldados da Ordem",
+  "type": "Infantaria",
+  "atk": 3,
+  "hp": 4,
+  "cost": 2,
+  "effect": "Se a da frente cair, desce e ganha Escudo 2.",
+  "full": false
+ },
+ {
+  "slug": "jorge-lanca-sagrada",
+  "name": "Jorge, Lança Sagrada",
+  "type": "Cavalaria",
+  "atk": 4,
+  "hp": 6,
+  "cost": 3,
+  "effect": "Ao atacar a Vanguarda, 2 de dano à carta atrás.",
+  "full": true
+ },
+ {
+  "slug": "cavaleiro-hospitalario",
+  "name": "Cavaleiro Hospitalário",
+  "type": "Cavalaria",
+  "atk": 2,
+  "hp": 3,
+  "cost": 2,
+  "effect": "+1 HP a um aliado ferido e 1 de dano a um inimigo da Vanguarda.",
+  "full": false
+ },
+ {
+  "slug": "nobre-da-cruzada",
+  "name": "Nobre da Cruzada",
+  "type": "Cavalaria",
+  "atk": 4,
+  "hp": 5,
+  "cost": 3,
+  "effect": "Soldados Leais (1/1) nos espaços livres ao lado.",
+  "full": true
+ },
+ {
+  "slug": "cavaleiro-da-luz",
+  "name": "Cavaleiro da Luz",
+  "type": "Cavalaria",
+  "atk": 4,
+  "hp": 5,
+  "cost": 3,
+  "effect": "",
+  "full": true
+ },
+ {
+  "slug": "comandante-da-ordem",
+  "name": "Comandante da Ordem",
+  "type": "Cavalaria",
+  "atk": 5,
+  "hp": 5,
+  "cost": 3,
+  "effect": "Na Vanguarda, seus Infantaria e Arqueiros têm +1/+1 em combate.",
+  "full": true
+ },
+ {
+  "slug": "arqueiro-da-ordem",
+  "name": "Arqueiro da Ordem",
+  "type": "Arqueiro",
+  "atk": 1,
+  "hp": 4,
+  "cost": 2,
+  "effect": "Ataca 2 vezes por rodada.",
+  "full": false
+ },
+ {
+  "slug": "atirador-da-cruzada",
+  "name": "Atirador da Cruzada",
+  "type": "Arqueiro",
+  "atk": 1,
+  "hp": 3,
+  "cost": 2,
+  "effect": "Compre 2 cartas.",
+  "full": false
+ },
+ {
+  "slug": "trabuco-de-cerco",
+  "name": "Trabuco de Cerco",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 3,
+  "effect": "2 de dano a todas as unidades inimigas e ao General.",
+  "full": true
+ },
+ {
+  "slug": "catapulta-de-guerra",
+  "name": "Catapulta de Guerra",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "2 de dano a todas as unidades de uma fileira inimiga.",
+  "full": false
+ },
+ {
+  "slug": "balestra-de-precisao",
+  "name": "Balestra de Precisão",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "3 de dano a uma unidade inimiga.",
+  "full": false
+ },
+ {
+  "slug": "armadura-de-guerra",
+  "name": "Armadura de Guerra",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Equipe uma Infantaria: +2 HP.",
+  "full": false
+ },
+ {
+  "slug": "couraca-reforcada",
+  "name": "Couraça Reforçada",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Equipe uma Infantaria ou Arqueiro: +1 HP.",
+  "full": false
+ },
+ {
+  "slug": "flechas-venenosas",
+  "name": "Flechas Venenosas",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Equipe um Arqueiro: +1 ATK.",
+  "full": false
+ },
+ {
+  "slug": "espada-longa",
+  "name": "Espada Longa",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Equipe uma Infantaria ou Cavalaria: +2 ATK.",
+  "full": false
+ },
+ {
+  "slug": "reforcos-ocultos",
+  "name": "Reforços Ocultos",
+  "type": "Emboscada",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "A unidade atacada ganha +2 ATK e +1 HP até o fim do turno.",
+  "full": false
+ },
+ {
+  "slug": "retorno-do-soldado",
+  "name": "Retorno do Soldado",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Leve 1 soldado do cemitério para a mão.",
+  "full": true
+ },
+ {
+  "slug": "graal-da-dadiva",
+  "name": "Graal da Dádiva",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Leve 1 Terreno ou Relíquia do baralho para a mão.",
+  "full": false
+ },
+ {
+  "slug": "doutrina-renovada",
+  "name": "Doutrina Renovada",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Leve 1 Tática do baralho para a mão.",
+  "full": false
+ },
+ {
+  "slug": "recrutamento-seletivo",
+  "name": "Recrutamento Seletivo",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Leve 1 soldado do baralho para a mão.",
+  "full": false
+ },
+ {
+  "slug": "recrutar-veteranos",
+  "name": "Recrutar Veteranos",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Veja 4 cartas do topo: fique com 1 ou 2, o resto vai para o fundo.",
+  "full": false
+ },
+ {
+  "slug": "tributo-de-guerra",
+  "name": "Tributo de Guerra",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 0,
+  "effect": "+1 de ouro neste turno.",
+  "full": false
+ },
+ {
+  "slug": "chamado-as-armas",
+  "name": "Chamado às Armas",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Convoque até 2 soldados de 0 ATK do baralho para a Vanguarda. Embaralhe.",
+  "full": false
+ }
+]

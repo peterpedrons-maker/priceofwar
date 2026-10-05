@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { fetchProfile, usernameAvailable, createProfile, updateProfileFields, fetchStore, pushStore, type CloudDeck } from './services/cloud';
 import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authErrorDetail, authMode, type Session } from './services/auth';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate, type MotionValue } from 'motion/react';
 import { X, ArrowUp, ArrowDown } from 'lucide-react';
 import { TurnTracker } from './TurnTracker';
+// The 3D viewer (and three.js with it) is only downloaded the first time a card is opened in 3D.
+const CardViewer3D = lazy(() => import('./CardViewer3D'));
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
 import startScreenBgImage from './assets/start-screen-bg.webp';
@@ -759,6 +761,60 @@ const TriggerIcon = ({ cardId, icon, trig, className = '', style }: { cardId: st
 };
 // A card's effect fires: it glows gold (the same for every trigger), a band of light crosses it and a shock ring of its own
 // shape grows and fades — all cut with the card's exact silhouette (same masks and box as AbilityReadyGlow), never a rectangle.
+// The card lands: dust puffs kicked up along the ground (soft, drifting out and up while they fade), gold sparks that arc and fall, a flat
+// shock ring and a short flash. Drawn on a small canvas centred on the slot; everything scales with the card's width (the design is
+// for a 56-px-wide board card) and a full-art card kicks up far more of everything. `w` is the landed card's width in px.
+// The player's card flight (see the flyingCard overlay): total length, and the moment the slam lands (the dust, the thud).
+const FLIGHT_MS = 1200, FLIGHT_HIT_MS = 800;
+const ImpactFx = ({ x, y, w, big }: { x: number; y: number; w: number; big: boolean; key?: React.Key }) => {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const k = Math.max(0.6, w / 56) * (big ? 1.15 : 1);
+  const S = Math.round((big ? 520 : 340) * Math.max(0.8, w / 56));
+  useEffect(() => {
+    const cv = ref.current; if (!cv) return;
+    const ctx = cv.getContext('2d'); if (!ctx) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = S * dpr; cv.height = S * dpr; ctx.scale(dpr, dpr);
+    const rnd = Math.random, lerp = (a: number, b: number, t: number) => a + (b - a) * t, easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
+    const cx = S / 2, ground = S / 2 + (w / 0.7) / 2;          // ground contact: the bottom edge of the landed card
+    const TONES = [[226, 206, 170], [206, 182, 142], [150, 126, 92], [112, 92, 66]];       // pale dust, ochre, and darker earth for body and contrast
+    const puffs = Array.from({ length: big ? 96 : 52 }, (_, i) => ({
+      side: i % 2 ? 1 : -1, speed: lerp(22, big ? 230 : 170, rnd()) * k, ang: rnd() * 0.55, life: lerp(0.6, big ? 1.5 : 1.15, rnd()),
+      rise: lerp(4, big ? 70 : 46, rnd()) * k, size: lerp(12, big ? 38 : 28, rnd()) * k, alpha: lerp(0.5, 0.85, rnd()), tone: TONES[Math.floor(rnd() * TONES.length)], delay: rnd() * 0.06,
+    }));
+    const sparks = Array.from({ length: big ? 34 : 18 }, (_, i) => ({
+      ang: -Math.PI * (0.1 + 0.8 * rnd()), speed: lerp(100, big ? 340 : 250, rnd()) * k, life: lerp(0.32, 0.7, rnd()), gold: i % 3 !== 0,
+    }));
+    const t0 = performance.now(); const dur = big ? 1.8 : 1.35; let raf = 0;
+    const loop = (now: number) => {
+      const t = (now - t0) / 1000; ctx.clearRect(0, 0, S, S);
+      const rings = big ? 2 : 1;
+      for (let r = 0; r < rings; r++) {                                          // flat shock ring(s) on the ground
+        const u = (t - r * 0.09) / (big ? 0.6 : 0.45); if (u < 0 || u > 1) continue;
+        ctx.globalAlpha = (1 - u) * 0.9; ctx.strokeStyle = '#fff1c4'; ctx.lineWidth = (3.6 * (1 - u) + 0.8) * Math.min(1.6, k);
+        ctx.beginPath(); ctx.ellipse(cx, ground - 8 * k, lerp(18, (big ? 130 : 92), easeOut(u)) * k, lerp(5, (big ? 30 : 22), easeOut(u)) * k, 0, 0, 7); ctx.stroke();
+      }
+      if (t < 0.14) { const u = t / 0.14; const g = ctx.createRadialGradient(cx, ground - 10 * k, 0, cx, ground - 10 * k, lerp(14, big ? 90 : 56, u) * k); g.addColorStop(0, `rgba(255,243,200,${0.85 * (1 - u)})`); g.addColorStop(1, 'rgba(255,243,200,0)'); ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, ground - 10 * k, lerp(14, big ? 90 : 56, u) * k, 0, 7); ctx.fill(); }
+      puffs.forEach(p => {
+        const u = (t - p.delay) / p.life; if (u < 0 || u > 1) return;
+        const px = cx + p.side * p.speed * easeOut(u) * Math.cos(p.ang), py = ground - 4 * k - p.speed * 0.26 * easeOut(u) - p.rise * u, rad = p.size * lerp(0.5, 1.3, u);
+        const g = ctx.createRadialGradient(px, py, 0, px, py, rad); const a = p.alpha * (1 - u) * (u < 0.1 ? u / 0.1 : 1);
+        g.addColorStop(0, `rgba(${p.tone[0]},${p.tone[1]},${p.tone[2]},${a})`); g.addColorStop(1, `rgba(${p.tone[0]},${p.tone[1]},${p.tone[2]},0)`);
+        ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, rad, 0, 7); ctx.fill();
+      });
+      sparks.forEach(sp => {
+        const u = t / sp.life; if (u < 0 || u > 1) return;
+        const px = cx + Math.cos(sp.ang) * sp.speed * t, py = ground - 14 * k + Math.sin(sp.ang) * sp.speed * t + 420 * k * t * t;
+        ctx.globalAlpha = 1 - u; ctx.fillStyle = sp.gold ? '#ffd36a' : '#fff6d8'; ctx.beginPath(); ctx.arc(px, py, lerp(2.8, 1, u) * Math.min(1.5, k), 0, 7); ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+      if (t < dur) raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return <canvas ref={ref} className="fixed pointer-events-none" style={{ left: x - S / 2, top: y - S / 2, width: S, height: S, zIndex: 499 }} />;
+};
 const TriggerBurst = ({ x, y, w, h, card }: { x: number; y: number; w: number; h: number; card: CardData; key?: React.Key }) => {
   const { masks, box } = silhouetteFor(card);
   const maskCss = (url: string): React.CSSProperties => ({
@@ -3310,6 +3366,7 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
   const changeView = (v: 'lista' | 'cartas') => setView(v);
   const [gridCols, setGridCols] = useState<3 | 4 | 5>(4);
   const [picked, setPicked] = useState<string | null>(null);
+  const [view3d, setView3d] = useState<number | null>(null);        // 3D viewer: index into the list below (the rows as filtered and sorted)
   const [qty, setQty] = useState(1);
   const [confirm, setConfirm] = useState<{ title: string; message: string; run: () => void } | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -3713,6 +3770,17 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
         </div>
       </div>
 
+      {view3d !== null && rows[view3d] && (
+        <Suspense fallback={<div className="fixed inset-0 z-[900] flex items-center justify-center bg-[#0d0905] text-[#cdbd97]" style={{ fontFamily: "'Cinzel', serif" }}>Carregando…</div>}>
+          <CardViewer3D
+            cards={rows.map(r => ({ name: r.name, type: r.card.cardType, full: !!r.card.isFullArt }))}
+            index={view3d}
+            onIndex={(i) => { setView3d(i); setPicked(rows[i].name); }}
+            onClose={() => setView3d(null)}
+          />
+        </Suspense>
+      )}
+
       {/* Card window: what is being moved, how many, and the explicit button */}
       <AnimatePresence>
         {pickedCard && picked && (
@@ -3738,6 +3806,12 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
               <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: 'scale(0.8)', transformOrigin: 'top left' }}>
                 <div className="relative w-full h-full rounded-xl"><CardFace card={pickedCard} variant="hand" /></div>
               </div>
+              <button
+                aria-label="Ver a carta em 3D"
+                onClick={() => { const i = rows.findIndex(r => r.name === picked); if (i >= 0) { playUiClickSfx(); setView3d(i); } }}
+                className="absolute flex items-center justify-center active:brightness-125"
+                style={{ right: -6, bottom: -6, width: 46, height: 46, borderRadius: 12, border: '2px solid #e8c766', background: 'linear-gradient(#3b2a12, #1c1308)', color: '#ffe9b0', fontFamily: "'Cinzel', serif", fontWeight: 900, fontSize: 14, letterSpacing: '0.04em', boxShadow: '0 3px 8px rgba(0,0,0,0.7)' }}
+              >3D</button>
             </motion.div>
             <div className="flex flex-col items-center gap-3" onClick={(e) => e.stopPropagation()}>
               {maxQty > 1 && (
@@ -5541,21 +5615,29 @@ export default function App() {
   // so the placement reads clearly before the view eases back to normal.
   const [cameraSettling, setCameraSettling] = useState<{ slotIndex: number } | null>(null);
   // A brief flash/ring burst at the screen position where a played card just landed.
-  const [impactBurst, setImpactBurst] = useState<{ id: number; x: number; y: number; big?: boolean }[]>([]);
+  const [impactBurst, setImpactBurst] = useState<{ id: number; x: number; y: number; w: number; big?: boolean }[]>([]);
   const impactIdRef = useRef(0);
   // Several bursts can be alive at once (summoned soldiers landing one after another); each cleans itself up.
-  const fireImpactBurst = (x: number, y: number, big = false) => {
+  // (x, y) is the centre of the card that landed and w its width: the dust is kicked up from its bottom edge, and a full-art card gets far more.
+  const fireImpactBurst = (x: number, y: number, big = false, w = 56) => {
     const id = ++impactIdRef.current;
-    setImpactBurst(prev => [...prev, { id, x, y, big }]);
-    window.setTimeout(() => setImpactBurst(prev => prev.filter(b => b.id !== id)), big ? 1000 : 820);
+    setImpactBurst(prev => [...prev, { id, x, y, w, big }]);
+    window.setTimeout(() => setImpactBurst(prev => prev.filter(b => b.id !== id)), big ? 1700 : 1350);
   };
   // A dropped card touched down: the thud, the dust, and the board reacting (see arrivalDrops).
   arrivalListener = (slotId, card) => {
     const r = document.getElementById(slotId)?.getBoundingClientRect();
     if (!r) return;
     playCardPlaySfx();
-    fireImpactBurst(r.left + r.width / 2, r.top + r.height * 0.6, !!card.isFullArt);
+    fireImpactBurst(r.left + r.width / 2, r.top + r.height / 2, !!card.isFullArt, r.width);
   };
+  // The slam lands at FLIGHT_HIT_MS into the flight: the thud and the dust (a full-art card kicks up far more).
+  useEffect(() => {
+    if (!flyingCard) return;
+    const f = flyingCard;
+    const id = window.setTimeout(() => { playCardPlaySfx(); fireImpactBurst(f.toX, f.toY, !!f.card.isFullArt, f.toW); }, FLIGHT_HIT_MS);
+    return () => window.clearTimeout(id);
+  }, [flyingCard]);
   const handCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   // Hand cards: a tap shows the card big in the middle of the screen (another tap puts it back); pressing, holding and dragging it plays it —
   // while it is held, the card floats under the finger (see `held`) and the board lights up where it can go.
@@ -8961,31 +9043,33 @@ export default function App() {
           const endScale = flyingCard.toW / HAND_CARD_WIDTH;
           const hoverScale = Math.min(3, Math.max(0.8, 190 / flyingCard.fromW));
           const hoverX = flyingCard.toX;
-          const hoverY = flyingCard.toY - 70;
-          const times = [0, 0.55, 0.7, 1];
-          // Only transform (x / y / scale) is animated, never left / top / width / height: those force a layout every frame,
-          // which is what made the big flying card stutter on phones.
+          const hoverY = flyingCard.toY - 86;
+          // The card has weight: a small dip first (anticipation), up to the hover with a little overshoot, a floating aim with a tilt toward the
+          // slot, then a sharp accelerating slam; it holds for a beat at the impact (hit-stop), squashes flat and wide and springs back.
+          // The impact itself (sound, dust) fires at FLIGHT_HIT_MS, when the slam ends (see the effect that schedules it).
+          // Only transform (x / y / scale / rotate) is animated, never left / top / width / height: those force a layout every frame, which
+          // is what made the big flying card stutter on phones.
+          const sq = (1 - 0.86) * flyingCard.toH / 2, sq2 = (1 - 1.03) * flyingCard.toH / 2;
+          const X0 = flyingCard.fromX - HALF_W, X1 = hoverX - HALF_W, X2 = flyingCard.toX - HALF_W;
+          const Y0 = flyingCard.fromY - HALF_H, Y1 = hoverY - HALF_H, Y2 = flyingCard.toY - HALF_H;
+          const hs = startScale * hoverScale;
           return (
             <motion.div
-              initial={{ x: flyingCard.fromX - HALF_W, y: flyingCard.fromY - HALF_H, scale: startScale }}
+              initial={{ x: X0, y: Y0, scaleX: startScale, scaleY: startScale, rotate: 0 }}
               animate={{
-                // Rise up to the hover presentation, hold there, then drop straight down.
-                x: [flyingCard.fromX - HALF_W, hoverX - HALF_W, hoverX - HALF_W, flyingCard.toX - HALF_W],
-                y: [flyingCard.fromY - HALF_H, hoverY - HALF_H, hoverY - HALF_H, flyingCard.toY - HALF_H],
-                scale: [startScale, startScale * hoverScale, startScale * hoverScale, endScale],
-                times,
+                x: [X0, X0, X1, X1, X1, X2, X2, X2, X2, X2],
+                y: [Y0, Y0 + 8, Y1 - 6, Y1, Y1 + 2, Y2, Y2, Y2 + sq, Y2 + sq2, Y2],
+                scaleX: [startScale, startScale * 0.96, hs * 1.04, hs, hs * 1.01, endScale, endScale, endScale * 1.07, endScale * 0.985, endScale],
+                scaleY: [startScale, startScale * 0.96, hs * 1.04, hs, hs * 1.01, endScale, endScale, endScale * 0.86, endScale * 1.03, endScale],
+                rotate: [0, -1, -5, -4, -3, 0, 0, 0, 0, 0],
+                times: [0, 0.1, 0.2833, 0.35, 0.4833, 0.6667, 0.7083, 0.7667, 0.8833, 1],
               }}
-              transition={{ duration: 0.95, ease: ["easeOut", "linear", "easeIn"] }}
+              transition={{ duration: FLIGHT_MS / 1000, ease: ['easeInOut', 'easeOut', 'easeInOut', 'easeInOut', [0.6, 0, 0.95, 0.35], 'linear', 'easeOut', 'easeOut', 'easeOut'] }}
               onAnimationComplete={() => {
                 // The engine already holds the card (and any tokens it summoned): show the board as it is now.
                 if (engineRef.current) syncView(engineRef.current);
-                playCardPlaySfx();
-                // Impact burst + brief camera shake right as the card lands. A full-art
-                // card (see CardData.isFullArt) gets the bigger version of both, plus
-                // makes every other card on the board flinch (see triggerFullArtReaction).
-                const big = !!flyingCard.card.isFullArt;
-                fireImpactBurst(flyingCard.toX, flyingCard.toY, big);
                 // Keep the camera's zoomed focus on the slot for a beat before easing back.
+                const big = !!flyingCard.card.isFullArt;
                 setCameraSettling({ slotIndex: flyingCard.slotIndex });
                 setFlyingCard(null);
                 setTimeout(() => setCameraSettling(null), big ? 500 : 300);
@@ -9044,7 +9128,7 @@ export default function App() {
                 // (the opponent's moves are committed by its own turn runner, which waits for this slide)
                 if (repositionFlight.reinforce) {
                   const r = document.getElementById(`${repositionFlight.side}-${repositionFlight.destIndex}`)?.getBoundingClientRect();
-                  if (r) { playCardPlaySfx(); fireImpactBurst(r.left + r.width / 2, r.top + r.height * 0.55); }
+                  if (r) { playCardPlaySfx(); fireImpactBurst(r.left + r.width / 2, r.top + r.height / 2, false, r.width); }
                   setRepositionFlight(null);
                   if (engineRef.current) syncView(engineRef.current);
                   return;
@@ -9072,109 +9156,8 @@ export default function App() {
         })}
       </AnimatePresence>
 
-      {/* Impact burst — flash, double shockwave, radiating sparks and a ground shadow pulse
-          where the card just landed. */}
-      <AnimatePresence>
-        {impactBurst.map(burst => (() => {
-          const big = !!burst.big;
-          const mult = big ? 1.6 : 1;
-          // Real dust, not sparkle: dry earth tones, no glow/blur, and an actual arc —
-          // kicked up fast, then gravity pulls each speck back down as it fades, instead
-          // of just floating outward and dissolving. Twice the count on a full-art land.
-          const dustCount = big ? 22 : 12;
-          const dustTones = ['#8a7a5f', '#71614a', '#a3906d', '#5c5040', '#96835f'];
-          return (
-            <motion.div
-              initial={{ opacity: 1 }}
-              animate={{ opacity: 0 }}
-              transition={{ duration: big ? 0.95 : 0.75 }}
-              key={burst.id}
-              style={{ position: 'fixed', left: burst.x, top: burst.y, zIndex: 499 }}
-              className="pointer-events-none -translate-x-1/2 -translate-y-1/2"
-            >
-              {/* Ground shadow pulse — a flattened ring suggesting weight hitting the field */}
-              <motion.div
-                initial={{ scaleX: 0.3, scaleY: 0.1, opacity: 0.7 }}
-                animate={{ scaleX: 2.4 * mult, scaleY: 0.5 * mult, opacity: 0 }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                className="absolute -inset-8 rounded-full bg-black/70 blur-sm"
-              />
-              {/* Bright core flash */}
-              <motion.div
-                initial={{ scale: 0.1, opacity: 1 }}
-                animate={{ scale: 1.4 * mult, opacity: 0 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-                className="absolute -inset-4 rounded-full bg-white"
-                style={{ boxShadow: '0 0 40px 10px rgba(255,255,255,0.95)' }}
-              />
-              {/* Inner glow */}
-              <motion.div
-                initial={{ scale: 0.3, opacity: 0.95 }}
-                animate={{ scale: 1.8 * mult, opacity: 0 }}
-                transition={{ duration: 0.35, ease: "easeOut" }}
-                className="absolute -inset-7 rounded-full bg-amber-200/70 blur-md"
-              />
-              {/* Two staggered shockwave rings */}
-              <motion.div
-                initial={{ scale: 0.2, opacity: 1 }}
-                animate={{ scale: 1.6 * mult, opacity: 0 }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                className="absolute -inset-6 rounded-full border-4 border-amber-300"
-                style={{ boxShadow: '0 0 30px rgba(252,211,77,0.8)' }}
-              />
-              <motion.div
-                initial={{ scale: 0.2, opacity: 0.9 }}
-                animate={{ scale: 2.1 * mult, opacity: 0 }}
-                transition={{ duration: 0.55, ease: "easeOut", delay: 0.08 }}
-                className="absolute -inset-6 rounded-full border-2 border-orange-200"
-              />
-              {/* Radiating sparks */}
-              {Array.from({ length: big ? 16 : 10 }).map((_, i) => {
-                const n = big ? 16 : 10;
-                const angle = (i / n) * Math.PI * 2;
-                const dist = 38 * mult;
-                return (
-                  <motion.div
-                    key={i}
-                    initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
-                    animate={{ x: Math.cos(angle) * dist, y: Math.sin(angle) * dist, opacity: 0, scale: 0.3 }}
-                    transition={{ duration: 0.45, ease: "easeOut" }}
-                    className="absolute top-1/2 left-1/2 w-2 h-2 -ml-1 -mt-1 rounded-full bg-amber-300"
-                    style={{ boxShadow: '0 0 8px rgba(252,211,77,0.9)' }}
-                  />
-                );
-              })}
-              {/* Real dust kicked up off the field — dry, matte earth-tone specks that
-                  arc up and then actually fall back down as they fade, not glowing motes
-                  that just float outward (see dustTones above). */}
-              {Array.from({ length: dustCount }).map((_, i) => {
-                const angle = (i / dustCount) * Math.PI * 2 + (i % 2) * 0.25;
-                const outDist = (22 + (i % 5) * 9) * mult;
-                const peakLift = (14 + (i % 4) * 7) * mult;
-                const size = 2 + (i % 3) * 1.5;
-                const tone = dustTones[i % dustTones.length];
-                return (
-                  <motion.div
-                    key={`dust-${i}`}
-                    initial={{ x: 0, y: 2, opacity: 0.9, scale: 0.7 }}
-                    animate={{
-                      // Kicked outward and up first (the "puff"), then gravity wins and it
-                      // drifts back down while fading — a real arc, not a straight float.
-                      x: [0, Math.cos(angle) * outDist * 0.6, Math.cos(angle) * outDist],
-                      y: [2, -peakLift, Math.sin(angle) * outDist * 0.2 + peakLift * 0.5],
-                      opacity: [0.9, 0.8, 0],
-                      scale: [0.7, 1, 0.8],
-                    }}
-                    transition={{ duration: 0.55 + (i % 3) * 0.15, ease: "easeOut", delay: 0.015 * i }}
-                    className="absolute top-1/2 left-1/2 rounded-full"
-                    style={{ width: size, height: size, marginLeft: -size / 2, marginTop: -size / 2, backgroundColor: tone }}
-                  />
-                );
-              })}
-            </motion.div>
-          );
-        })())}
-      </AnimatePresence>
+      {/* Impact: dust, sparks, a flat shock ring and a flash where the card landed (see ImpactFx). */}
+      {impactBurst.map(burst => <ImpactFx key={burst.id} x={burst.x} y={burst.y} w={burst.w} big={!!burst.big} />)}
 
       {/* Attack Targeting Lines — see renderTravelingArrow above. Candidate targets
           (attackLines, the player's own selection) only draw an arrow toward

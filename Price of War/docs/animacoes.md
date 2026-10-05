@@ -120,3 +120,31 @@ Cor: **verde** quando o número está acima do impresso na carta, **vermelho** q
 ## Brilho de Postura e Reforço
 
 Todo efeito que dispara faz o mesmo brilho dourado (`burstAt`, cor única `TRIGGER_GLOW`). **Postura** brilha quando a carta passa a estar na Vanguarda: ao ser jogada nela (depois de pousar) ou ao se mover da Retaguarda para a Vanguarda (inclusive a que troca de lugar e vai para a frente). **Reforço** brilha quando a carta termina de subir para o lugar da que caiu. Nenhum dos dois brilha no tabuleiro restaurado (`quietTurn`).
+
+## A carta que cai no tabuleiro (peso) e a poeira do impacto
+
+A carta jogada da mão (`flyingCard`, App.tsx) agora tem peso. Dura `FLIGHT_MS` = 1,2 s:
+
+1. **Antecipação:** um pequeno mergulho antes de subir;
+2. **Subida** até o ponto de exibição, passando um pouco do ponto (mola), com inclinação de ~-5°;
+3. **Mira:** flutua um instante, inclinada para o slot;
+4. **Queda:** acelerada (curva `[0.6, 0, 0.95, 0.35]`), a inclinação se endireita;
+5. **Impacto** em `FLIGHT_HIT_MS` = 0,8 s: a carta fica parada uns 50 ms (hit-stop), se achata (`scaleY` 0,86 / `scaleX` 1,07, com a posição compensada para ela "sentar" no chão) e volta com uma mola.
+
+O impacto em si (som e poeira) dispara em `FLIGHT_HIT_MS`, e não no fim da animação. Só se animam `x`, `y`, `scaleX`, `scaleY` e `rotate`, nunca `left/top/width/height`.
+
+A poeira é o `ImpactFx` (canvas): nuvens de poeira que sobem e somem, faíscas douradas que caem, um anel de choque achatado e um clarão curto. Tudo escala com a largura da carta, e uma carta **full art** levanta bem mais: ~58 nuvens (contra 34), nuvens maiores e mais espalhadas, 34 faíscas (contra 18), dois anéis e um clarão maior. A carta do adversário e o Reforço usam o mesmo impacto.
+
+## Coleção em 3D
+
+Na tela de coleção/deck, a carta ampliada tem um botão **3D** que abre o visualizador (`CardViewer3D.tsx`, three.js): arrastar gira a carta com inércia, toque duplo vira, as setas passam para a carta anterior/seguinte da lista (como filtrada). O three.js é carregado só na primeira vez (`React.lazy`), então não pesa no jogo.
+
+As faces são a carta como o jogo a desenha, **pré-renderizada** em `src/assets/card3d/<slug>.webp` (uma textura por carta, com a moldura inteira e fundo transparente). Quando o texto, os números ou a moldura de uma carta mudarem, é preciso gerar de novo, com o jogo rodando:
+
+```
+npx tsx tools/card3d/list-cards.ts > tools/card3d/cards.json
+node tools/card3d/render-faces.cjs            # [pasta] [url] [slug,slug…]  (para refazer só algumas)
+python3 tools/card3d/to-webp.py
+```
+
+O verso é o `card-backplate` do jogo **cortado na própria arte** (a imagem original tem margens transparentes; sem cortar, o verso ficava menor que a frente, com o corpo dourado aparecendo em volta). Brilho de folha holográfica: forte no General e nas full art, sutil nas outras.
