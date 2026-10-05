@@ -155,3 +155,20 @@ O verso é o `card-backplate` do jogo **cortado na própria arte** (a imagem ori
 abrindo, páginas de fichário com 9 bolsos que viram com o dedo, e o visualizador 3D real (`?3d&embed`) dentro de um frame.
 As miniaturas em `cards/` saem das texturas de `src/assets/card3d` (recortadas e reduzidas a 300 px). A arte da sala é só
 formas simples (SVG), para validar a navegação antes da arte final. Link: `/priceofwar/mockups/quarto/`.
+
+## A carta na mão do jogador (física do arrasto)
+
+A carta segurada com o dedo é um pequeno corpo físico simulado a cada quadro (`heldPhys` e o efeito logo antes de `if (!assetsReady)`
+em `src/App.tsx`), escrito direto nos elementos (sem render do React por movimento):
+
+- **Segue o dedo numa mola** (rígida, quase crítica): tem um atraso mínimo e uma folga de ultrapassagem, em vez de colada.
+- **Balança como pêndulo**: pendurada na ponta do dedo (o pivô fica no dedo), gira no eixo Z conforme a velocidade horizontal;
+  inclina em 3D (rotateX/rotateY) para o lado em que está sendo movida. Molas subamortecidas, então ela oscila ao parar.
+- **Flutua parada**: um balanço leve de altura e inclinação que só aparece enquanto o dedo está quase parado.
+- **Pop ao pegar**: sobe de 0,86 para 1 com mola. Sobre uma casa válida ela se acalma (a inclinação cai a 30%), cresce um pouco e é
+  puxada 35% na direção da casa.
+- **Solta num lugar inválido**: voa de volta, com mola, para o lugar dela na mão (`returnHeld`), em vez de sumir.
+- **Solta numa casa válida**: o voo de convocação começa exatamente da pose que a carta tinha no dedo (posição, tamanho, balanço e
+  inclinação) e ela se endireita durante a subida; depois paira, cai reta e para firme no encaixe.
+
+Ajustes finos: as constantes das molas estão no efeito (rigidez/amortecimento de posição, balanço, inclinação e pop).
