@@ -96,6 +96,15 @@
   .hint { position:absolute; left:0; right:0; top:calc(50% + 268px); text-align:center; font-size:10px; letter-spacing:.14em; color:rgba(255,233,176,.55); z-index:40; opacity:0; transition:opacity .35s; pointer-events:none; }
   .ui-on .hint { opacity:1; }
 
+  /* the shop: the game's real layered scene (shelf, merchant, counter), reached through the door and left through the same door */
+  #shop { background:#0d0905; overflow:hidden; transition:opacity .35s; }
+  #shop .shopimg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:50% 100%; transition:transform .9s cubic-bezier(.2,.9,.25,1), opacity .5s; will-change:transform; }
+  #shop .shopimg.sh { transform:scale(1.06); } #shop .shopimg.np { transform:translateY(7%) scale(1.02); opacity:0; } #shop .shopimg.ct { transform:translateY(5%); }
+  #shop.on .shopimg.sh { transform:scale(1); } #shop.on .shopimg.np { transform:none; opacity:1; transition-delay:.15s; } #shop.on .shopimg.ct { transform:none; }
+  #shop .bubble { position:absolute; left:16px; right:16px; bottom:calc(env(safe-area-inset-bottom) + 18px); z-index:5; padding:12px 14px; border-radius:14px; background:rgba(20,12,7,.88); border:1px solid #d9b25a; font:13px/1.4 Georgia,serif; color:#ffe9b0; text-align:center; opacity:0; transform:translateY(10px); transition:all .5s .6s; }
+  #shop.on .bubble { opacity:1; transform:none; }
+  #shop .bhead2 { position:absolute; left:0; right:0; top:0; padding:calc(env(safe-area-inset-top) + 10px) 12px 8px; display:flex; align-items:center; gap:8px; z-index:6; }
+
   /* bottom sheet (chest) */
   .sheet { position:absolute; left:0; right:0; bottom:0; z-index:35; transform:translateY(105%); transition:transform .45s cubic-bezier(.2,.9,.25,1); padding:16px 16px calc(env(safe-area-inset-bottom) + 18px); background:linear-gradient(#2a1a10,#150d08); border-top:2px solid #d9b25a; border-radius:18px 18px 0 0; box-shadow:0 -12px 40px rgba(0,0,0,.7); }
   .sheet.on { transform:none; }
@@ -301,6 +310,13 @@
     <div class="bfoot"><button class="arrow" id="bPrev" aria-label="Página anterior">‹</button><div style="text-align:center"><div class="dots" id="dots"></div><div id="bNum" style="margin-top:7px;font-size:10px;letter-spacing:.2em;color:rgba(255,233,176,.65)"></div></div><button class="arrow" id="bNext" aria-label="Próxima página">›</button></div>
   </div>
 
+  <!-- the shop -->
+  <div class="view" id="shop">
+    <img class="shopimg sh" src="shop/shop-shelf.webp" alt=""><img class="shopimg np" src="shop/shop-npc-greet.webp" alt=""><img class="shopimg ct" src="shop/shop-counter.webp" alt="">
+    <div class="bhead2"><button class="chip" id="sBack">‹ QUARTO</button><div class="title">LOJA</div><div class="chip" style="opacity:0;pointer-events:none">‹ QUARTO</div></div>
+    <div class="bubble">Bem-vindo, viajante! Cartas novas para o seu baralho? Chegou na loja certa.</div>
+  </div>
+
   <!-- chest sheet -->
   <div class="sheet" id="sheetChest">
     <h3>SEUS BOOSTERS</h3><p>Pacotes lacrados que você ainda não abriu.</p>
@@ -445,7 +461,19 @@
   const sheet = $('#sheetChest');
   $('#hotChest').onclick = () => { if (moved > 8) return; sheet.classList.add('on'); };
   $('#btnCloseChest').onclick = () => { sheet.classList.remove('on'); };
-  $('#hotShop').onclick = () => { if (moved > 8) return; toast('Loja: abre a loja do vendedor que já existe no jogo'); };
+  // ── the shop: through the door (the camera pushes into it) and back out through the same door ──
+  const DOOR = { x: 316, y: 400 };
+  const openShop = async () => {
+    if (busy) return; busy = true; room.classList.add('zoom');
+    stage.style.transformOrigin = `${DOOR.x}px ${DOOR.y}px`; stage.style.transform = `translate(${195 - DOOR.x}px, ${422 - DOOR.y}px) scale(3.4)`; stage.style.filter = 'brightness(.7)';
+    await wait(520); $('#shop').classList.add('on'); await wait(50); busy = false;
+  };
+  const closeShop = async () => {
+    if (busy) return; busy = true; $('#shop').classList.remove('on'); await wait(380);
+    stage.style.transform = ''; stage.style.filter = ''; await wait(640); room.classList.remove('zoom'); busy = false;
+  };
+  $('#hotShop').onclick = () => { if (moved > 8) return; openShop(); };
+  $('#sBack').onclick = closeShop;
   $('#btnOpenPack').onclick = () => toast('A abertura de pacotes entra numa próxima etapa');
   $('#hotWar').onclick = () => { if (moved > 8) return; toast('Meu Deck: abre o editor de deck que já existe'); };
   $('#btnMenu').onclick = () => toast('Voltaria ao menu inicial');
