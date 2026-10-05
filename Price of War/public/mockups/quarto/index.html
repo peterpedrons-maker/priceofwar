@@ -47,6 +47,8 @@
   .view { position:absolute; inset:0; z-index:30; opacity:0; pointer-events:none; transition:opacity .22s; background:radial-gradient(ellipse at 50% 40%, #2a1a10 0%, #0d0905 75%); }
   .view.on { opacity:1; pointer-events:auto; }
   #book { position:absolute; left:50%; top:calc(50% + 6px); width:350px; height:494px; margin:-247px 0 0 -175px; perspective:1700px; transform-style:preserve-3d; }
+  .zip { position:absolute; right:-17px; top:-3px; bottom:-3px; width:14px; border-radius:0 7px 7px 0; background:repeating-linear-gradient(180deg,#1a1a1c 0 4px,#2c2c30 4px 6px); box-shadow:inset 0 0 0 1px rgba(255,255,255,.08), 0 6px 14px rgba(0,0,0,.6); z-index:0; }
+  .zip::after { content:""; position:absolute; left:-2px; top:46%; width:18px; height:30px; border-radius:4px; background:linear-gradient(90deg,#b5b5b8,#f0f0f2 50%,#9a9a9e); box-shadow:0 2px 4px rgba(0,0,0,.6); }
   .bk-back { position:absolute; inset:-7px -7px -7px -9px; border-radius:8px 16px 16px 8px; background:linear-gradient(135deg,#6b2a1c,#2e0f09); box-shadow:0 18px 40px rgba(0,0,0,.7), inset 0 0 0 2px rgba(232,196,106,.55), inset 0 0 30px rgba(0,0,0,.6); }
   .leaf { position:absolute; inset:0; transform-origin:0 50%; transform-style:preserve-3d; }
   .face { position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden; border-radius:4px 12px 12px 4px; overflow:hidden;
@@ -66,13 +68,13 @@
   .pocket .nm { position:absolute; left:0; right:0; bottom:3px; text-align:center; font-size:7.5px; letter-spacing:.04em; color:rgba(232,196,106,.35); padding:0 3px; line-height:1.1; }
   .pgn { position:absolute; left:0; right:0; bottom:7px; text-align:center; font-size:9.5px; letter-spacing:.2em; color:rgba(232,196,106,.55); }
   .shade { position:absolute; inset:0; background:linear-gradient(90deg,#000,rgba(0,0,0,.6)); opacity:0; pointer-events:none; }
-  .rings { position:absolute; left:-12px; top:0; bottom:0; width:24px; z-index:200; pointer-events:none; transform:translateZ(300px); }
+  .rings { display:none; position:absolute; left:-12px; top:0; bottom:0; width:24px; z-index:200; pointer-events:none; transform:translateZ(300px); }
   .ring { position:absolute; left:2px; width:22px; height:30px; border-radius:11px; border:3px solid #d9b25a; border-left-color:#8a6420; border-bottom-color:#7a5518; box-shadow:0 2px 4px rgba(0,0,0,.7), inset 0 0 3px rgba(255,235,170,.6); background:transparent; }
   /* the leather cover */
   #cover { z-index:150; }
   #cover .front { background:linear-gradient(135deg,#7d3523 0%,#55200f 55%,#32100a 100%); border-radius:4px 14px 14px 4px; box-shadow: inset 0 0 0 2px rgba(0,0,0,.35), inset 0 0 40px rgba(0,0,0,.55); }
   #cover .front::before { background:repeating-radial-gradient(circle at 60% 30%, rgba(255,210,150,.035) 0 1px, transparent 1px 3px), repeating-linear-gradient(45deg, rgba(0,0,0,.08) 0 2px, transparent 2px 5px); }
-  #cover .front .frame { position:absolute; inset:14px 14px 14px 22px; border:2px solid #d9b25a; border-radius:6px; box-shadow:inset 0 0 0 4px rgba(50,16,10,.9), inset 0 0 0 5px rgba(217,178,90,.55), 0 0 10px rgba(0,0,0,.5); }
+  #cover .front .frame { position:absolute; inset:12px 12px 12px 20px; border:2px dashed rgba(255,244,214,.75); border-radius:10px; box-shadow:none; }
   #cover .front .crest { display:none; position:absolute; left:50%; top:38%; transform:translate(-50%,-50%); width:130px; height:130px; border-radius:50%; border:3px solid #e8c46a; background:radial-gradient(circle at 50% 35%, #a8451d, #5a1a0b 70%); box-shadow:0 0 0 5px rgba(50,16,10,.9), 0 0 0 6px rgba(217,178,90,.6), 0 6px 14px rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; }
   #cover .front .crest svg { width:84px; height:84px; filter:drop-shadow(0 2px 2px rgba(0,0,0,.6)); }
   #cover .front .ttl { position:absolute; left:0; right:0; top:62%; text-align:center; font-weight:700; letter-spacing:.24em; font-size:20px; color:#f2cf78; text-shadow:0 2px 2px #000, 0 0 12px rgba(255,190,80,.35); }
@@ -294,11 +296,11 @@
   <div class="view" id="binder">
     <div class="bhead"><button class="chip" id="bClose">‹ SALA</button><div class="title" id="bTitle">COLEÇÃO</div><button class="chip toggle" id="bToggle">SIMULAR FALTANTES</button></div>
     <div id="book">
-      <div class="bk-back"></div>
+      <div class="bk-back"></div><div class="zip"></div>
       <div id="leaves"></div>
       <div class="rings"><i class="ring" style="top:70px"></i><i class="ring" style="top:232px"></i><i class="ring" style="top:394px"></i></div>
       <div class="leaf" id="cover">
-        <div class="face front"><div class="frame"></div><i class="corner c1"></i><i class="corner c2"></i><i class="corner c3"></i><i class="corner c4"></i>
+        <div class="face front"><div class="frame"></div>
           <div class="crest"><svg viewBox="0 0 64 64" fill="none" stroke="#f2cf78" stroke-width="3.4" stroke-linecap="round"><path d="M32 8v48M20 22h24"/><path d="M12 54L30 36M52 54L34 36" stroke-width="3"/><path d="M12 54l-4 3M52 54l4 3" stroke-width="4"/></svg></div>
           <div class="ttl">COLEÇÃO</div><div class="sub">PRICE OF WAR</div><div class="clasp"></div></div>
         <div class="back"></div>
