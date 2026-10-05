@@ -7,6 +7,8 @@ import { cardSlug } from './card3d';
 
 export type Viewer3DCard = { name: string; type?: string; full?: boolean };
 
+// Shown inside another page (the collection book): no arrows between cards, and it tells the page when the card is ready to be shown
+const EMBED = typeof location !== 'undefined' && new URLSearchParams(location.search).has('embed');
 const FILES = import.meta.glob('./assets/card3d/*.webp', { query: '?url', import: 'default' }) as Record<string, () => Promise<string>>;
 const urlOf = async (slug: string): Promise<string | null> => { const f = FILES[`./assets/card3d/${slug}.webp`]; return f ? f() : null; };
 
@@ -94,7 +96,7 @@ export default function CardViewer3D({ cards, index, onIndex, onClose }: { cards
     apiRef.current = {
       setCard: (c) => {
         const id = ++loadId; yaw = Math.PI * 1.2; vYaw = 0; vPitch = 0; flipTo = 0; foilMat.uniforms.uStrength.value = c.full || c.type === 'General' ? 0.95 : 0.35;
-        urlOf(cardSlug(c.name)).then(u => (u ? load(u) : null)).then(tx => { if (!tx || id !== loadId) return; frontMat.map = tx; frontMat.emissiveMap = tx; frontMat.needsUpdate = true; foilMat.uniforms.uMap.value = tx; }).catch(() => {});
+        urlOf(cardSlug(c.name)).then(u => (u ? load(u) : null)).then(tx => { if (!tx || id !== loadId) return; frontMat.map = tx; frontMat.emissiveMap = tx; frontMat.needsUpdate = true; foilMat.uniforms.uMap.value = tx; if (EMBED) parent.postMessage('viewer-ready', '*'); }).catch(() => {});
       },
     };
 
@@ -160,8 +162,8 @@ export default function CardViewer3D({ cards, index, onIndex, onClose }: { cards
         <div style={{ fontSize: 11, letterSpacing: '0.18em', color: '#cdbd97', textTransform: 'uppercase', marginTop: 2 }}>{card?.type ?? ''}</div>
       </div>
       <button onClick={onClose} aria-label="Fechar" style={{ position: 'absolute', top: 'max(10px, env(safe-area-inset-top))', right: 10, width: 40, height: 40, borderRadius: 10, border: '1px solid rgba(201,169,90,0.5)', background: 'rgba(14,10,6,0.65)', color: '#ffe9b0', fontSize: 22, lineHeight: 1 }}>×</button>
-      {index > 0 && <button style={arrow(-1)} aria-label="Carta anterior" onClick={() => onIndex(index - 1)}>‹</button>}
-      {index < cards.length - 1 && <button style={arrow(1)} aria-label="Próxima carta" onClick={() => onIndex(index + 1)}>›</button>}
+      {!EMBED && index > 0 && <button style={arrow(-1)} aria-label="Carta anterior" onClick={() => onIndex(index - 1)}>‹</button>}
+      {!EMBED && index < cards.length - 1 && <button style={arrow(1)} aria-label="Próxima carta" onClick={() => onIndex(index + 1)}>›</button>}
       <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '0 12px max(18px, env(safe-area-inset-bottom))', textAlign: 'center', pointerEvents: 'none', font: '600 11px system-ui, sans-serif', letterSpacing: '0.06em', color: '#a89a78', background: 'linear-gradient(#0d090500, #0d0905dd 60%)' }}>
         Arraste em qualquer direção · 2 toques viram
       </div>

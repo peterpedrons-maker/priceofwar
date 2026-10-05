@@ -74,7 +74,7 @@
   #cover { z-index:150; }
   #cover .front { background:linear-gradient(135deg,#7d3523 0%,#55200f 55%,#32100a 100%); border-radius:4px 14px 14px 4px; box-shadow: inset 0 0 0 2px rgba(0,0,0,.35), inset 0 0 40px rgba(0,0,0,.55); }
   #cover .front::before { background:repeating-radial-gradient(circle at 60% 30%, rgba(255,210,150,.035) 0 1px, transparent 1px 3px), repeating-linear-gradient(45deg, rgba(0,0,0,.08) 0 2px, transparent 2px 5px); }
-  #cover .front .frame { position:absolute; inset:12px 12px 12px 20px; border:2px dashed rgba(255,244,214,.75); border-radius:10px; box-shadow:none; }
+  #cover .front .frame { position:absolute; inset:14px 14px 14px 22px; border:2px solid #d9b25a; border-radius:6px; box-shadow:inset 0 0 0 4px rgba(50,16,10,.9), inset 0 0 0 5px rgba(217,178,90,.55); box-shadow:none; }
   #cover .front .crest { display:none; position:absolute; left:50%; top:38%; transform:translate(-50%,-50%); width:130px; height:130px; border-radius:50%; border:3px solid #e8c46a; background:radial-gradient(circle at 50% 35%, #a8451d, #5a1a0b 70%); box-shadow:0 0 0 5px rgba(50,16,10,.9), 0 0 0 6px rgba(217,178,90,.6), 0 6px 14px rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; }
   #cover .front .crest svg { width:84px; height:84px; filter:drop-shadow(0 2px 2px rgba(0,0,0,.6)); }
   #cover .front .ttl { position:absolute; left:0; right:0; top:62%; text-align:center; font-weight:700; letter-spacing:.24em; font-size:20px; color:#f2cf78; text-shadow:0 2px 2px #000, 0 0 12px rgba(255,190,80,.35); }
@@ -107,6 +107,11 @@
   #shop.on .bubble { opacity:1; transform:none; }
   #shop .bhead2 { position:absolute; left:0; right:0; top:0; padding:calc(env(safe-area-inset-top) + 10px) 12px 8px; display:flex; align-items:center; gap:8px; z-index:6; }
 
+  /* a card taken out of its pocket: it comes forward over a darkened page, then the 3D viewer takes over */
+  #dim { position:absolute; inset:0; z-index:55; background:radial-gradient(ellipse at 50% 45%, rgba(13,9,5,.72), rgba(5,3,2,.94)); opacity:0; pointer-events:none; transition:opacity .45s; }
+  #dim.on { opacity:1; }
+  #lifted { position:absolute; left:0; top:0; z-index:58; pointer-events:none; will-change:transform; transform-origin:0 0; }
+  #lifted img { width:100%; height:100%; display:block; object-fit:contain; filter:drop-shadow(0 18px 24px rgba(0,0,0,.75)); }
   /* bottom sheet (chest) */
   .sheet { position:absolute; left:0; right:0; bottom:0; z-index:35; transform:translateY(105%); transition:transform .45s cubic-bezier(.2,.9,.25,1); padding:16px 16px calc(env(safe-area-inset-bottom) + 18px); background:linear-gradient(#2a1a10,#150d08); border-top:2px solid #d9b25a; border-radius:18px 18px 0 0; box-shadow:0 -12px 40px rgba(0,0,0,.7); }
   .sheet.on { transform:none; }
@@ -296,11 +301,11 @@
   <div class="view" id="binder">
     <div class="bhead"><button class="chip" id="bClose">‹ SALA</button><div class="title" id="bTitle">COLEÇÃO</div><button class="chip toggle" id="bToggle">SIMULAR FALTANTES</button></div>
     <div id="book">
-      <div class="bk-back"></div><div class="zip"></div>
+      <div class="bk-back"></div>
       <div id="leaves"></div>
       <div class="rings"><i class="ring" style="top:70px"></i><i class="ring" style="top:232px"></i><i class="ring" style="top:394px"></i></div>
       <div class="leaf" id="cover">
-        <div class="face front"><div class="frame"></div>
+        <div class="face front"><div class="frame"></div><i class="corner c1"></i><i class="corner c2"></i><i class="corner c3"></i><i class="corner c4"></i>
           <div class="crest"><svg viewBox="0 0 64 64" fill="none" stroke="#f2cf78" stroke-width="3.4" stroke-linecap="round"><path d="M32 8v48M20 22h24"/><path d="M12 54L30 36M52 54L34 36" stroke-width="3"/><path d="M12 54l-4 3M52 54l4 3" stroke-width="4"/></svg></div>
           <div class="ttl">COLEÇÃO</div><div class="sub">PRICE OF WAR</div><div class="clasp"></div></div>
         <div class="back"></div>
@@ -317,6 +322,7 @@
     <div class="bubble">Bem-vindo, viajante! Cartas novas para o seu baralho? Chegou na loja certa.</div>
   </div>
 
+  <div id="dim"></div><div id="lifted"></div>
   <div id="viewer"><iframe id="vframe" title="Carta em 3D" src="about:blank"></iframe></div>
   <div id="toast"></div>
 </div>
@@ -418,7 +424,7 @@
   bookEl.addEventListener('pointermove', e => { if (!pd) return; const dx = e.clientX - pd.x; pd.moved = Math.max(pd.moved, Math.abs(dx)); const now = performance.now(); pd.v = (e.clientX - pd.lx) / Math.max(1, now - pd.t); pd.lx = e.clientX; pd.t = now; pos = clamp(pd.base - dx / 300, 0, N - 1); layout(); });
   const endDrag = (e) => {
     if (!pd) return; const p = pd; pd = null;
-    if (p.moved < 8) { const pk = p.target.closest && p.target.closest('.pocket[data-i]'); pos = p.base; layout(); if (pk) openViewer(+pk.dataset.i); return; }
+    if (p.moved < 8) { const pk = p.target.closest && p.target.closest('.pocket[data-i]'); pos = p.base; layout(); if (pk) openViewer(+pk.dataset.i, pk); return; }
     let to = Math.round(pos); if (Math.abs(p.v) > .45) to = p.v < 0 ? Math.floor(p.base) + 1 : Math.ceil(p.base) - 1;
     glide(clamp(to, 0, N - 1), 420);
   };
@@ -446,10 +452,35 @@
   $('#bClose').onclick = closeBook;
 
   // ── 3D inspection: the game's real viewer, in a frame ──
-  const vf = $('#vframe'), vw = $('#viewer');
-  const openViewer = (i) => { vf.src = `../../?3d&embed&card=${i}`; vw.classList.add('on'); };
-  addEventListener('message', e => { if (e.data === 'close3d') { vw.classList.remove('on'); setTimeout(() => { vf.src = 'about:blank'; }, 260); } });
-
+  const vf = $('#vframe'), vw = $('#viewer'), dim = $('#dim'), lifted = $('#lifted');
+  let lift = null;   // { pk, img, from:{x,y,w,h}, ready, closing }
+  const place = (r, o = 1) => { lifted.style.width = r.w + 'px'; lifted.style.height = r.h + 'px'; lifted.style.transform = `translate(${r.x}px,${r.y}px)`; lifted.style.opacity = o; };
+  const centerRect = (ar) => { const W = app.clientWidth, H = app.clientHeight; const h = Math.min(H * 0.7, (W * 0.92) / ar), w = h * ar; return { x: (W - w) / 2, y: (H - h) / 2 + H * 0.01, w, h }; };
+  const openViewer = async (i, pk) => {
+    if (busy || lift) return; busy = true;
+    const img = pk && pk.querySelector('img'); const ar = img && img.naturalWidth ? img.naturalWidth / img.naturalHeight : 0.7;
+    const ra = img.getBoundingClientRect(), pa = app.getBoundingClientRect();
+    const from = { x: ra.left - pa.left, y: ra.top - pa.top, w: ra.width, h: ra.height };
+    lifted.innerHTML = ''; const clone = img.cloneNode(); lifted.appendChild(clone);
+    lifted.style.transition = 'none'; place(from); lifted.offsetWidth;
+    img.style.visibility = 'hidden';                      // the card has left its pocket
+    lift = { pk, img, from, ar, ready: false };
+    dim.classList.add('on');
+    lifted.style.transition = 'transform .55s cubic-bezier(.2,.9,.25,1), width .55s cubic-bezier(.2,.9,.25,1), height .55s cubic-bezier(.2,.9,.25,1), opacity .25s';
+    place(centerRect(ar));
+    vf.src = `../../?3d&embed&card=${i}`;                  // loads while the card travels
+    await wait(580); busy = false;
+    if (lift && lift.ready) showViewer();
+  };
+  const showViewer = () => { vw.classList.add('on'); setTimeout(() => { if (lift) place(centerRect(lift.ar), 0); }, 120); };
+  const closeViewer = async () => {
+    if (!lift || lift.closing) return; lift.closing = true; busy = true;
+    place(centerRect(lift.ar), 1); await wait(30);        // the card shows again, where the 3D one was
+    vw.classList.remove('on'); await wait(260); vf.src = 'about:blank';
+    place(lift.from, 1); dim.classList.remove('on'); await wait(580);
+    lift.img.style.visibility = ''; lifted.innerHTML = ''; lift = null; busy = false;
+  };
+  addEventListener('message', e => { if (e.data === 'viewer-ready' && lift) { lift.ready = true; if (!busy) showViewer(); } else if (e.data === 'close3d') closeViewer(); });
   $('#hotWar').onclick = () => { if (moved > 8) return; toast('Meu Deck: abre o editor de deck que já existe'); };
   $('#btnMenu').onclick = () => toast('Voltaria ao menu inicial');
 
