@@ -765,7 +765,7 @@ const TriggerIcon = ({ cardId, icon, trig, className = '', style }: { cardId: st
 // shock ring and a short flash. Drawn on a small canvas centred on the slot; everything scales with the card's width (the design is
 // for a 56-px-wide board card) and a full-art card kicks up far more of everything. `w` is the landed card's width in px.
 // The player's card flight (see the flyingCard overlay): total length, and the moment the slam lands (the dust, the thud).
-const FLIGHT_MS = 1200, FLIGHT_HIT_MS = 800;
+const FLIGHT_MS = 1000, FLIGHT_HIT_MS = 800;
 const ImpactFx = ({ x, y, w, big }: { x: number; y: number; w: number; big: boolean; key?: React.Key }) => {
   const ref = useRef<HTMLCanvasElement>(null);
   const k = Math.max(0.6, w / 56) * (big ? 1.15 : 1);
@@ -778,9 +778,9 @@ const ImpactFx = ({ x, y, w, big }: { x: number; y: number; w: number; big: bool
     const rnd = Math.random, lerp = (a: number, b: number, t: number) => a + (b - a) * t, easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
     const cx = S / 2, ground = S / 2 + (w / 0.7) / 2;          // ground contact: the bottom edge of the landed card
     const TONES = [[226, 206, 170], [206, 182, 142], [150, 126, 92], [112, 92, 66]];       // pale dust, ochre, and darker earth for body and contrast
-    const puffs = Array.from({ length: big ? 96 : 52 }, (_, i) => ({
+    const puffs = Array.from({ length: big ? 58 : 30 }, (_, i) => ({
       side: i % 2 ? 1 : -1, speed: lerp(22, big ? 230 : 170, rnd()) * k, ang: rnd() * 0.55, life: lerp(0.6, big ? 1.5 : 1.15, rnd()),
-      rise: lerp(4, big ? 70 : 46, rnd()) * k, size: lerp(12, big ? 38 : 28, rnd()) * k, alpha: lerp(0.5, 0.85, rnd()), tone: TONES[Math.floor(rnd() * TONES.length)], delay: rnd() * 0.06,
+      rise: lerp(4, big ? 70 : 46, rnd()) * k, size: lerp(10, big ? 32 : 22, rnd()) * k, alpha: lerp(0.32, 0.6, rnd()), tone: TONES[Math.floor(rnd() * TONES.length)], delay: rnd() * 0.06,
     }));
     const sparks = Array.from({ length: big ? 34 : 18 }, (_, i) => ({
       ang: -Math.PI * (0.1 + 0.8 * rnd()), speed: lerp(100, big ? 340 : 250, rnd()) * k, life: lerp(0.32, 0.7, rnd()), gold: i % 3 !== 0,
@@ -9038,27 +9038,28 @@ export default function App() {
           const hoverScale = Math.min(3, Math.max(0.8, 190 / flyingCard.fromW));
           const hoverX = flyingCard.toX;
           const hoverY = flyingCard.toY - 86;
-          // The card has weight: a small dip first (anticipation), up to the hover with a little overshoot, a floating aim with a tilt toward the
-          // slot, then a sharp accelerating slam; it holds for a beat at the impact (hit-stop), squashes flat and wide and springs back.
+          // The card has weight and lands firmly: it rises to the hover over the slot, holds still for a beat, then drops straight down with
+          // an accelerating slam and stops dead on the slot (no tilt, no squash, no bounce, nothing to re-adjust afterwards). On the way down
+          // it also takes the slot's exact width AND height, so the real card that replaces it is the same size in the same place.
           // The impact itself (sound, dust) fires at FLIGHT_HIT_MS, when the slam ends (see the effect that schedules it).
-          // Only transform (x / y / scale / rotate) is animated, never left / top / width / height: those force a layout every frame, which
+          // Only transform (x / y / scale) is animated, never left / top / width / height: those force a layout every frame, which
           // is what made the big flying card stutter on phones.
-          const sq = (1 - 0.86) * flyingCard.toH / 2, sq2 = (1 - 1.03) * flyingCard.toH / 2;
-          const X0 = flyingCard.fromX - HALF_W, X1 = hoverX - HALF_W, X2 = flyingCard.toX - HALF_W;
+          const X0 = flyingCard.fromX - HALF_W, X1 = hoverX - HALF_W;
           const Y0 = flyingCard.fromY - HALF_H, Y1 = hoverY - HALF_H, Y2 = flyingCard.toY - HALF_H;
-          const hs = startScale * hoverScale;
+          const hs = startScale * hoverScale, endScaleY = flyingCard.toH / HAND_CARD_HEIGHT;
           return (
             <motion.div
-              initial={{ x: X0, y: Y0, scaleX: startScale, scaleY: startScale, rotate: 0 }}
+              key="flying-card"
+              initial={{ x: X0, y: Y0, scaleX: startScale, scaleY: startScale, opacity: 1 }}
               animate={{
-                x: [X0, X0, X1, X1, X1, X2, X2, X2, X2, X2],
-                y: [Y0, Y0 + 8, Y1 - 6, Y1, Y1 + 2, Y2, Y2, Y2 + sq, Y2 + sq2, Y2],
-                scaleX: [startScale, startScale * 0.96, hs * 1.04, hs, hs * 1.01, endScale, endScale, endScale * 1.07, endScale * 0.985, endScale],
-                scaleY: [startScale, startScale * 0.96, hs * 1.04, hs, hs * 1.01, endScale, endScale, endScale * 0.86, endScale * 1.03, endScale],
-                rotate: [0, -1, -5, -4, -3, 0, 0, 0, 0, 0],
-                times: [0, 0.1, 0.2833, 0.35, 0.4833, 0.6667, 0.7083, 0.7667, 0.8833, 1],
+                x: [X0, X1, X1, X1, X1],
+                y: [Y0, Y1, Y1, Y2, Y2],
+                scaleX: [startScale, hs, hs, endScale, endScale],
+                scaleY: [startScale, hs, hs, endScaleY, endScaleY],
+                times: [0, 0.42, 0.58, 0.8, 1],
               }}
-              transition={{ duration: FLIGHT_MS / 1000, ease: ['easeInOut', 'easeOut', 'easeInOut', 'easeInOut', [0.6, 0, 0.95, 0.35], 'linear', 'easeOut', 'easeOut', 'easeOut'] }}
+              exit={{ opacity: 0, transition: { duration: 0.16 } }}
+              transition={{ duration: FLIGHT_MS / 1000, ease: ['easeInOut', 'linear', [0.6, 0, 0.95, 0.35], 'linear'] }}
               onAnimationComplete={() => {
                 // The engine already holds the card (and any tokens it summoned): show the board as it is now.
                 if (engineRef.current) syncView(engineRef.current);

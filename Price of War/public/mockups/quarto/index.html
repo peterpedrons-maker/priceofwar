@@ -201,6 +201,25 @@
       </svg>
         <button class="hot" id="hotBook" style="left:44px;top:276px;width:116px;height:130px" aria-label="Abrir coleção"><span class="glow" style="inset:-6px"></span></button>
         <div class="plaque" style="left:96px;top:424px">COLEÇÃO <i id="bdgBook">50/50</i></div>
+        <!-- the merchant's door (Loja) -->
+        <svg viewBox="0 0 390 844" style="position:absolute;left:30px;top:30px;width:390px;height:844px;overflow:visible">
+          <defs><linearGradient id="doorin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a0f08"/><stop offset="1" stop-color="#6a3c14"/></linearGradient><radialGradient id="lantern"><stop offset="0" stop-color="#ffd27a" stop-opacity=".9"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></radialGradient></defs>
+          <g transform="translate(-18,0)"><path d="M292 530V428A46 46 0 0 1 384 428V530Z" fill="#6d5a42"/>
+          <path d="M300 530V428A38 38 0 0 1 376 428V530Z" fill="url(#doorin)"/>
+          <ellipse cx="338" cy="500" rx="30" ry="40" fill="url(#lantern)" style="mix-blend-mode:screen"><animate attributeName="opacity" values=".6;1;.7" dur="2s" repeatCount="indefinite"/></ellipse>
+          <!-- the hooded merchant -->
+          <path d="M318 530c0-34 8-52 20-52s20 18 20 52z" fill="#2d1c34"/><circle cx="338" cy="470" r="11" fill="#2d1c34"/><path d="M327 472q11-16 22 0q-3 12-11 12t-11-12z" fill="#0d0710"/><circle cx="333" cy="473" r="1.5" fill="#ffd27a"/><circle cx="343" cy="473" r="1.5" fill="#ffd27a"/>
+          <rect x="352" y="496" width="14" height="18" rx="3" fill="#5a3a18" stroke="#d9b25a"/><path d="M356 496v-6h6v6" stroke="#d9b25a" stroke-width="2" fill="none"/>
+          <!-- the open door leaf -->
+          <path d="M300 530V428A38 38 0 0 1 320 396L310 400V540Z" fill="#7a4a22" stroke="#2a1608" stroke-width="2"/>
+          <path d="M292 530V428A46 46 0 0 1 384 428V530" fill="none" stroke="#8a7658" stroke-width="3"/>
+          <!-- hanging sign -->
+          <path d="M386 352H332" stroke="#2a2a30" stroke-width="4"/><path d="M342 352v8M376 352v8" stroke="#2a2a30" stroke-width="2"/>
+          <rect x="324" y="360" width="62" height="30" rx="4" fill="url(#wood)" stroke="#2a1608" stroke-width="2"/><circle cx="355" cy="375" r="9" fill="url(#gold)" stroke="#6b4a14" stroke-width="1.5"/><path d="M355 369v12M351 372h8M351 378h8" stroke="#6b4a14" stroke-width="1.6" stroke-linecap="round"/>
+        </g></svg>
+        <button class="hot" id="hotShop" style="left:266px;top:344px;width:104px;height:190px" aria-label="Ir à loja"><span class="glow" style="inset:-2px"></span></button>
+        <div class="plaque" style="left:316px;top:504px">LOJA</div>
+
       </div>
 
       <!-- floor -->
@@ -222,32 +241,23 @@
 
       <!-- furniture -->
       <div class="layer" data-d="1.0" id="furn"><svg viewBox="0 0 390 844">
-        <ellipse cx="300" cy="708" rx="86" ry="14" fill="url(#shadowg)"/><ellipse cx="95" cy="776" rx="70" ry="12" fill="url(#shadowg)"/>
-        <!-- chest with boosters -->
-        <g id="chest">
-          <g id="packs">
-            <image href="booster.webp" x="248" y="560" width="46" height="70" transform="rotate(-10 271 595)"/>
-            <image href="booster.webp" x="288" y="552" width="46" height="70" transform="rotate(7 311 587)"/>
-            <image href="booster.webp" x="268" y="546" width="46" height="70" transform="rotate(-1 291 581)"/>
-          </g>
-          <rect x="235" y="610" width="130" height="90" rx="6" fill="url(#wood)"/>
-          <g stroke="rgba(0,0,0,.35)" stroke-width="2"><path d="M235 640H365M235 668H365"/></g>
-          <rect x="255" y="610" width="14" height="90" fill="#2a2a30"/><rect x="331" y="610" width="14" height="90" fill="#2a2a30"/>
-          <rect x="235" y="690" width="130" height="10" rx="3" fill="#2a2a30"/>
-          <g class="lid"><path d="M231 612Q231 563 300 563Q369 563 369 612Z" fill="url(#wood)"/><path d="M231 612Q231 563 300 563Q369 563 369 612" fill="none" stroke="rgba(255,225,170,.3)" stroke-width="2"/>
-            <path d="M255 612V570M345 612V570" stroke="#2a2a30" stroke-width="14" opacity=".9"/><rect x="231" y="605" width="138" height="9" rx="3" fill="#2a2a30"/>
-            <rect x="288" y="601" width="24" height="26" rx="4" fill="url(#gold)" stroke="#6b4a14"/><circle cx="300" cy="613" r="3.2" fill="#3b2311"/></g>
-          <rect x="241" y="700" width="14" height="9" rx="2" fill="#2a1608"/><rect x="345" y="700" width="14" height="9" rx="2" fill="#2a1608"/>
+        <ellipse cx="300" cy="708" rx="86" ry="14" fill="url(#shadowg)"/><ellipse cx="73" cy="724" rx="52" ry="10" fill="url(#shadowg)"/>
+        <!-- booster table: sealed packs on a cloth-covered round table -->
+        <g id="packsTable">
+          <rect x="293" y="652" width="14" height="52" fill="#4a2a12"/><ellipse cx="300" cy="704" rx="30" ry="6" fill="#3a2210"/>
+          <ellipse cx="300" cy="650" rx="66" ry="15" fill="#8a5628"/><ellipse cx="300" cy="647" rx="66" ry="14" fill="#a06830"/>
+          <image href="booster.webp" x="245" y="578" width="44" height="68" transform="rotate(-9 267 612)"/>
+          <image href="booster.webp" x="311" y="574" width="44" height="68" transform="rotate(8 333 608)"/>
+          <image href="booster.webp" x="278" y="566" width="46" height="72" transform="rotate(-1 300 602)"/>
+          <path d="M236 652Q300 686 364 652L356 692Q300 712 244 692Z" fill="#7a1c1c"/><path d="M236 652Q300 686 364 652" fill="none" stroke="#d9b25a" stroke-width="2.4"/><path d="M244 692Q300 712 356 692" fill="none" stroke="#d9b25a" stroke-width="2"/>
+          <path d="M252 668l-4 22M276 676l-2 24M300 680v26M324 676l2 24M348 668l4 22" stroke="rgba(0,0,0,.25)" stroke-width="2"/>
+          <ellipse cx="300" cy="610" rx="58" ry="36" fill="url(#fireglow)" style="mix-blend-mode:screen"><animate attributeName="opacity" values=".5;.95;.6" dur="2.6s" repeatCount="indefinite"/></ellipse>
         </g>
-        <!-- pedestal with the glass dome and a lit card -->
+        <!-- barrel with swords (decoration only) -->
         <g>
-          <path d="M45 776h100l-8-22H53z" fill="#6c6252"/><rect x="68" y="650" width="54" height="106" fill="#8a7e6a"/><path d="M80 650v106M95 650v106M110 650v106" stroke="rgba(0,0,0,.22)" stroke-width="2"/><rect x="50" y="636" width="90" height="16" rx="3" fill="#a2967f"/><rect x="50" y="636" width="90" height="3" fill="rgba(255,255,255,.3)"/>
-          <ellipse cx="95" cy="590" rx="60" ry="46" fill="url(#fireglow)" style="mix-blend-mode:screen"><animate attributeName="opacity" values=".6;1;.7" dur="2.4s" repeatCount="indefinite"/></ellipse>
-          <g transform="rotate(-5 95 598)"><rect x="73" y="560" width="44" height="64" rx="3" fill="#1a110a" stroke="#e8c46a" stroke-width="2"/><image href="cards/comandante-aurelion-mestre-da-formacao.webp" x="75" y="562" width="40" height="60" preserveAspectRatio="xMidYMid meet"/></g>
-          <path d="M59 636Q59 546 95 546Q131 546 131 636Z" fill="rgba(170,215,255,.1)" stroke="rgba(255,255,255,.4)" stroke-width="1.6"/><path d="M70 600Q70 566 84 556" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="3" stroke-linecap="round"/>
-          <circle cx="95" cy="545" r="4" fill="url(#gold)"/>
-          <!-- magnifying glass leaning on the base -->
-          <path d="M160 786l24-34" stroke="#6b4a14" stroke-width="7" stroke-linecap="round"/><circle cx="152" cy="760" r="19" fill="rgba(190,225,255,.18)" stroke="url(#gold)" stroke-width="5"/><path d="M143 752q4-6 11-6" stroke="rgba(255,255,255,.7)" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          <path d="M42 650Q36 690 44 722H102Q110 690 104 650Z" fill="url(#wood)"/><ellipse cx="73" cy="650" rx="31" ry="9" fill="#9a6430"/><ellipse cx="73" cy="650" rx="26" ry="6.5" fill="#6a4020"/>
+          <path d="M40 672Q73 684 106 672M41 700Q73 712 105 700" fill="none" stroke="#2a2a30" stroke-width="5"/>
+          <path d="M60 646L50 560M80 646L96 566" stroke="#c9ced6" stroke-width="5" stroke-linecap="round"/><path d="M42 574h16M88 582h16" stroke="#d9b25a" stroke-width="5" stroke-linecap="round"/>
         </g>
         <!-- war table (foreground, cropped) -->
         <g>
@@ -258,10 +268,8 @@
           <rect x="378" y="752" width="12" height="32" rx="2" fill="#efe2c0"/><circle cx="384" cy="742" r="30" fill="url(#fireglow)" style="mix-blend-mode:screen"/><path class="flame" d="M384 730c4 5 6 9 3 13-2 3-7 3-8 0-1-4 1-8 5-13z" fill="#ffd27a"/>
         </g>
       </svg>
-        <button class="hot" id="hotChest" style="left:226px;top:548px;width:148px;height:162px" aria-label="Abrir boosters"><span class="glow"></span></button>
-        <div class="plaque" style="left:300px;top:718px">BOOSTERS <i id="bdgChest">3</i></div>
-        <button class="hot" id="hotDome" style="left:34px;top:536px;width:130px;height:240px" aria-label="Inspecionar cartas em 3D"><span class="glow" style="inset:0 -4px 90px"></span></button>
-        <div class="plaque" style="left:98px;top:784px">INSPECIONAR</div>
+        <button class="hot" id="hotChest" style="left:232px;top:560px;width:136px;height:156px" aria-label="Abrir boosters"><span class="glow"></span></button>
+        <div class="plaque" style="left:300px;top:722px">BOOSTERS <i id="bdgChest">3</i></div>
         <button class="hot" id="hotWar" style="left:150px;top:782px;width:240px;height:70px" aria-label="Meu Deck"><span class="glow" style="inset:-2px;border-radius:14px"></span></button>
         <div class="plaque" style="left:268px;top:836px;transform:translate(-50%,-100%)">MEU DECK</div>
       </div>
@@ -295,7 +303,7 @@
   <div class="sheet" id="sheetChest">
     <h3>SEUS BOOSTERS</h3><p>Pacotes lacrados que você ainda não abriu.</p>
     <div class="packs"><div class="pack"><img src="booster.webp" alt=""><span>CARDEAL</span></div><div class="pack"><img src="booster.webp" alt=""><span>CARDEAL</span></div><div class="pack"><img src="booster.webp" alt=""><span>CARDEAL</span></div></div>
-    <button class="btn" id="btnOpenPack">ABRIR PACOTE</button><button class="btn ghost" id="btnCloseChest">FECHAR O BAÚ</button>
+    <button class="btn" id="btnOpenPack">ABRIR PACOTE</button><button class="btn ghost" id="btnCloseChest">FECHAR</button>
   </div>
 
   <div id="viewer"><iframe id="vframe" title="Carta em 3D" src="about:blank"></iframe></div>
@@ -429,12 +437,12 @@
   const vf = $('#vframe'), vw = $('#viewer');
   const openViewer = (i) => { vf.src = `../../?3d&embed&card=${i}`; vw.classList.add('on'); };
   addEventListener('message', e => { if (e.data === 'close3d') { vw.classList.remove('on'); setTimeout(() => { vf.src = 'about:blank'; }, 260); } });
-  $('#hotDome').onclick = () => { if (moved > 8) return; openViewer(0); };
 
   // ── chest ──
   const sheet = $('#sheetChest');
-  $('#hotChest').onclick = () => { if (moved > 8) return; $('#chest').classList.add('chest-open'); sheet.classList.add('on'); };
-  $('#btnCloseChest').onclick = () => { $('#chest').classList.remove('chest-open'); sheet.classList.remove('on'); };
+  $('#hotChest').onclick = () => { if (moved > 8) return; sheet.classList.add('on'); };
+  $('#btnCloseChest').onclick = () => { sheet.classList.remove('on'); };
+  $('#hotShop').onclick = () => { if (moved > 8) return; toast('Loja: abre a loja do vendedor que já existe no jogo'); };
   $('#btnOpenPack').onclick = () => toast('A abertura de pacotes entra numa próxima etapa');
   $('#hotWar').onclick = () => { if (moved > 8) return; toast('Meu Deck: abre o editor de deck que já existe'); };
   $('#btnMenu').onclick = () => toast('Voltaria ao menu inicial');
