@@ -139,8 +139,8 @@
           <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe1a0" stop-opacity=".5"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></linearGradient>
           <filter id="blur6"><feGaussianBlur stdDeviation="6"/></filter><filter id="blur2"><feGaussianBlur stdDeviation="2"/></filter>
         </defs>
-        <rect x="-40" y="-40" width="470" height="620" fill="url(#wallg)"/>
-        <rect x="-40" y="-40" width="470" height="620" fill="url(#stones)"/>
+        <rect x="-200" y="-40" width="790" height="620" fill="url(#wallg)"/>
+        <rect x="-200" y="-40" width="790" height="620" fill="url(#stones)"/>
         <!-- arched window -->
         <path d="M128 312V150A67 67 0 0 1 262 150V312Z" fill="#5a4630"/>
         <path d="M137 304V150A58 58 0 0 1 253 150V304Z" fill="url(#sky)"/>
@@ -229,11 +229,11 @@
           <linearGradient id="rugg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a1a1a"/><stop offset="1" stop-color="#7a2424"/></linearGradient>
           <radialGradient id="shadowg"><stop offset="0" stop-color="#000" stop-opacity=".7"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
         </defs>
-        <rect x="-40" y="528" width="470" height="12" fill="#1a110a"/><rect x="-40" y="540" width="470" height="330" fill="url(#floorg)"/>
+        <rect x="-200" y="528" width="790" height="12" fill="#1a110a"/><rect x="-200" y="540" width="790" height="330" fill="url(#floorg)"/>
         <g stroke="rgba(0,0,0,.45)" stroke-width="2">
           <line x1="-30" y1="540" x2="-300" y2="880"/><line x1="40" y1="540" x2="-100" y2="880"/><line x1="115" y1="540" x2="100" y2="880"/><line x1="195" y1="540" x2="195" y2="880"/><line x1="275" y1="540" x2="290" y2="880"/><line x1="350" y1="540" x2="490" y2="880"/><line x1="420" y1="540" x2="690" y2="880"/>
         </g>
-        <g stroke="rgba(255,220,170,.06)" stroke-width="1"><path d="M-40 585H430M-40 640H430M-40 705H430M-40 785H430"/></g>
+        <g stroke="rgba(255,220,170,.06)" stroke-width="1"><path d="M-200 585H590M-200 640H590M-200 705H590M-200 785H590"/></g>
         <path d="M130 585h130l60 240H70z" fill="url(#rugg)"/><path d="M130 585h130l60 240H70z" fill="none" stroke="#d9b25a" stroke-width="3"/><path d="M142 597h106l50 216H92z" fill="none" stroke="rgba(217,178,90,.55)" stroke-width="1.6" stroke-dasharray="5 4"/>
         <ellipse cx="195" cy="700" rx="46" ry="26" fill="none" stroke="rgba(217,178,90,.5)" stroke-width="2"/><path d="M195 676v48M171 700h48" stroke="rgba(217,178,90,.5)" stroke-width="2"/>
         <ellipse cx="195" cy="470" rx="320" ry="120" fill="rgba(0,0,0,.18)" style="mix-blend-mode:multiply" opacity="0"/>
@@ -319,8 +319,9 @@
   let busy = false, scale = 1;
   const toast = (m) => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 1900); };
 
-  // The room is drawn on a 390 x 844 stage and scaled to cover the screen.
-  const doFit = () => { scale = Math.max(app.clientWidth / 390, app.clientHeight / 844); fit.style.transform = `translate(-50%,-50%) scale(${scale})`; };
+  // The room is drawn on a 390 x 844 stage and scaled to the screen's height.
+  // always fit the whole height (the table at the bottom must never be cut); the walls and floor are drawn wider than 390 to fill the sides
+  const doFit = () => { scale = app.clientHeight / 844; fit.style.transform = `translate(-50%,-50%) scale(${scale})`; };
   addEventListener('resize', doFit); doFit();
 
   // ── parallax: dragging (or tilting the phone) moves each layer at its own speed ──
