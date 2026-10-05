@@ -1252,15 +1252,15 @@ Portrait 5:8 aspect ratio, exactly 1000x1600 pixels. Game asset: a single sealed
 
 **Status:** pendente (gerar). O protótipo navegável está em `public/mockups/quarto/` (com formas simples) e já define o que cada
 camada precisa mostrar e onde ela fica. A sala é uma sala de verdade (não um quarto): tapete, estante, mesa, baú/pacotes, mesa de guerra
-e uma **porta que leva à loja do vendedor** (o mesmo personagem da 4u).
+e uma **porta que leva à loja do vendedor**, identificada só pela placa pendurada (sem personagem na porta).
 
 Como na loja (4u), todas as camadas usam o **mesmo canvas 9:16 (1024x1792)**, assim se encaixam sem ajuste e o parallax fica coerente.
 Camadas recortadas usam **fundo cinza RGB 125,125,125** (eu recorto, como nas outras). Camadas "opacas" preenchem o canvas inteiro.
 Anexar a imagem **A** (referência da cena) em todas as demais, e para qualquer objeto que já existe no jogo anexar também a referência dele:
-o vendedor (`shop-npc-greet`), o booster (`booster-cardeal`) e a tela da loja, para o estilo bater.
+o booster (`booster-cardeal`) e a tela da loja, para o estilo bater.
 
 **Ordem sugerida:** A (referência) → B (parede) → C (chão) → D (estante + livro) → E (mesa de boosters) → F (mesa de guerra) →
-G (barril) → H (vendedor na porta) → I (feixe de luz) → J1–J4 (o livro aberto: capa, miolo, argolas, verso da capa).
+G (barril) → I (feixe de luz) → J1–J4 (o livro aberto: capa, miolo, argolas, verso da capa).
 
 **Consistência (vale para todos os prompts):** luz quente de velas e tochas vindo do lado esquerdo e de baixo, luz fria de lua pela janela
 no alto; paleta de madeira marrom-escura, ouro, carmesim e pedra cinza-quente; mesmo pincel pintado de jogo de cartas premium; perspectiva
@@ -1275,7 +1275,7 @@ marca d'água ou interface.
 | Janela em arco (pequena, alta) | 32%–60% | 12%–32% |
 | Banner à esquerda | 13%–26% | 5%–19% |
 | Prateleira + livro da coleção | 4%–46% (livro 18%–37%) | tábua em 47% (livro 35%–47%) |
-| Porta do mercador (arco de pedra, bem mais alta que a janela) | 64%–98% | 29%–63% |
+| Porta da loja (arco de pedra, bem mais alta que a janela, vazia) | 64%–98% | 29%–63% |
 | Placa da loja pendurada | 74%–93% | 23%–29% |
 | Mesa com os pacotes (boosters) | 60%–93% | 67%–84% |
 | Barril com espadas | 9%–28% | 66%–86% |
@@ -1287,12 +1287,12 @@ marca d'água ou interface.
 
 **A · Cena de referência**
 ```
-Portrait 9:16 aspect ratio, exactly 1024x1792 pixels. Painterly medieval-fantasy illustration, the interior of a medieval collector's hall (a stately private room in a castle where a card collector keeps a prized collection), seen from standing eye level, strict frontal one-point perspective. The back wall is dark grey-brown stone blocks above a dark wooden floor, the wall meets the floor at 62% of the image height. High on the wall, slightly left of center, a SMALL arched window (about 28% of the image width, 20% of the height) showing a violet-and-amber dusk sky and a pale moon, with a stone sill; a soft shaft of cool moonlight falls diagonally from it onto the floor. A short crimson banner with a gold cross hangs on the far left, and two wall torches with warm flames flank the window area. On the left, a wooden wall shelf at 47% height holds a large closed leather-bound collection book with a gold cross emblem and gold corner fittings, a stack of old tomes and a lit white candle. On the right wall a TALL arched stone doorway, much taller and larger than the window (it rises from the floor to about 29% height, about 33% of the image width), its heavy wooden door standing open on the left, with a hanging iron-bracket wooden shop sign above it showing a gold coin; in the dark doorway a friendly middle-aged merchant with a short grey-flecked beard, soft cap with a feather, burgundy vest with gold trim, cream shirt and brown leather apron holds up a glowing lantern and carries a sack on his back. On the floor: a long crimson rug with gold border and a round medallion, a round wooden table with a red cloth on the right holding three sealed foil booster packs (cream-and-gold wrapper, golden cross and dove) with a soft golden glow, a wooden barrel with two swords standing in it on the left, and at the very bottom right the edge of a heavy wooden war table with a parchment map, small blue and red figurines and a lit candle. Warm candlelight, rich shadows, palette of warm brown wood, gold, crimson and cool violet moonlight. Same high-quality painterly game-art style as a premium collectible card game, matching the attached shop reference. No text, no letters, no watermark, no UI.
+Portrait 9:16 aspect ratio, exactly 1024x1792 pixels. Painterly medieval-fantasy illustration, the interior of a medieval collector's hall (a stately private room in a castle where a card collector keeps a prized collection), seen from standing eye level, strict frontal one-point perspective. The back wall is dark grey-brown stone blocks above a dark wooden floor, the wall meets the floor at 62% of the image height. High on the wall, slightly left of center, a SMALL arched window (about 28% of the image width, 20% of the height) showing a violet-and-amber dusk sky and a pale moon, with a stone sill; a soft shaft of cool moonlight falls diagonally from it onto the floor. A short crimson banner with a gold cross hangs on the far left, and two wall torches with warm flames flank the window area. On the left, a wooden wall shelf at 47% height holds a large closed leather-bound collection book with a gold cross emblem and gold corner fittings, a stack of old tomes and a lit white candle. On the right wall a TALL arched stone doorway, much taller and larger than the window (it rises from the floor to about 29% height, about 33% of the image width), its heavy wooden door standing open on the left, with a hanging iron-bracket wooden shop sign above it showing a gold coin; the doorway is empty and dark, warmly lit from inside by a hanging brass lantern, with no people anywhere in the image. On the floor: a long crimson rug with gold border and a round medallion, a round wooden table with a red cloth on the right holding three sealed foil booster packs (cream-and-gold wrapper, golden cross and dove) with a soft golden glow, a wooden barrel with two swords standing in it on the left, and at the very bottom right the edge of a heavy wooden war table with a parchment map, small blue and red figurines and a lit candle. Warm candlelight, rich shadows, palette of warm brown wood, gold, crimson and cool violet moonlight. Same high-quality painterly game-art style as a premium collectible card game, matching the attached shop reference. No text, no letters, no watermark, no UI.
 ```
 
 **B · Parede de fundo (opaca, com janela e a porta, sem mais nada)**
 ```
-Portrait 9:16 aspect ratio, exactly 1024x1792 pixels. Painterly medieval-fantasy illustration of the back wall of a collector's hall, fully opaque, filling the whole canvas, perfectly frontal one-point perspective. Dark grey-brown stone blocks. Wall meets the floor at 62% of the image height; below that line continue with a plain dark wooden floor (it will be covered by another layer). A small arched window high on the wall at x 32%-60%, y 12%-32% with a stone sill, dusk sky in violet and amber, a pale moon. A short crimson banner with a gold cross at the far left (x 13%-26%, y 5%-19%). Two wall torches with warm flames on iron brackets, one just left of the window and one just right of it. On the right (x 64%-98%, y 29%-63%) a TALL arched stone doorway, clearly taller and larger than the window, with its heavy wooden door swung open to the left, the opening dark and warmly lit from inside; an iron bracket with a wooden hanging shop sign with a gold coin above it (x 74%-93%, y 23%-29%). The wall is otherwise COMPLETELY EMPTY: no shelf, no book, no furniture, no characters. Warm dim candlelight from the torches, slight depth-of-field softness. Must match the lighting, palette and style of the attached reference image. No text, no watermark.
+Portrait 9:16 aspect ratio, exactly 1024x1792 pixels. Painterly medieval-fantasy illustration of the back wall of a collector's hall, fully opaque, filling the whole canvas, perfectly frontal one-point perspective. Dark grey-brown stone blocks. Wall meets the floor at 62% of the image height; below that line continue with a plain dark wooden floor (it will be covered by another layer). A small arched window high on the wall at x 32%-60%, y 12%-32% with a stone sill, dusk sky in violet and amber, a pale moon. A short crimson banner with a gold cross at the far left (x 13%-26%, y 5%-19%). Two wall torches with warm flames on iron brackets, one just left of the window and one just right of it. On the right (x 64%-98%, y 29%-63%) a TALL arched stone doorway, clearly taller and larger than the window, with its heavy wooden door swung open to the left, the opening dark and warmly lit from inside by a hanging brass lantern; an iron bracket with a wooden hanging shop sign with a gold coin above it (x 74%-93%, y 23%-29%). The wall is otherwise COMPLETELY EMPTY: no shelf, no book, no furniture, no characters. Warm dim candlelight from the torches, slight depth-of-field softness. Must match the lighting, palette and style of the attached reference image. No text, no watermark.
 ```
 
 **C · Chão com tapete (opaca da linha em 62% para baixo)**
@@ -1318,11 +1318,6 @@ Portrait 9:16 aspect ratio, exactly 1024x1792 pixels. Painterly medieval-fantasy
 **G · Barril com espadas (enfeite)**
 ```
 Portrait 9:16 aspect ratio, exactly 1024x1792 pixels. Painterly medieval-fantasy game-art on a flat solid mid-gray background (RGB 125,125,125). Only the area x 9%-28%, y 62%-86% contains art: a worn wooden barrel with two dark iron hoops, open at the top, two straight steel swords with gold crossguards standing in it and leaning slightly apart. Everything else is plain flat gray. Same lighting and style as the attached reference image. No text, no watermark, no shadow on the background.
-```
-
-**H · O vendedor na porta (a mesma personagem da loja)**
-```
-Portrait 9:16 aspect ratio, exactly 1024x1792 pixels. The same friendly middle-aged merchant as the attached shop-merchant reference (short grey-flecked beard, kind eyes, soft cap with a feather, burgundy vest with gold trim over a cream shirt, brown leather apron) standing in a doorway, full body, seen from the front a little in shadow, occupying about x 68%-92%, y 33%-63% of the canvas (the doorway frame is another layer, so show ONLY him, nothing around him). He is holding up a glowing brass lantern in his right hand that lights his face warmly and carries a sack over his left shoulder, a welcoming half-smile. Flat solid mid-gray background (RGB 125,125,125) everywhere around him. Same style and lighting as the attached reference images, same character. No text, no watermark.
 ```
 
 **I · Feixe de luz da janela (para mistura "tela")**
@@ -1352,7 +1347,7 @@ Portrait 5:7 aspect ratio, exactly 1000x1400 pixels. Game asset: the inside of t
 
 </details>
 
-**Reaproveitados do jogo (não gerar de novo):** o vendedor (4u), o booster Cardeal (4u), a plaquinha de madeira dos rótulos (`button-plaque`), a moldura de cada carta e as próprias cartas (as miniaturas do fichário saem das texturas de `src/assets/card3d`).
+**Reaproveitados do jogo (não gerar de novo):** o booster Cardeal (4u), a plaquinha de madeira dos rótulos (`button-plaque`), a moldura de cada carta e as próprias cartas (as miniaturas do fichário saem das texturas de `src/assets/card3d`).
 
 **O que faço quando as imagens chegarem:** recorto os fundos cinza, ajusto as posições com o mapa acima e troco as formas simples do protótipo pela arte, na tela de verdade do jogo (a Sala de Coleção) e no mockup.
 
