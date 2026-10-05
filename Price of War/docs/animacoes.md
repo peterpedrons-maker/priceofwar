@@ -182,8 +182,12 @@ Cada objeto é uma área de toque sobre a imagem: a câmera dá zoom nele e abre
 - **Livro** (estante): zoom, a capa abre e vira o álbum. Cada página tem 9 cartas sob **uma única folha de plástico** (`.bk-sheet`):
   as divisões são linhas dentro da folha, com brilho que se move. Deslizar vira a página; tocar numa carta a tira do bolso, ela vem
   para a frente sobre o fundo escurecido e vira o visualizador 3D (`CardViewer3D`, props `onReady` e `hideArrows`).
+  A folha de plástico acompanha a moldura dourada da própria página; ao virar, a folha gira na lombada e mostra o verso do papel
+  (não some): é um giro rígido em 3D com sombra, acompanhando o dedo. A carta sai do bolso para cima (o plástico abre por cima),
+  depois vem para a frente; ao fechar o 3D ela volta para a frente do bolso e desce para dentro dele.
 - **Porta / placa**: zoom e abre a loja (`ShopScreen`). Ao fechar a loja, a câmera recua e o jogador continua na sala.
-- **Mesa com o tabuleiro**: zoom e abre o editor de deck (`DeckEditor`), com o mesmo caminho de volta.
+- **Mesa com o tabuleiro**: zoom (a câmera nunca passa da borda da imagem) e a sala escurece por baixo; o editor de deck (`DeckEditor`,
+  prop `overRoom`, translúcido) abre por cima, com o mesmo caminho de volta.
 - A coleção, por enquanto, é o catálogo inteiro (os dois decks, sem restrição). O botão "Simular faltantes" mostra como ficam os
   bolsos vazios. Falta o inventário real do jogador e os boosters sobre a mesa redonda.
 

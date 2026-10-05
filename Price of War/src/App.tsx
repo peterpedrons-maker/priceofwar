@@ -3188,7 +3188,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
             onClose={() => setAvatarPickerOpen(false)}
           />
         )}
-        {deckEditorOpen && <DeckEditor onClose={() => setDeckEditorOpen(false)} />}
+        {deckEditorOpen && <DeckEditor onClose={() => setDeckEditorOpen(false)} overRoom={roomOpen} />}
         {settingsOpen && <SettingsModal session={session} profileName={profile.name} onClose={() => setSettingsOpen(false)} />}
         {soundOpen && <OptionsModal onClose={() => setSoundOpen(false)} />}
         {roomOpen && (
@@ -3357,7 +3357,7 @@ const LIST_COLS = '40px minmax(0,1fr) 70px 34px 34px 38px';
 const ROW_H = 42;
 const FULL_ART_TILE_SCALE = 1; // Full Art sizing is fixed inside CardFaceFullArt (FULL_ART_SIZE_FIX)
 
-const DeckEditor = ({ onClose }: { onClose: () => void }) => {
+const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boolean }) => {   // overRoom: opened from the Sala de Coleção, so the dimmed room shows through behind it
   // `store` is the draft the player is editing; `saved` is what is on disk. Nothing reaches the
   // game (or storage) until Salvar copies the draft over.
   const [saved, setSaved] = useState<DeckStore>(loadDeckStore);
@@ -3511,7 +3511,8 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
       transition={{ duration: 0.18 }}
       className="fixed inset-0 z-[300] flex flex-col items-center text-white"
       style={{
-        backgroundColor: '#080503',
+        backgroundColor: overRoom ? 'rgba(8,5,3,0.3)' : '#080503',
+        ...(overRoom ? { backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)' } : {}),
         paddingTop: 'calc(max(4px, env(safe-area-inset-top)) + 2px)',
         paddingBottom: 'calc(max(4px, env(safe-area-inset-bottom)) + 2px)',
         paddingLeft: EDITOR_MARGIN,
@@ -3531,7 +3532,7 @@ const DeckEditor = ({ onClose }: { onClose: () => void }) => {
           borderImageWidth: `${EDITOR_FRAME}px`,
           borderImageRepeat: 'stretch',
           padding: `6px ${EDITOR_PAD}px`,
-          backgroundColor: '#22100d',
+          backgroundColor: overRoom ? 'rgba(34,16,13,0.8)' : '#22100d',
           backgroundImage: `radial-gradient(ellipse at 50% 20%, rgba(170,70,50,0.22), rgba(170,70,50,0) 70%), linear-gradient(rgba(34,14,12,0.55), rgba(20,8,7,0.7)), url(${uiWindowTextureImage})`,
           backgroundSize: '100% 100%, 100% 100%, 400px 400px',
           backgroundRepeat: 'no-repeat, no-repeat, repeat',
