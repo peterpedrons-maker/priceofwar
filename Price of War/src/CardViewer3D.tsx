@@ -88,21 +88,21 @@ export default function CardViewer3D({ cards, index, onIndex, onClose }: { cards
     const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     const embers = new THREE.Points(pg, new THREE.PointsMaterial({ color: 0xffc66a, size: 0.05, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending })); scene.add(embers);
 
-    // state: yaw / pitch with inertia, then a spring that settles on the nearest face; a double tap flips the card
-    let yaw = 0, pitch = 0, vYaw = 0, dragging = false, lastX = 0, lastY = 0, flipTo: number | null = null, lastTap = 0, alive = true, raf = 0, t = 0, last = performance.now(), loadId = 0;
+    // state: yaw / pitch (both free, any direction, any number of turns) with inertia, then a spring that settles on the nearest upright face; a double tap flips the card
+    let yaw = 0, pitch = 0, vYaw = 0, vPitch = 0, dragging = false, lastX = 0, lastY = 0, flipTo: number | null = null, lastTap = 0, alive = true, raf = 0, t = 0, last = performance.now(), loadId = 0;
     const target = { x: 0, y: 0 };
     apiRef.current = {
       setCard: (c) => {
-        const id = ++loadId; yaw = Math.PI * 1.2; vYaw = 0; flipTo = 0; foilMat.uniforms.uStrength.value = c.full || c.type === 'General' ? 0.95 : 0.35;
+        const id = ++loadId; yaw = Math.PI * 1.2; vYaw = 0; vPitch = 0; flipTo = 0; foilMat.uniforms.uStrength.value = c.full || c.type === 'General' ? 0.95 : 0.35;
         urlOf(cardSlug(c.name)).then(u => (u ? load(u) : null)).then(tx => { if (!tx || id !== loadId) return; frontMat.map = tx; frontMat.emissiveMap = tx; frontMat.needsUpdate = true; foilMat.uniforms.uMap.value = tx; }).catch(() => {});
       },
     };
 
-    const onDown = (e: PointerEvent) => { dragging = true; lastX = e.clientX; lastY = e.clientY; vYaw = 0; flipTo = null; canvas.setPointerCapture(e.pointerId); };
+    const onDown = (e: PointerEvent) => { dragging = true; lastX = e.clientX; lastY = e.clientY; vYaw = 0; vPitch = 0; flipTo = null; canvas.setPointerCapture(e.pointerId); };
     const onMove = (e: PointerEvent) => {
       target.x = (e.clientX / window.innerWidth) * 2 - 1; target.y = -((e.clientY / window.innerHeight) * 2 - 1);
       if (!dragging) return; const dx = e.clientX - lastX, dy = e.clientY - lastY; lastX = e.clientX; lastY = e.clientY;
-      yaw += dx * 0.011; pitch = Math.max(-0.7, Math.min(0.7, pitch + dy * 0.008)); vYaw = dx * 0.011;
+      yaw += dx * 0.011; pitch += dy * 0.011; vYaw = dx * 0.011; vPitch = dy * 0.011;
     };
     const onUp = () => { dragging = false; };
     const onClick = () => { const n = performance.now(); if (n - lastTap < 320) flipTo = Math.round(yaw / Math.PI) * Math.PI + Math.PI; lastTap = n; };
@@ -115,14 +115,21 @@ export default function CardViewer3D({ cards, index, onIndex, onClose }: { cards
       if (!alive) return;
       const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt;
       if (!dragging) {
-        if (flipTo !== null) { const k = 1 - Math.exp(-dt * 7); vYaw = (flipTo - yaw) * k; yaw += vYaw; if (Math.abs(flipTo - yaw) < 0.002) { yaw = flipTo; flipTo = null; } }
-        else { yaw += vYaw; vYaw *= Math.pow(0.04, dt); if (Math.abs(vYaw) < 0.004) { const face = Math.round(yaw / Math.PI) * Math.PI; yaw += (face - yaw) * (1 - Math.exp(-dt * 3.2)); } }
-        pitch += (0 - pitch) * (1 - Math.exp(-dt * 3));
+        const upright = Math.round(pitch / (Math.PI * 2)) * Math.PI * 2;
+        if (flipTo !== null) {
+          const k = 1 - Math.exp(-dt * 7); vYaw = (flipTo - yaw) * k; yaw += vYaw; if (Math.abs(flipTo - yaw) < 0.002) { yaw = flipTo; flipTo = null; }
+          pitch += vPitch; vPitch *= Math.pow(0.04, dt); pitch += (upright - pitch) * (1 - Math.exp(-dt * 3));
+        } else {
+          yaw += vYaw; vYaw *= Math.pow(0.04, dt); pitch += vPitch; vPitch *= Math.pow(0.04, dt);
+          if (Math.abs(vYaw) < 0.004 && Math.abs(vPitch) < 0.004) {
+            const face = Math.round(yaw / Math.PI) * Math.PI; yaw += (face - yaw) * (1 - Math.exp(-dt * 3.2)); pitch += (upright - pitch) * (1 - Math.exp(-dt * 3.2));
+          }
+        }
       }
       pivot.rotation.y = yaw + (dragging ? 0 : Math.sin(t * 0.7) * 0.05); pivot.rotation.x = pitch + (dragging ? 0 : Math.cos(t * 0.5) * 0.03);
       foilMat.uniforms.uTilt.value.set(Math.sin(yaw) * 0.9 + target.x * 0.25, Math.sin(pitch) * 1.4 + target.y * 0.25); foilMat.uniforms.uTime.value = t;
       finger.position.set(target.x * 3.2, target.y * 3.6 + 0.5, 3.2);
-      const facing = Math.abs(Math.cos(pivot.rotation.y)); shMat.opacity = 0.35 + 0.65 * facing; sh.scale.x = 0.7 + 0.3 * facing;
+      const facing = Math.abs(Math.cos(pivot.rotation.y) * Math.cos(pivot.rotation.x)); shMat.opacity = 0.35 + 0.65 * facing; sh.scale.x = 0.7 + 0.3 * facing;
       const a = pg.attributes.position as THREE.BufferAttribute; for (let i = 0; i < N; i++) { let y = a.getY(i) + dt * (0.12 + seed[i] * 0.01); if (y > 4.6) y = -4.6; a.setY(i, y); a.setX(i, a.getX(i) + Math.sin(t * 0.6 + seed[i]) * dt * 0.05); } a.needsUpdate = true;
       renderer.render(scene, camera); raf = requestAnimationFrame(frame);
     };
@@ -156,7 +163,7 @@ export default function CardViewer3D({ cards, index, onIndex, onClose }: { cards
       {index > 0 && <button style={arrow(-1)} aria-label="Carta anterior" onClick={() => onIndex(index - 1)}>‹</button>}
       {index < cards.length - 1 && <button style={arrow(1)} aria-label="Próxima carta" onClick={() => onIndex(index + 1)}>›</button>}
       <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '0 12px max(18px, env(safe-area-inset-bottom))', textAlign: 'center', pointerEvents: 'none', font: '600 11px system-ui, sans-serif', letterSpacing: '0.06em', color: '#a89a78', background: 'linear-gradient(#0d090500, #0d0905dd 60%)' }}>
-        Arraste para girar · toque duas vezes para virar
+        Arraste em qualquer direção · 2 toques viram
       </div>
     </div>
   );
