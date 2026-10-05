@@ -172,3 +172,20 @@ em `src/App.tsx`), escrito direto nos elementos (sem render do React por movimen
   inclinação) e ela se endireita durante a subida; depois paira, cai reta e para firme no encaixe.
 
 Ajustes finos: as constantes das molas estão no efeito (rigidez/amortecimento de posição, balanço, inclinação e pop).
+
+## Sala de Coleção (no jogo)
+
+`src/CollectionRoom.tsx`, aberta pelo botão **Coleção** do menu principal (`roomOpen` em `MainMenu`). A sala é uma imagem só
+(`src/assets/room-collection.webp`, palco de 768 x 1376) ajustada à altura da tela; arrastar (ou inclinar o celular) mostra os lados.
+Cada objeto é uma área de toque sobre a imagem: a câmera dá zoom nele e abre o que ele representa.
+
+- **Livro** (estante): zoom, a capa abre e vira o álbum. Cada página tem 9 cartas sob **uma única folha de plástico** (`.bk-sheet`):
+  as divisões são linhas dentro da folha, com brilho que se move. Deslizar vira a página; tocar numa carta a tira do bolso, ela vem
+  para a frente sobre o fundo escurecido e vira o visualizador 3D (`CardViewer3D`, props `onReady` e `hideArrows`).
+- **Porta / placa**: zoom e abre a loja (`ShopScreen`). Ao fechar a loja, a câmera recua e o jogador continua na sala.
+- **Mesa com o tabuleiro**: zoom e abre o editor de deck (`DeckEditor`), com o mesmo caminho de volta.
+- A coleção, por enquanto, é o catálogo inteiro (os dois decks, sem restrição). O botão "Simular faltantes" mostra como ficam os
+  bolsos vazios. Falta o inventário real do jogador e os boosters sobre a mesa redonda.
+
+Arte: `room-collection`, `room-book-cover` (recortada do fundo cinza), `room-book-page`, `room-book-inside` em `src/assets`;
+miniaturas das cartas em `src/assets/card-thumb` (300 px). Os prompts estão em `art-prompts/README.md`, seção 4aa.

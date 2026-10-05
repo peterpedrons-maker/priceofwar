@@ -6,6 +6,7 @@ import { X, ArrowUp, ArrowDown } from 'lucide-react';
 import { TurnTracker } from './TurnTracker';
 // The 3D viewer (and three.js with it) is only downloaded the first time a card is opened in 3D.
 const CardViewer3D = lazy(() => import('./CardViewer3D'));
+const CollectionRoom = lazy(() => import('./CollectionRoom'));
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
 import startScreenBgImage from './assets/start-screen-bg.webp';
@@ -3119,6 +3120,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
   const [onlineOpen, setOnlineOpen] = useState(false);
   const [deckEditorOpen, setDeckEditorOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
+  const [roomOpen, setRoomOpen] = useState(false);   // the Sala de Coleção: the shop and the deck editor open over it, and closing them leaves you in it
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [soundOpen, setSoundOpen] = useState(false);
   const updateProfile = (patch: Partial<PlayerProfile>) => {
@@ -3189,6 +3191,11 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
         {deckEditorOpen && <DeckEditor onClose={() => setDeckEditorOpen(false)} />}
         {settingsOpen && <SettingsModal session={session} profileName={profile.name} onClose={() => setSettingsOpen(false)} />}
         {soundOpen && <OptionsModal onClose={() => setSoundOpen(false)} />}
+        {roomOpen && (
+          <Suspense fallback={<div className="fixed inset-0 z-[250] bg-[#0d0905]" />}>
+            <CollectionRoom onClose={() => setRoomOpen(false)} onOpenShop={() => setShopOpen(true)} onOpenDeck={() => setDeckEditorOpen(true)} overlayOpen={shopOpen || deckEditorOpen} />
+          </Suspense>
+        )}
         {shopOpen && <ShopScreen coroas={profile.coroas} onSpend={(n) => updateProfile({ coroas: Math.max(0, profile.coroas - n) })} onClose={() => setShopOpen(false)} />}
         {onlineOpen && (
           <OnlineModeModal
@@ -3240,6 +3247,12 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
           title={MODE_LABELS_PT['My Deck']}
           bgImage={menuCardEditarDeckImage}
           onClick={() => setDeckEditorOpen(true)}
+        />
+        <MenuCard
+          icon={uiIconCardImage}
+          title="Coleção"
+          bgImage={menuCardEditarDeckImage}
+          onClick={() => setRoomOpen(true)}
         />
         <MenuCard
           icon={uiIconLojaImage}
