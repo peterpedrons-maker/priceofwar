@@ -11,7 +11,7 @@ const ENEMY_UNIT: TargetSpec = { side: 'enemy', area: 'unit' };
 
 export const CARD_DEFS: readonly CardDef[] = [
   // ── capitao ──
-  { name: "Comandante Aurelion, Mestre da Formação", cardType: "General", atk: 0, hp: 20, cost: 0, isFullArt: true, effect: "**Fim do turno** Até 2 unidades que se moveram ganham +2/+1 no próximo combate. **Passiva** Relíquia e Terreno recebem -1 de dano.",
+  { name: "Comandante Aurelion, Mestre da Formação", cardType: "General", atk: 0, hp: 30, cost: 0, isFullArt: true, effect: "**Fim do turno** Até 2 unidades que se moveram ganham +2/+1 no próximo combate. **Passiva** Relíquia e Terreno recebem -1 de dano.",
     faction: "ordem",
     abilities: [{ on: 'turn_end', do: [{ kind: 'buff_moved', count: 2, atk: 2, hp: 1 }] }],
     passives: [{ kind: 'aura', who: { side: 'own', slots: [10, 11] }, reduce: 1 }] },
@@ -67,7 +67,7 @@ export const CARD_DEFS: readonly CardDef[] = [
   { name: "Pântano Maldito", cardType: "Terreno", atk: 0, hp: 6, cost: 2, effect: "Inimigos na Vanguarda: -1 ATK.",
     passives: [{ kind: 'aura', who: { side: 'enemy', row: 'front' }, atk: -1 }] },
   // ── cardeal ──
-  { name: "Cardeal Pedro, Voz da Fé", trigger: "comando", cardType: "General", atk: 0, hp: 20, cost: 0, isFullArt: true, effect: "Pague 2 de ouro: +1 HP a uma unidade aliada.",
+  { name: "Cardeal Pedro, Voz da Fé", trigger: "comando", cardType: "General", atk: 0, hp: 30, cost: 0, isFullArt: true, effect: "Pague 2 de ouro: +1 HP a uma unidade aliada.",
     faction: "fe",
     abilities: [{ on: 'ability', phases: ['preparacao', 'movimentacao'], once: true, cost: 2, do: [
       { kind: 'heal', amount: 1, withAuras: true, target: { ...OWN_UNIT, prompt: 'Escolha um soldado aliado no campo.' } },

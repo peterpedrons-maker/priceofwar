@@ -20,7 +20,7 @@ Os mockups visuais estão em `art-prompts`/conversa; o duelo foi testado no moto
 
 Mão inicial (7): Devotos da Cruzada (0/3, custo 1), Soldados da Ordem ×3 (3/4, custo 2), Cavaleiro da Luz (4/5, custo 3), Devotos, Soldados.
 Compras: T1 Soldados, T2 Cavaleiro da Luz, depois Soldados. Ouro: 15 no início, +5 a partir da 2ª rodada.
-Treinador: Soldados da Ordem e Devotos da Cruzada. General dele: 20 de vida.
+Treinador: Soldados da Ordem e Devotos da Cruzada. General dele: 20 de vida (o treinador é mais fraco; numa partida de verdade cada General tem 30).
 
 ## Capítulos (14)
 
@@ -29,7 +29,7 @@ A moeda aparece e gira. Painel: "Cara ou coroa decide quem joga primeiro." Cai a
 Explica: quem começa age primeiro, mas **não pode atacar no primeiro turno**.
 
 ### 2. O campo (leitura, destaque item a item)
-Seu General (20 de vida; chegar a 0 = derrota) · General do adversário (derrubá-lo = vitória) · Vanguarda (frente) ·
+Seu General (30 de vida; chegar a 0 = derrota) · General do adversário (derrubá-lo = vitória) · Vanguarda (frente) ·
 Retaguarda (trás), 5 colunas · casas de Relíquia e Terreno ao lado do General · Baralho · Cemitério.
 
 ### 3. Suas cartas

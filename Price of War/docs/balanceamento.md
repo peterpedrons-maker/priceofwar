@@ -133,3 +133,6 @@ Base: catálogo final (O2), General com 20 de vida: 39,5% / 5,5. O laboratório 
 | 30 de vida + combate só a partir da rodada 3 | 38% | 8,4 |
 | 30 de vida + ouro 10/4 + combate a partir da rodada 3 | 49% | 8,4 |
 Nada disso está aplicado ao jogo.
+
+### Aplicado: General com 30 de vida (decidido com o dono do jogo)
+Só isso, sem mexer em ouro nem no início do combate (o pacote com menos ouro e combate na rodada 3 foi descartado: deixaria o jogo lento demais, já que se começa com 7 cartas na mão). Os dois Generais passam de 20 para 30 de vida (`catalog.ts`). Medido no catálogo real: **Capitão 37,5% × Cardeal 62,5%, partida acaba na rodada 6,9 em média** (antes 5,5). No tutorial o General do treinador continua com 20 de vida (para a aula acabar no 4º turno do jogador) e o do jogador mostra 30; os testes de regras foram atualizados (30 - dano).

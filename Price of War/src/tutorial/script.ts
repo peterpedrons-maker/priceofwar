@@ -71,6 +71,8 @@ export const createTutorialMatch = (): GameState => {
   const s = createMatch({ seed: 11, decks: [deckSetupFromRecipe('cardeal'), deckSetupFromRecipe('capitao')], first: 0 }).state;
   s.players[0].hand = HAND_P.map(fresh); s.players[0].drawPile = [...PILE_P];
   s.players[1].hand = HAND_E.map(fresh); s.players[1].drawPile = [...PILE_E];
+  // A real match gives each General 30 HP; the trainer keeps 20, so the lesson still ends on the player's 4th turn.
+  s.players[1].board[12]!.hp = 20;
   return s;
 };
 
@@ -122,7 +124,7 @@ export const COIN_STEP: Step = { id: 'coin', kind: 'read', expr: 'happy', chapte
 
 export const STEPS: Step[] = [
   // 2. the field
-  { id: 'general-me', kind: 'read', expr: 'point', chapter: 2, title: 'SEU GENERAL', lines: ['Este é o seu General. Ele tem 20 pontos de vida.', 'Se a vida dele chegar a zero, você perde o duelo. Proteja-o!'], targets: [G(12)] },
+  { id: 'general-me', kind: 'read', expr: 'point', chapter: 2, title: 'SEU GENERAL', lines: ['Este é o seu General. Ele tem 30 pontos de vida.', 'Se a vida dele chegar a zero, você perde o duelo. Proteja-o!'], targets: [G(12)] },
   { id: 'general-foe', kind: 'read', expr: 'point', chapter: 2, title: 'O GENERAL INIMIGO', lines: ['Aquele é o General do adversário.', 'Derrube-o e a vitória é sua!'], targets: [E(12)] },
   { id: 'vanguarda', kind: 'read', expr: 'neutral', chapter: 2, title: 'A VANGUARDA', lines: ['Esta fileira é a Vanguarda, a linha de frente.', 'Quem fica aqui ataca, mas também é atacado.'], targets: [row('player', 0, 4)] },
   { id: 'retaguarda', kind: 'read', expr: 'neutral', chapter: 2, title: 'A RETAGUARDA', lines: ['Esta fileira é a Retaguarda, a linha de trás.', 'Quem fica aqui não ataca, mas está protegido e espera a sua vez.'], targets: [row('player', 5, 9)] },

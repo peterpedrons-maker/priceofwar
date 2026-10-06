@@ -247,7 +247,7 @@ test('back row is reachable only when its own front is empty; General only throu
   refused(s, 0, { type: 'attack', from: 2, to: 12 }, 'alcance');
   act(s, 0, { type: 'attack', from: 2, to: 7 });
   const s2 = combat(fresh()); put(s2, 0, 2, 'Cavaleiro da Luz');
-  eq(act(s2, 0, { type: 'attack', from: 2, to: 12 }).s.players[1].board[12]!.hp, 20 - 4);
+  eq(act(s2, 0, { type: 'attack', from: 2, to: 12 }).s.players[1].board[12]!.hp, 30 - 4);
 });
 test('damage exchange, death goes to the graveyard, equipped weapons follow', () => {
   const s = combat(fresh());
@@ -335,7 +335,7 @@ test('Fanático da Cruzada gets +2 ATK against a General that is not Cardeal Ped
   const s = combat(fresh({ a: 'cardeal', b: 'capitao' }));
   put(s, 0, 2, 'Fanático da Cruzada');
   const r = act(s, 0, { type: 'attack', from: 2, to: 12 }).s;
-  eq(r.players[1].board[12]!.hp, 20 - 3);
+  eq(r.players[1].board[12]!.hp, 30 - 3);
 });
 test('Atirador da Cruzada draws 2 cards when it dies', () => {
   const s = combat(fresh());
@@ -427,7 +427,7 @@ test('Trabuco de Cerco: 2 damage to every enemy unit and the General', () => {
   put(s, 1, 0, 'Batedor'); put(s, 1, 5, 'Soldados da Ordem');
   const r = act(s, 0, { type: 'play', cardId: c.id }).s;
   // the Batedor falls; the Soldados da Ordem behind it (2 HP left) steps forward (it is tagged Reforço)
-  eq([r.players[1].board[0]?.name, r.players[1].board[0]?.hp, r.players[1].board[5], r.players[1].board[12]!.hp], ['Soldados da Ordem', 2, null, 18]);
+  eq([r.players[1].board[0]?.name, r.players[1].board[0]?.hp, r.players[1].board[5], r.players[1].board[12]!.hp], ['Soldados da Ordem', 2, null, 28]);
 });
 test('targeted Táticas validate before spending anything', () => {
   const s = fresh({ a: 'capitao' });
