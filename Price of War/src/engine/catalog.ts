@@ -75,8 +75,8 @@ export const CARD_DEFS: readonly CardDef[] = [
   { name: "Cálice da Graça", cardType: "Relíquia", atk: 0, hp: 5, cost: 3, isFullArt: true, effect: "Seu General dá +2 HP em vez de +1.",
     passives: [{ kind: 'aura', who: { side: 'own', slots: [12] }, healBonus: 1 }] },
   { name: "Devotos da Cruzada", cardType: "Infantaria", atk: 0, hp: 3, cost: 1, effect: "" },
-  { name: "Mercador da Cruzada", trigger: "comando", cardType: "Infantaria", atk: 1, hp: 1, cost: 1, effect: "Veja 2 cartas do topo do baralho, fique com 1 e mande a outra para o fundo.",
-    abilities: [{ on: 'ability', once: true, do: [{ kind: 'look_top', count: 2, keepMin: 1, keepMax: 1 }] }] },
+  { name: "Mercador da Cruzada", trigger: "comando", cardType: "Infantaria", atk: 1, hp: 1, cost: 1, effect: "Pague 1 de ouro: veja 2 cartas do topo do baralho, fique com 1 e mande a outra para o cemitério.",
+    abilities: [{ on: 'ability', once: true, cost: 1, do: [{ kind: 'look_top', count: 2, keepMin: 1, keepMax: 1, rest: 'graveyard' }] }] },
   { name: "Infiltrado da Ordem", trigger: "postura", cardType: "Infantaria", atk: 1, hp: 2, cost: 1, effect: "Na Vanguarda, Emboscadas inimigas não ativam. Se seu General sofrer dano, ele fica sem habilidade no próximo turno.",
     passives: [
       { kind: 'flag', flag: 'blocks_ambush', from: 'front' },

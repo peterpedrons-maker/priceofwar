@@ -542,15 +542,19 @@ test('Cavaleiro Hospitalário: heal a damaged ally and hit an enemy Vanguarda ca
   eq([s.players[0].board[1]!.hp, s.players[1].board[2]!.hp], [2, 1]);
   refused(s, 0, { type: 'ability', slot: 4, target: 1, target2: 2 }, 'já foi usada');
 });
-test('Mercador da Cruzada: see 2, keep 1, the other goes under the deck', () => {
+test('Mercador da Cruzada: pay 1 gold, see 2, keep 1, the other goes to the graveyard', () => {
   let s = fresh({ a: 'cardeal' });
   put(s, 0, 1, 'Mercador da Cruzada');
+  const gold = s.players[0].gold;
   s = act(s, 0, { type: 'ability', slot: 1 }).s;
+  eq(s.players[0].gold, gold - 1);
   const pend: any = s.pending;
   eq(pend.options.length, 2);
-  const before = s.players[0].drawPile.length;
+  const before = s.players[0].drawPile.length, grave = s.players[0].graveyard.length;
   s = act(s, 0, { type: 'choose', cardIds: [pend.options[0].id] }).s;
-  eq([s.players[0].hand.length, s.players[0].drawPile.length], [1, before + 1]);
+  eq([s.players[0].hand.length, s.players[0].drawPile.length, s.players[0].graveyard.length], [1, before, grave + 1]);
+  s = fresh({ a: 'cardeal' }); put(s, 0, 1, 'Mercador da Cruzada'); s.players[0].gold = 0;
+  refused(s, 0, { type: 'ability', slot: 1 }, 'Ouro');
 });
 test('Intendente do Exército refills the hand to 2 at turn start', () => {
   let s = fresh({ a: 'cardeal', b: 'cardeal' });

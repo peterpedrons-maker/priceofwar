@@ -44,7 +44,7 @@ que aparece na carta; quem faz a regra são as habilidades abaixo. Um teste (`en
 
 **Posição:** `retreat {heal, target}` · `displace {target}` · `swap_adjacent` · `free_move`
 
-**Cartas:** `look_top {count, keepMin, keepMax}` · `search {zone:'deck'|'graveyard', filter}` ·
+**Cartas:** `look_top {count, keepMin, keepMax, rest?}` (`rest: 'graveyard'`: o que não fica vai para o cemitério em vez do fundo) · `search {zone:'deck'|'graveyard', filter}` ·
 `summon_deck {max, filter}` · `summon_token {token}`
 
 **Combate:** `attack_bonus {amount, ifEnemyGeneral?}` · `splash_behind {amount}`

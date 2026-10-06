@@ -66,7 +66,7 @@ export type Verb =
   | { kind: 'swap_adjacent' }                                              // troca de lugar com um aliado ao lado
   | { kind: 'free_move' }                                                  // um reposicionamento grátis
   // Cartas
-  | { kind: 'look_top'; count: number; keepMin: number; keepMax: number }  // vê o topo do baralho, fica com algumas
+  | { kind: 'look_top'; count: number; keepMin: number; keepMax: number; rest?: 'graveyard' }  // vê o topo do baralho, fica com algumas; o resto vai para o fundo do baralho (ou para o cemitério, com `rest`)
   | { kind: 'search'; zone: 'deck' | 'graveyard'; filter: CardFilter }     // escolhe uma carta e leva para a mão
   | { kind: 'summon_deck'; max: number; filter: CardFilter }               // convoca soldados do baralho na Vanguarda
   | { kind: 'summon_token'; token: string }                                // convoca fichas nos slots livres ao lado
@@ -229,6 +229,8 @@ export type Pending =
       source: Card | null;
       // Cards revealed from the top of the deck and not chosen go back to the bottom.
       revealed?: boolean;
+      // With `revealed`: the cards not kept go to the graveyard instead of the bottom of the deck.
+      restTo?: 'graveyard';
       // Chamado às Armas: where the summoned soldiers land.
       slots?: number[];
     }

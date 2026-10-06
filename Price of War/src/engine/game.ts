@@ -375,7 +375,7 @@ const checkVerbTarget = (c: Ctx, seat: Seat, v: Verb, slot: number) => {
   if (v.kind === 'retreat' && P(c, seat).board[slot + 5]) fail('A Retaguarda dessa coluna já está ocupada.');
 };
 
-const openPick = (c: Ctx, fx: Fx, mode: 'graveyard_soldier' | 'deck_search' | 'top_reveal' | 'summon', title: string, options: Card[], min: number, max: number, extra: { revealed?: boolean; slots?: number[] } = {}) => {
+const openPick = (c: Ctx, fx: Fx, mode: 'graveyard_soldier' | 'deck_search' | 'top_reveal' | 'summon', title: string, options: Card[], min: number, max: number, extra: { revealed?: boolean; restTo?: 'graveyard'; slots?: number[] } = {}) => {
   // A Tática keeps resolving until the choice is made (it goes to the graveyard then); a board ability has no card to discard.
   c.s.pending = { kind: 'pick', seat: fx.seat, mode, title, options, min, max, source: fx.slot === null ? fx.source : null, ...extra };
   c.ev.push({ t: 'pick', seat: fx.seat, title });
@@ -480,8 +480,8 @@ const runVerb = (c: Ctx, fx: Fx, v: Verb, slot: number | undefined) => {
       top.forEach(n => removeOne(p.deckList, n));
       const revealed = top.map(n => cardFromName(c.s, n, 'o'));
       const keep = v.keepMin === v.keepMax ? `${v.keepMax}` : `até ${v.keepMax}`;
-      const body = `veja as ${top.length} cartas do topo — escolha ${keep} para a mão`;
-      openPick(c, fx, 'top_reveal', fx.slot === null ? body[0].toUpperCase() + body.slice(1) : `${name}: ${body}`, revealed, Math.min(v.keepMin, revealed.length), v.keepMax, { revealed: true });
+      const body = `veja as ${top.length} cartas do topo — escolha ${keep} para a mão${v.rest === 'graveyard' ? ' (o resto vai para o cemitério)' : ''}`;
+      openPick(c, fx, 'top_reveal', fx.slot === null ? body[0].toUpperCase() + body.slice(1) : `${name}: ${body}`, revealed, Math.min(v.keepMin, revealed.length), v.keepMax, { revealed: true, restTo: v.rest });
       return;
     }
     case 'search': {
@@ -670,9 +670,13 @@ const choose = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'choose' }>) => {
   } else if (pend.mode === 'top_reveal') {
     picked.forEach(toHand);
     const pickedIds = new Set(picked.map(x => x.id));
-    const back = pend.options.filter(o => !pickedIds.has(o.id)).map(o => o.name);
-    p.drawPile.push(...back);   // the cards not kept go under the deck — still part of it
-    p.deckList.push(...back);
+    const rest = pend.options.filter(o => !pickedIds.has(o.id));
+    if (pend.restTo === 'graveyard') {
+      rest.forEach(o => discard(c, seat, o));   // the cards not kept are lost for good
+    } else {
+      p.drawPile.push(...rest.map(o => o.name));   // the cards not kept go under the deck — still part of it
+      p.deckList.push(...rest.map(o => o.name));
+    }
     log(c, seat, `${picked.length} carta(s) adicionada(s) à mão!`);
   } else if (pend.mode === 'summon') {
     const slots = pend.slots ?? [];

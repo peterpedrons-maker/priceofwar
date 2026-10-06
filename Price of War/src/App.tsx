@@ -7398,7 +7398,7 @@ export default function App() {
     const card = playerSlots[slotIndex];
     if (!card || card.isDestroyed || playerActivatedAbilityIds.has(card.id)) return null;
     const ab = abilityOn(card.name, 'ability');
-    if (!ab || !abilityPhases(card.name).includes(turnPhase)) return null;
+    if (!ab || !abilityPhases(card.name).includes(turnPhase) || playerMana < (ab.cost ?? 0)) return null;
     const first = ab.do[0]?.kind;
     return first === 'heal' ? 'heal' : first === 'damage' ? 'damage' : 'utility';
   };

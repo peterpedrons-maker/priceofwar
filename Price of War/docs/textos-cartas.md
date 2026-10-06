@@ -45,7 +45,7 @@ Cartas com gatilho (Reforço, Postura, Comando, …) mostram a palavra automatic
 | Pântano Maldito | Permanente. Unidades inimigas na Vanguarda sofrem -1 ATK enquanto este terreno estiver no campo. | Inimigos na Vanguarda: -1 ATK. |
 | Cálice da Graça | Permanente. A cura do General Cardeal Pedro aumenta de 1 para 2 HP. | Seu General dá +2 HP em vez de +1. |
 | Devotos da Cruzada | — | (sem texto) |
-| Mercador da Cruzada | Comando: Uma vez por turno: veja as 2 cartas do topo do deck. Adicione 1 à mão e coloque a outra no fundo. | **Comando:** veja 2 cartas do topo do baralho, fique com 1 e mande a outra para o fundo. |
+| Mercador da Cruzada | Comando: Uma vez por turno, pague 1 de ouro: veja as 2 cartas do topo do deck. Adicione 1 à mão e mande a outra para o cemitério. | **Comando:** pague 1 de ouro: veja 2 cartas do topo do baralho, fique com 1 e mande a outra para o cemitério. |
 | Infiltrado da Ordem | Postura: Na Vanguarda: impede Emboscadas inimigas. Se o General aliado receber dano, no próximo turno não poderá usar sua habilidade. | **Postura:** na Vanguarda, Emboscadas inimigas não ativam. Se seu General sofrer dano, ele fica sem habilidade no próximo turno. |
 | Fanático da Cruzada | Ofensiva: Se o General inimigo for de tipo oposto, ganha +2 ATK. | **Ofensiva:** +2 ATK contra General de facção oposta. |
 | Recruta Devoto | Ao ser curado: recebe +1 ATK permanente. | Quando é curado: +1 ATK para sempre. |

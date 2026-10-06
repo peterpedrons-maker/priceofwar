@@ -151,3 +151,12 @@ Motivo: jogando com o Capitão contra a IA do Cardeal, o dono viu o Cardeal ench
 | Q4 | Q3 + unidades de 1→2 (Devotos, Recruta, Mercador, Infiltrado, Fanático) | 48% | 22,7 × 22,8 |
 | Q5 | cavalaria 3→5 + unidades 2→3 | 58% | 22,3 × 22,5 |
 Leitura: com 30 de vida os custos voltam a pesar (a rodada 1 do estudo antigo dizia o contrário). Q3 deixa o jogo próximo de 50% e o 1º turno do Cardeal quase igual ao do Capitão. **Q3 aplicado ao jogo** (decidido com o dono): Jorge, Nobre, Cavaleiro da Luz e Comandante custam 4; Intendente, Soldados da Ordem, Cavaleiro Hospitalário, Arqueiro e Atirador custam 3. Remedido no catálogo real: Capitão 47% × Cardeal 53%, 7,5 rodadas.
+
+### Rodada 7: Mercador da Cruzada com custo (200 partidas cada; Capitão vence; custos do Q3 já aplicados, base 47%)
+Pedido do dono: as cartas que buscam outras quase não custavam nada. Mudança aplicada ao Mercador: a habilidade custa **1 de ouro** (uma vez por turno) e a carta não escolhida vai para o **cemitério** (antes: fundo do baralho, grátis). Novo campo `rest: 'graveyard'` no verbo `look_top`.
+| Cenário | Capitão vence | Rodadas |
+|---|---|---|
+| R0 · Mercador 1 de ouro + cemitério (aplicado) | 47,5% | 7,4 |
+| R2 · Mercador 2 de ouro + cemitério | 48% | 7,5 |
+| R3 · R0 + Recrutar Veteranos também manda o resto ao cemitério | 48% | 7,4 |
+Leitura: o Mercador é 1 carta em 60, então o efeito no resultado geral é pequeno; a mudança vale pela regra (custo e perda de carta). Recrutar Veteranos (ver 4 cartas, ficar com 1 ou 2) ainda manda o resto para o fundo; Intendente do Exército também compra sem custo de ouro (candidatas à mesma revisão).

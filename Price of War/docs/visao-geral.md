@@ -28,7 +28,7 @@ Menu principal (fundo "A guerra dos dois Generais", logo no céu e cinco placas 
 ## O que é provisório ou está pendente
 - **Coleção e inventário reais:** hoje todo jogador tem as cartas dos dois decks e os boosters nunca acabam (`TEST_FREE_BOOSTERS`). Falta quantidade real de cada booster, bolsos vazios no livro e decidir coleções (por facção, "base", cartas em mais de uma coleção).
 - **Booster do Capitão:** arte provisória (letra "C").
-- **Balanceamento a revisar:** Mercador da Cruzada e cartas que compram carta; viradas (comeback) com pessoas reais; novos decks só depois de o equilíbrio atual estar bom.
+- **Balanceamento a revisar:** Mercador da Cruzada (agora com custo de 1 de ouro e resto ao cemitério) e as outras cartas que compram carta (Intendente, Recrutar Veteranos); viradas (comeback) com pessoas reais; novos decks só depois de o equilíbrio atual estar bom.
 - **Menu:** a arte de fundo foi ampliada de 704×1520 (convém uma versão ≥ 1170×2532); Coleção e Meu Deck dividem a mesma imagem na placa; o logo ainda tem a tagline em inglês.
 - Tutoriais 2 e 3: "em breve".
 
