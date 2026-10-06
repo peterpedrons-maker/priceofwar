@@ -10,6 +10,11 @@ const CollectionRoom = lazy(() => import('./CollectionRoom'));
 import boardBattlefieldImage from './assets/board-battlefield.webp';
 import logoImage from './assets/logo-price-of-war.webp';
 import startScreenBgImage from './assets/start-screen-bg.webp';
+import menuBgImage from './assets/menu-bg.webp';
+import menuPlaqueFrameBodyImage from './assets/menu-plaque-frame-body.webp';
+import menuPlaqueFrameCapImage from './assets/menu-plaque-frame-cap.webp';
+import menuPlaqueHoleBodyImage from './assets/menu-plaque-hole-body.webp';
+import menuPlaqueHoleCapImage from './assets/menu-plaque-hole-cap.webp';
 import cardTemplateImage from './assets/card-template.webp';
 import cardTemplateSilverImage from './assets/card-template-silver.webp';
 import cardTemplateChampagneImage from './assets/card-template-champagne.webp';
@@ -27,7 +32,6 @@ import menuCardDesafiosImage from './assets/menu-card-desafios.webp';
 import menuCardOnlineImage from './assets/menu-card-online.webp';
 import menuCardEditarDeckImage from './assets/menu-card-editar-deck.webp';
 import menuCardLojaImage from './assets/menu-card-loja.webp';
-import uiFrameMenuCardImage from './assets/ui-frame-menu-card.webp';
 import shopShelfImage from './assets/shop-shelf.webp';
 import shopCounterImage from './assets/shop-counter.webp';
 import shopNpcGreetImage from './assets/shop-npc-greet.webp';
@@ -250,7 +254,7 @@ const ALL_PRELOAD_IMAGES: string[] = [
   recrutamentoSeletivoArt, recrutarVeteranosArt, tributoDeGuerraArt, chamadoAsArmasArt,
   recrutaDevotoArt, cavaleiroDaLuzFullArt, jorgeOLanceiroFullArt,
   menuCardDesafiosImage, menuCardOnlineImage, menuCardEditarDeckImage, menuCardLojaImage,
-  uiFrameMenuCardImage, shopShelfImage, shopCounterImage, shopNpcGreetImage, shopNpcShowImage, shopNpcHappyImage, shopNpcSorryImage, boosterCardealImage, uiStatAtkImage, uiStatHpImage, uiLineHImage, uiLineVImage, uiIconCardImage, uiEditorHeaderImage, uiEditorTabOnImage, uiEditorTabOffImage, uiWindowFrameImage, uiWindowTextureImage, uiPillCoroasImage, uiProfilePlateImage, uiIconButtonImage,
+  menuBgImage, menuPlaqueFrameBodyImage, menuPlaqueFrameCapImage, menuPlaqueHoleBodyImage, menuPlaqueHoleCapImage, shopShelfImage, shopCounterImage, shopNpcGreetImage, shopNpcShowImage, shopNpcHappyImage, shopNpcSorryImage, boosterCardealImage, uiStatAtkImage, uiStatHpImage, uiLineHImage, uiLineVImage, uiIconCardImage, uiEditorHeaderImage, uiEditorTabOnImage, uiEditorTabOffImage, uiWindowFrameImage, uiWindowTextureImage, uiPillCoroasImage, uiProfilePlateImage, uiIconButtonImage,
   uiIconConfigImage, uiIconTutoriaisImage, uiIconRankingImage, uiIconSomImage,
   uiIconCoroaImage, uiIconDesafiosImage, uiIconOnlineImage, uiIconEditarDeckImage,
   uiIconLojaImage, uiIconMaisImage,
@@ -3009,86 +3013,67 @@ const useMenuTap = (onActivate: () => void) => {
   };
 };
 
-// Two sparks leave the top-left corner and race around the frame in opposite directions,
-// meeting at the bottom-right (each covers half of the perimeter, which is why the leg
-// times are split by the card's own edge lengths: about 80% along the long edge, 20% down
-// the short one).
-const FrameSparks = () => {
+// Two sparks leave the wall end of the plaque, one along the top edge and one along the bottom edge, and meet at the pointed tip.
+const PlaqueSparks = () => {
   const spark = 'absolute w-[5px] h-[5px] -ml-[2.5px] -mt-[2.5px] rounded-full bg-[#fff3c4]';
   const glow = { boxShadow: '0 0 7px 3px rgba(255,196,70,0.95)' };
+  const edge = 100 - PLAQUE_CAP_CQW;   // where the pointed end starts, in % of the width
   return (
-    <div className="absolute inset-[1.5%] pointer-events-none">
-      <motion.span
-        className={spark} style={glow}
-        initial={{ left: '0%', top: '0%', opacity: 0 }}
-        animate={{ left: ['0%', '100%', '100%'], top: ['0%', '0%', '100%'], opacity: [0, 1, 1, 0] }}
-        transition={{ duration: 0.26, times: [0, 0.8, 1], ease: 'linear' }}
-      />
-      <motion.span
-        className={spark} style={glow}
-        initial={{ left: '0%', top: '0%', opacity: 0 }}
-        animate={{ left: ['0%', '0%', '100%'], top: ['0%', '100%', '100%'], opacity: [0, 1, 1, 0] }}
-        transition={{ duration: 0.26, times: [0, 0.2, 1], ease: 'linear' }}
-      />
+    <div className="absolute inset-0 pointer-events-none">
+      <motion.span className={spark} style={glow} initial={{ left: '4%', top: '12%', opacity: 0 }}
+        animate={{ left: ['4%', `${edge}%`, '98%'], top: ['12%', '12%', '50%'], opacity: [0, 1, 1, 0] }} transition={{ duration: 0.26, times: [0, 0.8, 1], ease: 'linear' }} />
+      <motion.span className={spark} style={glow} initial={{ left: '4%', top: '88%', opacity: 0 }}
+        animate={{ left: ['4%', `${edge}%`, '98%'], top: ['88%', '88%', '50%'], opacity: [0, 1, 1, 0] }} transition={{ duration: 0.26, times: [0, 0.8, 1], ease: 'linear' }} />
     </div>
   );
 };
 
-// The image-card mode buttons: banner art under a thin bronze frame, with a drawn icon and
-// the title on the left (the art briefs in art-prompts/README.md leave that side dark on
-// purpose). The card keeps the frame's own 1600:397 ratio so neither image is stretched.
-// `icon` is the URL of one of the ui-icon-* cut-outs.
-const MenuCard = ({ icon, title, bgImage, onClick }: {
-  icon: string; title: string; bgImage: string; onClick: () => void;
+// The menu buttons are gold plaques that come out of the left edge of the screen (their wall end is cut off, only the pointed end shows), each one
+// longer than the one above, touching, like a staircase. The picture of each button sits in the opening of the plaque, under the gold frame:
+// a mask with the shape of the opening (menu-plaque-hole-*) cuts it, and it fades to dark on the wall side where the icon and the title are.
+// The plaque keeps the ratio of its art (831:177); the pointed end (the "cap") is 22.98% of the width in container units. `widthPct` sets the step.
+const PLAQUE_ASPECT = 831 / 177;
+const PLAQUE_CAP_CQW = 22.98;
+const MenuCard = ({ icon, title, bgImage, widthPct, onClick }: {
+  icon: string; title: string; bgImage: string; widthPct: number; onClick: () => void;
 }) => {
   const { phase, handlers } = useMenuTap(onClick);
   const lit = phase !== 'idle';
+  const cap = `${PLAQUE_CAP_CQW}cqw`;
+  const maskStyle: React.CSSProperties = {
+    WebkitMaskImage: `url(${menuPlaqueHoleCapImage}), url(${menuPlaqueHoleBodyImage})`, maskImage: `url(${menuPlaqueHoleCapImage}), url(${menuPlaqueHoleBodyImage})`,
+    WebkitMaskSize: `${cap} 100%, calc(100% - ${cap}) 100%`, maskSize: `${cap} 100%, calc(100% - ${cap}) 100%`,
+    WebkitMaskPosition: 'right top, left top', maskPosition: 'right top, left top', WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
+  };
   return (
     <motion.button
       {...handlers}
-      animate={{ scale: lit ? 0.98 : 1 }}
+      animate={{ scale: lit ? 0.985 : 1 }}
       transition={{ duration: 0.09 }}
-      className="relative w-full text-left"
-      style={{ aspectRatio: '810 / 183', containerType: 'inline-size', filter: 'drop-shadow(0 5px 7px rgba(0,0,0,0.55))' }}
+      className="relative block text-left"
+      style={{ width: `${widthPct}%`, aspectRatio: String(PLAQUE_ASPECT), containerType: 'inline-size', marginLeft: -14, marginBottom: -4, filter: 'drop-shadow(0 5px 6px rgba(0,0,0,0.65))' }}
     >
-      <div className="absolute inset-0" style={{ filter: phase === 'confirm' ? 'brightness(1.22) saturate(1.1)' : 'none', transition: 'filter 90ms' }}>
-        <img src={bgImage} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.78), rgba(0,0,0,0.4) 45%, transparent 75%)' }} />
+      <div className="absolute inset-0" style={{ filter: phase === 'confirm' ? 'brightness(1.25) saturate(1.15)' : lit ? 'brightness(1.12)' : 'none', transition: 'filter 90ms' }}>
+        <div className="absolute inset-0" style={{ background: '#150e07', ...maskStyle }}>
+          <img src={bgImage} alt="" draggable={false} className="absolute right-0 top-0 h-full object-cover select-none"
+            style={{ width: '74%', objectPosition: 'right center', WebkitMaskImage: 'linear-gradient(to right, transparent, #000 45%)', maskImage: 'linear-gradient(to right, transparent, #000 45%)' }} />
+        </div>
+        <div className="absolute inset-0 flex">
+          <img src={menuPlaqueFrameBodyImage} alt="" draggable={false} className="h-full min-w-0 flex-1 select-none pointer-events-none" style={{ objectFit: 'fill' }} />
+          <img src={menuPlaqueFrameCapImage} alt="" draggable={false} className="h-full flex-none select-none pointer-events-none" style={{ width: cap }} />
+        </div>
+        {/* soft shadow where the plaque goes into the wall */}
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to right, rgba(40,20,0,0.6), rgba(40,20,0,0) 14%)' }} />
       </div>
-      <img src={uiFrameMenuCardImage} alt="" className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
-      {/* Same frame drawn again, lit up gold — fades in on touch and stays through the confirm beat. */}
-      <img
-        src={uiFrameMenuCardImage}
-        alt=""
-        aria-hidden
-        className="absolute inset-0 w-full h-full pointer-events-none select-none"
-        draggable={false}
-        style={{
-          opacity: lit ? 1 : 0,
-          transition: 'opacity 80ms',
-          filter: 'brightness(1.9) saturate(2) sepia(0.35) drop-shadow(0 0 5px rgba(255,205,90,0.95))',
-        }}
-      />
-      <div className="absolute inset-0 flex items-center gap-[2.5cqw]" style={{ paddingLeft: '7%', paddingRight: '5%' }}>
-        <img
-          src={icon}
-          alt=""
-          className="shrink-0 object-contain select-none pointer-events-none"
-          style={{
-            width: '10.5cqw', height: '10.5cqw',
-            filter: lit ? 'brightness(1.3) drop-shadow(0 0 7px rgba(255,205,90,0.95))' : 'drop-shadow(0 2px 3px rgba(0,0,0,0.7))',
-            transition: 'filter 100ms',
-          }}
-          draggable={false}
-        />
-        <span
-          className="min-w-0 uppercase text-[#f3e3c3]"
-          style={{ fontFamily: "'Cinzel Decorative', 'Cinzel', serif", fontWeight: 700, fontSize: 'clamp(12px, 5cqw, 15px)', letterSpacing: '0.09em', lineHeight: 1.1, textShadow: '0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.7)' }}
-        >
+      <div className="absolute inset-0 flex items-center gap-[3cqw]" style={{ paddingLeft: '11%', paddingRight: '16%' }}>
+        <img src={icon} alt="" className="shrink-0 object-contain select-none pointer-events-none"
+          style={{ height: '46%', width: 'auto', maxWidth: '10.5cqw', filter: lit ? 'brightness(1.3) drop-shadow(0 0 7px rgba(255,205,90,0.95))' : 'drop-shadow(0 2px 3px rgba(0,0,0,0.8))', transition: 'filter 100ms' }} draggable={false} />
+        <span className="min-w-0 uppercase text-[#f3e3c3]"
+          style={{ fontFamily: "'Cinzel Decorative', 'Cinzel', serif", fontWeight: 700, fontSize: 'clamp(11px, 5.2cqw, 16px)', letterSpacing: '0.09em', lineHeight: 1.1, textShadow: '0 1px 3px rgba(0,0,0,0.95), 0 0 7px rgba(0,0,0,0.8)' }}>
           {title}
         </span>
       </div>
-      {phase === 'confirm' && <FrameSparks />}
+      {phase === 'confirm' && <PlaqueSparks />}
     </motion.button>
   );
 };
@@ -3184,13 +3169,16 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
           mouse-parallax drift on the image itself, and a bottom-heavy dark
           gradient so the menu buttons stay legible over busy sky/cloud detail. */}
       <motion.img
-        src={startScreenBgImage}
+        src={menuBgImage}
         alt=""
         style={{ x: bgX, y: bgY }}
         className="absolute -inset-2 w-[calc(100%+16px)] h-[calc(100%+16px)] object-cover z-0 pointer-events-none select-none"
         draggable={false}
       />
       <div className="absolute inset-0 z-0 bg-gradient-to-b from-black/10 via-black/40 to-black/85" />
+      {/* The logo hangs in the sky between the two armies, under the profile bar and the crowns. */}
+      <img src={logoImage} alt="Price of War" draggable={false} className="absolute left-1/2 z-10 -translate-x-1/2 pointer-events-none select-none"
+        style={{ top: 'calc(max(10px, env(safe-area-inset-top)) + 74px)', width: 'clamp(150px, 46vw, 200px)', filter: 'drop-shadow(0 3px 8px rgba(0,0,0,0.7))' }} />
 
       <ProfileBar
         profile={profile}
@@ -3238,50 +3226,16 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
         )}
       </AnimatePresence>
 
-      {/* No logo here: it moves to the login / create-account screen that will come
-          before this menu once accounts exist (the user's call — after logging in, the
-          menu is just the profile bar and the buttons). logo-price-of-war.webp stays
-          in the project, and the loading screen still shows it. */}
-      <div className="flex flex-col gap-2.5 relative z-10 w-[68vw] max-w-[270px] mt-auto mb-[104px]">
-        {/* Four equal buttons, in the user's own order: Desafios first (the
-            Hearthstone-style NPC ladder it will become — for now it just opens the
-            deck picker and starts a match against the AI, the only mode whose
-            opponent actually plays), then Online, Meu Deck and Loja. The old
-            Partida Rápida button is gone on purpose. Online opens the
-            Casual/Ranqueado picker (OnlineModeModal), Meu Deck the deck editor; Loja has
-            no screen yet, so it opens ComingSoonModal instead of starting
-            a match with a dead opponent. The mode identifiers ('Campaign' etc.)
-            stay in English; only the label shown is translated. */}
-        <MenuCard
-          icon={uiIconDesafiosImage}
-          title={MODE_LABELS_PT['Campaign']}
-          bgImage={menuCardDesafiosImage}
-          onClick={() => onSelectMode('Campaign')}
-        />
-        <MenuCard
-          icon={uiIconOnlineImage}
-          title={MODE_LABELS_PT['Multiplayer']}
-          bgImage={menuCardOnlineImage}
-          onClick={() => setOnlineOpen(true)}
-        />
-        <MenuCard
-          icon={uiIconEditarDeckImage}
-          title={MODE_LABELS_PT['My Deck']}
-          bgImage={menuCardEditarDeckImage}
-          onClick={() => setDeckEditorOpen(true)}
-        />
-        <MenuCard
-          icon={uiIconCardImage}
-          title="Coleção"
-          bgImage={menuCardEditarDeckImage}
-          onClick={() => setRoomOpen(true)}
-        />
-        <MenuCard
-          icon={uiIconLojaImage}
-          title="Loja"
-          bgImage={menuCardLojaImage}
-          onClick={() => setShopOpen(true)}
-        />
+      {/* The buttons: gold plaques coming out of the left edge, smallest on top (Loja) and longest at the bottom (Desafios, the main one, closest to the
+          thumb), touching each other. Desafios starts a match against the AI (the only mode whose opponent plays), Online opens the Casual/Ranqueado picker
+          (OnlineModeModal), Meu Deck the deck editor, Coleção the Sala de Coleção, Loja the shop. The mode identifiers ('Campaign' etc.) stay in English;
+          only the label shown is translated. */}
+      <div className="absolute left-0 z-10 flex w-full max-w-[460px] flex-col items-start" style={{ bottom: 104 }}>
+        <MenuCard widthPct={58} icon={uiIconLojaImage} title="Loja" bgImage={menuCardLojaImage} onClick={() => setShopOpen(true)} />
+        <MenuCard widthPct={66} icon={uiIconCardImage} title="Coleção" bgImage={menuCardEditarDeckImage} onClick={() => setRoomOpen(true)} />
+        <MenuCard widthPct={74} icon={uiIconEditarDeckImage} title={MODE_LABELS_PT['My Deck']} bgImage={menuCardEditarDeckImage} onClick={() => setDeckEditorOpen(true)} />
+        <MenuCard widthPct={82} icon={uiIconOnlineImage} title={MODE_LABELS_PT['Multiplayer']} bgImage={menuCardOnlineImage} onClick={() => setOnlineOpen(true)} />
+        <MenuCard widthPct={90} icon={uiIconDesafiosImage} title={MODE_LABELS_PT['Campaign']} bgImage={menuCardDesafiosImage} onClick={() => onSelectMode('Campaign')} />
       </div>
 
       {/* Secondary destinations — none of these screens exist yet (see
@@ -5029,7 +4983,7 @@ const LoadingScreen = ({ onDone }: { onDone: () => void }) => {
 
     (async () => {
       const minBlackScreen = new Promise<void>((resolve) => setTimeout(resolve, 500));
-      await Promise.all([preload(startScreenBgImage), preload(logoImage), minBlackScreen]);
+      await Promise.all([preload(startScreenBgImage), preload(menuBgImage), preload(logoImage), minBlackScreen]);
       if (cancelled) return;
       setShowBar(true);
 

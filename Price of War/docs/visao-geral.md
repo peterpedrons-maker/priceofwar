@@ -23,13 +23,13 @@ Jogo de cartas digital (TCG) em português do Brasil, feito para jogar no celula
 - Balanceamento (decidido): ver `docs/balanceamento.md`. Em IA × IA o Capitão vence ~37,5% e as partidas acabam na rodada ~6,9. Só gente jogando dirá a verdade; mudanças de regra são testadas antes no laboratório (`tests/balance-lab.ts`).
 
 ## Telas e sistemas (o que existe)
-Menu e perfil · login (convidado, Google, Discord, e-mail) · partida contra a IA com animações, mão em leque, alvos, tutorial 1 · tutorial "Seu primeiro duelo" · Sala de Coleção (quarto com livro/fichário, estante de boosters, mesa do deck, porta da loja) · loja de boosters · editor de decks (2 slots) · modo online (fila, partida por passos, recompensas, relógio) · opções (avisos, áudio) · visualizador 3D de carta.
+Menu principal (fundo "A guerra dos dois Generais", logo no céu e cinco placas de ouro em cascata saindo da parede esquerda; `MenuCard`/`MainMenu` em App.tsx, assets `menu-bg.webp` e `menu-plaque-*`) · perfil · login (convidado, Google, Discord, e-mail) · partida contra a IA com animações, mão em leque, alvos, tutorial 1 · tutorial "Seu primeiro duelo" · Sala de Coleção (quarto com livro/fichário, estante de boosters, mesa do deck, porta da loja) · loja de boosters · editor de decks (2 slots) · modo online (fila, partida por passos, recompensas, relógio) · opções (avisos, áudio) · visualizador 3D de carta.
 
 ## O que é provisório ou está pendente
 - **Coleção e inventário reais:** hoje todo jogador tem as cartas dos dois decks e os boosters nunca acabam (`TEST_FREE_BOOSTERS`). Falta quantidade real de cada booster, bolsos vazios no livro e decidir coleções (por facção, "base", cartas em mais de uma coleção).
 - **Booster do Capitão:** arte provisória (letra "C").
 - **Balanceamento a revisar:** Mercador da Cruzada e cartas que compram carta; viradas (comeback) com pessoas reais; novos decks só depois de o equilíbrio atual estar bom.
-- **Ícone do botão "Coleção" no menu:** provisório.
+- **Menu:** a arte de fundo foi ampliada de 704×1520 (convém uma versão ≥ 1170×2532); Coleção e Meu Deck dividem a mesma imagem na placa; o logo ainda tem a tagline em inglês.
 - Tutoriais 2 e 3: "em breve".
 
 ## Decisões fixas de trabalho
