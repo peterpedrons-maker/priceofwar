@@ -194,10 +194,12 @@ Cada objeto é uma área de toque sobre a imagem: a câmera dá zoom nele e abre
 - **Porta / placa**: zoom e abre a loja (`ShopScreen`). Ao fechar a loja, a câmera recua e o jogador continua na sala.
 - **Mesa com o tabuleiro**: zoom (a câmera nunca passa da borda da imagem) e a sala escurece por baixo; o editor de deck (`DeckEditor`,
   prop `overRoom`, translúcido) abre por cima, com o mesmo caminho de volta.
-- **Estante de boosters**: a arte da estante da loja está composta dentro da imagem da sala, logo abaixo do livro (`room-collection.webp`;
-  o barril foi escondido). Cada tipo de booster forma uma pilha numa prateleira, um atrás do outro com perspectiva (cada um menor, mais escuro
-  e mais alto que o da frente). Tocar na estante dá zoom; tocar numa pilha abre o pacote da frente (`PackOpening`, o mesmo da loja) e, ao
-  terminar, o próximo desliza para a frente. **Base de teste:** o estoque nunca acaba (`BOOSTERS`). A mesa redonda ficou só como decoração.
+- **Estante de boosters**: a imagem da sala (`room-collection.webp`) foi montada por cima da original: o livro com a vela e a prateleira de parede
+  foram recortados e subiram, e a estante da loja (`shop-shelf.webp`, só 3 prateleiras) ficou **encostada na parede**, de pé no chão, com sombra
+  de contato. O barril foi apagado (o piso foi refeito seguindo a direção das tábuas). Cada tipo de booster forma uma pilha numa prateleira
+  (`shelfSlot` em `CollectionRoom.tsx`), um atrás do outro com perspectiva (cada um menor, mais escuro e mais alto que o da frente). Tocar na
+  estante dá zoom; tocar numa pilha abre o pacote da frente (`PackOpening`, o mesmo da loja) e, ao terminar, o próximo desliza para a frente.
+  **Base de teste:** o estoque nunca acaba (`BOOSTERS`). A mesa redonda ficou só como decoração.
   A imagem do pano vermelho (`src/assets/room-table-cloth.webp`) ficou guardada para uso futuro.
 - A coleção, por enquanto, é o catálogo inteiro (os dois decks, sem restrição). O botão "Simular faltantes" mostra como ficam os
   bolsos vazios. Falta o inventário real do jogador (quantidade de cada booster).

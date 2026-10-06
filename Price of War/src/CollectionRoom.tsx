@@ -22,12 +22,20 @@ const GOLD = '#e8c46a';
 
 // Things to tap, in stage coordinates (measured off the room image).
 const SPOTS = {
-  book: { x: 66, y: 436, w: 196, h: 252, cx: 160, cy: 556, zoom: 2.35, label: 'COLEÇÃO', lx: 196, ly: 744 },
+  book: { x: 66, y: 316, w: 196, h: 252, cx: 160, cy: 436, zoom: 2.35, label: 'COLEÇÃO', lx: 196, ly: 608 },
   door: { x: 506, y: 336, w: 262, h: 566, cx: 640, cy: 640, zoom: 2.0, label: 'LOJA', lx: 642, ly: 384 },
   deck: { x: 428, y: 1166, w: 340, h: 210, cx: 600, cy: 1270, zoom: 2.2, label: 'MEU DECK', lx: 580, ly: 1318 },
-  shelf: { x: 24, y: 752, w: 312, h: 430, cx: 180, cy: 965, zoom: 2.0, label: 'BOOSTERS', lx: 180, ly: 1206 },
+  shelf: { x: 24, y: 638, w: 357, h: 274, cx: 204, cy: 792, zoom: 2.2, label: 'BOOSTERS', lx: 202, ly: 928 },
 } as const;
 type SpotKey = keyof typeof SPOTS;
+
+/* Where each kind of booster stands on the shelf in the room image: three rows (the plank tops, in stage px), up to three kinds per row,
+   the first ones in the middle row at eye level. */
+const SHELF_ROWS = [807, 729, 879], SHELF_CX = 204, SHELF_GAP = 76;
+function shelfSlot(t: number, total: number) {
+  const row = Math.floor(t / 3) % SHELF_ROWS.length, inRow = Math.min(3, total - Math.floor(t / 3) * 3);
+  return { y: SHELF_ROWS[row], cx: SHELF_CX + ((t % 3) - (inRow - 1) / 2) * SHELF_GAP };
+}
 
 type Entry = { name: string; type: string; full: boolean };
 
@@ -150,23 +158,23 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
           <div ref={stageRef} style={{ position: 'absolute', inset: 0, transition: 'transform .62s cubic-bezier(.55,0,.25,1), filter .62s', willChange: 'transform' }}>
             <img src={roomImage} alt="" draggable={false} style={{ position: 'absolute', left: 0, top: 0, width: SW, height: SH, display: 'block' }} />
             {/* light that moves: the torches, the lantern, the candles */}
-            <div style={flame(235, 190, 64)} /><div style={flame(538, 196, 64, 0.2)} /><div style={flame(610, 545, 70, 0.4)} /><div style={flame(316, 548, 46, 0.1)} /><div style={flame(745, 1205, 48, 0.3)} />
+            <div style={flame(235, 190, 64)} /><div style={flame(538, 196, 64, 0.2)} /><div style={flame(610, 545, 70, 0.4)} /><div style={flame(316, 428, 46, 0.1)} /><div style={flame(745, 1205, 48, 0.3)} />
             {/* the booster shelf: each kind of booster is a stack going back into the shelf (a little smaller, higher and darker the farther back), the one
                 in front is taken and the next slides forward: the stock never runs out */}
             {packs.map((pk, t) => {
-              const PW = 31, PH = PW / PACK_ASPECT, plankY = [896, 960, 1020, 1085, 832][t % 5], cx = 112 + (t >= 5 ? 90 : 0), base = served[pk.id] ?? 0;
+              const PW = 34, PH = PW / PACK_ASPECT, { cx, y: plankY } = shelfSlot(t, packs.length), base = served[pk.id] ?? 0;
               return [0, 1, 2, 3].map(j => {
-                const serial = base + j, sc = 1 - j * 0.075;
+                const serial = base + j, sc = 1 - j * 0.07;
                 return (
                   <button key={`${pk.id}-${serial}`} aria-label={`Pegar ${pk.name}`} onClick={() => { if (moved.current > 8) return; if (shelfMode) setOpeningPack(pk.id); else void tap('shelf')(); }}
-                    style={{ position: 'absolute', left: cx - PW / 2 + j * 3.2, top: plankY - 1 - PH * sc - j * 3.4, width: PW * sc, height: PH * sc, margin: 0, padding: 0, border: 0, background: 'none',
+                    style={{ position: 'absolute', left: cx - PW / 2 + j * 4.2, top: plankY - 1 - PH * sc - j * 4.6, width: PW * sc, height: PH * sc, margin: 0, padding: 0, border: 0, background: 'none',
                       filter: `brightness(${(1 - j * 0.13).toFixed(2)})`, zIndex: 10 - j, transition: 'left .5s cubic-bezier(.2,.9,.25,1), top .5s cubic-bezier(.2,.9,.25,1), width .5s cubic-bezier(.2,.9,.25,1), height .5s cubic-bezier(.2,.9,.25,1), filter .5s', animation: j === 3 ? 'roomstockin .6s ease both' : undefined }}>
                     {pk.art}
                   </button>
                 );
               });
             })}
-            {shelfMode && packs.map((pk, t) => <div key={`l${pk.id}`} className="room-stack-label" style={{ left: 112 - 40, top: [896, 960, 1020, 1085, 832][t % 5] + 3, width: 80 }}>{pk.name.replace('Booster ', '').toUpperCase()}</div>)}
+            {shelfMode && packs.map((pk, t) => <div key={`l${pk.id}`} className="room-stack-label" style={{ left: shelfSlot(t, packs.length).cx - 40, top: shelfSlot(t, packs.length).y + 2, width: 80 }}>{pk.name.replace('Booster ', '').toUpperCase()}</div>)}
             {/* what can be tapped */}
             {(Object.keys(SPOTS) as SpotKey[]).map(k => {
               const s = SPOTS[k];
