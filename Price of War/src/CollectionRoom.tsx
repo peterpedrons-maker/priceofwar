@@ -69,13 +69,9 @@ export type RoomPack = { id: string; name: string; art: ReactNode };
 export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overlayOpen, packs, renderOpening }: { onClose: () => void; onOpenShop: () => void; onOpenDeck: () => void; overlayOpen: boolean; packs: RoomPack[]; renderOpening: (id: string, onDone: () => void) => ReactNode }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const fitRef = useRef<HTMLDivElement>(null);
-  const panRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const dustRef = useRef<HTMLCanvasElement>(null);
   const busy = useRef(false);
-  const drag = useRef<{ x: number; y: number; bx: number; by: number } | null>(null);
-  const moved = useRef(0);
-  const pan = useRef({ tx: 0, ty: 0, x: 0, y: 0 });
   const [bookState, setBookState] = useState<'closed' | 'opening' | 'open'>('closed');
   const [shelfMode, setShelfMode] = useState(false);          // the camera is on the booster shelf: the stacks can be tapped
   const [openingPack, setOpeningPack] = useState<string | null>(null);
@@ -86,33 +82,12 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
 
   const entries: Entry[] = useMemo(() => CARD_DEFS.map(d => ({ name: d.name, type: d.cardType, full: !!d.isFullArt })), []);
 
-  // ── fit the stage to the screen's height ──
+  // ── the whole room is always on screen: the stage is fitted to the screen (nothing to drag or tilt), the leftover goes dark above and below ──
+  const fitScale = () => { const root = rootRef.current; return root ? Math.min(root.clientHeight / SH, root.clientWidth / SW) : 1; };
   useEffect(() => {
-    const fit = () => { const root = rootRef.current, el = fitRef.current; if (!root || !el) return; const s = root.clientHeight / SH; el.style.transform = `translate(-50%,-50%) scale(${s})`; };
+    const fit = () => { const el = fitRef.current; if (!el) return; el.style.transform = `translate(-50%,-50%) scale(${fitScale()})`; };
     fit(); window.addEventListener('resize', fit); return () => window.removeEventListener('resize', fit);
   }, []);
-
-  // ── looking around: dragging or tilting the phone shifts the room a little, with its own easing ──
-  useEffect(() => {
-    let raf = 0; const t0 = performance.now(); let tilt = false;
-    const onTilt = (e: DeviceOrientationEvent) => { if (drag.current || e.gamma == null) return; tilt = true; pan.current.tx = clamp((e.gamma || 0) / 22, -1, 1); pan.current.ty = clamp(((e.beta || 50) - 50) / 70, -1, 1); };
-    window.addEventListener('deviceorientation', onTilt);
-    const loop = (now: number) => {
-      const t = (now - t0) / 1000, P = pan.current;
-      if (!drag.current && !tilt) { P.tx *= 0.985; P.ty *= 0.985; }
-      P.x += (P.tx - P.x) * 0.09; P.y += (P.ty - P.y) * 0.09;
-      if (panRef.current) panRef.current.style.transform = `translate3d(${(-(P.x + Math.sin(t * 0.35) * 0.05) * 64).toFixed(2)}px, ${(-(P.y + Math.cos(t * 0.3) * 0.03) * 30).toFixed(2)}px, 0)`;
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('deviceorientation', onTilt); };
-  }, []);
-  const onDown = (e: RPointerEvent) => { if (busy.current || (e.target as HTMLElement).closest('[data-ui]')) return; drag.current = { x: e.clientX, y: e.clientY, bx: pan.current.tx, by: pan.current.ty }; moved.current = 0; };
-  const onMove = (e: RPointerEvent) => {
-    const d = drag.current; if (!d) return; const dx = e.clientX - d.x, dy = e.clientY - d.y; moved.current = Math.max(moved.current, Math.hypot(dx, dy));
-    pan.current.tx = clamp(d.bx - dx / 120, -1, 1); pan.current.ty = clamp(d.by - dy / 260, -1, 1); if (moved.current > 8) setHint(false);
-  };
-  const onUp = () => { drag.current = null; };
 
   // ── dust drifting in the light ──
   useEffect(() => {
@@ -136,10 +111,12 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
   const camTo = (k: SpotKey | null) => {
     const el = stageRef.current, root = rootRef.current; if (!el || !root) return;
     if (!k) { el.style.transform = ''; el.style.filter = ''; return; }
-    const sp = SPOTS[k], Z = sp.zoom;
+    const sp = SPOTS[k];
+    // the zoom values were tuned for a stage as tall as the screen; the stage may be smaller now (the whole width fits), so keep the same size on screen
+    const fs = fitScale(), Z = sp.zoom * (root.clientHeight / SH) / fs;
     // keep the camera inside the picture: the view never goes past an edge, so no black shows (a spot near the bottom is framed higher)
-    const vw = (root.clientWidth * SH) / root.clientHeight, hx = vw / (2 * Z), hy = SH / (2 * Z);
-    const cx = vw >= SW ? SW / 2 : clamp(sp.cx, hx, SW - hx), cy = clamp(sp.cy, hy, SH - hy);
+    const vw = root.clientWidth / fs, vh = root.clientHeight / fs, hx = vw / (2 * Z), hy = vh / (2 * Z);
+    const cx = vw / Z >= SW ? SW / 2 : clamp(sp.cx, hx, SW - hx), cy = vh / Z >= SH ? SH / 2 : clamp(sp.cy, hy, SH - hy);
     el.style.transformOrigin = `${cx}px ${cy}px`; el.style.transform = `translate(${SW / 2 - cx}px, ${SH / 2 - cy}px) scale(${Z})`; el.style.filter = k === 'deck' ? 'brightness(.5)' : k === 'shelf' ? 'brightness(.92)' : 'brightness(.82)';
   };
   const wasOverlay = useRef(false);
@@ -149,8 +126,8 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
   }, [overlayOpen]);
 
   const tap = (k: SpotKey) => async () => {
-    if (moved.current > 8 || busy.current) return;
-    busy.current = true; pan.current.tx = 0; pan.current.ty = 0; setZoomClass(true); camTo(k); await wait(520);
+    if (busy.current) return;
+    busy.current = true; setHint(false); setZoomClass(true); camTo(k); await wait(520);
     if (k === 'book') { setBookState('opening'); return; }
     if (k === 'shelf') { setShelfMode(true); return; }
     if (k === 'door') onOpenShop(); else onOpenDeck();
@@ -164,8 +141,7 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
   const flame = (x: number, y: number, r: number, d = 0): CSSProperties => ({ position: 'absolute', left: x - r, top: y - r, width: r * 2, height: r * 2, borderRadius: '50%', background: 'radial-gradient(closest-side, rgba(255,190,90,.55), rgba(255,150,50,.18) 55%, transparent 75%)', mixBlendMode: 'screen', animation: `roomflick ${1.3 + d}s ease-in-out infinite`, animationDelay: `${-d * 2}s`, pointerEvents: 'none' });
 
   return (
-    <div ref={rootRef} className="fixed inset-0 overflow-hidden select-none" style={{ zIndex: 250, background: '#0d0905', touchAction: 'none', overflow: 'clip' }}
-      onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
+    <div ref={rootRef} className="fixed inset-0 overflow-hidden select-none" style={{ zIndex: 250, background: '#0d0905', touchAction: 'none', overflow: 'clip' }}>
       <style>{`
         @keyframes roomflick { 0%,100% { opacity:.55; transform:scale(.94);} 35% { opacity:1; transform:scale(1.05);} 65% { opacity:.7; transform:scale(.98);} }
         @keyframes roompulse { 0%,100% { opacity:.25; transform:scale(.94);} 50% { opacity:.85; transform:scale(1.05);} }
@@ -181,7 +157,7 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
       `}</style>
 
       <div ref={fitRef} className={zoomClass ? 'room-zoomed' : ''} style={{ position: 'absolute', left: '50%', top: '50%', width: SW, height: SH, transformOrigin: 'center' }}>
-        <div ref={panRef} style={{ position: 'absolute', inset: 0, willChange: 'transform' }}>
+        <div style={{ position: 'absolute', inset: 0 }}>
           <div ref={stageRef} style={{ position: 'absolute', inset: 0, transition: 'transform .62s cubic-bezier(.55,0,.25,1), filter .62s', willChange: 'transform' }}>
             <img src={roomImage} alt="" draggable={false} style={{ position: 'absolute', left: 0, top: 0, width: SW, height: SH, display: 'block' }} />
             {/* light that moves: the torches, the lantern, the candles */}
@@ -193,7 +169,7 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
               return [0, 1, 2, 3].map(j => {
                 const serial = base + j, sc = 1 - j * 0.07;
                 return (
-                  <button key={`${pk.id}-${serial}`} aria-label={`Pegar ${pk.name}`} onClick={() => { if (moved.current > 8) return; if (shelfMode) setOpeningPack(pk.id); else void tap('shelf')(); }}
+                  <button key={`${pk.id}-${serial}`} aria-label={`Pegar ${pk.name}`} onClick={() => { if (shelfMode) setOpeningPack(pk.id); else void tap('shelf')(); }}
                     style={{ position: 'absolute', left: cx - PW / 2 + j * 4.2, top: plankY - 1 - PH * sc - j * 4.6, width: PW * sc, height: PH * sc, margin: 0, padding: 0, border: 0, background: 'none',
                       filter: `brightness(${(1 - j * 0.13).toFixed(2)})`, zIndex: 10 - j, transition: 'left .5s cubic-bezier(.2,.9,.25,1), top .5s cubic-bezier(.2,.9,.25,1), width .5s cubic-bezier(.2,.9,.25,1), height .5s cubic-bezier(.2,.9,.25,1), filter .5s', animation: j === 3 ? 'roomstockin .6s ease both' : undefined }}>
                     {pk.art}
@@ -229,7 +205,7 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
         <div style={{ flex: 1, textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.2em', color: '#ffe9b0', textShadow: '0 1px 3px #000' }}>SALA DE COLEÇÃO</div>
         <div className="room-chip" style={{ opacity: 0 }}>‹ MENU</div>
       </div>
-      {hint && bookState === 'closed' && !shelfMode && <div style={{ position: 'absolute', left: 0, right: 0, bottom: 'max(10px, env(safe-area-inset-bottom))', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.14em', color: 'rgba(255,233,176,.7)', textShadow: '0 1px 2px #000', pointerEvents: 'none' }}>ARRASTE PARA OLHAR EM VOLTA · TOQUE NOS OBJETOS</div>}
+      {hint && bookState === 'closed' && !shelfMode && <div style={{ position: 'absolute', left: 0, right: 0, bottom: 'max(10px, env(safe-area-inset-bottom))', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.14em', color: 'rgba(255,233,176,.7)', textShadow: '0 1px 2px #000', pointerEvents: 'none' }}>TOQUE NOS OBJETOS</div>}
       {toast && <div style={{ position: 'absolute', left: '50%', top: 64, transform: 'translateX(-50%)', padding: '9px 14px', borderRadius: 10, background: 'rgba(14,10,6,.9)', border: '1px solid #d9b25a', color: '#ffe9b0', fontSize: 12, whiteSpace: 'nowrap' }}>{toast}</div>}
 
       {shelfMode && (

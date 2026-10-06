@@ -3116,10 +3116,6 @@ const MenuIconButton = ({ icon, label, onClick }: { icon: string; label: string;
 };
 
 const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode: string) => void; onTutorials: () => void; session: Session | null }) => {
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-  const bgX = useTransform(mouseX, [-500, 500], [-8, 8]);
-  const bgY = useTransform(mouseY, [-500, 500], [-8, 8]);
   const [profile, setProfile] = useState<PlayerProfile>(loadProfile);
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   const [comingSoon, setComingSoon] = useState<{ title: string; message: string } | null>(null);
@@ -3154,10 +3150,6 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      onMouseMove={(e) => {
-        mouseX.set(e.clientX - window.innerWidth / 2);
-        mouseY.set(e.clientY - window.innerHeight / 2);
-      }}
       // Content starts right under the profile bar instead of floating in the middle
       // of the screen: with four compact buttons the whole stack is shorter than it
       // used to be, and centering it pushed the logo back down (the user has asked
@@ -3165,16 +3157,12 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
       style={{ paddingTop: 'calc(max(10px, env(safe-area-inset-top)) + 78px)' }}
       className="flex flex-col items-center justify-start w-full h-full bg-zinc-950 text-white relative overflow-hidden"
     >
-      {/* Background — a besieged castle at dusk (art-prompts/README.md "4"),
-          generated landscape but reads well cropped to a phone's portrait screen
-          via object-cover (the castle sits naturally near center). A subtle
-          mouse-parallax drift on the image itself, and a bottom-heavy dark
-          gradient so the menu buttons stay legible over busy sky/cloud detail. */}
-      <motion.img
+      {/* Background — "A guerra dos dois Generais" (art-prompts/README.md 4ab), a still picture (no parallax or drift) cropped to the screen with object-cover,
+          and a bottom-heavy dark gradient so the menu plaques stay legible. */}
+      <img
         src={menuBgImage}
         alt=""
-        style={{ x: bgX, y: bgY }}
-        className="absolute -inset-2 w-[calc(100%+16px)] h-[calc(100%+16px)] object-cover z-0 pointer-events-none select-none"
+        className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none select-none"
         draggable={false}
       />
       <div className="absolute inset-0 z-0 bg-gradient-to-b from-black/10 via-black/40 to-black/85" />

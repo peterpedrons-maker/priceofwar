@@ -176,7 +176,7 @@ Ajustes finos: as constantes das molas estão no efeito (rigidez/amortecimento d
 ## Sala de Coleção (no jogo)
 
 `src/CollectionRoom.tsx`, aberta pelo botão **Coleção** do menu principal (`roomOpen` em `MainMenu`). A sala é uma imagem só
-(`src/assets/room-collection.webp`, palco de 768 x 1376) ajustada à altura da tela; arrastar (ou inclinar o celular) mostra os lados.
+(`src/assets/room-collection.webp`, palco de 768 x 1376) encaixada na tela inteira (contain: a sala toda aparece, com barras escuras em cima/embaixo se a tela for mais larga ou mais alta). **Tela estática:** não há arrastar, inclinar o celular nem parallax (decisão do dono: mostrar tudo, sem "olhar em volta"); o menu principal também é estático (fundo `menu-bg.webp` fixo). Só o zoom ao tocar num objeto move a câmera, e a poeira/chamas continuam como animação ambiente.
 Cada objeto é uma área de toque sobre a imagem: a câmera dá zoom nele e abre o que ele representa.
 
 - **Livro** (estante): zoom, a capa abre e vira o álbum. Cada página tem 9 cartas sob **uma única folha de plástico** (`.bk-sheet`):
