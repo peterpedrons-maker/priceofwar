@@ -29,6 +29,9 @@
   #fx { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
   .num { position:absolute; transform:translate(-50%,-50%); font:900 30px/1 Georgia,serif; color:#fff; letter-spacing:-.02em; pointer-events:none;
          text-shadow: 0 0 2px #7a1208, 0 2px 0 #b3200f, 0 -1px 0 #b3200f, 2px 0 0 #b3200f, -2px 0 0 #b3200f, 0 4px 6px rgba(0,0,0,.8); -webkit-text-stroke: 1px #c0240f; animation: num 1.5s ease-out forwards; }
+  .numg { position:absolute; transform:translate(-50%,-50%); display:flex; align-items:center; pointer-events:none; animation: num 1.5s ease-out forwards; }
+  .numg .nb { position:absolute; left:50%; top:50%; max-width:none; transform:translate(-50%,-50%) scale(.2); opacity:0; animation: nb .55s ease-out forwards; }
+  @keyframes nb { 0%{opacity:0; transform:translate(-50%,-50%) scale(.2) rotate(-14deg)} 35%{opacity:1; transform:translate(-50%,-50%) scale(1.1) rotate(0)} 100%{opacity:0; transform:translate(-50%,-50%) scale(1.55) rotate(8deg)} }
   .num.heal { color:#eaffd0; text-shadow: 0 0 2px #1f6a14, 0 2px 0 #2f9a1e, 0 -1px 0 #2f9a1e, 2px 0 0 #2f9a1e, -2px 0 0 #2f9a1e, 0 4px 6px rgba(0,0,0,.8); -webkit-text-stroke: 1px #2f9a1e; }
   .num.buff { color:#fff3cf; text-shadow: 0 0 2px #7a4a08, 0 2px 0 #c58a14, 0 -1px 0 #c58a14, 2px 0 0 #c58a14, -2px 0 0 #c58a14, 0 4px 6px rgba(0,0,0,.8); -webkit-text-stroke: 1px #c58a14; }
   @keyframes num { 0%{transform:translate(-50%,-50%) scale(.3); opacity:0} 10%{transform:translate(-50%,-62%) scale(1.5); opacity:1} 25%{transform:translate(-50%,-80%) scale(1.15)} 70%{transform:translate(-50%,-125%) scale(1.15); opacity:1} 100%{transform:translate(-50%,-170%) scale(.95); opacity:0} }
@@ -134,7 +137,7 @@ function pick(k) {
 
 // ── sound (the game's own sounds + a synthesized whoosh) ───────────────────────────────────────────────────────────
 let AC = null; const BUF = {};
-function audio() { if (!AC) { AC = new (window.AudioContext || window.webkitAudioContext)(); ['boom', 'hit', 'dano'].forEach(n => fetch(n + '.wav').then(r => r.arrayBuffer()).then(b => AC.decodeAudioData(b)).then(d => BUF[n] = d).catch(() => {})); } if (AC.state === 'suspended') AC.resume(); return AC; }
+function audio() { if (!AC) { AC = new (window.AudioContext || window.webkitAudioContext)(); ['boom', 'hit', 'dano', 'magic'].forEach(n => fetch(n + (n === 'magic' ? '.mp3' : '.wav')).then(r => r.arrayBuffer()).then(b => AC.decodeAudioData(b)).then(d => BUF[n] = d).catch(() => {})); } if (AC.state === 'suspended') AC.resume(); return AC; }
 const sndOn = () => $('#snd').checked && AC && speed === 1;
 function play(name, when, vol = 1, rate = 1, offset = 0) {
   if (!sndOn() || !BUF[name]) return;
@@ -222,27 +225,48 @@ function sparks(x, y, n = 14, power = 1, color = '255,210,110') {
   }
 }
 function hit(el, delay = 0, alt = false) { at(delay, () => { el.classList.remove('hit', 'hit2'); void el.offsetWidth; el.classList.add(alt ? 'hit2' : 'hit'); }); }
-function num(x, y, text, delay = 0, size = 30, cls = '') { at(delay, () => { const d = document.createElement('div'); d.className = 'num ' + cls; d.textContent = text; d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.fontSize = size + 'px'; $('#nums').appendChild(d); setTimeout(() => d.remove(), 1600 / speed); }); }
+// floating numbers made of the game's own digit images (src/assets/num) with the star behind: red for damage, green for healing;
+// 'buff' shows "+ATK" in red and "+HP" in green side by side
+const GLYPH = c => ({ '-': 'minus', '+': 'plus' }[c] ?? c);
+function numPart(text, kind, h) {
+  const w = document.createElement('div'); w.style.cssText = 'position:relative;display:flex;align-items:center;justify-content:center';
+  const b = document.createElement('img'); b.src = `num/burst-${kind}.webp`; b.className = 'nb'; b.style.width = b.style.height = h * 2.3 + 'px'; w.appendChild(b);
+  const row = document.createElement('div'); row.style.cssText = 'position:relative;display:flex;align-items:center;filter:drop-shadow(0 3px 3px rgba(0,0,0,.7))';
+  [...text].forEach((c, i) => { const im = document.createElement('img'); im.src = `num/${kind}-${GLYPH(c)}.webp`; im.draggable = false; im.style.height = h * (c === '+' || c === '-' ? 1.05 : 1) + 'px'; im.style.marginLeft = i ? -h * .16 + 'px' : '0'; row.appendChild(im); });
+  w.appendChild(row); return w;
+}
+function num(x, y, text, delay = 0, size = 30, cls = '') {
+  at(delay, () => {
+    const d = document.createElement('div'); d.className = 'numg'; d.style.left = x + 'px'; d.style.top = y + 'px'; const h = size * 1.25;
+    if (cls === 'buff') { text.split('/').forEach((t, i) => { const part = numPart(t, i === 0 ? 'damage' : 'heal', h * .85); if (i) part.style.marginLeft = h * .1 + 'px'; d.appendChild(part); }); }
+    else d.appendChild(numPart(text, cls === 'heal' ? 'heal' : 'damage', h));
+    $('#nums').appendChild(d); setTimeout(() => d.remove(), 1600 / speed);
+  });
+}
 
 // A projectile that flies from a to b. `arc` is the height of the arc (0 = straight line, as with a bolt).
-function fly({ img, cols = 1, frame = 0, size, from, to, dur, arc = 0, scale = [1, 1], spin = 0, trail = 'none', onEnd, aim = false, shadow = false, glow = null, ribbon = null, orb = 0, ease = x => x, lift = .55, shw = 1, len = null, liftLen = 0, soft = false }) {
-  const pos = []; let acc = 0, last = 0;
+function fly({ img, cols = 1, frame = 0, size, from, to, dur, arc = 0, scale = [1, 1], spin = 0, trail = 'none', onEnd, aim = false, shadow = false, glow = null, ribbon = null, orb = 0, ease = x => x, lift = .55, shw = 1, len = null, liftLen = 0, soft = false, bez = null, uEnd = 1 }) {
+  const pos = []; let ppx = null, ppy = null;
   const o = add({ dur, draw(p) {
-    const u = ease(p);
+    const u = ease(p) * uEnd;
     const gx = from.x + (to.x - from.x) * u, gy = from.y + (to.y - from.y) * u;
     const h = arc ? 4 * u * (1 - u) : 0;              // 0..1 height above the ground line
-    const x = gx, y = gy - arc * h;
+    let x = gx, y = gy - arc * h;
+    if (bez) { const q = 1 - u; x = q * q * from.x + 2 * q * u * bez.x + u * u * to.x; y = q * q * from.y + 2 * q * u * bez.y + u * u * to.y; }
     const ang = aim ? (soft ? softAngle(from, to, arc, u) : Math.atan2((to.y - from.y) - (arc ? arc * 4 * (1 - 2 * u) : 0), to.x - from.x)) : spin * p * dur;
     let sc = scale[0] + (scale[1] - scale[0]) * u + (arc ? lift * h : 0), ssc = sc;
     if (len) { const L = len[0] + (len[1] - len[0]) * u + (arc ? liftLen * h : 0); ssc = L / size[0]; sc = Math.max(.15, L / 70); }
     if (shadow) { ctx.save(); ctx.globalAlpha = .38 * (1 - h * .55); ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(gx, gy + 6, 17 * shw * sc * (1 - h * .35), 6 * shw * sc * (1 - h * .35), 0, 0, 7); ctx.fill(); ctx.restore(); }
-    // trail
-    const dt = (p - last) * dur; last = p; acc += dt;
-    while (acc > 0.014) { acc -= 0.014;
-      if (trail === 'smoke' || trail === 'fire') puff(x + R(-4, 4), y + R(-4, 4), R(-14, 14), R(-8, 16), R(26, 40) * sc, R(.55, .9), trail === 'fire' ? .5 : .42, 1.7);
-      if (trail === 'fire') add({ dur: .45, draw(pp) { const s = 8 * (1 - pp) + 1; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,${120 + 90 * (1 - pp) | 0},40,${.9 * (1 - pp)})`; ctx.beginPath(); ctx.arc(x + R(-3, 3), y + R(-3, 3) + pp * 14, s, 0, 7); ctx.fill(); ctx.restore(); } });
-      if (trail === 'gold') add({ dur: .5, draw(pp) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,230,140,${.9 * (1 - pp)})`; ctx.beginPath(); ctx.arc(x + R(-4, 4), y + R(-4, 4), 3.2 * (1 - pp) + .6, 0, 7); ctx.fill(); ctx.restore(); } });
+    // trail: dots are laid along the path every few pixels, so a fast ball leaves a continuous streak and not a row of beads
+    if (ppx === null) { ppx = x; ppy = y; }
+    const seg = Math.hypot(x - ppx, y - ppy), step = trail === 'smoke' ? 9 : 3, cnt = Math.floor(seg / step);
+    for (let i = 1; i <= cnt; i++) {
+      const f = i * step / seg, tx = ppx + (x - ppx) * f, ty = ppy + (y - ppy) * f;
+      if (trail === 'smoke' || trail === 'fire') puff(tx + R(-4, 4), ty + R(-4, 4), R(-14, 14), R(-8, 16), R(26, 40) * sc * (trail === 'fire' ? .75 : 1), R(.55, .9), trail === 'fire' ? .4 : .42, 1.7);
+      if (trail === 'fire') add({ dur: .4, draw(pp) { const s = 5.5 * (1 - pp) + .8; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,${120 + 90 * (1 - pp) | 0},40,${.75 * (1 - pp)})`; ctx.beginPath(); ctx.arc(tx + R(-2, 2), ty + R(-2, 2) + pp * 12, s, 0, 7); ctx.fill(); ctx.restore(); } });
+      if (trail === 'gold') add({ dur: .5, draw(pp) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,230,140,${.9 * (1 - pp)})`; ctx.beginPath(); ctx.arc(tx + R(-4, 4), ty + R(-4, 4), 3 * (1 - pp) + .6, 0, 7); ctx.fill(); ctx.restore(); } });
     }
+    if (cnt > 0) { const f = cnt * step / seg; ppx += (x - ppx) * f; ppy += (y - ppy) * f; }
     if (ribbon) { pos.push([x, y]); if (pos.length > ribbon.n) pos.shift();
       ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
       for (let i = 1; i < pos.length; i++) { const k = i / pos.length; ctx.strokeStyle = `rgba(${ribbon.c},${k * .75})`; ctx.lineWidth = ribbon.w * k; ctx.beginPath(); ctx.moveTo(pos[i - 1][0], pos[i - 1][1]); ctx.lineTo(pos[i][0], pos[i][1]); ctx.stroke(); }
@@ -267,9 +291,12 @@ function fly({ img, cols = 1, frame = 0, size, from, to, dur, arc = 0, scale = [
 // The angle of a lobbed arrow: not the raw tangent (which, on a board seen from above, spins the arrow half a turn in an instant at
 // the top of the arc) but a smooth turn from "going up" to "coming down", centred on the top of the arc.
 function softAngle(from, to, arc, u) {
-  const dy0 = (to.y - from.y) - arc * 4, dx = to.x - from.x, a0 = clamp(Math.atan2(dy0, dx), -1.5, -.9), a1 = 1.25;
+  const dx = to.x - from.x, dy0 = (to.y - from.y) - arc * 4, a0 = clamp(Math.atan2(dy0, dx), -1.5, -.9), a1 = 1.25;
   const us = clamp(.5 - (to.y - from.y) / (8 * arc), .3, .85), t = clamp(u / (2 * us)), S = t * t * t * (t * (6 * t - 15) + 10);
-  return a0 + (a1 - a0) * S;
+  const soft = a0 + (a1 - a0) * S, tang = Math.atan2((to.y - from.y) - arc * 4 * (1 - 2 * u), dx);
+  // near the top of the arc only the smooth turn is used; towards the ends the arrow follows its real direction
+  const d = Math.abs(u - us), w = 1 - clamp((d - .12) / .18), w2 = w * w * (3 - 2 * w);
+  return tang * (1 - w2) + soft * w2;
 }
 // direction of an arc at u (screen space), used so a stuck arrow keeps the angle it arrived with
 function arcTangent(from, to, arc, u) { return Math.atan2((to.y - from.y) - arc * 4 * (1 - 2 * u), to.x - from.x); }
@@ -353,29 +380,43 @@ function leaveTactic(delay) { // it burns away into the graveyard
 
 
 // A General's ability: it does not strike, so the weapon appears over the card, shines, and lets the effect go.
-function weaponReveal(sp, gen, { len, tilt, tint, at: peak = .7, dur = 2.0, onPeak }) {
-  const gx = +gen.dataset.x, gy = +gen.dataset.y, k = len / sp.size[0], motes = [];
-  // the card itself glows too
+function weaponReveal(sp, gen, { len, tint, dur = 2.2, onPeak, sound = true }) {
+  const gx = +gen.dataset.x, gy = +gen.dataset.y, k = len / sp.size[0], motes = [], UP = -Math.PI / 2;
   const g = gen.animate([{ filter: 'brightness(1) drop-shadow(0 0 0 rgba(255,220,140,0))' }, { filter: `brightness(1.25) drop-shadow(0 0 14px rgba(${tint},.95))`, offset: .35 }, { filter: `brightness(1.1) drop-shadow(0 0 8px rgba(${tint},.7))`, offset: .75 }, { filter: 'brightness(1) drop-shadow(0 0 0 rgba(255,220,140,0))' }], { duration: dur * 1000, easing: 'ease-in-out' }); g.playbackRate = speed;
-  whoosh(0, .45, .35, 300, 1500);
+  const back = x => 1 + 2.7 * Math.pow(x - 1, 3) + 1.7 * Math.pow(x - 1, 2);     // ease-out-back: it overshoots a little and settles
+  if (sound) { play('magic', .1, .7); whoosh(0, .4, .3, 300, 1500); }
   add({ dur, draw(p) {
-    const inn = eo(p / .22), out = 1 - ei((p - .78) / .22), a = inn * out, bob = Math.sin(p * dur * 5) * 2.4;
-    const x = gx + 6, y = gy - 40 - 26 * eo(p / .3) + bob, rot = tilt + (1 - inn) * -.5, sc = k * (.6 + .4 * inn) * (1 + .04 * Math.sin(p * dur * 6));
-    const pulse = .5 + .5 * Math.sin(p * dur * 7);
-    // aura behind the weapon
-    const r = 70 + 14 * pulse, gr = ctx.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(${tint},${a * (.5 + .25 * pulse)})`); gr.addColorStop(1, `rgba(${tint},0)`);
+    const inn = clamp(p / .26), out = 1 - ei((p - .8) / .2), a = Math.min(1, eo(p / .12)) * out, bob = p > .3 ? Math.sin(p * dur * 4.5) * 1.6 : 0;
+    const raise = back(inn), x = gx, y = gy - 58 - 62 * raise + bob, rot = UP + (1 - raise) * .95, sc = k * (.75 + .25 * Math.min(1, raise));
+    const pulse = .5 + .5 * Math.sin(p * dur * 7), held = p > .3 && p < .8;
+    const r = 78 + 16 * pulse, gr = ctx.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(${tint},${a * (.45 + (held ? .3 : 0) * pulse)})`); gr.addColorStop(1, `rgba(${tint},0)`);
     ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.restore();
-    ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y); ctx.rotate(rot); ctx.scale(sc, sc); ctx.shadowColor = `rgba(${tint},.95)`; ctx.shadowBlur = 16 + 10 * pulse;
+    ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y); ctx.rotate(rot); ctx.scale(sc, sc); ctx.shadowColor = `rgba(${tint},.95)`; ctx.shadowBlur = 14 + (held ? 14 * pulse : 0);
     ctx.drawImage(sp.img, 0, 0, sp.size[0], sp.size[1], -sp.size[0] / 2, -sp.size[1] / 2, sp.size[0], sp.size[1]); ctx.restore();
-    // a bright pass travelling along the weapon (the "shine")
-    const sh = clamp((p - .22) / .5), sx = x + Math.cos(rot) * len * (sh - .5), sy = y + Math.sin(rot) * len * (sh - .5);
-    if (sh > 0 && sh < 1) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const gg = ctx.createRadialGradient(sx, sy, 0, sx, sy, 22); gg.addColorStop(0, `rgba(255,255,240,${.9 * Math.sin(Math.PI * sh) * a})`); gg.addColorStop(1, 'rgba(255,255,240,0)'); ctx.fillStyle = gg; ctx.fillRect(sx - 22, sy - 22, 44, 44); ctx.restore(); }
-    if (Math.random() < .5 && a > .3) motes.push({ x: x + Math.cos(rot) * R(-.5, .5) * len, y: y + Math.sin(rot) * R(-.5, .5) * len, vy: -R(14, 40), life: R(.5, 1) , t: 0 });
+    // the shine that runs along the weapon once it is upright
+    const sh = clamp((p - .3) / .35), sx = x, sy = y + len * (.5 - sh);
+    if (sh > 0 && sh < 1) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const gg = ctx.createRadialGradient(sx, sy, 0, sx, sy, 26); gg.addColorStop(0, `rgba(255,255,240,${.95 * Math.sin(Math.PI * sh) * a})`); gg.addColorStop(1, 'rgba(255,255,240,0)'); ctx.fillStyle = gg; ctx.fillRect(sx - 26, sy - 26, 52, 52); ctx.restore(); }
+    if (Math.random() < .55 && a > .3) motes.push({ x: x + R(-14, 14), y: y + R(-.5, .5) * len, vy: -R(16, 46), life: R(.5, 1), t: 0 });
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     for (let i = motes.length - 1; i >= 0; i--) { const m = motes[i]; m.t += 1 / 60; m.y += m.vy / 60; const q = m.t / m.life; if (q >= 1) { motes.splice(i, 1); continue; } ctx.fillStyle = `rgba(${tint},${1 - q})`; ctx.beginPath(); ctx.arc(m.x, m.y, 2.2 * (1 - q) + .6, 0, 7); ctx.fill(); }
     ctx.restore();
   } });
-  at(peak * dur * .8, () => { glint(gx + 6 + Math.cos(tilt) * len * .38, gy - 66 + Math.sin(tilt) * len * .38, 60, .4); play('dano', 0, .3, 1.4); onPeak && onPeak(); });
+  // when it is upright and shining the effect is released from its tip
+  at(dur * .42, () => { const tx = gx, ty = gy - 58 - 62 - len * .5; glint(tx, ty, 70, .45); ring(tx, ty, 70, .5, tint, 4); flash(tx, ty, 120, tint, .6, .4); play('dano', 0, .3, 1.5); onPeak && onPeak(tx, ty); });
+}
+
+
+// the boulder does not just vanish when it lands: it squashes into the ground and breaks into pieces that cut from its own texture
+function rockBreak(rk, x, y, n = 8) {
+  if (!rk.painted) return;
+  const [w, h] = rk.size, L = 34;
+  add({ dur: .2, draw(p) { ctx.save(); ctx.globalAlpha = 1 - ei(p); ctx.translate(x, y + 8 * p); ctx.scale(1 + .45 * p, 1 - .5 * p); const k = L / w; ctx.scale(k, k); ctx.drawImage(rk.img, 0, 0, w, h, -w / 2, -h / 2, w, h); ctx.restore(); } });
+  for (let i = 0; i < n; i++) {
+    const vx = R(-150, 150), vy = -R(120, 280), g = 720, life = R(.7, 1), sz = R(9, 17), rot0 = R(0, 6.28), vr = R(-8, 8), cw = w * R(.22, .34), cx0 = w * R(.1, .5), cy0 = h * R(.1, .45);
+    add({ dur: life, draw(p) { const t = p * life, px = x + vx * t, py = Math.min(y + 26, y + vy * t + .5 * g * t * t);
+      ctx.save(); ctx.globalAlpha = 1 - ei((p - .7) / .3); ctx.translate(px, py); ctx.rotate(rot0 + vr * t); ctx.beginPath(); ctx.arc(0, 0, sz / 2, 0, 7); ctx.clip();
+      ctx.drawImage(rk.img, cx0, cy0, cw, cw * .8, -sz / 2, -sz / 2, sz, sz); ctx.restore(); } });
+  }
 }
 
 // a volley of three arrows from the archer in the back row: high arcs, shrinking with distance, each with its own ground shadow
@@ -411,7 +452,7 @@ const scenes = {
         play('boom', T - .44, .8);
         const row = enemyCards.filter(e => +e.dataset.y === ROW.eFront);
         at(T, () => {
-          flash(195, ROW.eFront, 150, '255,180,80', .5, .25);
+          flash(195, ROW.eFront, 150, '255,180,80', .5, .25); rockBreak(rk, 195, ROW.eFront + 6);
           explosion(195, ROW.eFront + 2, .62, 0);
           shock(195, ROW.eFront + 30, 190, .55, '255,226,170', 3); scorch(195, ROW.eFront + 30, 120);
           dust(195, ROW.eFront + 34, 110, 8, 40); debris(195, ROW.eFront, 7, .9); sparks(195, ROW.eFront, 10, .9);
@@ -424,28 +465,32 @@ const scenes = {
     }
   },
   trabuco: {
-    cap: 'Trabuco: a carta desce, brilha, e dela sai uma bola de fogo (com a pedra em brasa dentro) que sobe e se divide em várias menores. Cada uma cai numa carta inimiga (e no General) com uma explosão pequena (2 de dano em todos).',
+    cap: 'Trabuco: a carta desce, brilha, e dela sai uma bola de fogo (com a pedra em brasa dentro) que sobe, com a sombra no chão. No alto ela estoura no ar e as bolas menores caem em arco, uma por carta inimiga e no General (2 de dano em todos).',
     run() {
       landTactic('trabuco-de-cerco', () => {
-        const rk = pick('brasa'), from = { x: TAC.x, y: TAC.y - 30 }, mid = { x: 195, y: 188 }, T1 = .62;
-        whoosh(0, .45, .5, 180, 700); play('boom', 0, .3, .6);
-        fly({ img: rk.painted ? rk.img : null, size: rk.size, from, to: mid, dur: T1, arc: 70, scale: [.7, 1.15], len: rk.painted ? [34, 52] : null, spin: 4, trail: 'fire', glow: { r: 50, c: '255,120,30', a: .5 }, orb: 26 });
+        const rk = pick('brasa'), from = { x: TAC.x, y: TAC.y - 30 }, ground = { x: 195, y: 200 }, T1 = .78, UE = .62, ARC = 150;
+        // where the ball is when it bursts (same formula as fly): high above the enemy field
+        const gy = from.y + (ground.y - from.y) * UE, mid = { x: 195, y: gy - ARC * 4 * UE * (1 - UE) };
+        whoosh(0, .5, .5, 180, 700); play('boom', 0, .3, .6);
+        fly({ img: rk.painted ? rk.img : null, size: rk.size, from, to: ground, uEnd: UE, dur: T1, arc: ARC, scale: [.7, 1.2], len: rk.painted ? [34, 58] : null, spin: 4, shadow: true, shw: 2.2, trail: 'fire', glow: { r: 50, c: '255,120,30', a: .5 }, orb: 26 });
         whoosh(.1, T1, .35, 500, 250);
         at(T1, () => {
-          play('boom', -.2, .5, 1.2); flash(mid.x, mid.y, 170, '255,190,100', .7, .3); explosion(mid.x, mid.y + 6, .5, 0); shock(mid.x, mid.y + 30, 150, .5, '255,210,140', 3);
-          sparks(mid.x, mid.y, 16, 1.1);
+          // the burst in the air: a flash, a thin ring and rays, embers that fall. No ground blast here.
+          play('boom', -.2, .45, 1.3); flash(mid.x, mid.y, 160, '255,200,120', .8, .3); ring(mid.x, mid.y, 100, .45, '255,190,110', 4); ring(mid.x, mid.y, 60, .3, '255,230,170', 3);
+          burst(mid.x, mid.y, 18, 96, '255,210,130', .34); glint(mid.x, mid.y, 70, .3); sparks(mid.x, mid.y, 22, 1.2, '255,190,100');
           enemyCards.forEach((e, i) => {
-            const tx = +e.dataset.x, ty = +e.dataset.y, d = i * .045, T2 = .38 + Math.hypot(tx - mid.x, ty - mid.y) / 900;
+            const tx = +e.dataset.x, ty = +e.dataset.y + 4, d = i * .04, T2 = .5 + Math.hypot(tx - mid.x, ty - mid.y) / 1000;
+            const c = { x: mid.x + (tx - mid.x) * 1.15, y: Math.min(mid.y, ty) - 36 - R(0, 26) };   // each piece first flies out and up, then drops onto its card
             at(d, () => {
-              whoosh(0, .25, .15, 800, 1800);
-              fly({ img: null, from: { x: mid.x + R(-8, 8), y: mid.y + R(-8, 8) }, to: { x: tx, y: ty + 4 }, dur: T2, arc: 60 + R(0, 60), scale: [.75, .75], trail: 'fire', glow: { r: 26, c: '255,120,30', a: .5 }, orb: 12 });
-              at(T2, () => { explosion(tx, ty + 4, +e.dataset.y < 80 ? .5 : .38, 0, Math.random() < .5 ? 1 : -1); flash(tx, ty, 60, '255,190,90', .5, .2); sparks(tx, ty, 5, .5); play('dano', 0, .22, 1.2 + R(0, .4));
-                hit(e, 0, i % 2); num(tx, ty - 34, '-2', .05, +e.dataset.y < 80 ? 32 : 26); });
+              whoosh(0, .3, .13, 900, 1700);
+              fly({ img: null, from: { x: mid.x + R(-6, 6), y: mid.y + R(-6, 6) }, to: { x: tx, y: ty }, bez: c, dur: T2, scale: [.9, .65], trail: 'fire', glow: { r: 24, c: '255,120,30', a: .5 }, orb: 12 });
+              at(T2, () => { explosion(tx, ty, +e.dataset.y < 80 ? .5 : .38, 0, Math.random() < .5 ? 1 : -1); flash(tx, ty, 60, '255,190,90', .5, .2); sparks(tx, ty, 5, .5); play('dano', 0, .22, 1.2 + R(0, .4));
+                hit(e, 0, i % 2); num(tx, ty - 38, '-2', .05, +e.dataset.y < 80 ? 32 : 26); });
             });
           });
         });
       });
-      leaveTactic(3.0);
+      leaveTactic(3.3);
     }
   },
   balestra: {
@@ -504,30 +549,29 @@ const scenes = {
     run() { archers('veneno', true); }
   },
   martelo: {
-    cap: 'Cardeal Pedro (habilidade do General: cura): o General não ataca, então o martelo dele aparece sobre a carta, brilha com um reflexo que percorre o cabo, e a luz dourada desce para curar uma unidade aliada.',
+    cap: 'Cardeal Pedro (habilidade do General: cura): ele ergue o martelo na vertical, ele brilha em verde com um reflexo que sobe pelo cabo e um som, e a cura desce em luz verde até a unidade aliada (+1 de vida).',
     run() {
       const mh = pick('martelo'), gen = cardByPos(195, ROW.pGen), tgt = cardByPos(125, ROW.pFront), tx = +tgt.dataset.x, ty = +tgt.dataset.y;
-      weaponReveal(mh, gen, { len: 118, tilt: -.62, tint: '255,222,130', at: .5, dur: 2.1, onPeak() {
-        for (let i = 0; i < 9; i++) { const d = i * .05, sx = 195 + R(-14, 14), sy = ROW.pGen - 70 + R(-10, 10), c1x = sx + R(-60, 10), c1y = sy - R(30, 90);
-          at(d, () => add({ dur: .7, draw(p) { const q = eo(p), x = (1 - q) * (1 - q) * sx + 2 * (1 - q) * q * c1x + q * q * tx, y = (1 - q) * (1 - q) * sy + 2 * (1 - q) * q * c1y + q * q * (ty - 10);
-            ctx.save(); ctx.globalCompositeOperation = 'lighter'; const gr = ctx.createRadialGradient(x, y, 0, x, y, 9); gr.addColorStop(0, `rgba(255,248,200,${1 - p * .3})`); gr.addColorStop(1, 'rgba(255,200,90,0)'); ctx.fillStyle = gr; ctx.fillRect(x - 9, y - 9, 18, 18); ctx.restore(); } })); }
-        at(.75, () => { play('dano', 0, .25, 1.7); flash(tx, ty, 90, '255,236,170', .55, .5); ring(tx, ty, 54, .5, '255,236,170', 3); sparksDir(tx, ty, -Math.PI / 2, 1.2, 10, .6, '255,236,170');
-          tgt.animate([{ filter: 'brightness(1)' }, { filter: 'brightness(1.5) saturate(1.2)', offset: .3 }, { filter: 'brightness(1)' }], { duration: 700 }).playbackRate = speed;
+      weaponReveal(mh, gen, { len: 124, tint: '120,235,120', dur: 2.3, onPeak(sx, sy) {
+        for (let i = 0; i < 10; i++) { const d = i * .05, c1x = sx + R(-90, -20), c1y = sy - R(0, 50);
+          at(d, () => add({ dur: .75, draw(p) { const q = eo(p), x = (1 - q) * (1 - q) * sx + 2 * (1 - q) * q * c1x + q * q * tx, y = (1 - q) * (1 - q) * sy + 2 * (1 - q) * q * c1y + q * q * (ty - 10);
+            ctx.save(); ctx.globalCompositeOperation = 'lighter'; const gr = ctx.createRadialGradient(x, y, 0, x, y, 10); gr.addColorStop(0, `rgba(220,255,200,${1 - p * .3})`); gr.addColorStop(1, 'rgba(90,220,100,0)'); ctx.fillStyle = gr; ctx.fillRect(x - 10, y - 10, 20, 20); ctx.restore(); } })); }
+        at(.8, () => { play('dano', 0, .25, 1.7); flash(tx, ty, 90, '120,235,120', .55, .5); ring(tx, ty, 54, .5, '150,255,150', 3); sparksDir(tx, ty, -Math.PI / 2, 1.2, 10, .6, '170,255,150');
+          tgt.animate([{ filter: 'brightness(1)' }, { filter: 'brightness(1.4) hue-rotate(-20deg) saturate(1.3)', offset: .3 }, { filter: 'brightness(1)' }], { duration: 700 }).playbackRate = speed;
           num(tx, ty - 34, '+1', .05, 32, 'heal'); });
       } });
     }
   },
   espada: {
-    cap: 'Aurelion (habilidade do General: bônus às unidades que se moveram): a espada aparece sobre a carta, brilha com um reflexo que percorre a lâmina, e uma onda vermelha e dourada passa pelas unidades aliadas dando +2/+1.',
+    cap: 'Aurelion (habilidade do General: bônus de ataque às unidades que se moveram): ele ergue a espada na vertical, ela brilha em vermelho com um reflexo pela lâmina e um som, e uma onda vermelha passa pelas unidades aliadas dando +2 de ataque e +1 de vida.',
     run() {
       const sw = pick('espada'), gen = cardByPos(195, ROW.pGen), mine = [cardByPos(125, ROW.pFront), cardByPos(195, ROW.pFront), cardByPos(265, ROW.pFront)];
-      weaponReveal(sw, gen, { len: 150, tilt: -.7, tint: '255,150,110', at: .5, dur: 2.1, onPeak() {
-        const cx = 195, cy = ROW.pGen - 20;
-        whoosh(0, .5, .3, 400, 1600); ring(cx, cy, 120, .6, '255,170,120', 4); ring(cx, cy - 60, 190, .8, '255,200,140', 3);
+      weaponReveal(sw, gen, { len: 160, tint: '255,90,70', dur: 2.3, onPeak(sx, sy) {
+        whoosh(0, .5, .3, 400, 1600); ring(195, ROW.pGen - 20, 130, .6, '255,110,80', 4); ring(195, ROW.pFront + 40, 210, .8, '255,140,100', 3);
         mine.forEach((e, i) => { const x = +e.dataset.x, y = +e.dataset.y, d = .25 + i * .08;
-          at(d, () => { flash(x, y, 80, '255,170,110', .5, .6); ring(x, y, 50, .5, '255,200,150', 3); sparksDir(x, y, -Math.PI / 2, 1.1, 8, .5, '255,210,150'); play('dano', 0, .22, 1.6);
-            e.animate([{ filter: 'brightness(1)' }, { filter: 'brightness(1.4) sepia(.4) saturate(1.5)', offset: .3 }, { filter: 'brightness(1)' }], { duration: 800 }).playbackRate = speed;
-            num(x, y - 34, '+2/+1', .05, 24, 'buff'); });
+          at(d, () => { flash(x, y, 80, '255,90,70', .5, .6); ring(x, y, 50, .5, '255,140,110', 3); sparksDir(x, y, -Math.PI / 2, 1.1, 8, .5, '255,150,110'); play('dano', 0, .22, 1.6);
+            e.animate([{ filter: 'brightness(1)' }, { filter: 'brightness(1.4) sepia(.4) saturate(1.8) hue-rotate(-20deg)', offset: .3 }, { filter: 'brightness(1)' }], { duration: 800 }).playbackRate = speed;
+            num(x, y - 34, '+2/+1', .05, 26, 'buff'); });
         });
       } });
     }
