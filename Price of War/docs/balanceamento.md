@@ -136,3 +136,6 @@ Nada disso está aplicado ao jogo.
 
 ### Aplicado: General com 30 de vida (decidido com o dono do jogo)
 Só isso, sem mexer em ouro nem no início do combate (o pacote com menos ouro e combate na rodada 3 foi descartado: deixaria o jogo lento demais, já que se começa com 7 cartas na mão). Os dois Generais passam de 20 para 30 de vida (`catalog.ts`). Medido no catálogo real: **Capitão 37,5% × Cardeal 62,5%, partida acaba na rodada 6,9 em média** (antes 5,5). No tutorial o General do treinador continua com 20 de vida (para a aula acabar no 4º turno do jogador) e o do jogador mostra 30; os testes de regras foram atualizados (30 - dano).
+
+### Viradas (comeback) — `tests/balance-comeback.ts`
+O laboratório agora grava, a cada fim de turno, a vida dos Generais e o material em campo (ATK + HP das unidades). Medido no catálogo atual (250 partidas IA × IA): quem está claramente à frente depois da rodada 2 ou 3 (8 de material ou 5 de vida) vence **cerca de 87–92%**; a virada acontece em 8–13% dos casos. Mesmo assim, o vencedor chegou a estar bem atrás (≥ 6) em ~1/3 das partidas, e muito atrás em ~18%. Ou seja: virar existe, mas é raro quando a vantagem já é grande. Ideias para testar depois: dano em área maior ou mais táticas de recuperação, ouro extra para quem está atrás, Emboscadas mais fortes.

@@ -20,7 +20,8 @@ import type { GameState, Seat, GameEvent, Card } from '../src/engine/types';
 
 type Patch = { name?: string; cards?: Record<string, { atk?: number; hp?: number; cost?: number; abilityCost?: number; abilityOnce?: boolean; merge?: Record<string, Record<string, unknown>>; set?: Record<string, unknown> }>; decks?: Record<string, Record<string, number>> };
 type Per = { deck: string; won: boolean; generalHp: number; drawn: Record<string, number>; played: Record<string, number>; abilities: Record<string, number>; dmg: Record<string, number>; kills: Record<string, number> };
-export type GameRecord = { seed: number; first: Seat; rounds: number; winner: Seat | null; seats: [Per, Per] };
+// trace: one row each time a turn passes: [round, seat that just played, General HP of seat 0, of seat 1, units on the board (atk + hp) of seat 0, of seat 1]
+export type GameRecord = { seed: number; first: Seat; rounds: number; winner: Seat | null; seats: [Per, Per]; trace: number[][] };
 
 function applyPatch(p: Patch) {
   for (const [name, d] of Object.entries(p.cards ?? {})) {
@@ -63,6 +64,8 @@ function playGame(seed: number, cardealSeat: Seat, first: Seat): GameRecord {
   s = (() => { const r = applyAction(s, first, { type: 'begin' }) as any; seeEvents(r.events ?? [], first, null); return r.state; })();
   // the opening hands are dealt by createMatch (its events are not replayed): count them from the state
   seats.forEach((per, i) => { s.players[i].hand.forEach((c: Card) => bump(per.drawn, c.name)); });
+  const trace: number[][] = [];
+  const material = (i: number) => s.players[i].board.slice(0, 10).reduce((a, c) => a + (c ? c.atk + c.hp : 0), 0);
   let guard = 0;
   while (s.winner === null && s.turn.round <= 40 && guard++ < 5000) {
     const seat = (s.pending ? s.pending.seat : s.turn.active) as Seat;
@@ -74,10 +77,13 @@ function playGame(seed: number, cardealSeat: Seat, first: Seat): GameRecord {
     const r = applyAction(s, seat, act);
     if (r.ok === false) break;
     seeEvents(r.events, seat, source);
+    const passed = r.state.turn.active !== s.turn.active && r.state.winner === null;
+    const roundBefore = s.turn.round, played = s.turn.active;
     s = r.state;
+    if (passed) trace.push([roundBefore, played, s.players[0].board[12]?.hp ?? 0, s.players[1].board[12]?.hp ?? 0, material(0), material(1)]);
   }
   seats.forEach((per, i) => { per.won = s.winner === i; per.generalHp = s.players[i].board[12]?.hp ?? 0; });
-  return { seed, first, rounds: s.turn.round, winner: s.winner, seats };
+  return { seed, first, rounds: s.turn.round, winner: s.winner, seats, trace };
 }
 
 async function main() {
