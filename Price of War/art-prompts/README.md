@@ -1169,7 +1169,7 @@ Top-down-neutral game UI illustration of a slim, elegant gold-line currency pill
 
 ---
 
-## 4ab. Tela inicial v2 — "A guerra dos dois Generais" (pendente)
+## 4ab. Tela inicial v2 — "A guerra dos dois Generais" (v1 recebida, em avaliação no mockup)
 
 **Arquivo esperado:** `src/assets/start-screen-bg.webp` (substitui a catedral em chamas de 704×1389) · **Tamanho:** retrato, no mínimo 1170×2532 (ideal 1290×2796) ·
 **Guia de zonas:** [`reference/tela-inicial-guia-v2.png`](./reference/tela-inicial-guia-v2.png) (pode ser anexado como referência de composição) · **Estilo:** cenário épico
@@ -1218,6 +1218,8 @@ COMPOSITION RULES (very important, the UI sits on top):
 NO text, NO logo, NO watermark, NO frames, NO UI, no modern objects, no
 anime style, no photorealistic faces, no extra limbs, no cropped Generals.
 ```
+
+**Status:** a primeira versão gerada (704×1520, [`reference/start-screen-bg-v2.jpg`](./reference/start-screen-bg-v2.jpg)) está no mockup `public/mockups/menu/placa3.html`, subida ~300 px (céu cortado, chão escuro estendido) para os Generais ficarem acima das placas. Para o jogo, convém uma versão com pelo menos 1170×2532 (a atual é ampliada 1,66× e fica macia).
 
 **Depois que a imagem chegar:** recorto/ajusto para 1170×2532 (WebP), encaixo atrás das placas e mostro o resultado antes de aplicar. Se a arte vier em paisagem, dá para estender o céu e o chão escuro para completar o retrato.
 
