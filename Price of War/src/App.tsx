@@ -3058,7 +3058,7 @@ const MenuCard = ({ icon, title, bgImage, widthPct, onClick }: {
         <div className="absolute inset-0" style={{ background: '#150e07', ...maskStyle }}>
           {/* the picture starts after the title (about 2.75cqw per letter), so the text always sits on the dark part */}
           <img src={bgImage} alt="" draggable={false} className="absolute right-0 top-0 h-full object-cover select-none"
-            style={{ width: `calc(100% - ${(14.6 + 2.75 * title.length + 1.5 + 3.4).toFixed(1)}cqw)`, objectPosition: '62% center', WebkitMaskImage: 'linear-gradient(to right, transparent, #000 40%)', maskImage: 'linear-gradient(to right, transparent, #000 40%)' }} />
+            style={{ width: `calc(100% - ${(10.8 + 2.75 * title.length + 1.5 + 3.4).toFixed(1)}cqw)`, objectPosition: '62% center', WebkitMaskImage: 'linear-gradient(to right, transparent, #000 40%)', maskImage: 'linear-gradient(to right, transparent, #000 40%)' }} />
         </div>
         <div className="absolute inset-0 flex">
           <img src={menuPlaqueFrameBodyImage} alt="" draggable={false} className="h-full min-w-0 flex-1 select-none pointer-events-none" style={{ objectFit: 'fill' }} />
@@ -3067,7 +3067,7 @@ const MenuCard = ({ icon, title, bgImage, widthPct, onClick }: {
         {/* soft shadow where the plaque goes into the wall */}
         <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to right, rgba(40,20,0,0.6), rgba(40,20,0,0) 14%)' }} />
       </div>
-      <div className="absolute inset-0 flex items-center" style={{ paddingLeft: 'calc(6cqw + 3.4cqw)', gap: '2.2cqw' }}>
+      <div className="absolute inset-0 flex items-center" style={{ paddingLeft: 'calc(2.6cqw + 3.4cqw)', gap: '2.4cqw' }}>
         <img src={icon} alt="" className="shrink-0 object-contain select-none pointer-events-none"
           style={{ width: '5.8cqw', height: '5.8cqw', filter: lit ? 'brightness(1.3) drop-shadow(0 0 7px rgba(255,205,90,0.95))' : 'drop-shadow(0 2px 3px rgba(0,0,0,0.8))', transition: 'filter 100ms' }} draggable={false} />
         <span className="min-w-0 uppercase text-[#f3e3c3]"
