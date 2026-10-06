@@ -3031,7 +3031,8 @@ const PlaqueSparks = () => {
 // The menu buttons are gold plaques that come out of the left edge of the screen (their wall end is cut off, only the pointed end shows), each one
 // longer than the one above, touching, like a staircase. The picture of each button sits in the opening of the plaque, under the gold frame:
 // a mask with the shape of the opening (menu-plaque-hole-*) cuts it, and it fades to dark on the wall side where the icon and the title are.
-// The plaque keeps the ratio of its art (831:177); the pointed end (the "cap") is 22.98% of the width in container units. `widthPct` sets the step.
+// The plaque keeps the ratio of its art (831:177); the pointed end (the "cap") is 22.98% of its width. `widthPct` sets the step. Icon, title and the gap
+// to the screen edge are in container units of the STACK (cqw, see MainMenu), not of each plaque, so every icon and every title starts at the same x.
 const PLAQUE_ASPECT = 831 / 177;
 const PLAQUE_CAP_CQW = 22.98;
 const MenuCard = ({ icon, title, bgImage, widthPct, onClick }: {
@@ -3039,7 +3040,7 @@ const MenuCard = ({ icon, title, bgImage, widthPct, onClick }: {
 }) => {
   const { phase, handlers } = useMenuTap(onClick);
   const lit = phase !== 'idle';
-  const cap = `${PLAQUE_CAP_CQW}cqw`;
+  const cap = `${PLAQUE_CAP_CQW}%`;
   const maskStyle: React.CSSProperties = {
     WebkitMaskImage: `url(${menuPlaqueHoleCapImage}), url(${menuPlaqueHoleBodyImage})`, maskImage: `url(${menuPlaqueHoleCapImage}), url(${menuPlaqueHoleBodyImage})`,
     WebkitMaskSize: `${cap} 100%, calc(100% - ${cap}) 100%`, maskSize: `${cap} 100%, calc(100% - ${cap}) 100%`,
@@ -3051,12 +3052,13 @@ const MenuCard = ({ icon, title, bgImage, widthPct, onClick }: {
       animate={{ scale: lit ? 0.985 : 1 }}
       transition={{ duration: 0.09 }}
       className="relative block text-left"
-      style={{ width: `${widthPct}%`, aspectRatio: String(PLAQUE_ASPECT), containerType: 'inline-size', marginLeft: -14, marginBottom: -4, filter: 'drop-shadow(0 5px 6px rgba(0,0,0,0.65))' }}
+      style={{ width: `${widthPct}%`, aspectRatio: String(PLAQUE_ASPECT), marginLeft: '-3.4cqw', marginBottom: -3, filter: 'drop-shadow(0 4px 5px rgba(0,0,0,0.65))' }}
     >
       <div className="absolute inset-0" style={{ filter: phase === 'confirm' ? 'brightness(1.25) saturate(1.15)' : lit ? 'brightness(1.12)' : 'none', transition: 'filter 90ms' }}>
         <div className="absolute inset-0" style={{ background: '#150e07', ...maskStyle }}>
+          {/* the picture starts after the title (about 2.75cqw per letter), so the text always sits on the dark part */}
           <img src={bgImage} alt="" draggable={false} className="absolute right-0 top-0 h-full object-cover select-none"
-            style={{ width: '74%', objectPosition: 'right center', WebkitMaskImage: 'linear-gradient(to right, transparent, #000 45%)', maskImage: 'linear-gradient(to right, transparent, #000 45%)' }} />
+            style={{ width: `calc(100% - ${(14.6 + 2.75 * title.length + 1.5 + 3.4).toFixed(1)}cqw)`, objectPosition: '62% center', WebkitMaskImage: 'linear-gradient(to right, transparent, #000 40%)', maskImage: 'linear-gradient(to right, transparent, #000 40%)' }} />
         </div>
         <div className="absolute inset-0 flex">
           <img src={menuPlaqueFrameBodyImage} alt="" draggable={false} className="h-full min-w-0 flex-1 select-none pointer-events-none" style={{ objectFit: 'fill' }} />
@@ -3065,11 +3067,11 @@ const MenuCard = ({ icon, title, bgImage, widthPct, onClick }: {
         {/* soft shadow where the plaque goes into the wall */}
         <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to right, rgba(40,20,0,0.6), rgba(40,20,0,0) 14%)' }} />
       </div>
-      <div className="absolute inset-0 flex items-center gap-[3cqw]" style={{ paddingLeft: '11%', paddingRight: '16%' }}>
+      <div className="absolute inset-0 flex items-center" style={{ paddingLeft: 'calc(6cqw + 3.4cqw)', gap: '2.2cqw' }}>
         <img src={icon} alt="" className="shrink-0 object-contain select-none pointer-events-none"
-          style={{ height: '46%', width: 'auto', maxWidth: '10.5cqw', filter: lit ? 'brightness(1.3) drop-shadow(0 0 7px rgba(255,205,90,0.95))' : 'drop-shadow(0 2px 3px rgba(0,0,0,0.8))', transition: 'filter 100ms' }} draggable={false} />
+          style={{ width: '5.8cqw', height: '5.8cqw', filter: lit ? 'brightness(1.3) drop-shadow(0 0 7px rgba(255,205,90,0.95))' : 'drop-shadow(0 2px 3px rgba(0,0,0,0.8))', transition: 'filter 100ms' }} draggable={false} />
         <span className="min-w-0 uppercase text-[#f3e3c3]"
-          style={{ fontFamily: "'Cinzel Decorative', 'Cinzel', serif", fontWeight: 700, fontSize: 'clamp(11px, 5.2cqw, 16px)', letterSpacing: '0.09em', lineHeight: 1.1, textShadow: '0 1px 3px rgba(0,0,0,0.95), 0 0 7px rgba(0,0,0,0.8)' }}>
+          style={{ fontFamily: "'Cinzel Decorative', 'Cinzel', serif", fontWeight: 700, fontSize: '3.1cqw', letterSpacing: '0.09em', whiteSpace: 'nowrap', lineHeight: 1.1, textShadow: '0 1px 3px rgba(0,0,0,0.95), 0 0 7px rgba(0,0,0,0.8)' }}>
           {title}
         </span>
       </div>
@@ -3230,12 +3232,12 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
           thumb), touching each other. Desafios starts a match against the AI (the only mode whose opponent plays), Online opens the Casual/Ranqueado picker
           (OnlineModeModal), Meu Deck the deck editor, Coleção the Sala de Coleção, Loja the shop. The mode identifiers ('Campaign' etc.) stay in English;
           only the label shown is translated. */}
-      <div className="absolute left-0 z-10 flex w-full max-w-[460px] flex-col items-start" style={{ bottom: 104 }}>
-        <MenuCard widthPct={58} icon={uiIconLojaImage} title="Loja" bgImage={menuCardLojaImage} onClick={() => setShopOpen(true)} />
-        <MenuCard widthPct={66} icon={uiIconCardImage} title="Coleção" bgImage={menuCardEditarDeckImage} onClick={() => setRoomOpen(true)} />
-        <MenuCard widthPct={74} icon={uiIconEditarDeckImage} title={MODE_LABELS_PT['My Deck']} bgImage={menuCardEditarDeckImage} onClick={() => setDeckEditorOpen(true)} />
-        <MenuCard widthPct={82} icon={uiIconOnlineImage} title={MODE_LABELS_PT['Multiplayer']} bgImage={menuCardOnlineImage} onClick={() => setOnlineOpen(true)} />
-        <MenuCard widthPct={90} icon={uiIconDesafiosImage} title={MODE_LABELS_PT['Campaign']} bgImage={menuCardDesafiosImage} onClick={() => onSelectMode('Campaign')} />
+      <div className="absolute left-0 z-10 flex w-full max-w-[460px] flex-col items-start" style={{ bottom: 104, containerType: 'inline-size' }}>
+        <MenuCard widthPct={46} icon={uiIconLojaImage} title="Loja" bgImage={menuCardLojaImage} onClick={() => setShopOpen(true)} />
+        <MenuCard widthPct={52} icon={uiIconCardImage} title="Coleção" bgImage={menuCardEditarDeckImage} onClick={() => setRoomOpen(true)} />
+        <MenuCard widthPct={58} icon={uiIconEditarDeckImage} title={MODE_LABELS_PT['My Deck']} bgImage={menuCardEditarDeckImage} onClick={() => setDeckEditorOpen(true)} />
+        <MenuCard widthPct={64} icon={uiIconOnlineImage} title={MODE_LABELS_PT['Multiplayer']} bgImage={menuCardOnlineImage} onClick={() => setOnlineOpen(true)} />
+        <MenuCard widthPct={70} icon={uiIconDesafiosImage} title={MODE_LABELS_PT['Campaign']} bgImage={menuCardDesafiosImage} onClick={() => onSelectMode('Campaign')} />
       </div>
 
       {/* Secondary destinations — none of these screens exist yet (see
