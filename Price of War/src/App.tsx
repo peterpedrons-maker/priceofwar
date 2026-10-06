@@ -1269,13 +1269,13 @@ const AtkBadge = ({ value, className = "" }: { value: number, className?: string
 const NUMBER_KIND_OF: Record<'damage' | 'heal' | 'gold-gain' | 'gold-spend' | 'shield', NumberKind> = {
   damage: 'damage', heal: 'heal', 'gold-gain': 'gold', 'gold-spend': 'goldspend', shield: 'shield',
 };
-// Damage reads by size: 1-2 small, 3-4 medium, 5-7 big (two rings, longer), 8+ huge (three rings, held longer, shakes). Heals, gold and
+// Damage reads by size: 1-2 small, 3-4 medium, 5-7 big, 8+ huge (held longer, shakes), with no burst behind it. Heals, gold and
 // shield absorption always use the small one. `ms` is how long the number lives (the spawner removes it after that).
 const NUMBER_TIERS = [
   { h: 40, peak: 1.45, ms: 1300, rings: 1, shake: 0 },
   { h: 54, peak: 1.55, ms: 1450, rings: 1, shake: 0 },
-  { h: 70, peak: 1.65, ms: 1700, rings: 2, shake: 4 },
-  { h: 88, peak: 1.7, ms: 2000, rings: 3, shake: 8 },
+  { h: 70, peak: 1.65, ms: 1700, rings: 0, shake: 4 },
+  { h: 88, peak: 1.7, ms: 2000, rings: 0, shake: 8 },
 ];
 const damageTier = (amount: number) => (amount >= 8 ? 3 : amount >= 5 ? 2 : amount >= 3 ? 1 : 0);
 const floatLife = (kind: keyof typeof NUMBER_KIND_OF, amount: number) => (kind === 'damage' ? NUMBER_TIERS[damageTier(amount)].ms : NUMBER_TIERS[0].ms) + 150;
@@ -1287,18 +1287,18 @@ const FloatNumber = ({ text, kind }: { text: string; kind: keyof typeof NUMBER_K
   const burst = burstUrl(k);
   return (
     <div className="relative flex items-center justify-center" style={{ height: h }}>
-      {burst && Array.from({ length: tier.rings }, (_, r) => (
+      {/* (the burst star behind the digits was removed for damage: only the size of the number tells how hard the hit was) */}
+      {burst && k !== 'damage' && (
         <motion.img
-          key={r}
           src={burst} alt=""
-          initial={{ scale: 0.2, opacity: 0, rotate: -14 + r * 30 }}
-          animate={{ scale: [0.2, 1.1 + r * 0.25, 1.55 + r * 0.55], opacity: [0, 1 - r * 0.2, 0], rotate: [-14 + r * 30, r * 12, 8 + r * 22] }}
-          transition={{ duration: 0.55 + r * 0.12, delay: r * 0.1, ease: 'easeOut', times: [0, 0.35, 1] }}
+          initial={{ scale: 0.2, opacity: 0, rotate: -14 }}
+          animate={{ scale: [0.2, 1.1, 1.55], opacity: [0, 1, 0], rotate: [-14, 0, 8] }}
+          transition={{ duration: 0.55, ease: 'easeOut', times: [0, 0.35, 1] }}
           className="absolute pointer-events-none select-none max-w-none"
           style={{ height: h * 2.3, width: h * 2.3, opacity: 0 }}
           draggable={false}
         />
-      ))}
+      )}
       <motion.div
         initial={{ scale: 0.3, opacity: 0, y: 0, rotate: -6 }}
         animate={{

@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Projéteis do combate</title>
+<style>
+  :root { --gold:#e6c36a; --ink:#1a1410; --panel:#2a2018; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; height:100%; background:#0d0a07; color:#eadfc6; font-family: Georgia, 'Times New Roman', serif; overflow:hidden; touch-action: manipulation; }
+  #app { display:flex; flex-direction:column; height:100dvh; }
+  header { padding:8px 12px 4px; text-align:center; flex:none; }
+  header h1 { font-size:15px; letter-spacing:.14em; margin:0; color:var(--gold); text-transform:uppercase; }
+  header p { margin:2px 0 0; font-size:11px; color:#a99d84; min-height:28px; line-height:1.25; }
+  #holder { flex:1; min-height:0; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  #stage { position:relative; width:390px; height:640px; flex:none; transform-origin:center center; border-radius:10px; overflow:hidden; background:#000; box-shadow:0 0 0 1px #3a2c1c, 0 10px 40px #000; }
+  #bg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:brightness(.82) saturate(.95); }
+  .slot { position:absolute; width:64px; height:94px; transform:translate(-50%,-50%); border-radius:6px; border:1px dashed rgba(255,255,255,.12); background:rgba(0,0,0,.18); }
+  .card { position:absolute; width:64px; transform:translate(-50%,-50%); border-radius:6px; box-shadow:0 4px 10px rgba(0,0,0,.7); user-select:none; -webkit-user-drag:none; will-change:transform, filter; }
+  .card.big { width:68px; }
+  .card.hit { animation: hit .5s ease-out; }
+  .card.hit2 { animation: hit2 .5s ease-out; }
+  @keyframes hit  { 0%{transform:translate(-50%,-50%) scale(1); filter:brightness(1)} 10%{transform:translate(calc(-50% - 7px),calc(-50% + 4px)) scale(.94) rotate(-4deg); filter:brightness(2.6) saturate(.6)} 30%{transform:translate(calc(-50% + 6px),calc(-50% - 3px)) scale(.97) rotate(3deg); filter:brightness(1.6)} 55%{transform:translate(calc(-50% - 3px),-50%) rotate(-1.5deg); filter:brightness(1.2)} 100%{transform:translate(-50%,-50%) scale(1) rotate(0); filter:brightness(1)} }
+  @keyframes hit2 { 0%{transform:translate(-50%,-50%)} 12%{transform:translate(calc(-50% + 7px),calc(-50% + 3px)) rotate(4deg); filter:brightness(2.4)} 35%{transform:translate(calc(-50% - 5px),calc(-50% - 2px)) rotate(-3deg); filter:brightness(1.5)} 60%{transform:translate(calc(-50% + 2px),-50%)} 100%{transform:translate(-50%,-50%) rotate(0); filter:brightness(1)} }
+  .card.windup { animation: windup .42s ease-in-out; }
+  @keyframes windup { 0%{transform:translate(-50%,-50%)} 55%{transform:translate(-50%,calc(-50% + 14px)) scale(.96)} 75%{transform:translate(-50%,calc(-50% - 10px)) scale(1.08)} 100%{transform:translate(-50%,-50%)} }
+  .card.kick { animation: kick .4s ease-out; }
+  @keyframes kick { 0%{transform:translate(-50%,-50%)} 20%{transform:translate(-50%,calc(-50% + 9px)) scale(.97)} 100%{transform:translate(-50%,-50%)} }
+  #fx { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  .num { position:absolute; transform:translate(-50%,-50%); font:900 30px/1 Georgia,serif; color:#fff; letter-spacing:-.02em; pointer-events:none;
+         text-shadow: 0 0 2px #7a1208, 0 2px 0 #b3200f, 0 -1px 0 #b3200f, 2px 0 0 #b3200f, -2px 0 0 #b3200f, 0 4px 6px rgba(0,0,0,.8); -webkit-text-stroke: 1px #c0240f; animation: num 1.5s ease-out forwards; }
+  @keyframes num { 0%{transform:translate(-50%,-50%) scale(.3); opacity:0} 10%{transform:translate(-50%,-62%) scale(1.5); opacity:1} 25%{transform:translate(-50%,-80%) scale(1.15)} 70%{transform:translate(-50%,-125%) scale(1.15); opacity:1} 100%{transform:translate(-50%,-170%) scale(.95); opacity:0} }
+  nav { flex:none; padding:6px 8px calc(8px + env(safe-area-inset-bottom)); display:grid; grid-template-columns:repeat(3,1fr); gap:6px; background:linear-gradient(#0d0a07,#17110b); }
+  nav button { appearance:none; border:1px solid #6b5326; background:linear-gradient(#3a2c1a,#241a10); color:#f1dfae; font:700 12px Georgia,serif; letter-spacing:.04em; padding:9px 4px; border-radius:8px; }
+  nav button small { display:block; font-weight:400; font-size:9.5px; color:#b9a77d; margin-top:1px; letter-spacing:0; }
+  nav button:active { background:#4b381f; }
+  nav button.on { border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset; }
+  #opts { grid-column:1/-1; display:flex; gap:8px; justify-content:center; font-size:11px; color:#c9b88f; }
+  #opts label { display:flex; align-items:center; gap:5px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Projéteis do combate</h1>
+    <p id="cap">Toque num botão para ver o ataque. (Mockup: ainda não está no jogo.)</p>
+  </header>
+  <div id="holder">
+    <div id="stage">
+      <img id="bg" src="board-battlefield.webp" alt="">
+      <div id="cards"></div>
+      <canvas id="fx"></canvas>
+      <div id="nums"></div>
+    </div>
+  </div>
+  <nav>
+    <button data-a="catapulta">Catapulta<small>área de uma fileira</small></button>
+    <button data-a="trabuco">Trabuco<small>campo inteiro</small></button>
+    <button data-a="balestra">Balestra<small>virote certeiro</small></button>
+    <button data-a="lanca">Lança do Jorge<small>atravessa duas cartas</small></button>
+    <button data-a="arqueiro">Arqueiro<small>flechas em arco</small></button>
+    <button data-a="seta">Hoje (seta)<small>para comparar</small></button>
+    <div id="opts">
+      <label><input type="checkbox" id="slow"> câmera lenta (¼)</label>
+      <label><input type="checkbox" id="snd" checked> som de teste</label>
+    </div>
+  </nav>
+</div>
+
+<script>
+'use strict';
+const W = 390, H = 640;
+const $ = s => document.querySelector(s);
+const q = new URLSearchParams(location.search);
+
+// ── stage layout ──────────────────────────────────────────────────────────────────────────────────────────────────
+const COLX = [55, 125, 195, 265, 335];
+const ROW = { eGen: 50, eBack: 142, eFront: 234, pFront: 410, pBack: 502, pGen: 592 };
+const CARDS = [
+  // enemy
+  ['comandante-aurelion-mestre-da-formacao', 195, ROW.eGen, 'big'],
+  ['arqueiro-da-ordem', COLX[1], ROW.eBack], ['cavaleiro-hospitalario', COLX[3], ROW.eBack], ['atirador-da-cruzada', COLX[2], ROW.eBack],
+  ['escudeiro-de-linha', COLX[0], ROW.eFront], ['soldado-tatico', COLX[1], ROW.eFront], ['veterano-de-guerra', COLX[2], ROW.eFront], ['batedor', COLX[3], ROW.eFront], ['lanceiro-de-controle', COLX[4], ROW.eFront],
+  // player
+  ['soldados-da-ordem', COLX[1], ROW.pFront], ['jorge-lanca-sagrada', COLX[2], ROW.pFront], ['cavaleiro-da-luz', COLX[3], ROW.pFront],
+  ['arqueiro-da-ordem', COLX[1], ROW.pBack], ['nobre-da-cruzada', COLX[3], ROW.pBack],
+  ['cardeal-pedro-voz-da-fe', 195, ROW.pGen, 'big'],
+];
+const els = [];
+const cardsEl = $('#cards');
+for (const row of [ROW.eBack, ROW.eFront, ROW.pFront, ROW.pBack]) for (const x of COLX) {
+  const s = document.createElement('div'); s.className = 'slot'; s.style.left = x + 'px'; s.style.top = row + 'px'; cardsEl.appendChild(s);
+}
+const cardAt = {};
+CARDS.forEach(([n, x, y, cls]) => {
+  const im = document.createElement('img'); im.className = 'card ' + (cls || ''); im.src = `../quarto/cards/${n}.webp`; im.style.left = x + 'px'; im.style.top = y + 'px'; im.draggable = false;
+  cardsEl.appendChild(im); els.push(im); cardAt[n + '@' + x + ',' + y] = im; im.dataset.x = x; im.dataset.y = y;
+});
+const enemyCards = els.filter(e => +e.dataset.y <= ROW.eFront);
+const cardByPos = (x, y) => els.find(e => +e.dataset.x === x && +e.dataset.y === y);
+
+// ── scale the stage to the screen ────────────────────────────────────────────────────────────────────────────────
+const stage = $('#stage'), cv = $('#fx'), ctx = cv.getContext('2d');
+let RES = 2;
+function fit() {
+  const h = $('#holder').getBoundingClientRect();
+  const k = Math.min(h.width / W, h.height / H);
+  stage.style.transform = `scale(${k})`;
+  RES = Math.min(3, (window.devicePixelRatio || 1) * k);
+  cv.width = Math.round(W * RES); cv.height = Math.round(H * RES);
+}
+addEventListener('resize', fit); fit();
+
+// ── assets ────────────────────────────────────────────────────────────────────────────────────────────────────────
+const IMG = {};
+const load = (k, src) => new Promise(r => { const i = new Image(); i.onload = () => { IMG[k] = i; r(); }; i.onerror = r; i.src = src; });
+const ready = Promise.all([load('fire', 'fx-boom-fire.webp'), load('smoke', 'fx-boom-smoke.webp'), load('holy', 'fx-holy.webp'), load('puff', 'fx-puff.webp'), load('debris', 'fx-debris.webp'),
+  load('rock', 'proj-rock.webp'), load('bolt', 'proj-bolt.webp'), load('arrow', 'proj-arrow.webp'), load('lance', 'proj-lance.webp')]);
+
+// ── sound (the game's own sounds + a synthesized whoosh) ───────────────────────────────────────────────────────────
+let AC = null; const BUF = {};
+function audio() { if (!AC) { AC = new (window.AudioContext || window.webkitAudioContext)(); ['boom', 'hit', 'dano'].forEach(n => fetch(n + '.wav').then(r => r.arrayBuffer()).then(b => AC.decodeAudioData(b)).then(d => BUF[n] = d).catch(() => {})); } if (AC.state === 'suspended') AC.resume(); return AC; }
+const sndOn = () => $('#snd').checked && AC && speed === 1;
+function play(name, when, vol = 1, rate = 1, offset = 0) {
+  if (!sndOn() || !BUF[name]) return;
+  const s = AC.createBufferSource(); s.buffer = BUF[name]; s.playbackRate.value = rate; const g = AC.createGain(); g.gain.value = vol; s.connect(g).connect(AC.destination);
+  s.start(AC.currentTime + Math.max(0, when), Math.max(0, offset));
+}
+function whoosh(when, dur, vol = .5, f0 = 400, f1 = 1800) {
+  if (!sndOn()) return;
+  const n = Math.ceil(AC.sampleRate * dur), b = AC.createBuffer(1, n, AC.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  const s = AC.createBufferSource(); s.buffer = b; const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.2;
+  const t = AC.currentTime + when; f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  const g = AC.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + dur * .55); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f).connect(g).connect(AC.destination); s.start(t);
+}
+
+// ── tiny simulation: timeline of things that draw themselves ────────────────────────────────────────────────────────
+let now = 0, speed = 1; const fxs = []; const sched = [];
+const R = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const eo = u => 1 - Math.pow(1 - clamp(u), 3), ei = u => clamp(u) * clamp(u);
+const at = (delay, fn) => sched.push({ t: now + delay, fn });
+const add = (o) => { o.t0 = o.t0 ?? now; fxs.push(o); return o; };
+
+function sprite(img, cols, size, frame, x, y, sc, alpha, mode, ax = .5, ay = .5, flip = 1) {
+  const c = frame % cols, r = Math.floor(frame / cols);
+  ctx.save(); ctx.globalAlpha = alpha; ctx.globalCompositeOperation = mode || 'source-over';
+  ctx.translate(x, y); ctx.scale(sc * flip, sc);
+  ctx.drawImage(img, c * size, r * size, size, size, -size * ax, -size * ay, size, size);
+  ctx.restore();
+}
+
+// ── effects ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+// the fireball: smoke under (normal), fire over (additive). Frame centre of the blast is at (50%, 60%) of the frame.
+function explosion(x, y, sc = 1, delay = 0, flip = 1) {
+  const dur = 1.25, f = flip < 0 ? -1 : 1;
+  at(delay, () => add({ dur, draw(p) {
+    const fr = Math.min(29, Math.floor(p * 30));
+    sprite(IMG.smoke, 6, 256, fr, x, y, sc, 1, 'source-over', .5, .6, f);
+    sprite(IMG.fire, 6, 256, fr, x, y, sc, 1, 'lighter', .5, .6, f);
+  } }));
+}
+function holy(x, y, sc = 1, delay = 0) {
+  at(delay, () => add({ dur: 1.0, draw(p) { sprite(IMG.holy, 6, 256, Math.min(23, Math.floor(p * 24)), x, y, sc, 1, 'lighter'); } }));
+}
+function flash(x, y, r, color = '255,190,90', a = .55, dur = .28) {
+  add({ dur, draw(p) { const g = ctx.createRadialGradient(x, y, 0, x, y, r); const al = a * (1 - p) * (1 - p);
+    g.addColorStop(0, `rgba(${color},${al})`); g.addColorStop(1, `rgba(${color},0)`); ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(x - r, y - r, 2 * r, 2 * r); ctx.restore(); } });
+}
+function shock(x, y, r, dur = .55, color = '255,226,170', w = 5) {
+  add({ dur, draw(p) { const e = eo(p), rx = r * e, al = (1 - p) * (1 - p) * .6;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgba(${color},${al})`; ctx.lineWidth = w * (1 - p) * .7 + .8;
+    ctx.beginPath(); ctx.ellipse(x, y, rx, rx * .42, 0, 0, Math.PI * 2); ctx.stroke();
+    const g = ctx.createRadialGradient(x, y, rx * .5, x, y, rx); g.addColorStop(0, 'rgba(255,200,120,0)'); g.addColorStop(1, `rgba(255,200,120,${al * .18})`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y, rx, rx * .42, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); } });
+}
+function scorch(x, y, rx, dur = 2.6) {
+  add({ dur, draw(p) { const al = .5 * Math.min(1, p * 8) * (1 - p); const g = ctx.createRadialGradient(x, y, 0, x, y, rx);
+    g.addColorStop(0, `rgba(10,6,3,${al})`); g.addColorStop(1, 'rgba(10,6,3,0)'); ctx.save(); ctx.translate(x, y); ctx.scale(1, .45); ctx.translate(-x, -y); ctx.fillStyle = g; ctx.fillRect(x - rx, y - rx, rx * 2, rx * 2); ctx.restore(); } });
+}
+function puff(x, y, vx, vy, size, life, a = .6, grow = 2.2, tint = 0) {
+  const k = Math.floor(Math.random() * 4), rot = R(0, 6.28), vr = R(-1, 1);
+  add({ dur: life, draw(p) { const px = x + vx * p * life, py = y + vy * p * life; const s = size * (1 + grow * eo(p)) / 128;
+    ctx.save(); ctx.globalAlpha = a * (1 - p) * Math.min(1, p * 10); ctx.translate(px, py); ctx.rotate(rot + vr * p);
+    ctx.drawImage(IMG.puff, k * 128, 0, 128, 128, -64 * s, -64 * s, 128 * s, 128 * s); ctx.restore(); } });
+}
+function dust(x, y, spread, n = 10, size = 46) {
+  for (let i = 0; i < n; i++) { const a = R(0, Math.PI * 2), sp = R(.35, 1) * spread; puff(x + Math.cos(a) * 8, y + Math.sin(a) * 4, Math.cos(a) * sp / .9, Math.sin(a) * sp * .4 / .9, R(.6, 1) * size, R(.7, 1.1), .55, 1.6); }
+}
+function debris(x, y, n = 9, power = 1) {
+  for (let i = 0; i < n; i++) {
+    const vx = R(-190, 190) * power, vy = -R(170, 360) * power, g = 760, k = Math.floor(Math.random() * 4), sz = R(10, 24) * Math.min(1.4, .6 + power * .5), rot0 = R(0, 6.28), vr = R(-9, 9), life = R(.8, 1.15);
+    add({ dur: life, draw(p) { const t = p * life; const px = x + vx * t, py = Math.min(y + 30, y + vy * t + .5 * g * t * t);
+      ctx.save(); ctx.globalAlpha = 1 - ei((p - .75) / .25); ctx.translate(px, py); ctx.rotate(rot0 + vr * t); ctx.drawImage(IMG.debris, k * 64, 0, 64, 64, -sz / 2, -sz / 2, sz, sz); ctx.restore(); } });
+    // ember trail
+    if (i % 2 === 0) add({ dur: life, draw(p) { const t = p * life; const px = x + vx * t, py = y + vy * t + .5 * g * t * t; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,150,40,${.8 * (1 - p)})`; ctx.beginPath(); ctx.arc(px, py, 2.2 * (1 - p) + .5, 0, 7); ctx.fill(); ctx.restore(); } });
+  }
+}
+function sparks(x, y, n = 14, power = 1, color = '255,210,110') {
+  for (let i = 0; i < n; i++) {
+    const a = R(0, Math.PI * 2), sp = R(80, 300) * power, vx = Math.cos(a) * sp, vy = Math.sin(a) * sp * .8 - 90, g = 520, life = R(.35, .8);
+    add({ dur: life, draw(p) { const t = p * life, t2 = Math.max(0, t - .045); const px = x + vx * t, py = y + vy * t + .5 * g * t * t, qx = x + vx * t2, qy = y + vy * t2 + .5 * g * t2 * t2;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgba(${color},${1 - p})`; ctx.lineWidth = 2 * (1 - p) + .6; ctx.beginPath(); ctx.moveTo(qx, qy); ctx.lineTo(px, py); ctx.stroke(); ctx.restore(); } });
+  }
+}
+function hit(el, delay = 0, alt = false) { at(delay, () => { el.classList.remove('hit', 'hit2'); void el.offsetWidth; el.classList.add(alt ? 'hit2' : 'hit'); }); }
+function num(x, y, text, delay = 0, size = 30) { at(delay, () => { const d = document.createElement('div'); d.className = 'num'; d.textContent = text; d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.fontSize = size + 'px'; $('#nums').appendChild(d); setTimeout(() => d.remove(), 1600 / speed); }); }
+
+// A projectile that flies from a to b. `arc` is the height of the arc (0 = straight line, as with a bolt).
+function fly({ img, cols = 1, frame = 0, size, from, to, dur, arc = 0, scale = [1, 1], spin = 0, trail = 'none', onEnd, aim = false, shadow = false, glow = null, ribbon = null }) {
+  const pos = []; let acc = 0, last = 0;
+  const o = add({ dur, draw(p) {
+    const e = arc ? p : p, u = e;
+    const gx = from.x + (to.x - from.x) * u, gy = from.y + (to.y - from.y) * u;
+    const h = arc ? 4 * u * (1 - u) : 0;              // 0..1 height above the ground line
+    const x = gx, y = gy - arc * h;
+    const ang = aim ? Math.atan2((to.y - from.y) - (arc ? arc * 4 * (1 - 2 * u) : 0), to.x - from.x) : spin * p * dur;
+    const sc = scale[0] + (scale[1] - scale[0]) * u + (arc ? .55 * h : 0);
+    if (shadow) { ctx.save(); ctx.globalAlpha = .38 * (1 - h * .55); ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(gx, gy + 6, 17 * sc * (1 - h * .35), 6 * sc * (1 - h * .35), 0, 0, 7); ctx.fill(); ctx.restore(); }
+    // trail
+    const dt = (p - last) * dur; last = p; acc += dt;
+    while (acc > 0.014) { acc -= 0.014;
+      if (trail === 'smoke' || trail === 'fire') puff(x + R(-4, 4), y + R(-4, 4), R(-14, 14), R(-8, 16), R(26, 40) * sc, R(.55, .9), trail === 'fire' ? .5 : .42, 1.7);
+      if (trail === 'fire') add({ dur: .45, draw(pp) { const s = 8 * (1 - pp) + 1; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,${120 + 90 * (1 - pp) | 0},40,${.9 * (1 - pp)})`; ctx.beginPath(); ctx.arc(x + R(-3, 3), y + R(-3, 3) + pp * 14, s, 0, 7); ctx.fill(); ctx.restore(); } });
+      if (trail === 'gold') add({ dur: .5, draw(pp) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,230,140,${.9 * (1 - pp)})`; ctx.beginPath(); ctx.arc(x + R(-4, 4), y + R(-4, 4), 3.2 * (1 - pp) + .6, 0, 7); ctx.fill(); ctx.restore(); } });
+    }
+    if (ribbon) { pos.push([x, y]); if (pos.length > ribbon.n) pos.shift();
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+      for (let i = 1; i < pos.length; i++) { const k = i / pos.length; ctx.strokeStyle = `rgba(${ribbon.c},${k * .75})`; ctx.lineWidth = ribbon.w * k; ctx.beginPath(); ctx.moveTo(pos[i - 1][0], pos[i - 1][1]); ctx.lineTo(pos[i][0], pos[i][1]); ctx.stroke(); }
+      ctx.restore(); }
+    if (glow) { const g = ctx.createRadialGradient(x, y, 0, x, y, glow.r); g.addColorStop(0, `rgba(${glow.c},${glow.a})`); g.addColorStop(1, `rgba(${glow.c},0)`); ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(x - glow.r, y - glow.r, glow.r * 2, glow.r * 2); ctx.restore(); }
+    ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(sc, sc);
+    const iw = size[0], ih = size[1];
+    if (img === IMG.rock) { ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 8; ctx.filter = 'brightness(.78) contrast(1.25)'; }
+    ctx.drawImage(img, frame * iw, 0, iw, ih, -iw / 2, -ih / 2, iw, ih); ctx.restore();
+  }, end() { onEnd && onEnd(); } });
+  return o;
+}
+
+// ── the attacks ───────────────────────────────────────────────────────────────────────────────────────────────────
+const scenes = {
+  catapulta: {
+    cap: 'Catapulta: a pedra sobe em arco com rastro de fumaça, projeta sombra no chão e explode na fileira inimiga inteira (2 de dano em cada carta).',
+    run() {
+      const from = { x: 195, y: 622 }, to = { x: 195, y: ROW.eFront + 10 }, T = 1.05;
+      whoosh(0, .35, .35, 250, 900); play('dano', 0, .35, .7);
+      puff(from.x, from.y - 6, 0, -30, 80, .8, .6, 1.6); flash(from.x, from.y, 90, '255,210,150', .35, .25);
+      at(.05, () => fly({ img: IMG.rock, cols: 2, frame: 0, size: [128, 128], from, to, dur: T, arc: 330, scale: [.2, .26], spin: 7, trail: 'smoke', shadow: true }));
+      whoosh(.25, T - .25, .5, 600, 300);
+      const t = .05 + T; play('boom', t - .44, .9);
+      at(t, () => {
+        flash(195, ROW.eFront, 230, '255,180,80', .55, .3);
+        explosion(195, ROW.eFront + 4, 1.0, 0); explosion(110, ROW.eFront + 2, .74, .07, -1); explosion(280, ROW.eFront + 2, .74, .1);
+        explosion(55, ROW.eFront, .52, .15); explosion(335, ROW.eFront, .52, .17, -1);
+        shock(195, ROW.eFront + 30, 210, .6); scorch(195, ROW.eFront + 30, 190);
+        dust(195, ROW.eFront + 34, 150, 14); debris(195, ROW.eFront, 12, 1.1); sparks(195, ROW.eFront, 16);
+      });
+      enemyCards.filter(e => +e.dataset.y === ROW.eFront).forEach((e, i) => { const d = t + Math.abs(+e.dataset.x - 195) / 1400; hit(e, d - now, i % 2); num(+e.dataset.x, ROW.eFront - 30, '-2', d - now + .05, 28); });
+    }
+  },
+  trabuco: {
+    cap: 'Trabuco: pedra enorme em brasa, arco mais alto e lento. A explosão cobre o campo todo e a onda de choque passa por todas as cartas e pelo General (2 de dano em cada).',
+    run() {
+      const from = { x: 195, y: 626 }, to = { x: 195, y: 190 }, T = 1.35;
+      whoosh(0, .45, .5, 180, 700); play('boom', 0, .35, .6);
+      puff(from.x, from.y - 6, 0, -40, 120, 1, .7, 1.6); flash(from.x, from.y, 130, '255,170,70', .5, .3);
+      at(.05, () => fly({ img: IMG.rock, cols: 2, frame: 1, size: [128, 128], from, to, dur: T, arc: 460, scale: [.3, .42], spin: 5, trail: 'fire', shadow: true, glow: { r: 46, c: '255,120,30', a: .55 } }));
+      whoosh(.4, T - .4, .6, 500, 220);
+      const t = .05 + T; play('boom', t - .44, 1.0); play('hit', t - .02, .6, .7);
+      at(t, () => {
+        flash(195, 200, 380, '255,170,70', .75, .38);
+        explosion(195, 205, 1.75, 0); explosion(110, 240, .8, .1); explosion(280, 240, .8, .13, -1);
+        explosion(195, 140, .9, .16); explosion(195, 58, .75, .22); explosion(70, 170, .6, .2); explosion(325, 170, .6, .22, -1);
+        shock(195, 232, 330, .8, '255,226,170', 7); at(.12, () => shock(195, 232, 250, .7, '255,200,120', 4));
+        scorch(195, 232, 280, 3); dust(195, 240, 220, 18, 62); debris(195, 210, 22, 1.5); sparks(195, 205, 26, 1.3);
+      });
+      enemyCards.forEach(e => { const dx = Math.hypot(+e.dataset.x - 195, (+e.dataset.y - 232) * 1.8) / 1000; hit(e, t + dx - now + .06, Math.random() < .5); num(+e.dataset.x, +e.dataset.y - 34, '-2', t + dx - now + .12, +e.dataset.y < 80 ? 34 : 28); });
+    }
+  },
+  balestra: {
+    cap: 'Balestra: o virote cruza o campo em linha reta, muito rápido, com um risco de velocidade. Crava na carta e solta faíscas (3 de dano em uma unidade).',
+    run() {
+      const from = { x: 195, y: 618 }, tgt = cardByPos(265, ROW.eFront), to = { x: 265, y: ROW.eFront + 6 }, T = .34;
+      whoosh(0, .3, .5, 1200, 3200); play('dano', 0, .25, 1.4);
+      flash(from.x, from.y, 70, '255,255,255', .35, .15);
+      at(.05, () => fly({ img: IMG.bolt, size: [168, 28], from, to, dur: T, aim: true, scale: [.9, .9], ribbon: { n: 14, c: '255,255,255', w: 5 } }));
+      const t = .05 + T; play('hit', t - .042, .9);
+      at(t, () => {
+        flash(to.x, to.y, 90, '255,230,170', .75, .2); explosion(to.x, to.y + 12, .38, 0); sparks(to.x, to.y, 18, 1.1, '255,235,170'); puff(to.x, to.y, 0, -20, 40, .5, .5, 1.5);
+        // the bolt stays stuck in the card for a moment
+        const ang = Math.atan2(to.y - from.y, to.x - from.x);
+        add({ dur: 1.0, draw(p) { ctx.save(); ctx.globalAlpha = 1 - ei((p - .7) / .3); ctx.translate(to.x - 18, to.y - 4); ctx.rotate(ang); ctx.drawImage(IMG.bolt, 0, 0, 168, 28, -84, -14, 168, 28); ctx.restore(); } });
+      });
+      hit(tgt, t - now, 1); num(265, ROW.eFront - 38, '-3', t - now + .05, 34);
+    }
+  },
+  lanca: {
+    cap: 'Lança do Jorge: a lança dourada sai da carta dele, deixa um rastro de luz, atravessa o alvo e acerta a carta de trás (2 de dano). Explosão sagrada em cada acerto.',
+    run() {
+      const jorge = cardByPos(195, ROW.pFront), from = { x: 195, y: ROW.pFront - 36 }, tgt1 = { x: 195, y: ROW.eFront + 8 }, tgt2 = { x: 195, y: ROW.eBack + 8 };
+      jorge.classList.remove('windup'); void jorge.offsetWidth; jorge.classList.add('windup');
+      whoosh(.2, .35, .55, 500, 2600);
+      flash(from.x, from.y + 20, 100, '255,230,150', .55, .35);
+      const T1 = .46;
+      at(.3, () => {
+        play('dano', 0, .25, 1.5);
+        fly({ img: IMG.lance, size: [250, 44], from, to: tgt1, dur: T1, aim: true, scale: [.9, .9], trail: 'gold', glow: { r: 62, c: '255,220,120', a: .7 }, ribbon: { n: 22, c: '255,215,110', w: 14 } });
+      });
+      const t1 = .3 + T1;
+      play('hit', t1 - .042, .95);
+      at(t1, () => {
+        flash(tgt1.x, tgt1.y, 150, '255,230,150', .8, .3); holy(tgt1.x, tgt1.y, 1.05); sparks(tgt1.x, tgt1.y, 16, 1, '255,236,160');
+        // it goes on, thinner, to the card behind
+        fly({ img: IMG.lance, size: [250, 44], from: tgt1, to: tgt2, dur: .3, aim: true, scale: [.8, .72], trail: 'gold', glow: { r: 48, c: '255,220,120', a: .6 }, ribbon: { n: 16, c: '255,215,110', w: 10 } });
+        play('hit', .3 - .042, .7, 1.15);
+        at(.3, () => { flash(tgt2.x, tgt2.y, 110, '255,230,150', .7, .28); holy(tgt2.x, tgt2.y, .8); sparks(tgt2.x, tgt2.y, 12, .8, '255,236,160'); });
+      });
+      const e1 = cardByPos(195, ROW.eFront), e2 = cardByPos(195, ROW.eBack);
+      hit(e1, t1 - now, 0); num(195, ROW.eFront - 38, '-4', t1 - now + .05, 34);
+      hit(e2, t1 + .3 - now, 1); num(195, ROW.eBack - 38, '-2', t1 + .3 - now + .05, 28);
+    }
+  },
+  arqueiro: {
+    cap: 'Arqueiro: três flechas em arco curto, uma depois da outra. Cada uma levanta poeira e uma faísca pequena (1 de dano por flecha, ataca 2 vezes por rodada).',
+    run() {
+      const archer = cardByPos(125, ROW.pBack), from = { x: 125, y: ROW.pBack - 34 }, to0 = { x: 195, y: ROW.eFront + 6 };
+      archer.classList.remove('kick'); void archer.offsetWidth; archer.classList.add('kick');
+      const tg = cardByPos(195, ROW.eFront);
+      for (let i = 0; i < 3; i++) {
+        const d = .12 + i * .16, T = .62, to = { x: to0.x + R(-14, 14), y: to0.y + R(-8, 10) };
+        at(d, () => { whoosh(0, .22, .3, 1400, 2800); fly({ img: IMG.arrow, size: [124, 16], from: { x: from.x + R(-4, 4), y: from.y }, to, dur: T, arc: 120, aim: true, scale: [.8, .9], ribbon: { n: 8, c: '255,255,255', w: 2.4 } }); });
+        const t = d + T; play('dano', t - .05, .3, 1.5 + i * .1);
+        at(t, () => { sparks(to.x, to.y, 8, .6, '255,240,200'); puff(to.x, to.y + 6, 0, -14, 30, .45, .45, 1.4);
+          add({ dur: .9, draw(p) { ctx.save(); ctx.globalAlpha = 1 - ei((p - .6) / .4); ctx.translate(to.x - 8, to.y - 8); ctx.rotate(-1.15); ctx.drawImage(IMG.arrow, 0, 0, 124, 16, -62, -8, 124, 16); ctx.restore(); } }); });
+        hit(tg, t - now, i % 2); num(195 + (i - 1) * 16, ROW.eFront - 36 - i * 4, '-1', t - now + .04, 24);
+      }
+    }
+  },
+  seta: {
+    cap: 'Como é hoje: uma seta vermelha marca o ataque e depois vem o golpe corpo a corpo. Fica aqui só para comparar com os projéteis.',
+    run() {
+      const a = { x: 195, y: ROW.pFront - 40 }, b = { x: 195, y: ROW.eFront + 40 }, T = .55;
+      add({ dur: T + .35, draw(p) {
+        const u = eo(clamp(p / (T / (T + .35)))), x = a.x + (b.x - a.x) * u, y = a.y + (b.y - a.y) * u, fade = 1 - ei((p - .75) / .25);
+        ctx.save(); ctx.globalAlpha = fade; ctx.strokeStyle = 'rgba(255,60,50,.95)'; ctx.fillStyle = 'rgba(255,60,50,.95)'; ctx.lineWidth = 5; ctx.shadowColor = 'rgba(255,40,30,.9)'; ctx.shadowBlur = 12;
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(x, y + 12); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, y - 10); ctx.lineTo(x - 13, y + 14); ctx.lineTo(x + 13, y + 14); ctx.closePath(); ctx.fill(); ctx.restore(); } });
+      const e = cardByPos(195, ROW.eFront);
+      hit(e, T + .05, 0); num(195, ROW.eFront - 38, '-4', T + .12, 34);
+      at(T, () => { play('hit', 0, .8); flash(195, ROW.eFront, 90, '255,255,255', .5, .2); });
+    }
+  }
+};
+
+let current = null;
+function runScene(k) {
+  audio();
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.a === k));
+  fxs.length = 0; sched.length = 0; now = 0; $('#nums').innerHTML = '';
+  els.forEach(e => e.classList.remove('hit', 'hit2', 'windup', 'kick'));
+  current = k; $('#cap').textContent = scenes[k].cap;
+  speed = $('#slow').checked ? .25 : 1;
+  scenes[k].run();
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => runScene(b.dataset.a));
+
+// ── main loop (`?manual` lets a test advance time by hand with window.__step(seconds)) ───────────────────────────────
+function tick(dt) {
+  now += dt * speed;
+  for (let i = sched.length - 1; i >= 0; i--) if (sched[i].t <= now) { const s = sched.splice(i, 1)[0]; s.fn(); }
+  ctx.setTransform(RES, 0, 0, RES, 0, 0); ctx.clearRect(0, 0, W, H);
+  for (let i = 0; i < fxs.length; i++) {
+    const f = fxs[i], p = (now - f.t0) / f.dur;
+    if (p >= 1) { f.end && f.end(); fxs.splice(i, 1); i--; continue; }
+    if (p >= 0) f.draw(p);
+  }
+}
+let lastT = performance.now();
+if (!q.has('manual')) (function loop(t) { tick(Math.min(.05, (t - lastT) / 1000)); lastT = t; requestAnimationFrame(loop); })(lastT);
+window.__step = (s) => { speed = 1; const n = Math.round(s / (1 / 60)); for (let i = 0; i < n; i++) tick(1 / 60); };
+window.__run = (k) => { runScene(k); speed = 1; };
+ready.then(() => { if (q.get('run')) runScene(q.get('run')); });
+</script>
+</body>
+</html>
