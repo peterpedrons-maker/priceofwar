@@ -3193,7 +3193,10 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
         {soundOpen && <OptionsModal onClose={() => setSoundOpen(false)} />}
         {roomOpen && (
           <Suspense fallback={<div className="fixed inset-0 z-[250] bg-[#0d0905]" />}>
-            <CollectionRoom onClose={() => setRoomOpen(false)} onOpenShop={() => setShopOpen(true)} onOpenDeck={() => setDeckEditorOpen(true)} overlayOpen={shopOpen || deckEditorOpen} />
+            <CollectionRoom onClose={() => setRoomOpen(false)} onOpenShop={() => setShopOpen(true)} onOpenDeck={() => setDeckEditorOpen(true)} overlayOpen={shopOpen || deckEditorOpen}
+              // TEST BASE: the table always has two boosters (one of each deck) and they never run out, so opening them can be tried over and over.
+              packs={BOOSTERS.map(d => ({ id: d.id, name: d.name, art: <BoosterArt def={d} /> }))}
+              renderOpening={(id, onDone) => { const def = BOOSTERS.find(b => b.id === id); return def ? <OpenBoosterFromTable key={id} def={def} onDone={onDone} /> : null; }} />
           </Suspense>
         )}
         {shopOpen && <ShopScreen coroas={profile.coroas} onSpend={(n) => updateProfile({ coroas: Math.max(0, profile.coroas - n) })} onClose={() => setShopOpen(false)} />}
@@ -4147,6 +4150,107 @@ const PackTear = ({ def, width, height, onTorn }: { def: BoosterDef; width: numb
   );
 };
 
+// Opening a booster: swipe to tear the pack, then the cards come out stacked and the player swipes each one aside to see the next (least rare
+// first, best last), then a summary. Used by the shop and by the table in the Sala de Coleção. `cards` were already rolled and saved by pullBooster.
+type PulledCard = { card: CardData; isNew: boolean; strong: boolean };
+const pullBooster = (def: BoosterDef): PulledCard[] => {
+  const store = loadDeckStore();
+  // Shown from the least to the most rare, so the best card is always the last one revealed.
+  const rarity = (c: CardData) => (c.isFullArt ? 10 : 0) + c.cost;
+  const rolled = rollBooster(def).sort((a, b) => rarity(a) - rarity(b));
+  const cards = rolled.map(card => {
+    const isNew = (store.collection[card.name] ?? 0) === 0;
+    store.collection[card.name] = (store.collection[card.name] ?? 0) + 1;
+    return { card, isNew, strong: rarity(card) >= 4 };
+  });
+  saveDeckStore(store);
+  return cards;
+};
+const PackOpening = ({ def, cards, packW, cardScale, onDone }: { def: BoosterDef; cards: PulledCard[]; packW: number; cardScale: number; onDone: () => void; key?: React.Key }) => {
+  const [pull, setPull] = useState<{ cards: PulledCard[]; step: number; phase: 'sealed' | 'stack' | 'summary' }>({ cards, step: 0, phase: 'sealed' });
+  const dirs = useRef<Record<number, number>>({}).current;   // which way each opened card was swiped (so it leaves that way)
+  return (
+    <motion.div key="opening" className="fixed inset-0 z-[500] flex flex-col items-center justify-center gap-6" style={{ background: 'radial-gradient(ellipse at 50% 45%, rgba(90,60,20,0.85), rgba(0,0,0,0.96) 70%)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+  {pull.phase === 'sealed' && (
+    <>
+      <PackTear def={def} width={packW * 1.2} height={(packW * 1.2) / BOOSTER_ASPECT} onTorn={() => setPull(p => (p ? { ...p, phase: 'stack' } : p))} />
+      <span className="text-[13px] uppercase tracking-[0.2em] text-[#f3e3c3] text-center px-6" style={{ fontFamily: "'Cinzel', serif" }}>Deslize o dedo sobre a linha para rasgar</span>
+    </>
+  )}
+  {pull.phase === 'stack' && (
+    <div className="flex flex-col items-center gap-8">
+      <div className="relative mb-14" style={{ width: 224 * cardScale, height: 320 * cardScale }}>
+        {pull.cards.map(({ card, isNew, strong }, i) => {
+          const r = i - pull.step;      // 0 = the card on top
+          const seen = r < 0;
+          // Only the top card is ever visible; the rest wait exactly underneath it,
+          // hidden, so what comes next stays a surprise.
+          return (
+            <motion.div
+              key={i}
+              className="absolute inset-0"
+              style={{ zIndex: 100 - r, touchAction: 'none', filter: `drop-shadow(0 0 ${strong ? 26 : 12}px rgba(232,199,102,${strong ? 0.85 : 0.4}))`, cursor: r === 0 ? 'grab' : 'default', pointerEvents: r === 0 ? 'auto' : 'none' }}
+              initial={{ y: 50, scale: 0.55, opacity: 0, rotate: 0 }}
+              animate={seen
+                ? { x: (dirs[i] ?? 1) * 380, y: 0, scale: 0.9, opacity: 0, rotate: (dirs[i] ?? 1) * 16 }
+                : r === 0
+                  ? { x: 0, y: 0, scale: 1, opacity: 1, rotate: 0 }
+                  : { x: 0, y: 0, scale: 0.96, opacity: 0, rotate: 0 }}
+              transition={{ type: 'spring', stiffness: 240, damping: 24, delay: pull.step === 0 && r === 0 ? 0.1 : 0 }}
+              drag={r === 0 ? 'x' : false}
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.9}
+              onDragEnd={(_, info) => {
+                if (Math.abs(info.offset.x) > 70 || Math.abs(info.velocity.x) > 500) {
+                  playUiClickSfx();
+                  dirs[i] = info.offset.x < 0 ? -1 : 1;
+                  const next = pull.step + 1;
+                  setPull({ ...pull, step: next });
+                  if (next >= pull.cards.length) window.setTimeout(() => setPull(p => (p ? { ...p, phase: 'summary' } : p)), 450);
+                }
+              }}
+            >
+              <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: `scale(${cardScale})`, transformOrigin: 'top left' }}>
+                <div className="relative w-full h-full rounded-xl"><CardFace card={card} variant="hand" /></div>
+              </div>
+              {isNew && <span className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-[11px] font-black text-[#fff1c9] bg-[#b8402c] shadow-[0_0_0_2px_#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>NOVA!</span>}
+            </motion.div>
+          );
+        })}
+      </div>
+      <span className="text-[12px] uppercase tracking-[0.18em] text-[#cdbd97] text-center px-6" style={{ fontFamily: "'Cinzel', serif" }}>
+        {pull.step < pull.cards.length ? `Arraste a carta para o lado · ${pull.cards.length - pull.step} ${pull.cards.length - pull.step === 1 ? 'restante' : 'restantes'}` : ''}
+      </span>
+    </div>
+  )}
+  {pull.phase === 'summary' && (
+    <div className="flex flex-col items-center gap-5 px-3">
+      <WindowTitle>Suas cartas</WindowTitle>
+      <div className="flex flex-wrap justify-center gap-x-5 gap-y-6">
+        {pull.cards.map(({ card, isNew }, i) => (
+          <motion.div key={i} className="relative" style={{ width: 224 * 0.42, height: 320 * 0.42 }} initial={{ opacity: 0, y: 24, scale: 0.8 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: i * 0.09, type: 'spring', stiffness: 260, damping: 22 }}>
+            <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: 'scale(0.42)', transformOrigin: 'top left' }}>
+              <div className="relative w-full h-full rounded-xl"><CardFace card={card} variant="hand" /></div>
+            </div>
+            {isNew && <span className="absolute -top-1 -right-1 px-1.5 rounded-full text-[8px] font-black text-[#fff1c9] bg-[#b8402c] shadow-[0_0_0_1.5px_#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>NOVA</span>}
+          </motion.div>
+        ))}
+      </div>
+      <span className="text-[11px] text-[#a89a78]" style={{ fontFamily: "'PT Serif', serif" }}>As cartas já estão na sua coleção.</span>
+      <WindowButton primary onClick={onDone}>Continuar</WindowButton>
+    </div>
+  )}
+</motion.div>
+  );
+};
+
+// The opening shown from the table in the Sala de Coleção: rolls the pack once, then the same tear / swipe / summary as in the shop.
+const OpenBoosterFromTable = ({ def, onDone }: { def: BoosterDef; onDone: () => void; key?: React.Key }) => {
+  const [cards] = useState(() => pullBooster(def));
+  const stageW = Math.min(window.innerWidth, 480);
+  return <PackOpening def={def} cards={cards} packW={Math.min(stageW * 0.5, 200)} cardScale={Math.min(1.3, (stageW * 0.72) / 224)} onDone={onDone} />;
+};
+
 const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n: number) => void; onClose: () => void }) => {
   const [phase, setPhase] = useState<ShopPhase>('front');
   const [mood, setMood] = useState<NpcMood>('greet');
@@ -4206,16 +4310,7 @@ const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n:
       if (coroas < def.price) { setMood('sorry'); return; }
       onSpend(def.price);
     }
-    const store = loadDeckStore();
-    // Shown from the least to the most rare, so the best card is always the last one revealed.
-    const rarity = (c: CardData) => (c.isFullArt ? 10 : 0) + c.cost;
-    const rolled = rollBooster(def).sort((a, b) => rarity(a) - rarity(b));
-    const cards = rolled.map(card => {
-      const isNew = (store.collection[card.name] ?? 0) === 0;
-      store.collection[card.name] = (store.collection[card.name] ?? 0) + 1;
-      return { card, isNew, strong: rarity(card) >= 4 };
-    });
-    saveDeckStore(store);
+    const cards = pullBooster(def);
     setMood('happy');
     setPull({ cards, step: 0, phase: 'sealed' });
     setPhase('opening');
@@ -4386,79 +4481,7 @@ const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n:
         {/* Opening: dark backdrop, swipe to tear the pack, then the cards come out stacked and the
             player swipes each one aside to see the next (least rare first, best last). */}
         <AnimatePresence>
-          {phase === 'opening' && pull && selected && (
-            <motion.div key="opening" className="fixed inset-0 z-[500] flex flex-col items-center justify-center gap-6" style={{ background: 'radial-gradient(ellipse at 50% 45%, rgba(90,60,20,0.85), rgba(0,0,0,0.96) 70%)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              {pull.phase === 'sealed' && (
-                <>
-                  <PackTear def={selected.def} width={detailW * 1.2} height={(detailW * 1.2) / BOOSTER_ASPECT} onTorn={() => setPull(p => (p ? { ...p, phase: 'stack' } : p))} />
-                  <span className="text-[13px] uppercase tracking-[0.2em] text-[#f3e3c3] text-center px-6" style={{ fontFamily: "'Cinzel', serif" }}>Deslize o dedo sobre a linha para rasgar</span>
-                </>
-              )}
-              {pull.phase === 'stack' && (
-                <div className="flex flex-col items-center gap-8">
-                  <div className="relative mb-14" style={{ width: 224 * cardScale, height: 320 * cardScale }}>
-                    {pull.cards.map(({ card, isNew, strong }, i) => {
-                      const r = i - pull.step;      // 0 = the card on top
-                      const seen = r < 0;
-                      // Only the top card is ever visible; the rest wait exactly underneath it,
-                      // hidden, so what comes next stays a surprise.
-                      return (
-                        <motion.div
-                          key={i}
-                          className="absolute inset-0"
-                          style={{ zIndex: 100 - r, touchAction: 'none', filter: `drop-shadow(0 0 ${strong ? 26 : 12}px rgba(232,199,102,${strong ? 0.85 : 0.4}))`, cursor: r === 0 ? 'grab' : 'default', pointerEvents: r === 0 ? 'auto' : 'none' }}
-                          initial={{ y: 50, scale: 0.55, opacity: 0, rotate: 0 }}
-                          animate={seen
-                            ? { x: (dirs[i] ?? 1) * 380, y: 0, scale: 0.9, opacity: 0, rotate: (dirs[i] ?? 1) * 16 }
-                            : r === 0
-                              ? { x: 0, y: 0, scale: 1, opacity: 1, rotate: 0 }
-                              : { x: 0, y: 0, scale: 0.96, opacity: 0, rotate: 0 }}
-                          transition={{ type: 'spring', stiffness: 240, damping: 24, delay: pull.step === 0 && r === 0 ? 0.1 : 0 }}
-                          drag={r === 0 ? 'x' : false}
-                          dragConstraints={{ left: 0, right: 0 }}
-                          dragElastic={0.9}
-                          onDragEnd={(_, info) => {
-                            if (Math.abs(info.offset.x) > 70 || Math.abs(info.velocity.x) > 500) {
-                              playUiClickSfx();
-                              dirs[i] = info.offset.x < 0 ? -1 : 1;
-                              const next = pull.step + 1;
-                              setPull({ ...pull, step: next });
-                              if (next >= pull.cards.length) window.setTimeout(() => setPull(p => (p ? { ...p, phase: 'summary' } : p)), 450);
-                            }
-                          }}
-                        >
-                          <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: `scale(${cardScale})`, transformOrigin: 'top left' }}>
-                            <div className="relative w-full h-full rounded-xl"><CardFace card={card} variant="hand" /></div>
-                          </div>
-                          {isNew && <span className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-[11px] font-black text-[#fff1c9] bg-[#b8402c] shadow-[0_0_0_2px_#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>NOVA!</span>}
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                  <span className="text-[12px] uppercase tracking-[0.18em] text-[#cdbd97] text-center px-6" style={{ fontFamily: "'Cinzel', serif" }}>
-                    {pull.step < pull.cards.length ? `Arraste a carta para o lado · ${pull.cards.length - pull.step} ${pull.cards.length - pull.step === 1 ? 'restante' : 'restantes'}` : ''}
-                  </span>
-                </div>
-              )}
-              {pull.phase === 'summary' && (
-                <div className="flex flex-col items-center gap-5 px-3">
-                  <WindowTitle>Suas cartas</WindowTitle>
-                  <div className="flex flex-wrap justify-center gap-x-5 gap-y-6">
-                    {pull.cards.map(({ card, isNew }, i) => (
-                      <motion.div key={i} className="relative" style={{ width: 224 * 0.42, height: 320 * 0.42 }} initial={{ opacity: 0, y: 24, scale: 0.8 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: i * 0.09, type: 'spring', stiffness: 260, damping: 22 }}>
-                        <div className="absolute top-0 left-0 pointer-events-none" style={{ width: 224, height: 320, transform: 'scale(0.42)', transformOrigin: 'top left' }}>
-                          <div className="relative w-full h-full rounded-xl"><CardFace card={card} variant="hand" /></div>
-                        </div>
-                        {isNew && <span className="absolute -top-1 -right-1 px-1.5 rounded-full text-[8px] font-black text-[#fff1c9] bg-[#b8402c] shadow-[0_0_0_1.5px_#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>NOVA</span>}
-                      </motion.div>
-                    ))}
-                  </div>
-                  <span className="text-[11px] text-[#a89a78]" style={{ fontFamily: "'PT Serif', serif" }}>As cartas já estão na sua coleção.</span>
-                  <WindowButton primary onClick={finishOpening}>Continuar</WindowButton>
-                </div>
-              )}
-            </motion.div>
-          )}
+          {phase === 'opening' && pull && selected && <PackOpening key="opening" def={selected.def} cards={pull.cards} packW={detailW} cardScale={cardScale} onDone={finishOpening} />}
         </AnimatePresence>
       </div>
     </motion.div>

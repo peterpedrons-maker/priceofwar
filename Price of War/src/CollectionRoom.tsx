@@ -25,12 +25,14 @@ const SPOTS = {
   book: { x: 66, y: 436, w: 196, h: 252, cx: 160, cy: 556, zoom: 2.35, label: 'COLEÇÃO', lx: 196, ly: 744 },
   door: { x: 506, y: 336, w: 262, h: 566, cx: 640, cy: 640, zoom: 2.0, label: 'LOJA', lx: 642, ly: 384 },
   deck: { x: 428, y: 1166, w: 340, h: 210, cx: 600, cy: 1270, zoom: 2.2, label: 'MEU DECK', lx: 580, ly: 1318 },
+  table: { x: 528, y: 924, w: 240, h: 228, cx: 650, cy: 1036, zoom: 1.75, label: 'BOOSTERS', lx: 640, ly: 1176 },
 } as const;
 type SpotKey = keyof typeof SPOTS;
 
 type Entry = { name: string; type: string; full: boolean };
 
-export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overlayOpen }: { onClose: () => void; onOpenShop: () => void; onOpenDeck: () => void; overlayOpen: boolean }) {
+export type RoomPack = { id: string; name: string; art: ReactNode };
+export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overlayOpen, packs, renderOpening }: { onClose: () => void; onOpenShop: () => void; onOpenDeck: () => void; overlayOpen: boolean; packs: RoomPack[]; renderOpening: (id: string, onDone: () => void) => ReactNode }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const fitRef = useRef<HTMLDivElement>(null);
   const panRef = useRef<HTMLDivElement>(null);
@@ -41,6 +43,8 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
   const moved = useRef(0);
   const pan = useRef({ tx: 0, ty: 0, x: 0, y: 0 });
   const [bookState, setBookState] = useState<'closed' | 'opening' | 'open'>('closed');
+  const [tableOpen, setTableOpen] = useState(false);
+  const [openingPack, setOpeningPack] = useState<string | null>(null);
   const [hint, setHint] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
   const [zoomClass, setZoomClass] = useState(false);
@@ -101,7 +105,7 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
     // keep the camera inside the picture: the view never goes past an edge, so no black shows (a spot near the bottom is framed higher)
     const vw = (root.clientWidth * SH) / root.clientHeight, hx = vw / (2 * Z), hy = SH / (2 * Z);
     const cx = vw >= SW ? SW / 2 : clamp(sp.cx, hx, SW - hx), cy = clamp(sp.cy, hy, SH - hy);
-    el.style.transformOrigin = `${cx}px ${cy}px`; el.style.transform = `translate(${SW / 2 - cx}px, ${SH / 2 - cy}px) scale(${Z})`; el.style.filter = k === 'deck' ? 'brightness(.5)' : 'brightness(.82)';
+    el.style.transformOrigin = `${cx}px ${cy}px`; el.style.transform = `translate(${SW / 2 - cx}px, ${SH / 2 - cy}px) scale(${Z})`; el.style.filter = k === 'deck' || k === 'table' ? 'brightness(.5)' : 'brightness(.82)';
   };
   const wasOverlay = useRef(false);
   useEffect(() => {
@@ -113,9 +117,11 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
     if (moved.current > 8 || busy.current) return;
     busy.current = true; pan.current.tx = 0; pan.current.ty = 0; setZoomClass(true); camTo(k); await wait(520);
     if (k === 'book') { setBookState('opening'); return; }
+    if (k === 'table') { setTableOpen(true); return; }
     if (k === 'door') onOpenShop(); else onOpenDeck();
     // busy stays true until the screen opened over the room closes (see the overlayOpen effect)
   };
+  const closeTable = async () => { setTableOpen(false); await wait(380); camTo(null); await wait(620); setZoomClass(false); busy.current = false; };
   const closeBook = async () => {
     setBookState('closed'); await wait(700); camTo(null); await wait(620); setZoomClass(false); busy.current = false;
   };
@@ -149,7 +155,7 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
                 <div key={k}>
                   <div className="room-glow" style={{ left: s.x, top: s.y, width: s.w, height: s.h }} />
                   <button data-spot={k} aria-label={s.label} onClick={tap(k)} style={{ position: 'absolute', left: s.x, top: s.y, width: s.w, height: s.h, background: 'none', border: 0, padding: 0 }} />
-                  <div className="room-plaque" style={{ left: s.lx, top: s.ly }}>{s.label}{k === 'book' && <i>{entries.length}/{entries.length}</i>}</div>
+                  <div className="room-plaque" style={{ left: s.lx, top: s.ly }}>{s.label}{k === 'book' && <i>{entries.length}/{entries.length}</i>}{k === 'table' && <i>{packs.length}</i>}</div>
                 </div>
               );
             })}
@@ -160,14 +166,16 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
       <canvas ref={dustRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', mixBlendMode: 'screen' }} />
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse at 50% 46%, transparent 40%, rgba(0,0,0,.5) 100%)' }} />
 
-      <div data-ui style={{ position: 'absolute', left: 0, right: 0, top: 0, padding: 'max(10px, env(safe-area-inset-top)) 12px 8px', display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'none' }}>
+      <div data-ui style={{ position: 'absolute', left: 0, right: 0, top: 0, padding: 'max(10px, env(safe-area-inset-top)) 12px 8px', display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'none', opacity: tableOpen ? 0 : 1, transition: 'opacity .3s' }}>
         <button className="room-chip" style={{ pointerEvents: 'auto' }} onClick={onClose}>‹ MENU</button>
         <div style={{ flex: 1, textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.2em', color: '#ffe9b0', textShadow: '0 1px 3px #000' }}>SALA DE COLEÇÃO</div>
         <div className="room-chip" style={{ opacity: 0 }}>‹ MENU</div>
       </div>
-      {hint && bookState === 'closed' && <div style={{ position: 'absolute', left: 0, right: 0, bottom: 'max(10px, env(safe-area-inset-bottom))', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.14em', color: 'rgba(255,233,176,.7)', textShadow: '0 1px 2px #000', pointerEvents: 'none' }}>ARRASTE PARA OLHAR EM VOLTA · TOQUE NOS OBJETOS</div>}
+      {hint && bookState === 'closed' && !tableOpen && <div style={{ position: 'absolute', left: 0, right: 0, bottom: 'max(10px, env(safe-area-inset-bottom))', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.14em', color: 'rgba(255,233,176,.7)', textShadow: '0 1px 2px #000', pointerEvents: 'none' }}>ARRASTE PARA OLHAR EM VOLTA · TOQUE NOS OBJETOS</div>}
       {toast && <div style={{ position: 'absolute', left: '50%', top: 64, transform: 'translateX(-50%)', padding: '9px 14px', borderRadius: 10, background: 'rgba(14,10,6,.9)', border: '1px solid #d9b25a', color: '#ffe9b0', fontSize: 12, whiteSpace: 'nowrap' }}>{toast}</div>}
 
+      {tableOpen && <TableTop packs={packs} onOpenPack={setOpeningPack} onClose={closeTable} />}
+      {openingPack && renderOpening(openingPack, () => setOpeningPack(null))}
       {bookState !== 'closed' && <Binder entries={entries} opening={bookState === 'opening'} onOpened={() => setBookState('open')} onClose={closeBook} />}
     </div>
   );
@@ -430,6 +438,48 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
           </>
         );
       })()}
+    </div>
+  );
+}
+
+// ───────────────────────────── the table, seen from above ─────────────────────────────
+// Tapping the round table pushes the camera toward it and the view changes to the table from above: its cloth, and the boosters the player has
+// lying on it, close to each other. Tap one to open it. (Drawn here in css; a painted top-down table image can replace it.)
+const PACK_ASPECT = 512 / 882;
+function TableTop({ packs, onOpenPack, onClose }: { packs: RoomPack[]; onOpenPack: (id: string) => void; onClose: () => void }) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => { const r = requestAnimationFrame(() => requestAnimationFrame(() => setShown(true))); return () => cancelAnimationFrame(r); }, []);
+  const W = window.innerWidth, H = window.innerHeight, D = Math.min(W * 0.96, H * 0.52), packW = Math.min(D * 0.34, 150), packH = packW / PACK_ASPECT;
+  const n = packs.length, spread = packW * 0.72;
+  const angles = [-11, 8, -4, 13, -8];
+  return (
+    <div style={{ position: 'absolute', inset: 0, zIndex: 30, background: 'radial-gradient(ellipse at 50% 46%, rgba(30,18,10,.6), rgba(5,3,2,.93))', opacity: shown ? 1 : 0, transition: 'opacity .5s' }}>
+      <div style={{ position: 'absolute', left: 0, right: 0, top: 0, padding: 'max(10px, env(safe-area-inset-top)) 12px 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button className="room-chip" onClick={onClose}>‹ SALA</button>
+        <div style={{ flex: 1, textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.2em', color: '#ffe9b0' }}>BOOSTERS</div>
+        <div className="room-chip" style={{ opacity: 0 }}>‹ SALA</div>
+      </div>
+      {/* the table: a wooden rim, the red cloth with its gold trim and folds, lamplight from the upper left */}
+      <div style={{ position: 'absolute', left: '50%', top: '47%', width: D, height: D, margin: `${-D / 2}px 0 0 ${-D / 2}px`, borderRadius: '50%', transform: shown ? 'scale(1)' : 'scale(.82)', transition: 'transform .7s cubic-bezier(.2,.9,.25,1)',
+        background: 'radial-gradient(circle at 50% 50%, #8a5628 0 60%, #6a3f1c 64%, #3b2210 100%)', boxShadow: '0 28px 60px rgba(0,0,0,.75), inset 0 0 0 3px rgba(255,225,170,.18), inset 0 0 30px rgba(0,0,0,.6)' }}>
+        <div style={{ position: 'absolute', inset: '6%', borderRadius: '50%', background: 'radial-gradient(circle at 42% 38%, #a02a2a 0%, #7a1c1c 45%, #4e1010 100%)', boxShadow: 'inset 0 0 0 3px #d9b25a, inset 0 0 0 6px rgba(78,16,16,.9), inset 0 0 0 7px rgba(217,178,90,.55), inset 0 0 40px rgba(0,0,0,.55)' }} />
+        <div style={{ position: 'absolute', inset: '6%', borderRadius: '50%', background: 'repeating-conic-gradient(from 8deg, rgba(0,0,0,.13) 0deg 7deg, rgba(255,255,255,.035) 7deg 14deg)', mixBlendMode: 'multiply', opacity: .75 }} />
+        <div style={{ position: 'absolute', inset: '6%', borderRadius: '50%', background: 'radial-gradient(circle at 36% 30%, rgba(255,214,150,.30), rgba(255,214,150,0) 55%)', mixBlendMode: 'screen' }} />
+        {/* the boosters, lying close to each other */}
+        {packs.map((pk, i) => {
+          const off = (i - (n - 1) / 2) * spread, rot = angles[i % angles.length];
+          return (
+            <button key={pk.id} aria-label={`Abrir ${pk.name}`} onClick={() => onOpenPack(pk.id)} style={{
+              position: 'absolute', left: '50%', top: '50%', width: packW, height: packH, margin: 0, padding: 0, border: 0, background: 'none',
+              transform: shown ? `translate(calc(-50% + ${off}px), calc(-50% + ${(i % 2 ? 6 : -6)}px)) rotate(${rot}deg)` : `translate(calc(-50% + ${off}px), -180%) rotate(${rot + 40}deg) scale(1.25)`,
+              opacity: shown ? 1 : 0, transition: `transform .8s cubic-bezier(.2,.9,.25,1) ${0.25 + i * 0.16}s, opacity .3s ${0.25 + i * 0.16}s`, filter: 'drop-shadow(0 10px 8px rgba(0,0,0,.6))', zIndex: 5 + i,
+            }}>
+              {pk.art}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 'max(18px, env(safe-area-inset-bottom))', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: '0.16em', color: 'rgba(255,233,176,.7)' }}>TOQUE NUM PACOTE PARA ABRIR</div>
     </div>
   );
 }
