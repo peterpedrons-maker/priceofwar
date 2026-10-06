@@ -8,7 +8,6 @@ import roomImage from './assets/room-collection.webp';
 import coverImage from './assets/room-book-cover.webp';
 import pageImage from './assets/room-book-page.webp';
 import insideImage from './assets/room-book-inside.webp';
-import clothImage from './assets/room-table-cloth.webp';
 
 const CardViewer3D = lazy(() => import('./CardViewer3D'));
 const THUMBS = import.meta.glob('./assets/card-thumb/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
@@ -175,7 +174,7 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
       {hint && bookState === 'closed' && !tableOpen && <div style={{ position: 'absolute', left: 0, right: 0, bottom: 'max(10px, env(safe-area-inset-bottom))', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.14em', color: 'rgba(255,233,176,.7)', textShadow: '0 1px 2px #000', pointerEvents: 'none' }}>ARRASTE PARA OLHAR EM VOLTA · TOQUE NOS OBJETOS</div>}
       {toast && <div style={{ position: 'absolute', left: '50%', top: 64, transform: 'translateX(-50%)', padding: '9px 14px', borderRadius: 10, background: 'rgba(14,10,6,.9)', border: '1px solid #d9b25a', color: '#ffe9b0', fontSize: 12, whiteSpace: 'nowrap' }}>{toast}</div>}
 
-      {tableOpen && <TableTop packs={packs} onOpenPack={setOpeningPack} onClose={closeTable} />}
+      {tableOpen && <PackFan packs={packs} onOpenPack={setOpeningPack} onClose={closeTable} />}
       {openingPack && renderOpening(openingPack, () => setOpeningPack(null))}
       {bookState !== 'closed' && <Binder entries={entries} opening={bookState === 'opening'} onOpened={() => setBookState('open')} onClose={closeBook} />}
     </div>
@@ -443,95 +442,70 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
   );
 }
 
-// ───────────────────────────── the table, seen from above ─────────────────────────────
-// Tapping the round table pushes the camera toward it and the view changes to the table from above: a big cloth-covered table, larger than the
-// screen, with the boosters the player has lying on it. It grows with the number of boosters (rows of three), and the player drags it around
-// (with a little inertia) to reach them all. Tap one to open it. (Drawn here in css; a painted top-down table image can replace it.)
+// ───────────────────────────── the boosters, fanned like a hand of cards ─────────────────────────────
+// Tapping the round table pushes the camera toward it, the room goes dim behind (it is the real room, floor and all), and the boosters the player
+// has are held up in a fan, like a hand of cards: the one in the middle is big and in front, the others fan out behind it, a little visible. Swipe
+// to bring another to the front, tap the front one to open it. Only the few around the front one are drawn, so it works for any number of them.
 const PACK_ASPECT = 512 / 882;
-function TableTop({ packs, onOpenPack, onClose }: { packs: RoomPack[]; onOpenPack: (id: string) => void; onClose: () => void }) {
+function PackFan({ packs, onOpenPack, onClose }: { packs: RoomPack[]; onOpenPack: (id: string) => void; onClose: () => void }) {
   const [shown, setShown] = useState(false);
+  const [focus, setFocus] = useState(0);
   useEffect(() => { const r = requestAnimationFrame(() => requestAnimationFrame(() => setShown(true))); return () => cancelAnimationFrame(r); }, []);
-  const W = window.innerWidth, H = window.innerHeight;
-  const packW = Math.min(W * 0.25, 120), packH = packW / PACK_ASPECT, cw = packW * 1.3, ch = packH * 1.12;
-  // The table is round (like the one in the room), and only as big as it needs to be: the smallest circle, never smaller than the screen allows,
-  // that has a place for every booster, the places being a grid inside the circle. More boosters, bigger table.
-  const D0 = Math.min(W * 0.98, H * 0.56);
-  const cellsFor = (D: number) => {
-    const R = D / 2 - Math.max(30, D * 0.08), out: { x: number; y: number }[] = [];
-    for (let gy = -14; gy <= 14; gy++) for (let gx = -14; gx <= 14; gx++) {
-      const x = gx * cw, y = gy * ch;
-      if (Math.hypot(Math.abs(x) + packW / 2, Math.abs(y) + packH / 2) <= R) out.push({ x, y });
-    }
-    return out.sort((p, q) => Math.hypot(p.x, p.y) - Math.hypot(q.x, q.y));
+  const W = window.innerWidth, H = window.innerHeight, packW = Math.min(W * 0.46, 190), packH = packW / PACK_ASPECT, N = packs.length;
+  const els = useRef<(HTMLButtonElement | null)[]>([]);
+  const f = useRef(0);                          // where the fan is (a float: between two packs while it moves)
+  const drag = useRef<null | { x: number; f0: number; t: number; lx: number; v: number; moved: number }>(null);
+  const anim = useRef(0);
+  const STEP = 15;                              // degrees between neighbours in the fan
+  const place = () => {
+    const cur = f.current;
+    els.current.forEach((el, i) => {
+      if (!el) return;
+      const d = i - cur, ad = Math.abs(d);
+      if (ad > 4.6) { el.style.display = 'none'; return; }
+      el.style.display = '';
+      const th = clamp(d, -5, 5) * STEP, sc = 1 - Math.min(ad, 3) * 0.075;
+      el.style.transform = `translate(-50%, 0) rotate(${th.toFixed(2)}deg) scale(${sc.toFixed(3)})`;
+      el.style.zIndex = String(100 - Math.round(ad * 10));
+      el.style.opacity = String(clamp(1.6 - Math.max(0, ad - 2.6) * 0.8, 0, 1));
+      el.style.filter = ad < 0.5 ? 'drop-shadow(0 16px 18px rgba(0,0,0,.7))' : `drop-shadow(0 8px 8px rgba(0,0,0,.6)) brightness(${(1 - Math.min(ad, 3) * 0.12).toFixed(2)})`;
+    });
+    setFocus(clamp(Math.round(cur), 0, N - 1));
   };
-  const { D, spots } = (() => {
-    let d = D0;
-    for (let k = 0; k < 90; k++, d += 24) { const c = cellsFor(d); if (c.length >= packs.length) return { D: d, spots: c.slice(0, packs.length).sort((p, q) => (Math.abs(p.y - q.y) > 1 ? p.y - q.y : p.x - q.x)) }; }
-    return { D: d, spots: cellsFor(d).slice(0, packs.length) };
-  })();
-  const surfW = D, surfH = D;
-  const viewRef = useRef<HTMLDivElement>(null), surfRef = useRef<HTMLDivElement>(null);
-  const st = useRef({ x: 0, y: 0, vx: 0, vy: 0, drag: null as null | { px: number; py: number; ox: number; oy: number; t: number; lx: number; ly: number }, moved: 0, raf: 0 });
-  // how far the table may be moved (if it is smaller than the screen it stays centred)
-  const lim = () => ({ loX: surfW <= W ? (W - surfW) / 2 : W - surfW, hiX: surfW <= W ? (W - surfW) / 2 : 0, loY: surfH <= H ? (H - surfH) / 2 : H - surfH, hiY: surfH <= H ? (H - surfH) / 2 : 0 });
-  const apply = () => { const e = surfRef.current; if (e) e.style.transform = `translate3d(${st.current.x.toFixed(1)}px, ${st.current.y.toFixed(1)}px, 0)`; };
-  useEffect(() => {
-    const S = st.current, L0 = lim(); S.x = (L0.loX + L0.hiX) / 2; S.y = L0.hiY; apply();
-    let last = performance.now();
-    const loop = (now: number) => {
-      const dt = Math.min(0.04, (now - last) / 1000); last = now;
-      if (!S.drag) {
-        const L = lim(); S.x += S.vx * dt; S.y += S.vy * dt; const damp = Math.pow(0.02, dt); S.vx *= damp; S.vy *= damp;
-        // a soft edge: if it was pulled or thrown past, it eases back inside
-        const tx = clamp(S.x, L.loX, L.hiX), ty = clamp(S.y, L.loY, L.hiY); S.x += (tx - S.x) * (1 - Math.exp(-dt * 12)); S.y += (ty - S.y) * (1 - Math.exp(-dt * 12));
-        apply();
-      }
-      S.raf = requestAnimationFrame(loop);
-    };
-    S.raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(S.raf);
-  }, []);
-  const down = (e: RPointerEvent) => { const S = st.current; S.drag = { px: e.clientX, py: e.clientY, ox: S.x, oy: S.y, t: performance.now(), lx: e.clientX, ly: e.clientY }; S.moved = 0; S.vx = S.vy = 0; };
+  useEffect(() => { place(); }, [N, shown]);
+  const glide = (to: number, ms = 480) => { cancelAnimationFrame(anim.current); const from = f.current, s0 = performance.now(); const step = (n: number) => { const u = clamp((n - s0) / ms, 0, 1), e = 1 - Math.pow(1 - u, 3); f.current = from + (to - from) * e; place(); if (u < 1) anim.current = requestAnimationFrame(step); }; anim.current = requestAnimationFrame(step); };
+  useEffect(() => () => cancelAnimationFrame(anim.current), []);
+  const down = (e: RPointerEvent) => { cancelAnimationFrame(anim.current); drag.current = { x: e.clientX, f0: f.current, t: performance.now(), lx: e.clientX, v: 0, moved: 0 }; };
   const move = (e: RPointerEvent) => {
-    const S = st.current, d = S.drag; if (!d) return;
-    const dx = e.clientX - d.px, dy = e.clientY - d.py; S.moved = Math.max(S.moved, Math.hypot(dx, dy));
-    const now = performance.now(), dt = Math.max(1, now - d.t) / 1000; S.vx = (e.clientX - d.lx) / dt * 0.6 + S.vx * 0.4; S.vy = (e.clientY - d.ly) / dt * 0.6 + S.vy * 0.4; d.t = now; d.lx = e.clientX; d.ly = e.clientY;
-    // pulling past an edge resists
-    const L = lim(), lo = L.loX, hi = L.hiX, loY = L.loY, hiY = L.hiY;
-    const rb = (v: number, a: number, b: number) => (v < a ? a + (v - a) * 0.35 : v > b ? b + (v - b) * 0.35 : v);
-    S.x = rb(d.ox + dx, lo, hi); S.y = rb(d.oy + dy, loY, hiY); apply();
+    const d = drag.current; if (!d) return; const dx = e.clientX - d.x; d.moved = Math.max(d.moved, Math.abs(dx));
+    const now = performance.now(); d.v = (e.clientX - d.lx) / Math.max(1, now - d.t); d.lx = e.clientX; d.t = now;
+    f.current = clamp(d.f0 - dx / (packW * 0.5), -0.3, N - 0.7); place();
   };
-  const up = () => { st.current.drag = null; };
-  const names = (id: string) => packs.find(p => p.id === id)?.name.replace('Booster ', '') ?? '';
+  const up = () => { const d = drag.current; if (!d) return; drag.current = null; if (d.moved < 8) return; let to = Math.round(f.current); if (Math.abs(d.v) > 0.4) to = Math.round(f.current - d.v * 2.2); glide(clamp(to, 0, N - 1), 520); };
+  const tapPack = (i: number) => { if (drag.current && drag.current.moved >= 8) return; if (i === Math.round(f.current)) onOpenPack(packs[i].id); else glide(i, 520); };
+  const pk = packs[focus];
   return (
-    <div ref={viewRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
-      style={{ position: 'absolute', inset: 0, zIndex: 30, overflow: 'hidden', touchAction: 'none', background: 'radial-gradient(ellipse at 50% 46%, #22150c, #0a0604)', opacity: shown ? 1 : 0, transition: 'opacity .5s' }}>
-      {/* the table: round like the one in the room, covered by the red cloth (no rim), lamplight from the upper left */}
-      <div ref={surfRef} style={{ position: 'absolute', left: 0, top: 0, width: surfW, height: surfH, willChange: 'transform' }}>
-        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', backgroundImage: `url(${clothImage})`, backgroundSize: '100% 100%', boxShadow: '0 26px 60px rgba(0,0,0,.8), inset 0 0 0 2px rgba(60,8,8,.55)' }} />
-        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'radial-gradient(circle at 50% 50%, rgba(0,0,0,0) 62%, rgba(40,4,4,.55) 100%)' }} />
-        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'radial-gradient(circle at 36% 28%, rgba(255,214,150,.26), rgba(255,214,150,0) 55%)', mixBlendMode: 'screen' }} />
-        {/* the boosters, lying on the cloth, each a little askew */}
-        {packs.map((pk, i) => {
-          const sp = spots[i] ?? { x: 0, y: 0 }, cx = surfW / 2 + sp.x + Math.sin(i * 2.7) * packW * 0.05, cy = surfH / 2 + sp.y + Math.cos(i * 1.9) * 6, rot = Math.sin(i * 1.7 + 0.6) * 11;
-          return (
-            <button key={pk.id} aria-label={`Abrir ${pk.name}`} onClick={() => { if (st.current.moved < 8) onOpenPack(pk.id); }} style={{
-              position: 'absolute', left: cx - packW / 2, top: cy - packH / 2, width: packW, height: packH, margin: 0, padding: 0, border: 0, background: 'none',
-              transform: shown ? `rotate(${rot}deg)` : `translateY(-${H}px) rotate(${rot + 35}deg) scale(1.25)`, opacity: shown ? 1 : 0,
-              transition: `transform .8s cubic-bezier(.2,.9,.25,1) ${0.2 + Math.min(i, 8) * 0.12}s, opacity .3s ${0.2 + Math.min(i, 8) * 0.12}s`, filter: 'drop-shadow(0 10px 8px rgba(0,0,0,.6))',
-            }}>
-              {pk.art}
-              <span style={{ position: 'absolute', left: 0, right: 0, bottom: -18, textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '.14em', color: 'rgba(255,233,176,.85)', textShadow: '0 1px 2px #000' }}>{names(pk.id).split(' ')[0].toUpperCase()}</span>
-            </button>
-          );
-        })}
-      </div>
-      <div style={{ position: 'absolute', left: 0, right: 0, top: 0, padding: 'max(10px, env(safe-area-inset-top)) 12px 8px', display: 'flex', alignItems: 'center', gap: 8, pointerEvents: 'none', background: 'linear-gradient(rgba(10,6,4,.85), rgba(10,6,4,0))' }}>
+    <div onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
+      style={{ position: 'absolute', inset: 0, zIndex: 30, touchAction: 'none', background: 'linear-gradient(rgba(6,4,3,.5), rgba(6,4,3,.78))', opacity: shown ? 1 : 0, transition: 'opacity .5s' }}>
+      <div style={{ position: 'absolute', left: 0, right: 0, top: 0, padding: 'max(10px, env(safe-area-inset-top)) 12px 8px', display: 'flex', alignItems: 'center', gap: 8, pointerEvents: 'none' }}>
         <button className="room-chip" style={{ pointerEvents: 'auto' }} onClick={onClose}>‹ SALA</button>
-        <div style={{ flex: 1, textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.2em', color: '#ffe9b0' }}>BOOSTERS · {packs.length}</div>
+        <div style={{ flex: 1, textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.2em', color: '#ffe9b0' }}>BOOSTERS · {N}</div>
         <div className="room-chip" style={{ opacity: 0 }}>‹ SALA</div>
       </div>
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '18px 0 max(16px, env(safe-area-inset-bottom))', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: '0.16em', color: 'rgba(255,233,176,.75)', pointerEvents: 'none', background: 'linear-gradient(rgba(10,6,4,0), rgba(10,6,4,.85))' }}>{surfH > H || surfW > W ? 'ARRASTE A MESA · TOQUE NUM PACOTE PARA ABRIR' : 'TOQUE NUM PACOTE PARA ABRIR'}</div>
+      {/* the hand of boosters: every pack hangs from a point below the middle, so turning them spreads them in a fan */}
+      <div style={{ position: 'absolute', left: '50%', top: '47%', width: 0, height: 0, transform: shown ? 'none' : 'translateY(60px)', transition: 'transform .7s cubic-bezier(.2,.9,.25,1)' }}>
+        {packs.map((p, i) => (
+          <button key={p.id} ref={el => { els.current[i] = el; }} aria-label={`Abrir ${p.name}`} onClick={() => tapPack(i)}
+            style={{ position: 'absolute', left: 0, top: -packH / 2, width: packW, height: packH, margin: 0, padding: 0, border: 0, background: 'none', transformOrigin: `50% ${packH * 1.55}px`, willChange: 'transform', display: 'none' }}>
+            {p.art}
+          </button>
+        ))}
+      </div>
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 'max(70px, calc(env(safe-area-inset-bottom) + 56px))', textAlign: 'center', pointerEvents: 'none' }}>
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 15, letterSpacing: '.14em', color: '#ffe9b0', textShadow: '0 2px 6px #000' }}>{pk?.name.toUpperCase()}</div>
+        <div style={{ marginTop: 5, fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '.2em', color: 'rgba(255,233,176,.6)' }}>{focus + 1} DE {N}</div>
+      </div>
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 'max(16px, env(safe-area-inset-bottom))', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 10.5, letterSpacing: '0.16em', color: 'rgba(255,233,176,.7)', pointerEvents: 'none' }}>{N > 1 ? 'DESLIZE PARA ESCOLHER · TOQUE NO PACOTE DA FRENTE PARA ABRIR' : 'TOQUE NO PACOTE PARA ABRIR'}</div>
     </div>
   );
 }

@@ -194,10 +194,11 @@ Cada objeto é uma área de toque sobre a imagem: a câmera dá zoom nele e abre
 - **Porta / placa**: zoom e abre a loja (`ShopScreen`). Ao fechar a loja, a câmera recua e o jogador continua na sala.
 - **Mesa com o tabuleiro**: zoom (a câmera nunca passa da borda da imagem) e a sala escurece por baixo; o editor de deck (`DeckEditor`,
   prop `overRoom`, translúcido) abre por cima, com o mesmo caminho de volta.
-- **Mesa redonda (Boosters)**: zoom e a vista passa a ser a mesa de cima: **redonda** (como a da sala, sem aro de madeira), coberta pelo pano vermelho
-  (`room-table-cloth.webp`, recortado em círculo, com a borda levemente escurecida) e os boosters deitados em uma grade dentro do círculo (`TableTop`).
-  A mesa tem só o tamanho necessário: o menor círculo, nunca menor que a tela permite, que tenha lugar para todos os pacotes. Com muitos pacotes
-  ela passa da tela e o jogador a arrasta (com inércia). `?boosters=14` na URL coloca essa quantidade para testar uma mesa cheia.
+- **Mesa redonda (Boosters)**: zoom, a sala escurece por baixo (é a própria sala, com o chão) e os boosters do jogador aparecem em **leque**, como uma
+  mão de cartas (`PackFan`): o da frente grande, os outros abertos atrás dele, um pouco visíveis. Deslizar traz outro para a frente, tocar no da
+  frente abre (`PackOpening`, o mesmo da loja). Só os 4 ou 5 em volta do da frente são desenhados, então funciona para qualquer quantidade.
+  **Base de teste:** sempre dois boosters (`BOOSTERS`), que não acabam; `?boosters=14` coloca essa quantidade. A imagem do pano vermelho
+  (`src/assets/room-table-cloth.webp`) ficou guardada para uso futuro.
 - A coleção, por enquanto, é o catálogo inteiro (os dois decks, sem restrição). O botão "Simular faltantes" mostra como ficam os
   bolsos vazios. Falta o inventário real do jogador e os boosters sobre a mesa redonda.
 
