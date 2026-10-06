@@ -154,8 +154,9 @@ function sprite(img, cols, size, frame, x, y, sc, alpha, mode, ax = .5, ay = .5,
 
 // ── effects ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 // the fireball: smoke under (normal), fire over (additive). Frame centre of the blast is at (50%, 60%) of the frame.
+const FS = .72;   // the blasts are drawn smaller than the sprite sheet
 function explosion(x, y, sc = 1, delay = 0, flip = 1) {
-  const dur = 1.25, f = flip < 0 ? -1 : 1;
+  sc *= FS; const dur = 1.25, f = flip < 0 ? -1 : 1;
   at(delay, () => add({ dur, draw(p) {
     const fr = Math.min(29, Math.floor(p * 30));
     sprite(IMG.smoke, 6, 256, fr, x, y, sc, 1, 'source-over', .5, .6, f);
@@ -209,7 +210,7 @@ function hit(el, delay = 0, alt = false) { at(delay, () => { el.classList.remove
 function num(x, y, text, delay = 0, size = 30) { at(delay, () => { const d = document.createElement('div'); d.className = 'num'; d.textContent = text; d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.fontSize = size + 'px'; $('#nums').appendChild(d); setTimeout(() => d.remove(), 1600 / speed); }); }
 
 // A projectile that flies from a to b. `arc` is the height of the arc (0 = straight line, as with a bolt).
-function fly({ img, cols = 1, frame = 0, size, from, to, dur, arc = 0, scale = [1, 1], spin = 0, trail = 'none', onEnd, aim = false, shadow = false, glow = null, ribbon = null }) {
+function fly({ img, cols = 1, frame = 0, size, from, to, dur, arc = 0, scale = [1, 1], spin = 0, trail = 'none', onEnd, aim = false, shadow = false, glow = null, ribbon = null, orb = 0 }) {
   const pos = []; let acc = 0, last = 0;
   const o = add({ dur, draw(p) {
     const e = arc ? p : p, u = e;
@@ -231,69 +232,117 @@ function fly({ img, cols = 1, frame = 0, size, from, to, dur, arc = 0, scale = [
       for (let i = 1; i < pos.length; i++) { const k = i / pos.length; ctx.strokeStyle = `rgba(${ribbon.c},${k * .75})`; ctx.lineWidth = ribbon.w * k; ctx.beginPath(); ctx.moveTo(pos[i - 1][0], pos[i - 1][1]); ctx.lineTo(pos[i][0], pos[i][1]); ctx.stroke(); }
       ctx.restore(); }
     if (glow) { const g = ctx.createRadialGradient(x, y, 0, x, y, glow.r); g.addColorStop(0, `rgba(${glow.c},${glow.a})`); g.addColorStop(1, `rgba(${glow.c},0)`); ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(x - glow.r, y - glow.r, glow.r * 2, glow.r * 2); ctx.restore(); }
-    ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(sc, sc);
-    const iw = size[0], ih = size[1];
-    if (img === IMG.rock) { ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 8; ctx.filter = 'brightness(.78) contrast(1.25)'; }
-    ctx.drawImage(img, frame * iw, 0, iw, ih, -iw / 2, -ih / 2, iw, ih); ctx.restore();
+    if (orb) { const r = orb * sc; const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, 'rgba(255,255,235,1)'); g.addColorStop(.35, 'rgba(255,200,90,.95)'); g.addColorStop(.75, 'rgba(255,100,20,.5)'); g.addColorStop(1, 'rgba(255,60,10,0)');
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(x - r, y - r, 2 * r, 2 * r); ctx.restore(); }
+    if (img) {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(sc, sc);
+      const iw = size[0], ih = size[1];
+      if (img === IMG.rock) { ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 8; ctx.filter = 'brightness(.78) contrast(1.25)'; }
+      ctx.drawImage(img, frame * iw, 0, iw, ih, -iw / 2, -ih / 2, iw, ih); ctx.restore();
+    }
   }, end() { onEnd && onEnd(); } });
   return o;
 }
 
 // ── the attacks ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+// ── tactic cards: they land on the board, glow, and the effect comes out of them ─────────────────────────────────────
+const TAC = { x: 195, y: 322 };
+let tacEl = null;
+function landTactic(name, onLaunch) {
+  if (tacEl) tacEl.remove();
+  const im = document.createElement('img'); im.className = 'card big tac'; im.src = `../quarto/cards/${name}.webp`; im.draggable = false;
+  im.style.left = TAC.x + 'px'; im.style.top = TAC.y + 'px'; im.style.width = '80px'; im.style.opacity = 0; im.style.zIndex = 5; cardsEl.appendChild(im); tacEl = im;
+  const anim = (kf, opt) => { const a = im.animate(kf, { fill: 'forwards', ...opt }); a.playbackRate = speed; return a; };
+  const T = 'translate(-50%,-50%)';
+  at(0, () => {
+    anim([{ opacity: 0, transform: `${T} translateY(-150px) scale(2.2) rotate(-9deg)` }, { opacity: 1, transform: `${T} translateY(0) scale(1) rotate(0)`, offset: .56 },
+      { transform: `${T} scale(1.16,.84)`, offset: .68 }, { transform: `${T} scale(.97,1.05)`, offset: .83 }, { opacity: 1, transform: `${T} scale(1)` }], { duration: 560, easing: 'cubic-bezier(.45,0,.9,.55)' });
+  });
+  at(.31, () => { play('dano', 0, .5, .6); dust(TAC.x, TAC.y + 34, 90, 8, 36); shock(TAC.x, TAC.y + 36, 80, .45, '255,226,170', 3); add({ dur: 1.4, draw(p) { ctx.save(); ctx.globalAlpha = .35 * (1 - p); ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(TAC.x + 4, TAC.y + 50, 40, 10, 0, 0, 7); ctx.fill(); ctx.restore(); } }); });
+  // charge: gold light is drawn into the card, which glows
+  at(.5, () => {
+    anim([{ filter: 'brightness(1) drop-shadow(0 0 0 rgba(255,210,110,0))' }, { filter: 'brightness(1.22) drop-shadow(0 0 16px rgba(255,214,110,.95))', offset: .7 }, { filter: 'brightness(1.35) drop-shadow(0 0 22px rgba(255,240,170,1))' }], { duration: 520, easing: 'ease-in' });
+    whoosh(0, .5, .22, 300, 1300);
+    add({ dur: .52, draw(p) { const r = 60 + 40 * (1 - p), g = ctx.createRadialGradient(TAC.x, TAC.y, 0, TAC.x, TAC.y, r); g.addColorStop(0, `rgba(255,214,120,${.5 * p})`); g.addColorStop(1, 'rgba(255,214,120,0)');
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(TAC.x - r, TAC.y - r, 2 * r, 2 * r); ctx.restore(); } });
+    for (let i = 0; i < 16; i++) { const a = R(0, 6.28), d0 = R(60, 110), dl = R(0, .22); add({ dur: .3 + .1 * R(0, 1), t0: now + dl, draw(p) { const d = d0 * (1 - eo(p)); ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,226,140,${.9 * (1 - p * .3)})`; ctx.beginPath(); ctx.arc(TAC.x + Math.cos(a) * d, TAC.y + Math.sin(a) * d * .8, 2.4 * (1 - p) + .8, 0, 7); ctx.fill(); ctx.restore(); } }); }
+  });
+  at(1.05, () => { // the card kicks as the effect leaves it
+    anim([{ transform: `${T} scale(1)` }, { transform: `${T} translateY(8px) scale(.95)`, offset: .25 }, { transform: `${T} scale(1)` }], { duration: 300 });
+    flash(TAC.x, TAC.y, 110, '255,225,150', .6, .3); onLaunch();
+  });
+}
+function leaveTactic(delay) { // it burns away into the graveyard
+  at(delay, () => { if (!tacEl) return; const im = tacEl; const a = im.animate([{ opacity: 1, filter: 'brightness(1.6)' }, { opacity: 0, filter: 'brightness(.6) blur(2px)', transform: 'translate(-50%,-62%) scale(.9)' }], { duration: 700, fill: 'forwards' }); a.playbackRate = speed; sparks(TAC.x, TAC.y, 10, .5, '255,190,90'); });
+}
+
 const scenes = {
   catapulta: {
-    cap: 'Catapulta: a pedra sobe em arco com rastro de fumaça, projeta sombra no chão e explode na fileira inimiga inteira (2 de dano em cada carta).',
+    cap: 'Catapulta: a carta desce no tabuleiro, brilha e a pedra sai dela em arco. Cai no meio da fileira e a explosão se espalha para as cartas ao lado (2 de dano em cada).',
     run() {
-      const from = { x: 195, y: 622 }, to = { x: 195, y: ROW.eFront + 10 }, T = 1.05;
-      whoosh(0, .35, .35, 250, 900); play('dano', 0, .35, .7);
-      puff(from.x, from.y - 6, 0, -30, 80, .8, .6, 1.6); flash(from.x, from.y, 90, '255,210,150', .35, .25);
-      at(.05, () => fly({ img: IMG.rock, cols: 2, frame: 0, size: [128, 128], from, to, dur: T, arc: 330, scale: [.2, .26], spin: 7, trail: 'smoke', shadow: true }));
-      whoosh(.25, T - .25, .5, 600, 300);
-      const t = .05 + T; play('boom', t - .44, .9);
-      at(t, () => {
-        flash(195, ROW.eFront, 230, '255,180,80', .55, .3);
-        explosion(195, ROW.eFront + 4, 1.0, 0); explosion(110, ROW.eFront + 2, .74, .07, -1); explosion(280, ROW.eFront + 2, .74, .1);
-        explosion(55, ROW.eFront, .52, .15); explosion(335, ROW.eFront, .52, .17, -1);
-        shock(195, ROW.eFront + 30, 210, .6); scorch(195, ROW.eFront + 30, 190);
-        dust(195, ROW.eFront + 34, 150, 14); debris(195, ROW.eFront, 12, 1.1); sparks(195, ROW.eFront, 16);
+      landTactic('catapulta-de-guerra', () => {
+        const from = { x: TAC.x, y: TAC.y - 30 }, to = { x: 195, y: ROW.eFront + 6 }, T = .85;
+        whoosh(0, .3, .35, 250, 900); play('dano', 0, .35, .7);
+        fly({ img: IMG.rock, cols: 2, frame: 0, size: [128, 128], from, to, dur: T, arc: 200, scale: [.2, .2], spin: 7, trail: 'smoke', shadow: true });
+        whoosh(.2, T - .2, .45, 600, 300);
+        play('boom', T - .44, .8);
+        const row = enemyCards.filter(e => +e.dataset.y === ROW.eFront);
+        at(T, () => {
+          flash(195, ROW.eFront, 150, '255,180,80', .5, .25);
+          explosion(195, ROW.eFront + 2, .62, 0);
+          shock(195, ROW.eFront + 30, 190, .55, '255,226,170', 3); scorch(195, ROW.eFront + 30, 120);
+          dust(195, ROW.eFront + 34, 110, 8, 40); debris(195, ROW.eFront, 7, .9); sparks(195, ROW.eFront, 10, .9);
+          row.forEach(e => { const dx = Math.abs(+e.dataset.x - 195), d = dx / 1100;
+            if (dx > 0) explosion(+e.dataset.x, ROW.eFront + 2, .36, d, Math.random() < .5 ? 1 : -1);
+            hit(e, d, +e.dataset.x > 195); num(+e.dataset.x, ROW.eFront - 30, '-2', d + .06, 28); });
+        });
       });
-      enemyCards.filter(e => +e.dataset.y === ROW.eFront).forEach((e, i) => { const d = t + Math.abs(+e.dataset.x - 195) / 1400; hit(e, d - now, i % 2); num(+e.dataset.x, ROW.eFront - 30, '-2', d - now + .05, 28); });
+      leaveTactic(2.4);
     }
   },
   trabuco: {
-    cap: 'Trabuco: pedra enorme em brasa, arco mais alto e lento. A explosão cobre o campo todo e a onda de choque passa por todas as cartas e pelo General (2 de dano em cada).',
+    cap: 'Trabuco: a carta desce, brilha, e dela sai uma bola de fogo que sobe e se divide em várias menores. Cada uma cai numa carta inimiga (e no General) com uma explosão pequena (2 de dano em todos).',
     run() {
-      const from = { x: 195, y: 626 }, to = { x: 195, y: 190 }, T = 1.35;
-      whoosh(0, .45, .5, 180, 700); play('boom', 0, .35, .6);
-      puff(from.x, from.y - 6, 0, -40, 120, 1, .7, 1.6); flash(from.x, from.y, 130, '255,170,70', .5, .3);
-      at(.05, () => fly({ img: IMG.rock, cols: 2, frame: 1, size: [128, 128], from, to, dur: T, arc: 460, scale: [.3, .42], spin: 5, trail: 'fire', shadow: true, glow: { r: 46, c: '255,120,30', a: .55 } }));
-      whoosh(.4, T - .4, .6, 500, 220);
-      const t = .05 + T; play('boom', t - .44, 1.0); play('hit', t - .02, .6, .7);
-      at(t, () => {
-        flash(195, 200, 380, '255,170,70', .75, .38);
-        explosion(195, 205, 1.75, 0); explosion(110, 240, .8, .1); explosion(280, 240, .8, .13, -1);
-        explosion(195, 140, .9, .16); explosion(195, 58, .75, .22); explosion(70, 170, .6, .2); explosion(325, 170, .6, .22, -1);
-        shock(195, 232, 330, .8, '255,226,170', 7); at(.12, () => shock(195, 232, 250, .7, '255,200,120', 4));
-        scorch(195, 232, 280, 3); dust(195, 240, 220, 18, 62); debris(195, 210, 22, 1.5); sparks(195, 205, 26, 1.3);
+      landTactic('trabuco-de-cerco', () => {
+        const from = { x: TAC.x, y: TAC.y - 30 }, mid = { x: 195, y: 188 }, T1 = .62;
+        whoosh(0, .45, .5, 180, 700); play('boom', 0, .3, .6);
+        fly({ img: null, from, to: mid, dur: T1, arc: 70, scale: [.7, 1.15], trail: 'fire', glow: { r: 50, c: '255,120,30', a: .5 }, orb: 26 });
+        whoosh(.1, T1, .35, 500, 250);
+        at(T1, () => {
+          // the big ball breaks apart over the enemy field
+          play('boom', -.2, .5, 1.2); flash(mid.x, mid.y, 170, '255,190,100', .7, .3); explosion(mid.x, mid.y + 6, .5, 0); shock(mid.x, mid.y + 30, 150, .5, '255,210,140', 3);
+          sparks(mid.x, mid.y, 16, 1.1);
+          enemyCards.forEach((e, i) => {
+            const tx = +e.dataset.x, ty = +e.dataset.y, d = i * .045, T2 = .38 + Math.hypot(tx - mid.x, ty - mid.y) / 900;
+            at(d, () => {
+              whoosh(0, .25, .15, 800, 1800);
+              fly({ img: null, from: { x: mid.x + R(-8, 8), y: mid.y + R(-8, 8) }, to: { x: tx, y: ty + 4 }, dur: T2, arc: 60 + R(0, 60), scale: [.75, .75], trail: 'fire', glow: { r: 26, c: '255,120,30', a: .5 }, orb: 12 });
+              at(T2, () => { explosion(tx, ty + 4, +e.dataset.y < 80 ? .5 : .38, 0, Math.random() < .5 ? 1 : -1); flash(tx, ty, 60, '255,190,90', .5, .2); sparks(tx, ty, 5, .5); play('dano', 0, .22, 1.2 + R(0, .4));
+                hit(e, 0, i % 2); num(tx, ty - 34, '-2', .05, +e.dataset.y < 80 ? 32 : 26); });
+            });
+          });
+        });
       });
-      enemyCards.forEach(e => { const dx = Math.hypot(+e.dataset.x - 195, (+e.dataset.y - 232) * 1.8) / 1000; hit(e, t + dx - now + .06, Math.random() < .5); num(+e.dataset.x, +e.dataset.y - 34, '-2', t + dx - now + .12, +e.dataset.y < 80 ? 34 : 28); });
+      leaveTactic(3.0);
     }
   },
   balestra: {
-    cap: 'Balestra: o virote cruza o campo em linha reta, muito rápido, com um risco de velocidade. Crava na carta e solta faíscas (3 de dano em uma unidade).',
+    cap: 'Balestra: a carta desce, brilha e o virote sai dela em linha reta, muito rápido, e crava no alvo (3 de dano em uma unidade).',
     run() {
-      const from = { x: 195, y: 618 }, tgt = cardByPos(265, ROW.eFront), to = { x: 265, y: ROW.eFront + 6 }, T = .34;
-      whoosh(0, .3, .5, 1200, 3200); play('dano', 0, .25, 1.4);
-      flash(from.x, from.y, 70, '255,255,255', .35, .15);
-      at(.05, () => fly({ img: IMG.bolt, size: [168, 28], from, to, dur: T, aim: true, scale: [.9, .9], ribbon: { n: 14, c: '255,255,255', w: 5 } }));
-      const t = .05 + T; play('hit', t - .042, .9);
-      at(t, () => {
-        flash(to.x, to.y, 90, '255,230,170', .75, .2); explosion(to.x, to.y + 12, .38, 0); sparks(to.x, to.y, 18, 1.1, '255,235,170'); puff(to.x, to.y, 0, -20, 40, .5, .5, 1.5);
-        // the bolt stays stuck in the card for a moment
-        const ang = Math.atan2(to.y - from.y, to.x - from.x);
-        add({ dur: 1.0, draw(p) { ctx.save(); ctx.globalAlpha = 1 - ei((p - .7) / .3); ctx.translate(to.x - 18, to.y - 4); ctx.rotate(ang); ctx.drawImage(IMG.bolt, 0, 0, 168, 28, -84, -14, 168, 28); ctx.restore(); } });
+      landTactic('balestra-de-precisao', () => {
+        const from = { x: TAC.x, y: TAC.y - 24 }, tgt = cardByPos(265, ROW.eFront), to = { x: 265, y: ROW.eFront + 6 }, T = .3;
+        whoosh(0, .28, .5, 1200, 3200); play('dano', 0, .25, 1.4);
+        fly({ img: IMG.bolt, size: [168, 28], from, to, dur: T, aim: true, scale: [.9, .9], ribbon: { n: 14, c: '255,255,255', w: 5 } });
+        play('hit', T - .042, .9);
+        at(T, () => {
+          flash(to.x, to.y, 90, '255,230,170', .75, .2); explosion(to.x, to.y + 12, .3, 0); sparks(to.x, to.y, 16, 1.1, '255,235,170'); puff(to.x, to.y, 0, -20, 36, .5, .5, 1.5);
+          const ang = Math.atan2(to.y - from.y, to.x - from.x);
+          add({ dur: 1.0, draw(p) { ctx.save(); ctx.globalAlpha = 1 - ei((p - .7) / .3); ctx.translate(to.x - 18, to.y - 4); ctx.rotate(ang); ctx.drawImage(IMG.bolt, 0, 0, 168, 28, -84, -14, 168, 28); ctx.restore(); } });
+          hit(tgt, 0, 1); num(265, ROW.eFront - 38, '-3', .05, 34);
+        });
       });
-      hit(tgt, t - now, 1); num(265, ROW.eFront - 38, '-3', t - now + .05, 34);
+      leaveTactic(1.9);
     }
   },
   lanca: {
@@ -359,7 +408,7 @@ function runScene(k) {
   audio();
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.a === k));
   fxs.length = 0; sched.length = 0; now = 0; $('#nums').innerHTML = '';
-  els.forEach(e => e.classList.remove('hit', 'hit2', 'windup', 'kick'));
+  els.forEach(e => e.classList.remove('hit', 'hit2', 'windup', 'kick')); if (tacEl) { tacEl.remove(); tacEl = null; }
   current = k; $('#cap').textContent = scenes[k].cap;
   speed = $('#slow').checked ? .25 : 1;
   scenes[k].run();
