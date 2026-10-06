@@ -210,10 +210,10 @@ function hit(el, delay = 0, alt = false) { at(delay, () => { el.classList.remove
 function num(x, y, text, delay = 0, size = 30) { at(delay, () => { const d = document.createElement('div'); d.className = 'num'; d.textContent = text; d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.fontSize = size + 'px'; $('#nums').appendChild(d); setTimeout(() => d.remove(), 1600 / speed); }); }
 
 // A projectile that flies from a to b. `arc` is the height of the arc (0 = straight line, as with a bolt).
-function fly({ img, cols = 1, frame = 0, size, from, to, dur, arc = 0, scale = [1, 1], spin = 0, trail = 'none', onEnd, aim = false, shadow = false, glow = null, ribbon = null, orb = 0 }) {
+function fly({ img, cols = 1, frame = 0, size, from, to, dur, arc = 0, scale = [1, 1], spin = 0, trail = 'none', onEnd, aim = false, shadow = false, glow = null, ribbon = null, orb = 0, ease = x => x }) {
   const pos = []; let acc = 0, last = 0;
   const o = add({ dur, draw(p) {
-    const e = arc ? p : p, u = e;
+    const u = ease(p);
     const gx = from.x + (to.x - from.x) * u, gy = from.y + (to.y - from.y) * u;
     const h = arc ? 4 * u * (1 - u) : 0;              // 0..1 height above the ground line
     const x = gx, y = gy - arc * h;
@@ -238,6 +238,7 @@ function fly({ img, cols = 1, frame = 0, size, from, to, dur, arc = 0, scale = [
       ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(sc, sc);
       const iw = size[0], ih = size[1];
       if (img === IMG.rock) { ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 8; ctx.filter = 'brightness(.78) contrast(1.25)'; }
+      else { ctx.shadowColor = 'rgba(0,0,0,.85)'; ctx.shadowBlur = 5; }
       ctx.drawImage(img, frame * iw, 0, iw, ih, -iw / 2, -ih / 2, iw, ih); ctx.restore();
     }
   }, end() { onEnd && onEnd(); } });
@@ -245,6 +246,54 @@ function fly({ img, cols = 1, frame = 0, size, from, to, dur, arc = 0, scale = [
 }
 
 // ── the attacks ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+// direction of an arc at u (screen space), used so a stuck arrow keeps the angle it arrived with
+function arcTangent(from, to, arc, u) { return Math.atan2((to.y - from.y) - arc * 4 * (1 - 2 * u), to.x - from.x); }
+// a projectile stuck in a card: its tip is at `to`, it sinks in a little, wobbles and fades
+function stick(img, size, to, ang, sc, life, sink = 14) {
+  const cx = to.x - Math.cos(ang) * (size[0] * sc / 2 - sink), cy = to.y - Math.sin(ang) * (size[0] * sc / 2 - sink);
+  add({ dur: life, draw(p) { const wob = Math.sin(p * 46) * 0.07 * Math.exp(-p * 7); ctx.save(); ctx.globalAlpha = 1 - ei((p - .6) / .4); ctx.translate(to.x, to.y); ctx.rotate(wob);
+    ctx.translate(cx - to.x, cy - to.y); ctx.rotate(ang); ctx.scale(sc, sc); ctx.drawImage(img, 0, 0, size[0], size[1], -size[0] / 2, -size[1] / 2, size[0], size[1]); ctx.restore(); } });
+}
+function ring(x, y, r, dur = .3, color = '255,226,150', w = 3) {
+  add({ dur, draw(p) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgba(${color},${(1 - p) * .9})`; ctx.lineWidth = w * (1 - p) + .5; ctx.beginPath(); ctx.arc(x, y, r * eo(p), 0, 7); ctx.stroke(); ctx.restore(); } });
+}
+// thin rays that shoot out and vanish (a crisp "hit" mark instead of a blob)
+function burst(x, y, n = 8, len = 46, color = '255,236,170', dur = .22, a0 = 0, spread = Math.PI * 2) {
+  for (let i = 0; i < n; i++) { const a = a0 + (i / n) * spread + R(-.12, .12), L = len * R(.6, 1);
+    add({ dur, draw(p) { const r0 = L * .25 * eo(p), r1 = L * eo(p); ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgba(${color},${1 - p})`; ctx.lineWidth = 2.4 * (1 - p) + .6; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * r0, y + Math.sin(a) * r0); ctx.lineTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1); ctx.stroke(); ctx.restore(); } }); }
+}
+// sparks thrown in a cone around `ang`
+function sparksDir(x, y, ang, cone = .8, n = 8, power = 1, color = '255,210,110') {
+  for (let i = 0; i < n; i++) {
+    const a = ang + R(-cone, cone), sp = R(90, 280) * power, vx = Math.cos(a) * sp, vy = Math.sin(a) * sp - 40, g = 520, life = R(.25, .6);
+    add({ dur: life, draw(p) { const t = p * life, t2 = Math.max(0, t - .04); const px = x + vx * t, py = y + vy * t + .5 * g * t * t, qx = x + vx * t2, qy = y + vy * t2 + .5 * g * t2 * t2;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgba(${color},${1 - p})`; ctx.lineWidth = 1.8 * (1 - p) + .5; ctx.beginPath(); ctx.moveTo(qx, qy); ctx.lineTo(px, py); ctx.stroke(); ctx.restore(); } });
+  }
+}
+// a lens-flare cross: two thin streaks that flare and vanish (a clean 'hit' instead of a glowing disc)
+function glint(x, y, L, dur = .26) {
+  add({ dur, draw(p) { const k = Math.sin(Math.PI * Math.min(1, p * 1.15)), l = L * (.5 + .5 * eo(p));
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(x, y);
+    for (const rot of [0, Math.PI / 2, Math.PI / 4, -Math.PI / 4]) { const len = rot === 0 || rot === Math.PI / 2 ? l : l * .55; ctx.save(); ctx.rotate(rot); const g = ctx.createLinearGradient(-len, 0, len, 0);
+      g.addColorStop(0, 'rgba(255,240,190,0)'); g.addColorStop(.5, `rgba(255,252,235,${k})`); g.addColorStop(1, 'rgba(255,240,190,0)'); ctx.fillStyle = g; ctx.fillRect(-len, -1.6, len * 2, 3.2); ctx.restore(); }
+    ctx.restore(); } });
+}
+// a clean impact: tight flash, rays, a thin ring, forward sparks and a small holy glow behind
+function cleanHit(x, y, ang, k = 1) {
+  flash(x, y, 56 * k, '255,238,180', .7, .15); glint(x, y, 46 * k); ring(x, y, 38 * k, .26); burst(x, y, 9, 52 * k, '255,240,190', .2);
+  sparksDir(x, y, ang, .9, 9, 1 * k, '255,236,160');
+}
+function lanceFade(x, y) { for (let i = 0; i < 14; i++) add({ dur: R(.4, .8), draw(p) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,226,140,${1 - p})`; ctx.beginPath(); ctx.arc(x + R(-4, 4) + (i - 7) * 4 * p, y - 20 * p + R(-3, 3), 2.2 * (1 - p) + .5, 0, 7); ctx.fill(); ctx.restore(); } }); }
+// the bolt hits: a thunk. No fire: a short flash on the armour, metal sparks thrown back, wood chips and a puff of dust.
+function thunk(x, y, ang) {
+  flash(x, y, 46, '255,244,210', .8, .13); ring(x, y, 26, .22, '255,244,210', 2.2); burst(x, y, 6, 30, '255,244,210', .16, ang + Math.PI - .9, 1.8);
+  sparksDir(x, y, ang + Math.PI, .75, 10, .9, '255,236,170'); puff(x, y + 2, 0, -10, 24, .42, .4, 1.3);
+  for (let i = 0; i < 6; i++) { const a = ang + Math.PI + R(-1.1, 1.1), sp = R(60, 170), vx = Math.cos(a) * sp, vy = Math.sin(a) * sp - 50, life = R(.35, .6), sz = R(1.6, 3);
+    add({ dur: life, draw(p) { const t = p * life; ctx.save(); ctx.globalAlpha = 1 - p; ctx.fillStyle = '#c9a36a'; ctx.fillRect(x + vx * t, y + vy * t + 380 * t * t, sz, sz * .7); ctx.restore(); } }); }
+}
 
 // ── tactic cards: they land on the board, glow, and the effect comes out of them ─────────────────────────────────────
 const TAC = { x: 195, y: 322 };
@@ -328,17 +377,16 @@ const scenes = {
     }
   },
   balestra: {
-    cap: 'Balestra: a carta desce, brilha e o virote sai dela em linha reta, muito rápido, e crava no alvo (3 de dano em uma unidade).',
+    cap: 'Balestra: a carta desce, brilha e o virote sai dela em linha reta, muito rápido. Ao chegar ele crava na carta e fica tremendo; o impacto é seco, com faísca de metal, lascas e poeira (sem fogo).',
     run() {
       landTactic('balestra-de-precisao', () => {
         const from = { x: TAC.x, y: TAC.y - 24 }, tgt = cardByPos(265, ROW.eFront), to = { x: 265, y: ROW.eFront + 6 }, T = .3;
+        const ang = Math.atan2(to.y - from.y, to.x - from.x);
         whoosh(0, .28, .5, 1200, 3200); play('dano', 0, .25, 1.4);
-        fly({ img: IMG.bolt, size: [168, 28], from, to, dur: T, aim: true, scale: [.9, .9], ribbon: { n: 14, c: '255,255,255', w: 5 } });
+        fly({ img: IMG.bolt, size: [150, 30], from, to, dur: T, aim: true, scale: [.7, .7], ribbon: { n: 12, c: '255,255,255', w: 4 } });
         play('hit', T - .042, .9);
         at(T, () => {
-          flash(to.x, to.y, 90, '255,230,170', .75, .2); explosion(to.x, to.y + 12, .3, 0); sparks(to.x, to.y, 16, 1.1, '255,235,170'); puff(to.x, to.y, 0, -20, 36, .5, .5, 1.5);
-          const ang = Math.atan2(to.y - from.y, to.x - from.x);
-          add({ dur: 1.0, draw(p) { ctx.save(); ctx.globalAlpha = 1 - ei((p - .7) / .3); ctx.translate(to.x - 18, to.y - 4); ctx.rotate(ang); ctx.drawImage(IMG.bolt, 0, 0, 168, 28, -84, -14, 168, 28); ctx.restore(); } });
+          thunk(to.x, to.y, ang); stick(IMG.bolt, [150, 30], to, ang, .7, 1.1, 16);
           hit(tgt, 0, 1); num(265, ROW.eFront - 38, '-3', .05, 34);
         });
       });
@@ -346,44 +394,54 @@ const scenes = {
     }
   },
   lanca: {
-    cap: 'Lança do Jorge: a lança dourada sai da carta dele, deixa um rastro de luz, atravessa o alvo e acerta a carta de trás (2 de dano). Explosão sagrada em cada acerto.',
+    cap: 'Lança do Jorge: ele puxa a lança para trás pegando impulso, e a arremessa acelerando. Ela atravessa o alvo e acerta a carta de trás (2 de dano), com um clarão dourado seco em cada acerto.',
     run() {
-      const jorge = cardByPos(195, ROW.pFront), from = { x: 195, y: ROW.pFront - 36 }, tgt1 = { x: 195, y: ROW.eFront + 8 }, tgt2 = { x: 195, y: ROW.eBack + 8 };
+      const jorge = cardByPos(195, ROW.pFront), from = { x: 195, y: ROW.pFront - 38 }, tgt1 = { x: 195, y: ROW.eFront + 8 }, tgt2 = { x: 195, y: ROW.eBack + 8 };
+      const SC = .52, WIND = .5, T1 = .36, T2 = .22;
+      // 1) the wind-up: the lance is pulled back (towards Jorge), trembling and charging, while the card crouches
       jorge.classList.remove('windup'); void jorge.offsetWidth; jorge.classList.add('windup');
-      whoosh(.2, .35, .55, 500, 2600);
-      flash(from.x, from.y + 20, 100, '255,230,150', .55, .35);
-      const T1 = .46;
-      at(.3, () => {
-        play('dano', 0, .25, 1.5);
-        fly({ img: IMG.lance, size: [250, 44], from, to: tgt1, dur: T1, aim: true, scale: [.9, .9], trail: 'gold', glow: { r: 62, c: '255,220,120', a: .7 }, ribbon: { n: 22, c: '255,215,110', w: 14 } });
+      whoosh(.05, WIND, .3, 300, 1600);
+      add({ dur: WIND, draw(p) {
+        const back = 34 * eo(p / .8), tr = (p > .55 ? Math.sin(p * 90) * 1.4 : 0), x = from.x + tr, y = from.y + back;
+        const g = ctx.createRadialGradient(x, y - 24, 0, x, y - 24, 48); g.addColorStop(0, `rgba(255,226,140,${.55 * p})`); g.addColorStop(1, 'rgba(255,226,140,0)');
+        ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(x - 48, y - 72, 96, 96); ctx.restore();
+        ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI / 2); ctx.scale(SC, SC); ctx.drawImage(IMG.lance, 0, 0, 250, 40, -125, -20, 250, 40); ctx.restore();
+      } });
+      // 2) the throw: it starts where the wind-up ended and speeds up
+      at(WIND, () => {
+        play('dano', 0, .25, 1.5); whoosh(0, .32, .5, 600, 3000); play('hit', T1 - .042, .95);
+        flash(from.x, from.y + 20, 70, '255,236,170', .5, .2);
+        fly({ img: IMG.lance, size: [250, 40], from: { x: from.x, y: from.y + 34 }, to: tgt1, dur: T1, aim: true, scale: [SC, SC], ease: u => Math.pow(u, 2.1), trail: 'gold', glow: { r: 34, c: '255,222,130', a: .5 }, ribbon: { n: 12, c: '255,222,130', w: 7 } });
       });
-      const t1 = .3 + T1;
-      play('hit', t1 - .042, .95);
+      // 3) the hit: a sharp golden flash, a few rays and sparks that fly forward; the lance goes on to the card behind
+      const t1 = WIND + T1;
       at(t1, () => {
-        flash(tgt1.x, tgt1.y, 150, '255,230,150', .8, .3); holy(tgt1.x, tgt1.y, 1.05); sparks(tgt1.x, tgt1.y, 16, 1, '255,236,160');
-        // it goes on, thinner, to the card behind
-        fly({ img: IMG.lance, size: [250, 44], from: tgt1, to: tgt2, dur: .3, aim: true, scale: [.8, .72], trail: 'gold', glow: { r: 48, c: '255,220,120', a: .6 }, ribbon: { n: 16, c: '255,215,110', w: 10 } });
-        play('hit', .3 - .042, .7, 1.15);
-        at(.3, () => { flash(tgt2.x, tgt2.y, 110, '255,230,150', .7, .28); holy(tgt2.x, tgt2.y, .8); sparks(tgt2.x, tgt2.y, 12, .8, '255,236,160'); });
+        cleanHit(tgt1.x, tgt1.y, -Math.PI / 2, 1);
+        play('hit', T2 - .042, .7, 1.15);
+        fly({ img: IMG.lance, size: [250, 40], from: tgt1, to: tgt2, dur: T2, aim: true, scale: [SC, SC * .9], trail: 'gold', glow: { r: 28, c: '255,222,130', a: .45 }, ribbon: { n: 8, c: '255,222,130', w: 5 } });
+        at(T2, () => { cleanHit(tgt2.x, tgt2.y, -Math.PI / 2, .75); lanceFade(tgt2.x, tgt2.y); });
       });
       const e1 = cardByPos(195, ROW.eFront), e2 = cardByPos(195, ROW.eBack);
-      hit(e1, t1 - now, 0); num(195, ROW.eFront - 38, '-4', t1 - now + .05, 34);
-      hit(e2, t1 + .3 - now, 1); num(195, ROW.eBack - 38, '-2', t1 + .3 - now + .05, 28);
+      hit(e1, t1, 0); num(195, ROW.eFront - 38, '-4', t1 + .05, 34);
+      hit(e2, t1 + T2, 1); num(195, ROW.eBack - 38, '-2', t1 + T2 + .05, 28);
     }
   },
   arqueiro: {
-    cap: 'Arqueiro: três flechas em arco curto, uma depois da outra. Cada uma levanta poeira e uma faísca pequena (1 de dano por flecha, ataca 2 vezes por rodada).',
+    cap: 'Arqueiro: as flechas sobem em arco, giram acompanhando a curva e descem cravando no alvo, onde ficam um instante tremendo (1 de dano por flecha).',
     run() {
-      const archer = cardByPos(125, ROW.pBack), from = { x: 125, y: ROW.pBack - 34 }, to0 = { x: 195, y: ROW.eFront + 6 };
+      const archer = cardByPos(125, ROW.pBack), from = { x: 125, y: ROW.pBack - 36 }, to0 = { x: 195, y: ROW.eFront + 6 };
       archer.classList.remove('kick'); void archer.offsetWidth; archer.classList.add('kick');
       const tg = cardByPos(195, ROW.eFront);
       for (let i = 0; i < 3; i++) {
-        const d = .12 + i * .16, T = .62, to = { x: to0.x + R(-14, 14), y: to0.y + R(-8, 10) };
-        at(d, () => { whoosh(0, .22, .3, 1400, 2800); fly({ img: IMG.arrow, size: [124, 16], from: { x: from.x + R(-4, 4), y: from.y }, to, dur: T, arc: 120, aim: true, scale: [.8, .9], ribbon: { n: 8, c: '255,255,255', w: 2.4 } }); });
+        const d = .12 + i * .2, T = .78, arc = 150 + R(-14, 14), f = { x: from.x + R(-4, 4), y: from.y }, to = { x: to0.x + R(-14, 14), y: to0.y + R(-6, 8) };
+        at(d, () => { whoosh(0, .25, .3, 1400, 2400); fly({ img: IMG.arrow, size: [130, 22], from: f, to, dur: T, arc, aim: true, scale: [.5, .5], ribbon: { n: 6, c: '255,255,255', w: 1.2 } }); });
         const t = d + T; play('dano', t - .05, .3, 1.5 + i * .1);
-        at(t, () => { sparks(to.x, to.y, 8, .6, '255,240,200'); puff(to.x, to.y + 6, 0, -14, 30, .45, .45, 1.4);
-          add({ dur: .9, draw(p) { ctx.save(); ctx.globalAlpha = 1 - ei((p - .6) / .4); ctx.translate(to.x - 8, to.y - 8); ctx.rotate(-1.15); ctx.drawImage(IMG.arrow, 0, 0, 124, 16, -62, -8, 124, 16); ctx.restore(); } }); });
-        hit(tg, t - now, i % 2); num(195 + (i - 1) * 16, ROW.eFront - 36 - i * 4, '-1', t - now + .04, 24);
+        at(t, () => {
+          const ang = arcTangent(f, to, arc, 1);
+          stick(IMG.arrow, [130, 22], to, ang, .5, 1.0, 12);
+          puff(to.x, to.y + 4, 0, -12, 26, .45, .45, 1.3); sparksDir(to.x, to.y, ang + Math.PI, .8, 5, .5, '255,240,200');
+          hit(tg, 0, i % 2); num(195 + (i - 1) * 16, ROW.eFront - 36 - i * 4, '-1', .04, 24);
+        });
       }
     }
   },

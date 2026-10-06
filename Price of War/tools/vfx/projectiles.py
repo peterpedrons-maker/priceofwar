@@ -216,38 +216,58 @@ def grad_line(d, x0, x1, yc, thick, c0, c1, steps=40):
 
 
 def bolt(d, W, H, ss):
+    """crossbow bolt: short thick wooden shaft, dark broad steel head with a collar, two leather vanes"""
     yc = H / 2
-    grad_line(d, W * 0.12, W * 0.82, yc, H * 0.16, (96, 64, 36), (150, 104, 60))          # wooden shaft
-    grad_line(d, W * 0.12, W * 0.82, yc - H * 0.04, H * 0.05, (190, 150, 100), (210, 175, 125))
-    d.polygon([(W * 0.80, yc - H * 0.28), (W * 1.0, yc), (W * 0.80, yc + H * 0.28)], fill=(176, 184, 196, 255))   # steel head
-    d.polygon([(W * 0.80, yc - H * 0.28), (W * 1.0, yc), (W * 0.84, yc - H * 0.02)], fill=(226, 232, 240, 255))
-    for k in range(3):                                                                         # fletching
-        x = W * (0.02 + k * 0.045)
-        d.polygon([(x, yc), (x + W * 0.08, yc - H * 0.4), (x + W * 0.13, yc - H * 0.4), (x + W * 0.08, yc)], fill=(210, 60, 50, 255))
-        d.polygon([(x, yc), (x + W * 0.08, yc + H * 0.4), (x + W * 0.13, yc + H * 0.4), (x + W * 0.08, yc)], fill=(170, 40, 36, 255))
+    wood0, wood1 = (88, 58, 30), (156, 108, 58)
+    grad_line(d, W * 0.20, W * 0.80, yc, H * 0.26, wood0, wood1)                           # shaft
+    grad_line(d, W * 0.20, W * 0.80, yc - H * 0.07, H * 0.07, (200, 156, 98), (222, 184, 124))    # light along the top
+    grad_line(d, W * 0.20, W * 0.80, yc + H * 0.09, H * 0.05, (60, 38, 18), (82, 54, 28))         # shadow along the bottom
+    d.rectangle([W * 0.77, yc - H * 0.20, W * 0.83, yc + H * 0.20], fill=(70, 74, 82, 255))        # collar
+    d.rectangle([W * 0.77, yc - H * 0.20, W * 0.79, yc + H * 0.20], fill=(150, 156, 166, 255))
+    d.polygon([(W * 0.82, yc - H * 0.40), (W * 1.0, yc), (W * 0.82, yc + H * 0.40)], fill=(120, 128, 140, 255))   # head
+    d.polygon([(W * 0.82, yc - H * 0.40), (W * 1.0, yc), (W * 0.82, yc)], fill=(206, 214, 226, 255))              # lit half
+    d.line([(W * 0.83, yc), (W * 0.99, yc)], fill=(90, 96, 108, 255), width=int(ss * 0.8))
+    for x0 in (0.02, 0.10):                                                                   # vanes (leather)
+        d.polygon([(W * x0, yc - H * 0.08), (W * (x0 + .05), yc - H * 0.46), (W * (x0 + .14), yc - H * 0.46), (W * (x0 + .17), yc - H * 0.06)], fill=(98, 56, 34, 255))
+        d.polygon([(W * x0, yc + H * 0.08), (W * (x0 + .05), yc + H * 0.46), (W * (x0 + .14), yc + H * 0.46), (W * (x0 + .17), yc + H * 0.06)], fill=(74, 40, 24, 255))
+    d.rectangle([W * 0.0, yc - H * 0.09, W * 0.05, yc + H * 0.09], fill=(60, 40, 22, 255))      # nock
 
 
 def arrow(d, W, H, ss):
+    """longbow arrow: light shaft (readable on dark ground), leaf-shaped steel head, three-feather fletching"""
     yc = H / 2
-    grad_line(d, W * 0.1, W * 0.9, yc, H * 0.1, (120, 92, 60), (170, 135, 90))
-    d.polygon([(W * 0.86, yc - H * 0.3), (W * 1.0, yc), (W * 0.86, yc + H * 0.3)], fill=(200, 206, 214, 255))
-    for k in range(2):
-        x = W * (0.02 + k * 0.05)
-        d.polygon([(x, yc), (x + W * 0.07, yc - H * 0.42), (x + W * 0.12, yc - H * 0.42), (x + W * 0.08, yc)], fill=(236, 230, 214, 255))
-        d.polygon([(x, yc), (x + W * 0.07, yc + H * 0.42), (x + W * 0.12, yc + H * 0.42), (x + W * 0.08, yc)], fill=(206, 198, 180, 255))
+    grad_line(d, W * 0.06, W * 0.90, yc, H * 0.17, (176, 134, 84), (222, 186, 130))
+    grad_line(d, W * 0.06, W * 0.90, yc - H * 0.045, H * 0.05, (246, 224, 178), (255, 240, 200))
+    d.polygon([(W * 0.84, yc), (W * 0.915, yc - H * 0.27), (W * 1.0, yc), (W * 0.915, yc + H * 0.27)], fill=(176, 184, 196, 255))     # leaf head
+    d.polygon([(W * 0.84, yc), (W * 0.915, yc - H * 0.27), (W * 1.0, yc)], fill=(232, 238, 246, 255))
+    for k in range(3):                                                                        # feathers
+        x = W * (0.0 + k * 0.05)
+        col_t = (244, 236, 218, 255) if k != 1 else (200, 56, 46, 255)
+        col_b = (208, 200, 182, 255) if k != 1 else (150, 36, 32, 255)
+        d.polygon([(x, yc), (x + W * 0.05, yc - H * 0.34), (x + W * 0.12, yc - H * 0.34), (x + W * 0.10, yc)], fill=col_t)
+        d.polygon([(x, yc), (x + W * 0.05, yc + H * 0.34), (x + W * 0.12, yc + H * 0.34), (x + W * 0.10, yc)], fill=col_b)
 
 
 def lance(d, W, H, ss):
+    """holy lance: golden banded shaft, a collar, a leaf-shaped silver blade with a ridge, a small red pennant"""
     yc = H / 2
-    grad_line(d, W * 0.04, W * 0.78, yc, H * 0.2, (150, 110, 40), (236, 200, 96))          # golden shaft
-    grad_line(d, W * 0.04, W * 0.78, yc - H * 0.05, H * 0.06, (255, 238, 170), (255, 250, 220))
-    for x in (0.18, 0.34, 0.5, 0.64):                                                       # bands
-        d.rectangle([W * x, yc - H * 0.15, W * (x + 0.018), yc + H * 0.15], fill=(120, 74, 20, 255))
-    d.polygon([(W * 0.76, yc - H * 0.46), (W * 1.0, yc), (W * 0.76, yc + H * 0.46), (W * 0.82, yc)], fill=(240, 246, 255, 255))      # blade
-    d.polygon([(W * 0.76, yc - H * 0.46), (W * 1.0, yc), (W * 0.82, yc)], fill=(255, 255, 255, 255))
-    d.polygon([(W * 0.0, yc), (W * 0.06, yc - H * 0.28), (W * 0.12, yc), (W * 0.06, yc + H * 0.28)], fill=(240, 210, 110, 255))   # butt
+    grad_line(d, W * 0.05, W * 0.74, yc, H * 0.15, (140, 100, 36), (232, 192, 90))
+    grad_line(d, W * 0.05, W * 0.74, yc - H * 0.04, H * 0.045, (255, 236, 168), (255, 248, 214))
+    grad_line(d, W * 0.05, W * 0.74, yc + H * 0.05, H * 0.035, (96, 64, 20), (150, 108, 40))
+    for x in (0.16, 0.30, 0.44, 0.58):
+        d.rectangle([W * x, yc - H * 0.12, W * (x + 0.016), yc + H * 0.12], fill=(110, 70, 18, 255))
+    d.polygon([(W * 0.58, yc - H * 0.03), (W * 0.72, yc - H * 0.34), (W * 0.74, yc - H * 0.05)], fill=(196, 40, 36, 255))       # pennant
+    d.polygon([(W * 0.58, yc - H * 0.03), (W * 0.72, yc - H * 0.34), (W * 0.66, yc - H * 0.06)], fill=(236, 80, 64, 255))
+    d.rectangle([W * 0.72, yc - H * 0.22, W * 0.80, yc + H * 0.22], fill=(206, 164, 64, 255))                                      # collar
+    d.rectangle([W * 0.72, yc - H * 0.22, W * 0.745, yc + H * 0.22], fill=(255, 226, 130, 255))
+    d.rectangle([W * 0.78, yc - H * 0.16, W * 0.80, yc + H * 0.16], fill=(120, 80, 22, 255))
+    blade = [(W * 0.79, yc), (W * 0.86, yc - H * 0.38), (W * 0.95, yc - H * 0.2), (W * 1.0, yc), (W * 0.95, yc + H * 0.2), (W * 0.86, yc + H * 0.38)]
+    d.polygon(blade, fill=(176, 188, 206, 255))
+    d.polygon([blade[0], blade[1], blade[2], blade[3]], fill=(240, 246, 255, 255))                                                  # lit half
+    d.line([(W * 0.80, yc), (W * 0.99, yc)], fill=(120, 134, 156, 255), width=int(ss * 0.9))                                         # ridge
+    d.ellipse([W * 0.0, yc - H * 0.12, W * 0.07, yc + H * 0.12], fill=(214, 170, 70, 255))                                          # butt cap
 
 
-draw(168, 28, bolt, 'proj-bolt.webp')
-draw(124, 16, arrow, 'proj-arrow.webp')
-draw(250, 44, lance, 'proj-lance.webp')
+draw(150, 30, bolt, 'proj-bolt.webp', ss=6)
+draw(130, 22, arrow, 'proj-arrow.webp', ss=6)
+draw(250, 40, lance, 'proj-lance.webp', ss=6)
