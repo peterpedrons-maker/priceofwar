@@ -29,7 +29,8 @@ function backGeometry() {
   return new THREE.PlaneGeometry(W * BACK_SX, H * BACK_SY);
 }
 
-export default function CardViewer3D({ cards, index, onIndex, onClose, onReady, hideArrows }: { cards: Viewer3DCard[]; index: number; onIndex: (i: number) => void; onClose: () => void; onReady?: () => void; hideArrows?: boolean }) {
+export default function CardViewer3D({ cards, index, onIndex, onClose, onReady, hideArrows, noIntro }: { cards: Viewer3DCard[]; index: number; onIndex: (i: number) => void; onClose: () => void; onReady?: () => void; hideArrows?: boolean; noIntro?: boolean }) {
+  const noIntroRef = useRef(noIntro);   // opened from a card that is already shown face-on (the collection book): no spin-in, it starts exactly where that card was
   const onReadyRef = useRef(onReady); onReadyRef.current = onReady;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const apiRef = useRef<{ setCard: (c: Viewer3DCard) => void } | null>(null);
@@ -96,7 +97,7 @@ export default function CardViewer3D({ cards, index, onIndex, onClose, onReady, 
     const target = { x: 0, y: 0 };
     apiRef.current = {
       setCard: (c) => {
-        const id = ++loadId; yaw = Math.PI * 1.2; vYaw = 0; vPitch = 0; flipTo = 0; foilMat.uniforms.uStrength.value = c.full || c.type === 'General' ? 0.95 : 0.35;
+        const id = ++loadId; const intro = !noIntroRef.current; yaw = intro ? Math.PI * 1.2 : 0; vYaw = 0; vPitch = 0; flipTo = intro ? 0 : null; foilMat.uniforms.uStrength.value = c.full || c.type === 'General' ? 0.95 : 0.35;
         urlOf(cardSlug(c.name)).then(u => (u ? load(u) : null)).then(tx => { if (!tx || id !== loadId) return; frontMat.map = tx; frontMat.emissiveMap = tx; frontMat.needsUpdate = true; foilMat.uniforms.uMap.value = tx; if (EMBED) parent.postMessage('viewer-ready', '*'); onReadyRef.current?.(); }).catch(() => {});
       },
     };

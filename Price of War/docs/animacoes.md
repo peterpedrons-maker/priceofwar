@@ -187,7 +187,10 @@ Cada objeto é uma área de toque sobre a imagem: a câmera dá zoom nele e abre
   de verdade e as cartas se deformam junto; o verso do papel aparece depois dos 90°. Só as páginas ao lado da atual têm a versão em
   fatias (o resto é plano), para não pesar. A carta sai do bolso por completo: sobe por baixo do plástico até ficar toda acima do
   slot (~0,8 s) e só então vem para a frente (~1 s) enquanto o fundo escurece; ao fechar o 3D ela volta acima do slot e desce para
-  dentro do plástico.
+  dentro do plástico. A carta que vem para a frente chega no tamanho exato em que o 3D a mostra (a câmera do visualizador vê
+  `2 * 9,4 * tan(fov/2)` unidades na altura da tela, e a arte da carta tem 3,77 unidades), e o 3D abre sem a rotação de entrada
+  (`noIntro`), então a troca entre as duas é invisível. As páginas já viradas ficam deitadas à esquerda da lombada (as 4 últimas),
+  como marca de que há páginas atrás.
 - **Porta / placa**: zoom e abre a loja (`ShopScreen`). Ao fechar a loja, a câmera recua e o jogador continua na sala.
 - **Mesa com o tabuleiro**: zoom (a câmera nunca passa da borda da imagem) e a sala escurece por baixo; o editor de deck (`DeckEditor`,
   prop `overRoom`, translúcido) abre por cima, com o mesmo caminho de volta.

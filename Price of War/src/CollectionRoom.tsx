@@ -228,9 +228,10 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
           seg.shades[j].forEach(x => { x.style.opacity = sh; });
         });
       } else {
-        const hidden = a >= 0.9996 || i > base + 1;
+        const done = a >= 0.9996, hidden = i > base + 1 || (done && i < base - 4);
         leaf.style.display = hidden ? 'none' : '';
-        leaf.style.transform = turning ? `rotateY(${(-180 * a).toFixed(2)}deg)` : '';   // (only if its bendable twin is not there yet)
+        // a page that has turned stays lying on the left of the spine (a few of them, a hair apart), as the mark of the pages already seen
+        leaf.style.transform = turning ? `rotateY(${(-180 * a).toFixed(2)}deg)` : done ? `rotateY(${(-180 + 1.4 * Math.min(4, base - 1 - i)).toFixed(2)}deg)` : '';
         const sh = shadeRefs.current[i]; if (sh) sh.style.opacity = (i === base + 1 && frac > 0 ? 0.4 * (1 - frac) : 0).toFixed(3);
         const sg = segRefs.current[i]; if (sg) sg.style.display = 'none';
       }
@@ -245,7 +246,7 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
   const go = (d: number) => glide(clamp(Math.round(pos.current) + d, 0, pages - 1), 760);
 
   // the cover swings open on the spine, then the page is there
-  const setCover = (v: number) => { const el = coverRef.current; if (!el) return; el.style.transform = `rotateY(${(-180 * v).toFixed(2)}deg)`; el.style.visibility = v >= 0.999 ? 'hidden' : 'visible'; };
+  const setCover = (v: number) => { const el = coverRef.current; if (!el) return; el.style.transform = `rotateY(${(-180 * v).toFixed(2)}deg)`; el.style.zIndex = v >= 0.999 ? '0' : '150'; };
   const tween = (fn: (v: number) => void, from: number, to: number, ms: number) => new Promise<void>(res => {
     const s = performance.now(); const ease = (u: number) => (u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2);
     const step = (n: number) => { const u = clamp((n - s) / ms, 0, 1); fn(from + (to - from) * ease(u)); if (u < 1) requestAnimationFrame(step); else res(); };
@@ -257,7 +258,7 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
     (async () => { if (opening) { setCover(0); await wait(200); if (dead) return; await tween(setCover, 0, 1, 950); if (dead) return; setUi(true); onOpened(); } })();
     return () => { dead = true; cancelAnimationFrame(anim.current); };
   }, []);
-  const close = async () => { setUi(false); await glide(0, 300); setCover(1); if (coverRef.current) coverRef.current.style.visibility = 'visible'; await tween(setCover, 1, 0, 720); onClose(); };
+  const close = async () => { setUi(false); await glide(0, 300); setCover(1); if (coverRef.current) coverRef.current.style.zIndex = '150'; await tween(setCover, 1, 0, 720); onClose(); };
 
   // ── turning pages with the finger ──
   const down = (e: RPointerEvent) => { if (!ui || lift) return; cancelAnimationFrame(anim.current); drag.current = { x: e.clientX, base: pos.current, moved: 0, t: performance.now(), lx: e.clientX, v: 0, target: e.target }; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); };
@@ -282,12 +283,15 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
   const liftCell = useRef<HTMLElement | null>(null);
   const openCard = (i: number, pk: HTMLElement) => {
     if (lift) return; const img = pk.querySelector('img') as HTMLImageElement | null; if (!img) return;
-    const W = window.innerWidth, H = window.innerHeight, ar = img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 0.7;
-    const h = Math.min(H * 0.7, (W * 0.92) / ar), w = h * ar;
+    const W = window.innerWidth, H = window.innerHeight, ar = img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 0.679;
+    // The card where the 3D viewer will show it, to the pixel: its camera (fov 40 on a narrow screen, else 32, 9.4 away) sees 2 * 9.4 * tan(fov / 2)
+    // units over the screen's height, and the card's art (wings included, which is what the thumbnail is cut to) is 3.77 units tall.
+    const fov = (W / H < 0.8 ? 40 : 32) * Math.PI / 180, ppu = H / (2 * 9.4 * Math.tan(fov / 2));
+    const h = 3.77 * ppu, w = h * ar;
     liftCell.current = pk; setViewerReady(false); setFlyGo(false);
     pk.style.transition = 'transform 780ms cubic-bezier(.5,.05,.25,1)'; pk.style.willChange = 'transform';
     requestAnimationFrame(() => requestAnimationFrame(() => { pk.style.transform = 'translateY(-102%) scale(1.03)'; }));
-    setLift({ i, src: img.src, up: null, to: { x: (W - w) / 2, y: (H - h) / 2 + H * 0.01, w, h }, phase: 'slide' });
+    setLift({ i, src: img.src, up: null, to: { x: (W - w) / 2, y: (H - h) / 2 + 0.05 * ppu, w, h }, phase: 'slide' });
   };
   useEffect(() => {
     if (!lift) return;
@@ -373,9 +377,12 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
         {Array.from({ length: pages }, (_, p) => (
           <div key={p}>
             <div ref={el => { leafRefs.current[p] = el; }} style={{ position: 'absolute', inset: 0, transformOrigin: '0 50%', transformStyle: 'preserve-3d', display: p > 1 ? 'none' : undefined, zIndex: 60 - p, willChange: 'transform' }}>
-              <div className="bk-face">
+              <div className="bk-face" style={{ overflow: 'visible' }}>
                 {pageFront(p)}
                 <div ref={el => { shadeRefs.current[p] = el; }} style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg,#000,rgba(0,0,0,.6))', opacity: 0, pointerEvents: 'none' }} />
+              </div>
+              <div className="bk-face" style={{ transform: 'rotateY(180deg)', backgroundImage: `url(${insideImage})`, borderRadius: '9px 3px 3px 9px' }}>
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(270deg,rgba(0,0,0,.45),rgba(0,0,0,.05) 40%)' }} />
               </div>
             </div>
             {Math.abs(p - page) <= 1 && (p === page || p === page - 1) && (
@@ -417,7 +424,7 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
             )}
             <div style={{ position: 'fixed', inset: 0, zIndex: 900, opacity: showViewer ? 1 : 0, pointerEvents: showViewer ? 'auto' : 'none', transition: 'opacity .25s' }}>
               <Suspense fallback={null}>
-                <CardViewer3D cards={entries} index={lift.i} onIndex={() => {}} onClose={closeCard} onReady={() => setViewerReady(true)} hideArrows />
+                <CardViewer3D cards={entries} index={lift.i} onIndex={() => {}} onClose={closeCard} onReady={() => setViewerReady(true)} hideArrows noIntro />
               </Suspense>
             </div>
           </>
