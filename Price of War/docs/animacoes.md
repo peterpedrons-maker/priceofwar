@@ -207,3 +207,18 @@ Cada objeto é uma área de toque sobre a imagem: a câmera dá zoom nele e abre
 
 Arte: `room-collection`, `room-book-cover` (recortada do fundo cinza), `room-book-page`, `room-book-inside` em `src/assets`;
 miniaturas das cartas em `src/assets/card-thumb` (300 px). Os prompts estão em `art-prompts/README.md`, seção 4aa.
+
+## Golpe final e números de dano (feito)
+- **Números de dano por tamanho** (`NUMBER_TIERS`, `damageTier`, `FloatNumber` em `App.tsx`): 1–2 pequeno; 3–4 médio; 5–7 grande (2 anéis de explosão, dura mais); 8 ou mais enorme (3 anéis, treme, dura ~2 s). Cura, ouro e escudo usam sempre o pequeno. `floatLife` diz quanto tempo o número fica na tela.
+- **Golpe final (câmera lenta)**: quando o ataque vai matar um General (o ensaio `applyAction` já traz o evento `winner`), `beginFinalBlow` liga `TIME.k = 2`: o avanço da carta, o soco (`PunchFx`) e a queima (`BurningCard`) rodam na metade da velocidade; o avanço termina num congelamento de 380 ms (`FINAL_FREEZE_MS`) com clarão branco; uma vinheta escura fica por cima. A tela de Vitória/Derrota só aparece `FINAL_AFTER_MS` (2,3 s) depois do golpe (o evento `winner` espera esse tempo enquanto `TIME.k > 1`). Vale para o seu ataque (local e online) e para o ataque da IA. Se uma Emboscada salvar o General, a câmera lenta só termina. Não vale para o ataque do adversário humano no online (esse passa pelo apresentador de passos).
+- **Não fazer (decisão do dono):** tremor de tela proporcional ao dano e vibração do celular.
+
+## Combate AAA: decisões do dono (lista de trabalho)
+- Feito: números de dano por tamanho; câmera lenta no golpe final.
+- Querem ver **mockup antes**: projéteis por carta (Catapulta/Trabuco lançando e explodindo em área; lança do Jorge voando até o alvo).
+- Música: não dá para mudar a faixa; a ideia é **batidas/tensão sintetizadas por cima** (WebAudio) em momentos de perigo.
+- Abertura do duelo (Generais se encarando) e vitória/derrota com cerimônia: aprovadas.
+- Habilidade do General como golpe especial: **só a parte visual** (o dono coloca o som/frase depois).
+- Histórico das últimas jogadas: aprovado. Turno da IA: **diminuir a velocidade** (ela joga carta atrás de carta e não dá tempo de ver).
+- Prévia do resultado do ataque: boa, mas **opcional** (ligar/desligar nas opções, junto do tutorial).
+- Partículas no cenário: só as que fazem sentido com a imagem de fundo. Quebra da armadura do General: **não**.

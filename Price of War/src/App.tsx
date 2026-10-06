@@ -587,6 +587,13 @@ const ATTACK_WINDUP_FRAC = 0.74;
 const ATTACK_WINDUP_PX = 46;
 const ATTACK_TILT_DEG = 17;
 const IMPACT_MS = 150;
+// Golpe final (the blow that kills a General): everything on the board runs in slow motion (`TIME.k` stretches the lunge, the punch
+// and the burn), the lunge ends in a longer freeze with a white flash, and the victory/defeat screen waits for the General to burn away.
+const TIME = { k: 1 };
+const FINAL_SLOW = 2;
+const FINAL_INTRO_MS = 350;
+const FINAL_FREEZE_MS = 380;
+const FINAL_AFTER_MS = 2300;
 
 // Evenly-spaced directions for SlashEffect's spark burst below.
 const SLASH_SPARK_ANGLES = Array.from({ length: 6 }, (_, i) => (i / 6) * Math.PI * 2);
@@ -1138,8 +1145,9 @@ const PunchFx = ({ x, y, w, h, heavy = false }: { x: number; y: number; w: numbe
   useEffect(() => {
     let raf = 0;
     const t0 = performance.now();
+    const fps = PUNCH_FPS / TIME.k;
     const loop = (now: number) => {
-      const i = Math.floor((now - t0) / (1000 / PUNCH_FPS));
+      const i = Math.floor((now - t0) / (1000 / fps));
       if (i >= PUNCH_FRAMES) { setFrame(-1); return; }
       setFrame(i);
       raf = requestAnimationFrame(loop);
@@ -1176,8 +1184,9 @@ const BurningCard = ({ children }: { children: React.ReactNode }) => {
     let raf = 0;
     const t0 = performance.now();
     dbgMark('visual:burn-start');
+    const fps = BURN_FPS / TIME.k;
     const loop = (now: number) => {
-      const i = Math.floor((now - t0) / (1000 / BURN_FPS));
+      const i = Math.floor((now - t0) / (1000 / fps));
       setFrame(Math.min(i, BURN_FRAMES));
       if (i < BURN_FRAMES) raf = requestAnimationFrame(loop);
     };
@@ -1260,28 +1269,45 @@ const AtkBadge = ({ value, className = "" }: { value: number, className?: string
 const NUMBER_KIND_OF: Record<'damage' | 'heal' | 'gold-gain' | 'gold-spend' | 'shield', NumberKind> = {
   damage: 'damage', heal: 'heal', 'gold-gain': 'gold', 'gold-spend': 'goldspend', shield: 'shield',
 };
+// Damage reads by size: 1-2 small, 3-4 medium, 5-7 big (two rings, longer), 8+ huge (three rings, held longer, shakes). Heals, gold and
+// shield absorption always use the small one. `ms` is how long the number lives (the spawner removes it after that).
+const NUMBER_TIERS = [
+  { h: 40, peak: 1.45, ms: 1300, rings: 1, shake: 0 },
+  { h: 54, peak: 1.55, ms: 1450, rings: 1, shake: 0 },
+  { h: 70, peak: 1.65, ms: 1700, rings: 2, shake: 4 },
+  { h: 88, peak: 1.7, ms: 2000, rings: 3, shake: 8 },
+];
+const damageTier = (amount: number) => (amount >= 8 ? 3 : amount >= 5 ? 2 : amount >= 3 ? 1 : 0);
+const floatLife = (kind: keyof typeof NUMBER_KIND_OF, amount: number) => (kind === 'damage' ? NUMBER_TIERS[damageTier(amount)].ms : NUMBER_TIERS[0].ms) + 150;
 const FloatNumber = ({ text, kind }: { text: string; kind: keyof typeof NUMBER_KIND_OF }) => {
   const k = NUMBER_KIND_OF[kind];
   const amount = parseInt(text.replace(/\D/g, ''), 10) || 0;
-  const h = k === 'damage' ? Math.min(78, 44 + amount * 5) : 40;
+  const tier = NUMBER_TIERS[k === 'damage' ? damageTier(amount) : 0];
+  const h = tier.h;
   const burst = burstUrl(k);
   return (
     <div className="relative flex items-center justify-center" style={{ height: h }}>
-      {burst && (
+      {burst && Array.from({ length: tier.rings }, (_, r) => (
         <motion.img
+          key={r}
           src={burst} alt=""
-          initial={{ scale: 0.2, opacity: 0, rotate: -14 }}
-          animate={{ scale: [0.2, 1.1, 1.55], opacity: [0, 1, 0], rotate: [-14, 0, 8] }}
-          transition={{ duration: 0.55, ease: 'easeOut', times: [0, 0.35, 1] }}
+          initial={{ scale: 0.2, opacity: 0, rotate: -14 + r * 30 }}
+          animate={{ scale: [0.2, 1.1 + r * 0.25, 1.55 + r * 0.55], opacity: [0, 1 - r * 0.2, 0], rotate: [-14 + r * 30, r * 12, 8 + r * 22] }}
+          transition={{ duration: 0.55 + r * 0.12, delay: r * 0.1, ease: 'easeOut', times: [0, 0.35, 1] }}
           className="absolute pointer-events-none select-none max-w-none"
           style={{ height: h * 2.3, width: h * 2.3, opacity: 0 }}
           draggable={false}
         />
-      )}
+      ))}
       <motion.div
         initial={{ scale: 0.3, opacity: 0, y: 0, rotate: -6 }}
-        animate={{ scale: [0.3, 1.6, 1.2, 1.2, 1], opacity: [0, 1, 1, 1, 0], y: [0, -6, -20, -46, -80], rotate: [-6, 5, -2, 0, 0] }}
-        transition={{ duration: 1.45, ease: 'easeOut', times: [0, 0.12, 0.3, 0.72, 1] }}
+        animate={{
+          scale: [0.3, tier.peak, tier.peak * 0.76, tier.peak * 0.76, tier.peak * 0.62],
+          opacity: [0, 1, 1, 1, 0], y: [0, -6, -20, -46, -80],
+          rotate: [-6, 5, -2, 0, 0],
+          x: tier.shake ? [0, -tier.shake, tier.shake, -tier.shake * 0.6, tier.shake * 0.6, 0, 0] : 0,
+        }}
+        transition={{ duration: tier.ms / 1000, ease: 'easeOut', times: [0, 0.12, 0.3, 0.72, 1], x: { duration: 0.5, ease: 'easeOut' } }}
         className="relative flex items-center"
         style={{ filter: `drop-shadow(0 3px 3px rgba(0,0,0,0.7)) drop-shadow(0 0 10px ${NUMBER_GLOW[k]})` }}
       >
@@ -5311,7 +5337,7 @@ export default function App() {
     // unreadable stack of overlapping digits.
     const jitterX = x + (Math.random() - 0.5) * 16;
     setFloatingNumbers(prev => [...prev, { id, x: jitterX, y, text, kind }]);
-    window.setTimeout(() => setFloatingNumbers(prev => prev.filter(f => f.id !== id)), 1600);
+    window.setTimeout(() => setFloatingNumbers(prev => prev.filter(f => f.id !== id)), floatLife(kind, value));
   };
   // Convenience wrapper for the overwhelmingly common case: the number belongs
   // over a specific board slot or the gold badge, identified the same way the
@@ -5392,6 +5418,11 @@ export default function App() {
   const [announcedCard, setAnnouncedCard] = useState<{ card: CardData, side: 'player' | 'npc' } | null>(null);
 
   const [isImpacting, setIsImpacting] = useState(false);
+  // Golpe final: the vignette stays on while the slow motion lasts; each freeze adds one white flash.
+  const [finalBlowOn, setFinalBlowOn] = useState(false);
+  const [finalFlash, setFinalFlash] = useState(0);
+  const beginFinalBlow = async () => { TIME.k = FINAL_SLOW; setFinalBlowOn(true); await sleep(FINAL_INTRO_MS); };
+  const endFinalBlow = () => { TIME.k = 1; setFinalBlowOn(false); };
   // True while a blow that an Escudo / Bloqueio swallows entirely lands: the defender stands still, no punch.
   const [soakedBlow, setSoakedBlow] = useState(false);
   const blowIsSoaked = (events: GameEvent[], defSeat: Seat, slot: number) =>
@@ -6143,7 +6174,7 @@ export default function App() {
           window.setTimeout(() => {
             delete ghosts[e.slot];
             if (engineRef.current) syncView(engineRef.current);
-          }, 1300);
+          }, 1300 * TIME.k);
           break;
         }
         case 'move': {
@@ -6214,7 +6245,10 @@ export default function App() {
           showToast(e.seat === 1 && e.text.includes('descartada') ? `O oponente descartou ${e.text.split(' ')[0]} carta(s).` : e.text);
           break;
         case 'winner':
-          setGameOverWinner(e.seat === 0 ? 'player' : 'npc');
+          if (TIME.k > 1) {
+            // golpe final: the General burns away in slow motion first
+            window.setTimeout(() => { setGameOverWinner(e.seat === 0 ? 'player' : 'npc'); endFinalBlow(); }, FINAL_AFTER_MS);
+          } else setGameOverWinner(e.seat === 0 ? 'player' : 'npc');
           break;
         default:
           break;
@@ -6828,6 +6862,7 @@ export default function App() {
   // `sel` is the deck the PLAYER picked (one of their saved decks, see buildDeckSelection);
   // the AI plays the prebuilt deck of the other faction, so every match shows both in action.
   const resetGame = (sel: DeckSelection = DEFAULT_DECK_SELECTION) => {
+    endFinalBlow();
     matchIntroTimeoutsRef.current.forEach(clearTimeout);
     matchIntroTimeoutsRef.current = [];
     setMatchIntroStage(null);
@@ -6987,16 +7022,19 @@ export default function App() {
             showBanner('Fase de Combate', 'O adversário ataca suas unidades');
             await sleep(PHASE_BANNER_DURATION_MS + 150);
           }
-          setAttackAnim({ attackerIndex: action.from, targetIndex: action.to, isPlayerAttacking: false });
-          await sleep(ATTACK_MS);
-          playAttackSfx();            // before the hit-stop: the clip's loud hit is 42 ms in, the hit-stop is 40 ms
-          await sleep(HIT_STOP_MS);   // the lunge lands and everything holds for a beat before the hit
           const dryNpc = applyAction(engineRef.current!, 1, action);
+          const lethalNpc = dryNpc.ok === true && dryNpc.events.some(e => e.t === 'winner');
+          if (lethalNpc) await beginFinalBlow();
+          setAttackAnim({ attackerIndex: action.from, targetIndex: action.to, isPlayerAttacking: false });
+          await sleep(ATTACK_MS * TIME.k);
+          playAttackSfx();            // before the hit-stop: the clip's loud hit is 42 ms in, the hit-stop is 40 ms
+          if (lethalNpc) setFinalFlash(n => n + 1);
+          await sleep(lethalNpc ? FINAL_FREEZE_MS : HIT_STOP_MS);   // the lunge lands and everything holds for a beat before the hit
           const soakedNpc = dryNpc.ok === true && blowIsSoaked(dryNpc.events, 0, action.to);
           setSoakedBlow(soakedNpc);
           setIsImpacting(true);
           if (!soakedNpc) triggerPunch(0, action.to);
-          await sleep(IMPACT_MS);
+          await sleep(IMPACT_MS * TIME.k);
           setIsImpacting(false);
           setSoakedBlow(false);
           const r = dispatchAction(1, action);
@@ -7004,7 +7042,8 @@ export default function App() {
           await settleAmbush();
           setAttackAnim(null);
           const killed = r.events.some(e => e.t === 'destroyed');
-          await sleep(killed ? 1250 : 300);
+          if (lethalNpc) { await sleep(FINAL_AFTER_MS + 100); endFinalBlow(); }
+          else await sleep(killed ? 1250 : 300);
           await tutBeat('afterAttack');
         } else if (action.type === 'move') {
           // Repositioning: the same slide the player's own moves get, on the opponent's board.
@@ -7499,7 +7538,7 @@ export default function App() {
     const r = el.getBoundingClientRect();
     const key = Date.now();
     setPunchFx({ key, x: r.left, y: r.top, w: r.width, h: r.height, heavy: index === 12 });
-    window.setTimeout(() => setPunchFx(prev => (prev && prev.key === key ? null : prev)), 700);
+    window.setTimeout(() => setPunchFx(prev => (prev && prev.key === key ? null : prev)), 700 * TIME.k);
   };
 
   const activeAttackLine: { x1: number; y1: number; x2: number; y2: number; isPlayerAttacking: boolean } | null = (() => {
@@ -8101,15 +8140,18 @@ export default function App() {
       const dry = applyAction(engineRef.current!, 0, { type: 'attack', from, to: slotIndex });
       if (dry.ok === false) { showToast(dry.error); return; }
       setIsAnimating(true);
+      const lethal = dry.events.some(e => e.t === 'winner');
+      if (lethal) await beginFinalBlow();
       setAttackAnim({ attackerIndex: from, targetIndex: slotIndex, isPlayerAttacking: true });
-      await sleep(ATTACK_MS);
+      await sleep(ATTACK_MS * TIME.k);
       playAttackSfx();            // before the hit-stop: the clip's loud hit is 42 ms in, the hit-stop is 40 ms
-      await sleep(HIT_STOP_MS);   // the lunge lands and everything holds for a beat before the hit
+      if (lethal) setFinalFlash(n => n + 1);
+      await sleep(lethal ? FINAL_FREEZE_MS : HIT_STOP_MS);   // the lunge lands and everything holds for a beat before the hit
       const soaked = blowIsSoaked(dry.events, 1, slotIndex);
       setSoakedBlow(soaked);
       setIsImpacting(true);
       if (!soaked) triggerPunch(1, slotIndex);
-      await sleep(IMPACT_MS);
+      await sleep(IMPACT_MS * TIME.k);
       setIsImpacting(false);
       setSoakedBlow(false);
       const r = dispatchAction(0, { type: 'attack', from, to: slotIndex });
@@ -8119,6 +8161,7 @@ export default function App() {
         if (r.wait) await r.wait;
         await settleAmbush();
       }
+      if (lethal) { await sleep(FINAL_AFTER_MS + 100); endFinalBlow(); }   // (an Emboscada can still save the General: the slow motion just ends)
       setSelectedAttackerIndex(null);
       setAttackAnim(null);
       setIsAnimating(false);
@@ -9828,6 +9871,19 @@ export default function App() {
         })()}
       </AnimatePresence>
 
+      {/* Golpe final: dark vignette while the slow motion lasts, white flash on the freeze. */}
+      <AnimatePresence>
+        {finalBlowOn && (
+          <motion.div key="final-vignette" className="fixed inset-0 z-[285] pointer-events-none"
+            style={{ background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 30%, rgba(0,0,0,0.78) 100%)' }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }} />
+        )}
+        {finalBlowOn && finalFlash > 0 && (
+          <motion.div key={`final-flash-${finalFlash}`} className="fixed inset-0 z-[286] pointer-events-none bg-white"
+            initial={{ opacity: 0.85 }} animate={{ opacity: 0 }} transition={{ duration: 0.45, ease: 'easeOut' }} />
+        )}
+      </AnimatePresence>
+
       {/* Floating combat/gold numbers (see spawnFloatingNumber/spawnFloatingNumberAtId) —
           Hearthstone-style: pop in, drift up, fade out, over whatever card or gold
           badge they're reporting a change for. z-[290], above the board and its
@@ -10458,18 +10514,18 @@ const CardSlot = ({
             rotateX: isAttacking ? (attackDirection === 'up' ? 20 : -20) : 0,
           }}
           transition={{
-            duration: isAttacking ? ATTACK_MS / 1000 : 0.2,
+            duration: isAttacking ? ATTACK_MS * TIME.k / 1000 : 0.2,
             times: isAttacking ? [0, ATTACK_WINDUP_FRAC, 1] : undefined,
             scale: isAttacking && !isImpactingAttacker
-              ? { duration: ATTACK_MS / 1000, times: [0, ATTACK_WINDUP_FRAC, 1], ease: ['easeOut', 'easeIn'] }
+              ? { duration: ATTACK_MS * TIME.k / 1000, times: [0, ATTACK_WINDUP_FRAC, 1], ease: ['easeOut', 'easeIn'] }
               : { type: "spring", stiffness: 400, damping: 15 },
             scaleY: justLanded ? { duration: 0.38, ease: "easeOut", times: [0, 0.35, 0.6, 0.85, 1] } : { type: "spring", stiffness: 520, damping: 16 },
             scaleX: { type: "spring", stiffness: 520, damping: 16 },
             rotate: isAttacking && !isImpactingAttacker
-              ? { duration: ATTACK_MS / 1000, times: [0, ATTACK_WINDUP_FRAC, 1], ease: ['easeOut', 'easeIn'] }
+              ? { duration: ATTACK_MS * TIME.k / 1000, times: [0, ATTACK_WINDUP_FRAC, 1], ease: ['easeOut', 'easeIn'] }
               : isImpactingTarget ? { duration: 0.3, ease: "easeOut", times: [0, 0.3, 0.65, 1] } : { duration: 0.2 },
             // ease-out into the pull-back, ease-in into the strike: it accelerates all the way to the hit
-            y: isAttacking ? { duration: ATTACK_MS / 1000, times: [0, ATTACK_WINDUP_FRAC, 1], ease: ['easeOut', 'easeIn'] } : isImpactingTarget ? { duration: 0.3, ease: "easeOut", times: [0, 0.35, 1] } : undefined,
+            y: isAttacking ? { duration: ATTACK_MS * TIME.k / 1000, times: [0, ATTACK_WINDUP_FRAC, 1], ease: ['easeOut', 'easeIn'] } : isImpactingTarget ? { duration: 0.3, ease: "easeOut", times: [0, 0.35, 1] } : undefined,
             x: damageFlash
               ? { duration: 0.45, ease: "easeOut" }
               : (isImpactingAttacker || isImpactingTarget) ? { duration: 0.25, ease: "easeOut" } : undefined,
