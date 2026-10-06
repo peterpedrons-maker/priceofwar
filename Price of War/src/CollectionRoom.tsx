@@ -22,12 +22,23 @@ const GOLD = '#e8c46a';
 
 // Things to tap, in stage coordinates (measured off the room image).
 const SPOTS = {
-  book: { x: 66, y: 316, w: 196, h: 252, cx: 160, cy: 436, zoom: 2.35, label: 'COLEÇÃO', lx: 196, ly: 608 },
-  door: { x: 506, y: 336, w: 262, h: 566, cx: 640, cy: 640, zoom: 2.0, label: 'LOJA', lx: 642, ly: 384 },
-  deck: { x: 428, y: 1166, w: 340, h: 210, cx: 600, cy: 1270, zoom: 2.2, label: 'MEU DECK', lx: 580, ly: 1318 },
-  shelf: { x: 24, y: 638, w: 357, h: 274, cx: 204, cy: 792, zoom: 2.2, label: 'BOOSTERS', lx: 202, ly: 928 },
+  book: { x: 66, y: 316, w: 196, h: 252, cx: 160, cy: 436, zoom: 2.35, label: 'COLEÇÃO' },
+  door: { x: 506, y: 336, w: 262, h: 566, cx: 640, cy: 640, zoom: 2.0, label: 'LOJA' },
+  deck: { x: 428, y: 1166, w: 340, h: 210, cx: 600, cy: 1270, zoom: 2.2, label: 'MEU DECK' },
+  shelf: { x: 24, y: 638, w: 357, h: 274, cx: 204, cy: 792, zoom: 2.2, label: 'BOOSTERS' },
 } as const;
 type SpotKey = keyof typeof SPOTS;
+
+/* "COLEÇÃO" stamped in gold foil on the book cover (the same on the room's book and on the binder's cover) */
+function BookTitle({ size, count }: { size: number; count: string }) {
+  return (
+    <div className="t-gold" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontWeight: 800 }}>
+      <div style={{ fontSize: size, letterSpacing: '.1em', paddingLeft: '.1em' }}>COLEÇÃO</div>
+      <div style={{ width: size * 5.2, height: Math.max(1, size * 0.07), margin: `${size * 0.42}px 0 ${size * 0.4}px`, background: 'linear-gradient(90deg,transparent,#e3b556,transparent)' }} />
+      <div style={{ fontSize: size * 0.62, letterSpacing: '.08em' }}>{count}</div>
+    </div>
+  );
+}
 
 /* Where each kind of booster stands on the shelf in the room image: three rows (the plank tops, in stage px), up to three kinds per row,
    the first ones in the middle row at eye level. */
@@ -143,10 +154,11 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
       <style>{`
         @keyframes roomflick { 0%,100% { opacity:.55; transform:scale(.94);} 35% { opacity:1; transform:scale(1.05);} 65% { opacity:.7; transform:scale(.98);} }
         @keyframes roompulse { 0%,100% { opacity:.25; transform:scale(.94);} 50% { opacity:.85; transform:scale(1.05);} }
-        .room-plaque { position:absolute; transform:translate(-50%,-50%); white-space:nowrap; font-family:'Cinzel',serif; font-weight:700; letter-spacing:.12em; font-size:17px; padding:6px 14px 4px; border-radius:9px; color:#ffe9b0;
-          background:linear-gradient(#6d4523,#3b2311); border:2px solid #d9b25a; box-shadow:0 3px 9px rgba(0,0,0,.65), inset 0 2px 0 rgba(255,235,170,.35); text-shadow:0 1px 1px #000; pointer-events:none; transition:opacity .25s; }
-        .room-plaque i { font-style:normal; margin-left:8px; font-size:15px; background:linear-gradient(#f6d77a,#b5842a); color:#2a1606; padding:1px 9px; border-radius:12px; text-shadow:none; }
-        .room-zoomed .room-plaque, .room-zoomed .room-glow { opacity:0 !important; animation:none; }
+        .room-title { position:absolute; transform:translate(-50%,-50%) rotate(var(--r,0deg)); white-space:nowrap; text-align:center; line-height:1; font-family:'Cinzel',serif; font-weight:800; pointer-events:none; }
+        .t-gold { background:linear-gradient(180deg,#fff0b8 0%,#e3b556 46%,#f7da86 54%,#a8741f 100%); -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(0 1px 0 rgba(30,12,2,.9)) drop-shadow(0 0 2px rgba(0,0,0,.45)); }
+        .t-burn { color:#2a1507; text-shadow:0 1px 0 rgba(255,214,140,.38); }
+        .t-ink { color:#4b3014; text-shadow:0 0 1px rgba(255,240,200,.35); mix-blend-mode:multiply; }
+        .room-zoomed .room-glow { opacity:0 !important; animation:none; }
         @keyframes roomstockin { from { opacity:0 } to { opacity:1 } }
         .room-stack-label { position:absolute; text-align:center; font-family:'Cinzel',serif; font-weight:700; font-size:6.5px; letter-spacing:.12em; color:#ffe9b0; text-shadow:0 1px 2px #000; pointer-events:none; }
         .room-glow { position:absolute; border-radius:46%; background:radial-gradient(closest-side, rgba(255,214,120,.5), rgba(255,190,80,.15) 60%, transparent 78%); mix-blend-mode:screen; animation:roompulse 2.6s ease-in-out infinite; pointer-events:none; transition:opacity .25s; }
@@ -175,6 +187,11 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
               });
             })}
             {shelfMode && packs.map((pk, t) => <div key={`l${pk.id}`} className="room-stack-label" style={{ left: shelfSlot(t, packs.length).cx - 40, top: shelfSlot(t, packs.length).y + 2, width: 80 }}>{pk.name.replace('Booster ', '').toUpperCase()}</div>)}
+            {/* the names are written on the things themselves: the book cover, the shop sign, the shelf board, the parchment on the table */}
+            <div className="room-title" style={{ left: 164, top: 438 }}><BookTitle size={11.5} count={`${entries.length}/${entries.length}`} /></div>
+            <div className="room-title t-gold" style={{ left: 683, top: 383, fontSize: 27, letterSpacing: '.14em', paddingLeft: '.14em' }}>LOJA</div>
+            <div className="room-title t-gold" style={{ left: 204, top: 648, fontSize: 9.5, letterSpacing: '.34em', paddingLeft: '.34em' }}>BOOSTERS</div>
+            <div className="room-title t-ink" style={{ left: 557, top: 1237, fontSize: 11, letterSpacing: '.1em', ['--r' as string]: '-3deg' }}>MEU DECK</div>
             {/* what can be tapped */}
             {(Object.keys(SPOTS) as SpotKey[]).map(k => {
               const s = SPOTS[k];
@@ -182,7 +199,6 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
                 <div key={k}>
                   <div className="room-glow" style={{ left: s.x, top: s.y, width: s.w, height: s.h }} />
                   <button data-spot={k} aria-label={s.label} onClick={tap(k)} style={{ position: 'absolute', left: s.x, top: s.y, width: s.w, height: s.h, background: 'none', border: 0, padding: 0 }} />
-                  <div className="room-plaque" style={{ left: s.lx, top: s.ly }}>{s.label}{k === 'book' && <i>{entries.length}/{entries.length}</i>}{k === 'shelf' && <i>∞</i>}</div>
                 </div>
               );
             })}
@@ -436,7 +452,9 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
         ))}
         {/* the cover, hinged on the spine */}
         <div ref={coverRef} style={{ position: 'absolute', left: -BOOK_W * 0.043, top: -BOOK_H * 0.0225, width: BOOK_W * 1.1, height: BOOK_H * 1.045, transformOrigin: '5% 50%', transformStyle: 'preserve-3d', zIndex: 150 }}>
-          <div className="bk-face" style={{ backgroundImage: `url(${coverImage})`, borderRadius: 0, filter: 'drop-shadow(0 10px 18px rgba(0,0,0,.6))' }} />
+          <div className="bk-face" style={{ backgroundImage: `url(${coverImage})`, borderRadius: 0, filter: 'drop-shadow(0 10px 18px rgba(0,0,0,.6))' }}>
+            <div style={{ position: 'absolute', left: '52.3%', top: '47%', transform: 'translate(-50%,-50%)', pointerEvents: 'none' }}><BookTitle size={26} count={`${count}/${entries.length}`} /></div>
+          </div>
           <div className="bk-face" style={{ transform: 'rotateY(180deg)', backgroundImage: `url(${insideImage})`, borderRadius: '9px 3px 3px 9px' }} />
         </div>
       </div>

@@ -194,6 +194,7 @@ Cada objeto é uma área de toque sobre a imagem: a câmera dá zoom nele e abre
 - **Porta / placa**: zoom e abre a loja (`ShopScreen`). Ao fechar a loja, a câmera recua e o jogador continua na sala.
 - **Mesa com o tabuleiro**: zoom (a câmera nunca passa da borda da imagem) e a sala escurece por baixo; o editor de deck (`DeckEditor`,
   prop `overRoom`, translúcido) abre por cima, com o mesmo caminho de volta.
+- **Nomes dentro da cena**: não há mais plaquinhas flutuando. "COLEÇÃO 50/50" está em dourado na capa do livro (a mesma capa, com o mesmo texto, no fichário que abre), "LOJA" na placa pendurada, "BOOSTERS" na tábua de cima da estante e "MEU DECK" a tinta no pergaminho da mesa. Os objetos continuam tocáveis (botão invisível + brilho que pulsa).
 - **Estante de boosters**: a imagem da sala (`room-collection.webp`) foi montada por cima da original: o livro com a vela e a prateleira de parede
   foram recortados e subiram, e a estante da loja (`shop-shelf.webp`, só 3 prateleiras) ficou **encostada na parede**, de pé no chão, com sombra
   de contato. O barril foi apagado (o piso foi refeito seguindo a direção das tábuas). Cada tipo de booster forma uma pilha numa prateleira
