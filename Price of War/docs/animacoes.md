@@ -198,7 +198,7 @@ Cada objeto é uma área de toque sobre a imagem: a câmera dá zoom nele e abre
   o barril foi escondido). Cada tipo de booster forma uma pilha numa prateleira, um atrás do outro com perspectiva (cada um menor, mais escuro
   e mais alto que o da frente). Tocar na estante dá zoom; tocar numa pilha abre o pacote da frente (`PackOpening`, o mesmo da loja) e, ao
   terminar, o próximo desliza para a frente. **Base de teste:** o estoque nunca acaba (`BOOSTERS`). A mesa redonda ficou só como decoração.
-  (`src/assets/room-table-cloth.webp`) ficou guardada para uso futuro.
+  A imagem do pano vermelho (`src/assets/room-table-cloth.webp`) ficou guardada para uso futuro.
 - A coleção, por enquanto, é o catálogo inteiro (os dois decks, sem restrição). O botão "Simular faltantes" mostra como ficam os
   bolsos vazios. Falta o inventário real do jogador (quantidade de cada booster).
 
