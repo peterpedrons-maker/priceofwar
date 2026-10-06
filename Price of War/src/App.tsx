@@ -3122,7 +3122,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
   const [onlineOpen, setOnlineOpen] = useState(false);
   const [deckEditorOpen, setDeckEditorOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
-  const [roomOpen, setRoomOpen] = useState(false);   // the Sala de Coleção: the shop and the deck editor open over it, and closing them leaves you in it
+  const [roomOpen, setRoomOpen] = useState(() => new URLSearchParams(window.location.search).has('colecao'));   // the Sala de Coleção: the shop and the deck editor open over it, and closing them leaves you in it
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [soundOpen, setSoundOpen] = useState(false);
   const updateProfile = (patch: Partial<PlayerProfile>) => {
