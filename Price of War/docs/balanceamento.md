@@ -58,3 +58,20 @@ Limites: a IA joga diferente de uma pessoa, então os números mostram tendênci
 | G · F + cavaleiros do Cardeal com -1 HP | 59% | 5,3 |
 
 Leitura: mexer só nos atributos quase não muda nada; o que mais pesa é enxugar os baralhos e dar corpo às unidades do Capitão (que tinham 1 ponto a menos que as do Cardeal pelo mesmo custo e sofrem mais com o dano em área). Os patches estão em `balance-out/p1..p7.json` (pasta ignorada pelo git; ficam registrados dentro de cada resultado).
+
+### Rodada 2: decks de 60 cartas, cartas emprestadas e efeito alterado (200 partidas cada; % de vitórias do Capitão)
+Regras do teste: os dois decks com 60 cartas, sem mexer nos atributos das unidades (só na composição); o Cardeal troca cartas fortes por médias/fracas repetidas (1 Trabuco, 2 Catapultas, 2 Jorge, 3 Cavaleiros da Luz, 1 Mercador, 1 Recrutar Veteranos; entram +2 Soldados da Ordem, +1 Intendente, +2 Recruta Devoto, +1 Atirador, +1 Arqueiro, +1 Hospitalário); o Capitão recebe táticas do Cardeal e perde as cartas de posição mais fracas.
+| Cenário | Capitão vence | Rodadas |
+|---|---|---|
+| H1 · Capitão com 3 Catapultas, 2 Balestras, 3 Espadas Longas | 14% | 5,0 |
+| H2 · H1 + unidades do Capitão com +1 HP | 25% | 5,9 |
+| H3 · Capitão mais agressivo (4 Catapultas, 3 Balestras, 4 Espadas, 3 Armaduras) | 18% | 5,2 |
+| I1 · 4 Catapultas, 4 Balestras, 2 Trabucos, 4 Armaduras, 2 Recrutamentos Seletivos; sem Espada Longa | 26% | 5,7 |
+| I2 · I1 + General Aurelion dá +2 ATK (em vez de +1) às unidades que se moveram | 32% | 5,5 |
+| I3 · I1 + 3 Cavaleiros da Luz no Capitão | 35% | 5,6 |
+| J1 · I1 + General +2 ATK + 3 Cavaleiros da Luz | 40% | 5,4 |
+| **K1 · J1 + Cardeal com 1 Catapulta (mantém 1 Trabuco)** | **44%** | 5,0 |
+| **K2 · J1 + Cardeal sem Trabuco (mantém 2 Catapultas)** | **43%** | 5,3 |
+| J2 · J1 + Cardeal sem Trabuco e com 1 Catapulta | 55% | 5,3 |
+
+Leitura: só trocar cartas dentro do deck não basta (14–18%); o que mais ajudou foi dar ao Capitão dano em área e direto (Catapulta, Balestra, Trabuco), mais corpo (Cavaleiro da Luz) e um General mais forte. A Espada Longa foi a pior carta emprestada (equipar não rende para o Capitão). K1/K2 ficam na faixa de 43–44% e J2 em 55%, então o ponto de equilíbrio está entre eles. Nada disso está aplicado ao catálogo ainda.
