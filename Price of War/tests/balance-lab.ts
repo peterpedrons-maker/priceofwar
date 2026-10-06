@@ -16,7 +16,7 @@ import { applyAction, createMatch, deckSetupFromRecipe } from '../src/engine/gam
 import { nextRandom, seedFrom } from '../src/engine/rng';
 import type { GameState, Seat, GameEvent, Card } from '../src/engine/types';
 
-type Patch = { name?: string; cards?: Record<string, { atk?: number; hp?: number; cost?: number; abilityCost?: number; abilityOnce?: boolean; merge?: Record<string, Record<string, unknown>> }>; decks?: Record<string, Record<string, number>> };
+type Patch = { name?: string; cards?: Record<string, { atk?: number; hp?: number; cost?: number; abilityCost?: number; abilityOnce?: boolean; merge?: Record<string, Record<string, unknown>>; set?: Record<string, unknown> }>; decks?: Record<string, Record<string, number>> };
 type Per = { deck: string; won: boolean; generalHp: number; drawn: Record<string, number>; played: Record<string, number>; abilities: Record<string, number>; dmg: Record<string, number>; kills: Record<string, number> };
 export type GameRecord = { seed: number; first: Seat; rounds: number; winner: Seat | null; seats: [Per, Per] };
 
@@ -25,6 +25,8 @@ function applyPatch(p: Patch) {
     const def = CARD_DEFS.find(c => c.name === name) as any;
     if (!def) throw new Error(`patch: unknown card ${name}`);
     if (d.atk !== undefined) def.atk = d.atk; if (d.hp !== undefined) def.hp = d.hp; if (d.cost !== undefined) def.cost = d.cost;
+    // set: replaces whole fields of the definition (e.g. "abilities": [...], "passives": [...]) to rewrite what a card does
+    if (d.set) Object.assign(def, d.set);
     // merge: "abilities.0.do.0": { "atk": 2 } → copies those fields over the object found at that path of the card definition
     for (const [path, fields] of Object.entries(d.merge ?? {})) {
       const target = path.split('.').reduce((o: any, k) => o?.[k], def);

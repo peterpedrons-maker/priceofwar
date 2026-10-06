@@ -85,3 +85,21 @@ Decidido com o dono do jogo depois da rodada 2, **só com mudanças em cartas t�
 - Ajustes simples para aproximar de 45–50%, já medidos sobre essa versão (200 partidas): Cardeal sem Trabuco → Capitão 40,5%; General em até 3 unidades → 36%; 3 Trabucos no Capitão → 31%. Os dois primeiros juntos ainda não foram medidos.
 
 Decks salvos: quem ainda tem o deck inicial antigo (idêntico à lista antiga, ver `LEGACY_STARTERS`) recebe a nova; deck editado pelo jogador não é tocado. A coleção ganha todas as cartas das listas novas e antigas; as cartas que saíram de um deck (Linha Fechada, Fortaleza de Pedra) continuam existindo e saem em boosters do Capitão. Os boosters de cada facção continuam sorteando só cartas da própria facção (`BOOSTER_POOLS`).
+
+### Rodada 3: Capitão com as próprias cartas e efeitos alterados (200 partidas cada; % de vitórias do Capitão)
+Em vez de emprestar táticas ao Capitão, o deck dele volta à lista própria de 60 cartas (a lista inicial antiga) e os efeitos mudam (o Cardeal é o que está no jogo hoje; o General Aurelion com +2/+1 em todos os cenários). Os patches usam `set` (reescreve `abilities`/`passives` de uma carta) e `merge`, em `tests/balance-lab.ts`.
+| Cenário | Mudanças de efeito | Capitão vence | Rodadas |
+|---|---|---|---|
+| (jogo hoje) | táticas emprestadas, efeitos originais | 30% | 5,2 |
+| N0 | nenhuma | 11,5% | 4,6 |
+| N1 · movimento | Capitão de Formação: aliados ao lado +2 ATK (era +1); Batedor ganha +1 ATK para sempre a cada ataque que sobrevive; Cavaleiro Tático: aliados ao lado +1 ATK ao se mover | 12,5% | 4,9 |
+| N2 · controle | Lanceiro: inimigo à frente -2 ATK (era -1); Escudeiro: ele e a carta de trás recebem -1 de dano; Veterano: +2 ATK na coluna central e +1 ATK na Vanguarda | 10,5% | 4,9 |
+| N3 · táticas | Avanço Coordenado custa 1 e dá +3 ATK; Reformar Linhas também compra 1 carta; Linha Fechada -2 de dano; Estandarte +1 ATK e +1 HP em combate; Bloqueio Instantâneo custa 1 | 19% | 5,4 |
+| N4 · N1+N2+N3 | todos | 32% | 5,3 |
+| N5 | N4 + Pântano Maldito -2 ATK e Fortaleza de Pedra -2 de dano | 34,5% | 5,5 |
+| N6 | N4 + Cavaleiro Tático ataca 2 vezes por rodada | 33,5% | 4,8 |
+| N7 | N4 + N5 + N6 | 35,5% | 5,1 |
+| **N8** | N7 + Cardeal sem Trabuco | **42%** | 5,8 |
+| **N9** | N7 + Cardeal sem Catapulta (mantém 1 Trabuco) | **43,5%** | 5,3 |
+
+Leitura: mudar efeitos de unidades (movimento ou controle) quase não move o resultado (10–13%); o que pesa são as táticas (N3, +8 pontos) e os efeitos somados chegam a ~35%, o mesmo que o caminho das cartas emprestadas (30%). Para chegar perto de 45% com os efeitos, ainda é preciso tirar uma das duas cartas de dano em área do Cardeal (N8/N9). Nada disso está aplicado.
