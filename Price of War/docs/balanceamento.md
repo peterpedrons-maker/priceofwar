@@ -150,4 +150,4 @@ Motivo: jogando com o Capitão contra a IA do Cardeal, o dono viu o Cardeal ench
 | **Q3** | Q1 + Q2 | **47%** | 23,9 × 22,8 |
 | Q4 | Q3 + unidades de 1→2 (Devotos, Recruta, Mercador, Infiltrado, Fanático) | 48% | 22,7 × 22,8 |
 | Q5 | cavalaria 3→5 + unidades 2→3 | 58% | 22,3 × 22,5 |
-Leitura: com 30 de vida os custos voltam a pesar (a rodada 1 do estudo antigo dizia o contrário). Q3 deixa o jogo próximo de 50% e o 1º turno do Cardeal quase igual ao do Capitão. Nada disso está aplicado ao jogo (aguarda decisão do dono).
+Leitura: com 30 de vida os custos voltam a pesar (a rodada 1 do estudo antigo dizia o contrário). Q3 deixa o jogo próximo de 50% e o 1º turno do Cardeal quase igual ao do Capitão. **Q3 aplicado ao jogo** (decidido com o dono): Jorge, Nobre, Cavaleiro da Luz e Comandante custam 4; Intendente, Soldados da Ordem, Cavaleiro Hospitalário, Arqueiro e Atirador custam 3. Remedido no catálogo real: Capitão 47% × Cardeal 53%, 7,5 rodadas.

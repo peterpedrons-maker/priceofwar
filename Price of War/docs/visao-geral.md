@@ -18,7 +18,7 @@ Jogo de cartas digital (TCG) em português do Brasil, feito para jogar no celula
 - Baralho: 40 a 60 cartas, até 4 cópias de cada. Baralho finito (carta que saiu não volta).
 
 ## Os dois decks (60 cartas cada)
-- **Cardeal Pedro, Voz da Fé** (Cardeal): fé e ferro; cura, convocações, emboscadas sagradas, cerco (Trabuco, Catapulta). General: paga 2 de ouro para curar 1 HP de uma unidade.
+- **Cardeal Pedro, Voz da Fé** (Cardeal): fé e ferro; cura, convocações, emboscadas sagradas, cerco (Trabuco, Catapulta). General: paga 2 de ouro para curar 1 HP de uma unidade. Custos (rodada 6): cavalaria de 4 de ouro e unidades médias de 3; só as cartas de 1 de ouro continuam baratas.
 - **Capitão** (General Aurelion, Mestre da Formação): infantaria disciplinada, movimento e controle; recebeu poucas táticas do Cardeal (2 Catapultas, 2 Balestras, 1 Trabuco) e vários efeitos alterados. General: unidades que se moveram ganham +2/+1.
 - Balanceamento (decidido): ver `docs/balanceamento.md`. Em IA × IA o Capitão vence ~37,5% e as partidas acabam na rodada ~6,9. Só gente jogando dirá a verdade; mudanças de regra são testadas antes no laboratório (`tests/balance-lab.ts`).
 
