@@ -1169,6 +1169,60 @@ Top-down-neutral game UI illustration of a slim, elegant gold-line currency pill
 
 ---
 
+## 4ab. Tela inicial v2 — "A guerra dos dois Generais" (pendente)
+
+**Arquivo esperado:** `src/assets/start-screen-bg.webp` (substitui a catedral em chamas de 704×1389) · **Tamanho:** retrato, no mínimo 1170×2532 (ideal 1290×2796) ·
+**Guia de zonas:** [`reference/tela-inicial-guia-v2.png`](./reference/tela-inicial-guia-v2.png) (pode ser anexado como referência de composição) · **Estilo:** cenário épico
+
+**Por que:** o fundo atual é bonito, mas genérico. Este mostra o conflito do jogo: a ordem do Cardeal Pedro contra o exército do Capitão (Comandante Aurelion), dois Generais, dois exércitos, uma única luz.
+**Como entra no jogo:** o menu vira uma cascata de placas de ouro que sai da parede (mockup em `public/mockups/menu/placa2.html`), então o canto de baixo fica coberto pelas placas e o alto fica livre para o perfil e as coroas.
+
+```
+Ultra-detailed epic fantasy key-art painting for a card game's title screen,
+portrait orientation (1290x2796), cinematic and dramatic, painterly but
+sharp, in the spirit of high-end collectible card game splash art.
+
+SCENE: the moment before a great battle, at dusk. A vast war-torn valley
+seen from a slightly elevated viewpoint. On the LEFT horizon, a towering
+gothic cathedral-fortress of a crusader military-religious order, white
+stone and gold, stained-glass windows glowing warm gold, white-and-crimson
+banners with gold crosses, a cathedral army massed in front of it. On the
+RIGHT horizon, a disciplined professional army's fortified castle and camp,
+crimson, gold and steel-gray, banners with a rampant golden lion, soldiers
+in tight, perfectly ordered formations, no religious tone. Between them,
+the valley floor with two massive armies facing each other, thin lines of
+smoke, scattered banners, a few torn pennants.
+
+THE TWO GENERALS, heroic and clearly readable in the middle ground, one on
+each side, each on a rocky outcrop or rampart: on the left, CARDINAL PETER,
+a mitred bishop-warrior in white and gold plate armor with a crimson
+mantle, a war hammer raised, a few white doves in the air; on the right,
+COMMANDER AURELION, a stern officer in crimson and steel-gray plate with a
+golden rampant-lion crest, sword pointing forward. They face the center.
+
+LIGHT: a dramatic turbulent dusk sky with storm clouds splitting at the
+center to let one huge shaft of warm golden-orange light fall onto the
+valley between the two armies, god rays, floating embers and ash, warm
+sacred light on the left, cooler steel highlights on the right, deep
+shadows at the edges (strong natural vignette).
+
+COMPOSITION RULES (very important, the UI sits on top):
+- The top 12% of the image: calm sky only, no important detail.
+- All the epic action (castles, armies, Generals, the light) lives between
+  12% and 62% of the image height, centered.
+- The bottom 38%: dark, low-contrast foreground only (dark ground, drifting
+  smoke and haze, a few dim banner poles at the very edges). No bright
+  details, no faces, nothing important: this area is covered by UI buttons.
+- Heavy dark vignette on all four edges.
+
+NO text, NO logo, NO watermark, NO frames, NO UI, no modern objects, no
+anime style, no photorealistic faces, no extra limbs, no cropped Generals.
+```
+
+**Depois que a imagem chegar:** recorto/ajusto para 1170×2532 (WebP), encaixo atrás das placas e mostro o resultado antes de aplicar. Se a arte vier em paisagem, dá para estender o céu e o chão escuro para completar o retrato.
+
+---
+
 ## 4t. Editor de deck (Meu Deck) — artes da tela (pendente)
 
 **Status:** pendente. Hoje a tela usa só as molduras finas já existentes (`ui-frame-menu-card.webp`
