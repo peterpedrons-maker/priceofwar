@@ -139,3 +139,15 @@ Só isso, sem mexer em ouro nem no início do combate (o pacote com menos ouro e
 
 ### Viradas (comeback) — `tests/balance-comeback.ts`
 O laboratório agora grava, a cada fim de turno, a vida dos Generais e o material em campo (ATK + HP das unidades). Medido no catálogo atual (250 partidas IA × IA): quem está claramente à frente depois da rodada 2 ou 3 (8 de material ou 5 de vida) vence **cerca de 87–92%**; a virada acontece em 8–13% dos casos. Mesmo assim, o vencedor chegou a estar bem atrás (≥ 6) em ~1/3 das partidas, e muito atrás em ~18%. Ou seja: virar existe, mas é raro quando a vantagem já é grande. Ideias para testar depois: dano em área maior ou mais táticas de recuperação, ouro extra para quem está atrás, Emboscadas mais fortes.
+
+### Rodada 6: custo das cartas do Cardeal (200 partidas cada; % de vitórias do Capitão; General com 30 de vida)
+Motivo: jogando com o Capitão contra a IA do Cardeal, o dono viu o Cardeal encher o campo já no 1º turno (15 de ouro, cartas de custo 1–3). Mediu-se também o material em campo (ATK+HP) depois do 1º turno de cada lado. Só mudam os custos das **unidades** do Cardeal (táticas ficam, porque Catapulta/Trabuco são compartilhadas com o Capitão).
+| Cenário | Mudança de custo (só Cardeal) | Capitão vence | Material após o 1º turno (Cardeal × Capitão) |
+|---|---|---|---|
+| Q0 | nenhuma | 37,5% | 27,2 × 22,6 |
+| Q1 | cavalaria 3→4 (Jorge, Nobre, Cavaleiro da Luz, Comandante) | 41,5% | 26,1 × 22,6 |
+| Q2 | unidades de 2→3 (Intendente, Soldados da Ordem, Hospitalário, Arqueiro, Atirador) | 44,5% | 25,3 × 22,7 |
+| **Q3** | Q1 + Q2 | **47%** | 23,9 × 22,8 |
+| Q4 | Q3 + unidades de 1→2 (Devotos, Recruta, Mercador, Infiltrado, Fanático) | 48% | 22,7 × 22,8 |
+| Q5 | cavalaria 3→5 + unidades 2→3 | 58% | 22,3 × 22,5 |
+Leitura: com 30 de vida os custos voltam a pesar (a rodada 1 do estudo antigo dizia o contrário). Q3 deixa o jogo próximo de 50% e o 1º turno do Cardeal quase igual ao do Capitão. Nada disso está aplicado ao jogo (aguarda decisão do dono).
