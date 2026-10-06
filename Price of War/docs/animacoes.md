@@ -194,8 +194,9 @@ Cada objeto é uma área de toque sobre a imagem: a câmera dá zoom nele e abre
 - **Porta / placa**: zoom e abre a loja (`ShopScreen`). Ao fechar a loja, a câmera recua e o jogador continua na sala.
 - **Mesa com o tabuleiro**: zoom (a câmera nunca passa da borda da imagem) e a sala escurece por baixo; o editor de deck (`DeckEditor`,
   prop `overRoom`, translúcido) abre por cima, com o mesmo caminho de volta.
-- **Mesa redonda (Boosters)**: zoom e a vista passa a ser a mesa de cima (pano vermelho com acabamento dourado), com os boosters deitados
-  perto um do outro (`TableTop`). Tocar num pacote abre o mesmo rasgar/deslizar/resumo da loja (`PackOpening`, também usado por
+- **Mesa redonda (Boosters)**: zoom e a vista passa a ser a mesa de cima: um pano vermelho com acabamento dourado, **maior que a tela**,
+  com os boosters deitados em fileiras de três (`TableTop`). A mesa cresce com a quantidade de pacotes e o jogador a arrasta (com
+  inércia) para alcançar todos; `?boosters=14` na URL coloca essa quantidade para testar uma mesa cheia. Tocar num pacote abre o mesmo rasgar/deslizar/resumo da loja (`PackOpening`, também usado por
   `ShopScreen`). **Base de teste:** a mesa sempre tem os dois boosters (`BOOSTERS`) e eles não acabam. As cartas abertas entram na coleção.
 - A coleção, por enquanto, é o catálogo inteiro (os dois decks, sem restrição). O botão "Simular faltantes" mostra como ficam os
   bolsos vazios. Falta o inventário real do jogador e os boosters sobre a mesa redonda.

@@ -3194,9 +3194,9 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
         {roomOpen && (
           <Suspense fallback={<div className="fixed inset-0 z-[250] bg-[#0d0905]" />}>
             <CollectionRoom onClose={() => setRoomOpen(false)} onOpenShop={() => setShopOpen(true)} onOpenDeck={() => setDeckEditorOpen(true)} overlayOpen={shopOpen || deckEditorOpen}
-              // TEST BASE: the table always has two boosters (one of each deck) and they never run out, so opening them can be tried over and over.
-              packs={BOOSTERS.map(d => ({ id: d.id, name: d.name, art: <BoosterArt def={d} /> }))}
-              renderOpening={(id, onDone) => { const def = BOOSTERS.find(b => b.id === id); return def ? <OpenBoosterFromTable key={id} def={def} onDone={onDone} /> : null; }} />
+              // TEST BASE: the table always has two boosters (one of each deck) and they never run out, so opening them can be tried over and over (?boosters=12 puts that many on it, to see a big table).
+              packs={Array.from({ length: Math.max(1, Math.min(60, Number(new URLSearchParams(location.search).get('boosters')) || BOOSTERS.length)) }, (_, k) => { const d = BOOSTERS[k % BOOSTERS.length]; return { id: `${d.id}#${k}`, name: d.name, art: <BoosterArt def={d} /> }; })}
+              renderOpening={(id, onDone) => { const def = BOOSTERS.find(b => b.id === id.split('#')[0]); return def ? <OpenBoosterFromTable key={id} def={def} onDone={onDone} /> : null; }} />
           </Suspense>
         )}
         {shopOpen && <ShopScreen coroas={profile.coroas} onSpend={(n) => updateProfile({ coroas: Math.max(0, profile.coroas - n) })} onClose={() => setShopOpen(false)} />}

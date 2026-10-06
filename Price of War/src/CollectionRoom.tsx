@@ -129,7 +129,7 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
   const flame = (x: number, y: number, r: number, d = 0): CSSProperties => ({ position: 'absolute', left: x - r, top: y - r, width: r * 2, height: r * 2, borderRadius: '50%', background: 'radial-gradient(closest-side, rgba(255,190,90,.55), rgba(255,150,50,.18) 55%, transparent 75%)', mixBlendMode: 'screen', animation: `roomflick ${1.3 + d}s ease-in-out infinite`, animationDelay: `${-d * 2}s`, pointerEvents: 'none' });
 
   return (
-    <div ref={rootRef} className="fixed inset-0 overflow-hidden select-none" style={{ zIndex: 250, background: '#0d0905', touchAction: 'none' }}
+    <div ref={rootRef} className="fixed inset-0 overflow-hidden select-none" style={{ zIndex: 250, background: '#0d0905', touchAction: 'none', overflow: 'clip' }}
       onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
       <style>{`
         @keyframes roomflick { 0%,100% { opacity:.55; transform:scale(.94);} 35% { opacity:1; transform:scale(1.05);} 65% { opacity:.7; transform:scale(.98);} }
@@ -443,43 +443,82 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
 }
 
 // ───────────────────────────── the table, seen from above ─────────────────────────────
-// Tapping the round table pushes the camera toward it and the view changes to the table from above: its cloth, and the boosters the player has
-// lying on it, close to each other. Tap one to open it. (Drawn here in css; a painted top-down table image can replace it.)
+// Tapping the round table pushes the camera toward it and the view changes to the table from above: a big cloth-covered table, larger than the
+// screen, with the boosters the player has lying on it. It grows with the number of boosters (rows of three), and the player drags it around
+// (with a little inertia) to reach them all. Tap one to open it. (Drawn here in css; a painted top-down table image can replace it.)
 const PACK_ASPECT = 512 / 882;
 function TableTop({ packs, onOpenPack, onClose }: { packs: RoomPack[]; onOpenPack: (id: string) => void; onClose: () => void }) {
   const [shown, setShown] = useState(false);
   useEffect(() => { const r = requestAnimationFrame(() => requestAnimationFrame(() => setShown(true))); return () => cancelAnimationFrame(r); }, []);
-  const W = window.innerWidth, H = window.innerHeight, D = Math.min(W * 0.96, H * 0.52), packW = Math.min(D * 0.34, 150), packH = packW / PACK_ASPECT;
-  const n = packs.length, spread = packW * 0.72;
-  const angles = [-11, 8, -4, 13, -8];
+  const W = window.innerWidth, H = window.innerHeight;
+  const packW = Math.min(W * 0.25, 120), packH = packW / PACK_ASPECT, perRow = 3;
+  const rows = Math.max(1, Math.ceil(packs.length / perRow)), rowH = packH * 1.16;
+  const surfW = Math.max(W * 1.1, perRow * packW * 1.4 + 80), surfH = Math.max(H * 0.88, rows * rowH + 190);
+  const viewRef = useRef<HTMLDivElement>(null), surfRef = useRef<HTMLDivElement>(null);
+  const st = useRef({ x: 0, y: 0, vx: 0, vy: 0, drag: null as null | { px: number; py: number; ox: number; oy: number; t: number; lx: number; ly: number }, moved: 0, raf: 0 });
+  // how far the table may be moved (if it is smaller than the screen it stays centred)
+  const lim = () => ({ loX: surfW <= W ? (W - surfW) / 2 : W - surfW, hiX: surfW <= W ? (W - surfW) / 2 : 0, loY: surfH <= H ? (H - surfH) / 2 : H - surfH, hiY: surfH <= H ? (H - surfH) / 2 : 0 });
+  const apply = () => { const e = surfRef.current; if (e) e.style.transform = `translate3d(${st.current.x.toFixed(1)}px, ${st.current.y.toFixed(1)}px, 0)`; };
+  useEffect(() => {
+    const S = st.current, L0 = lim(); S.x = (L0.loX + L0.hiX) / 2; S.y = L0.hiY; apply();
+    let last = performance.now();
+    const loop = (now: number) => {
+      const dt = Math.min(0.04, (now - last) / 1000); last = now;
+      if (!S.drag) {
+        const L = lim(); S.x += S.vx * dt; S.y += S.vy * dt; const damp = Math.pow(0.02, dt); S.vx *= damp; S.vy *= damp;
+        // a soft edge: if it was pulled or thrown past, it eases back inside
+        const tx = clamp(S.x, L.loX, L.hiX), ty = clamp(S.y, L.loY, L.hiY); S.x += (tx - S.x) * (1 - Math.exp(-dt * 12)); S.y += (ty - S.y) * (1 - Math.exp(-dt * 12));
+        apply();
+      }
+      S.raf = requestAnimationFrame(loop);
+    };
+    S.raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(S.raf);
+  }, []);
+  const down = (e: RPointerEvent) => { const S = st.current; S.drag = { px: e.clientX, py: e.clientY, ox: S.x, oy: S.y, t: performance.now(), lx: e.clientX, ly: e.clientY }; S.moved = 0; S.vx = S.vy = 0; };
+  const move = (e: RPointerEvent) => {
+    const S = st.current, d = S.drag; if (!d) return;
+    const dx = e.clientX - d.px, dy = e.clientY - d.py; S.moved = Math.max(S.moved, Math.hypot(dx, dy));
+    const now = performance.now(), dt = Math.max(1, now - d.t) / 1000; S.vx = (e.clientX - d.lx) / dt * 0.6 + S.vx * 0.4; S.vy = (e.clientY - d.ly) / dt * 0.6 + S.vy * 0.4; d.t = now; d.lx = e.clientX; d.ly = e.clientY;
+    // pulling past an edge resists
+    const L = lim(), lo = L.loX, hi = L.hiX, loY = L.loY, hiY = L.hiY;
+    const rb = (v: number, a: number, b: number) => (v < a ? a + (v - a) * 0.35 : v > b ? b + (v - b) * 0.35 : v);
+    S.x = rb(d.ox + dx, lo, hi); S.y = rb(d.oy + dy, loY, hiY); apply();
+  };
+  const up = () => { st.current.drag = null; };
+  const names = (id: string) => packs.find(p => p.id === id)?.name.replace('Booster ', '') ?? '';
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 30, background: 'radial-gradient(ellipse at 50% 46%, rgba(30,18,10,.6), rgba(5,3,2,.93))', opacity: shown ? 1 : 0, transition: 'opacity .5s' }}>
-      <div style={{ position: 'absolute', left: 0, right: 0, top: 0, padding: 'max(10px, env(safe-area-inset-top)) 12px 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <button className="room-chip" onClick={onClose}>‹ SALA</button>
-        <div style={{ flex: 1, textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.2em', color: '#ffe9b0' }}>BOOSTERS</div>
-        <div className="room-chip" style={{ opacity: 0 }}>‹ SALA</div>
-      </div>
-      {/* the table: a wooden rim, the red cloth with its gold trim and folds, lamplight from the upper left */}
-      <div style={{ position: 'absolute', left: '50%', top: '47%', width: D, height: D, margin: `${-D / 2}px 0 0 ${-D / 2}px`, borderRadius: '50%', transform: shown ? 'scale(1)' : 'scale(.82)', transition: 'transform .7s cubic-bezier(.2,.9,.25,1)',
-        background: 'radial-gradient(circle at 50% 50%, #8a5628 0 60%, #6a3f1c 64%, #3b2210 100%)', boxShadow: '0 28px 60px rgba(0,0,0,.75), inset 0 0 0 3px rgba(255,225,170,.18), inset 0 0 30px rgba(0,0,0,.6)' }}>
-        <div style={{ position: 'absolute', inset: '6%', borderRadius: '50%', background: 'radial-gradient(circle at 42% 38%, #a02a2a 0%, #7a1c1c 45%, #4e1010 100%)', boxShadow: 'inset 0 0 0 3px #d9b25a, inset 0 0 0 6px rgba(78,16,16,.9), inset 0 0 0 7px rgba(217,178,90,.55), inset 0 0 40px rgba(0,0,0,.55)' }} />
-        <div style={{ position: 'absolute', inset: '6%', borderRadius: '50%', background: 'repeating-conic-gradient(from 8deg, rgba(0,0,0,.13) 0deg 7deg, rgba(255,255,255,.035) 7deg 14deg)', mixBlendMode: 'multiply', opacity: .75 }} />
-        <div style={{ position: 'absolute', inset: '6%', borderRadius: '50%', background: 'radial-gradient(circle at 36% 30%, rgba(255,214,150,.30), rgba(255,214,150,0) 55%)', mixBlendMode: 'screen' }} />
-        {/* the boosters, lying close to each other */}
+    <div ref={viewRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
+      style={{ position: 'absolute', inset: 0, zIndex: 30, overflow: 'hidden', touchAction: 'none', background: 'radial-gradient(ellipse at 50% 46%, #22150c, #0a0604)', opacity: shown ? 1 : 0, transition: 'opacity .5s' }}>
+      {/* the table: a wooden rim, the red cloth with its gold trim and folds, lamplight from the upper left; bigger than the screen */}
+      <div ref={surfRef} style={{ position: 'absolute', left: 0, top: 0, width: surfW, height: surfH, willChange: 'transform' }}>
+        <div style={{ position: 'absolute', inset: 0, borderRadius: 46, background: 'linear-gradient(135deg, #8a5628, #5a3416 55%, #3b2210)', boxShadow: '0 26px 60px rgba(0,0,0,.8), inset 0 0 0 3px rgba(255,225,170,.18)' }} />
+        <div style={{ position: 'absolute', inset: 14, borderRadius: 34, background: 'radial-gradient(ellipse at 32% 22%, #a52c2c 0%, #7a1c1c 48%, #4e1010 100%)', boxShadow: 'inset 0 0 0 3px #d9b25a, inset 0 0 0 7px rgba(78,16,16,.9), inset 0 0 0 8px rgba(217,178,90,.55), inset 0 0 50px rgba(0,0,0,.55)' }} />
+        <div style={{ position: 'absolute', inset: 14, borderRadius: 34, background: 'repeating-linear-gradient(115deg, rgba(0,0,0,.12) 0 22px, rgba(255,255,255,.03) 22px 44px)', mixBlendMode: 'multiply', opacity: .8 }} />
+        <div style={{ position: 'absolute', inset: 14, borderRadius: 34, background: 'radial-gradient(ellipse at 30% 18%, rgba(255,214,150,.28), rgba(255,214,150,0) 55%)', mixBlendMode: 'screen' }} />
+        {/* the boosters, lying on the cloth in rows, each a little askew */}
         {packs.map((pk, i) => {
-          const off = (i - (n - 1) / 2) * spread, rot = angles[i % angles.length];
+          const r = Math.floor(i / perRow), c = i % perRow, inRow = Math.min(perRow, packs.length - r * perRow);
+          const cx = surfW / 2 + (c - (inRow - 1) / 2) * packW * 1.22 + Math.sin(i * 2.7) * packW * 0.06, cy = 150 + r * rowH + packH / 2 + Math.cos(i * 1.9) * 8;
+          const rot = Math.sin(i * 1.7 + 0.6) * 11;
           return (
-            <button key={pk.id} aria-label={`Abrir ${pk.name}`} onClick={() => onOpenPack(pk.id)} style={{
-              position: 'absolute', left: '50%', top: '50%', width: packW, height: packH, margin: 0, padding: 0, border: 0, background: 'none',
-              transform: shown ? `translate(calc(-50% + ${off}px), calc(-50% + ${(i % 2 ? 6 : -6)}px)) rotate(${rot}deg)` : `translate(calc(-50% + ${off}px), -180%) rotate(${rot + 40}deg) scale(1.25)`,
-              opacity: shown ? 1 : 0, transition: `transform .8s cubic-bezier(.2,.9,.25,1) ${0.25 + i * 0.16}s, opacity .3s ${0.25 + i * 0.16}s`, filter: 'drop-shadow(0 10px 8px rgba(0,0,0,.6))', zIndex: 5 + i,
+            <button key={pk.id} aria-label={`Abrir ${pk.name}`} onClick={() => { if (st.current.moved < 8) onOpenPack(pk.id); }} style={{
+              position: 'absolute', left: cx - packW / 2, top: cy - packH / 2, width: packW, height: packH, margin: 0, padding: 0, border: 0, background: 'none',
+              transform: shown ? `rotate(${rot}deg)` : `translateY(-${H}px) rotate(${rot + 35}deg) scale(1.25)`, opacity: shown ? 1 : 0,
+              transition: `transform .8s cubic-bezier(.2,.9,.25,1) ${0.2 + Math.min(i, 8) * 0.12}s, opacity .3s ${0.2 + Math.min(i, 8) * 0.12}s`, filter: 'drop-shadow(0 10px 8px rgba(0,0,0,.6))',
             }}>
               {pk.art}
+              <span style={{ position: 'absolute', left: 0, right: 0, bottom: -18, textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '.14em', color: 'rgba(255,233,176,.8)', textShadow: '0 1px 2px #000' }}>{names(pk.id).split(' ')[0].toUpperCase()}</span>
             </button>
           );
         })}
       </div>
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 'max(18px, env(safe-area-inset-bottom))', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: '0.16em', color: 'rgba(255,233,176,.7)' }}>TOQUE NUM PACOTE PARA ABRIR</div>
+      <div style={{ position: 'absolute', left: 0, right: 0, top: 0, padding: 'max(10px, env(safe-area-inset-top)) 12px 8px', display: 'flex', alignItems: 'center', gap: 8, pointerEvents: 'none', background: 'linear-gradient(rgba(10,6,4,.85), rgba(10,6,4,0))' }}>
+        <button className="room-chip" style={{ pointerEvents: 'auto' }} onClick={onClose}>‹ SALA</button>
+        <div style={{ flex: 1, textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.2em', color: '#ffe9b0' }}>BOOSTERS · {packs.length}</div>
+        <div className="room-chip" style={{ opacity: 0 }}>‹ SALA</div>
+      </div>
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '18px 0 max(16px, env(safe-area-inset-bottom))', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: '0.16em', color: 'rgba(255,233,176,.75)', pointerEvents: 'none', background: 'linear-gradient(rgba(10,6,4,0), rgba(10,6,4,.85))' }}>{surfH > H ? 'ARRASTE A MESA · TOQUE NUM PACOTE PARA ABRIR' : 'TOQUE NUM PACOTE PARA ABRIR'}</div>
     </div>
   );
 }
