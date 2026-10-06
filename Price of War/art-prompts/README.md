@@ -1225,6 +1225,47 @@ anime style, no photorealistic faces, no extra limbs, no cropped Generals.
 
 ---
 
+## 4ac. Armas e projéteis para as animações de combate (pendente)
+
+**Para quê:** hoje a lança, o virote, a flecha e a pedra do mockup (`public/mockups/projeteis/`) são desenhados por código e parecem chapados. Arte pintada no estilo das cartas sobe muito a qualidade; o brilho, o rastro, a explosão e as faíscas continuam sendo feitos por código por cima da arte.
+**Arquivos esperados:** `src/assets/proj-<nome>.webp` (eu recorto, giro e reduzo) · **Um objeto por imagem.**
+
+**Regras comuns (valem para todos os prompts abaixo):**
+- Objeto **na horizontal, ponta para a direita**, centralizado, ocupando ~85% da largura, imagem **2048 × 512** (ou 1024 × 256).
+- **Fundo liso de uma cor só: magenta puro (#FF00FF)**, sem degradê, sem chão, sem sombra projetada, sem moldura (eu removo o fundo; evite magenta no objeto). Se o gerador fizer fundo transparente de verdade, melhor ainda.
+- Estilo: pintura ilustrada de fantasia, mesma linha das cartas do jogo (luz quente vinda de cima à esquerda, contraste suave, contorno escuro leve, detalhes limpos que aguentem ser vistos com ~100 px de largura no celular). Nada de fotorrealismo, nada de anime.
+- Sem texto, sem marca d'água, sem mãos, sem pessoas.
+- Dica: anexe a arte de uma carta (por exemplo `card-jorge-lanca-sagrada`) como referência de estilo e de paleta.
+
+**Prompt base** (troque a linha `OBJETO:` pelo item):
+```
+A single game-asset illustration of a medieval fantasy weapon, painterly
+digital illustration in the style of a high-end collectible card game,
+warm key light from the upper left, soft rim light, subtle dark outline,
+clean readable shapes that still read at 100 px wide. The object lies
+perfectly horizontal, pointing to the RIGHT, centered, filling about 85%
+of the canvas width (2048x512). Plain flat solid magenta (#FF00FF)
+background, no gradient, no floor, no cast shadow, no text, no hands, no
+watermark. No magenta on the object itself.
+
+OBJETO: ...
+```
+
+**Itens (em ordem de prioridade):**
+1. **Lança Sagrada do Jorge** — `proj-lanca.webp`. OBJETO: a knightly holy lance, long slender golden shaft with dark-bronze grip bands, a small crimson-and-white pennant just behind the head, an ornate gold socket collar, a leaf-shaped polished silver blade with a central ridge and a faint warm glow along its edge; tip to the right.
+2. **Virote de balestra** — `proj-virote.webp`. OBJETO: a heavy crossbow bolt, short thick dark-oak shaft, broad four-sided steel head with beveled highlights and a riveted iron collar, two stiff leather vanes at the back; tip to the right.
+3. **Flecha de arco longo** — `proj-flecha.webp`. OBJETO: a longbow arrow, slim pale ash shaft, leaf-shaped steel head, three feather vanes (white with one crimson feather), a small notched nock; tip to the right. (Peça também uma versão **envenenada** para a carta Flechas Venenosas: ponta esverdeada úmida, fio de veneno pingando, penas verdes.)
+4. **Pedra de catapulta** — `proj-pedra.webp` (quadrada, 1024 × 1024, mesmo fundo magenta). OBJETO: a rough round boulder, grey-brown granite, cracked and chipped, lit from the upper left, no fire. (Uma segunda versão **em brasa**, com rachaduras laranja incandescentes, serve ao Trabuco.)
+5. **Espada Longa** — `proj-espada.webp`. OBJETO: a knightly longsword, polished steel blade with a fuller, simple gold crossguard and a leather-wrapped grip with a round pommel; tip to the right. (Serve ao equipamento Espada Longa e aos golpes de corte.)
+6. **Martelo de guerra do Cardeal Pedro** — `proj-martelo.webp`. OBJETO: a blessed war hammer, steel head with a engraved gold cross, white-and-gold grip with a crimson ribbon; head to the right.
+7. **Espada do Comandante Aurelion** — `proj-espada-aurelion.webp`. OBJETO: an officer's saber-sword, steel-gray blade, crimson-and-gold hilt with a rampant-lion guard; tip to the right.
+
+**Efeitos de corte (opcional, depois):** um golpe de espada é melhor como arco de luz (crescente branco-dourado) do que como imagem da espada; isso eu gero por código, sem precisar de arte.
+
+**Depois que as imagens chegarem:** eu removo o fundo, recorto justo, reduzo, converto para WebP, troco no mockup e mostro o resultado antes de ligar ao jogo.
+
+---
+
 ## 4t. Editor de deck (Meu Deck) — artes da tela (pendente)
 
 **Status:** pendente. Hoje a tela usa só as molduras finas já existentes (`ui-frame-menu-card.webp`
