@@ -29,6 +29,21 @@ const SPOTS = {
 } as const;
 type SpotKey = keyof typeof SPOTS;
 
+/* a little wooden plaque with a metal frame and four rivets (like the shop sign), nailed on the shelf and on the table; x, y = its center in stage px */
+function Plaque({ x, y, w, h, size, spacing, rot = 0, children }: { x: number; y: number; w: number; h: number; size: number; spacing: string; rot?: number; children: string }) {
+  const rivet = (l: string, t: string): CSSProperties => ({ position: 'absolute', left: l, top: t, width: 2.4, height: 2.4, margin: '-1.2px 0 0 -1.2px', borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #f0e0b8, #8b7348 60%, #3a2e1c)' });
+  return (
+    <div style={{ position: 'absolute', left: x - w / 2, top: y - h / 2, width: w, height: h, pointerEvents: 'none', borderRadius: 4, transform: `rotate(${rot}deg)`, padding: 2.2, boxSizing: 'border-box',
+      background: 'linear-gradient(180deg,#9b8b76,#5a4e40 55%,#42382d)', border: '1px solid #c99a55', boxShadow: '0 3px 5px rgba(0,0,0,.65), 0 1px 0 rgba(255,235,190,.3) inset' }}>
+      <div style={{ position: 'relative', width: '100%', height: '100%', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'repeating-linear-gradient(178deg, rgba(40,18,6,.0) 0 2.2px, rgba(40,18,6,.22) 2.2px 2.8px), linear-gradient(180deg,#8d5a2e,#6b4120 60%,#7b4c26)', boxShadow: 'inset 0 0 5px rgba(0,0,0,.7)' }}>
+        <span className="t-gold" style={{ fontFamily: "'Cinzel',serif", fontWeight: 800, fontSize: size, letterSpacing: spacing, paddingLeft: spacing, lineHeight: 1 }}>{children}</span>
+        <i style={rivet('5px', '50%')} /><i style={rivet('calc(100% - 5px)', '50%')} />
+      </div>
+    </div>
+  );
+}
+
 /* "COLEÇÃO" stamped in gold foil on the book cover (the same on the room's book and on the binder's cover) */
 function BookTitle({ size, count }: { size: number; count: string }) {
   return (
@@ -187,11 +202,11 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
               });
             })}
             {shelfMode && packs.map((pk, t) => <div key={`l${pk.id}`} className="room-stack-label" style={{ left: shelfSlot(t, packs.length).cx - 40, top: shelfSlot(t, packs.length).y + 2, width: 80 }}>{pk.name.replace('Booster ', '').toUpperCase()}</div>)}
-            {/* the names are written on the things themselves: the book cover, the shop sign, the shelf board, the parchment on the table */}
+            {/* the names are written on the things themselves: the book cover, the shop sign, and two little plaques (the shelf, the table) */}
             <div className="room-title" style={{ left: 164, top: 438 }}><BookTitle size={11.5} count={`${entries.length}/${entries.length}`} /></div>
             <div className="room-title t-gold" style={{ left: 683, top: 383, fontSize: 27, letterSpacing: '.14em', paddingLeft: '.14em' }}>LOJA</div>
-            <div className="room-title t-gold" style={{ left: 204, top: 648, fontSize: 9.5, letterSpacing: '.34em', paddingLeft: '.34em' }}>BOOSTERS</div>
-            <div className="room-title t-ink" style={{ left: 557, top: 1237, fontSize: 11, letterSpacing: '.1em', ['--r' as string]: '-3deg' }}>MEU DECK</div>
+            <Plaque x={204} y={652} w={120} h={25} size={11} spacing=".3em">BOOSTERS</Plaque>
+            <Plaque x={604} y={1294} w={92} h={24} size={10.5} spacing=".22em" rot={-1.5}>MEU DECK</Plaque>
             {/* what can be tapped */}
             {(Object.keys(SPOTS) as SpotKey[]).map(k => {
               const s = SPOTS[k];
