@@ -210,7 +210,7 @@ function hit(el, delay = 0, alt = false) { at(delay, () => { el.classList.remove
 function num(x, y, text, delay = 0, size = 30) { at(delay, () => { const d = document.createElement('div'); d.className = 'num'; d.textContent = text; d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.fontSize = size + 'px'; $('#nums').appendChild(d); setTimeout(() => d.remove(), 1600 / speed); }); }
 
 // A projectile that flies from a to b. `arc` is the height of the arc (0 = straight line, as with a bolt).
-function fly({ img, cols = 1, frame = 0, size, from, to, dur, arc = 0, scale = [1, 1], spin = 0, trail = 'none', onEnd, aim = false, shadow = false, glow = null, ribbon = null, orb = 0, ease = x => x }) {
+function fly({ img, cols = 1, frame = 0, size, from, to, dur, arc = 0, scale = [1, 1], spin = 0, trail = 'none', onEnd, aim = false, shadow = false, glow = null, ribbon = null, orb = 0, ease = x => x, lift = .55, shw = 1 }) {
   const pos = []; let acc = 0, last = 0;
   const o = add({ dur, draw(p) {
     const u = ease(p);
@@ -218,8 +218,8 @@ function fly({ img, cols = 1, frame = 0, size, from, to, dur, arc = 0, scale = [
     const h = arc ? 4 * u * (1 - u) : 0;              // 0..1 height above the ground line
     const x = gx, y = gy - arc * h;
     const ang = aim ? Math.atan2((to.y - from.y) - (arc ? arc * 4 * (1 - 2 * u) : 0), to.x - from.x) : spin * p * dur;
-    const sc = scale[0] + (scale[1] - scale[0]) * u + (arc ? .55 * h : 0);
-    if (shadow) { ctx.save(); ctx.globalAlpha = .38 * (1 - h * .55); ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(gx, gy + 6, 17 * sc * (1 - h * .35), 6 * sc * (1 - h * .35), 0, 0, 7); ctx.fill(); ctx.restore(); }
+    const sc = scale[0] + (scale[1] - scale[0]) * u + (arc ? lift * h : 0);
+    if (shadow) { ctx.save(); ctx.globalAlpha = .38 * (1 - h * .55); ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(gx, gy + 6, 17 * shw * sc * (1 - h * .35), 6 * shw * sc * (1 - h * .35), 0, 0, 7); ctx.fill(); ctx.restore(); }
     // trail
     const dt = (p - last) * dur; last = p; acc += dt;
     while (acc > 0.014) { acc -= 0.014;
@@ -433,12 +433,12 @@ const scenes = {
       archer.classList.remove('kick'); void archer.offsetWidth; archer.classList.add('kick');
       const tg = cardByPos(195, ROW.eFront);
       for (let i = 0; i < 3; i++) {
-        const d = .12 + i * .2, T = .78, arc = 150 + R(-14, 14), f = { x: from.x + R(-4, 4), y: from.y }, to = { x: to0.x + R(-14, 14), y: to0.y + R(-6, 8) };
-        at(d, () => { whoosh(0, .25, .3, 1400, 2400); fly({ img: IMG.arrow, size: [130, 22], from: f, to, dur: T, arc, aim: true, scale: [.5, .5], ribbon: { n: 6, c: '255,255,255', w: 1.2 } }); });
+        const d = .12 + i * .22, T = 1.08, arc = 205 + R(-16, 16), f = { x: from.x + R(-4, 4), y: from.y }, to = { x: to0.x + R(-14, 14), y: to0.y + R(-6, 8) };
+        at(d, () => { whoosh(0, .3, .3, 1400, 2400); whoosh(.55, .4, .18, 2400, 1200); fly({ img: IMG.arrow, size: [130, 22], from: f, to, dur: T, arc, aim: true, scale: [.52, .34], lift: .1, shadow: true, shw: 2.6, ribbon: { n: 5, c: '255,255,255', w: 1 } }); });
         const t = d + T; play('dano', t - .05, .3, 1.5 + i * .1);
         at(t, () => {
           const ang = arcTangent(f, to, arc, 1);
-          stick(IMG.arrow, [130, 22], to, ang, .5, 1.0, 12);
+          stick(IMG.arrow, [130, 22], to, ang, .34, 1.0, 9);
           puff(to.x, to.y + 4, 0, -12, 26, .45, .45, 1.3); sparksDir(to.x, to.y, ang + Math.PI, .8, 5, .5, '255,240,200');
           hit(tg, 0, i % 2); num(195 + (i - 1) * 16, ROW.eFront - 36 - i * 4, '-1', .04, 24);
         });
