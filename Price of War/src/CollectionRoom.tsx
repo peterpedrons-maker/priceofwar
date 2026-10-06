@@ -8,6 +8,7 @@ import roomImage from './assets/room-collection.webp';
 import coverImage from './assets/room-book-cover.webp';
 import pageImage from './assets/room-book-page.webp';
 import insideImage from './assets/room-book-inside.webp';
+import clothImage from './assets/room-table-cloth.webp';
 
 const CardViewer3D = lazy(() => import('./CardViewer3D'));
 const THUMBS = import.meta.glob('./assets/card-thumb/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
@@ -451,9 +452,24 @@ function TableTop({ packs, onOpenPack, onClose }: { packs: RoomPack[]; onOpenPac
   const [shown, setShown] = useState(false);
   useEffect(() => { const r = requestAnimationFrame(() => requestAnimationFrame(() => setShown(true))); return () => cancelAnimationFrame(r); }, []);
   const W = window.innerWidth, H = window.innerHeight;
-  const packW = Math.min(W * 0.25, 120), packH = packW / PACK_ASPECT, perRow = 3;
-  const rows = Math.max(1, Math.ceil(packs.length / perRow)), rowH = packH * 1.16;
-  const surfW = Math.max(W * 1.1, perRow * packW * 1.4 + 80), surfH = Math.max(H * 0.88, rows * rowH + 190);
+  const packW = Math.min(W * 0.25, 120), packH = packW / PACK_ASPECT, cw = packW * 1.3, ch = packH * 1.12;
+  // The table is round (like the one in the room), and only as big as it needs to be: the smallest circle, never smaller than the screen allows,
+  // that has a place for every booster, the places being a grid inside the circle. More boosters, bigger table.
+  const D0 = Math.min(W * 0.98, H * 0.56);
+  const cellsFor = (D: number) => {
+    const R = D / 2 - Math.max(30, D * 0.08), out: { x: number; y: number }[] = [];
+    for (let gy = -14; gy <= 14; gy++) for (let gx = -14; gx <= 14; gx++) {
+      const x = gx * cw, y = gy * ch;
+      if (Math.hypot(Math.abs(x) + packW / 2, Math.abs(y) + packH / 2) <= R) out.push({ x, y });
+    }
+    return out.sort((p, q) => Math.hypot(p.x, p.y) - Math.hypot(q.x, q.y));
+  };
+  const { D, spots } = (() => {
+    let d = D0;
+    for (let k = 0; k < 90; k++, d += 24) { const c = cellsFor(d); if (c.length >= packs.length) return { D: d, spots: c.slice(0, packs.length).sort((p, q) => (Math.abs(p.y - q.y) > 1 ? p.y - q.y : p.x - q.x)) }; }
+    return { D: d, spots: cellsFor(d).slice(0, packs.length) };
+  })();
+  const surfW = D, surfH = D;
   const viewRef = useRef<HTMLDivElement>(null), surfRef = useRef<HTMLDivElement>(null);
   const st = useRef({ x: 0, y: 0, vx: 0, vy: 0, drag: null as null | { px: number; py: number; ox: number; oy: number; t: number; lx: number; ly: number }, moved: 0, raf: 0 });
   // how far the table may be moved (if it is smaller than the screen it stays centred)
@@ -490,17 +506,14 @@ function TableTop({ packs, onOpenPack, onClose }: { packs: RoomPack[]; onOpenPac
   return (
     <div ref={viewRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
       style={{ position: 'absolute', inset: 0, zIndex: 30, overflow: 'hidden', touchAction: 'none', background: 'radial-gradient(ellipse at 50% 46%, #22150c, #0a0604)', opacity: shown ? 1 : 0, transition: 'opacity .5s' }}>
-      {/* the table: a wooden rim, the red cloth with its gold trim and folds, lamplight from the upper left; bigger than the screen */}
+      {/* the table: round like the one in the room, covered by the red cloth (no rim), lamplight from the upper left */}
       <div ref={surfRef} style={{ position: 'absolute', left: 0, top: 0, width: surfW, height: surfH, willChange: 'transform' }}>
-        <div style={{ position: 'absolute', inset: 0, borderRadius: 46, background: 'linear-gradient(135deg, #8a5628, #5a3416 55%, #3b2210)', boxShadow: '0 26px 60px rgba(0,0,0,.8), inset 0 0 0 3px rgba(255,225,170,.18)' }} />
-        <div style={{ position: 'absolute', inset: 14, borderRadius: 34, background: 'radial-gradient(ellipse at 32% 22%, #a52c2c 0%, #7a1c1c 48%, #4e1010 100%)', boxShadow: 'inset 0 0 0 3px #d9b25a, inset 0 0 0 7px rgba(78,16,16,.9), inset 0 0 0 8px rgba(217,178,90,.55), inset 0 0 50px rgba(0,0,0,.55)' }} />
-        <div style={{ position: 'absolute', inset: 14, borderRadius: 34, background: 'repeating-linear-gradient(115deg, rgba(0,0,0,.12) 0 22px, rgba(255,255,255,.03) 22px 44px)', mixBlendMode: 'multiply', opacity: .8 }} />
-        <div style={{ position: 'absolute', inset: 14, borderRadius: 34, background: 'radial-gradient(ellipse at 30% 18%, rgba(255,214,150,.28), rgba(255,214,150,0) 55%)', mixBlendMode: 'screen' }} />
-        {/* the boosters, lying on the cloth in rows, each a little askew */}
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', backgroundImage: `url(${clothImage})`, backgroundSize: '100% 100%', boxShadow: '0 26px 60px rgba(0,0,0,.8), inset 0 0 0 2px rgba(60,8,8,.55)' }} />
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'radial-gradient(circle at 50% 50%, rgba(0,0,0,0) 62%, rgba(40,4,4,.55) 100%)' }} />
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'radial-gradient(circle at 36% 28%, rgba(255,214,150,.26), rgba(255,214,150,0) 55%)', mixBlendMode: 'screen' }} />
+        {/* the boosters, lying on the cloth, each a little askew */}
         {packs.map((pk, i) => {
-          const r = Math.floor(i / perRow), c = i % perRow, inRow = Math.min(perRow, packs.length - r * perRow);
-          const cx = surfW / 2 + (c - (inRow - 1) / 2) * packW * 1.22 + Math.sin(i * 2.7) * packW * 0.06, cy = 150 + r * rowH + packH / 2 + Math.cos(i * 1.9) * 8;
-          const rot = Math.sin(i * 1.7 + 0.6) * 11;
+          const sp = spots[i] ?? { x: 0, y: 0 }, cx = surfW / 2 + sp.x + Math.sin(i * 2.7) * packW * 0.05, cy = surfH / 2 + sp.y + Math.cos(i * 1.9) * 6, rot = Math.sin(i * 1.7 + 0.6) * 11;
           return (
             <button key={pk.id} aria-label={`Abrir ${pk.name}`} onClick={() => { if (st.current.moved < 8) onOpenPack(pk.id); }} style={{
               position: 'absolute', left: cx - packW / 2, top: cy - packH / 2, width: packW, height: packH, margin: 0, padding: 0, border: 0, background: 'none',
@@ -508,7 +521,7 @@ function TableTop({ packs, onOpenPack, onClose }: { packs: RoomPack[]; onOpenPac
               transition: `transform .8s cubic-bezier(.2,.9,.25,1) ${0.2 + Math.min(i, 8) * 0.12}s, opacity .3s ${0.2 + Math.min(i, 8) * 0.12}s`, filter: 'drop-shadow(0 10px 8px rgba(0,0,0,.6))',
             }}>
               {pk.art}
-              <span style={{ position: 'absolute', left: 0, right: 0, bottom: -18, textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '.14em', color: 'rgba(255,233,176,.8)', textShadow: '0 1px 2px #000' }}>{names(pk.id).split(' ')[0].toUpperCase()}</span>
+              <span style={{ position: 'absolute', left: 0, right: 0, bottom: -18, textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '.14em', color: 'rgba(255,233,176,.85)', textShadow: '0 1px 2px #000' }}>{names(pk.id).split(' ')[0].toUpperCase()}</span>
             </button>
           );
         })}
@@ -518,7 +531,7 @@ function TableTop({ packs, onOpenPack, onClose }: { packs: RoomPack[]; onOpenPac
         <div style={{ flex: 1, textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.2em', color: '#ffe9b0' }}>BOOSTERS · {packs.length}</div>
         <div className="room-chip" style={{ opacity: 0 }}>‹ SALA</div>
       </div>
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '18px 0 max(16px, env(safe-area-inset-bottom))', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: '0.16em', color: 'rgba(255,233,176,.75)', pointerEvents: 'none', background: 'linear-gradient(rgba(10,6,4,0), rgba(10,6,4,.85))' }}>{surfH > H ? 'ARRASTE A MESA · TOQUE NUM PACOTE PARA ABRIR' : 'TOQUE NUM PACOTE PARA ABRIR'}</div>
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '18px 0 max(16px, env(safe-area-inset-bottom))', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: '0.16em', color: 'rgba(255,233,176,.75)', pointerEvents: 'none', background: 'linear-gradient(rgba(10,6,4,0), rgba(10,6,4,.85))' }}>{surfH > H || surfW > W ? 'ARRASTE A MESA · TOQUE NUM PACOTE PARA ABRIR' : 'TOQUE NUM PACOTE PARA ABRIR'}</div>
     </div>
   );
 }
