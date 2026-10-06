@@ -103,3 +103,11 @@ Em vez de emprestar táticas ao Capitão, o deck dele volta à lista própria de
 | **N9** | N7 + Cardeal sem Catapulta (mantém 1 Trabuco) | **43,5%** | 5,3 |
 
 Leitura: mudar efeitos de unidades (movimento ou controle) quase não move o resultado (10–13%); o que pesa são as táticas (N3, +8 pontos) e os efeitos somados chegam a ~35%, o mesmo que o caminho das cartas emprestadas (30%). Para chegar perto de 45% com os efeitos, ainda é preciso tirar uma das duas cartas de dano em área do Cardeal (N8/N9). Nada disso está aplicado.
+
+### Rodada 4: meio a meio (poucas táticas emprestadas + efeitos) (200 partidas cada; % de vitórias do Capitão; Cardeal como está no jogo)
+Capitão com 60 cartas: a lista própria antiga, trocando Reposicionamento Rápido 3→1, Contra-Manobra 4→2, Formação Quebrada 4→2, e com +1 Veterano (4), mais **2 Catapultas, 2 Balestras e 1 Trabuco** emprestados.
+| Cenário | Efeitos alterados | Capitão vence | Rodadas |
+|---|---|---|---|
+| O1 | só táticas e Estandarte (Avanço Coordenado custa 1 e dá +3 ATK; Reformar Linhas compra 1; Linha Fechada -2; Estandarte +1/+1; Bloqueio Instantâneo custa 1) | 31,5% | 5,5 |
+| O2 | O1 + movimento (Capitão de Formação +2 aos lados, Batedor +1 ATK por ataque, Cavaleiro Tático +1 aos lados) e controle (Lanceiro -2 ATK no inimigo à frente, Escudeiro -1 de dano nele e na carta de trás, Veterano +1 ATK na Vanguarda) | 40% | 5,5 |
+| **O3** | O2 + Pântano -2 ATK, Fortaleza -2 de dano, Cavaleiro Tático ataca 2 vezes | **45%** | 4,9 |
