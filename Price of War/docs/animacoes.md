@@ -240,3 +240,8 @@ As Táticas (Catapulta, Trabuco, Balestra) **descem no tabuleiro** com peso (que
 ### Mockup v4 e regra de produção (conversa com o dono)
 - **Flechas de longo alcance:** arco bem mais alto e voo mais longo (~1,1 s), flecha menor que encolhe com a distância (`scale [.52 → .34]`, `lift` pequeno) e sombra no chão separada da flecha, para parecer que vem de longe e não que encosta no inimigo.
 - **Regra de produção:** não dá para animar todas as cartas. Fazer só as **cartas marcantes de cada deck** (as que definem a identidade ou que o jogador mais vê), e as demais usam os efeitos genéricos por tipo (golpe, brilho, número). As artes que o dono enviar entram **só no mockup** até ele aprovar; nada vai ao jogo antes.
+
+### Mockup v5: arte pintada do dono (só no mockup)
+- Chegaram 8 imagens (lança, virote, flecha, flecha envenenada, pedra, pedra em brasa, espada do Aurelion, martelo do Cardeal). Originais em `art-prompts/reference/projeteis/`; `tools/vfx/key_art.py` tira o fundo magenta (chave de cor com desmistura da borda, correção do rosa e corte justo) e grava WebP com alpha em `public/mockups/projeteis/art/`. As duas pedras vieram esticadas (4:1) e foram comprimidas na horizontal para ficarem arredondadas.
+- Caixa **"arte pintada"** no mockup liga/desliga a arte nova contra os sprites feitos por código. `pick()` escolhe o sprite; `fly()` ganhou `len` (comprimento em px) no lugar de escala, para que qualquer imagem tenha o tamanho certo.
+- Cenas novas: **Flecha Venenosa** (nuvem verde e gotas), **Martelo do Cardeal** (arremessado girando, martelada sagrada com cruz de luz) e **Espada do Aurelion** (varre a fileira com arco de luz). Nada disso está no jogo.

@@ -59,10 +59,14 @@
     <button data-a="balestra">Balestra<small>virote certeiro</small></button>
     <button data-a="lanca">Lança do Jorge<small>atravessa duas cartas</small></button>
     <button data-a="arqueiro">Arqueiro<small>flechas em arco</small></button>
+    <button data-a="veneno">Flecha Venenosa<small>nuvem verde</small></button>
+    <button data-a="martelo">Martelo do Cardeal<small>habilidade do General</small></button>
+    <button data-a="espada">Espada do Aurelion<small>varre a fileira</small></button>
     <button data-a="seta">Hoje (seta)<small>para comparar</small></button>
     <div id="opts">
+      <label><input type="checkbox" id="art" checked> arte pintada</label>
       <label><input type="checkbox" id="slow"> câmera lenta (¼)</label>
-      <label><input type="checkbox" id="snd" checked> som de teste</label>
+      <label><input type="checkbox" id="snd" checked> som</label>
     </div>
   </nav>
 </div>
@@ -115,7 +119,16 @@ addEventListener('resize', fit); fit();
 const IMG = {};
 const load = (k, src) => new Promise(r => { const i = new Image(); i.onload = () => { IMG[k] = i; r(); }; i.onerror = r; i.src = src; });
 const ready = Promise.all([load('fire', 'fx-boom-fire.webp'), load('smoke', 'fx-boom-smoke.webp'), load('holy', 'fx-holy.webp'), load('puff', 'fx-puff.webp'), load('debris', 'fx-debris.webp'),
-  load('rock', 'proj-rock.webp'), load('bolt', 'proj-bolt.webp'), load('arrow', 'proj-arrow.webp'), load('lance', 'proj-lance.webp')]);
+  load('rock', 'proj-rock.webp'), load('bolt', 'proj-bolt.webp'), load('arrow', 'proj-arrow.webp'), load('lance', 'proj-lance.webp'),
+  load('a_lanca', 'art/lanca.webp'), load('a_virote', 'art/virote.webp'), load('a_flecha', 'art/flecha.webp'), load('a_veneno', 'art/flecha-veneno.webp'),
+  load('a_pedra', 'art/pedra.webp'), load('a_brasa', 'art/pedra-brasa.webp'), load('a_espada', 'art/espada-aurelion.webp'), load('a_martelo', 'art/martelo.webp')]);
+// painted art (the images the owner made) or the sprites drawn by code, switched by the checkbox
+const painted = () => $('#art').checked;
+function pick(k) {
+  const M = { lanca: ['a_lanca', 'lance'], virote: ['a_virote', 'bolt'], flecha: ['a_flecha', 'arrow'], veneno: ['a_veneno', 'arrow'], pedra: ['a_pedra', 'rock'], brasa: ['a_brasa', 'rock'], espada: ['a_espada', 'lance'], martelo: ['a_martelo', 'lance'] };
+  const [pa, pr] = M[k], useP = painted() && IMG[pa], img = useP ? IMG[pa] : IMG[pr];
+  return { img, size: img === IMG.rock ? [128, 128] : [img.naturalWidth, img.naturalHeight], frame: img === IMG.rock && k === 'brasa' ? 1 : 0, painted: !!useP };
+}
 
 // ── sound (the game's own sounds + a synthesized whoosh) ───────────────────────────────────────────────────────────
 let AC = null; const BUF = {};
@@ -210,7 +223,7 @@ function hit(el, delay = 0, alt = false) { at(delay, () => { el.classList.remove
 function num(x, y, text, delay = 0, size = 30) { at(delay, () => { const d = document.createElement('div'); d.className = 'num'; d.textContent = text; d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.fontSize = size + 'px'; $('#nums').appendChild(d); setTimeout(() => d.remove(), 1600 / speed); }); }
 
 // A projectile that flies from a to b. `arc` is the height of the arc (0 = straight line, as with a bolt).
-function fly({ img, cols = 1, frame = 0, size, from, to, dur, arc = 0, scale = [1, 1], spin = 0, trail = 'none', onEnd, aim = false, shadow = false, glow = null, ribbon = null, orb = 0, ease = x => x, lift = .55, shw = 1 }) {
+function fly({ img, cols = 1, frame = 0, size, from, to, dur, arc = 0, scale = [1, 1], spin = 0, trail = 'none', onEnd, aim = false, shadow = false, glow = null, ribbon = null, orb = 0, ease = x => x, lift = .55, shw = 1, len = null, liftLen = 0 }) {
   const pos = []; let acc = 0, last = 0;
   const o = add({ dur, draw(p) {
     const u = ease(p);
@@ -218,7 +231,8 @@ function fly({ img, cols = 1, frame = 0, size, from, to, dur, arc = 0, scale = [
     const h = arc ? 4 * u * (1 - u) : 0;              // 0..1 height above the ground line
     const x = gx, y = gy - arc * h;
     const ang = aim ? Math.atan2((to.y - from.y) - (arc ? arc * 4 * (1 - 2 * u) : 0), to.x - from.x) : spin * p * dur;
-    const sc = scale[0] + (scale[1] - scale[0]) * u + (arc ? lift * h : 0);
+    let sc = scale[0] + (scale[1] - scale[0]) * u + (arc ? lift * h : 0), ssc = sc;
+    if (len) { const L = len[0] + (len[1] - len[0]) * u + (arc ? liftLen * h : 0); ssc = L / size[0]; sc = Math.max(.15, L / 70); }
     if (shadow) { ctx.save(); ctx.globalAlpha = .38 * (1 - h * .55); ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(gx, gy + 6, 17 * shw * sc * (1 - h * .35), 6 * shw * sc * (1 - h * .35), 0, 0, 7); ctx.fill(); ctx.restore(); }
     // trail
     const dt = (p - last) * dur; last = p; acc += dt;
@@ -235,7 +249,7 @@ function fly({ img, cols = 1, frame = 0, size, from, to, dur, arc = 0, scale = [
     if (orb) { const r = orb * sc; const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, 'rgba(255,255,235,1)'); g.addColorStop(.35, 'rgba(255,200,90,.95)'); g.addColorStop(.75, 'rgba(255,100,20,.5)'); g.addColorStop(1, 'rgba(255,60,10,0)');
       ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(x - r, y - r, 2 * r, 2 * r); ctx.restore(); }
     if (img) {
-      ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(sc, sc);
+      ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(ssc, ssc);
       const iw = size[0], ih = size[1];
       if (img === IMG.rock) { ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 8; ctx.filter = 'brightness(.78) contrast(1.25)'; }
       else { ctx.shadowColor = 'rgba(0,0,0,.85)'; ctx.shadowBlur = 5; }
@@ -251,7 +265,8 @@ function fly({ img, cols = 1, frame = 0, size, from, to, dur, arc = 0, scale = [
 // direction of an arc at u (screen space), used so a stuck arrow keeps the angle it arrived with
 function arcTangent(from, to, arc, u) { return Math.atan2((to.y - from.y) - arc * 4 * (1 - 2 * u), to.x - from.x); }
 // a projectile stuck in a card: its tip is at `to`, it sinks in a little, wobbles and fades
-function stick(img, size, to, ang, sc, life, sink = 14) {
+function stick(img, size, to, ang, len, life, sink = 14) {
+  const sc = len / size[0];
   const cx = to.x - Math.cos(ang) * (size[0] * sc / 2 - sink), cy = to.y - Math.sin(ang) * (size[0] * sc / 2 - sink);
   add({ dur: life, draw(p) { const wob = Math.sin(p * 46) * 0.07 * Math.exp(-p * 7); ctx.save(); ctx.globalAlpha = 1 - ei((p - .6) / .4); ctx.translate(to.x, to.y); ctx.rotate(wob);
     ctx.translate(cx - to.x, cy - to.y); ctx.rotate(ang); ctx.scale(sc, sc); ctx.drawImage(img, 0, 0, size[0], size[1], -size[0] / 2, -size[1] / 2, size[0], size[1]); ctx.restore(); } });
@@ -326,14 +341,36 @@ function leaveTactic(delay) { // it burns away into the graveyard
   at(delay, () => { if (!tacEl) return; const im = tacEl; const a = im.animate([{ opacity: 1, filter: 'brightness(1.6)' }, { opacity: 0, filter: 'brightness(.6) blur(2px)', transform: 'translate(-50%,-62%) scale(.9)' }], { duration: 700, fill: 'forwards' }); a.playbackRate = speed; sparks(TAC.x, TAC.y, 10, .5, '255,190,90'); });
 }
 
+
+// a volley of three arrows from the archer in the back row: high arcs, shrinking with distance, each with its own ground shadow
+function archers(kind, poison) {
+  const ar = pick(kind), archer = cardByPos(125, ROW.pBack), from = { x: 125, y: ROW.pBack - 36 }, to0 = { x: 195, y: ROW.eFront + 6 };
+  archer.classList.remove('kick'); void archer.offsetWidth; archer.classList.add('kick');
+  const tg = cardByPos(195, ROW.eFront), L0 = ar.painted ? 74 : 66, L1 = ar.painted ? 50 : 44;
+  for (let i = 0; i < 3; i++) {
+    const d = .12 + i * .22, T = 1.08, arc = 205 + R(-16, 16), f = { x: from.x + R(-4, 4), y: from.y }, to = { x: to0.x + R(-14, 14), y: to0.y + R(-6, 8) };
+    at(d, () => { whoosh(0, .3, .3, 1400, 2400); whoosh(.55, .4, .18, 2400, 1200);
+      fly({ img: ar.img, size: ar.size, from: f, to, dur: T, arc, aim: true, len: [L0, L1], liftLen: 12, shadow: true, shw: 2.6, ribbon: { n: 5, c: poison ? '170,255,120' : '255,255,255', w: 1 } }); });
+    const t = d + T; play('dano', t - .05, .3, 1.5 + i * .1);
+    at(t, () => {
+      const ang = arcTangent(f, to, arc, 1);
+      stick(ar.img, ar.size, to, ang, L1, 1.0, 9);
+      puff(to.x, to.y + 4, 0, -12, 26, .45, .45, 1.3); sparksDir(to.x, to.y, ang + Math.PI, .8, 5, .5, poison ? '150,255,100' : '255,240,200');
+      if (poison) { flash(to.x, to.y, 46, '120,230,70', .6, .5); sparksDir(to.x, to.y, -Math.PI / 2, 1.2, 6, .5, '140,255,90');
+        add({ dur: 1.1, draw(p) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(to.x, to.y - 10 * p, 0, to.x, to.y - 10 * p, 30 + 26 * p); g.addColorStop(0, `rgba(130,230,80,${.35 * (1 - p)})`); g.addColorStop(1, 'rgba(130,230,80,0)'); ctx.fillStyle = g; ctx.fillRect(to.x - 60, to.y - 70, 120, 120); ctx.restore(); } }); }
+      hit(tg, 0, i % 2); num(195 + (i - 1) * 16, ROW.eFront - 36 - i * 4, '-1', .04, 24);
+    });
+  }
+}
+
 const scenes = {
   catapulta: {
     cap: 'Catapulta: a carta desce no tabuleiro, brilha e a pedra sai dela em arco. Cai no meio da fileira e a explosão se espalha para as cartas ao lado (2 de dano em cada).',
     run() {
       landTactic('catapulta-de-guerra', () => {
-        const from = { x: TAC.x, y: TAC.y - 30 }, to = { x: 195, y: ROW.eFront + 6 }, T = .85;
+        const rk = pick('pedra'), from = { x: TAC.x, y: TAC.y - 30 }, to = { x: 195, y: ROW.eFront + 6 }, T = .85;
         whoosh(0, .3, .35, 250, 900); play('dano', 0, .35, .7);
-        fly({ img: IMG.rock, cols: 2, frame: 0, size: [128, 128], from, to, dur: T, arc: 200, scale: [.2, .2], spin: 7, trail: 'smoke', shadow: true });
+        fly({ img: rk.img, cols: 2, frame: rk.frame, size: rk.size, from, to, dur: T, arc: 200, len: rk.painted ? [34, 34] : [26, 26], liftLen: rk.painted ? 62 : 70, spin: 7, trail: 'smoke', shadow: true });
         whoosh(.2, T - .2, .45, 600, 300);
         play('boom', T - .44, .8);
         const row = enemyCards.filter(e => +e.dataset.y === ROW.eFront);
@@ -351,15 +388,14 @@ const scenes = {
     }
   },
   trabuco: {
-    cap: 'Trabuco: a carta desce, brilha, e dela sai uma bola de fogo que sobe e se divide em várias menores. Cada uma cai numa carta inimiga (e no General) com uma explosão pequena (2 de dano em todos).',
+    cap: 'Trabuco: a carta desce, brilha, e dela sai uma bola de fogo (com a pedra em brasa dentro) que sobe e se divide em várias menores. Cada uma cai numa carta inimiga (e no General) com uma explosão pequena (2 de dano em todos).',
     run() {
       landTactic('trabuco-de-cerco', () => {
-        const from = { x: TAC.x, y: TAC.y - 30 }, mid = { x: 195, y: 188 }, T1 = .62;
+        const rk = pick('brasa'), from = { x: TAC.x, y: TAC.y - 30 }, mid = { x: 195, y: 188 }, T1 = .62;
         whoosh(0, .45, .5, 180, 700); play('boom', 0, .3, .6);
-        fly({ img: null, from, to: mid, dur: T1, arc: 70, scale: [.7, 1.15], trail: 'fire', glow: { r: 50, c: '255,120,30', a: .5 }, orb: 26 });
+        fly({ img: rk.painted ? rk.img : null, size: rk.size, from, to: mid, dur: T1, arc: 70, scale: [.7, 1.15], len: rk.painted ? [34, 52] : null, spin: 4, trail: 'fire', glow: { r: 50, c: '255,120,30', a: .5 }, orb: 26 });
         whoosh(.1, T1, .35, 500, 250);
         at(T1, () => {
-          // the big ball breaks apart over the enemy field
           play('boom', -.2, .5, 1.2); flash(mid.x, mid.y, 170, '255,190,100', .7, .3); explosion(mid.x, mid.y + 6, .5, 0); shock(mid.x, mid.y + 30, 150, .5, '255,210,140', 3);
           sparks(mid.x, mid.y, 16, 1.1);
           enemyCards.forEach((e, i) => {
@@ -380,13 +416,13 @@ const scenes = {
     cap: 'Balestra: a carta desce, brilha e o virote sai dela em linha reta, muito rápido. Ao chegar ele crava na carta e fica tremendo; o impacto é seco, com faísca de metal, lascas e poeira (sem fogo).',
     run() {
       landTactic('balestra-de-precisao', () => {
-        const from = { x: TAC.x, y: TAC.y - 24 }, tgt = cardByPos(265, ROW.eFront), to = { x: 265, y: ROW.eFront + 6 }, T = .3;
+        const vt = pick('virote'), from = { x: TAC.x, y: TAC.y - 24 }, tgt = cardByPos(265, ROW.eFront), to = { x: 265, y: ROW.eFront + 6 }, T = .3, LEN = 110;
         const ang = Math.atan2(to.y - from.y, to.x - from.x);
         whoosh(0, .28, .5, 1200, 3200); play('dano', 0, .25, 1.4);
-        fly({ img: IMG.bolt, size: [150, 30], from, to, dur: T, aim: true, scale: [.7, .7], ribbon: { n: 12, c: '255,255,255', w: 4 } });
+        fly({ img: vt.img, size: vt.size, from, to, dur: T, aim: true, len: [LEN, LEN], ribbon: { n: 12, c: '255,255,255', w: 4 } });
         play('hit', T - .042, .9);
         at(T, () => {
-          thunk(to.x, to.y, ang); stick(IMG.bolt, [150, 30], to, ang, .7, 1.1, 16);
+          thunk(to.x, to.y, ang); stick(vt.img, vt.size, to, ang, LEN, 1.1, 16);
           hit(tgt, 0, 1); num(265, ROW.eFront - 38, '-3', .05, 34);
         });
       });
@@ -396,29 +432,26 @@ const scenes = {
   lanca: {
     cap: 'Lança do Jorge: ele puxa a lança para trás pegando impulso, e a arremessa acelerando. Ela atravessa o alvo e acerta a carta de trás (2 de dano), com um clarão dourado seco em cada acerto.',
     run() {
-      const jorge = cardByPos(195, ROW.pFront), from = { x: 195, y: ROW.pFront - 38 }, tgt1 = { x: 195, y: ROW.eFront + 8 }, tgt2 = { x: 195, y: ROW.eBack + 8 };
-      const SC = .52, WIND = .5, T1 = .36, T2 = .22;
-      // 1) the wind-up: the lance is pulled back (towards Jorge), trembling and charging, while the card crouches
+      const jorge = cardByPos(195, ROW.pFront), lc = pick('lanca'), from = { x: 195, y: ROW.pFront - 38 }, tgt1 = { x: 195, y: ROW.eFront + 8 }, tgt2 = { x: 195, y: ROW.eBack + 8 };
+      const LEN = lc.painted ? 150 : 130, WIND = .5, T1 = .36, T2 = .22;
       jorge.classList.remove('windup'); void jorge.offsetWidth; jorge.classList.add('windup');
       whoosh(.05, WIND, .3, 300, 1600);
       add({ dur: WIND, draw(p) {
         const back = 34 * eo(p / .8), tr = (p > .55 ? Math.sin(p * 90) * 1.4 : 0), x = from.x + tr, y = from.y + back;
         const g = ctx.createRadialGradient(x, y - 24, 0, x, y - 24, 48); g.addColorStop(0, `rgba(255,226,140,${.55 * p})`); g.addColorStop(1, 'rgba(255,226,140,0)');
         ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(x - 48, y - 72, 96, 96); ctx.restore();
-        ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI / 2); ctx.scale(SC, SC); ctx.drawImage(IMG.lance, 0, 0, 250, 40, -125, -20, 250, 40); ctx.restore();
+        ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI / 2); const k = LEN / lc.size[0]; ctx.scale(k, k); ctx.drawImage(lc.img, 0, 0, lc.size[0], lc.size[1], -lc.size[0] * .5, -lc.size[1] / 2, lc.size[0], lc.size[1]); ctx.restore();
       } });
-      // 2) the throw: it starts where the wind-up ended and speeds up
       at(WIND, () => {
         play('dano', 0, .25, 1.5); whoosh(0, .32, .5, 600, 3000); play('hit', T1 - .042, .95);
         flash(from.x, from.y + 20, 70, '255,236,170', .5, .2);
-        fly({ img: IMG.lance, size: [250, 40], from: { x: from.x, y: from.y + 34 }, to: tgt1, dur: T1, aim: true, scale: [SC, SC], ease: u => Math.pow(u, 2.1), trail: 'gold', glow: { r: 34, c: '255,222,130', a: .5 }, ribbon: { n: 12, c: '255,222,130', w: 7 } });
+        fly({ img: lc.img, size: lc.size, from: { x: from.x, y: from.y + 34 }, to: tgt1, dur: T1, aim: true, len: [LEN, LEN], ease: u => Math.pow(u, 2.1), trail: 'gold', glow: { r: 34, c: '255,222,130', a: .5 }, ribbon: { n: 12, c: '255,222,130', w: 7 } });
       });
-      // 3) the hit: a sharp golden flash, a few rays and sparks that fly forward; the lance goes on to the card behind
       const t1 = WIND + T1;
       at(t1, () => {
         cleanHit(tgt1.x, tgt1.y, -Math.PI / 2, 1);
         play('hit', T2 - .042, .7, 1.15);
-        fly({ img: IMG.lance, size: [250, 40], from: tgt1, to: tgt2, dur: T2, aim: true, scale: [SC, SC * .9], trail: 'gold', glow: { r: 28, c: '255,222,130', a: .45 }, ribbon: { n: 8, c: '255,222,130', w: 5 } });
+        fly({ img: lc.img, size: lc.size, from: tgt1, to: tgt2, dur: T2, aim: true, len: [LEN, LEN * .9], trail: 'gold', glow: { r: 28, c: '255,222,130', a: .45 }, ribbon: { n: 8, c: '255,222,130', w: 5 } });
         at(T2, () => { cleanHit(tgt2.x, tgt2.y, -Math.PI / 2, .75); lanceFade(tgt2.x, tgt2.y); });
       });
       const e1 = cardByPos(195, ROW.eFront), e2 = cardByPos(195, ROW.eBack);
@@ -427,22 +460,58 @@ const scenes = {
     }
   },
   arqueiro: {
-    cap: 'Arqueiro: as flechas sobem em arco, giram acompanhando a curva e descem cravando no alvo, onde ficam um instante tremendo (1 de dano por flecha).',
+    cap: 'Arqueiro: as flechas sobem em arco alto, encolhendo com a distância, giram acompanhando a curva e descem cravando no alvo (1 de dano por flecha). Cada uma projeta sua sombra no chão.',
+    run() { archers('flecha', false); }
+  },
+  veneno: {
+    cap: 'Flechas Venenosas: mesmas flechas em arco, com ponta pingando veneno; ao cravar soltam uma nuvem verde e gotas (equipa um Arqueiro: +1 de ataque).',
+    run() { archers('veneno', true); }
+  },
+  martelo: {
+    cap: 'Martelo do Cardeal Pedro (habilidade do General): o martelo é arremessado girando, com luz dourada, e cai no alvo com uma martelada sagrada: onda de luz e cruz de brilho.',
     run() {
-      const archer = cardByPos(125, ROW.pBack), from = { x: 125, y: ROW.pBack - 36 }, to0 = { x: 195, y: ROW.eFront + 6 };
-      archer.classList.remove('kick'); void archer.offsetWidth; archer.classList.add('kick');
-      const tg = cardByPos(195, ROW.eFront);
-      for (let i = 0; i < 3; i++) {
-        const d = .12 + i * .22, T = 1.08, arc = 205 + R(-16, 16), f = { x: from.x + R(-4, 4), y: from.y }, to = { x: to0.x + R(-14, 14), y: to0.y + R(-6, 8) };
-        at(d, () => { whoosh(0, .3, .3, 1400, 2400); whoosh(.55, .4, .18, 2400, 1200); fly({ img: IMG.arrow, size: [130, 22], from: f, to, dur: T, arc, aim: true, scale: [.52, .34], lift: .1, shadow: true, shw: 2.6, ribbon: { n: 5, c: '255,255,255', w: 1 } }); });
-        const t = d + T; play('dano', t - .05, .3, 1.5 + i * .1);
-        at(t, () => {
-          const ang = arcTangent(f, to, arc, 1);
-          stick(IMG.arrow, [130, 22], to, ang, .34, 1.0, 9);
-          puff(to.x, to.y + 4, 0, -12, 26, .45, .45, 1.3); sparksDir(to.x, to.y, ang + Math.PI, .8, 5, .5, '255,240,200');
-          hit(tg, 0, i % 2); num(195 + (i - 1) * 16, ROW.eFront - 36 - i * 4, '-1', .04, 24);
+      const mh = pick('martelo'), from = { x: 195, y: ROW.pGen - 50 }, to = { x: 195, y: ROW.eFront + 6 }, T = .78, LEN = 135, gen = cardByPos(195, ROW.pGen);
+      gen.classList.remove('windup'); void gen.offsetWidth; gen.classList.add('windup');
+      whoosh(0, .4, .4, 250, 1100); flash(from.x, from.y + 30, 90, '255,226,140', .6, .4);
+      at(.35, () => {
+        play('dano', 0, .3, .8); whoosh(0, T, .5, 500, 2400); play('boom', T - .44, .9);
+        fly({ img: mh.img, size: mh.size, from, to, dur: T, arc: 120, len: [LEN * .8, LEN * .8], liftLen: 30, spin: 14, shadow: true, shw: 2.4, trail: 'gold', glow: { r: 40, c: '255,222,130', a: .45 }, ribbon: { n: 10, c: '255,222,130', w: 8 } });
+        at(T, () => {
+          flash(to.x, to.y, 150, '255,230,160', .6, .26); ring(to.x, to.y, 90, .45, '255,232,170', 5); shock(to.x, to.y + 26, 150, .5, '255,232,170', 3);
+          glint(to.x, to.y, 100, .4); burst(to.x, to.y, 12, 74, '255,240,190', .28); sparks(to.x, to.y, 14, 1, '255,236,160'); dust(to.x, to.y + 30, 100, 8, 40);
+          scorch(to.x, to.y + 30, 100); stick(mh.img, mh.size, { x: to.x, y: to.y + 6 }, -Math.PI / 4, LEN * .8, 1.0, 10);
+          const e = cardByPos(195, ROW.eFront); hit(e, 0, 0); num(195, ROW.eFront - 38, '-5', .05, 38);
+          [165, 225].forEach((x, i) => { const n = cardByPos(x === 165 ? 125 : 265, ROW.eFront); if (n) { hit(n, .08, i); num(+n.dataset.x, ROW.eFront - 32, '-1', .12, 24); } });
         });
-      }
+      });
+      leaveTactic(0);
+    }
+  },
+  espada: {
+    cap: 'Espada do Aurelion (habilidade do General): a espada varre a fileira inimiga na diagonal, deixando um arco de luz; cada carta atravessada leva o corte.',
+    run() {
+      const sw = pick('espada'), LEN = 170, y0 = ROW.eFront - 30, y1 = ROW.eFront + 34, gen = cardByPos(195, ROW.pGen);
+      gen.classList.remove('windup'); void gen.offsetWidth; gen.classList.add('windup');
+      whoosh(0, .4, .4, 300, 1400); flash(195, ROW.pGen - 40, 80, '255,200,140', .5, .35);
+      const D = .5, S = .42;
+      // 1) it appears over the row on the left, trembling
+      add({ t0: now + .25, dur: D, draw(p) { const x = 24, y = y0 - 10; ctx.save(); ctx.globalAlpha = eo(p * 3); ctx.translate(x, y); ctx.rotate(-1.15); const k = LEN / sw.size[0]; ctx.scale(k, k);
+        ctx.shadowColor = 'rgba(255,200,120,.9)'; ctx.shadowBlur = 14; ctx.drawImage(sw.img, 0, 0, sw.size[0], sw.size[1], -sw.size[0] * .5, -sw.size[1] / 2, sw.size[0], sw.size[1]); ctx.restore(); } });
+      // 2) the slash: the sword sweeps from left to right on a curve while turning; a crescent trail stays behind it
+      at(.25 + D, () => {
+        play('dano', 0, .3, 1.3); whoosh(0, S, .6, 500, 2800); play('hit', S * .5 - .04, .8); play('hit', S * .8 - .04, .7, 1.1);
+        const pts = [];
+        add({ dur: S, draw(p) {
+          const u = Math.pow(p, 1.6), x = 24 + 346 * u, y = y0 + (y1 - y0) * u + Math.sin(u * Math.PI) * -26, ang = -1.15 + 2.0 * u;
+          pts.push([x, y]); if (pts.length > 16) pts.shift();
+          ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+          for (let i = 1; i < pts.length; i++) { const k = i / pts.length; ctx.strokeStyle = `rgba(255,236,190,${k * .8})`; ctx.lineWidth = 26 * k; ctx.beginPath(); ctx.moveTo(pts[i - 1][0], pts[i - 1][1]); ctx.lineTo(pts[i][0], pts[i][1]); ctx.stroke(); } ctx.restore();
+          ctx.save(); ctx.translate(x, y); ctx.rotate(ang); const k = LEN / sw.size[0]; ctx.scale(k, k); ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 5;
+          ctx.drawImage(sw.img, 0, 0, sw.size[0], sw.size[1], -sw.size[0] * .2, -sw.size[1] / 2, sw.size[0], sw.size[1]); ctx.restore();
+        } });
+        enemyCards.filter(e => +e.dataset.y === ROW.eFront).forEach(e => { const f = (+e.dataset.x - 24) / 346, t = S * Math.pow(f, 1 / 1.6);
+          at(t, () => { cleanHit(+e.dataset.x, ROW.eFront + 6, 0, .8); sparksDir(+e.dataset.x, ROW.eFront + 6, -Math.PI / 4, .8, 6, .8, '255,236,170'); }); hit(e, t, +e.dataset.x > 195); num(+e.dataset.x, ROW.eFront - 32, '-2', t + .06, 28); });
+      });
     }
   },
   seta: {

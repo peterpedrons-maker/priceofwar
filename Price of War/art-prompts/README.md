@@ -1225,7 +1225,7 @@ anime style, no photorealistic faces, no extra limbs, no cropped Generals.
 
 ---
 
-## 4ac. Armas e projéteis para as animações de combate (pendente)
+## 4ac. Armas e projéteis para as animações de combate (recebidas: 8 de 8, em uso no mockup)
 
 **Para quê:** hoje a lança, o virote, a flecha e a pedra do mockup (`public/mockups/projeteis/`) são desenhados por código e parecem chapados. Arte pintada no estilo das cartas sobe muito a qualidade; o brilho, o rastro, a explosão e as faíscas continuam sendo feitos por código por cima da arte.
 **Arquivos esperados:** `src/assets/proj-<nome>.webp` (eu recorto, giro e reduzo) · **Um objeto por imagem.**
