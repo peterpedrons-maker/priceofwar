@@ -207,7 +207,7 @@ import batalhaBannerSfxUrl from './assets/sfx-batalha-banner.wav';
 // something heavy hitting the ground" calls for a stone/masonry thud, not a musical
 // stinger.
 import batalhaImpactSfxUrl from './assets/sfx-batalha-impacto.wav';
-import { DECK_RECIPES, requireCardDef, getCardDef, starterDeckCards, type DeckId } from './engine/catalog';
+import { CARD_DEFS, DECK_RECIPES, LEGACY_STARTERS, requireCardDef, getCardDef, starterDeckCards, type DeckId } from './engine/catalog';
 import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActivePhases, createMatch, deckSetupFromRecipe, newMatchLog, type MatchLog } from './engine/game';
 import { aiNextAction } from './engine/ai';
 import { glyphUrl, burstUrl, NUMBER_GLOW, type NumberKind } from './numberGlyphs';
@@ -2257,6 +2257,12 @@ const DECKS = {
   },
 } as const;
 
+// What a booster of each faction can hold: the faction's own cards (the lists from before the balance pass), not the tactics a deck borrows.
+const BOOSTER_POOLS: Record<DeckId, CardData[]> = { capitao: [], cardeal: [] };
+(['capitao', 'cardeal'] as DeckId[]).forEach(id => Object.entries(LEGACY_STARTERS[id]).forEach(([name, n]) => {
+  for (let i = 0; i < n; i++) BOOSTER_POOLS[id].push(cardDataFromName(name, `pool_${id}_${name}_${i}`));
+}));
+
 // ── Collection and saved decks (local-only for now) ─────────────────────────
 // What the deck editor edits. The player owns a COLLECTION (card name -> copies) and builds
 // DECKS out of it; whatever is owned but not in the deck is the reserve (never stored on
@@ -2274,6 +2280,9 @@ const CARD_INSTANCES_BY_NAME: Record<string, CardData[]> = {};
   if (!CARD_INSTANCES_BY_NAME[c.name]) CARD_INSTANCES_BY_NAME[c.name] = [];
   CARD_INSTANCES_BY_NAME[c.name].push(c);
 });
+// A card that no deck uses today (the balance pass took Linha Fechada and Fortaleza de Pedra out of the Capitão list) still exists: it can be owned,
+// pulled from a booster and put back in a deck.
+CARD_DEFS.forEach(d => { if (!CARD_INSTANCES_BY_NAME[d.name]) CARD_INSTANCES_BY_NAME[d.name] = [cardDataFromName(d.name, `extra_${d.name}`)]; });
 const cardByName = (name: string): CardData | undefined => CARD_INSTANCES_BY_NAME[name]?.[0];
 const isGeneralName = (name: string) => cardByName(name)?.cardType === 'General';
 
@@ -2349,7 +2358,7 @@ const buildStarterStore = (): DeckStore => {
   const collection: Record<string, number> = {
     ...countByName(DECKS.cardeal.pool), [DECKS.cardeal.general.name]: 1,
   };
-  Object.entries(DECK_RECIPES.capitao.cards).forEach(([name, n]) => { collection[name] = Math.max(collection[name] ?? 0, n); });
+  (['cardeal', 'capitao'] as DeckId[]).forEach(id => [DECK_RECIPES[id].cards, LEGACY_STARTERS[id]].forEach(list => Object.entries(list).forEach(([name, n]) => { collection[name] = Math.max(collection[name] ?? 0, n); })));
   collection[DECKS.capitao.general.name] = 1;
   return {
     collection,
@@ -2359,14 +2368,24 @@ const buildStarterStore = (): DeckStore => {
     ],
   };
 };
-// Accounts and devices made before the Capitão deck was released: give them the whole Capitão collection and, when slot 2 is still empty,
-// the ready Capitão deck in it (a slot the player has built on is never touched). Returns whether anything changed.
+// Accounts and devices made before the Capitão deck was released (or before a balance pass changed the starter lists): give them every card the two
+// lists use and, when slot 2 is still empty, the ready Capitão deck in it. A slot the player has built on is never touched, except when it is still
+// exactly an old starter list (nobody edited it): that one is swapped for the new list. Returns whether anything changed.
+const sameCards = (a: Record<string, number>, b: Record<string, number>) => {
+  const ka = Object.keys(a), kb = Object.keys(b);
+  return ka.length === kb.length && ka.every(k => a[k] === b[k]);
+};
 const ensureStarterDecks = (store: DeckStore): boolean => {
   let changed = false;
-  Object.entries(DECK_RECIPES.capitao.cards).forEach(([name, n]) => {
+  (['cardeal', 'capitao'] as DeckId[]).forEach(id => [DECK_RECIPES[id].cards, LEGACY_STARTERS[id]].forEach(list => Object.entries(list).forEach(([name, n]) => {
     if ((store.collection[name] ?? 0) < n) { store.collection[name] = n; changed = true; }
-  });
+  })));
   if ((store.collection[DECKS.capitao.general.name] ?? 0) < 1) { store.collection[DECKS.capitao.general.name] = 1; changed = true; }
+  (['cardeal', 'capitao'] as DeckId[]).forEach(id => store.slots.forEach(sl => {
+    if (sl.general === DECKS[id].general.name && sameCards(sl.cards, LEGACY_STARTERS[id]) && !sameCards(sl.cards, starterDeckCards(id))) {
+      sl.cards = { ...starterDeckCards(id) }; changed = true;
+    }
+  }));
   const slot2 = store.slots[1];
   if (slot2 && Object.keys(slot2.cards).length === 0) {
     slot2.name = CAPITAO_STARTER_NAME; slot2.general = DECKS.capitao.general.name; slot2.cards = { ...starterDeckCards('capitao') };
@@ -4020,7 +4039,7 @@ const SHOP_ART: { counter: string; shelf: string; npc: Record<NpcMood, string>; 
 
 // Cheap cards are common, costly ones rarer; the last card of a pack is always a strong one.
 const rollBooster = (def: BoosterDef): CardData[] => {
-  const pool = DECKS[def.faction].pool;
+  const pool = BOOSTER_POOLS[def.faction];
   const weight = (c: CardData) => (c.cost <= 1 ? 6 : c.cost === 2 ? 4 : c.cost === 3 ? 2 : 1);
   const draw = (list: readonly CardData[]) => {
     let roll = Math.random() * list.reduce((sum, c) => sum + weight(c), 0);

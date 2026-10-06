@@ -11,9 +11,9 @@ const ENEMY_UNIT: TargetSpec = { side: 'enemy', area: 'unit' };
 
 export const CARD_DEFS: readonly CardDef[] = [
   // ── capitao ──
-  { name: "Comandante Aurelion, Mestre da Formação", cardType: "General", atk: 0, hp: 20, cost: 0, isFullArt: true, effect: "**Fim do turno** Até 2 unidades que se moveram ganham +1/+1 no próximo combate. **Passiva** Relíquia e Terreno recebem -1 de dano.",
+  { name: "Comandante Aurelion, Mestre da Formação", cardType: "General", atk: 0, hp: 20, cost: 0, isFullArt: true, effect: "**Fim do turno** Até 2 unidades que se moveram ganham +2/+1 no próximo combate. **Passiva** Relíquia e Terreno recebem -1 de dano.",
     faction: "ordem",
-    abilities: [{ on: 'turn_end', do: [{ kind: 'buff_moved', count: 2, atk: 1, hp: 1 }] }],
+    abilities: [{ on: 'turn_end', do: [{ kind: 'buff_moved', count: 2, atk: 2, hp: 1 }] }],
     passives: [{ kind: 'aura', who: { side: 'own', slots: [10, 11] }, reduce: 1 }] },
   { name: "Soldado Tático", cardType: "Infantaria", atk: 3, hp: 3, cost: 2, effect: "No fim do turno, troca de lugar com um aliado ao lado.",
     abilities: [{ on: 'turn_end', do: [{ kind: 'swap_adjacent' }] }] },
@@ -159,18 +159,21 @@ export const DECK_RECIPES: Record<DeckId, DeckRecipe> = {
       "Batedor": 4,
       "Lanceiro de Controle": 4,
       "Cavaleiro Tático": 4,
-      "Veterano de Guerra": 3,
-      "Reformar Linhas": 4,
+      "Veterano de Guerra": 4,
+      "Reformar Linhas": 1,
       "Avanço Coordenado": 4,
-      "Reposicionamento Rápido": 4,
-      "Linha Fechada": 4,
-      "Ordem de Retirada": 4,
-      "Bloqueio Instantâneo": 4,
-      "Contra-Manobra": 4,
-      "Formação Quebrada": 4,
+      "Reposicionamento Rápido": 2,
+      "Ordem de Retirada": 2,
+      "Bloqueio Instantâneo": 2,
+      "Contra-Manobra": 1,
+      "Formação Quebrada": 2,
       "Estandarte da Legião": 1,
-      "Fortaleza de Pedra": 1,
       "Pântano Maldito": 1,
+      "Catapulta de Guerra": 4,
+      "Balestra de Precisão": 4,
+      "Armadura de Guerra": 4,
+      "Trabuco de Cerco": 2,
+      "Recrutamento Seletivo": 2,
     },
   },
   cardeal: {
@@ -178,21 +181,21 @@ export const DECK_RECIPES: Record<DeckId, DeckRecipe> = {
     cards: {
       "Cálice da Graça": 1,
       "Devotos da Cruzada": 4,
-      "Mercador da Cruzada": 2,
+      "Mercador da Cruzada": 1,
       "Infiltrado da Ordem": 1,
       "Fanático da Cruzada": 1,
-      "Recruta Devoto": 2,
-      "Intendente do Exército": 2,
-      "Soldados da Ordem": 2,
-      "Jorge, Lança Sagrada": 3,
-      "Cavaleiro Hospitalário": 2,
+      "Recruta Devoto": 4,
+      "Intendente do Exército": 3,
+      "Soldados da Ordem": 4,
+      "Jorge, Lança Sagrada": 2,
+      "Cavaleiro Hospitalário": 3,
       "Nobre da Cruzada": 2,
-      "Cavaleiro da Luz": 4,
+      "Cavaleiro da Luz": 3,
       "Comandante da Ordem": 1,
-      "Arqueiro da Ordem": 2,
-      "Atirador da Cruzada": 2,
-      "Trabuco de Cerco": 2,
-      "Catapulta de Guerra": 3,
+      "Arqueiro da Ordem": 3,
+      "Atirador da Cruzada": 3,
+      "Trabuco de Cerco": 1,
+      "Catapulta de Guerra": 1,
       "Balestra de Precisão": 1,
       "Armadura de Guerra": 2,
       "Couraça Reforçada": 2,
@@ -201,9 +204,9 @@ export const DECK_RECIPES: Record<DeckId, DeckRecipe> = {
       "Reforços Ocultos": 2,
       "Retorno do Soldado": 1,
       "Graal da Dádiva": 1,
-      "Doutrina Renovada": 2,
+      "Doutrina Renovada": 3,
       "Recrutamento Seletivo": 2,
-      "Recrutar Veteranos": 2,
+      "Recrutar Veteranos": 1,
       "Tributo de Guerra": 2,
       "Chamado às Armas": 2,
     },
@@ -224,13 +227,20 @@ if (!(globalThis as { __POW_RAW_STATS__?: boolean }).__POW_RAW_STATS__) {
   });
 }
 
-// The prebuilt lists as a player can use them: a deck holds at most 60 cards (see deck.ts) and the Capitão list has 62, so two copies of its least
-// useful cards are left out. The AI still plays the full recipe.
-const STARTER_TRIM: Partial<Record<DeckId, Record<string, number>>> = { capitao: { "Reformar Linhas": 1, "Reposicionamento Rápido": 1 } };
+// The prebuilt lists as a player can use them: a deck holds at most 60 cards (see deck.ts). Both recipes have exactly 60 now, so nothing is trimmed;
+// the hook stays for a recipe that grows past the limit (the AI would still play the full recipe).
+const STARTER_TRIM: Partial<Record<DeckId, Record<string, number>>> = {};
 export const starterDeckCards = (id: DeckId): Record<string, number> => {
   const cards = { ...DECK_RECIPES[id].cards };
   Object.entries(STARTER_TRIM[id] ?? {}).forEach(([name, n]) => { cards[name] = Math.max(0, (cards[name] ?? 0) - n); if (cards[name] === 0) delete cards[name]; });
   return cards;
+};
+
+// The starter lists as they were before the balance pass (docs/balanceamento.md): a saved deck that is still exactly one of these was never edited
+// by the player, so it is replaced by the new list.
+export const LEGACY_STARTERS: Record<DeckId, Record<string, number>> = {
+  capitao: {"Soldado Tático":4,"Escudeiro de Linha":4,"Capitão de Formação":4,"Batedor":4,"Lanceiro de Controle":4,"Cavaleiro Tático":4,"Veterano de Guerra":3,"Reformar Linhas":3,"Avanço Coordenado":4,"Reposicionamento Rápido":3,"Linha Fechada":4,"Ordem de Retirada":4,"Bloqueio Instantâneo":4,"Contra-Manobra":4,"Formação Quebrada":4,"Estandarte da Legião":1,"Fortaleza de Pedra":1,"Pântano Maldito":1},
+  cardeal: {"Cálice da Graça":1,"Devotos da Cruzada":4,"Mercador da Cruzada":2,"Infiltrado da Ordem":1,"Fanático da Cruzada":1,"Recruta Devoto":2,"Intendente do Exército":2,"Soldados da Ordem":2,"Jorge, Lança Sagrada":3,"Cavaleiro Hospitalário":2,"Nobre da Cruzada":2,"Cavaleiro da Luz":4,"Comandante da Ordem":1,"Arqueiro da Ordem":2,"Atirador da Cruzada":2,"Trabuco de Cerco":2,"Catapulta de Guerra":3,"Balestra de Precisão":1,"Armadura de Guerra":2,"Couraça Reforçada":2,"Flechas Venenosas":1,"Espada Longa":2,"Reforços Ocultos":2,"Retorno do Soldado":1,"Graal da Dádiva":1,"Doutrina Renovada":2,"Recrutamento Seletivo":2,"Recrutar Veteranos":2,"Tributo de Guerra":2,"Chamado às Armas":2},
 };
 
 const BY_NAME: Record<string, CardDef> = {};

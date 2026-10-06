@@ -690,12 +690,12 @@ test('Batedor moves once, free, right after attacking', () => {
   s = act(s, 0, { type: 'move', from: 2, to: 7 }).s;
   eq([s.players[0].board[7]?.name, s.turn.batedorFree], ['Batedor', null]);
 });
-test('Aurelion: up to 2 units that moved get +1/+1 for the next combat; Soldado Tático swaps at end of turn', () => {
+test('Aurelion: up to 2 units that moved get +2/+1 for the next combat; Soldado Tático swaps at end of turn', () => {
   let s = fresh({ a: 'capitao' }); s.turn.phase = 'movimentacao';
   put(s, 0, 1, 'Batedor'); put(s, 0, 5, 'Soldado Tático'); put(s, 0, 6, 'Escudeiro de Linha');
   s = act(s, 0, { type: 'move', from: 1, to: 0 }).s;
   s = act(s, 0, { type: 'advance' }).s;
-  eq(s.players[0].board[0]?.pendingCombatBonus, { atk: 1, hp: 1 });
+  eq(s.players[0].board[0]?.pendingCombatBonus, { atk: 2, hp: 1 });
   eq([s.players[0].board[5]?.name, s.players[0].board[6]?.name], ['Escudeiro de Linha', 'Soldado Tático']);
 });
 
@@ -1028,12 +1028,12 @@ for (const me of [0, 1] as Seat[]) {
     s = endTurnOf(s, me); s = endTurnOf(s, foe);
     eq(s.players[me].board[4]!.formationBuffAtk ?? 0, 0);
   });
-  test(`seat ${me}: Aurelion grants +1/+1 to the unit that moved, at the end of the turn`, () => {
+  test(`seat ${me}: Aurelion grants +2/+1 to the unit that moved, at the end of the turn`, () => {
     let s = start('capitao', 'cardeal', 'movimentacao');
     put(s, me, 1, 'Batedor');
     s = act(s, me, { type: 'move', from: 1, to: 0 }).s;
     s = act(s, me, { type: 'advance' }).s;
-    eq(s.players[me].board[0]?.pendingCombatBonus, { atk: 1, hp: 1 });
+    eq(s.players[me].board[0]?.pendingCombatBonus, { atk: 2, hp: 1 });
   });
   test(`seat ${me}: Jorge splashes the card behind, Fanático hits a General for +2, Atirador draws 2 when it falls`, () => {
     let s = start('cardeal', 'capitao', 'combate');

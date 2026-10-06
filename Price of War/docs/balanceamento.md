@@ -75,3 +75,13 @@ Regras do teste: os dois decks com 60 cartas, sem mexer nos atributos das unidad
 | J2 · J1 + Cardeal sem Trabuco e com 1 Catapulta | 55% | 5,3 |
 
 Leitura: só trocar cartas dentro do deck não basta (14–18%); o que mais ajudou foi dar ao Capitão dano em área e direto (Catapulta, Balestra, Trabuco), mais corpo (Cavaleiro da Luz) e um General mais forte. A Espada Longa foi a pior carta emprestada (equipar não rende para o Capitão). K1/K2 ficam na faixa de 43–44% e J2 em 55%, então o ponto de equilíbrio está entre eles. Nada disso está aplicado ao catálogo ainda.
+
+### Aplicado ao jogo (versão "L")
+Decidido com o dono do jogo depois da rodada 2, **só com mudanças em cartas táticas** (os soldados continuam de cada facção; nada de Cavaleiro da Luz no Capitão), os dois decks com **60 cartas**:
+- **Capitão** (`DECK_RECIPES.capitao`): +1 Veterano de Guerra (4); Reformar Linhas 4→1; Reposicionamento Rápido 4→2; Ordem de Retirada 4→2; Bloqueio Instantâneo 4→2; Contra-Manobra 4→1; Formação Quebrada 4→2; **saem** Linha Fechada e Fortaleza de Pedra; **entram** 4 Catapultas de Guerra, 4 Balestras de Precisão, 4 Armaduras de Guerra, 2 Trabucos de Cerco e 2 Recrutamentos Seletivos. Sem Espada Longa.
+- **Cardeal** (`DECK_RECIPES.cardeal`): 1 Trabuco (era 2), 1 Catapulta (era 3), 2 Jorge (3), 3 Cavaleiros da Luz (4), 1 Mercador da Cruzada (2), 1 Recrutar Veteranos (2); entram +2 Soldados da Ordem (4), +1 Intendente (3), +2 Recruta Devoto (4), +1 Atirador (3), +1 Arqueiro (3), +1 Cavaleiro Hospitalário (3), +1 Doutrina Renovada (3).
+- **General Aurelion**: as unidades que se moveram ganham **+2/+1** (era +1/+1) no próximo combate.
+- Medido (300 partidas IA × IA): **Capitão vence 30%**, 5,2 rodadas por partida. (Com os 3 Cavaleiros da Luz seriam 40%; ver J1.)
+- Ajustes simples para aproximar de 45–50%, já medidos sobre essa versão (200 partidas): Cardeal sem Trabuco → Capitão 40,5%; General em até 3 unidades → 36%; 3 Trabucos no Capitão → 31%. Os dois primeiros juntos ainda não foram medidos.
+
+Decks salvos: quem ainda tem o deck inicial antigo (idêntico à lista antiga, ver `LEGACY_STARTERS`) recebe a nova; deck editado pelo jogador não é tocado. A coleção ganha todas as cartas das listas novas e antigas; as cartas que saíram de um deck (Linha Fechada, Fortaleza de Pedra) continuam existindo e saem em boosters do Capitão. Os boosters de cada facção continuam sorteando só cartas da própria facção (`BOOSTER_POOLS`).
