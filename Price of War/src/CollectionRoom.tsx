@@ -25,7 +25,7 @@ const SPOTS = {
   book: { x: 66, y: 436, w: 196, h: 252, cx: 160, cy: 556, zoom: 2.35, label: 'COLEÇÃO', lx: 196, ly: 744 },
   door: { x: 506, y: 336, w: 262, h: 566, cx: 640, cy: 640, zoom: 2.0, label: 'LOJA', lx: 642, ly: 384 },
   deck: { x: 428, y: 1166, w: 340, h: 210, cx: 600, cy: 1270, zoom: 2.2, label: 'MEU DECK', lx: 580, ly: 1318 },
-  table: { x: 528, y: 924, w: 240, h: 228, cx: 650, cy: 1036, zoom: 1.75, label: 'BOOSTERS', lx: 640, ly: 1176 },
+  shelf: { x: 24, y: 752, w: 312, h: 430, cx: 180, cy: 965, zoom: 2.0, label: 'BOOSTERS', lx: 180, ly: 1206 },
 } as const;
 type SpotKey = keyof typeof SPOTS;
 
@@ -43,8 +43,9 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
   const moved = useRef(0);
   const pan = useRef({ tx: 0, ty: 0, x: 0, y: 0 });
   const [bookState, setBookState] = useState<'closed' | 'opening' | 'open'>('closed');
-  const [tableOpen, setTableOpen] = useState(false);
+  const [shelfMode, setShelfMode] = useState(false);          // the camera is on the booster shelf: the stacks can be tapped
   const [openingPack, setOpeningPack] = useState<string | null>(null);
+  const [served, setServed] = useState<Record<string, number>>({});   // packs taken from each stack so far (the stock never runs out: the next one slides forward)
   const [hint, setHint] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
   const [zoomClass, setZoomClass] = useState(false);
@@ -105,7 +106,7 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
     // keep the camera inside the picture: the view never goes past an edge, so no black shows (a spot near the bottom is framed higher)
     const vw = (root.clientWidth * SH) / root.clientHeight, hx = vw / (2 * Z), hy = SH / (2 * Z);
     const cx = vw >= SW ? SW / 2 : clamp(sp.cx, hx, SW - hx), cy = clamp(sp.cy, hy, SH - hy);
-    el.style.transformOrigin = `${cx}px ${cy}px`; el.style.transform = `translate(${SW / 2 - cx}px, ${SH / 2 - cy}px) scale(${Z})`; el.style.filter = k === 'deck' || k === 'table' ? 'brightness(.5)' : 'brightness(.82)';
+    el.style.transformOrigin = `${cx}px ${cy}px`; el.style.transform = `translate(${SW / 2 - cx}px, ${SH / 2 - cy}px) scale(${Z})`; el.style.filter = k === 'deck' ? 'brightness(.5)' : k === 'shelf' ? 'brightness(.92)' : 'brightness(.82)';
   };
   const wasOverlay = useRef(false);
   useEffect(() => {
@@ -117,11 +118,11 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
     if (moved.current > 8 || busy.current) return;
     busy.current = true; pan.current.tx = 0; pan.current.ty = 0; setZoomClass(true); camTo(k); await wait(520);
     if (k === 'book') { setBookState('opening'); return; }
-    if (k === 'table') { setTableOpen(true); return; }
+    if (k === 'shelf') { setShelfMode(true); return; }
     if (k === 'door') onOpenShop(); else onOpenDeck();
     // busy stays true until the screen opened over the room closes (see the overlayOpen effect)
   };
-  const closeTable = async () => { setTableOpen(false); await wait(380); camTo(null); await wait(620); setZoomClass(false); busy.current = false; };
+  const closeShelf = async () => { setShelfMode(false); camTo(null); await wait(640); setZoomClass(false); busy.current = false; };
   const closeBook = async () => {
     setBookState('closed'); await wait(700); camTo(null); await wait(620); setZoomClass(false); busy.current = false;
   };
@@ -138,6 +139,8 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
           background:linear-gradient(#6d4523,#3b2311); border:2px solid #d9b25a; box-shadow:0 3px 9px rgba(0,0,0,.65), inset 0 2px 0 rgba(255,235,170,.35); text-shadow:0 1px 1px #000; pointer-events:none; transition:opacity .25s; }
         .room-plaque i { font-style:normal; margin-left:8px; font-size:15px; background:linear-gradient(#f6d77a,#b5842a); color:#2a1606; padding:1px 9px; border-radius:12px; text-shadow:none; }
         .room-zoomed .room-plaque, .room-zoomed .room-glow { opacity:0 !important; animation:none; }
+        @keyframes roomstockin { from { opacity:0 } to { opacity:1 } }
+        .room-stack-label { position:absolute; text-align:center; font-family:'Cinzel',serif; font-weight:700; font-size:6.5px; letter-spacing:.12em; color:#ffe9b0; text-shadow:0 1px 2px #000; pointer-events:none; }
         .room-glow { position:absolute; border-radius:46%; background:radial-gradient(closest-side, rgba(255,214,120,.5), rgba(255,190,80,.15) 60%, transparent 78%); mix-blend-mode:screen; animation:roompulse 2.6s ease-in-out infinite; pointer-events:none; transition:opacity .25s; }
         .room-chip { border:1px solid rgba(217,178,90,.55); background:rgba(14,10,6,.62); color:#ffe9b0; border-radius:10px; padding:7px 12px; font-family:'Cinzel',serif; font-size:11px; letter-spacing:.1em; font-weight:700; backdrop-filter:blur(4px); }
       `}</style>
@@ -148,6 +151,22 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
             <img src={roomImage} alt="" draggable={false} style={{ position: 'absolute', left: 0, top: 0, width: SW, height: SH, display: 'block' }} />
             {/* light that moves: the torches, the lantern, the candles */}
             <div style={flame(235, 190, 64)} /><div style={flame(538, 196, 64, 0.2)} /><div style={flame(610, 545, 70, 0.4)} /><div style={flame(316, 548, 46, 0.1)} /><div style={flame(745, 1205, 48, 0.3)} />
+            {/* the booster shelf: each kind of booster is a stack going back into the shelf (a little smaller, higher and darker the farther back), the one
+                in front is taken and the next slides forward: the stock never runs out */}
+            {packs.map((pk, t) => {
+              const PW = 31, PH = PW / PACK_ASPECT, plankY = [896, 960, 1020, 1085, 832][t % 5], cx = 112 + (t >= 5 ? 90 : 0), base = served[pk.id] ?? 0;
+              return [0, 1, 2, 3].map(j => {
+                const serial = base + j, sc = 1 - j * 0.075;
+                return (
+                  <button key={`${pk.id}-${serial}`} aria-label={`Pegar ${pk.name}`} onClick={() => { if (moved.current > 8) return; if (shelfMode) setOpeningPack(pk.id); else void tap('shelf')(); }}
+                    style={{ position: 'absolute', left: cx - PW / 2 + j * 3.2, top: plankY - 1 - PH * sc - j * 3.4, width: PW * sc, height: PH * sc, margin: 0, padding: 0, border: 0, background: 'none',
+                      filter: `brightness(${(1 - j * 0.13).toFixed(2)})`, zIndex: 10 - j, transition: 'left .5s cubic-bezier(.2,.9,.25,1), top .5s cubic-bezier(.2,.9,.25,1), width .5s cubic-bezier(.2,.9,.25,1), height .5s cubic-bezier(.2,.9,.25,1), filter .5s', animation: j === 3 ? 'roomstockin .6s ease both' : undefined }}>
+                    {pk.art}
+                  </button>
+                );
+              });
+            })}
+            {shelfMode && packs.map((pk, t) => <div key={`l${pk.id}`} className="room-stack-label" style={{ left: 112 - 40, top: [896, 960, 1020, 1085, 832][t % 5] + 3, width: 80 }}>{pk.name.replace('Booster ', '').toUpperCase()}</div>)}
             {/* what can be tapped */}
             {(Object.keys(SPOTS) as SpotKey[]).map(k => {
               const s = SPOTS[k];
@@ -155,7 +174,7 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
                 <div key={k}>
                   <div className="room-glow" style={{ left: s.x, top: s.y, width: s.w, height: s.h }} />
                   <button data-spot={k} aria-label={s.label} onClick={tap(k)} style={{ position: 'absolute', left: s.x, top: s.y, width: s.w, height: s.h, background: 'none', border: 0, padding: 0 }} />
-                  <div className="room-plaque" style={{ left: s.lx, top: s.ly }}>{s.label}{k === 'book' && <i>{entries.length}/{entries.length}</i>}{k === 'table' && <i>{packs.length}</i>}</div>
+                  <div className="room-plaque" style={{ left: s.lx, top: s.ly }}>{s.label}{k === 'book' && <i>{entries.length}/{entries.length}</i>}{k === 'shelf' && <i>∞</i>}</div>
                 </div>
               );
             })}
@@ -166,16 +185,23 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
       <canvas ref={dustRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', mixBlendMode: 'screen' }} />
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse at 50% 46%, transparent 40%, rgba(0,0,0,.5) 100%)' }} />
 
-      <div data-ui style={{ position: 'absolute', left: 0, right: 0, top: 0, padding: 'max(10px, env(safe-area-inset-top)) 12px 8px', display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'none', opacity: tableOpen ? 0 : 1, transition: 'opacity .3s' }}>
+      <div data-ui style={{ position: 'absolute', left: 0, right: 0, top: 0, padding: 'max(10px, env(safe-area-inset-top)) 12px 8px', display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'none', opacity: shelfMode ? 0 : 1, transition: 'opacity .3s' }}>
         <button className="room-chip" style={{ pointerEvents: 'auto' }} onClick={onClose}>‹ MENU</button>
         <div style={{ flex: 1, textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.2em', color: '#ffe9b0', textShadow: '0 1px 3px #000' }}>SALA DE COLEÇÃO</div>
         <div className="room-chip" style={{ opacity: 0 }}>‹ MENU</div>
       </div>
-      {hint && bookState === 'closed' && !tableOpen && <div style={{ position: 'absolute', left: 0, right: 0, bottom: 'max(10px, env(safe-area-inset-bottom))', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.14em', color: 'rgba(255,233,176,.7)', textShadow: '0 1px 2px #000', pointerEvents: 'none' }}>ARRASTE PARA OLHAR EM VOLTA · TOQUE NOS OBJETOS</div>}
+      {hint && bookState === 'closed' && !shelfMode && <div style={{ position: 'absolute', left: 0, right: 0, bottom: 'max(10px, env(safe-area-inset-bottom))', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.14em', color: 'rgba(255,233,176,.7)', textShadow: '0 1px 2px #000', pointerEvents: 'none' }}>ARRASTE PARA OLHAR EM VOLTA · TOQUE NOS OBJETOS</div>}
       {toast && <div style={{ position: 'absolute', left: '50%', top: 64, transform: 'translateX(-50%)', padding: '9px 14px', borderRadius: 10, background: 'rgba(14,10,6,.9)', border: '1px solid #d9b25a', color: '#ffe9b0', fontSize: 12, whiteSpace: 'nowrap' }}>{toast}</div>}
 
-      {tableOpen && <PackFan packs={packs} onOpenPack={setOpeningPack} onClose={closeTable} />}
-      {openingPack && renderOpening(openingPack, () => setOpeningPack(null))}
+      {shelfMode && (
+        <div data-ui style={{ position: 'absolute', left: 0, right: 0, top: 0, padding: 'max(10px, env(safe-area-inset-top)) 12px 8px', display: 'flex', alignItems: 'center', gap: 8, zIndex: 30 }}>
+          <button className="room-chip" onClick={closeShelf}>‹ SALA</button>
+          <div style={{ flex: 1, textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.2em', color: '#ffe9b0', textShadow: '0 1px 3px #000' }}>BOOSTERS</div>
+          <div className="room-chip" style={{ opacity: 0 }}>‹ SALA</div>
+        </div>
+      )}
+      {shelfMode && <div style={{ position: 'absolute', left: 0, right: 0, bottom: 'max(14px, env(safe-area-inset-bottom))', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 10.5, letterSpacing: '0.16em', color: 'rgba(255,233,176,.8)', textShadow: '0 1px 2px #000', pointerEvents: 'none', zIndex: 30 }}>TOQUE NUM PACOTE PARA ABRIR</div>}
+      {openingPack && renderOpening(openingPack, () => { setServed(m => ({ ...m, [openingPack]: (m[openingPack] ?? 0) + 1 })); setOpeningPack(null); })}
       {bookState !== 'closed' && <Binder entries={entries} opening={bookState === 'opening'} onOpened={() => setBookState('open')} onClose={closeBook} />}
     </div>
   );
@@ -442,73 +468,7 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
   );
 }
 
-// ───────────────────────────── the boosters, fanned like a hand of cards ─────────────────────────────
-// Tapping the round table pushes the camera toward it, the room goes dim behind (it is the real room, floor and all), and the boosters the player
-// has are held up in a fan, like a hand of cards: the one in the middle is big and in front, the others fan out behind it, a little visible. Swipe
-// to bring another to the front, tap the front one to open it. Only the few around the front one are drawn, so it works for any number of them.
 const PACK_ASPECT = 512 / 882;
-function PackFan({ packs, onOpenPack, onClose }: { packs: RoomPack[]; onOpenPack: (id: string) => void; onClose: () => void }) {
-  const [shown, setShown] = useState(false);
-  const [focus, setFocus] = useState(0);
-  useEffect(() => { const r = requestAnimationFrame(() => requestAnimationFrame(() => setShown(true))); return () => cancelAnimationFrame(r); }, []);
-  const W = window.innerWidth, H = window.innerHeight, packW = Math.min(W * 0.46, 190), packH = packW / PACK_ASPECT, N = packs.length;
-  const els = useRef<(HTMLButtonElement | null)[]>([]);
-  const f = useRef(0);                          // where the fan is (a float: between two packs while it moves)
-  const drag = useRef<null | { x: number; f0: number; t: number; lx: number; v: number; moved: number }>(null);
-  const anim = useRef(0);
-  const STEP = 15;                              // degrees between neighbours in the fan
-  const place = () => {
-    const cur = f.current;
-    els.current.forEach((el, i) => {
-      if (!el) return;
-      const d = i - cur, ad = Math.abs(d);
-      if (ad > 4.6) { el.style.display = 'none'; return; }
-      el.style.display = '';
-      const th = clamp(d, -5, 5) * STEP, sc = 1 - Math.min(ad, 3) * 0.075;
-      el.style.transform = `translate(-50%, 0) rotate(${th.toFixed(2)}deg) scale(${sc.toFixed(3)})`;
-      el.style.zIndex = String(100 - Math.round(ad * 10));
-      el.style.opacity = String(clamp(1.6 - Math.max(0, ad - 2.6) * 0.8, 0, 1));
-      el.style.filter = ad < 0.5 ? 'drop-shadow(0 16px 18px rgba(0,0,0,.7))' : `drop-shadow(0 8px 8px rgba(0,0,0,.6)) brightness(${(1 - Math.min(ad, 3) * 0.12).toFixed(2)})`;
-    });
-    setFocus(clamp(Math.round(cur), 0, N - 1));
-  };
-  useEffect(() => { place(); }, [N, shown]);
-  const glide = (to: number, ms = 480) => { cancelAnimationFrame(anim.current); const from = f.current, s0 = performance.now(); const step = (n: number) => { const u = clamp((n - s0) / ms, 0, 1), e = 1 - Math.pow(1 - u, 3); f.current = from + (to - from) * e; place(); if (u < 1) anim.current = requestAnimationFrame(step); }; anim.current = requestAnimationFrame(step); };
-  useEffect(() => () => cancelAnimationFrame(anim.current), []);
-  const down = (e: RPointerEvent) => { cancelAnimationFrame(anim.current); drag.current = { x: e.clientX, f0: f.current, t: performance.now(), lx: e.clientX, v: 0, moved: 0 }; };
-  const move = (e: RPointerEvent) => {
-    const d = drag.current; if (!d) return; const dx = e.clientX - d.x; d.moved = Math.max(d.moved, Math.abs(dx));
-    const now = performance.now(); d.v = (e.clientX - d.lx) / Math.max(1, now - d.t); d.lx = e.clientX; d.t = now;
-    f.current = clamp(d.f0 - dx / (packW * 0.5), -0.3, N - 0.7); place();
-  };
-  const up = () => { const d = drag.current; if (!d) return; drag.current = null; if (d.moved < 8) return; let to = Math.round(f.current); if (Math.abs(d.v) > 0.4) to = Math.round(f.current - d.v * 2.2); glide(clamp(to, 0, N - 1), 520); };
-  const tapPack = (i: number) => { if (drag.current && drag.current.moved >= 8) return; if (i === Math.round(f.current)) onOpenPack(packs[i].id); else glide(i, 520); };
-  const pk = packs[focus];
-  return (
-    <div onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
-      style={{ position: 'absolute', inset: 0, zIndex: 30, touchAction: 'none', background: 'linear-gradient(rgba(6,4,3,.5), rgba(6,4,3,.78))', opacity: shown ? 1 : 0, transition: 'opacity .5s' }}>
-      <div style={{ position: 'absolute', left: 0, right: 0, top: 0, padding: 'max(10px, env(safe-area-inset-top)) 12px 8px', display: 'flex', alignItems: 'center', gap: 8, pointerEvents: 'none' }}>
-        <button className="room-chip" style={{ pointerEvents: 'auto' }} onClick={onClose}>‹ SALA</button>
-        <div style={{ flex: 1, textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.2em', color: '#ffe9b0' }}>BOOSTERS · {N}</div>
-        <div className="room-chip" style={{ opacity: 0 }}>‹ SALA</div>
-      </div>
-      {/* the hand of boosters: every pack hangs from a point below the middle, so turning them spreads them in a fan */}
-      <div style={{ position: 'absolute', left: '50%', top: '47%', width: 0, height: 0, transform: shown ? 'none' : 'translateY(60px)', transition: 'transform .7s cubic-bezier(.2,.9,.25,1)' }}>
-        {packs.map((p, i) => (
-          <button key={p.id} ref={el => { els.current[i] = el; }} aria-label={`Abrir ${p.name}`} onClick={() => tapPack(i)}
-            style={{ position: 'absolute', left: 0, top: -packH / 2, width: packW, height: packH, margin: 0, padding: 0, border: 0, background: 'none', transformOrigin: `50% ${packH * 1.55}px`, willChange: 'transform', display: 'none' }}>
-            {p.art}
-          </button>
-        ))}
-      </div>
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 'max(70px, calc(env(safe-area-inset-bottom) + 56px))', textAlign: 'center', pointerEvents: 'none' }}>
-        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 15, letterSpacing: '.14em', color: '#ffe9b0', textShadow: '0 2px 6px #000' }}>{pk?.name.toUpperCase()}</div>
-        <div style={{ marginTop: 5, fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '.2em', color: 'rgba(255,233,176,.6)' }}>{focus + 1} DE {N}</div>
-      </div>
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 'max(16px, env(safe-area-inset-bottom))', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 10.5, letterSpacing: '0.16em', color: 'rgba(255,233,176,.7)', pointerEvents: 'none' }}>{N > 1 ? 'DESLIZE PARA ESCOLHER · TOQUE NO PACOTE DA FRENTE PARA ABRIR' : 'TOQUE NO PACOTE PARA ABRIR'}</div>
-    </div>
-  );
-}
 
 // The plastic's glint moves a little with the page and with time (written to a css variable, no React renders).
 function SheenDriver({ root, pos }: { root: RefObject<HTMLDivElement | null>; pos: MutableRefObject<number> }) {
