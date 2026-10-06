@@ -88,6 +88,7 @@ async function main() {
     ch.on('exit', () => res());
   })));
   const out = process.env.OUT ?? 'balance-out/lab';
+  if (patchFile && `${out}.json` === patchFile) throw new Error('OUT would overwrite the patch file: give the result another name');
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(`${out}.json`, JSON.stringify({ name: patch?.name ?? 'Catálogo atual', patch, games: all, recipes: JSON.parse(JSON.stringify(DECK_RECIPES)), defs: JSON.parse(JSON.stringify(CARD_DEFS)) }));
   const cw = all.filter(g => g.winner !== null && g.seats[g.winner].deck === 'cardeal').length, cp = all.filter(g => g.winner !== null && g.seats[g.winner].deck === 'capitao').length;

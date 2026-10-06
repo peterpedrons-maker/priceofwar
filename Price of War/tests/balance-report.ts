@@ -1,5 +1,5 @@
 // Turns the JSON(s) written by `tests/balance-lab.ts` into one self-contained page (works on a phone):
-//   BASE=balance-out/base.json [VARIANT=balance-out/p1.json] OUT=balance-out/report.html npx tsx tests/balance-report.ts
+//   BASE=balance-out/base.json [VARIANTS=a.json,b.json] [DETAIL=cenario.json: the one whose per-card tables are shown] OUT=balance-out/report.html npx tsx tests/balance-report.ts
 import { readFileSync, writeFileSync } from 'node:fs';
 
 type Per = { deck: string; won: boolean; generalHp: number; drawn: Record<string, number>; played: Record<string, number>; abilities: Record<string, number>; dmg: Record<string, number>; kills: Record<string, number> };
@@ -41,14 +41,16 @@ function summarize(lab: Lab) {
     const types: Record<string, number> = {};
     cards.forEach(c => { types[c.type] = (types[c.type] ?? 0) + c.copies; });
     const avgCost = cards.reduce((a, c) => a + c.cost * c.copies, 0) / total;
-    decks[id] = { id, name: recipe.name, general: recipe.general, total, types, avgCost, wr: base.wr, wrSe: se(base.wr, n), margin: base.margin, cards };
+    const dmgPerGame = mean(rows.map(r => Object.values(r.me.dmg).reduce((a, b) => a + b, 0)));
+    decks[id] = { id, dmgPerGame, name: recipe.name, general: recipe.general, total, types, avgCost, wr: base.wr, wrSe: se(base.wr, n), margin: base.margin, cards };
   }
   return { name: lab.name, patch: lab.patch, n, undecided: n - decided.length, rounds: mean(rounds), hist, firstWinRate: decided.length ? firstWins / decided.length : 0,
     cardeal: wins('cardeal') / Math.max(1, decided.length), capitao: wins('capitao') / Math.max(1, decided.length), decks };
 }
 
 const base = summarize(load(process.env.BASE ?? 'balance-out/base.json'));
-const variant = process.env.VARIANT ? summarize(load(process.env.VARIANT)) : null;
+const detail = process.env.DETAIL ? summarize(load(process.env.DETAIL)) : base;
+const variants = (process.env.VARIANTS ?? process.env.VARIANT ?? '').split(',').filter(Boolean).map(f => summarize(load(f)));
 const html = `<title>Laboratório de Balanceamento</title>
 <style>
 /* panel layout: summary tiles, then one sortable table per deck */
@@ -72,7 +74,7 @@ td:first-child,th:first-child{text-align:left;position:sticky;left:0;background:
 <p class="s">Partidas IA × IA (a IA planejadora nos dois lados, cadeiras e quem começa alternando). A IA joga diferente de uma pessoa: os números mostram tendências, não verdades.</p>
 <div id="root"></div>
 <script>
-const BASE=${JSON.stringify(base)}, VARIANT=${JSON.stringify(variant)};
+const BASE=${JSON.stringify(base)}, DETAIL=${JSON.stringify(detail)}, VARIANTS=${JSON.stringify(variants)};
 const pct=(x,d=0)=>(100*x).toFixed(d)+'%', sg=(x,d=1)=>(x>0?'+':'')+x.toFixed(d);
 function summary(S){
   const h=Object.keys(S.hist).map(Number).sort((a,b)=>a-b), mx=Math.max(...Object.values(S.hist));
@@ -99,17 +101,27 @@ function deckTable(D,V){
   };
   setTimeout(render,0);
   const ty=Object.entries(D.types).map(([k,v])=>v+' '+k.toLowerCase()).join(' · ');
-  return '<h2>'+D.name+' — '+pct(D.wr)+' de vitórias</h2><p class="s">'+D.total+' cartas · custo médio '+D.avgCost.toFixed(2)+' · '+ty+'. Δ vitória = quanto a vitória sobe (ou cai) nas partidas em que a carta foi comprada, comparado às que não. Vermelho/verde = diferença que não é acaso. Clique no título da coluna para ordenar.</p><div class="wrap"><table id="t-'+D.id+'"></table></div>';
+  return '<h2>'+D.name+' — '+pct(D.wr)+' de vitórias <span class="tag">'+DETAIL.name+'</span></h2><p class="s">'+D.total+' cartas · custo médio '+D.avgCost.toFixed(2)+' · '+ty+'. Δ vitória = quanto a vitória sobe (ou cai) nas partidas em que a carta foi comprada, comparado às que não. Vermelho/verde = diferença que não é acaso. Clique no título da coluna para ordenar.</p><div class="wrap"><table id="t-'+D.id+'"></table></div>';
 }
-function compare(B,V){
-  const r=(l,a,b,f)=>'<tr><td>'+l+'</td><td>'+f(a)+'</td><td>'+f(b)+'</td><td>'+sg(100*(b-a),0)+' pp</td></tr>';
-  return '<h2>Antes × depois: '+V.name+'</h2><div class="wrap"><table><thead><tr><th>Medida</th><th>Antes</th><th>Depois</th><th>Mudança</th></tr></thead><tbody>'+
-    r('Cardeal vence',B.cardeal,V.cardeal,pct)+r('Capitão vence',B.capitao,V.capitao,pct)+r('Quem começa vence',B.firstWinRate,V.firstWinRate,pct)+
-    '<tr><td>Rodadas por partida</td><td>'+B.rounds.toFixed(1)+'</td><td>'+V.rounds.toFixed(1)+'</td><td>'+sg(V.rounds-B.rounds)+'</td></tr></tbody></table></div>';
+function changes(S){
+  const p=S.patch; if(!p) return '<i>nada mudou</i>';
+  const L=[];
+  Object.entries(p.cards||{}).forEach(([n,d])=>{const x=[];if(d.atk!==undefined)x.push('ATK '+d.atk);if(d.hp!==undefined)x.push('HP '+d.hp);if(d.cost!==undefined)x.push('custo '+d.cost);if(d.abilityCost!==undefined)x.push('habilidade custa '+d.abilityCost);L.push(n+': '+x.join(', '));});
+  Object.entries(p.decks||{}).forEach(([id,c])=>Object.entries(c).forEach(([n,k])=>L.push((id==='capitao'?'Capitão':'Cardeal')+': '+n+' → '+k+' cópia'+(k===1?'':'s'))));
+  return L.join('<br>');
+}
+function compare(B,Vs){
+  const all=[B,...Vs];
+  const row=(l,f)=>'<tr><td>'+l+'</td>'+all.map(S=>'<td>'+f(S)+'</td>').join('')+'</tr>';
+  return '<h2>Lado a lado</h2><div class="wrap"><table><thead><tr><th>Medida</th>'+all.map((S,i)=>'<th style="white-space:normal;text-align:right">'+(i?S.name:'Hoje')+'</th>').join('')+'</tr></thead><tbody>'+
+    row('Cardeal vence',S=>pct(S.cardeal))+row('Capitão vence',S=>pct(S.capitao))+row('Quem começa vence',S=>pct(S.firstWinRate))+row('Rodadas por partida',S=>S.rounds.toFixed(1))+
+    row('Dano por partida (Cardeal)',S=>S.decks.cardeal.dmgPerGame.toFixed(1))+row('Dano por partida (Capitão)',S=>S.decks.capitao.dmgPerGame.toFixed(1))+
+    row('Cartas no deck (Cardeal / Capitão)',S=>S.decks.cardeal.total+' / '+S.decks.capitao.total)+row('Partidas simuladas',S=>S.n)+
+    '<tr><td style="vertical-align:top">O que mudou</td>'+all.map(S=>'<td style="white-space:normal;font-size:12px;vertical-align:top">'+changes(S)+'</td>').join('')+'</tr></tbody></table></div>';
 }
 let h=summary(BASE);
-if(VARIANT) h+=compare(BASE,VARIANT);
-Object.keys(BASE.decks).forEach(id=>{h+=deckTable(VARIANT?VARIANT.decks[id]:BASE.decks[id],null);});
+if(VARIANTS.length) h+=compare(BASE,VARIANTS);
+Object.keys(BASE.decks).forEach(id=>{h+=deckTable(DETAIL.decks[id],null);});
 document.getElementById('root').innerHTML=h;
 </script></main>`;
 writeFileSync(process.env.OUT ?? 'balance-out/report.html', html);

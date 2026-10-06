@@ -32,7 +32,7 @@ Todo jogador começa com os dois baralhos prontos: Cardeal no slot 1 e Capitão 
 Três peças, todas em `tests/`, que rodam sem tela e sem mexer no jogo:
 
 1. **`balance-lab.ts`** joga muitas partidas Cardeal × Capitão (IA planejadora dos dois lados, cadeiras e quem começa alternando, 4 processos em paralelo, ~2 partidas por segundo no total) e grava o que cada carta fez: quantas vezes foi comprada, jogada, usada, quanto dano causou, quantos abates, e como terminou a partida (vencedor, vida final do General, rodadas).
-   `N=150 OUT=balance-out/base npx tsx tests/balance-lab.ts` (300 partidas, uns 3 minutos).
+   `N=150 OUT=balance-out/base npx tsx tests/balance-lab.ts` (o `OUT` não pode ter o mesmo nome do patch: o resultado sobrescreveria o arquivo) (300 partidas, uns 3 minutos).
 2. **Patches ("e se...")**: um JSON com as mudanças, aplicado só na simulação (nada muda no jogo). `PATCH=balance-out/p1.json`:
    `{ "name": "Mercador custa 2", "cards": { "Mercador da Cruzada": { "abilityCost": 2 } }, "decks": { "capitao": { "Reformar Linhas": 2 } } }`.
    Em `cards`: `atk`, `hp`, `cost`, `abilityCost`, `abilityOnce` (valores absolutos). Em `decks`: cópias da carta na receita (0 tira).
@@ -44,3 +44,17 @@ Limites: a IA joga diferente de uma pessoa, então os números mostram tendênci
 ### Primeira medição (300 partidas, catálogo atual)
 - Cardeal 97% × Capitão 3%; quem começa vence 49%; partidas duram 3,8 rodadas (a maioria acaba na 3ª ou 4ª).
 - Dano por partida: Cardeal 24,6 × Capitão 8,0. O Cardeal causa dano com Trabuco de Cerco, Catapulta, Cavaleiro da Luz, Jorge e Comandante; o Capitão (posição e reação) quase não tem como ferir o General.
+
+### Cenários testados (200 partidas cada, IA × IA; % de vitórias do Capitão)
+| Cenário | Capitão vence | Rodadas |
+|---|---|---|
+| Hoje | 3% | 3,8 |
+| A · só o Capitão sobe (+1 ATK nas unidades) | 5% | 4,3 |
+| B · só o Cardeal desce (-1 HP nos cavaleiros, 1 Trabuco, 2 Catapultas) | 4% | 4,5 |
+| C · os dois um pouco | 8% | 4,4 |
+| D · decks de 50 cartas (Capitão sem as piores, Cardeal sem 8 boas) | 14% | 5,4 |
+| E · D + unidades do Capitão com +1 HP | 39% | 6,1 |
+| F · D + unidades do Capitão com +1/+1 | 52% | 5,3 |
+| G · F + cavaleiros do Cardeal com -1 HP | 59% | 5,3 |
+
+Leitura: mexer só nos atributos quase não muda nada; o que mais pesa é enxugar os baralhos e dar corpo às unidades do Capitão (que tinham 1 ponto a menos que as do Cardeal pelo mesmo custo e sofrem mais com o dano em área). Os patches estão em `balance-out/p1..p7.json` (pasta ignorada pelo git; ficam registrados dentro de cada resultado).
