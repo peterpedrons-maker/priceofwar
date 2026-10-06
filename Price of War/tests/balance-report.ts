@@ -107,6 +107,7 @@ function changes(S){
   const p=S.patch; if(!p) return '<i>nada mudou</i>';
   const L=[];
   Object.entries(p.cards||{}).forEach(([n,d])=>{const x=[];if(d.atk!==undefined)x.push('ATK '+d.atk);if(d.hp!==undefined)x.push('HP '+d.hp);if(d.cost!==undefined)x.push('custo '+d.cost);if(d.abilityCost!==undefined)x.push('habilidade custa '+d.abilityCost);if(d.set)x.push('efeito reescrito ('+Object.keys(d.set).join(', ')+')');if(d.merge)x.push('efeito ajustado');L.push(n+': '+x.join(', '));});
+  if(p.rules)Object.entries(p.rules).forEach(([k,v])=>L.push(({startGold:'Ouro inicial',goldPerTurn:'Ouro por turno',goldFromRound:'Ouro a partir da rodada',combatFromRound:'Combate a partir da rodada'})[k]+': '+v));
   Object.entries(p.decks||{}).forEach(([id,c])=>Object.entries(c).forEach(([n,k])=>L.push((id==='capitao'?'Capitão':'Cardeal')+': '+n+' → '+k+' cópia'+(k===1?'':'s'))));
   return L.join('<br>');
 }

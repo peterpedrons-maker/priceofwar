@@ -4,10 +4,14 @@ import { getCardDef } from './catalog';
 import type { Ability, AbilityOn, Card, CardType, Passive, TargetSpec, TurnPhase, Verb, Who } from './types';
 
 // ── Match economy ───────────────────────────────────────────────────────────
-export const START_GOLD = 15;
+// The balance lab (tests/balance-lab.ts) can try other values by setting `globalThis.__POW_RULES__` before this file loads; the game never does.
+const R = (globalThis as { __POW_RULES__?: Partial<Record<'startGold' | 'goldPerTurn' | 'goldFromRound' | 'combatFromRound', number>> }).__POW_RULES__ ?? {};
+export const START_GOLD = R.startGold ?? 15;
 export const START_HAND = 7;
-export const GOLD_PER_TURN = 5;
-export const GOLD_FROM_ROUND = 2;
+export const GOLD_PER_TURN = R.goldPerTurn ?? 5;
+export const GOLD_FROM_ROUND = R.goldFromRound ?? 2;
+// From this round on both seats can attack (before it, only the seat that does not start can, from round 1).
+export const COMBAT_FROM_ROUND = R.combatFromRound ?? 2;
 export const HAND_LIMIT = 10;
 
 // The few fields the board rules read. The engine's Card and the client's CardData both satisfy it, so the

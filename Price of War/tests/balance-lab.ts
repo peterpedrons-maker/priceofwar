@@ -5,8 +5,10 @@
 //   N=100 PATCH=balance-out/patch1.json OUT=balance-out/p1 npx tsx ...        → the same with a patch applied (what-if, nothing changes in the game)
 //
 // A patch is plain JSON:  { "name": "Mercador custa 2", "cards": { "Mercador da Cruzada": { "abilityCost": 2, "atk": 1 } },
+//                           "rules": { "goldPerTurn": 4, "startGold": 10, "goldFromRound": 2, "combatFromRound": 3 },
 //                           "decks": { "capitao": { "Reformar Linhas": 2 } } }
 // cards: atk / hp / cost / abilityCost / abilityOnce (absolute values) · merge: { "abilities.0.do.0": { "atk": 2 } } changes fields of an effect · decks: copies of a card in the recipe (0 removes it).
+import './balance-rules-preload';
 import { fork } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';

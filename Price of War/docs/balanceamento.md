@@ -119,3 +119,17 @@ Fica determinado assim; outras revisões (Mercador e cartas de comprar carta, no
 - **Efeitos novos**: Capitão de Formação +2 ATK aos lados; Batedor +1 ATK para sempre a cada ataque que sobrevive; Cavaleiro Tático dá +1 ATK aos aliados ao lado ao se mover; Lanceiro de Controle -2 ATK no inimigo à frente; Escudeiro de Linha recebe -1 de dano (e a carta de trás também, na Vanguarda); Veterano de Guerra +1 ATK na Vanguarda (além do +2 central); Avanço Coordenado custa 1 e dá +3 ATK; Reformar Linhas também compra 1 carta; Linha Fechada protege 2; Estandarte da Legião dá +1/+1 em combate às cartas em campo; Bloqueio Instantâneo custa 1; General Aurelion dá +2/+1.
 - Não entraram (testados em O3): Pântano/Fortaleza mais fortes e o ataque duplo do Cavaleiro Tático.
 - `LEGACY_STARTERS` guarda as listas antigas de cada deck (a original e a da primeira rodada): quem ainda tem uma delas sem editar recebe a nova lista ao abrir o jogo.
+
+### Duração das partidas (rodada 5: 80 a 200 partidas cada; Capitão vence / rodada média em que a partida acaba)
+Base: catálogo final (O2), General com 20 de vida: 39,5% / 5,5. O laboratório agora aceita `rules` no patch (`startGold`, `goldPerTurn`, `goldFromRound`, `combatFromRound`), lidos por `rules.ts` só quando `globalThis.__POW_RULES__` existe (o jogo nunca define).
+| Cenário | Capitão vence | Rodada média |
+|---|---|---|
+| General com 25 de vida | 36,5% | 6,4 |
+| General com 30 de vida | 37,5% | 6,9 |
+| 30 de vida + 4 de ouro por turno (era 5) | 42% | 7,2 |
+| 30 de vida + 3 de ouro por turno | 52% | 7,3 |
+| 30 de vida + dano em área de 1 (Trabuco e Catapulta) | 56% | 7,3 |
+| 30 de vida + ouro inicial 10 (era 15) e 4 por turno | 47,5% | 8,0 |
+| 30 de vida + combate só a partir da rodada 3 | 38% | 8,4 |
+| 30 de vida + ouro 10/4 + combate a partir da rodada 3 | 49% | 8,4 |
+Nada disso está aplicado ao jogo.

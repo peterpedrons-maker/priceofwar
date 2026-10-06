@@ -10,7 +10,7 @@
 import { DECK_RECIPES, getCardDef, requireCardDef, type DeckId } from './catalog';
 import { pickRandom, seedFrom, shuffled } from './rng';
 import {
-  GOLD_FROM_ROUND, GOLD_PER_TURN, HAND_LIMIT, START_GOLD, START_HAND,
+  COMBAT_FROM_ROUND, GOLD_FROM_ROUND, GOLD_PER_TURN, HAND_LIMIT, START_GOLD, START_HAND,
   SOLDIER_TYPES, abilityOn, abilityPhases, adjacentSlots, areSlotsAdjacent, auraTotal, blocksAmbush, canPlaceInSlot, canReposition,
   getAuraCombatHpBonus, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction, getMaxAttacksPerTurn, getMoveRow,
   getValidAttackTargets, isBackline, isCardDamaged, isFrontline, isUnitSlot, locksGeneralOnDamage, reinforceShield, canReinforce,
@@ -90,7 +90,7 @@ const fail = (message: string): never => { throw new RuleError(message); };
 const log = (c: Ctx, seat: Seat, text: string, priv = false) => { c.ev.push(priv ? { t: 'log', seat, text, private: true } : { t: 'log', seat, text }); };
 const P = (c: Ctx, seat: Seat) => c.s.players[seat];
 
-export const combatOpen = (s: GameState): boolean => s.turn.round >= 2 || s.turn.active !== s.turn.first;
+export const combatOpen = (s: GameState): boolean => s.turn.round >= COMBAT_FROM_ROUND || (COMBAT_FROM_ROUND <= 2 && s.turn.active !== s.turn.first);
 export const activePhases = (s: GameState): TurnPhase[] => restingPhasesForTurn(combatOpen(s));
 
 // ── Small state helpers ─────────────────────────────────────────────────────
