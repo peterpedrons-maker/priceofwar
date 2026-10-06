@@ -5045,6 +5045,36 @@ export default function App() {
     });
     return () => { alive = false; };
   }, [session?.userId, profileTry]);
+  // The link `?colecao` is for sharing the Sala de Coleção: it signs in as a guest and picks a name by itself, so the visitor lands straight in the room.
+  const directBusy = useRef(false);
+  const directRoom = useRef(typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('colecao'));
+  useEffect(() => {
+    if (!directRoom.current || !authReady || session) return;
+    signInGuest().catch(() => { directRoom.current = false; });
+  }, [authReady, session]);
+  useEffect(() => {
+    if (!directRoom.current || directBusy.current || !session || profileNamed || profileLoading || profileError) return;
+    directBusy.current = true;
+    (async () => {
+      const avatarId = loadProfile().avatarId;
+      for (let i = 0; i < 6; i++) {
+        const name = `Visitante${Math.floor(1000 + Math.random() * 9000)}`;
+        if (authMode === 'supabase') {
+          const r = await createProfile(session.userId, name, avatarId);
+          if (r.ok === false) continue;
+          const row = r.data;
+          const syncErr = await syncDeckStoreWithCloud(session.userId);
+          if (syncErr) break;
+          saveProfile({ ...DEFAULT_PROFILE, name: row.username, avatarId: row.avatar_id, level: row.level, xp: row.xp, coroas: row.coroas, xpToNext: xpToNext(row.level), nameSet: true });
+        } else {
+          saveProfile({ ...loadProfile(), name, avatarId, nameSet: true });
+        }
+        setProfileNamed(true);
+        return;
+      }
+      directRoom.current = false; // could not do it by itself: the normal name screen takes over
+    })();
+  }, [session, profileNamed, profileLoading, profileError]);
   useEffect(() => {
     let alive = true;
     getSession().then(sn => { if (alive) { setSession(sn); setAuthReady(true); } }).catch(() => { if (alive) setAuthReady(true); });
@@ -7106,7 +7136,7 @@ export default function App() {
   }
 
   if (!authReady) return <div className="fixed inset-0 bg-black" />;
-  if (!session) return <LoginScreen />;
+  if (!session) return directRoom.current ? <div className="fixed inset-0 bg-black" /> : <LoginScreen />;
   if (authMode === 'supabase' && profileLoading) {
     return <div className="fixed inset-0 bg-black flex items-center justify-center text-[#cdbd97] text-[12px] uppercase tracking-[0.2em]" style={{ fontFamily: "'Cinzel', serif" }}>Carregando seu perfil…</div>;
   }
