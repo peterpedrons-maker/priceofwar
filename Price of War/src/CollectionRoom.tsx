@@ -206,7 +206,7 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
             <div className="room-title" style={{ left: 164, top: 438 }}><BookTitle size={11.5} count={`${entries.length}/${entries.length}`} /></div>
             <div className="room-title t-gold" style={{ left: 683, top: 383, fontSize: 27, letterSpacing: '.14em', paddingLeft: '.14em' }}>LOJA</div>
             <Plaque x={204} y={652} w={120} h={25} size={11} spacing=".3em">BOOSTERS</Plaque>
-            <Plaque x={604} y={1294} w={92} h={24} size={10.5} spacing=".22em" rot={-1.5}>MEU DECK</Plaque>
+            <Plaque x={592} y={1300} w={134} h={35} size={14.5} spacing=".2em" rot={-1.5}>MEU DECK</Plaque>
             {/* what can be tapped */}
             {(Object.keys(SPOTS) as SpotKey[]).map(k => {
               const s = SPOTS[k];
