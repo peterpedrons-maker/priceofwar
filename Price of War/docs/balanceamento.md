@@ -111,3 +111,11 @@ Capitão com 60 cartas: a lista própria antiga, trocando Reposicionamento Rápi
 | O1 | só táticas e Estandarte (Avanço Coordenado custa 1 e dá +3 ATK; Reformar Linhas compra 1; Linha Fechada -2; Estandarte +1/+1; Bloqueio Instantâneo custa 1) | 31,5% | 5,5 |
 | O2 | O1 + movimento (Capitão de Formação +2 aos lados, Batedor +1 ATK por ataque, Cavaleiro Tático +1 aos lados) e controle (Lanceiro -2 ATK no inimigo à frente, Escudeiro -1 de dano nele e na carta de trás, Veterano +1 ATK na Vanguarda) | 40% | 5,5 |
 | **O3** | O2 + Pântano -2 ATK, Fortaleza -2 de dano, Cavaleiro Tático ataca 2 vezes | **45%** | 4,9 |
+
+### Versão final aplicada ao jogo: O2 (decidida com o dono do jogo)
+Fica determinado assim; outras revisões (Mercador e cartas de comprar carta, novos decks) ficam para depois. Medido no catálogo real: **Capitão 39,5% × Cardeal 60,5%** (200 partidas IA × IA), 5,5 rodadas por partida.
+- **Cardeal**: sem mudança desde a versão L (1 Trabuco, 1 Catapulta, mais cartas médias; 60 cartas).
+- **Capitão (60 cartas)**: lista própria com Veterano de Guerra 4, Reposicionamento Rápido 1, Contra-Manobra 2, Formação Quebrada 2, e **2 Catapultas de Guerra, 2 Balestras de Precisão e 1 Trabuco de Cerco** emprestados. Linha Fechada, Fortaleza de Pedra e Pântano Maldito continuam no deck.
+- **Efeitos novos**: Capitão de Formação +2 ATK aos lados; Batedor +1 ATK para sempre a cada ataque que sobrevive; Cavaleiro Tático dá +1 ATK aos aliados ao lado ao se mover; Lanceiro de Controle -2 ATK no inimigo à frente; Escudeiro de Linha recebe -1 de dano (e a carta de trás também, na Vanguarda); Veterano de Guerra +1 ATK na Vanguarda (além do +2 central); Avanço Coordenado custa 1 e dá +3 ATK; Reformar Linhas também compra 1 carta; Linha Fechada protege 2; Estandarte da Legião dá +1/+1 em combate às cartas em campo; Bloqueio Instantâneo custa 1; General Aurelion dá +2/+1.
+- Não entraram (testados em O3): Pântano/Fortaleza mais fortes e o ataque duplo do Cavaleiro Tático.
+- `LEGACY_STARTERS` guarda as listas antigas de cada deck (a original e a da primeira rodada): quem ainda tem uma delas sem editar recebe a nova lista ao abrir o jogo.

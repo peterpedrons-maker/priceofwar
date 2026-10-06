@@ -26,21 +26,21 @@ Cartas com gatilho (Reforço, Postura, Comando, …) mostram a palavra automatic
 | Comandante Aurelion (General) | Após Remanejamento: até 2 unidades que se moveram ganham +2/+1 no próximo combate. Passiva: unidades adjacentes recebem -1 de dano. | **Fim do turno:** até 2 unidades que se moveram ganham +2/+1 no próximo combate. **Passiva:** Relíquia e Terreno recebem -1 de dano. |
 | Cardeal Pedro (General) | Fase Principal: pague 2 ouro para curar 1 HP em um soldado aliado, mesmo com HP cheio. | **Comando:** pague 2 de ouro: +1 HP a uma unidade aliada. |
 | Soldado Tático | Troca com aliado adjacente no fim do turno. | No fim do turno, troca de lugar com um aliado ao lado. |
-| Escudeiro de Linha | Postura: Na Vanguarda: a unidade logo atrás dele, na mesma coluna, recebe -1 de dano. | **Postura:** na Vanguarda, a carta atrás recebe -1 de dano. |
-| Capitão de Formação | Manobra: Adjacentes ganham +1 ATK. | **Manobra:** aliados ao lado ganham +1 ATK até o próximo turno. |
-| Batedor | Move após combate. | Depois de atacar, move-se 1 casa de graça. |
-| Lanceiro de Controle | Postura: Inimigo à sua frente recebe -1 ATK. | **Postura:** o inimigo à frente tem -1 ATK. |
-| Cavaleiro Tático | Troca com qualquer aliado na linha. | Troca de lugar com qualquer aliado da fileira. |
-| Veterano de Guerra | Postura: +2 ATK na coluna 3. | **Postura:** +2 ATK na coluna central. |
-| Reformar Linhas | Reorganiza até 3 unidades. | 3 movimentos extras neste turno. |
-| Avanço Coordenado | Após mover: +2 ATK. | +2 ATK a uma unidade que se moveu neste turno. |
+| Escudeiro de Linha | Postura: Na Vanguarda: a unidade logo atrás dele, na mesma coluna, recebe -1 de dano. | **Postura:** recebe -1 de dano. Na Vanguarda, a carta atrás também recebe -1 de dano. |
+| Capitão de Formação | Manobra: Adjacentes ganham +1 ATK. | **Manobra:** aliados ao lado ganham +2 ATK até o próximo turno. |
+| Batedor | Move após combate. | Depois de atacar, move-se 1 casa de graça e ganha +1 ATK para sempre. |
+| Lanceiro de Controle | Postura: Inimigo à sua frente recebe -1 ATK. | **Postura:** o inimigo à frente tem -2 ATK. |
+| Cavaleiro Tático | Troca com qualquer aliado na linha. | Troca de lugar com qualquer aliado da fileira. Ao se mover, aliados ao lado ganham +1 ATK até o próximo turno. |
+| Veterano de Guerra | Postura: +2 ATK na coluna 3. | **Postura:** +2 ATK na coluna central e +1 ATK na Vanguarda. |
+| Reformar Linhas | Reorganiza até 3 unidades. | 3 movimentos extras neste turno. Compre 1 carta. |
+| Avanço Coordenado | Após mover: +2 ATK. | +3 ATK a uma unidade que se moveu neste turno. |
 | Reposicionamento Rápido | Move inimigo 1 slot. | Mova um inimigo para um espaço livre ao lado. |
-| Linha Fechada | Adjacentes recebem menos dano. | -1 de dano, para sempre, nos aliados ao lado da unidade escolhida. |
+| Linha Fechada | Adjacentes recebem menos dano. | -2 de dano, para sempre, nos aliados ao lado da unidade escolhida. |
 | Ordem de Retirada | Move para a Retaguarda + cura. | Mova uma unidade da Vanguarda para a Retaguarda: +2 HP. |
 | Bloqueio Instantâneo | Cancela ataque se houver adjacente. | Cancela um ataque a uma unidade com aliado ao lado. |
 | Contra-Manobra | Troca posições durante o ataque. | Troca a unidade atacada com um aliado ao lado, que recebe o golpe. |
 | Formação Quebrada | Move inimigo aleatoriamente. | Move o atacante para um espaço livre aleatório. O ataque falha. |
-| Estandarte da Legião | Permanente. Todas as unidades aliadas ganham +1 ATK enquanto esta relíquia estiver no campo. | +1 ATK às suas unidades. |
+| Estandarte da Legião | Permanente. Todas as unidades aliadas ganham +1 ATK enquanto esta relíquia estiver no campo. | +1/+1 em combate às suas cartas em campo. |
 | Fortaleza de Pedra | Permanente. Unidades aliadas na Retaguarda recebem -1 de dano de ataques inimigos. | Suas unidades na Retaguarda: -1 de dano de ataques. |
 | Pântano Maldito | Permanente. Unidades inimigas na Vanguarda sofrem -1 ATK enquanto este terreno estiver no campo. | Inimigos na Vanguarda: -1 ATK. |
 | Cálice da Graça | Permanente. A cura do General Cardeal Pedro aumenta de 1 para 2 HP. | Seu General dá +2 HP em vez de +1. |
@@ -80,7 +80,7 @@ Cartas com gatilho (Reforço, Postura, Comando, …) mostram a palavra automatic
 - **Aurelion**: a passiva reduz o dano da **Relíquia e do Terreno**, não de "unidades adjacentes".
 - **Espada Longa** e **Couraça Reforçada** citam "Plebeu", um tipo que não existe no jogo. A Espada Longa só equipa Infantaria e Cavalaria; a Couraça, Infantaria e Arqueiro.
 - **Reforços Ocultos**: o bônus vai para a **unidade atacada**, não para "um soldado aliado".
-- **Linha Fechada**: o -1 de dano é **permanente** (acumula), e o texto não diz.
+- **Linha Fechada**: o -2 de dano é **permanente** (acumula), e o texto não diz.
 - **Reformar Linhas**: dá 3 movimentos extras (cada unidade ainda se move uma vez), não "reorganiza 3 unidades".
 - **Cálice da Graça / Cardeal Pedro / Retirada**: o jogo chama de "cura", mas é só +HP sem teto; os textos passam a dizer +HP. O **Recruta Devoto** continua dizendo "cura", porque só dispara com efeitos de cura (não com Armadura ou outros bônus de HP).
 - **Intendente do Exército**: é automático no início do turno, não "uma vez por turno" por ativação.

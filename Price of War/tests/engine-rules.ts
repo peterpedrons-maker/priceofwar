@@ -160,7 +160,7 @@ test('Avanço Coordenado is playable in Movimentação, units are not', () => {
   s = act(s, 0, { type: 'move', from: 1, to: 2 }).s;
   refused(s, 0, { type: 'play', cardId: other.id, slot: 3 }, 'Movimentação');
   s = act(s, 0, { type: 'play', cardId: av.id, target: 2 }).s;
-  eq(s.players[0].board[2]!.atk, 3);
+  eq(s.players[0].board[2]!.atk, 4); // Batedor 1 + 3
 });
 test('over the hand limit at the end of the turn: must discard down to the limit before the turn passes', () => {
   let s = fresh();
@@ -284,15 +284,15 @@ test('General dies -> the attacker wins', () => {
   eq(r.s.winner, 0);
   ok(r.ev.some(e => e.t === 'winner'), 'winner event');
 });
-test('Estandarte +1 ATK to allies, Veterano +2 in column 3, Lanceiro -1 to whoever faces it', () => {
+test('Estandarte +1 ATK to allies, Veterano +2 in column 3 and +1 in the Vanguarda, Lanceiro -2 to whoever faces it', () => {
   const s = combat(fresh());
   put(s, 0, 10, 'Estandarte da Legião');
-  put(s, 0, 2, 'Veterano de Guerra'); // 4 +1 (Estandarte) +2 (column 3) = 7
+  put(s, 0, 2, 'Veterano de Guerra'); // 4 +1 (Estandarte) +2 (column 3) +1 (Vanguarda) = 8
   put(s, 1, 2, 'Devotos da Cruzada').hp = 30;
   const r = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
-  eq(r.players[1].board[2]!.hp, 30 - 7);
+  eq(r.players[1].board[2]!.hp, 30 - 8);
   const l = combat(fresh());
-  put(l, 0, 2, 'Veterano de Guerra'); // 4 + 2 - 1 (Lanceiro facing it) = 5
+  put(l, 0, 2, 'Veterano de Guerra'); // 4 + 2 + 1 - 2 (Lanceiro facing it) = 5
   put(l, 1, 2, 'Lanceiro de Controle').hp = 30;
   eq(act(l, 0, { type: 'attack', from: 2, to: 2 }).s.players[1].board[2]!.hp, 30 - 5);
 });
@@ -311,7 +311,7 @@ test('Pântano Maldito (-1 ATK to the Vanguarda it faces); Fortaleza and Aurelio
   put(a, 0, 2, 'Cavaleiro da Luz');
   put(a, 1, 10, 'Estandarte da Legião'); a.players[1].board[10]!.hp = 30;
   // Aurelion's passive covers the relic/terrain slots next to it: 4 ATK - 1 = 3 (lane 1 is clear, so slot 10 is reachable)
-  eq(act(a, 0, { type: 'attack', from: 2, to: 10 }).s.players[1].board[10]!.hp, 27);
+  eq(act(a, 0, { type: 'attack', from: 2, to: 10 }).s.players[1].board[10]!.hp, 28); // ...and the Estandarte's own +1 combat HP soaks 1 more
 });
 test('Comandante da Ordem: Infantaria/Arqueiro allies +1 ATK and +1 HP during combat', () => {
   const s = combat(fresh());
@@ -371,7 +371,7 @@ test('an attack against a defender holding an Emboscada waits for its answer', (
   refused(r, 0, { type: 'advance' }, 'pendente');
   refused(r, 0, { type: 'ambush', cardId: null }, 'não é sua');
   const declined = act(r, 1, { type: 'ambush', cardId: null }).s;
-  eq([declined.pending, declined.players[1].board[2]], [null, null]); // 4 ATK kills the 2/4 Escudeiro
+  eq([declined.pending, declined.players[1].board[2]!.hp], [null, 1]); // 4 ATK -1 (Escudeiro's own protection) leaves the 2/4 Escudeiro on 1 HP
   eq(declined.players[1].hand.length, 1); // it kept the Emboscada
 });
 test('Bloqueio Instantâneo cancels the attack when the defender has an adjacent ally', () => {
@@ -402,7 +402,7 @@ test('Reforços Ocultos buffs the defender (+2/+1) before damage', () => {
   const { s, emb } = ambushSetup('Reforços Ocultos');
   let r = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
   r = act(r, 1, { type: 'ambush', cardId: emb.id }).s;
-  eq(r.players[1].board[2]!.hp, 4 + 1 - 4); // 4/4 Escudeiro +1 HP, takes 4
+  eq(r.players[1].board[2]!.hp, 4 + 1 - 3); // 4/4 Escudeiro +1 HP, takes 4 -1 (his own protection)
   eq(r.players[0].board[2]!.hp, 5 - 4); // defender ATK 2+2
 });
 test('Infiltrado da Ordem in the attacker Vanguarda stops the ambush prompt', () => {
@@ -442,10 +442,10 @@ test('Avanço Coordenado after a move; Linha Fechada; Ordem de Retirada', () => 
   s.turn.phase = 'preparacao';
   const av = give(s, 0, 'Avanço Coordenado');
   s = act(s, 0, { type: 'play', cardId: av.id, target: 2 }).s;
-  eq(s.players[0].board[2]!.atk, 3);
+  eq(s.players[0].board[2]!.atk, 4); // Batedor 1 + 3
   const lf = give(s, 0, 'Linha Fechada');
   s = act(s, 0, { type: 'play', cardId: lf.id, target: 2 }).s; // neighbours of slot 2: 1 (empty) and 3
-  eq(s.players[0].board[3]!.dmgReduction, 1);
+  eq(s.players[0].board[3]!.dmgReduction, 2);
   const or = give(s, 0, 'Ordem de Retirada');
   s = act(s, 0, { type: 'play', cardId: or.id, target: 3 }).s;
   eq([s.players[0].board[3], s.players[0].board[8]?.hp], [null, 5]);
@@ -579,10 +579,10 @@ test('swap with an occupied adjacent slot; Cavaleiro Tático swaps anywhere in i
   s = act(s, 0, { type: 'move', from: 0, to: 4 }).s;
   eq([s.players[0].board[0]?.name, s.players[0].board[4]?.name], ['Batedor', 'Cavaleiro Tático']);
 });
-test('Capitão de Formação: neighbours +1 ATK after it moves, gone at its owner\'s next turn', () => {
+test('Capitão de Formação: neighbours +2 ATK after it moves, gone at its owner\'s next turn', () => {
   let s = fresh({ a: 'capitao' }); put(s, 0, 0, 'Capitão de Formação'); put(s, 0, 2, 'Batedor'); s.turn.phase = 'movimentacao';
   s = act(s, 0, { type: 'move', from: 0, to: 1 }).s;
-  eq(s.players[0].board[2]!.formationBuffAtk, 1);
+  eq(s.players[0].board[2]!.formationBuffAtk, 2);
   s = act(s, 0, { type: 'advance' }).s; while (s.turn.active === 1) s = act(s, 1, { type: 'advance' }).s;
   eq([s.turn.active, s.players[0].board[2]!.formationBuffAtk], [0, 0]);
 });
@@ -871,7 +871,7 @@ test('Escudeiro de Linha: in the Vanguarda, the unit right behind takes 1 less d
   let s = fresh({ a: 'capitao', b: 'cardeal' });
   put(s, 0, 2, 'Escudeiro de Linha'); put(s, 0, 7, 'Soldado Tático'); put(s, 0, 8, 'Batedor'); put(s, 0, 3, 'Batedor');
   const board = s.players[0].board;
-  eq([getIncomingDamageReduction(7, board), getIncomingDamageReduction(8, board), getIncomingDamageReduction(3, board), getIncomingDamageReduction(2, board)], [1, 0, 0, 0]);
+  eq([getIncomingDamageReduction(7, board), getIncomingDamageReduction(8, board), getIncomingDamageReduction(3, board), getIncomingDamageReduction(2, board)], [1, 0, 0, 1]); // slot 2 = the Escudeiro himself: -1 on his own
   // he moved to the back: his protection no longer applies
   s.players[0].board[2] = null; put(s, 0, 6, 'Escudeiro de Linha');
   eq(getIncomingDamageReduction(7, s.players[0].board), 0);
@@ -881,14 +881,14 @@ test('Escudeiro de Linha: in the Vanguarda, the unit right behind takes 1 less d
 const atkOf = (s: GameState, seat: Seat, slot: number) => getEffectiveAtk(s.players[seat].board[slot]!, slot, s.players[seat].board, s.players[1 - seat].board);
 const endTurnOf = (s: GameState, seat: Seat) => { let g = 0; while (s.turn.active === seat && s.winner === null && g++ < 20) s = act(s, seat, { type: 'advance' }).s; return s; };
 
-test('Capitão de Formação (Manobra): moving it gives its neighbours +1 ATK, through the foe turn, gone when its owner\'s next turn starts', () => {
+test('Capitão de Formação (Manobra): moving it gives its neighbours +2 ATK, through the foe turn, gone when its owner\'s next turn starts', () => {
   let s = fresh({ a: 'capitao', phase: 'movimentacao' }); s.turn.round = 3;
   put(s, 0, 2, 'Capitão de Formação'); put(s, 0, 1, 'Soldado Tático'); put(s, 0, 4, 'Escudeiro de Linha'); put(s, 0, 0, 'Batedor');
   s = act(s, 0, { type: 'move', from: 2, to: 3 }).s;                       // neighbours of slot 3: 2 (empty now) and 4
-  eq([s.players[0].board[4]!.formationBuffAtk, s.players[0].board[1]!.formationBuffAtk ?? 0], [1, 0], 'only the neighbours');
-  eq(atkOf(s, 0, 4), 3, 'Escudeiro 2 +1');
+  eq([s.players[0].board[4]!.formationBuffAtk, s.players[0].board[1]!.formationBuffAtk ?? 0], [2, 0], 'only the neighbours');
+  eq(atkOf(s, 0, 4), 4, 'Escudeiro 2 +2');
   s = endTurnOf(s, 0);
-  eq(atkOf(s, 0, 4), 3, 'still on during the foe turn');
+  eq(atkOf(s, 0, 4), 4, 'still on during the foe turn');
   s = endTurnOf(s, 1);
   eq(s.players[0].board[4]!.formationBuffAtk ?? 0, 0, 'gone once the owner\'s next turn starts');
 });
@@ -910,10 +910,24 @@ test('Aurelion: only 2 of the units that moved are buffed, units that stayed put
   eq(buffed.length, 2, 'up to 2 units');
   ok(!s.players[0].board[4]!.pendingCombatBonus, 'the unit that did not move gets nothing');
 });
-test('Lanceiro de Controle (Postura): the foe in front has -1 ATK only while the Lanceiro is in the Vanguarda', () => {
+test('Capitão balance pass: Batedor grows +1 ATK after each attack it survives; Cavaleiro Tático\'s move gives its neighbours +1 ATK; Reformar Linhas draws a card', () => {
+  let s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
+  put(s, 0, 2, 'Batedor'); put(s, 1, 2, 'Devotos da Cruzada').hp = 30;
+  s = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
+  eq(s.players[0].board[2]!.atk, 2, 'Batedor 1 -> 2');
+  let t = fresh({ a: 'capitao', phase: 'movimentacao' }); t.turn.round = 3;
+  put(t, 0, 0, 'Cavaleiro Tático'); put(t, 0, 2, 'Batedor');
+  t = act(t, 0, { type: 'move', from: 0, to: 1 }).s;
+  eq(t.players[0].board[2]!.formationBuffAtk, 1, 'neighbour of the Cavaleiro');
+  let u = fresh({ a: 'capitao' }); u.turn.phase = 'preparacao';
+  const rl = give(u, 0, 'Reformar Linhas'); const hand = u.players[0].hand.length, pile = u.players[0].drawPile.length;
+  u = act(u, 0, { type: 'play', cardId: rl.id }).s;
+  eq([u.players[0].hand.length, u.players[0].drawPile.length], [hand, pile - 1], 'played one, drew one');
+});
+test('Lanceiro de Controle (Postura): the foe in front has -2 ATK only while the Lanceiro is in the Vanguarda', () => {
   const s = fresh({ a: 'capitao', b: 'cardeal' });
   put(s, 0, 2, 'Lanceiro de Controle'); put(s, 1, 2, 'Soldado Tático');
-  eq(atkOf(s, 1, 2), 2, 'Soldado Tático 3 -1');
+  eq(atkOf(s, 1, 2), 1, 'Soldado Tático 3 -2');
   const t = fresh({ a: 'capitao', b: 'cardeal' });
   put(t, 0, 7, 'Lanceiro de Controle'); put(t, 1, 2, 'Soldado Tático');
   eq(atkOf(t, 1, 2), 3, 'Lanceiro in the Retaguarda: no effect');
@@ -995,7 +1009,7 @@ test('Doutrina Renovada: take a Tática from the deck to the hand', () => {
   ok(s.players[0].hand.some(h => h.name === pick.name), 'it is in the hand (as a fresh copy)');
   eq(s.players[0].deckList.filter(n => requireCardDef(n).cardType === 'Tática').length, before - 1);
 });
-test('Reposicionamento Rápido moves a foe to a free neighbouring slot; Linha Fechada\'s -1 stays for good; Ordem de Retirada sends the unit back and gives +2 HP', () => {
+test('Reposicionamento Rápido moves a foe to a free neighbouring slot; Linha Fechada\'s -2 stays for good; Ordem de Retirada sends the unit back and gives +2 HP', () => {
   let s = fresh({ a: 'capitao', b: 'cardeal', round: 3 }); s.turn.phase = 'preparacao';
   put(s, 1, 2, 'Soldado Tático');
   const r = give(s, 0, 'Reposicionamento Rápido');
@@ -1004,9 +1018,9 @@ test('Reposicionamento Rápido moves a foe to a free neighbouring slot; Linha Fe
   put(s, 0, 2, 'Escudeiro de Linha'); put(s, 0, 1, 'Batedor'); put(s, 0, 3, 'Batedor');
   const lf = give(s, 0, 'Linha Fechada');
   s = act(s, 0, { type: 'play', cardId: lf.id, target: 2 }).s;
-  eq([s.players[0].board[1]!.dmgReduction, s.players[0].board[3]!.dmgReduction], [1, 1]);
+  eq([s.players[0].board[1]!.dmgReduction, s.players[0].board[3]!.dmgReduction], [2, 2]);
   s = endTurnOf(s, 0); s = endTurnOf(s, 1);
-  eq(s.players[0].board[1]!.dmgReduction, 1, 'permanent');
+  eq(s.players[0].board[1]!.dmgReduction, 2, 'permanent');
   s.turn.phase = 'preparacao';
   const hp = s.players[0].board[2]!.hp;
   const ro = give(s, 0, 'Ordem de Retirada');
@@ -1024,7 +1038,7 @@ for (const me of [0, 1] as Seat[]) {
     let s = start('capitao', 'cardeal', 'movimentacao');
     put(s, me, 2, 'Capitão de Formação'); put(s, me, 4, 'Escudeiro de Linha');
     s = act(s, me, { type: 'move', from: 2, to: 3 }).s;
-    eq(s.players[me].board[4]!.formationBuffAtk, 1);
+    eq(s.players[me].board[4]!.formationBuffAtk, 2);
     s = endTurnOf(s, me); s = endTurnOf(s, foe);
     eq(s.players[me].board[4]!.formationBuffAtk ?? 0, 0);
   });

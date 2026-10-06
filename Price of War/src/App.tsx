@@ -2259,7 +2259,7 @@ const DECKS = {
 
 // What a booster of each faction can hold: the faction's own cards (the lists from before the balance pass), not the tactics a deck borrows.
 const BOOSTER_POOLS: Record<DeckId, CardData[]> = { capitao: [], cardeal: [] };
-(['capitao', 'cardeal'] as DeckId[]).forEach(id => Object.entries(LEGACY_STARTERS[id]).forEach(([name, n]) => {
+(['capitao', 'cardeal'] as DeckId[]).forEach(id => Object.entries(LEGACY_STARTERS[id][0]).forEach(([name, n]) => {
   for (let i = 0; i < n; i++) BOOSTER_POOLS[id].push(cardDataFromName(name, `pool_${id}_${name}_${i}`));
 }));
 
@@ -2358,7 +2358,7 @@ const buildStarterStore = (): DeckStore => {
   const collection: Record<string, number> = {
     ...countByName(DECKS.cardeal.pool), [DECKS.cardeal.general.name]: 1,
   };
-  (['cardeal', 'capitao'] as DeckId[]).forEach(id => [DECK_RECIPES[id].cards, LEGACY_STARTERS[id]].forEach(list => Object.entries(list).forEach(([name, n]) => { collection[name] = Math.max(collection[name] ?? 0, n); })));
+  (['cardeal', 'capitao'] as DeckId[]).forEach(id => [DECK_RECIPES[id].cards, ...LEGACY_STARTERS[id]].forEach(list => Object.entries(list).forEach(([name, n]) => { collection[name] = Math.max(collection[name] ?? 0, n); })));
   collection[DECKS.capitao.general.name] = 1;
   return {
     collection,
@@ -2377,12 +2377,12 @@ const sameCards = (a: Record<string, number>, b: Record<string, number>) => {
 };
 const ensureStarterDecks = (store: DeckStore): boolean => {
   let changed = false;
-  (['cardeal', 'capitao'] as DeckId[]).forEach(id => [DECK_RECIPES[id].cards, LEGACY_STARTERS[id]].forEach(list => Object.entries(list).forEach(([name, n]) => {
+  (['cardeal', 'capitao'] as DeckId[]).forEach(id => [DECK_RECIPES[id].cards, ...LEGACY_STARTERS[id]].forEach(list => Object.entries(list).forEach(([name, n]) => {
     if ((store.collection[name] ?? 0) < n) { store.collection[name] = n; changed = true; }
   })));
   if ((store.collection[DECKS.capitao.general.name] ?? 0) < 1) { store.collection[DECKS.capitao.general.name] = 1; changed = true; }
   (['cardeal', 'capitao'] as DeckId[]).forEach(id => store.slots.forEach(sl => {
-    if (sl.general === DECKS[id].general.name && sameCards(sl.cards, LEGACY_STARTERS[id]) && !sameCards(sl.cards, starterDeckCards(id))) {
+    if (sl.general === DECKS[id].general.name && LEGACY_STARTERS[id].some(old => sameCards(sl.cards, old)) && !sameCards(sl.cards, starterDeckCards(id))) {
       sl.cards = { ...starterDeckCards(id) }; changed = true;
     }
   }));

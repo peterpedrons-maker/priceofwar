@@ -17,44 +17,51 @@ export const CARD_DEFS: readonly CardDef[] = [
     passives: [{ kind: 'aura', who: { side: 'own', slots: [10, 11] }, reduce: 1 }] },
   { name: "Soldado Tático", cardType: "Infantaria", atk: 3, hp: 3, cost: 2, effect: "No fim do turno, troca de lugar com um aliado ao lado.",
     abilities: [{ on: 'turn_end', do: [{ kind: 'swap_adjacent' }] }] },
-  { name: "Escudeiro de Linha", trigger: "postura", cardType: "Infantaria", atk: 2, hp: 4, cost: 2, effect: "Na Vanguarda, a carta atrás recebe -1 de dano.",
-    passives: [{ kind: 'aura', who: { side: 'own', behind: true }, from: 'front', reduce: 1 }] },
-  { name: "Capitão de Formação", cardType: "Infantaria", atk: 3, hp: 4, cost: 3, isFullArt: true, trigger: "manobra", effect: "Aliados ao lado ganham +1 ATK até o próximo turno.",
-    abilities: [{ on: 'move', do: [{ kind: 'buff_adjacent', atk: 1 }] }] },
-  { name: "Batedor", cardType: "Infantaria", atk: 1, hp: 2, cost: 1, effect: "Depois de atacar, move-se 1 casa de graça.",
-    abilities: [{ on: 'after_attack', do: [{ kind: 'free_move' }] }] },
-  { name: "Lanceiro de Controle", trigger: "postura", cardType: "Infantaria", atk: 3, hp: 2, cost: 2, effect: "O inimigo à frente tem -1 ATK.",
-    passives: [{ kind: 'aura', who: { side: 'enemy', facing: true }, atk: -1 }] },
-  { name: "Cavaleiro Tático", cardType: "Cavalaria", atk: 4, hp: 4, cost: 3, isFullArt: true, effect: "Troca de lugar com qualquer aliado da fileira.",
+  { name: "Escudeiro de Linha", trigger: "postura", cardType: "Infantaria", atk: 2, hp: 4, cost: 2, effect: "Recebe -1 de dano. Na Vanguarda, a carta atrás também recebe -1 de dano.",
+    passives: [
+      { kind: 'aura', who: { side: 'own', behind: true }, from: 'front', reduce: 1 },
+      { kind: 'aura', who: { side: 'self' }, reduce: 1 },
+    ] },
+  { name: "Capitão de Formação", cardType: "Infantaria", atk: 3, hp: 4, cost: 3, isFullArt: true, trigger: "manobra", effect: "Aliados ao lado ganham +2 ATK até o próximo turno.",
+    abilities: [{ on: 'move', do: [{ kind: 'buff_adjacent', atk: 2 }] }] },
+  { name: "Batedor", cardType: "Infantaria", atk: 1, hp: 2, cost: 1, effect: "Depois de atacar, move-se 1 casa de graça e ganha +1 ATK para sempre.",
+    abilities: [{ on: 'after_attack', do: [{ kind: 'free_move' }, { kind: 'buff', atk: 1 }] }] },
+  { name: "Lanceiro de Controle", trigger: "postura", cardType: "Infantaria", atk: 3, hp: 2, cost: 2, effect: "O inimigo à frente tem -2 ATK.",
+    passives: [{ kind: 'aura', who: { side: 'enemy', facing: true }, atk: -2 }] },
+  { name: "Cavaleiro Tático", cardType: "Cavalaria", atk: 4, hp: 4, cost: 3, isFullArt: true, effect: "Troca de lugar com qualquer aliado da fileira. Ao se mover, aliados ao lado ganham +1 ATK até o próximo turno.",
+    abilities: [{ on: 'move', do: [{ kind: 'buff_adjacent', atk: 1 }] }],
     passives: [{ kind: 'flag', flag: 'row_swap' }] },
-  { name: "Veterano de Guerra", trigger: "postura", cardType: "Infantaria", atk: 4, hp: 3, cost: 3, isFullArt: true, effect: "+2 ATK na coluna central.",
-    passives: [{ kind: 'aura', who: { side: 'self' }, when: { col: 2 }, atk: 2 }] },
-  { name: "Reformar Linhas", cardType: "Tática", atk: 0, hp: 0, cost: 2, isFullArt: true, effect: "3 movimentos extras neste turno.",
-    abilities: [{ on: 'play', do: [{ kind: 'extra_moves', amount: 3 }] }] },
-  { name: "Avanço Coordenado", cardType: "Tática", atk: 0, hp: 0, cost: 2, effect: "+2 ATK a uma unidade que se moveu neste turno.",
+  { name: "Veterano de Guerra", trigger: "postura", cardType: "Infantaria", atk: 4, hp: 3, cost: 3, isFullArt: true, effect: "+2 ATK na coluna central e +1 ATK na Vanguarda.",
+    passives: [
+      { kind: 'aura', who: { side: 'self' }, when: { col: 2 }, atk: 2 },
+      { kind: 'aura', who: { side: 'self' }, from: 'front', atk: 1 },
+    ] },
+  { name: "Reformar Linhas", cardType: "Tática", atk: 0, hp: 0, cost: 2, isFullArt: true, effect: "3 movimentos extras neste turno. Compre 1 carta.",
+    abilities: [{ on: 'play', do: [{ kind: 'extra_moves', amount: 3 }, { kind: 'draw', amount: 1 }] }] },
+  { name: "Avanço Coordenado", cardType: "Tática", atk: 0, hp: 0, cost: 1, effect: "+3 ATK a uma unidade que se moveu neste turno.",
     abilities: [{ on: 'play', do: [
-      { kind: 'buff', atk: 2, target: { ...OWN_UNIT, needs: 'moved', prompt: 'Escolha uma unidade sua que já se moveu neste turno.' } },
+      { kind: 'buff', atk: 3, target: { ...OWN_UNIT, needs: 'moved', prompt: 'Escolha uma unidade sua que já se moveu neste turno.' } },
     ] }] },
   { name: "Reposicionamento Rápido", cardType: "Tática", atk: 0, hp: 0, cost: 1, effect: "Mova um inimigo para um espaço livre ao lado.",
     abilities: [{ on: 'play', do: [
       { kind: 'displace', target: { ...ENEMY_UNIT, prompt: 'Escolha uma unidade inimiga para deslocar.' } },
     ] }] },
-  { name: "Linha Fechada", cardType: "Tática", atk: 0, hp: 0, cost: 2, effect: "-1 de dano, para sempre, nos aliados ao lado da unidade escolhida.",
+  { name: "Linha Fechada", cardType: "Tática", atk: 0, hp: 0, cost: 2, effect: "-2 de dano, para sempre, nos aliados ao lado da unidade escolhida.",
     abilities: [{ on: 'play', do: [
-      { kind: 'guard_adjacent', amount: 1, target: { ...OWN_UNIT, prompt: 'Escolha uma unidade sua — os aliados ao lado dela recebem menos dano.' } },
+      { kind: 'guard_adjacent', amount: 2, target: { ...OWN_UNIT, prompt: 'Escolha uma unidade sua — os aliados ao lado dela recebem menos dano.' } },
     ] }] },
   { name: "Ordem de Retirada", cardType: "Tática", atk: 0, hp: 0, cost: 2, effect: "Mova uma unidade da Vanguarda para a Retaguarda: +2 HP.",
     abilities: [{ on: 'play', do: [
       { kind: 'retreat', heal: 2, target: { ...OWN_UNIT, where: 'front', prompt: 'Escolha uma unidade sua na Vanguarda.' } },
     ] }] },
-  { name: "Bloqueio Instantâneo", cardType: "Emboscada", atk: 0, hp: 0, cost: 2, effect: "Cancela um ataque a uma unidade com aliado ao lado.",
+  { name: "Bloqueio Instantâneo", cardType: "Emboscada", atk: 0, hp: 0, cost: 1, effect: "Cancela um ataque a uma unidade com aliado ao lado.",
     abilities: [{ on: 'ambush', do: [{ kind: 'cancel_attack', ifAdjacentAlly: true }] }] },
   { name: "Contra-Manobra", cardType: "Emboscada", atk: 0, hp: 0, cost: 3, isFullArt: true, effect: "Troca a unidade atacada com um aliado ao lado, que recebe o golpe.",
     abilities: [{ on: 'ambush', do: [{ kind: 'swap_defender' }] }] },
   { name: "Formação Quebrada", cardType: "Emboscada", atk: 0, hp: 0, cost: 2, effect: "Move o atacante para um espaço livre aleatório. O ataque falha.",
     abilities: [{ on: 'ambush', do: [{ kind: 'displace_attacker' }] }] },
-  { name: "Estandarte da Legião", cardType: "Relíquia", atk: 0, hp: 5, cost: 3, isFullArt: true, effect: "+1 ATK às suas unidades.",
-    passives: [{ kind: 'aura', who: { side: 'own' }, atk: 1 }] },
+  { name: "Estandarte da Legião", cardType: "Relíquia", atk: 0, hp: 5, cost: 3, isFullArt: true, effect: "+1/+1 em combate às suas cartas em campo.",
+    passives: [{ kind: 'aura', who: { side: 'own' }, atk: 1, combatHp: 1 }] },
   { name: "Fortaleza de Pedra", cardType: "Terreno", atk: 0, hp: 8, cost: 3, isFullArt: true, effect: "Suas unidades na Retaguarda: -1 de dano de ataques.",
     passives: [{ kind: 'aura', who: { side: 'own', row: 'back' }, reduce: 1 }] },
   { name: "Pântano Maldito", cardType: "Terreno", atk: 0, hp: 6, cost: 2, effect: "Inimigos na Vanguarda: -1 ATK.",
@@ -160,20 +167,20 @@ export const DECK_RECIPES: Record<DeckId, DeckRecipe> = {
       "Lanceiro de Controle": 4,
       "Cavaleiro Tático": 4,
       "Veterano de Guerra": 4,
-      "Reformar Linhas": 1,
+      "Reformar Linhas": 3,
       "Avanço Coordenado": 4,
-      "Reposicionamento Rápido": 2,
-      "Ordem de Retirada": 2,
-      "Bloqueio Instantâneo": 2,
-      "Contra-Manobra": 1,
+      "Reposicionamento Rápido": 1,
+      "Linha Fechada": 4,
+      "Ordem de Retirada": 4,
+      "Catapulta de Guerra": 2,
+      "Balestra de Precisão": 2,
+      "Trabuco de Cerco": 1,
+      "Bloqueio Instantâneo": 4,
+      "Contra-Manobra": 2,
       "Formação Quebrada": 2,
       "Estandarte da Legião": 1,
+      "Fortaleza de Pedra": 1,
       "Pântano Maldito": 1,
-      "Catapulta de Guerra": 4,
-      "Balestra de Precisão": 4,
-      "Armadura de Guerra": 4,
-      "Trabuco de Cerco": 2,
-      "Recrutamento Seletivo": 2,
     },
   },
   cardeal: {
@@ -236,11 +243,18 @@ export const starterDeckCards = (id: DeckId): Record<string, number> => {
   return cards;
 };
 
-// The starter lists as they were before the balance pass (docs/balanceamento.md): a saved deck that is still exactly one of these was never edited
+// The starter lists as they were before each balance pass (docs/balanceamento.md): a saved deck that is still exactly one of these was never edited
 // by the player, so it is replaced by the new list.
-export const LEGACY_STARTERS: Record<DeckId, Record<string, number>> = {
-  capitao: {"Soldado Tático":4,"Escudeiro de Linha":4,"Capitão de Formação":4,"Batedor":4,"Lanceiro de Controle":4,"Cavaleiro Tático":4,"Veterano de Guerra":3,"Reformar Linhas":3,"Avanço Coordenado":4,"Reposicionamento Rápido":3,"Linha Fechada":4,"Ordem de Retirada":4,"Bloqueio Instantâneo":4,"Contra-Manobra":4,"Formação Quebrada":4,"Estandarte da Legião":1,"Fortaleza de Pedra":1,"Pântano Maldito":1},
-  cardeal: {"Cálice da Graça":1,"Devotos da Cruzada":4,"Mercador da Cruzada":2,"Infiltrado da Ordem":1,"Fanático da Cruzada":1,"Recruta Devoto":2,"Intendente do Exército":2,"Soldados da Ordem":2,"Jorge, Lança Sagrada":3,"Cavaleiro Hospitalário":2,"Nobre da Cruzada":2,"Cavaleiro da Luz":4,"Comandante da Ordem":1,"Arqueiro da Ordem":2,"Atirador da Cruzada":2,"Trabuco de Cerco":2,"Catapulta de Guerra":3,"Balestra de Precisão":1,"Armadura de Guerra":2,"Couraça Reforçada":2,"Flechas Venenosas":1,"Espada Longa":2,"Reforços Ocultos":2,"Retorno do Soldado":1,"Graal da Dádiva":1,"Doutrina Renovada":2,"Recrutamento Seletivo":2,"Recrutar Veteranos":2,"Tributo de Guerra":2,"Chamado às Armas":2},
+export const LEGACY_STARTERS: Record<DeckId, Record<string, number>[]> = {
+  // The first list of each deck is also the faction's own set of cards (what its boosters can hold).
+  capitao: [
+    {"Soldado Tático":4,"Escudeiro de Linha":4,"Capitão de Formação":4,"Batedor":4,"Lanceiro de Controle":4,"Cavaleiro Tático":4,"Veterano de Guerra":3,"Reformar Linhas":3,"Avanço Coordenado":4,"Reposicionamento Rápido":3,"Linha Fechada":4,"Ordem de Retirada":4,"Bloqueio Instantâneo":4,"Contra-Manobra":4,"Formação Quebrada":4,"Estandarte da Legião":1,"Fortaleza de Pedra":1,"Pântano Maldito":1},
+    // the version of the first balance pass (borrowed tactics, Veterano x4), before the effect changes
+    {"Soldado Tático":4,"Escudeiro de Linha":4,"Capitão de Formação":4,"Batedor":4,"Lanceiro de Controle":4,"Cavaleiro Tático":4,"Veterano de Guerra":4,"Reformar Linhas":1,"Avanço Coordenado":4,"Reposicionamento Rápido":2,"Ordem de Retirada":2,"Bloqueio Instantâneo":2,"Contra-Manobra":1,"Formação Quebrada":2,"Estandarte da Legião":1,"Pântano Maldito":1,"Catapulta de Guerra":4,"Balestra de Precisão":4,"Armadura de Guerra":4,"Trabuco de Cerco":2,"Recrutamento Seletivo":2},
+  ],
+  cardeal: [
+    {"Cálice da Graça":1,"Devotos da Cruzada":4,"Mercador da Cruzada":2,"Infiltrado da Ordem":1,"Fanático da Cruzada":1,"Recruta Devoto":2,"Intendente do Exército":2,"Soldados da Ordem":2,"Jorge, Lança Sagrada":3,"Cavaleiro Hospitalário":2,"Nobre da Cruzada":2,"Cavaleiro da Luz":4,"Comandante da Ordem":1,"Arqueiro da Ordem":2,"Atirador da Cruzada":2,"Trabuco de Cerco":2,"Catapulta de Guerra":3,"Balestra de Precisão":1,"Armadura de Guerra":2,"Couraça Reforçada":2,"Flechas Venenosas":1,"Espada Longa":2,"Reforços Ocultos":2,"Retorno do Soldado":1,"Graal da Dádiva":1,"Doutrina Renovada":2,"Recrutamento Seletivo":2,"Recrutar Veteranos":2,"Tributo de Guerra":2,"Chamado às Armas":2},
+  ],
 };
 
 const BY_NAME: Record<string, CardDef> = {};
