@@ -87,7 +87,7 @@ async function main() {
     const w = Number(process.env.WORKER), W = Number(process.env.WORKERS), N = Number(process.env.N);
     const out: Rec[] = [];
     for (const m of matchups) for (let seed = 1 + w; seed <= N; seed += W) for (const seatA of [0, 1] as Seat[]) out.push(playGame(m, seed, seatA, ((seed + seatA) % 2) as Seat));
-    process.send!(out); process.exit(0);
+    process.send!(out, () => process.exit(0)); return;   // sai só depois de a mensagem ser entregue (senão parte dos resultados se perde)
   }
   const N = Number(process.env.N ?? 60), W = Math.min(4, Number(process.env.WORKERS ?? 4));
   const all: Rec[] = [];
