@@ -308,3 +308,14 @@ Relíquia só com os dois modos que funcionaram (Soldo em Dobro e Saque); uma Ag
 | × Capitão | **46,5%** | 53,5% |
 Média 52,8%. Com os resultados já medidos (Cardeal 54% × Capitão 46%), os três decks formam um **triângulo**: Mercenários vence o Cardeal (59%), o Capitão vence os Mercenários (53,5%) e o Cardeal vence o Capitão (54%), todos dentro de 40% a 60%.
 Leitura: a Relíquia agora é neutra a favorável (vitória com ela 53,2%, sem ela 51,1%) e a IA escolhe Saque em 72% das vezes. Cartas fortes: Salva de Besteiros (+12), Carga de Pólvora (+12), Duelista Livre (+11), Espadachim do Soldo (+11), Agência de Recrutamento (+10, mesmo com 1 cópia). Fracas: Desertor (−7,7), Tesoureiro da Companhia (−6,9), Suborno (−6,1), Espada de Aluguel (−6,0), Escriba de Contratos (−5,4); margem de ±5 pontos por carta. Ainda sem prova: a IA quase não dispensa carta (0,0 por partida), então o "pagar ou dispensar" depende de gente jogando.
+
+### Rodada 16: manutenção mais cara nos Mercenários (200 partidas por confronto, IA × IA; Relíquia com Soldo em Dobro + Saque)
+Pergunta: com manutenção 1 a IA nunca dispensa e o ouro sobra; e se a manutenção custar mais? "Atributos +N" = soma de ATK + vida maior em todos os mercenários (regra de bolso "manutenção compra atributos", N por ponto de manutenção).
+| Cenário | × Cardeal | × Capitão | Média | Ouro de manutenção por partida | Dispensas por partida |
+|---|---|---|---|---|---|
+| Manutenção 1 (rodada 15) | 59% | 46,5% | 52,8% | 6,4 | 0,0 |
+| N2 · manutenção 2, atributos como estão | 39,5% | 39,5% | 39,5% | 9,5 | 0,4 |
+| N3 · manutenção 3, atributos como estão | 31,5% | 38% | 34,8% | 10,8 | 1,1 |
+| K2 · manutenção 2, atributos +1 de soma | 66,5% | 58,5% | 62,5% | 12,6 | 0,5 |
+| K3 · manutenção 3, atributos +2 de soma | 71% | 58% | 64,5% | 13,6 | 1,8 |
+Leitura: cada ponto a mais de manutenção custa uns 13 pontos de vitória ao deck, mas +1 de soma nos atributos devolve uns 23: **o troco de 1 de soma por ponto de manutenção é generoso demais**; o valor está perto de **meio ponto de soma por ponto de manutenção**. Mesmo com manutenção 3 a IA dispensa só 1 a 2 cartas por partida (paga ~2 de ouro por turno de uma renda de 5): o jogo continua sem pressão de ouro suficiente para "dispensar" ser rotina. A regra da tabela deve ser ajustada para ~0,5 de soma por ponto de manutenção.
