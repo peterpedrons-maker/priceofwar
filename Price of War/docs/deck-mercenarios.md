@@ -39,6 +39,9 @@ General **Comandante Brann, Senhor da Companhia** (30 de vida): pague 3 de ouro,
 | Suborno | 2 | Emboscada, 2 | — | cancela um ataque a uma de suas unidades |
 (A primeira simulação, com táticas emprestadas do Cardeal e do Capitão, está na rodada 8 de `docs/balanceamento.md`; a lista só de cartas novas, na rodada 9.)
 
+## Resultado da simulação (resumo; detalhes em `docs/balanceamento.md`, rodada 9)
+Base (manutenção 1): 69,5% contra o Cardeal e 56% contra o Capitão (forte demais). Manutenção 2 em todos os mercenários (Capitão 3): 56% e 46% (média 51%), recomendada, ainda não aplicada. A IA quase não dispensa cartas e nunca ativa o Suborno: a parte de "pagar ou dispensar" só se prova com gente jogando.
+
 ## Regra de bolso das cartas (a calibrar no laboratório)
 Mercenário custa 1 a menos para convocar do que uma carta normal do mesmo tamanho e cobra 1 de manutenção por turno; efeito forte cobra 2. Cartas "sem manutenção" e geradoras de ouro (Tesoureiro) compensam a conta.
 

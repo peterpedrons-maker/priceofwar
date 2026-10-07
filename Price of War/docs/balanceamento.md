@@ -173,3 +173,16 @@ Leitura:
 - **A IA quase nunca dispensa** (0,0 por partida na base, 0,5 em M1): a decisão "pagar ou dispensar" praticamente não é testada pelo laboratório. Isso só aparece com gente jogando.
 - **A Relíquia ainda não é o centro do deck**: foi jogada em 44% das partidas (3 cópias + 3 Graal) e a vitória com ela em campo (53%) não é maior que sem ela (57%). Em M1 e M2, em que o ouro aperta, ela pesa (57% × 41% e 48% × 33%, confundido com ter comprado mais cartas). Modos escolhidos pela IA: Extorsão 53%, Cofre 45%, Soldo em Dobro 3%.
 - Cartas: com 400 partidas o erro de cada Δ é de uns ±5 pontos. Melhores: Capitão da Companhia, Trabuco, Catapulta, Espadachim, Duelista. Piores quando compradas: Livro de Contratos, Graal da Dádiva (sem relíquia no baralho vira carta morta), Couraça Reforçada, Tributo de Guerra, Besteiro.
+
+### Rodada 9: Mercenários só com cartas novas (200 partidas por confronto, IA × IA; `tests/balance-merc.ts`)
+Pedido do dono: nenhuma carta do deck vem do Cardeal ou do Capitão (todas as táticas, equipamentos, buscas e a Emboscada foram recriadas com nome e efeito próprios; lista em `docs/deck-mercenarios.md`). Também entram mais mercenários (38 unidades, 3 Relíquias, 3 Escribas de Contratos).
+| Cenário | Mercenários × Cardeal | Mercenários × Capitão | Média | Rodadas |
+|---|---|---|---|---|
+| **Base** (manutenção 1; Capitão da Companhia 2) | **69,5%** | **56%** | 62,8% | 7,7 / 6,9 |
+| V1 · manutenção 2 só em Espadachim, Duelista, Cavaleiro Errante; Capitão 3 | 59,5% | 53,5% | 56,5% | 8,3 / 7,5 |
+| **V2 · manutenção 2 em todos os mercenários; Capitão 3** | **56%** | **46%** | **51%** | 8,8 / 7,3 |
+Leitura:
+- O deck novo ficou **forte demais** na base (mais unidades eficientes e nenhuma carta morta emprestada). V2 deixa os dois confrontos dentro de 40% a 60% (média 51%); V1 ainda fica acima contra o Cardeal.
+- Com manutenção 2 o custo aparece de verdade (11,7 de ouro por partida; dispensas 0,7 por partida, ainda poucas) e a Relíquia passa a pesar: com ela em campo a vitória é 67% contra 45% sem ela (confundido com comprar mais cartas). Na base a diferença também é grande (73% × 58%).
+- Cartas que a simulação mostra fracas: **Suborno** (a IA nunca o ativa: 0 jogadas por partida, vale refazer ou testar com gente), **Tesoureiro da Companhia** (ouro não é o gargalo), Desertor, Besteiro Contratado, Espada de Aluguel. Fortes: Carga de Pólvora, Duelista Livre, Espadachim do Soldo, Capitão da Companhia, Salva de Besteiros.
+- Nada disso está no jogo; é só o laboratório. A calibragem proposta (V2) ainda não foi aplicada à receita em `experimental.ts`.
