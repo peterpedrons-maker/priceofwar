@@ -331,7 +331,7 @@ const wantedRelicMode = (state: GameState, seat: Seat): string | null => {
   const attackers = UNIT_SLOTS.filter(i => me.board[i] && me.board[i]!.atk > 0).length;
   const value = (m: (typeof modes)[number]) =>
     (m.upkeepFlat ? Math.min(m.upkeepFlat, mercs) : 0) +
-    (m.loot ? Math.min(m.loot.cap, attackers, foes) * m.loot.gold : 0) +
+    (m.loot ? Math.min(m.loot.cap, attackers, foes) * ((m.loot.gold ?? 0) + (m.loot.draw ?? 0) * 3) : 0) +
     (m.atk ? Math.min(mercs, foes + 1) * m.atk * 0.55 : 0);
   return [...modes].sort((a, b) => value(b) - value(a))[0].id;
 };

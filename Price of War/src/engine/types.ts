@@ -131,7 +131,7 @@ export interface RelicMode {
   name: string;
   effect: string;
   upkeepFlat?: number;
-  loot?: { gold: number; cap: number };
+  loot?: { gold?: number; draw?: number; cap: number };   // por unidade inimiga destruída (ouro e/ou cartas), com teto por ciclo
   atk?: number;
 }
 

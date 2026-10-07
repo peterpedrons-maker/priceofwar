@@ -147,7 +147,8 @@ const sendDestroyed = (c: Ctx, seat: Seat, entries: { slot: number; card: Card }
       const kp = P(c, killer);
       if ((kp.loot ?? 0) >= mode.loot!.cap) return;
       kp.loot = (kp.loot ?? 0) + 1;
-      addGold(c, killer, mode.loot!.gold, 'gain');
+      if (mode.loot!.gold) addGold(c, killer, mode.loot!.gold, 'gain');
+      if (mode.loot!.draw) drawCards(c, killer, mode.loot!.draw, 'effect');
     });
   }
   if (cards.some(card => card.cardType === 'General')) setWinner(c, otherSeat(seat));
