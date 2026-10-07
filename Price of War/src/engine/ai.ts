@@ -8,7 +8,7 @@
 import { getCardDef } from './catalog';
 import { applyAction, combatOpen } from './game';
 import {
-  HAND_LIMIT, SOLDIER_TYPES, abilityOn, canPlayInPhase, abilityPhases, adjacentSlots, canReposition, getEffectiveAtk, getIncomingDamageReduction,
+  HAND_LIMIT, SOLDIER_TYPES, abilityOn, canPlayInPhase, relicModeOf, upkeepOf, abilityPhases, adjacentSlots, canReposition, getEffectiveAtk, getIncomingDamageReduction,
   getLaneCol, getMaxAttacksPerTurn, getValidAttackTargets, hasVerb, isCardDamaged, specCandidatesOn, targetSpecsOf, verbsOn,
   type Board,
 } from './rules';
@@ -297,6 +297,45 @@ const abilityAction = (s: GameState, seat: Seat, slot: number, rand: Rand): Acti
 const bestIds = (cards: Card[], n: number) => [...cards].sort((a, b) => cardValue(b) - cardValue(a)).slice(0, n).map(c => c.id);
 
 // The first, move-by-move AI: each decision looks at one card or one unit on its own. Kept for comparison (tests/ai-arena.ts) and as a fallback.
+// ── Manutenção e modo da Relíquia (decks com `upkeep` / `modes`, ver docs/deck-mercenarios.md) ─────────────────────
+// Quais cartas continuam: as que mais valem pelo que custam, enquanto der para pagar (menos as que voltam para a mão ao serem dispensadas:
+// dispensar essas custa menos). Sem ouro para todas, as últimas saem.
+const upkeepAnswer = (state: GameState, seat: Seat): Action => {
+  const me = state.players[seat];
+  const pend = state.pending as Extract<NonNullable<GameState['pending']>, { kind: 'upkeep' }>;
+  const worth = (e: { slot: number; cost: number }) => {
+    const card = me.board[e.slot]!;
+    const def = getCardDef(card.name);
+    return (unitWorth(card) + (def?.dismiss === 'hand' ? -3 : 0)) / e.cost;
+  };
+  const order = [...pend.entries].sort((a, b) => worth(b) - worth(a));
+  const keep: string[] = [];
+  let sum = 0;
+  for (const e of order) {
+    const next = Math.max(0, sum + e.cost - pend.discount);
+    if (next > me.gold) continue;
+    keep.push(e.cardId); sum += e.cost;
+  }
+  return { type: 'upkeep', keep };
+};
+
+// O modo que vale mais agora: Cofre de Guerra poupa ouro por mercenário em campo; Extorsão rende com atacantes; Soldo em Dobro dá corpo.
+const wantedRelicMode = (state: GameState, seat: Seat): string | null => {
+  const me = state.players[seat];
+  const foe = state.players[otherSeat(seat)];
+  const relic = me.board[10];
+  const modes = relic ? getCardDef(relic.name)?.modes : undefined;
+  if (!relic || !modes || modes.length === 0) return null;
+  const mercs = UNIT_SLOTS.filter(i => me.board[i] && upkeepOf(me.board[i]!.name) > 0).length;
+  const foes = UNIT_SLOTS.filter(i => foe.board[i]).length;
+  const attackers = UNIT_SLOTS.filter(i => me.board[i] && me.board[i]!.atk > 0).length;
+  const value = (m: (typeof modes)[number]) =>
+    (m.upkeepFlat ? Math.min(m.upkeepFlat, mercs) : 0) +
+    (m.loot ? Math.min(m.loot.cap, attackers, foes) * m.loot.gold : 0) +
+    (m.atk ? Math.min(mercs, foes + 1) * m.atk * 0.55 : 0);
+  return [...modes].sort((a, b) => value(b) - value(a))[0].id;
+};
+
 export const aiLegacyAction = (state: GameState, seat: Seat, rand: Rand = Math.random): Action => {
   const me = state.players[seat];
   const foe = state.players[otherSeat(seat)];
@@ -318,6 +357,7 @@ export const aiLegacyAction = (state: GameState, seat: Seat, rand: Rand = Math.r
       const worst = [...me.hand].sort((a, b) => cardValue(a) - cardValue(b)).slice(0, pend.count).map(c => c.id);
       return { type: 'discard', cardIds: worst };
     }
+    if (pend.kind === 'upkeep') return upkeepAnswer(state, seat);
     // A search/reveal: keep the best the prompt allows.
     return { type: 'choose', cardIds: bestIds(pend.options, Math.max(pend.min, Math.min(pend.max, pend.options.length))) };
   }
@@ -440,6 +480,10 @@ const sideValue = (p: PlayerState, q: PlayerState): number => {
 };
 
 // The whole position, from `seat`'s point of view: higher is better.
+// Ouro de manutenção que a mesa de um lado vai cobrar no próximo turno (já com o desconto da Relíquia).
+const upkeepBurden = (p: PlayerState): number =>
+  Math.max(0, UNIT_SLOTS.reduce((n, i) => n + (p.board[i] ? upkeepOf(p.board[i]!.name) : 0), 0) - (relicModeOf(p.board)?.upkeepFlat ?? 0));
+
 const evalState = (s: GameState, seat: Seat): number => {
   if (s.winner !== null) return s.winner === seat ? 1e5 : -1e5;
   const me = s.players[seat];
@@ -448,6 +492,7 @@ const evalState = (s: GameState, seat: Seat): number => {
   score += 1.8 * (me.board[12]?.hp ?? 0) - 1.8 * (foe.board[12]?.hp ?? 0);
   score += me.hand.map(holdValue).sort((a, b) => b - a).slice(0, HAND_LIMIT).reduce((a, b) => a + b, 0);   // cards beyond the limit are discarded
   score += 0.08 * (me.gold - foe.gold);
+  score -= 0.35 * upkeepBurden(me) - 0.35 * upkeepBurden(foe);   // pagar manutenção todo turno pesa (0 nos decks sem ela)
   // What each side could do to the other next turn (the one to move next is the opponent: its threat counts for more).
   score -= 0.6 * attackPotential(foe, me);
   score += 0.3 * attackPotential(me, foe);
@@ -624,6 +669,7 @@ const answerPending = (state: GameState, seat: Seat): Action => {
     const worst = [...me.hand].sort((a, b) => cardValue(a) - cardValue(b)).slice(0, pend.count).map(c => c.id);
     return { type: 'discard', cardIds: worst };
   }
+  if (pend.kind === 'upkeep') return upkeepAnswer(state, seat);
   return { type: 'choose', cardIds: bestIds(pend.options, Math.max(pend.min, Math.min(pend.max, pend.options.length))) };
 };
 
@@ -631,6 +677,11 @@ export const aiNextAction = (state: GameState, seat: Seat, rand: Rand = Math.ran
   if (state.pending && state.pending.seat === seat) return answerPending(state, seat);
   const t = state.turn;
   if (t.active !== seat || state.winner !== null || !['preparacao', 'combate', 'movimentacao'].includes(t.phase)) return aiLegacyAction(state, seat, rand);
+  // No fim do turno (Movimentação) escolhe o modo da Relíquia, se ela tem modos.
+  if (t.phase === 'movimentacao') {
+    const want = wantedRelicMode(state, seat);
+    if (want && state.players[seat].board[10]?.mode !== want) return { type: 'relic_mode', mode: want };
+  }
   const key = fingerprint(state, seat);
   const known = memo.get(key);
   if (known && applyAction(state, seat, known).ok) return known;

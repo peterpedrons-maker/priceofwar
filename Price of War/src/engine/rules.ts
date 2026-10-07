@@ -1,7 +1,7 @@
 // Pure rule helpers: constants and "what is true about this board" questions. Nothing here changes
 // anything; game.ts uses these to decide and to apply.
 import { getCardDef } from './catalog';
-import type { Ability, AbilityOn, Card, CardType, Passive, TargetSpec, TurnPhase, Verb, Who } from './types';
+import type { Ability, AbilityOn, Card, CardType, Passive, RelicMode, TargetSpec, TurnPhase, Verb, Who } from './types';
 
 // ── Match economy ───────────────────────────────────────────────────────────
 // The balance lab (tests/balance-lab.ts) can try other values by setting `globalThis.__POW_RULES__` before this file loads; the game never does.
@@ -117,6 +117,15 @@ export const auraTotal = (stat: AuraStat, slot: number, own: Board, enemy: Board
 export const boardHasFlag = (board: Board, flag: 'row_swap' | 'blocks_ambush' | 'locks_general'): boolean =>
   board.some((c, i) => !!c && passivesOf(c.name).some(p => p.kind === 'flag' && p.flag === flag && rowOk(p.from, i)));
 
+// ── Manutenção e modos da Relíquia ──────────────────────────────────────────────────────────────
+export const upkeepOf = (name: string): number => getCardDef(name)?.upkeep ?? 0;
+// O modo ativo da Relíquia que está no slot 10 do tabuleiro `board` (null: sem Relíquia, ou sem modos).
+export const relicModeOf = (board: Board | (Card | null)[]): RelicMode | null => {
+  const relic = board[10] as (Card | null | undefined);
+  if (!relic?.mode) return null;
+  return getCardDef(relic.name)?.modes?.find(m => m.id === relic.mode) ?? null;
+};
+
 // Which cards may be played from the hand in a phase: everything in Preparação; in Movimentação (after combat) only Táticas — no more units,
 // Relíquias or Terrenos come down then.
 export const canPlayInPhase = (card: { cardType?: CardType }, phase: TurnPhase): boolean =>
@@ -194,6 +203,7 @@ export const getEffectiveAtk = (card: Unit, ownIndex: number, own: Board, enemy:
   let atk = card.atk + (card.pendingCombatBonus?.atk ?? 0);
   atk += card.formationBuffAtk ?? 0;
   atk += auraTotal('atk', ownIndex, own, enemy);
+  if (upkeepOf(card.name) > 0) atk += relicModeOf(own as Board)?.atk ?? 0;
   return Math.max(0, atk);
 };
 

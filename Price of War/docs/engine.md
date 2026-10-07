@@ -37,6 +37,8 @@ else { state = r.state; animate(r.events); }                                    
 | `ambush {cardId \| null}` | the defender answers an ambush prompt |
 | `choose {cardIds}` | answers a search/reveal prompt |
 | `discard {cardIds}` | answers the end-of-turn discard prompt (see below) |
+| `upkeep {keep}` | answers the Suprimentos upkeep prompt (experimental, see `docs/efeitos.md`) |
+| `relic_mode {mode}` | picks the Relíquia's mode, Movimentação only (experimental) |
 | `advance` | end the phase (from the last phase: end the turn) |
 | `concede` | give up |
 

@@ -90,6 +90,7 @@ export type AbilityOn =
   | 'move'          // a carta se reposicionou (Manobra)
   | 'healed'        // a carta foi curada
   | 'turn_start' | 'turn_end'
+  | 'dismissed'     // a carta foi dispensada por falta de pagamento da manutenção (Rescisão); só verbos sem escolha de alvo
   | 'front_fell'    // a carta da frente da coluna caiu (Reforço)
   | 'ambush';       // Emboscada ativada
 
@@ -122,6 +123,18 @@ export type Passive =
     }
   | { kind: 'flag'; flag: 'row_swap' | 'blocks_ambush' | 'locks_general'; from?: 'front' };
 
+// Um modo de uma Relíquia (a Relíquia tem vários e o dono escolhe um no fim do turno; vale até o fim do turno seguinte). Tudo em dados:
+// `upkeepFlat` tira esse tanto do total de manutenção do dono; `loot` dá ouro por unidade inimiga destruída (com teto por ciclo);
+// `atk` dá ATK às cartas do dono que têm manutenção.
+export interface RelicMode {
+  id: string;
+  name: string;
+  effect: string;
+  upkeepFlat?: number;
+  loot?: { gold: number; cap: number };
+  atk?: number;
+}
+
 // What the catalog stores for a card name (no artwork, no per-copy data).
 export interface CardDef {
   name: string;
@@ -138,6 +151,11 @@ export interface CardDef {
   passives?: Passive[];
   // Só nos Generais: a "tendência" (Fanático da Cruzada compara com a do General inimigo).
   faction?: string;
+  // Manutenção (ouro por turno, paga na fase de Suprimentos); quem não for pago é dispensado: vai ao cemitério, ou volta para a mão com `dismiss: 'hand'`.
+  upkeep?: number;
+  dismiss?: 'hand';
+  // Só nas Relíquias com modos (veja RelicMode).
+  modes?: RelicMode[];
 }
 
 // One physical copy of a card inside a match. Field names intentionally match the client's CardData
@@ -165,6 +183,8 @@ export interface Card {
   block?: boolean;
   // Armamentos stay attached until the unit dies, then go to the graveyard with it.
   equippedWeapons?: Card[];
+  // Só numa Relíquia com modos: o modo escolhido agora (id de um RelicMode).
+  mode?: string;
   // Only on what a seat is not allowed to see (see redactFor): a face-down placeholder.
   hidden?: boolean;
 }
@@ -193,6 +213,8 @@ export interface PlayerState {
   pendingGeneralBlock: boolean;
   // Set by card effects: skips the automatic Compra / Suprimentos of this seat's next turn start.
   skip?: { compra?: boolean; suprimentos?: boolean };
+  // Ouro tomado por unidades inimigas destruídas (modo `loot` da Relíquia), contado desde o início do último turno deste lugar.
+  loot?: number;
 }
 
 export interface TurnState {
@@ -241,6 +263,14 @@ export type Pending =
       count: number;
     }
   | {
+      // Suprimentos: o dono decide quais cartas com manutenção continuam (paga) e quais são dispensadas. `cost` é a manutenção base de cada uma.
+      kind: 'upkeep';
+      seat: Seat;
+      entries: { slot: number; cardId: string; cost: number }[];
+      // Quanto a Relíquia ativa abate do total.
+      discount: number;
+    }
+  | {
       kind: 'ambush';
       // The DEFENDER decides whether to spring an Emboscada.
       seat: Seat;
@@ -279,6 +309,10 @@ export type Action =
   | { type: 'choose'; cardIds: string[] }
   // Answers the end-of-turn discard prompt: exactly the number of cards asked for, they go to the graveyard.
   | { type: 'discard'; cardIds: string[] }
+  // Answers the Suprimentos upkeep prompt: the ids of the cards that stay (their upkeep is paid); the rest are dismissed.
+  | { type: 'upkeep'; keep: string[] }
+  // Escolhe o modo da Relíquia; só na Movimentação (fim do turno).
+  | { type: 'relic_mode'; mode: string }
   // Ends the current phase (and the turn, from the last phase).
   | { type: 'advance' }
   | { type: 'concede' };
@@ -312,6 +346,10 @@ export type GameEvent =
   | { t: 'graveyard'; seat: Seat; card: Card }
   | { t: 'ability'; seat: Seat; slot: number; name: string }
   | { t: 'pick'; seat: Seat; title: string }
+  // Manutenção paga e cartas dispensadas; modo da Relíquia escolhido.
+  | { t: 'upkeep'; seat: Seat; paid: number; dismissed: number }
+  | { t: 'dismissed'; seat: Seat; slot: number; card: Card; toHand: boolean }
+  | { t: 'relic_mode'; seat: Seat; mode: string }
   | { t: 'winner'; seat: Seat }
   // Plain-language line for the UI toast/log (pt-BR).
   // `private`: only the acting seat gets to read it (it names a card taken from the deck/hand).

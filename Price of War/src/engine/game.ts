@@ -14,7 +14,7 @@ import {
   SOLDIER_TYPES, abilityOn, abilityPhases, adjacentSlots, areSlotsAdjacent, auraTotal, blocksAmbush, canPlaceInSlot, canReposition,
   getAuraCombatHpBonus, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction, getMaxAttacksPerTurn, getMoveRow,
   getValidAttackTargets, isBackline, isCardDamaged, isFrontline, isUnitSlot, locksGeneralOnDamage, reinforceShield, canReinforce,
-  restingPhasesForTurn, specCandidatesOn, targetSpecsOf, verbsOn, canPlayInPhase, withEquippedWeapons, type Board,
+  restingPhasesForTurn, specCandidatesOn, targetSpecsOf, verbsOn, canPlayInPhase, withEquippedWeapons, relicModeOf, upkeepOf, type Board,
 } from './rules';
 import {
   GENERAL_SLOT, SLOT_COUNT, otherSeat,
@@ -140,6 +140,16 @@ const sendDestroyed = (c: Ctx, seat: Seat, entries: { slot: number; card: Card }
   const cards = entries.map(e => e.card);
   withEquippedWeapons(cards).forEach(card => { p.graveyard.push(card); c.ev.push({ t: 'graveyard', seat, card }); });
   entries.forEach(({ slot, card }) => runAbilities(c, seat, card, slot, 'destroyed'));
+  // Modo "loot" da Relíquia de quem destruiu: ouro por unidade inimiga destruída, com teto por ciclo.
+  const killer = otherSeat(seat), mode = relicModeOf(P(c, killer).board);
+  if (mode?.loot) {
+    cards.filter(card => SOLDIER_TYPES.includes(card.cardType)).forEach(() => {
+      const kp = P(c, killer);
+      if ((kp.loot ?? 0) >= mode.loot!.cap) return;
+      kp.loot = (kp.loot ?? 0) + 1;
+      addGold(c, killer, mode.loot!.gold, 'gain');
+    });
+  }
   if (cards.some(card => card.cardType === 'General')) setWinner(c, otherSeat(seat));
   reinforceFrom(c, seat, entries.map(e => e.slot));
 };
@@ -237,6 +247,7 @@ const startTurn = (c: Ctx, seat: Seat) => {
   // A `buff_adjacent` bonus (Capitão de Formação) only lasts until its owner's next turn begins.
   p.board.forEach((card, i) => { if (card?.formationBuffAtk) p.board[i] = { ...card, formationBuffAtk: 0 }; });
 
+  p.loot = 0;
   p.generalAbilityUses = 0;
   p.generalAbilityBlocked = p.pendingGeneralBlock;
   p.pendingGeneralBlock = false;
@@ -265,8 +276,68 @@ const startTurn = (c: Ctx, seat: Seat) => {
     addGold(c, seat, GOLD_PER_TURN, 'turn');
   }
 
-  t.phase = 'preparacao';
+  // Manutenção: as cartas com `upkeep` pedem pagamento; o dono decide quais ficam (a turma só segue depois da resposta).
+  const entries: { slot: number; cardId: string; cost: number }[] = [];
+  for (let i = 0; i <= 9; i++) { const card = p.board[i]; if (card && upkeepOf(card.name) > 0) entries.push({ slot: i, cardId: card.id, cost: upkeepOf(card.name) }); }
+  const discount = relicModeOf(p.board)?.upkeepFlat ?? 0;
+  if (entries.length > 0 && entries.reduce((a, e) => a + e.cost, 0) > discount) {
+    c.s.pending = { kind: 'upkeep', seat, entries, discount };
+    log(c, seat, 'Manutenção: escolha quais mercenários continuam (pagando) e quais são dispensados.');
+    return;
+  }
+  enterPreparation(c, seat);
+};
+
+const enterPreparation = (c: Ctx, seat: Seat) => {
+  c.s.turn.phase = 'preparacao';
   c.ev.push({ t: 'phase', seat, phase: 'preparacao' });
+};
+
+// Answer to the Suprimentos upkeep prompt: the listed cards stay (their upkeep, minus the Relíquia's discount, is paid from the gold),
+// the others are dismissed — to the graveyard, or back to the hand when the card says so — and their Rescisão effects run.
+const payUpkeep = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'upkeep' }>) => {
+  assertCanAct(c, seat, true);
+  const pend = c.s.pending;
+  if (!pend || pend.kind !== 'upkeep') return fail('Não há manutenção para pagar.');
+  if (pend.seat !== seat) return fail('Essa manutenção não é sua.');
+  const p = P(c, seat);
+  const keep = new Set(a.keep);
+  if (!a.keep.every(id => pend.entries.some(e => e.cardId === id))) fail('Essa carta não está na lista de manutenção.');
+  const kept = pend.entries.filter(e => keep.has(e.cardId));
+  const dismissed = pend.entries.filter(e => !keep.has(e.cardId));
+  const total = Math.max(0, kept.reduce((n, e) => n + e.cost, 0) - pend.discount);
+  if (total > p.gold) fail('Ouro insuficiente para a manutenção: dispense alguém.');
+  c.s.pending = null;
+  if (total > 0) addGold(c, seat, -total, 'spend');
+  c.ev.push({ t: 'upkeep', seat, paid: total, dismissed: dismissed.length });
+  [...dismissed].sort((x, y) => y.slot - x.slot).forEach(e => {
+    const card = p.board[e.slot];
+    if (!card || card.id !== e.cardId) return;
+    p.board[e.slot] = null;
+    const toHand = getCardDef(card.name)?.dismiss === 'hand';
+    const weapons = card.equippedWeapons ?? [];
+    weapons.forEach(w => { p.graveyard.push(w); c.ev.push({ t: 'graveyard', seat, card: w }); });
+    if (toHand) p.hand.push(cardFromName(c.s, card.name, 'h'));
+    else { p.graveyard.push({ ...card, equippedWeapons: undefined }); c.ev.push({ t: 'graveyard', seat, card }); }
+    c.ev.push({ t: 'dismissed', seat, slot: e.slot, card, toHand });
+    log(c, seat, `${card.name} foi dispensado${toHand ? ' e voltou para a mão' : ''}.`);
+    runAbilities(c, seat, card, e.slot, 'dismissed');
+  });
+  reinforceFrom(c, seat, dismissed.map(e => e.slot));
+  enterPreparation(c, seat);
+};
+
+// The Relíquia's mode can only change at the end of the turn (Movimentação) and then holds until the end of the next one.
+const setRelicMode = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'relic_mode' }>) => {
+  assertCanAct(c, seat);
+  if (c.s.turn.phase !== 'movimentacao') fail('O modo da Relíquia só muda no fim do turno (Movimentação).');
+  const p = P(c, seat);
+  const relic = p.board[10];
+  const def = relic ? getCardDef(relic.name) : undefined;
+  if (!relic || !def?.modes) fail('Você não tem uma Relíquia com modos em campo.');
+  if (!def!.modes!.some(m => m.id === a.mode)) fail('Esse modo não existe nessa Relíquia.');
+  p.board[10] = { ...relic!, mode: a.mode };
+  c.ev.push({ t: 'relic_mode', seat, mode: a.mode });
 };
 
 // `turn_end` effects, once the owner's turn is over: bonuses for the units that moved (Aurelion), then swaps (Soldado Tático).
@@ -570,6 +641,8 @@ const playCard = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'play' }>) => {
     if (!canPlaceInSlot(card.cardType, slot)) fail('Esse slot não aceita essa carta.');
     if (p.board[slot]) fail('Esse slot já está ocupado!');
     commit();
+    const modes = getCardDef(card.name)?.modes;
+    if (modes?.length && !card.mode) card.mode = modes[0].id;   // a Relíquia com modos entra no primeiro; o dono troca no fim do turno
     p.board[slot] = card;
     c.ev.push({ t: 'place', seat, slot, card });
     runAbilities(c, seat, card, slot, 'place');
@@ -943,6 +1016,8 @@ export const applyAction = (state: GameState, seat: Seat, action: Action): Actio
       case 'ambush': respondAmbush(c, seat, action); break;
       case 'choose': choose(c, seat, action); break;
       case 'discard': discardExcess(c, seat, action); break;
+      case 'upkeep': payUpkeep(c, seat, action); break;
+      case 'relic_mode': setRelicMode(c, seat, action); break;
       case 'advance': advance(c, seat); break;
       case 'concede':
         if (c.s.winner !== null) fail('A partida já terminou.');

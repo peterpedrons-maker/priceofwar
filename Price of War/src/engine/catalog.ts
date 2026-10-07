@@ -261,6 +261,8 @@ const BY_NAME: Record<string, CardDef> = {};
 CARD_DEFS.forEach(c => { BY_NAME[c.name] = c; });
 
 export const getCardDef = (name: string): CardDef | undefined => BY_NAME[name];
+// Laboratório: registra cartas que ainda não fazem parte do jogo (decks em teste, ver src/engine/experimental.ts). Não entram em CARD_DEFS.
+export const registerCardDefs = (defs: readonly CardDef[]) => { defs.forEach(d => { BY_NAME[d.name] = d; }); };
 export const requireCardDef = (name: string): CardDef => {
   const def = BY_NAME[name];
   if (!def) throw new Error(`Unknown card: ${name}`);
