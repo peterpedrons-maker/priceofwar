@@ -8855,7 +8855,7 @@ export default function App() {
         className="absolute z-40 flex flex-row items-center justify-between pointer-events-none"
         style={{
           left: 500,
-          top: 600.5,
+          top: 584.5, // measured: the midpoint between the Vanguarda rows (the old 600.5 ignored the row-label band that was removed)
           // The coins sit at the edges of the board (the screen, on a phone); the turn panel and its button share the middle.
           width: Math.max(280, Math.min(windowSize.width, 1000 * gridBaseAnim.scale) - 40),
           transform: `translate(-50%, -50%) scale(${1 / gridBaseAnim.scale})`,
@@ -8884,6 +8884,7 @@ export default function App() {
         <div
           className="flex flex-col items-center gap-0.5 cursor-pointer shrink-0 pointer-events-auto"
           data-tut="tracker"
+          style={{ transform: 'translateX(8px)' }} // a little right of the screen's center (user's request)
           onClick={(e) => {
             e.stopPropagation();
             if (currentTurn !== 'player') return;
