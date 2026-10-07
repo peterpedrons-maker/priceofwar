@@ -10,7 +10,7 @@
 import { DECK_RECIPES, getCardDef, requireCardDef, type DeckId } from './catalog';
 import { pickRandom, seedFrom, shuffled } from './rng';
 import {
-  COMBAT_FROM_ROUND, GOLD_FROM_ROUND, GOLD_PER_TURN, HAND_LIMIT, START_GOLD, START_HAND,
+  COMBAT_FROM_ROUND, DRAW_PER_TURN, GOLD_FROM_ROUND, GOLD_PER_TURN, HAND_LIMIT, START_GOLD, START_HAND,
   SOLDIER_TYPES, abilityOn, abilityPhases, adjacentSlots, areSlotsAdjacent, auraTotal, blocksAmbush, canPlaceInSlot, canReposition,
   getAuraCombatHpBonus, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction, getMaxAttacksPerTurn, getMoveRow,
   getValidAttackTargets, isBackline, isCardDamaged, isFrontline, isUnitSlot, locksGeneralOnDamage, reinforceShield, canReinforce,
@@ -262,7 +262,7 @@ const startTurn = (c: Ctx, seat: Seat) => {
     c.ev.push({ t: 'skip', seat, phase: 'compra' });
     log(c, seat, 'A fase de Compra foi pulada!');
   } else {
-    drawCards(c, seat, 1, 'turn');
+    drawCards(c, seat, DRAW_PER_TURN, 'turn');
     // `turn_start` effects (Intendente do Exército refills the hand).
     for (let i = 0; i <= 9; i++) { const card = p.board[i]; if (card) runAbilities(c, seat, card, i, 'turn_start'); }
   }

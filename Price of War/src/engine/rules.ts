@@ -5,9 +5,11 @@ import type { Ability, AbilityOn, Card, CardType, Passive, RelicMode, TargetSpec
 
 // ── Match economy ───────────────────────────────────────────────────────────
 // The balance lab (tests/balance-lab.ts) can try other values by setting `globalThis.__POW_RULES__` before this file loads; the game never does.
-const R = (globalThis as { __POW_RULES__?: Partial<Record<'startGold' | 'goldPerTurn' | 'goldFromRound' | 'combatFromRound' | 'startHand', number>> }).__POW_RULES__ ?? {};
+const R = (globalThis as { __POW_RULES__?: Partial<Record<'startGold' | 'goldPerTurn' | 'goldFromRound' | 'combatFromRound' | 'startHand' | 'drawPerTurn', number>> }).__POW_RULES__ ?? {};
 export const START_GOLD = R.startGold ?? 15;
 export const START_HAND = R.startHand ?? 7;
+// Cartas compradas na fase de Compra de cada turno (o jogo usa 1; o laboratório testa outros valores).
+export const DRAW_PER_TURN = R.drawPerTurn ?? 1;
 export const GOLD_PER_TURN = R.goldPerTurn ?? 5;
 export const GOLD_FROM_ROUND = R.goldFromRound ?? 2;
 // From this round on both seats can attack (before it, only the seat that does not start can, from round 1).
