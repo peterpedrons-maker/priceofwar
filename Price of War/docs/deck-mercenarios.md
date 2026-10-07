@@ -1,4 +1,4 @@
-# Deck Mercenários (no jogo; 10 de 22 artes reais, o resto provisório)
+# Deck Mercenários (no jogo; 21 de 22 artes reais, falta só o Livro de Contratos)
 
 Terceiro deck do jogo. Ideia do dono: um deck cuja base é **ouro** (segundo pilar do jogo): as tropas cobram **manutenção**, e uma **Relíquia com modos** é o centro do deck.
 Mesa de teste jogável da economia (sem combate): `public/mockups/mercenarios/index.html` (publicado em `/mockups/mercenarios/`).
