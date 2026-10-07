@@ -1266,6 +1266,32 @@ OBJETO: ...
 
 ---
 
+## 4ad. Casas do tabuleiro — molduras de Vanguarda e Retaguarda (pendente)
+
+**Arquivos esperados:** `src/assets/slot-vanguarda.webp` e `src/assets/slot-retaguarda.webp` · **Tamanho:** 768 × 972 (proporção 0,79 = a casa do jogo, 56 × 71) ou o dobro · um objeto por imagem, **fundo magenta liso (#FF00FF)** fora da moldura (eu removo) · mesma silhueta e mesmo raio de canto nas duas, para trocar uma pela outra.
+**Cor por lado:** gere neutro; azul-aço (jogador) e carmesim (adversário) eu aplico por código.
+**Uso:** a casa vazia vira esta base afundada no chão; a carta pousa por cima, então o centro precisa ser calmo e escuro.
+
+```
+A single game-asset illustration of an empty card slot for a fantasy card game's battlefield board, seen from directly above (flat top-down, no perspective), a portrait rounded rectangle, ratio 0.79 (768x972). The slot is a recessed socket sunk into the ground: an inner shadow along the inside of the border, a thin warm gold highlight on the outer lip, worn and slightly scratched surfaces. The center is calm, dark and low-contrast (a card will be placed on top of it and must read clearly) with only a very faint engraved emblem. Painterly digital illustration in the style of a high-end collectible card game, warm key light from the upper left, clean readable shapes. Plain flat solid magenta (#FF00FF) background outside the slot, no gradient, no cast shadow outside the slot, no text, no card, no hands, no watermark. No magenta on the slot itself.
+
+VARIANT: ...
+```
+
+**Vanguarda (linha de frente: ataca):**
+```
+VARIANT: the front line. Heavy and martial: a dark steel-gray stone socket reinforced with a riveted iron border, beveled iron corner plates, chipped edges. In the center, barely visible, an engraved emblem of a sword crossed with a shield.
+```
+
+**Retaguarda (linha de trás: protegida):**
+```
+VARIANT: the rear line. Lighter and sheltered: carved dark walnut wood inlay framed by stitched brown leather, small brass studs at the corners. In the center, barely visible, an engraved emblem of a bow with a banner.
+```
+
+**Casas especiais (já escritos):** estandarte do General (3e), pilha de armas quebradas do Cemitério (3f) e baú do Baralho (3g), nesta mesma pasta.
+
+---
+
 ## 4t. Editor de deck (Meu Deck) — artes da tela (pendente)
 
 **Status:** pendente. Hoje a tela usa só as molduras finas já existentes (`ui-frame-menu-card.webp`
