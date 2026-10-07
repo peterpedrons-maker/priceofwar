@@ -265,3 +265,27 @@ Teste a pedido do dono (só no laboratório; o jogo segue com 7). Comparação c
 | Ouro que sobra no fim do turno (Cardeal; Capitão) | 1,2; 12,3 | 0,5; 9,9 |
 | Cartas na mão no fim do turno (Cardeal; Capitão) | 2,2; 1,6 | **3,5**; 2,4 |
 Leitura: a mão maior **só ajuda o Capitão** (limitado por cartas) e desloca o confronto ~15 pontos a favor dele; o Cardeal (limitado por ouro) acumula cartas na mão (3,5) mas põe a mesma tropa em campo. O 1º turno quase não muda (limitado por ouro) e o campo continua longe de cheio (média de 3,3 e 2,4 unidades de 10 casas). Duas alavancas atacam gargalos diferentes: mais cartas (Capitão) e custo/ouro (Cardeal); a combinação das duas ainda não foi testada.
+
+### Rodada 13: comprar 2 cartas por turno (120 partidas Cardeal × Capitão por cenário; `rules.drawPerTurn` + `tests/match-report.ts`)
+Cenários (só no laboratório): **base** (compra 1); **D2** (compra 2, custos como estão); **D2C** (compra 2 e os custos do Cardeal antes da rodada 6: cavalaria 4→3, unidades 3→2). Valores por partida/turno, Cardeal | Capitão:
+| | Base | D2 (compra 2) | D2C (compra 2 + custos do Cardeal aliviados) |
+|---|---|---|---|
+| Vitórias | 54% × 46% | **13% × 87%** | 42,5% × 57,5% |
+| Duração média; acabam até a rodada 5 | 7,4; 28% | 7,0; 34% | 6,8; 37% |
+| Cartas usadas por partida (jogadas + Emboscadas) | 15,5 \| 11,8 | 18,5 \| 17,2 | 21,0 \| 16,9 |
+| Cartas compradas por partida | 10,5 \| 7,3 | 16,2 \| 13,9 | 17,0 \| 13,2 |
+| Cartas jogadas por turno / soldados da mão | 2,2 / 1,4 \| 1,7 / 1,0 | 2,8 / 1,7 \| 2,5 / 1,4 | 3,2 / 2,0 \| 2,6 / 1,5 |
+| Ouro gasto por turno / sobra no fim | 6,0 / 1,2 \| 3,6 / 12,3 | 6,6 / 0,2 \| 5,3 / 4,7 | 6,5 / 0,3 \| 5,5 / 4,0 |
+| Cartas na mão no fim do turno | 2,2 \| 1,6 | 4,5 \| 2,4 | 3,2 \| 2,1 |
+| Turnos sem jogar carta | 7% \| 22% | 0% \| 9% | 1% \| 6% |
+| Unidades em campo (média no fim do turno) / pico | 3,3 / 5,5 \| 2,0 / 3,9 | 3,1 / 5,4 \| 3,1 / 4,6 | **4,0 / 6,4** \| 2,7 / 4,5 |
+| Material em campo (ATK + vida) | 16,4 \| 12,1 | 15,4 \| 18,5 | 19,5 \| 16,5 |
+| Dano por turno / abates por turno | 5,4 / 0,6 \| 7,5 / 0,9 | 4,8 / 0,8 \| **11,5 / 1,4** | 6,8 / 1,0 \| 10,4 / 1,4 |
+| 1º turno: cartas / soldados / material | 5,8 / 3,9 / 24 \| 5,8 / 3,6 / 23 | 6,0 / 4,1 / 25 \| 6,2 / 3,9 / 25 | **7,0 / 4,8 / 28** \| 6,2 / 3,9 / 25 |
+| Cartas que restam no baralho no fim | 41 \| 45 | 35 \| 38 | 34 \| 39 |
+| Descartes por excesso de mão (limite 10) | 0 \| 0 | 0 \| 0 | 0 \| 0 |
+Leitura:
+- **Comprar 2 sozinho quebra o equilíbrio** (Cardeal 13%): o Capitão, limitado por cartas, transforma carta em dano (11,5 por turno); o Cardeal, limitado por ouro, acumula 4,5 cartas na mão e põe a mesma tropa em campo.
+- **Aliviar os custos do Cardeal conserta a maior parte** (42,5%), usa 35% mais cartas por partida e quase some com os turnos sem jogar, **mas devolve o problema do 1º turno do Cardeal** (7 cartas, 4,8 soldados, 28 de material), o que levou à rodada 6.
+- **O tabuleiro continua longe de cheio** (4,0 e 2,7 de 10 casas em média; pico 6,4 e 4,5): quanto mais se joga, mais se mata (até 1,4 unidades abatidas por turno), então a ocupação se mantém. Encher as casas pede reduzir a letalidade ou criar corpos fora da mão (fichas/Levas), além de mais cartas.
+- Nunca houve descarte por excesso de mão: a mão não passa de 4,5 cartas.
