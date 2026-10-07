@@ -151,59 +151,59 @@ export const CARD_DEFS: readonly CardDef[] = [
   { name: "Chamado às Armas", cardType: "Tática", atk: 0, hp: 0, cost: 2, effect: "Convoque até 2 soldados de 0 ATK do baralho para a Vanguarda. Embaralhe.",
     abilities: [{ on: 'play', do: [{ kind: 'summon_deck', max: 2, filter: { types: SOLDIERS, atk: 0 } }] }] },
   // ── mercenarios ── (deck novo: nenhuma carta é do Cardeal nem do Capitão; custos pela tabela de docs/balanceamento.md; proposta em docs/deck-mercenarios.md)
-  { name: 'Comandante Brann, Senhor da Companhia', trigger: 'comando', cardType: 'General', atk: 0, hp: 30, cost: 0, isFullArt: true, faction: 'soldo',
+  { name: 'Brann Meia-Coroa, Comprador de Guerras', trigger: 'comando', cardType: 'General', atk: 0, hp: 30, cost: 0, isFullArt: true, faction: 'soldo',
     effect: 'Pague 3 de ouro: compre 1 carta.',
     abilities: [{ on: 'ability', phases: ['preparacao'], once: true, cost: 3, do: [{ kind: 'draw', amount: 1 }] }] },
 
   // ── mercenários (com manutenção) ──
-  { name: 'Lanceiro de Aluguel', cardType: 'Infantaria', atk: 2, hp: 2, cost: 1, upkeep: 1, effect: '**Manutenção 1.**' },
-  { name: 'Besteiro Contratado', cardType: 'Arqueiro', atk: 2, hp: 2, cost: 2, upkeep: 1, effect: '**Manutenção 1.**' },
-  { name: 'Espadachim do Soldo', cardType: 'Infantaria', atk: 4, hp: 3, cost: 2, upkeep: 2, effect: '**Manutenção 2.**' },
-  { name: 'Desertor', cardType: 'Infantaria', atk: 2, hp: 2, cost: 1, upkeep: 1, effect: '**Manutenção 1.** Rescisão: compre 1 carta.',
+  { name: 'Lanceiro Pés-de-Lama', cardType: 'Infantaria', atk: 2, hp: 2, cost: 1, upkeep: 1, effect: '**Manutenção 1.**' },
+  { name: 'Besteiro Dedo-Ligeiro', cardType: 'Arqueiro', atk: 2, hp: 2, cost: 2, upkeep: 1, effect: '**Manutenção 1.**' },
+  { name: 'Capa-Rota', cardType: 'Infantaria', atk: 4, hp: 3, cost: 2, upkeep: 2, effect: '**Manutenção 2.**' },
+  { name: 'Rato da Muralha', cardType: 'Infantaria', atk: 2, hp: 2, cost: 1, upkeep: 1, effect: '**Manutenção 1.** Rescisão: compre 1 carta.',
     abilities: [{ on: 'dismissed', do: [{ kind: 'draw', amount: 1 }] }] },
-  { name: 'Capitão da Companhia', isFullArt: true, trigger: 'postura', cardType: 'Infantaria', atk: 3, hp: 5, cost: 3, upkeep: 2, effect: '**Manutenção 2.** Na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK.',
+  { name: 'Capitão Barba-de-Corvo', isFullArt: true, trigger: 'postura', cardType: 'Infantaria', atk: 3, hp: 5, cost: 3, upkeep: 2, effect: '**Manutenção 2.** Na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK.',
     passives: [{ kind: 'aura', who: { side: 'own', types: ['Infantaria', 'Arqueiro'] }, from: 'front', atk: 1 }] },
-  { name: 'Cavaleiro Errante', isFullArt: true, cardType: 'Cavalaria', atk: 4, hp: 5, cost: 3, upkeep: 1, dismiss: 'hand', effect: '**Manutenção 1.** Se dispensado, volta para a mão.' },
-  { name: 'Duelista Livre', cardType: 'Infantaria', atk: 5, hp: 2, cost: 2, upkeep: 2, dismiss: 'hand', effect: '**Manutenção 2.** Se dispensado, volta para a mão.' },
-  { name: 'Bombardeiro Contratado', cardType: 'Artilharia', atk: 3, hp: 2, cost: 3, upkeep: 1, effect: '**Manutenção 1.** Ataca à distância.' },
+  { name: 'Cavaleiro do Escudo Raspado', isFullArt: true, cardType: 'Cavalaria', atk: 4, hp: 5, cost: 3, upkeep: 1, dismiss: 'hand', effect: '**Manutenção 1.** Se dispensado, volta para a mão.' },
+  { name: 'Florete de Aposta', cardType: 'Infantaria', atk: 5, hp: 2, cost: 2, upkeep: 2, dismiss: 'hand', effect: '**Manutenção 2.** Se dispensado, volta para a mão.' },
+  { name: 'Boca-de-Fogo', cardType: 'Artilharia', atk: 3, hp: 2, cost: 3, upkeep: 1, effect: '**Manutenção 1.** Ataca à distância.' },
 
   // ── sem manutenção ──
-  { name: 'Sentinela Fiel', cardType: 'Infantaria', atk: 2, hp: 4, cost: 2, effect: '' },
-  { name: 'Tesoureiro da Companhia', trigger: 'comando', cardType: 'Infantaria', atk: 1, hp: 3, cost: 2, effect: 'No início do turno, ganhe 1 de ouro.',
+  { name: 'Vigia da Última Brasa', cardType: 'Infantaria', atk: 2, hp: 4, cost: 2, effect: '' },
+  { name: 'Quillon Contamoedas', trigger: 'comando', cardType: 'Infantaria', atk: 1, hp: 3, cost: 2, effect: 'No início do turno, ganhe 1 de ouro.',
     abilities: [{ on: 'turn_start', do: [{ kind: 'gold', amount: 1 }] }] },
 
   // ── táticas, equipamentos e emboscada próprios do deck (nenhuma carta é emprestada do Cardeal nem do Capitão) ──
-  { name: 'Escriba de Contratos', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Leve 1 Relíquia do baralho para a mão.',
+  { name: 'Escriba do Códice', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Leve 1 Relíquia do baralho para a mão.',
     abilities: [{ on: 'play', do: [{ kind: 'search', zone: 'deck', filter: { types: ['Relíquia'] } }] }] },
-  { name: 'Agência de Recrutamento', cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: 'Leve 1 soldado do baralho para a mão.',
+  { name: 'Tambor do Soldo Fácil', cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: 'Leve 1 soldado do baralho para a mão.',
     abilities: [{ on: 'play', do: [{ kind: 'search', zone: 'deck', filter: { types: SOLDIERS } }] }] },
-  { name: 'Resgate de Mercenário', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Leve 1 soldado do cemitério para a mão.',
+  { name: 'Ninguém Fica na Lama', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Leve 1 soldado do cemitério para a mão.',
     abilities: [{ on: 'play', do: [{ kind: 'search', zone: 'graveyard', filter: { types: SOLDIERS } }] }] },
-  { name: 'Recrutamento de Rua', cardType: 'Tática', atk: 0, hp: 0, cost: 3, effect: 'Compre 2 cartas.',
+  { name: 'Os Dois do Beco', cardType: 'Tática', atk: 0, hp: 0, cost: 3, effect: 'Compre 2 cartas.',
     abilities: [{ on: 'play', do: [{ kind: 'draw', amount: 2 }] }] },
-  { name: 'Salva de Besteiros', cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: '2 de dano a todas as unidades de uma fileira inimiga.',
+  { name: 'Chuva de Ferro Barato', cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: '2 de dano a todas as unidades de uma fileira inimiga.',
     abilities: [{ on: 'play', do: [
       { kind: 'damage', amount: 2, target: { side: 'enemy', area: 'row', prompt: 'Escolha uma fileira inimiga (clique em qualquer slot dela).' } },
     ] }] },
-  { name: 'Contrato de Execução', cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: '3 de dano a uma unidade inimiga.',
+  { name: 'Pacto do Punhal Vermelho', cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: '3 de dano a uma unidade inimiga.',
     abilities: [{ on: 'play', do: [
       { kind: 'damage', amount: 3, target: { side: 'enemy', area: 'unit', prompt: 'Escolha a unidade inimiga que o contrato elimina (3 de dano).' } },
     ] }] },
-  { name: 'Carga de Pólvora', isFullArt: true, cardType: 'Tática', atk: 0, hp: 0, cost: 3, effect: '2 de dano a todas as unidades inimigas e ao General.',
+  { name: 'O Dia em que a Muralha Caiu', isFullArt: true, cardType: 'Tática', atk: 0, hp: 0, cost: 3, effect: '2 de dano a todas as unidades inimigas e ao General.',
     abilities: [{ on: 'play', do: [{ kind: 'damage', amount: 2, all: 'enemy' }] }] },
-  { name: 'Armadura Alugada', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Equipe uma Infantaria: +2 HP.',
+  { name: 'Peitoral de Muitos Donos', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Equipe uma Infantaria: +2 HP.',
     abilities: [{ on: 'play', do: [
       { kind: 'equip', hp: 2, target: { side: 'own', area: 'unit', types: ['Infantaria'], prompt: 'Escolha uma Infantaria sua para equipar (+2 HP).' } },
     ] }] },
-  { name: 'Espada de Aluguel', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Equipe uma Infantaria ou Cavalaria: +2 ATK.',
+  { name: 'Espada de Mil Mãos', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Equipe uma Infantaria ou Cavalaria: +2 ATK.',
     abilities: [{ on: 'play', do: [
       { kind: 'equip', atk: 2, target: { side: 'own', area: 'unit', types: ['Cavalaria', 'Infantaria'], prompt: 'Escolha uma Cavalaria ou Infantaria sua para equipar (+2 ATK).' } },
     ] }] },
-  { name: 'Suborno', cardType: 'Emboscada', atk: 0, hp: 0, cost: 2, effect: 'Cancela um ataque a uma de suas unidades.',
+  { name: 'O Peso da Bolsa', cardType: 'Emboscada', atk: 0, hp: 0, cost: 2, effect: 'Cancela um ataque a uma de suas unidades.',
     abilities: [{ on: 'ambush', do: [{ kind: 'cancel_attack' }] }] },
 
   // ── a Relíquia do deck: três modos, o dono escolhe um no fim do turno (vale até o fim do turno seguinte) ──
-  { name: 'Livro de Contratos', cardType: 'Relíquia', atk: 0, hp: 5, cost: 3, isFullArt: true,
+  { name: 'Códice das Mil Dívidas', cardType: 'Relíquia', atk: 0, hp: 5, cost: 3, isFullArt: true,
     effect: 'Escolha 1 modo no fim do seu turno. Soldo em Dobro: cartas com manutenção têm +1 ATK. Saque: ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo).',
     modes: [
       { id: 'soldo', name: 'Soldo em Dobro', effect: 'Cartas com manutenção têm +1 ATK.', atk: 1 },
@@ -278,18 +278,18 @@ export const DECK_RECIPES: Record<DeckId, DeckRecipe> = {
     },
   },
   mercenarios: {
-    id: 'mercenarios', name: "Deck Mercenários", description: "Tropas de aluguel, manutenção e uma Relíquia de contratos.", general: "Comandante Brann, Senhor da Companhia",
+    id: 'mercenarios', name: "Deck Mercenários", description: "Tropas de aluguel, manutenção e uma Relíquia de contratos.", general: "Brann Meia-Coroa, Comprador de Guerras",
     cards: {
       // 31 mercenários (com manutenção) e 7 sem manutenção
-      "Lanceiro de Aluguel": 4, "Besteiro Contratado": 4, "Espadachim do Soldo": 4, "Desertor": 4, "Capitão da Companhia": 3,
-      "Cavaleiro Errante": 3, "Duelista Livre": 4, "Bombardeiro Contratado": 4,
-      "Sentinela Fiel": 4, "Tesoureiro da Companhia": 4,
+      "Lanceiro Pés-de-Lama": 4, "Besteiro Dedo-Ligeiro": 4, "Capa-Rota": 4, "Rato da Muralha": 4, "Capitão Barba-de-Corvo": 3,
+      "Cavaleiro do Escudo Raspado": 3, "Florete de Aposta": 4, "Boca-de-Fogo": 4,
+      "Vigia da Última Brasa": 4, "Quillon Contamoedas": 4,
       // a Relíquia e quem a busca
-      "Livro de Contratos": 3, "Escriba de Contratos": 3,
+      "Códice das Mil Dívidas": 3, "Escriba do Códice": 3,
       // táticas, equipamentos e emboscada próprios
-      "Salva de Besteiros": 2, "Contrato de Execução": 2, "Carga de Pólvora": 1,
-      "Armadura Alugada": 3, "Espada de Aluguel": 2,
-      "Agência de Recrutamento": 1, "Resgate de Mercenário": 2, "Recrutamento de Rua": 1, "Suborno": 2,
+      "Chuva de Ferro Barato": 2, "Pacto do Punhal Vermelho": 2, "O Dia em que a Muralha Caiu": 1,
+      "Peitoral de Muitos Donos": 3, "Espada de Mil Mãos": 2,
+      "Tambor do Soldo Fácil": 1, "Ninguém Fica na Lama": 2, "Os Dois do Beco": 1, "O Peso da Bolsa": 2,
     },
   },
 };
@@ -343,6 +343,39 @@ export const requireCardDef = (name: string): CardDef => {
   const def = BY_NAME[name];
   if (!def) throw new Error(`Unknown card: ${name}`);
   return def;
+};
+// Nomes antigos dos Mercenários (renomeados na rodada 18). Decks e coleções já salvos (aparelho, nuvem, servidor) podem ter os nomes velhos:
+// quem lê um save passa o nome por `currentCardName`.
+export const LEGACY_CARD_NAMES: Readonly<Record<string, string>> = {
+  'Comandante Brann, Senhor da Companhia': 'Brann Meia-Coroa, Comprador de Guerras',
+  'Lanceiro de Aluguel': 'Lanceiro Pés-de-Lama',
+  'Besteiro Contratado': 'Besteiro Dedo-Ligeiro',
+  'Espadachim do Soldo': 'Capa-Rota',
+  'Desertor': 'Rato da Muralha',
+  'Capitão da Companhia': 'Capitão Barba-de-Corvo',
+  'Cavaleiro Errante': 'Cavaleiro do Escudo Raspado',
+  'Duelista Livre': 'Florete de Aposta',
+  'Bombardeiro Contratado': 'Boca-de-Fogo',
+  'Sentinela Fiel': 'Vigia da Última Brasa',
+  'Tesoureiro da Companhia': 'Quillon Contamoedas',
+  'Livro de Contratos': 'Códice das Mil Dívidas',
+  'Escriba de Contratos': 'Escriba do Códice',
+  'Salva de Besteiros': 'Chuva de Ferro Barato',
+  'Contrato de Execução': 'Pacto do Punhal Vermelho',
+  'Carga de Pólvora': 'O Dia em que a Muralha Caiu',
+  'Armadura Alugada': 'Peitoral de Muitos Donos',
+  'Espada de Aluguel': 'Espada de Mil Mãos',
+  'Agência de Recrutamento': 'Tambor do Soldo Fácil',
+  'Resgate de Mercenário': 'Ninguém Fica na Lama',
+  'Recrutamento de Rua': 'Os Dois do Beco',
+  'Suborno': 'O Peso da Bolsa',
+};
+export const currentCardName = (name: string): string => LEGACY_CARD_NAMES[name] ?? name;
+/** Passa as chaves de um mapa nome→quantidade (coleção, cartas de um deck) pelos nomes atuais; se os dois nomes existirem, soma. */
+export const currentNames = (m: Record<string, number>): Record<string, number> => {
+  const out: Record<string, number> = {};
+  Object.entries(m ?? {}).forEach(([n, c]) => { const k = currentCardName(n); out[k] = (out[k] ?? 0) + c; });
+  return out;
 };
 export const isGeneralName = (name: string) => BY_NAME[name]?.cardType === 'General';
 

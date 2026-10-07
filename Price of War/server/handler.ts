@@ -3,7 +3,7 @@
 // action. Players never see the full state: for each step they get a view with the other player's hand and every
 // deck order removed (see src/engine/view.ts), and their device just shows it.
 import { aiNextAction } from '../src/engine/ai';
-import { DECK_RECIPES, type DeckId } from '../src/engine/catalog';
+import { DECK_RECIPES, currentCardName, currentNames, type DeckId } from '../src/engine/catalog';
 import { deckProblem } from '../src/engine/deck';
 import { applyAction, createMatch } from '../src/engine/game';
 import { nextRandom, seedFrom } from '../src/engine/rng';
@@ -263,11 +263,13 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
   switch (req.op) {
     case 'queue': {
       if (!req.cards || typeof req.cards !== 'object' || typeof req.general !== 'string') return { ok: false, error: 'Deck inválido.' };
+      // saves antigos (decks e coleção) podem ter os nomes que os Mercenários tinham antes da rodada 18
+      const cards = currentNames(req.cards), general = currentCardName(req.general);
       const resume = await finishIfStale(db, cfg, await db.activeMatchOf(userId));
       if (resume) return { ok: true, status: 'matched', match: await initOf(db, await enforceClock(db, resume, cfg), userId, cfg) };
-      const problem = deckProblem(req.cards, req.general, await db.collection(userId));
+      const problem = deckProblem(cards, general, currentNames(await db.collection(userId)));
       if (problem) return { ok: false, error: problem };
-      const deck: DeckJson = { general: req.general, cards: req.cards };
+      const deck: DeckJson = { general, cards };
       await db.queueDelete(userId);
       if (req.vsBot) {
         const m = await startMatch(db, cfg, { user: userId, deck }, { user: null, deck: botDeckFor(deck) });

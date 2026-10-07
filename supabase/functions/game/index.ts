@@ -520,7 +520,7 @@ var CARD_DEFS = [
   },
   // ── mercenarios ── (deck novo: nenhuma carta é do Cardeal nem do Capitão; custos pela tabela de docs/balanceamento.md; proposta em docs/deck-mercenarios.md)
   {
-    name: "Comandante Brann, Senhor da Companhia",
+    name: "Brann Meia-Coroa, Comprador de Guerras",
     trigger: "comando",
     cardType: "General",
     atk: 0,
@@ -532,11 +532,11 @@ var CARD_DEFS = [
     abilities: [{ on: "ability", phases: ["preparacao"], once: true, cost: 3, do: [{ kind: "draw", amount: 1 }] }]
   },
   // ── mercenários (com manutenção) ──
-  { name: "Lanceiro de Aluguel", cardType: "Infantaria", atk: 2, hp: 2, cost: 1, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.**" },
-  { name: "Besteiro Contratado", cardType: "Arqueiro", atk: 2, hp: 2, cost: 2, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.**" },
-  { name: "Espadachim do Soldo", cardType: "Infantaria", atk: 4, hp: 3, cost: 2, upkeep: 2, effect: "**Manuten\xE7\xE3o 2.**" },
+  { name: "Lanceiro P\xE9s-de-Lama", cardType: "Infantaria", atk: 2, hp: 2, cost: 1, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.**" },
+  { name: "Besteiro Dedo-Ligeiro", cardType: "Arqueiro", atk: 2, hp: 2, cost: 2, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.**" },
+  { name: "Capa-Rota", cardType: "Infantaria", atk: 4, hp: 3, cost: 2, upkeep: 2, effect: "**Manuten\xE7\xE3o 2.**" },
   {
-    name: "Desertor",
+    name: "Rato da Muralha",
     cardType: "Infantaria",
     atk: 2,
     hp: 2,
@@ -546,7 +546,7 @@ var CARD_DEFS = [
     abilities: [{ on: "dismissed", do: [{ kind: "draw", amount: 1 }] }]
   },
   {
-    name: "Capit\xE3o da Companhia",
+    name: "Capit\xE3o Barba-de-Corvo",
     isFullArt: true,
     trigger: "postura",
     cardType: "Infantaria",
@@ -557,13 +557,13 @@ var CARD_DEFS = [
     effect: "**Manuten\xE7\xE3o 2.** Na Vanguarda, seus Infantaria e Arqueiros t\xEAm +1 ATK.",
     passives: [{ kind: "aura", who: { side: "own", types: ["Infantaria", "Arqueiro"] }, from: "front", atk: 1 }]
   },
-  { name: "Cavaleiro Errante", isFullArt: true, cardType: "Cavalaria", atk: 4, hp: 5, cost: 3, upkeep: 1, dismiss: "hand", effect: "**Manuten\xE7\xE3o 1.** Se dispensado, volta para a m\xE3o." },
-  { name: "Duelista Livre", cardType: "Infantaria", atk: 5, hp: 2, cost: 2, upkeep: 2, dismiss: "hand", effect: "**Manuten\xE7\xE3o 2.** Se dispensado, volta para a m\xE3o." },
-  { name: "Bombardeiro Contratado", cardType: "Artilharia", atk: 3, hp: 2, cost: 3, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.** Ataca \xE0 dist\xE2ncia." },
+  { name: "Cavaleiro do Escudo Raspado", isFullArt: true, cardType: "Cavalaria", atk: 4, hp: 5, cost: 3, upkeep: 1, dismiss: "hand", effect: "**Manuten\xE7\xE3o 1.** Se dispensado, volta para a m\xE3o." },
+  { name: "Florete de Aposta", cardType: "Infantaria", atk: 5, hp: 2, cost: 2, upkeep: 2, dismiss: "hand", effect: "**Manuten\xE7\xE3o 2.** Se dispensado, volta para a m\xE3o." },
+  { name: "Boca-de-Fogo", cardType: "Artilharia", atk: 3, hp: 2, cost: 3, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.** Ataca \xE0 dist\xE2ncia." },
   // ── sem manutenção ──
-  { name: "Sentinela Fiel", cardType: "Infantaria", atk: 2, hp: 4, cost: 2, effect: "" },
+  { name: "Vigia da \xDAltima Brasa", cardType: "Infantaria", atk: 2, hp: 4, cost: 2, effect: "" },
   {
-    name: "Tesoureiro da Companhia",
+    name: "Quillon Contamoedas",
     trigger: "comando",
     cardType: "Infantaria",
     atk: 1,
@@ -574,7 +574,7 @@ var CARD_DEFS = [
   },
   // ── táticas, equipamentos e emboscada próprios do deck (nenhuma carta é emprestada do Cardeal nem do Capitão) ──
   {
-    name: "Escriba de Contratos",
+    name: "Escriba do C\xF3dice",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -583,7 +583,7 @@ var CARD_DEFS = [
     abilities: [{ on: "play", do: [{ kind: "search", zone: "deck", filter: { types: ["Rel\xEDquia"] } }] }]
   },
   {
-    name: "Ag\xEAncia de Recrutamento",
+    name: "Tambor do Soldo F\xE1cil",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -592,7 +592,7 @@ var CARD_DEFS = [
     abilities: [{ on: "play", do: [{ kind: "search", zone: "deck", filter: { types: SOLDIERS } }] }]
   },
   {
-    name: "Resgate de Mercen\xE1rio",
+    name: "Ningu\xE9m Fica na Lama",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -601,7 +601,7 @@ var CARD_DEFS = [
     abilities: [{ on: "play", do: [{ kind: "search", zone: "graveyard", filter: { types: SOLDIERS } }] }]
   },
   {
-    name: "Recrutamento de Rua",
+    name: "Os Dois do Beco",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -610,7 +610,7 @@ var CARD_DEFS = [
     abilities: [{ on: "play", do: [{ kind: "draw", amount: 2 }] }]
   },
   {
-    name: "Salva de Besteiros",
+    name: "Chuva de Ferro Barato",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -621,7 +621,7 @@ var CARD_DEFS = [
     ] }]
   },
   {
-    name: "Contrato de Execu\xE7\xE3o",
+    name: "Pacto do Punhal Vermelho",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -632,7 +632,7 @@ var CARD_DEFS = [
     ] }]
   },
   {
-    name: "Carga de P\xF3lvora",
+    name: "O Dia em que a Muralha Caiu",
     isFullArt: true,
     cardType: "T\xE1tica",
     atk: 0,
@@ -642,7 +642,7 @@ var CARD_DEFS = [
     abilities: [{ on: "play", do: [{ kind: "damage", amount: 2, all: "enemy" }] }]
   },
   {
-    name: "Armadura Alugada",
+    name: "Peitoral de Muitos Donos",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -653,7 +653,7 @@ var CARD_DEFS = [
     ] }]
   },
   {
-    name: "Espada de Aluguel",
+    name: "Espada de Mil M\xE3os",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -664,7 +664,7 @@ var CARD_DEFS = [
     ] }]
   },
   {
-    name: "Suborno",
+    name: "O Peso da Bolsa",
     cardType: "Emboscada",
     atk: 0,
     hp: 0,
@@ -674,7 +674,7 @@ var CARD_DEFS = [
   },
   // ── a Relíquia do deck: três modos, o dono escolhe um no fim do turno (vale até o fim do turno seguinte) ──
   {
-    name: "Livro de Contratos",
+    name: "C\xF3dice das Mil D\xEDvidas",
     cardType: "Rel\xEDquia",
     atk: 0,
     hp: 5,
@@ -759,32 +759,32 @@ var DECK_RECIPES = {
     id: "mercenarios",
     name: "Deck Mercen\xE1rios",
     description: "Tropas de aluguel, manuten\xE7\xE3o e uma Rel\xEDquia de contratos.",
-    general: "Comandante Brann, Senhor da Companhia",
+    general: "Brann Meia-Coroa, Comprador de Guerras",
     cards: {
       // 31 mercenários (com manutenção) e 7 sem manutenção
-      "Lanceiro de Aluguel": 4,
-      "Besteiro Contratado": 4,
-      "Espadachim do Soldo": 4,
-      "Desertor": 4,
-      "Capit\xE3o da Companhia": 3,
-      "Cavaleiro Errante": 3,
-      "Duelista Livre": 4,
-      "Bombardeiro Contratado": 4,
-      "Sentinela Fiel": 4,
-      "Tesoureiro da Companhia": 4,
+      "Lanceiro P\xE9s-de-Lama": 4,
+      "Besteiro Dedo-Ligeiro": 4,
+      "Capa-Rota": 4,
+      "Rato da Muralha": 4,
+      "Capit\xE3o Barba-de-Corvo": 3,
+      "Cavaleiro do Escudo Raspado": 3,
+      "Florete de Aposta": 4,
+      "Boca-de-Fogo": 4,
+      "Vigia da \xDAltima Brasa": 4,
+      "Quillon Contamoedas": 4,
       // a Relíquia e quem a busca
-      "Livro de Contratos": 3,
-      "Escriba de Contratos": 3,
+      "C\xF3dice das Mil D\xEDvidas": 3,
+      "Escriba do C\xF3dice": 3,
       // táticas, equipamentos e emboscada próprios
-      "Salva de Besteiros": 2,
-      "Contrato de Execu\xE7\xE3o": 2,
-      "Carga de P\xF3lvora": 1,
-      "Armadura Alugada": 3,
-      "Espada de Aluguel": 2,
-      "Ag\xEAncia de Recrutamento": 1,
-      "Resgate de Mercen\xE1rio": 2,
-      "Recrutamento de Rua": 1,
-      "Suborno": 2
+      "Chuva de Ferro Barato": 2,
+      "Pacto do Punhal Vermelho": 2,
+      "O Dia em que a Muralha Caiu": 1,
+      "Peitoral de Muitos Donos": 3,
+      "Espada de Mil M\xE3os": 2,
+      "Tambor do Soldo F\xE1cil": 1,
+      "Ningu\xE9m Fica na Lama": 2,
+      "Os Dois do Beco": 1,
+      "O Peso da Bolsa": 2
     }
   }
 };
@@ -821,6 +821,39 @@ var requireCardDef = (name) => {
   const def = BY_NAME[name];
   if (!def) throw new Error(`Unknown card: ${name}`);
   return def;
+};
+var LEGACY_CARD_NAMES = {
+  "Comandante Brann, Senhor da Companhia": "Brann Meia-Coroa, Comprador de Guerras",
+  "Lanceiro de Aluguel": "Lanceiro P\xE9s-de-Lama",
+  "Besteiro Contratado": "Besteiro Dedo-Ligeiro",
+  "Espadachim do Soldo": "Capa-Rota",
+  "Desertor": "Rato da Muralha",
+  "Capit\xE3o da Companhia": "Capit\xE3o Barba-de-Corvo",
+  "Cavaleiro Errante": "Cavaleiro do Escudo Raspado",
+  "Duelista Livre": "Florete de Aposta",
+  "Bombardeiro Contratado": "Boca-de-Fogo",
+  "Sentinela Fiel": "Vigia da \xDAltima Brasa",
+  "Tesoureiro da Companhia": "Quillon Contamoedas",
+  "Livro de Contratos": "C\xF3dice das Mil D\xEDvidas",
+  "Escriba de Contratos": "Escriba do C\xF3dice",
+  "Salva de Besteiros": "Chuva de Ferro Barato",
+  "Contrato de Execu\xE7\xE3o": "Pacto do Punhal Vermelho",
+  "Carga de P\xF3lvora": "O Dia em que a Muralha Caiu",
+  "Armadura Alugada": "Peitoral de Muitos Donos",
+  "Espada de Aluguel": "Espada de Mil M\xE3os",
+  "Ag\xEAncia de Recrutamento": "Tambor do Soldo F\xE1cil",
+  "Resgate de Mercen\xE1rio": "Ningu\xE9m Fica na Lama",
+  "Recrutamento de Rua": "Os Dois do Beco",
+  "Suborno": "O Peso da Bolsa"
+};
+var currentCardName = (name) => LEGACY_CARD_NAMES[name] ?? name;
+var currentNames = (m) => {
+  const out = {};
+  Object.entries(m ?? {}).forEach(([n, c]) => {
+    const k = currentCardName(n);
+    out[k] = (out[k] ?? 0) + c;
+  });
+  return out;
 };
 var isGeneralName = (name) => BY_NAME[name]?.cardType === "General";
 var TOKEN_DEFS = [
@@ -2840,11 +2873,12 @@ var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
   switch (req.op) {
     case "queue": {
       if (!req.cards || typeof req.cards !== "object" || typeof req.general !== "string") return { ok: false, error: "Deck inv\xE1lido." };
+      const cards = currentNames(req.cards), general = currentCardName(req.general);
       const resume = await finishIfStale(db, cfg, await db.activeMatchOf(userId));
       if (resume) return { ok: true, status: "matched", match: await initOf(db, await enforceClock(db, resume, cfg), userId, cfg) };
-      const problem = deckProblem(req.cards, req.general, await db.collection(userId));
+      const problem = deckProblem(cards, general, currentNames(await db.collection(userId)));
       if (problem) return { ok: false, error: problem };
-      const deck = { general: req.general, cards: req.cards };
+      const deck = { general, cards };
       await db.queueDelete(userId);
       if (req.vsBot) {
         const m = await startMatch(db, cfg, { user: userId, deck }, { user: null, deck: botDeckFor(deck) });

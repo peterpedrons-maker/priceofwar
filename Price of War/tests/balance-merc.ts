@@ -4,8 +4,8 @@
 //   N=100 OUT=balance-out/merc-base npx tsx tests/balance-merc.ts
 //   N=100 PATCH=balance-out/m1.json OUT=balance-out/merc-m1 npx tsx tests/balance-merc.ts       (e se...)
 //
-// Patch: { "name": "...", "cards": { "Livro de Contratos": { "set": {...}, "merge": { "modes.0": { "upkeepFlat": 1 } } }, "Desertor": { "upkeep": 2, "cost": 1, "atk": 3, "hp": 2 } },
-//          "deck": { "Lanceiro de Aluguel": 3 }, "rules": { ... } }      (cards: campos absolutos; deck: cópias na receita dos Mercenários, 0 tira)
+// Patch: { "name": "...", "cards": { "Códice das Mil Dívidas": { "set": {...}, "merge": { "modes.0": { "upkeepFlat": 1 } } }, "Rato da Muralha": { "upkeep": 2, "cost": 1, "atk": 3, "hp": 2 } },
+//          "deck": { "Lanceiro Pés-de-Lama": 3 }, "rules": { ... } }      (cards: campos absolutos; deck: cópias na receita dos Mercenários, 0 tira)
 // MATCHUPS=mercenarios:cardeal,mercenarios:capitao,cardeal:capitao  (padrão: os três)
 import './balance-rules-preload';
 import { fork } from 'node:child_process';

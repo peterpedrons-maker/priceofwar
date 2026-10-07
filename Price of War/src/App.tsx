@@ -217,7 +217,7 @@ import batalhaBannerSfxUrl from './assets/sfx-batalha-banner.wav';
 // something heavy hitting the ground" calls for a stone/masonry thud, not a musical
 // stinger.
 import batalhaImpactSfxUrl from './assets/sfx-batalha-impacto.wav';
-import { CARD_DEFS, DECK_RECIPES, LEGACY_STARTERS, requireCardDef, getCardDef, starterDeckCards, type DeckId } from './engine/catalog';
+import { CARD_DEFS, DECK_RECIPES, LEGACY_STARTERS, LEGACY_CARD_NAMES, currentCardName, currentNames, requireCardDef, getCardDef, starterDeckCards, type DeckId } from './engine/catalog';
 import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActivePhases, createMatch, deckSetupFromRecipe, newMatchLog, type MatchLog } from './engine/game';
 import { aiNextAction } from './engine/ai';
 import { glyphUrl, burstUrl, NUMBER_GLOW, type NumberKind } from './numberGlyphs';
@@ -2426,8 +2426,15 @@ const ensureStarterDecks = (store: DeckStore): boolean => {
 
 // Drops anything the catalog no longer knows and clamps counts to what is owned, so a stale
 // or hand-edited save can never produce an impossible deck.
+// `true` quando o último save lido tinha nomes antigos de carta (Mercenários renomeados): quem leu deve gravar de novo, para o aparelho e a nuvem ficarem com os nomes novos.
+let lastSanitizeMigrated = false;
 const sanitizeDeckStore = (raw: any): DeckStore | null => {
   if (!raw || typeof raw !== 'object' || typeof raw.collection !== 'object' || !Array.isArray(raw.slots) || raw.slots.length < 2) return null;
+  lastSanitizeMigrated = Object.keys(raw.collection).some(n => n in LEGACY_CARD_NAMES)
+    || raw.slots.some((sl: any) => sl && (currentCardName(sl.general) !== sl.general || Object.keys(sl.cards ?? {}).some(n => n in LEGACY_CARD_NAMES)));
+  if (lastSanitizeMigrated) {
+    raw = { ...raw, collection: currentNames(raw.collection), slots: raw.slots.map((sl: any) => sl && ({ ...sl, general: currentCardName(sl.general), cards: currentNames(sl.cards ?? {}) })) };
+  }
   const collection: Record<string, number> = {};
   Object.entries(raw.collection as Record<string, number>).forEach(([name, n]) => {
     // Boosters can give more copies than the prebuilt decks hold, so the only cap is a sanity one.
@@ -2455,7 +2462,7 @@ const loadDeckStore = (): DeckStore => {
     const raw = localStorage.getItem(DECK_STORE_KEY);
     if (raw) {
       const ok = sanitizeDeckStore(JSON.parse(raw));
-      if (ok) { if (ensureStarterDecks(ok)) saveDeckStore(ok); return ok; }
+      if (ok) { const migrated = lastSanitizeMigrated; if (ensureStarterDecks(ok) || migrated) saveDeckStore(ok); return ok; }
     }
   } catch { /* fall through to a fresh starter */ }
   const fresh = buildStarterStore();
@@ -2511,7 +2518,7 @@ const syncDeckStoreWithCloud = async (userId: string): Promise<string | null> =>
     });
     const merged = sanitizeDeckStore({ collection, slots, owner: userId });
     if (merged) {
-      const grew = ensureStarterDecks(merged);
+      const grew = ensureStarterDecks(merged) || lastSanitizeMigrated;
       try { localStorage.setItem(DECK_STORE_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
       cloudUserId = userId;
       if (grew) { const up = await pushStore(userId, { collection: merged.collection, decks: toCloudDecks(merged) }); if (up.ok === false) return up.message; }

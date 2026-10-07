@@ -1,7 +1,34 @@
-# Deck Mercenários (no jogo; 21 de 22 artes reais, falta só o Livro de Contratos)
+# Deck Mercenários (no jogo; as 22 artes reais entregues)
 
 Terceiro deck do jogo. Ideia do dono: um deck cuja base é **ouro** (segundo pilar do jogo): as tropas cobram **manutenção**, e uma **Relíquia com modos** é o centro do deck.
 Mesa de teste jogável da economia (sem combate): `public/mockups/mercenarios/index.html` (publicado em `/mockups/mercenarios/`).
+
+## Nomes (rodada 18)
+As cartas foram renomeadas (estilo Magic/Yu-Gi-Oh, aprovado pelo dono). Os registros antigos (`docs/balanceamento.md` rodadas 8–17, mockups) usam os nomes velhos. Decks e coleções salvos com nome velho são convertidos ao abrir (`LEGACY_CARD_NAMES` em `src/engine/catalog.ts`; `sanitizeDeckStore` no cliente e `handleGame` no servidor).
+| Nome antigo | Nome atual |
+|---|---|
+| Comandante Brann, Senhor da Companhia | Brann Meia-Coroa, Comprador de Guerras |
+| Lanceiro de Aluguel | Lanceiro Pés-de-Lama |
+| Besteiro Contratado | Besteiro Dedo-Ligeiro |
+| Espadachim do Soldo | Capa-Rota |
+| Desertor | Rato da Muralha |
+| Capitão da Companhia | Capitão Barba-de-Corvo |
+| Cavaleiro Errante | Cavaleiro do Escudo Raspado |
+| Duelista Livre | Florete de Aposta |
+| Bombardeiro Contratado | Boca-de-Fogo |
+| Sentinela Fiel | Vigia da Última Brasa |
+| Tesoureiro da Companhia | Quillon Contamoedas |
+| Livro de Contratos | Códice das Mil Dívidas |
+| Escriba de Contratos | Escriba do Códice |
+| Salva de Besteiros | Chuva de Ferro Barato |
+| Contrato de Execução | Pacto do Punhal Vermelho |
+| Carga de Pólvora | O Dia em que a Muralha Caiu |
+| Armadura Alugada | Peitoral de Muitos Donos |
+| Espada de Aluguel | Espada de Mil Mãos |
+| Agência de Recrutamento | Tambor do Soldo Fácil |
+| Resgate de Mercenário | Ninguém Fica na Lama |
+| Recrutamento de Rua | Os Dois do Beco |
+| Suborno | O Peso da Bolsa |
 
 ## Decisões já tomadas
 - **Sem "contratar a carta do adversário"** (roubo). É a parte mais frustrante de enfrentar e a mais difícil de equilibrar, e complica o motor e o online (decisão do adversário no início do turno). Pode voltar depois, como poucas cartas, se o deck ficar sem graça.
@@ -13,36 +40,36 @@ Mesa de teste jogável da economia (sem combate): `public/mockups/mercenarios/in
 
 ## Lista simulada (60 cartas, **todas novas**: nenhuma é do Cardeal nem do Capitão; `src/engine/experimental.ts`)
 Decisão do dono do jogo: o deck não repete nenhuma carta dos outros dois (pelo menos no início); o laboratório confere isso ao começar (`tests/balance-merc.ts`).
-General **Comandante Brann, Senhor da Companhia** (30 de vida): pague 3 de ouro, compre 1 carta (uma vez por turno).
+General **Brann Meia-Coroa, Comprador de Guerras** (30 de vida): pague 3 de ouro, compre 1 carta (uma vez por turno).
 | Carta | Cópias | Tipo, ATK/HP, custo | Manutenção | O que faz |
 |---|---|---|---|---|
-| Lanceiro de Aluguel | 4 | Infantaria 2/2, 1 | 1 | só atributos |
-| Besteiro Contratado | 4 | Arqueiro 2/2, 2 | 1 | só atributos |
-| Espadachim do Soldo | 4 | Infantaria 4/3, 2 | 2 | só atributos |
-| Desertor | 4 | Infantaria 2/2, 1 | 1 | Rescisão: compre 1 carta. |
-| Capitão da Companhia | 3 | Infantaria 3/5, 3 | 2 | Na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK. |
-| Cavaleiro Errante | 3 | Cavalaria 4/5, 3 | 1 | Se dispensado, volta para a mão. |
-| Duelista Livre | 4 | Infantaria 5/2, 2 | 2 | Se dispensado, volta para a mão. |
-| Bombardeiro Contratado | 4 | Artilharia 3/2, 3 | 1 | Ataca à distância. |
-| Sentinela Fiel | 4 | Infantaria 2/4, 2 | — | só atributos |
-| Tesoureiro da Companhia | 4 | Infantaria 1/3, 2 | — | No início do turno, ganhe 1 de ouro. |
-| Livro de Contratos | 3 | Relíquia (5 de vida), 3 | — | Escolha 1 modo no fim do seu turno. Soldo em Dobro: cartas com manutenção têm +1 ATK. Saque: ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo). |
-| Escriba de Contratos | 3 | Tática, 1 | — | Leve 1 Relíquia do baralho para a mão. |
-| Salva de Besteiros | 2 | Tática, 2 | — | 2 de dano a todas as unidades de uma fileira inimiga. |
-| Contrato de Execução | 2 | Tática, 2 | — | 3 de dano a uma unidade inimiga. |
-| Carga de Pólvora | 1 | Tática, 3 | — | 2 de dano a todas as unidades inimigas e ao General. |
-| Armadura Alugada | 3 | Tática, 1 | — | Equipe uma Infantaria: +2 HP. |
-| Espada de Aluguel | 2 | Tática, 1 | — | Equipe uma Infantaria ou Cavalaria: +2 ATK. |
-| Agência de Recrutamento | 1 | Tática, 2 | — | Leve 1 soldado do baralho para a mão. |
-| Resgate de Mercenário | 2 | Tática, 1 | — | Leve 1 soldado do cemitério para a mão. |
-| Recrutamento de Rua | 1 | Tática, 3 | — | Compre 2 cartas. |
-| Suborno | 2 | Emboscada, 2 | — | Cancela um ataque a uma de suas unidades. |
+| Lanceiro Pés-de-Lama | 4 | Infantaria 2/2, 1 | 1 | só atributos |
+| Besteiro Dedo-Ligeiro | 4 | Arqueiro 2/2, 2 | 1 | só atributos |
+| Capa-Rota | 4 | Infantaria 4/3, 2 | 2 | só atributos |
+| Rato da Muralha | 4 | Infantaria 2/2, 1 | 1 | Rescisão: compre 1 carta. |
+| Capitão Barba-de-Corvo | 3 | Infantaria 3/5, 3 | 2 | Na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK. |
+| Cavaleiro do Escudo Raspado | 3 | Cavalaria 4/5, 3 | 1 | Se dispensado, volta para a mão. |
+| Florete de Aposta | 4 | Infantaria 5/2, 2 | 2 | Se dispensado, volta para a mão. |
+| Boca-de-Fogo | 4 | Artilharia 3/2, 3 | 1 | Ataca à distância. |
+| Vigia da Última Brasa | 4 | Infantaria 2/4, 2 | — | só atributos |
+| Quillon Contamoedas | 4 | Infantaria 1/3, 2 | — | No início do turno, ganhe 1 de ouro. |
+| Códice das Mil Dívidas | 3 | Relíquia (5 de vida), 3 | — | Escolha 1 modo no fim do seu turno. Soldo em Dobro: cartas com manutenção têm +1 ATK. Saque: ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo). |
+| Escriba do Códice | 3 | Tática, 1 | — | Leve 1 Relíquia do baralho para a mão. |
+| Chuva de Ferro Barato | 2 | Tática, 2 | — | 2 de dano a todas as unidades de uma fileira inimiga. |
+| Pacto do Punhal Vermelho | 2 | Tática, 2 | — | 3 de dano a uma unidade inimiga. |
+| O Dia em que a Muralha Caiu | 1 | Tática, 3 | — | 2 de dano a todas as unidades inimigas e ao General. |
+| Peitoral de Muitos Donos | 3 | Tática, 1 | — | Equipe uma Infantaria: +2 HP. |
+| Espada de Mil Mãos | 2 | Tática, 1 | — | Equipe uma Infantaria ou Cavalaria: +2 ATK. |
+| Tambor do Soldo Fácil | 1 | Tática, 2 | — | Leve 1 soldado do baralho para a mão. |
+| Ninguém Fica na Lama | 2 | Tática, 1 | — | Leve 1 soldado do cemitério para a mão. |
+| Os Dois do Beco | 1 | Tática, 3 | — | Compre 2 cartas. |
+| O Peso da Bolsa | 2 | Emboscada, 2 | — | Cancela um ataque a uma de suas unidades. |
 (Tabela gerada por `npx tsx tools/mercenarios-tabela.ts`, direto do código. A primeira simulação, com táticas emprestadas do Cardeal e do Capitão, está na rodada 8 de `docs/balanceamento.md`; a lista só de cartas novas, na rodada 9.)
 
 ## Resultado da simulação (resumo; detalhes em `docs/balanceamento.md`, rodada 9)
-Base (manutenção 1): 69,5% contra o Cardeal e 56% contra o Capitão (forte demais). Manutenção 2 em todos os mercenários (Capitão 3): 56% e 46% (média 51%), recomendada, ainda não aplicada. A IA quase não dispensa cartas e nunca ativa o Suborno: a parte de "pagar ou dispensar" só se prova com gente jogando.
+Base (manutenção 1): 69,5% contra o Cardeal e 56% contra o Capitão (forte demais). Manutenção 2 em todos os mercenários (Capitão 3): 56% e 46% (média 51%), recomendada, ainda não aplicada. A IA quase não dispensa cartas e nunca ativa o O Peso da Bolsa: a parte de "pagar ou dispensar" só se prova com gente jogando.
 
-## Estado atual (rodada 17 de `docs/balanceamento.md`: manutenção 2 em Espadachim do Soldo e Duelista Livre, 55% contra o Cardeal e 44% contra o Capitão, ~1,4 dispensas por partida; rodada 15: 59% contra o Cardeal, 46,5% contra o Capitão, triângulo com os outros dois; a lista abaixo já reflete a rodada 15)
+## Estado atual (rodada 17 de `docs/balanceamento.md`: manutenção 2 em Capa-Rota e Florete de Aposta, 55% contra o Cardeal e 44% contra o Capitão, ~1,4 dispensas por partida; rodada 15: 59% contra o Cardeal, 46,5% contra o Capitão, triângulo com os outros dois; a lista abaixo já reflete a rodada 15)
 (Texto abaixo da rodada 10, mantido como histórico.)
 Custos refeitos pela **tabela de custo** (soma ≤3 = 1, 4–6 = 2, 7–8 = 3, 9+ = 4; à distância +1; manutenção compra atributos). Resultado: ~42% contra os dois decks; a Relíquia com os modos de ouro (Cofre de Guerra, Extorsão) não se paga porque o ouro sobra neste jogo. Só com o modo Soldo em Dobro o deck vai a 53%. Os modos de ouro precisam ser repensados (cartas ou atributos). Tabela das cartas abaixo é da rodada 9; os custos/atributos novos estão em `src/engine/experimental.ts`.
 
