@@ -476,6 +476,8 @@ const sideValue = (p: PlayerState, q: PlayerState): number => {
   }
   if (p.board[10]) v += 5;
   if (p.board[11]) v += 5;
+  // Relíquia com modos (deck Mercenários): a carta central vale mais conforme o que ela poupa/rende (manutenção a abater, tropas para atacar).
+  if (relicModeOf(p.board)) v += 6 + 0.7 * UNIT_SLOTS.filter(i => p.board[i] && upkeepOf(p.board[i]!.name) > 0).length;
   return v + boardScore(p.board, q.board);
 };
 
