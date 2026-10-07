@@ -261,10 +261,10 @@ Gera este arquivo.
 
 FILE_NOTES:6 · ROOTS:52 · files:53 · walk:54 · DECL:58 · NESTED:59 · out:60
 
-## tools/mercenarios-prompts.ts  (212 linhas)
+## tools/mercenarios-prompts.ts  (216 linhas)
 (sem descrição ainda: acrescente em FILE_NOTES)
 
-slug:8 · LOOK:11 · LAND:12 · TALL:13 · END_LAND:14 · END_TALL:15 · Entry:17 · ENTRIES:19 · defs:132 · recipe:133 · order:134 · promptOf:137 · kind:138 · stats:139 · cleanEffect:140 · ordered:143 · md:144 · readmePath:152 · readme:153 · start:154 · esc:166 · cards:167 · html:175
+slug:8 · LOOK:11 · LAND:12 · TALL:13 · END_LAND:14 · END_TALL:15 · Entry:17 · ENTRIES:19 · defs:132 · recipe:133 · order:134 · DELIVERED:138 · promptOf:139 · kind:140 · stats:141 · cleanEffect:142 · allOrdered:145 · numberOf:146 · ordered:147 · md:148 · readmePath:156 · readme:157 · start:158 · esc:170 · cards:171 · html:179
 
 ## tools/mercenarios-tabela.ts  (20 linhas)
 (sem descrição ainda: acrescente em FILE_NOTES)

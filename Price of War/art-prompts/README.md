@@ -1769,11 +1769,11 @@ Todas as artes deste baralho já foram entregues e integradas no jogo
 
 
 
-## 5. Deck Mercenários — Companhia do Soldo (22 cartas, tudo por gerar)
+## 5. Deck Mercenários — Companhia do Soldo (12 por gerar de 22)
 
 Terceiro deck. **Identidade visual:** uma companhia de mercenários — verde-oliva desbotado e ferrugem/vinho, latão e ouro de moeda envelhecido, couro preto, linho cru; armaduras de peças desencontradas (nenhum soldado veste igual ao outro), bolsas de moedas, contratos com selo de cera. O estandarte da companhia é um pano preto com uma moeda de ouro gasta atravessada por uma espada curta. Sem tom religioso (Cardeal) e sem uniforme de exército regular (Capitão): aqui o clima é negócio, lama e ouro.
 
-Há **17 cartas Padrão** (paisagem ~16:10, 1600×1000) e **5 Full Art** (retrato ~0,72:1, 1024×1424): o General, o Capitão da Companhia, o Cavaleiro Errante, o Livro de Contratos e a Carga de Pólvora (as cinco que usam a moldura Full Art no jogo). Cada prompt já começa com a proporção e repete a identidade do deck, para as 22 artes ficarem com cara de mesmo baralho.
+O deck tem 22 cartas: 17 Padrão (paisagem ~16:10, 1600×1000) e 5 Full Art (retrato ~0,72:1, 1024×1424): o General, o Capitão da Companhia, o Cavaleiro Errante, o Livro de Contratos e a Carga de Pólvora (as cinco que usam a moldura Full Art no jogo). **Já entregues e no jogo (10):** Suborno, Recrutamento de Rua, Resgate de Mercenário, Agência de Recrutamento, Espada de Aluguel, Armadura Alugada, Carga de Pólvora, Contrato de Execução, Salva de Besteiros, Escriba de Contratos. Abaixo ficam só as que faltam. Cada prompt já começa com a proporção e repete a identidade do deck, para as 22 artes ficarem com cara de mesmo baralho.
 
 Os nomes dos arquivos são o nome da carta sem acento, em minúsculas e com hífen (ex.: `lanceiro-de-aluguel.webp`); basta colocar a arte nova em `src/assets/merc/` com o mesmo nome para trocar a arte provisória. Página para copiar os prompts no celular: `/mockups/prompts-mercenarios/`. A lista é gerada por `npx tsx tools/mercenarios-prompts.ts` (fonte única dos textos).
 
@@ -1908,118 +1908,6 @@ TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x14
 ```
 
 **Notas:** Relíquia, Full Art (retrato). As duas páginas mostram os dois modos (Soldo em Dobro e Saque) em símbolos, sem letras. É o coração do deck: tem que parecer um objeto precioso.
-
-### 5.13 Escriba de Contratos — Padrão
-
-**Carta:** Tática (custo 1) · Leve 1 Relíquia do baralho para a mão.
-**Estilo pictórico:** Realismo de interior, luz de vela, detalhe rico · **Arquivo:** `escriba-de-contratos.webp` · **Status:** pronto pra gerar
-
-```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px — noticeably wider than tall, NOT a vertical/portrait image. Warm candle-lit interior realism with rich texture detail. A company scribe stands on a wooden ladder in a cramped archive tent-room walled with shelves of rolled contracts and leather ledgers, pulling one thick black book bound with a brass clasp off the top shelf; a rolled parchment tucked under his arm, a satchel of seals and a small ink pot on his belt. He is a stooped middle-aged man in a faded olive robe and ink-stained gloves, looking up with the pleased expression of someone who has found exactly what he was looking for. Stacks of papers and red wax seal sticks on a desk below, a candle in a brass holder, floating dust in a shaft of light. Golden-brown palette with oxblood accents. Deck look: a mercenary free company — weathered olive-green and oxblood rust, tarnished brass and coin-gold, black leather, bone-white linen; mismatched scavenged armor pieces (no two soldiers dressed alike), coin-purses, contract parchments with wax seals; the company standard is a black banner with a worn gold coin pierced by a short sword. Landscape orientation (about 1600×1000px, wider than tall), no text, no letters, no card frame, no border, no watermark.
-```
-
-**Notas:** Tática custo 1: busca uma Relíquia (o Livro de Contratos). A ação é literal: tirar o livro certo da estante.
-
-### 5.14 Salva de Besteiros — Padrão
-
-**Carta:** Tática (custo 2) · 2 de dano a todas as unidades de uma fileira inimiga.
-**Estilo pictórico:** Semi-abstrato: cena real com elementos diagramáticos brilhantes · **Arquivo:** `salva-de-besteiros.webp` · **Status:** pronto pra gerar
-
-```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px — noticeably wider than tall, NOT a vertical/portrait image. Semi-abstract tactical illustration — a realistic battle scene overlaid with bright diagrammatic elements. Seen from a slightly raised angle behind a line of hired crossbowmen at the left, a coordinated volley of dozens of bolts arcs across the frame in perfect curves, each trajectory traced by a thin glowing gold line like a ballistic diagram, all converging on one single horizontal row of enemy shield-bearers at the right, who are highlighted by a faint pulsing oxblood-red band along the ground to show exactly the row being hit. The bolts are caught at the moment just before impact, shields starting to splinter. The crossbowmen are silhouettes with olive hoods and the black company banner. Hazy golden-hour sky, bold graphic geometry on top of painterly realism. Deck look: a mercenary free company — weathered olive-green and oxblood rust, tarnished brass and coin-gold, black leather, bone-white linen; mismatched scavenged armor pieces (no two soldiers dressed alike), coin-purses, contract parchments with wax seals; the company standard is a black banner with a worn gold coin pierced by a short sword. Landscape orientation (about 1600×1000px, wider than tall), no text, no letters, no card frame, no border, no watermark.
-```
-
-**Notas:** Tática: 2 de dano em toda uma fileira inimiga. A faixa vermelha no chão reforça "fileira inteira".
-
-### 5.15 Contrato de Execução — Padrão
-
-**Carta:** Tática (custo 2) · 3 de dano a uma unidade inimiga.
-**Estilo pictórico:** Semi-abstrato: pergaminho, punhal e moeda, luz dramática · **Arquivo:** `contrato-de-execucao.webp` · **Status:** pronto pra gerar
-
-```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px — noticeably wider than tall, NOT a vertical/portrait image. Dramatic semi-abstract still-life with narrative overlay. A dark wooden table seen from a high three-quarter angle: a large sealed contract parchment lies flat, a bright red target-like circle inked on it, a heavy dagger driven through the center of the circle and pinning the parchment to the wood. A single gold coin spins on its edge beside the dagger, mid-fall, and a gloved hand in a black leather glove withdraws into the shadow at the edge, as if the deal was just done. A red wax seal with a sword-and-coin sigil, a burnt candle, and a few spilled coins complete the scene. In the blurred background, the faint silhouette of a lone enemy officer's tent. Strong chiaroscuro with one cold-white and one warm-orange light, painterly realism with crisp graphic edges. Deck look: a mercenary free company — weathered olive-green and oxblood rust, tarnished brass and coin-gold, black leather, bone-white linen; mismatched scavenged armor pieces (no two soldiers dressed alike), coin-purses, contract parchments with wax seals; the company standard is a black banner with a worn gold coin pierced by a short sword. Landscape orientation (about 1600×1000px, wider than tall), no text, no letters, no card frame, no border, no watermark.
-```
-
-**Notas:** Tática: 3 de dano a uma unidade. "Execução" por contrato: punhal cravado no pergaminho, sem mostrar violência explícita.
-
-### 5.16 Carga de Pólvora — Full Art
-
-**Carta:** Tática (custo 3) · 2 de dano a todas as unidades inimigas e ao General.
-**Estilo pictórico:** Estilização gráfica explosiva, fogo e fumaça · **Arquivo:** `carga-de-polvora.webp` · **Status:** pronto pra gerar
-
-```
-TALL VERTICAL PORTRAIT IMAGE, aspect ratio 0.72:1 (width:height), approx 1024x1424px — noticeably taller than wide, full-art trading-card illustration. Explosive bold graphic stylization with painterly smoke, vertical composition, dramatic contrast of black, orange and olive-green. A sapper sprints away from the lower left foreground, glancing back over his shoulder, a smoldering fuse trailing behind him across a dark tunnel floor, while in the center of the frame a stack of powder barrels beneath an enemy fortress wall detonates — a colossal column of orange fire, white-hot core, stone blocks and timber thrown into the air, the wall splitting open upward, enemy soldiers tiny silhouettes tumbling in the blast, an enemy banner flying away in the shockwave. Sparks and glowing embers fill the frame, a ring-shaped shockwave spreading across the smoke. His olive cloak and the black company banner on a pole at the tunnel mouth are lit by the fire. Intense, loud, unmistakably devastating. Deck look: a mercenary free company — weathered olive-green and oxblood rust, tarnished brass and coin-gold, black leather, bone-white linen; mismatched scavenged armor pieces (no two soldiers dressed alike), coin-purses, contract parchments with wax seals; the company standard is a black banner with a worn gold coin pierced by a short sword. Vertical portrait orientation (about 1024×1424px, taller than wide), no text, no letters, no card frame, no border, no watermark.
-```
-
-**Notas:** Tática Full Art (retrato): 2 de dano a todas as unidades inimigas e ao General. A explosão sob a muralha mostra o alcance total.
-
-### 5.17 Armadura Alugada — Padrão
-
-**Carta:** Tática (custo 1) · Equipe uma Infantaria: +2 HP.
-**Estilo pictórico:** Realismo macro hiperdetalhado, natureza-morta de equipamento · **Arquivo:** `armadura-alugada.webp` · **Status:** pronto pra gerar
-
-```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px — noticeably wider than tall, NOT a vertical/portrait image. Macro hyper-detailed still-life of equipment, shallow depth of field, tactile materials. A well-used steel breastplate with old dents and a fresh brass rivet repair hangs on a wooden armor stand in an armorer's cramped stall, a blank leather rental tag tied to a shoulder strap with coarse string and stamped only with a small gold coin mark (no writing), a chain-mail coif and an oxblood padded undershirt folded on a barrel beside it, a rag, a small hammer and a bowl of rivets on the workbench. Dust and a few steel shavings in a shaft of warm sunlight from the stall opening; scratches, polish marks, rust freckles clearly visible on the metal; a few coins in a dish as the deposit. Warm amber light with cool shadows. Deck look: a mercenary free company — weathered olive-green and oxblood rust, tarnished brass and coin-gold, black leather, bone-white linen; mismatched scavenged armor pieces (no two soldiers dressed alike), coin-purses, contract parchments with wax seals; the company standard is a black banner with a worn gold coin pierced by a short sword. Landscape orientation (about 1600×1000px, wider than tall), no text, no letters, no card frame, no border, no watermark.
-```
-
-**Notas:** Tática custo 1: equipa uma Infantaria com +2 HP. A etiqueta de aluguel (sem texto) é o detalhe que conta a ideia.
-
-### 5.18 Espada de Aluguel — Padrão
-
-**Carta:** Tática (custo 1) · Equipe uma Infantaria ou Cavalaria: +2 ATK.
-**Estilo pictórico:** Realismo macro hiperdetalhado, natureza-morta de equipamento · **Arquivo:** `espada-de-aluguel.webp` · **Status:** pronto pra gerar
-
-```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px — noticeably wider than tall, NOT a vertical/portrait image. Macro hyper-detailed still-life of a single weapon, extreme close-up with shallow depth of field, tactile materials. A plain but well-kept arming sword lies across a worn wooden counter, its steel blade catching a long highlight, small nicks along the edge from past duels, the grip wrapped in dark leather with a visible repair stitch, a blank leather rental tag knotted around the crossguard with coarse string. Beside it, a small stack of gold coins rests on the counter as a deposit, and a brass scale and a weapons rack with other swords blur softly behind. A thin beam of warm window light slides along the blade; a scatter of dust, a faint reflection of the shop interior in the steel. Cool steel blue against warm amber wood. Deck look: a mercenary free company — weathered olive-green and oxblood rust, tarnished brass and coin-gold, black leather, bone-white linen; mismatched scavenged armor pieces (no two soldiers dressed alike), coin-purses, contract parchments with wax seals; the company standard is a black banner with a worn gold coin pierced by a short sword. Landscape orientation (about 1600×1000px, wider than tall), no text, no letters, no card frame, no border, no watermark.
-```
-
-**Notas:** Tática custo 1: equipa Infantaria/Cavalaria com +2 ATK. Par visual da Armadura Alugada (mesma etiqueta), mas com ângulo e luz diferentes.
-
-### 5.19 Agência de Recrutamento — Padrão
-
-**Carta:** Tática (custo 2) · Leve 1 soldado do baralho para a mão.
-**Estilo pictórico:** Pintura de cena de mercado, vivaz e bem composta · **Arquivo:** `agencia-de-recrutamento.webp` · **Status:** pronto pra gerar
-
-```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px — noticeably wider than tall, NOT a vertical/portrait image. Lively painterly market-square scene, wide establishing composition, rich color. A mercenary recruitment stall in the middle of a busy town square: a long table under a black awning with the gold-coin-and-sword sigil, a recruiting sergeant behind it with a thick register book and an inkpot, a drummer beating a snare drum beside him to attract attention, a stack of coin pouches on the table. A line of hopeful volunteers waits in front — a burly farmhand, a lean archer, a former knight in rusted armor, a young swordsman — each pressing an inked thumbprint on the register while the sergeant sizes them up. Banners, pigeons, shop signs without readable text, warm afternoon sunlight, long golden shadows, bright and busy. Deck look: a mercenary free company — weathered olive-green and oxblood rust, tarnished brass and coin-gold, black leather, bone-white linen; mismatched scavenged armor pieces (no two soldiers dressed alike), coin-purses, contract parchments with wax seals; the company standard is a black banner with a worn gold coin pierced by a short sword. Landscape orientation (about 1600×1000px, wider than tall), no text, no letters, no card frame, no border, no watermark.
-```
-
-**Notas:** Tática custo 2: busca 1 soldado do baralho. Cena organizada de cadastro — contrasta com o Recrutamento de Rua (beco, à noite).
-
-### 5.20 Resgate de Mercenário — Padrão
-
-**Carta:** Tática (custo 1) · Leve 1 soldado do cemitério para a mão.
-**Estilo pictórico:** Pincelada solta e impressionista, clima sombrio · **Arquivo:** `resgate-de-mercenario.webp` · **Status:** pronto pra gerar
-
-```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px — noticeably wider than tall, NOT a vertical/portrait image. Loose impressionistic painting with expressive brushwork, somber but hopeful mood. A battlefield at dusk after the fight: a muscular mercenary hauls a wounded comrade out of the churned mud by the straps of his breastplate, dragging him towards a waiting supply wagon, the wounded man's arm slung over his shoulder, a broken spear and scattered shields around them. Behind them, long shadows, the glow of burning wagons far away, a few vultures against a smoky red-orange sky. In the foreground a gold coin pouch has spilled in the mud — the ransom — and a black company banner lies half-buried. Muted browns, olive and oxblood with a warm gold light on the two figures, soft edges everywhere. Deck look: a mercenary free company — weathered olive-green and oxblood rust, tarnished brass and coin-gold, black leather, bone-white linen; mismatched scavenged armor pieces (no two soldiers dressed alike), coin-purses, contract parchments with wax seals; the company standard is a black banner with a worn gold coin pierced by a short sword. Landscape orientation (about 1600×1000px, wider than tall), no text, no letters, no card frame, no border, no watermark.
-```
-
-**Notas:** Tática custo 1: leva 1 soldado do cemitério para a mão. "Resgate": o camarada que não foi deixado para trás (ou comprado de volta).
-
-### 5.21 Recrutamento de Rua — Padrão
-
-**Carta:** Tática (custo 3) · Compre 2 cartas.
-**Estilo pictórico:** Realismo cinematográfico noturno, beco · **Arquivo:** `recrutamento-de-rua.webp` · **Status:** pronto pra gerar
-
-```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px — noticeably wider than tall, NOT a vertical/portrait image. Cinematic night realism, narrow back-alley composition with depth. In a rain-wet cobblestone alley lit by a single hanging lantern and the warm door glow of a tavern, a mercenary captain in a dark coat (seen partly from behind) drops two heavy coin purses into the open hands of two rough sellswords stepping out of the shadows — one a tall scarred brawler with a flail, one a hooded crossbowman — sealing a deal with a handshake over a barrel. More silhouettes of ruffians lurk in doorways, a stray dog, steam from a grate, rain falling through the lantern light. Gritty, dangerous and a little funny. Warm orange against deep teal-black, strong reflections on the wet stones. Deck look: a mercenary free company — weathered olive-green and oxblood rust, tarnished brass and coin-gold, black leather, bone-white linen; mismatched scavenged armor pieces (no two soldiers dressed alike), coin-purses, contract parchments with wax seals; the company standard is a black banner with a worn gold coin pierced by a short sword. Landscape orientation (about 1600×1000px, wider than tall), no text, no letters, no card frame, no border, no watermark.
-```
-
-**Notas:** Tática custo 3: compra 2 cartas. Os dois contratados saindo da sombra = "2 cartas". Contrasta com a Agência (cena diurna e organizada).
-
-### 5.22 Suborno — Padrão
-
-**Carta:** Emboscada (custo 2) · Cancela um ataque a uma de suas unidades.
-**Estilo pictórico:** Realismo cinematográfico noturno, close sombrio · **Arquivo:** `suborno.webp` · **Status:** pronto pra gerar
-
-```
-WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000px — noticeably wider than tall, NOT a vertical/portrait image. Cinematic night realism, tight, tense close-up composition with shallow depth of field. Inside a dim campaign tent lit by a single oil lamp, a gloved hand slides a fat leather purse across a table into the hand of an enemy cavalry officer in a plumed helmet and richly embroidered coat; a few gold coins have spilled out and glint in the lamplight. The officer's face is half in shadow, eyes narrowed, one hand already raising his signet ring to the seal of a written order lying under the purse — the cancelled order to charge. Through the gap of the tent flap behind them, out of focus, a column of cavalry sits stopped in the torch-lit dark, lances lowered, waiting. The briber is only a shoulder and an olive-and-oxblood sleeve at the left edge of the frame. Deep shadows, warm gold highlights. Deck look: a mercenary free company — weathered olive-green and oxblood rust, tarnished brass and coin-gold, black leather, bone-white linen; mismatched scavenged armor pieces (no two soldiers dressed alike), coin-purses, contract parchments with wax seals; the company standard is a black banner with a worn gold coin pierced by a short sword. Landscape orientation (about 1600×1000px, wider than tall), no text, no letters, no card frame, no border, no watermark.
-```
-
-**Notas:** Emboscada custo 2: cancela um ataque a uma unidade sua. A cavalaria parada à espera da ordem é o "ataque cancelado".
-
----
 
 ## 4z2. Ícones de gatilho — objetos claros em bronze (pendente, v4)
 

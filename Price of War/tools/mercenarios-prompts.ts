@@ -134,19 +134,23 @@ const recipe = DECK_RECIPES.mercenarios;
 const order = [recipe.general, ...Object.keys(recipe.cards)];
 if (ENTRIES.length !== order.length || !order.every(n => ENTRIES.some(e => e.name === n))) throw new Error('Os prompts não cobrem exatamente as cartas do deck');
 
+// Cartas cuja arte real já foi entregue e está em src/assets/merc/: saem da lista de prompts (fluxo do projeto: o prompt já cumpriu o papel).
+const DELIVERED = new Set(['Suborno', 'Recrutamento de Rua', 'Resgate de Mercenário', 'Agência de Recrutamento', 'Espada de Aluguel', 'Armadura Alugada', 'Carga de Pólvora', 'Contrato de Execução', 'Salva de Besteiros', 'Escriba de Contratos']);
 const promptOf = (e: Entry) => (e.full ? TALL : LAND) + e.scene + ' ' + LOOK + (e.full ? END_TALL : END_LAND);
 const kind = (e: Entry) => { const d = defs.get(e.name)!; return d.cardType === 'General' ? 'General' : d.cardType; };
 const stats = (e: Entry) => { const d = defs.get(e.name)!; return d.cardType === 'General' ? `ATK 0 / HP ${d.hp} / custo 0` : ['Tática', 'Emboscada'].includes(d.cardType) ? `custo ${d.cost}` : d.cardType === 'Relíquia' ? `HP ${d.hp} / custo ${d.cost}` : `ATK ${d.atk} / HP ${d.hp} / custo ${d.cost}`; };
 const cleanEffect = (e: Entry) => (defs.get(e.name)!.effect ?? '').replace(/\*\*/g, '') || 'só atributos';
 
 // ── README ──────────────────────────────────────────────────────────────────────
-const ordered = order.map(n => ENTRIES.find(e => e.name === n)!);
-let md = '## 5. Deck Mercenários — Companhia do Soldo (22 cartas, tudo por gerar)\n\n';
+const allOrdered = order.map(n => ENTRIES.find(e => e.name === n)!);
+const numberOf = (e: Entry) => allOrdered.indexOf(e) + 1;
+const ordered = allOrdered.filter(e => !DELIVERED.has(e.name));
+let md = `## 5. Deck Mercenários — Companhia do Soldo (${ordered.length} por gerar de ${allOrdered.length})\n\n`;
 md += 'Terceiro deck. **Identidade visual:** uma companhia de mercenários — verde-oliva desbotado e ferrugem/vinho, latão e ouro de moeda envelhecido, couro preto, linho cru; armaduras de peças desencontradas (nenhum soldado veste igual ao outro), bolsas de moedas, contratos com selo de cera. O estandarte da companhia é um pano preto com uma moeda de ouro gasta atravessada por uma espada curta. Sem tom religioso (Cardeal) e sem uniforme de exército regular (Capitão): aqui o clima é negócio, lama e ouro.\n\n';
-md += 'Há **17 cartas Padrão** (paisagem ~16:10, 1600×1000) e **5 Full Art** (retrato ~0,72:1, 1024×1424): o General, o Capitão da Companhia, o Cavaleiro Errante, o Livro de Contratos e a Carga de Pólvora (as cinco que usam a moldura Full Art no jogo). Cada prompt já começa com a proporção e repete a identidade do deck, para as 22 artes ficarem com cara de mesmo baralho.\n\n';
+md += 'O deck tem 22 cartas: 17 Padrão (paisagem ~16:10, 1600×1000) e 5 Full Art (retrato ~0,72:1, 1024×1424): o General, o Capitão da Companhia, o Cavaleiro Errante, o Livro de Contratos e a Carga de Pólvora (as cinco que usam a moldura Full Art no jogo). **Já entregues e no jogo (' + DELIVERED.size + '):** ' + [...DELIVERED].join(', ') + '. Abaixo ficam só as que faltam. Cada prompt já começa com a proporção e repete a identidade do deck, para as 22 artes ficarem com cara de mesmo baralho.\n\n';
 md += 'Os nomes dos arquivos são o nome da carta sem acento, em minúsculas e com hífen (ex.: `lanceiro-de-aluguel.webp`); basta colocar a arte nova em `src/assets/merc/` com o mesmo nome para trocar a arte provisória. Página para copiar os prompts no celular: `/mockups/prompts-mercenarios/`. A lista é gerada por `npx tsx tools/mercenarios-prompts.ts` (fonte única dos textos).\n\n';
-ordered.forEach((e, i) => {
-  md += `### 5.${i + 1} ${e.name} — ${e.full ? 'Full Art' : 'Padrão'}\n\n`;
+ordered.forEach(e => {
+  md += `### 5.${numberOf(e)} ${e.name} — ${e.full ? 'Full Art' : 'Padrão'}\n\n`;
   md += `**Carta:** ${kind(e)} (${stats(e)}) · ${cleanEffect(e)}\n**Estilo pictórico:** ${e.style} · **Arquivo:** \`${slug(e.name)}.webp\` · **Status:** pronto pra gerar\n\n\`\`\`\n${promptOf(e)}\n\`\`\`\n\n**Notas:** ${e.note}\n\n`;
 });
 const readmePath = 'art-prompts/README.md';
@@ -164,8 +168,8 @@ writeFileSync(readmePath, readme);
 
 // ── Página pública ──────────────────────────────────────────────────────────────
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const cards = ordered.map((e, i) => `<article class="card" id="c${i + 1}">
-  <header><span class="n">${i + 1}</span><div><h2>${esc(e.name)}</h2><p class="meta">${esc(kind(e))} · ${esc(stats(e))}</p></div><span class="tag ${e.full ? 'full' : 'pad'}">${e.full ? 'Full Art · retrato' : 'Padrão · paisagem'}</span></header>
+const cards = ordered.map((e, i) => `<article class="card" id="c${numberOf(e)}">
+  <header><span class="n">${numberOf(e)}</span><div><h2>${esc(e.name)}</h2><p class="meta">${esc(kind(e))} · ${esc(stats(e))}</p></div><span class="tag ${e.full ? 'full' : 'pad'}">${e.full ? 'Full Art · retrato' : 'Padrão · paisagem'}</span></header>
   <p class="eff">${esc(cleanEffect(e))}</p>
   <p class="sty"><b>Estilo:</b> ${esc(e.style)} · <b>arquivo:</b> <code>${slug(e.name)}.webp</code></p>
   <textarea readonly rows="7">${esc(promptOf(e))}</textarea>
@@ -190,8 +194,8 @@ const html = `<!doctype html>
   button.ok { background:var(--green); } .note { font-size:12.5px; color:var(--mut); margin:8px 0 0; }
 </style></head><body>
 <h1>Prompts de arte — Mercenários</h1>
-<p class="lead">22 cartas, uma por vez. Configure a proporção no gerador antes (Padrão 16:10, 1600×1000 · Full Art 0,72:1, 1024×1424), toque em <b>Copiar prompt</b> e cole. Salve com o nome de arquivo indicado.</p>
-<nav class="idx">${ordered.map((e, i) => `<a href="#c${i + 1}">${i + 1}</a>`).join('')}</nav>
+<p class="lead">${ordered.length} cartas que faltam (as outras ${DELIVERED.size} já têm arte), uma por vez. Configure a proporção no gerador antes (Padrão 16:10, 1600×1000 · Full Art 0,72:1, 1024×1424), toque em <b>Copiar prompt</b> e cole. Salve com o nome de arquivo indicado.</p>
+<nav class="idx">${ordered.map(e => `<a href="#c${numberOf(e)}">${numberOf(e)}</a>`).join('')}</nav>
 ${cards}
 <script>
   var P = ${JSON.stringify(ordered.map(promptOf))};
@@ -208,4 +212,4 @@ ${cards}
 `;
 mkdirSync('public/mockups/prompts-mercenarios', { recursive: true });
 writeFileSync('public/mockups/prompts-mercenarios/index.html', html);
-console.log(`ok: ${ordered.length} prompts (${ordered.filter(e => e.full).length} Full Art)`);
+console.log(`ok: ${ordered.length} prompts pendentes de ${allOrdered.length} (${ordered.filter(e => e.full).length} Full Art)`);
