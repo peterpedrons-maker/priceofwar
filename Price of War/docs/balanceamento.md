@@ -248,3 +248,20 @@ Uma partida narrada fica em `balance-out/partida-narrada.txt` (a pasta é ignora
 | **C1 · Soldo em Dobro + Saque** (ao destruir unidade inimiga, compre 1 carta, máx. 1 por ciclo) | 61,5% | 49,5% | 55,5% | **56,5% × 52,5%** |
 | C2 · C1 + Cofre de Guerra | 56% | 47,5% | 51,8% | 51,5% × 52,5% |
 Leitura: com modos que pagam em carta ou atributo, **a Relíquia passa a se pagar** (C1: +4 pontos com ela em campo; com os modos de ouro era −13). A IA escolhe Saque em 71% das vezes em C1. Voltar o Cofre de Guerra (C2) dilui de novo. Os modos de ouro (Cofre de Guerra, Extorsão) devem ser trocados. `RelicMode.loot` agora aceita `draw` (cartas) além de `gold`.
+
+### Rodada 12: mão inicial de 10 cartas (era 7), custos e ouro como estão (120 partidas Cardeal × Capitão; `PATCH` com `rules.startHand`)
+Teste a pedido do dono (só no laboratório; o jogo segue com 7). Comparação com o perfil de partida acima (mão de 7):
+| | 7 cartas | 10 cartas |
+|---|---|---|
+| Vitórias Cardeal × Capitão | 54,2% × 45,8% | **39,2% × 60,8%** |
+| Quem começa vence | 55,8% | 47,5% |
+| Duração média / mediana; acabam até a rodada 5 | 7,4 / 7; 28% | 7,6 / 6; 33% |
+| 1º turno: cartas jogadas / material em campo (Cardeal; Capitão) | 5,8 / 24; 5,8 / 23 | 6,1 / 26; 6,3 / 26 |
+| Cartas jogadas por turno (Cardeal; Capitão) | 2,2; 1,7 | 2,5; 2,0 |
+| Soldados convocados por turno | 1,4; 1,0 | 1,5; 1,15 |
+| Unidades em campo / material no fim do turno (Cardeal) | 3,2 / 16,4 | 3,3 / 16,3 |
+| Unidades em campo / material no fim do turno (Capitão) | 1,95 / 12,1 | 2,4 / 14,5 |
+| Dano por turno (Cardeal; Capitão) | 5,4; 7,5 | 5,2; **9,1** |
+| Ouro que sobra no fim do turno (Cardeal; Capitão) | 1,2; 12,3 | 0,5; 9,9 |
+| Cartas na mão no fim do turno (Cardeal; Capitão) | 2,2; 1,6 | **3,5**; 2,4 |
+Leitura: a mão maior **só ajuda o Capitão** (limitado por cartas) e desloca o confronto ~15 pontos a favor dele; o Cardeal (limitado por ouro) acumula cartas na mão (3,5) mas põe a mesma tropa em campo. O 1º turno quase não muda (limitado por ouro) e o campo continua longe de cheio (média de 3,3 e 2,4 unidades de 10 casas). Duas alavancas atacam gargalos diferentes: mais cartas (Capitão) e custo/ouro (Cardeal); a combinação das duas ainda não foi testada.
