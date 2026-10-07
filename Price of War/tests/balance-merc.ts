@@ -63,6 +63,7 @@ function playGame(matchup: string, seed: number, seatA: Seat, first: Seat): Rec 
     for (const e of events) {
       if (e.t === 'draw') bump(seats[e.seat].drawn, e.card.name);
       else if (e.t === 'play') { bump(seats[e.seat].played, e.card.name); if (e.card.cardType === 'Relíquia') seats[e.seat].relicPlayed = true; }
+      else if (e.t === 'ambush') bump(seats[e.seat].played, e.card.name);   // Emboscada ativada (ela não passa por 'play')
       else if (e.t === 'upkeep') { seats[e.seat].upkeepPaid += e.paid; seats[e.seat].dismissed += e.dismissed; }
       else if (e.t === 'dismissed' && e.toHand) seats[e.seat].dismissedHand++;
       else if (e.t === 'relic_mode') bump(seats[e.seat].modes, e.mode);

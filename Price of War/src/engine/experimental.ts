@@ -8,24 +8,24 @@ const SOLDIERS: CardType[] = ['Infantaria', 'Cavalaria', 'Arqueiro', 'Artilharia
 
 const GENERAL_NAME = 'Comandante Brann, Senhor da Companhia';
 
-// Regra de bolso (ajustável no laboratório): mercenário custa 1 a menos para convocar do que uma carta normal do mesmo tamanho e cobra 1 de
-// manutenção por turno (2 quando tem efeito forte). Cartas sem manutenção e geradoras de ouro equilibram a conta.
+// Custos pela tabela do jogo (docs/balanceamento.md, "Tabela de custo"): soma de ATK + vida ≤3 custa 1, 4–6 custa 2, 7–8 custa 3, 9+ custa 4; à distância com ATK ≥ 2
+// paga +1; busca/compra paga mais. A manutenção compra atributos: o mercenário pode passar da faixa em +1 de soma por ponto de manutenção (conferir: `MERC=1 npx tsx tests/cost-audit.ts`).
 export const MERCENARIOS_DEFS: readonly CardDef[] = [
   { name: GENERAL_NAME, trigger: 'comando', cardType: 'General', atk: 0, hp: 30, cost: 0, isFullArt: true, faction: 'soldo',
     effect: 'Pague 3 de ouro: compre 1 carta.',
     abilities: [{ on: 'ability', phases: ['preparacao'], once: true, cost: 3, do: [{ kind: 'draw', amount: 1 }] }] },
 
   // ── mercenários (com manutenção) ──
-  { name: 'Lanceiro de Aluguel', cardType: 'Infantaria', atk: 3, hp: 3, cost: 1, upkeep: 1, effect: '' },
-  { name: 'Besteiro Contratado', cardType: 'Arqueiro', atk: 2, hp: 2, cost: 1, upkeep: 1, effect: '' },
-  { name: 'Espadachim do Soldo', cardType: 'Infantaria', atk: 4, hp: 4, cost: 2, upkeep: 1, effect: '' },
+  { name: 'Lanceiro de Aluguel', cardType: 'Infantaria', atk: 2, hp: 2, cost: 1, upkeep: 1, effect: '' },
+  { name: 'Besteiro Contratado', cardType: 'Arqueiro', atk: 2, hp: 2, cost: 2, upkeep: 1, effect: '' },
+  { name: 'Espadachim do Soldo', cardType: 'Infantaria', atk: 4, hp: 3, cost: 2, upkeep: 1, effect: '' },
   { name: 'Desertor', cardType: 'Infantaria', atk: 2, hp: 2, cost: 1, upkeep: 1, effect: 'Rescisão: compre 1 carta.',
     abilities: [{ on: 'dismissed', do: [{ kind: 'draw', amount: 1 }] }] },
-  { name: 'Capitão da Companhia', trigger: 'postura', cardType: 'Infantaria', atk: 3, hp: 5, cost: 2, upkeep: 2, effect: 'Na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK.',
+  { name: 'Capitão da Companhia', trigger: 'postura', cardType: 'Infantaria', atk: 3, hp: 5, cost: 3, upkeep: 2, effect: 'Na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK.',
     passives: [{ kind: 'aura', who: { side: 'own', types: ['Infantaria', 'Arqueiro'] }, from: 'front', atk: 1 }] },
   { name: 'Cavaleiro Errante', cardType: 'Cavalaria', atk: 4, hp: 5, cost: 3, upkeep: 1, dismiss: 'hand', effect: 'Se dispensado, volta para a mão.' },
-  { name: 'Duelista Livre', cardType: 'Infantaria', atk: 5, hp: 3, cost: 2, upkeep: 1, dismiss: 'hand', effect: 'Se dispensado, volta para a mão.' },
-  { name: 'Bombardeiro Contratado', cardType: 'Artilharia', atk: 3, hp: 2, cost: 2, upkeep: 1, effect: 'Ataca à distância.' },
+  { name: 'Duelista Livre', cardType: 'Infantaria', atk: 5, hp: 2, cost: 2, upkeep: 1, dismiss: 'hand', effect: 'Se dispensado, volta para a mão.' },
+  { name: 'Bombardeiro Contratado', cardType: 'Artilharia', atk: 3, hp: 2, cost: 3, upkeep: 1, effect: 'Ataca à distância.' },
 
   // ── sem manutenção ──
   { name: 'Sentinela Fiel', cardType: 'Infantaria', atk: 2, hp: 4, cost: 2, effect: '' },
@@ -35,11 +35,11 @@ export const MERCENARIOS_DEFS: readonly CardDef[] = [
   // ── táticas, equipamentos e emboscada próprios do deck (nenhuma carta é emprestada do Cardeal nem do Capitão) ──
   { name: 'Escriba de Contratos', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Leve 1 Relíquia do baralho para a mão.',
     abilities: [{ on: 'play', do: [{ kind: 'search', zone: 'deck', filter: { types: ['Relíquia'] } }] }] },
-  { name: 'Agência de Recrutamento', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Leve 1 soldado do baralho para a mão.',
+  { name: 'Agência de Recrutamento', cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: 'Leve 1 soldado do baralho para a mão.',
     abilities: [{ on: 'play', do: [{ kind: 'search', zone: 'deck', filter: { types: SOLDIERS } }] }] },
   { name: 'Resgate de Mercenário', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Leve 1 soldado do cemitério para a mão.',
     abilities: [{ on: 'play', do: [{ kind: 'search', zone: 'graveyard', filter: { types: SOLDIERS } }] }] },
-  { name: 'Recrutamento de Rua', cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: 'Compre 2 cartas.',
+  { name: 'Recrutamento de Rua', cardType: 'Tática', atk: 0, hp: 0, cost: 3, effect: 'Compre 2 cartas.',
     abilities: [{ on: 'play', do: [{ kind: 'draw', amount: 2 }] }] },
   { name: 'Salva de Besteiros', cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: '2 de dano a todas as unidades de uma fileira inimiga.',
     abilities: [{ on: 'play', do: [

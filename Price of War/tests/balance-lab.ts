@@ -56,6 +56,7 @@ function playGame(seed: number, cardealSeat: Seat, first: Seat): GameRecord {
     for (const e of events) {
       if (e.t === 'draw') bump(seats[e.seat].drawn, e.card.name);
       else if (e.t === 'play') bump(seats[e.seat].played, e.card.name);
+      else if (e.t === 'ambush') bump(seats[e.seat].played, e.card.name);   // Emboscada ativada (ela não passa por 'play')
       else if (e.t === 'ability') bump(seats[e.seat].abilities, e.name);
       else if (e.t === 'damage' && source && e.seat !== seat) bump(seats[seat].dmg, source, e.amount);
       else if (e.t === 'destroyed' && source && e.seat !== seat) bump(seats[seat].kills, source);
