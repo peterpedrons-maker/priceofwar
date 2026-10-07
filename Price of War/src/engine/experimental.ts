@@ -64,11 +64,10 @@ export const MERCENARIOS_DEFS: readonly CardDef[] = [
 
   // ── a Relíquia do deck: três modos, o dono escolhe um no fim do turno (vale até o fim do turno seguinte) ──
   { name: 'Livro de Contratos', cardType: 'Relíquia', atk: 0, hp: 5, cost: 3, isFullArt: true,
-    effect: 'Escolha 1 modo no fim do seu turno. Cofre de Guerra: manutenção total -2. Extorsão: +1 de ouro por unidade inimiga destruída (máx. 2 por ciclo). Soldo em Dobro: cartas com manutenção têm +1 ATK.',
+    effect: 'Escolha 1 modo no fim do seu turno. Soldo em Dobro: cartas com manutenção têm +1 ATK. Saque: ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo).',
     modes: [
-      { id: 'cofre', name: 'Cofre de Guerra', effect: 'A manutenção total cai 2.', upkeepFlat: 2 },
-      { id: 'extorsao', name: 'Extorsão', effect: '+1 de ouro por unidade inimiga destruída (máx. 2).', loot: { gold: 1, cap: 2 } },
       { id: 'soldo', name: 'Soldo em Dobro', effect: 'Cartas com manutenção têm +1 ATK.', atk: 1 },
+      { id: 'saque', name: 'Saque', effect: 'Ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo).', loot: { draw: 1, cap: 1 } },
     ] },
 ];
 
@@ -83,8 +82,8 @@ export const MERCENARIOS_RECIPE = {
     'Livro de Contratos': 3, 'Escriba de Contratos': 3,
     // táticas, equipamentos e emboscada próprios
     'Salva de Besteiros': 2, 'Contrato de Execução': 2, 'Carga de Pólvora': 1,
-    'Armadura Alugada': 2, 'Espada de Aluguel': 2,
-    'Agência de Recrutamento': 2, 'Resgate de Mercenário': 2, 'Recrutamento de Rua': 1, 'Suborno': 2,
+    'Armadura Alugada': 3, 'Espada de Aluguel': 2,
+    'Agência de Recrutamento': 1, 'Resgate de Mercenário': 2, 'Recrutamento de Rua': 1, 'Suborno': 2,
   } as Record<string, number>,
 };
 
