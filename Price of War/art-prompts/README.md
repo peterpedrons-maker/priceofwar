@@ -505,6 +505,16 @@ novo).
 
 ---
 
+## 3f-v2. Cemitério — versão para a casa do tabuleiro (pendente)
+
+**Arquivo esperado:** `src/assets/slot-cemiterio.webp` · **Tamanho:** 768 × 972 (retrato, proporção da casa: 0,79) · fundo magenta liso (#FF00FF); eu recorto. O texto "CEMITÉRIO" é pequeno e horizontal, feito por código (não vai na arte).
+
+```
+A single game-asset illustration for a card game's graveyard slot, seen from directly above (flat top-down), portrait composition, ratio 0.79 (768x972). A small pile of broken battlefield equipment lying on a dark recessed stone socket: two cracked and snapped sword blades crossed over a splintered round shield, a torn scrap of dark banner cloth caught underneath, a few faintly glowing embers and a light scatter of ash. No skulls, no bones, no text, neutral colors (usable by either army). The socket is a calm, dark, worn stone recess with a soft inner shadow and a thin faint warm lip, no thick frame. Painterly digital illustration in the style of a high-end collectible card game, warm key light from the upper left, clean readable shapes that still read at 56 px wide. The pile is centered and comfortably inset from all four edges. Plain flat solid magenta (#FF00FF) background outside the socket, no gradient, no cast shadow outside the socket, no watermark. No magenta on the object.
+```
+
+---
+
 ## 3g. Marcador do Deck — Baú de Suprimentos
 
 **Vai em:** um elemento próprio, posicionado em cima do campo de batalha

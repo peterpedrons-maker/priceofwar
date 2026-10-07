@@ -1193,7 +1193,15 @@ const GraveyardPile = ({ cards, onClick, tut }: { cards: CardData[]; onClick?: (
     onClick={onClick}
   >
     {cards.length === 0 ? (
-      <span className="text-zinc-600 font-mono text-xs md:text-sm uppercase tracking-widest rotate-90 opacity-50">Cemitério</span>
+      // Empty: a faint mark (two broken swords crossed over a shield, until the painted art arrives) and the word small and horizontal under it.
+      <>
+        <svg viewBox="0 0 64 64" className="absolute left-1/2 top-[40%] w-[52%] -translate-x-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="#e2be6e" strokeOpacity={0.3} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 18 L50 54 M50 18 L34 34" />
+          <path d="M14 18 L9 13 M50 54 L55 59 M50 18 L55 13" strokeWidth={4.2} />
+          <path d="M22 44 Q32 38 44 46 L40 58 L26 58 Z" strokeWidth={2.4} />
+        </svg>
+        <span className="absolute bottom-[9%] inset-x-0 text-center text-[7px] md:text-[9px] uppercase tracking-[0.18em] text-[#e2be6e]/40 font-bold" style={{ fontFamily: "'Cinzel', serif" }}>Cemitério</span>
+      </>
     ) : (
       <>
         <div className="absolute inset-1 border border-zinc-700 rounded-lg bg-zinc-800/50 translate-x-1 translate-y-1 -z-10" />
