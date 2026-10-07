@@ -27,6 +27,7 @@ export type FxTarget = { side: FxSide; slot: number; amount: number };
 // What the game gives the effects: where things are on screen, and the few things an effect has to do to the game itself.
 export interface FxEnv {
   rectOf: (side: FxSide, slot: number) => FxRect | null;
+  spot: FxRect;                        // where the Tática card lands (an empty slot of whoever played it)
   number: (side: FxSide, slot: number, amount: number, kind: 'damage' | 'heal') => void;   // the floating number, at the moment of the hit
   commit: () => void;                  // the effect has landed: show the new life totals, deaths and so on (called once)
   showCard: (on: boolean) => void;     // the Tática card lands on the board / burns away
@@ -255,22 +256,52 @@ function rockBreak(rk, x, y, n = 8) {
 // ── geometry ─────────────────────────────────────────────────────────────────────────────────────────────────
 const setScale = (env: FxEnv) => { const r = env.rectOf('player', 2) ?? env.rectOf('npc', 2); U = r ? r.w / 64 : 1; };
 const pt = (env: FxEnv, side: FxSide, slot: number) => { const r = env.rectOf(side, slot); return r ? { x: r.cx / U, y: r.cy / U, w: r.w / U, h: r.h / U } : null; };
-// where a Tática lands: the middle band between the two boards (screen pixels)
-export const tacticSpot = (rectOf: FxEnv['rectOf']): { x: number; y: number; w: number } | null => {
-  const a = rectOf('npc', 2), b = rectOf('player', 2);
-  if (!a || !b) return null;
-  return { x: (a.cx + b.cx) / 2, y: (a.cy + a.h / 2 + b.cy - b.h / 2) / 2, w: a.w * 1.25 };
-};
-const tacPoint = (env: FxEnv) => { const s = tacticSpot(env.rectOf)!; return { x: s.x / U, y: s.y / U }; };
+const tacPoint = (env: FxEnv) => ({ x: env.spot.cx / U, y: env.spot.cy / U });
+
+// The impact of a card landing on the board (Hearthstone-like): a flash, ripples that run outwards from the card's own outline, and dust
+// born all along that outline (not just at the sides) that drifts outwards, plus a few gold sparks. Logical coordinates, w x h = the card.
+function landingImpact(x: number, y: number, w: number, h: number, big = false) {
+  const hw = w / 2, hh = h / 2, k = w / 64, rr = 6 * k;
+  const outline = (d: number) => { ctx.beginPath(); const X = x - hw - d, Y = y - hh - d, W = w + 2 * d, H = h + 2 * d; if ((ctx as any).roundRect) (ctx as any).roundRect(X, Y, W, H, rr + d); else ctx.rect(X, Y, W, H); };
+  flash(x, y, 80 * k, '255,236,190', .5, .2);
+  [0, .08].forEach((dl, i) => add({ t0: now + dl, dur: .55, draw(p: number) {
+    const d = (big ? 42 : 28) * k * eo(p) * (1 + i * .5), a = (1 - p) * (i ? .55 : 1);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = `rgba(255,214,140,${.28 * a})`; ctx.lineWidth = (11 * (1 - p) + 1) * k; outline(d); ctx.stroke();
+    ctx.strokeStyle = `rgba(255,236,190,${.85 * a})`; ctx.lineWidth = (3.2 * (1 - p) + .5) * k; outline(d); ctx.stroke();
+    ctx.restore(); } }));
+  const TONES = [[226, 206, 170], [206, 182, 142], [168, 144, 108]];
+  const n = big ? 46 : 30;
+  for (let i = 0; i < n; i++) {
+    // a point on the outline (edges chosen by length) and its outward direction (the edge normal, leaned towards the centre-to-point direction)
+    const r = Math.random() * (2 * w + 2 * h); let px: number, py: number, nx: number, ny: number;
+    if (r < w) { px = x - hw + r; py = y - hh; nx = 0; ny = -1; } else if (r < 2 * w) { px = x - hw + (r - w); py = y + hh; nx = 0; ny = 1; }
+    else if (r < 2 * w + h) { px = x - hw; py = y - hh + (r - 2 * w); nx = -1; ny = 0; } else { px = x + hw; py = y - hh + (r - 2 * w - h); nx = 1; ny = 0; }
+    const rx = (px - x) / hw, ry = (py - y) / hh, rl = Math.hypot(rx, ry) || 1;
+    let dx = nx * .7 + rx / rl * .3, dy = ny * .7 + ry / rl * .3; const dl2 = Math.hypot(dx, dy) || 1; dx /= dl2; dy /= dl2;
+    const sp = R(16, 62) * k, life = R(.5, .95), size = R(8, 17) * k, alpha = R(.42, .62), tone = TONES[Math.floor(Math.random() * 3)], dl = R(0, .06);
+    add({ t0: now + dl, dur: life, draw(p: number) {
+      const e = eo(p), qx = px + dx * sp * e, qy = py + dy * sp * e - 12 * k * p, rad = size * (.6 + .9 * p), a = alpha * (1 - p) * (p < .12 ? p / .12 : 1);
+      const g = ctx.createRadialGradient(qx, qy, 0, qx, qy, rad); g.addColorStop(0, `rgba(${tone[0]},${tone[1]},${tone[2]},${a})`); g.addColorStop(1, `rgba(${tone[0]},${tone[1]},${tone[2]},0)`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(qx, qy, rad, 0, 7); ctx.fill(); } });
+  }
+  for (let i = 0; i < (big ? 16 : 9); i++) {
+    const a = R(0, 6.28), ex = Math.cos(a) * hw * 1.05, ey = Math.sin(a) * hh * 1.05, sx = x + ex, sy = y + ey, sp = R(60, 170) * k, vx = Math.cos(a) * sp, vy = Math.sin(a) * sp - 30 * k, life = R(.3, .6);
+    add({ dur: life, draw(p: number) { const t = p * life; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,222,140,${1 - p})`; ctx.beginPath(); ctx.arc(sx + vx * t, sy + vy * t + 260 * k * t * t, 2.2 * k * (1 - p) + .5, 0, 7); ctx.fill(); ctx.restore(); } });
+  }
+}
+// A unit (or any card) lands on a board slot: `r` is the slot's rect in screen pixels. Safe to call without a scene running.
+export function fxLanding(r: FxRect, big = false) {
+  ensureCanvas();
+  if (!fxs.length && !sched.length) U = r.w / 64;
+  landingImpact(r.cx / U, r.cy / U, r.w / U, r.h / U, big);
+}
 
 // the Tática card falls onto the board, glows (gold light is drawn into it) and then kicks as the effect leaves it
 function landTactic(env: FxEnv, onLaunch: () => void) {
   const TAC = tacPoint(env);
   env.showCard(true);
-  at(.31, () => {
-    play('dano', 0, .5, .6); dust(TAC.x, TAC.y + 34, 90, 8, 36); shock(TAC.x, TAC.y + 36, 80, .45, '255,226,170', 3);
-    add({ dur: 1.4, draw(p: number) { ctx.save(); ctx.globalAlpha = .35 * (1 - p); ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(TAC.x + 4, TAC.y + 50, 40, 10, 0, 0, 7); ctx.fill(); ctx.restore(); } });
-  });
+  at(.31, () => { play('dano', 0, .5, .6); landingImpact(TAC.x, TAC.y, env.spot.w / U, env.spot.h / U, false); });
   at(.5, () => {
     whoosh(0, .5, .22, 300, 1300);
     add({ dur: .52, draw(p: number) { const r = 60 + 40 * (1 - p), g = ctx.createRadialGradient(TAC.x, TAC.y, 0, TAC.x, TAC.y, r); g.addColorStop(0, `rgba(255,214,120,${.5 * p})`); g.addColorStop(1, 'rgba(255,214,120,0)');
@@ -322,7 +353,7 @@ export async function fxTactic(kind: 'catapulta' | 'trabuco' | 'balestra', env: 
   const hitNumber = (t: any, d: number) => at(d, () => env.number(t.side, t.slot, t.amount, 'damage'));
   return new Promise<void>(resolve => {
     landTactic(env, () => {
-      const from = { x: tp.x, y: tp.y + 30 * dirY };
+      const from = { x: tp.x, y: tp.y + (env.spot.h / U) * .3 * dirY };
       if (kind === 'catapulta') {
         const rk = pick('pedra'), cx = T.reduce((s, t) => s + t.p!.x, 0) / T.length, cy = T.reduce((s, t) => s + t.p!.y, 0) / T.length, TT = .85;
         whoosh(0, .3, .35, 250, 900); play('dano', 0, .35, .7);

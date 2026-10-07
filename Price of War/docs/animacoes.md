@@ -269,3 +269,9 @@ Tudo o que o mockup `public/mockups/projeteis/` mostrava está no jogo, com o me
 - **Números:** o número de dano/cura voltou a ter a **estrela** atrás (uma só, sem anéis), como no mockup.
 - **Fora desta versão:** Flechas Venenosas (equipa, não ataca), o ataque de unidades no online do lado do adversário passa pelo mesmo laço da IA e já usa o efeito; a tutorial não tem tática de dano ainda.
 - **Teste:** com `?debug`, `window.__powAct(seat, action)` aplica uma ação do motor e `window.__powSet` monta a situação (ver `docs/animacoes.md`, "Como conferir uma animação").
+
+### Ajustes depois do teste do dono (carta tática no tabuleiro e pouso das cartas)
+- **A Tática pousa numa casa vazia de quem a jogou** (`pickTacticSpot` em `App.tsx`): fundo da fileira de trás do meio para fora (7, 6, 8, 5, 9), depois a de frente (2, 1, 3, 0, 4). Mostra que a jogada usou um espaço do tabuleiro, e o ataque sai dali. Sem casa vazia, usa a faixa do meio mais perto de quem jogou. A carta tem o **tamanho exato da casa** (mesma arte mini das cartas do tabuleiro) e cai de cima, brilha e solta o efeito.
+- **Impacto do pouso** (`landingImpact`/`fxLanding` em `combatFx.ts`, vale para toda carta que pousa: unidade, convocação, Tática): clarão curto, **ondas que correm para fora seguindo o contorno da carta** (retângulo de cantos arredondados) e poeira que nasce ao longo de todo o contorno (não só nos lados) e se afasta, mais faíscas douradas. Substituiu o `ImpactFx` antigo (poeira em duas linhas horizontais).
+- **Tamanho no voo da carta da mão** (`flyingCard`): o tamanho agora muda **durante a queda e termina antes do impacto** (curva própria, separada da aceleração da queda), em vez de só no fim.
+- **Sem achatar ao pousar:** removido o `justLanded` (a carta nova encolhia/esticava `scaleY 0,55 → 1,18` por 380 ms logo depois de pousar, e era isso que dava a impressão de mudar de tamanho). O peso agora vem do impacto pelo contorno.

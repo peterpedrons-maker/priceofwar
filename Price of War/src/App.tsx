@@ -217,7 +217,7 @@ import { aiNextAction } from './engine/ai';
 import { glyphUrl, burstUrl, NUMBER_GLOW, type NumberKind } from './numberGlyphs';
 import { triggerOf, triggerKeyOf, pulseCard, usePulse, TRIGGER_GLOW, TRIGGER_ICON } from './triggers';
 import { playSfx, preloadSfx, dbgMark } from './sfx';
-import { fxTactic, fxHero, fxRanged, preloadCombatFx, tacticSpot, type FxEnv, type FxSide, type FxTarget } from './combatFx';
+import { fxTactic, fxHero, fxRanged, fxLanding, preloadCombatFx, type FxEnv, type FxRect, type FxSide, type FxTarget } from './combatFx';
 import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettings, subscribeAudio } from './audioSettings';
 import { useGameSettings, setGameSettings } from './gameSettings';
 import tutHandSprite from './assets/tut-hand.webp';
@@ -776,56 +776,11 @@ const TriggerIcon = ({ cardId, icon, trig, className = '', style }: { cardId: st
 };
 // A card's effect fires: it glows gold (the same for every trigger), a band of light crosses it and a shock ring of its own
 // shape grows and fades — all cut with the card's exact silhouette (same masks and box as AbilityReadyGlow), never a rectangle.
-// The card lands: dust puffs kicked up along the ground (soft, drifting out and up while they fade), gold sparks that arc and fall, a flat
-// shock ring and a short flash. Drawn on a small canvas centred on the slot; everything scales with the card's width (the design is
-// for a 56-px-wide board card) and a full-art card kicks up far more of everything. `w` is the landed card's width in px.
+// (the impact of a card landing on the board — flash, ripples along the card's outline, dust born around it — is fxLanding in combatFx.ts)
 // The player's card flight (see the flyingCard overlay): total length, and the moment the slam lands (the dust, the thud).
 const FLIGHT_MS = 1000, FLIGHT_HIT_MS = 800;
 const HELD_SCALE = 0.55;   // size of the card held under the finger, relative to a hand card
 const HELD_GAP = 92;       // the held card hangs below the finger (the finger stays above it, clear of the card), this far from the fingertip
-const ImpactFx = ({ x, y, w, big }: { x: number; y: number; w: number; big: boolean; key?: React.Key }) => {
-  const ref = useRef<HTMLCanvasElement>(null);
-  const k = Math.max(0.6, w / 56) * (big ? 1.15 : 1);
-  const S = Math.round((big ? 520 : 340) * Math.max(0.8, w / 56));
-  useEffect(() => {
-    const cv = ref.current; if (!cv) return;
-    const ctx = cv.getContext('2d'); if (!ctx) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    cv.width = S * dpr; cv.height = S * dpr; ctx.scale(dpr, dpr);
-    const rnd = Math.random, lerp = (a: number, b: number, t: number) => a + (b - a) * t, easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
-    const cx = S / 2, ground = S / 2 + (w / 0.7) / 2;          // ground contact: the bottom edge of the landed card
-    const TONES = [[226, 206, 170], [206, 182, 142], [150, 126, 92], [112, 92, 66]];       // pale dust, ochre, and darker earth for body and contrast
-    const puffs = Array.from({ length: big ? 58 : 30 }, (_, i) => ({
-      side: i % 2 ? 1 : -1, speed: lerp(22, big ? 230 : 170, rnd()) * k, ang: rnd() * 0.55, life: lerp(0.6, big ? 1.5 : 1.15, rnd()),
-      rise: lerp(4, big ? 70 : 46, rnd()) * k, size: lerp(10, big ? 32 : 22, rnd()) * k, alpha: lerp(0.32, 0.6, rnd()), tone: TONES[Math.floor(rnd() * TONES.length)], delay: rnd() * 0.06,
-    }));
-    const sparks = Array.from({ length: big ? 34 : 18 }, (_, i) => ({
-      ang: -Math.PI * (0.1 + 0.8 * rnd()), speed: lerp(100, big ? 340 : 250, rnd()) * k, life: lerp(0.32, 0.7, rnd()), gold: i % 3 !== 0,
-    }));
-    const t0 = performance.now(); const dur = big ? 1.8 : 1.35; let raf = 0;
-    const loop = (now: number) => {
-      const t = (now - t0) / 1000; ctx.clearRect(0, 0, S, S);
-      if (t < 0.14) { const u = t / 0.14; const g = ctx.createRadialGradient(cx, ground - 10 * k, 0, cx, ground - 10 * k, lerp(14, big ? 90 : 56, u) * k); g.addColorStop(0, `rgba(255,243,200,${0.85 * (1 - u)})`); g.addColorStop(1, 'rgba(255,243,200,0)'); ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, ground - 10 * k, lerp(14, big ? 90 : 56, u) * k, 0, 7); ctx.fill(); }
-      puffs.forEach(p => {
-        const u = (t - p.delay) / p.life; if (u < 0 || u > 1) return;
-        const px = cx + p.side * p.speed * easeOut(u) * Math.cos(p.ang), py = ground - 4 * k - p.speed * 0.26 * easeOut(u) - p.rise * u, rad = p.size * lerp(0.5, 1.3, u);
-        const g = ctx.createRadialGradient(px, py, 0, px, py, rad); const a = p.alpha * (1 - u) * (u < 0.1 ? u / 0.1 : 1);
-        g.addColorStop(0, `rgba(${p.tone[0]},${p.tone[1]},${p.tone[2]},${a})`); g.addColorStop(1, `rgba(${p.tone[0]},${p.tone[1]},${p.tone[2]},0)`);
-        ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, rad, 0, 7); ctx.fill();
-      });
-      sparks.forEach(sp => {
-        const u = t / sp.life; if (u < 0 || u > 1) return;
-        const px = cx + Math.cos(sp.ang) * sp.speed * t, py = ground - 14 * k + Math.sin(sp.ang) * sp.speed * t + 420 * k * t * t;
-        ctx.globalAlpha = 1 - u; ctx.fillStyle = sp.gold ? '#ffd36a' : '#fff6d8'; ctx.beginPath(); ctx.arc(px, py, lerp(2.8, 1, u) * Math.min(1.5, k), 0, 7); ctx.fill();
-      });
-      ctx.globalAlpha = 1;
-      if (t < dur) raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, []);
-  return <canvas ref={ref} className="fixed pointer-events-none" style={{ left: x - S / 2, top: y - S / 2, width: S, height: S, zIndex: 499 }} />;
-};
 const TriggerBurst = ({ x, y, w, h, card }: { x: number; y: number; w: number; h: number; card: CardData; key?: React.Key }) => {
   const { masks, box } = silhouetteFor(card);
   const maskCss = (url: string): React.CSSProperties => ({
@@ -5421,7 +5376,7 @@ export default function App() {
   const [announcedCard, setAnnouncedCard] = useState<{ card: CardData, side: 'player' | 'npc' } | null>(null);
   // Combat effects (src/combatFx.ts): the Tática card that has landed on the board while its effect plays, and whether the
   // presentation queue is busy (the screen shows the match a little behind the engine until the effect lands).
-  const [tacticLand, setTacticLand] = useState<{ card: CardData; side: 'player' | 'npc'; leaving: boolean; key: number } | null>(null);
+  const [tacticLand, setTacticLand] = useState<{ card: CardData; side: 'player' | 'npc'; spot: FxRect; leaving: boolean; key: number } | null>(null);
   const [fxBusy, setFxBusy] = useState(false);
   const fxQueueRef = useRef<Promise<void>>(Promise.resolve());
   const fxPendingRef = useRef(0);
@@ -5683,15 +5638,8 @@ export default function App() {
   // so the placement reads clearly before the view eases back to normal.
   const [cameraSettling, setCameraSettling] = useState<{ slotIndex: number } | null>(null);
   // A brief flash/ring burst at the screen position where a played card just landed.
-  const [impactBurst, setImpactBurst] = useState<{ id: number; x: number; y: number; w: number; big?: boolean }[]>([]);
-  const impactIdRef = useRef(0);
-  // Several bursts can be alive at once (summoned soldiers landing one after another); each cleans itself up.
-  // (x, y) is the centre of the card that landed and w its width: the dust is kicked up from its bottom edge, and a full-art card gets far more.
-  const fireImpactBurst = (x: number, y: number, big = false, w = 56) => {
-    const id = ++impactIdRef.current;
-    setImpactBurst(prev => [...prev, { id, x, y, w, big }]);
-    window.setTimeout(() => setImpactBurst(prev => prev.filter(b => b.id !== id)), big ? 1700 : 1350);
-  };
+  // (x, y) is the centre of the card that landed and w its width: the impact runs along the card's outline (see fxLanding); a full-art card gets more.
+  const fireImpactBurst = (x: number, y: number, big = false, w = 56) => fxLanding({ cx: x, cy: y, w, h: w * 1.27 }, big);
   // A dropped card touched down: the thud, the dust, and the board reacting (see arrivalDrops).
   arrivalListener = (slotId, card) => {
     const r = document.getElementById(slotId)?.getBoundingClientRect();
@@ -6293,24 +6241,34 @@ export default function App() {
     const r = el.getBoundingClientRect();
     return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height };
   };
-  const fxEnvFor = (commit: () => void, card?: CardData, side?: FxSide): FxEnv => ({
+  const fxEnvFor = (commit: () => void, card?: CardData, side?: FxSide, spot?: FxRect): FxEnv => ({
     rectOf: fxRectOf,
+    spot: spot ?? fxRectOf('player', 2) ?? { cx: 0, cy: 0, w: 56, h: 71 },
     number: (sd, slot, amount, kind) => spawnFloatingNumberAtId(`${sd}-${slot}`, amount, kind),
     commit,
     showCard: on => {
-      if (on && card && side) setTacticLand({ card, side, leaving: false, key: ++tacKeyRef.current });
+      if (on && card && side && spot) setTacticLand({ card, side, spot, leaving: false, key: ++tacKeyRef.current });
       else { setTacticLand(c => (c ? { ...c, leaving: true } : c)); window.setTimeout(() => setTacticLand(null), 750); }
     },
   });
+  // A Tática lands on an empty slot of whoever played it (back row from the middle outwards, then the front row): it shows that the
+  // play used a space of the board. With no empty slot, in the middle band, a little towards its owner.
+  const pickTacticSpot = (seat: Seat, board: (unknown | null)[] | undefined): FxRect => {
+    const side: FxSide = seat === 0 ? 'player' : 'npc';
+    for (const i of [7, 6, 8, 5, 9, 2, 1, 3, 0, 4]) { if (!board?.[i]) { const r = fxRectOf(side, i); if (r) return r; } }
+    const a = fxRectOf('npc', 2), b = fxRectOf('player', 2);
+    if (!a || !b) return { cx: window.innerWidth / 2, cy: window.innerHeight / 2, w: 56, h: 71 };
+    return { cx: (a.cx + b.cx) / 2, cy: (a.cy + a.h / 2 + b.cy - b.h / 2) / 2 + (seat === 0 ? 1 : -1) * a.h * .3, w: a.w, h: a.h };
+  };
   const FX_TACTICS: Record<string, 'catapulta' | 'trabuco' | 'balestra'> = { 'Catapulta de Guerra': 'catapulta', 'Trabuco de Cerco': 'trabuco', 'Balestra de Precisão': 'balestra' };
-  const planFx = (events: GameEvent[]): { run: (commit: () => void) => Promise<void>; flags: { fxNumbers: boolean; fxSkipAbility: boolean; fxSkipTacticSfx: boolean } } | null => {
+  const planFx = (events: GameEvent[], prev: GameState | null): { run: (commit: () => void) => Promise<void>; flags: { fxNumbers: boolean; fxSkipAbility: boolean; fxSkipTacticSfx: boolean } } | null => {
     const sideOf = (seat: Seat): FxSide => (seat === 0 ? 'player' : 'npc');
     const play = events.find(e => e.t === 'play' && e.card.cardType === 'Tática' && FX_TACTICS[e.card.name]);
     if (play && play.t === 'play') {
       const targets: FxTarget[] = events.flatMap(e => (e.t === 'damage' && e.amount > 0 ? [{ side: sideOf(e.seat), slot: e.slot, amount: e.amount }] : []));
       if (targets.length === 0) return null;
-      const card = toCardData(play.card), side = sideOf(play.seat);
-      return { run: commit => fxTactic(FX_TACTICS[play.card.name], fxEnvFor(commit, card, side), side, targets), flags: { fxNumbers: true, fxSkipAbility: false, fxSkipTacticSfx: true } };
+      const card = toCardData(play.card), side = sideOf(play.seat), spot = pickTacticSpot(play.seat, prev?.players[play.seat].board);
+      return { run: commit => fxTactic(FX_TACTICS[play.card.name], fxEnvFor(commit, card, side, spot), side, targets), flags: { fxNumbers: true, fxSkipAbility: false, fxSkipTacticSfx: true } };
     }
     const ab = events.find(e => e.t === 'ability' && e.slot === 12);
     if (ab && ab.t === 'ability') {
@@ -6324,8 +6282,9 @@ export default function App() {
   };
   processEventsRef.current = processEvents;
   const commitState = (state: GameState, events: GameEvent[], opts: { skip?: { hand?: boolean; boards?: boolean }; quietTurn?: boolean } = {}) => {
+    const prev = engineRef.current;
     engineRef.current = state;
-    const plan = opts.quietTurn ? null : planFx(events);
+    const plan = opts.quietTurn ? null : planFx(events, prev);
     const present = () => { processEventsRef.current(events, { ...opts, ...(plan?.flags ?? {}) }); syncView(state, opts.skip); };
     // (when nothing is playing and the batch has no effect it shows right away, exactly as before)
     if (!plan && fxPendingRef.current === 0) { processEvents(events, opts); syncView(state, opts.skip); return; }
@@ -9321,8 +9280,14 @@ export default function App() {
                 scaleY: [startScale, hs, hs, endScaleY, endScaleY],
                 times: [0, 0.42, 0.58, 0.8, 1],
               }}
+              // (the size is not tied to the slam's acceleration: it changes while the card starts to fall, finished before it lands,
+              // so nothing resizes at the moment of the impact)
               exit={{ opacity: 0, transition: { duration: 0.16 } }}
-              transition={{ duration: FLIGHT_MS / 1000, ease: ['easeInOut', 'linear', [0.6, 0, 0.95, 0.35], 'linear'] }}
+              transition={{
+                duration: FLIGHT_MS / 1000, ease: ['easeInOut', 'linear', [0.6, 0, 0.95, 0.35], 'linear'],
+                scaleX: { duration: FLIGHT_MS / 1000, times: [0, 0.42, 0.58, 0.69, 1], ease: ['easeInOut', 'linear', [0.3, 0.7, 0.4, 1], 'linear'] },
+                scaleY: { duration: FLIGHT_MS / 1000, times: [0, 0.42, 0.58, 0.69, 1], ease: ['easeInOut', 'linear', [0.3, 0.7, 0.4, 1], 'linear'] },
+              }}
               onAnimationComplete={() => {
                 // The engine already holds the card (and any tokens it summoned): show the board as it is now.
                 if (engineRef.current) syncView(engineRef.current);
@@ -9415,7 +9380,6 @@ export default function App() {
       </AnimatePresence>
 
       {/* Impact: dust, sparks, a flat shock ring and a flash where the card landed (see ImpactFx). */}
-      {impactBurst.map(burst => <ImpactFx key={burst.id} x={burst.x} y={burst.y} w={burst.w} big={!!burst.big} />)}
 
       {/* Attack Targeting Lines — see renderTravelingArrow above. Candidate targets
           (attackLines, the player's own selection) only draw an arrow toward
@@ -9626,12 +9590,11 @@ export default function App() {
       {/* Combat effects (src/combatFx.ts): the Tática card lands on the board while its effect plays (the canvas of the effects is above it);
           while the presentation queue is busy a transparent layer keeps taps from reaching a screen that is still a moment behind the engine. */}
       {tacticLand && (() => {
-        const spot = tacticSpot(fxRectOf);
-        if (!spot) return null;
+        const sp = tacticLand.spot, c = tacticLand.card;
         return (
-          <div className="fixed z-[280] pointer-events-none" style={{ left: spot.x, top: spot.y, transform: 'translate(-50%, -50%)' }}>
-            <div key={tacticLand.key} className={tacticLand.leaving ? 'tac-leave' : 'tac-land'} style={{ width: spot.w, height: spot.w * 1.45 }}>
-              <div className="relative w-full h-full" style={{ filter: CARD_THICKNESS_SHADOW }}><CardFace card={tacticLand.card} variant="popup" /></div>
+          <div className="fixed z-[280] pointer-events-none" style={{ left: sp.cx, top: sp.cy, transform: 'translate(-50%, -50%)' }}>
+            <div key={tacticLand.key} className={`${tacticLand.leaving ? 'tac-leave' : 'tac-land'} rounded-lg flex flex-col p-1`} style={{ width: sp.w, height: sp.h, filter: CARD_THICKNESS_SHADOW }}>
+              {c.isFullArt ? <CardFaceFullArtMini card={c} /> : <CardFaceStandardMini card={c} />}
               {tacticLand.side === 'npc' && <span className="absolute left-1/2 -top-3 -translate-x-1/2 whitespace-nowrap rounded-full border border-red-500 bg-red-900/90 px-2 py-[1px] text-[8px] font-black uppercase tracking-widest text-red-200">Adversário</span>}
             </div>
           </div>
@@ -10419,19 +10382,7 @@ const CardSlot = ({
   const prevHpRef = useRef<number | undefined>(card?.hp);
   const prevCardIdRef = useRef<string | undefined>(card?.id);
   const [damageFlash, setDamageFlash] = useState<{ key: number; amount: number } | null>(null);
-  // Physical "landing weight" — a brief non-uniform squash (see scaleY below) the
-  // instant a genuinely NEW card occupies this slot, on top of the existing scale-in.
-  // Keyed off the same id-change check as the damage flash below (a card moving
-  // within/into this slot, not just its hp changing), but reads prevCardIdRef
-  // BEFORE that effect updates it, so this has to run first.
-  const [justLanded, setJustLanded] = useState(false);
-  useEffect(() => {
-    if (card && prevCardIdRef.current !== card.id) {
-      setJustLanded(true);
-      const t = window.setTimeout(() => setJustLanded(false), 380);
-      return () => clearTimeout(t);
-    }
-  }, [card?.id]);
+  // (a card that lands used to squash for a moment, so right after landing it visibly changed size: the weight is now the impact along its outline, see fxLanding)
   useEffect(() => {
     if (card && prevCardIdRef.current === card.id && prevHpRef.current !== undefined && card.hp < prevHpRef.current) {
       setDamageFlash({ key: Date.now(), amount: prevHpRef.current - card.hp });
@@ -10618,11 +10569,11 @@ const CardSlot = ({
             // matching flinch (brief shrink) on whatever it's hitting — the same
             // push/give pairing a real collision has.
             scale: isImpactingAttacker ? 1.32 : isAttacking ? [1, 0.93, 1.2] : isImpactingTarget ? 0.95 : 1,
-            // Physical landing weight (see justLanded above) — a squash-and-settle
+            // (no squash on landing any more: see fxLanding) — formerly a squash-and-settle
             // on just the vertical axis, like the card actually has mass hitting the
             // table, instead of the plain uniform scale-in every card used to get.
             // Left undefined the rest of the time so it just follows `scale` above.
-            scaleY: justLanded ? [0.55, 1.18, 0.92, 1.03, 1] : isImpactingAttacker ? 0.9 : isImpactingTarget ? 0.88 : isAttacking ? 1.08 : 1,
+            scaleY: isImpactingAttacker ? 0.9 : isImpactingTarget ? 0.88 : isAttacking ? 1.08 : 1,
             // Stretch on the way in, squash on contact (volume stays put, so it reads as weight).
             scaleX: isImpactingAttacker ? 1.08 : isImpactingTarget ? 1.09 : isAttacking ? 0.96 : 1,
             // the card that takes the blow is thrown off-axis for a moment and rights itself
@@ -10638,7 +10589,7 @@ const CardSlot = ({
             scale: isAttacking && !isImpactingAttacker
               ? { duration: ATTACK_MS * TIME.k / 1000, times: [0, ATTACK_WINDUP_FRAC, 1], ease: ['easeOut', 'easeIn'] }
               : { type: "spring", stiffness: 400, damping: 15 },
-            scaleY: justLanded ? { duration: 0.38, ease: "easeOut", times: [0, 0.35, 0.6, 0.85, 1] } : { type: "spring", stiffness: 520, damping: 16 },
+            scaleY: { type: "spring", stiffness: 520, damping: 16 },
             scaleX: { type: "spring", stiffness: 520, damping: 16 },
             rotate: isAttacking && !isImpactingAttacker
               ? { duration: ATTACK_MS * TIME.k / 1000, times: [0, ATTACK_WINDUP_FRAC, 1], ease: ['easeOut', 'easeIn'] }
