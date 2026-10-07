@@ -319,3 +319,13 @@ Pergunta: com manutenção 1 a IA nunca dispensa e o ouro sobra; e se a manuten�
 | K2 · manutenção 2, atributos +1 de soma | 66,5% | 58,5% | 62,5% | 12,6 | 0,5 |
 | K3 · manutenção 3, atributos +2 de soma | 71% | 58% | 64,5% | 13,6 | 1,8 |
 Leitura: cada ponto a mais de manutenção custa uns 13 pontos de vitória ao deck, mas +1 de soma nos atributos devolve uns 23: **o troco de 1 de soma por ponto de manutenção é generoso demais**; o valor está perto de **meio ponto de soma por ponto de manutenção**. Mesmo com manutenção 3 a IA dispensa só 1 a 2 cartas por partida (paga ~2 de ouro por turno de uma renda de 5): o jogo continua sem pressão de ouro suficiente para "dispensar" ser rotina. A regra da tabela deve ser ajustada para ~0,5 de soma por ponto de manutenção.
+
+### Rodada 17: IA que decide a manutenção + manutenção mais cara só em cartas fortes (200 partidas por confronto)
+A IA agora decide quem continua comparando, para cada combinação, o valor das tropas mantidas com o que o ouro restante compra da mão (uma mochila de custo × valor); tropas que voltam à mão ou têm Rescisão que compra carta custam menos para dispensar (`upkeepAnswer` em `ai.ts`). Atributos das cartas não foram alterados em nenhum cenário.
+| Cenário | × Cardeal | × Capitão | Média | Ouro de manutenção por partida | Dispensas por partida (voltam à mão) |
+|---|---|---|---|---|---|
+| Manutenção 1 (como na rodada 15) | 58,5% | 48,5% | 53,5% | 5,3 | 1,1 (0,6) |
+| N2 · manutenção 2 em todos (Capitão 3) | 43% | 38,5% | 40,8% | 4,8 | **2,7** (1,5) |
+| M3 · manutenção 2 em Espadachim, Duelista e Cavaleiro Errante; Capitão da Companhia 3 | 49% | 40,5% | 44,8% | 5,1 | 2,2 (1,3) |
+| **M4 · manutenção 2 só em Espadachim do Soldo e Duelista Livre** | **55%** | **44%** | **49,5%** | 5,3 | **1,4** (0,8) |
+Leitura: com a IA nova **a decisão "pagar ou dispensar" passa a existir** (de 0,0 para 1 a 3 dispensas por partida; antes a IA pagava tudo). Cada ponto de manutenção em cartas muito usadas custa ~2 pontos de vitória por carta. **M4 foi aplicado ao deck de teste** (`src/engine/experimental.ts`): os três decks seguem em triângulo (Mercenários vencem o Cardeal 55%, Capitão vence os Mercenários 56%, Cardeal vence o Capitão ~54%). Ainda sem prova: como uma pessoa decide, e a IA decide uma vez por turno (a escolha não vê o que o adversário fará).
