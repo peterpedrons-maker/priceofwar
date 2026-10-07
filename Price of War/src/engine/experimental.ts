@@ -2,7 +2,9 @@
 // o catálogo (CARD_DEFS), os boosters, o editor de decks e o servidor não conhecem nada daqui.
 // Proposta e decisões: docs/deck-mercenarios.md.
 import { registerCardDefs } from './catalog';
-import type { CardDef } from './types';
+import type { CardDef, CardType } from './types';
+
+const SOLDIERS: CardType[] = ['Infantaria', 'Cavalaria', 'Arqueiro', 'Artilharia'];
 
 const GENERAL_NAME = 'Comandante Brann, Senhor da Companhia';
 
@@ -30,6 +32,36 @@ export const MERCENARIOS_DEFS: readonly CardDef[] = [
   { name: 'Tesoureiro da Companhia', trigger: 'comando', cardType: 'Infantaria', atk: 1, hp: 3, cost: 2, effect: 'No início do turno, ganhe 1 de ouro.',
     abilities: [{ on: 'turn_start', do: [{ kind: 'gold', amount: 1 }] }] },
 
+  // ── táticas, equipamentos e emboscada próprios do deck (nenhuma carta é emprestada do Cardeal nem do Capitão) ──
+  { name: 'Escriba de Contratos', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Leve 1 Relíquia do baralho para a mão.',
+    abilities: [{ on: 'play', do: [{ kind: 'search', zone: 'deck', filter: { types: ['Relíquia'] } }] }] },
+  { name: 'Agência de Recrutamento', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Leve 1 soldado do baralho para a mão.',
+    abilities: [{ on: 'play', do: [{ kind: 'search', zone: 'deck', filter: { types: SOLDIERS } }] }] },
+  { name: 'Resgate de Mercenário', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Leve 1 soldado do cemitério para a mão.',
+    abilities: [{ on: 'play', do: [{ kind: 'search', zone: 'graveyard', filter: { types: SOLDIERS } }] }] },
+  { name: 'Recrutamento de Rua', cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: 'Compre 2 cartas.',
+    abilities: [{ on: 'play', do: [{ kind: 'draw', amount: 2 }] }] },
+  { name: 'Salva de Besteiros', cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: '2 de dano a todas as unidades de uma fileira inimiga.',
+    abilities: [{ on: 'play', do: [
+      { kind: 'damage', amount: 2, target: { side: 'enemy', area: 'row', prompt: 'Escolha uma fileira inimiga (clique em qualquer slot dela).' } },
+    ] }] },
+  { name: 'Contrato de Execução', cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: '3 de dano a uma unidade inimiga.',
+    abilities: [{ on: 'play', do: [
+      { kind: 'damage', amount: 3, target: { side: 'enemy', area: 'unit', prompt: 'Escolha a unidade inimiga que o contrato elimina (3 de dano).' } },
+    ] }] },
+  { name: 'Carga de Pólvora', cardType: 'Tática', atk: 0, hp: 0, cost: 3, effect: '2 de dano a todas as unidades inimigas e ao General.',
+    abilities: [{ on: 'play', do: [{ kind: 'damage', amount: 2, all: 'enemy' }] }] },
+  { name: 'Armadura Alugada', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Equipe uma Infantaria: +2 HP.',
+    abilities: [{ on: 'play', do: [
+      { kind: 'equip', hp: 2, target: { side: 'own', area: 'unit', types: ['Infantaria'], prompt: 'Escolha uma Infantaria sua para equipar (+2 HP).' } },
+    ] }] },
+  { name: 'Espada de Aluguel', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Equipe uma Infantaria ou Cavalaria: +2 ATK.',
+    abilities: [{ on: 'play', do: [
+      { kind: 'equip', atk: 2, target: { side: 'own', area: 'unit', types: ['Cavalaria', 'Infantaria'], prompt: 'Escolha uma Cavalaria ou Infantaria sua para equipar (+2 ATK).' } },
+    ] }] },
+  { name: 'Suborno', cardType: 'Emboscada', atk: 0, hp: 0, cost: 2, effect: 'Cancela um ataque a uma de suas unidades.',
+    abilities: [{ on: 'ambush', do: [{ kind: 'cancel_attack' }] }] },
+
   // ── a Relíquia do deck: três modos, o dono escolhe um no fim do turno (vale até o fim do turno seguinte) ──
   { name: 'Livro de Contratos', cardType: 'Relíquia', atk: 0, hp: 5, cost: 3, isFullArt: true,
     effect: 'Escolha 1 modo no fim do seu turno. Cofre de Guerra: manutenção total -2. Extorsão: +1 de ouro por unidade inimiga destruída (máx. 2 por ciclo). Soldo em Dobro: cartas com manutenção têm +1 ATK.',
@@ -43,16 +75,16 @@ export const MERCENARIOS_DEFS: readonly CardDef[] = [
 export const MERCENARIOS_RECIPE = {
   id: 'mercenarios', name: 'Deck Mercenários', general: GENERAL_NAME,
   cards: {
-    // 28 mercenários + 7 sem manutenção
-    'Lanceiro de Aluguel': 4, 'Besteiro Contratado': 4, 'Espadachim do Soldo': 4, 'Desertor': 4, 'Capitão da Companhia': 2,
-    'Cavaleiro Errante': 3, 'Duelista Livre': 4, 'Bombardeiro Contratado': 3,
-    'Sentinela Fiel': 4, 'Tesoureiro da Companhia': 3,
+    // 31 mercenários e 7 sem manutenção
+    'Lanceiro de Aluguel': 4, 'Besteiro Contratado': 4, 'Espadachim do Soldo': 4, 'Desertor': 4, 'Capitão da Companhia': 3,
+    'Cavaleiro Errante': 3, 'Duelista Livre': 4, 'Bombardeiro Contratado': 4,
+    'Sentinela Fiel': 4, 'Tesoureiro da Companhia': 4,
     // a Relíquia e quem a busca
-    'Livro de Contratos': 3, 'Graal da Dádiva': 3,
-    // táticas que já existem (universais)
-    'Catapulta de Guerra': 2, 'Balestra de Precisão': 2, 'Trabuco de Cerco': 1,
-    'Armadura de Guerra': 2, 'Couraça Reforçada': 2, 'Espada Longa': 2, 'Flechas Venenosas': 1,
-    'Recrutamento Seletivo': 2, 'Retorno do Soldado': 1, 'Reforços Ocultos': 2, 'Tributo de Guerra': 2,
+    'Livro de Contratos': 3, 'Escriba de Contratos': 3,
+    // táticas, equipamentos e emboscada próprios
+    'Salva de Besteiros': 2, 'Contrato de Execução': 2, 'Carga de Pólvora': 1,
+    'Armadura Alugada': 2, 'Espada de Aluguel': 2,
+    'Agência de Recrutamento': 2, 'Resgate de Mercenário': 2, 'Recrutamento de Rua': 1, 'Suborno': 2,
   } as Record<string, number>,
 };
 

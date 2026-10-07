@@ -11,7 +11,7 @@ import './balance-rules-preload';
 import { fork } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { getCardDef, DECK_RECIPES } from '../src/engine/catalog';
+import { getCardDef, CARD_DEFS, DECK_RECIPES } from '../src/engine/catalog';
 import { MERCENARIOS_RECIPE, registerMercenarios } from '../src/engine/experimental';
 import { aiNextAction } from '../src/engine/ai';
 import { applyAction, createMatch, deckSetupFromRecipe, type DeckSetup } from '../src/engine/game';
@@ -19,6 +19,12 @@ import { nextRandom, seedFrom } from '../src/engine/rng';
 import type { GameState, Seat, GameEvent, Card } from '../src/engine/types';
 
 registerMercenarios();
+// O deck é só de cartas novas: nenhuma do Cardeal nem do Capitão (decisão do dono do jogo).
+{
+  const old = new Set(CARD_DEFS.map(c => c.name));
+  const repeated = [...Object.keys(MERCENARIOS_RECIPE.cards), MERCENARIOS_RECIPE.general].filter(n => old.has(n));
+  if (repeated.length) throw new Error(`O deck Mercenários repete cartas do jogo: ${repeated.join(', ')}`);
+}
 
 type Patch = { name?: string; cards?: Record<string, Record<string, unknown>>; deck?: Record<string, number>; rules?: unknown };
 type Per = { deck: string; won: boolean; generalHp: number; drawn: Record<string, number>; played: Record<string, number>; upkeepPaid: number; dismissed: number; dismissedHand: number; modes: Record<string, number>; relicPlayed: boolean; unitsLost: number };

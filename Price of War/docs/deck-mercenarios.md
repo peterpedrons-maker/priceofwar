@@ -11,7 +11,8 @@ Mesa de teste jogável da economia (sem combate): `public/mockups/mercenarios/in
 - Modos propostos: **Cofre de Guerra** (cada mercenário paga 1 a menos, mínimo 0) · **Extorsão** (+1 ouro por carta inimiga destruída, máx. 2 por turno) · **Soldo em Dobro** (mercenários +1 ATK).
 - Cartas universais (Trabuco, Catapulta etc.) valem em qualquer deck; o deck precisa ser testado também com elas.
 
-## Lista simulada (60 cartas; `src/engine/experimental.ts`)
+## Lista simulada (60 cartas, **todas novas**: nenhuma é do Cardeal nem do Capitão; `src/engine/experimental.ts`)
+Decisão do dono do jogo: o deck não repete nenhuma carta dos outros dois (pelo menos no início); o laboratório confere isso ao começar (`tests/balance-merc.ts`).
 General **Comandante Brann, Senhor da Companhia** (30 de vida): pague 3 de ouro, compre 1 carta (uma vez por turno).
 | Carta | Cópias | Tipo, ATK/HP, custo | Manutenção | O que faz |
 |---|---|---|---|---|
@@ -19,15 +20,24 @@ General **Comandante Brann, Senhor da Companhia** (30 de vida): pague 3 de ouro,
 | Besteiro Contratado | 4 | Arqueiro 2/2, 1 | 1 | ataca à distância |
 | Espadachim do Soldo | 4 | Infantaria 4/4, 2 | 1 | só atributos |
 | Desertor | 4 | Infantaria 2/2, 1 | 1 | Rescisão: compre 1 carta |
-| Capitão da Companhia | 2 | Infantaria 3/5, 2 | 2 | na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK |
+| Capitão da Companhia | 3 | Infantaria 3/5, 2 | 2 | na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK |
 | Cavaleiro Errante | 3 | Cavalaria 4/5, 3 | 1 | se dispensado, volta para a mão |
 | Duelista Livre | 4 | Infantaria 5/3, 2 | 1 | se dispensado, volta para a mão |
-| Bombardeiro Contratado | 3 | Artilharia 3/2, 2 | 1 | ataca à distância |
+| Bombardeiro Contratado | 4 | Artilharia 3/2, 2 | 1 | ataca à distância |
 | Sentinela Fiel | 4 | Infantaria 2/4, 2 | — | só atributos |
-| Tesoureiro da Companhia | 3 | Infantaria 1/3, 2 | — | no início do turno, ganhe 1 de ouro |
+| Tesoureiro da Companhia | 4 | Infantaria 1/3, 2 | — | no início do turno, ganhe 1 de ouro |
 | Livro de Contratos | 3 | Relíquia (5 de vida), 3 | — | três modos, escolhido no fim do turno: **Cofre de Guerra** (manutenção total −2), **Extorsão** (+1 ouro por unidade inimiga destruída, máx. 2 por ciclo), **Soldo em Dobro** (cartas com manutenção +1 ATK) |
-Já existentes (universais): Graal da Dádiva 3 (busca a Relíquia) · Catapulta de Guerra 2 · Balestra de Precisão 2 · Trabuco de Cerco 1 · Armadura de Guerra 2 · Couraça Reforçada 2 · Espada Longa 2 · Flechas Venenosas 1 · Recrutamento Seletivo 2 · Retorno do Soldado 1 · Reforços Ocultos 2 · Tributo de Guerra 2.
-Resultados da simulação: `docs/balanceamento.md`, rodada 8.
+| Escriba de Contratos | 3 | Tática, 1 | — | leve 1 Relíquia do baralho para a mão |
+| Agência de Recrutamento | 2 | Tática, 1 | — | leve 1 soldado do baralho para a mão |
+| Resgate de Mercenário | 2 | Tática, 1 | — | leve 1 soldado do cemitério para a mão |
+| Recrutamento de Rua | 1 | Tática, 2 | — | compre 2 cartas |
+| Salva de Besteiros | 2 | Tática, 2 | — | 2 de dano a todas as unidades de uma fileira inimiga |
+| Contrato de Execução | 2 | Tática, 2 | — | 3 de dano a uma unidade inimiga |
+| Carga de Pólvora | 1 | Tática, 3 | — | 2 de dano a todas as unidades inimigas e ao General |
+| Armadura Alugada | 2 | Tática (equipamento), 1 | — | Infantaria: +2 HP |
+| Espada de Aluguel | 2 | Tática (equipamento), 1 | — | Infantaria ou Cavalaria: +2 ATK |
+| Suborno | 2 | Emboscada, 2 | — | cancela um ataque a uma de suas unidades |
+(A primeira simulação, com táticas emprestadas do Cardeal e do Capitão, está na rodada 8 de `docs/balanceamento.md`; a lista só de cartas novas, na rodada 9.)
 
 ## Regra de bolso das cartas (a calibrar no laboratório)
 Mercenário custa 1 a menos para convocar do que uma carta normal do mesmo tamanho e cobra 1 de manutenção por turno; efeito forte cobra 2. Cartas "sem manutenção" e geradoras de ouro (Tesoureiro) compensam a conta.
