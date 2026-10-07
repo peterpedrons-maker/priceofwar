@@ -72,3 +72,17 @@ export const playWhoosh = (when: number, dur: number, vol = .5, f0 = 400, f1 = 1
   g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + dur * .55); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   s.connect(f).connect(g).connect(c.destination); s.start(t);
 };
+
+// A bell-like "ding" (a coin): a sine with two partials that dies away fast. `f` is the pitch of the first partial.
+export const playDing = (when = 0, vol = .22, f = 1760) => {
+  const c = getCtx();
+  const level = sfxLevel();
+  if (!c || level <= 0) return;
+  if (c.state === 'suspended') c.resume().catch(() => {});
+  const t = c.currentTime + Math.max(0, when);
+  ([[1, 1], [2.76, .45], [5.4, .22]] as const).forEach(([m, a]) => {
+    const o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.value = f * m;
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(Math.max(0.0002, vol * a * level), t + .004); g.gain.exponentialRampToValueAtTime(0.0001, t + .55);
+    o.connect(g).connect(c.destination); o.start(t); o.stop(t + .6);
+  });
+};

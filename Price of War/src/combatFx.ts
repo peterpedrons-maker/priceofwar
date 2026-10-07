@@ -19,7 +19,16 @@ import sfxBoomUrl from './assets/sfx-destruicao-fogo.wav';
 import sfxHitUrl from './assets/sfx-combate-explosao.wav';
 import sfxDanoUrl from './assets/sfx-dano.wav';
 import sfxMagicUrl from './assets/sfx-efeito-magico.mp3';
-import { playSfxAt, playWhoosh, preloadSfx } from './sfx';
+import imgCoin from './assets/fx-coin.webp';
+import imgSeal from './assets/fx-seal.webp';
+import imgContrato from './assets/fx-contrato.webp';
+import imgStars from './assets/fx-stars.webp';
+import imgPantano from './assets/fx-pantano.webp';
+import imgGold from './assets/fx-gold.webp';
+import imgDagger from './assets/proj-dagger.webp';
+import imgPurse from './assets/proj-purse.webp';
+import imgBall from './assets/proj-ball.webp';
+import { playSfxAt, playWhoosh, playDing, preloadSfx } from './sfx';
 
 export type FxSide = 'player' | 'npc';
 export type FxRect = { cx: number; cy: number; w: number; h: number };
@@ -28,9 +37,13 @@ export type FxTarget = { side: FxSide; slot: number; amount: number };
 export interface FxEnv {
   rectOf: (side: FxSide, slot: number) => FxRect | null;
   spot: FxRect;                        // where the Tática card lands (an empty slot of whoever played it)
-  number: (side: FxSide, slot: number, amount: number, kind: 'damage' | 'heal') => void;   // the floating number, at the moment of the hit
+  number: (side: FxSide, slot: number, amount: number, kind: 'damage' | 'heal' | 'gold-gain' | 'gold-spend') => void;   // the floating number, at the moment of the hit
   commit: () => void;                  // the effect has landed: show the new life totals, deaths and so on (called once)
   showCard: (on: boolean) => void;     // the Tática card lands on the board / burns away
+  goldPoint: (side: FxSide) => FxRect | null;   // the gold counter of that side (coins fly from / to it)
+  handPoint: (side: FxSide) => FxRect;           // where that side's hand is (a card back flies there)
+  has: (side: FxSide, slot: number) => boolean;   // is there a card on that slot (right now)?
+  pop: (side: FxSide, slot: number, kind: 'atk-up' | 'hp-up' | 'swap', text: string) => void;   // the small icon that pops over a card
 }
 
 // ── canvas and the timeline ──────────────────────────────────────────────────────────────────────────────────
@@ -39,7 +52,7 @@ let ctx: CanvasRenderingContext2D;
 let RES = 2, U = 1, now = 0, running = false, lastT = 0;
 const fxs: any[] = [], sched: any[] = [];
 const IMG: Record<string, HTMLImageElement> = {};
-const SRC: Record<string, string> = { fire: fxFire, smoke: fxSmoke, holy: fxHoly, puff: fxPuff, debris: fxDebris, a_lanca: artLanca, a_virote: artVirote, a_flecha: artFlecha, a_pedra: artPedra, a_brasa: artBrasa, a_espada: artEspada, a_martelo: artMartelo };
+const SRC: Record<string, string> = { coin: imgCoin, seal: imgSeal, contrato: imgContrato, stars: imgStars, swamp: imgPantano, gold: imgGold, dagger: imgDagger, purse: imgPurse, ball: imgBall, fire: fxFire, smoke: fxSmoke, holy: fxHoly, puff: fxPuff, debris: fxDebris, a_lanca: artLanca, a_virote: artVirote, a_flecha: artFlecha, a_pedra: artPedra, a_brasa: artBrasa, a_espada: artEspada, a_martelo: artMartelo };
 let readyP: Promise<void> | null = null;
 export const preloadCombatFx = (): Promise<void> => (readyP ??= Promise.all(Object.entries(SRC).map(([k, src]) => new Promise<void>(r => { const i = new Image(); i.onload = () => { IMG[k] = i; r(); }; i.onerror = () => r(); i.src = src; }))).then(() => {
   [sfxBoomUrl, sfxHitUrl, sfxDanoUrl, sfxMagicUrl].forEach(preloadSfx);
@@ -253,6 +266,62 @@ function rockBreak(rk, x, y, n = 8) {
   }
 }
 
+
+// ── pieces for the Mercenários and Capitão cards (sprite sheets drawn by tools/vfx/efeitos_decks.py) ─────────────────────
+function sheetXY(img, cols, fw, fh, frame, x, y, sx, sy, alpha, mode, ax = .5, ay = .5) {
+  const c = frame % cols, r = Math.floor(frame / cols);
+  ctx.save(); ctx.globalAlpha = alpha; ctx.globalCompositeOperation = mode || 'source-over'; ctx.translate(x, y); ctx.scale(sx, sy);
+  ctx.drawImage(img, c * fw, r * fh, fw, fh, -fw * ax, -fh * ay, fw, fh); ctx.restore();
+}
+// plays a whole sheet once (`frames` frames over `dur` seconds), starting `delay` seconds from now
+const playSheet = (img: any, cols: number, fw: number, fh: number, frames: number, dur: number, delay: number, x: number, y: number, sx: number, sy = sx, mode?: string, alpha: (p: number) => number = () => 1) =>
+  add({ t0: now + delay, dur, draw(p: number) { sheetXY(img, cols, fw, fh, Math.min(frames - 1, Math.floor(p * frames)), x, y, sx, sy, alpha(p), mode); } });
+const ding = (when = 0, vol = .22, f = 1760) => playDing(when, vol, f);
+function coinAt(x, y, size, t, alpha = 1, rot = 0, speedK = 18) {
+  const fr = Math.floor(t * speedK) % 16, c = fr % 8, r = Math.floor(fr / 8);
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); ctx.rotate(rot); ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 4;
+  ctx.drawImage(IMG.coin, c * 96, r * 96, 96, 96, -size / 2, -size / 2, size, size); ctx.restore();
+}
+// a gold coin that flies from a to b in an arc, spinning, with a trail of sparks
+function coinFly({ from, to, dur = .5, delay = 0, arc = 50, size = 22, onEnd }: { from: any; to: any; dur?: number; delay?: number; arc?: number; size?: number; onEnd?: () => void }) {
+  const ph = R(0, 1);
+  at(delay, () => add({ dur, draw(p: number) {
+    const u = p * p * (3 - 2 * p) * .35 + p * .65, x = from.x + (to.x - from.x) * u, y = from.y + (to.y - from.y) * u - arc * 4 * u * (1 - u);
+    if (Math.random() < .7) add({ dur: .3, draw(q: number) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,224,130,${.8 * (1 - q)})`; ctx.beginPath(); ctx.arc(x + R(-3, 3), y + R(-3, 3), 2.2 * (1 - q) + .4, 0, 7); ctx.fill(); ctx.restore(); } });
+    coinAt(x, y, size * (1 - .2 * u), p * dur + ph);
+  }, end() { onEnd && onEnd(); } }));
+}
+// coins thrown up and out that fall and settle
+function coinBurst(x, y, n = 8, power = 1, delay = 0, ground = 28) {
+  at(delay, () => { for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + R(-1.3, 1.3), sp = R(120, 300) * power, vx = Math.cos(a) * sp, vy = Math.sin(a) * sp, g = 700, life = R(.9, 1.3), ph = R(0, 1), size = R(15, 21);
+    add({ dur: life, draw(p: number) { const t = p * life; let py = y + vy * t + .5 * g * t * t, px = x + vx * t, onG = false;
+      if (py > y + ground) { py = y + ground - Math.abs(Math.sin((t - .55) * 8)) * 3 * Math.exp(-(t - .55) * 4); onG = true; px = x + vx * .55 + vx * (t - .55) * .12; }
+      coinAt(px, py, size, onG ? ph : t + ph, 1 - ei((p - .78) / .22), 0, onG ? 0 : 18); } });
+  } });
+}
+// stones and timber fall from above onto a card (and raise a puff where each lands)
+function stonesFall(x, y, n, delay) {
+  for (let i = 0; i < n; i++) at(delay + R(0, .22), () => {
+    const sx = x + R(-34, 34), ex = x + R(-22, 22), ey = y + R(-8, 22), TT = R(.26, .38), k = Math.floor(Math.random() * 4), sz = R(16, 30), rot0 = R(0, 6.28), vr = R(-9, 9);
+    add({ dur: TT, draw(p: number) {
+      const u = p * p, px = sx + (ex - sx) * u, py = -40 + (ey + 40) * u;
+      ctx.save(); ctx.globalAlpha = .35 * u; ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(ex, ey + 6, sz * .5 * u, sz * .2 * u, 0, 0, 7); ctx.fill(); ctx.restore();
+      ctx.save(); ctx.translate(px, py); ctx.rotate(rot0 + vr * p * TT); ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 4; ctx.drawImage(IMG.debris, k * 64, 0, 64, 64, -sz / 2, -sz / 2, sz, sz); ctx.restore();
+    }, end() { puff(ex, ey + 4, R(-14, 14), -R(8, 26), R(22, 34), .5, .45, 1.4); sparksDir(ex, ey, -Math.PI / 2, 1.2, 2, .35, '255,226,170'); } });
+  });
+}
+// a card back (a card that goes to / comes from a hand)
+function drawBack(x, y, s, rot, alpha) {
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); ctx.rotate(rot); ctx.scale(s, s); ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = 8;
+  const w = 44, h = 62, r = 5; ctx.beginPath(); ctx.moveTo(-w / 2 + r, -h / 2); ctx.arcTo(w / 2, -h / 2, w / 2, h / 2, r); ctx.arcTo(w / 2, h / 2, -w / 2, h / 2, r); ctx.arcTo(-w / 2, h / 2, -w / 2, -h / 2, r); ctx.arcTo(-w / 2, -h / 2, w / 2, -h / 2, r); ctx.closePath();
+  const g = ctx.createRadialGradient(0, -4, 2, 0, 0, 40); g.addColorStop(0, '#7a3030'); g.addColorStop(.6, '#3a1a1a'); g.addColorStop(1, '#241010'); ctx.fillStyle = g; ctx.fill();
+  ctx.shadowBlur = 0; ctx.lineWidth = 2; ctx.strokeStyle = '#d9b45a'; ctx.stroke(); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(217,180,90,.55)'; ctx.strokeRect(-w / 2 + 7, -h / 2 + 7, w - 14, h - 14); ctx.restore();
+}
+function flyBack(from, to, dur = .55, delay = 0, onEnd?: () => void, arc = 60) {
+  at(delay, () => add({ dur, draw(p: number) { const u = eo(p), x = from.x + (to.x - from.x) * u, y = from.y + (to.y - from.y) * u - arc * 4 * u * (1 - u); drawBack(x, y, .7 + .15 * Math.sin(p * Math.PI), (1 - u) * -.2, 1 - ei((p - .85) / .15)); }, end() { onEnd && onEnd(); } }));
+}
+
 // ── geometry ─────────────────────────────────────────────────────────────────────────────────────────────────
 const setScale = (env: FxEnv) => { const r = env.rectOf('player', 2) ?? env.rectOf('npc', 2); U = r ? r.w / 64 : 1; };
 const pt = (env: FxEnv, side: FxSide, slot: number) => { const r = env.rectOf(side, slot); return r ? { x: r.cx / U, y: r.cy / U, w: r.w / U, h: r.h / U } : null; };
@@ -344,7 +413,7 @@ const once = (fn: () => void) => { let done = false; return () => { if (!done) {
 
 // Catapulta de Guerra / Trabuco de Cerco / Balestra de Precisão: the card lands on the board, glows and the effect leaves it.
 // `targets` come from the damage events; resolves when the next thing may be shown.
-export async function fxTactic(kind: 'catapulta' | 'trabuco' | 'balestra', env: FxEnv, side: FxSide, targets: FxTarget[]): Promise<void> {
+export async function fxTactic(kind: 'catapulta' | 'trabuco' | 'balestra' | 'muralha' | 'chuva' | 'punhal', env: FxEnv, side: FxSide, targets: FxTarget[]): Promise<void> {
   await preloadCombatFx(); ensureCanvas(); setScale(env);
   const commit = once(env.commit);
   const T = targets.map(t => ({ ...t, p: pt(env, t.side, t.slot) })).filter(t => t.p);
@@ -394,6 +463,52 @@ export async function fxTactic(kind: 'catapulta' | 'trabuco' | 'balestra', env: 
           leaveTactic(env, .5 + last + .3);
           at(.5 + last + .6, resolve);
         });
+      } else if (kind === 'muralha') {
+        // O Dia em que a Muralha Caiu: stones and timber rain on every enemy card and the blast runs from the front row back to the General
+        const cx = T.reduce((s, t) => s + t.p!.x, 0) / T.length, cy = T.reduce((s, t) => s + t.p!.y, 0) / T.length;
+        whoosh(0, .6, .3, 100, 420); play('boom', 0, .5, .45);
+        let lastD = 0;
+        T.forEach(t => {
+          const x = t.p!.x, y = t.p!.y, k = t.slot < 5 ? 0 : t.slot < 10 ? 1 : 2, d = .55 + k * .3 + R(0, .09); lastD = Math.max(lastD, d);
+          stonesFall(x, y, 6, d - .4);
+          at(d, () => { explosion(x, y + 2, t.slot === 12 ? .6 : .46, 0, Math.random() < .5 ? 1 : -1); flash(x, y, 80, '255,190,90', .55, .28); debris(x, y, 6, .9); sparks(x, y, 7, .8);
+            play('dano', 0, .3, .7 + R(0, .4)); hitNumber(t, .05); dust(x, y + 28, 80, 5, 42); });
+        });
+        at(.85, commit); at(.9, () => play('boom', 0, .8, .8));
+        at(1.4, () => { play('boom', 0, .9, .6); shock(cx, cy + 40, 260, .8, '255,200,150', 4); scorch(cx, cy + 30, 190); dust(cx, cy + 10, 190, 14, 62); });
+        leaveTactic(env, lastD + .7);
+        at(lastD + 1.3, resolve);
+      } else if (kind === 'chuva') {
+        // Chuva de Ferro Barato: bolts fall from above onto every card of the row, each one sticking in with a thump
+        const vt = pick('virote'), LEN = 64, per = Math.max(4, Math.round(24 / T.length)); let n = 0, last = 0;
+        whoosh(0, 1.0, .4, 400, 1300); play('dano', 0, .3, 1.4);
+        T.forEach((t, ti) => {
+          for (let i = 0; i < per; i++) {
+            const x = t.p!.x + R(-.4, .4) * t.p!.w, y = t.p!.y + R(-.36, .4) * t.p!.h, d = .08 + (ti * per + i) * .04 + R(0, .03), TT = .34, from = { x: x + R(-70, -36), y: -30 };
+            const ang = Math.atan2(y - from.y, x - from.x); last = Math.max(last, d + TT);
+            at(d, () => {
+              fly({ img: vt.img, size: vt.size, from, to: { x, y }, dur: TT, aim: true, len: [LEN, LEN], ease: (u: number) => Math.pow(u, 1.5), ribbon: { n: 5, c: '255,255,255', w: 2 } });
+              at(TT, () => { stick(vt.img, vt.size, { x, y }, ang, LEN, 1.1, 10); sparksDir(x, y, ang + Math.PI, .7, 3, .5, '255,236,170'); puff(x, y + 2, 0, -8, 18, .35, .35, 1.2);
+                if (n++ % 4 === 0) { thunk(x, y, ang); play('hit', 0, .45, 1 + R(0, .3)); } });
+            });
+          }
+          hitNumber(t, .3 + ti * .13);
+        });
+        at(.45, commit); leaveTactic(env, last + .8); at(last + 1.1, resolve);
+      } else if (kind === 'punhal') {
+        // Pacto do Punhal Vermelho: the dagger drops from above and sticks in the card; a red wax seal is stamped over it and bursts into splashes
+        const t = T[0], x = t.p!.x, y = t.p!.y, L = 104, TT = .3;
+        const drawDagger = (px: number, py: number, rot: number, alpha = 1) => { ctx.save(); ctx.globalAlpha = alpha; ctx.translate(px, py); ctx.rotate(rot); const k = L / 128; ctx.scale(k, k); ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 8; ctx.drawImage(IMG.dagger, -64, -122, 128, 128); ctx.restore(); };
+        whoosh(0, .3, .5, 700, 3000);
+        add({ dur: TT, draw(p: number) { const u = p * p; drawDagger(x + 8 - 8 * u, -50 + (y - 6 + 50) * u, .1 * (1 - u)); } });
+        at(TT, () => {
+          commit(); play('hit', 0, .9, .8); play('dano', 0, .35, .9); flash(x, y, 70, '255,70,50', .6, .25); ring(x, y, 40, .3, '255,120,100', 3); burst(x, y, 8, 44, '255,150,130', .2); sparksDir(x, y, -Math.PI / 2, 1.0, 8, .8, '255,200,170');
+          add({ dur: 1.4, draw(p: number) { drawDagger(x, y - 6, Math.sin(p * 40) * .05 * Math.exp(-p * 8), 1 - ei((p - .75) / .25)); } });
+          hitNumber(t, .1);
+          at(.08, () => { play('dano', 0, .3, .6); playSheet(IMG.seal, 5, 256, 256, 20, 1.05, 0, x + 6, y + 18, .3); shock(x + 6, y + 20, 70, .4, '255,90,70', 3); });
+          coinBurst(x + 34, y - 30, 3, .45, .3, 40);
+        });
+        leaveTactic(env, TT + 1.2); at(TT + 1.2, resolve);
       } else {
         const vt = pick('virote'), t = T[0], to = { x: t.p!.x, y: t.p!.y + 6 }, TT = .3, LEN = 110, ang = Math.atan2(to.y - from.y, to.x - from.x);
         whoosh(0, .28, .5, 1200, 3200); play('dano', 0, .25, 1.4);
@@ -443,7 +558,7 @@ export async function fxHero(kind: 'cura' | 'bonus', env: FxEnv, side: FxSide, t
 // A ranged attack that replaces the lunge. Resolves `impact` the moment it lands (the game then applies the blow) and `done` once it is over.
 //   'lanca'  — Jorge: he pulls the lance back, throws it speeding up, and it goes on through to the card behind (`behind`)
 //   'flecha' — Arqueiro / Atirador: an arrow in a high arc that shrinks with the distance
-export function fxRanged(kind: 'lanca' | 'flecha', env: FxEnv, a: { side: FxSide; from: number; to: number; behind?: number }): { impact: Promise<void>; done: Promise<void> } {
+export function fxRanged(kind: 'lanca' | 'flecha' | 'bala', env: FxEnv, a: { side: FxSide; from: number; to: number; behind?: number }): { impact: Promise<void>; done: Promise<void> } {
   let resolveImpact!: () => void, resolveDone!: () => void;
   const impact = new Promise<void>(r => { resolveImpact = r; }), done = new Promise<void>(r => { resolveDone = r; });
   (async () => {
@@ -479,6 +594,22 @@ export function fxRanged(kind: 'lanca' | 'flecha', env: FxEnv, a: { side: FxSide
         } else lanceFade(T1.x, T1.y);
         at(T2 ? TT2 + .5 : .5, resolveDone);
       });
+    } else if (kind === 'bala') {
+      // Boca-de-Fogo: a short charge glow, the blast and smoke at the muzzle, and the iron ball flies almost straight, trailing smoke
+      const dirY = a.side === 'player' ? -1 : 1, mz = { x: A.x + 4, y: A.y + dirY * A.h * .5 }, TT = .34, WIND = .3;
+      whoosh(.05, WIND, .2, 200, 500);
+      add({ dur: WIND, draw(p: number) { const r = 46 * (.5 + .5 * p); const g = ctx.createRadialGradient(A.x, A.y, 0, A.x, A.y, r); g.addColorStop(0, `rgba(255,170,80,${.5 * p})`); g.addColorStop(1, 'rgba(255,170,80,0)'); ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(A.x - r, A.y - r, 2 * r, 2 * r); ctx.restore(); } });
+      at(WIND, () => {
+        play('boom', 0, .7, 1.2); explosion(mz.x, mz.y + 4, .42, 0, 1); flash(mz.x, mz.y, 90, '255,200,120', .8, .22); sparksDir(mz.x, mz.y, dirY < 0 ? -Math.PI / 2 : Math.PI / 2, .5, 10, .9, '255,210,120');
+        for (let i = 0; i < 7; i++) puff(mz.x + R(-8, 8), mz.y + R(-4, 4), R(-18, 18), R(-34, -10) * (dirY < 0 ? 1 : -1), R(24, 40), R(.9, 1.5), .5, 1.8);
+        whoosh(0, TT, .35, 1500, 3200);
+        fly({ img: IMG.ball, size: [128, 128], from: mz, to: { x: T1.x, y: T1.y }, dur: TT, arc: 24, scale: [.15, .1], trail: 'smoke', ribbon: { n: 6, c: '255,255,255', w: 2 }, ease: (u: number) => Math.pow(u, 1.15) });
+        at(TT, () => {
+          resolveImpact(); play('boom', 0, .6, 1); play('hit', 0, .6, .9); explosion(T1.x, T1.y + 2, .45, 0, 1); flash(T1.x, T1.y, 70, '255,200,120', .6, .2);
+          debris(T1.x, T1.y, 6, .8); sparks(T1.x, T1.y, 8, .8); dust(T1.x, T1.y + 30, 60, 5, 36);
+          at(.6, resolveDone);
+        });
+      });
     } else {
       const ar = pick('flecha');
       const dist = Math.hypot(T1.x - A.x, T1.y - A.y), arc = clamp(dist * .9, 90, 205) + R(-12, 12), TT = clamp(.7 + dist / 600, .8, 1.15);
@@ -495,4 +626,150 @@ export function fxRanged(kind: 'lanca' | 'flecha', env: FxEnv, a: { side: FxSide
     }
   })();
   return { impact, done };
+}
+
+// ── effects that play on top of the game without holding anything back (the state is already shown) ───────────────────────────────────
+// Each starts from the events of one batch. They are safe to call without a scene running and resolve when they are over.
+const start = async (env: FxEnv) => { await preloadCombatFx(); ensureCanvas(); setScale(env); };
+const toU = (r: FxRect | null) => (r ? { x: r.cx / U, y: r.cy / U, w: r.w / U, h: r.h / U } : null);
+
+// Manutenção (Suprimentos): coins fly from the gold counter to each card that was paid; each dismissed card turns into a contract that tears,
+// coins spill, and a card back flies to the hand when it goes back there (or its Rescisão draws).
+export async function fxUpkeep(env: FxEnv, side: FxSide, a: { paid: { slot: number; cost: number }[]; dismissed: { slot: number; toHand: boolean; draws: boolean }[] }): Promise<void> {
+  await start(env);
+  const gp = toU(env.goldPoint(side)), hp = toU(env.handPoint(side));
+  let d = .2, end = 0;
+  if (gp) a.paid.forEach(p => {
+    const q = pt(env, side, p.slot); if (!q) return;
+    for (let n = 0; n < Math.min(3, p.cost); n++) {
+      const dl = d + n * .13; end = Math.max(end, dl + .6);
+      coinFly({ from: gp, to: { x: q.x, y: q.y - q.h * .1 }, dur: .5, delay: dl, arc: 54, size: 22, onEnd() { ding(0, .2, 1500 + R(0, 600)); ring(q.x, q.y - 8, 30, .3, '255,214,110', 3); glint(q.x, q.y - 8, 34, .22); } });
+    }
+    at(d + .5, () => { flash(q.x, q.y, 60, '255,214,110', .45, .5); });
+    d += .2 + p.cost * .06;
+  });
+  a.dismissed.forEach((s, i) => {
+    const q = pt(env, side, s.slot); if (!q) return; const t0 = .15 + i * .3; end = Math.max(end, t0 + 1.5);
+    at(t0, () => {
+      whoosh(0, .25, .22, 900, 2600); flash(q.x, q.y, 70, '255,226,150', .4, .3);
+      playSheet(IMG.contrato, 5, 256, 256, 20, 1.4, .05, q.x, q.y - 4, .78 * (q.w / 64));
+      at(.5, () => { whoosh(0, .3, .45, 3200, 700); play('hit', 0, .35, 1.6); });
+      for (let k = 0; k < 18; k++) at(.5 + R(0, .35), () => { const an = R(0, 6.28), r0 = R(8, 30); add({ dur: R(.5, .95), draw(p: number) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,214,110,${1 - p})`; ctx.beginPath(); ctx.arc(q.x + Math.cos(an) * r0 * (1 + p), q.y - 30 * p + Math.sin(an) * r0 * .5, 2 + 1.4 * (1 - p), 0, 7); ctx.fill(); ctx.restore(); } }); });
+      coinBurst(q.x, q.y - 6, 7, .9, .55);
+      at(.9, () => ding(0, .12, 1900));
+      if ((s.toHand || s.draws) && hp) flyBack({ x: q.x, y: q.y }, { x: hp.x, y: hp.y }, .6, 1.0, () => ding(0, .16, 1500), 70);
+    });
+  });
+  await new Promise<void>(r => at(end + .2, r));
+}
+
+// +1 gold at the start of the turn (Quillon Contamoedas): a coin rises from the card in an arc to the gold counter
+export async function fxGoldGain(env: FxEnv, side: FxSide, slots: number[]): Promise<void> {
+  await start(env);
+  const gp = toU(env.goldPoint(side)); if (!gp) return;
+  let end = 0;
+  slots.forEach((s, i) => {
+    const q = pt(env, side, s); if (!q) return; const d = .25 + i * .3; end = Math.max(end, d + 1);
+    at(d - .1, () => { flash(q.x, q.y, 64, '255,214,110', .55, .4); ding(0, .1, 2300); sparksDir(q.x, q.y - 20, -Math.PI / 2, .9, 8, .5, '255,214,110'); });
+    coinFly({ from: { x: q.x, y: q.y - q.h * .3 }, to: gp, dur: .8, delay: d, arc: 120, size: 28, onEnd() { ding(0, .26, 1760); ring(gp.x, gp.y, 28, .45, '255,214,110', 3); glint(gp.x, gp.y, 40, .3); } });
+  });
+  await new Promise<void>(r => at(end, r));
+}
+
+// Relíquia com modo "Soldo em Dobro": coins fly from the Relíquia to every card with upkeep, which glows and gets the +1 ATK icon
+export async function fxRelicSoldo(env: FxEnv, side: FxSide, relicSlot: number, slots: number[]): Promise<void> {
+  await start(env);
+  const rp = pt(env, side, relicSlot); if (!rp) return;
+  ding(0, .18, 1300); ring(rp.x, rp.y, 70, .6, '255,214,110', 4); flash(rp.x, rp.y, 100, '255,200,90', .5, .5);
+  let end = 0;
+  slots.forEach((s, i) => {
+    const q = pt(env, side, s); if (!q) return; const d = .12 + i * .11; end = Math.max(end, d + 1.1);
+    coinFly({ from: { x: rp.x, y: rp.y - 8 }, to: { x: q.x, y: q.y - 10 }, dur: .55, delay: d, arc: 70, size: 20, onEnd() {
+      ding(0, .2, 2400 + R(0, 700)); flash(q.x, q.y, 56, '255,190,80', .6, .3); ring(q.x, q.y, 32, .3, '255,214,110', 3); sparksDir(q.x, q.y, -Math.PI / 2, 1, 6, .4, '255,214,110');
+      env.pop(side, s, 'atk-up', '+1'); } });
+  });
+  await new Promise<void>(r => at(end, r));
+}
+
+// Relíquia com modo "Saque": the unit that fell throws a coin to the Relíquia, which sends a card to the hand
+export async function fxLoot(env: FxEnv, side: FxSide, victim: { side: FxSide; slot: number }, relicSlot: number): Promise<void> {
+  await start(env);
+  const v = pt(env, victim.side, victim.slot), rp = pt(env, side, relicSlot), hp = toU(env.handPoint(side)); if (!v || !rp) return;
+  for (let i = 0; i < 12; i++) at(R(0, .3), () => { const an = R(0, 6.28); add({ dur: R(.5, .9), draw(p: number) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,200,120,${1 - p})`; ctx.beginPath(); ctx.arc(v.x + Math.cos(an) * 28 * p, v.y - 24 * p + Math.sin(an) * 18 * p, 2.4 * (1 - p) + .5, 0, 7); ctx.fill(); ctx.restore(); } }); });
+  coinFly({ from: { x: v.x, y: v.y }, to: { x: rp.x, y: rp.y }, dur: .55, delay: .1, arc: 60, size: 22, onEnd() { ding(0, .2, 1900); flash(rp.x, rp.y, 80, '255,214,110', .6, .3); glint(rp.x, rp.y, 50, .25); } });
+  if (hp) flyBack({ x: rp.x, y: rp.y }, { x: hp.x, y: hp.y }, .6, .75, () => ding(0, .15, 1500), 70);
+  await new Promise<void>(r => at(1.5, r));
+}
+
+// Terreno / Relíquia que acabou de entrar em campo
+//   'pantano'    — Pântano Maldito: a dark green fog with bubbles rises over the enemy Vanguarda and stays a while
+//   'estandarte' — Estandarte da Legião: a red-gold pulse goes through the player's cards (+1/+1 in combat)
+export async function fxPlaced(kind: 'pantano' | 'estandarte', env: FxEnv, side: FxSide): Promise<void> {
+  await start(env);
+  const foe: FxSide = side === 'player' ? 'npc' : 'player';
+  if (kind === 'pantano') {
+    const row = [0, 1, 2, 3, 4].map(i => pt(env, foe, i)).filter(Boolean) as any[]; if (!row.length) return;   // (the fog covers the whole row, empty slots too)
+    const x0 = Math.min(...row.map(r => r.x - r.w / 2)), x1 = Math.max(...row.map(r => r.x + r.w / 2)), cx = (x0 + x1) / 2, cy = row[0].y, h = row[0].h, FOGT = 4.2;
+    whoosh(0, .8, .2, 120, 500); play('magic', 0, .4, .8);
+    const sx = (x1 - x0 + row[0].w * .6) / 256;
+    add({ dur: FOGT, draw(p: number) {
+      const a = Math.min(1, p * 5) * (1 - ei((p - .85) / .15));
+      sheetXY(IMG.swamp, 4, 256, 128, Math.floor(p * FOGT * 12) % 24, cx, cy + 4, sx, h * 1.9 / 128, a * .85);
+      sheetXY(IMG.swamp, 4, 256, 128, (Math.floor(p * FOGT * 9) + 11) % 24, cx, cy + 14, -sx, h * 1.35 / 128, a * .45);
+    } });
+    row.forEach((q, i) => at(.4 + i * .1, () => sparksDir(q.x, q.y, -Math.PI / 2, .9, 4, .3, '150,230,90')));
+    await new Promise<void>(r => at(FOGT, r));
+  } else {
+    const mine = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => (env.has(side, i) ? pt(env, side, i) : null)).filter(Boolean) as any[];
+    const relic = pt(env, side, 10);
+    play('magic', 0, .45, 1.1); whoosh(0, .5, .3, 300, 1700);
+    if (relic) { ring(relic.x, relic.y, 100, .8, '255,110,80', 4); ring(relic.x, relic.y, 60, .6, '255,214,110', 3); flash(relic.x, relic.y, 100, '255,120,90', .55, .5); }
+    const ox = relic?.x ?? 195;
+    mine.forEach(q => { const d = .2 + Math.abs(q.x - ox) / 700; at(d, () => { flash(q.x, q.y, 70, '255,100,70', .5, .6); ring(q.x, q.y, 44, .5, '255,160,110', 3); sparksDir(q.x, q.y, -Math.PI / 2, 1.1, 7, .5, '255,200,130'); play('dano', 0, .12, 1.7); }); });
+    await new Promise<void>(r => at(1.4, r));
+  }
+}
+
+// Reformar Linhas: a ripple of small impacts runs through the player's cards (they dig in and re-form), no lines
+export async function fxReformar(env: FxEnv, side: FxSide): Promise<void> {
+  await start(env);
+  ding(0, .14, 1400); whoosh(0, .5, .25, 300, 1500);
+  const cards = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => ({ i, q: env.has(side, i) ? pt(env, side, i) : null })).filter(c => c.q) as any[];
+  cards.forEach(({ i, q }) => { const d = .05 + (q.x / 390) * .45 + (i >= 5 ? .2 : 0); at(d, () => { flash(q.x, q.y, 62, '255,214,110', .55, .35); dust(q.x, q.y + q.h * .4, 44, 5, 26); shock(q.x, q.y + q.h * .44, 58, .35, '255,226,170', 3); glint(q.x, q.y, 44, .3); sparksDir(q.x, q.y + q.h * .4, -Math.PI / 2, 1.3, 6, .4, '255,214,110'); play('dano', 0, .12, 1.6 + R(0, .4)); }); });
+  await new Promise<void>(r => at(1.1, r));
+}
+
+// Emboscadas (the cards have already moved: the state is shown)
+//   'bolsa'    — O Peso da Bolsa: a full purse drops between the two cards, coins spill and the attacker freezes in gold
+//   'contra'   — Contra-Manobra: both cards flash blue where they traded places
+//   'formacao' — Formação Quebrada: a shockwave at the attacker's old place, dust along the way and dizzy stars where it landed
+export async function fxAmbush(kind: 'bolsa' | 'contra' | 'formacao', env: FxEnv, a: { attacker: { side: FxSide; from: number; to?: number }; defender: { side: FxSide; slot: number }; swap?: [number, number] }): Promise<void> {
+  await start(env);
+  const A = pt(env, a.attacker.side, a.attacker.from), D = pt(env, a.defender.side, a.defender.slot);
+  if (kind === 'bolsa' && A && D) {
+    const mx = (A.x + D.x) / 2, my = (A.y + D.y) / 2;
+    whoosh(0, .3, .25, 300, 1100); ding(0, .14, 1300); ring(mx, my, 60, .4, '255,226,150', 3);
+    add({ t0: now + .15, dur: .3, draw(p: number) { const u = p * p, y = my - 260 * (1 - u); ctx.save(); ctx.translate(mx, y); ctx.rotate(.18 * Math.sin(p * 6)); ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = 8; ctx.drawImage(IMG.purse, -29, -29, 58, 58); ctx.restore(); } });
+    add({ t0: now + .45, dur: 1.6, draw(p: number) { const sq = 1 + .12 * Math.exp(-p * 18) * Math.sin(p * 40); ctx.save(); ctx.translate(mx, my + 6); ctx.scale(sq, 2 - sq); ctx.globalAlpha = 1 - ei((p - .8) / .2); ctx.drawImage(IMG.purse, -29, -29, 58, 58); ctx.restore(); } });
+    at(.75, () => { play('dano', 0, .8, .5); play('hit', 0, .4, .7); shock(mx, my + 22, 110, .5, '255,226,150', 4); dust(mx, my + 28, 60, 6, 32); for (let i = 0; i < 4; i++) ding(i * .07, .16, 2400 + R(0, 700)); flash(mx, my, 90, '255,214,110', .5, .3); });
+    coinBurst(mx, my - 4, 11, 1.1, .75, 36);
+    at(.85, () => { whoosh(0, .5, .22, 500, 2600); ding(0, .2, 1200); });
+    playSheet(IMG.gold, 5, 256, 384, 20, 1.5, .85, A.x, A.y, A.w / 256 * 1.05, A.h / 384 * 1.05, 'lighter');
+    await new Promise<void>(r => at(2.4, r));
+  } else if (kind === 'contra' && D) {
+    const [s1, s2] = a.swap ?? [a.defender.slot, a.defender.slot];
+    const P1 = pt(env, a.defender.side, s1), P2 = pt(env, a.defender.side, s2); if (!P1 || !P2) return;
+    whoosh(0, .45, .3, 400, 1800); ding(0, .14, 1700);
+    [P1, P2].forEach(q => { ring(q.x, q.y, 50, .4, '140,190,255', 3); ring(q.x, q.y, 34, .3, '220,235,255', 2); flash(q.x, q.y, 90, '140,190,255', .6, .45); sparksDir(q.x, q.y, -Math.PI / 2, 1.2, 8, .5, '190,220,255'); });
+    at(.15, () => { play('dano', 0, .4, 1.4); shock((P1.x + P2.x) / 2, P1.y + 30, 90, .4, '150,200,255', 3); dust(P1.x, P1.y + 30, 40, 4, 26); dust(P2.x, P2.y + 30, 40, 4, 26); env.pop(a.defender.side, s1, 'swap', 'TROCA'); });
+    await new Promise<void>(r => at(1.2, r));
+  } else if (kind === 'formacao' && A) {
+    const N = a.attacker.to !== undefined ? pt(env, a.attacker.side, a.attacker.to) : null; if (!N) return;
+    play('dano', 0, .6, .7); whoosh(0, .35, .45, 500, 2400);
+    shock(A.x, A.y, 120, .4, '255,230,170', 4); flash(A.x, A.y, 90, '255,230,170', .55, .25); burst(A.x, A.y, 12, 60, '255,236,180', .24);
+    for (let i = 0; i < 10; i++) { const u = i / 9; at(.05 + u * .4, () => puff(A.x + (N.x - A.x) * u + R(-8, 8), A.y + (N.y - A.y) * u + R(-6, 6), R(-20, 20), R(10, 36), R(22, 32), R(.5, .9), .4, 1.4)); }
+    at(.6, () => { play('dano', 0, .6, .6); shock(N.x, N.y + 30, 100, .4, '255,226,170', 3); dust(N.x, N.y + 30, 60, 4, 24); });
+    add({ t0: now + .65, dur: 1.8, draw(p: number) { sheetXY(IMG.stars, 8, 128, 128, Math.floor(p * 1.8 * 16) % 16, N.x, N.y - N.h * .5, 1.05, 1.05, 1 - ei((p - .8) / .2), 'lighter'); } });
+    await new Promise<void>(r => at(2.5, r));
+  }
 }

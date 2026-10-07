@@ -36,7 +36,7 @@ export const CARD_DEFS: readonly CardDef[] = [
       { kind: 'aura', who: { side: 'self' }, when: { col: 2 }, atk: 2 },
       { kind: 'aura', who: { side: 'self' }, from: 'front', atk: 1 },
     ] },
-  { name: "Reformar Linhas", cardType: "Tática", atk: 0, hp: 0, cost: 2, isFullArt: true, effect: "3 movimentos extras neste turno. Compre 1 carta.",
+  { name: "Reformar Linhas", fx: 'reformar', cardType: "Tática", atk: 0, hp: 0, cost: 2, isFullArt: true, effect: "3 movimentos extras neste turno. Compre 1 carta.",
     abilities: [{ on: 'play', do: [{ kind: 'extra_moves', amount: 3 }, { kind: 'draw', amount: 1 }] }] },
   { name: "Avanço Coordenado", cardType: "Tática", atk: 0, hp: 0, cost: 1, effect: "+3 ATK a uma unidade que se moveu neste turno.",
     abilities: [{ on: 'play', do: [
@@ -56,15 +56,15 @@ export const CARD_DEFS: readonly CardDef[] = [
     ] }] },
   { name: "Bloqueio Instantâneo", cardType: "Emboscada", atk: 0, hp: 0, cost: 1, effect: "Cancela um ataque a uma unidade com aliado ao lado.",
     abilities: [{ on: 'ambush', do: [{ kind: 'cancel_attack', ifAdjacentAlly: true }] }] },
-  { name: "Contra-Manobra", cardType: "Emboscada", atk: 0, hp: 0, cost: 3, isFullArt: true, effect: "Troca a unidade atacada com um aliado ao lado, que recebe o golpe.",
+  { name: "Contra-Manobra", fx: 'contra', cardType: "Emboscada", atk: 0, hp: 0, cost: 3, isFullArt: true, effect: "Troca a unidade atacada com um aliado ao lado, que recebe o golpe.",
     abilities: [{ on: 'ambush', do: [{ kind: 'swap_defender' }] }] },
-  { name: "Formação Quebrada", cardType: "Emboscada", atk: 0, hp: 0, cost: 2, effect: "Move o atacante para um espaço livre aleatório. O ataque falha.",
+  { name: "Formação Quebrada", fx: 'formacao', cardType: "Emboscada", atk: 0, hp: 0, cost: 2, effect: "Move o atacante para um espaço livre aleatório. O ataque falha.",
     abilities: [{ on: 'ambush', do: [{ kind: 'displace_attacker' }] }] },
-  { name: "Estandarte da Legião", cardType: "Relíquia", atk: 0, hp: 5, cost: 3, isFullArt: true, effect: "+1/+1 em combate às suas cartas em campo.",
+  { name: "Estandarte da Legião", fx: 'estandarte', cardType: "Relíquia", atk: 0, hp: 5, cost: 3, isFullArt: true, effect: "+1/+1 em combate às suas cartas em campo.",
     passives: [{ kind: 'aura', who: { side: 'own' }, atk: 1, combatHp: 1 }] },
   { name: "Fortaleza de Pedra", cardType: "Terreno", atk: 0, hp: 8, cost: 3, isFullArt: true, effect: "Suas unidades na Retaguarda: -1 de dano de ataques.",
     passives: [{ kind: 'aura', who: { side: 'own', row: 'back' }, reduce: 1 }] },
-  { name: "Pântano Maldito", cardType: "Terreno", atk: 0, hp: 6, cost: 2, effect: "Inimigos na Vanguarda: -1 ATK.",
+  { name: "Pântano Maldito", fx: 'pantano', cardType: "Terreno", atk: 0, hp: 6, cost: 2, effect: "Inimigos na Vanguarda: -1 ATK.",
     passives: [{ kind: 'aura', who: { side: 'enemy', row: 'front' }, atk: -1 }] },
   // ── cardeal ──
   { name: "Cardeal Pedro, Voz da Fé", trigger: "comando", cardType: "General", atk: 0, hp: 30, cost: 0, isFullArt: true, effect: "Pague 2 de ouro: +1 HP a uma unidade aliada.",
@@ -169,7 +169,7 @@ export const CARD_DEFS: readonly CardDef[] = [
 
   // ── sem manutenção ──
   { name: 'Vigia da Última Brasa', cardType: 'Infantaria', atk: 2, hp: 4, cost: 2, effect: '' },
-  { name: 'Quillon Contamoedas', trigger: 'comando', cardType: 'Infantaria', atk: 1, hp: 3, cost: 2, effect: 'No início do turno, ganhe 1 de ouro.',
+  { name: 'Quillon Contamoedas', fx: 'moeda', trigger: 'comando', cardType: 'Infantaria', atk: 1, hp: 3, cost: 2, effect: 'No início do turno, ganhe 1 de ouro.',
     abilities: [{ on: 'turn_start', do: [{ kind: 'gold', amount: 1 }] }] },
 
   // ── táticas, equipamentos e emboscada próprios do deck (nenhuma carta é emprestada do Cardeal nem do Capitão) ──
@@ -181,15 +181,15 @@ export const CARD_DEFS: readonly CardDef[] = [
     abilities: [{ on: 'play', do: [{ kind: 'search', zone: 'graveyard', filter: { types: SOLDIERS } }] }] },
   { name: 'Os Dois do Beco', cardType: 'Tática', atk: 0, hp: 0, cost: 3, effect: 'Compre 2 cartas.',
     abilities: [{ on: 'play', do: [{ kind: 'draw', amount: 2 }] }] },
-  { name: 'Chuva de Ferro Barato', cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: '2 de dano a todas as unidades de uma fileira inimiga.',
+  { name: 'Chuva de Ferro Barato', fx: 'chuva', cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: '2 de dano a todas as unidades de uma fileira inimiga.',
     abilities: [{ on: 'play', do: [
       { kind: 'damage', amount: 2, target: { side: 'enemy', area: 'row', prompt: 'Escolha uma fileira inimiga (clique em qualquer slot dela).' } },
     ] }] },
-  { name: 'Pacto do Punhal Vermelho', cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: '3 de dano a uma unidade inimiga.',
+  { name: 'Pacto do Punhal Vermelho', fx: 'punhal', cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: '3 de dano a uma unidade inimiga.',
     abilities: [{ on: 'play', do: [
       { kind: 'damage', amount: 3, target: { side: 'enemy', area: 'unit', prompt: 'Escolha a unidade inimiga que o contrato elimina (3 de dano).' } },
     ] }] },
-  { name: 'O Dia em que a Muralha Caiu', isFullArt: true, cardType: 'Tática', atk: 0, hp: 0, cost: 3, effect: '2 de dano a todas as unidades inimigas e ao General.',
+  { name: 'O Dia em que a Muralha Caiu', fx: 'muralha', isFullArt: true, cardType: 'Tática', atk: 0, hp: 0, cost: 3, effect: '2 de dano a todas as unidades inimigas e ao General.',
     abilities: [{ on: 'play', do: [{ kind: 'damage', amount: 2, all: 'enemy' }] }] },
   { name: 'Peitoral de Muitos Donos', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Equipe uma Infantaria: +2 HP.',
     abilities: [{ on: 'play', do: [
@@ -199,11 +199,11 @@ export const CARD_DEFS: readonly CardDef[] = [
     abilities: [{ on: 'play', do: [
       { kind: 'equip', atk: 2, target: { side: 'own', area: 'unit', types: ['Cavalaria', 'Infantaria'], prompt: 'Escolha uma Cavalaria ou Infantaria sua para equipar (+2 ATK).' } },
     ] }] },
-  { name: 'O Peso da Bolsa', cardType: 'Emboscada', atk: 0, hp: 0, cost: 2, effect: 'Cancela um ataque a uma de suas unidades.',
+  { name: 'O Peso da Bolsa', fx: 'bolsa', cardType: 'Emboscada', atk: 0, hp: 0, cost: 2, effect: 'Cancela um ataque a uma de suas unidades.',
     abilities: [{ on: 'ambush', do: [{ kind: 'cancel_attack' }] }] },
 
   // ── a Relíquia do deck: três modos, o dono escolhe um no fim do turno (vale até o fim do turno seguinte) ──
-  { name: 'Códice das Mil Dívidas', cardType: 'Relíquia', atk: 0, hp: 5, cost: 3, isFullArt: true,
+  { name: 'Códice das Mil Dívidas', fx: 'codice', cardType: 'Relíquia', atk: 0, hp: 5, cost: 3, isFullArt: true,
     effect: 'Escolha 1 modo no fim do seu turno. Soldo em Dobro: cartas com manutenção têm +1 ATK. Saque: ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo).',
     modes: [
       { id: 'soldo', name: 'Soldo em Dobro', effect: 'Cartas com manutenção têm +1 ATK.', atk: 1 },

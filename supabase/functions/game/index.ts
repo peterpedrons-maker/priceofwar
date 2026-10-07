@@ -100,6 +100,7 @@ var CARD_DEFS = [
   },
   {
     name: "Reformar Linhas",
+    fx: "reformar",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -163,6 +164,7 @@ var CARD_DEFS = [
   },
   {
     name: "Contra-Manobra",
+    fx: "contra",
     cardType: "Emboscada",
     atk: 0,
     hp: 0,
@@ -173,6 +175,7 @@ var CARD_DEFS = [
   },
   {
     name: "Forma\xE7\xE3o Quebrada",
+    fx: "formacao",
     cardType: "Emboscada",
     atk: 0,
     hp: 0,
@@ -182,6 +185,7 @@ var CARD_DEFS = [
   },
   {
     name: "Estandarte da Legi\xE3o",
+    fx: "estandarte",
     cardType: "Rel\xEDquia",
     atk: 0,
     hp: 5,
@@ -202,6 +206,7 @@ var CARD_DEFS = [
   },
   {
     name: "P\xE2ntano Maldito",
+    fx: "pantano",
     cardType: "Terreno",
     atk: 0,
     hp: 6,
@@ -564,6 +569,7 @@ var CARD_DEFS = [
   { name: "Vigia da \xDAltima Brasa", cardType: "Infantaria", atk: 2, hp: 4, cost: 2, effect: "" },
   {
     name: "Quillon Contamoedas",
+    fx: "moeda",
     trigger: "comando",
     cardType: "Infantaria",
     atk: 1,
@@ -611,6 +617,7 @@ var CARD_DEFS = [
   },
   {
     name: "Chuva de Ferro Barato",
+    fx: "chuva",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -622,6 +629,7 @@ var CARD_DEFS = [
   },
   {
     name: "Pacto do Punhal Vermelho",
+    fx: "punhal",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -633,6 +641,7 @@ var CARD_DEFS = [
   },
   {
     name: "O Dia em que a Muralha Caiu",
+    fx: "muralha",
     isFullArt: true,
     cardType: "T\xE1tica",
     atk: 0,
@@ -665,6 +674,7 @@ var CARD_DEFS = [
   },
   {
     name: "O Peso da Bolsa",
+    fx: "bolsa",
     cardType: "Emboscada",
     atk: 0,
     hp: 0,
@@ -675,6 +685,7 @@ var CARD_DEFS = [
   // ── a Relíquia do deck: três modos, o dono escolhe um no fim do turno (vale até o fim do turno seguinte) ──
   {
     name: "C\xF3dice das Mil D\xEDvidas",
+    fx: "codice",
     cardType: "Rel\xEDquia",
     atk: 0,
     hp: 5,

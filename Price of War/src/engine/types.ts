@@ -156,6 +156,8 @@ export interface CardDef {
   dismiss?: 'hand';
   // Só nas Relíquias com modos (veja RelicMode).
   modes?: RelicMode[];
+  // Efeito visual próprio da carta (src/combatFx.ts). Só o cliente lê: o motor ignora. Sem ele a carta usa a animação normal do tipo.
+  fx?: string;
 }
 
 // One physical copy of a card inside a match. Field names intentionally match the client's CardData

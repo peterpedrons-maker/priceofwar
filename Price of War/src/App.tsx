@@ -223,7 +223,7 @@ import { aiNextAction } from './engine/ai';
 import { glyphUrl, burstUrl, NUMBER_GLOW, type NumberKind } from './numberGlyphs';
 import { triggerOf, triggerKeyOf, pulseCard, usePulse, TRIGGER_GLOW, TRIGGER_ICON } from './triggers';
 import { playSfx, preloadSfx, dbgMark } from './sfx';
-import { fxTactic, fxHero, fxRanged, fxLanding, preloadCombatFx, type FxEnv, type FxRect, type FxSide, type FxTarget } from './combatFx';
+import { fxTactic, fxHero, fxRanged, fxLanding, fxUpkeep, fxGoldGain, fxRelicSoldo, fxLoot, fxPlaced, fxReformar, fxAmbush, preloadCombatFx, type FxEnv, type FxRect, type FxSide, type FxTarget } from './combatFx';
 import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettings, subscribeAudio } from './audioSettings';
 import { useGameSettings, setGameSettings } from './gameSettings';
 import tutHandSprite from './assets/tut-hand.webp';
@@ -238,7 +238,7 @@ import {
   GOLD_PER_TURN, HAND_LIMIT, START_GOLD, START_HAND,
   abilityOn, abilityPhases, canPlayInPhase, areSlotsAdjacent, auraTotal, canPlaceInSlot, canReposition, getAuraCombatHpBonus, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction,
   getLaneCol, getMaxAttacksPerTurn, getMoveRow, getValidAttackTargets, isBackline, isCardDamaged, isFrontline, needsHiddenInfo, phasesForTurn,
-  specCandidatesOn, targetSpecOf, targetSpecsOf, verbsOn,
+  specCandidatesOn, targetSpecOf, targetSpecsOf, verbsOn, upkeepOf, relicModeOf,
 } from './engine/rules';
 import { otherSeat, type Action as EngineAction, type Card as EngineCard, type GameEvent, type GameState, type Seat, type TurnPhase } from './engine/types';
 export type { TurnPhase };
@@ -600,7 +600,7 @@ const IMPACT_MS = 150;
 // and the burn), the lunge ends in a longer freeze with a white flash, and the victory/defeat screen waits for the General to burn away.
 const TIME = { k: 1 };
 // Which attackers throw something instead of lunging (src/combatFx.ts): Jorge's lance, the archers' arrows.
-const rangedKindOf = (name: string, cardType: string): 'lanca' | 'flecha' | null => (name === 'Jorge, Lança Sagrada' ? 'lanca' : cardType === 'Arqueiro' ? 'flecha' : null);
+const rangedKindOf = (name: string, cardType: string): 'lanca' | 'flecha' | 'bala' | null => (name === 'Jorge, Lança Sagrada' ? 'lanca' : cardType === 'Arqueiro' ? 'flecha' : cardType === 'Artilharia' ? 'bala' : null);
 const FINAL_SLOW = 2;
 const FINAL_INTRO_MS = 350;
 const FINAL_FREEZE_MS = 380;
@@ -6090,7 +6090,7 @@ export default function App() {
   syncViewRef.current = (s: GameState) => syncView(s);
 
   // Turns what happened into the sights and sounds of it.
-  const processEvents = (events: GameEvent[], opts: { quietTurn?: boolean; fxNumbers?: boolean; fxSkipAbility?: boolean; fxSkipTacticSfx?: boolean } = {}) => {
+  const processEvents = (events: GameEvent[], opts: { quietTurn?: boolean; fxNumbers?: boolean; fxSkipAbility?: boolean; fxSkipTacticSfx?: boolean; prev?: GameState | null } = {}) => {
     let drawIndex = 0;
     let summonIndex = 0;
     let turnJustStarted = false;
@@ -6293,6 +6293,66 @@ export default function App() {
           break;
       }
     });
+    if (!opts.quietTurn) { try { cardOverlayFx(events, opts.prev ?? null); } catch (err) { console.error('card fx', err); } }   // (an effect must never break the match)
+  };
+
+  // Effects of the cards that play on top of the game (src/combatFx.ts) without holding anything back: they start from the events of one
+  // batch, whoever caused it (you, the AI, the opponent online). The card's own effect is named in the catalog (`fx`).
+  const cardOverlayFx = (events: GameEvent[], prev: GameState | null) => {
+    const cur = engineRef.current; if (!cur) return;
+    const sideOf = (seat: Seat): FxSide => (seat === 0 ? 'player' : 'npc');
+    const env = fxEnvFor(() => {});
+    const run = (p: Promise<void>) => { void p.catch(err => console.error('card fx', err)); };
+    // Manutenção: coins to the cards that were paid, a contract that tears over each one that was dismissed
+    const up = events.find(e => e.t === 'upkeep');
+    if (up && up.t === 'upkeep' && prev) {
+      const dis = events.flatMap(e => (e.t === 'dismissed' && e.seat === up.seat ? [e] : []));
+      const gone = new Set(dis.map(d => d.slot));
+      const paid = prev.players[up.seat].board.flatMap((c, slot) => (c && slot < 10 && !gone.has(slot) && upkeepOf(c.name) > 0 ? [{ slot, cost: upkeepOf(c.name) }] : []));
+      run(fxUpkeep(env, sideOf(up.seat), { paid, dismissed: dis.map(d => ({ slot: d.slot, toHand: d.toHand, draws: !!getCardDef(d.card.name)?.abilities?.some(a => a.on === 'dismissed') })) }));
+    }
+    // a card that gives gold at the start of the turn
+    ([0, 1] as Seat[]).forEach(seat => {
+      if (!events.some(e => e.t === 'gold' && e.seat === seat && e.reason === 'gain' && e.delta > 0)) return;
+      const slots = cur.players[seat].board.flatMap((c, slot) => (c && slot < 10 && getCardDef(c.name)?.fx === 'moeda' ? [slot] : []));
+      if (slots.length) run(fxGoldGain(env, sideOf(seat), slots));
+    });
+    // Relíquia com modos: Soldo em Dobro (+ATK) shows coins going to the cards with upkeep; Saque shows the coin of a unit that fell becoming a card
+    events.forEach(e => {
+      if (e.t !== 'relic_mode') return;
+      const mode = relicModeOf(cur.players[e.seat].board);
+      if (mode?.atk) run(fxRelicSoldo(env, sideOf(e.seat), 10, cur.players[e.seat].board.flatMap((c, slot) => (c && slot < 10 && upkeepOf(c.name) > 0 ? [slot] : []))));
+    });
+    ([0, 1] as Seat[]).forEach(seat => {
+      const mode = relicModeOf(cur.players[seat].board);
+      if (!mode?.loot?.draw) return;
+      const killed = events.find(e => e.t === 'destroyed' && e.seat !== seat && e.slot < 10);
+      if (killed && killed.t === 'destroyed' && events.some(e => e.t === 'draw' && e.seat === seat && e.reason === 'effect')) run(fxLoot(env, sideOf(seat), { side: sideOf(killed.seat), slot: killed.slot }, 10));
+    });
+    // Terreno / Relíquia / Tática that came into play with an effect of its own
+    events.forEach(e => {
+      if (e.t === 'place' && (e.slot === 10 || e.slot === 11)) {
+        const fx = getCardDef(e.card.name)?.fx;
+        if (fx === 'pantano' || fx === 'estandarte') run(fxPlaced(fx, env, sideOf(e.seat)));
+      }
+      if (e.t === 'play' && getCardDef(e.card.name)?.fx === 'reformar') run(fxReformar(env, sideOf(e.seat)));
+    });
+    // Emboscadas
+    events.forEach(e => {
+      if (e.t !== 'ambush') return;
+      const fx = getCardDef(e.card.name)?.fx;
+      const def: FxSide = sideOf(e.seat), atk: FxSide = def === 'player' ? 'npc' : 'player', atkSeat: Seat = e.seat === 0 ? 1 : 0;
+      const canc = events.find(x => x.t === 'cancelled');
+      if (fx === 'bolsa' && canc && canc.t === 'cancelled') run(fxAmbush('bolsa', env, { attacker: { side: atk, from: canc.from }, defender: { side: def, slot: canc.to } }));
+      else if (fx === 'formacao' && canc && canc.t === 'cancelled' && prev) {
+        const id = prev.players[atkSeat].board[canc.from]?.id;
+        const to = cur.players[atkSeat].board.findIndex(c => c?.id === id);
+        if (to >= 0) run(fxAmbush('formacao', env, { attacker: { side: atk, from: canc.from, to }, defender: { side: def, slot: canc.to } }));
+      } else if (fx === 'contra' && prev) {
+        const changed = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => prev.players[e.seat].board[i]?.id !== cur.players[e.seat].board[i]?.id);
+        if (changed.length >= 2) run(fxAmbush('contra', env, { attacker: { side: atk, from: 0 }, defender: { side: def, slot: changed[0] }, swap: [changed[0], changed[1]] }));
+      }
+    });
   };
 
   // The one door into the rules. Local match: the engine applies the action and the result is shown. Online match:
@@ -6318,6 +6378,10 @@ export default function App() {
       if (on && card && side && spot) setTacticLand({ card, side, spot, leaving: false, key: ++tacKeyRef.current });
       else { setTacticLand(c => (c ? { ...c, leaving: true } : c)); window.setTimeout(() => setTacticLand(null), 750); }
     },
+    goldPoint: sd => { const r = document.getElementById(`${sd}-gold-badge`)?.getBoundingClientRect(); return r ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height } : null; },
+    handPoint: sd => ({ cx: window.innerWidth / 2, cy: sd === 'player' ? window.innerHeight - 10 : 10, w: 56, h: 71 }),
+    has: (sd, slot) => !!engineRef.current?.players[sd === 'player' ? 0 : 1].board[slot],
+    pop: (sd, slot, kind, text) => popOverSlot(sd, slot, kind, text),
   });
   // A Tática lands on an empty slot of whoever played it (back row from the middle outwards, then the front row): it shows that the
   // play used a space of the board. With no empty slot, in the middle band, a little towards its owner.
@@ -6329,14 +6393,19 @@ export default function App() {
     return { cx: (a.cx + b.cx) / 2, cy: (a.cy + a.h / 2 + b.cy - b.h / 2) / 2 + (seat === 0 ? 1 : -1) * a.h * .3, w: a.w, h: a.h };
   };
   const FX_TACTICS: Record<string, 'catapulta' | 'trabuco' | 'balestra'> = { 'Catapulta de Guerra': 'catapulta', 'Trabuco de Cerco': 'trabuco', 'Balestra de Precisão': 'balestra' };
+  // (the cards of the Mercenários have their effect named in the catalog: `fx`)
+  const tacticFxOf = (name: string): 'catapulta' | 'trabuco' | 'balestra' | 'muralha' | 'chuva' | 'punhal' | null => {
+    const fx = getCardDef(name)?.fx;
+    return FX_TACTICS[name] ?? (fx === 'muralha' || fx === 'chuva' || fx === 'punhal' ? fx : null);
+  };
   const planFx = (events: GameEvent[], prev: GameState | null): { run: (commit: () => void) => Promise<void>; flags: { fxNumbers: boolean; fxSkipAbility: boolean; fxSkipTacticSfx: boolean } } | null => {
     const sideOf = (seat: Seat): FxSide => (seat === 0 ? 'player' : 'npc');
-    const play = events.find(e => e.t === 'play' && e.card.cardType === 'Tática' && FX_TACTICS[e.card.name]);
+    const play = events.find(e => e.t === 'play' && e.card.cardType === 'Tática' && tacticFxOf(e.card.name));
     if (play && play.t === 'play') {
       const targets: FxTarget[] = events.flatMap(e => (e.t === 'damage' && e.amount > 0 ? [{ side: sideOf(e.seat), slot: e.slot, amount: e.amount }] : []));
       if (targets.length === 0) return null;
       const card = toCardData(play.card), side = sideOf(play.seat), spot = pickTacticSpot(play.seat, prev?.players[play.seat].board);
-      return { run: commit => fxTactic(FX_TACTICS[play.card.name], fxEnvFor(commit, card, side, spot), side, targets), flags: { fxNumbers: true, fxSkipAbility: false, fxSkipTacticSfx: true } };
+      return { run: commit => fxTactic(tacticFxOf(play.card.name)!, fxEnvFor(commit, card, side, spot), side, targets), flags: { fxNumbers: true, fxSkipAbility: false, fxSkipTacticSfx: true } };
     }
     const ab = events.find(e => e.t === 'ability' && e.slot === 12);
     if (ab && ab.t === 'ability') {
@@ -6353,9 +6422,9 @@ export default function App() {
     const prev = engineRef.current;
     engineRef.current = state;
     const plan = opts.quietTurn ? null : planFx(events, prev);
-    const present = () => { processEventsRef.current(events, { ...opts, ...(plan?.flags ?? {}) }); syncView(state, opts.skip); };
+    const present = () => { processEventsRef.current(events, { ...opts, ...(plan?.flags ?? {}), prev }); syncView(state, opts.skip); };
     // (when nothing is playing and the batch has no effect it shows right away, exactly as before)
-    if (!plan && fxPendingRef.current === 0) { processEvents(events, opts); syncView(state, opts.skip); return; }
+    if (!plan && fxPendingRef.current === 0) { processEvents(events, { ...opts, prev }); syncView(state, opts.skip); return; }
     fxPendingRef.current += 1; setFxBusy(true);
     if (plan) {   // the card has left the hand and the gold is spent from the moment it lands on the board
       setHand(state.players[0].hand.map(toCardData)); setPlayerMana(state.players[0].gold);
