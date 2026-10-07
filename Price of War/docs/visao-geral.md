@@ -30,7 +30,7 @@ Menu principal (fundo "A guerra dos dois Generais", logo no céu e cinco placas 
 - **Booster do Capitão:** arte provisória (letra "C").
 - **Balanceamento a revisar:** Mercador da Cruzada (agora com custo de 1 de ouro e resto ao cemitério) e as outras cartas que compram carta (Intendente, Recrutar Veteranos); viradas (comeback) com pessoas reais; novos decks só depois de o equilíbrio atual estar bom.
 - **Menu:** a arte de fundo foi ampliada de 704×1520 (convém uma versão ≥ 1170×2532); Coleção e Meu Deck dividem a mesma imagem na placa; o logo ainda tem a tagline em inglês.
-- **Terceiro deck (Mercenários):** proposta e mesa de teste em `docs/deck-mercenarios.md` (nada no motor ainda). Depois dele, ideia de Artilharia como infantaria.
+- **Terceiro deck (Mercenários):** proposta, lista de 60 cartas e simulação em `docs/deck-mercenarios.md` e `docs/balanceamento.md` (rodada 8); o motor tem a regra experimental só para o laboratório, o jogo não tem o deck. Depois dele, ideia de Artilharia como infantaria.
 - Tutoriais 2 e 3: "em breve".
 
 ## Decisões fixas de trabalho

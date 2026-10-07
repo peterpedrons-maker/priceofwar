@@ -160,3 +160,16 @@ Pedido do dono: as cartas que buscam outras quase não custavam nada. Mudança a
 | R2 · Mercador 2 de ouro + cemitério | 48% | 7,5 |
 | R3 · R0 + Recrutar Veteranos também manda o resto ao cemitério | 48% | 7,4 |
 Leitura: o Mercador é 1 carta em 60, então o efeito no resultado geral é pequeno; a mudança vale pela regra (custo e perda de carta). Recrutar Veteranos (ver 4 cartas, ficar com 1 ou 2) ainda manda o resto para o fundo; Intendente do Exército também compra sem custo de ouro (candidatas à mesma revisão).
+
+### Rodada 8: deck Mercenários (experimental) contra Cardeal e Capitão (200 partidas por confronto, IA × IA; `tests/balance-merc.ts`)
+O deck (60 cartas, ver `docs/deck-mercenarios.md`) só existe no laboratório. Referência na mesma bateria: Cardeal 52,5% × Capitão 47,5%.
+| Cenário | Mercenários × Cardeal | Mercenários × Capitão | Rodadas |
+|---|---|---|---|
+| **Base** (convocar com 1 a menos, manutenção 1; Capitão da Companhia 2) | **59%** | **52%** | 7,4 / 6,9 |
+| M1 · manutenção dobrada (2; Capitão 3) | 51% | 42,5% | 8,7 / 6,9 |
+| M2 · sem desconto de convocação (custo normal +1) | 37% | 36,5% | 8,2 / 6,8 |
+Leitura:
+- O desconto de convocação vale ~20 pontos; a manutenção de 1 custa pouco (**5,7 de ouro por partida**, quase 1 por turno) porque o ouro sobra neste jogo e o gargalo são as cartas. Dobrar a manutenção tira ~8 a 10 pontos e passa a pesar (9,8 de ouro por partida). O ponto de equilíbrio com o Capitão fica entre a base e M1; contra o Cardeal a base já está um pouco acima.
+- **A IA quase nunca dispensa** (0,0 por partida na base, 0,5 em M1): a decisão "pagar ou dispensar" praticamente não é testada pelo laboratório. Isso só aparece com gente jogando.
+- **A Relíquia ainda não é o centro do deck**: foi jogada em 44% das partidas (3 cópias + 3 Graal) e a vitória com ela em campo (53%) não é maior que sem ela (57%). Em M1 e M2, em que o ouro aperta, ela pesa (57% × 41% e 48% × 33%, confundido com ter comprado mais cartas). Modos escolhidos pela IA: Extorsão 53%, Cofre 45%, Soldo em Dobro 3%.
+- Cartas: com 400 partidas o erro de cada Δ é de uns ±5 pontos. Melhores: Capitão da Companhia, Trabuco, Catapulta, Espadachim, Duelista. Piores quando compradas: Livro de Contratos, Graal da Dádiva (sem relíquia no baralho vira carta morta), Couraça Reforçada, Tributo de Guerra, Besteiro.
