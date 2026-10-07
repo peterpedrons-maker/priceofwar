@@ -16,28 +16,28 @@ Decisão do dono do jogo: o deck não repete nenhuma carta dos outros dois (pelo
 General **Comandante Brann, Senhor da Companhia** (30 de vida): pague 3 de ouro, compre 1 carta (uma vez por turno).
 | Carta | Cópias | Tipo, ATK/HP, custo | Manutenção | O que faz |
 |---|---|---|---|---|
-| Lanceiro de Aluguel | 4 | Infantaria 3/3, 1 | 1 | só atributos |
-| Besteiro Contratado | 4 | Arqueiro 2/2, 1 | 1 | ataca à distância |
-| Espadachim do Soldo | 4 | Infantaria 4/4, 2 | 1 | só atributos |
-| Desertor | 4 | Infantaria 2/2, 1 | 1 | Rescisão: compre 1 carta |
-| Capitão da Companhia | 3 | Infantaria 3/5, 2 | 2 | na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK |
-| Cavaleiro Errante | 3 | Cavalaria 4/5, 3 | 1 | se dispensado, volta para a mão |
-| Duelista Livre | 4 | Infantaria 5/3, 2 | 1 | se dispensado, volta para a mão |
-| Bombardeiro Contratado | 4 | Artilharia 3/2, 2 | 1 | ataca à distância |
+| Lanceiro de Aluguel | 4 | Infantaria 2/2, 1 | 1 | só atributos |
+| Besteiro Contratado | 4 | Arqueiro 2/2, 2 | 1 | só atributos |
+| Espadachim do Soldo | 4 | Infantaria 4/3, 2 | 2 | só atributos |
+| Desertor | 4 | Infantaria 2/2, 1 | 1 | Rescisão: compre 1 carta. |
+| Capitão da Companhia | 3 | Infantaria 3/5, 3 | 2 | Na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK. |
+| Cavaleiro Errante | 3 | Cavalaria 4/5, 3 | 1 | Se dispensado, volta para a mão. |
+| Duelista Livre | 4 | Infantaria 5/2, 2 | 2 | Se dispensado, volta para a mão. |
+| Bombardeiro Contratado | 4 | Artilharia 3/2, 3 | 1 | Ataca à distância. |
 | Sentinela Fiel | 4 | Infantaria 2/4, 2 | — | só atributos |
-| Tesoureiro da Companhia | 4 | Infantaria 1/3, 2 | — | no início do turno, ganhe 1 de ouro |
-| Livro de Contratos | 3 | Relíquia (5 de vida), 3 | — | dois modos, escolhido no fim do turno: **Soldo em Dobro** (cartas com manutenção +1 ATK) e **Saque** (ao destruir uma unidade inimiga, compre 1 carta, máx. 1 por ciclo). Cofre de Guerra e Extorsão (ouro) saíram: o ouro sobra neste jogo |
-| Escriba de Contratos | 3 | Tática, 1 | — | leve 1 Relíquia do baralho para a mão |
-| Agência de Recrutamento | 1 | Tática, 2 | — | leve 1 soldado do baralho para a mão |
-| Resgate de Mercenário | 2 | Tática, 1 | — | leve 1 soldado do cemitério para a mão |
-| Recrutamento de Rua | 1 | Tática, 2 | — | compre 2 cartas |
-| Salva de Besteiros | 2 | Tática, 2 | — | 2 de dano a todas as unidades de uma fileira inimiga |
-| Contrato de Execução | 2 | Tática, 2 | — | 3 de dano a uma unidade inimiga |
-| Carga de Pólvora | 1 | Tática, 3 | — | 2 de dano a todas as unidades inimigas e ao General |
-| Armadura Alugada | 3 | Tática (equipamento), 1 | — | Infantaria: +2 HP |
-| Espada de Aluguel | 2 | Tática (equipamento), 1 | — | Infantaria ou Cavalaria: +2 ATK |
-| Suborno | 2 | Emboscada, 2 | — | cancela um ataque a uma de suas unidades |
-(A primeira simulação, com táticas emprestadas do Cardeal e do Capitão, está na rodada 8 de `docs/balanceamento.md`; a lista só de cartas novas, na rodada 9.)
+| Tesoureiro da Companhia | 4 | Infantaria 1/3, 2 | — | No início do turno, ganhe 1 de ouro. |
+| Livro de Contratos | 3 | Relíquia (5 de vida), 3 | — | Escolha 1 modo no fim do seu turno. Soldo em Dobro: cartas com manutenção têm +1 ATK. Saque: ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo). |
+| Escriba de Contratos | 3 | Tática, 1 | — | Leve 1 Relíquia do baralho para a mão. |
+| Salva de Besteiros | 2 | Tática, 2 | — | 2 de dano a todas as unidades de uma fileira inimiga. |
+| Contrato de Execução | 2 | Tática, 2 | — | 3 de dano a uma unidade inimiga. |
+| Carga de Pólvora | 1 | Tática, 3 | — | 2 de dano a todas as unidades inimigas e ao General. |
+| Armadura Alugada | 3 | Tática, 1 | — | Equipe uma Infantaria: +2 HP. |
+| Espada de Aluguel | 2 | Tática, 1 | — | Equipe uma Infantaria ou Cavalaria: +2 ATK. |
+| Agência de Recrutamento | 1 | Tática, 2 | — | Leve 1 soldado do baralho para a mão. |
+| Resgate de Mercenário | 2 | Tática, 1 | — | Leve 1 soldado do cemitério para a mão. |
+| Recrutamento de Rua | 1 | Tática, 3 | — | Compre 2 cartas. |
+| Suborno | 2 | Emboscada, 2 | — | Cancela um ataque a uma de suas unidades. |
+(Tabela gerada por `npx tsx tools/mercenarios-tabela.ts`, direto do código. A primeira simulação, com táticas emprestadas do Cardeal e do Capitão, está na rodada 8 de `docs/balanceamento.md`; a lista só de cartas novas, na rodada 9.)
 
 ## Resultado da simulação (resumo; detalhes em `docs/balanceamento.md`, rodada 9)
 Base (manutenção 1): 69,5% contra o Cardeal e 56% contra o Capitão (forte demais). Manutenção 2 em todos os mercenários (Capitão 3): 56% e 46% (média 51%), recomendada, ainda não aplicada. A IA quase não dispensa cartas e nunca ativa o Suborno: a parte de "pagar ou dispensar" só se prova com gente jogando.

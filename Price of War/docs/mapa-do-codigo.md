@@ -37,10 +37,10 @@ CardViewer3D:12 · THUMBS:13 · thumbOf:14 · SW:16 · PER:17 · BOOK_W:18 · cl
 
 FxSide:24 · FxRect:25 · FxTarget:26 · FxEnv:28 · cv:37 · ctx:38 · RES:39 · fxs:40 · IMG:41 · SRC:42 · readyP:43 · preloadCombatFx:44 · resize:48 · ensureCanvas:49 · R:58 · clamp:59 · eo:60 · at:61 · add:62 · wait:63 · tick:65 · loop:76 · kick:80 · URLS:83 · play:84 · whoosh:85 · pick:88 · FS:95 · sprite:96 · explosion:103 · holy:111 · flash:114 · shock:118 · scorch:125 · puff:129 · dust:135 · debris:138 · sparks:147 · softAngle:154 · fly:165 · arcTangent:204 · stick:205 · ring:211 · burst:214 · sparksDir:219 · glint:226 · cleanHit:233 · lanceFade:237 · thunk:238 · rockBreak:244 · setScale:257 · pt:258 · tacPoint:259 · landingImpact:263 · fxLanding:294 · landTactic:301 · leaveTactic:313 · weaponReveal:316 · once:343 · fxTactic:347 · fxHero:413 · fxRanged:446
 
-## src/engine/ai.ts  (695 linhas)
+## src/engine/ai.ts  (736 linhas)
 A IA do adversário: planeja o turno simulando no próprio motor (aiNextAction) e a IA antiga (aiLegacyAction).
 
-Rand:18 · randomOf:20 · weakest:22 · UNIT_SLOTS:25 · isSoldier:26 · cardValue:29 · unitWorth:37 · isRangedType:42 · boardScore:44 · swapped:79 · MoveOption:85 · moveOptions:88 · bestMove:112 · planGain:119 · bestSlot:147 · attackScore:162 · matches:182 · tacticPlay:185 · abilityAction:274 · bestIds:297 · upkeepAnswer:303 · wantedRelicMode:323 · aiLegacyAction:339 · holdValue:453 · attackPotential:456 · sideValue:469 · upkeepBurden:484 · evalState:487 · sortedDesc:502 · forSearch:505 · candidates:515 · lastPhaseOf:586 · fingerprint:589 · Line:598 · SEARCH:600 · settle:603 · planTurn:614 · memo:655 · answerPending:657 · aiNextAction:676
+Rand:18 · randomOf:20 · weakest:22 · UNIT_SLOTS:25 · isSoldier:26 · cardValue:29 · unitWorth:37 · isRangedType:42 · boardScore:44 · swapped:79 · MoveOption:85 · moveOptions:88 · bestMove:112 · planGain:119 · bestSlot:147 · attackScore:162 · matches:182 · tacticPlay:185 · abilityAction:274 · bestIds:297 · upkeepAnswer:304 · wantedRelicMode:340 · aiLegacyAction:356 · AiStyle:471 · STYLE:472 · holdValue:475 · attackPotential:490 · sideValue:503 · upkeepBurden:520 · evalState:523 · sortedDesc:538 · forSearch:541 · candidates:551 · lastPhaseOf:622 · fingerprint:625 · Line:634 · SEARCH:636 · settle:639 · planTurn:650 · memo:691 · answerPending:693 · aiNextAction:712 · aiNextActionInner:717
 
 ## src/engine/catalog.ts  (279 linhas)
 TODAS as cartas (atributos, texto, efeitos em dados), as receitas dos dois decks, balanceamento (BALANCE), listas iniciais antigas (LEGACY_STARTERS).
@@ -52,15 +52,15 @@ Regras de montagem de deck (40 a 60 cartas, 4 cópias).
 
 DECK_MIN_CARDS:5 · DECK_MAX_CARDS:6 · DECK_MAX_COPIES:7 · deckCardCount:9 · deckProblem:14
 
-## src/engine/experimental.ts  (60 linhas)
+## src/engine/experimental.ts  (91 linhas)
 (sem descrição ainda: acrescente em FILE_NOTES)
 
-GENERAL_NAME:7 · MERCENARIOS_DEFS:11 · MERCENARIOS_RECIPE:43 · registerMercenarios:59
+SOLDIERS:7 · GENERAL_NAME:9 · MERCENARIOS_DEFS:13 · MERCENARIOS_RECIPE:74 · registerMercenarios:90
 
-## src/engine/game.ts  (1061 linhas)
+## src/engine/game.ts  (1062 linhas)
 O motor: createMatch e applyAction (jogar, atacar, mover, habilidades, emboscada, fim de turno, vitória).
 
-DeckSetup:25 · deckSetupFromRecipe:31 · expandCards:36 · MatchOptions:41 · cardFromName:49 · createMatch:58 · Ctx:84 · RuleError:87 · fail:88 · log:90 · P:91 · combatOpen:93 · activePhases:94 · addGold:97 · removeOne:106 · takeFromDeck:107 · drawCards:109 · removeFromHand:122 · discard:129 · sendDestroyed:136 · reinforceFrom:158 · setWinner:175 · soak:184 · grantShield:196 · grantBlock:202 · damageSlot:210 · healSlot:226 · startTurn:235 · enterPreparation:291 · payUpkeep:298 · setRelicMode:331 · runTurnEnd:344 · endTurn:364 · assertCanAct:374 · Fx:385 · uniqueByName:392 · matchesFilter:393 · filterLabel:395 · specCandidates:398 · checkTarget:402 · activeTargets:420 · validateTargets:424 · checkVerb:431 · checkVerbTarget:445 · openPick:449 · runVerb:456 · runAbilities:595 · grantMovedBuff:601 · playCard:611 · useAbility:675 · choose:715 · attack:771 · respondAmbush:797 · resolveAmbushEffect:814 · resolveCombat:847 · move:924 · advance:957 · discardExcess:979 · clone:996 · applyAction:998 · MatchLog:1040 · newMatchLog:1047 · replayMatch:1050
+DeckSetup:25 · deckSetupFromRecipe:31 · expandCards:36 · MatchOptions:41 · cardFromName:49 · createMatch:58 · Ctx:84 · RuleError:87 · fail:88 · log:90 · P:91 · combatOpen:93 · activePhases:94 · addGold:97 · removeOne:106 · takeFromDeck:107 · drawCards:109 · removeFromHand:122 · discard:129 · sendDestroyed:136 · reinforceFrom:159 · setWinner:176 · soak:185 · grantShield:197 · grantBlock:203 · damageSlot:211 · healSlot:227 · startTurn:236 · enterPreparation:292 · payUpkeep:299 · setRelicMode:332 · runTurnEnd:345 · endTurn:365 · assertCanAct:375 · Fx:386 · uniqueByName:393 · matchesFilter:394 · filterLabel:396 · specCandidates:399 · checkTarget:403 · activeTargets:421 · validateTargets:425 · checkVerb:432 · checkVerbTarget:446 · openPick:450 · runVerb:457 · runAbilities:596 · grantMovedBuff:602 · playCard:612 · useAbility:676 · choose:716 · attack:772 · respondAmbush:798 · resolveAmbushEffect:815 · resolveCombat:848 · move:925 · advance:958 · discardExcess:980 · clone:997 · applyAction:999 · MatchLog:1041 · newMatchLog:1048 · replayMatch:1051
 
 ## src/engine/rewards.ts  (38 linhas)
 Regras de recompensa (XP, Coroas, nível).
@@ -72,10 +72,10 @@ Números aleatórios com semente (a partida pode ser repetida).
 
 seedFrom:5 · nextRandom:8 · randomInt:16 · pickRandom:19 · shuffled:23
 
-## src/engine/rules.ts  (247 linhas)
+## src/engine/rules.ts  (249 linhas)
 Constantes (ouro, mão, início do combate) e perguntas sobre o tabuleiro (alcance, ATK efetivo, redução de dano, fases).
 
-R:8 · START_GOLD:9 · START_HAND:10 · GOLD_PER_TURN:11 · GOLD_FROM_ROUND:12 · COMBAT_FROM_ROUND:14 · HAND_LIMIT:15 · Unit:19 · Board:24 · phasesForTurn:27 · AUTOMATIC_PHASES:33 · restingPhasesForTurn:34 · abilitiesOf:39 · passivesOf:40 · abilityOn:41 · verbsOn:42 · hasVerb:43 · abilityPhases:46 · specCandidatesOn:49 · targetSpecsOf:64 · playTargetSpecs:65 · targetSpecOf:67 · needsHiddenInfo:71 · reinforceShield:76 · canReinforce:80 · AuraStat:83 · rowOk:84 · whoMatches:85 · auraTotal:95 · boardHasFlag:117 · upkeepOf:121 · relicModeOf:123 · canPlayInPhase:131 · isFrontline:135 · isBackline:136 · isUnitSlot:137 · getLaneCol:138 · getMoveRow:143 · getMoveCol:144 · areSlotsAdjacent:146 · adjacentSlots:150 · canReposition:154 · SOLDIER_TYPES:161 · CardDropKind:163 · getCardDropKind:166 · canPlaceInSlot:178 · isAliveAt:187 · isCardDamaged:189 · getAuraCombatHpBonus:192 · blocksAmbush:194 · locksGeneralOnDamage:196 · getMaxAttacksPerTurn:198 · getEffectiveAtk:202 · getIncomingDamageReduction:210 · getValidAttackTargets:214 · withEquippedWeapons:245
+R:8 · START_GOLD:9 · START_HAND:10 · DRAW_PER_TURN:12 · GOLD_PER_TURN:13 · GOLD_FROM_ROUND:14 · COMBAT_FROM_ROUND:16 · HAND_LIMIT:17 · Unit:21 · Board:26 · phasesForTurn:29 · AUTOMATIC_PHASES:35 · restingPhasesForTurn:36 · abilitiesOf:41 · passivesOf:42 · abilityOn:43 · verbsOn:44 · hasVerb:45 · abilityPhases:48 · specCandidatesOn:51 · targetSpecsOf:66 · playTargetSpecs:67 · targetSpecOf:69 · needsHiddenInfo:73 · reinforceShield:78 · canReinforce:82 · AuraStat:85 · rowOk:86 · whoMatches:87 · auraTotal:97 · boardHasFlag:119 · upkeepOf:123 · relicModeOf:125 · canPlayInPhase:133 · isFrontline:137 · isBackline:138 · isUnitSlot:139 · getLaneCol:140 · getMoveRow:145 · getMoveCol:146 · areSlotsAdjacent:148 · adjacentSlots:152 · canReposition:156 · SOLDIER_TYPES:163 · CardDropKind:165 · getCardDropKind:168 · canPlaceInSlot:180 · isAliveAt:189 · isCardDamaged:191 · getAuraCombatHpBonus:194 · blocksAmbush:196 · locksGeneralOnDamage:198 · getMaxAttacksPerTurn:200 · getEffectiveAtk:204 · getIncomingDamageReduction:212 · getValidAttackTargets:216 · withEquippedWeapons:247
 
 ## src/engine/types.ts  (361 linhas)
 Tipos: GameState, Action, GameEvent, CardDef, os verbos de efeito (Verb) e passivas.
@@ -177,25 +177,30 @@ IA nova contra a antiga.
 
 N:9 · D:10 · planWins:11 · byDeck:12
 
+## tests/ai-ration.ts  (85 linhas)
+(sem descrição ainda: acrescente em FILE_NOTES)
+
+Side:12 · Rec:13 · RATION:14 · play:16 · main:48
+
 ## tests/balance-comeback.ts  (32 linhas)
 Mede viradas (comeback) a partir dos resultados do laboratório.
 
 G:5 · games:6 · afterRound:7 · trailed:21
 
-## tests/balance-lab.ts  (114 linhas)
+## tests/balance-lab.ts  (115 linhas)
 LABORATÓRIO de balanceamento: joga muitas partidas IA × IA, com patches "e se" (docs/balanceamento.md).
 
-Patch:21 · Per:22 · GameRecord:24 · applyPatch:26 · bump:48 · playGame:50 · main:89
+Patch:21 · Per:22 · GameRecord:24 · applyPatch:26 · bump:48 · playGame:50 · main:90
 
 ## tests/balance-matchup.ts  (32 linhas)
 Teste rápido Cardeal × Capitão.
 
 N:9 · cardealWins:14
 
-## tests/balance-merc.ts  (134 linhas)
+## tests/balance-merc.ts  (141 linhas)
 (sem descrição ainda: acrescente em FILE_NOTES)
 
-Patch:23 · Per:24 · Rec:25 · setupOf:27 · applyPatch:31 · bump:48 · playGame:50 · pct:79 · main:81
+Patch:29 · Per:30 · Rec:31 · setupOf:33 · applyPatch:37 · bump:54 · playGame:56 · pct:86 · main:88
 
 ## tests/balance-report.ts  (130 linhas)
 Transforma os resultados do laboratório em uma página (relatório lado a lado).
@@ -204,6 +209,11 @@ Per:5 · G:6 · Lab:7 · load:9 · mean:10 · se:11 · summarize:13 · base:51 �
 
 ## tests/balance-rules-preload.ts  (7 linhas)
 Passa as regras do patch (ouro, início do combate) ao motor antes de ele carregar.
+
+## tests/cost-audit.ts  (34 linhas)
+(sem descrição ainda: acrescente em FILE_NOTES)
+
+UNITS:10 · bandCost:11 · defs:12 · where:13 · rows:19 · off:32
 
 ## tests/engine-rules.ts  (1089 linhas)
 Um cenário por regra do jogo (npm test).
@@ -214,6 +224,11 @@ passed:11 · test:12 · eq:15 · ok:18 · n:21 · mk:22 · fresh:27 · put:38 ·
 Partidas IA × IA com invariantes, repetição determinística e fuzz (npm test).
 
 failures:13 · usage:14 · tactics:15 · discards:16 · check:17 · allCards:19 · invariants:27 · play:47 · decks:80 · finished:81 · winsByDeck:82 · rnd:111 · R:112 · accepted:113
+
+## tests/match-report.ts  (164 linhas)
+(sem descrição ainda: acrescente em FILE_NOTES)
+
+Turn:15 · Game:16 · blank:25 · SOLD:26 · material:27 · count:28 · SLOT:29 · play:31 · avg:86 · f:87 · main:89
 
 ## tests/mock-supabase.ts  (119 linhas)
 Supabase falso para os testes online.
@@ -240,3 +255,8 @@ fail:6 · r:7 · s:10 · ids:13
 Gera este arquivo.
 
 FILE_NOTES:6 · ROOTS:52 · files:53 · walk:54 · DECL:58 · NESTED:59 · out:60
+
+## tools/mercenarios-tabela.ts  (20 linhas)
+(sem descrição ainda: acrescente em FILE_NOTES)
+
+rows:6 · table:12 · path:13 · doc:14 · start:15 · end:16
