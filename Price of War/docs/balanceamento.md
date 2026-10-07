@@ -289,3 +289,13 @@ Leitura:
 - **Aliviar os custos do Cardeal conserta a maior parte** (42,5%), usa 35% mais cartas por partida e quase some com os turnos sem jogar, **mas devolve o problema do 1º turno do Cardeal** (7 cartas, 4,8 soldados, 28 de material), o que levou à rodada 6.
 - **O tabuleiro continua longe de cheio** (4,0 e 2,7 de 10 casas em média; pico 6,4 e 4,5): quanto mais se joga, mais se mata (até 1,4 unidades abatidas por turno), então a ocupação se mantém. Encher as casas pede reduzir a letalidade ou criar corpos fora da mão (fichas/Levas), além de mais cartas.
 - Nunca houve descarte por excesso de mão: a mão não passa de 4,5 cartas.
+
+### Rodada 14: IA que racionaliza (`AiStyle.ration`) e 10 cartas iniciais + comprar 2 (120 partidas por cenário)
+**A IA racional** (opção desligada por padrão; `aiNextAction(state, seat, rand, { ration: 1 })`): cartas guardadas na mão valem mais e Táticas de dano em área esperam mais alvos. Arena (`tests/ai-ration.ts`): IA atual × IA racional, Cardeal e Capitão nas duas cadeiras.
+| Regras | Racional vence | Racional com o Cardeal | Racional com o Capitão |
+|---|---|---|---|
+| De hoje (7 cartas, compra 1) | **50,8%** | 51,7% | 50,0% |
+| 10 cartas iniciais + compra 2 | 46,7% | 1,7% | 91,7% |
+Leitura: **racionar não torna a IA melhor nem pior** (50,8% é empate). Ela joga só ~3% menos cartas (13,4 contra 13,9 por partida; 5,7 contra 5,9 no 1º turno), porque o limite é o ouro, não a vontade de jogar. No cenário 10+2 o resultado é decidido pelo deck (o Capitão vence ~92% com qualquer IA), não pela IA. A IA atual não "joga tudo por defeito": gasta o ouro que tem, e guardar carta não rende mais.
+**10 cartas iniciais + comprar 2, custos como estão (IA atual dos dois lados; IA racional dá resultado igual):** Cardeal 7,5% × Capitão 92,5%. Partidas curtas: média 5,9 rodadas, 53% acabam até a rodada 5. Por turno (Cardeal | Capitão): cartas jogadas 3,1 | 2,8; soldados da mão 1,9 | 1,7; dano 5,4 | 12,6; ouro gasto 7,0 | 6,0; ouro que sobra 0,06 | 1,5; **cartas na mão no fim do turno 6,5 | 4,2**; unidades em campo 3,1 | 3,4 (pico 5,3 | 5,0); material 15 | 21. Cartas usadas por partida 16,8 | 16,6; compradas 13,3 | 11,7; descarte por excesso de mão ≈ 0. Primeiro turno: 6,1 cartas / 27 de material (Cardeal) e 6,4 / 28 (Capitão).
+Leitura: com 12 cartas no 1º turno o jogador não é forçado a descartar: o ouro limita o que se joga (~6 cartas) e a mão cai para ~6, nunca chegando ao limite de 10. A pressão "use ou perca" só existiria com limite de mão menor. O Cardeal, limitado por ouro, ainda perde de longe; esse pacote exige aliviar o ouro do Cardeal (custos, como na rodada 13) para equilibrar.
