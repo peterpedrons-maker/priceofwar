@@ -10313,6 +10313,31 @@ const arrivalDrops = new Map<string, { delay: number }>();
 // Called by a slot when a dropped card touches down (App draws the dust and starts the hops).
 let arrivalListener: ((slotId: string, card: CardData) => void) | null = null;
 
+// The mark of a unit slot (Vanguarda: sword and shield; Retaguarda: bow and banner), faint on an empty slot and lit up — amber in the
+// front row, sky blue behind — while a card is selected and the slot can take it. Drawn in SVG for now (the owner will replace it
+// with painted art in bronze, same place and same glow).
+const SlotEmblem = ({ row, lit, tone }: { row: 'front' | 'back'; lit: boolean; tone: 'amber' | 'sky' }) => {
+  const glow = tone === 'amber' ? '255,196,92' : '120,205,255';
+  return (
+    <motion.svg viewBox="0 0 64 64" className="absolute left-1/2 top-1/2 w-[46%] h-auto pointer-events-none" style={{ translateX: '-50%', translateY: '-50%', overflow: 'visible' }}
+      animate={lit ? { opacity: [0.8, 1, 0.8], scale: [1, 1.07, 1], filter: [`drop-shadow(0 0 3px rgba(${glow},.7))`, `drop-shadow(0 0 11px rgba(${glow},1))`, `drop-shadow(0 0 3px rgba(${glow},.7))`] } : { opacity: 0.2, scale: 1, filter: 'drop-shadow(0 0 0 rgba(0,0,0,0))' }}
+      transition={lit ? { duration: 1.3, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.25 }}
+      fill="none" stroke={lit ? `rgb(${glow})` : '#e2be6e'} strokeWidth={3.4} strokeLinecap="round" strokeLinejoin="round">
+      {row === 'front' ? (
+        <>
+          <path d="M14 14 L32 8 L50 14 L47 36 Q43 48 32 56 Q21 48 17 36 Z" />
+          <path d="M32 2 L32 46 M22 18 L42 18" strokeWidth={4.4} />
+        </>
+      ) : (
+        <>
+          <path d="M20 8 Q58 32 20 56" strokeWidth={4} />
+          <path d="M20 8 L20 56" strokeWidth={1.8} />
+          <path d="M6 32 L54 32 M54 32 L46 26 M54 32 L46 38" strokeWidth={3} />
+        </>
+      )}
+    </motion.svg>
+  );
+};
 const CardSlot = ({
   onClick, onInfoClick, card, isSelected = false,
   isAttacking = false, isImpactingTarget = false, isImpactingAttacker = false, attackDirection = 'up', hint, rowRoleHint,
@@ -10412,7 +10437,17 @@ const CardSlot = ({
   // green, whenever that distinction actually applies (rowRoleHint set) — reading
   // it off the WHOLE slot instead of a small corner icon is what the player asked
   // for: "isso tem que ficar claro no tabuleiro," not just technically present.
-  const hintClass = hint === 'invalid'
+  // A unit slot (0-9) of either board is "carved into the ground" instead of drawn with a line: a dark recess with an inner shadow, a faint warm
+  // lip on the lower edge and a hairline in its side's colour (steel blue for you, crimson for the opponent). Relíquia, Terreno and General keep the old look.
+  const unitSlotM = slotId ? /^(player|npc)-([0-9])$/.exec(slotId) : null;
+  const unitSlot = !!unitSlotM && !card;
+  const slotRow: 'front' | 'back' = unitSlotM && Number(unitSlotM[2]) <= 4 ? 'front' : 'back';
+  const slotTint = unitSlotM && unitSlotM[1] === 'player' ? '120,175,255' : '235,85,75';
+  const carvedStyle: React.CSSProperties | undefined = unitSlot ? {
+    background: 'rgba(8,6,4,0.46)',
+    boxShadow: `inset 0 5px 10px rgba(0,0,0,0.6), inset 0 -1px 0 rgba(190,160,110,0.4), inset 0 0 0 1px rgba(${slotTint},0.26)${hint === 'invalid' ? ', inset 0 0 22px rgba(220,40,40,0.28)' : ''}`,
+  } : undefined;
+  const hintClass = unitSlot ? '' : hint === 'invalid'
     ? 'border-red-500/60 bg-red-950/30'
     : hint === 'valid'
       ? rowRoleHint === 'attack'
@@ -10437,9 +10472,18 @@ const CardSlot = ({
         // …) rather than instead of it, so none of that existing board logic changes.
         if (card && !card.isDestroyed && onInfoClick) onInfoClick(card);
       }}
-      className={`w-[7.5rem] h-[9.5rem] md:w-[9.5rem] md:h-[12.5rem] rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${!card ? hintClass : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${!card && isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''}`}
+      style={carvedStyle}
+      className={`w-[7.5rem] h-[9.5rem] md:w-[9.5rem] md:h-[12.5rem] rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : unitSlot ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${!card ? hintClass : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${!card && isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''}`}
     >
-      {!card && hint && (
+      {unitSlot && !hint && <div className="absolute inset-0 rounded-lg bg-[#e8dcc0]/0 group-hover:bg-[#e8dcc0]/10 transition-colors pointer-events-none" />}
+      {unitSlot && hint !== 'invalid' && <SlotEmblem row={slotRow} lit={hint === 'valid'} tone={rowRoleHint === 'attack' || !rowRoleHint ? (slotRow === 'front' ? 'amber' : 'sky') : 'sky'} />}
+      {unitSlot && hint === 'valid' && <div className="absolute inset-0 rounded-lg pointer-events-none" style={{ boxShadow: `inset 0 0 16px rgba(${slotRow === 'front' ? '255,196,92' : '120,205,255'},0.38), 0 0 14px rgba(${slotRow === 'front' ? '255,196,92' : '120,205,255'},0.3)` }} />}
+      {unitSlot && hint === 'valid' && rowRoleHint && hintsBoard && (
+        <div className="absolute inset-x-0 bottom-[7%] text-center leading-none pointer-events-none" style={{ fontFamily: "'Cinzel', serif", color: rowRoleHint === 'attack' ? '#ffd36a' : '#8fd4ff', textShadow: '0 1px 2px #000, 0 0 6px #000' }}>
+          <b className="block font-extrabold tracking-[0.03em]" style={{ fontSize: ROW_ROLE_VIEW[rowRoleHint].size }}>{ROW_ROLE_VIEW[rowRoleHint].label}</b>
+        </div>
+      )}
+      {!card && hint && !(unitSlot && hint === 'valid') && (
         // Placement hint on every legal empty slot at once while a hand card is tap-selected (see getPlayerSlotHint):
         // a red X where it cannot go; where a soldier can go, the same sword / shield art as the stat effects plus a
         // short word (ATACA, RESERVA, PROTEGIDA); a plain green arrow for the Relíquia / Terreno slots.
@@ -10475,7 +10519,7 @@ const CardSlot = ({
           )}
         </>
       )}
-      {!card && !hint && (
+      {!card && !hint && !unitSlot && (
         <>
           <div className="w-[70%] h-[70%] border border-[#e8dcc0]/20 rotate-45 group-hover:border-[#e8dcc0]/50 group-hover:scale-110 transition-all pointer-events-none" />
           <div className="absolute inset-0 bg-[#e8dcc0]/0 group-hover:bg-[#e8dcc0]/15 transition-colors rounded-lg pointer-events-none" />
