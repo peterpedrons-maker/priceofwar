@@ -221,3 +221,30 @@ Leitura:
 - **Só com o Soldo em Dobro (+1 ATK nas cartas com manutenção) o deck vai a 53%** nos dois confrontos e a Relíquia passa a se pagar (53,2% com ela, 52,5% sem). Ou seja: o modo que dá **atributos** funciona; os que dão **ouro** não.
 - U2 (manutenção 2, atributos maiores) deixa o deck forte (58%) e a Relíquia continua sem ajudar (55% × 65%).
 - Caminhos a decidir com o dono (nada aplicado): (a) trocar Cofre e Extorsão por modos que paguem em **cartas ou atributos**, por exemplo "ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo)" ou "suas cartas com manutenção ganham +1 de vida"; (b) manter os modos de ouro mas dar peso real à manutenção (U2) e retestar. A IA quase não dispensa cartas (0,0 a 0,4 por partida), então "pagar ou dispensar" segue sem prova no laboratório.
+
+### Perfil de partida: Cardeal × Capitão (120 partidas IA × IA; `N=60 npx tsx tests/match-report.ts`)
+Cardeal 54,2% × Capitão 45,8%; quem começa vence 55,8%. Duração: média 7,4 rodadas, mediana 7, de 3 a 18; 28% acabam até a rodada 5, 33% na 6–7, 39% na 8 ou mais. Médias por turno do próprio deck:
+| Por turno | Cardeal | Capitão |
+|---|---|---|
+| Dano causado no próprio turno (no General) | 5,4 (2,8) | 7,5 (2,5) |
+| Ataques / unidades abatidas | 1,6 / 0,63 | 1,5 / 0,91 |
+| Cartas jogadas (todas) | 2,2 | 1,7 |
+| Soldados convocados da mão | 1,4 | 1,0 |
+| Táticas jogadas | 0,75 | 0,61 |
+| Soldados por efeito (fichas, Chamado às Armas) | 0,26 | 0 |
+| Ouro gasto / ouro que sobra no fim do turno | 6,0 / 1,2 | 3,6 / **12,3** |
+| Cartas na mão no fim do turno | 2,2 | 1,6 |
+| Unidades em campo / material (ATK + vida) | 3,2 / 16,4 | 1,95 / 12,1 |
+| Turnos sem jogar carta / sem atacar | 7% / 32% | 22% / 34% |
+| Dano por partida na vez do adversário (retaliação, Emboscada) | 9,0 | 20,9 |
+Primeiro turno (cartas jogadas / soldados / dano / material): Cardeal 5,8 / 3,9 / 5,8 / 24; Capitão 5,8 / 3,6 / 5,6 / 23. Depois do 1º turno, os dois jogam de 1 a 2 cartas por turno (a mão esvazia: 7 cartas + 1 compra por turno).
+Leitura: o **Cardeal é limitado por ouro** (gasta tudo, ~6 por turno) e o **Capitão é limitado por cartas** (termina o turno com ~12 de ouro sobrando e 22% dos turnos sem jogar nada). O Capitão causa mais dano por turno (Cavaleiro Tático) e vence pela qualidade de poucas peças; o Cardeal ocupa mais campo. A tabela de custo mexe no Cardeal, não no Capitão.
+Uma partida narrada fica em `balance-out/partida-narrada.txt` (a pasta é ignorada pelo git).
+
+### Rodada 11: Relíquia dos Mercenários com modos que pagam em cartas (200 partidas por confronto)
+| Cenário | Mercenários × Cardeal | Mercenários × Capitão | Média | Vitória com × sem a Relíquia |
+|---|---|---|---|---|
+| S · só Soldo em Dobro | 53% | 53% | 53% | 53,2% × 52,5% |
+| **C1 · Soldo em Dobro + Saque** (ao destruir unidade inimiga, compre 1 carta, máx. 1 por ciclo) | 61,5% | 49,5% | 55,5% | **56,5% × 52,5%** |
+| C2 · C1 + Cofre de Guerra | 56% | 47,5% | 51,8% | 51,5% × 52,5% |
+Leitura: com modos que pagam em carta ou atributo, **a Relíquia passa a se pagar** (C1: +4 pontos com ela em campo; com os modos de ouro era −13). A IA escolhe Saque em 71% das vezes em C1. Voltar o Cofre de Guerra (C2) dilui de novo. Os modos de ouro (Cofre de Guerra, Extorsão) devem ser trocados. `RelicMode.loot` agora aceita `draw` (cartas) além de `gold`.
