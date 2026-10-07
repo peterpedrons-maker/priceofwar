@@ -42,6 +42,9 @@ General **Comandante Brann, Senhor da Companhia** (30 de vida): pague 3 de ouro,
 ## Resultado da simulação (resumo; detalhes em `docs/balanceamento.md`, rodada 9)
 Base (manutenção 1): 69,5% contra o Cardeal e 56% contra o Capitão (forte demais). Manutenção 2 em todos os mercenários (Capitão 3): 56% e 46% (média 51%), recomendada, ainda não aplicada. A IA quase não dispensa cartas e nunca ativa o Suborno: a parte de "pagar ou dispensar" só se prova com gente jogando.
 
+## Estado atual (rodada 10 de `docs/balanceamento.md`)
+Custos refeitos pela **tabela de custo** (soma ≤3 = 1, 4–6 = 2, 7–8 = 3, 9+ = 4; à distância +1; manutenção compra atributos). Resultado: ~42% contra os dois decks; a Relíquia com os modos de ouro (Cofre de Guerra, Extorsão) não se paga porque o ouro sobra neste jogo. Só com o modo Soldo em Dobro o deck vai a 53%. Os modos de ouro precisam ser repensados (cartas ou atributos). Tabela das cartas abaixo é da rodada 9; os custos/atributos novos estão em `src/engine/experimental.ts`.
+
 ## Regra de bolso das cartas (a calibrar no laboratório)
 Mercenário custa 1 a menos para convocar do que uma carta normal do mesmo tamanho e cobra 1 de manutenção por turno; efeito forte cobra 2. Cartas "sem manutenção" e geradoras de ouro (Tesoureiro) compensam a conta.
 

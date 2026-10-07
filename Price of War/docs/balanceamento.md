@@ -204,3 +204,20 @@ Ferramenta: `npx tsx tests/cost-audit.ts` (com `MERC=1` inclui o deck em teste) 
 - **Fracas** (custo alto para o que dão, ou pouco uso): Armadura de Guerra (Δ −17,8), Cálice da Graça (−15,4), Devotos da Cruzada (−14,5), Tributo de Guerra (−12,7), Espada Longa (−12,6), Formação Quebrada (−16,7), Fortaleza de Pedra (−8,3). Candidatas a custo 0 ou efeito maior.
 - Observação: o ouro sobra e o gargalo são as cartas, então o custo mexe pouco no resultado (comparar com a rodada 6); a tabela vale mais para a **primeira rodada** (15 de ouro) e para manter o padrão entre decks do que como alavanca de equilíbrio.
 Nada dos dois decks do jogo foi alterado.
+
+### Rodada 10: Mercenários com os custos pela tabela (200 partidas por confronto, IA × IA)
+Custos e atributos refeitos pela tabela de custo (ver seção acima): Lanceiro de Aluguel 2/2 (custo 1), Besteiro Contratado 2/2 (custo 2, à distância), Espadachim do Soldo 4/3 (2), Duelista Livre 5/2 (2), Capitão da Companhia 3/5 (3, manutenção 2), Bombardeiro Contratado 3/2 (3), Cavaleiro Errante 4/5 (3); Agência de Recrutamento custo 2 e Recrutamento de Rua custo 3 (busca/compra paga mais). A auditoria (`MERC=1 npx tsx tests/cost-audit.ts`) confere o deck: 26 de 31 unidades na tabela, o único mercenário fora é o Capitão da Companhia (+1, efeito forte).
+Também se corrigiu a IA: ela quase nunca jogava o **Livro de Contratos** (em 17 de 20 partidas em que o comprou, nunca entrou em campo), o que distorcia as rodadas 8 e 9; agora a Relíquia com modos vale mais na avaliação (só afeta esse deck) e entra em ~1 rodada.
+| Cenário | Mercenários × Cardeal | Mercenários × Capitão | Média |
+|---|---|---|---|
+| (antes de corrigir a IA, custos pela tabela) | 39,5% | 44% | 41,8% |
+| **T0 · custos pela tabela, IA corrigida** | **42%** | **42,5%** | **42,3%** |
+| T1 · 4 Livros e 4 Escribas | 39,5% | 45% | 42,3% |
+| **S · Relíquia só com o modo Soldo em Dobro** | **53%** | **53%** | **53%** |
+| U2 · manutenção 2 em todos + atributos maiores (+1 de soma por ponto) | 57% | 59,5% | 58,3% |
+Leitura:
+- Os custos pela tabela deixam o deck na faixa baixa (≈42%); mais cópias da Relíquia não mudam nada (T1).
+- **A Relíquia só atrapalha com os modos de ouro**: em T0 a vitória com ela em campo é 38,5% contra 51,8% sem ela. Cofre de Guerra (−2 de manutenção total) e Extorsão (+1 de ouro por destruição) poupam pouco ouro porque o jogo é limitado por cartas, não por ouro (a manutenção paga é só ~4 de ouro por partida). A IA escolhe Extorsão 52% e Cofre 42% das vezes e o Soldo em Dobro 5%.
+- **Só com o Soldo em Dobro (+1 ATK nas cartas com manutenção) o deck vai a 53%** nos dois confrontos e a Relíquia passa a se pagar (53,2% com ela, 52,5% sem). Ou seja: o modo que dá **atributos** funciona; os que dão **ouro** não.
+- U2 (manutenção 2, atributos maiores) deixa o deck forte (58%) e a Relíquia continua sem ajudar (55% × 65%).
+- Caminhos a decidir com o dono (nada aplicado): (a) trocar Cofre e Extorsão por modos que paguem em **cartas ou atributos**, por exemplo "ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo)" ou "suas cartas com manutenção ganham +1 de vida"; (b) manter os modos de ouro mas dar peso real à manutenção (U2) e retestar. A IA quase não dispensa cartas (0,0 a 0,4 por partida), então "pagar ou dispensar" segue sem prova no laboratório.
