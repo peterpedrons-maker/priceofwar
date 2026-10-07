@@ -21,7 +21,7 @@ import type { GameState, Seat, GameEvent, Card } from '../src/engine/types';
 registerMercenarios();
 // O deck é só de cartas novas: nenhuma do Cardeal nem do Capitão (decisão do dono do jogo).
 {
-  const old = new Set(CARD_DEFS.map(c => c.name));
+  const old = new Set([...Object.keys(DECK_RECIPES.cardeal.cards), ...Object.keys(DECK_RECIPES.capitao.cards), DECK_RECIPES.cardeal.general, DECK_RECIPES.capitao.general]);
   const repeated = [...Object.keys(MERCENARIOS_RECIPE.cards), MERCENARIOS_RECIPE.general].filter(n => old.has(n));
   if (repeated.length) throw new Error(`O deck Mercenários repete cartas do jogo: ${repeated.join(', ')}`);
 }

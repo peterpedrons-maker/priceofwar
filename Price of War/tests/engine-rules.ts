@@ -1084,5 +1084,83 @@ for (const me of [0, 1] as Seat[]) {
   });
 }
 
+// ── Mercenários: manutenção, dispensa, Rescisão, modos da Relíquia ───────────────────────────────────────────────────
+const freshMerc = (): GameState => {
+  let s = createMatch({ seed: 7, decks: [deckSetupFromRecipe('mercenarios'), deckSetupFromRecipe('capitao')], first: 0 }).state;
+  s = act(s, 0, { type: 'begin' }).s;
+  s.players.forEach(p => { p.hand = []; p.gold = 20; });
+  return s;
+};
+// Passes seat 0's turn and the opponent's, until seat 0's next turn starts (stops at the upkeep prompt, if it opens).
+const toNextTurn = (s: GameState): GameState => {
+  const leave = (until: (st: GameState) => boolean) => { for (let g = 0; g < 40 && !until(s); g++) s = act(s, s.pending ? s.pending.seat : s.turn.active, { type: 'advance' }).s; };
+  leave(st => st.turn.active !== 0);
+  leave(st => st.turn.active === 0);
+  return s;
+};
+test('Mercenários: the upkeep prompt opens at Suprimentos; paying keeps the unit, dismissing sends it to the graveyard', () => {
+  let s = freshMerc();
+  const esp = put(s, 0, 2, 'Espadachim do Soldo'), duel = put(s, 0, 1, 'Duelista Livre'), lanc = put(s, 0, 3, 'Lanceiro de Aluguel');
+  s = toNextTurn(s);
+  ok(s.pending?.kind === 'upkeep' && s.pending.seat === 0, 'no upkeep prompt');
+  eq((s.pending as any).entries.map((e: any) => [e.cardId, e.cost]), [[duel.id, 2], [esp.id, 2], [lanc.id, 1]]);
+  eq(s.turn.phase, 'suprimentos');
+  const gold = s.players[0].gold;                       // 20 + 5 (round 2)
+  refused(s, 0, { type: 'play', cardId: 'nada', slot: 4 }, 'pendente');
+  const r = act(s, 0, { type: 'upkeep', keep: [esp.id, duel.id] });
+  s = r.s;
+  eq([s.players[0].gold, s.turn.phase, s.pending], [gold - 4, 'preparacao', null]);
+  eq([s.players[0].board[3], names(s.players[0].graveyard)], [null, ['Lanceiro de Aluguel']]);
+  ok(r.ev.some(e => e.t === 'upkeep' && e.paid === 4 && e.dismissed === 1), 'upkeep event');
+});
+test('Mercenários: not enough gold to pay everyone is refused; dismissing is the way out', () => {
+  let s = freshMerc();
+  const esp = put(s, 0, 2, 'Espadachim do Soldo'), duel = put(s, 0, 1, 'Duelista Livre');
+  s = toNextTurn(s);
+  s.players[0].gold = 3;                                  // as duas juntas custam 4
+  refused(s, 0, { type: 'upkeep', keep: [esp.id, duel.id] }, 'Ouro insuficiente');
+  s = act(s, 0, { type: 'upkeep', keep: [esp.id] }).s;
+  eq([s.players[0].board[2]?.name, s.players[0].board[1]], ['Espadachim do Soldo', null]);
+});
+test('Mercenários: a dismissed Duelista Livre goes back to the hand; a dismissed Desertor pays Rescisão (draw 1)', () => {
+  let s = freshMerc();
+  const duel = put(s, 0, 1, 'Duelista Livre'), des = put(s, 0, 3, 'Desertor');
+  s = toNextTurn(s);
+  const handBefore = s.players[0].hand.length;
+  s = act(s, 0, { type: 'upkeep', keep: [] }).s;
+  ok(s.players[0].hand.some(c => c.name === 'Duelista Livre'), 'Duelista did not return to the hand');
+  ok(!s.players[0].graveyard.some(c => c.name === 'Duelista Livre'), 'Duelista went to the graveyard');
+  eq(names(s.players[0].graveyard), ['Desertor']);
+  eq(s.players[0].hand.length, handBefore + 2, 'Duelista back + Rescisão draw');
+  void duel; void des;
+});
+test('Relíquia com modos: Soldo em Dobro gives +1 ATK to cards with upkeep; the mode changes only in Movimentação', () => {
+  let s = freshMerc();
+  s.players[0].board[10] = { ...mk('Livro de Contratos'), mode: 'soldo' };
+  put(s, 0, 2, 'Espadachim do Soldo'); put(s, 0, 3, 'Sentinela Fiel');
+  const b = s.players[0].board, foe = s.players[1].board;
+  eq([getEffectiveAtk(b[2]!, 2, b, foe), getEffectiveAtk(b[3]!, 3, b, foe)], [5, 2]);   // Sentinela has no upkeep
+  refused(s, 0, { type: 'relic_mode', mode: 'saque' }, 'fim do turno');
+  s.turn.phase = 'movimentacao';
+  refused(s, 0, { type: 'relic_mode', mode: 'nao-existe' }, 'não existe');
+  const r = act(s, 0, { type: 'relic_mode', mode: 'saque' });
+  eq(r.s.players[0].board[10]?.mode, 'saque');
+  ok(r.ev.some(e => e.t === 'relic_mode' && e.mode === 'saque'), 'relic_mode event');
+  const b2 = r.s.players[0].board;
+  eq(getEffectiveAtk(b2[2]!, 2, b2, foe), 4);
+});
+test('Relíquia com modos: Saque draws one card per enemy unit destroyed, at most 1 per cycle', () => {
+  let s = freshMerc();
+  s.players[0].board[10] = { ...mk('Livro de Contratos'), mode: 'saque' };
+  put(s, 0, 1, 'Espadachim do Soldo'); put(s, 0, 2, 'Espadachim do Soldo');
+  put(s, 1, 1, 'Batedor'); put(s, 1, 2, 'Batedor');
+  combat(s);
+  const before = s.players[0].hand.length;
+  s = act(s, 0, { type: 'attack', from: 1, to: 1 }).s;
+  eq(s.players[0].hand.length, before + 1);
+  s = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
+  eq([s.players[0].hand.length, names(s.players[1].graveyard).length], [before + 1, 2]);   // the second kill is over the cap
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

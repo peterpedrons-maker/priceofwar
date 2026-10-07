@@ -9,11 +9,11 @@ import { MERCENARIOS_DEFS, MERCENARIOS_RECIPE } from '../src/engine/experimental
 
 const UNITS = ['Infantaria', 'Cavalaria', 'Arqueiro', 'Artilharia'];
 export const bandCost = (soma: number) => (soma <= 3 ? 1 : soma <= 6 ? 2 : soma <= 8 ? 3 : 4);
-const defs = [...CARD_DEFS, ...(process.env.MERC ? MERCENARIOS_DEFS : [])];
+const defs = CARD_DEFS.filter(c => process.env.MERC || !MERCENARIOS_DEFS.some(m => m.name === c.name));   // com MERC=1 inclui o deck Mercenários
 const where = (name: string) => {
   const ids: string[] = [];
   for (const [id, r] of Object.entries(DECK_RECIPES)) if ((r.cards as Record<string, number>)[name]) ids.push(id === 'capitao' ? 'Cap' : 'Car');
-  if (process.env.MERC && MERCENARIOS_RECIPE.cards[name]) ids.push('Mer');
+  if (MERCENARIOS_RECIPE.cards[name]) ids.push('Mer');
   return ids.join('+') || '—';
 };
 const rows = defs.filter(c => UNITS.includes(c.cardType)).map(c => {

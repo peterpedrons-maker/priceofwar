@@ -432,6 +432,8 @@ export type CardType = import('./engine/types').CardType;
 
 export type CardData = {
   id: string;
+  // Só numa Relíquia com modos: o modo escolhido agora (id de um RelicMode do catálogo).
+  mode?: string;
   name: string;
   atk: number;
   hp: number;
@@ -2221,6 +2223,14 @@ const ART_BY_NAME: Record<string, string> = {
   "Chamado às Armas": chamadoAsArmasArt,
 };
 
+// Mercenários: uma imagem por carta em src/assets/merc/<nome-sem-acento>.webp (hoje provisórias; troque o arquivo pela arte real, mesmo nome).
+const MERC_ART_FILES = import.meta.glob('./assets/merc/*.webp', { eager: true, import: 'default' }) as Record<string, string>;
+const artSlug = (name: string) => name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+[DECK_RECIPES.mercenarios.general, ...Object.keys(DECK_RECIPES.mercenarios.cards)].forEach(name => {
+  const url = MERC_ART_FILES[`./assets/merc/${artSlug(name)}.webp`];
+  if (url) ART_BY_NAME[name] = url;
+});
+
 const cardDataFromName = (name: string, id: string): CardData => {
   const def = requireCardDef(name);
   return { id, name: def.name, atk: def.atk, hp: def.hp, cost: def.cost, art: ART_BY_NAME[name] ?? '', effect: def.effect, cardType: def.cardType, ...(def.isFullArt ? { isFullArt: true } : {}) };
@@ -2235,6 +2245,7 @@ const buildDeckCards = (deck: DeckId): CardData[] => {
 };
 const DECK_CAPITAO: CardData[] = buildDeckCards('capitao');
 const DECK_CARDEAL: CardData[] = buildDeckCards('cardeal');
+const DECK_MERCENARIOS: CardData[] = buildDeckCards('mercenarios');
 
 // The playable pool each side actually draws from during a match — the General
 // isn't a draw, it's placed straight onto the board at kickoff (see resetGame).
@@ -2253,11 +2264,19 @@ const DECKS = {
     general: DECK_CARDEAL.find(c => c.cardType === 'General')!,
     pool: DECK_CARDEAL.filter(c => c.cardType !== 'General'),
   },
+  mercenarios: {
+    id: 'mercenarios' as const,
+    name: 'Deck Mercenários',
+    description: 'Tropas de aluguel, manutenção e uma Relíquia de contratos.',
+    general: DECK_MERCENARIOS.find(c => c.cardType === 'General')!,
+    pool: DECK_MERCENARIOS.filter(c => c.cardType !== 'General'),
+  },
 } as const;
+const ALL_DECK_IDS: DeckId[] = ['cardeal', 'capitao', 'mercenarios'];
 
 // What a booster of each faction can hold: the faction's own cards (the lists from before the balance pass), not the tactics a deck borrows.
-const BOOSTER_POOLS: Record<DeckId, CardData[]> = { capitao: [], cardeal: [] };
-(['capitao', 'cardeal'] as DeckId[]).forEach(id => Object.entries(LEGACY_STARTERS[id][0]).forEach(([name, n]) => {
+const BOOSTER_POOLS: Record<DeckId, CardData[]> = { capitao: [], cardeal: [], mercenarios: [] };
+ALL_DECK_IDS.forEach(id => Object.entries(LEGACY_STARTERS[id][0]).forEach(([name, n]) => {
   for (let i = 0; i < n; i++) BOOSTER_POOLS[id].push(cardDataFromName(name, `pool_${id}_${name}_${i}`));
 }));
 
@@ -2332,6 +2351,7 @@ const needsServer = (action: EngineAction, view: GameState): boolean => {
     case 'play': return needsHiddenInfo(verbsOn(held(action.cardId)?.name ?? '', 'play'));
     case 'ability': return needsHiddenInfo(verbsOn(view.players[0].board[action.slot]?.name ?? '', 'ability'));
     case 'ambush': return needsHiddenInfo(verbsOn(held(action.cardId)?.name ?? '', 'ambush'));
+    case 'upkeep': return true;   // a dispensed card's Rescisão may draw from the deck: only the server knows it
     default: return false;
   }
 };
@@ -2348,21 +2368,28 @@ const countByName = (cards: readonly CardData[]) => {
 };
 
 const CAPITAO_STARTER_NAME = 'Deck Capitão';
+const MERC_STARTER_NAME = 'Deck Mercenários';
+// A nuvem (docs/supabase-schema.sql) só aceita os decks 1 e 2; o 3º (Mercenários) fica no aparelho até rodar docs/supabase-slot-3.sql e subir isto para 3.
+const CLOUD_DECK_SLOTS = 2;
+const MAX_DECK_SLOTS = 3;
 // Everybody starts with both prebuilt decks: the Cardeal list in slot 1 and the Capitão list in slot 2, each ready to play (the whole
 // collection of both, so either can also be rebuilt).
 const buildStarterStore = (): DeckStore => {
   const cardealCards = starterDeckCards('cardeal');
   const capitaoCards = starterDeckCards('capitao');
+  const mercCards = starterDeckCards('mercenarios');
   const collection: Record<string, number> = {
     ...countByName(DECKS.cardeal.pool), [DECKS.cardeal.general.name]: 1,
   };
-  (['cardeal', 'capitao'] as DeckId[]).forEach(id => [DECK_RECIPES[id].cards, ...LEGACY_STARTERS[id]].forEach(list => Object.entries(list).forEach(([name, n]) => { collection[name] = Math.max(collection[name] ?? 0, n); })));
+  ALL_DECK_IDS.forEach(id => [DECK_RECIPES[id].cards, ...LEGACY_STARTERS[id]].forEach(list => Object.entries(list).forEach(([name, n]) => { collection[name] = Math.max(collection[name] ?? 0, n); })));
   collection[DECKS.capitao.general.name] = 1;
+  collection[DECKS.mercenarios.general.name] = 1;
   return {
     collection,
     slots: [
       { id: 'slot1', name: DECKS.cardeal.name, general: DECKS.cardeal.general.name, cards: { ...cardealCards } },
       { id: 'slot2', name: CAPITAO_STARTER_NAME, general: DECKS.capitao.general.name, cards: { ...capitaoCards } },
+      { id: 'slot3', name: MERC_STARTER_NAME, general: DECKS.mercenarios.general.name, cards: { ...mercCards } },
     ],
   };
 };
@@ -2375,11 +2402,11 @@ const sameCards = (a: Record<string, number>, b: Record<string, number>) => {
 };
 const ensureStarterDecks = (store: DeckStore): boolean => {
   let changed = false;
-  (['cardeal', 'capitao'] as DeckId[]).forEach(id => [DECK_RECIPES[id].cards, ...LEGACY_STARTERS[id]].forEach(list => Object.entries(list).forEach(([name, n]) => {
+  ALL_DECK_IDS.forEach(id => [DECK_RECIPES[id].cards, ...LEGACY_STARTERS[id]].forEach(list => Object.entries(list).forEach(([name, n]) => {
     if ((store.collection[name] ?? 0) < n) { store.collection[name] = n; changed = true; }
   })));
-  if ((store.collection[DECKS.capitao.general.name] ?? 0) < 1) { store.collection[DECKS.capitao.general.name] = 1; changed = true; }
-  (['cardeal', 'capitao'] as DeckId[]).forEach(id => store.slots.forEach(sl => {
+  [DECKS.capitao.general.name, DECKS.mercenarios.general.name].forEach(g => { if ((store.collection[g] ?? 0) < 1) { store.collection[g] = 1; changed = true; } });
+  ALL_DECK_IDS.forEach(id => store.slots.forEach(sl => {
     if (sl.general === DECKS[id].general.name && LEGACY_STARTERS[id].some(old => sameCards(sl.cards, old)) && !sameCards(sl.cards, starterDeckCards(id))) {
       sl.cards = { ...starterDeckCards(id) }; changed = true;
     }
@@ -2387,6 +2414,11 @@ const ensureStarterDecks = (store: DeckStore): boolean => {
   const slot2 = store.slots[1];
   if (slot2 && Object.keys(slot2.cards).length === 0) {
     slot2.name = CAPITAO_STARTER_NAME; slot2.general = DECKS.capitao.general.name; slot2.cards = { ...starterDeckCards('capitao') };
+    changed = true;
+  }
+  // The 3rd deck (Mercenários) for accounts and devices that only had two: a new slot with the ready list.
+  if (store.slots.length < MAX_DECK_SLOTS) {
+    store.slots.push({ id: `slot${store.slots.length + 1}`, name: MERC_STARTER_NAME, general: DECKS.mercenarios.general.name, cards: { ...starterDeckCards('mercenarios') } });
     changed = true;
   }
   return changed;
@@ -2403,7 +2435,7 @@ const sanitizeDeckStore = (raw: any): DeckStore | null => {
   });
   const ownedGenerals = Object.keys(collection).filter(isGeneralName);
   if (ownedGenerals.length === 0) return null;
-  const slots: DeckSlot[] = raw.slots.slice(0, 2).map((sl: any, i: number): DeckSlot => {
+  const slots: DeckSlot[] = raw.slots.slice(0, MAX_DECK_SLOTS).map((sl: any, i: number): DeckSlot => {
     const cards: Record<string, number> = {};
     Object.entries((sl?.cards ?? {}) as Record<string, number>).forEach(([name, n]) => {
       const own = collection[name] ?? 0;
@@ -2436,7 +2468,7 @@ let cloudUserId: string | null = null;
 let pushTimer: number | undefined;
 let pushing = false;
 let pushAgain = false;
-const toCloudDecks = (store: DeckStore): CloudDeck[] => store.slots.map((sl, i) => ({ slot: i + 1, name: sl.name, general: sl.general, cards: sl.cards }));
+const toCloudDecks = (store: DeckStore): CloudDeck[] => store.slots.slice(0, CLOUD_DECK_SLOTS).map((sl, i) => ({ slot: i + 1, name: sl.name, general: sl.general, cards: sl.cards }));
 const runPush = async () => {
   if (!cloudUserId) return;
   if (pushing) { pushAgain = true; return; }
@@ -2473,7 +2505,7 @@ const syncDeckStoreWithCloud = async (userId: string): Promise<string | null> =>
   if (r.ok === false) return r.message;
   const { collection, decks } = r.data;
   if (Object.keys(collection).length > 0) {
-    const slots = [1, 2].map(n => {
+    const slots = [1, 2].map(n => {   // (a nuvem tem só 2 decks; o 3º vem do aparelho: ensureStarterDecks)
       const d = decks.find(x => x.slot === n);
       return { id: `slot${n}`, name: d?.name || `Deck ${n}`, general: d?.general || '', cards: d?.cards ?? {} };
     });
@@ -2506,9 +2538,10 @@ const deckProblem = (slot: DeckSlot): string | null => {
 };
 const buildDeckSelection = (slot: DeckSlot): DeckSelection => {
   const general = cardByName(slot.general)?.name ?? DECKS.cardeal.general.name;
-  // The AI plays the prebuilt deck of the OTHER faction, as before.
-  const isCapitaoGeneral = general === DECKS.capitao.general.name;
-  return { cards: { ...slot.cards }, general, npcDeckId: isCapitaoGeneral ? 'cardeal' : 'capitao' };
+  // The AI plays the prebuilt deck of one of the OTHER factions (chosen at random each time you pick your deck).
+  const own: DeckId = general === DECKS.capitao.general.name ? 'capitao' : general === DECKS.mercenarios.general.name ? 'mercenarios' : 'cardeal';
+  const others = ALL_DECK_IDS.filter(id => id !== own);
+  return { cards: { ...slot.cards }, general, npcDeckId: others[Math.floor(Math.random() * others.length)] };
 };
 const DEFAULT_DECK_SELECTION: DeckSelection = { cards: countByName(DECKS.capitao.pool), general: DECKS.capitao.general.name, npcDeckId: 'cardeal' };
 
@@ -3942,6 +3975,7 @@ type BoosterDef = { id: string; name: string; description: string; faction: Deck
 const BOOSTERS: BoosterDef[] = [
   { id: 'cardeal', name: 'Booster Cardeal', description: '5 cartas do baralho do Cardeal Pedro, Voz da Fé. Uma delas é sempre de custo 3 ou mais.', faction: 'cardeal', price: 100, cards: 5, accent: '#d9cfae' },
   { id: 'capitao', name: 'Booster Capitão', description: '5 cartas do baralho do Capitão. Uma delas é sempre de custo 3 ou mais.', faction: 'capitao', price: 100, cards: 5, accent: '#b8402c' },
+  { id: 'mercenarios', name: 'Booster Mercenários', description: '5 cartas do baralho dos Mercenários. Uma delas é sempre de custo 3 ou mais.', faction: 'mercenarios', price: 100, cards: 5, accent: '#c8923a' },
 ];
 // Room for 50 boosters: 5 shelves of up to 10. A booster's slot is its index in BOOSTERS.
 // TEST BUILD: boosters cost nothing so the opening flow can be tried over and over. Set to false
@@ -5434,6 +5468,12 @@ export default function App() {
   // to real logic, same as every other card right now), so activating any of them
   // applies one generic reactive buff (+2 ATK / +2 HP to the unit being attacked) —
   // a placeholder in the same spirit as the rest of the deck's flavor-only effects.
+  // Mercenários: the upkeep prompt of the Suprimentos phase (which units stay, paid) and the Relíquia's mode picker at the end of the turn.
+  const [upkeepPrompt, setUpkeepPrompt] = useState<{ entries: { slot: number; cardId: string; cost: number }[]; discount: number } | null>(null);
+  const [upkeepKeep, setUpkeepKeep] = useState<Record<string, boolean>>({});
+  const [relicPrompt, setRelicPrompt] = useState<{ pick: string; modes: { id: string; name: string; effect: string }[]; current: string } | null>(null);
+  const relicAskedRef = useRef('');
+  useEffect(() => { if (upkeepPrompt) setUpkeepKeep(Object.fromEntries(upkeepPrompt.entries.map(e => [e.cardId, true]))); }, [upkeepPrompt ? upkeepPrompt.entries.map(e => e.cardId).join(',') : '']);   // (closing the prompt resets the key, so the next one starts with everything kept)
   const [ambushPrompt, setAmbushPrompt] = useState<{
     defenderName: string;
     attackerName: string;
@@ -5982,7 +6022,7 @@ export default function App() {
   const toCardData = (c: EngineCard): CardData => ({
     id: c.id, name: c.name, atk: c.atk, hp: c.hp, cost: c.cost, art: ART_BY_NAME[c.name] ?? '', effect: c.effect,
     cardType: c.cardType, isFullArt: c.isFullArt, pendingCombatBonus: c.pendingCombatBonus, dmgReduction: c.dmgReduction,
-    formationBuffAtk: c.formationBuffAtk, equippedWeapons: c.equippedWeapons?.map(toCardData), shield: c.shield, block: c.block,
+    formationBuffAtk: c.formationBuffAtk, equippedWeapons: c.equippedWeapons?.map(toCardData), shield: c.shield, block: c.block, mode: c.mode,
   });
   toCardDataRef.current = toCardData;
   // A unit that just died stays on its slot for a moment, flagged destroyed, so its explosion can play
@@ -6025,6 +6065,8 @@ export default function App() {
     }
     setPlayerGraveyard(me.graveyard.map(toCardData));
     setNpcGraveyard(foe.graveyard.map(toCardData));
+    const pend = s.pending;
+    setUpkeepPrompt(pend && pend.kind === 'upkeep' && pend.seat === 0 ? { entries: pend.entries, discount: pend.discount } : null);
     setCurrentTurn(mine ? 'player' : 'npc');
     setTurnNumber(s.turn.round);
     setTurnPhase(s.turn.phase);
@@ -6223,8 +6265,16 @@ export default function App() {
         case 'log':
           if (e.text.includes(' equipado: ')) break;   // the equip scene says it itself
           // The AI's own prompts and its ambush line have their own wording elsewhere.
-          if (e.seat === 1 && (e.text.includes('ativar Emboscada?') || e.text.startsWith('Emboscada ativada') || e.text.startsWith('Você tem'))) break;
+          if (e.seat === 1 && (e.text.includes('ativar Emboscada?') || e.text.startsWith('Emboscada ativada') || e.text.startsWith('Você tem') || e.text.startsWith('Manutenção:'))) break;
+          if (e.text.startsWith('Manutenção:')) break;   // the prompt itself says it
+          if (e.seat === 1 && e.text.includes(' foi dispensado')) { showToast(`O oponente: ${e.text}`); break; }
           showToast(e.seat === 1 && e.text.includes('descartada') ? `O oponente descartou ${e.text.split(' ')[0]} carta(s).` : e.text);
+          break;
+        case 'relic_mode':
+          if (e.seat === 1) {
+            const m = getCardDef(engineRef.current?.players[1].board[10]?.name ?? '')?.modes?.find(x => x.id === e.mode);
+            showToast(`O oponente escolheu o modo ${m?.name ?? e.mode} da Relíquia.`);
+          }
           break;
         case 'winner':
           if (TIME.k > 1) {
@@ -6580,6 +6630,38 @@ export default function App() {
     return true;
   };
 
+  // Mercenários: a Relíquia with modes asks, at the end of the turn (Movimentação), which mode holds until the end of the next turn.
+  // Returns true when it opened the picker (the turn does not end yet; the picker's button ends it).
+  const maybePromptRelicMode = (): boolean => {
+    const s = engineRef.current;
+    const relic = s?.players[0].board[10];
+    const modes = relic ? getCardDef(relic.name)?.modes : undefined;
+    if (!s || !relic || !modes || modes.length === 0 || s.turn.active !== 0 || s.turn.phase !== 'movimentacao') return false;
+    const key = `${s.turn.round}:${s.turn.active}`;
+    if (relicAskedRef.current === key) return false;   // already answered this turn
+    setRelicPrompt({ pick: relic.mode ?? modes[0].id, modes: modes.map(m => ({ id: m.id, name: m.name, effect: m.effect })), current: relic.mode ?? modes[0].id });
+    return true;
+  };
+  const confirmRelicMode = () => {
+    const rp = relicPrompt; const s = engineRef.current;
+    if (!rp || !s) return;
+    if (rp.pick !== rp.current) {
+      const r = dispatchAction(0, { type: 'relic_mode', mode: rp.pick });
+      if (r.ok === false) { showToast(r.error); return; }
+    }
+    relicAskedRef.current = `${s.turn.round}:${s.turn.active}`;
+    setRelicPrompt(null);
+    window.setTimeout(() => endTurnNow(), 60);
+  };
+  const confirmUpkeep = () => {
+    if (!upkeepPrompt) return;
+    const keep = upkeepPrompt.entries.filter(e => upkeepKeep[e.cardId] !== false).map(e => e.cardId);
+    const r = dispatchAction(0, { type: 'upkeep', keep });
+    if (r.ok === false) { showToast(r.error); return; }
+    playUiClickSfx();
+    setUpkeepPrompt(null);
+  };
+
   // "Encerrar turno": every phase still to come (Combate, Movimentação) is passed in one go, so the player never has to tap
   // through them one by one. The engine does the rest (Aurelion's bonus, the swaps, the discard prompt if the hand is over
   // the limit, the opponent's turn). It stops at anything the player still has to answer.
@@ -6594,6 +6676,7 @@ export default function App() {
       for (let guard = 0; guard < 8; guard++) {
         const eng = engineRef.current;
         if (!eng || eng.winner !== null || eng.turn.active !== 0 || eng.pending) break;
+        if (eng.turn.phase === 'movimentacao' && maybePromptRelicMode()) break;   // a Relíquia with modes asks first
         const r = dispatchAction(0, { type: 'advance' });
         if (r.ok === false) { showToast(r.error); break; }
       }
@@ -8897,6 +8980,7 @@ export default function App() {
             setSelectedMoverIndex(null);
             // Advancing ends the phase — and, from the last phase, the turn (Aurelion's bonus, the Soldado Tático swap,
             // the opponent's turn starting) — all decided by the engine.
+            if (maybePromptRelicMode()) return;   // (Mercenários: the Relíquia's mode is picked before the turn ends)
             playerAct({ type: 'advance' });
           }}
         >
@@ -9249,6 +9333,77 @@ export default function App() {
             </motion.div>
           );
         })()}
+        {/* Mercenários — Suprimentos: which hired units stay (their upkeep is paid) and which are dismissed. */}
+        {upkeepPrompt && !autoPhase && !phaseTransitionLock && (() => {
+          const eng = engineRef.current;
+          const rows = upkeepPrompt.entries.flatMap(e => { const c = eng?.players[0].board[e.slot]; return c && c.id === e.cardId ? [{ e, c }] : []; });
+          const keptCost = rows.filter(r => upkeepKeep[r.e.cardId] !== false).reduce((a, r) => a + r.e.cost, 0);
+          const total = Math.max(0, keptCost - upkeepPrompt.discount);
+          const ok = total <= playerMana;
+          return (
+            <motion.div key="upkeep-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[268] flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.74)' }} onClick={(ev) => ev.stopPropagation()}>
+              <div className="w-full pointer-events-auto" style={{ maxWidth: 440, padding: '14px 14px calc(14px + env(safe-area-inset-bottom))', background: 'linear-gradient(#2c1e0f, #140d06)', borderTop: '2px solid #b8923a', borderRadius: '18px 18px 0 0', boxShadow: '0 -10px 40px rgba(0,0,0,0.7)' }}>
+                <div className="text-center" style={{ fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 19, letterSpacing: '0.06em', color: '#f4dfa6' }}>MANUTENÇÃO DA COMPANHIA</div>
+                <div className="text-center mb-2" style={{ fontFamily: "'PT Serif', serif", fontSize: 12.5, color: '#d6c39a' }}>
+                  Você tem <b style={{ color: '#ffd36a' }}>{playerMana}</b> de ouro. Quem não for pago vai embora.{upkeepPrompt.discount > 0 ? ` A Relíquia abate ${upkeepPrompt.discount}.` : ''}
+                </div>
+                <div className="flex flex-col gap-1.5 overflow-y-auto" style={{ maxHeight: '48vh' }}>
+                  {rows.map(({ e, c }) => {
+                    const kept = upkeepKeep[e.cardId] !== false;
+                    const def = getCardDef(c.name);
+                    const outcome = def?.dismiss === 'hand' ? 'volta para a mão' : 'vai ao cemitério';
+                    const rescisao = (def?.abilities ?? []).some(a => a.on === 'dismissed') ? ' · Rescisão: compra 1 carta' : '';
+                    return (
+                      <div key={e.cardId} className="flex items-center gap-2 rounded-lg" style={{ padding: '6px 8px', background: kept ? 'rgba(64,96,52,0.34)' : 'rgba(120,42,30,0.38)', border: `1px solid ${kept ? '#6f9a5a' : '#a8503c'}` }}>
+                        <img src={ART_BY_NAME[c.name]} alt="" draggable={false} className="rounded object-cover" style={{ width: 54, height: 36, border: '1px solid rgba(255,255,255,0.18)' }} />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 13, color: '#f6ead0' }}>{c.name}</div>
+                          <div style={{ fontFamily: "'PT Serif', serif", fontSize: 11, color: '#cdb98f' }}>{c.atk}/{c.hp} · manutenção {e.cost}{kept ? '' : ` · ${outcome}${rescisao}`}</div>
+                        </div>
+                        <button className="shrink-0 active:scale-95 transition" style={{ width: 92, padding: '7px 4px', borderRadius: 8, fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 12, letterSpacing: '0.03em', color: kept ? '#d4f5c9' : '#ffd0c2', background: kept ? '#27401f' : '#4a2018', border: `1.5px solid ${kept ? '#7fbf6a' : '#d0705a'}` }}
+                          onClick={(ev) => { ev.stopPropagation(); playUiClickSfx(); setUpkeepKeep(k => ({ ...k, [e.cardId]: !kept })); }}>
+                          {kept ? `Pagar ${e.cost}` : 'Dispensar'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center justify-between mt-2 mb-2" style={{ fontFamily: "'PT Serif', serif", fontSize: 13, color: '#e8d7ae' }}>
+                  <span>Total a pagar: <b style={{ color: ok ? '#ffd36a' : '#ff9d88' }}>{total}</b></span>
+                  {!ok && <span style={{ color: '#ff9d88' }}>Falta ouro: dispense alguém</span>}
+                </div>
+                <GameButton tone="primary" size={17} className="w-full" disabled={!ok} onClick={(ev) => { ev.stopPropagation(); confirmUpkeep(); }}>Confirmar</GameButton>
+              </div>
+            </motion.div>
+          );
+        })()}
+        {/* Mercenários — fim do turno: which mode of the Relíquia holds until the end of the next turn. */}
+        {relicPrompt && (
+          <motion.div key="relic-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[268] flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.74)' }} onClick={(ev) => ev.stopPropagation()}>
+            <div className="w-full pointer-events-auto" style={{ maxWidth: 440, padding: '14px 14px calc(14px + env(safe-area-inset-bottom))', background: 'linear-gradient(#2c1e0f, #140d06)', borderTop: '2px solid #b8923a', borderRadius: '18px 18px 0 0', boxShadow: '0 -10px 40px rgba(0,0,0,0.7)' }}>
+              <div className="text-center" style={{ fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 19, letterSpacing: '0.06em', color: '#f4dfa6' }}>MODO DA RELÍQUIA</div>
+              <div className="text-center mb-2" style={{ fontFamily: "'PT Serif', serif", fontSize: 12.5, color: '#d6c39a' }}>Vale até o fim do seu próximo turno (o adversário vê qual é).</div>
+              <div className="flex flex-col gap-2">
+                {relicPrompt.modes.map(m => {
+                  const on = relicPrompt.pick === m.id;
+                  return (
+                    <button key={m.id} className="text-left active:scale-[0.99] transition" style={{ padding: '10px 12px', borderRadius: 10, background: on ? 'rgba(120,88,22,0.5)' : 'rgba(255,255,255,0.05)', border: `1.5px solid ${on ? '#e8c766' : 'rgba(255,255,255,0.18)'}` }}
+                      onClick={(ev) => { ev.stopPropagation(); playUiClickSfx(); setRelicPrompt(p => (p ? { ...p, pick: m.id } : p)); }}>
+                      <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 14, color: on ? '#fff1c9' : '#e8dcc0' }}>{m.name}{m.id === relicPrompt.current ? ' · em uso' : ''}</div>
+                      <div style={{ fontFamily: "'PT Serif', serif", fontSize: 12, color: '#cdb98f' }}>{m.effect}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex gap-2 mt-3">
+                <GameButton tone="neutral" size={15} className="flex-1" onClick={(ev) => { ev.stopPropagation(); setRelicPrompt(null); }}>Voltar</GameButton>
+                <GameButton tone="primary" size={15} className="flex-[2]" onClick={(ev) => { ev.stopPropagation(); confirmRelicMode(); }}>Encerrar turno</GameButton>
+              </div>
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* Flying card — plays from hand to the chosen board slot along real screen coordinates.
@@ -10581,6 +10736,13 @@ const CardSlot = ({
           <span className="px-2 rounded-md font-extrabold leading-tight whitespace-nowrap"
             style={{ fontFamily: "'Cinzel', serif", fontSize: 21, color: tacticTag.color, background: 'rgba(12,8,4,0.86)', border: `2px solid ${tacticTag.color}`, textShadow: '0 1px 2px #000', boxShadow: `0 0 14px ${tacticTag.color}aa` }}>
             {tacticTag.text}
+          </span>
+        </div>
+      )}
+      {card?.mode && (
+        <div className="absolute inset-x-0 bottom-0 z-[35] flex justify-center pointer-events-none">
+          <span className="px-1 rounded-sm whitespace-nowrap font-extrabold leading-tight" style={{ fontFamily: "'Cinzel', serif", fontSize: 7, color: '#fff1c9', background: 'rgba(24,14,4,0.88)', border: '1px solid #e8c766', transform: 'translateY(35%)', textShadow: '0 1px 1px #000' }}>
+            {getCardDef(card.name)?.modes?.find(m => m.id === card.mode)?.name ?? card.mode}
           </span>
         </div>
       )}

@@ -13,12 +13,12 @@ var CARD_DEFS = [
     name: "Comandante Aurelion, Mestre da Forma\xE7\xE3o",
     cardType: "General",
     atk: 0,
-    hp: 20,
+    hp: 30,
     cost: 0,
     isFullArt: true,
-    effect: "**Fim do turno** At\xE9 2 unidades que se moveram ganham +1/+1 no pr\xF3ximo combate. **Passiva** Rel\xEDquia e Terreno recebem -1 de dano.",
+    effect: "**Fim do turno** At\xE9 2 unidades que se moveram ganham +2/+1 no pr\xF3ximo combate. **Passiva** Rel\xEDquia e Terreno recebem -1 de dano.",
     faction: "ordem",
-    abilities: [{ on: "turn_end", do: [{ kind: "buff_moved", count: 2, atk: 1, hp: 1 }] }],
+    abilities: [{ on: "turn_end", do: [{ kind: "buff_moved", count: 2, atk: 2, hp: 1 }] }],
     passives: [{ kind: "aura", who: { side: "own", slots: [10, 11] }, reduce: 1 }]
   },
   {
@@ -37,8 +37,11 @@ var CARD_DEFS = [
     atk: 2,
     hp: 4,
     cost: 2,
-    effect: "Na Vanguarda, a carta atr\xE1s recebe -1 de dano.",
-    passives: [{ kind: "aura", who: { side: "own", behind: true }, from: "front", reduce: 1 }]
+    effect: "Recebe -1 de dano. Na Vanguarda, a carta atr\xE1s tamb\xE9m recebe -1 de dano.",
+    passives: [
+      { kind: "aura", who: { side: "own", behind: true }, from: "front", reduce: 1 },
+      { kind: "aura", who: { side: "self" }, reduce: 1 }
+    ]
   },
   {
     name: "Capit\xE3o de Forma\xE7\xE3o",
@@ -48,8 +51,8 @@ var CARD_DEFS = [
     cost: 3,
     isFullArt: true,
     trigger: "manobra",
-    effect: "Aliados ao lado ganham +1 ATK at\xE9 o pr\xF3ximo turno.",
-    abilities: [{ on: "move", do: [{ kind: "buff_adjacent", atk: 1 }] }]
+    effect: "Aliados ao lado ganham +2 ATK at\xE9 o pr\xF3ximo turno.",
+    abilities: [{ on: "move", do: [{ kind: "buff_adjacent", atk: 2 }] }]
   },
   {
     name: "Batedor",
@@ -57,8 +60,8 @@ var CARD_DEFS = [
     atk: 1,
     hp: 2,
     cost: 1,
-    effect: "Depois de atacar, move-se 1 casa de gra\xE7a.",
-    abilities: [{ on: "after_attack", do: [{ kind: "free_move" }] }]
+    effect: "Depois de atacar, move-se 1 casa de gra\xE7a e ganha +1 ATK para sempre.",
+    abilities: [{ on: "after_attack", do: [{ kind: "free_move" }, { kind: "buff", atk: 1 }] }]
   },
   {
     name: "Lanceiro de Controle",
@@ -67,8 +70,8 @@ var CARD_DEFS = [
     atk: 3,
     hp: 2,
     cost: 2,
-    effect: "O inimigo \xE0 frente tem -1 ATK.",
-    passives: [{ kind: "aura", who: { side: "enemy", facing: true }, atk: -1 }]
+    effect: "O inimigo \xE0 frente tem -2 ATK.",
+    passives: [{ kind: "aura", who: { side: "enemy", facing: true }, atk: -2 }]
   },
   {
     name: "Cavaleiro T\xE1tico",
@@ -77,7 +80,8 @@ var CARD_DEFS = [
     hp: 4,
     cost: 3,
     isFullArt: true,
-    effect: "Troca de lugar com qualquer aliado da fileira.",
+    effect: "Troca de lugar com qualquer aliado da fileira. Ao se mover, aliados ao lado ganham +1 ATK at\xE9 o pr\xF3ximo turno.",
+    abilities: [{ on: "move", do: [{ kind: "buff_adjacent", atk: 1 }] }],
     passives: [{ kind: "flag", flag: "row_swap" }]
   },
   {
@@ -88,8 +92,11 @@ var CARD_DEFS = [
     hp: 3,
     cost: 3,
     isFullArt: true,
-    effect: "+2 ATK na coluna central.",
-    passives: [{ kind: "aura", who: { side: "self" }, when: { col: 2 }, atk: 2 }]
+    effect: "+2 ATK na coluna central e +1 ATK na Vanguarda.",
+    passives: [
+      { kind: "aura", who: { side: "self" }, when: { col: 2 }, atk: 2 },
+      { kind: "aura", who: { side: "self" }, from: "front", atk: 1 }
+    ]
   },
   {
     name: "Reformar Linhas",
@@ -98,18 +105,18 @@ var CARD_DEFS = [
     hp: 0,
     cost: 2,
     isFullArt: true,
-    effect: "3 movimentos extras neste turno.",
-    abilities: [{ on: "play", do: [{ kind: "extra_moves", amount: 3 }] }]
+    effect: "3 movimentos extras neste turno. Compre 1 carta.",
+    abilities: [{ on: "play", do: [{ kind: "extra_moves", amount: 3 }, { kind: "draw", amount: 1 }] }]
   },
   {
     name: "Avan\xE7o Coordenado",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
-    cost: 2,
-    effect: "+2 ATK a uma unidade que se moveu neste turno.",
+    cost: 1,
+    effect: "+3 ATK a uma unidade que se moveu neste turno.",
     abilities: [{ on: "play", do: [
-      { kind: "buff", atk: 2, target: { ...OWN_UNIT, needs: "moved", prompt: "Escolha uma unidade sua que j\xE1 se moveu neste turno." } }
+      { kind: "buff", atk: 3, target: { ...OWN_UNIT, needs: "moved", prompt: "Escolha uma unidade sua que j\xE1 se moveu neste turno." } }
     ] }]
   },
   {
@@ -129,9 +136,9 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 2,
-    effect: "-1 de dano, para sempre, nos aliados ao lado da unidade escolhida.",
+    effect: "-2 de dano, para sempre, nos aliados ao lado da unidade escolhida.",
     abilities: [{ on: "play", do: [
-      { kind: "guard_adjacent", amount: 1, target: { ...OWN_UNIT, prompt: "Escolha uma unidade sua \u2014 os aliados ao lado dela recebem menos dano." } }
+      { kind: "guard_adjacent", amount: 2, target: { ...OWN_UNIT, prompt: "Escolha uma unidade sua \u2014 os aliados ao lado dela recebem menos dano." } }
     ] }]
   },
   {
@@ -150,7 +157,7 @@ var CARD_DEFS = [
     cardType: "Emboscada",
     atk: 0,
     hp: 0,
-    cost: 2,
+    cost: 1,
     effect: "Cancela um ataque a uma unidade com aliado ao lado.",
     abilities: [{ on: "ambush", do: [{ kind: "cancel_attack", ifAdjacentAlly: true }] }]
   },
@@ -180,8 +187,8 @@ var CARD_DEFS = [
     hp: 5,
     cost: 3,
     isFullArt: true,
-    effect: "+1 ATK \xE0s suas unidades.",
-    passives: [{ kind: "aura", who: { side: "own" }, atk: 1 }]
+    effect: "+1/+1 em combate \xE0s suas cartas em campo.",
+    passives: [{ kind: "aura", who: { side: "own" }, atk: 1, combatHp: 1 }]
   },
   {
     name: "Fortaleza de Pedra",
@@ -208,7 +215,7 @@ var CARD_DEFS = [
     trigger: "comando",
     cardType: "General",
     atk: 0,
-    hp: 20,
+    hp: 30,
     cost: 0,
     isFullArt: true,
     effect: "Pague 2 de ouro: +1 HP a uma unidade aliada.",
@@ -235,8 +242,8 @@ var CARD_DEFS = [
     atk: 1,
     hp: 1,
     cost: 1,
-    effect: "Veja 2 cartas do topo do baralho, fique com 1 e mande a outra para o fundo.",
-    abilities: [{ on: "ability", once: true, do: [{ kind: "look_top", count: 2, keepMin: 1, keepMax: 1 }] }]
+    effect: "Pague 1 de ouro: veja 2 cartas do topo do baralho, fique com 1 e mande a outra para o cemit\xE9rio.",
+    abilities: [{ on: "ability", once: true, cost: 1, do: [{ kind: "look_top", count: 2, keepMin: 1, keepMax: 1, rest: "graveyard" }] }]
   },
   {
     name: "Infiltrado da Ordem",
@@ -276,7 +283,7 @@ var CARD_DEFS = [
     cardType: "Infantaria",
     atk: 2,
     hp: 3,
-    cost: 2,
+    cost: 3,
     effect: "No in\xEDcio do turno, compre at\xE9 ter 2 cartas na m\xE3o.",
     abilities: [{ on: "turn_start", do: [{ kind: "refill_hand", to: 2 }] }]
   },
@@ -285,7 +292,7 @@ var CARD_DEFS = [
     cardType: "Infantaria",
     atk: 3,
     hp: 4,
-    cost: 2,
+    cost: 3,
     trigger: "reforco",
     effect: "Se a da frente cair, desce e ganha Escudo 2.",
     abilities: [{ on: "front_fell", do: [{ kind: "reinforce", shield: 2 }] }]
@@ -295,7 +302,7 @@ var CARD_DEFS = [
     cardType: "Cavalaria",
     atk: 4,
     hp: 6,
-    cost: 3,
+    cost: 4,
     isFullArt: true,
     trigger: "ofensiva",
     effect: "Ao atacar a Vanguarda, 2 de dano \xE0 carta atr\xE1s.",
@@ -307,7 +314,7 @@ var CARD_DEFS = [
     cardType: "Cavalaria",
     atk: 2,
     hp: 3,
-    cost: 2,
+    cost: 3,
     effect: "+1 HP a um aliado ferido e 1 de dano a um inimigo da Vanguarda.",
     abilities: [{ on: "ability", phases: ["preparacao", "movimentacao"], once: true, do: [
       { kind: "heal", amount: 1, target: { ...OWN_UNIT, needs: "damaged", optional: true, prompt: "Toque em um aliado ferido." } },
@@ -319,20 +326,20 @@ var CARD_DEFS = [
     cardType: "Cavalaria",
     atk: 4,
     hp: 5,
-    cost: 3,
+    cost: 4,
     isFullArt: true,
     trigger: "convocacao",
     effect: "Soldados Leais (1/1) nos espa\xE7os livres ao lado.",
     abilities: [{ on: "place", do: [{ kind: "summon_token", token: "Soldado Leal" }] }]
   },
-  { name: "Cavaleiro da Luz", cardType: "Cavalaria", atk: 4, hp: 5, cost: 3, isFullArt: true, effect: "" },
+  { name: "Cavaleiro da Luz", cardType: "Cavalaria", atk: 4, hp: 5, cost: 4, isFullArt: true, effect: "" },
   {
     name: "Comandante da Ordem",
     trigger: "postura",
     cardType: "Cavalaria",
     atk: 5,
     hp: 5,
-    cost: 3,
+    cost: 4,
     isFullArt: true,
     effect: "Na Vanguarda, seus Infantaria e Arqueiros t\xEAm +1/+1 em combate.",
     passives: [{
@@ -348,7 +355,7 @@ var CARD_DEFS = [
     cardType: "Arqueiro",
     atk: 1,
     hp: 4,
-    cost: 2,
+    cost: 3,
     effect: "Ataca 2 vezes por rodada.",
     passives: [{ kind: "aura", who: { side: "self" }, attacks: 1 }]
   },
@@ -357,7 +364,7 @@ var CARD_DEFS = [
     cardType: "Arqueiro",
     atk: 1,
     hp: 3,
-    cost: 2,
+    cost: 3,
     trigger: "queda",
     effect: "Compre 2 cartas.",
     abilities: [{ on: "destroyed", do: [{ kind: "draw", amount: 2 }] }]
@@ -510,6 +517,174 @@ var CARD_DEFS = [
     cost: 2,
     effect: "Convoque at\xE9 2 soldados de 0 ATK do baralho para a Vanguarda. Embaralhe.",
     abilities: [{ on: "play", do: [{ kind: "summon_deck", max: 2, filter: { types: SOLDIERS, atk: 0 } }] }]
+  },
+  // ── mercenarios ── (deck novo: nenhuma carta é do Cardeal nem do Capitão; custos pela tabela de docs/balanceamento.md; proposta em docs/deck-mercenarios.md)
+  {
+    name: "Comandante Brann, Senhor da Companhia",
+    trigger: "comando",
+    cardType: "General",
+    atk: 0,
+    hp: 30,
+    cost: 0,
+    isFullArt: true,
+    faction: "soldo",
+    effect: "Pague 3 de ouro: compre 1 carta.",
+    abilities: [{ on: "ability", phases: ["preparacao"], once: true, cost: 3, do: [{ kind: "draw", amount: 1 }] }]
+  },
+  // ── mercenários (com manutenção) ──
+  { name: "Lanceiro de Aluguel", cardType: "Infantaria", atk: 2, hp: 2, cost: 1, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.**" },
+  { name: "Besteiro Contratado", cardType: "Arqueiro", atk: 2, hp: 2, cost: 2, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.**" },
+  { name: "Espadachim do Soldo", cardType: "Infantaria", atk: 4, hp: 3, cost: 2, upkeep: 2, effect: "**Manuten\xE7\xE3o 2.**" },
+  {
+    name: "Desertor",
+    cardType: "Infantaria",
+    atk: 2,
+    hp: 2,
+    cost: 1,
+    upkeep: 1,
+    effect: "**Manuten\xE7\xE3o 1.** Rescis\xE3o: compre 1 carta.",
+    abilities: [{ on: "dismissed", do: [{ kind: "draw", amount: 1 }] }]
+  },
+  {
+    name: "Capit\xE3o da Companhia",
+    isFullArt: true,
+    trigger: "postura",
+    cardType: "Infantaria",
+    atk: 3,
+    hp: 5,
+    cost: 3,
+    upkeep: 2,
+    effect: "**Manuten\xE7\xE3o 2.** Na Vanguarda, seus Infantaria e Arqueiros t\xEAm +1 ATK.",
+    passives: [{ kind: "aura", who: { side: "own", types: ["Infantaria", "Arqueiro"] }, from: "front", atk: 1 }]
+  },
+  { name: "Cavaleiro Errante", isFullArt: true, cardType: "Cavalaria", atk: 4, hp: 5, cost: 3, upkeep: 1, dismiss: "hand", effect: "**Manuten\xE7\xE3o 1.** Se dispensado, volta para a m\xE3o." },
+  { name: "Duelista Livre", cardType: "Infantaria", atk: 5, hp: 2, cost: 2, upkeep: 2, dismiss: "hand", effect: "**Manuten\xE7\xE3o 2.** Se dispensado, volta para a m\xE3o." },
+  { name: "Bombardeiro Contratado", cardType: "Artilharia", atk: 3, hp: 2, cost: 3, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.** Ataca \xE0 dist\xE2ncia." },
+  // ── sem manutenção ──
+  { name: "Sentinela Fiel", cardType: "Infantaria", atk: 2, hp: 4, cost: 2, effect: "" },
+  {
+    name: "Tesoureiro da Companhia",
+    trigger: "comando",
+    cardType: "Infantaria",
+    atk: 1,
+    hp: 3,
+    cost: 2,
+    effect: "No in\xEDcio do turno, ganhe 1 de ouro.",
+    abilities: [{ on: "turn_start", do: [{ kind: "gold", amount: 1 }] }]
+  },
+  // ── táticas, equipamentos e emboscada próprios do deck (nenhuma carta é emprestada do Cardeal nem do Capitão) ──
+  {
+    name: "Escriba de Contratos",
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 1,
+    effect: "Leve 1 Rel\xEDquia do baralho para a m\xE3o.",
+    abilities: [{ on: "play", do: [{ kind: "search", zone: "deck", filter: { types: ["Rel\xEDquia"] } }] }]
+  },
+  {
+    name: "Ag\xEAncia de Recrutamento",
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 2,
+    effect: "Leve 1 soldado do baralho para a m\xE3o.",
+    abilities: [{ on: "play", do: [{ kind: "search", zone: "deck", filter: { types: SOLDIERS } }] }]
+  },
+  {
+    name: "Resgate de Mercen\xE1rio",
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 1,
+    effect: "Leve 1 soldado do cemit\xE9rio para a m\xE3o.",
+    abilities: [{ on: "play", do: [{ kind: "search", zone: "graveyard", filter: { types: SOLDIERS } }] }]
+  },
+  {
+    name: "Recrutamento de Rua",
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 3,
+    effect: "Compre 2 cartas.",
+    abilities: [{ on: "play", do: [{ kind: "draw", amount: 2 }] }]
+  },
+  {
+    name: "Salva de Besteiros",
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 2,
+    effect: "2 de dano a todas as unidades de uma fileira inimiga.",
+    abilities: [{ on: "play", do: [
+      { kind: "damage", amount: 2, target: { side: "enemy", area: "row", prompt: "Escolha uma fileira inimiga (clique em qualquer slot dela)." } }
+    ] }]
+  },
+  {
+    name: "Contrato de Execu\xE7\xE3o",
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 2,
+    effect: "3 de dano a uma unidade inimiga.",
+    abilities: [{ on: "play", do: [
+      { kind: "damage", amount: 3, target: { side: "enemy", area: "unit", prompt: "Escolha a unidade inimiga que o contrato elimina (3 de dano)." } }
+    ] }]
+  },
+  {
+    name: "Carga de P\xF3lvora",
+    isFullArt: true,
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 3,
+    effect: "2 de dano a todas as unidades inimigas e ao General.",
+    abilities: [{ on: "play", do: [{ kind: "damage", amount: 2, all: "enemy" }] }]
+  },
+  {
+    name: "Armadura Alugada",
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 1,
+    effect: "Equipe uma Infantaria: +2 HP.",
+    abilities: [{ on: "play", do: [
+      { kind: "equip", hp: 2, target: { side: "own", area: "unit", types: ["Infantaria"], prompt: "Escolha uma Infantaria sua para equipar (+2 HP)." } }
+    ] }]
+  },
+  {
+    name: "Espada de Aluguel",
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 1,
+    effect: "Equipe uma Infantaria ou Cavalaria: +2 ATK.",
+    abilities: [{ on: "play", do: [
+      { kind: "equip", atk: 2, target: { side: "own", area: "unit", types: ["Cavalaria", "Infantaria"], prompt: "Escolha uma Cavalaria ou Infantaria sua para equipar (+2 ATK)." } }
+    ] }]
+  },
+  {
+    name: "Suborno",
+    cardType: "Emboscada",
+    atk: 0,
+    hp: 0,
+    cost: 2,
+    effect: "Cancela um ataque a uma de suas unidades.",
+    abilities: [{ on: "ambush", do: [{ kind: "cancel_attack" }] }]
+  },
+  // ── a Relíquia do deck: três modos, o dono escolhe um no fim do turno (vale até o fim do turno seguinte) ──
+  {
+    name: "Livro de Contratos",
+    cardType: "Rel\xEDquia",
+    atk: 0,
+    hp: 5,
+    cost: 3,
+    isFullArt: true,
+    effect: "Escolha 1 modo no fim do seu turno. Soldo em Dobro: cartas com manuten\xE7\xE3o t\xEAm +1 ATK. Saque: ao destruir uma unidade inimiga, compre 1 carta (m\xE1x. 1 por ciclo).",
+    modes: [
+      { id: "soldo", name: "Soldo em Dobro", effect: "Cartas com manuten\xE7\xE3o t\xEAm +1 ATK.", atk: 1 },
+      { id: "saque", name: "Saque", effect: "Ao destruir uma unidade inimiga, compre 1 carta (m\xE1x. 1 por ciclo).", loot: { draw: 1, cap: 1 } }
+    ]
   }
 ];
 var DECK_RECIPES = {
@@ -525,15 +700,18 @@ var DECK_RECIPES = {
       "Batedor": 4,
       "Lanceiro de Controle": 4,
       "Cavaleiro T\xE1tico": 4,
-      "Veterano de Guerra": 3,
-      "Reformar Linhas": 4,
+      "Veterano de Guerra": 4,
+      "Reformar Linhas": 3,
       "Avan\xE7o Coordenado": 4,
-      "Reposicionamento R\xE1pido": 4,
+      "Reposicionamento R\xE1pido": 1,
       "Linha Fechada": 4,
       "Ordem de Retirada": 4,
+      "Catapulta de Guerra": 2,
+      "Balestra de Precis\xE3o": 2,
+      "Trabuco de Cerco": 1,
       "Bloqueio Instant\xE2neo": 4,
-      "Contra-Manobra": 4,
-      "Forma\xE7\xE3o Quebrada": 4,
+      "Contra-Manobra": 2,
+      "Forma\xE7\xE3o Quebrada": 2,
       "Estandarte da Legi\xE3o": 1,
       "Fortaleza de Pedra": 1,
       "P\xE2ntano Maldito": 1
@@ -547,21 +725,21 @@ var DECK_RECIPES = {
     cards: {
       "C\xE1lice da Gra\xE7a": 1,
       "Devotos da Cruzada": 4,
-      "Mercador da Cruzada": 2,
+      "Mercador da Cruzada": 1,
       "Infiltrado da Ordem": 1,
       "Fan\xE1tico da Cruzada": 1,
-      "Recruta Devoto": 2,
-      "Intendente do Ex\xE9rcito": 2,
-      "Soldados da Ordem": 2,
-      "Jorge, Lan\xE7a Sagrada": 3,
-      "Cavaleiro Hospital\xE1rio": 2,
+      "Recruta Devoto": 4,
+      "Intendente do Ex\xE9rcito": 3,
+      "Soldados da Ordem": 4,
+      "Jorge, Lan\xE7a Sagrada": 2,
+      "Cavaleiro Hospital\xE1rio": 3,
       "Nobre da Cruzada": 2,
-      "Cavaleiro da Luz": 4,
+      "Cavaleiro da Luz": 3,
       "Comandante da Ordem": 1,
-      "Arqueiro da Ordem": 2,
-      "Atirador da Cruzada": 2,
-      "Trabuco de Cerco": 2,
-      "Catapulta de Guerra": 3,
+      "Arqueiro da Ordem": 3,
+      "Atirador da Cruzada": 3,
+      "Trabuco de Cerco": 1,
+      "Catapulta de Guerra": 1,
       "Balestra de Precis\xE3o": 1,
       "Armadura de Guerra": 2,
       "Coura\xE7a Refor\xE7ada": 2,
@@ -570,11 +748,43 @@ var DECK_RECIPES = {
       "Refor\xE7os Ocultos": 2,
       "Retorno do Soldado": 1,
       "Graal da D\xE1diva": 1,
-      "Doutrina Renovada": 2,
+      "Doutrina Renovada": 3,
       "Recrutamento Seletivo": 2,
-      "Recrutar Veteranos": 2,
+      "Recrutar Veteranos": 1,
       "Tributo de Guerra": 2,
       "Chamado \xE0s Armas": 2
+    }
+  },
+  mercenarios: {
+    id: "mercenarios",
+    name: "Deck Mercen\xE1rios",
+    description: "Tropas de aluguel, manuten\xE7\xE3o e uma Rel\xEDquia de contratos.",
+    general: "Comandante Brann, Senhor da Companhia",
+    cards: {
+      // 31 mercenários (com manutenção) e 7 sem manutenção
+      "Lanceiro de Aluguel": 4,
+      "Besteiro Contratado": 4,
+      "Espadachim do Soldo": 4,
+      "Desertor": 4,
+      "Capit\xE3o da Companhia": 3,
+      "Cavaleiro Errante": 3,
+      "Duelista Livre": 4,
+      "Bombardeiro Contratado": 4,
+      "Sentinela Fiel": 4,
+      "Tesoureiro da Companhia": 4,
+      // a Relíquia e quem a busca
+      "Livro de Contratos": 3,
+      "Escriba de Contratos": 3,
+      // táticas, equipamentos e emboscada próprios
+      "Salva de Besteiros": 2,
+      "Contrato de Execu\xE7\xE3o": 2,
+      "Carga de P\xF3lvora": 1,
+      "Armadura Alugada": 3,
+      "Espada de Aluguel": 2,
+      "Ag\xEAncia de Recrutamento": 1,
+      "Resgate de Mercen\xE1rio": 2,
+      "Recrutamento de Rua": 1,
+      "Suborno": 2
     }
   }
 };
@@ -589,6 +799,19 @@ if (!globalThis.__POW_RAW_STATS__) {
     def.cost += d.cost ?? 0;
   });
 }
+var LEGACY_STARTERS = {
+  // O Mercenários nasceu depois dos ajustes: só tem a lista atual (a mesma da receita).
+  mercenarios: [DECK_RECIPES.mercenarios.cards],
+  // The first list of each deck is also the faction's own set of cards (what its boosters can hold).
+  capitao: [
+    { "Soldado T\xE1tico": 4, "Escudeiro de Linha": 4, "Capit\xE3o de Forma\xE7\xE3o": 4, "Batedor": 4, "Lanceiro de Controle": 4, "Cavaleiro T\xE1tico": 4, "Veterano de Guerra": 3, "Reformar Linhas": 3, "Avan\xE7o Coordenado": 4, "Reposicionamento R\xE1pido": 3, "Linha Fechada": 4, "Ordem de Retirada": 4, "Bloqueio Instant\xE2neo": 4, "Contra-Manobra": 4, "Forma\xE7\xE3o Quebrada": 4, "Estandarte da Legi\xE3o": 1, "Fortaleza de Pedra": 1, "P\xE2ntano Maldito": 1 },
+    // the version of the first balance pass (borrowed tactics, Veterano x4), before the effect changes
+    { "Soldado T\xE1tico": 4, "Escudeiro de Linha": 4, "Capit\xE3o de Forma\xE7\xE3o": 4, "Batedor": 4, "Lanceiro de Controle": 4, "Cavaleiro T\xE1tico": 4, "Veterano de Guerra": 4, "Reformar Linhas": 1, "Avan\xE7o Coordenado": 4, "Reposicionamento R\xE1pido": 2, "Ordem de Retirada": 2, "Bloqueio Instant\xE2neo": 2, "Contra-Manobra": 1, "Forma\xE7\xE3o Quebrada": 2, "Estandarte da Legi\xE3o": 1, "P\xE2ntano Maldito": 1, "Catapulta de Guerra": 4, "Balestra de Precis\xE3o": 4, "Armadura de Guerra": 4, "Trabuco de Cerco": 2, "Recrutamento Seletivo": 2 }
+  ],
+  cardeal: [
+    { "C\xE1lice da Gra\xE7a": 1, "Devotos da Cruzada": 4, "Mercador da Cruzada": 2, "Infiltrado da Ordem": 1, "Fan\xE1tico da Cruzada": 1, "Recruta Devoto": 2, "Intendente do Ex\xE9rcito": 2, "Soldados da Ordem": 2, "Jorge, Lan\xE7a Sagrada": 3, "Cavaleiro Hospital\xE1rio": 2, "Nobre da Cruzada": 2, "Cavaleiro da Luz": 4, "Comandante da Ordem": 1, "Arqueiro da Ordem": 2, "Atirador da Cruzada": 2, "Trabuco de Cerco": 2, "Catapulta de Guerra": 3, "Balestra de Precis\xE3o": 1, "Armadura de Guerra": 2, "Coura\xE7a Refor\xE7ada": 2, "Flechas Venenosas": 1, "Espada Longa": 2, "Refor\xE7os Ocultos": 2, "Retorno do Soldado": 1, "Graal da D\xE1diva": 1, "Doutrina Renovada": 2, "Recrutamento Seletivo": 2, "Recrutar Veteranos": 2, "Tributo de Guerra": 2, "Chamado \xE0s Armas": 2 }
+  ]
+};
 var BY_NAME = {};
 CARD_DEFS.forEach((c) => {
   BY_NAME[c.name] = c;
@@ -628,10 +851,13 @@ var shuffled = (holder, items) => {
 };
 
 // src/engine/rules.ts
-var START_GOLD = 15;
-var START_HAND = 7;
-var GOLD_PER_TURN = 5;
-var GOLD_FROM_ROUND = 2;
+var R = globalThis.__POW_RULES__ ?? {};
+var START_GOLD = R.startGold ?? 15;
+var START_HAND = R.startHand ?? 7;
+var DRAW_PER_TURN = R.drawPerTurn ?? 1;
+var GOLD_PER_TURN = R.goldPerTurn ?? 5;
+var GOLD_FROM_ROUND = R.goldFromRound ?? 2;
+var COMBAT_FROM_ROUND = R.combatFromRound ?? 2;
 var HAND_LIMIT = 10;
 var phasesForTurn = (combatOpen2) => combatOpen2 ? ["compra", "suprimentos", "preparacao", "combate", "movimentacao"] : ["compra", "suprimentos", "preparacao", "movimentacao"];
 var AUTOMATIC_PHASES = ["compra", "suprimentos"];
@@ -695,6 +921,12 @@ var auraTotal = (stat, slot, own, enemy = []) => {
   return total;
 };
 var boardHasFlag = (board, flag) => board.some((c, i) => !!c && passivesOf(c.name).some((p) => p.kind === "flag" && p.flag === flag && rowOk(p.from, i)));
+var upkeepOf = (name) => getCardDef(name)?.upkeep ?? 0;
+var relicModeOf = (board) => {
+  const relic = board[10];
+  if (!relic?.mode) return null;
+  return getCardDef(relic.name)?.modes?.find((m) => m.id === relic.mode) ?? null;
+};
 var canPlayInPhase = (card, phase) => phase === "preparacao" || phase === "movimentacao" && card.cardType === "T\xE1tica";
 var isFrontline = (slot) => slot >= 0 && slot <= 4;
 var isBackline = (slot) => slot >= 5 && slot <= 9;
@@ -742,6 +974,7 @@ var getEffectiveAtk = (card, ownIndex, own, enemy) => {
   let atk = card.atk + (card.pendingCombatBonus?.atk ?? 0);
   atk += card.formationBuffAtk ?? 0;
   atk += auraTotal("atk", ownIndex, own, enemy);
+  if (upkeepOf(card.name) > 0) atk += relicModeOf(own)?.atk ?? 0;
   return Math.max(0, atk);
 };
 var getIncomingDamageReduction = (ownIndex, own, enemy = []) => auraTotal("reduce", ownIndex, own, enemy) + (own[ownIndex]?.dmgReduction ?? 0);
@@ -833,7 +1066,7 @@ var log = (c, seat, text, priv = false) => {
   c.ev.push(priv ? { t: "log", seat, text, private: true } : { t: "log", seat, text });
 };
 var P = (c, seat) => c.s.players[seat];
-var combatOpen = (s) => s.turn.round >= 2 || s.turn.active !== s.turn.first;
+var combatOpen = (s) => s.turn.round >= COMBAT_FROM_ROUND || COMBAT_FROM_ROUND <= 2 && s.turn.active !== s.turn.first;
 var activePhases = (s) => restingPhasesForTurn(combatOpen(s));
 var addGold = (c, seat, delta, reason) => {
   if (delta === 0) return;
@@ -883,6 +1116,16 @@ var sendDestroyed = (c, seat, entries) => {
     c.ev.push({ t: "graveyard", seat, card });
   });
   entries.forEach(({ slot, card }) => runAbilities(c, seat, card, slot, "destroyed"));
+  const killer = otherSeat(seat), mode = relicModeOf(P(c, killer).board);
+  if (mode?.loot) {
+    cards.filter((card) => SOLDIER_TYPES.includes(card.cardType)).forEach(() => {
+      const kp = P(c, killer);
+      if ((kp.loot ?? 0) >= mode.loot.cap) return;
+      kp.loot = (kp.loot ?? 0) + 1;
+      if (mode.loot.gold) addGold(c, killer, mode.loot.gold, "gain");
+      if (mode.loot.draw) drawCards(c, killer, mode.loot.draw, "effect");
+    });
+  }
   if (cards.some((card) => card.cardType === "General")) setWinner(c, otherSeat(seat));
   reinforceFrom(c, seat, entries.map((e) => e.slot));
 };
@@ -960,6 +1203,7 @@ var startTurn = (c, seat) => {
   p.board.forEach((card, i) => {
     if (card?.formationBuffAtk) p.board[i] = { ...card, formationBuffAtk: 0 };
   });
+  p.loot = 0;
   p.generalAbilityUses = 0;
   p.generalAbilityBlocked = p.pendingGeneralBlock;
   p.pendingGeneralBlock = false;
@@ -970,7 +1214,7 @@ var startTurn = (c, seat) => {
     c.ev.push({ t: "skip", seat, phase: "compra" });
     log(c, seat, "A fase de Compra foi pulada!");
   } else {
-    drawCards(c, seat, 1, "turn");
+    drawCards(c, seat, DRAW_PER_TURN, "turn");
     for (let i = 0; i <= 9; i++) {
       const card = p.board[i];
       if (card) runAbilities(c, seat, card, i, "turn_start");
@@ -984,8 +1228,70 @@ var startTurn = (c, seat) => {
   } else if (t.round >= GOLD_FROM_ROUND) {
     addGold(c, seat, GOLD_PER_TURN, "turn");
   }
-  t.phase = "preparacao";
+  const entries = [];
+  for (let i = 0; i <= 9; i++) {
+    const card = p.board[i];
+    if (card && upkeepOf(card.name) > 0) entries.push({ slot: i, cardId: card.id, cost: upkeepOf(card.name) });
+  }
+  const discount = relicModeOf(p.board)?.upkeepFlat ?? 0;
+  if (entries.length > 0 && entries.reduce((a, e) => a + e.cost, 0) > discount) {
+    c.s.pending = { kind: "upkeep", seat, entries, discount };
+    log(c, seat, "Manuten\xE7\xE3o: escolha quais mercen\xE1rios continuam (pagando) e quais s\xE3o dispensados.");
+    return;
+  }
+  enterPreparation(c, seat);
+};
+var enterPreparation = (c, seat) => {
+  c.s.turn.phase = "preparacao";
   c.ev.push({ t: "phase", seat, phase: "preparacao" });
+};
+var payUpkeep = (c, seat, a) => {
+  assertCanAct(c, seat, true);
+  const pend = c.s.pending;
+  if (!pend || pend.kind !== "upkeep") return fail("N\xE3o h\xE1 manuten\xE7\xE3o para pagar.");
+  if (pend.seat !== seat) return fail("Essa manuten\xE7\xE3o n\xE3o \xE9 sua.");
+  const p = P(c, seat);
+  const keep = new Set(a.keep);
+  if (!a.keep.every((id) => pend.entries.some((e) => e.cardId === id))) fail("Essa carta n\xE3o est\xE1 na lista de manuten\xE7\xE3o.");
+  const kept = pend.entries.filter((e) => keep.has(e.cardId));
+  const dismissed = pend.entries.filter((e) => !keep.has(e.cardId));
+  const total = Math.max(0, kept.reduce((n, e) => n + e.cost, 0) - pend.discount);
+  if (total > p.gold) fail("Ouro insuficiente para a manuten\xE7\xE3o: dispense algu\xE9m.");
+  c.s.pending = null;
+  if (total > 0) addGold(c, seat, -total, "spend");
+  c.ev.push({ t: "upkeep", seat, paid: total, dismissed: dismissed.length });
+  [...dismissed].sort((x, y) => y.slot - x.slot).forEach((e) => {
+    const card = p.board[e.slot];
+    if (!card || card.id !== e.cardId) return;
+    p.board[e.slot] = null;
+    const toHand = getCardDef(card.name)?.dismiss === "hand";
+    const weapons = card.equippedWeapons ?? [];
+    weapons.forEach((w) => {
+      p.graveyard.push(w);
+      c.ev.push({ t: "graveyard", seat, card: w });
+    });
+    if (toHand) p.hand.push(cardFromName(c.s, card.name, "h"));
+    else {
+      p.graveyard.push({ ...card, equippedWeapons: void 0 });
+      c.ev.push({ t: "graveyard", seat, card });
+    }
+    c.ev.push({ t: "dismissed", seat, slot: e.slot, card, toHand });
+    log(c, seat, `${card.name} foi dispensado${toHand ? " e voltou para a m\xE3o" : ""}.`);
+    runAbilities(c, seat, card, e.slot, "dismissed");
+  });
+  reinforceFrom(c, seat, dismissed.map((e) => e.slot));
+  enterPreparation(c, seat);
+};
+var setRelicMode = (c, seat, a) => {
+  assertCanAct(c, seat);
+  if (c.s.turn.phase !== "movimentacao") fail("O modo da Rel\xEDquia s\xF3 muda no fim do turno (Movimenta\xE7\xE3o).");
+  const p = P(c, seat);
+  const relic = p.board[10];
+  const def = relic ? getCardDef(relic.name) : void 0;
+  if (!relic || !def?.modes) fail("Voc\xEA n\xE3o tem uma Rel\xEDquia com modos em campo.");
+  if (!def.modes.some((m) => m.id === a.mode)) fail("Esse modo n\xE3o existe nessa Rel\xEDquia.");
+  p.board[10] = { ...relic, mode: a.mode };
+  c.ev.push({ t: "relic_mode", seat, mode: a.mode });
 };
 var runTurnEnd = (c, seat) => {
   const board = P(c, seat).board;
@@ -1174,8 +1480,8 @@ var runVerb = (c, fx, v, slot) => {
       top.forEach((n) => removeOne(p.deckList, n));
       const revealed = top.map((n) => cardFromName(c.s, n, "o"));
       const keep = v.keepMin === v.keepMax ? `${v.keepMax}` : `at\xE9 ${v.keepMax}`;
-      const body = `veja as ${top.length} cartas do topo \u2014 escolha ${keep} para a m\xE3o`;
-      openPick(c, fx, "top_reveal", fx.slot === null ? body[0].toUpperCase() + body.slice(1) : `${name}: ${body}`, revealed, Math.min(v.keepMin, revealed.length), v.keepMax, { revealed: true });
+      const body = `veja as ${top.length} cartas do topo \u2014 escolha ${keep} para a m\xE3o${v.rest === "graveyard" ? " (o resto vai para o cemit\xE9rio)" : ""}`;
+      openPick(c, fx, "top_reveal", fx.slot === null ? body[0].toUpperCase() + body.slice(1) : `${name}: ${body}`, revealed, Math.min(v.keepMin, revealed.length), v.keepMax, { revealed: true, restTo: v.rest });
       return;
     }
     case "search": {
@@ -1251,6 +1557,8 @@ var playCard = (c, seat, a) => {
     if (!canPlaceInSlot(card.cardType, slot)) fail("Esse slot n\xE3o aceita essa carta.");
     if (p.board[slot]) fail("Esse slot j\xE1 est\xE1 ocupado!");
     commit();
+    const modes = getCardDef(card.name)?.modes;
+    if (modes?.length && !card.mode) card.mode = modes[0].id;
     p.board[slot] = card;
     c.ev.push({ t: "place", seat, slot, card });
     runAbilities(c, seat, card, slot, "place");
@@ -1343,9 +1651,13 @@ var choose = (c, seat, a) => {
   } else if (pend.mode === "top_reveal") {
     picked.forEach(toHand);
     const pickedIds = new Set(picked.map((x) => x.id));
-    const back = pend.options.filter((o) => !pickedIds.has(o.id)).map((o) => o.name);
-    p.drawPile.push(...back);
-    p.deckList.push(...back);
+    const rest = pend.options.filter((o) => !pickedIds.has(o.id));
+    if (pend.restTo === "graveyard") {
+      rest.forEach((o) => discard(c, seat, o));
+    } else {
+      p.drawPile.push(...rest.map((o) => o.name));
+      p.deckList.push(...rest.map((o) => o.name));
+    }
     log(c, seat, `${picked.length} carta(s) adicionada(s) \xE0 m\xE3o!`);
   } else if (pend.mode === "summon") {
     const slots = pend.slots ?? [];
@@ -1588,6 +1900,12 @@ var applyAction = (state, seat, action) => {
         break;
       case "discard":
         discardExcess(c, seat, action);
+        break;
+      case "upkeep":
+        payUpkeep(c, seat, action);
+        break;
+      case "relic_mode":
+        setRelicMode(c, seat, action);
         break;
       case "advance":
         advance(c, seat);
@@ -1846,6 +2164,57 @@ var abilityAction = (s, seat, slot, rand) => {
   return { type: "ability", slot, target: picks[0], target2: picks[1] };
 };
 var bestIds = (cards, n) => [...cards].sort((a, b) => cardValue(b) - cardValue(a)).slice(0, n).map((c) => c.id);
+var upkeepAnswer = (state, seat) => {
+  const me = state.players[seat];
+  const pend = state.pending;
+  const entries = pend.entries.map((e) => {
+    const card = me.board[e.slot];
+    const def = getCardDef(card.name);
+    const back = def?.dismiss === "hand" ? 0.6 * cardValue(card) : 0;
+    const rescisao = (def?.abilities ?? []).some((a) => a.on === "dismissed" && a.do.some((v) => v.kind === "draw")) ? 3 : 0;
+    return { id: e.cardId, cost: e.cost, worth: unitWorth(card), consolation: back + rescisao };
+  });
+  const items = me.hand.filter((c) => c.cardType !== "Emboscada").map((c) => ({ cost: c.cost, value: cardValue(c) }));
+  const best = (budget) => {
+    if (budget <= 0) return 0;
+    const dp = new Array(budget + 1).fill(0);
+    for (const it of items) for (let g = budget; g >= it.cost; g--) dp[g] = Math.max(dp[g], dp[g - it.cost] + it.value);
+    return dp[budget];
+  };
+  let bestKeep = [], bestUtil = -Infinity;
+  const n = Math.min(entries.length, 10);
+  for (let mask = 0; mask < 1 << n; mask++) {
+    let pay = 0, util = 0;
+    const keep = [];
+    for (let k = 0; k < n; k++) {
+      if (mask & 1 << k) {
+        pay += entries[k].cost;
+        util += entries[k].worth + 0.01;
+        keep.push(entries[k].id);
+      } else util += entries[k].consolation;
+    }
+    pay = Math.max(0, pay - pend.discount);
+    if (pay > me.gold) continue;
+    util += best(me.gold - pay);
+    if (util > bestUtil) {
+      bestUtil = util;
+      bestKeep = keep;
+    }
+  }
+  return { type: "upkeep", keep: bestKeep };
+};
+var wantedRelicMode = (state, seat) => {
+  const me = state.players[seat];
+  const foe = state.players[otherSeat(seat)];
+  const relic = me.board[10];
+  const modes = relic ? getCardDef(relic.name)?.modes : void 0;
+  if (!relic || !modes || modes.length === 0) return null;
+  const mercs = UNIT_SLOTS.filter((i) => me.board[i] && upkeepOf(me.board[i].name) > 0).length;
+  const foes = UNIT_SLOTS.filter((i) => foe.board[i]).length;
+  const attackers = UNIT_SLOTS.filter((i) => me.board[i] && me.board[i].atk > 0).length;
+  const value = (m) => (m.upkeepFlat ? Math.min(m.upkeepFlat, mercs) : 0) + (m.loot ? Math.min(m.loot.cap, attackers, foes) * ((m.loot.gold ?? 0) + (m.loot.draw ?? 0) * 3) : 0) + (m.atk ? Math.min(mercs, foes + 1) * m.atk * 0.55 : 0);
+  return [...modes].sort((a, b) => value(b) - value(a))[0].id;
+};
 var aiLegacyAction = (state, seat, rand = Math.random) => {
   const me = state.players[seat];
   const foe = state.players[otherSeat(seat)];
@@ -1863,6 +2232,7 @@ var aiLegacyAction = (state, seat, rand = Math.random) => {
       const worst = [...me.hand].sort((a, b) => cardValue(a) - cardValue(b)).slice(0, pend.count).map((c) => c.id);
       return { type: "discard", cardIds: worst };
     }
+    if (pend.kind === "upkeep") return upkeepAnswer(state, seat);
     return { type: "choose", cardIds: bestIds(pend.options, Math.max(pend.min, Math.min(pend.max, pend.options.length))) };
   }
   if (t.phase === "preparacao") {
@@ -1931,7 +2301,20 @@ var aiLegacyAction = (state, seat, rand = Math.random) => {
   }
   return { type: "advance" };
 };
-var holdValue = (c) => cardValue(c) * 0.5;
+var STYLE = {};
+var holdValue = (c) => {
+  const k = STYLE.ration ?? 0;
+  let v = cardValue(c) * 0.5;
+  if (k > 0) {
+    v *= 1 + 0.7 * k;
+    if (c.cardType === "T\xE1tica") {
+      for (const verb of verbsOn(c.name, "play")) {
+        if (verb.kind === "damage") v += k * 0.7 * verb.amount * (verb.all ? 4 : verb.target?.area === "row" ? 3 : 0);
+      }
+    }
+  }
+  return v;
+};
 var attackPotential = (att, def) => {
   let total = 0;
   for (const i of UNIT_SLOTS) {
@@ -1953,8 +2336,10 @@ var sideValue = (p, q) => {
   }
   if (p.board[10]) v += 5;
   if (p.board[11]) v += 5;
+  if (relicModeOf(p.board)) v += 6 + 0.7 * UNIT_SLOTS.filter((i) => p.board[i] && upkeepOf(p.board[i].name) > 0).length;
   return v + boardScore(p.board, q.board);
 };
+var upkeepBurden = (p) => Math.max(0, UNIT_SLOTS.reduce((n, i) => n + (p.board[i] ? upkeepOf(p.board[i].name) : 0), 0) - (relicModeOf(p.board)?.upkeepFlat ?? 0));
 var evalState = (s, seat) => {
   if (s.winner !== null) return s.winner === seat ? 1e5 : -1e5;
   const me = s.players[seat];
@@ -1963,6 +2348,7 @@ var evalState = (s, seat) => {
   score += 1.8 * (me.board[12]?.hp ?? 0) - 1.8 * (foe.board[12]?.hp ?? 0);
   score += me.hand.map(holdValue).sort((a, b) => b - a).slice(0, HAND_LIMIT).reduce((a, b) => a + b, 0);
   score += 0.08 * (me.gold - foe.gold);
+  score -= 0.35 * upkeepBurden(me) - 0.35 * upkeepBurden(foe);
   score -= 0.6 * attackPotential(foe, me);
   score += 0.3 * attackPotential(me, foe);
   return score;
@@ -2149,18 +2535,32 @@ var answerPending = (state, seat) => {
     const worst = [...me.hand].sort((a, b) => cardValue(a) - cardValue(b)).slice(0, pend.count).map((c) => c.id);
     return { type: "discard", cardIds: worst };
   }
+  if (pend.kind === "upkeep") return upkeepAnswer(state, seat);
   return { type: "choose", cardIds: bestIds(pend.options, Math.max(pend.min, Math.min(pend.max, pend.options.length))) };
 };
-var aiNextAction = (state, seat, rand = Math.random) => {
+var aiNextAction = (state, seat, rand = Math.random, style = {}) => {
+  const before = STYLE;
+  STYLE = style;
+  try {
+    return aiNextActionInner(state, seat, rand, style);
+  } finally {
+    STYLE = before;
+  }
+};
+var aiNextActionInner = (state, seat, rand, style) => {
   if (state.pending && state.pending.seat === seat) return answerPending(state, seat);
   const t = state.turn;
   if (t.active !== seat || state.winner !== null || !["preparacao", "combate", "movimentacao"].includes(t.phase)) return aiLegacyAction(state, seat, rand);
-  const key = fingerprint(state, seat);
+  if (t.phase === "movimentacao") {
+    const want = wantedRelicMode(state, seat);
+    if (want && state.players[seat].board[10]?.mode !== want) return { type: "relic_mode", mode: want };
+  }
+  const key = `${style.ration ?? 0}|${fingerprint(state, seat)}`;
   const known = memo.get(key);
   if (known && applyAction(state, seat, known).ok) return known;
   const plan = planTurn(state, seat, rand);
   if (memo.size > 400) memo.clear();
-  plan.actions.forEach((a, i) => memo.set(plan.keys[i], a));
+  plan.actions.forEach((a, i) => memo.set(`${style.ration ?? 0}|${plan.keys[i]}`, a));
   const first = plan.actions[0];
   if (first && applyAction(state, seat, first).ok) return first;
   return aiLegacyAction(state, seat, rand);

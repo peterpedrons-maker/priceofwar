@@ -19,7 +19,7 @@ new tables.
 ## 2. Deploy the game server
 
 The server is one file: `supabase/functions/game/index.ts` (generated from `server/` and `src/engine/`; rebuild it
-with `npm run build:edge` after changing rules — it is committed, so you normally do not need to).
+with `npm run build:edge` after changing rules — it is committed, so you normally do not need to). `tests/edge-bundle.ts` (part of `npm test`) fails when the committed file is stale.
 
 **Option A — dashboard (no tools):** Supabase → **Edge Functions** → *Deploy a new function* → *Via Editor* →
 name it exactly `game` → replace the sample code with the whole contents of `supabase/functions/game/index.ts` → Deploy.

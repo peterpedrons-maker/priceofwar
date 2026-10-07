@@ -82,7 +82,7 @@ Se a carta precisar de uma regra que nenhum tipo cobre, o certo é **criar um ti
 `runVerb` em `game.ts` a executá-lo e, se for uma Tática, dê um critério de uso em `ai.ts` (`tacticPlay`). Aí ele vale para todas as cartas futuras.
 
 ## Manutenção, dispensa e Relíquia com modos (experimental)
-Usados só pelo deck em teste Mercenários (`src/engine/experimental.ts`, registrado apenas pelo laboratório; nenhum deck do jogo usa ainda). Tudo em dados:
+Usados pelo deck Mercenários (cartas no `catalog.ts`, receita em `DECK_RECIPES.mercenarios`; `src/engine/experimental.ts` só reexporta o que o laboratório usa). Tudo em dados:
 - `CardDef.upkeep` (ouro por turno) e `dismiss: 'hand'` (ao ser dispensada, a carta volta para a mão em vez de ir ao cemitério). Na fase de Suprimentos, depois do ouro do turno, o motor abre `pending: { kind: 'upkeep', entries, discount }` e o dono responde `{ type: 'upkeep', keep: [ids] }`: as que ficam pagam a soma da manutenção menos o desconto; as outras são dispensadas.
 - `on: 'dismissed'` (Rescisão): efeito de quem foi dispensado; só verbos sem escolha de alvo (`draw`, `gold`...).
 - `CardDef.modes` (Relíquia): cada modo é `{ id, name, effect, upkeepFlat?, loot?: { gold, cap }, atk? }`. A Relíquia entra no primeiro modo e o dono troca com `{ type: 'relic_mode', mode }` só na Movimentação (fim do turno); vale até o fim do turno seguinte. `upkeepFlat` abate do total de manutenção; `loot` dá ouro por unidade inimiga destruída (teto por ciclo, `PlayerState.loot`); `atk` dá ATK às cartas com manutenção. O modo fica em `Card.mode`.
