@@ -1303,7 +1303,7 @@ VARIANT: the rear line. Lighter and sheltered: carved dark walnut wood inlay fra
 
 ---
 
-## 4ae. Ícones das casas (Vanguarda/Retaguarda), placa lateral das fileiras e casa do Cemitério (recebidos; mockup aprovado antes de ligar; faltam Relíquia e Terreno)
+## 4ae. Ícones das casas (Vanguarda/Retaguarda), placa lateral das fileiras e casa do Cemitério (recebidos e ligados ao jogo: ícones de Vanguarda, Retaguarda, Relíquia, Terreno e Cemitério e a placa)
 
 Comum: fundo **magenta liso (#FF00FF)** (eu recorto), estilo pintura de carta de TCG, luz quente de cima à esquerda, nada de texto (o texto das placas é feito por código).
 

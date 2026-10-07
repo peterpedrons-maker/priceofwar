@@ -82,6 +82,12 @@ import haloValidTargetImage from './assets/halo-valid-target.png';
 import haloInvalidTargetImage from './assets/halo-invalid-target.png';
 import haloSelectionImage from './assets/halo-selection.png';
 import hintSwordImage from './assets/hint-sword.webp';
+import slotIconFront from './assets/slot-icone-vanguarda.webp';
+import slotIconBack from './assets/slot-icone-retaguarda.webp';
+import slotIconGrave from './assets/slot-icone-cemiterio.webp';
+import slotIconRelic from './assets/slot-icone-reliquia.webp';
+import slotIconTerrain from './assets/slot-icone-terreno.webp';
+import rowPlaqueImage from './assets/placa-fileira.webp';
 import hintShieldImage from './assets/hint-shield.webp';
 import hintSwordShieldImage from './assets/hint-sword-shield.webp';
 import fxAtkUpSheet from './assets/fx-atk-up-sheet.webp';
@@ -1186,21 +1192,18 @@ const BurningCard = ({ children }: { children: React.ReactNode }) => {
 // wired by each call site below) to open the full graveyard browser overlay — the
 // pile itself only ever shows the ONE top card, so opening it is the only way to see
 // what else has piled up underneath.
-const GraveyardPile = ({ cards, onClick, tut }: { cards: CardData[]; onClick?: () => void; tut?: string }) => (
+const GraveyardPile = ({ cards, onClick, tut, side = 'player' }: { cards: CardData[]; onClick?: () => void; tut?: string; side?: 'player' | 'npc' }) => (
   <div
     data-tut={tut}
-    className={`w-28 h-36 md:w-36 md:h-48 border-2 border-zinc-700 rounded-xl bg-zinc-900/80 flex items-center justify-center shadow-lg relative overflow-hidden ${onClick ? 'cursor-pointer active:scale-95 transition-transform' : ''}`}
+    className={`w-28 h-36 md:w-36 md:h-48 rounded-xl flex items-center justify-center relative overflow-hidden ${cards.length === 0 ? '' : 'border-2 border-zinc-700 bg-zinc-900/80 shadow-lg'} ${onClick ? 'cursor-pointer active:scale-95 transition-transform' : ''}`}
+    style={cards.length === 0 ? { background: 'rgba(8,6,4,0.46)', boxShadow: `inset 0 5px 10px rgba(0,0,0,0.6), inset 0 -1px 0 rgba(190,160,110,0.4), inset 0 0 0 1px rgba(${side === 'player' ? '120,175,255' : '235,85,75'},0.26)` } : undefined}
     onClick={onClick}
   >
     {cards.length === 0 ? (
-      // Empty: a faint mark (two broken swords crossed over a shield, until the painted art arrives) and the word small and horizontal under it.
+      // Empty: the same carved recess as the other slots, with the small bronze mark and the word small and horizontal under it.
       <>
-        <svg viewBox="0 0 64 64" className="absolute left-1/2 top-[40%] w-[52%] -translate-x-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="#e2be6e" strokeOpacity={0.3} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M14 18 L50 54 M50 18 L34 34" />
-          <path d="M14 18 L9 13 M50 54 L55 59 M50 18 L55 13" strokeWidth={4.2} />
-          <path d="M22 44 Q32 38 44 46 L40 58 L26 58 Z" strokeWidth={2.4} />
-        </svg>
-        <span className="absolute bottom-[9%] inset-x-0 text-center text-[7px] md:text-[9px] uppercase tracking-[0.18em] text-[#e2be6e]/40 font-bold" style={{ fontFamily: "'Cinzel', serif" }}>Cemitério</span>
+        <SlotEmblem kind="grave" lit={false} offsetY={-7} tone="amber" />
+        <span className="absolute bottom-[9%] inset-x-0 text-center text-[0.55rem] md:text-[0.7rem] uppercase tracking-[0.16em] font-bold pointer-events-none" style={{ fontFamily: "'Cinzel', serif", color: 'rgba(226,190,110,0.42)' }}>Cemitério</span>
       </>
     ) : (
       <>
@@ -8568,7 +8571,7 @@ export default function App() {
               the other two rows so all three columns line up. */}
           <div className="relative flex justify-center gap-3 md:gap-6 items-center">
             <div className="pointer-events-auto">
-              <GraveyardPile cards={npcGraveyard} onClick={() => setViewingGraveyard('npc')} />
+              <GraveyardPile cards={npcGraveyard} side="npc" onClick={() => setViewingGraveyard('npc')} />
             </div>
             <CardSlot
               slotId="npc-10"
@@ -8633,8 +8636,8 @@ export default function App() {
             </div>
           </div>
           {/* Retaguarda NPC (Backline) */}
-          <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mb-3">Retaguarda</div>
-          <div className="flex justify-center gap-3 md:gap-6">
+          <div className="relative flex justify-center gap-3 md:gap-6">
+            <RowPlaque kind="back" side="npc" />
             {[5, 6, 7, 8, 9].map((i) => (
               <CardSlot
                 key={i}
@@ -8654,8 +8657,8 @@ export default function App() {
             ))}
           </div>
           {/* Vanguarda NPC (Frontline) */}
-          <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mb-3">Vanguarda</div>
-          <div className="flex justify-center gap-3 md:gap-6">
+          <div className="relative flex justify-center gap-3 md:gap-6">
+            <RowPlaque kind="front" side="npc" />
             {[0, 1, 2, 3, 4].map((i) => (
               <CardSlot
                 key={i}
@@ -8685,7 +8688,8 @@ export default function App() {
             (and past it if needed) instead of into the opponent's cards. */}
         <div className="flex flex-col gap-4 justify-start pb-12 pointer-events-auto">
           {/* Vanguarda Player (Frontline) */}
-          <div className="flex justify-center gap-3 md:gap-6">
+          <div className="relative flex justify-center gap-3 md:gap-6">
+            <RowPlaque kind="front" side="player" />
             {[0, 1, 2, 3, 4].map((i) => {
               return (
               <div key={i} className="relative">
@@ -8711,9 +8715,9 @@ export default function App() {
               );
             })}
           </div>
-          <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mt-3">Vanguarda</div>
           {/* Retaguarda Player (Backline) */}
-          <div className="flex justify-center gap-3 md:gap-6">
+          <div className="relative flex justify-center gap-3 md:gap-6">
+            <RowPlaque kind="back" side="player" />
             {[5, 6, 7, 8, 9].map((i) => {
               return (
               <div key={i} className="relative">
@@ -8739,7 +8743,6 @@ export default function App() {
               );
             })}
           </div>
-          <div className="text-center text-[8px] md:text-[10px] tracking-widest text-zinc-500 uppercase -mt-3">Retaguarda</div>
           {/* General row (fixed) + Relíquia/Terreno slots — a real 5-wide row now,
               matching Retaguarda/Vanguarda (see the NPC field's own general row for
               the full explanation). Cemitério on the left, Deck on the right, same as
@@ -8747,7 +8750,7 @@ export default function App() {
               instead of the old diagonal-corners layout (see git history). */}
           <div className="relative flex justify-center gap-3 md:gap-6 items-center">
             <div className="pointer-events-auto">
-              <GraveyardPile cards={playerGraveyard} onClick={() => setViewingGraveyard('player')} tut="graveyard" />
+              <GraveyardPile cards={playerGraveyard} side="player" onClick={() => setViewingGraveyard('player')} tut="graveyard" />
             </div>
             <CardSlot
               slotId="player-10"
@@ -10321,31 +10324,36 @@ const arrivalDrops = new Map<string, { delay: number }>();
 // Called by a slot when a dropped card touches down (App draws the dust and starts the hops).
 let arrivalListener: ((slotId: string, card: CardData) => void) | null = null;
 
-// The mark of a unit slot (Vanguarda: sword and shield; Retaguarda: bow and banner), faint on an empty slot and lit up — amber in the
-// front row, sky blue behind — while a card is selected and the slot can take it. Drawn in SVG for now (the owner will replace it
-// with painted art in bronze, same place and same glow).
-const SlotEmblem = ({ row, lit, tone }: { row: 'front' | 'back'; lit: boolean; tone: 'amber' | 'sky' }) => {
+// The small bronze mark in the middle of a slot (painted art by the owner): sword and shield in the front row, bow and banner behind, a
+// chalice for the Relíquia, mountains for the Terreno, broken weapons for the Cemitério. Faint on an empty slot; while a card is selected and
+// the slot can take it, it lights up and pulses (amber in the front row, sky blue behind, gold for the special slots).
+type EmblemKind = 'front' | 'back' | 'relic' | 'terrain' | 'grave';
+const EMBLEM_ART: Record<EmblemKind, string> = { front: slotIconFront, back: slotIconBack, relic: slotIconRelic, terrain: slotIconTerrain, grave: slotIconGrave };
+const SlotEmblem = ({ kind, lit, tone, offsetY = 0 }: { kind: EmblemKind; lit: boolean; tone: 'amber' | 'sky'; offsetY?: number }) => {
   const glow = tone === 'amber' ? '255,196,92' : '120,205,255';
   return (
-    <motion.svg viewBox="0 0 64 64" className="absolute left-1/2 top-1/2 w-[46%] h-auto pointer-events-none" style={{ translateX: '-50%', translateY: '-50%', overflow: 'visible' }}
-      animate={lit ? { opacity: [0.8, 1, 0.8], scale: [1, 1.07, 1], filter: [`drop-shadow(0 0 3px rgba(${glow},.7))`, `drop-shadow(0 0 11px rgba(${glow},1))`, `drop-shadow(0 0 3px rgba(${glow},.7))`] } : { opacity: 0.2, scale: 1, filter: 'drop-shadow(0 0 0 rgba(0,0,0,0))' }}
+    <motion.img src={EMBLEM_ART[kind]} alt="" draggable={false}
+      className="absolute left-1/2 w-[62%] h-auto pointer-events-none select-none"
+      style={{ top: `${50 + offsetY}%`, x: '-50%', y: '-50%' }}
+      animate={lit ? { opacity: [0.85, 1, 0.85], scale: [1, 1.07, 1], filter: [`drop-shadow(0 0 3px rgba(${glow},.7))`, `drop-shadow(0 0 11px rgba(${glow},1))`, `drop-shadow(0 0 3px rgba(${glow},.7))`] } : { opacity: 0.3, scale: 1, filter: 'drop-shadow(0 0 0 rgba(0,0,0,0))' }}
       transition={lit ? { duration: 1.3, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.25 }}
-      fill="none" stroke={lit ? `rgb(${glow})` : '#e2be6e'} strokeWidth={3.4} strokeLinecap="round" strokeLinejoin="round">
-      {row === 'front' ? (
-        <>
-          <path d="M14 14 L32 8 L50 14 L47 36 Q43 48 32 56 Q21 48 17 36 Z" />
-          <path d="M32 2 L32 46 M22 18 L42 18" strokeWidth={4.4} />
-        </>
-      ) : (
-        <>
-          <path d="M20 8 Q58 32 20 56" strokeWidth={4} />
-          <path d="M20 8 L20 56" strokeWidth={1.8} />
-          <path d="M6 32 L54 32 M54 32 L46 26 M54 32 L46 38" strokeWidth={3} />
-        </>
-      )}
-    </motion.svg>
+    />
   );
 };
+// The plaque beside each row, in the left margin: "VANGUARDA" or "RETAGUARDA" written upright along the plate (reading from the bottom up),
+// with a light wash in the colour of the side. Anchored from the centre of the row so it sits right next to the first slot at any scale.
+const RowPlaque = ({ kind, side }: { kind: 'front' | 'back'; side: 'player' | 'npc' }) => (
+  <div className="absolute top-1/2 -translate-y-1/2 pointer-events-none w-[4rem] h-[9.4rem] md:w-[5rem] md:h-[11.8rem] right-[calc(50%+20.55rem)] md:right-[calc(50%+27.05rem)]"
+    style={{ backgroundImage: `url(${rowPlaqueImage})`, backgroundSize: '100% 100%', filter: 'drop-shadow(0 4px 5px rgba(0,0,0,0.55))' }}>
+    <div className="absolute inset-[6%] rounded-[0.5rem]" style={{ background: side === 'player' ? 'rgba(120,175,255,0.16)' : 'rgba(235,85,75,0.16)' }} />
+    <div className="absolute inset-0 flex items-center justify-center">
+      <span className="whitespace-nowrap font-bold uppercase text-[0.82rem] md:text-[1.05rem] tracking-[0.12em]"
+        style={{ fontFamily: "'Cinzel', serif", writingMode: 'vertical-rl', transform: 'rotate(180deg)', color: '#ecce82', textShadow: '0 1px 1px #000, 0 0 4px rgba(0,0,0,0.9), 0 -1px 0 rgba(150,108,40,0.9)' }}>
+        {kind === 'front' ? 'Vanguarda' : 'Retaguarda'}
+      </span>
+    </div>
+  </div>
+);
 const CardSlot = ({
   onClick, onInfoClick, card, isSelected = false,
   isAttacking = false, isImpactingTarget = false, isImpactingAttacker = false, attackDirection = 'up', hint, rowRoleHint,
@@ -10447,9 +10455,12 @@ const CardSlot = ({
   // for: "isso tem que ficar claro no tabuleiro," not just technically present.
   // A unit slot (0-9) of either board is "carved into the ground" instead of drawn with a line: a dark recess with an inner shadow, a faint warm
   // lip on the lower edge and a hairline in its side's colour (steel blue for you, crimson for the opponent). Relíquia, Terreno and General keep the old look.
-  const unitSlotM = slotId ? /^(player|npc)-([0-9])$/.exec(slotId) : null;
+  const unitSlotM = slotId ? /^(player|npc)-([0-9]|1[01])$/.exec(slotId) : null;
   const unitSlot = !!unitSlotM && !card;
-  const slotRow: 'front' | 'back' = unitSlotM && Number(unitSlotM[2]) <= 4 ? 'front' : 'back';
+  const slotNum = unitSlotM ? Number(unitSlotM[2]) : -1;
+  const slotRow: 'front' | 'back' = slotNum <= 4 ? 'front' : 'back';
+  const emblemKind: EmblemKind = slotNum === 10 ? 'relic' : slotNum === 11 ? 'terrain' : slotRow;
+  const special = slotNum >= 10;
   const slotTint = unitSlotM && unitSlotM[1] === 'player' ? '120,175,255' : '235,85,75';
   const carvedStyle: React.CSSProperties | undefined = unitSlot ? {
     background: 'rgba(8,6,4,0.46)',
@@ -10484,8 +10495,11 @@ const CardSlot = ({
       className={`w-[7.5rem] h-[9.5rem] md:w-[9.5rem] md:h-[12.5rem] rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : unitSlot ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${!card ? hintClass : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${!card && isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''}`}
     >
       {unitSlot && !hint && <div className="absolute inset-0 rounded-lg bg-[#e8dcc0]/0 group-hover:bg-[#e8dcc0]/10 transition-colors pointer-events-none" />}
-      {unitSlot && hint !== 'invalid' && <SlotEmblem row={slotRow} lit={hint === 'valid'} tone={rowRoleHint === 'attack' || !rowRoleHint ? (slotRow === 'front' ? 'amber' : 'sky') : 'sky'} />}
-      {unitSlot && hint === 'valid' && <div className="absolute inset-0 rounded-lg pointer-events-none" style={{ boxShadow: `inset 0 0 16px rgba(${slotRow === 'front' ? '255,196,92' : '120,205,255'},0.38), 0 0 14px rgba(${slotRow === 'front' ? '255,196,92' : '120,205,255'},0.3)` }} />}
+      {unitSlot && hint !== 'invalid' && <SlotEmblem kind={emblemKind} lit={hint === 'valid'} offsetY={special ? -7 : 0} tone={special ? 'amber' : slotRow === 'front' ? 'amber' : 'sky'} />}
+      {unitSlot && special && (
+        <span className="absolute bottom-[9%] inset-x-0 text-center text-[0.55rem] md:text-[0.7rem] uppercase tracking-[0.16em] font-bold pointer-events-none" style={{ fontFamily: "'Cinzel', serif", color: hint === 'valid' ? 'rgba(255,214,130,0.95)' : 'rgba(226,190,110,0.42)' }}>{slotNum === 10 ? 'Relíquia' : 'Terreno'}</span>
+      )}
+      {unitSlot && hint === 'valid' && <div className="absolute inset-0 rounded-lg pointer-events-none" style={{ boxShadow: `inset 0 0 16px rgba(${special || slotRow === 'front' ? '255,196,92' : '120,205,255'},0.38), 0 0 14px rgba(${special || slotRow === 'front' ? '255,196,92' : '120,205,255'},0.3)` }} />}
       {unitSlot && hint === 'valid' && rowRoleHint && hintsBoard && (
         <div className="absolute inset-x-0 bottom-[7%] text-center leading-none pointer-events-none" style={{ fontFamily: "'Cinzel', serif", color: rowRoleHint === 'attack' ? '#ffd36a' : '#8fd4ff', textShadow: '0 1px 2px #000, 0 0 6px #000' }}>
           <b className="block font-extrabold tracking-[0.03em]" style={{ fontSize: ROW_ROLE_VIEW[rowRoleHint].size }}>{ROW_ROLE_VIEW[rowRoleHint].label}</b>
