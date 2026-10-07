@@ -505,12 +505,13 @@ novo).
 
 ---
 
-## 3f-v2. Cemitério — versão para a casa do tabuleiro (pendente)
+## 3f-v2. Cemitério — só o ícone pequeno (pendente)
 
-**Arquivo esperado:** `src/assets/slot-cemiterio.webp` · **Tamanho:** 768 × 972 (retrato, proporção da casa: 0,79) · fundo magenta liso (#FF00FF); eu recorto. O texto "CEMITÉRIO" é pequeno e horizontal, feito por código (não vai na arte).
+Decisão do dono: **nada de moldura nem de casa nova**; a casa do Cemitério continua como está e recebe só um ícone pequeno, no mesmo estilo dos ícones da Vanguarda, da Retaguarda, da Relíquia e do Terreno. A arte com moldura completa (`art-prompts/reference/casas/casa-cemiterio.jpg`) não será usada.
+**Arquivo esperado:** `src/assets/slot-icone-cemiterio.webp` · quadrado 1024 × 1024 · fundo magenta liso (#FF00FF).
 
 ```
-A single game-asset illustration for a card game's graveyard slot, seen from directly above (flat top-down), portrait composition, ratio 0.79 (768x972). A small pile of broken battlefield equipment lying on a dark recessed stone socket: two cracked and snapped sword blades crossed over a splintered round shield, a torn scrap of dark banner cloth caught underneath, a few faintly glowing embers and a light scatter of ash. No skulls, no bones, no text, neutral colors (usable by either army). The socket is a calm, dark, worn stone recess with a soft inner shadow and a thin faint warm lip, no thick frame. Painterly digital illustration in the style of a high-end collectible card game, warm key light from the upper left, clean readable shapes that still read at 56 px wide. The pile is centered and comfortably inset from all four edges. Plain flat solid magenta (#FF00FF) background outside the socket, no gradient, no cast shadow outside the socket, no watermark. No magenta on the object.
+A single game-asset emblem, centered, flat front view, on a plain solid magenta (#FF00FF) background: a heraldic icon of a snapped sword and a splintered round shield crossed together, with two or three tiny glowing embers, cast in aged bronze with warm gold highlights and a soft brown patina, slightly embossed as if stamped into metal, clean bold readable silhouette that still reads at 40 px, a subtle dark outline, soft glow-ready edges. Painterly digital illustration in the style of a high-end collectible card game, warm key light from the upper left. Same visual family and level of detail as a bronze sword-and-shield emblem and a bronze bow-and-banner emblem. No skulls, no bones, no text, no frame, no socket, no background scenery, no watermark. No magenta on the emblem.
 ```
 
 ---
