@@ -1302,6 +1302,29 @@ VARIANT: the rear line. Lighter and sheltered: carved dark walnut wood inlay fra
 
 ---
 
+## 4ae. Ícones das casas (Vanguarda/Retaguarda) e placa lateral das fileiras (pendente)
+
+Comum: fundo **magenta liso (#FF00FF)** (eu recorto), estilo pintura de carta de TCG, luz quente de cima à esquerda, nada de texto (o texto das placas é feito por código).
+
+**Ícone da Vanguarda** — `src/assets/slot-icone-vanguarda.webp`, quadrado 1024 × 1024:
+```
+A single game-asset emblem, centered, flat front view, on a plain solid magenta (#FF00FF) background: a heraldic icon of a sword crossed in front of a heater shield, cast in aged bronze with warm gold highlights and a soft brown patina, slightly embossed as if stamped into metal, clean bold readable silhouette that still reads at 40 px, a subtle dark outline, soft glow-ready edges. Painterly digital illustration in the style of a high-end collectible card game, warm key light from the upper left. No text, no frame, no background scenery, no watermark. No magenta on the emblem.
+```
+
+**Ícone da Retaguarda** — `src/assets/slot-icone-retaguarda.webp`, quadrado 1024 × 1024:
+```
+A single game-asset emblem, centered, flat front view, on a plain solid magenta (#FF00FF) background: a heraldic icon of a longbow with an arrow nocked and a small pennant banner behind it, cast in aged bronze with warm gold highlights and a soft brown patina, slightly embossed as if stamped into metal, clean bold readable silhouette that still reads at 40 px, a subtle dark outline, soft glow-ready edges. Painterly digital illustration in the style of a high-end collectible card game, warm key light from the upper left. No text, no frame, no background scenery, no watermark. No magenta on the emblem.
+```
+
+**Placa lateral (em branco)** — `src/assets/placa-fileira.webp`, retrato estreito 384 × 864 (proporção 0,44):
+```
+A single game-asset illustration of a small blank vertical name plaque for a fantasy battlefield board, flat front view, narrow portrait rounded rectangle, ratio 0.44 (384x864), on a plain solid magenta (#FF00FF) background: dark aged walnut wood plate with thin worn bronze edging, a faint engraved border line inset from the edge, two small bronze rivets (one near the top, one near the bottom), slightly weathered and scratched, completely empty and flat in the middle (the lettering will be added later, so no text, no symbols, no ornament in the center). Painterly digital illustration in the style of a high-end collectible card game, warm key light from the upper left, soft shadow only inside the plaque. No text, no watermark, no cast shadow outside the plaque. No magenta on the plaque.
+```
+
+**Uso:** o ícone fica dentro da casa (apagado; acende ao selecionar a carta) e a placa fica na margem esquerda, ao lado de cada fileira, com "VANGUARDA" / "RETAGUARDA" escrito na vertical por código. Mockup: `docs/animacoes.md`.
+
+---
+
 ## 4t. Editor de deck (Meu Deck) — artes da tela (pendente)
 
 **Status:** pendente. Hoje a tela usa só as molduras finas já existentes (`ui-frame-menu-card.webp`
