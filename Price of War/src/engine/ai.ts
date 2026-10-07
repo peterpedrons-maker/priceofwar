@@ -449,8 +449,25 @@ export const aiLegacyAction = (state: GameState, seat: Seat, rand: Rand = Math.r
 // its own deck.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
+// Estilo de jogo da IA. `ration` (0 a 1) é o quanto ela racionaliza: 0 = como sempre foi (joga o que o ouro e o tabuleiro pedem); valores maiores a
+// fazem guardar cartas para os turnos seguintes e esperar o momento certo das Táticas de dano em área. Desligado por padrão (o jogo não passa estilo).
+export interface AiStyle { ration?: number }
+let STYLE: AiStyle = {};
+
 // How much one card kept in the hand is worth (a card in hand is an option for later turns, and cards are what the game runs short of).
-const holdValue = (c: Card): number => cardValue(c) * 0.5;
+const holdValue = (c: Card): number => {
+  const k = STYLE.ration ?? 0;
+  let v = cardValue(c) * 0.5;
+  if (k > 0) {
+    v *= 1 + 0.7 * k;                       // guardar uma carta vale mais: ela ainda pode ser usada nos turnos seguintes
+    if (c.cardType === 'Tática') {          // Tática de dano em área: esperar mais alvos rende mais do que usar já
+      for (const verb of verbsOn(c.name, 'play')) {
+        if (verb.kind === 'damage') v += k * 0.7 * verb.amount * (verb.all ? 4 : verb.target?.area === 'row' ? 3 : 0);
+      }
+    }
+  }
+  return v;
+};
 
 // What the units on the board could do to each other on the attacker's next turn (positive scores only; a kill on the General is huge).
 const attackPotential = (att: PlayerState, def: PlayerState): number => {
@@ -675,7 +692,12 @@ const answerPending = (state: GameState, seat: Seat): Action => {
   return { type: 'choose', cardIds: bestIds(pend.options, Math.max(pend.min, Math.min(pend.max, pend.options.length))) };
 };
 
-export const aiNextAction = (state: GameState, seat: Seat, rand: Rand = Math.random): Action => {
+export const aiNextAction = (state: GameState, seat: Seat, rand: Rand = Math.random, style: AiStyle = {}): Action => {
+  const before = STYLE; STYLE = style;
+  try { return aiNextActionInner(state, seat, rand, style); } finally { STYLE = before; }
+};
+
+const aiNextActionInner = (state: GameState, seat: Seat, rand: Rand, style: AiStyle): Action => {
   if (state.pending && state.pending.seat === seat) return answerPending(state, seat);
   const t = state.turn;
   if (t.active !== seat || state.winner !== null || !['preparacao', 'combate', 'movimentacao'].includes(t.phase)) return aiLegacyAction(state, seat, rand);
@@ -684,12 +706,12 @@ export const aiNextAction = (state: GameState, seat: Seat, rand: Rand = Math.ran
     const want = wantedRelicMode(state, seat);
     if (want && state.players[seat].board[10]?.mode !== want) return { type: 'relic_mode', mode: want };
   }
-  const key = fingerprint(state, seat);
+  const key = `${style.ration ?? 0}|${fingerprint(state, seat)}`;
   const known = memo.get(key);
   if (known && applyAction(state, seat, known).ok) return known;
   const plan = planTurn(state, seat, rand);
   if (memo.size > 400) memo.clear();
-  plan.actions.forEach((a, i) => memo.set(plan.keys[i], a));
+  plan.actions.forEach((a, i) => memo.set(`${style.ration ?? 0}|${plan.keys[i]}`, a));
   const first = plan.actions[0];
   if (first && applyAction(state, seat, first).ok) return first;
   return aiLegacyAction(state, seat, rand);

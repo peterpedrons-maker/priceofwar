@@ -44,7 +44,7 @@ function play(seed: number, cardealSeat: Seat, first: Seat, narrate: boolean): G
   let guard = 0;
   while (s.winner === null && s.turn.round <= 40 && guard++ < 6000) {
     const seat = (s.pending ? s.pending.seat : s.turn.active) as Seat;
-    const act = aiNextAction(s, seat, rand);
+    const act = aiNextAction(s, seat, rand, { ration: Number(process.env.AI_RATION ?? 0) });
     const pre = s;
     const r = applyAction(s, seat, act);
     if (r.ok === false) break;
