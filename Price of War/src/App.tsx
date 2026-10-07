@@ -567,8 +567,12 @@ const PHASE_BANNER_TEXT: Record<TurnPhase, { title: string; subtitle: string }> 
 const BATALHA_FALL_MS = 680;
 const BATALHA_IMPACT_FRACTION = 0.55;
 
-const PHASE_BANNER_STAGE_MS = { in: 250, hold: 1600, out: 250 } as const;
-const PHASE_BANNER_DURATION_MS = PHASE_BANNER_STAGE_MS.in + PHASE_BANNER_STAGE_MS.hold + PHASE_BANNER_STAGE_MS.out;
+// The phase / turn ribbon is short: useful while the player is learning, so the first ones stay a bit longer (hold 800 ms) and after a few
+// (BANNER_LEARN_COUNT, remembered on the device) it gets even quicker (hold 420 ms).
+const BANNER_LEARN_COUNT = 10;
+let bannersSeen = (() => { try { return Number(localStorage.getItem('pow.banners') || 0); } catch { return 0; } })();
+const PHASE_BANNER_STAGE_MS = { get in() { return 170; }, get hold() { return bannersSeen < BANNER_LEARN_COUNT ? 800 : 420; }, get out() { return 170; } };
+const phaseBannerMs = () => PHASE_BANNER_STAGE_MS.in + PHASE_BANNER_STAGE_MS.hold + PHASE_BANNER_STAGE_MS.out;
 // y is a constant lift, not something that changes stage to stage — the ribbon sits
 // dead-center in the viewport by default (see the banner's own fixed inset-0
 // flex-center wrapper below), which put its top edge low enough that the HUD's
@@ -5378,7 +5382,10 @@ export default function App() {
   // Shared by announcePhase (below) and announceTurnChange — the ribbon itself
   // doesn't actually care whether its text is a phase name or a turn handoff,
   // just that something worth a beat's pause just happened.
+  const coinFxBusyRef = useRef(0);   // > 0 while a coin effect (manutenção, ouro) plays: the phase ribbons wait for it to end
   const showBanner = (title: string, subtitle: string, sfx: 'phase' | 'turn' = 'phase') => {
+    if (coinFxBusyRef.current > 0) { window.setTimeout(() => showBanner(title, subtitle, sfx), 150); return; }
+    bannersSeen += 1; if (bannersSeen <= BANNER_LEARN_COUNT + 1) { try { localStorage.setItem('pow.banners', String(bannersSeen)); } catch { /* no storage */ } }
     playBannerSfx(sfx);
     const id = ++phaseBannerIdRef.current;
     const gen = ++phaseLockGenRef.current;
@@ -5393,7 +5400,7 @@ export default function App() {
       // wait instead of the first banner's own timer cutting it short out from
       // under the second.
       if (phaseLockGenRef.current === gen) setPhaseTransitionLock(false);
-    }, PHASE_BANNER_DURATION_MS);
+    }, phaseBannerMs());
   };
   // While "Encerrar turno" runs through the remaining phases in one go, the per-phase banners stay quiet.
   const skipPhaseBannersRef = useRef(false);
@@ -6094,6 +6101,9 @@ export default function App() {
     let drawIndex = 0;
     let summonIndex = 0;
     let turnJustStarted = false;
+    // (first, so a coin effect already holds back the phase ribbons that this same batch announces)
+    if (!opts.quietTurn) { try { cardOverlayFx(events, opts.prev ?? null); } catch (err) { console.error('card fx', err); } }   // (an effect must never break the match)
+
     const ownerId = (seat: Seat) => (seat === 0 ? 'player' : 'npc');
     // A General whose end-of-turn bonus went to units that moved (Aurelion): the weapon is raised over the card while the wave passes over the units.
     if (!opts.quietTurn) {
@@ -6118,7 +6128,7 @@ export default function App() {
               window.setTimeout(() => setAutoPhase('suprimentos'), 750);
               window.setTimeout(() => setAutoPhase(null), 1500);
               announceTurnChange('player');
-              window.setTimeout(() => announcePhase('preparacao'), PHASE_BANNER_DURATION_MS);
+              window.setTimeout(() => announcePhase('preparacao'), phaseBannerMs());
             }
           } else {
             setViewState('field');
@@ -6293,7 +6303,6 @@ export default function App() {
           break;
       }
     });
-    if (!opts.quietTurn) { try { cardOverlayFx(events, opts.prev ?? null); } catch (err) { console.error('card fx', err); } }   // (an effect must never break the match)
   };
 
   // Effects of the cards that play on top of the game (src/combatFx.ts) without holding anything back: they start from the events of one
@@ -6303,25 +6312,26 @@ export default function App() {
     const sideOf = (seat: Seat): FxSide => (seat === 0 ? 'player' : 'npc');
     const env = fxEnvFor(() => {});
     const run = (p: Promise<void>) => { void p.catch(err => console.error('card fx', err)); };
+    const runCoin = (p: Promise<void>) => { coinFxBusyRef.current += 1; void p.catch(err => console.error('card fx', err)).finally(() => { coinFxBusyRef.current = Math.max(0, coinFxBusyRef.current - 1); }); };
     // Manutenção: coins to the cards that were paid, a contract that tears over each one that was dismissed
     const up = events.find(e => e.t === 'upkeep');
     if (up && up.t === 'upkeep' && prev) {
       const dis = events.flatMap(e => (e.t === 'dismissed' && e.seat === up.seat ? [e] : []));
       const gone = new Set(dis.map(d => d.slot));
       const paid = prev.players[up.seat].board.flatMap((c, slot) => (c && slot < 10 && !gone.has(slot) && upkeepOf(c.name) > 0 ? [{ slot, cost: upkeepOf(c.name) }] : []));
-      run(fxUpkeep(env, sideOf(up.seat), { paid, dismissed: dis.map(d => ({ slot: d.slot, toHand: d.toHand, draws: !!getCardDef(d.card.name)?.abilities?.some(a => a.on === 'dismissed') })) }));
+      runCoin(fxUpkeep(env, sideOf(up.seat), { paid, dismissed: dis.map(d => ({ slot: d.slot, toHand: d.toHand, draws: !!getCardDef(d.card.name)?.abilities?.some(a => a.on === 'dismissed') })) }));
     }
     // a card that gives gold at the start of the turn
     ([0, 1] as Seat[]).forEach(seat => {
       if (!events.some(e => e.t === 'gold' && e.seat === seat && e.reason === 'gain' && e.delta > 0)) return;
       const slots = cur.players[seat].board.flatMap((c, slot) => (c && slot < 10 && getCardDef(c.name)?.fx === 'moeda' ? [slot] : []));
-      if (slots.length) run(fxGoldGain(env, sideOf(seat), slots));
+      if (slots.length) runCoin(fxGoldGain(env, sideOf(seat), slots));
     });
     // Relíquia com modos: Soldo em Dobro (+ATK) shows coins going to the cards with upkeep; Saque shows the coin of a unit that fell becoming a card
     events.forEach(e => {
       if (e.t !== 'relic_mode') return;
       const mode = relicModeOf(cur.players[e.seat].board);
-      if (mode?.atk) run(fxRelicSoldo(env, sideOf(e.seat), 10, cur.players[e.seat].board.flatMap((c, slot) => (c && slot < 10 && upkeepOf(c.name) > 0 ? [slot] : []))));
+      if (mode?.atk) runCoin(fxRelicSoldo(env, sideOf(e.seat), 10, cur.players[e.seat].board.flatMap((c, slot) => (c && slot < 10 && upkeepOf(c.name) > 0 ? [slot] : []))));
     });
     ([0, 1] as Seat[]).forEach(seat => {
       const mode = relicModeOf(cur.players[seat].board);
@@ -7195,10 +7205,10 @@ export default function App() {
       setNpcVisiblePhase('compra');
       await sleep(750);
       setNpcVisiblePhase('suprimentos');
-      await sleep(Math.max(0, PHASE_BANNER_DURATION_MS - 1000 - 750) + 150);
+      await sleep(Math.max(0, phaseBannerMs() - 1000 - 750) + 150);
       setNpcVisiblePhase('preparacao');
       showBanner('Fase de Preparação', 'O adversário joga suas cartas');
-      await sleep(PHASE_BANNER_DURATION_MS + 150);
+      await sleep(phaseBannerMs() + 150);
       let combatAnnounced = false;
       let movementAnnounced = false;
       await tutBeat('start');
@@ -7212,7 +7222,7 @@ export default function App() {
           if (!movementAnnounced) {
             movementAnnounced = true;
             showBanner('Fase de Movimentação', 'O adversário move tropas e joga Táticas');
-            await sleep(PHASE_BANNER_DURATION_MS + 150);
+            await sleep(phaseBannerMs() + 150);
           }
         }
         if (action.type === 'play') {
@@ -7230,7 +7240,7 @@ export default function App() {
           if (!combatAnnounced) {
             combatAnnounced = true;
             showBanner('Fase de Combate', 'O adversário ataca suas unidades');
-            await sleep(PHASE_BANNER_DURATION_MS + 150);
+            await sleep(phaseBannerMs() + 150);
           }
           const dryNpc = applyAction(engineRef.current!, 1, action);
           const lethalNpc = dryNpc.ok === true && dryNpc.events.some(e => e.t === 'winner');
@@ -7272,7 +7282,7 @@ export default function App() {
           if (!movementAnnounced && s.turn.phase === 'movimentacao') {
             movementAnnounced = true;
             showBanner('Fase de Movimentação', 'O adversário reposiciona suas unidades');
-            await sleep(PHASE_BANNER_DURATION_MS + 150);
+            await sleep(phaseBannerMs() + 150);
           }
           const board = s.players[1].board;
           const originRect = document.getElementById(`npc-${action.from}`)?.getBoundingClientRect();
@@ -9409,77 +9419,91 @@ export default function App() {
             </motion.div>
           );
         })()}
-        {/* Mercenários — Suprimentos: which hired units stay (their upkeep is paid) and which are dismissed. */}
+        {/* Mercenários — Suprimentos: the hired cards themselves rise over the board, glowing, each with its own Pagar / Dispensar (like an effect being activated). */}
         {upkeepPrompt && !autoPhase && !phaseTransitionLock && (() => {
           const eng = engineRef.current;
-          const rows = upkeepPrompt.entries.flatMap(e => { const c = eng?.players[0].board[e.slot]; return c && c.id === e.cardId ? [{ e, c }] : []; });
+          const rows = upkeepPrompt.entries.flatMap(e => { const c = eng?.players[0].board[e.slot]; return c && c.id === e.cardId ? [{ e, c: toCardData(c) }] : []; });
           const keptCost = rows.filter(r => upkeepKeep[r.e.cardId] !== false).reduce((a, r) => a + r.e.cost, 0);
           const total = Math.max(0, keptCost - upkeepPrompt.discount);
           const ok = total <= playerMana;
+          const perRow = rows.length > 4 ? 3 : Math.max(1, rows.length), gap = 10, hang = 34;
+          const scale = Math.max(0.42, Math.min(0.7, (windowSize.width - 24 - gap * (perRow - 1)) / (perRow * HAND_CARD_WIDTH)));
           return (
             <motion.div key="upkeep-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[268] flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.74)' }} onClick={(ev) => ev.stopPropagation()}>
-              <div className="w-full pointer-events-auto" style={{ maxWidth: 440, padding: '14px 14px calc(14px + env(safe-area-inset-bottom))', background: 'linear-gradient(#2c1e0f, #140d06)', borderTop: '2px solid #b8923a', borderRadius: '18px 18px 0 0', boxShadow: '0 -10px 40px rgba(0,0,0,0.7)' }}>
-                <div className="text-center" style={{ fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 19, letterSpacing: '0.06em', color: '#f4dfa6' }}>MANUTENÇÃO DA COMPANHIA</div>
-                <div className="text-center mb-2" style={{ fontFamily: "'PT Serif', serif", fontSize: 12.5, color: '#d6c39a' }}>
+              className="fixed inset-x-0 bottom-0 z-[268] flex flex-col items-center justify-end gap-2 pb-3 pointer-events-none"
+              style={{ top: 120, background: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.62) 18%)' }}>
+              <div className="pointer-events-none text-center px-3" style={{ textShadow: '0 2px 6px #000' }}>
+                <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 17, letterSpacing: '0.08em', color: '#f4dfa6' }}>MANUTENÇÃO DA COMPANHIA</div>
+                <div style={{ fontFamily: "'PT Serif', serif", fontSize: 12, color: '#e6d6ae' }}>
                   Você tem <b style={{ color: '#ffd36a' }}>{playerMana}</b> de ouro. Quem não for pago vai embora.{upkeepPrompt.discount > 0 ? ` A Relíquia abate ${upkeepPrompt.discount}.` : ''}
                 </div>
-                <div className="flex flex-col gap-1.5 overflow-y-auto" style={{ maxHeight: '48vh' }}>
-                  {rows.map(({ e, c }) => {
-                    const kept = upkeepKeep[e.cardId] !== false;
-                    const def = getCardDef(c.name);
-                    const outcome = def?.dismiss === 'hand' ? 'volta para a mão' : 'vai ao cemitério';
-                    const rescisao = (def?.abilities ?? []).some(a => a.on === 'dismissed') ? ' · Rescisão: compra 1 carta' : '';
-                    return (
-                      <div key={e.cardId} className="flex items-center gap-2 rounded-lg" style={{ padding: '6px 8px', background: kept ? 'rgba(64,96,52,0.34)' : 'rgba(120,42,30,0.38)', border: `1px solid ${kept ? '#6f9a5a' : '#a8503c'}` }}>
-                        <img src={ART_BY_NAME[c.name]} alt="" draggable={false} className="rounded object-cover" style={{ width: 54, height: 36, border: '1px solid rgba(255,255,255,0.18)' }} />
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 13, color: '#f6ead0' }}>{c.name}</div>
-                          <div style={{ fontFamily: "'PT Serif', serif", fontSize: 11, color: '#cdb98f' }}>{c.atk}/{c.hp} · manutenção {e.cost}{kept ? '' : ` · ${outcome}${rescisao}`}</div>
-                        </div>
-                        <button className="shrink-0 active:scale-95 transition" style={{ width: 92, padding: '7px 4px', borderRadius: 8, fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 12, letterSpacing: '0.03em', color: kept ? '#d4f5c9' : '#ffd0c2', background: kept ? '#27401f' : '#4a2018', border: `1.5px solid ${kept ? '#7fbf6a' : '#d0705a'}` }}
-                          onClick={(ev) => { ev.stopPropagation(); playUiClickSfx(); setUpkeepKeep(k => ({ ...k, [e.cardId]: !kept })); }}>
-                          {kept ? `Pagar ${e.cost}` : 'Dispensar'}
-                        </button>
+              </div>
+              <div className="flex flex-wrap items-start justify-center overflow-y-auto" style={{ gap, maxWidth: windowSize.width - 12, maxHeight: '58vh' }}>
+                {rows.map(({ e, c }, i) => {
+                  const kept = upkeepKeep[e.cardId] !== false;
+                  const def = getCardDef(c.name);
+                  const note = kept ? null : (def?.dismiss === 'hand' ? 'volta para a mão' : (def?.abilities ?? []).some(a => a.on === 'dismissed') ? 'Rescisão: compra 1' : 'vai embora');
+                  return (
+                    <motion.div key={e.cardId} className="flex flex-col items-center gap-1 pointer-events-auto" style={{ width: HAND_CARD_WIDTH * scale }}
+                      initial={{ y: 40, scale: 0.8, opacity: 0 }} animate={{ y: 0, scale: 1, opacity: 1 }} transition={{ delay: 0.06 * i, duration: 0.28 }}>
+                      <div style={{ width: HAND_CARD_WIDTH * scale, height: (HAND_CARD_HEIGHT + hang) * scale, filter: kept ? 'drop-shadow(0 0 12px rgba(255,214,110,0.95))' : 'grayscale(0.8) brightness(0.6) drop-shadow(0 0 8px rgba(239,68,68,0.8))', transition: 'filter 0.2s' }}>
+                        <div style={{ width: HAND_CARD_WIDTH, height: HAND_CARD_HEIGHT, transform: `scale(${scale})`, transformOrigin: 'top left' }}><CardFace card={c} variant="hand" /></div>
                       </div>
-                    );
-                  })}
+                      <GameButton tone={kept ? 'primary' : 'neutral'} size={13} className="w-full" onClick={(ev) => { ev.stopPropagation(); playUiClickSfx(); setUpkeepKeep(k => ({ ...k, [e.cardId]: !kept })); }}>
+                        {kept ? `Pagar ${e.cost}` : 'Dispensar'}
+                      </GameButton>
+                      <div style={{ height: 14, fontFamily: "'PT Serif', serif", fontSize: 10.5, color: '#ffb8a6', textShadow: '0 1px 3px #000' }}>{note ?? ''}</div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+              <div className="pointer-events-auto flex items-center gap-3" style={{ width: Math.min(340, windowSize.width - 24) }}>
+                <div className="shrink-0" style={{ fontFamily: "'PT Serif', serif", fontSize: 13, color: '#e8d7ae', textShadow: '0 1px 4px #000' }}>
+                  Total: <b style={{ color: ok ? '#ffd36a' : '#ff9d88' }}>{total}</b>{!ok && <div style={{ color: '#ff9d88', fontSize: 11 }}>falta ouro</div>}
                 </div>
-                <div className="flex items-center justify-between mt-2 mb-2" style={{ fontFamily: "'PT Serif', serif", fontSize: 13, color: '#e8d7ae' }}>
-                  <span>Total a pagar: <b style={{ color: ok ? '#ffd36a' : '#ff9d88' }}>{total}</b></span>
-                  {!ok && <span style={{ color: '#ff9d88' }}>Falta ouro: dispense alguém</span>}
-                </div>
-                <GameButton tone="primary" size={17} className="w-full" disabled={!ok} onClick={(ev) => { ev.stopPropagation(); confirmUpkeep(); }}>Confirmar</GameButton>
+                <GameButton tone="primary" size={16} className="flex-1" disabled={!ok} onClick={(ev) => { ev.stopPropagation(); confirmUpkeep(); }}>Confirmar</GameButton>
               </div>
             </motion.div>
           );
         })()}
-        {/* Mercenários — fim do turno: which mode of the Relíquia holds until the end of the next turn. */}
-        {relicPrompt && (
-          <motion.div key="relic-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[268] flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.74)' }} onClick={(ev) => ev.stopPropagation()}>
-            <div className="w-full pointer-events-auto" style={{ maxWidth: 440, padding: '14px 14px calc(14px + env(safe-area-inset-bottom))', background: 'linear-gradient(#2c1e0f, #140d06)', borderTop: '2px solid #b8923a', borderRadius: '18px 18px 0 0', boxShadow: '0 -10px 40px rgba(0,0,0,0.7)' }}>
-              <div className="text-center" style={{ fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 19, letterSpacing: '0.06em', color: '#f4dfa6' }}>MODO DA RELÍQUIA</div>
-              <div className="text-center mb-2" style={{ fontFamily: "'PT Serif', serif", fontSize: 12.5, color: '#d6c39a' }}>Vale até o fim do seu próximo turno (o adversário vê qual é).</div>
-              <div className="flex flex-col gap-2">
+        {/* Mercenários — fim do turno: the Relíquia itself rises, glowing, and the modes sit under it. */}
+        {relicPrompt && (() => {
+          const relic = engineRef.current?.players[0].board[10];
+          const rc = relic ? toCardData(relic) : null;
+          const scale = Math.max(0.5, Math.min(0.78, (windowSize.height - 120 - 56 * relicPrompt.modes.length - 90) / (HAND_CARD_HEIGHT + 34)));
+          return (
+            <motion.div key="relic-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-x-0 bottom-0 z-[268] flex flex-col items-center justify-end gap-2 pb-3 pointer-events-none"
+              style={{ top: 100, background: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.62) 16%)' }}>
+              {rc && (
+                <motion.div initial={{ y: 50, scale: 0.8, opacity: 0 }} animate={{ y: 0, scale: 1, opacity: 1 }} transition={{ duration: 0.3 }}
+                  style={{ width: HAND_CARD_WIDTH * scale, height: (HAND_CARD_HEIGHT + 34) * scale, filter: 'drop-shadow(0 0 16px rgba(255,214,110,0.95))' }}>
+                  <div style={{ width: HAND_CARD_WIDTH, height: HAND_CARD_HEIGHT, transform: `scale(${scale})`, transformOrigin: 'top left' }}><CardFace card={rc} variant="hand" /></div>
+                </motion.div>
+              )}
+              <div className="pointer-events-none text-center px-3" style={{ textShadow: '0 2px 6px #000' }}>
+                <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 16, letterSpacing: '0.08em', color: '#f4dfa6' }}>ESCOLHA O MODO</div>
+                <div style={{ fontFamily: "'PT Serif', serif", fontSize: 11.5, color: '#e6d6ae' }}>Vale até o fim do seu próximo turno (o adversário vê qual é).</div>
+              </div>
+              <div className="flex flex-col gap-1.5 pointer-events-auto" style={{ width: Math.min(360, windowSize.width - 24) }}>
                 {relicPrompt.modes.map(m => {
                   const on = relicPrompt.pick === m.id;
                   return (
-                    <button key={m.id} className="text-left active:scale-[0.99] transition" style={{ padding: '10px 12px', borderRadius: 10, background: on ? 'rgba(120,88,22,0.5)' : 'rgba(255,255,255,0.05)', border: `1.5px solid ${on ? '#e8c766' : 'rgba(255,255,255,0.18)'}` }}
+                    <button key={m.id} className="text-left active:scale-[0.99] transition" style={{ padding: '8px 12px', borderRadius: 10, background: on ? 'rgba(120,88,22,0.82)' : 'rgba(20,14,8,0.78)', border: `1.5px solid ${on ? '#e8c766' : 'rgba(255,255,255,0.2)'}`, boxShadow: on ? '0 0 14px rgba(232,199,102,0.6)' : 'none' }}
                       onClick={(ev) => { ev.stopPropagation(); playUiClickSfx(); setRelicPrompt(p => (p ? { ...p, pick: m.id } : p)); }}>
-                      <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 14, color: on ? '#fff1c9' : '#e8dcc0' }}>{m.name}{m.id === relicPrompt.current ? ' · em uso' : ''}</div>
-                      <div style={{ fontFamily: "'PT Serif', serif", fontSize: 12, color: '#cdb98f' }}>{m.effect}</div>
+                      <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 13.5, color: on ? '#fff1c9' : '#e8dcc0' }}>{m.name}{m.id === relicPrompt.current ? ' · em uso' : ''}</div>
+                      <div style={{ fontFamily: "'PT Serif', serif", fontSize: 11.5, color: '#d8c79e' }}>{m.effect}</div>
                     </button>
                   );
                 })}
               </div>
-              <div className="flex gap-2 mt-3">
+              <div className="flex gap-2 pointer-events-auto" style={{ width: Math.min(360, windowSize.width - 24) }}>
                 <GameButton tone="neutral" size={15} className="flex-1" onClick={(ev) => { ev.stopPropagation(); setRelicPrompt(null); }}>Voltar</GameButton>
                 <GameButton tone="primary" size={15} className="flex-[2]" onClick={(ev) => { ev.stopPropagation(); confirmRelicMode(); }}>Encerrar turno</GameButton>
               </div>
-            </div>
-          </motion.div>
-        )}
+            </motion.div>
+          );
+        })()}
       </AnimatePresence>
 
       {/* Flying card — plays from hand to the chosen board slot along real screen coordinates.
@@ -10228,7 +10252,7 @@ export default function App() {
       {/* Center-screen phase announcement — Yu-Gi-Oh-style: a full-width crimson
           ribbon with the phase name on it rushes in from the right, holds just long
           enough to read, then keeps going and rushes out to the left (see
-          announcePhase/phaseBanner above, and PHASE_BANNER_DURATION_MS/
+          announcePhase/phaseBanner above, and phaseBannerMs()/
           phaseTransitionLock for how long the game actually waits on it). Sits above
           the floating numbers (z-290) but below the board/hand card previews and
           full modals, same reasoning as that overlay. */}

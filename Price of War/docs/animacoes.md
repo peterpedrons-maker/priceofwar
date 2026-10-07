@@ -77,6 +77,10 @@ Mockup em `public/mockups/efeitos-decks/` (`/priceofwar/mockups/efeitos-decks/`)
 - **O Dia em que a Muralha Caiu** não usa rachaduras (ficavam estranhas por cima das cartas): pedras e madeira caem do alto sobre cada carta inimiga, com poeira, e a explosão corre da frente até o General.
 - **Teste no navegador:** `?debug` + `__powSet`/`__powAct`; as Emboscadas e o Soldo em Dobro se conferem montando a cena e disparando a ação (ver o roteiro em "Como conferir uma animação").
 
+### Prompts da manutenção e do modo da Relíquia (rodada 19)
+- Deixaram de ser folhas de texto escuras: as **próprias cartas** sobem brilhando sobre o tabuleiro (fundo só levemente escurecido, como a Emboscada). Manutenção: cada mercenário com seu botão Pagar/Dispensar e a nota do que acontece; Relíquia: a carta grande com os modos embaixo.
+- Enquanto um efeito de moedas toca (`fxUpkeep`, `fxGoldGain`, `fxRelicSoldo`), as faixas de fase/turno esperam (`coinFxBusyRef`).
+- **Faixas de fase/turno mais rápidas:** entrada/saída 170 ms; parada 800 ms nas primeiras 10 e 420 ms depois (contador salvo no aparelho, `pow.banners`). Antes: 250 + 1600 + 250.
 ## Painel do turno (`src/TurnTracker.tsx`)
 
 Arte única (`ui-turn-tracker-art.webp`, 1400×341) + duas máscaras (`-band`, `-neutral`) do mesmo tamanho. Faixa do nome
