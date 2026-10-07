@@ -217,6 +217,7 @@ import { aiNextAction } from './engine/ai';
 import { glyphUrl, burstUrl, NUMBER_GLOW, type NumberKind } from './numberGlyphs';
 import { triggerOf, triggerKeyOf, pulseCard, usePulse, TRIGGER_GLOW, TRIGGER_ICON } from './triggers';
 import { playSfx, preloadSfx, dbgMark } from './sfx';
+import { fxTactic, fxHero, fxRanged, preloadCombatFx, tacticSpot, type FxEnv, type FxSide, type FxTarget } from './combatFx';
 import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettings, subscribeAudio } from './audioSettings';
 import { useGameSettings, setGameSettings } from './gameSettings';
 import tutHandSprite from './assets/tut-hand.webp';
@@ -590,6 +591,8 @@ const IMPACT_MS = 150;
 // Golpe final (the blow that kills a General): everything on the board runs in slow motion (`TIME.k` stretches the lunge, the punch
 // and the burn), the lunge ends in a longer freeze with a white flash, and the victory/defeat screen waits for the General to burn away.
 const TIME = { k: 1 };
+// Which attackers throw something instead of lunging (src/combatFx.ts): Jorge's lance, the archers' arrows.
+const rangedKindOf = (name: string, cardType: string): 'lanca' | 'flecha' | null => (name === 'Jorge, Lança Sagrada' ? 'lanca' : cardType === 'Arqueiro' ? 'flecha' : null);
 const FINAL_SLOW = 2;
 const FINAL_INTRO_MS = 350;
 const FINAL_FREEZE_MS = 380;
@@ -1287,8 +1290,7 @@ const FloatNumber = ({ text, kind }: { text: string; kind: keyof typeof NUMBER_K
   const burst = burstUrl(k);
   return (
     <div className="relative flex items-center justify-center" style={{ height: h }}>
-      {/* (the burst star behind the digits was removed for damage: only the size of the number tells how hard the hit was) */}
-      {burst && k !== 'damage' && (
+      {burst && (
         <motion.img
           src={burst} alt=""
           initial={{ scale: 0.2, opacity: 0, rotate: -14 }}
@@ -5153,6 +5155,7 @@ export default function App() {
       const ctx = duelMusicCtxRef.current ?? (duelMusicCtxRef.current = new AudioContext());
       if (ctx.state === 'suspended') ctx.resume().catch(() => {});
       [attackSfxUrl, destroySfxUrl, effectSfxUrl].forEach(preloadSfx);   // decoded now, so the first blow / burn starts on time
+      void preloadCombatFx();   // the combat effects (src/combatFx.ts): images and sounds ready before the first Tática
       if (!duelMusicBufferRef.current) {
         const arrayBuffer = await fetch(duelMusicUrl).then(r => r.arrayBuffer());
         if (cancelled) return;
@@ -5416,6 +5419,13 @@ export default function App() {
   // opponent's plays, which otherwise happen inside a small board slot that's easy to
   // miss on a phone. Player's own plays already get a large preview during selection.
   const [announcedCard, setAnnouncedCard] = useState<{ card: CardData, side: 'player' | 'npc' } | null>(null);
+  // Combat effects (src/combatFx.ts): the Tática card that has landed on the board while its effect plays, and whether the
+  // presentation queue is busy (the screen shows the match a little behind the engine until the effect lands).
+  const [tacticLand, setTacticLand] = useState<{ card: CardData; side: 'player' | 'npc'; leaving: boolean; key: number } | null>(null);
+  const [fxBusy, setFxBusy] = useState(false);
+  const fxQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const fxPendingRef = useRef(0);
+  const processEventsRef = useRef<(events: GameEvent[], opts?: any) => void>(() => {});
 
   const [isImpacting, setIsImpacting] = useState(false);
   // Golpe final: the vignette stays on while the slow motion lasts; each freeze adds one white flash.
@@ -5838,6 +5848,7 @@ export default function App() {
     };
     // Test hook: the client-side flow state (what is pending, which effect floats, how many glows are still playing).
     (window as any).__powFlow = () => ({ ability: pendingAbilityRef.current, floating: trigActiveIdRef.current, glows: trigGlowPendingRef.current });
+    (window as any).__powAct = (seat: Seat, action: EngineAction) => { const r = dispatchActionRef.current(seat, action); return r.ok ? { ok: true } : r; };
     (window as any).__powSet = (mutate: (s: GameState) => void) => {
       const next = JSON.parse(JSON.stringify(engineRef.current)) as GameState;
       mutate(next);
@@ -5846,6 +5857,7 @@ export default function App() {
     };
   }, []);
   const syncViewRef = useRef<(s: GameState) => void>(() => {});
+  const dispatchActionRef = useRef<(seat: Seat, action: EngineAction, opts?: any) => any>(() => ({ ok: false }));
   // The deck the player picked for the match in progress (the engine match is created once the coin
   // toss has decided who goes first).
   const matchSelectionRef = useRef<DeckSelection>(DEFAULT_DECK_SELECTION);
@@ -6070,11 +6082,21 @@ export default function App() {
   syncViewRef.current = (s: GameState) => syncView(s);
 
   // Turns what happened into the sights and sounds of it.
-  const processEvents = (events: GameEvent[], opts: { quietTurn?: boolean } = {}) => {
+  const processEvents = (events: GameEvent[], opts: { quietTurn?: boolean; fxNumbers?: boolean; fxSkipAbility?: boolean; fxSkipTacticSfx?: boolean } = {}) => {
     let drawIndex = 0;
     let summonIndex = 0;
     let turnJustStarted = false;
     const ownerId = (seat: Seat) => (seat === 0 ? 'player' : 'npc');
+    // A General whose end-of-turn bonus went to units that moved (Aurelion): the weapon is raised over the card while the wave passes over the units.
+    if (!opts.quietTurn) {
+      ([0, 1] as Seat[]).forEach(seat => {
+        const gen = engineRef.current?.players[seat].board[12];
+        const v = gen ? verbsOn(gen.name, 'turn_end').find(x => x.kind === 'buff_moved') : undefined;
+        if (!v || v.kind !== 'buff_moved') return;
+        const hit = events.flatMap(e => (e.t === 'buff' && e.seat === seat && e.atk === v.atk && e.hp === v.hp ? [{ side: ownerId(seat) as FxSide, slot: e.slot, amount: 0 }] : []));
+        if (hit.length > 0) void fxHero('bonus', fxEnvFor(() => {}), ownerId(seat) as FxSide, hit);
+      });
+    }
     events.forEach(e => {
       switch (e.t) {
         case 'turn_start':
@@ -6111,7 +6133,7 @@ export default function App() {
           playCardDrawSfx();
           break;
         case 'play':
-          if (e.card.cardType === 'Tática') playTacticSfx();
+          if (e.card.cardType === 'Tática' && !opts.fxSkipTacticSfx) playTacticSfx();
           break;
         case 'place':
           // The opponent's cards have no flight from a hand on screen: they drop in from above (see CardSlot's arrival).
@@ -6125,6 +6147,7 @@ export default function App() {
           summonIndex += 1;
           break;
         case 'ability': {
+          if (opts.fxSkipAbility) break;     // the General's effect (src/combatFx.ts) has its own: the weapon raised over the card
           playTacticSfx();
           const c = engineRef.current?.players[e.seat].board[e.slot];
           if (c) startTriggerFx(ownerId(e.seat), e.slot, toCardData(c), triggerKeyOf(c.name) ?? 'comando', holdForSeat(e.seat));   // any card or General: the same float + glow
@@ -6140,10 +6163,10 @@ export default function App() {
           if (e.seat === 1) showToast(`O oponente ativou uma Emboscada: ${e.card.name}!`);
           break;
         case 'damage':
-          if (e.amount > 0) spawnFloatingNumberAtId(`${ownerId(e.seat)}-${e.slot}`, e.amount, 'damage');
+          if (e.amount > 0 && !opts.fxNumbers) spawnFloatingNumberAtId(`${ownerId(e.seat)}-${e.slot}`, e.amount, 'damage');
           break;
         case 'heal':
-          spawnFloatingNumberAtId(`${ownerId(e.seat)}-${e.slot}`, e.amount, 'heal');
+          if (!opts.fxNumbers) spawnFloatingNumberAtId(`${ownerId(e.seat)}-${e.slot}`, e.amount, 'heal');
           if (!opts.quietTurn) popOverSlot(e.seat === 0 ? 'player' : 'npc', e.slot, 'hp-up', `+${e.amount}`);
           break;
         case 'shield': {
@@ -6259,10 +6282,67 @@ export default function App() {
   // The one door into the rules. Local match: the engine applies the action and the result is shown. Online match:
   // see dispatchOnline — the screen shows MY VIEW of the server's match.
   type Dispatched = { ok: true; state: GameState; events: GameEvent[]; wait?: Promise<boolean> } | { ok: false; error: string };
+  // ── Combat effects (src/combatFx.ts) ────────────────────────────────────────────────────────────────────────────
+  // A Tática of damage (Catapulta, Trabuco, Balestra) lands on the board, glows and the effect leaves it; a General that heals raises
+  // its weapon. The engine has already decided everything: the screen just shows the result a little later, when the effect lands.
+  // Presentations go through a queue, so nothing shows ahead of an effect that is still playing.
+  const tacKeyRef = useRef(0);
+  const fxRectOf = (side: FxSide, slot: number) => {
+    const el = document.getElementById(`${side}-${slot}`);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height };
+  };
+  const fxEnvFor = (commit: () => void, card?: CardData, side?: FxSide): FxEnv => ({
+    rectOf: fxRectOf,
+    number: (sd, slot, amount, kind) => spawnFloatingNumberAtId(`${sd}-${slot}`, amount, kind),
+    commit,
+    showCard: on => {
+      if (on && card && side) setTacticLand({ card, side, leaving: false, key: ++tacKeyRef.current });
+      else { setTacticLand(c => (c ? { ...c, leaving: true } : c)); window.setTimeout(() => setTacticLand(null), 750); }
+    },
+  });
+  const FX_TACTICS: Record<string, 'catapulta' | 'trabuco' | 'balestra'> = { 'Catapulta de Guerra': 'catapulta', 'Trabuco de Cerco': 'trabuco', 'Balestra de Precisão': 'balestra' };
+  const planFx = (events: GameEvent[]): { run: (commit: () => void) => Promise<void>; flags: { fxNumbers: boolean; fxSkipAbility: boolean; fxSkipTacticSfx: boolean } } | null => {
+    const sideOf = (seat: Seat): FxSide => (seat === 0 ? 'player' : 'npc');
+    const play = events.find(e => e.t === 'play' && e.card.cardType === 'Tática' && FX_TACTICS[e.card.name]);
+    if (play && play.t === 'play') {
+      const targets: FxTarget[] = events.flatMap(e => (e.t === 'damage' && e.amount > 0 ? [{ side: sideOf(e.seat), slot: e.slot, amount: e.amount }] : []));
+      if (targets.length === 0) return null;
+      const card = toCardData(play.card), side = sideOf(play.seat);
+      return { run: commit => fxTactic(FX_TACTICS[play.card.name], fxEnvFor(commit, card, side), side, targets), flags: { fxNumbers: true, fxSkipAbility: false, fxSkipTacticSfx: true } };
+    }
+    const ab = events.find(e => e.t === 'ability' && e.slot === 12);
+    if (ab && ab.t === 'ability') {
+      const gen = engineRef.current?.players[ab.seat].board[12];
+      const heals = events.flatMap(e => (e.t === 'heal' ? [{ side: sideOf(e.seat), slot: e.slot, amount: e.amount }] : []));
+      if (gen && heals.length > 0 && abilityOn(gen.name, 'ability')?.do.some(v => v.kind === 'heal')) {
+        return { run: commit => fxHero('cura', fxEnvFor(commit), sideOf(ab.seat), heals), flags: { fxNumbers: true, fxSkipAbility: true, fxSkipTacticSfx: false } };
+      }
+    }
+    return null;
+  };
+  processEventsRef.current = processEvents;
   const commitState = (state: GameState, events: GameEvent[], opts: { skip?: { hand?: boolean; boards?: boolean }; quietTurn?: boolean } = {}) => {
     engineRef.current = state;
-    processEvents(events, opts);
-    syncView(state, opts.skip);
+    const plan = opts.quietTurn ? null : planFx(events);
+    const present = () => { processEventsRef.current(events, { ...opts, ...(plan?.flags ?? {}) }); syncView(state, opts.skip); };
+    // (when nothing is playing and the batch has no effect it shows right away, exactly as before)
+    if (!plan && fxPendingRef.current === 0) { processEvents(events, opts); syncView(state, opts.skip); return; }
+    fxPendingRef.current += 1; setFxBusy(true);
+    if (plan) {   // the card has left the hand and the gold is spent from the moment it lands on the board
+      setHand(state.players[0].hand.map(toCardData)); setPlayerMana(state.players[0].gold);
+      setNpcHand(state.players[1].hand.map(toCardData)); setNpcMana(state.players[1].gold);
+    }
+    fxQueueRef.current = fxQueueRef.current.then(async () => {
+      if (plan) {
+        let shown = false;
+        const commit = () => { if (!shown) { shown = true; present(); } };
+        try { await plan.run(commit); } catch (err) { console.error('combat fx', err); }
+        commit();
+        fxEnvFor(() => {}).showCard(false);   // (the card is already gone when the effect ended normally; this is the safety net)
+      } else present();
+    }).catch(() => {}).finally(() => { fxPendingRef.current -= 1; if (fxPendingRef.current === 0) setFxBusy(false); });
   };
 
   const dispatchAction = (
@@ -6281,6 +6361,7 @@ export default function App() {
     if (tutRef.current && seat === 0) tutFromAction(current, action);
     return { ok: true, state: r.state, events: r.events };
   };
+  dispatchActionRef.current = dispatchAction;
 
   // ── Online plumbing ─────────────────────────────────────────────────────────
   const wakeWaiter = (online: OnlineMatch) => { const w = online.waiter; online.waiter = null; w?.(); };
@@ -6558,7 +6639,7 @@ export default function App() {
   // trainer's turn calls tutBeat() to talk between its moves. While a tutorial runs, the gate below lets the player
   // touch only what the step lights up.
   // "Busy" = something is still moving on the board: a banner, a card flying in from the hand, an attack, a slide, an equip.
-  tutBusyRef.current = !!(phaseTransitionLock || autoPhase || attackAnim || repositionFlight || matchIntroStage || npcKickoffPending || equipFx || announcedCard || preZoomSlot || flyingCard || cameraSettling || isAnimating);
+  tutBusyRef.current = !!(phaseTransitionLock || autoPhase || attackAnim || repositionFlight || matchIntroStage || npcKickoffPending || equipFx || announcedCard || preZoomSlot || flyingCard || cameraSettling || isAnimating || fxBusy || tacticLand);
   if (typeof window !== 'undefined' && window.location.search.includes('debug')) {
     (window as any).__tutDebug = () => ({ shown: tutShown ? { id: tutShown.id, kind: tutShown.kind, until: tutShown.until ?? null } : null, current: tutCurrent()?.id ?? null, busy: tutBusyRef.current });
   }
@@ -7011,10 +7092,10 @@ export default function App() {
           const card = shownPlay && shownPlay.t === 'play' ? shownPlay.card : s.players[1].hand.find(h => h.id === action.cardId);
           if (!card) break;
           // Show the card big in the corner and pause on it for a beat BEFORE it lands on the board.
-          announceCardPlay(toCardData(card), 'npc');
-          await sleep(1000);
+          const fxCard = ['Catapulta de Guerra', 'Trabuco de Cerco', 'Balestra de Precisão'].includes(card.name);   // (it lands on the board: see combatFx)
+          if (!fxCard) { announceCardPlay(toCardData(card), 'npc'); await sleep(1000); }
           if (dispatchAction(1, action).ok === false) break;
-          await sleep(700);
+          await sleep(fxCard ? 400 : 700);
         } else if (action.type === 'attack') {
           setNpcVisiblePhase('combate');
           if (!combatAnnounced) {
@@ -7024,22 +7105,33 @@ export default function App() {
           }
           const dryNpc = applyAction(engineRef.current!, 1, action);
           const lethalNpc = dryNpc.ok === true && dryNpc.events.some(e => e.t === 'winner');
-          if (lethalNpc) await beginFinalBlow();
-          setAttackAnim({ attackerIndex: action.from, targetIndex: action.to, isPlayerAttacking: false });
-          await sleep(ATTACK_MS * TIME.k);
-          playAttackSfx();            // before the hit-stop: the clip's loud hit is 42 ms in, the hit-stop is 40 ms
-          if (lethalNpc) setFinalFlash(n => n + 1);
-          await sleep(lethalNpc ? FINAL_FREEZE_MS : HIT_STOP_MS);   // the lunge lands and everything holds for a beat before the hit
-          const soakedNpc = dryNpc.ok === true && blowIsSoaked(dryNpc.events, 0, action.to);
-          setSoakedBlow(soakedNpc);
-          setIsImpacting(true);
-          if (!soakedNpc) triggerPunch(0, action.to);
-          await sleep(IMPACT_MS * TIME.k);
-          setIsImpacting(false);
-          setSoakedBlow(false);
+          // the opponent's Jorge / archers throw their lance / arrow instead of lunging (src/combatFx.ts)
+          const atkNpc = s.players[1].board[action.from];
+          const rkindNpc = !lethalNpc && atkNpc ? rangedKindOf(atkNpc.name, atkNpc.cardType) : null;
+          let rfxNpc: ReturnType<typeof fxRanged> | null = null;
+          if (rkindNpc) {
+            const behind = rkindNpc === 'lanca' && dryNpc.ok === true ? dryNpc.events.find(e => e.t === 'damage' && e.seat === 0 && e.slot !== action.to && e.amount > 0) : undefined;
+            rfxNpc = fxRanged(rkindNpc, fxEnvFor(() => {}), { side: 'npc', from: action.from, to: action.to, behind: behind && behind.t === 'damage' ? behind.slot : undefined });
+            await rfxNpc.impact;
+          } else {
+            if (lethalNpc) await beginFinalBlow();
+            setAttackAnim({ attackerIndex: action.from, targetIndex: action.to, isPlayerAttacking: false });
+            await sleep(ATTACK_MS * TIME.k);
+            playAttackSfx();            // before the hit-stop: the clip's loud hit is 42 ms in, the hit-stop is 40 ms
+            if (lethalNpc) setFinalFlash(n => n + 1);
+            await sleep(lethalNpc ? FINAL_FREEZE_MS : HIT_STOP_MS);   // the lunge lands and everything holds for a beat before the hit
+            const soakedNpc = dryNpc.ok === true && blowIsSoaked(dryNpc.events, 0, action.to);
+            setSoakedBlow(soakedNpc);
+            setIsImpacting(true);
+            if (!soakedNpc) triggerPunch(0, action.to);
+            await sleep(IMPACT_MS * TIME.k);
+            setIsImpacting(false);
+            setSoakedBlow(false);
+          }
           const r = dispatchAction(1, action);
           if (r.ok === false) { setAttackAnim(null); break; }
           await settleAmbush();
+          if (rfxNpc) await rfxNpc.done;
           setAttackAnim(null);
           const killed = r.events.some(e => e.t === 'destroyed');
           if (lethalNpc) { await sleep(FINAL_AFTER_MS + 100); endFinalBlow(); }
@@ -8141,19 +8233,29 @@ export default function App() {
       if (dry.ok === false) { showToast(dry.error); return; }
       setIsAnimating(true);
       const lethal = dry.events.some(e => e.t === 'winner');
-      if (lethal) await beginFinalBlow();
-      setAttackAnim({ attackerIndex: from, targetIndex: slotIndex, isPlayerAttacking: true });
-      await sleep(ATTACK_MS * TIME.k);
-      playAttackSfx();            // before the hit-stop: the clip's loud hit is 42 ms in, the hit-stop is 40 ms
-      if (lethal) setFinalFlash(n => n + 1);
-      await sleep(lethal ? FINAL_FREEZE_MS : HIT_STOP_MS);   // the lunge lands and everything holds for a beat before the hit
-      const soaked = blowIsSoaked(dry.events, 1, slotIndex);
-      setSoakedBlow(soaked);
-      setIsImpacting(true);
-      if (!soaked) triggerPunch(1, slotIndex);
-      await sleep(IMPACT_MS * TIME.k);
-      setIsImpacting(false);
-      setSoakedBlow(false);
+      // Jorge (lance) and the archers do not lunge: the lance / the arrow flies (src/combatFx.ts) and the blow is applied when it lands.
+      const atkUnit = engineRef.current!.players[0].board[from];
+      const rkind = !lethal && atkUnit ? rangedKindOf(atkUnit.name, atkUnit.cardType) : null;
+      let rfx: ReturnType<typeof fxRanged> | null = null;
+      if (rkind) {
+        const behind = rkind === 'lanca' ? dry.events.find(e => e.t === 'damage' && e.seat === 1 && e.slot !== slotIndex && e.amount > 0) : undefined;
+        rfx = fxRanged(rkind, fxEnvFor(() => {}), { side: 'player', from, to: slotIndex, behind: behind && behind.t === 'damage' ? behind.slot : undefined });
+        await rfx.impact;
+      } else {
+        if (lethal) await beginFinalBlow();
+        setAttackAnim({ attackerIndex: from, targetIndex: slotIndex, isPlayerAttacking: true });
+        await sleep(ATTACK_MS * TIME.k);
+        playAttackSfx();            // before the hit-stop: the clip's loud hit is 42 ms in, the hit-stop is 40 ms
+        if (lethal) setFinalFlash(n => n + 1);
+        await sleep(lethal ? FINAL_FREEZE_MS : HIT_STOP_MS);   // the lunge lands and everything holds for a beat before the hit
+        const soaked = blowIsSoaked(dry.events, 1, slotIndex);
+        setSoakedBlow(soaked);
+        setIsImpacting(true);
+        if (!soaked) triggerPunch(1, slotIndex);
+        await sleep(IMPACT_MS * TIME.k);
+        setIsImpacting(false);
+        setSoakedBlow(false);
+      }
       const r = dispatchAction(0, { type: 'attack', from, to: slotIndex });
       if (r.ok === false) showToast(r.error);
       else {
@@ -8162,6 +8264,7 @@ export default function App() {
         await settleAmbush();
       }
       if (lethal) { await sleep(FINAL_AFTER_MS + 100); endFinalBlow(); }   // (an Emboscada can still save the General: the slow motion just ends)
+      if (rfx) await rfx.done;
       setSelectedAttackerIndex(null);
       setAttackAnim(null);
       setIsAnimating(false);
@@ -9519,6 +9622,22 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Combat effects (src/combatFx.ts): the Tática card lands on the board while its effect plays (the canvas of the effects is above it);
+          while the presentation queue is busy a transparent layer keeps taps from reaching a screen that is still a moment behind the engine. */}
+      {tacticLand && (() => {
+        const spot = tacticSpot(fxRectOf);
+        if (!spot) return null;
+        return (
+          <div className="fixed z-[280] pointer-events-none" style={{ left: spot.x, top: spot.y, transform: 'translate(-50%, -50%)' }}>
+            <div key={tacticLand.key} className={tacticLand.leaving ? 'tac-leave' : 'tac-land'} style={{ width: spot.w, height: spot.w * 1.45 }}>
+              <div className="relative w-full h-full" style={{ filter: CARD_THICKNESS_SHADOW }}><CardFace card={tacticLand.card} variant="popup" /></div>
+              {tacticLand.side === 'npc' && <span className="absolute left-1/2 -top-3 -translate-x-1/2 whitespace-nowrap rounded-full border border-red-500 bg-red-900/90 px-2 py-[1px] text-[8px] font-black uppercase tracking-widest text-red-200">Adversário</span>}
+            </div>
+          </div>
+        );
+      })()}
+      {fxBusy && <div className="fixed inset-0 z-[284]" />}
 
       {/* Match-intro "VS" reveal, portrait stage — see startMatchIntro/matchIntroStage
           above. Both Generals' art (no name/cost/stats — just the painting, see the

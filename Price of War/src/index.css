@@ -151,3 +151,19 @@
 .drop-zone.over { background: radial-gradient(ellipse at center, rgba(255,226,140,.55) 0%, rgba(255,200,80,.30) 75%); box-shadow: 0 0 40px 8px rgba(255,214,110,.9), inset 0 0 50px rgba(255,236,170,.7); border-color: #fff3c4; }
 .drop-zone-title { font-family: 'Cinzel', serif; font-weight: 900; font-size: 26px; letter-spacing: .08em; color: #fff0c0; text-shadow: 0 2px 4px #000, 0 0 14px rgba(255,200,80,.9); }
 .drop-zone-sub { font-family: 'Cinzel', serif; font-weight: 700; font-size: 13px; letter-spacing: .1em; color: #ffd98a; text-shadow: 0 1px 3px #000; margin-top: 4px; }
+
+
+/* A Tática that lands on the board while its effect plays (src/combatFx.ts): it falls with weight, glows, kicks as the effect leaves
+   it, and burns away. */
+.tac-land { animation: tacLand 1.05s cubic-bezier(.45, 0, .9, .55) both, tacKick .3s ease-out 1.05s forwards; }
+@keyframes tacLand {
+  0% { opacity: 0; transform: translateY(-150px) scale(2.2) rotate(-9deg); }
+  53% { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+  65% { transform: scale(1.16, .84); }
+  79% { transform: scale(.97, 1.05); }
+  82% { transform: scale(1); filter: brightness(1) drop-shadow(0 0 0 rgba(255, 210, 110, 0)); }
+  100% { opacity: 1; transform: scale(1); filter: brightness(1.1) drop-shadow(0 0 18px rgba(255, 226, 150, 1)); }
+}
+@keyframes tacKick { 0% { transform: scale(1); } 25% { transform: translateY(8px) scale(.95); } 100% { transform: scale(1); } }
+.tac-leave { animation: tacLeave .7s ease-in forwards; }
+@keyframes tacLeave { from { opacity: 1; filter: brightness(1.6); } to { opacity: 0; filter: brightness(.6) blur(2px); transform: translateY(-14px) scale(.9); } }
