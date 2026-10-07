@@ -298,25 +298,42 @@ const bestIds = (cards: Card[], n: number) => [...cards].sort((a, b) => cardValu
 
 // The first, move-by-move AI: each decision looks at one card or one unit on its own. Kept for comparison (tests/ai-arena.ts) and as a fallback.
 // ── Manutenção e modo da Relíquia (decks com `upkeep` / `modes`, ver docs/deck-mercenarios.md) ─────────────────────
-// Quais cartas continuam: as que mais valem pelo que custam, enquanto der para pagar (menos as que voltam para a mão ao serem dispensadas:
-// dispensar essas custa menos). Sem ouro para todas, as últimas saem.
+// Quais cartas continuam: a IA compara, para cada combinação de quem fica, o valor das tropas que ficam com o valor do que dá para comprar da mão com o ouro
+// que sobra depois de pagar (uma mochila: o melhor conjunto de cartas da mão que cabe no ouro). Dispensar uma tropa que volta para a mão perde menos;
+// uma com Rescisão que compra carta, ainda menos. Sem ouro para todas, as que menos rendem saem.
 const upkeepAnswer = (state: GameState, seat: Seat): Action => {
   const me = state.players[seat];
   const pend = state.pending as Extract<NonNullable<GameState['pending']>, { kind: 'upkeep' }>;
-  const worth = (e: { slot: number; cost: number }) => {
+  const entries = pend.entries.map(e => {
     const card = me.board[e.slot]!;
     const def = getCardDef(card.name);
-    return (unitWorth(card) + (def?.dismiss === 'hand' ? -3 : 0)) / e.cost;
+    const back = def?.dismiss === 'hand' ? 0.6 * cardValue(card) : 0;
+    const rescisao = (def?.abilities ?? []).some(a => a.on === 'dismissed' && a.do.some(v => v.kind === 'draw')) ? 3 : 0;
+    return { id: e.cardId, cost: e.cost, worth: unitWorth(card), consolation: back + rescisao };
+  });
+  // O que dá para jogar da mão (Emboscada fica guardada): custo e valor de cada carta.
+  const items = me.hand.filter(c => c.cardType !== 'Emboscada').map(c => ({ cost: c.cost, value: cardValue(c) }));
+  const best = (budget: number): number => {
+    if (budget <= 0) return 0;
+    const dp = new Array(budget + 1).fill(0);
+    for (const it of items) for (let g = budget; g >= it.cost; g--) dp[g] = Math.max(dp[g], dp[g - it.cost] + it.value);
+    return dp[budget];
   };
-  const order = [...pend.entries].sort((a, b) => worth(b) - worth(a));
-  const keep: string[] = [];
-  let sum = 0;
-  for (const e of order) {
-    const next = Math.max(0, sum + e.cost - pend.discount);
-    if (next > me.gold) continue;
-    keep.push(e.cardId); sum += e.cost;
+  let bestKeep: string[] = [], bestUtil = -Infinity;
+  const n = Math.min(entries.length, 10);
+  for (let mask = 0; mask < (1 << n); mask++) {
+    let pay = 0, util = 0;
+    const keep: string[] = [];
+    for (let k = 0; k < n; k++) {
+      if (mask & (1 << k)) { pay += entries[k].cost; util += entries[k].worth + 0.01; keep.push(entries[k].id); }
+      else util += entries[k].consolation;
+    }
+    pay = Math.max(0, pay - pend.discount);
+    if (pay > me.gold) continue;
+    util += best(me.gold - pay);
+    if (util > bestUtil) { bestUtil = util; bestKeep = keep; }
   }
-  return { type: 'upkeep', keep };
+  return { type: 'upkeep', keep: bestKeep };
 };
 
 // O modo que vale mais agora: Cofre de Guerra poupa ouro por mercenário em campo; Extorsão rende com atacantes; Soldo em Dobro dá corpo.
