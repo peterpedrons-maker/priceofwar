@@ -39,7 +39,9 @@
   header > * { pointer-events:auto; }
   .iconbtn { width:46px; height:46px; background:url(ui/icon-btn.png) center/contain no-repeat; display:flex; align-items:center; justify-content:center; color:var(--gold2); font-size:26px; padding-bottom:3px; }
   .iconbtn:active { background-image:url(ui/icon-btn-dark.png); }
-  .ribbon { position:absolute; left:50%; top:calc(env(safe-area-inset-top) + 8px); transform:translateX(-50%); width:158px; height:44px; background:url(ui/ribbon.png) center/100% 100% no-repeat; display:flex; align-items:center; justify-content:center; padding-bottom:6px; font-size:13px; letter-spacing:.2em; color:#f6e9c8; text-shadow:0 1px 0 #2a1a08, 0 0 8px rgba(0,0,0,.7); text-transform:uppercase; pointer-events:none; }
+  .ribbon { position:absolute; left:50%; top:calc(env(safe-area-inset-top) + 7px); transform:translateX(-50%); width:164px; height:40.5px; background:url(ui/ribbon.png) center/100% 100% no-repeat; pointer-events:none; }
+  .ribbon svg { width:100%; height:100%; display:block; overflow:visible; }
+  .ribbon text { font-family:'Cinzel',Georgia,serif; font-weight:700; font-size:23px; letter-spacing:5px; fill:#f6e9c8; stroke:#2a1a08; stroke-width:2.6px; paint-order:stroke; text-transform:uppercase; }
   .deckchip { border-style:solid; border-width:10px 28px; border-image:url(ui/btn-secondary.png) 20 56 20 56 fill stretch; height:46px; min-width:98px; display:flex; align-items:center; justify-content:center; gap:6px; font-size:11px; color:var(--gold2); letter-spacing:.04em; line-height:1.05; text-align:center; }
   .deckchip small { display:block; font-size:8px; letter-spacing:.14em; opacity:.7; text-transform:uppercase; }
   .deckchip:active { border-image-source:url(ui/btn-secondary-pressed.png); }
@@ -89,7 +91,7 @@
     <div id="pin"><div class="pulse"></div><div class="pulse b"></div>
       <svg viewBox="0 0 34 52"><defs><linearGradient id="pg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0b8"/><stop offset=".5" stop-color="#e0b04a"/><stop offset="1" stop-color="#8a5f14"/></linearGradient></defs>
         <path d="M17 51 C5 33 1 26 1 17 A16 16 0 0 1 33 17 C33 26 29 33 17 51Z" fill="url(#pg)" stroke="#3a2406" stroke-width="2"/><circle cx="17" cy="17" r="7" fill="#1a0f06" stroke="#3a2406" stroke-width="1.5"/><circle cx="17" cy="17" r="3.2" fill="#ffe9a6"/></svg></div>
-    <header><div class="iconbtn">‹</div><div class="ribbon">Desafios</div><div class="deckchip" id="deckchip"><span><small>Seu deck</small><b id="deckname">Capitão</b></span></div></header>
+    <header><div class="iconbtn">‹</div><div class="ribbon"><svg viewBox="0 0 304 75"><defs><path id="arc" d="M52 43 Q152 25 252 43"/></defs><text><textPath href="#arc" startOffset="50%" text-anchor="middle">Desafios</textPath></text></svg></div><div class="deckchip" id="deckchip"><span><small>Seu deck</small><b id="deckname">Capitão</b></span></div></header>
     <div id="place"><div class="plaque" id="region">Marca de Aurelion</div><div class="sub" id="regsub">Capitão</div></div>
     <div id="info"></div><div id="hint">Escolha um adversário</div>
   </div>
