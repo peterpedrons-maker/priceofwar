@@ -33,7 +33,7 @@ As cartas foram renomeadas (estilo Magic/Yu-Gi-Oh, aprovado pelo dono). Os regis
 ## Decisões já tomadas
 - **Sem "contratar a carta do adversário"** (roubo). É a parte mais frustrante de enfrentar e a mais difícil de equilibrar, e complica o motor e o online (decisão do adversário no início do turno). Pode voltar depois, como poucas cartas, se o deck ficar sem graça.
 - **Manutenção só em algumas cartas**, paga na fase de **Suprimentos** (depois dos +5 de ouro), numa decisão única por turno: pagar ou dispensar cada carta. Quem não for pago sai do campo.
-- **Ao dispensar:** a maioria vai ao cemitério; **algumas voltam para a mão** (pagando o custo de novo para convocar). Algumas têm **Rescisão** (efeito quando são dispensadas).
+- **Ao dispensar:** a carta vai ao cemitério (perda de verdade); só o Rato da Muralha tem **Rescisão** (compra 1 carta). A ideia de "voltar para a mão" foi descartada pelo dono (rodada 19); o campo `dismiss: 'hand'` continua existindo no motor, sem nenhuma carta usando.
 - **Relíquia como base do deck**: 3 ou 4 cópias, mais cartas que a buscam (hoje já existe o Graal da Dádiva). Cada Relíquia tem **vários modos** e o jogador escolhe um. O modo é trocado **no fim do turno do dono** e fica travado até o fim do turno seguinte. O modo ativo é público.
 - Modos propostos: **Cofre de Guerra** (cada mercenário paga 1 a menos, mínimo 0) · **Extorsão** (+1 ouro por carta inimiga destruída, máx. 2 por turno) · **Soldo em Dobro** (mercenários +1 ATK).
 - Cartas universais (Trabuco, Catapulta etc.) valem em qualquer deck; o deck precisa ser testado também com elas.
@@ -45,11 +45,11 @@ General **Brann Meia-Coroa, Comprador de Guerras** (30 de vida): pague 3 de ouro
 |---|---|---|---|---|
 | Lanceiro Pés-de-Lama | 4 | Infantaria 2/2, 1 | 1 | só atributos |
 | Besteiro Dedo-Ligeiro | 4 | Arqueiro 2/2, 2 | 1 | só atributos |
-| Capa-Rota | 4 | Infantaria 4/3, 2 | 2 | só atributos |
+| Capa-Rota | 4 | Infantaria 5/3, 2 | 2 | só atributos |
 | Rato da Muralha | 4 | Infantaria 2/2, 1 | 1 | Rescisão: compre 1 carta. |
-| Capitão Barba-de-Corvo | 3 | Infantaria 3/5, 3 | 2 | Na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK. |
-| Cavaleiro do Escudo Raspado | 3 | Cavalaria 4/5, 3 | 1 | Se dispensado, volta para a mão. |
-| Florete de Aposta | 4 | Infantaria 5/2, 2 | 2 | Se dispensado, volta para a mão. |
+| Capitão Barba-de-Corvo | 3 | Infantaria 4/5, 3 | 2 | Na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK. |
+| Cavaleiro do Escudo Raspado | 3 | Cavalaria 5/5, 3 | 2 | só atributos |
+| Florete de Aposta | 4 | Infantaria 6/2, 2 | 2 | só atributos |
 | Boca-de-Fogo | 4 | Artilharia 3/2, 3 | 1 | Ataca à distância. |
 | Vigia da Última Brasa | 4 | Infantaria 2/4, 2 | — | só atributos |
 | Quillon Contamoedas | 4 | Infantaria 1/3, 2 | — | No início do turno, ganhe 1 de ouro. |
@@ -88,3 +88,6 @@ Manutenção por carta no início do turno (decisão pendente do dono), gatilho 
 
 ## Ideia separada (4º deck): Artilharia como infantaria
 Soldados com equipamentos de arremesso e veículos (lança-chamas, bombarda, aríete), não artilharia fixa atrás. Provável regra nova: **queimadura** (dano no fim do turno do alvo). Risco: dano em área punir demais campos cheios; travar com ataque alto, vida baixa e custo alto.
+
+## Rodada 19: tropa alugada (a pedido do dono)
+Raciocínio do dono: o custo real de uma tropa dos Mercenários é a compra mais a manutenção de cada turno (Capa-Rota: 2 + 2 por turno, ~8 de ouro em 3 turnos, contra 3 do Veterano de Guerra do Capitão com os mesmos 4/3). Então elas precisam ter **ataque acima da média**, custo de compra baixo e manutenção; dispensar tem de ser perda de verdade. Aplicado: Capa-Rota 5/3 · Florete de Aposta 6/2 (sem voltar à mão) · Cavaleiro do Escudo Raspado 5/5 com manutenção 2 (sem voltar à mão) · Capitão Barba-de-Corvo 4/5. Pés-de-Lama, Besteiro, Rato e Boca-de-Fogo ficam como estavam (ver `docs/balanceamento.md`, rodada 19).

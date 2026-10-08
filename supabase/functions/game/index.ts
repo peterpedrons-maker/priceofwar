@@ -545,7 +545,7 @@ var CARD_DEFS = [
   // ── mercenários (com manutenção) ──
   { name: "Lanceiro P\xE9s-de-Lama", cardType: "Infantaria", atk: 2, hp: 2, cost: 1, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.**" },
   { name: "Besteiro Dedo-Ligeiro", cardType: "Arqueiro", atk: 2, hp: 2, cost: 2, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.**" },
-  { name: "Capa-Rota", cardType: "Infantaria", atk: 4, hp: 3, cost: 2, upkeep: 2, effect: "**Manuten\xE7\xE3o 2.**" },
+  { name: "Capa-Rota", cardType: "Infantaria", atk: 5, hp: 3, cost: 2, upkeep: 2, effect: "**Manuten\xE7\xE3o 2.**" },
   {
     name: "Rato da Muralha",
     cardType: "Infantaria",
@@ -561,15 +561,15 @@ var CARD_DEFS = [
     isFullArt: true,
     trigger: "postura",
     cardType: "Infantaria",
-    atk: 3,
+    atk: 4,
     hp: 5,
     cost: 3,
     upkeep: 2,
     effect: "**Manuten\xE7\xE3o 2.** Na Vanguarda, seus Infantaria e Arqueiros t\xEAm +1 ATK.",
     passives: [{ kind: "aura", who: { side: "own", types: ["Infantaria", "Arqueiro"] }, from: "front", atk: 1 }]
   },
-  { name: "Cavaleiro do Escudo Raspado", isFullArt: true, cardType: "Cavalaria", atk: 4, hp: 5, cost: 3, upkeep: 1, dismiss: "hand", effect: "**Manuten\xE7\xE3o 1.** Se dispensado, volta para a m\xE3o." },
-  { name: "Florete de Aposta", cardType: "Infantaria", atk: 5, hp: 2, cost: 2, upkeep: 2, dismiss: "hand", effect: "**Manuten\xE7\xE3o 2.** Se dispensado, volta para a m\xE3o." },
+  { name: "Cavaleiro do Escudo Raspado", isFullArt: true, cardType: "Cavalaria", atk: 5, hp: 5, cost: 3, upkeep: 2, effect: "**Manuten\xE7\xE3o 2.**" },
+  { name: "Florete de Aposta", cardType: "Infantaria", atk: 6, hp: 2, cost: 2, upkeep: 2, effect: "**Manuten\xE7\xE3o 2.**" },
   { name: "Boca-de-Fogo", cardType: "Artilharia", atk: 3, hp: 2, cost: 3, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.** Ataca \xE0 dist\xE2ncia." },
   // ── sem manutenção ──
   { name: "Vigia da \xDAltima Brasa", cardType: "Infantaria", atk: 2, hp: 4, cost: 2, effect: "" },

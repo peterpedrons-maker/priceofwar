@@ -1122,16 +1122,15 @@ test('Mercenários: not enough gold to pay everyone is refused; dismissing is th
   s = act(s, 0, { type: 'upkeep', keep: [esp.id] }).s;
   eq([s.players[0].board[2]?.name, s.players[0].board[1]], ['Capa-Rota', null]);
 });
-test('Mercenários: a dismissed Florete de Aposta goes back to the hand; a dismissed Rato da Muralha pays Rescisão (draw 1)', () => {
+test('Mercenários: a dismissed Florete de Aposta is lost (graveyard); a dismissed Rato da Muralha pays Rescisão (draw 1)', () => {
   let s = freshMerc();
   const duel = put(s, 0, 1, 'Florete de Aposta'), des = put(s, 0, 3, 'Rato da Muralha');
   s = toNextTurn(s);
   const handBefore = s.players[0].hand.length;
   s = act(s, 0, { type: 'upkeep', keep: [] }).s;
-  ok(s.players[0].hand.some(c => c.name === 'Florete de Aposta'), 'Duelista did not return to the hand');
-  ok(!s.players[0].graveyard.some(c => c.name === 'Florete de Aposta'), 'Duelista went to the graveyard');
-  eq(names(s.players[0].graveyard), ['Rato da Muralha']);
-  eq(s.players[0].hand.length, handBefore + 2, 'Duelista back + Rescisão draw');
+  ok(!s.players[0].hand.some(c => c.name === 'Florete de Aposta'), 'Florete returned to the hand');
+  eq(names(s.players[0].graveyard).sort(), ['Florete de Aposta', 'Rato da Muralha']);
+  eq(s.players[0].hand.length, handBefore + 1, 'only the Rescisão draw');
   void duel; void des;
 });
 test('Relíquia com modos: Soldo em Dobro gives +1 ATK to cards with upkeep; the mode changes only in Movimentação', () => {
@@ -1139,7 +1138,7 @@ test('Relíquia com modos: Soldo em Dobro gives +1 ATK to cards with upkeep; the
   s.players[0].board[10] = { ...mk('Códice das Mil Dívidas'), mode: 'soldo' };
   put(s, 0, 2, 'Capa-Rota'); put(s, 0, 3, 'Vigia da Última Brasa');
   const b = s.players[0].board, foe = s.players[1].board;
-  eq([getEffectiveAtk(b[2]!, 2, b, foe), getEffectiveAtk(b[3]!, 3, b, foe)], [5, 2]);   // Sentinela has no upkeep
+  eq([getEffectiveAtk(b[2]!, 2, b, foe), getEffectiveAtk(b[3]!, 3, b, foe)], [6, 2]);   // Sentinela has no upkeep
   refused(s, 0, { type: 'relic_mode', mode: 'saque' }, 'fim do turno');
   s.turn.phase = 'movimentacao';
   refused(s, 0, { type: 'relic_mode', mode: 'nao-existe' }, 'não existe');
@@ -1147,7 +1146,7 @@ test('Relíquia com modos: Soldo em Dobro gives +1 ATK to cards with upkeep; the
   eq(r.s.players[0].board[10]?.mode, 'saque');
   ok(r.ev.some(e => e.t === 'relic_mode' && e.mode === 'saque'), 'relic_mode event');
   const b2 = r.s.players[0].board;
-  eq(getEffectiveAtk(b2[2]!, 2, b2, foe), 4);
+  eq(getEffectiveAtk(b2[2]!, 2, b2, foe), 5);
 });
 test('Relíquia com modos: Saque draws one card per enemy unit destroyed, at most 1 per cycle', () => {
   let s = freshMerc();

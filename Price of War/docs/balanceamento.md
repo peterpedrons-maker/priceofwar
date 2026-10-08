@@ -335,3 +335,12 @@ Ferramentas: `tests/atk-audit.ts` (ATK real no momento do golpe, IA × IA, 40 se
 - **IA × IA:** ATK médio por golpe: Cardeal 2,7 · Mercenários 3,5 · **Capitão 4,6**; golpes com ATK ≥ 6: 1,5% · 7,3% · **28%**; ≥ 8: 0% · 0,2% · **9%**; máximo visto: Cardeal 7 · Mercenários 8 · **Capitão 15 (Batedor)**. A IA move 1,9 vez por turno.
 - **Teto humano (`atk-combo.ts`):** Reformar Linhas (+3 movimentos) + Capitão de Formação indo e voltando + Cavaleiro Tático + 2 Avanços Coordenados + Aurelion no fim do turno: Veterano de Guerra com **12**, Cavaleiro com **10**, Soldado com 7. Causas: `buff_adjacent` (Capitão de Formação +2, Cavaleiro Tático +1) **soma a cada movimento e não tem teto**; os movimentos extras de Reformar Linhas deixam a mesma carta se mover várias vezes; Batedor ganha +1 ATK permanente por ataque sem teto; Aurelion soma +2 a quem se moveu (inclusive o parceiro da troca).
 - **Conclusão:** o equilíbrio medido (~50% do Capitão) subestima a força quando uma pessoa joga, porque a IA não procura essas sequências.
+
+
+## Rodada 19: tropa alugada, ataque maior e sem voltar à mão (a pedido do dono; 200 partidas por confronto, IA × IA, `tests/balance-merc.ts`)
+Mudanças: Capa-Rota 4/3 → 5/3 · Florete de Aposta 5/2 → 6/2, sem voltar à mão · Cavaleiro do Escudo Raspado 4/5 → 5/5, manutenção 1 → 2, sem voltar à mão · Capitão Barba-de-Corvo 3/5 → 4/5.
+| | × Cardeal | × Capitão | Manutenção paga por partida | Dispensas por partida |
+|---|---|---|---|---|
+| Antes (rodada 17, M4) | 55% | 44% | 5,3 | 1,4 (0,8 voltavam à mão) |
+| **Depois** | **57,5%** | **58%** | **7,4** | **0,7** (nenhuma volta) |
+Leitura: o deck passou a vencer o Capitão (+14 pontos) e o Cardeal (+2,5). A IA subestima o Capitão (não procura as combinações humanas; ver rodada 18), então o número real contra uma pessoa deve ficar mais perto de 50%, mas o deck agora é o mais forte dos três na simulação. Por isso **as outras quatro cartas (Pés-de-Lama, Besteiro, Rato, Boca-de-Fogo) não receberam ataque extra**. Cartas que mais pesam ao comprar: Chuva de Ferro Barato, Capitão Barba-de-Corvo, Tambor do Soldo Fácil, Capa-Rota; o Florete rende ligeiramente menos que a média (−1,9). Próximo passo sugerido: jogar contra pessoas antes de mexer mais; se for preciso conter, o primeiro botão é a manutenção do Capitão Barba-de-Corvo ou o custo do Florete.

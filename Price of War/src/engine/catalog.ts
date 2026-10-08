@@ -158,13 +158,13 @@ export const CARD_DEFS: readonly CardDef[] = [
   // ── mercenários (com manutenção) ──
   { name: 'Lanceiro Pés-de-Lama', cardType: 'Infantaria', atk: 2, hp: 2, cost: 1, upkeep: 1, effect: '**Manutenção 1.**' },
   { name: 'Besteiro Dedo-Ligeiro', cardType: 'Arqueiro', atk: 2, hp: 2, cost: 2, upkeep: 1, effect: '**Manutenção 1.**' },
-  { name: 'Capa-Rota', cardType: 'Infantaria', atk: 4, hp: 3, cost: 2, upkeep: 2, effect: '**Manutenção 2.**' },
+  { name: 'Capa-Rota', cardType: 'Infantaria', atk: 5, hp: 3, cost: 2, upkeep: 2, effect: '**Manutenção 2.**' },
   { name: 'Rato da Muralha', cardType: 'Infantaria', atk: 2, hp: 2, cost: 1, upkeep: 1, effect: '**Manutenção 1.** Rescisão: compre 1 carta.',
     abilities: [{ on: 'dismissed', do: [{ kind: 'draw', amount: 1 }] }] },
-  { name: 'Capitão Barba-de-Corvo', isFullArt: true, trigger: 'postura', cardType: 'Infantaria', atk: 3, hp: 5, cost: 3, upkeep: 2, effect: '**Manutenção 2.** Na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK.',
+  { name: 'Capitão Barba-de-Corvo', isFullArt: true, trigger: 'postura', cardType: 'Infantaria', atk: 4, hp: 5, cost: 3, upkeep: 2, effect: '**Manutenção 2.** Na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK.',
     passives: [{ kind: 'aura', who: { side: 'own', types: ['Infantaria', 'Arqueiro'] }, from: 'front', atk: 1 }] },
-  { name: 'Cavaleiro do Escudo Raspado', isFullArt: true, cardType: 'Cavalaria', atk: 4, hp: 5, cost: 3, upkeep: 1, dismiss: 'hand', effect: '**Manutenção 1.** Se dispensado, volta para a mão.' },
-  { name: 'Florete de Aposta', cardType: 'Infantaria', atk: 5, hp: 2, cost: 2, upkeep: 2, dismiss: 'hand', effect: '**Manutenção 2.** Se dispensado, volta para a mão.' },
+  { name: 'Cavaleiro do Escudo Raspado', isFullArt: true, cardType: 'Cavalaria', atk: 5, hp: 5, cost: 3, upkeep: 2, effect: '**Manutenção 2.**' },
+  { name: 'Florete de Aposta', cardType: 'Infantaria', atk: 6, hp: 2, cost: 2, upkeep: 2, effect: '**Manutenção 2.**' },
   { name: 'Boca-de-Fogo', cardType: 'Artilharia', atk: 3, hp: 2, cost: 3, upkeep: 1, effect: '**Manutenção 1.** Ataca à distância.' },
 
   // ── sem manutenção ──
