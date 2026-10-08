@@ -27,19 +27,19 @@
   .seg button { all:unset; padding:6px 16px; color:#bda76d; cursor:pointer; }
   .seg button.on { background:linear-gradient(#f0d68a,#b88b2c); color:#2a1a05; font-weight:700; }
   /* a roda */
-  #wheelView { position:absolute; left:0; right:0; top:calc(env(safe-area-inset-top) + 104px); height:420px; perspective:1000px; touch-action:pan-y; cursor:grab; }
+  #wheelView { position:absolute; left:0; right:0; top:50%; margin-top:-210px; height:420px; perspective:1000px; touch-action:pan-y; cursor:grab; }
   #wheelView:active { cursor:grabbing; }
-  .ring { position:absolute; left:50%; top:200px; width:0; height:0; transform-style:preserve-3d; }
+  .ring { position:absolute; left:50%; top:210px; width:0; height:0; transform-style:preserve-3d; }
   .item { position:absolute; width:190px; height:270px; margin:-135px 0 0 -95px; border-radius:10px; transition:filter .3s; will-change:transform,opacity; }
   .item img { width:100%; height:100%; border-radius:10px; display:block; pointer-events:none; box-shadow:0 14px 28px rgba(0,0,0,.7); }
   .item.sel img { box-shadow:0 0 0 2px rgba(240,214,138,.9), 0 0 26px rgba(240,200,100,.55), 0 16px 32px rgba(0,0,0,.75); }
   .item.locked img { filter:grayscale(1) brightness(.35); }
   .lock { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; font-size:12px; letter-spacing:.14em; color:#cdbb86; text-transform:uppercase; pointer-events:none; text-shadow:0 2px 4px #000; }
   .lock b { font-size:34px; }
-  .floor { position:absolute; left:50%; top:340px; width:340px; height:70px; margin-left:-170px; background:radial-gradient(ellipse, rgba(240,200,100,.45), rgba(240,200,100,0) 70%); pointer-events:none; }
-  .arrow { position:absolute; top:178px; width:44px; height:44px; border-radius:50%; border:1px solid rgba(230,195,106,.7); background:var(--panel); color:var(--gold2); font-size:22px; display:flex; align-items:center; justify-content:center; z-index:4; }
+  .floor { position:absolute; left:50%; top:350px; width:340px; height:70px; margin-left:-170px; background:radial-gradient(ellipse, rgba(240,200,100,.45), rgba(240,200,100,0) 70%); pointer-events:none; }
+  .arrow { position:absolute; top:188px; width:44px; height:44px; border-radius:50%; border:1px solid rgba(230,195,106,.7); background:var(--panel); color:var(--gold2); font-size:22px; display:flex; align-items:center; justify-content:center; z-index:4; }
   .arrow.l { left:8px; } .arrow.r { right:8px; }
-  .dots { position:absolute; left:0; right:0; top:calc(env(safe-area-inset-top) + 104px + 424px); display:flex; justify-content:center; gap:7px; }
+  .dots { position:absolute; left:0; right:0; top:calc(50% + 160px); display:flex; justify-content:center; gap:7px; }
   .dots i { width:7px; height:7px; border-radius:50%; background:rgba(230,195,106,.3); transition:all .25s; } .dots i.on { background:var(--gold2); width:20px; border-radius:4px; }
   /* lista (alternativa) */
   #listView { position:absolute; left:12px; right:12px; top:calc(env(safe-area-inset-top) + 100px); height:330px; overflow:auto; display:none; }
@@ -100,11 +100,20 @@ $('#dots').innerHTML = OPP.map(() => '<i></i>').join('');
 // lista
 $('#listView').innerHTML = OPP.map((o, i) => `<div class="row${o.locked ? ' locked' : ''}" data-i="${i}"><img src="${o.img}"><div><h3>${o.name}</h3><p>${o.gen}</p></div><span class="stars" style="font-size:14px">${o.locked ? '🔒' : '★'.repeat(o.stars) + '<span class="off">' + '★'.repeat(3 - o.stars) + '</span>'}</span></div>`).join('');
 document.querySelectorAll('.row').forEach(r => r.onclick = () => { go(+r.dataset.i); });
+let K = 1;
+// centra a roda no meio da tela; se o painel de baixo não deixar espaço (telas baixas), encolhe as cartas e sobe só o necessário
+function fit() {
+  const H = innerHeight, infoTop = $('#info').getBoundingClientRect().top; let c = H / 2, k = 1.0;
+  for (k = 1.0; k >= .5; k -= .02) { const half = 165 * k + 26; c = Math.min(H / 2, infoTop - half - 4); if (c - half >= 112) break; }
+  K = k; $('#wheelView').style.top = (c - 210) + 'px'; $('#wheelView').style.marginTop = '0';
+  $('.floor').style.top = (210 + 150 * K) + 'px'; $('.dots').style.top = (c + 165 * K + 6) + 'px';
+}
+addEventListener('resize', fit);
 const wrap = (d) => ((d + N / 2) % N + N) % N - N / 2;
 function layout() {
   items.forEach((el, i) => {
-    const d = wrap(i - pos), a = Math.abs(d), th = d * .92, R = 215;
-    const x = Math.sin(th) * R, z = (Math.cos(th) - 1) * R * 1.15, ry = -th * 52, sc = 1 + (a < 1 ? (1 - a) * .22 : 0) - Math.min(a, 2) * .1;
+    const d = wrap(i - pos), a = Math.abs(d), th = d * .92, R = 215 * K;
+    const x = Math.sin(th) * R, z = (Math.cos(th) - 1) * R * 1.15, ry = -th * 52, sc = (1 + (a < 1 ? (1 - a) * .22 : 0) - Math.min(a, 2) * .1) * K;
     el.style.transform = `translate3d(${x}px, ${a * 6}px, ${z}px) rotateY(${ry}deg) scale(${sc})`;
     el.style.opacity = a > 2.3 ? 0 : 1 - Math.max(0, a - 1) * .45;
     el.style.zIndex = 100 - Math.round(a * 10);
@@ -125,7 +134,7 @@ function select(k) {
   const stars = o.locked ? '' : '★'.repeat(o.stars) + '<span class="off">' + '★'.repeat(3 - o.stars) + '</span>';
   $('#info').innerHTML = `<div class="top"><h2>${o.name}</h2><span class="gen">${o.gen}</span></div><p>${o.desc}${o.tips ? ' <i style="opacity:.75">Dica: ' + o.tips + '</i>' : ''}</p>` +
     (o.locked ? '<div class="chips"><span class="chip">🔒 Ainda não disponível</span></div>' : `<div class="chips"><span class="chip">Dificuldade ${'●'.repeat(o.diff)}${'○'.repeat(3 - o.diff)}</span><span class="chip">🎁 1ª vitória: ${o.reward}</span><span class="stars">${stars}</span></div>`);
-  const f = $('#fight'); f.classList.toggle('off', !!o.locked); f.textContent = o.locked ? 'Em breve' : 'Lutar';
+  const f = $('#fight'); f.classList.toggle('off', !!o.locked); f.textContent = o.locked ? 'Em breve' : 'Lutar'; fit();
 }
 function go(i) { const base = Math.round(pos); target = base + wrap(i - base); }
 function tick() {
@@ -145,7 +154,7 @@ document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { view =
 function deck() { const m = MY[myDeck]; $('#deckname').textContent = m.n + ' · ' + m.d; $('#deckthumb').style.backgroundImage = `url('${m.img}')`; }
 $('#deckchip').onclick = () => { myDeck = (myDeck + 1) % MY.length; deck(); };
 $('#fight').onclick = () => { const o = OPP[cur]; if (!o.locked) { const b = $('#fight'); b.textContent = 'Preparando…'; setTimeout(() => { b.textContent = 'Lutar'; }, 1100); } };
-deck(); tick();
+deck(); fit(); tick();
 window.__go = i => go(i); window.__next = () => { target = Math.round(pos) + 1; }; window.__drag = (dx) => { target = Math.round(pos - dx / 105); };
 </script>
 </body>
