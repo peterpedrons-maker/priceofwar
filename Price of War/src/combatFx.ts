@@ -29,6 +29,20 @@ import imgDagger from './assets/proj-dagger.webp';
 import imgPurse from './assets/proj-purse.webp';
 import imgBall from './assets/proj-ball.webp';
 import { playSfxAt, playWhoosh, playDing, preloadSfx } from './sfx';
+import hlyPilar from './assets/fx-sagrado-pilar.webp';
+import hlySigilo from './assets/fx-sagrado-sigilo.webp';
+import hlySigiloAzul from './assets/fx-sagrado-sigilo-azul.webp';
+import hlyCruz from './assets/fx-sagrado-cruz.webp';
+import hlyBrilhos from './assets/fx-sagrado-brilhos.webp';
+import hlyCoracao from './assets/fx-sagrado-coracao.webp';
+import hlyCometa from './assets/fx-sagrado-cometa.webp';
+import hlyEscudo from './assets/fx-sagrado-escudo.webp';
+import hlyAlma from './assets/fx-sagrado-alma.webp';
+import hlyAsas from './assets/fx-sagrado-asas.webp';
+import hlySol from './assets/fx-sagrado-sol.webp';
+import hlyPortal from './assets/fx-sagrado-portal.webp';
+import hlyPenas from './assets/fx-sagrado-penas.webp';
+import hlyTrompa from './assets/fx-sagrado-trompa.webp';
 
 export type FxSide = 'player' | 'npc';
 export type FxRect = { cx: number; cy: number; w: number; h: number };
@@ -40,6 +54,7 @@ export interface FxEnv {
   number: (side: FxSide, slot: number, amount: number, kind: 'damage' | 'heal' | 'gold-gain' | 'gold-spend') => void;   // the floating number, at the moment of the hit
   commit: () => void;                  // the effect has landed: show the new life totals, deaths and so on (called once)
   showCard: (on: boolean) => void;     // the Tática card lands on the board / burns away
+  gravePoint: (side: FxSide) => FxRect | null;   // the graveyard pile of that side
   goldPoint: (side: FxSide) => FxRect | null;   // the gold counter of that side (coins fly from / to it)
   handPoint: (side: FxSide) => FxRect;           // where that side's hand is (a card back flies there)
   has: (side: FxSide, slot: number) => boolean;   // is there a card on that slot (right now)?
@@ -772,4 +787,252 @@ export async function fxAmbush(kind: 'bolsa' | 'contra' | 'formacao', env: FxEnv
     add({ t0: now + .65, dur: 1.8, draw(p: number) { sheetXY(IMG.stars, 8, 128, 128, Math.floor(p * 1.8 * 16) % 16, N.x, N.y - N.h * .5, 1.05, 1.05, 1 - ei((p - .8) / .2), 'lighter'); } });
     await new Promise<void>(r => at(2.5, r));
   }
+}
+
+
+// ══ Efeitos de ativação do Cardeal (mockup: public/mockups/efeitos-cardeal/) ════════════════════════════════════════
+// Folhas desenhadas em Python (tools/vfx/efeitos_cardeal.py); carregadas só quando um destes efeitos toca pela primeira vez.
+const HOLY_SRC: Record<string, string> = { h_pilar: hlyPilar, h_sigilo: hlySigilo, h_sigilo_azul: hlySigiloAzul, h_cruz: hlyCruz, h_brilhos: hlyBrilhos, h_coracao: hlyCoracao, h_cometa: hlyCometa, h_escudo: hlyEscudo, h_alma: hlyAlma, h_asas: hlyAsas, h_sol: hlySol, h_portal: hlyPortal, h_penas: hlyPenas, h_trompa: hlyTrompa };
+let holyP: Promise<void> | null = null;
+const loadHoly = (): Promise<void> => (holyP ??= Promise.all(Object.entries(HOLY_SRC).map(([k, src]) => new Promise<void>(r => { const i = new Image(); i.onload = () => { IMG[k] = i; r(); }; i.onerror = () => r(); i.src = src; }))).then(() => {}));
+export const preloadHolyFx = (): void => { void preloadCombatFx().then(() => { (window.requestIdleCallback ?? ((f: () => void) => window.setTimeout(f, 1500)))(() => { void loadHoly(); }); }); };
+const startHoly = async (env: FxEnv) => { await start(env); await loadHoly(); };
+const tween = (dur: number, fn: (p: number) => void, delay = 0, final?: () => void) => at(delay, () => add({ dur, draw: fn, end() { fn(1); final && final(); } }));
+const GOLDC = '255,226,150';
+
+// brilho de 4 pontas (folha de brilhos: 4 variantes em linhas, 8 quadros)
+function twNow(x: number, y: number, size: number, dur: number, v = 0, rot = 0, alpha = 1) {
+  add({ dur, draw(p: number) { const fr = Math.min(7, Math.floor(p * 8)); ctx.save(); ctx.globalAlpha = alpha; ctx.globalCompositeOperation = 'lighter'; ctx.translate(x, y); ctx.rotate(rot);
+    ctx.drawImage(IMG.h_brilhos, fr * 64, v * 64, 64, 64, -size / 2, -size / 2, size, size); ctx.restore(); } });
+}
+function twMove(x0: number, y0: number, x1: number, y1: number, size = 16, delay = 0, dur = .6, v = 0, ease: (u: number) => number = eo, alpha = 1) {
+  at(delay, () => add({ dur, draw(p: number) { const u = ease(p), x = x0 + (x1 - x0) * u, y = y0 + (y1 - y0) * u, fr = Math.min(7, Math.floor(p * 8));
+    ctx.save(); ctx.globalAlpha = alpha; ctx.globalCompositeOperation = 'lighter'; ctx.translate(x, y); ctx.rotate(p * 2);
+    ctx.drawImage(IMG.h_brilhos, fr * 64, v * 64, 64, 64, -size / 2, -size / 2, size, size); ctx.restore(); } }));
+}
+function twBurst(x: number, y: number, n = 14, rad = 60, delay = 0, size = 16, dur = .7) {
+  for (let i = 0; i < n; i++) { const a = R(0, 6.28), d = R(.35, 1) * rad; twMove(x, y, x + Math.cos(a) * d, y + Math.sin(a) * d * .8 - 10, size * R(.6, 1.3), delay + R(0, .12), dur * R(.7, 1.2), Math.floor(R(0, 4))); }
+}
+function charge(x: number, y: number, n = 14, rad = 70, delay = 0, dur = .6, size = 15) {
+  for (let i = 0; i < n; i++) { const a = R(0, 6.28), d = R(.6, 1) * rad; twMove(x + Math.cos(a) * d, y + Math.sin(a) * d * .8, x, y, size * R(.6, 1.2), delay + R(0, dur * .5), dur * R(.55, .9), Math.floor(R(0, 4)), ei); }
+}
+function risers(x: number, y: number, w: number, n = 10, delay = 0, rise = 70, dur = 1.1, size = 12) {
+  for (let i = 0; i < n; i++) { const sx = x + R(-w / 2, w / 2); twMove(sx, y, sx + R(-10, 10), y - rise * R(.6, 1.2), size * R(.6, 1.3), delay + R(0, .7), dur * R(.8, 1.3), Math.floor(R(0, 4)), u => u); }
+}
+function groundGlow(x: number, y: number, rx = 46, delay = 0, dur = 1.2, color = GOLDC, a = .55) {
+  at(delay, () => add({ dur, draw(p: number) { const k = Math.sin(Math.PI * Math.min(1, p * 1.05)) * a; ctx.save(); ctx.translate(x, y); ctx.scale(1, .35); const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+    g.addColorStop(0, `rgba(${color},${k})`); g.addColorStop(1, `rgba(${color},0)`); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(-rx, -rx, rx * 2, rx * 2); ctx.restore(); } }));
+}
+function whiteFlash(a = .3, delay = 0, dur = .35, color = '255,240,200') {
+  at(delay, () => add({ dur, draw(p: number) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(${color},${a * (1 - p) * (1 - p)})`; ctx.fillRect(0, 0, cv!.width, cv!.height); ctx.restore(); } }));
+}
+// escurece o campo deixando um foco de luz em (x,y) (lógicas)
+function dimAt(x: number, y: number, r = 130, amount = .5, delay = 0, hold = 1.5) {
+  at(delay, () => { const d = document.createElement('div');
+    d.style.cssText = `position:fixed;inset:0;pointer-events:none;z-index:284;opacity:0;background:radial-gradient(circle at ${x * U}px ${y * U}px, rgba(0,0,0,0) ${r * U * .45}px, rgba(0,0,0,${amount * .8}) ${r * U}px)`; document.body.appendChild(d);
+    d.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, fill: 'forwards' });
+    window.setTimeout(() => { const a = d.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 450, fill: 'forwards' }); a.onfinish = () => d.remove(); }, (.3 + hold) * 1000); });
+}
+// a carta do jogo (elemento da casa) brilha / se ergue um pouco
+function glowEl(side: FxSide, slot: number, rgb = GOLDC, dur = 700, b = 1.35, delay = 0) {
+  at(delay, () => { const el = document.getElementById(`${side}-${slot}`); el?.animate([{ filter: 'brightness(1)' }, { filter: `brightness(${b}) drop-shadow(0 0 12px rgba(${rgb},.95))`, offset: .3 }, { filter: 'brightness(1)' }], { duration: dur }); });
+}
+function liftEl(side: FxSide, slot: number, dy = -7, hold = 900, delay = 0) {
+  at(delay, () => { const el = document.getElementById(`${side}-${slot}`); el?.animate([{ transform: 'translateY(0)' }, { transform: `translateY(${dy * U}px)`, offset: .2 }, { transform: `translateY(${dy * U}px)`, offset: .2 + hold / (hold + 700) }, { transform: 'translateY(0)' }], { duration: hold + 700, easing: 'ease-out' }); });
+}
+// pilar de luz sagrada: pé em (x,y); folha 224x420 (8 colunas, 32 quadros), o chão fica a 88% da altura
+function pilar(x: number, y: number, sc = .55, delay = 0, dur = 1.6, alpha = 1) {
+  at(delay, () => add({ dur, draw(p: number) { const fr = Math.min(31, Math.floor(p * 32)), c = fr % 8, r = Math.floor(fr / 8);
+    ctx.save(); ctx.globalAlpha = alpha; ctx.globalCompositeOperation = 'lighter'; ctx.translate(x, y); ctx.scale(sc * 1.15, sc * .72); ctx.drawImage(IMG.h_pilar, c * 224, r * 420, 224, 420, -112, -420 * .88, 224, 420); ctx.restore(); } }));
+}
+// sigilo sagrado no chão (achatado); 28 quadros em 7 colunas
+function sigilo(x: number, y: number, sc = .6, sy = .42, delay = 0, dur = 1.8, color: 'gold' | 'azul' = 'gold', alpha = 1) {
+  at(delay, () => add({ dur, draw(p: number) { const fr = Math.min(27, Math.floor(p * 28)), c = fr % 7, r = Math.floor(fr / 7);
+    ctx.save(); ctx.globalAlpha = alpha; ctx.globalCompositeOperation = 'lighter'; ctx.translate(x, y); ctx.scale(sc, sc * sy); ctx.drawImage(color === 'azul' ? IMG.h_sigilo_azul : IMG.h_sigilo, c * 256, r * 256, 256, 256, -128, -128, 256, 256); ctx.restore(); } }));
+}
+function cruzAt(x: number, y: number, sc = .5, delay = 0, dur = .8) { at(delay, () => add({ dur, draw(p: number) { sheetXY(IMG.h_cruz, 5, 256, 256, Math.min(19, Math.floor(p * 20)), x, y, sc, sc, 1, 'lighter'); } })); }
+function trompaAt(x: number, y: number, sc = 1, delay = 0, dur = .8, alpha = 1) { at(delay, () => add({ dur, draw(p: number) { sheetXY(IMG.h_trompa, 4, 256, 256, Math.min(15, Math.floor(p * 16)), x, y, sc, sc * .62, alpha, 'lighter'); } })); }
+function almaAt(x: number, y: number, sc: number, t: number, alpha = 1, rot = 0) {
+  const fr = Math.floor(t * 14) % 16, c = fr % 8;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.globalCompositeOperation = 'lighter'; ctx.translate(x, y); ctx.rotate(rot); ctx.scale(sc, sc); ctx.drawImage(IMG.h_alma, c * 128, 0, 128, 192, -64, -60, 128, 192); ctx.restore();
+}
+function heartAt(x: number, y: number, sc = .5, delay = 0, rise = 34, dur = 1.15) {
+  at(delay, () => add({ dur, draw(p: number) { const fr = Math.min(19, Math.floor(p * 20)), c = fr % 5, r = Math.floor(fr / 5); ctx.save(); ctx.translate(x, y - rise * eo(p)); ctx.scale(sc, sc); ctx.drawImage(IMG.h_coracao, c * 128, r * 128, 128, 128, -64, -64, 128, 128); ctx.restore(); } }));
+}
+function godrays(delay = 0, dur = 2, a = .35) {
+  tween(dur, p => { const k = Math.sin(Math.PI * p) ** .8 * a, W = cv!.width / (RES * U), H = cv!.height / (RES * U), sx = W / 390, sy = H / 640; ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 6; i++) { const x0 = (-30 + i * 70 + Math.sin(p * 3 + i) * 12) * sx, w = (18 + (i % 3) * 14) * sx, g = ctx.createLinearGradient(x0, 0, x0 + 260 * sx, H);
+      g.addColorStop(0, `rgba(255,236,170,${k * (.55 + .45 * Math.sin(p * 5 + i * 2))})`); g.addColorStop(1, 'rgba(255,236,170,0)'); ctx.fillStyle = g;
+      ctx.beginPath(); ctx.moveTo(x0, -20); ctx.lineTo(x0 + w, -20); ctx.lineTo(x0 + 260 * sx + w * 3, H); ctx.lineTo(x0 + 260 * sx - w, H); ctx.fill(); }
+    ctx.restore(); }, delay);
+}
+function asasAt(x: number, y: number, sc = .8, delay = 0, dur = 2.2, alpha = 1) {
+  at(delay, () => add({ dur, draw(p: number) { const fr = Math.min(23, Math.floor(p * 24)), c = fr % 4, r = Math.floor(fr / 4); ctx.save(); ctx.globalAlpha = alpha; ctx.globalCompositeOperation = 'lighter'; ctx.translate(x, y); ctx.scale(sc, sc);
+    ctx.drawImage(IMG.h_asas, c * 400, r * 260, 400, 260, -200, -150, 400, 260); ctx.restore(); } }));
+}
+function solAt(x: number, y: number, sc = 1, delay = 0, dur = 2, alpha = 1) {
+  at(delay, () => add({ dur, draw(p: number) { const fr = Math.floor(p * dur * 12) % 16, a = alpha * Math.min(1, p * 6) * (1 - ei((p - .8) / .2)), s = sc * (.7 + .3 * eo(p * 3)); sheetXY(IMG.h_sol, 4, 256, 256, fr, x, y, s, s, a, 'lighter'); } }));
+}
+function portalAt(x: number, y: number, sc = .6, delay = 0, dur = 1.6, alpha = 1) {
+  at(delay, () => add({ dur, draw(p: number) { const fr = Math.min(23, Math.floor(p * 24)), c = fr % 6, r = Math.floor(fr / 6); ctx.save(); ctx.globalAlpha = alpha; ctx.globalCompositeOperation = 'lighter'; ctx.translate(x, y); ctx.scale(sc, sc);
+    ctx.drawImage(IMG.h_portal, c * 192, r * 320, 192, 320, -96, -320 * .88, 192, 320); ctx.restore(); } }));
+}
+function orb({ from, to, dur = .6, delay = 0, arc = 60, size = 15, color = GOLDC, onEnd }: { from: any; to: any; dur?: number; delay?: number; arc?: number; size?: number; color?: string; onEnd?: () => void }) {
+  at(delay, () => add({ dur, draw(p: number) {
+    const u = p * p * (3 - 2 * p) * .4 + p * .6, x = from.x + (to.x - from.x) * u, y = from.y + (to.y - from.y) * u - arc * 4 * u * (1 - u);
+    if (Math.random() < .85) twNow(x + R(-5, 5), y + R(-5, 5), R(8, 16), R(.3, .5), Math.floor(R(0, 4)), R(0, 6), .9);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(x, y, 0, x, y, size * 1.9); g.addColorStop(0, 'rgba(255,255,245,1)'); g.addColorStop(.28, `rgba(${color},.9)`); g.addColorStop(1, `rgba(${color},0)`);
+    ctx.fillStyle = g; ctx.fillRect(x - size * 2, y - size * 2, size * 4, size * 4); ctx.restore();
+  }, end() { onEnd && onEnd(); } }));
+}
+function cometaFly({ from, to, dur = .5, delay = 0, arc = 0, sc = .5, onEnd }: { from: any; to: any; dur?: number; delay?: number; arc?: number; sc?: number; onEnd?: () => void }) {
+  at(delay, () => add({ dur, draw(p: number) {
+    const f = (q: number) => { const u = q * q * (3 - 2 * q) * .3 + q * .7; return [from.x + (to.x - from.x) * u, from.y + (to.y - from.y) * u - arc * 4 * u * (1 - u)]; };
+    const [x, y] = f(p), [x2, y2] = f(Math.min(1, p + .03)), ang = Math.atan2(y2 - y, x2 - x), fr = Math.floor(p * 26) % 8, c = fr % 2, r = Math.floor(fr / 2);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(x, y); ctx.rotate(ang); ctx.scale(sc, sc); ctx.drawImage(IMG.h_cometa, c * 320, r * 96, 320, 96, -262, -48, 320, 96); ctx.restore();
+    if (Math.random() < .9) twNow(x + R(-8, 8), y + R(-8, 8), R(10, 20), R(.3, .55), Math.floor(R(0, 4)), R(0, 6), .9);
+  }, end() { onEnd && onEnd(); } }));
+}
+
+// Cardeal Pedro, Comando (paga 2 de ouro: +1 HP; com o Cálice, +2): o campo escurece, as moedas se apagam no General, o sigilo, as asas e o sol acendem,
+// um orbe voa até o aliado e o pilar de luz desce nele, com o coração. `commit` mostra a vida nova no momento do pilar.
+export async function fxBencao(env: FxEnv, side: FxSide, targets: FxTarget[]): Promise<void> {
+  await startHoly(env);
+  const g = pt(env, side, 12), t = targets.map(x => ({ ...x, p: pt(env, x.side, x.slot) })).filter(x => x.p);
+  if (!g || !t.length) { env.commit(); return; }
+  const gx = g.x, gy = g.y, first = t[0], tx = first.p!.x, ty = first.p!.y, cup = first.amount >= 2, gp = toU(env.goldPoint(side));
+  dimAt(gx, gy, 150, .5, 0, 1.0); dimAt(tx, ty, 120, .5, 1.45, 1.9); charge(gx, gy - 10, 16, 80, .05, .6);
+  if (gp) for (let n = 0; n < 2; n++) coinFly({ from: gp, to: { x: gx, y: gy - 10 }, dur: .55, delay: .25 + n * .14, arc: 70, size: 22, onEnd() { ding(0, .2, 1500 + R(0, 500)); ring(gx, gy - 10, 34, .3, '255,214,110', 3); twBurst(gx, gy - 10, 5, 26, 0, 12, .4); } });
+  at(.8, () => { glowEl(side, 12, GOLDC, 1100, 1.5); whoosh(0, .55, .26, 300, 1400); flash(gx, gy, 110, GOLDC, .6, .5); play('magic', 0, .3, 1.2); });
+  solAt(gx, gy - 4, .8, .75, 1.9, .32); asasAt(gx, gy - 2, .78, .85, 1.9, .62); godrays(.8, 2.6, .28);
+  liftEl(side, 12, -5, 500, .8); sigilo(gx, gy + 38, .7, .4, .78, 1.7); groundGlow(gx, gy + 38, 70, .8, 1.5); risers(gx, gy + 30, 50, 8, .95, 60, .9);
+  orb({ from: { x: gx, y: gy - 30 }, to: { x: tx, y: ty - 10 }, dur: .62, delay: 1.3, arc: 120, onEnd() { ring(tx, ty - 10, 44, .4, '255,238,180', 3); ding(0, .16, 1500); twBurst(tx, ty - 10, 8, 34, 0, 13, .5); } });
+  const T1 = 1.95;
+  at(T1, () => { glowEl(first.side, first.slot, '255,238,175', 1500, 1.5); whoosh(0, .7, .22, 250, 900); flash(tx, ty, 100, '255,236,170', .65, .55); ding(0, .14, 1900); whiteFlash(.2, 0, .35); env.commit(); });
+  pilar(tx, ty + 34, .7, T1, 1.7); sigilo(tx, ty + 40, .55, .4, T1, 1.6); groundGlow(tx, ty + 38, 64, T1, 1.5); liftEl(first.side, first.slot, -7, 800, T1 + .05);
+  if (!cup) { heartAt(tx, ty - 28, .5, T1 + .25); at(T1 + .3, () => env.number(first.side, first.slot, first.amount, 'heal')); }
+  else {
+    at(T1 + .67, () => { ding(0, .14, 2300); flash(tx, ty, 110, '255,246,200', .6, .45); ring(tx, ty, 60, .5, '255,246,200', 4); });
+    pilar(tx - 16, ty + 36, .5, T1 + .67, 1.3, .8); pilar(tx + 16, ty + 36, .5, T1 + .79, 1.25, .75);
+    heartAt(tx - 14, ty - 26, .42, T1 + .55); heartAt(tx + 14, ty - 26, .42, T1 + .83);
+    at(T1 + .6, () => env.number(first.side, first.slot, first.amount, 'heal'));
+  }
+  twBurst(tx, ty, cup ? 20 : 14, 60, T1 + .05, 15, .8); risers(tx, ty + 30, 44, cup ? 14 : 10, T1 + .15, 80, 1.0);
+  t.slice(1).forEach(x => { const q = x.p!; at(T1 + .3, () => { env.number(x.side, x.slot, x.amount, 'heal'); }); pilar(q.x, q.y + 34, .6, T1 + .2, 1.5); heartAt(q.x, q.y - 26, .42, T1 + .4); });
+  await new Promise<void>(r => at(T1 + (cup ? 2.0 : 1.7), r));
+}
+
+// Cálice da Graça (a Relíquia entra em campo): pilar e sol sobre a relíquia e um fio de orbes escorre até o General, que acende.
+export async function fxCalice(env: FxEnv, side: FxSide): Promise<void> {
+  await startHoly(env);
+  const r = pt(env, side, 10), g = pt(env, side, 12); if (!r || !g) return;
+  dimAt(r.x, r.y, 150, .5, 0, 1.4); godrays(0, 2.4, .3); solAt(r.x, r.y, .7, .1, 2.2, .55); whiteFlash(.16, 0, .35);
+  play('magic', 0, .4, 1.0); whoosh(0, .6, .26, 250, 1500);
+  pilar(r.x, r.y + 44, .55, 0, 1.5, .85); ring(r.x, r.y, 120, .8, '255,224,140', 4); flash(r.x, r.y, 120, '255,224,140', .6, .5); twBurst(r.x, r.y, 14, 70, 0, 15, .8);
+  for (let i = 0; i < 7; i++) orb({ from: { x: r.x, y: r.y + 30 }, to: { x: g.x, y: g.y - 20 }, dur: .75, delay: .45 + i * .07, arc: -50 + i * 8, size: 11 + (i % 2) * 3, onEnd() { if (i === 6) { glowEl(side, 12, GOLDC, 1100, 1.5); sigilo(g.x, g.y + 38, .7, .4, 0, 1.6); flash(g.x, g.y, 110, GOLDC, .6, .5); ding(0, .16, 1300); groundGlow(g.x, g.y + 38, 70, 0, 1.4); } } });
+  await new Promise<void>(rs => at(2.3, rs));
+}
+
+// Cavaleiro Hospitalário, Comando: pilar e coração no aliado ferido, depois um cometa sagrado que se crava no inimigo da Vanguarda.
+export async function fxHospitalario(env: FxEnv, side: FxSide, from: number, heal: FxTarget | null, hit: FxTarget | null): Promise<void> {
+  await startHoly(env);
+  const k = pt(env, side, from); if (!k) { env.commit(); return; }
+  const kx = k.x, ky = k.y, a = heal ? pt(env, heal.side, heal.slot) : null, f = hit ? pt(env, hit.side, hit.slot) : null;
+  dimAt(kx, ky, 130, .45, 0, .9); charge(kx, ky - 10, 12, 60, .05, .45, 13); sigilo(kx, ky + 38, .5, .4, .1, 1.4); groundGlow(kx, ky + 38, 50, .1, 1.2);
+  glowEl(side, from, GOLDC, 900, 1.4); whoosh(0, .4, .22, 300, 1200);
+  let tEnd = 1.2;
+  if (a && heal) {
+    dimAt(a.x, a.y, 110, .45, .8, 1.0);
+    orb({ from: { x: kx, y: ky - 20 }, to: { x: a.x, y: a.y - 10 }, dur: .45, delay: .5, arc: 70, onEnd() { ring(a.x, a.y - 10, 38, .35, '255,238,180', 3); twBurst(a.x, a.y - 10, 6, 28, 0, 12, .4); } });
+    at(1.0, () => { glowEl(heal.side, heal.slot, '255,238,175', 1200, 1.45); ding(0, .15, 1700); flash(a.x, a.y, 80, '255,236,170', .55, .45); env.number(heal.side, heal.slot, heal.amount, 'heal'); });
+    pilar(a.x, a.y + 34, .62, 1.0, 1.5); liftEl(heal.side, heal.slot, -6, 600, 1.05); heartAt(a.x, a.y - 26, .42, 1.2); risers(a.x, a.y + 28, 40, 7, 1.1, 70, .9);
+    tEnd = 1.7;
+  }
+  if (f && hit) {
+    const T = a ? 1.65 : .6;
+    at(T, () => { whoosh(0, .55, .3, 500, 2200); glowEl(side, from, '255,200,110', 500, 1.4); play('magic', 0, .3, 1.5); });
+    charge(kx, ky - 20, 10, 50, T - .1, .3, 14);
+    cometaFly({ from: { x: kx, y: ky - 24 }, to: { x: f.x, y: f.y + 4 }, dur: .5, delay: T + .1, arc: 30, sc: .55, onEnd() { play('boom', 0, .4, 1.3); play('dano', 0, .4, 1.0); } });
+    at(T + .6, () => { cruzAt(f.x, f.y, .5, 0, .85); flash(f.x, f.y, 100, '255,230,150', .45, .4); shock(f.x, f.y, 70, .45, '255,236,170', 3); sparks(f.x, f.y, 12, 1.0, '255,226,140'); whiteFlash(.14, 0, .3); twBurst(f.x, f.y, 16, 70, 0, 16, .7); env.number(hit.side, hit.slot, hit.amount, 'damage'); env.commit(); });
+    tEnd = T + 1.5;
+  } else at(tEnd - .2, () => env.commit());
+  await new Promise<void>(r => at(tEnd, r));
+}
+
+// Nobre da Cruzada, Convocação: sigilo e portal gótico de luz em cada espaço onde um Soldado Leal apareceu.
+export async function fxNobre(env: FxEnv, side: FxSide, slot: number, tokens: number[]): Promise<void> {
+  await startHoly(env);
+  const n = pt(env, side, slot); if (!n) return;
+  dimAt(n.x, n.y, 190, .5, 0, 2.0); play('boom', 0, .25, 1.4); shock(n.x, n.y + 38, 130, .55, '255,226,170', 4); whiteFlash(.14, 0, .3);
+  at(.1, () => { glowEl(side, slot, GOLDC, 1000, 1.45); whoosh(0, .5, .26, 300, 1300); play('magic', 0, .3, 1.1); }); charge(n.x, n.y, 14, 80, .05, .5, 14);
+  tokens.forEach((s, k) => { const q = pt(env, side, s); if (!q) return; const d = .35 + k * .2;
+    sigilo(q.x, q.y + 36, .66, .4, d, 1.7); groundGlow(q.x, q.y + 36, 60, d, 1.5); portalAt(q.x, q.y + 40, .62, d + .1, 1.7); charge(q.x, q.y, 10, 50, d + .2, .4, 12);
+    at(d + .3, () => { flash(q.x, q.y, 100, '255,232,160', .55, .5); ding(0, .13, 1400 + k * 300); whoosh(0, .4, .2, 300, 1000); });
+    at(d + .6, () => { ring(q.x, q.y, 54, .5, '255,238,180', 3); glint(q.x, q.y - 20, 36, .3); dust(q.x, q.y + 34, 50, 4, 24); twBurst(q.x, q.y, 12, 56, 0, 14, .7); whiteFlash(.12, 0, .25); play('dano', 0, .3, 1.4); });
+  });
+  await new Promise<void>(r => at(2.4, r));
+}
+
+// Soldados da Ordem, Reforço: a de trás desce numa trilha de brilhos e o escudo heráldico se forma sobre ela.
+export async function fxReforco(env: FxEnv, side: FxSide, from: number, to: number): Promise<void> {
+  await startHoly(env);
+  const f = pt(env, side, from), q = pt(env, side, to); if (!f || !q) return;
+  dimAt(q.x, q.y, 130, .5, .1, 1.7); at(.1, () => { whoosh(0, .35, .28, 400, 1100); glowEl(side, to, GOLDC, 600, 1.3); });
+  for (let i = 0; i < 8; i++) twMove(f.x + R(-8, 8), f.y, q.x + R(-14, 14), q.y + 20, R(10, 16), .1 + i * .04, .5, Math.floor(R(0, 4)), eo);
+  at(.48, () => { dust(q.x, q.y + 34, 60, 6, 30); shock(q.x, q.y + 36, 60, .4, '255,226,170', 3); play('dano', 0, .35, .8); });
+  charge(q.x, q.y, 16, 80, .55, .5, 14); at(.6, () => { play('magic', 0, .35, 1.3); whoosh(0, .5, .2, 300, 1200); });
+  tween(1.6, p => { const fr = Math.min(19, Math.floor(p * 20)), c = fr % 5, r = Math.floor(fr / 5), a = 1 - ei((p - .7) / .3); ctx.save(); ctx.globalAlpha = a; ctx.translate(q.x, q.y - 2); ctx.scale(.4, .4); ctx.drawImage(IMG.h_escudo, c * 192, r * 224, 192, 224, -96, -112, 192, 224); ctx.restore(); }, .7);
+  at(1.05, () => { ding(0, .16, 1500); ring(q.x, q.y, 60, .55, '255,226,150', 4); whiteFlash(.16, 0, .3); twBurst(q.x, q.y, 14, 56, 0, 14, .7); flash(q.x, q.y, 100, '255,226,150', .6, .4); });
+  await new Promise<void>(r => at(2.3, r));
+}
+
+// Comandante da Ordem, Postura: o sol de raios abre atrás dele e orbes de luz alcançam cada Infantaria e Arqueiro aliado.
+export async function fxComandante(env: FxEnv, side: FxSide, slot: number, allies: number[]): Promise<void> {
+  await startHoly(env);
+  const c = pt(env, side, slot); if (!c) return;
+  dimAt(195, c.y + 60, 260, .5, 0, 1.9); charge(c.x, c.y, 16, 80, 0, .55, 14);
+  at(.45, () => { glowEl(side, slot, GOLDC, 1200, 1.5); play('boom', 0, .25, 1.8); whoosh(0, .5, .3, 150, 700); whiteFlash(.16, 0, .3); });
+  liftEl(side, slot, -6, 900, .45); solAt(c.x, c.y, .95, .35, 2.2, .5); sigilo(c.x, c.y + 38, .85, .42, .4, 2.2); groundGlow(c.x, c.y + 38, 90, .4, 2.0); trompaAt(c.x, c.y + 6, 1.2, .45, .9, .4); flash(c.x, c.y, 140, GOLDC, .65, .55);
+  allies.forEach((s, i) => { const q = pt(env, side, s); if (!q) return; const dist = Math.hypot(q.x - c.x, q.y - c.y), d = .65 + dist / 330 * .55;
+    orb({ from: { x: c.x, y: c.y - 10 }, to: { x: q.x, y: q.y - 6 }, dur: Math.max(.2, d - .55), delay: .55, arc: 50 + i * 8, size: 11, color: '255,226,140' });
+    at(d + .1, () => { glowEl(side, s, '255,232,160', 1600, 1.45); ring(q.x, q.y, 46, .5, '255,238,180', 3); glint(q.x, q.y - 24, 28, .3); play('dano', 0, .1, 1.8); twBurst(q.x, q.y, 9, 40, 0, 13, .6); });
+    sigilo(q.x, q.y + 36, .42, .4, d + .1, 1.4); liftEl(side, s, -5, 700, d + .12); });
+  await new Promise<void>(r => at(2.6, r));
+}
+
+// Retorno do Soldado (e qualquer carta que traz uma do cemitério para a mão): a alma sai da pilha em espiral e desce em arco até a mão.
+export async function fxRetorno(env: FxEnv, side: FxSide): Promise<void> {
+  await startHoly(env);
+  const g = toU(env.gravePoint(side)), h = toU(env.handPoint(side)); if (!g || !h) return;
+  const sgn = side === 'player' ? -1 : 1, TOP = [g.x, g.y + sgn * 80], END = [h.x, h.y + sgn * 26], dx = g.x > h.x ? 150 : -150;
+  const bez = (u: number, p0: number[], p1: number[], p2: number[], p3: number[]) => { const k = 1 - u; return [k * k * k * p0[0] + 3 * k * k * u * p1[0] + 3 * k * u * u * p2[0] + u * u * u * p3[0], k * k * k * p0[1] + 3 * k * k * u * p1[1] + 3 * k * u * u * p2[1] + u * u * u * p3[1]]; };
+  dimAt(g.x, g.y + sgn * 30, 170, .55, 0, 1.2); dimAt(h.x, (g.y + h.y) / 2, 260, .5, 1.3, 1.4);
+  play('magic', 0, .4, .9); whoosh(0, .7, .22, 120, 600);
+  sigilo(g.x, g.y + 26, .66, .42, 0, 2.0, 'azul'); groundGlow(g.x, g.y + 26, 70, 0, 1.8, '200,224,255');
+  at(.1, () => { flash(g.x, g.y, 100, '190,215,255', .6, .55); ding(0, .13, 1100); ring(g.x, g.y, 56, .6, '190,215,255', 3); }); charge(g.x, g.y - 4, 12, 60, 0, .5, 13);
+  const FL = 1.9, P0 = .3; let lastX = g.x;
+  tween(FL, p => {
+    let x: number, y: number, sc: number, a = Math.min(1, p * 5);
+    if (p < .27) { const u = p / .27; x = g.x + Math.sin(u * 8) * (22 * (1 - u) + 3); y = g.y + sgn * (4 + 76 * eo(u)); sc = .62 + .16 * u; }
+    else { const u = (p - .27) / .73, e = u * u * (3 - 2 * u); [x, y] = bez(e, TOP, [g.x + 10, g.y + sgn * 190], [h.x + dx, h.y + sgn * 190], END); sc = .78 - .3 * ei(u); a *= 1 - ei((u - .86) / .14); }
+    const tilt = Math.max(-.5, Math.min(.5, (x - lastX) * .09)); lastX = x;
+    almaAt(x, y, sc, p * 1.6, a, tilt);
+    if (Math.random() < .95) add({ dur: .55, draw(q: number) { const fr = Math.min(7, Math.floor(q * 8)); ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .85 * a; ctx.translate(x + R(-5, 5), y + 18 + q * 10); ctx.drawImage(IMG.h_brilhos, fr * 64, 64, 64, 64, -10, -10, 20, 20); ctx.restore(); } });
+    if (p > .27 && Math.random() < .5) twNow(x + R(-10, 10), y + R(-6, 14), R(7, 13), R(.35, .6), Math.floor(R(0, 4)), R(0, 6), .8);
+  }, P0);
+  at(P0 + FL * .27, () => whoosh(0, .8, .2, 500, 1500));
+  at(P0 + FL, () => { ring(h.x, h.y, 62, .5, '190,215,255', 4); ring(h.x, h.y, 40, .4, '255,238,180', 3); flash(h.x, h.y, 120, '210,228,255', .7, .5); ding(0, .17, 1500); ding(.08, .12, 2000); twBurst(h.x, h.y, 16, 56, 0, 14, .7); whiteFlash(.12, 0, .3); });
+  await new Promise<void>(r => at(P0 + FL + .5, r));
+}
+
+// Atirador da Cruzada, Queda: facho de luz, penas brancas caindo e duas cartas voando até a mão.
+export async function fxAtirador(env: FxEnv, side: FxSide, slot: number, draws: number): Promise<void> {
+  await startHoly(env);
+  const q = pt(env, side, slot), hp = toU(env.handPoint(side)); if (!q) return;
+  dimAt(q.x, q.y, 150, .5, 0, 2.0); twBurst(q.x, q.y, 18, 54, .05, 15, .9); risers(q.x, q.y + 10, 40, 12, .05, 80, .9, 12);
+  at(.15, () => { whoosh(0, .8, .2, 700, 300); play('magic', 0, .3, 1.5); flash(q.x, q.y, 100, '255,244,210', .55, .6); });
+  tween(2.1, p => { const fr = Math.min(23, Math.floor(p * 24)); sheetXY(IMG.h_penas, 6, 256, 320, fr, q.x, q.y - 4, .8, .8, 1, 'source-over', .5, .55); }, .15);
+  godrays(.15, 2.2, .22); pilar(q.x, q.y + 34, .55, .15, 1.5, .6); groundGlow(q.x, q.y + 30, 50, .15, 1.6, '255,244,210', .4);
+  if (hp) for (let i = 0; i < Math.max(1, Math.min(3, draws)); i++) flyBack({ x: q.x, y: q.y }, { x: hp.x + i * 22, y: hp.y }, .6, .7 + i * .25, () => { ding(0, .15, 1500 + i * 300); twBurst(hp.x + i * 10, hp.y - 20, 8, 40, 0, 12, .5); }, 90 + i * 10);
+  await new Promise<void>(r => at(2.6, r));
 }

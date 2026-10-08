@@ -223,7 +223,7 @@ import { aiNextAction } from './engine/ai';
 import { glyphUrl, burstUrl, NUMBER_GLOW, type NumberKind } from './numberGlyphs';
 import { triggerOf, triggerKeyOf, pulseCard, usePulse, TRIGGER_GLOW, TRIGGER_ICON } from './triggers';
 import { playSfx, preloadSfx, dbgMark } from './sfx';
-import { fxTactic, fxHero, fxRanged, fxLanding, fxUpkeep, fxGoldGain, fxRelicSoldo, fxLoot, fxPlaced, fxReformar, fxAmbush, preloadCombatFx, type FxEnv, type FxRect, type FxSide, type FxTarget } from './combatFx';
+import { fxTactic, fxHero, fxRanged, fxLanding, fxUpkeep, fxGoldGain, fxRelicSoldo, fxLoot, fxPlaced, fxReformar, fxAmbush, fxBencao, fxCalice, fxHospitalario, fxNobre, fxReforco, fxComandante, fxRetorno, fxAtirador, preloadHolyFx, preloadCombatFx, type FxEnv, type FxRect, type FxSide, type FxTarget } from './combatFx';
 import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettings, subscribeAudio } from './audioSettings';
 import { useGameSettings, setGameSettings } from './gameSettings';
 import tutHandSprite from './assets/tut-hand.webp';
@@ -1200,6 +1200,7 @@ const BurningCard = ({ children }: { children: React.ReactNode }) => {
 // what else has piled up underneath.
 const GraveyardPile = ({ cards, onClick, tut, side = 'player' }: { cards: CardData[]; onClick?: () => void; tut?: string; side?: 'player' | 'npc' }) => (
   <div
+    id={`${side}-grave`}
     data-tut={tut}
     className={`w-28 h-36 md:w-36 md:h-48 rounded-xl flex items-center justify-center relative overflow-hidden ${cards.length === 0 ? '' : 'border-2 border-zinc-700 bg-zinc-900/80 shadow-lg'} ${onClick ? 'cursor-pointer active:scale-95 transition-transform' : ''}`}
     style={cards.length === 0 ? { background: 'rgba(8,6,4,0.46)', boxShadow: `inset 0 5px 10px rgba(0,0,0,0.6), inset 0 -1px 0 rgba(190,160,110,0.4), inset 0 0 0 1px rgba(${side === 'player' ? '120,175,255' : '235,85,75'},0.26)` } : undefined}
@@ -5166,6 +5167,7 @@ export default function App() {
       const ctx = duelMusicCtxRef.current ?? (duelMusicCtxRef.current = new AudioContext());
       if (ctx.state === 'suspended') ctx.resume().catch(() => {});
       [attackSfxUrl, destroySfxUrl, effectSfxUrl].forEach(preloadSfx);   // decoded now, so the first blow / burn starts on time
+      preloadHolyFx();
       void preloadCombatFx();   // the combat effects (src/combatFx.ts): images and sounds ready before the first Tática
       if (!duelMusicBufferRef.current) {
         const arrayBuffer = await fetch(duelMusicUrl).then(r => r.arrayBuffer());
@@ -6347,6 +6349,31 @@ export default function App() {
       }
       if (e.t === 'play' && getCardDef(e.card.name)?.fx === 'reformar') run(fxReformar(env, sideOf(e.seat)));
     });
+    // Cardeal: the cards with a light effect of their own (src/combatFx.ts, "efeitos de ativação do Cardeal")
+    events.forEach(e => {
+      if (e.t === 'place' && e.slot === 10 && getCardDef(e.card.name)?.fx === 'calice') run(fxCalice(env, sideOf(e.seat)));
+      if (e.t === 'reinforce' && getCardDef(e.card.name)?.fx === 'soldados') run(fxReforco(env, sideOf(e.seat), e.from, e.to));
+      if (e.t === 'destroyed' && e.slot < 10 && getCardDef(e.card.name)?.fx === 'atirador') run(fxAtirador(env, sideOf(e.seat), e.slot, events.filter(x => x.t === 'draw' && x.seat === e.seat && x.reason === 'effect').length));
+      if (e.t === 'place' && e.slot < 5 && getCardDef(e.card.name)?.fx === 'comandante') {
+        const allies = cur.players[e.seat].board.flatMap((c, slot) => (c && slot < 10 && slot !== e.slot && (c.cardType === 'Infantaria' || c.cardType === 'Arqueiro') ? [slot] : []));
+        run(fxComandante(env, sideOf(e.seat), e.slot, allies));
+      }
+      if (e.t === 'move' && e.to < 5 && e.from >= 5) {
+        const c = cur.players[e.seat].board[e.to];
+        if (c && getCardDef(c.name)?.fx === 'comandante') run(fxComandante(env, sideOf(e.seat), e.to, cur.players[e.seat].board.flatMap((x, slot) => (x && slot < 10 && slot !== e.to && (x.cardType === 'Infantaria' || x.cardType === 'Arqueiro') ? [slot] : []))));
+      }
+    });
+    // Nobre da Cruzada: the Soldados Leais that appeared beside it
+    const tokens = events.flatMap(e => (e.t === 'summon' && e.card.name === 'Soldado Leal' ? [e] : []));
+    if (tokens.length) {
+      const seat = tokens[0].seat, nb = events.find(e => e.t === 'place' && e.seat === seat && getCardDef(e.card.name)?.fx === 'nobre');
+      if (nb && nb.t === 'place') run(fxNobre(env, sideOf(seat), nb.slot, tokens.filter(t => t.seat === seat).map(t => t.slot)));
+    }
+    // a soldier comes back from the graveyard to the hand: its soul flies there
+    if (prev) ([0, 1] as Seat[]).forEach(seat => {
+      const nowIds = new Set(cur.players[seat].graveyard.map(g => g.id));
+      if (prev.players[seat].graveyard.some(g => !nowIds.has(g.id)) && events.some(e => e.t === 'draw' && e.seat === seat && e.reason === 'effect')) run(fxRetorno(env, sideOf(seat)));
+    });
     // Emboscadas
     events.forEach(e => {
       if (e.t !== 'ambush') return;
@@ -6388,6 +6415,7 @@ export default function App() {
       if (on && card && side && spot) setTacticLand({ card, side, spot, leaving: false, key: ++tacKeyRef.current });
       else { setTacticLand(c => (c ? { ...c, leaving: true } : c)); window.setTimeout(() => setTacticLand(null), 750); }
     },
+    gravePoint: sd => { const r = document.getElementById(`${sd}-grave`)?.getBoundingClientRect(); return r ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height } : null; },
     goldPoint: sd => { const r = document.getElementById(`${sd}-gold-badge`)?.getBoundingClientRect(); return r ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height } : null; },
     handPoint: sd => ({ cx: window.innerWidth / 2, cy: sd === 'player' ? window.innerHeight - 10 : 10, w: 56, h: 71 }),
     has: (sd, slot) => !!engineRef.current?.players[sd === 'player' ? 0 : 1].board[slot],
@@ -6422,7 +6450,17 @@ export default function App() {
       const gen = engineRef.current?.players[ab.seat].board[12];
       const heals = events.flatMap(e => (e.t === 'heal' ? [{ side: sideOf(e.seat), slot: e.slot, amount: e.amount }] : []));
       if (gen && heals.length > 0 && abilityOn(gen.name, 'ability')?.do.some(v => v.kind === 'heal')) {
-        return { run: commit => fxHero('cura', fxEnvFor(commit), sideOf(ab.seat), heals), flags: { fxNumbers: true, fxSkipAbility: true, fxSkipTacticSfx: false } };
+        return { run: commit => fxBencao(fxEnvFor(commit), sideOf(ab.seat), heals), flags: { fxNumbers: true, fxSkipAbility: true, fxSkipTacticSfx: false } };
+      }
+    }
+    // Cavaleiro Hospitalário (Comando): the cure on one ally and the blow on one enemy
+    if (ab && ab.t === 'ability' && ab.slot !== 12) {
+      const unit = engineRef.current?.players[ab.seat].board[ab.slot];
+      if (unit && getCardDef(unit.name)?.fx === 'hospitalario') {
+        const h = events.find(e => e.t === 'heal'), d = events.find(e => e.t === 'damage' && e.amount > 0);
+        const heal: FxTarget | null = h && h.t === 'heal' ? { side: sideOf(h.seat), slot: h.slot, amount: h.amount } : null;
+        const hit: FxTarget | null = d && d.t === 'damage' ? { side: sideOf(d.seat), slot: d.slot, amount: d.amount } : null;
+        if (heal || hit) return { run: commit => fxHospitalario(fxEnvFor(commit), sideOf(ab.seat), ab.slot, heal, hit), flags: { fxNumbers: true, fxSkipAbility: true, fxSkipTacticSfx: false } };
       }
     }
     return null;
