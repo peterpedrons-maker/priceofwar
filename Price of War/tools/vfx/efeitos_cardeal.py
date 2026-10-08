@@ -72,148 +72,272 @@ def poly_mask(W, H, pts, ss=3):
     return np.asarray(im.resize((W, H), Image.LANCZOS), dtype=float) / 255
 
 
+# ── estrelas (brilho de 4 pontas) desenhadas em janela ─────────────────────────────────────────────────────────────
+def add_star(I, px, py, r, a=1.0, diag=.45):
+    """soma em I uma estrela de 4 pontas (mais duas diagonais finas) centrada em (px,py) com alcance r."""
+    H, W = I.shape; R = int(r * 2.2) + 2
+    x0, x1 = max(0, int(px) - R), min(W, int(px) + R + 1); y0, y1 = max(0, int(py) - R), min(H, int(py) + R + 1)
+    if x0 >= x1 or y0 >= y1: return
+    yy, xx = np.mgrid[y0:y1, x0:x1].astype(float); dx, dy = xx - px, yy - py
+    w = max(.7, r * .07)
+    st = np.exp(-(dy / w) ** 2) * np.exp(-(np.abs(dx) / (r * .9)) ** 1.6) + np.exp(-(dx / w) ** 2) * np.exp(-(np.abs(dy) / (r * .9)) ** 1.6)
+    d1 = np.exp(-(((dx + dy) / 1.414) / (w * 1.1)) ** 2) * np.exp(-(np.abs(dx - dy) / (r * .5)) ** 1.8)
+    d2 = np.exp(-(((dx - dy) / 1.414) / (w * 1.1)) ** 2) * np.exp(-(np.abs(dx + dy) / (r * .5)) ** 1.8)
+    core = np.exp(-((dx ** 2 + dy ** 2) / (r * .22) ** 2))
+    I[y0:y1, x0:x1] += (st + diag * (d1 + d2) + core * .9) * a
+
+
 # ── pilar de luz ────────────────────────────────────────────────────────────────────────────────────────────────
 def make_pilar():
-    W, H, N = 192, 384, 24
+    W, H, N = 224, 420, 32
     yy, xx = np.mgrid[0:H, 0:W].astype(float)
-    cx = W / 2; base_y = H * .86
+    cx = W / 2; base_y = H * .88; y0 = 6.0
     rng = np.random.default_rng(11)
-    motes = [(rng.uniform(-.8, .8), rng.uniform(0, 1), rng.uniform(.6, 1.6), rng.uniform(1.2, 2.6)) for _ in range(34)]
-    streak = fbm(H, W, 14, 3, seed=5)
+    K = 11
+    rays = [(rng.uniform(-.17, .17), rng.uniform(1.4, 4.2), rng.uniform(.35, 1.0), rng.uniform(0, 6.28), rng.uniform(.6, 1.6)) for _ in range(K)]
+    streak = fbm(H, W, 16, 3, seed=5)
+    heli = [(rng.uniform(0, 1), rng.uniform(.8, 1.4), rng.choice([-1, 1]), rng.uniform(5, 11), rng.uniform(2.2, 5.0)) for _ in range(22)]
     frames = []
     for i in range(N):
         t = i / (N - 1)
-        grow = smooth(0, .22, t)                       # a luz desce
-        life = smooth(0, .12, t) * (1 - smooth(.74, 1, t))
-        top = H * (1 - grow) * .0                      # o pilar nasce no topo e a frente cai até o chão
-        front = base_y * smooth(0, .24, t)             # até onde a luz já chegou
-        pulse = 1 + .08 * math.sin(t * 22)
-        # largura do feixe: estreita no alto, abre um pouco no chão
-        u = np.clip(yy / base_y, 0, 1)
-        half = (14 + 20 * u ** 1.4) * pulse * (.5 + .5 * smooth(0, .3, t))
-        dx = (xx - cx)
-        core = np.exp(-(dx / (half * .55)) ** 2)
-        beam = np.exp(-(dx / half) ** 2)
-        sh = streak + .25 * np.sin(yy / 9 - t * 18)      # fios que correm para baixo
-        rays = (.72 + .28 * np.clip(np.sin(dx / 3.4 + sh * 4), -1, 1)) * beam
-        reach = smooth(front + 18, front - 28, yy)       # corte suave na frente de luz
-        vert = (.55 + .45 * smooth(0, .25, 1 - u * .9)) * (1 - smooth(base_y, base_y + 40, yy) * .85)
-        I = (beam * .5 + core * .9 + rays * .18) * reach * vert
-        # brilho no alto (fonte)
-        I += np.exp(-((xx - cx) ** 2 / (60 ** 2) + (yy - 4) ** 2 / (22 ** 2))) * .55 * grow
-        # impacto no chão: elipse + cruz
-        if front > base_y - 30:
-            k = smooth(.2, .36, t) * (1 - smooth(.68, 1, t))
-            ell = np.exp(-(((xx - cx) / 58) ** 2 + ((yy - base_y) / 15) ** 2)) * .9
-            ring = np.exp(-((np.hypot((xx - cx) / 66, (yy - base_y) / 17) - (.55 + .5 * smooth(.2, .7, t))) / .09) ** 2) * (1 - smooth(.5, .8, t)) * .8
-            cross_h = np.exp(-((yy - base_y) / 2.6) ** 2) * np.exp(-((xx - cx) / (46 + 20 * k)) ** 2) * 1.1
-            cross_v = np.exp(-((xx - cx) / 2.6) ** 2) * np.exp(-((yy - base_y) / (70 + 30 * k)) ** 2) * 1.1 * (yy < base_y + 14)
-            I += (ell + ring + cross_h + cross_v) * k
+        grow = smooth(0, .2, t); life = smooth(0, .08, t) * (1 - smooth(.72, 1, t))
+        front = base_y * smooth(0, .22, t)
+        u = np.clip((yy - y0) / (base_y - y0), 0, 1)
+        flick = 1 + .07 * math.sin(t * 40)
+        I = np.zeros((H, W))
+        # feixes em leque (volumétricos), cada um com largura que cresce com a distância da fonte
+        for th, wk, bk, ph, fq in rays:
+            xo = cx + (yy - y0) * math.tan(th)
+            wid = wk + .055 * (yy - y0) * (.7 + .3 * math.sin(ph))
+            amp = bk * (.65 + .35 * math.sin(t * 9 * fq + ph)) * (1 - .55 * u)
+            I += np.exp(-((xx - xo) / wid) ** 2) * amp * .30
+        # núcleo e halo
+        half = (6 + 14 * u ** 1.3) * flick * (.6 + .4 * smooth(0, .3, t))
+        dx = xx - cx
+        I += np.exp(-(dx / half) ** 2) * (.95 - .25 * u) + np.exp(-(dx / (half * 2.6)) ** 2) * .38
+        I *= (.8 + .2 * np.clip(np.sin(dx / 3 + streak * 5 + yy / 14 - t * 24), -1, 1) * np.exp(-(dx / (half * 3)) ** 2) + .2)
+        I *= smooth(front + 16, front - 30, yy)
+        I *= (1 - smooth(base_y + 6, base_y + 46, yy) * .9)
+        # fonte no alto: clarão com cruz
+        I += np.exp(-(((xx - cx) / 52) ** 2 + ((yy - y0) / 16) ** 2)) * .8 * grow
+        I += np.exp(-((yy - y0) / 2.2) ** 2) * np.exp(-(np.abs(dx) / 80) ** 1.4) * .9 * grow
+        # chão: poça de luz, raios radiais e dois anéis de onda
+        if front > base_y - 34:
+            k = smooth(.17, .3, t) * (1 - smooth(.66, 1, t)); ex = (xx - cx) / 78; ey = (yy - base_y) / 19; er = np.hypot(ex, ey)
+            ang = np.arctan2(ey, ex)
+            I += (np.exp(-er ** 2) * .95 + np.exp(-(er / .45) ** 2) * .8) * k
+            I += (.5 + .5 * np.sin(ang * 22 + t * 6)) ** 4 * np.exp(-(er / 1.25) ** 2) * .42 * k
+            for kk, dl in enumerate((0, .09)):
+                tr = np.clip((t - .22 - dl) / .5, 0, 1)
+                if 0 < tr < 1: I += np.exp(-((er - (.4 + 1.5 * tr)) / .1) ** 2) * (1 - tr) ** 1.4 * .85 * k * 1.6
+            I += np.exp(-((yy - base_y) / 2.4) ** 2) * np.exp(-(np.abs(dx) / (50 + 30 * k)) ** 1.5) * 1.0 * k
         I *= life
-        # poeira de luz que sobe
-        mote = np.zeros((H, W))
-        for mx, mp, ms, mr in motes:
-            tt = (t * 1.2 + mp) % 1
-            px = cx + mx * (half[int(base_y * .6), 0] if False else 40) * (1 + .3 * math.sin(tt * 6 + mp * 9)) + math.sin(tt * 7 + mp * 12) * 6
-            py = base_y + 8 - tt * (base_y * .9) * ms
-            a = math.sin(tt * math.pi) ** 1.2 * life * (grow > .5)
-            if a > .02 and 0 < py < H:
-                mote += a * np.exp(-(((xx - px) / mr) ** 2 + ((yy - py) / (mr * 1.5)) ** 2))
-        I = I + mote * 1.1
-        I += blur(I, 5) * .55                              # bloom
+        # estrelas em hélice subindo ao redor do feixe
+        for ph, spd, sgn, A, r in heli:
+            tt = (t * 1.15 * spd + ph) % 1
+            py = base_y + 4 - tt * (base_y - 40)
+            px = cx + sgn * A * (1 + 2.2 * tt) * math.sin(tt * 11 + ph * 9)
+            al = math.sin(tt * math.pi) ** 1.1 * life * (1 if grow > .55 else 0)
+            if al > .03: add_star(I, px, py, r * (.7 + .5 * math.sin(tt * math.pi)), al * 1.15)
+        I += blur(I, 6) * .5 + blur(I, 16) * .25
         frames.append(glow_rgba(I, GOLD, 1.0))
-    save_sheet(frames, 6, 'fx-pilar.webp')
+    save_sheet(frames, 8, 'fx-pilar.webp')
 
 
-# ── sigilo sagrado ───────────────────────────────────────────────────────────────────────────────────────────────
+# ── brilhos (partículas) ─────────────────────────────────────────────────────────────────────────────────────────
+def make_brilhos():
+    S, N = 64, 8
+    yy, xx = np.mgrid[0:S, 0:S].astype(float); c = (S - 1) / 2
+    rows = []
+    for v in range(4):
+        fr = []
+        for i in range(N):
+            t = i / (N - 1); sc = math.sin(t * math.pi) ** .8 + .06; I = np.zeros((S, S))
+            if v == 0: add_star(I, c, c, 26 * sc, 1.0)
+            elif v == 1: add_star(I, c, c, 22 * sc, 1.0, diag=1.0)
+            elif v == 2:
+                for k in range(6):
+                    a0 = k * math.pi / 3 + t * .5; d = np.abs(((np.arctan2(yy - c, xx - c) - a0 + math.pi) % (2 * math.pi)) - math.pi)
+                    I += np.exp(-(d * np.hypot(xx - c, yy - c) / 1.4) ** 2) * np.exp(-(np.hypot(xx - c, yy - c) / (22 * sc)) ** 1.5) * .8
+                I += np.exp(-((xx - c) ** 2 + (yy - c) ** 2) / (4.5 * sc) ** 2)
+            else:
+                r = np.hypot(xx - c, yy - c); I += np.exp(-(r / (9 * sc + 1)) ** 2) * .9 + np.exp(-((r - 18 * sc) / 1.8) ** 2) * .5 * (1 - t)
+            fr.append(glow_rgba(I, GOLD, 1.0))
+        rows.append(fr)
+    img = Image.new('RGBA', (S * N, S * 4), (0, 0, 0, 0))
+    for v in range(4):
+        for i in range(N): img.paste(rows[v][i], (i * S, v * S))
+    img.save(os.path.join(OUT, 'fx-brilhos.webp'), quality=92, method=6); print('fx-brilhos.webp', img.size)
+
+
+# ── coração sagrado (cura) ─────────────────────────────────────────────────────────────────────────────────────────
+def make_coracao():
+    S, N = 128, 20
+    yy, xx = np.mgrid[0:S, 0:S].astype(float); c = (S - 1) / 2
+    X0 = (xx - c) / (S * .285); Y0 = -(yy - c + 3) / (S * .285)
+    frames = []
+    for i in range(N):
+        t = i / (N - 1)
+        sc = 1 + .26 * math.exp(-((t - .17) / .09) ** 2) - .08 * smooth(.62, 1, t)
+        X, Y = X0 / sc, Y0 / sc
+        f = (X ** 2 + Y ** 2 - 1) ** 3 - X ** 2 * Y ** 3
+        ins = 1 - smooth(-.015, .045, f)
+        inner = 1 - smooth(-.075, -.035, f)                   # miolo vermelho; o resto é o aro dourado
+        gx, gy = np.gradient(gaussian_filter(inner, 2.2)); lit = np.clip(.5 + (gx * .8 + gy * 1.0) * -9, 0, 1)
+        body = ramp(.15 + .5 * lit + .35 * (1 - yy / S) + .1 * gaussian_filter(inner, 6), [(0, (96, 6, 26)), (.35, (196, 24, 46)), (.7, (244, 82, 74)), (1, (255, 178, 150))])
+        rim_l = np.clip(gaussian_filter(ins, 1.2) - gaussian_filter(ins, 3.5) * .95, 0, 1)
+        gx2, gy2 = np.gradient(gaussian_filter(ins, 1.8)); lit2 = np.clip(.5 + (gx2 * .8 + gy2 * 1.0) * -14, 0, 1)
+        rim = ramp(.3 + .7 * lit2, [(0, (120, 72, 10)), (.5, (232, 170, 50)), (1, (255, 246, 190))])
+        rim_w = np.clip(ins - inner, 0, 1)
+        rgb = body * inner[..., None] + rim * rim_w[..., None]
+        # brilho especular no lóbulo esquerdo e faixa que varre
+        gl = np.exp(-(((xx - (c - 20)) / 9) ** 2 + ((yy - (c - 22)) / 5) ** 2)) * inner * .9
+        band = np.exp(-((((xx / S) * .6 + (yy / S) * .8) - (-.2 + 1.5 * smooth(.14, .7, t))) / .05) ** 2) * ins * .7
+        rgb = rgb + (gl + band)[..., None] * 255 * .55
+        glow = blur(ins, 8) * (.6 * smooth(0, .2, t) * (1 - smooth(.55, 1, t)) + .6 * math.exp(-((t - .17) / .07) ** 2))
+        a = ins
+        tot = np.clip(a + glow * (1 - a), 0, 1)
+        rgbf = (rgb * a[..., None] + np.array([255, 190, 120]) * (glow * (1 - a))[..., None]) / np.clip(tot, 1e-4, 1)[..., None]
+        a_out = tot * (1 - smooth(.8, 1, t)) * smooth(0, .07, t)
+        I = np.zeros((S, S))
+        if .1 < t < .8: add_star(I, c + 11, c - 14, 15 * math.sin((t - .1) / .7 * math.pi), .95)
+        arr = np.dstack([np.clip(rgbf, 0, 255), a_out * 255]).astype(float)
+        st = np.asarray(glow_rgba(I, GOLD, 1.0)).astype(float)
+        arr[..., :3] = np.clip(arr[..., :3] + st[..., :3] * st[..., 3:4] / 255, 0, 255); arr[..., 3] = np.maximum(arr[..., 3], st[..., 3])
+        frames.append(Image.fromarray(arr.astype(np.uint8), 'RGBA'))
+    save_sheet(frames, 5, 'fx-coracao.webp')
+
+
+# ── cometa sagrado (cabeça em cruz estrelada à direita, cauda para a esquerda) ─────────────────────────────────
+def make_cometa():
+    W, H, N = 320, 96, 8
+    yy, xx = np.mgrid[0:H, 0:W].astype(float); hx, hy = 262.0, H / 2
+    noise = fbm(H, W, 10, 3, seed=9)
+    frames = []
+    for i in range(N):
+        t = i / N; I = np.zeros((H, W))
+        dx = hx - xx
+        taper = np.exp(-np.clip(dx, 0, None) / 120) * (dx >= 0) * smooth(0, 14, xx)
+        wid = 3 + 9 * np.exp(-np.clip(dx, 0, None) / 90)
+        wob = (noise - .5) * 14 * (1 - np.exp(-np.clip(dx, 0, None) / 80))
+        I += np.exp(-((yy - hy - wob * .4) / wid) ** 2) * taper * 1.1
+        I += np.exp(-((yy - hy) / (wid * .45)) ** 2) * taper * .9
+        # fagulhas na cauda
+        rr = np.random.default_rng(100 + i)
+        for k in range(18):
+            px = hx - rr.uniform(10, 230) ** 1.0; py = hy + rr.normal(0, 8) * (1 + (hx - px) / 120)
+            add_star(I, px, py, rr.uniform(2.5, 6), .75 * math.exp(-(hx - px) / 170))
+        # cabeça: cruz estrelada
+        add_star(I, hx, hy, 34, 1.4, diag=.8)
+        I += np.exp(-(((xx - hx) / 14) ** 2 + ((yy - hy) / 14) ** 2)) * 1.1
+        I += blur(I, 4) * .7
+        frames.append(glow_rgba(I, GOLD, 1.0))
+    save_sheet(frames, 2, 'fx-cometa.webp')
+
+
+# ── sigilo sagrado (rosácea gótica, runas e cruzes) ──────────────────────────────────────────────────────────────
 def make_sigilo(stops, name):
-    S, N = 256, 24
+    from scipy.ndimage import rotate as ndrot
+    S, N = 256, 28
     yy, xx = np.mgrid[0:S, 0:S].astype(float); c = (S - 1) / 2
     r = np.hypot(xx - c, yy - c) / (S / 2); ang = np.arctan2(yy - c, xx - c)
-
-    def ring(r0, w):
-        return np.exp(-((r - r0) / w) ** 2)
-
-    def ticks(r0, r1, n, rot, w=.012):
-        a = ((ang + rot) * n / (2 * math.pi)) % 1.0
-        tk = np.exp(-(((a - .5) * 2 * math.pi * r0 / n * 2) / (w * 3)) ** 2) if False else np.exp(-((a - .5) / (w * n / 6)) ** 2)
-        return tk * smooth(r0 - .005, r0, r) * (1 - smooth(r1, r1 + .01, r))
-
-    def cross_at(rad, a0, size):
-        cxp = c + math.cos(a0) * rad * (S / 2); cyp = c + math.sin(a0) * rad * (S / 2)
-        return (np.exp(-((xx - cxp) / 1.6) ** 2) * np.exp(-((yy - cyp) / size) ** 2) +
-                np.exp(-((yy - cyp) / 1.6) ** 2) * np.exp(-((xx - cxp) / (size * .75)) ** 2))
-
+    rng = np.random.default_rng(3)
+    # camada de runas (traços curtos radiais/angulares) no anel .66–.82
+    runes = np.zeros((S, S))
+    for k in range(40):
+        a0 = k * 2 * math.pi / 40; rr0 = rng.uniform(.68, .78); typ = rng.integers(0, 4)
+        px, py = c + math.cos(a0) * rr0 * S / 2, c + math.sin(a0) * rr0 * S / 2
+        ux, uy = math.cos(a0), math.sin(a0); vx, vy = -uy, ux
+        if typ == 0: pts = [(px - ux * 5, py - uy * 5), (px + ux * 5, py + uy * 5)]
+        elif typ == 1: pts = [(px - vx * 4, py - vy * 4), (px + vx * 4, py + vy * 4)]
+        elif typ == 2: pts = [(px - ux * 5 - vx * 3, py - uy * 5 - vy * 3), (px, py), (px - ux * 5 + vx * 3, py - uy * 5 + vy * 3)]
+        else: pts = [(px - vx * 4 - ux * 4, py - vy * 4 - uy * 4), (px + vx * 4 + ux * 4, py + vy * 4 + uy * 4), (px - vx * 4 + ux * 4, py - vy * 4 + uy * 4)]
+        runes += line_mask(S, S, pts, 1.7)
+    runes = np.clip(runes, 0, 1)
+    # rosácea: 12 arcos ogivais em volta do centro
+    rosette = np.zeros((S, S))
+    for k in range(12):
+        a0 = k * math.pi / 6
+        for sgn in (-1, 1):
+            pts = []
+            for u in np.linspace(0, 1, 18):
+                rad = (.22 + .3 * u) * S / 2; aa = a0 + sgn * .26 * math.sin(u * math.pi * .95) * (1 - .35 * u)
+                pts.append((c + math.cos(aa) * rad, c + math.sin(aa) * rad))
+            rosette += line_mask(S, S, pts, 1.5)
+    rosette = np.clip(rosette, 0, 1)
+    # estrela de 8 pontas
+    star8 = np.zeros((S, S))
+    for sq in range(2):
+        pts = [(c + math.cos(sq * math.pi / 4 + k * math.pi / 2) * .5 * (S / 2), c + math.sin(sq * math.pi / 4 + k * math.pi / 2) * .5 * (S / 2)) for k in range(5)]
+        star8 += line_mask(S, S, pts, 1.6)
+    star8 = np.clip(star8, 0, 1)
     frames = []
     for i in range(N):
         t = i / (N - 1)
-        grow = smooth(0, .22, t); life = smooth(0, .1, t) * (1 - smooth(.7, 1, t))
-        sc = .55 + .45 * grow + .05 * math.sin(t * 6)
-        rot = t * 2.4
-        I = np.zeros((S, S))
-        rr = r / sc
-        # anéis (usam rr para crescer na abertura)
+        grow = smooth(0, .2, t); life = smooth(0, .08, t) * (1 - smooth(.72, 1, t))
+        sc = .5 + .5 * grow + .03 * math.sin(t * 7)
+        rr = r / sc; I = np.zeros((S, S))
         def rg(r0, w): return np.exp(-((rr - r0) / w) ** 2)
-        I += rg(.92, .018) * 1.0 + rg(.86, .008) * .7 + rg(.60, .012) * .8 + rg(.34, .01) * .6
-        # marcas giratórias entre os anéis
-        a1 = ((ang + rot) * 36 / (2 * math.pi)) % 1.0
-        I += np.exp(-((a1 - .5) / .1) ** 2) * ((rr > .875) & (rr < .915)) * .8
-        a2 = ((ang - rot * 1.4) * 12 / (2 * math.pi)) % 1.0
-        I += np.exp(-((a2 - .5) / .09) ** 2) * ((rr > .62) & (rr < .84)) * .55
-        # cruzes giratórias no anel do meio
-        for k in range(6):
-            a0 = rot * .8 + k * math.pi / 3
-            px = c + math.cos(a0) * .73 * (S / 2) * sc; py = c + math.sin(a0) * .73 * (S / 2) * sc
-            L = 8 * sc
-            I += (np.exp(-((xx - px) / 1.5) ** 2) * np.exp(-((yy - py) / L) ** 2) + np.exp(-((yy - py) / 1.5) ** 2) * np.exp(-((xx - px) / (L * .7)) ** 2)) * .95
-        # estrela de oito pontas no centro (dois quadrados) em linhas finas
-        for sq in range(2):
-            pts = [(c + math.cos(rot * (-1) + sq * math.pi / 4 + k * math.pi / 2) * .5 * (S / 2) * sc, c + math.sin(rot * (-1) + sq * math.pi / 4 + k * math.pi / 2) * .5 * (S / 2) * sc) for k in range(5)]
-            I += line_mask(S, S, pts, 1.6) * .7
-        # cruz central
-        I += (np.exp(-((xx - c) / 2.2) ** 2) * np.exp(-((yy - c) / (26 * sc)) ** 2) + np.exp(-((yy - c + 6 * sc) / 2.2) ** 2) * np.exp(-((xx - c) / (16 * sc)) ** 2)) * 1.1
-        I += np.exp(-(rr / .16) ** 2) * .5
+        I += rg(.94, .016) * 1.0 + rg(.88, .007) * .7 + rg(.62, .011) * .8 + rg(.2, .01) * .7
+        a1 = ((ang + t * 2.2) * 48 / (2 * math.pi)) % 1.0
+        I += np.exp(-((a1 - .5) / .12) ** 2) * ((rr > .89) & (rr < .93)) * .85
+        def rot(a, deg):
+            from scipy.ndimage import affine_transform
+            th = math.radians(deg); cs, sn = math.cos(th), math.sin(th)
+            M = np.array([[cs, -sn], [sn, cs]]) / sc; off = np.array([c, c]) - M @ np.array([c, c])
+            return affine_transform(a, M, offset=off, order=1)
+        I += rot(runes, t * -40) * .95 * grow
+        I += rot(rosette, t * 24) * .85
+        I += rot(star8, -t * 50) * .8
+        # cruzes grandes nos 4 pontos cardeais do anel externo
+        for k in range(4):
+            a0 = t * 1.0 + k * math.pi / 2; px = c + math.cos(a0) * .78 * (S / 2) * sc; py = c + math.sin(a0) * .78 * (S / 2) * sc
+            add_star(I, px, py, 11 * sc, .95, diag=.2)
+        I += (np.exp(-((xx - c) / 2.2) ** 2) * np.exp(-((yy - c) / (30 * sc)) ** 2) + np.exp(-((yy - c + 7 * sc) / 2.2) ** 2) * np.exp(-((xx - c) / (19 * sc)) ** 2)) * 1.15
+        I += np.exp(-(rr / .22) ** 2) * .55
         I *= life
-        # brilho de abertura
-        I += blur(I, 4) * .7 + np.exp(-(rr / .5) ** 2) * .22 * smooth(0, .12, t) * (1 - smooth(.15, .4, t))
+        # varredura de luz que corre pelo anel
+        I += np.exp(-(((((ang - t * 9) + math.pi) % (2 * math.pi)) - math.pi) / .25) ** 2) * rg(.93, .03) * .9 * life
+        I += blur(I, 3) * .7 + np.exp(-(rr / .5) ** 2) * .22 * smooth(0, .12, t) * (1 - smooth(.15, .4, t))
         frames.append(glow_rgba(I, stops, 1.0))
-    save_sheet(frames, 6, name)
+    save_sheet(frames, 7, name)
 
 
 # ── cruz sagrada que estoura ───────────────────────────────────────────────────────────────────────────────────────
 def make_cruz():
-    S, N = 256, 16
+    S, N = 256, 20
     yy, xx = np.mgrid[0:S, 0:S].astype(float); c = (S - 1) / 2
     dx, dy = xx - c, yy - c; r = np.hypot(dx, dy); ang = np.arctan2(dy, dx)
+    rng = np.random.default_rng(21)
+    shards = [(rng.uniform(0, 2 * math.pi), rng.uniform(.6, 1.3), rng.uniform(2, 4.5)) for _ in range(26)]
     frames = []
     for i in range(N):
         t = i / (N - 1)
-        pop = smooth(0, .18, t); fade = 1 - smooth(.5, 1, t)
-        L_h, L_v = 118 * pop + 10, 118 * pop * 1.15 + 10
-        wv = 5 + 11 * (1 - smooth(0, .3, t))           # espessura que afina
-        # barras da cruz: largas no começo, afinando e crescendo para as pontas
-        bar_h = np.exp(-(dy / (wv * .7 + 1.5)) ** 2) * (1 - smooth(L_h * .75, L_h, np.abs(dx)))
-        bar_v = np.exp(-(dx / (wv * .7 + 1.5)) ** 2) * (1 - smooth(L_v * .75, L_v, np.abs(dy)))
-        I = (bar_h + bar_v) * 1.1
-        # duas barras diagonais finas (estrela)
+        pop = smooth(0, .14, t); fade = 1 - smooth(.5, 1, t)
+        L_h, L_v = 122 * pop + 8, 122 * pop * 1.18 + 8
+        wv = 4 + 13 * (1 - smooth(0, .3, t))
+        bar_h = np.exp(-(dy / (wv * .7 + 1.5)) ** 2) * (1 - smooth(L_h * .7, L_h, np.abs(dx)))
+        bar_v = np.exp(-(dx / (wv * .7 + 1.5)) ** 2) * (1 - smooth(L_v * .7, L_v, np.abs(dy)))
+        I = (bar_h + bar_v) * 1.15
         for sgn in (1, -1):
             d = np.abs((dx * sgn + dy) / math.sqrt(2)); along = np.abs(dx * sgn - dy) / math.sqrt(2)
-            I += np.exp(-(d / 3) ** 2) * (1 - smooth(60 * pop, 85 * pop + 1, along)) * .45
-        # núcleo
-        I += np.exp(-(r / (20 + 20 * (1 - smooth(0, .4, t)))) ** 2) * 1.3 * (1 - smooth(.25, .7, t))
-        # anel de choque
-        rad = 20 + 100 * smooth(.04, .6, t)
-        I += np.exp(-((r - rad) / (4 + 6 * t)) ** 2) * (1 - smooth(.3, .7, t)) * .9
-        # fagulhas radiais
-        for k in range(18):
-            a0 = k * 2 * math.pi / 18 + .3; sp = 40 + (k * 37 % 50)
-            rr_ = 18 + sp * 2.1 * smooth(.04, .6, t)
+            I += np.exp(-(d / 3) ** 2) * (1 - smooth(60 * pop, 90 * pop + 1, along)) * .5
+        I += np.exp(-(r / (20 + 24 * (1 - smooth(0, .4, t)))) ** 2) * 1.4 * (1 - smooth(.22, .7, t))
+        for rad0, dl, w0 in ((24, 0, 4), (16, .07, 3)):
+            tr = np.clip((t - dl) / .6, 0, 1)
+            if tr > 0: I += np.exp(-((r - (rad0 + 105 * (1 - (1 - tr) ** 2))) / (w0 + 6 * tr)) ** 2) * (1 - tr) ** 1.2 * .95
+        # estilhaços de luz (losangos finos) voando
+        for a0, spd, wd in shards:
+            tr = np.clip((t - .02) / .6, 0, 1)
+            if tr <= 0: continue
+            rr_ = 16 + 100 * spd * (1 - (1 - tr) ** 2)
             da = np.abs(((ang - a0 + math.pi) % (2 * math.pi)) - math.pi)
-            I += np.exp(-((r - rr_) / 3.2) ** 2) * np.exp(-(da * r / 3.5) ** 2) * (1 - smooth(.3, .6, t)) * .9
+            I += np.exp(-(((r - rr_) / (7 + 10 * spd)) ** 2)) * np.exp(-(da * r / wd) ** 2) * (1 - tr) ** 1.3 * 1.1
+        add_star(I, c, c, 40 * (1 - smooth(.15, .6, t)) + 6, 1.0, diag=.9)
         I *= fade
-        I += blur(I, 6) * .8
+        I += blur(I, 6) * .8 + blur(I, 18) * .22
         frames.append(glow_rgba(I, GOLD, 1.0))
-    save_sheet(frames, 4, 'fx-cruz.webp')
+    save_sheet(frames, 5, 'fx-cruz.webp')
 
 
 # ── escudo heráldico ──────────────────────────────────────────────────────────────────────────────────────────────
@@ -431,7 +555,7 @@ def make_trompa():
     save_sheet(frames, 4, 'fx-trompa.webp')
 
 
-JOBS = [('pilar', make_pilar), ('sigilo', lambda: make_sigilo(GOLD, 'fx-sigilo.webp')), ('sigilo-azul', lambda: make_sigilo(HOLY, 'fx-sigilo-azul.webp')),
+JOBS = [('brilhos', make_brilhos), ('coracao', make_coracao), ('cometa', make_cometa), ('pilar', make_pilar), ('sigilo', lambda: make_sigilo(GOLD, 'fx-sigilo.webp')), ('sigilo-azul', lambda: make_sigilo(HOLY, 'fx-sigilo-azul.webp')),
         ('cruz', make_cruz), ('escudo', make_escudo), ('alma', make_alma), ('penas', make_penas), ('trompa', make_trompa)]
 
 if __name__ == '__main__':
