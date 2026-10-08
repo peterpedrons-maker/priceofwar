@@ -39,11 +39,45 @@
   header > * { pointer-events:auto; }
   .iconbtn { width:46px; height:46px; background:url(ui/icon-btn.png) center/contain no-repeat; display:flex; align-items:center; justify-content:center; color:var(--gold2); font-size:26px; padding-bottom:3px; }
   .iconbtn:active { background-image:url(ui/icon-btn-dark.png); }
-  .ribbon { position:absolute; left:50%; top:calc(env(safe-area-inset-top) + 7px); transform:translateX(-50%); width:164px; height:40.5px; background:url(ui/ribbon.png) center/100% 100% no-repeat; pointer-events:none; }
+  .ribbon { position:absolute; left:50%; top:calc(env(safe-area-inset-top) + 7px); transform:translateX(-50%); width:150px; height:37px; background:url(ui/ribbon.png) center/100% 100% no-repeat; pointer-events:none; }
   .ribbon svg { width:100%; height:100%; display:block; overflow:visible; }
   .ribbon text { font-family:'Cinzel',Georgia,serif; font-weight:700; font-size:23px; letter-spacing:5px; fill:#f6e9c8; stroke:#2a1a08; stroke-width:2.6px; paint-order:stroke; text-transform:uppercase; }
-  .deckchip { border-style:solid; border-width:10px 28px; border-image:url(ui/btn-secondary.png) 20 56 20 56 fill stretch; height:46px; min-width:98px; display:flex; align-items:center; justify-content:center; gap:6px; font-size:11px; color:var(--gold2); letter-spacing:.04em; line-height:1.05; text-align:center; }
-  .deckchip small { display:block; font-size:8px; letter-spacing:.14em; opacity:.7; text-transform:uppercase; }
+  .deckchip { flex:none; width:110px; height:46px; margin-right:-4px; border-style:solid; border-width:8px 22px; border-image:url(ui/btn-secondary.png) 20 56 20 56 fill stretch; display:flex; align-items:center; gap:5px; padding:0; overflow:hidden; cursor:pointer; }
+  .deckchip .dthumb { flex:none; width:22px; height:22px; border-radius:4px; background-size:cover; background-position:50% 12%; box-shadow:0 0 0 1px #6f5324, 0 0 0 2px rgba(0,0,0,.6); }
+  .deckchip .dtxt { flex:none; width:39px; line-height:1.05; }
+  .deckchip small { display:block; font-size:7px; letter-spacing:.1em; opacity:.75; text-transform:uppercase; color:var(--gold2); white-space:nowrap; }
+  .deckchip b { display:block; font-size:11px; color:var(--gold2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:.02em; }
+  .deckchip:active { border-image-source:url(ui/btn-secondary-pressed.png); }
+  /* janela "Seus decks" */
+  #modal { position:absolute; inset:0; z-index:30; display:flex; align-items:center; justify-content:center; padding:44px 14px 14px; background:rgba(4,2,1,.74); backdrop-filter:blur(2px); opacity:0; pointer-events:none; transition:opacity .25s; }
+  #modal.on { opacity:1; pointer-events:auto; }
+  .win { position:relative; width:100%; max-width:372px; max-height:100%; display:flex; flex-direction:column; border-style:solid; border-width:22px 22px 22px 22px; border-image:url(ui/modal-frame.png) 34 34 34 34 fill stretch; padding:18px 0 4px; transform:translateY(14px) scale(.96); transition:transform .3s cubic-bezier(.2,.9,.3,1.2); }
+  #modal.on .win { transform:none; }
+  .win .rib { position:absolute; left:50%; top:-48px; width:190px; height:47px; transform:translateX(-50%); background:url(ui/ribbon.png) center/100% 100% no-repeat; pointer-events:none; }
+  .win .rib svg { width:100%; height:100%; display:block; overflow:visible; }
+  .win .rib text { font-family:'Cinzel',Georgia,serif; font-weight:700; font-size:23px; letter-spacing:5px; fill:#f6e9c8; stroke:#2a1a08; stroke-width:2.6px; paint-order:stroke; text-transform:uppercase; }
+  .win .x { position:absolute; right:-12px; top:-34px; width:38px; height:38px; background:url(ui/icon-btn.png) center/contain no-repeat; color:var(--gold2); font-size:22px; display:flex; align-items:center; justify-content:center; padding-bottom:2px; cursor:pointer; }
+  .win .lead { margin:2px 6px 10px; text-align:center; font-family:Georgia,serif; font-size:13px; line-height:1.35; color:#e6d9b5; }
+  .win .decks { overflow-y:auto; padding:2px 6px; margin:0; scrollbar-width:none; }
+  .win .decks::-webkit-scrollbar { display:none; }
+  .win .row { margin-bottom:8px; }
+  .win .row.empty { border-image-source:url(ui/row-locked.png); }
+  .win .row h3 { display:flex; align-items:center; gap:6px; }
+  .win .row p { letter-spacing:.04em; }
+  .win .fight { font-size:17px; letter-spacing:.18em; }
+  .tag { font:700 8px/1 'Cinzel',Georgia,serif; letter-spacing:.12em; padding:3px 6px 2px; border-radius:8px; background:linear-gradient(#f0d68a,#b88b2c); color:#2a1a05; text-transform:uppercase; text-shadow:none; flex:none; }
+  .tag.n { background:rgba(0,0,0,.35); color:#d9c487; box-shadow:inset 0 0 0 1px rgba(230,195,106,.45); }
+  .tag.n.bad { color:#ffb199; box-shadow:inset 0 0 0 1px rgba(224,138,106,.7); }
+  .tag.warn { background:linear-gradient(#e08a6a,#8f3a22); color:#fff0e6; }
+  .sync { flex:none; text-align:center; font-size:8px; letter-spacing:.08em; text-transform:uppercase; color:#bfae80; line-height:1.15; margin-right:2px; width:54px; }
+  .sync b { display:block; font-size:17px; line-height:1; margin-bottom:1px; filter:saturate(.7); }
+  .win .legend { margin:2px 8px 10px; padding-top:8px; font-size:10.5px; line-height:1.45; color:#b9a77a; font-family:Georgia,serif; text-align:center; background:url(ui/divider.png) center top/80% 8px no-repeat; }
+  .win .btns { display:flex; flex-direction:column; align-items:center; gap:2px; padding:0 4px 6px; }
+  .win .fight { width:100%; margin-top:0; }
+  .btn2 { all:unset; box-sizing:border-box; cursor:pointer; width:176px; height:42px; display:flex; align-items:center; justify-content:center; border-style:solid; border-width:8px 22px; border-image:url(ui/btn-secondary.png) 20 56 20 56 fill stretch; font-size:12px; letter-spacing:.14em; color:var(--gold2); text-transform:uppercase; }
+  .btn2:active { border-image-source:url(ui/btn-secondary-pressed.png); }
+  #toast { position:absolute; left:50%; bottom:90px; transform:translateX(-50%); z-index:40; padding:8px 14px; border-radius:16px; background:rgba(18,12,8,.95); border:1px solid #6f5324; font-size:12px; color:var(--gold2); opacity:0; transition:opacity .3s; pointer-events:none; white-space:nowrap; }
+  #toast.on { opacity:1; }
   .deckchip:active { border-image-source:url(ui/btn-secondary-pressed.png); }
   /* nome da região e texto sobre o mapa */
   #place { transition:opacity .5s; position:absolute; left:0; right:0; top:236px; display:flex; flex-direction:column; align-items:center; gap:4px; pointer-events:none; }
@@ -91,10 +125,16 @@
     <div id="pin"><div class="pulse"></div><div class="pulse b"></div>
       <svg viewBox="0 0 34 52"><defs><linearGradient id="pg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0b8"/><stop offset=".5" stop-color="#e0b04a"/><stop offset="1" stop-color="#8a5f14"/></linearGradient></defs>
         <path d="M17 51 C5 33 1 26 1 17 A16 16 0 0 1 33 17 C33 26 29 33 17 51Z" fill="url(#pg)" stroke="#3a2406" stroke-width="2"/><circle cx="17" cy="17" r="7" fill="#1a0f06" stroke="#3a2406" stroke-width="1.5"/><circle cx="17" cy="17" r="3.2" fill="#ffe9a6"/></svg></div>
-    <header><div class="iconbtn">‹</div><div class="ribbon"><svg viewBox="0 0 304 75"><defs><path id="arc" d="M52 43 Q152 25 252 43"/></defs><text><textPath href="#arc" startOffset="50%" text-anchor="middle">Desafios</textPath></text></svg></div><div class="deckchip" id="deckchip"><span><small>Seu deck</small><b id="deckname">Capitão</b></span></div></header>
+    <header><div class="iconbtn">‹</div><div class="ribbon"><svg viewBox="0 0 304 75"><defs><path id="arc" d="M52 43 Q152 25 252 43"/></defs><text><textPath href="#arc" startOffset="50%" text-anchor="middle">Desafios</textPath></text></svg></div><div class="deckchip" id="deckchip"><i class="dthumb" id="dthumb"></i><span class="dtxt"><small>Seu deck</small><b id="deckname">Deck 1</b></span></div></header>
     <div id="place"><div class="plaque" id="region">Marca de Aurelion</div><div class="sub" id="regsub">Capitão</div></div>
     <div id="info"></div><div id="hint">Escolha um adversário</div>
   </div>
+  <div id="modal"><div class="win" id="win"><div class="rib"><svg viewBox="0 0 304 75"><defs><path id="arc2" d="M52 43 Q152 25 252 43"/></defs><text><textPath href="#arc2" startOffset="50%" text-anchor="middle">Seus decks</textPath></text></svg></div><div class="x" id="mclose">×</div>
+    <p class="lead">Escolha com qual deck você vai lutar. Aqui estão os decks que você <b>salvou</b>.</p>
+    <div class="decks" id="decks"></div>
+    <div class="legend">☁ <b>Nuvem</b>: salvo na sua conta. &nbsp; 📱 <b>Aparelho</b>: só neste celular.<br>Para montar ou mudar um deck, use o Editor de Decks.</div>
+    <div class="btns"><button class="fight" id="useDeck">Usar este deck</button><button class="btn2" id="editDecks">Editar decks</button></div></div></div>
+  <div id="toast"></div>
   <div id="sheet">
     <div id="list"></div>
     <button class="fight" id="fight">Lutar</button>
@@ -113,9 +153,15 @@ const OPP = [
   { id:'bardos', name:'Deck Bardos', gen:'Aldric Língua-de-Prata', epi:'Menestrel do Rei', region:'Vila do Javali Dourado', img:'', px:432, py:705, locked:true, short:'Em breve', desc:'Em breve: cantores que se dão bônus entre si; em grupo ficam difíceis de abater.', tip:'', diff:0, stars:0, reward:'', tint:'rgba(150,80,170,.45)' },
   { id:'muralha', name:'Guarda da Muralha', gen:'Capitão da Torre', epi:'Defensor do Castelo', region:'Muralha do Norte', img:'', px:786, py:192, locked:true, short:'Em breve', desc:'Em breve: fortificações, escudos e trabucos. Vence pelo desgaste.', tip:'', diff:0, stars:0, reward:'', tint:'rgba(100,120,150,.45)' },
 ];
-const MY = ['Capitão', 'Cardeal', 'Mercenários'];
+const STATES = new URLSearchParams(location.search).get('decks') === 'estados';   // ?decks=estados mostra deck incompleto e slot vazio
+const DECKS = [
+  { slot:'Deck 1', gen:'Comandante Aurelion', fac:'Capitão', img:'portraits/capitao.webp', cards:60, cloud:true },
+  { slot:'Deck 2', gen:'Cardeal Pedro', fac:'Cardeal', img:'portraits/cardeal.webp', cards:STATES ? 47 : 60, cloud:true },
+  { slot:'Deck 3', gen:'Brann Meia-Coroa', fac:'Mercenários', img:'portraits/mercenarios.webp', cards:STATES ? 0 : 60, cloud:false, empty:STATES },
+];
+let usedDeck = 0, pendingDeck = 0;
 const $ = s => document.querySelector(s), MAPPX = 1150, ZOOM = MAPPX / 1024, PIN = { x:195, y:215 };
-let cur = -1, myDeck = 0;
+let cur = -1;
 const PINSVG = '<svg viewBox="0 0 34 52"><path d="M17 51 C5 33 1 26 1 17 A16 16 0 0 1 33 17 C33 26 29 33 17 51Z" fill="#e0b04a" stroke="#3a2406" stroke-width="2"/><circle cx="17" cy="17" r="7" fill="#1a0f06" stroke="#3a2406" stroke-width="1.5"/><circle cx="17" cy="17" r="3.2" fill="#ffe9a6"/></svg>';
 const stars = (n, locked) => locked ? '' : '<span class="stars">' + [0, 1, 2].map(i => `<i class="${i < n ? '' : 'off'}"></i>`).join('') + '</span>';
 $('#list').innerHTML = OPP.map((o, i) => `<div class="row${o.locked ? ' locked' : ''}" data-i="${i}">${o.locked ? '' : `<div class="face" style="background-image:url('${o.img}')"></div>`}<div class="t"><h3>${o.gen}</h3><p>${o.locked ? 'Em breve' : o.epi}</p></div>${stars(o.stars, o.locked)}</div>`).join('');
@@ -149,7 +195,28 @@ function fightState() {
   f.classList.toggle('off', cur < 0 || !!(o && o.locked)); f.textContent = o && o.locked ? 'Em breve' : 'Lutar';
 }
 addEventListener('keydown', e => { if (e.key === 'ArrowDown') select(Math.min(OPP.length - 1, cur + 1)); if (e.key === 'ArrowUp') select(Math.max(0, cur - 1)); });
-$('#deckchip').onclick = () => { myDeck = (myDeck + 1) % MY.length; $('#deckname').textContent = MY[myDeck]; };
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 1800); }
+function paintChip() { const d = DECKS[usedDeck]; $('#deckname').textContent = d.slot; $('#dthumb').style.backgroundImage = `url('${d.img}')`; }
+function paintDecks() {
+  $('#decks').innerHTML = DECKS.map((d, i) => {
+    const ok = !d.empty && d.cards >= 60, cls = d.empty ? ' empty' : !ok ? ' locked' : '';
+    const sel = ok && i === pendingDeck ? ' sel' : '';
+    const sub = d.empty ? 'Vazio · monte no Editor de Decks' : d.gen;
+    const count = d.empty ? '' : `<span class="tag n${ok ? '' : ' bad'}">${d.cards}/60</span>`;
+    const tag = (i === usedDeck && ok ? '<span class="tag">Em uso</span>' : '') + count;
+    const sync = d.empty ? '' : `<div class="sync"><b>${d.cloud ? '☁' : '📱'}</b>${d.cloud ? 'Nuvem' : 'Aparelho'}</div>`;
+    return `<div class="row${cls}${sel}" data-d="${i}">${ok ? `<div class="face" style="background-image:url('${d.img}')"></div>` : ''}<div class="t"><h3>${d.slot} ${tag}</h3><p>${sub}</p></div>${sync}</div>`;
+  }).join('');
+  document.querySelectorAll('#decks .row').forEach(r => r.onclick = () => { const d = DECKS[+r.dataset.d]; if (d.empty) return toast('Slot vazio: monte um deck no Editor de Decks'); if (d.cards < 60) return toast(`${d.slot} precisa de 60 cartas (tem ${d.cards})`); pendingDeck = +r.dataset.d; paintDecks(); });
+  const same = pendingDeck === usedDeck; $('#useDeck').textContent = same ? 'Continuar' : 'Usar este deck';
+}
+function openDecks() { pendingDeck = usedDeck; paintDecks(); $('#modal').classList.add('on'); }
+function closeDecks() { $('#modal').classList.remove('on'); }
+$('#deckchip').onclick = openDecks; $('#mclose').onclick = closeDecks; $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeDecks(); });
+$('#useDeck').onclick = () => { if (pendingDeck !== usedDeck) { usedDeck = pendingDeck; paintChip(); toast(DECKS[usedDeck].slot + ' · ' + DECKS[usedDeck].gen + ' em uso'); } closeDecks(); };
+$('#editDecks').onclick = () => { closeDecks(); toast('Abriria o Editor de Decks'); };
+addEventListener('keydown', e => { if (e.key === 'Escape') closeDecks(); });
+paintChip();
 $('#fight').onclick = () => { const o = OPP[cur]; if (o && !o.locked) { const b = $('#fight'); b.textContent = 'Preparando…'; setTimeout(() => { b.textContent = 'Lutar'; }, 1100); } };
 addEventListener('resize', () => { if (cur < 0) overview(); });
 overview(); fightState();
