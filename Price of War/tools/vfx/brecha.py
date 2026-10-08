@@ -120,101 +120,128 @@ def make_flags():
         save_sheet(frames, 4, f'fx-bandeira-cair-{key}.webp')
 
 
-# ── muralha que desaba ───────────────────────────────────────────────────────────────────────
-def stone_color(rng, shade=1.0):
-    v = rng.uniform(.8, 1.12) * shade
-    return (int(150 * v), int(136 * v), int(118 * v), 255)
+# ── paliçada que se parte (linha de estacas e escudos num campo aberto) ──────────────────────────────────────────────────
+FW, FH = 256, 192
+GROUND = 150
+
+
+def wood(rng, k=1.0):
+    v = rng.uniform(.85, 1.12) * k
+    return (int(196 * v), int(138 * v), int(76 * v), 255)
+
+
+def poly_rot(cx, cy, pts, rot):
+    ca, sa = math.cos(rot), math.sin(rot)
+    return [((cx + x * ca - y * sa) * SS, (cy + x * sa + y * ca) * SS) for x, y in pts]
+
+
+def make_scene(t, dust_on=True, patch=1.0, seed=3):
+    """t em [0,1]: 0 = a paliçada de pé; ~.12 racha; .15 parte; 1 = tudo no chão (estado final, igual às ruínas)"""
+    rng = np.random.default_rng(seed)
+    img = Image.new('RGBA', (FW * SS, FH * SS), (0, 0, 0, 0)); d = ImageDraw.Draw(img)
+    # chão: terra revirada que cresce com a quebra
+    pr = min(1, t / .5) * patch
+    d.ellipse(((128 - 100 * pr) * SS, (GROUND - 4 - 18 * pr) * SS, (128 + 100 * pr) * SS, (GROUND + 4 + 22 * pr) * SS), fill=(40, 26, 16, int(190 * pr)))
+    d.ellipse((38 * SS, (GROUND - 6) * SS, 218 * SS, (GROUND + 12) * SS), fill=(52, 36, 22, 235))                       # montinho de terra da base
+    n = 9; xs = [44 + i * 21 for i in range(n)]
+    broke = .15
+    shake = math.sin(t * 120) * 1.3 * (1 if .06 < t < broke else 0)
+    pieces = []
+    for i, x0 in enumerate(xs):
+        h = 92 + rng.uniform(-8, 8); w = 15; br = rng.uniform(.34, .55)             # altura, largura e onde parte (fração da altura)
+        col = wood(rng); col2 = wood(rng, .7)
+        t0 = broke + abs(i - 4) * .018 + rng.uniform(0, .02)
+        vx = (x0 - 128) * .55 + rng.normal(0, 10); vy = -rng.uniform(110, 190); vr = rng.normal(0, 6)
+        # parte de baixo (toco): sempre existe
+        stump = h * br
+        ytop = GROUND - stump
+        if t < t0:
+            ytop = GROUND - h; sx = x0 + shake * (1 if i % 2 else -1)
+            pts = [(sx - w / 2, GROUND), (sx - w / 2, ytop + 14), (sx, ytop - 4), (sx + w / 2, ytop + 14), (sx + w / 2, GROUND)]
+            d.polygon([(x * SS, y * SS) for x, y in pts], fill=col, outline=(24, 14, 6, 255), width=2 * SS)
+            d.polygon([(x * SS, y * SS) for x, y in [(sx - w / 2, GROUND), (sx - w / 2, ytop + 14), (sx - 1, ytop - 3), (sx - 1, GROUND)]], fill=col2)
+            for yy in (GROUND - h * .3, GROUND - h * .62):
+                d.rectangle(((sx - w / 2) * SS, yy * SS, (sx + w / 2) * SS, (yy + 3) * SS), fill=(240, 218, 150, 255))
+        else:
+            jag = [(x0 - w / 2, GROUND), (x0 - w / 2, ytop + 3), (x0 - w / 4, ytop - 4), (x0, ytop + 2), (x0 + w / 4, ytop - 5), (x0 + w / 2, ytop + 3), (x0 + w / 2, GROUND)]
+            d.polygon([(x * SS, y * SS) for x, y in jag], fill=col, outline=(24, 14, 6, 255), width=2 * SS)
+            # a metade de cima: sai voando, gira e cai deitada
+            tt = (t - t0) * 2.3; g = 360
+            top_h = h - stump
+            px = x0 + vx * tt * .6; py = ytop + vy * tt + .5 * g * tt * tt; rot = vr * tt
+            rest_y = GROUND + 14 + (i % 3) * 5 - 4 + rng.uniform(-6, 6)
+            if py > rest_y:
+                py = rest_y; rot = (rot * .15) + math.pi / 2 * (1 if vx > 0 else -1) * .92 + rng.uniform(-.2, .2)
+                px = x0 + vx * (math.sqrt(max(0, 2 * (rest_y - ytop - vy * 0) / g)) if False else .5) * .9
+            piece = [(-w / 2, 0), (w / 2, 0), (w / 2, -top_h + 12), (0, -top_h), (-w / 2, -top_h + 12)]
+            pieces.append((poly_rot(px, py, piece, rot), col, col2))
+    # escudos redondos (dois), à frente: racham e partem em duas metades
+    for si, sx0 in enumerate((88, 168)):
+        sy = GROUND - 22; r = 19
+        t0 = broke + .03 + si * .03
+        base = [(math.cos(a) * r, math.sin(a) * r) for a in np.linspace(0, 2 * math.pi, 28, endpoint=False)]
+        def shield_poly(cx, cy, rot, half=None):
+            pts = base if half is None else ([(x, y) for x, y in base if (x <= 0) == (half == 0)] + [(0, -r), (0, r)] if False else None)
+            return pts
+        if t < t0:
+            cx = sx0 + shake
+            d.ellipse(((cx - r) * SS, (sy - r) * SS, (cx + r) * SS, (sy + r) * SS), fill=(176, 52, 44, 255), outline=(24, 14, 6, 255), width=2 * SS)
+            d.ellipse(((cx - r * .62) * SS, (sy - r * .62) * SS, (cx + r * .62) * SS, (sy + r * .62) * SS), outline=(214, 186, 112, 255), width=SS)
+            d.ellipse(((cx - 5) * SS, (sy - 5) * SS, (cx + 5) * SS, (sy + 5) * SS), fill=(196, 196, 204, 255), outline=(60, 60, 68, 255))
+            if t > .08:
+                d.line([(cx * SS, (sy - r) * SS), ((cx - 3) * SS, (sy - 5) * SS), ((cx + 2) * SS, (sy + 4) * SS), (cx * SS, (sy + r) * SS)], fill=(20, 14, 10, 255), width=2 * SS)
+        else:
+            tt = (t - t0) * 2.4; g = 380
+            for half, sgn in ((0, -1), (1, 1)):
+                vx = sgn * (26 + 14 * si) ; vy = -(90 + 30 * half); vr = sgn * (4.2 + si)
+                cx = sx0 + vx * tt * .5; cy = sy + vy * tt + .5 * g * tt * tt; rot = vr * tt
+                rest = GROUND + 6 + half * 4
+                if cy > rest:
+                    cy = rest; rot = sgn * (.9 + .2 * half)
+                    cx = sx0 + vx * .45
+                hp = [(0, -r), (sgn * r * .98, -r * .3), (sgn * r * .98, r * .3), (0, r), (sgn * 3, 0)]
+                pieces.append((poly_rot(cx, cy, hp, rot), (176, 52, 44, 255), (230, 200, 120, 255)))
+    # as peças caídas, desenhadas por cima
+    for pts, c1, c2 in pieces:
+        d.polygon(pts, fill=c1, outline=(24, 14, 6, 255), width=2 * SS)
+    # lascas (tiras finas) e torrões de terra
+    if t > broke:
+        tt = (t - broke) * 2.0
+        for k in range(46):
+            ang = rng.uniform(-math.pi * .98, -math.pi * .02); sp = rng.uniform(60, 190); x = 128 + rng.normal(0, 60) * .4
+            vx, vy = math.cos(ang) * sp * 1.1, math.sin(ang) * sp
+            px = x + vx * tt * .55; py = GROUND - 8 + vy * tt * .9 + .5 * 420 * tt * tt
+            if py > GROUND + 10 + rng.uniform(-2, 8): py = GROUND + 10 + rng.uniform(0, 12)
+            if k % 2 == 0:     # lasca
+                L = rng.uniform(6, 14); rot = rng.uniform(0, 6.28) + tt * 3
+                d.line([(px * SS, py * SS), ((px + math.cos(rot) * L) * SS, (py + math.sin(rot) * L) * SS)], fill=(232, 176, 104, 255), width=int(2.2 * SS))
+            else:              # torrão de terra
+                r_ = rng.uniform(2.4, 5.2)
+                d.ellipse(((px - r_) * SS, (py - r_ * .8) * SS, (px + r_) * SS, (py + r_ * .8) * SS), fill=(84, 54, 30, 255), outline=(26, 16, 8, 255))
+    out = img.resize((FW, FH), Image.LANCZOS)
+    if dust_on and t > .14:
+        dl = Image.new('RGBA', (FW, FH), (0, 0, 0, 0)); dd = ImageDraw.Draw(dl)
+        drng = np.random.default_rng(11)
+        for _ in range(18):
+            dx = 128 + drng.normal(0, 52); dy = GROUND + drng.normal(0, 6); dr = drng.uniform(16, 34); d0 = drng.uniform(0, .2)
+            u = (t - .15 - d0 * .5) / .8
+            if u <= 0 or u >= 1: continue
+            rr = dr * (.6 + 1.6 * u); al = int(165 * (1 - u) ** 1.3 * min(1, u * 5))
+            ox = dx + u * (dx - 128) * .7
+            dd.ellipse((ox - rr, dy - u * 34 - rr * .7, ox + rr, dy - u * 34 + rr * .7), fill=(150, 126, 96, al))
+        out.alpha_composite(dl.filter(ImageFilter.GaussianBlur(5)))
+    return out
 
 
 def make_wall():
-    """o trecho de muro (de pé, com uma rachadura no meio) → blocos que se soltam e caem → pilha de escombros e nuvem de poeira"""
-    FW, FH, N = 256, 192, 24
-    rng = np.random.default_rng(5)
-    cols, rows, bw, bh = 9, 5, 22, 16
-    ox, oy = (FW - cols * bw) // 2, 150 - rows * bh
-    blocks = []
-    total = cols * bw
-    for r in range(rows):
-        x = ox
-        if r % 2:   # fiada deslocada: começa com meio tijolo e termina com meio tijolo
-            sizes = [bw // 2] + [bw] * (cols - 1) + [bw - bw // 2]
-        else:
-            sizes = [bw] * cols
-        for c, wdt in enumerate(sizes):
-            blocks.append(dict(x0=x + wdt / 2, y0=oy + r * bh + bh / 2, w=wdt - 1, h=bh - 1, col=stone_color(rng), r=r, c=c, rot=0.0))
-            x += wdt
-    # os blocos do meio caem; os das pontas ficam (com fraturas) — a "brecha"
-    mid = cols / 2
-    for b in blocks:
-        dist = abs((b['x0'] - FW / 2) / bw)
-        b['falls'] = dist < 2.6 - (b['r'] * .12)
-        b['t0'] = .06 + .38 * (1 - dist / 3.0) * .9 + (rows - b['r']) * .018 + rng.uniform(0, .05)
-        b['vx'] = rng.normal(0, 22) + (b['x0'] - FW / 2) * .55
-        b['vr'] = rng.normal(0, 3.4)
-        b['rest'] = 150 + rng.uniform(-3, 3) - b['h'] / 2 * rng.uniform(0, .5) - rng.uniform(0, 14) * (1 - dist / 3)
-    frames = []
-    dust = [(FW / 2 + rng.normal(0, 40), 140 + rng.normal(0, 8), rng.uniform(18, 36), rng.uniform(0, .25)) for _ in range(16)]
-    for fi in range(N):
-        t = fi / (N - 1)
-        img = Image.new('RGBA', (FW * SS, FH * SS), (0, 0, 0, 0)); d = ImageDraw.Draw(img)
-        # sombra no chão
-        d.ellipse((ox * SS, 140 * SS, (ox + cols * bw) * SS, 164 * SS), fill=(0, 0, 0, 70))
-        shake = math.sin(fi * 2.1) * 1.4 * max(0, 1 - abs(t - .25) * 4)
-        for b in sorted(blocks, key=lambda q: q['r']):
-            x, y, rot = b['x0'], b['y0'], 0.0
-            if b['falls'] and t > b['t0']:
-                tt = (t - b['t0']) * 1.9; y = b['y0'] + 200 * tt * tt; x = b['x0'] + b['vx'] * tt * .35; rot = b['vr'] * tt
-                if y > b['rest']:
-                    y = b['rest'] - abs(math.sin((y - b['rest']) * .08)) * 2; rot *= .3
-                    y = min(y, b['rest']); y = b['rest']
-            elif not b['falls']:
-                x += shake * (1 if b['c'] % 2 else -1)
-            w, h = b['w'] * SS, b['h'] * SS
-            corners = [(-w / 2, -h / 2), (w / 2, -h / 2), (w / 2, h / 2), (-w / 2, h / 2)]
-            ca, sa = math.cos(rot), math.sin(rot)
-            pts = [(x * SS + cx * ca - cy * sa, y * SS + cx * sa + cy * ca) for cx, cy in corners]
-            d.polygon(pts, fill=b['col'], outline=(26, 20, 16, 255))
-            d.line([pts[0], pts[1]], fill=(186, 176, 160, 255), width=SS)               # luz em cima
-            d.line([pts[2], pts[3]], fill=(60, 54, 46, 255), width=SS)
-        if .03 < t < .3:   # rachadura em zigue-zague no meio do muro, que cresce de cima para baixo
-            zz = [(FW / 2 + (7 if k % 2 else -7) * SS * 0 + (6 if k % 2 else -6), oy + k * bh * .5) for k in range(int(11 * min(1, (t - .03) / .14)))]
-            if len(zz) > 1: d.line([(x * SS, y * SS) for x, y in zz], fill=(18, 14, 10, 255), width=2 * SS)
-        out = img.resize((FW, FH), Image.LANCZOS)
-        # poeira
-        dl = Image.new('RGBA', (FW, FH), (0, 0, 0, 0)); dd = ImageDraw.Draw(dl)
-        for dx, dy, dr, d0 in dust:
-            u = (t - .22 - d0 * .5) / .78
-            if u <= 0: continue
-            rr = dr * (.6 + 1.5 * u); al = int(150 * (1 - u) ** 1.3 * min(1, u * 5))
-            dd.ellipse((dx + u * (dx - FW / 2) * .6 - rr, dy - u * 30 - rr * .7, dx + u * (dx - FW / 2) * .6 + rr, dy - u * 30 + rr * .7), fill=(176, 160, 138, al))
-        dl = dl.filter(ImageFilter.GaussianBlur(5))
-        out.alpha_composite(dl)
-        frames.append(out)
+    frames = [make_scene(i / 23) for i in range(24)]
     save_sheet(frames, 6, 'fx-muro.webp')
 
 
 def make_ruins():
-    FW, FH = 256, 192
-    rng = np.random.default_rng(9)
-    img = Image.new('RGBA', (FW * SS, FH * SS), (0, 0, 0, 0)); d = ImageDraw.Draw(img)
-    # mancha de terra arrasada
-    d.ellipse((24 * SS, 104 * SS, 232 * SS, 172 * SS), fill=(14, 9, 6, 175))
-    img = img.filter(ImageFilter.GaussianBlur(10)); d = ImageDraw.Draw(img)
-    # rachaduras escuras irradiando
-    for k in range(9):
-        a = rng.uniform(math.pi * .05, math.pi * .95) * (1 if k % 2 else -1) + (0 if k % 2 else math.pi)
-        x, y = FW / 2 + rng.normal(0, 18), 142 + rng.normal(0, 6); pts = [(x * SS, y * SS)]
-        for _ in range(7):
-            a += rng.normal(0, .35); x += math.cos(a) * 10; y += math.sin(a) * 4.5; pts.append((x * SS, y * SS))
-        d.line(pts, fill=(14, 10, 8, 235), width=2 * SS)
-    # pedras caídas
-    for _ in range(60):
-        x = FW / 2 + rng.normal(0, 56); y = 144 + rng.normal(0, 12); w, h = rng.uniform(7, 17), rng.uniform(5, 12); rot = rng.uniform(-.7, .7)
-        corners = [(-w / 2, -h / 2), (w / 2, -h / 2), (w / 2 + rng.uniform(-2, 2), h / 2), (-w / 2, h / 2)]
-        ca, sa = math.cos(rot), math.sin(rot)
-        pts = [((x + cx * ca - cy * sa) * SS, (y + cx * sa + cy * ca) * SS) for cx, cy in corners]
-        d.polygon(pts, fill=stone_color(rng, .9), outline=(40, 34, 28, 255)); d.line([pts[0], pts[1]], fill=(176, 166, 150, 255), width=SS)
-    img.resize((FW, FH), Image.LANCZOS).save(os.path.join(OUT, 'fx-ruinas.webp'), quality=90, method=6)
+    img = make_scene(1.0, dust_on=False)
+    # as ruínas ficam um pouco mais discretas que a cena (para a bandeira ficar em primeiro plano)
+    img.save(os.path.join(OUT, 'fx-ruinas.webp'), quality=90, method=6)
     print('fx-ruinas.webp')
 
 

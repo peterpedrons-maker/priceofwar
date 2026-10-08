@@ -78,11 +78,11 @@ body='''</head>
       <button data-a="estandarte">Estandarte da Legião<small>pulso +1/+1</small></button>
     </div>
     <div class="grp" id="g-b">
-      <button data-a="brecha">Brecha<small>a muralha desaba</small></button>
+      <button data-a="brecha">Brecha<small>a paliçada se parte</small></button>
       <button data-a="plantar">Plantar estandarte<small>mastro, vento e âncora</small></button>
       <button data-a="pilhagem">Pilhagem<small>+1 ouro por turno</small></button>
       <button data-a="retomada">Retomada<small>a âncora cai</small></button>
-      <button data-a="reparar">Reparar a muralha<small>2 de ouro</small></button>
+      <button data-a="reparar">Reparar a linha<small>2 de ouro</small></button>
     </div>
     <div id="opts">
       <label><input type="checkbox" id="art" checked> arte pintada</label>
