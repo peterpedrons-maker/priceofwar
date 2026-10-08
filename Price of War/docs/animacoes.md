@@ -81,6 +81,10 @@ Mockup em `public/mockups/efeitos-decks/` (`/priceofwar/mockups/efeitos-decks/`)
 - Deixaram de ser folhas de texto escuras: as **próprias cartas** sobem brilhando sobre o tabuleiro (fundo só levemente escurecido, como a Emboscada). Manutenção: cada mercenário com seu botão Pagar/Dispensar e a nota do que acontece; Relíquia: a carta grande com os modos embaixo.
 - Enquanto um efeito de moedas toca (`fxUpkeep`, `fxGoldGain`, `fxRelicSoldo`), as faixas de fase/turno esperam (`coinFxBusyRef`).
 - **Faixas de fase/turno mais rápidas:** entrada/saída 170 ms; parada 800 ms nas primeiras 10 e 420 ms depois (contador salvo no aparelho, `pow.banners`). Antes: 250 + 1600 + 250.
+### Brecha e Estandarte de conquista (proposta, só visual; sem regras no motor)
+Ideia combinada com o dono (ainda **não** implementada no motor): ao destruir a carta da frente de uma coluna inimiga abre-se uma **brecha** (só na Vanguarda); o jogador pode plantar um **estandarte** (1 de ouro, não é carta nem ocupa slot) se tiver uma **âncora** viva na própria Vanguarda, na mesma coluna; enquanto estiver de pé: +1 ATK por essa coluna e +1 de ouro por turno (pilhagem); o defensor retoma matando a âncora ou pagando 2 de ouro para **reparar a muralha** (compra 1 carta). Máximo de 2 estandartes por jogador.
+- Sprites em Python: `tools/vfx/brecha.py` (`fx-bandeira-<a|b>`, `-plantar-`, `-cair-`, `fx-muro` que desaba, `fx-ruinas`), no mockup `public/mockups/efeitos-decks/` (aba "Brecha").
+- Fonte das cenas do mockup e da gravação dos GIFs (CDP screencast + Pillow; o ffmpeg do Playwright não tem filtros): `tools/vfx/mockup-src/`.
 ## Painel do turno (`src/TurnTracker.tsx`)
 
 Arte única (`ui-turn-tracker-art.webp`, 1400×341) + duas máscaras (`-band`, `-neutral`) do mesmo tamanho. Faixa do nome
