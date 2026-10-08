@@ -35,7 +35,7 @@ cards = '''const CARDS = [
 src = src[:a] + cards + src[b:]
 # assets: os do mockup anterior ficam em ../efeitos-decks/, os novos aqui
 src = src.replace(", 'fx-", ", '../efeitos-decks/fx-").replace(", 'proj-", ", '../efeitos-decks/proj-")
-newloads = "load('pilar', 'fx-pilar.webp'), load('sigilo', 'fx-sigilo.webp'), load('sigilo_azul', 'fx-sigilo-azul.webp'), load('cruz', 'fx-cruz.webp'), load('escudo', 'fx-escudo.webp'), load('alma', 'fx-alma.webp'), load('penas', 'fx-penas.webp'), load('trompa', 'fx-trompa.webp'), load('brilhos', 'fx-brilhos.webp'), load('coracao', 'fx-coracao.webp'), load('cometa', 'fx-cometa.webp'),\n  load('dagger', "
+newloads = "load('pilar', 'fx-pilar.webp'), load('sigilo', 'fx-sigilo.webp'), load('sigilo_azul', 'fx-sigilo-azul.webp'), load('cruz', 'fx-cruz.webp'), load('escudo', 'fx-escudo.webp'), load('alma', 'fx-alma.webp'), load('penas', 'fx-penas.webp'), load('trompa', 'fx-trompa.webp'), load('brilhos', 'fx-brilhos.webp'), load('coracao', 'fx-coracao.webp'), load('cometa', 'fx-cometa.webp'), load('asas', 'fx-asas.webp'), load('sol', 'fx-sol.webp'), load('portal', 'fx-portal.webp'),\n  load('dagger', "
 assert "load('dagger', " in src
 src = src.replace("load('dagger', ", newloads, 1)
 # cenas

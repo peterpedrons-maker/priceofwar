@@ -132,7 +132,7 @@ const ready = Promise.all([load('fire', PJ + 'fx-boom-fire.webp'), load('smoke',
   load('a_pedra', PJ + 'art/pedra.webp'), load('a_brasa', PJ + 'art/pedra-brasa.webp'), load('a_espada', PJ + 'art/espada-aurelion.webp'), load('a_martelo', PJ + 'art/martelo.webp'),
   load('coin', '../efeitos-decks/fx-coin.webp'), load('seal', '../efeitos-decks/fx-seal.webp'), load('contrato', '../efeitos-decks/fx-contrato.webp'), load('stars', '../efeitos-decks/fx-stars.webp'), load('swamp', '../efeitos-decks/fx-pantano.webp'), load('cracks', '../efeitos-decks/fx-cracks.webp'), load('gold', '../efeitos-decks/fx-gold.webp'),
   load('shield_appear', '../efeitos-decks/fx-shield-appear.webp'), load('shield_loop', '../efeitos-decks/fx-shield-loop.webp'), load('shield_break', '../efeitos-decks/fx-shield-break.webp'), load('bandeira_a', '../efeitos-decks/fx-bandeira-a.webp'), load('bandeira_b', '../efeitos-decks/fx-bandeira-b.webp'), load('plantar_a', '../efeitos-decks/fx-bandeira-plantar-a.webp'), load('plantar_b', '../efeitos-decks/fx-bandeira-plantar-b.webp'), load('cair_a', '../efeitos-decks/fx-bandeira-cair-a.webp'), load('cair_b', '../efeitos-decks/fx-bandeira-cair-b.webp'),
-  load('pilar', 'fx-pilar.webp'), load('sigilo', 'fx-sigilo.webp'), load('sigilo_azul', 'fx-sigilo-azul.webp'), load('cruz', 'fx-cruz.webp'), load('escudo', 'fx-escudo.webp'), load('alma', 'fx-alma.webp'), load('penas', 'fx-penas.webp'), load('trompa', 'fx-trompa.webp'), load('brilhos', 'fx-brilhos.webp'), load('coracao', 'fx-coracao.webp'), load('cometa', 'fx-cometa.webp'),
+  load('pilar', 'fx-pilar.webp'), load('sigilo', 'fx-sigilo.webp'), load('sigilo_azul', 'fx-sigilo-azul.webp'), load('cruz', 'fx-cruz.webp'), load('escudo', 'fx-escudo.webp'), load('alma', 'fx-alma.webp'), load('penas', 'fx-penas.webp'), load('trompa', 'fx-trompa.webp'), load('brilhos', 'fx-brilhos.webp'), load('coracao', 'fx-coracao.webp'), load('cometa', 'fx-cometa.webp'), load('asas', 'fx-asas.webp'), load('sol', 'fx-sol.webp'), load('portal', 'fx-portal.webp'),
   load('dagger', '../efeitos-decks/proj-dagger.webp'), load('purse', '../efeitos-decks/proj-purse.webp'), load('ball', '../efeitos-decks/proj-ball.webp')]);
 // painted art (the images the owner made) or the sprites drawn by code, switched by the checkbox
 const painted = () => $('#art').checked;
@@ -496,12 +496,45 @@ function groundGlow(x, y, rx = 46, delay = 0, dur = 1.2, color = GOLDC, a = .55)
 }
 // escurece o campo deixando um foco de luz em (fx,fy)
 function dim(fx, fy, r = 130, amount = .5, delay = 0, hold = 1.5) {
-  at(delay, () => { const d = mk('div', '', `position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(circle at ${fx}px ${fy}px, rgba(0,0,0,0) ${r * .45}px, rgba(0,0,0,${amount}) ${r}px)`); $('#stage').insertBefore(d, cv);
+  at(delay, () => { const d = mk('div', '', `position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(circle at ${fx}px ${fy}px, rgba(0,0,0,0) ${r * .45}px, rgba(0,0,0,${amount * .8}) ${r}px)`); $('#stage').insertBefore(d, cv);
     tween(.3, p => { d.style.opacity = p; }); tween(.45, p => { d.style.opacity = 1 - p; }, .3 + hold, () => d.remove()); });
 }
 // clarão de tela cheia
 function whiteFlash(a = .3, delay = 0, dur = .35, color = '255,240,200') {
   at(delay, () => add({ dur, draw(p) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(${color},${a * (1 - p) * (1 - p)})`; ctx.fillRect(0, 0, 390, 640); ctx.restore(); } }));
+}
+
+// tremida com "soco" de zoom em direção ao ponto do impacto
+function punch(delay = 0, dur = .45, amp = 4, zoom = .035, ox = 195, oy = 322) {
+  tween(dur, p => { const k = (1 - p) * (1 - p), dx = Math.sin(p * 80) * amp * k, dy = Math.cos(p * 64) * amp * k * .7, z = 1 + zoom * Math.exp(-p * 5) * (1 - p);
+    const t = `translate(${dx}px,${dy}px) scale(${z})`; cardsEl.style.transformOrigin = cv.style.transformOrigin = `${ox}px ${oy}px`; cardsEl.style.transform = cv.style.transform = t; }, delay,
+    () => { cardsEl.style.transform = cv.style.transform = ''; });
+}
+// pausa brevíssima no impacto (câmera lenta que volta sozinha)
+function hitstop(delay = 0, ms = 90) { at(delay, () => { const old = speed; speed = old * .06; setTimeout(() => { speed = old; }, ms); }); }
+// feixes de luz diagonais cruzando o campo
+function godrays(delay = 0, dur = 2, a = .35) {
+  tween(dur, p => { const k = Math.sin(Math.PI * p) ** .8 * a; ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 6; i++) { const x0 = -30 + i * 70 + Math.sin(p * 3 + i) * 12, w = 18 + (i % 3) * 14, g = ctx.createLinearGradient(x0, 0, x0 + 260, 640);
+      g.addColorStop(0, `rgba(255,236,170,${k * (.55 + .45 * Math.sin(p * 5 + i * 2))})`); g.addColorStop(1, 'rgba(255,236,170,0)'); ctx.fillStyle = g;
+      ctx.beginPath(); ctx.moveTo(x0, -20); ctx.lineTo(x0 + w, -20); ctx.lineTo(x0 + 260 + w * 3, 640); ctx.lineTo(x0 + 260 - w, 640); ctx.fill(); }
+    ctx.restore(); }, delay);
+}
+// asas de luz atrás de uma carta (sheet 400x260, 4 colunas, 24 quadros; ombros em (50%, 58%))
+function asasAt(x, y, sc = .8, delay = 0, dur = 2.2, alpha = 1) {
+  at(delay, () => add({ dur, draw(p) { const fr = Math.min(23, Math.floor(p * 24)), c = fr % 4, r = Math.floor(fr / 4);
+    ctx.save(); ctx.globalAlpha = alpha; ctx.globalCompositeOperation = 'lighter'; ctx.translate(x, y); ctx.scale(sc, sc);
+    ctx.drawImage(IMG.asas, c * 400, r * 260, 400, 260, -200, -150, 400, 260); ctx.restore(); } }));
+}
+// sol de raios giratório atrás de uma carta (laço de 16 quadros)
+function solAt(x, y, sc = 1, delay = 0, dur = 2, alpha = 1) {
+  at(delay, () => add({ dur, draw(p) { const fr = Math.floor(p * dur * 12) % 16, a = alpha * Math.min(1, p * 6) * (1 - ei((p - .8) / .2)); sheetXY(IMG.sol, 4, 256, 256, fr, x, y, sc * (.7 + .3 * eo(p * 3)), sc * (.7 + .3 * eo(p * 3)), a, 'lighter'); } }));
+}
+// portal gótico de luz (sheet 192x320, 6 colunas, 24 quadros; o chão fica a 88%)
+function portalAt(x, y, sc = .6, delay = 0, dur = 1.6, alpha = 1) {
+  at(delay, () => add({ dur, draw(p) { const fr = Math.min(23, Math.floor(p * 24)), c = fr % 6, r = Math.floor(fr / 6);
+    ctx.save(); ctx.globalAlpha = alpha; ctx.globalCompositeOperation = 'lighter'; ctx.translate(x, y); ctx.scale(sc, sc);
+    ctx.drawImage(IMG.portal, c * 192, r * 320, 192, 320, -96, -320 * .88, 192, 320); ctx.restore(); } }));
 }
 // a carta sobe um pouco enquanto a luz está nela e volta
 function lift(el, dy = -7, delay = 0, hold = 1.0) {
@@ -528,7 +561,7 @@ function trompaAt(x, y, sc = 1, delay = 0, dur = .8, alpha = 1) {
 function almaAt(x, y, sc = .6, t, alpha = 1) {
   const fr = Math.floor(t * 14) % 16, c = fr % 8;
   ctx.save(); ctx.globalAlpha = alpha; ctx.globalCompositeOperation = 'lighter'; ctx.translate(x, y); ctx.scale(sc, sc);
-  ctx.drawImage(IMG.alma, c * 128, 0, 128, 192, -64, -192 * .62, 128, 192); ctx.restore();
+  ctx.drawImage(IMG.alma, c * 128, 0, 128, 192, -64, -60, 128, 192); ctx.restore();
 }
 // coração sagrado que sobe e some (cura)
 function heartAt(x, y, sc = .5, delay = 0, rise = 34, dur = 1.15) {
@@ -580,6 +613,7 @@ const scenes = {
       for (let n = 0; n < 2; n++) coinFly({ from: GOLD, to: { x: gx, y: gy - 10 }, dur: .55, delay: .25 + n * .14, arc: 70, size: 22, onEnd() { clink(0, .2); addGold(-1); ring(gx, gy - 10, 34, .3, '255,214,110', 3); twBurst(gx, gy - 10, 5, 26, 0, 12, .4); } });
       tag(gx + 54, gy - 52, '−2', '255,224,120', .55, 18);
       at(.8, () => { glowCard(gen, GOLDC, 1100, 1.5); whoosh(0, .55, .26, 300, 1400); flash(gx, gy, 110, GOLDC, .6, .5); play('magic', 0, .3, 1.2); });
+      solAt(gx, gy - 4, .8, .75, 1.9, .32); asasAt(gx, gy - 2, .78, .85, 1.9, .62); godrays(.8, 2.6, .28);
       lift(gen, -5, .8, .5); sigilo(gx, gy + 38, .7, .4, .78, 1.7); groundGlow(gx, gy + 38, 70, .8, 1.5); risers(gx, gy + 30, 50, 8, .95, 60, .9);
       tag(gx, gy - 66, 'Bênção', '255,238,175', .85, 17);
       orb({ from: { x: gx, y: gy - 30 }, to: { x: tx, y: ty - 10 }, dur: .62, delay: 1.3, arc: 120, onEnd() { ring(tx, ty - 10, 44, .4, '255,238,180', 3); ding(0, .16, 1500); twBurst(tx, ty - 10, 8, 34, 0, 13, .5); } });
@@ -595,6 +629,7 @@ const scenes = {
       dim(TAC.x, TAC.y, 150, .5, 0, 1.2); dim(tx, ty, 120, .5, 2.2, 2.0);
       landTactic('../quarto/cards/calice-da-graca', () => {
         play('magic', 0, .4, 1.0); whoosh(0, .6, .26, 250, 1500); whiteFlash(.18, 0, .35);
+        godrays(0, 2.4, .3); solAt(TAC.x, TAC.y, .8, .1, 2.2, .55);
         pilar(TAC.x, TAC.y + 44, .55, 0, 1.5, .85); ring(TAC.x, TAC.y, 120, .8, '255,224,140', 4); flash(TAC.x, TAC.y, 120, '255,224,140', .6, .5); twBurst(TAC.x, TAC.y, 14, 70, 0, 15, .8);
         for (let i = 0; i < 7; i++) orb({ from: { x: TAC.x, y: TAC.y + 30 }, to: { x: gx, y: gy - 20 }, dur: .75, delay: .45 + i * .07, arc: -50 + i * 8, size: 11 + (i % 2) * 3, onEnd() { if (i === 6) { glowCard(gen, GOLDC, 1100, 1.5); sigilo(gx, gy + 38, .7, .4, 0, 1.6); flash(gx, gy, 110, GOLDC, .6, .5); ding(0, .16, 1300); groundGlow(gx, gy + 38, 70, 0, 1.4); } } });
         tag(gx, gy - 66, 'Cálice', '255,238,175', 1.3, 16);
@@ -623,8 +658,8 @@ const scenes = {
       at(1.65, () => { whoosh(0, .55, .3, 500, 2200); glowCard(kn, '255,200,110', 500, 1.4); play('magic', 0, .3, 1.5); });
       charge(kx, ky - 20, 10, 50, 1.55, .3, 14);
       cometaFly({ from: { x: kx, y: ky - 24 }, to: { x: fx, y: fy + 4 }, dur: .5, delay: 1.75, arc: 30, sc: .55, onEnd() { play('boom', 0, .4, 1.3); play('dano', 0, .4, 1.0); } });
-      at(2.25, () => { cruzAt(fx, fy, .7, 0, .85); flash(fx, fy, 120, '255,230,150', .75, .4); shock(fx, fy, 80, .45, '255,236,170', 4); hit(foe, 0, false); sparks(fx, fy, 12, 1.0, '255,226,140'); shake(.35, 4, 0); whiteFlash(.3, 0, .3); twBurst(fx, fy, 16, 70, 0, 16, .7); });
-      num(fx, fy - 40, '-1', 2.3, 32);
+      at(2.25, () => { cruzAt(fx, fy, .5, 0, .85); flash(fx, fy, 100, '255,230,150', .45, .4); shock(fx, fy, 70, .45, '255,236,170', 3); hit(foe, 0, false); sparks(fx, fy, 12, 1.0, '255,226,140'); punch(0, .5, 4, .04, fx, fy); hitstop(0, 110); whiteFlash(.14, 0, .3); twBurst(fx, fy, 16, 70, 0, 16, .7); });
+      num(fx, fy - 40, '-1', 2.3, 24);
     }
   },
   nobre: {
@@ -633,13 +668,13 @@ const scenes = {
       const nb = E(2, 'pBack'), nx = X(2), ny = Y('pBack');
       nb.style.opacity = 0; dim(nx, ny, 190, .5, 0, 2.2);
       at(0, () => { nb.animate([{ opacity: 0, transform: 'translate(-50%,-50%) translateY(-130px) scale(1.8) rotate(-6deg)' }, { opacity: 1, transform: 'translate(-50%,-50%) scale(1)', offset: .6 }, { opacity: 1, transform: 'translate(-50%,-50%) scale(1.12,.88)', offset: .75 }, { opacity: 1, transform: 'translate(-50%,-50%) scale(1)' }], { duration: 520, fill: 'forwards', easing: 'cubic-bezier(.45,0,.9,.55)' }); });
-      at(.32, () => { nb.style.opacity = 1; play('dano', 0, .5, .6); play('boom', 0, .25, 1.4); dust(nx, ny + 36, 90, 8, 36); shock(nx, ny + 38, 130, .55, '255,226,170', 4); shake(.35, 5, 0); whiteFlash(.18, 0, .3); });
+      at(.32, () => { nb.style.opacity = 1; play('dano', 0, .5, .6); play('boom', 0, .25, 1.4); dust(nx, ny + 36, 90, 8, 36); shock(nx, ny + 38, 130, .55, '255,226,170', 4); punch(0, .55, 5, .04, nx, ny); hitstop(0, 90); whiteFlash(.14, 0, .3); });
       tag(nx, ny - 56, 'Convocação', '255,238,175', .55, 16);
       at(.6, () => { glowCard(nb, GOLDC, 1000, 1.45); whoosh(0, .5, .26, 300, 1300); play('magic', 0, .3, 1.1); });
       charge(nx, ny, 14, 80, .55, .5, 14);
       [1, 3].forEach((c, k) => {
         const x = X(c), y = Y('pBack'), d = .85 + k * .2;
-        sigilo(x, y + 36, .66, .4, d, 1.7); groundGlow(x, y + 36, 60, d, 1.5); pilar(x, y + 38, .62, d + .15, 1.5); charge(x, y, 10, 50, d + .2, .4, 12);
+        sigilo(x, y + 36, .66, .4, d, 1.7); groundGlow(x, y + 36, 60, d, 1.5); portalAt(x, y + 40, .62, d + .1, 1.7); charge(x, y, 10, 50, d + .2, .4, 12);
         at(d + .3, () => { flash(x, y, 100, '255,232,160', .55, .5); ding(0, .13, 1400 + k * 300); whoosh(0, .4, .2, 300, 1000); });
         at(d + .6, () => {
           const t = mk('img', 'card', `left:${x}px;top:${y}px;opacity:0`, cardsEl); t.src = CAPD + 'devotos-da-cruzada.webp'; t.draggable = false;
@@ -655,7 +690,7 @@ const scenes = {
     run() {
       const front = E(0, 'pFront'), fx = X(0), fy = Y('pFront'), sol = E(0, 'pBack'), foe = E(0, 'eFront');
       tag(fx, fy - 56, 'a da frente cai', '255,130,110', .1, 13);
-      lunge(foe, fx, fy, .2, 150, () => { hit(front, 0, false); num(fx, fy - 34, '-3', .05, 30); });
+      lunge(foe, fx, fy, .2, 150, () => { hit(front, 0, false); num(fx, fy - 34, '-3', .05, 30); hitstop(0, 80); });
       dissolve(front, fx, fy, .75, .8);
       dim(fx, fy, 130, .5, 1.3, 2.0);
       at(1.45, () => { whoosh(0, .35, .28, 400, 1100); glowCard(sol, GOLDC, 600, 1.3); });
@@ -676,6 +711,7 @@ const scenes = {
       dim(195, 470, 260, .5, 0, 1.9); charge(cx, cy, 16, 80, 0, .55, 14);
       at(.45, () => { glowCard(cm, GOLDC, 1200, 1.5); play('boom', 0, .25, 1.8); whoosh(0, .5, .3, 150, 700); shake(.5, 3, 0); whiteFlash(.16, 0, .3); });
       lift(cm, -6, .45, .9); tag(cx, cy - 56, 'Postura', '255,238,175', .5, 16);
+      solAt(cx, cy, .95, .35, 2.2, .5); punch(.45, .6, 3, .03, cx, cy);
       sigilo(cx, cy + 38, .85, .42, .4, 2.2); groundGlow(cx, cy + 38, 90, .4, 2.0);
       [.45, .67, .89].forEach(d => trompaAt(cx, cy + 6, 1.6, d, .9, .85));
       flash(cx, cy, 140, GOLDC, .65, .55); shock(cx, cy + 6, 170, .8, '255,226,150', 4);
@@ -719,7 +755,7 @@ const scenes = {
       tag(x, y - 54, 'Queda', '255,238,175', .75, 17);
       at(.8, () => { whoosh(0, .8, .2, 700, 300); play('magic', 0, .3, 1.5); flash(x, y, 100, '255,244,210', .55, .6); });
       tween(2.1, p => { const fr = Math.min(23, Math.floor(p * 24)); sheetXY(IMG.penas, 6, 256, 320, fr, x, y - 4, .8, .8, 1, 'source-over', .5, .55); }, .8);
-      pilar(x, y + 34, .55, .8, 1.5, .6); groundGlow(x, y + 30, 50, .8, 1.6, '255,244,210', .4); risers(x, y + 20, 40, 8, .9, 70, 1.0);
+      godrays(.8, 2.2, .22); pilar(x, y + 34, .55, .8, 1.5, .6); groundGlow(x, y + 30, 50, .8, 1.6, '255,244,210', .4); risers(x, y + 20, 40, 8, .9, 70, 1.0);
       flyBack({ x, y }, HAND, .6, 1.35, () => { ding(0, .15, 1500); twBurst(HAND.x, HAND.y - 40, 8, 40, 0, 12, .5); }, 90);
       flyBack({ x, y }, { x: HAND.x + 22, y: HAND.y }, .6, 1.6, () => { ding(0, .15, 1800); ring(HAND.x, HAND.y - 40, 56, .45, '255,238,180', 3); flash(HAND.x, HAND.y - 30, 100, '255,238,180', .6, .45); twBurst(HAND.x + 10, HAND.y - 40, 10, 44, 0, 13, .6); }, 100);
       for (let i = 0; i < 2; i++) at(1.35 + i * .25, () => { for (let k = 0; k < 6; k++) twMove(x, y, x + (HAND.x - x) * (.3 + .1 * k) + R(-12, 12), y + (HAND.y - y) * (.3 + .1 * k) + R(-12, 12), R(9, 14), k * .05, .35, Math.floor(R(0, 4)), u => u); });

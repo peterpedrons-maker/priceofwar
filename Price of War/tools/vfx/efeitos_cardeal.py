@@ -431,42 +431,159 @@ def make_escudo():
     save_sheet(frames, 5, 'fx-escudo.webp')
 
 
-# ── chama-alma ────────────────────────────────────────────────────────────────────────────────────────────────────
+# ── alma de soldado: elmo de luz com cauda de chama (laço) ───────────────────────────────────────────────────────────
 def make_alma():
     W, H, N = 128, 192, 16
     yy, xx = np.mgrid[0:H, 0:W].astype(float)
+    cx, cy = W / 2, 60.0
+    # elmo fechado (great helm): cúpula, lados retos, base levemente afunilada
+    pts = [(cx - 21, cy + 28), (cx - 23, cy - 6)]
+    for u in np.linspace(0, math.pi, 22): pts.append((cx - 23 * math.cos(u), cy - 6 - 30 * math.sin(u)))
+    pts += [(cx + 23, cy - 6), (cx + 21, cy + 28), (cx + 12, cy + 33), (cx - 12, cy + 33)]
+    m = poly_mask(W, H, pts)
+    slit = poly_mask(W, H, [(cx - 17, cy - 6), (cx + 17, cy - 6), (cx + 17, cy - 1), (cx - 17, cy - 1)])
+    vslit = poly_mask(W, H, [(cx - 1.6, cy - 6), (cx + 1.6, cy - 6), (cx + 1.6, cy + 26), (cx - 1.6, cy + 26)])
+    holes = np.zeros((H, W))
+    for hx in (-10, 10):
+        for hy in (8, 14, 20): holes += np.exp(-(((xx - cx - hx) / 1.5) ** 2 + ((yy - cy - hy) / 1.5) ** 2))
+    rim = np.clip(m - gaussian_filter(m, 2.6), 0, 1) * 2.2
+    body = gaussian_filter(m, 1.2) * .34
     noise = fbm(H, W, 9, 3, seed=8)
     frames = []
     for i in range(N):
         ph = i / N * 2 * math.pi
-        I = np.zeros((H, W))
-        # cabeça (gota arredondada) em (64, 70) e cauda que sobe espiralando
-        cx0, cy0 = W / 2, H * .62
-        for k in range(46):
-            u = k / 45
-            sway = math.sin(ph + u * 5.2) * (6 + 14 * u)
-            px = cx0 + sway; py = cy0 - u * H * .62
-            rad = (11 * (1 - u) ** .9 + 1.6)
-            I += np.exp(-(((xx - px) ** 2 + (yy - py) ** 2) / (rad ** 2))) * (1 - u) ** .5 * .55
-        # cabeça brilhante
-        hx = cx0 + math.sin(ph) * 1.5; hy = cy0
-        I += np.exp(-(((xx - hx) / 12) ** 2 + ((yy - hy) / 15) ** 2)) * .9
-        I += np.exp(-(((xx - hx) / 5.5) ** 2 + ((yy - (hy + 3)) / 7) ** 2)) * .9
-        # dois "olhos" sutis de alma
-        for ex in (-5.5, 5.5):
-            I -= np.exp(-(((xx - hx - ex) / 2.4) ** 2 + ((yy - hy + 2) / 3.4) ** 2)) * .35
-        # fiapos da cauda
-        wob = np.sin(yy / 7 - ph * 2 + noise * 6)
-        I *= (.8 + .2 * wob)
+        I = rim * 1.1 + body
+        I = I * (1 - np.clip(slit + vslit * .8, 0, 1) * .85) + np.clip(slit, 0, 1) * .75 * (.7 + .3 * math.sin(ph * 2))   # a fresta de olhar brilha
+        I -= np.clip(holes, 0, 1) * .25
+        # cauda: duas fitas onduladas descendo do elmo
+        for k, off in enumerate((-9, 9)):
+            for j in range(42):
+                u = j / 41
+                px = cx + off * (1 - .35 * u) + math.sin(ph + u * 5.5 + k * 2.4) * (4 + 15 * u)
+                py = cy + 30 + u * (H - cy - 44)
+                rad = 7.5 * (1 - u) ** .9 + 1.4
+                I += np.exp(-(((xx - px) ** 2 + (yy - py) ** 2) / rad ** 2)) * (1 - u) ** .6 * .5
+        I += np.exp(-(((xx - cx) / 38) ** 2 + ((yy - cy + 4) / 44) ** 2)) * .28          # halo
+        I *= (.85 + .15 * np.sin(yy / 6 - ph * 2 + noise * 6))
         I = np.clip(I, 0, None)
+        for k in range(7):
+            p_ = ((i / N) + k / 7) % 1
+            add_star(I, cx + math.sin(p_ * 9 + k * 1.7) * 26, cy - 34 + p_ * 120, 4.5, math.sin(p_ * math.pi) * .9)
         I += blur(I, 4) * .6
-        # faíscas flutuando
-        for k in range(8):
-            p = ((i / N) + k / 8) % 1
-            px = cx0 + math.sin(p * 9 + k) * 18; py = cy0 + 18 - p * H * .7
-            I += np.exp(-(((xx - px) ** 2 + (yy - py) ** 2) / 4.0)) * math.sin(p * math.pi) * .8
         frames.append(glow_rgba(I, HOLY, 1.0))
     save_sheet(frames, 8, 'fx-alma.webp')
+
+
+# ── asas de luz ──────────────────────────────────────────────────────────────────────────────────────────────────────
+def make_asas():
+    W, H, N = 400, 260, 24
+    yy, xx = np.mgrid[0:H, 0:W].astype(float)
+    cx, cy = W / 2, 150.0
+    rng = np.random.default_rng(14)
+    def wing_layer(open_, flap, side):
+        I = np.zeros((H, W))
+        # três fileiras de penas: coberteiras curtas, secundárias e primárias longas
+        rows = [(8, 60, 3.2, -35, 28, .5), (10, 100, 3.8, -60, 16, .75), (9, 142, 4.4, -74, 4, 1.0)]
+        for n, L0, w0, a_top, a_bot, br in rows:
+            for k in range(n):
+                f = k / (n - 1)
+                ang_open = math.radians(a_top + (a_bot - a_top) * f)
+                ang = ang_open * open_ + math.radians(-80) * (1 - open_) + math.radians(flap * (1 - f * .5))
+                L = L0 * (.6 + .55 * f) * (.35 + .65 * open_)
+                ox, oy = cx + side * 16, cy - 8 + f * 8
+                rx = (xx - ox) * side; ry = (yy - oy)
+                s_ = rx * math.cos(ang) + ry * math.sin(ang); pr = -rx * math.sin(ang) + ry * math.cos(ang)
+                u_ = np.clip(s_ / max(L, 1), 0, 1)
+                wid = w0 * (.5 + 1.1 * np.sin(u_ * math.pi * .9) ** .7)
+                prof = np.exp(-(pr / np.maximum(wid, 1)) ** 2) * (s_ > 0) * smooth(L, L * .8, s_)
+                feather = prof * br * (.45 + .55 * (1 - u_ ** 1.4)) + np.exp(-(pr / 1.0) ** 2) * (s_ > 0) * smooth(L, L * .92, s_) * br * .55
+                I = np.maximum(I, feather * (.35 + .65 * smooth(6, 46, s_)))
+        return I
+    frames = []
+    for i in range(N):
+        t = i / (N - 1)
+        open_ = smooth(0, .3, t); life = smooth(0, .08, t) * (1 - smooth(.72, 1, t))
+        flap = 3.0 * math.sin(t * 14) * smooth(.25, .4, t)
+        I = wing_layer(open_, flap, 1) + wing_layer(open_, flap, -1)
+        I += np.exp(-(((xx - cx) / 22) ** 2 + ((yy - cy) / 34) ** 2)) * .35 * open_
+        I *= life
+        for k in range(16):
+            ph = (t * 1.3 + k / 16) % 1; side = 1 if k % 2 else -1
+            add_star(I, cx + side * (40 + 140 * ph), cy - 70 + 120 * ((k * 37 % 10) / 10) - ph * 30, 7, math.sin(ph * math.pi) * .9 * life * smooth(.2, .35, t))
+        I += blur(I, 5) * .55 + blur(I, 14) * .22
+        frames.append(glow_rgba(I, GOLD, 1.0))
+    save_sheet(frames, 4, 'fx-asas.webp')
+
+
+# ── sol de raios (halo giratório; laço) ─────────────────────────────────────────────────────────────────────────
+def make_sol():
+    S, N = 256, 16
+    yy, xx = np.mgrid[0:S, 0:S].astype(float); c = (S - 1) / 2
+    r = np.hypot(xx - c, yy - c) / (S / 2); ang = np.arctan2(yy - c, xx - c)
+    frames = []
+    for i in range(N):
+        rot = i / N * (2 * math.pi / 20)
+        rays = (.5 + .5 * np.cos(20 * (ang + rot))) ** 5 * np.exp(-(r / .85) ** 2.2) * smooth(.12, .3, r)
+        rays2 = (.5 + .5 * np.cos(40 * (ang - rot * 1.0) + 1)) ** 8 * np.exp(-(r / .6) ** 2) * smooth(.14, .3, r) * .6
+        I = rays * .85 + rays2
+        I += np.exp(-((r - .27) / .018) ** 2) * .9 + np.exp(-((r - .31) / .008) ** 2) * .6
+        I += np.exp(-(r / .26) ** 2) * .55
+        I *= 1 - smooth(.88, 1.0, r)
+        I += blur(I, 3) * .5
+        frames.append(glow_rgba(I, GOLD, 1.0))
+    save_sheet(frames, 4, 'fx-sol.webp')
+
+
+# ── portal gótico de luz ─────────────────────────────────────────────────────────────────────────────────────────
+def make_portal():
+    W, H, N = 192, 320, 24
+    yy, xx = np.mgrid[0:H, 0:W].astype(float)
+    cx = W / 2; w = 52.0; base = H * .88; ys = H * .5; apex = ys - math.sqrt(3) * w
+    path = [(cx - w, base), (cx - w, ys)]
+    for u in np.linspace(0, 1, 30):                              # arco esquerdo: centro em (cx+w, ys), raio 2w
+        a = math.pi - u * math.radians(60); path.append((cx + w + 2 * w * math.cos(a), ys - 2 * w * math.sin(a)))
+    for u in np.linspace(0, 1, 30):                              # arco direito
+        a = math.radians(60) - u * math.radians(60)
+        path.append((cx - w + 2 * w * math.cos(a), ys - 2 * w * math.sin(a)))
+    path += [(cx + w, ys), (cx + w, base)]
+    inner = poly_mask(W, H, path)
+    segs = np.cumsum([0] + [math.hypot(path[k + 1][0] - path[k][0], path[k + 1][1] - path[k][1]) for k in range(len(path) - 1)])
+    frames = []
+    streak = fbm(H, W, 14, 3, seed=6)
+    for i in range(N):
+        t = i / (N - 1)
+        draw = smooth(0, .3, t); fill = smooth(.22, .5, t); life = 1 - smooth(.74, 1, t)
+        L = segs[-1] * draw
+        I = np.zeros((H, W))
+        k = int(np.searchsorted(segs, L)); k = min(k, len(path) - 2)
+        # contorno: desenha a trilha até o comprimento atual, a partir das duas pontas ao mesmo tempo (esq e dir se encontram no ápice)
+        half = [(x, y) for x, y in path]
+        mid = len(half) // 2
+        left = half[:mid]; right = half[mid:][::-1]
+        for pts in (left, right):
+            lens = np.cumsum([0] + [math.hypot(pts[j + 1][0] - pts[j][0], pts[j + 1][1] - pts[j][1]) for j in range(len(pts) - 1)])
+            tot = lens[-1] * draw; cut = [pts[0]]
+            for j in range(len(pts) - 1):
+                if lens[j + 1] <= tot: cut.append(pts[j + 1])
+                else:
+                    f = (tot - lens[j]) / max(lens[j + 1] - lens[j], 1e-6)
+                    if f > 0: cut.append((pts[j][0] + (pts[j + 1][0] - pts[j][0]) * f, pts[j][1] + (pts[j + 1][1] - pts[j][1]) * f))
+                    break
+            if len(cut) > 1:
+                I += line_mask(W, H, cut, 3.4) * 1.1
+                add_star(I, cut[-1][0], cut[-1][1], 12, 1.0 if draw < 1 else 0)
+        # luz dentro do portal: faixas verticais brilhantes e brilho forte no centro-baixo
+        v = (.55 + .45 * np.sin((xx - cx) / 5 + streak * 6 - t * 10)) * np.exp(-(((xx - cx) / (w * .9)) ** 2))
+        glow = inner * fill * (.18 + .38 * v) * (.4 + .6 * smooth(apex, base, yy))
+        I += glow + inner * fill * np.exp(-(((xx - cx) / 14) ** 2)) * .32
+        I += blur(inner, 7) * fill * .35
+        # luz que escorre pelo chão em cone
+        fl = np.exp(-(((xx - cx) / (w * (1 + 1.3 * np.clip((yy - base) / 40, 0, 1)))) ** 2)) * smooth(base - 4, base + 2, yy) * (1 - smooth(base + 30, base + 38, yy)) * fill * .8
+        I += fl
+        I *= life
+        I += blur(I, 5) * .55 + blur(I, 14) * .2
+        frames.append(glow_rgba(I, GOLD, 1.0))
+    save_sheet(frames, 6, 'fx-portal.webp')
 
 
 # ── penas que caem ───────────────────────────────────────────────────────────────────────────────────────────────
@@ -556,7 +673,7 @@ def make_trompa():
 
 
 JOBS = [('brilhos', make_brilhos), ('coracao', make_coracao), ('cometa', make_cometa), ('pilar', make_pilar), ('sigilo', lambda: make_sigilo(GOLD, 'fx-sigilo.webp')), ('sigilo-azul', lambda: make_sigilo(HOLY, 'fx-sigilo-azul.webp')),
-        ('cruz', make_cruz), ('escudo', make_escudo), ('alma', make_alma), ('penas', make_penas), ('trompa', make_trompa)]
+        ('cruz', make_cruz), ('escudo', make_escudo), ('alma', make_alma), ('asas', make_asas), ('sol', make_sol), ('portal', make_portal), ('penas', make_penas), ('trompa', make_trompa)]
 
 if __name__ == '__main__':
     only = set(sys.argv[1:])
