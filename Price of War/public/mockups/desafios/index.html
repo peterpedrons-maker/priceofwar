@@ -90,17 +90,17 @@
 const Q = '../quarto/cards/', E = '../efeitos-decks/cards/';
 // px,py = posição da cidade no mapa de 1024x1024
 const OPP = [
-  { id:'capitao', name:'Deck Capitão', gen:'Comandante Aurelion', region:'Marca de Aurelion', img:Q+'comandante-aurelion-mestre-da-formacao.webp', px:158, py:488, desc:'Movimento e formação: cada manobra dá bônus aos vizinhos. Joga rápido e bate forte.', tip:'Cuidado com combinações de movimento.', diff:3, stars:2, reward:'Booster de Capitão', tint:'rgba(200,70,40,.5)' },
-  { id:'cardeal', name:'Deck Cardeal', gen:'Cardeal Pedro', region:'Sé de Pedro', img:Q+'cardeal-pedro-voz-da-fe.webp', px:676, py:500, desc:'Fé e ferro: cura, convocações e emboscadas sagradas. Aguenta e vira o jogo.', tip:'Dano em área quebra as convocações.', diff:2, stars:3, reward:'Booster de Cardeal', tint:'rgba(240,200,90,.55)' },
-  { id:'mercenarios', name:'Deck Mercenários', gen:'Brann Meia-Coroa', region:'Porto das Meias-Coroas', img:E+'brann-meia-coroa-comprador-de-guerras.webp', px:790, py:745, desc:'Ouro e manutenção: tropas alugadas com ataque alto. Paga caro e bate duro.', tip:'Quem não paga, perde a tropa.', diff:3, stars:1, reward:'Booster de Mercenários', tint:'rgba(120,150,60,.5)' },
-  { id:'bardos', name:'Deck Bardos', gen:'Aldric Língua-de-Prata', region:'Vila do Javali Dourado', img:Q+'cardeal-pedro-voz-da-fe.webp', px:432, py:705, locked:true, desc:'Em breve: cantores que se dão bônus entre si; em grupo ficam difíceis de abater.', tip:'', diff:0, stars:0, reward:'', tint:'rgba(150,80,170,.45)' },
-  { id:'muralha', name:'Guarda da Muralha', gen:'Capitão da Torre', region:'Muralha do Norte', img:Q+'comandante-aurelion-mestre-da-formacao.webp', px:786, py:192, locked:true, desc:'Em breve: fortificações, escudos e trabucos. Vence pelo desgaste.', tip:'', diff:0, stars:0, reward:'', tint:'rgba(100,120,150,.45)' },
+  { id:'capitao', name:'Deck Capitão', gen:'Comandante Aurelion', region:'Marca de Aurelion', img:'portraits/capitao.webp', epi:'Mestre da Formação', px:158, py:488, desc:'Movimento e formação: cada manobra dá bônus aos vizinhos. Joga rápido e bate forte.', tip:'Cuidado com combinações de movimento.', diff:3, stars:2, reward:'Booster de Capitão', tint:'rgba(200,70,40,.5)' },
+  { id:'cardeal', name:'Deck Cardeal', gen:'Cardeal Pedro', region:'Sé de Pedro', img:'portraits/cardeal.webp', epi:'Voz da Fé', px:676, py:500, desc:'Fé e ferro: cura, convocações e emboscadas sagradas. Aguenta e vira o jogo.', tip:'Dano em área quebra as convocações.', diff:2, stars:3, reward:'Booster de Cardeal', tint:'rgba(240,200,90,.55)' },
+  { id:'mercenarios', name:'Deck Mercenários', gen:'Brann Meia-Coroa', region:'Porto das Meias-Coroas', img:'portraits/mercenarios.webp', epi:'Comprador de Guerras', px:790, py:745, desc:'Ouro e manutenção: tropas alugadas com ataque alto. Paga caro e bate duro.', tip:'Quem não paga, perde a tropa.', diff:3, stars:1, reward:'Booster de Mercenários', tint:'rgba(120,150,60,.5)' },
+  { id:'bardos', name:'Deck Bardos', gen:'Aldric Língua-de-Prata', region:'Vila do Javali Dourado', img:'', epi:'Menestrel do Rei', px:432, py:705, locked:true, desc:'Em breve: cantores que se dão bônus entre si; em grupo ficam difíceis de abater.', tip:'', diff:0, stars:0, reward:'', tint:'rgba(150,80,170,.45)' },
+  { id:'muralha', name:'Guarda da Muralha', gen:'Capitão da Torre', region:'Muralha do Norte', img:'', epi:'Defensor do Castelo', px:786, py:192, locked:true, desc:'Em breve: fortificações, escudos e trabucos. Vence pelo desgaste.', tip:'', diff:0, stars:0, reward:'', tint:'rgba(100,120,150,.45)' },
 ];
 const MY = ['Capitão', 'Cardeal', 'Mercenários'];
 const $ = s => document.querySelector(s), ZOOM = 1150 / 1024, PIN = { x:195, y:215 };
 let cur = -1, myDeck = 0;
 const stars = (n, locked) => locked ? '' : '<span class="stars">' + [0, 1, 2].map(i => `<i class="${i < n ? '' : 'off'}"></i>`).join('') + '</span>';
-$('#list').innerHTML = OPP.map((o, i) => `<div class="row${o.locked ? ' locked' : ''}" data-i="${i}">${o.locked ? '' : `<div class="face" style="background-image:url('${o.img}')"></div>`}<div class="t"><h3>${o.name}</h3><p>${o.locked ? 'Em breve' : o.gen}</p></div>${stars(o.stars, o.locked)}</div>`).join('');
+$('#list').innerHTML = OPP.map((o, i) => `<div class="row${o.locked ? ' locked' : ''}" data-i="${i}">${o.locked ? '' : `<div class="face" style="background-image:url('${o.img}')"></div>`}<div class="t"><h3>${o.gen}</h3><p>${o.locked ? 'Em breve' : o.epi}</p></div>${stars(o.stars, o.locked)}</div>`).join('');
 document.querySelectorAll('.row').forEach(r => r.onclick = () => select(+r.dataset.i));
 function select(i) {
   if (i === cur) return; const first = cur < 0; cur = i; const o = OPP[i];
@@ -109,7 +109,7 @@ function select(i) {
   $('#map').style.transition = first ? 'none' : ''; $('#map').style.transform = `translate(${tx}px, ${ty}px)`;
   if (!first) { const fx = $('#fx'); fx.classList.remove('hop'); void fx.offsetWidth; fx.classList.add('hop'); }
   $('#tint').style.background = o.tint; $('#pin').classList.toggle('locked', !!o.locked);
-  $('#region').textContent = o.region; $('#regsub').textContent = o.locked ? 'Região ainda inexplorada' : o.gen;
+  $('#region').textContent = o.region; $('#regsub').textContent = o.locked ? 'Região ainda inexplorada' : o.gen + ' · ' + o.epi;
   document.querySelectorAll('.row').forEach((r, k) => r.classList.toggle('sel', k === i));
   $('#info').innerHTML = `<div class="div"></div><p>${o.desc}${o.tip ? ' <i style="opacity:.8">Dica: ' + o.tip + '</i>' : ''}</p>` + (o.locked ? '' : `<div class="chips"><span class="chip">Dificuldade ${'●'.repeat(o.diff)}${'○'.repeat(3 - o.diff)}</span><span class="chip">🎁 1ª vitória: ${o.reward}</span></div>`);
   const f = $('#fight'); f.classList.toggle('off', !!o.locked); f.textContent = o.locked ? 'Em breve' : 'Lutar';
