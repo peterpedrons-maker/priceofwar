@@ -90,11 +90,11 @@
       <button data-a="estandarte">Estandarte da Legião<small>pulso +1/+1</small></button>
     </div>
     <div class="grp" id="g-b">
-      <button data-a="brecha">Brecha<small>a paliçada se parte</small></button>
+      <button data-a="brecha">Brecha<small>a barreira estoura</small></button>
       <button data-a="plantar">Plantar estandarte<small>mastro, vento e âncora</small></button>
       <button data-a="pilhagem">Pilhagem<small>+1 ouro por turno</small></button>
       <button data-a="retomada">Retomada<small>a âncora cai</small></button>
-      <button data-a="reparar">Reparar a linha<small>2 de ouro</small></button>
+      <button data-a="reparar">Reparar a barreira<small>2 de ouro</small></button>
     </div>
     <div id="opts">
       <label><input type="checkbox" id="art" checked> arte pintada</label>
@@ -149,7 +149,7 @@ const ready = Promise.all([load('fire', PJ + 'fx-boom-fire.webp'), load('smoke',
   load('a_lanca', PJ + 'art/lanca.webp'), load('a_virote', PJ + 'art/virote.webp'), load('a_flecha', PJ + 'art/flecha.webp'), load('a_veneno', PJ + 'art/flecha-veneno.webp'),
   load('a_pedra', PJ + 'art/pedra.webp'), load('a_brasa', PJ + 'art/pedra-brasa.webp'), load('a_espada', PJ + 'art/espada-aurelion.webp'), load('a_martelo', PJ + 'art/martelo.webp'),
   load('coin', 'fx-coin.webp'), load('seal', 'fx-seal.webp'), load('contrato', 'fx-contrato.webp'), load('stars', 'fx-stars.webp'), load('swamp', 'fx-pantano.webp'), load('cracks', 'fx-cracks.webp'), load('gold', 'fx-gold.webp'),
-  load('muro', 'fx-muro.webp'), load('ruinas', 'fx-ruinas.webp'), load('bandeira_a', 'fx-bandeira-a.webp'), load('bandeira_b', 'fx-bandeira-b.webp'), load('plantar_a', 'fx-bandeira-plantar-a.webp'), load('plantar_b', 'fx-bandeira-plantar-b.webp'), load('cair_a', 'fx-bandeira-cair-a.webp'), load('cair_b', 'fx-bandeira-cair-b.webp'),
+  load('shield_appear', 'fx-shield-appear.webp'), load('shield_loop', 'fx-shield-loop.webp'), load('shield_break', 'fx-shield-break.webp'), load('bandeira_a', 'fx-bandeira-a.webp'), load('bandeira_b', 'fx-bandeira-b.webp'), load('plantar_a', 'fx-bandeira-plantar-a.webp'), load('plantar_b', 'fx-bandeira-plantar-b.webp'), load('cair_a', 'fx-bandeira-cair-a.webp'), load('cair_b', 'fx-bandeira-cair-b.webp'),
   load('dagger', 'proj-dagger.webp'), load('purse', 'proj-purse.webp'), load('ball', 'proj-ball.webp')]);
 // painted art (the images the owner made) or the sprites drawn by code, switched by the checkbox
 const painted = () => $('#art').checked;
@@ -745,25 +745,36 @@ function flagDraw(key, cx, baseY, sc, state) {   // state: {mode:'plant'|'wave'|
     ctx.restore();
   } });
 }
-function wallCollapse(x, y, sc = .78, delay = 0) {   // y = centre of the (enemy) front slot; the wall stands on its lower edge
-  at(delay, () => { play('boom', 0, .6, .5); shake(.9, 4, .25);
-    tween(24 / 18, p => sheetXY(IMG.muro, 6, 256, 192, Math.min(23, Math.floor(p * 24)), x, y + 4, sc * 1.1, sc * 1.1, 1), 0);
-    for (let k = 0; k < 5; k++) at(.3 + k * .09, () => { play('dano', 0, .25, .6 + R(0, .5)); });
-    at(.45, () => { dust(x, y + 20, 90, 10, 40); shock(x, y + 26, 110, .5, '255,226,170', 4); });
-  });
+// A barreira: a mesma bolha de vidro do escudo de Reforço (folhas do jogo), em tom âmbar, abaulada na frente do slot.
+const BUB = { fw: 332, fh: 388, cols: 6 };
+function bubbleAt(x, y, mode, frame, alpha = 1) {   // mode: 'appear' (10) | 'loop' (24) | 'break' (18)
+  const img = IMG['shield_' + mode]; if (!img) return;
+  const c = frame % BUB.cols, r = Math.floor(frame / BUB.cols), sx = 64 / 232 * 1.16, sy = 94 / 288 * 1.16;
+  ctx.save(); ctx.globalAlpha = alpha * .78; ctx.filter = 'hue-rotate(172deg) saturate(1.4)'; ctx.globalCompositeOperation = 'lighter';
+  ctx.translate(x, y + 2); ctx.scale(sx, sy); ctx.drawImage(img, c * BUB.fw, r * BUB.fh, BUB.fw, BUB.fh, -BUB.fw / 2, -BUB.fh / 2, BUB.fw, BUB.fh); ctx.restore();
 }
-function ruins(x, y, sc = .78, fade = 1, delay = 0, dur = 6) { tween(dur, p => { ctx.save(); ctx.globalAlpha = Math.min(1, p * 10) * fade * (1 - ei((p - .92) / .08)); ctx.drawImage(IMG.ruinas, x - 128 * sc * 1.1, y + 4 - 150 * sc * 1.1, 256 * sc * 1.1, 192 * sc * 1.1); ctx.restore(); }, delay); }
+function bubbleUp(x, y, delay, hold) {    // aparece (0.4 s), fica brilhando `hold` s
+  at(delay, () => { play('magic', 0, .35, 1.3); whoosh(0, .35, .2, 400, 1500);
+    add({ dur: .4 + hold, draw(p) { const t = p * (.4 + hold); if (t < .4) bubbleAt(x, y, 'appear', Math.min(9, Math.floor(t / .4 * 10))); else bubbleAt(x, y, 'loop', Math.floor((t - .4) * 14) % 24); } }); });
+}
+function bubbleBurst(x, y, delay) {       // estoura em cacos de vidro
+  at(delay, () => { play('hit', 0, .7, 1.2); play('dano', 0, .3, 1.4); flash(x, y, 80, '255,214,140', .55, .3); ring(x, y, 46, .35, '255,226,170', 3); sparksDir(x, y, -Math.PI / 2, 1.5, 12, .8, '255,226,170'); shake(.3, 3, 0);
+    add({ dur: 18 / 30, draw(p) { bubbleAt(x, y, 'break', Math.min(17, Math.floor(p * 18))); } }); });
+}
+function wallCollapse(x, y, sc, delay = 0) { bubbleUp(x, y, delay, .55); bubbleBurst(x, y, delay + .95); }
+// marca discreta da casa aberta: um brilho âmbar suave que pulsa no chão da casa vazia (sem linhas)
+function ruins(x, y, sc, fade = 1, delay = 0, dur = 6) { tween(dur, p => { const a = Math.min(1, p * 10) * fade * (1 - ei((p - .92) / .08)) * (.35 + .15 * Math.sin(p * dur * 3.2)); const g = ctx.createRadialGradient(x, y + 10, 0, x, y + 10, 52); g.addColorStop(0, `rgba(255,190,90,${a})`); g.addColorStop(1, 'rgba(255,190,90,0)'); ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(x - 52, y - 42, 104, 104); ctx.restore(); }, delay); }
 
 Object.assign(scenes, {
   brecha: {
-    cap: 'BRECHA: a Capa-Rota destrói a carta da frente do inimigo; a paliçada de estacas e escudos que a protegia racha e se parte, lascas e terra voam e a casa fica com estacas quebradas. A coluna está aberta.',
+    cap: 'BRECHA: a Capa-Rota destrói a carta da frente do inimigo; a barreira (bolha de vidro) que protegia a casa aparece por um instante e estoura em cacos. A coluna está aberta e a casa fica com um brilho âmbar.',
     run() {
       const foe = E(2, 'eFront'), fx = X(2), fy = Y('eFront'), me = E(2, 'pFront');
       tween(.4, p => setT(me, 0, p < .4 ? -60 * eo(p / .4) : -60), .1);
       at(.5, () => { play('hit', 0, .8); cleanHit(fx, fy + 30, -Math.PI / 2, 1); hit(foe, 0, 0); num(fx, fy - 38, '-5', .05, 34); });
       tween(.7, p => { foe.style.opacity = 1 - ei(clamp((p - .1) / .7)); }, .85, () => { foe.style.opacity = 0; });
       tween(.5, p => setT(me, 0, -60 * (1 - eo(p))), 1.0, () => setT(me));
-      wallCollapse(fx, fy, .78, 1.25);
+      wallCollapse(fx, fy, 1, 1.15);
       ruins(fx, fy, .78, 1, 1.9, 5);
       tag(fx, fy - 56, 'BRECHA!', '255,214,110', 2.0, 22);
     }
@@ -771,6 +782,7 @@ Object.assign(scenes, {
   plantar: {
     cap: 'ESTANDARTE: com a coluna aberta, o jogador paga 1 de ouro e planta o estandarte. O mastro cai do alto, crava (poeira e tremor) e o pano se abre ao vento. A Capa-Rota, que sustenta o estandarte, brilha: é a ÂNCORA.',
     run() {
+      E(2, 'eFront').style.opacity = 0;   // a coluna está aberta: a carta da frente já caiu
       const fx = X(2), fy = Y('eFront'), me = E(2, 'pFront'); setGold(7);
       ruins(fx, fy, .78, 1, 0, 8);
       const key = 'a', sc = .85, bx = fx - 24, by = fy + 50, st = { t0: now + 1.1 };
@@ -786,6 +798,7 @@ Object.assign(scenes, {
   pilhagem: {
     cap: 'PILHAGEM: no início do seu turno, o estandarte de pé rende +1 de ouro (moeda sobe até o contador) e as suas unidades que atacam por essa coluna ganham +1 de ataque.',
     run() {
+      E(2, 'eFront').style.opacity = 0;   // a coluna está aberta: a carta da frente já caiu
       const fx = X(2), fy = Y('eFront'), me = E(2, 'pFront'); setGold(7);
       ruins(fx, fy, .78, 1, 0, 6); flagDraw('a', fx - 24, fy + 50, .85, { mode: () => ({ kind: 'wave' }) });
       at(.5, () => { glowCard(me, '255,150,90', 900, 1.35); num(fx, Y('pFront') - 36, '+1', 0, 28); ring(fx, Y('pFront'), 40, .5, '255,150,110', 3); });
@@ -796,6 +809,7 @@ Object.assign(scenes, {
   retomada: {
     cap: 'RETOMADA: o adversário destrói a âncora. Sem ela o estandarte tomba e o pano cai; a coluna volta a ser do defensor, que compra 1 carta (contra-ofensiva).',
     run() {
+      E(2, 'eFront').style.opacity = 0;   // a coluna está aberta: a carta da frente já caiu
       const fx = X(2), fy = Y('eFront'), me = E(2, 'pFront'); let down = -1;
       ruins(fx, fy, .78, 1, 0, 6);
       flagDraw('a', fx - 24, fy + 50, .85, { mode: n => (down < 0 ? { kind: 'wave' } : { kind: 'fall', u: Math.min(.999, (n - down) / (16 / 12)), hidden: n - down > 1.45 }) });
@@ -808,15 +822,16 @@ Object.assign(scenes, {
     }
   },
   reparar: {
-    cap: 'REPARAR A LINHA: o defensor paga 2 de ouro na Preparação; moedas voam até a paliçada, estacas novas se erguem, a bandeira inimiga cai e as ruínas somem. A coluna fecha.',
+    cap: 'REPARAR A BARREIRA: o defensor paga 2 de ouro na Preparação; moedas voam até a casa, a bandeira inimiga cai, o brilho some e a barreira de vidro se refaz. A coluna fecha.',
     run() {
+      E(2, 'eFront').style.opacity = 0;   // a coluna está aberta: a carta da frente já caiu
       const fx = X(2), fy = Y('eFront'); let down = -1; setGold(7);
       ruins(fx, fy, .78, 1, 0, 4.2);
       flagDraw('b', fx - 24, fy + 50, .85, { mode: n => (down < 0 ? { kind: 'wave' } : { kind: 'fall', u: Math.min(.999, (n - down) / (16 / 12)), hidden: n - down > 1.45 }) });
       for (let k = 0; k < 2; k++) coinFly({ from: GOLD, to: { x: fx, y: fy + 36 }, dur: .55, delay: .3 + k * .15, arc: 70, size: 22, onEnd() { ding(0, .2, 1500 + k * 400); addGold(-1); ring(fx, fy + 36, 34, .3, '255,214,110', 3); } });
       at(.95, () => { down = now; play('dano', 0, .5, .6); whoosh(0, .6, .3, 300, 1500); flash(fx, fy + 30, 110, '255,226,150', .6, .5); shock(fx, fy + 40, 100, .5, '255,226,170', 3); });
       tween(1.0, p => { ctx.save(); ctx.globalAlpha = p * (1 - ei((p - .6) / .4)); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,226,150,${.2 * Math.sin(p * Math.PI)})`; ctx.fillRect(fx - 60, fy - 10, 120, 80); ctx.restore(); }, .95);
-      tag(fx, fy - 56, 'LINHA REFEITA', '255,224,120', 1.0, 17);
+      bubbleUp(fx, fy, 1.0, .9); tag(fx, fy - 56, 'BARREIRA REFEITA', '255,224,120', 1.0, 17);
     }
   },
 });

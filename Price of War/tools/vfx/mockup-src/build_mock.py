@@ -18,7 +18,7 @@ const ready = Promise.all([load('fire', PJ + 'fx-boom-fire.webp'), load('smoke',
   load('a_lanca', PJ + 'art/lanca.webp'), load('a_virote', PJ + 'art/virote.webp'), load('a_flecha', PJ + 'art/flecha.webp'), load('a_veneno', PJ + 'art/flecha-veneno.webp'),
   load('a_pedra', PJ + 'art/pedra.webp'), load('a_brasa', PJ + 'art/pedra-brasa.webp'), load('a_espada', PJ + 'art/espada-aurelion.webp'), load('a_martelo', PJ + 'art/martelo.webp'),
   load('coin', 'fx-coin.webp'), load('seal', 'fx-seal.webp'), load('contrato', 'fx-contrato.webp'), load('stars', 'fx-stars.webp'), load('swamp', 'fx-pantano.webp'), load('cracks', 'fx-cracks.webp'), load('gold', 'fx-gold.webp'),
-  load('muro', 'fx-muro.webp'), load('ruinas', 'fx-ruinas.webp'), load('bandeira_a', 'fx-bandeira-a.webp'), load('bandeira_b', 'fx-bandeira-b.webp'), load('plantar_a', 'fx-bandeira-plantar-a.webp'), load('plantar_b', 'fx-bandeira-plantar-b.webp'), load('cair_a', 'fx-bandeira-cair-a.webp'), load('cair_b', 'fx-bandeira-cair-b.webp'),
+  load('shield_appear', 'fx-shield-appear.webp'), load('shield_loop', 'fx-shield-loop.webp'), load('shield_break', 'fx-shield-break.webp'), load('bandeira_a', 'fx-bandeira-a.webp'), load('bandeira_b', 'fx-bandeira-b.webp'), load('plantar_a', 'fx-bandeira-plantar-a.webp'), load('plantar_b', 'fx-bandeira-plantar-b.webp'), load('cair_a', 'fx-bandeira-cair-a.webp'), load('cair_b', 'fx-bandeira-cair-b.webp'),
   load('dagger', 'proj-dagger.webp'), load('purse', 'proj-purse.webp'), load('ball', 'proj-ball.webp')]);
 '''+engine[i1:]
 engine=engine.replace("fetch(n + (n === 'magic' ? '.mp3' : '.wav'))","fetch(PJ + n + (n === 'magic' ? '.mp3' : '.wav'))")
@@ -78,11 +78,11 @@ body='''</head>
       <button data-a="estandarte">Estandarte da Legião<small>pulso +1/+1</small></button>
     </div>
     <div class="grp" id="g-b">
-      <button data-a="brecha">Brecha<small>a paliçada se parte</small></button>
+      <button data-a="brecha">Brecha<small>a barreira estoura</small></button>
       <button data-a="plantar">Plantar estandarte<small>mastro, vento e âncora</small></button>
       <button data-a="pilhagem">Pilhagem<small>+1 ouro por turno</small></button>
       <button data-a="retomada">Retomada<small>a âncora cai</small></button>
-      <button data-a="reparar">Reparar a linha<small>2 de ouro</small></button>
+      <button data-a="reparar">Reparar a barreira<small>2 de ouro</small></button>
     </div>
     <div id="opts">
       <label><input type="checkbox" id="art" checked> arte pintada</label>
