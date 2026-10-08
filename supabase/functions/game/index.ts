@@ -231,6 +231,7 @@ var CARD_DEFS = [
   },
   {
     name: "C\xE1lice da Gra\xE7a",
+    fx: "calice",
     cardType: "Rel\xEDquia",
     atk: 0,
     hp: 5,
@@ -294,6 +295,7 @@ var CARD_DEFS = [
   },
   {
     name: "Soldados da Ordem",
+    fx: "soldados",
     cardType: "Infantaria",
     atk: 3,
     hp: 4,
@@ -315,6 +317,7 @@ var CARD_DEFS = [
   },
   {
     name: "Cavaleiro Hospital\xE1rio",
+    fx: "hospitalario",
     trigger: "comando",
     cardType: "Cavalaria",
     atk: 2,
@@ -328,6 +331,7 @@ var CARD_DEFS = [
   },
   {
     name: "Nobre da Cruzada",
+    fx: "nobre",
     cardType: "Cavalaria",
     atk: 4,
     hp: 5,
@@ -340,6 +344,7 @@ var CARD_DEFS = [
   { name: "Cavaleiro da Luz", cardType: "Cavalaria", atk: 4, hp: 5, cost: 4, isFullArt: true, effect: "" },
   {
     name: "Comandante da Ordem",
+    fx: "comandante",
     trigger: "postura",
     cardType: "Cavalaria",
     atk: 5,
@@ -366,6 +371,7 @@ var CARD_DEFS = [
   },
   {
     name: "Atirador da Cruzada",
+    fx: "atirador",
     cardType: "Arqueiro",
     atk: 1,
     hp: 3,
