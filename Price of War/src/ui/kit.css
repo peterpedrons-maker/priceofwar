@@ -8,7 +8,7 @@
   border-style: solid; border-width: 8px 22px; border-image-slice: 20 56 20 56 fill; border-image-repeat: stretch;
   font: 700 11.5px/1.1 'Cinzel',serif; letter-spacing: .14em; text-transform: uppercase; color: #f6e3a3; text-shadow: 0 1px 2px #000; transition: transform .1s, filter .1s; -webkit-tap-highlight-color: transparent; }
 .kit-btn:active { transform: translateY(2px); filter: brightness(.9); }
-.kit-btn.gold { min-height: 46px; border-width: 11px 34px; border-image-slice: 20 80 20 80 fill; font-weight: 900; color: #2a1604; text-shadow: 0 1px 0 rgba(255,255,255,.55); filter: drop-shadow(0 4px 6px rgba(0,0,0,.6)); }
+.kit-btn.gold { min-height: 46px; border-width: 11px 24px; border-image-slice: 20 80 20 80 fill; font-weight: 900; color: #2a1604; text-shadow: 0 1px 0 rgba(255,255,255,.55); filter: drop-shadow(0 4px 6px rgba(0,0,0,.6)); }
 .kit-btn.gold:active { filter: brightness(.82) drop-shadow(0 2px 3px rgba(0,0,0,.6)); }
 .kit-btn.danger { border-image-slice: 22 60 22 60 fill; color: #ffd9d2; }
 .kit-row { position: relative; display: block; width: 100%; text-align: left; border-style: solid; border-image-repeat: stretch; cursor: pointer; transition: transform .12s; -webkit-tap-highlight-color: transparent; }
