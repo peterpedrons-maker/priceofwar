@@ -121,3 +121,10 @@ import coinChipImg from '../assets/kit/moeda_mais.png';
 export const KitCoins = ({ children }: { children: React.ReactNode }) => (
   <span className="kit-coins" style={{ backgroundImage: `url(${coinChipImg})` }}>{children}</span>
 );
+
+import fieldImg from '../assets/kit/campo.png';
+import fieldFocusImg from '../assets/kit/campo_foco.png';
+// Campo de texto (login, nome do comandante): o <input> vai dentro; a moldura acende no foco.
+export const KitField = ({ children }: { children: React.ReactNode }) => (
+  <div className="kit-field" style={{ ['--kf' as string]: `url(${fieldImg})`, ['--kff' as string]: `url(${fieldFocusImg})` }}>{children}</div>
+);

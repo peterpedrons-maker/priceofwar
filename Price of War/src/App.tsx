@@ -233,7 +233,7 @@ import { DesafiosScreen, type DzDeck, type DzOpponent } from './DesafiosScreen';
 import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
 import { STEPS as TUT_STEPS, BEATS as TUT_BEATS, COIN_STEP as TUT_COIN_STEP, OUTRO as TUT_OUTRO, CHAPTERS as TUT_CHAPTERS, createTutorialMatch, nextEnemyAction as tutEnemyAction, type Step as TutStep, type Tgt as TutTgt, type Until as TutUntil } from './tutorial/script';
-import { KitWindow, KitTitle, KitButton, KitRow, KitTab, KitToggle, KitRange, KitIconButton, KitPlate, KitCount, KitSearch, KitIcon, KitCoins, KIT_ICONS } from './ui/Kit';
+import { KitWindow, KitTitle, KitButton, KitRow, KitTab, KitToggle, KitRange, KitIconButton, KitPlate, KitCount, KitSearch, KitIcon, KitCoins, KitField, KIT_ICONS } from './ui/Kit';
 import portraitCapitaoImg from './assets/desafios/capitao.webp';
 import portraitCardealImg from './assets/desafios/cardeal.webp';
 import portraitMercenariosImg from './assets/desafios/mercenarios.webp';
@@ -4419,13 +4419,9 @@ const DiscordMark = () => (
 );
 
 const AuthButton = ({ icon, label, onClick, busy = false, primary = false }: { icon?: React.ReactNode; label: string; onClick: () => void; busy?: boolean; primary?: boolean }) => (
-  <button onClick={() => { if (!busy) { playUiClickSfx(); onClick(); } }} disabled={busy} className={`block w-full active:brightness-125 active:scale-[0.98] transition ${busy ? 'opacity-60' : ''}`}>
-    <ThinFrame px={13} style={{ background: primary ? 'rgba(122,90,22,0.6)' : 'rgba(20,13,6,0.55)' }}>
-      <span className="flex items-center justify-center gap-2.5 py-1.5 text-[13px] uppercase tracking-[0.1em] text-[#f3e3c3]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
-        {icon}{label}
-      </span>
-    </ThinFrame>
-  </button>
+  <KitButton tone={primary ? 'gold' : 'normal'} disabled={busy} className="w-full !min-h-[46px]" onClick={() => { if (!busy) { playUiClickSfx(); onClick(); } }}>
+    <span className="flex items-center justify-center gap-2.5">{icon}{label}</span>
+  </KitButton>
 );
 
 const authFieldClass = 'block w-full bg-transparent px-2 py-1.5 text-[14px] text-[#f3e3c3] placeholder:text-[#8d7f60] outline-none';
@@ -4462,12 +4458,12 @@ const LoginScreen = () => {
               <AuthButton label="Entrar com e-mail" onClick={() => setEmailOpen(true)} />
             ) : (
               <div className="flex flex-col gap-2">
-                <ThinFrame px={11} style={{ background: 'rgba(0,0,0,0.35)' }}>
+                <KitField>
                   <input type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-mail" className={authFieldClass} style={{ fontFamily: "'PT Serif', serif" }} />
-                </ThinFrame>
-                <ThinFrame px={11} style={{ background: 'rgba(0,0,0,0.35)' }}>
+                </KitField>
+                <KitField>
                   <input type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitEmail(); }} placeholder="Senha (mín. 6 caracteres)" className={authFieldClass} style={{ fontFamily: "'PT Serif', serif" }} />
-                </ThinFrame>
+                </KitField>
                 <AuthButton primary label={mode === 'signin' ? 'Entrar' : 'Criar conta'} busy={busy === 'email'} onClick={submitEmail} />
                 <button onClick={() => { playUiClickSfx(); setMode(m => (m === 'signin' ? 'signup' : 'signin')); setError(''); setNote(''); }} className="text-[12px] text-[#e8c766] underline underline-offset-4 self-center" style={{ fontFamily: "'PT Serif', serif" }}>
                   {mode === 'signin' ? 'Não tem conta? Criar conta' : 'Já tem conta? Entrar'}
@@ -4541,9 +4537,9 @@ const ProfileSetupScreen = ({ initialName, initialAvatar, onSubmit }: { initialN
               ))}
             </div>
             <div className="w-full">
-              <ThinFrame px={11} style={{ background: 'rgba(0,0,0,0.35)' }}>
+              <KitField>
                 <input value={name} onChange={(e) => { setName(e.target.value.slice(0, 16)); setSubmitError(''); }} onKeyDown={(e) => { if (e.key === 'Enter') void go(); }} placeholder="Nome do comandante" maxLength={16} autoFocus className={`${authFieldClass} text-center`} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }} />
-              </ThinFrame>
+              </KitField>
               <p className={`text-center text-[11px] mt-1.5 ${hint || submitError ? 'text-[#f0c9a0]' : checking ? 'text-[#a89a78]' : 'text-[#8fe0a4]'}`} style={{ fontFamily: "'PT Serif', serif" }}>
                 {submitError || hint || (checking ? 'Verificando…' : '✓ Nome disponível')}
               </p>

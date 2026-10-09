@@ -38,3 +38,5 @@
 .kit-search input::placeholder { color: #8a7a56; }
 .kit-coins { display: inline-flex; align-items: center; justify-content: flex-start; width: 132px; height: 42px; padding: 0 34px 0 48px; background-size: 100% 100%; background-repeat: no-repeat;
   font: 700 14px 'Cinzel',serif; color: #f6e3a3; text-shadow: 0 1px 2px #000; filter: drop-shadow(0 3px 4px rgba(0,0,0,.6)); }
+.kit-field { border-style: solid; border-width: 12px 16px; border-image-source: var(--kf); border-image-slice: 24 28 fill; border-image-repeat: stretch; }
+.kit-field:focus-within { border-image-source: var(--kff); }
