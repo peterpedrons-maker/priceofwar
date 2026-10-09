@@ -115,7 +115,7 @@ const SCENES = {
       <div class="abs" style="left:35px;right:35px;top:722px;display:flex;gap:12px">${A.btn('Não ativar','neu',16,'flex:1')}${A.btn('Ativar','pri',16,'flex:1')}</div>`,
     depois: () => `<div class="abs toast red" style="left:24px;right:24px;top:70px;padding:4px 8px"><b>Emboscada!</b><p>O adversário ataca o seu General. Ativar uma Emboscada?</p></div>
       <div class="card" style="left:calc(50% - 125px);top:200px;width:250px"><img src="img/card2.webp"></div>
-      <div class="abs" style="left:28px;right:28px;top:700px;display:flex;gap:12px">${D.btn('Não ativar','lg','flex:1')}${D.btn('Ativar','gold lg','flex:1')}</div>`,
+      <div class="abs" style="left:28px;right:28px;top:700px;display:flex;gap:12px">${D.btn('Não ativar','gold lg','flex:1')}${D.btn('Ativar','gold lg','flex:1')}</div>`,
     legenda: 'Emboscada: a pergunta vira uma faixa do kit (vermelha, como aviso de perigo) com um título curto; "Não ativar" é o botão escuro e "Ativar" é o dourado com espadas. Com várias cartas possíveis, cada uma ganha um Ativar dourado embaixo e há um "Não ativar" largo.' },
   man: {
     antes: () => `<div class="hd a abs" style="left:10px;right:10px;top:84px"><b>MANUTENÇÃO DA COMPANHIA</b><span>Você tem <b style="display:inline;color:#ffd36a;font:700 12px 'PT Serif'">9</b> de ouro. Quem não for pago vai embora.</span></div>
@@ -124,7 +124,7 @@ const SCENES = {
       <div class="abs" style="left:24px;right:24px;top:730px;display:flex;align-items:center;gap:12px"><div class="tot" style="font-family:'PT Serif',serif;font-size:13px">Total: <b>4</b></div>${A.btn('Confirmar','pri',16,'flex:1')}</div>`,
     depois: () => `<div class="hd d abs" style="left:10px;right:10px;top:70px"><b>Manutenção</b><i></i><span>Você tem <b style="display:inline;font:700 15px var(--cin);color:#ffd36a;background:none;-webkit-text-fill-color:#ffd36a;filter:none;letter-spacing:0;padding:0">9</b> de ouro. Quem não for pago vai embora.</span></div>
       ${[0,1,2].map(i => `<div class="card g ${i==2?'dis':''}" style="left:${14+i*122}px;top:182px;width:112px"><img src="img/card${i+1}.webp"></div>
-        <div class="abs" style="left:${10+i*122}px;top:${182+178}px;width:120px">${D.btn(i==2?'Dispensar':'Pagar 2', i==2?'':'gold','width:100%;--s:11px')}<div class="note" style="margin-top:5px">${i==2?'vai embora':''}</div></div>`).join('')}
+        <div class="abs" style="left:${10+i*122}px;top:${182+178}px;width:120px">${D.btn(i==2?'Dispensar':'Pagar 2', 'gold','width:100%;--s:11px')}<div class="note" style="margin-top:5px">${i==2?'vai embora':''}</div></div>`).join('')}
       <div class="abs" style="left:22px;right:22px;top:716px;display:flex;align-items:center;gap:14px"><div class="tot">Total <b>4</b></div>${D.btn('Confirmar','gold lg','flex:1')}</div>`,
     legenda: 'Manutenção (Mercenários): título no mesmo estilo das janelas (Cinzel Decorativo dourado com divisor), "Pagar" dourado e "Dispensar" escuro, "Confirmar" dourado (apagado quando falta ouro). A carta dispensada continua apagada e vermelha.' },
   rel: {
@@ -139,7 +139,7 @@ const SCENES = {
       <div class="abs" style="left:54px;right:12px;top:436px;display:flex;flex-direction:column;gap:10px">
         ${[['Ofensivo','+1 ATK a todas as suas unidades.',1],['Defensivo','+1 HP a todas as suas unidades.',0],['Econômico','Manutenção custa 1 a menos.',0]].map(([n,e,on]) => `<div class="row ${on?'sel':''}"><span class="sock"></span><div><h3>${n}</h3><p>${e}</p></div></div>`).join('')}
       </div>
-      <div class="abs" style="left:22px;right:22px;top:690px;display:flex;gap:10px">${D.btn('Voltar','lg','flex:1')}${D.btn('Encerrar turno','gold lg','flex:2')}</div>`,
+      <div class="abs" style="left:22px;right:22px;top:690px;display:flex;gap:10px">${D.btn('Voltar','gold lg','flex:1')}${D.btn('Encerrar turno','gold lg','flex:2')}</div>`,
     legenda: 'Escolha do modo da Relíquia: o título vira o das janelas e cada modo é uma linha do kit com um seletor redondo no encaixe (aceso no escolhido) em vez de uma caixa com borda dourada. "Encerrar turno" é o botão dourado.' },
   esc: {
     antes: () => `<div class="abs" style="left:0;right:0;top:100px;display:flex;justify-content:center">${A.box(`<p style="margin:0;padding:2px 12px;text-align:center;color:#ffe3a1;font:700 13px/1.3 var(--cin);letter-spacing:.04em;text-transform:uppercase;max-width:260px">Escolha 1 carta para ficar na mão</p>`)}</div>
