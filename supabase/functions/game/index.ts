@@ -2898,7 +2898,8 @@ var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
       const deck = { general, cards };
       await db.queueDelete(userId);
       if (req.vsBot) {
-        const m = await startMatch(db, cfg, { user: userId, deck }, { user: null, deck: botDeckFor(deck) });
+        const chosen = typeof req.botDeck === "string" && Object.prototype.hasOwnProperty.call(DECK_RECIPES, req.botDeck) ? recipeDeck(req.botDeck) : botDeckFor(deck);
+        const m = await startMatch(db, cfg, { user: userId, deck }, { user: null, deck: chosen });
         return { ok: true, status: "matched", match: await initOf(db, m, userId, cfg) };
       }
       const other = await db.queueTake(userId);

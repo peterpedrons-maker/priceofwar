@@ -228,6 +228,7 @@ import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettin
 import { useGameSettings, setGameSettings } from './gameSettings';
 import tutHandSprite from './assets/tut-hand.webp';
 import type { Trigger } from './engine/types';
+import { DesafiosScreen, type DzDeck, type DzOpponent } from './DesafiosScreen';
 import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
 import { STEPS as TUT_STEPS, BEATS as TUT_BEATS, COIN_STEP as TUT_COIN_STEP, OUTRO as TUT_OUTRO, CHAPTERS as TUT_CHAPTERS, createTutorialMatch, nextEnemyAction as tutEnemyAction, type Step as TutStep, type Tgt as TutTgt, type Until as TutUntil } from './tutorial/script';
@@ -2555,6 +2556,8 @@ const buildDeckSelection = (slot: DeckSlot): DeckSelection => {
   const others = ALL_DECK_IDS.filter(id => id !== own);
   return { cards: { ...slot.cards }, general, npcDeckId: others[Math.floor(Math.random() * others.length)] };
 };
+// Which prebuilt deck a General belongs to (the avatar and the opponent matching on the Desafios map).
+const deckIdOfGeneral = (general: string): DeckId => (general === DECKS.capitao.general.name ? 'capitao' : general === DECKS.mercenarios.general.name ? 'mercenarios' : 'cardeal');
 const DEFAULT_DECK_SELECTION: DeckSelection = { cards: countByName(DECKS.capitao.pool), general: DECKS.capitao.general.name, npcDeckId: 'cardeal' };
 
 // ── Player profile (local-only for now) ─────────────────────────────────────
@@ -4947,7 +4950,7 @@ const OnlineSearchOverlay = ({ selection, challenge, onMatched, onCancel, onUnav
     };
     (async () => {
       await flushCloudSync();
-      const r = await queueForMatch({ general: selection.general, cards: selection.cards }, challenge);
+      const r = await queueForMatch({ general: selection.general, cards: selection.cards }, challenge, challenge ? selection.npcDeckId : undefined);
       if (cancelled) return;
       if (r.ok === false) {
         if (r.unavailable && onUnavailable) { onUnavailable(); return; }
@@ -5139,6 +5142,9 @@ export default function App() {
   const [deckPickerOpen, setDeckPickerOpen] = useState(false);
   // Online Casual: which deck was chosen while the "searching for an opponent" screen is up.
   const [deckPickerFor, setDeckPickerFor] = useState<'desafios' | 'casual'>('desafios');
+  // Desafios: the deck editor opened over the opponent map (and a counter so the saved decks are re-read when it closes).
+  const [dzEditorOpen, setDzEditorOpen] = useState(false);
+  const [dzVersion, setDzVersion] = useState(0);
   const [searching, setSearching] = useState<{ sel: DeckSelection; challenge: boolean } | null>(null);
 
   // Duel background music: decoded once into a raw AudioBuffer and looped through
@@ -7506,20 +7512,32 @@ export default function App() {
           {tutIntro && <TutorialIntro key="tut-intro" onStart={tutLaunchDuel} onClose={tutExit} />}
         </AnimatePresence>
         <AnimatePresence>
-          {deckPickerOpen && (
+          {deckPickerOpen && deckPickerFor === 'casual' && (
             <DeckPickerModal
               store={loadDeckStore()}
-              onSelect={(sel) => {
-                setDeckPickerOpen(false);
-                // With accounts, every match (against a person or the AI) goes through the game server; without them,
-                // the local game stays as it was.
-                if (deckPickerFor === 'casual') setSearching({ sel, challenge: false });
-                else if (authMode === 'supabase') setSearching({ sel, challenge: true });
-                else startGame('Quick Match', sel);
-              }}
+              onSelect={(sel) => { setDeckPickerOpen(false); setSearching({ sel, challenge: false }); }}
               onClose={() => setDeckPickerOpen(false)}
             />
           )}
+          {deckPickerOpen && deckPickerFor === 'desafios' && (
+            <DesafiosScreen
+              key={`dz-${dzVersion}`}
+              opponents={ALL_DECK_IDS.map((id): DzOpponent => { const [name, ...rest] = DECKS[id].general.name.split(', '); return { id, name, epithet: rest.join(', '), desc: DECKS[id].description }; })}
+              decks={loadDeckStore().slots.map((slot): DzDeck => ({ id: slot.id, name: slot.name, deckId: deckIdOfGeneral(slot.general), count: deckCardCount(slot), problem: deckProblem(slot) }))}
+              onBack={() => setDeckPickerOpen(false)}
+              onEditDecks={() => setDzEditorOpen(true)}
+              onStart={(slotId, opponentId) => {
+                const slot = loadDeckStore().slots.find(x => x.id === slotId); if (!slot) return;
+                const sel: DeckSelection = { ...buildDeckSelection(slot), npcDeckId: opponentId as DeckId };
+                setDeckPickerOpen(false);
+                // With accounts, every match (against a person or the AI) goes through the game server; without them,
+                // the local game stays as it was.
+                if (authMode === 'supabase') setSearching({ sel, challenge: true });
+                else startGame('Quick Match', sel);
+              }}
+            />
+          )}
+          {dzEditorOpen && <div className="fixed inset-0 z-[70]"><DeckEditor onClose={() => { setDzEditorOpen(false); setDzVersion(v => v + 1); }} /></div>}
         </AnimatePresence>
         <AnimatePresence>
           {searching && authMode === 'supabase' && (

@@ -80,7 +80,7 @@ const asActResult = (r: any): ActResult =>
     ? { ok: true, rows: r.rows ?? [], finished: !!r.finished, deadline: r.deadline ?? null, now: r.now ?? Date.now(), reward: r.reward ?? null }
     : { ok: false, error: r?.error ?? 'Resposta inesperada do servidor.', unavailable: r?.unavailable };
 
-export const queueForMatch = (deck: DeckJson, vsBot: boolean): Promise<QueueResult> => call({ op: 'queue', cards: deck.cards, general: deck.general, vsBot });
+export const queueForMatch = (deck: DeckJson, vsBot: boolean, botDeck?: string): Promise<QueueResult> => call({ op: 'queue', cards: deck.cards, general: deck.general, vsBot, botDeck });
 export const queueStatus = (): Promise<QueueResult> => call({ op: 'status' });
 export const cancelQueue = (): Promise<QueueResult> => call({ op: 'cancel' });
 export const sendAction = async (matchId: string, action: Action, since: number): Promise<ActResult> => asActResult(await call({ op: 'act', matchId, action, since }));

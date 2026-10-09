@@ -156,6 +156,17 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     void winner;
   });
 
+  await test('a challenge can name the opponent deck (Desafios map); a bad name falls back', async () => {
+    for (const id of ['capitao', 'cardeal', 'mercenarios'] as const) {
+      const db = fresh();
+      const init = matched(await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal'), vsBot: true, botDeck: id }, cfg));
+      eq(init.opponentGeneral, DECK_RECIPES[id].general, 'opponent ' + id);
+    }
+    const db = fresh();
+    const init = matched(await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal'), vsBot: true, botDeck: 'toString' }, cfg));
+    ok(init.opponentGeneral === DECK_RECIPES.capitao.general, 'unknown name: the usual pick');
+  });
+
   await test('a bot that wins the toss chooses at random and the match opens at once', async () => {
     const seen = new Set<boolean>();
     let botWon = 0;

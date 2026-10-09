@@ -53,7 +53,7 @@ export interface MatchInit {
 }
 
 export type GameRequest =
-  | { op: 'queue'; cards: Record<string, number>; general: string; vsBot?: boolean }
+  | { op: 'queue'; cards: Record<string, number>; general: string; vsBot?: boolean; botDeck?: string }
   | { op: 'status' }
   | { op: 'cancel' }
   | { op: 'act'; matchId: string; action: Action; since?: number }
@@ -272,7 +272,9 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
       const deck: DeckJson = { general, cards };
       await db.queueDelete(userId);
       if (req.vsBot) {
-        const m = await startMatch(db, cfg, { user: userId, deck }, { user: null, deck: botDeckFor(deck) });
+        // A challenge may name the opponent's prebuilt deck (the Desafios map); anything else falls back to the usual pick.
+        const chosen = typeof req.botDeck === 'string' && Object.prototype.hasOwnProperty.call(DECK_RECIPES, req.botDeck) ? recipeDeck(req.botDeck as DeckId) : botDeckFor(deck);
+        const m = await startMatch(db, cfg, { user: userId, deck }, { user: null, deck: chosen });
         return { ok: true, status: 'matched', match: await initOf(db, m, userId, cfg) };
       }
       const other = await db.queueTake(userId);
