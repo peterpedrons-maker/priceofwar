@@ -68,17 +68,40 @@ const back = x => { x = clamp(x); const c1 = 1.9, c3 = c1 + 1; return 1 + c3*Mat
 const rr = k => R[k];
 
 // ───────── 1. Hora da batalha ─────────
-function gonfalon(x, y, t, i, flip) {
-  const e = ease((t - 0.12 - i*0.09) / 0.6), fl = Math.sin(t*7 + i*1.7);
-  const H = 120, W = 24, tip = 22;
-  const sway = 3.2*fl;
-  const path = `M2 0 L${W} 0 L${W - sway*0.4} ${H*0.55} Q${W - 2 + sway} ${H*0.8} ${W/2 + sway*0.6} ${H + tip - 2} Q${4 + sway} ${H*0.8} ${2 - sway*0.3} ${H*0.5} Z`;
-  return `<svg class="abs" style="left:${x}px;top:${y + (1-e)*190}px;opacity:${e};filter:drop-shadow(0 4px 5px rgba(0,0,0,.7))" width="${W+4}" height="${H+tip+16}" viewBox="-2 -14 ${W+4} ${H+tip+16}">
-    <rect x="-2" y="-12" width="${W+4}" height="5" rx="2" fill="#8a6a2c"/><circle cx="-1" cy="-9.5" r="3" fill="#e8c766"/><circle cx="${W+1}" cy="-9.5" r="3" fill="#e8c766"/>
-    <path d="${path}" fill="url(#gf${i})" stroke="#e8b94a" stroke-width="1.6"/>
-    <defs><linearGradient id="gf${i}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#b3141f"/><stop offset="1" stop-color="#6d0c14"/></linearGradient></defs>
-    <image href="${KIT}i_espadas.png" x="${W/2 - 8 + sway*0.2}" y="14" width="16" height="16" opacity=".95"/>
-  </svg>`;
+// Estandarte com tocha: sobe do chão como as peças dos terrenos (muralha), com poeira na base, fica enquanto durar o combate e afunda no fim.
+function standard(x, base, side, t, i, tEnd) {
+  const H = 150, W = 44;                       // caixa recortada na linha do chão
+  const land = 0.15 + i*0.1 + 0.6;
+  const up = 1 - back((t - 0.15 - i*0.1) / 0.6) * 1;   // 1 = escondido, 0 = em pé (com leve passada)
+  const down = clamp((t - tEnd) / 0.55);
+  const off = (Math.max(0, up) + ease(down)) * (H + 16);
+  const fl = Math.sin(t*6.5 + i*1.9), fl2 = Math.sin(t*11 + i*2.7);
+  const lit = clamp((t - land) / 0.35) * (1 - clamp((t - tEnd) / 0.3));
+  const dir = side === 'L' ? 1 : -1;              // para onde o pano aponta (para dentro do tabuleiro)
+  const px = side === 'L' ? 5 : W - 9;           // x do mastro dentro da caixa
+  const sway = 3.4*fl;
+  const bx = px + 2, by = 14, bw = 26*dir, bh = 66;
+  const cloth = `M${bx} ${by} L${bx + bw} ${by + 1} L${bx + bw - dir*3 + sway*dir} ${by + bh*0.55} L${bx + bw*0.55 + sway*dir*1.4} ${by + bh} L${bx + 1} ${by + bh*0.8} Z`;
+  const tx = px + 2, ty = 98;                    // tocha presa ao mastro
+  const fs = 0.8 + 0.25*fl2;
+  const flame = (k) => `<path d="M${tx} ${ty-1} C${tx-6+k} ${ty-7} ${tx-3} ${ty-13*fs-k*3} ${tx+k} ${ty-20*fs-k*2} C${tx+3} ${ty-12*fs} ${tx+6-k} ${ty-7} ${tx} ${ty-1} Z" fill="${k===0?'#ffd24a':k>0?'#ff9a2a':'#ff7a1e'}" opacity="${k===0?0.95:0.8}"/>`;
+  const dust = t > land - 0.1 && t < land + 0.7 ? [0,1,2,3,4].map(j => { const p = clamp((t - land + 0.1) / 0.8); return `<circle cx="${W/2 + (j-2)*(7 + p*7)}" cy="${H - 3 - p*9}" r="${3 + p*7}" fill="rgba(170,140,100,${0.5*(1-p)})"/>`; }).join('') : '';
+  return `<div class="abs" style="left:${x}px;top:${base - H}px;width:${W}px;height:${H}px;overflow:hidden">
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="position:absolute;left:0;top:0;transform:translateY(${off}px);overflow:visible">
+      <circle cx="${tx}" cy="${ty-9}" r="${34*lit}" fill="url(#gl${i})" style="mix-blend-mode:screen"/>
+      <defs><radialGradient id="gl${i}"><stop offset="0" stop-color="rgba(255,190,90,.42)"/><stop offset="1" stop-color="rgba(255,150,60,0)"/></radialGradient>
+      <linearGradient id="cl${i}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#c0192a"/><stop offset="1" stop-color="#6d0c14"/></linearGradient></defs>
+      <rect x="${px - 1.5}" y="6" width="5" height="${H - 6}" rx="1.5" fill="#6b4a22" stroke="#2c1a08" stroke-width=".8"/>
+      <path d="M${px + 1} -6 L${px + 5.5} 8 L${px - 3.5} 8 Z" fill="#e8c766" stroke="#7a5a1c" stroke-width=".8"/>
+      <rect x="${px - 3}" y="${by - 3}" width="${14*dir > 0 ? 14 : -14}" height="3" fill="#b88b2c" transform="${dir < 0 ? `translate(${2*px + 5} 0) scale(-1 1)` : ''}"/>
+      <path d="${cloth}" fill="url(#cl${i})" stroke="#e8b94a" stroke-width="1.3" stroke-linejoin="round"/>
+      <image href="${KIT}i_espadas.png" x="${bx + bw*0.5 - 7 + sway*0.3*dir}" y="${by + 14}" width="14" height="14" opacity=".92"/>
+      <path d="M${tx - 6} ${ty} L${tx + 6} ${ty} L${tx + 4} ${ty + 9} L${tx - 4} ${ty + 9} Z" fill="#3a3028" stroke="#14100c" stroke-width=".8"/>
+      <rect x="${tx - 7}" y="${ty - 1.5}" width="14" height="2.6" rx="1" fill="#55483a"/>
+      <g opacity="${lit}">${flame(-1)}${flame(1)}${flame(0)}</g>
+    </svg>
+    ${dust ? `<svg class="abs" style="left:0;top:0" width="${W}" height="${H}">${dust}</svg>` : ''}
+  </div>`;
 }
 function batalha(t) {
   const vig = t < 4.1 ? ease((t-0.05)/0.5) * (0.78 + 0.1*Math.sin(t*5)) : 0.8*(1 - clamp((t-4.1)/0.6));
@@ -87,7 +110,7 @@ function batalha(t) {
   let h = `<div class="bg"></div>
     <div class="abs" style="inset:0;background:rgba(0,0,0,${dim})"></div>
     <div class="abs" style="inset:0;opacity:${vig};background:radial-gradient(ellipse at 50% 48%, rgba(120,0,0,0) 52%, rgba(150,10,10,.55) 100%)"></div>`;
-  h += `<div style="opacity:${outf}">${gonfalon(2, 222, t, 0)}${gonfalon(364, 222, t, 1)}${gonfalon(2, 560, t, 2)}${gonfalon(364, 560, t, 3)}</div>`;
+  h += `<div>${standard(0, 306, 'L', t, 0, 4.1)}${standard(346, 306, 'R', t, 1, 4.1)}${standard(0, 694, 'L', t, 2, 4.1)}${standard(346, 694, 'R', t, 3, 4.1)}</div>`;
   // espadas cruzadas + onda de choque
   const s = t < 0.45 ? 0 : t < 0.75 ? 0.3 + 0.95*ease((t-0.45)/0.3) : t < 1.0 ? 1.25 - 0.25*ease((t-0.75)/0.25) : 1;
   const so = t < 0.45 ? 0 : (1 - clamp((t-1.35)/0.45));
