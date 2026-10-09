@@ -4763,7 +4763,7 @@ const CoinToss = ({ onResolved, mySide, forced, canChoose = false, remote }: { o
             {canChoose && won && decided === null && (
               <div className="flex gap-3 mt-3 pointer-events-auto">
                 {([['player', 'Começar'], ['npc', 'Ir depois']] as const).map(([who, text]) => (
-                  <GameButton key={who} tone={who === 'player' ? 'primary' : 'neutral'} size={15}
+                  <GameButton key={who} tone="primary" size={15}
                     className={sending || myPick !== null ? 'opacity-40' : ''}
                     onClick={() => {
                       if (sending || myPick !== null) return;
@@ -9365,7 +9365,7 @@ export default function App() {
               </div>
               {single ? (
                 <div className="pointer-events-auto flex gap-3" style={{ width: Math.min(320, windowSize.width - 32) }}>
-                  <GameButton tone="neutral" size={16} className="flex-1" onClick={(e) => { e.stopPropagation(); decline(); }}>Não ativar</GameButton>
+                  <GameButton tone="primary" size={16} className="flex-1" onClick={(e) => { e.stopPropagation(); decline(); }}>Não ativar</GameButton>
                   <GameButton tone="primary" size={16} className="flex-1" onClick={(e) => { e.stopPropagation(); answer(ambushPrompt.options[0]); }}>Ativar</GameButton>
                 </div>
               ) : (
@@ -9406,7 +9406,7 @@ export default function App() {
                       <div style={{ width: HAND_CARD_WIDTH * scale, height: (HAND_CARD_HEIGHT + hang) * scale, filter: kept ? 'drop-shadow(0 0 12px rgba(255,214,110,0.95))' : 'grayscale(0.8) brightness(0.6) drop-shadow(0 0 8px rgba(239,68,68,0.8))', transition: 'filter 0.2s' }}>
                         <div style={{ width: HAND_CARD_WIDTH, height: HAND_CARD_HEIGHT, transform: `scale(${scale})`, transformOrigin: 'top left' }}><CardFace card={c} variant="hand" /></div>
                       </div>
-                      <GameButton tone={kept ? 'primary' : 'neutral'} size={13} className="w-full" onClick={(ev) => { ev.stopPropagation(); playUiClickSfx(); setUpkeepKeep(k => ({ ...k, [e.cardId]: !kept })); }}>
+                      <GameButton tone="primary" size={13} className="w-full" onClick={(ev) => { ev.stopPropagation(); playUiClickSfx(); setUpkeepKeep(k => ({ ...k, [e.cardId]: !kept })); }}>
                         {kept ? `Pagar ${e.cost}` : 'Dispensar'}
                       </GameButton>
                       <div style={{ height: 14, fontFamily: "'PT Serif', serif", fontSize: 10.5, color: '#ffb8a6', textShadow: '0 1px 3px #000' }}>{note ?? ''}</div>
@@ -9455,7 +9455,7 @@ export default function App() {
                 })}
               </div>
               <div className="flex gap-2 pointer-events-auto" style={{ width: Math.min(360, windowSize.width - 24) }}>
-                <GameButton tone="neutral" size={15} className="flex-1" onClick={(ev) => { ev.stopPropagation(); setRelicPrompt(null); }}>Voltar</GameButton>
+                <GameButton tone="primary" size={15} className="flex-1" onClick={(ev) => { ev.stopPropagation(); setRelicPrompt(null); }}>Voltar</GameButton>
                 <GameButton tone="primary" size={15} className="flex-[2]" onClick={(ev) => { ev.stopPropagation(); confirmRelicMode(); }}>Encerrar turno</GameButton>
               </div>
             </motion.div>
@@ -9704,20 +9704,14 @@ export default function App() {
           instead of rediscovered per session. */}
       <AnimatePresence>
         {!tutOn && selectedCardIndex !== null && viewState === 'field' && !targetingMode && (
-          <motion.button
+          <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            onClick={() => { playUiClickSfx(); handleBackgroundClick(); }}
-            className="fixed top-3 left-3 md:top-4 md:left-4 z-[205] pointer-events-auto active:scale-95"
+            className="fixed top-3 left-3 md:top-4 md:left-4 z-[205] pointer-events-auto"
           >
-            <ThinFrame px={10} style={{ background: 'rgba(104,24,24,0.78)' }}>
-              <span className="flex items-center gap-1.5 px-3 py-[3px] uppercase tracking-[0.12em] whitespace-nowrap" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 11, color: '#ffd9d2' }}>
-                <X className="w-3.5 h-3.5" strokeWidth={3} />
-                Cancelar
-              </span>
-            </ThinFrame>
-          </motion.button>
+            <GameButton tone="danger" size={11} icon={<X className="w-3.5 h-3.5" strokeWidth={3} />} onClick={() => { playUiClickSfx(); handleBackgroundClick(); }}>Cancelar</GameButton>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -10116,7 +10110,7 @@ export default function App() {
                     }}
                   >
                     <div
-                      className={`relative w-full aspect-[2/3] rounded-xl transition-transform ${isSelected ? 'scale-[1.06] drop-shadow-[0_0_14px_rgba(52,211,153,0.95)]' : ''}`}
+                      className={`relative w-full aspect-[2/3] rounded-xl transition-transform ${isSelected ? 'scale-[1.06] drop-shadow-[0_0_14px_rgba(255,214,110,0.95)]' : ''}`}
                       style={{ filter: CARD_THICKNESS_SHADOW }}
                     >
                       <CardFace card={opt} variant="hand" />
@@ -10351,13 +10345,13 @@ export default function App() {
                 return (
                   <div className="absolute inset-x-0 flex flex-col items-center gap-1 pointer-events-none" style={{ bottom: 22 }}>
                     {why ? (
-                      <span className="px-3 py-1.5 rounded-md text-center" style={{ background: 'rgba(14,10,6,0.88)', border: '1px solid rgba(232,220,192,0.5)', color: '#f3e3c3', fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 12, letterSpacing: '0.06em', maxWidth: windowSize.width - 40 }}>{why}</span>
+                      <GameBox px={10} style={{ maxWidth: windowSize.width - 40 }}><span className="block px-2 py-0.5 text-center" style={{ color: '#f3e3c3', fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 12, letterSpacing: '0.06em' }}>{why}</span></GameBox>
                     ) : !gameSettings.hintsDrag || dragLessons >= 1 ? null : (
                       <>
                         <DragFinger size={30} travel={46} />
-                        <span className="px-3 py-1 rounded-md" style={{ background: 'rgba(14,10,6,0.88)', border: '1px solid rgba(255,214,110,0.7)', color: '#ffe9b0', fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                        <GameBox px={10}><span className="block px-2 py-0.5" style={{ color: '#ffe9b0', fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                           Segure e arraste para o campo
-                        </span>
+                        </span></GameBox>
                       </>
                     )}
                   </div>
@@ -10375,9 +10369,9 @@ export default function App() {
           <motion.div key="drag-hint" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             className="fixed left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none" style={{ bottom: 150, zIndex: 214 }}>
             <DragFinger size={36} travel={60} />
-            <span className="px-3 py-1 rounded-md text-center" style={{ background: 'rgba(14,10,6,0.88)', border: '1px solid rgba(255,214,110,0.75)', color: '#ffe9b0', fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+            <GameBox px={10}><span className="block px-2 py-0.5 text-center" style={{ color: '#ffe9b0', fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
               Arraste a carta para o campo
-            </span>
+            </span></GameBox>
           </motion.div>
         )}
       </AnimatePresence>

@@ -3,6 +3,14 @@
 // one line style everywhere. `px` is the border width (the corner flourishes are scaled to it). Slice 31 = the corner size
 // in the 810px frame art.
 import React from 'react';
+import './kit.css';
+import toastImg from '../assets/kit/toast.png';
+import btnGold from '../assets/kit/btn-primary.png';
+import btnGoldOff from '../assets/kit/btn-primary-off.png';
+import btnDark from '../assets/kit/btn-secondary.png';
+import btnDarkOff from '../assets/kit/btn-secondary-off.png';
+import btnRed from '../assets/kit/perigo.png';
+import btnRedOff from '../assets/kit/perigo_off.png';
 import uiFrameMenuCardImage from '../assets/ui-frame-menu-card.webp';
 
 export const ThinFrame = ({ px, className = '', style, children }: { px: number; className?: string; style?: React.CSSProperties; children: React.ReactNode; key?: React.Key }) => (
@@ -25,23 +33,39 @@ export const ThinFrame = ({ px, className = '', style, children }: { px: number;
   </div>
 );
 
-// A dark, slightly see-through plate inside the thin frame. `tint` swaps the plate colour (red for a warning, say).
-export const GameBox = ({ children, className = '', style, px = 12, tint }: { children: React.ReactNode; className?: string; style?: React.CSSProperties; px?: number; tint?: string }) => (
-  <ThinFrame px={px} className={className} style={{ background: tint ?? 'rgba(12,8,5,0.9)', ...style }}>{children}</ThinFrame>
-);
+// The text/hint box (kit "toast" art, 9-sliced). `px` is kept for the old call sites and only sets the border width (10 to 14). `tint` lays a colour
+// over the dark plate (red for a warning, say).
+export const GameBox = ({ children, className = '', style, px = 12, tint }: { children: React.ReactNode; className?: string; style?: React.CSSProperties; px?: number; tint?: string }) => {
+  const bw = Math.max(10, Math.min(14, px));
+  return (
+    <div
+      className={`relative ${className}`}
+      style={{ borderStyle: 'solid', borderColor: 'transparent', borderWidth: bw, borderImageSource: `url(${toastImg})`, borderImageSlice: '26 fill', borderImageRepeat: 'stretch', filter: 'drop-shadow(0 4px 10px rgba(0,0,0,.6))', ...style }}
+    >
+      {tint && <span aria-hidden className="absolute pointer-events-none" style={{ inset: -bw + 4, borderRadius: 6, background: tint, mixBlendMode: 'multiply', opacity: 0.85 }} />}
+      <div className="relative">{children}</div>
+    </div>
+  );
+};
 
-const TONES = { primary: 'rgba(24,100,58,0.82)', danger: 'rgba(104,24,24,0.78)', neutral: 'rgba(24,16,8,0.78)', gold: 'rgba(130,92,22,0.85)' } as const;
-const TEXT = { primary: '#eafff0', danger: '#ffd9d2', neutral: '#f0e0bb', gold: '#fff3d2' } as const;
+// Buttons of the match: the kit's art (gold = primary/gold, dark = neutral, red = danger). Sizes come from `size` (font px); the
+// width comes from `className` (flex-1, w-full...). Two buttons that answer the same question use the same tone.
+const TONE_ART = { primary: [btnGold, btnGoldOff], gold: [btnGold, btnGoldOff], neutral: [btnDark, btnDarkOff], danger: [btnRed, btnRedOff] } as const;
+const TONE_TEXT = { primary: '#2a1604', gold: '#2a1604', neutral: '#f6e3a3', danger: '#ffd9d2' } as const;
+export type GameButtonTone = keyof typeof TONE_ART;
 
 export const GameButton = ({ children, onClick, tone = 'neutral', disabled = false, className = '', size = 11, icon, tutUi = false, compact = false }: {
-  children: React.ReactNode; onClick?: (e: React.MouseEvent) => void; tone?: keyof typeof TONES; disabled?: boolean; className?: string; size?: number; icon?: React.ReactNode; tutUi?: boolean; compact?: boolean; key?: React.Key;
-}) => (
-  <button onClick={onClick} disabled={disabled} data-tut-ui={tutUi ? '' : undefined} className={`active:scale-95 active:brightness-125 transition disabled:opacity-55 disabled:active:scale-100 ${className}`}>
-    <ThinFrame px={10} style={{ background: disabled ? 'rgba(34,28,22,0.8)' : TONES[tone] }}>
-      <span className={`flex items-center justify-center gap-1.5 ${compact ? 'px-1.5' : 'px-3'} py-[3px] uppercase tracking-[0.12em] whitespace-nowrap`}
-        style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: size, color: disabled ? '#a89c84' : TEXT[tone] }}>
-        {icon}{children}
-      </span>
-    </ThinFrame>
-  </button>
-);
+  children: React.ReactNode; onClick?: (e: React.MouseEvent) => void; tone?: GameButtonTone; disabled?: boolean; className?: string; size?: number; icon?: React.ReactNode; tutUi?: boolean; compact?: boolean; key?: React.Key;
+}) => {
+  const gold = tone === 'primary' || tone === 'gold';
+  const small = size <= 12 || compact;
+  return (
+    <button
+      onClick={onClick} disabled={disabled} data-tut-ui={tutUi ? '' : undefined}
+      className={`kit-btn ${gold ? 'gold' : ''} ${small ? 'gm-sm' : ''} ${disabled ? 'gm-off' : ''} ${className}`}
+      style={{ borderImageSource: `url(${TONE_ART[tone][disabled ? 1 : 0]})`, fontSize: size, color: disabled ? (gold ? '#5a4a2c' : '#8d8068') : TONE_TEXT[tone], ...(disabled ? { filter: 'none', textShadow: 'none' } : {}) }}
+    >
+      {icon && <span className="mr-1.5 flex">{icon}</span>}{children}
+    </button>
+  );
+};

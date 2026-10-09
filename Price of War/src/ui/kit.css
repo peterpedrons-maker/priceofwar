@@ -1,10 +1,11 @@
+/* Atenção: não usar `all: unset` aqui (apagaria `position: fixed`, `z-index` etc. vindos das classes do Tailwind); só zere o que precisa. */
 /* Kit de interface (janelas): moldura, botões, linhas, interruptor, slider e abas em 9 fatias. Ver docs/janelas-ui.md. */
 .kit-win { position: relative; border-style: solid; border-width: 22px; border-image-slice: 34 34 34 34 fill; border-image-repeat: stretch; filter: drop-shadow(0 12px 24px rgba(0,0,0,.8)); }
 .kit-title { margin: 0; text-align: center; text-transform: uppercase; font: 700 21px/1 'Cinzel Decorative','Cinzel',serif; letter-spacing: .14em; padding-left: .14em;
   background: linear-gradient(#fff7d6,#ecca74 48%,#a8792a); -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 2px 1px rgba(0,0,0,.95)) drop-shadow(0 0 10px rgba(230,180,70,.3)); }
 .kit-div { display: block; width: 200px; height: 10px; margin: 0 auto; background-position: center; background-size: 100% 100%; background-repeat: no-repeat; }
-.kit-btn { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-align: center; min-height: 42px; padding: 0 2px;
+.kit-btn { appearance: none; -webkit-appearance: none; background: none; border: 0; padding: 0; margin: 0; color: inherit; font-family: inherit; text-decoration: none; outline: none; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-align: center; min-height: 42px; padding: 0 2px;
   border-style: solid; border-width: 8px 22px; border-image-slice: 20 56 20 56 fill; border-image-repeat: stretch;
   font: 700 11.5px/1.1 'Cinzel',serif; letter-spacing: .14em; text-transform: uppercase; color: #f6e3a3; text-shadow: 0 1px 2px #000; transition: transform .1s, filter .1s; -webkit-tap-highlight-color: transparent; }
 .kit-btn:active { transform: translateY(2px); filter: brightness(.9); }
@@ -17,7 +18,7 @@
 .kit-row-ic { min-height: 68px; border-width: 11px 11px 11px 58px; border-image-slice: 22 22 22 112 fill; padding: 0 0 0 8px; display: flex; align-items: center; }
 .kit-sock { position: absolute; left: -52px; top: calc(50% - 22px); width: 44px; height: 44px; border-radius: 5px; display: flex; align-items: center; justify-content: center;
   background: linear-gradient(#2c2014,#140d07); box-shadow: 0 0 0 1px #000, inset 0 0 0 1px #8a6a2c; }
-.kit-tab { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0 4px;
+.kit-tab { appearance: none; -webkit-appearance: none; background: none; border: 0; padding: 0; margin: 0; color: inherit; font-family: inherit; text-decoration: none; outline: none; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0 4px;
   border-style: solid; border-width: 11px 14px 5px; border-image-slice: 24 24 8 24 fill; border-image-repeat: stretch;
   font: 700 11px 'Cinzel',serif; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
 .kit-tg { flex: none; width: 56px; height: 30px; background-position: center; background-size: contain; background-repeat: no-repeat; transition: filter .2s; }
@@ -28,15 +29,18 @@
 .kit-range::-webkit-slider-thumb { -webkit-appearance: none; width: 30px; height: 30px; background: var(--kit-knob) center/contain no-repeat; filter: drop-shadow(0 2px 3px rgba(0,0,0,.8)); }
 .kit-range::-moz-range-thumb { width: 30px; height: 30px; border: 0; background: var(--kit-knob) center/contain no-repeat; }
 .kit-ic { display: inline-block; flex: none; background-size: contain; background-repeat: no-repeat; background-position: center; filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
-.kit-ib { all: unset; box-sizing: border-box; flex: none; cursor: pointer; display: flex; align-items: center; justify-content: center; background-size: contain; background-repeat: no-repeat; background-position: center; transition: transform .1s, filter .15s; -webkit-tap-highlight-color: transparent; }
+.kit-ib { appearance: none; -webkit-appearance: none; background: none; border: 0; padding: 0; margin: 0; color: inherit; font-family: inherit; text-decoration: none; outline: none; box-sizing: border-box; flex: none; cursor: pointer; display: flex; align-items: center; justify-content: center; background-size: contain; background-repeat: no-repeat; background-position: center; transition: transform .1s, filter .15s; -webkit-tap-highlight-color: transparent; }
 .kit-ib:active { transform: scale(.94); }
 .kit-count { flex: none; min-width: 56px; height: 30px; padding: 0 10px; display: flex; align-items: center; justify-content: center; background-size: 100% 100%; background-repeat: no-repeat;
   font: 900 15px 'Cinzel',serif; color: #e4ffe9; text-shadow: 0 1px 2px #000; }
 .kit-search { position: relative; flex: 1; min-width: 0; height: 42px; display: flex; align-items: center; border-style: solid; border-width: 12px 12px; border-image-slice: 30 31 fill; border-image-repeat: stretch; }
 .kit-search-ic { position: absolute; left: 0; }
-.kit-search input { all: unset; box-sizing: border-box; width: 100%; min-width: 0; padding-left: 22px; font: 600 14px 'Crimson Pro',Georgia,serif; color: #f3e3c3; }
+.kit-search input { appearance: none; -webkit-appearance: none; background: none; border: 0; padding: 0; margin: 0; color: inherit; font-family: inherit; text-decoration: none; outline: none; box-sizing: border-box; width: 100%; min-width: 0; padding-left: 22px; font: 600 14px 'Crimson Pro',Georgia,serif; color: #f3e3c3; }
 .kit-search input::placeholder { color: #8a7a56; }
 .kit-coins { display: inline-flex; align-items: center; justify-content: flex-start; width: 132px; height: 42px; padding: 0 34px 0 48px; background-size: 100% 100%; background-repeat: no-repeat;
   font: 700 14px 'Cinzel',serif; color: #f6e3a3; text-shadow: 0 1px 2px #000; filter: drop-shadow(0 3px 4px rgba(0,0,0,.6)); }
 .kit-field { border-style: solid; border-width: 12px 16px; border-image-source: var(--kf); border-image-slice: 24 28 fill; border-image-repeat: stretch; }
 .kit-field:focus-within { border-image-source: var(--kff); }
+.kit-btn.gm-sm { min-height: 34px; border-width: 7px 16px; letter-spacing: .12em; }
+.kit-btn.gold.gm-sm { min-height: 34px; border-width: 8px 18px; }
+.kit-btn.gm-off { pointer-events: none; }
