@@ -82,12 +82,24 @@ function spr(c: CanvasRenderingContext2D, n: string, x: number, yb: number, h: n
 }
 function dust(c: CanvasRenderingContext2D, x: number, y: number, q: number, k = 1) { if (q <= 0 || q >= 1) return; const g = c.createRadialGradient(x, y - q * 8, 0, x, y - q * 8, (6 + q * 16) * k); g.addColorStop(0, `rgba(190,170,130,${.3 * (1 - q)})`); g.addColorStop(1, 'rgba(190,170,130,0)'); c.fillStyle = g; c.fillRect(x - 30 * k, y - 40, 60 * k, 56); }
 function flame(c: CanvasRenderingContext2D, x: number, y: number, t: number, k: number, S: number) { c.save(); c.globalCompositeOperation = 'lighter';
-  let g = c.createRadialGradient(x, y - 4, 0, x, y - 4, 70 * S); g.addColorStop(0, `rgba(255,170,70,${.2 * S})`); g.addColorStop(1, 'rgba(255,150,50,0)'); c.fillStyle = g; c.fillRect(x - 80, y - 80, 160, 130);
-  for (const [dx, hh, wd, ph] of [[-5, 9, 1.0, 0], [0, 15, 1.35, 1.3], [5.5, 10, 1.05, 2.4], [-2.5, 12, 1.2, 3.6], [2.5, 7, .9, 4.9]]) { const f = (.8 + .2 * Math.sin(t / 85 + ph * 2 + k) + .1 * Math.sin(t / 37 + ph)) * S, h = hh * f, sway = Math.sin(t / 150 + ph * 1.7) * 1.8 * S, bx = x + dx * S, by = y + 1;
-    const gr = c.createLinearGradient(bx, by, bx, by - h); gr.addColorStop(0, 'rgba(255,236,170,.95)'); gr.addColorStop(.35, 'rgba(255,170,60,.85)'); gr.addColorStop(1, 'rgba(220,70,15,0)'); c.fillStyle = gr;
-    c.beginPath(); c.moveTo(bx - 3.4 * wd * S, by); c.quadraticCurveTo(bx - 3.2 * wd * S + sway * .3, by - h * .55, bx + sway, by - h); c.quadraticCurveTo(bx + 3.2 * wd * S + sway * .3, by - h * .55, bx + 3.4 * wd * S, by); c.closePath(); c.fill(); }
-  g = c.createRadialGradient(x, y - 2, 0, x, y - 2, 7 * S); g.addColorStop(0, 'rgba(255,250,215,.9)'); g.addColorStop(1, 'rgba(255,190,80,0)'); c.fillStyle = g; c.beginPath(); c.ellipse(x, y - 2, 6 * S, 3.4 * S, 0, 0, 7); c.fill(); c.restore(); }
-function torch(c: CanvasRenderingContext2D, x: number, y: number, t: number, k: number, S: number) { c.save(); c.strokeStyle = '#2a1c0e'; c.lineWidth = 1.8; c.lineCap = 'round'; c.beginPath(); c.moveTo(x, y + 9); c.lineTo(x, y - 1); c.stroke(); c.fillStyle = '#3a3a3e'; c.beginPath(); c.moveTo(x - 3.2, y - 2); c.lineTo(x + 3.2, y - 2); c.lineTo(x + 2, y + 2); c.lineTo(x - 2, y + 2); c.closePath(); c.fill(); c.restore(); flame(c, x, y - 2, t, k, S); }
+  // luz suave em volta (sem forma própria: só aquece a parede)
+  let g = c.createRadialGradient(x, y - 8, 0, x, y - 8, 34 * S); g.addColorStop(0, `rgba(255,170,70,${.22 * S})`); g.addColorStop(1, 'rgba(255,150,50,0)'); c.fillStyle = g; c.fillRect(x - 40, y - 48, 80, 80);
+  // três línguas de fogo em forma de gota, com pontas que balançam
+  const tongues: [number, number, number, number][] = [[-2.4, 12, 2.6, 0], [0, 19, 3.2, 1.7], [2.4, 13, 2.6, 3.3]];
+  for (const [dx, hh, w, ph] of tongues) {
+    const f = (.82 + .18 * Math.sin(t / 80 + ph * 2 + k) + .08 * Math.sin(t / 33 + ph)) * S, h = hh * f, sway = Math.sin(t / 130 + ph * 1.9 + k) * 1.6 * S, bx = x + dx * S, by = y, ww = w * S;
+    const gr = c.createLinearGradient(bx, by, bx, by - h); gr.addColorStop(0, 'rgba(255,230,150,.95)'); gr.addColorStop(.45, 'rgba(255,150,40,.85)'); gr.addColorStop(1, 'rgba(210,60,10,0)'); c.fillStyle = gr;
+    c.beginPath(); c.moveTo(bx - ww, by); c.bezierCurveTo(bx - ww * 1.25, by - h * .38, bx + sway * .4 - ww * .35, by - h * .72, bx + sway, by - h); c.bezierCurveTo(bx + sway * .4 + ww * .35, by - h * .72, bx + ww * 1.25, by - h * .38, bx + ww, by); c.closePath(); c.fill();
+  }
+  // miolo claro na base
+  g = c.createRadialGradient(x, y - 3, 0, x, y - 3, 4.2 * S); g.addColorStop(0, 'rgba(255,248,215,.95)'); g.addColorStop(1, 'rgba(255,190,80,0)'); c.fillStyle = g; c.beginPath(); c.ellipse(x, y - 3, 3 * S, 4.2 * S, 0, 0, 7); c.fill(); c.restore(); }
+function torch(c: CanvasRenderingContext2D, x: number, y: number, t: number, k: number, S: number) {
+  // cabo de madeira e copo de ferro (esconde o pé da chama); a chama sai de dentro do copo
+  c.save(); c.lineCap = 'round'; c.strokeStyle = '#2a1c0e'; c.lineWidth = 2; c.beginPath(); c.moveTo(x, y + 10); c.lineTo(x, y + 1); c.stroke();
+  c.fillStyle = '#3b3b40'; c.beginPath(); c.moveTo(x - 4, y - 3); c.lineTo(x + 4, y - 3); c.lineTo(x + 2.4, y + 3); c.lineTo(x - 2.4, y + 3); c.closePath(); c.fill();
+  c.strokeStyle = 'rgba(0,0,0,.55)'; c.lineWidth = .6; c.stroke(); c.fillStyle = 'rgba(255,255,255,.18)'; c.fillRect(x - 3.4, y - 3, 1.4, 5); c.restore();
+  flame(c, x, y - 3, t, k, S);
+}
 function pennant(c: CanvasRenderingContext2D, x: number, y: number, t: number, un: number, k: number) { if (un <= 0) return; c.save(); c.strokeStyle = '#3b2d1b'; c.lineWidth = 1.3; c.beginPath(); c.moveTo(x, y); c.lineTo(x, y - 13); c.stroke(); const L = 16 * un; c.beginPath(); c.moveTo(x, y - 13); for (let i = 0; i <= 8; i++) { const u = i / 8; c.lineTo(x + u * L, y - 13 + 1.8 + Math.sin(t / 220 - u * 3 + k) * 1.7 * u); } c.lineTo(x, y - 6); c.closePath(); const g = c.createLinearGradient(x, 0, x + L, 0); g.addColorStop(0, '#6f93d6'); g.addColorStop(1, '#2a4a8c'); c.fillStyle = g; c.fill(); c.strokeStyle = 'rgba(230,195,100,.85)'; c.lineWidth = .7; c.stroke(); c.restore(); }
 
 let pedraPat: CanvasPattern | null = null;
