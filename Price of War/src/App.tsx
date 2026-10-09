@@ -5889,7 +5889,7 @@ export default function App() {
   const announceCardPlay = (card: CardData, side: 'player' | 'npc') => {
     if (announceCardPlayRef.current) window.clearTimeout(announceCardPlayRef.current);
     setAnnouncedCard({ card, side });
-    announceCardPlayRef.current = window.setTimeout(() => setAnnouncedCard(null), 1400);
+    announceCardPlayRef.current = window.setTimeout(() => setAnnouncedCard(null), 2300);   // the opponent's card stays on screen until a beat after it lands
   };
 
   // On mobile, window.innerHeight at the very first paint often doesn't match the real
@@ -6375,7 +6375,7 @@ export default function App() {
       const gen = engineRef.current?.players[ab.seat].board[12];
       const heals = events.flatMap(e => (e.t === 'heal' ? [{ side: sideOf(e.seat), slot: e.slot, amount: e.amount }] : []));
       if (gen && heals.length > 0 && abilityOn(gen.name, 'ability')?.do.some(v => v.kind === 'heal')) {
-        return { run: commit => fxBencao(fxEnvFor(commit), sideOf(ab.seat), heals), flags: { fxNumbers: true, fxSkipAbility: true, fxSkipTacticSfx: false } };
+        return { run: commit => fxHero('cura', fxEnvFor(commit), sideOf(ab.seat), heals), flags: { fxNumbers: true, fxSkipAbility: true, fxSkipTacticSfx: false } };
       }
     }
     // Cavaleiro Hospitalário (Comando): the cure on one ally and the blow on one enemy
@@ -7195,9 +7195,9 @@ export default function App() {
           if (!card) break;
           // Show the card big in the corner and pause on it for a beat BEFORE it lands on the board.
           const fxCard = ['Catapulta de Guerra', 'Trabuco de Cerco', 'Balestra de Precisão'].includes(card.name);   // (it lands on the board: see combatFx)
-          if (!fxCard) { announceCardPlay(toCardData(card), 'npc'); await sleep(1000); }
+          if (!fxCard) { announceCardPlay(toCardData(card), 'npc'); await sleep(1900); }   // long enough to read the card before it lands
           if (dispatchAction(1, action).ok === false) break;
-          await sleep(fxCard ? 400 : 700);
+          await sleep(fxCard ? 1100 : 1500);   // and a pause after, so the plays do not run into each other
         } else if (action.type === 'attack') {
           setNpcVisiblePhase('combate');
           if (!combatAnnounced) {
@@ -7237,7 +7237,7 @@ export default function App() {
           setAttackAnim(null);
           const killed = r.events.some(e => e.t === 'destroyed');
           if (lethalNpc) { await sleep(FINAL_AFTER_MS + 100); endFinalBlow(); }
-          else await sleep(killed ? 1250 : 300);
+          else await sleep(killed ? 1500 : 700);
           await tutBeat('afterAttack');
         } else if (action.type === 'move') {
           // Repositioning: the same slide the player's own moves get, on the opponent's board.
@@ -7264,11 +7264,11 @@ export default function App() {
           const r = dispatchAction(1, action);
           setRepositionFlight(null);
           if (r.ok === false) break;
-          await sleep(350);
+          await sleep(800);
         } else if (action.type === 'ability') {
           showToast(action.slot === 12 ? 'O oponente usou a habilidade do General!' : 'O oponente usou uma habilidade!');
           if (dispatchAction(1, action).ok === false) break;
-          await sleep(700);
+          await sleep(1600);
         } else {
           // advance / choose / ambush: no ceremony
           if (dispatchAction(1, action).ok === false) break;

@@ -353,3 +353,7 @@ Arte gerada pelo dono (castelo: torre, muros e portão; acampamento: barracas, a
 - Encaixe da arte: muros usam só o miolo da imagem (7% de cada ponta cortada) para não aparecer a quina entre os pedaços; o pé da muralha ganha sujeira de terra; cena escurecida à noite e iluminada por tochas e janelas (mesmo pipeline dos mockups).
 - Opção **Opções → Efeitos → Terrenos animados** (`gameSettings.terrainFx`): desligado = imagem parada, sem tochas se mexendo, sem animação de subida/queda.
 - Solo Sagrado e o Acampamento dos Mercenários continuam só como mockup (as cartas ainda não existem); a arquitetura aceita novos tipos em `TerrainFxKind`.
+
+## Ritmo da IA e cura do General (ajuste)
+- **Ritmo do turno da IA** (`runAiTurn` em `App.tsx`): a carta que a IA joga fica anunciada 1,9 s antes de cair e 1,5 s depois (táticas com efeito: 1,1 s depois); o cartaz da carta dura 2,3 s; reposicionar 0,8 s; habilidade 1,6 s; depois de um ataque 0,7 s (1,5 s se algo caiu). Antes eram 1,0/0,7 s, 0,4 s, 0,35 s, 0,7 s e 0,3 s.
+- **Cura do General (Cardeal Pedro):** volta a ser a antiga (`fxHero('cura', ...)`: ele ergue a marreta e a luz desce até quem foi curado); a `fxBencao` ficou no código mas não é mais usada.
