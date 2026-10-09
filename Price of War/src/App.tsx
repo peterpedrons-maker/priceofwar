@@ -233,7 +233,7 @@ import { DesafiosScreen, type DzDeck, type DzOpponent } from './DesafiosScreen';
 import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
 import { STEPS as TUT_STEPS, BEATS as TUT_BEATS, COIN_STEP as TUT_COIN_STEP, OUTRO as TUT_OUTRO, CHAPTERS as TUT_CHAPTERS, createTutorialMatch, nextEnemyAction as tutEnemyAction, type Step as TutStep, type Tgt as TutTgt, type Until as TutUntil } from './tutorial/script';
-import { KitWindow, KitTitle, KitButton, KitRow, KitTab, KitToggle, KitRange, KitIconButton, KitPlate, KitCount, KitSearch, KitIcon, KIT_ICONS } from './ui/Kit';
+import { KitWindow, KitTitle, KitButton, KitRow, KitTab, KitToggle, KitRange, KitIconButton, KitPlate, KitCount, KitSearch, KitIcon, KitCoins, KIT_ICONS } from './ui/Kit';
 import portraitCapitaoImg from './assets/desafios/capitao.webp';
 import portraitCardealImg from './assets/desafios/cardeal.webp';
 import portraitMercenariosImg from './assets/desafios/mercenarios.webp';
@@ -4333,9 +4333,9 @@ const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n:
                 <span className="flex-1 text-center text-[13px] uppercase tracking-[0.14em] text-[#f3e3c3]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700 }}>Prateleira</span>
                 <WindowButton onClick={() => setZoomed(z => !z)}>{zoomed ? 'Afastar' : 'Aproximar'}</WindowButton>
               </div>
-              <div className="flex justify-between text-[11px] text-[#e8c766]" style={{ fontFamily: "'PT Serif', serif" }}>
+              <div className="flex justify-between items-center text-[11px] text-[#e8c766]" style={{ fontFamily: "'PT Serif', serif" }}>
                 <span>{zoomed ? 'Arraste para mover a prateleira' : 'Toque num booster'}</span>
-                <span>{formatCoroas(coroas)} Coroas</span>
+                <KitCoins>{formatCoroas(coroas)}</KitCoins>
               </div>
             </motion.div>
           )}

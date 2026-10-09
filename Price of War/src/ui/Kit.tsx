@@ -115,3 +115,9 @@ export const KitSearch = ({ value, onChange, placeholder = 'Buscar...' }: { valu
     <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} />
   </label>
 );
+
+import coinChipImg from '../assets/kit/moeda_mais.png';
+// Saldo de Coroas em pílula com a moeda (Loja).
+export const KitCoins = ({ children }: { children: React.ReactNode }) => (
+  <span className="kit-coins" style={{ backgroundImage: `url(${coinChipImg})` }}>{children}</span>
+);
