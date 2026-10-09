@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Desafios: mapa e cartão do adversário (mockup v3)</title>
+<title>Desafios: lista de adversários sobre o mapa (mockup)</title>
 <style>
   @font-face { font-family:'Cinzel'; font-weight:400 900; font-display:swap; src:url(fonts/cinzel-regular.woff2) format('woff2'); }
   @font-face { font-family:'Cinzel Decorative'; font-weight:700; font-display:swap; src:url(fonts/cinzel-decorative-700.woff2) format('woff2'); }
@@ -13,21 +13,17 @@
   html,body { margin:0; height:100%; background:#050403; color:var(--ivory); font-family:var(--cin); overflow:hidden; }
   #app { position:relative; width:100%; max-width:430px; height:100dvh; margin:0 auto; overflow:hidden; background:#0a0705; display:flex; flex-direction:column; }
   /* ── mapa: a câmera desliza até a região do adversário ── */
-  #stage::before { content:''; position:absolute; inset:-30px; background:url(map.webp) center/cover; filter:blur(10px) brightness(.8) saturate(.9); }
   #stage { position:relative; flex:1 1 auto; min-height:260px; overflow:hidden; }
   #fx { position:absolute; inset:0; transform-origin:195px 215px; }
   #map { position:absolute; left:0; top:0; width:1150px; height:1150px; transform-origin:0 0; background:url(map.webp) 0 0/100% 100% no-repeat; transition:transform 1.4s cubic-bezier(.45,.05,.2,1); will-change:transform; filter:saturate(.92) brightness(.92) contrast(1.04); }
   #map .mk { position:absolute; width:0; height:0; opacity:0; transition:opacity .6s; cursor:pointer; }
   #map.over .mk { opacity:1; }
-  #stage.ov #shade { opacity:.45; }
-  #map { -webkit-mask-image:radial-gradient(closest-side, #000 84%, transparent 100%); mask-image:radial-gradient(closest-side, #000 84%, transparent 100%); }
-  #map.zoomed { -webkit-mask-image:none; mask-image:none; }
   #map .mk svg { position:absolute; left:-17px; top:-52px; width:34px; height:52px; transform-origin:17px 52px; transform:scale(var(--inv,1)); filter:drop-shadow(0 3px 5px rgba(0,0,0,.85)) drop-shadow(0 0 7px rgba(240,200,100,.45)); }
   #map .mk.lock svg { filter:grayscale(1) brightness(.7) drop-shadow(0 3px 5px rgba(0,0,0,.85)); }
   #map .mk::after { content:''; position:absolute; left:-30px; top:-30px; width:60px; height:60px; transform:scale(var(--inv,1)); transform-origin:30px 30px; }
   #fx.hop { animation:hop 1.4s cubic-bezier(.45,.05,.2,1); }
   @keyframes hop { 0%{transform:scale(1)} 38%{transform:scale(.8)} 100%{transform:scale(1)} }
-  #shade { transition:opacity .8s; position:absolute; inset:0; pointer-events:none; background:
+  #shade { position:absolute; inset:0; pointer-events:none; background:
       linear-gradient(rgba(5,3,2,.9), rgba(5,3,2,0) 28%),
       linear-gradient(rgba(5,3,2,0) 50%, rgba(5,3,2,.94) 100%),
       radial-gradient(ellipse at 50% 42%, rgba(0,0,0,0) 38%, rgba(0,0,0,.62) 100%); }
@@ -56,28 +52,33 @@
   #place .sub { font:600 10px var(--cin); letter-spacing:.2em; color:#d6c48e; text-transform:uppercase; text-shadow:0 1px 3px #000, 0 0 8px #000; }
   #info { position:absolute; left:18px; right:18px; bottom:10px; text-align:center; z-index:3; }
   #info .one { font:600 15px var(--serif); color:#f0e4c4; text-shadow:0 1px 3px #000, 0 0 8px #000; font-style:italic; }
-  #hint { position:absolute; left:0; right:0; bottom:calc(env(safe-area-inset-bottom) + 26px); text-align:center; font:600 11.5px var(--cin); letter-spacing:.26em; text-transform:uppercase; color:#ecd9a0; text-shadow:0 1px 4px #000, 0 0 10px #000; transition:opacity .5s; pointer-events:none; animation:breathe 2.6s ease-in-out infinite; }
+  #hint { position:absolute; left:0; right:0; bottom:16px; text-align:center; font:600 11.5px var(--cin); letter-spacing:.26em; text-transform:uppercase; color:#ecd9a0; text-shadow:0 1px 4px #000, 0 0 10px #000; transition:opacity .5s; pointer-events:none; animation:breathe 2.6s ease-in-out infinite; }
   #hint.hide { opacity:0; animation:none; }
   @keyframes breathe { 0%,100%{opacity:.65} 50%{opacity:1} }
-  /* cartão do adversário (sobe de baixo) */
-  #card { position:absolute; left:0; right:0; bottom:0; z-index:6; padding:18px 14px calc(env(safe-area-inset-bottom) + 14px); background:linear-gradient(#1a120b,#0c0804 70%); border-top:2px solid #8a6a2c; border-radius:18px 18px 0 0; box-shadow:0 -14px 30px rgba(0,0,0,.8), inset 0 1px 0 rgba(246,227,163,.35); transform:translateY(105%); transition:transform .5s cubic-bezier(.2,.85,.3,1); }
-  #card.on { transform:none; }
-  #card::before { content:''; position:absolute; left:50%; top:-9px; width:160px; height:14px; margin-left:-80px; background:url(ui/divider.png) center/100% 100% no-repeat; }
-  #card .x { position:absolute; right:10px; top:-20px; width:40px; height:40px; background:url(ui/icon-btn.png) center/contain no-repeat; color:var(--gold2); font-size:23px; display:flex; align-items:center; justify-content:center; padding-bottom:2px; cursor:pointer; filter:drop-shadow(0 3px 4px rgba(0,0,0,.7)); }
-  #card .x:active { background-image:url(ui/icon-btn-dark.png); }
-  .who { display:flex; gap:12px; align-items:center; }
-  .who .pt { flex:none; width:78px; height:92px; border-radius:8px; background-size:cover; background-position:50% 14%; box-shadow:0 0 0 1px #000, 0 0 0 3px #8a6a2c, 0 6px 12px rgba(0,0,0,.7); position:relative; }
-  .who .pt.lock { background:linear-gradient(#2a2620,#14110d); display:flex; align-items:center; justify-content:center; font-size:34px; filter:grayscale(1); }
-  .who .nm { min-width:0; flex:1; padding-right:34px; }
-  .who h2 { margin:0; font:700 19px/1.1 var(--cin); letter-spacing:.04em; color:var(--gold2); text-shadow:0 2px 2px #000; }
-  .who .ep { margin:3px 0 7px; font:600 10.5px var(--cin); letter-spacing:.14em; color:#b9a77a; text-transform:uppercase; }
-  .who .meta { display:flex; align-items:center; gap:8px; }
-  .cdesc { margin:12px 2px 0; font:600 15px/1.3 var(--serif); color:#ece0bf; }
-  .chips { display:flex; gap:7px; flex-wrap:wrap; margin-top:10px; }
+  /* painel de baixo */
+  #sheet { position:relative; flex:0 0 auto; padding:16px 12px calc(env(safe-area-inset-bottom) + 14px); background:linear-gradient(#17100a,#0c0804 60%); border-top:2px solid #6f5324; box-shadow:0 -12px 26px rgba(0,0,0,.75), inset 0 1px 0 rgba(246,227,163,.28); z-index:4; }
+  #sheet::before { content:''; position:absolute; left:50%; top:-9px; width:150px; height:14px; margin-left:-75px; background:url(ui/divider.png) center/100% 100% no-repeat; }
+  #list { max-height:228px; min-height:120px; overflow-y:auto; margin:0 -4px; padding:2px 4px; scrollbar-width:none; }
+  #list::-webkit-scrollbar { display:none; }
+  .row { position:relative; height:62px; margin-bottom:6px; border-style:solid; border-width:11px 11px 11px 58px; border-image:url(ui/panel-row.png) 22 22 22 112 fill stretch; display:flex; align-items:center; justify-content:space-between; padding:0 0 0 8px; cursor:pointer; transition:transform .12s, filter .3s; animation:rowin .5s both; animation-delay:calc(var(--i,0) * 70ms + 80ms); }
+  .row:active { transform:scale(.985); }
+  .row.sel { border-image-source:url(ui/row-selected.png); filter:drop-shadow(0 0 7px rgba(240,200,100,.5)); animation:rowin .5s both, glow 2.6s ease-in-out infinite; animation-delay:calc(var(--i,0) * 70ms + 80ms), 0s; }
+  .row.locked { border-image-source:url(ui/row-locked.png); }
+  .row.bad { filter:drop-shadow(0 0 6px rgba(224,100,70,.65)); }
+  @keyframes rowin { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  @keyframes glow { 0%,100% { filter:drop-shadow(0 0 5px rgba(240,200,100,.35)); } 50% { filter:drop-shadow(0 0 11px rgba(255,220,130,.75)); } }
+  .row .face { position:absolute; left:-52px; top:-5px; width:44px; height:44px; border-radius:5px; background-size:cover; background-position:50% 12%; box-shadow:0 0 0 1px rgba(0,0,0,.8); }
+  .row.locked .face { display:none; }
+  .row .t { min-width:0; }
+  .row h3 { display:flex; align-items:center; margin:0; font:700 14.5px var(--cin); letter-spacing:.05em; color:var(--gold2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 1px 2px #000; }
+  .row p { margin:2px 0 0; font:600 10px var(--cin); letter-spacing:.1em; color:var(--muted); text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row.locked h3 { color:#aaa49a; } .row.locked p { color:#8e887c; }
+  .stars { display:flex; gap:2px; flex:none; margin-right:2px; } .stars i { width:17px; height:17px; background:url(ui/star-on.png) center/contain no-repeat; } .stars i.off { background-image:url(ui/star-off.png); }
+  .drawer { margin:-4px 3px 8px; padding:11px 13px 11px; border:1px solid #6f5324; border-top:none; border-radius:0 0 8px 8px; background:linear-gradient(#1b130b,#120c07); box-shadow:inset 0 6px 8px -6px #000; animation:drawer .35s ease-out; }
+  @keyframes drawer { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:none; } }
+  .drawer p { margin:0 0 8px; font:600 14px/1.25 var(--serif); color:#ece0bf; }
+  .chips { display:flex; gap:7px; flex-wrap:wrap; }
   .chip { border-style:solid; border-width:8px 16px; border-image:url(ui/chip.png) 22 62 22 62 fill stretch; font:600 10.5px var(--cin); color:#f0dca0; white-space:nowrap; letter-spacing:.05em; display:flex; align-items:center; height:32px; }
-  .stars { display:flex; gap:2px; flex:none; } .stars i { width:18px; height:18px; background:url(ui/star-on.png) center/contain no-repeat; } .stars i.off { background-image:url(ui/star-off.png); }
-  #card .lockbox { margin:14px 2px 0; padding:11px 13px; border-radius:8px; background:rgba(0,0,0,.35); box-shadow:inset 0 0 0 1px #5a431c; font:600 14.5px/1.3 var(--serif); color:#d8c89b; }
-  #card .lockbox b { color:var(--gold2); }
   /* botões */
   .fight { all:unset; position:relative; display:flex; align-items:center; justify-content:center; width:100%; height:62px; margin-top:10px; cursor:pointer; border-style:solid; border-width:14px 56px; border-image:url(ui/btn-primary.png) 20 80 20 80 fill stretch; font:900 21px var(--cin); letter-spacing:.3em; padding-left:.3em; color:#2a1604; text-shadow:0 1px 0 rgba(255,255,255,.55); text-transform:uppercase; box-sizing:border-box; transition:filter .1s, transform .1s; filter:drop-shadow(0 6px 8px rgba(0,0,0,.6)); }
   .fight::after { content:''; position:absolute; inset:-2px -44px; background:linear-gradient(100deg, transparent 38%, rgba(255,255,255,.62) 50%, transparent 62%); background-size:260% 100%; background-position:150% 0; animation:shine 3.8s ease-in-out infinite; mix-blend-mode:soft-light; pointer-events:none; }
@@ -103,7 +104,7 @@
   .dk b { display:block; font:700 12px var(--cin); letter-spacing:.04em; color:#d9c487; }
   .dk small { display:flex; align-items:center; gap:4px; font:700 10px var(--cin); letter-spacing:.06em; color:#a99768; margin-top:2px; white-space:nowrap; }
   .dk .ck { display:inline-block; width:12px; height:12px; border-radius:50%; background:#6d9a4a; color:#10200a; font-size:9px; line-height:12px; text-align:center; font-weight:900; }
-  .dk .ck.no { background:#d9674a; color:#2a0c05; }
+  .dk .ck.x { background:#d9674a; color:#2a0c05; }
   .dk.sel { background:linear-gradient(#5a431a,#2d1f0b); box-shadow:inset 0 0 0 2px var(--gold), inset 0 1px 0 rgba(255,240,180,.5), 0 0 14px rgba(240,200,100,.5), 0 3px 6px rgba(0,0,0,.5); animation:glow2 2.6s ease-in-out infinite; }
   .dk.sel b { color:#fff3c4; } .dk.sel small { color:#ecd9a0; }
   .dk.sel::after { content:'EM USO'; position:absolute; right:0; top:0; font:900 7px/1 var(--cin); letter-spacing:.12em; padding:3px 6px 3px 7px; border-radius:0 0 0 7px; background:linear-gradient(#f0d68a,#b88b2c); color:#2a1a05; }
@@ -124,9 +125,6 @@
   #map .mk.new svg { animation:bob2 2.2s ease-in-out infinite; }
   @keyframes bob2 { 0%,100% { translate:0 0; } 50% { translate:0 -4px; } }
   #map .mk.won svg { filter:hue-rotate(60deg) saturate(.9) drop-shadow(0 3px 5px rgba(0,0,0,.85)) drop-shadow(0 0 7px rgba(150,220,110,.5)); }
-  .lbl { position:absolute; left:0; top:5px; transform:translateX(calc(-50% + var(--lx,0px))) scale(var(--inv,1)); transform-origin:50% 0; white-space:nowrap; font:700 11px var(--cin); letter-spacing:.08em; text-transform:uppercase; color:var(--gold2); padding:3px 8px 2px; border-radius:9px; background:rgba(14,9,5,.82); box-shadow:0 0 0 1px #6f5324, 0 3px 6px rgba(0,0,0,.7); pointer-events:none; }
-  #map .mk.lock .lbl { color:#9d978a; box-shadow:0 0 0 1px #4a4538, 0 3px 6px rgba(0,0,0,.7); }
-  #map .mk.sel2 svg { animation:none; }
   #toast { position:absolute; left:50%; bottom:90px; transform:translateX(-50%); z-index:40; padding:9px 16px; border-radius:16px; background:rgba(18,12,8,.96); border:1px solid #6f5324; font:600 11.5px var(--cin); letter-spacing:.06em; color:var(--gold2); opacity:0; transition:opacity .3s; pointer-events:none; white-space:nowrap; }
   #toast.on { opacity:1; }
 </style>
@@ -139,21 +137,15 @@
     <div id="pin"><div class="pulse"></div><div class="pulse b"></div>
       <svg viewBox="0 0 34 52"><defs><linearGradient id="pg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0b8"/><stop offset=".5" stop-color="#e0b04a"/><stop offset="1" stop-color="#8a5f14"/></linearGradient></defs>
         <path d="M17 51 C5 33 1 26 1 17 A16 16 0 0 1 33 17 C33 26 29 33 17 51Z" fill="url(#pg)" stroke="#3a2406" stroke-width="2"/><circle cx="17" cy="17" r="7" fill="#1a0f06" stroke="#3a2406" stroke-width="1.5"/><circle cx="17" cy="17" r="3.2" fill="#ffe9a6"/></svg></div>
-    <header><div class="iconbtn" id="back">‹</div><div class="title"><h1>Desafios</h1><i></i></div><div class="prog"><i></i><span>1 / 3</span></div></header>
+    <header><div class="iconbtn">‹</div><div class="title"><h1>Desafios</h1><i></i></div><div class="prog"><i></i><span>1 / 3</span></div></header>
     <div id="place"><div class="plaque" id="region">Marca de Aurelion</div><div class="sub" id="regsub">Capitão</div></div>
     <div id="info"></div><div id="hint">Escolha um adversário</div>
   </div>
   <div id="toast"></div>
-  <div id="card">
-    <div class="x" id="cx">×</div>
-    <div class="who"><div class="pt" id="cpt"></div><div class="nm"><h2 id="cname"></h2><div class="ep" id="cep"></div><div class="meta" id="cmeta"></div></div></div>
-    <p class="cdesc" id="cdesc"></p>
-    <div id="cbody">
-      <div class="chips" id="cchips"></div>
-      <div class="dockhead"><span>Seu deck</span><button class="editlink" id="editDecks"><svg viewBox="0 0 24 24" fill="none" stroke="#f6e3a3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg>Editar decks</button></div>
-      <div id="decks"></div>
-    </div>
-    <div class="lockbox" id="lockbox" style="display:none"></div>
+  <div id="sheet">
+    <div id="list"></div>
+    <div class="dockhead"><span>Seu deck</span><button class="editlink" id="editDecks"><svg viewBox="0 0 24 24" fill="none" stroke="#f6e3a3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg>Editar decks</button></div>
+    <div id="decks"></div>
     <button class="fight" id="fight">Lutar</button>
     <div id="why"></div>
   </div>
@@ -162,11 +154,11 @@
 'use strict';
 const MODE = new URLSearchParams(location.search).get('texto') || 'gaveta';
 const OPP = [
-  { id:'capitao', gen:'Comandante Aurelion', lbl:'Aurelion', epi:'Mestre da Formação', region:'Marca de Aurelion', img:'portraits/capitao.webp', px:158, py:488, short:'Movimento e formação', desc:'Movimento e formação: cada manobra dá bônus aos vizinhos. Joga rápido e bate forte.', tip:'Cuidado com combinações de movimento.', diff:3, stars:2, won:true, reward:'Booster de Capitão', tint:'rgba(200,70,40,.5)' },
-  { id:'cardeal', gen:'Cardeal Pedro', lbl:'Cardeal Pedro', epi:'Voz da Fé', region:'Sé de Pedro', img:'portraits/cardeal.webp', px:676, py:500, short:'Fé, cura e convocações', desc:'Fé e ferro: cura, convocações e emboscadas sagradas. Aguenta e vira o jogo.', tip:'Dano em área quebra as convocações.', diff:2, stars:3, next:true, reward:'Booster de Cardeal', tint:'rgba(240,200,90,.55)' },
-  { id:'mercenarios', gen:'Brann Meia-Coroa', lbl:'Brann', epi:'Comprador de Guerras', region:'Porto das Meias-Coroas', img:'portraits/mercenarios.webp', px:790, py:745, short:'Ouro e tropas alugadas', desc:'Ouro e manutenção: tropas alugadas com ataque alto. Paga caro e bate duro.', tip:'Quem não paga, perde a tropa.', diff:3, stars:1, reward:'Booster de Mercenários', tint:'rgba(120,150,60,.5)' },
-  { id:'bardos', gen:'Aldric Língua-de-Prata', lbl:'Aldric', epi:'Menestrel do Rei', region:'Vila do Javali Dourado', img:'', px:432, py:705, locked:true, unlock:'Vença o Cardeal Pedro para liberar.', short:'Em breve', desc:'Em breve: cantores que se dão bônus entre si; em grupo ficam difíceis de abater.', tip:'', diff:0, stars:0, reward:'', tint:'rgba(150,80,170,.45)' },
-  { id:'muralha', gen:'Capitão da Torre', lbl:'Torre Norte', epi:'Defensor do Castelo', region:'Muralha do Norte', img:'', px:786, py:192, locked:true, unlock:'Vença o Brann Meia-Coroa para liberar.', short:'Em breve', desc:'Em breve: fortificações, escudos e trabucos. Vence pelo desgaste.', tip:'', diff:0, stars:0, reward:'', tint:'rgba(100,120,150,.45)' },
+  { id:'capitao', gen:'Comandante Aurelion', epi:'Mestre da Formação', region:'Marca de Aurelion', img:'portraits/capitao.webp', px:158, py:488, short:'Movimento e formação', desc:'Movimento e formação: cada manobra dá bônus aos vizinhos. Joga rápido e bate forte.', tip:'Cuidado com combinações de movimento.', diff:3, stars:2, won:true, reward:'Booster de Capitão', tint:'rgba(200,70,40,.5)' },
+  { id:'cardeal', gen:'Cardeal Pedro', epi:'Voz da Fé', region:'Sé de Pedro', img:'portraits/cardeal.webp', px:676, py:500, short:'Fé, cura e convocações', desc:'Fé e ferro: cura, convocações e emboscadas sagradas. Aguenta e vira o jogo.', tip:'Dano em área quebra as convocações.', diff:2, stars:3, next:true, reward:'Booster de Cardeal', tint:'rgba(240,200,90,.55)' },
+  { id:'mercenarios', gen:'Brann Meia-Coroa', epi:'Comprador de Guerras', region:'Porto das Meias-Coroas', img:'portraits/mercenarios.webp', px:790, py:745, short:'Ouro e tropas alugadas', desc:'Ouro e manutenção: tropas alugadas com ataque alto. Paga caro e bate duro.', tip:'Quem não paga, perde a tropa.', diff:3, stars:1, reward:'Booster de Mercenários', tint:'rgba(120,150,60,.5)' },
+  { id:'bardos', gen:'Aldric Língua-de-Prata', epi:'Menestrel do Rei', region:'Vila do Javali Dourado', img:'', px:432, py:705, locked:true, unlock:'Vença o Cardeal Pedro para liberar.', short:'Em breve', desc:'Em breve: cantores que se dão bônus entre si; em grupo ficam difíceis de abater.', tip:'', diff:0, stars:0, reward:'', tint:'rgba(150,80,170,.45)' },
+  { id:'muralha', gen:'Capitão da Torre', epi:'Defensor do Castelo', region:'Muralha do Norte', img:'', px:786, py:192, locked:true, unlock:'Vença o Brann Meia-Coroa para liberar.', short:'Em breve', desc:'Em breve: fortificações, escudos e trabucos. Vence pelo desgaste.', tip:'', diff:0, stars:0, reward:'', tint:'rgba(100,120,150,.45)' },
 ];
 const STATES = new URLSearchParams(location.search).get('decks') === 'estados';
 const DECKS = [
@@ -175,47 +167,42 @@ const DECKS = [
   { slot:'Deck 3', gen:'Brann Meia-Coroa', img:'portraits/mercenarios.webp', cards:STATES ? 0 : 60, cloud:false, empty:STATES },
 ];
 const $ = s => document.querySelector(s), MAPPX = 1150, ZOOM = MAPPX / 1024, PIN = { x:195, y:215 };
+function layout() { const r = $('#stage').getBoundingClientRect(); PIN.x = r.width / 2; PIN.y = Math.round(r.height * .5); $('#pin').style.left = PIN.x + 'px'; $('#pin').style.top = PIN.y + 'px'; $('#fx').style.transformOrigin = PIN.x + 'px ' + PIN.y + 'px'; $('#place').style.top = (PIN.y + 20) + 'px'; }
 let cur = -1, usedDeck = 0;
 const PINSVG = '<svg viewBox="0 0 34 52"><path d="M17 51 C5 33 1 26 1 17 A16 16 0 0 1 33 17 C33 26 29 33 17 51Z" fill="#e0b04a" stroke="#3a2406" stroke-width="2"/><circle cx="17" cy="17" r="7" fill="#1a0f06" stroke="#3a2406" stroke-width="1.5"/><circle cx="17" cy="17" r="3.2" fill="#ffe9a6"/></svg>';
-const starsHtml = n => '<span class="stars">' + [0, 1, 2].map(i => `<i class="${i < n ? '' : 'off'}"></i>`).join('') + '</span>';
-OPP.forEach((o, i) => { const m = document.createElement('div'); m.className = 'mk' + (o.locked ? ' lock' : o.won ? ' won' : ' new'); m.style.left = o.px * ZOOM + 'px'; m.style.top = o.py * ZOOM + 'px'; m.innerHTML = PINSVG + `<div class="lbl">${o.locked ? '🔒 ' : o.won ? '✓ ' : ''}${o.lbl}</div>`; m.onclick = e => { e.stopPropagation(); select(i); }; $('#map').appendChild(m); });
-function layout() { const r = $('#stage').getBoundingClientRect(), up = cur >= 0; PIN.x = r.width / 2; PIN.y = Math.round(r.height * (up ? .3 : .5)); $('#pin').style.left = PIN.x + 'px'; $('#pin').style.top = PIN.y + 'px'; $('#fx').style.transformOrigin = PIN.x + 'px ' + PIN.y + 'px'; $('#place').style.top = (PIN.y + 20) + 'px'; }
+const stars = (n, locked) => locked ? '' : '<span class="stars">' + [0, 1, 2].map(i => `<i class="${i < n ? '' : 'off'}"></i>`).join('') + '</span>';
+$('#list').innerHTML = OPP.map((o, i) => `<div class="row${o.locked ? ' locked' : ''}" data-i="${i}" style="--i:${i}">${o.locked ? '' : `<div class="face" style="background-image:url('${o.img}')"></div>`}<div class="t"><h3><span style="overflow:hidden;text-overflow:ellipsis">${o.gen}</span></h3><p>${o.locked ? '🔒 Bloqueado' : o.epi}${o.won ? '<span class="tag win">✓ Vencido</span>' : o.next ? '<span class="tag">Novo</span>' : ''}</p></div>${stars(o.stars, o.locked)}</div>`).join('');
+document.querySelectorAll('#list .row').forEach(r => r.onclick = () => select(+r.dataset.i));
+OPP.forEach((o, i) => { const m = document.createElement('div'); m.className = 'mk' + (o.locked ? ' lock' : o.won ? ' won' : ' new'); m.style.left = o.px * ZOOM + 'px'; m.style.top = o.py * ZOOM + 'px'; m.innerHTML = PINSVG; m.onclick = () => select(i); $('#map').appendChild(m); });
 function overview() {
-  cur = -1; layout();
-  const r = $('#stage').getBoundingClientRect(), s = .42 * r.width / 390, minX = Math.min(...OPP.map(o => o.px)) * ZOOM, maxX = Math.max(...OPP.map(o => o.px)) * ZOOM;
-  const tx = r.width / 2 - (minX + maxX) / 2 * s, ty = r.height / 2 - MAPPX / 2 * s + 6;
-  const map = $('#map'); map.classList.add('over'); map.classList.remove('zoomed'); $('#stage').classList.add('ov'); map.style.setProperty('--inv', (1.15 / s).toFixed(3)); map.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`;
-  document.querySelectorAll('#map .mk').forEach((m, i) => { const l = m.querySelector('.lbl'), x = tx + OPP[i].px * ZOOM * s, half = l.offsetWidth * 1.15 / 2 * 1 + 8; const cl = Math.min(r.width - half, Math.max(half, x)); l.style.setProperty('--lx', ((cl - x) / s) / 1.15 + 'px'); });
-  $('#pin').classList.add('hide'); $('#place').classList.add('hide'); $('#hint').classList.remove('hide'); $('#tint').style.background = 'transparent'; $('#card').classList.remove('on');
+  const r = $('#stage').getBoundingClientRect(), s = Math.min(r.width, r.height - 8) / MAPPX, tx = (r.width - MAPPX * s) / 2, ty = (r.height - MAPPX * s) / 2 + 22;
+  const map = $('#map'); map.classList.add('over'); map.style.setProperty('--inv', (.5 / s).toFixed(2)); map.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`;
+  $('#pin').classList.add('hide'); $('#place').classList.add('hide'); $('#info').innerHTML = ''; $('#hint').classList.remove('hide'); $('#tint').style.background = 'transparent';
 }
 function select(i) {
-  const fromOverview = cur < 0; cur = i; const o = OPP[i]; layout();
-  const sw = $('#stage').clientWidth, sh = $('#stage').clientHeight;
-  const tx = Math.min(0, Math.max(sw - MAPPX, PIN.x - o.px * ZOOM)), ty = Math.min(0, Math.max(sh - MAPPX, PIN.y - o.py * ZOOM));
-  const map = $('#map'); map.classList.remove('over'); map.classList.add('zoomed'); $('#stage').classList.remove('ov'); map.style.transform = `translate(${tx}px, ${ty}px) scale(1)`;
+  document.querySelectorAll('.drawer').forEach(d => d.remove());
+  if (i === cur) { cur = -1; document.querySelectorAll('#list .row').forEach(r => r.classList.remove('sel')); overview(); fightState(); return; }
+  const fromOverview = cur < 0; cur = i; const o = OPP[i];
+  const tx = Math.min(0, Math.max($('#stage').clientWidth - MAPPX, PIN.x - o.px * ZOOM)), ty = Math.min(0, Math.max($('#stage').clientHeight - MAPPX, PIN.y - o.py * ZOOM));
+  const map = $('#map'); map.classList.remove('over'); map.style.transform = `translate(${tx}px, ${ty}px) scale(1)`;
   if (!fromOverview) { const fx = $('#fx'); fx.classList.remove('hop'); void fx.offsetWidth; fx.classList.add('hop'); }
   $('#tint').style.background = o.tint; $('#pin').classList.toggle('locked', !!o.locked); $('#pin').classList.remove('hide'); $('#place').classList.remove('hide'); $('#hint').classList.add('hide');
   $('#region').textContent = o.region; $('#regsub').textContent = o.locked ? 'Região ainda inexplorada' : o.gen + ' · ' + o.epi;
-  // cartão
-  const pt = $('#cpt'); pt.className = 'pt' + (o.locked ? ' lock' : ''); pt.style.backgroundImage = o.locked ? 'none' : `url('${o.img}')`; pt.textContent = o.locked ? '🔒' : '';
-  $('#cname').textContent = o.gen; $('#cep').textContent = o.epi;
-  $('#cmeta').innerHTML = o.locked ? '<span class="tag">Bloqueado</span>' : starsHtml(o.stars) + (o.won ? '<span class="tag win">✓ Vencido</span>' : o.next ? '<span class="tag">Novo</span>' : '');
-  $('#cdesc').textContent = o.desc;
-  $('#cbody').style.display = o.locked ? 'none' : ''; $('#lockbox').style.display = o.locked ? '' : 'none';
-  $('#cchips').innerHTML = `<span class="chip">Dificuldade ${'●'.repeat(o.diff)}${'○'.repeat(3 - o.diff)}</span><span class="chip">🎁 ${o.reward}</span>`;
-  $('#lockbox').innerHTML = '🔒 <b>Como liberar:</b> ' + (o.unlock || '');
-  $('#card').classList.add('on'); fightState();
+  document.querySelectorAll('#list .row').forEach((r, k) => r.classList.toggle('sel', k === i));
+  const chips = o.locked ? '<span class="chip">🔒 Ainda não disponível</span>' : `<span class="chip">Dificuldade ${'●'.repeat(o.diff)}${'○'.repeat(3 - o.diff)}</span><span class="chip">🎁 ${o.reward}</span>`;
+  const row = document.querySelector(`#list .row[data-i="${i}"]`);
+  if (MODE === 'curto') $('#info').innerHTML = `<div class="one">${o.short}</div>`;
+  else { $('#info').innerHTML = ''; const d = document.createElement('div'); d.className = 'drawer'; d.innerHTML = `<p>${o.desc}</p>${o.locked ? '' : `<div class="chips">${chips}</div>`}`; row.after(d); }
+  fightState(); row.scrollIntoView({ block:'nearest', behavior:'smooth' });
 }
-$('#map').addEventListener('click', () => { if (cur >= 0) overview(); });
-$('#cx').onclick = () => overview(); $('#back').onclick = () => { if (cur >= 0) overview(); else toast('Voltaria ao menu'); };
-addEventListener('keydown', e => { if (e.key === 'Escape') overview(); });
+addEventListener('keydown', e => { if (e.key === 'ArrowDown') select(Math.min(OPP.length - 1, cur + 1)); if (e.key === 'ArrowUp') select(Math.max(0, cur - 1)); });
 // ── dock: seleção rápida de deck ──
 const deckOk = d => !d.empty && d.cards >= 60;
 function paintDecks() {
   $('#decks').innerHTML = DECKS.map((d, i) => {
     if (d.empty) return `<div class="dk empty" data-d="${i}"><span class="plus">+</span><small>Montar ${d.slot}</small></div>`;
     const ok = deckOk(d);
-    return `<div class="dk${ok ? '' : ' bad'}${i === usedDeck ? ' sel' : ''}" data-d="${i}"><div class="th" style="background-image:url('${d.img}')"></div><div class="tx"><b>${d.slot}</b><small><span class="ck${ok ? '' : ' no'}">${ok ? '✓' : '!'}</span>${d.cards}/60</small></div></div>`;
+    return `<div class="dk${ok ? '' : ' bad'}${i === usedDeck ? ' sel' : ''}" data-d="${i}"><div class="th" style="background-image:url('${d.img}')"></div><div class="tx"><b>${d.slot}</b><small><span class="ck${ok ? '' : ' x'}">${ok ? '✓' : '!'}</span>${d.cards}/60</small></div></div>`;
   }).join('');
   document.querySelectorAll('#decks .dk').forEach(r => r.onclick = () => { const i = +r.dataset.d; if (DECKS[i].empty) { toast('Abriria o Editor de Decks (' + DECKS[i].slot + ')'); return; } usedDeck = i; paintDecks(); fightState(); });
 }
@@ -224,15 +211,15 @@ function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add
 function fightState() {
   const f = $('#fight'), w = $('#why'), o = OPP[cur], d = DECKS[usedDeck], ok = deckOk(d);
   let off = true, msg = '', warn = false;
-  if (!o) return;
-  if (o.locked) msg = '';
+  if (cur < 0) msg = 'Toque em um adversário no mapa ou na lista.';
+  else if (o.locked) msg = '🔒 ' + o.unlock;
   else if (!ok) { warn = true; msg = `<b>${d.slot}</b> tem ${d.cards}/60 cartas. Escolha outro deck ou complete no editor.`; }
   else { off = false; msg = `<b>${d.slot}</b> · ${d.gen} contra <b>${o.gen}</b>`; }
-  f.classList.toggle('off', off); f.textContent = o.locked ? 'Bloqueado' : 'Lutar';
+  f.classList.toggle('off', off); f.textContent = cur >= 0 && o.locked ? 'Bloqueado' : 'Lutar';
   w.className = warn ? 'warn' : ''; w.innerHTML = msg;
 }
 $('#fight').onclick = () => { const o = OPP[cur]; if (o && !o.locked && deckOk(DECKS[usedDeck])) { const b = $('#fight'); b.textContent = 'Preparando…'; setTimeout(() => { b.textContent = 'Lutar'; }, 1100); } };
-addEventListener('resize', () => { const k = cur; if (k < 0) overview(); else select(k); });
+addEventListener('resize', () => { layout(); if (cur < 0) overview(); else { const k = cur; cur = -1; select(k); } });
 // ── poeira dourada no ar (atmosfera) ──
 (() => { const cv = $('#dust'), cx = cv.getContext('2d'); let W = 0, H = 0, P = [];
   const fit = () => { const r = cv.getBoundingClientRect(), d = Math.min(2, devicePixelRatio || 1); W = cv.width = r.width * d; H = cv.height = r.height * d; cx.setTransform(d, 0, 0, d, 0, 0); W /= d; H /= d; }; fit(); addEventListener('resize', fit);
@@ -241,7 +228,7 @@ addEventListener('resize', () => { const k = cur; if (k < 0) overview(); else se
     P.forEach(p => { p.y -= p.v * .016; p.x += Math.sin(t / 2600 + p.ph) * .0004; if (p.y < -.02) { p.y = 1.02; p.x = Math.random(); } const a = (.25 + .35 * Math.sin(t / 900 + p.ph)) * Math.min(1, p.y * 6) ;
       cx.fillStyle = `rgba(255,226,150,${Math.max(0, a)})`; cx.beginPath(); cx.arc(p.x * W, p.y * H, p.r, 0, 7); cx.fill(); });
     requestAnimationFrame(loop); })(0); })();
-paintDecks(); overview();
+layout(); paintDecks(); overview(); fightState();
 window.__select = select;
 </script>
 </body>
