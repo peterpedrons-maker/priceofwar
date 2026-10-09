@@ -15,6 +15,8 @@ de áudio, para cair no mesmo quadro da imagem. Um `<audio>` comum atrasaria um 
 
 | Convocar carta (carta cai no tabuleiro) | `sfx-convocar.mp3` (volume 0,32, `playCardPlaySfx`) | Baque grave + estalo + trava, mixados de amostras CC0 do pacote npm `uisfx` (estilos "cinematic" e "mechanical": `drop`, `snap`, `lock`); ~0,8 s. Antes: `sfx-jogar-carta.wav` (ainda no repositório). Variante mais seca: ver `docs/janelas/convocar-B.mp3`. |
 
+| Cura (General do Cardeal, Cavaleiro Hospitalário, Bênção) | `sfx-cura.mp3` (arquivo enviado pelo dono, "holy healing spell", 2,5 s; volume 0,7 em `src/combatFx.ts`, nome `cura`) | Toca uma vez no momento em que a luz chega à unidade curada. |
+
 Outros sons (jogar carta, comprar, selecionar, tática, banner etc.) continuam como estavam, tocando por `<audio>`.
 
 Para trocar um som mantendo a sincronia: encontre o instante do golpe forte no arquivo, corte o silêncio inicial para que ele caia no instante da imagem

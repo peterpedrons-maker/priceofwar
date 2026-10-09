@@ -19,6 +19,7 @@ import sfxBoomUrl from './assets/sfx-destruicao-fogo.wav';
 import sfxHitUrl from './assets/sfx-combate-explosao.wav';
 import sfxDanoUrl from './assets/sfx-dano.wav';
 import sfxMagicUrl from './assets/sfx-efeito-magico.mp3';
+import sfxCuraUrl from './assets/sfx-cura.mp3';
 import imgCoin from './assets/fx-coin.webp';
 import imgSeal from './assets/fx-seal.webp';
 import imgContrato from './assets/fx-contrato.webp';
@@ -70,7 +71,7 @@ const IMG: Record<string, HTMLImageElement> = {};
 const SRC: Record<string, string> = { coin: imgCoin, seal: imgSeal, contrato: imgContrato, stars: imgStars, swamp: imgPantano, gold: imgGold, dagger: imgDagger, purse: imgPurse, ball: imgBall, fire: fxFire, smoke: fxSmoke, holy: fxHoly, puff: fxPuff, debris: fxDebris, a_lanca: artLanca, a_virote: artVirote, a_flecha: artFlecha, a_pedra: artPedra, a_brasa: artBrasa, a_espada: artEspada, a_martelo: artMartelo };
 let readyP: Promise<void> | null = null;
 export const preloadCombatFx = (): Promise<void> => (readyP ??= Promise.all(Object.entries(SRC).map(([k, src]) => new Promise<void>(r => { const i = new Image(); i.onload = () => { IMG[k] = i; r(); }; i.onerror = () => r(); i.src = src; }))).then(() => {
-  [sfxBoomUrl, sfxHitUrl, sfxDanoUrl, sfxMagicUrl].forEach(preloadSfx);
+  [sfxBoomUrl, sfxHitUrl, sfxDanoUrl, sfxMagicUrl, sfxCuraUrl].forEach(preloadSfx);
 }));
 
 const resize = () => { if (!cv) return; RES = Math.min(3, window.devicePixelRatio || 1); cv.width = Math.round(window.innerWidth * RES); cv.height = Math.round(window.innerHeight * RES); };
@@ -108,7 +109,7 @@ function loop(t: number) {
 function kick() { if (running || !cv) return; running = true; lastT = performance.now(); requestAnimationFrame(loop); }
 
 // ── sound ────────────────────────────────────────────────────────────────────────────────────────────────────
-const URLS: Record<string, string> = { boom: sfxBoomUrl, hit: sfxHitUrl, dano: sfxDanoUrl, magic: sfxMagicUrl };
+const URLS: Record<string, string> = { boom: sfxBoomUrl, hit: sfxHitUrl, dano: sfxDanoUrl, magic: sfxMagicUrl, cura: sfxCuraUrl };
 const play = (name: string, when: number, vol = 1, rate = 1) => playSfxAt(URLS[name], Math.max(0, when), vol, rate);
 const whoosh = (when: number, dur: number, vol = .5, f0 = 400, f1 = 1800) => playWhoosh(when, dur, vol, f0, f1);
 
@@ -552,7 +553,7 @@ export async function fxHero(kind: 'cura' | 'bonus', env: FxEnv, side: FxSide, t
           for (let i = 0; i < 10; i++) { const d = i * .05, c1x = sx + R(-90, -20), c1y = sy - R(0, 50);
             at(d, () => add({ dur: .75, draw(p: number) { const q = eo(p), x = (1 - q) * (1 - q) * sx + 2 * (1 - q) * q * c1x + q * q * tx, y = (1 - q) * (1 - q) * sy + 2 * (1 - q) * q * c1y + q * q * (ty - 10);
               ctx.save(); ctx.globalCompositeOperation = 'lighter'; const gr = ctx.createRadialGradient(x, y, 0, x, y, 10); gr.addColorStop(0, `rgba(220,255,200,${1 - p * .3})`); gr.addColorStop(1, 'rgba(90,220,100,0)'); ctx.fillStyle = gr; ctx.fillRect(x - 10, y - 10, 20, 20); ctx.restore(); } })); }
-          at(.8 + k * .08, () => { play('dano', 0, .25, 1.7); flash(tx, ty, 90, '120,235,120', .55, .5); ring(tx, ty, 54, .5, '150,255,150', 3); sparksDir(tx, ty, -Math.PI / 2, 1.2, 10, .6, '170,255,150'); if (k === 0) commit(); env.number(t.side, t.slot, t.amount, 'heal'); });
+          at(.8 + k * .08, () => { if (k === 0) play('cura', 0, .7, 1); flash(tx, ty, 90, '120,235,120', .55, .5); ring(tx, ty, 54, .5, '150,255,150', 3); sparksDir(tx, ty, -Math.PI / 2, 1.2, 10, .6, '170,255,150'); if (k === 0) commit(); env.number(t.side, t.slot, t.amount, 'heal'); });
         });
         if (!T.length) commit();
       } });
@@ -908,7 +909,7 @@ export async function fxBencao(env: FxEnv, side: FxSide, targets: FxTarget[]): P
   liftEl(side, 12, -5, 500, .8); sigilo(gx, gy + 38, .7, .4, .78, 1.7); groundGlow(gx, gy + 38, 70, .8, 1.5); risers(gx, gy + 30, 50, 8, .95, 60, .9);
   orb({ from: { x: gx, y: gy - 30 }, to: { x: tx, y: ty - 10 }, dur: .62, delay: 1.3, arc: 120, onEnd() { ring(tx, ty - 10, 44, .4, '255,238,180', 3); ding(0, .16, 1500); twBurst(tx, ty - 10, 8, 34, 0, 13, .5); } });
   const T1 = 1.95;
-  at(T1, () => { glowEl(first.side, first.slot, '255,238,175', 1500, 1.5); whoosh(0, .7, .22, 250, 900); flash(tx, ty, 100, '255,236,170', .65, .55); ding(0, .14, 1900); whiteFlash(.2, 0, .35); env.commit(); });
+  at(T1, () => { glowEl(first.side, first.slot, '255,238,175', 1500, 1.5); whoosh(0, .7, .22, 250, 900); flash(tx, ty, 100, '255,236,170', .65, .55); play('cura', 0, .7, 1); whiteFlash(.2, 0, .35); env.commit(); });
   pilar(tx, ty + 34, .7, T1, 1.7); sigilo(tx, ty + 40, .55, .4, T1, 1.6); groundGlow(tx, ty + 38, 64, T1, 1.5); liftEl(first.side, first.slot, -7, 800, T1 + .05);
   if (!cup) { heartAt(tx, ty - 28, .5, T1 + .25); at(T1 + .3, () => env.number(first.side, first.slot, first.amount, 'heal')); }
   else {
@@ -944,7 +945,7 @@ export async function fxHospitalario(env: FxEnv, side: FxSide, from: number, hea
   if (a && heal) {
     dimAt(a.x, a.y, 110, .45, .8, 1.0);
     orb({ from: { x: kx, y: ky - 20 }, to: { x: a.x, y: a.y - 10 }, dur: .45, delay: .5, arc: 70, onEnd() { ring(a.x, a.y - 10, 38, .35, '255,238,180', 3); twBurst(a.x, a.y - 10, 6, 28, 0, 12, .4); } });
-    at(1.0, () => { glowEl(heal.side, heal.slot, '255,238,175', 1200, 1.45); ding(0, .15, 1700); flash(a.x, a.y, 80, '255,236,170', .55, .45); env.number(heal.side, heal.slot, heal.amount, 'heal'); });
+    at(1.0, () => { glowEl(heal.side, heal.slot, '255,238,175', 1200, 1.45); play('cura', 0, .7, 1); flash(a.x, a.y, 80, '255,236,170', .55, .45); env.number(heal.side, heal.slot, heal.amount, 'heal'); });
     pilar(a.x, a.y + 34, .62, 1.0, 1.5); liftEl(heal.side, heal.slot, -6, 600, 1.05); heartAt(a.x, a.y - 26, .42, 1.2); risers(a.x, a.y + 28, 40, 7, 1.1, 70, .9);
     tEnd = 1.7;
   }
