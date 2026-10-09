@@ -330,3 +330,10 @@ Página de teste: `/mockups/efeitos-cardeal/` (montada por `tools/vfx/mockup-src
 | Atirador da Cruzada (`atirador`) | `destroyed` | `fxAtirador` | sobreposição |
 | qualquer carta que traz soldado do cemitério | uma carta sai do cemitério + `draw` de efeito | `fxRetorno` | sobreposição |
 Para tirar um efeito do jogo, remova o `fx` da carta no catálogo (o do Cardeal Pedro e o do Retorno ficam em `planFx`/`cardOverlayFx`). Não há "soco" de zoom nem pausa no impacto no jogo (só no mockup), porque mexeriam no tabuleiro de React.
+
+## Efeitos permanentes de terreno (mockups, ainda não estão no jogo)
+Canvas por cima do tabuleiro real (`tools/vfx/mockup-src/`), medindo as casas pelos ids `player-N` da página; cada efeito tem `start`/`end` (jogada e terreno destruído).
+- **Solo Sagrado** (Cardeal, `solo-sagrado.js`): clarão e onda de luz na jogada, depois só um tom dourado fraco no chão, o sigilo girando devagar e raras partículas. Intensidade única `I` (0,3 em repouso).
+- **Fortaleza de Pedra** (Capitão, `muralha2.js`, textura `pedra-textura.jpg`): torres, muralha e portão sobem em pedaços de textura de pedra com bisel, poeira e tremor leve; bandeiras, tochas e brilho de aço na carta; desaba quando o terreno cai. `window.__muralhaMode = 'u'` (muralha de baixo + laterais finas, frente aberta) ou `'quad'` (fecha também a frente). A faixa livre do tabuleiro é a de baixo (y ≈ 665–727 num celular 390×844); o quadrado cobre os nomes das fileiras e a barra de fase, então prefira o "U".
+- **Acampamento dos Mercenários** (`acampamento.js`, nome provisório; não existe carta de Terreno dos Mercenários ainda): estacas e corda, duas barracas, caixotes, barril, fogueira com brasas e estandarte com moeda.
+- Regra: terreno de **estrutura** (muralha, acampamento) pode ser um objeto bem visível; terreno de **clima/ambiente** (sagrado, chuva, pântano) tem de ser sutil, porque fica o tempo todo na tela.
