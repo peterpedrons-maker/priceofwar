@@ -1,6 +1,6 @@
 # Migração para o Godot (plano e regras de convivência)
 
-Decisão do dono: **vamos migrar o jogo para o Godot em breve.** Este documento diz como fazer isso sem quebrar a versão web, que continua sendo o jogo "de verdade" até o Godot alcançá-la. O que está **decidido** e o que está **aberto** vem marcado.
+**ADIADO (decisão do dono): por ora o foco é melhorar o jogo web; o Godot fica parado.** O plano abaixo segue guardado e a regra de isolamento (seção 1) continua valendo. Antes: "vamos migrar o jogo para o Godot em breve". Este documento diz como fazer isso sem quebrar a versão web, que continua sendo o jogo "de verdade" até o Godot alcançá-la. O que está **decidido** e o que está **aberto** vem marcado.
 
 ## 1. Regra de ouro: o Godot nunca mexe na versão web (decidido)
 - Todo o trabalho em Godot fica **só** em `Price of War Godot/`. Nenhum arquivo de `Price of War/` (app web), `supabase/` ou `.github/` é alterado por causa do Godot, **exceto** o que este documento lista na seção 7 (e, mesmo assim, só com o dono sabendo).

@@ -1,6 +1,6 @@
 # Price of War (guia para Claude)
 
-Jogo de cartas digital em React + TypeScript; o app fica em `Price of War/` (há também `Price of War Godot/`, o projeto da migração para o Godot em andamento: leia `Price of War/docs/godot.md`). Responda **sempre em português do Brasil**; o dono joga no celular (mobile primeiro, poucos toques) e quer ver mockup/opinião antes de mudanças visuais grandes. Não crie PR sem pedido; desenvolva na branch `claude/price-of-war-project-xgzrn3` (commit + `git push -u origin` dela, com as linhas de atribuição pedidas pelo ambiente).
+Jogo de cartas digital em React + TypeScript; o app fica em `Price of War/` (há também `Price of War Godot/`, migração para o Godot **adiada**, foco no jogo web: se voltar, leia `Price of War/docs/godot.md`). Responda **sempre em português do Brasil**; o dono joga no celular (mobile primeiro, poucos toques) e quer ver mockup/opinião antes de mudanças visuais grandes. Não crie PR sem pedido; desenvolva na branch `claude/price-of-war-project-xgzrn3` (commit + `git push -u origin` dela, com as linhas de atribuição pedidas pelo ambiente).
 
 ## Antes de mexer (para não reler o jogo inteiro)
 1. Leia `Price of War/docs/visao-geral.md` (uma página: regras, decks, decisões, pendências, "onde mexer para...").
