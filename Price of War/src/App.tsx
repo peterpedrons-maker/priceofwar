@@ -234,6 +234,8 @@ import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendA
 import { xpToNext } from './engine/rewards';
 import { STEPS as TUT_STEPS, BEATS as TUT_BEATS, COIN_STEP as TUT_COIN_STEP, OUTRO as TUT_OUTRO, CHAPTERS as TUT_CHAPTERS, createTutorialMatch, nextEnemyAction as tutEnemyAction, type Step as TutStep, type Tgt as TutTgt, type Until as TutUntil } from './tutorial/script';
 import { KitWindow, KitTitle, KitButton, KitRow, KitTab, KitToggle, KitRange, KitIconButton, KitPlate, KitCount, KitSearch, KitIcon, KitCoins, KitField, KIT_ICONS } from './ui/Kit';
+import googleLogo from './assets/brand/google.svg';
+import discordLogo from './assets/brand/discord.svg';
 import portraitCapitaoImg from './assets/desafios/capitao.webp';
 import portraitCardealImg from './assets/desafios/cardeal.webp';
 import portraitMercenariosImg from './assets/desafios/mercenarios.webp';
@@ -4409,14 +4411,11 @@ const AuthBackdrop = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
+// Logos oficiais (cópias dos SVGs de gilbarbara/logos, em src/assets/brand/). O "G" do Google vai sobre um disco branco, como nos botões de login do Google.
 const GoogleMark = () => (
-  <span className="w-[22px] h-[22px] rounded-full bg-white flex items-center justify-center text-[14px] font-black leading-none" style={{ fontFamily: 'Arial, sans-serif', color: '#4285F4' }}>G</span>
+  <span className="w-[26px] h-[26px] rounded-full bg-white flex items-center justify-center"><img src={googleLogo} alt="" width={16} height={16} draggable={false} /></span>
 );
-const DiscordMark = () => (
-  <span className="w-[22px] h-[22px] rounded-full flex items-center justify-center" style={{ background: '#5865F2' }}>
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="#fff"><path d="M8 7.2c1.2-.5 2.6-.8 4-.8s2.8.3 4 .8c1.6 2.3 2.4 4.8 2.6 7.6-1.1.9-2.3 1.4-3.6 1.8l-.8-1.3c.4-.2.8-.4 1.2-.7-.9.4-1.8.6-3.4.6s-2.5-.2-3.4-.6c.4.3.8.5 1.2.7l-.8 1.3c-1.3-.4-2.5-.9-3.6-1.8.2-2.8 1-5.3 2.6-7.6zm1.6 4.3a1.1 1.1 0 100 2.2 1.1 1.1 0 000-2.2zm4.8 0a1.1 1.1 0 100 2.2 1.1 1.1 0 000-2.2z" /></svg>
-  </span>
-);
+const DiscordMark = () => <img src={discordLogo} alt="" width={26} height={20} draggable={false} />;
 
 const AuthButton = ({ icon, label, onClick, busy = false, primary = false }: { icon?: React.ReactNode; label: string; onClick: () => void; busy?: boolean; primary?: boolean }) => (
   <KitButton tone={primary ? 'gold' : 'normal'} disabled={busy} className="w-full !min-h-[46px]" onClick={() => { if (!busy) { playUiClickSfx(); onClick(); } }}>
