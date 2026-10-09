@@ -202,6 +202,7 @@ import selectSfxUrl from './assets/sfx-selecionar.wav';
 // off to fly, a unit actually taking damage (as opposed to just the attack swing), a
 // harder hit specifically when a General is the one hurt, or a card dying.
 import uiClickSfxUrl from './assets/sfx-clique-ui.wav';
+import warHornSfxUrl from './assets/sfx-corneta-guerra.mp3';
 import cardLiftSfxUrl from './assets/sfx-levantar-carta.wav';
 import damageSfxUrl from './assets/sfx-dano.wav';
 import generalDamageSfxUrl from './assets/sfx-dano-general.wav';
@@ -420,6 +421,12 @@ const playDestroySfx = () => playSfx(destroySfxUrl, 1.1, 'sfx:destroy');
 const playRevealGeneralSfx = () => {
   const audio = new Audio(revealGeneralSfxUrl);
   audio.volume = sfxVol(0.55);
+  audio.play().catch(() => {});
+};
+// "Tum tuuum" of a horn (real French-horn recordings, see docs/audio.md) when a Combate phase begins, whoever's it is.
+const playWarHornSfx = () => {
+  const audio = new Audio(warHornSfxUrl);
+  audio.volume = sfxVol(0.8);
   audio.play().catch(() => {});
 };
 const playBatalhaBannerSfx = () => {
@@ -5280,6 +5287,7 @@ export default function App() {
     if (coinFxBusyRef.current > 0) { window.setTimeout(() => showBanner(title, subtitle, sfx), 150); return; }
     bannersSeen += 1; if (bannersSeen <= BANNER_LEARN_COUNT + 1) { try { localStorage.setItem('pow.banners', String(bannersSeen)); } catch { /* no storage */ } }
     playBannerSfx(sfx);
+    if (title === 'Fase de Combate') playWarHornSfx();
     const id = ++phaseBannerIdRef.current;
     const gen = ++phaseLockGenRef.current;
     setPhaseBanner({ id, title, subtitle, stage: 'in' });

@@ -88,3 +88,5 @@ Página: `public/mockups/batalha/` (`/mockups/batalha/`, tem botão "Som"). GIFs
 - **Som:** a corneta foi **sintetizada por código** (sem internet para baixar): dois toques de trompa (sol grave, depois ré) com batida de tambor e reverberação. Pode ser trocada por um arquivo de corneta de verdade (licença livre) se o dono preferir.
 
 - **Ajustes pedidos pelo dono (hora da batalha):** os estandartes agora **sobem do chão como as peças dos terrenos** (com poeira na base e uma leve passada), têm **tocha acesa bem de leve** (brilho quente suave) e **ficam enquanto a batalha acontece**, afundando no fim da fase. A corneta virou um **"tum tuuum" curto** (≈1,6 s: batida de tambor + nota curta, e logo uma nota longa que cai), sintetizada por código; arquivo `corneta-guerra.mp3/.wav`.
+
+- **Decisão do dono (hora da batalha):** os estandartes, as espadas e os demais efeitos visuais da hora da batalha foram **descartados** (os arquivos do mockup ficam só como histórico). Ficou só o **som de corneta** no começo de cada fase de Combate (ver `docs/audio.md`). Seguem em avaliação: medalhas de quem já atacou, desenho do modo da Relíquia e selo do modo no adversário.
