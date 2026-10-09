@@ -233,6 +233,7 @@ import { DesafiosScreen, type DzDeck, type DzOpponent } from './DesafiosScreen';
 import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
 import { STEPS as TUT_STEPS, BEATS as TUT_BEATS, COIN_STEP as TUT_COIN_STEP, OUTRO as TUT_OUTRO, CHAPTERS as TUT_CHAPTERS, createTutorialMatch, nextEnemyAction as tutEnemyAction, type Step as TutStep, type Tgt as TutTgt, type Until as TutUntil } from './tutorial/script';
+import { KitWindow, KitTitle, KitButton, KitRow, KitTab, KitToggle, KitRange } from './ui/Kit';
 import { ThinFrame, GameBox, GameButton } from './ui/ThinFrame';
 import { NpcPanel, TapHand, Spotlight, TutorialList, TutorialIntro, markTutorialDone, type Hole as TutHole } from './tutorial/ui';
 import { DECK_MAX_CARDS, DECK_MAX_COPIES, DECK_MIN_CARDS } from './engine/deck';
@@ -2669,27 +2670,7 @@ const WINDOW_FRAME_PX = 28;
 const WINDOW_FONT_DECO = "'Cinzel Decorative', 'Cinzel', serif";
 
 const FramedWindow = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
-  <div
-    className={className}
-    style={{
-      borderStyle: 'solid',
-      borderColor: 'transparent',
-      borderWidth: WINDOW_FRAME_PX,
-      borderImageSource: `url(${uiWindowFrameImage})`,
-      borderImageSlice: '90',
-      borderImageWidth: `${WINDOW_FRAME_PX}px`,
-      borderImageRepeat: 'stretch',
-      backgroundColor: '#150e08',
-      backgroundImage: `radial-gradient(ellipse at 50% 25%, rgba(150,100,40,0.28), rgba(150,100,40,0) 70%), url(${uiWindowTextureImage})`,
-      backgroundSize: '100% 100%, 400px 400px',
-      backgroundRepeat: 'no-repeat, repeat',
-      backgroundOrigin: 'border-box',
-      backgroundClip: 'border-box',
-      filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.7))',
-    }}
-  >
-    {children}
-  </div>
+  <KitWindow className={className}>{children}</KitWindow>
 );
 
 // Dimmed backdrop + centered FramedWindow; `onClose` is called on a tap outside.
@@ -2724,17 +2705,7 @@ const WindowDivider = ({ className = '' }: { className?: string }) => (
   </div>
 );
 
-const WindowTitle = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex flex-col gap-1.5">
-    <h2
-      className="text-center uppercase text-[#f3e3c3]"
-      style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 20, letterSpacing: '0.1em', textShadow: '0 2px 3px rgba(0,0,0,0.95)' }}
-    >
-      {children}
-    </h2>
-    <WindowDivider />
-  </div>
-);
+const WindowTitle = ({ children }: { children: React.ReactNode }) => <KitTitle>{children}</KitTitle>;
 
 // ThinFrame / GameBox / GameButton (the thin gold-line frame and what is built from it) live in src/ui/ThinFrame.tsx.
 
@@ -2773,43 +2744,21 @@ const HLine = ({ className = '' }: { className?: string }) => (
 
 // Small pill button drawn with the tab art (bright when selected, dim when not).
 const ArtChip = ({ active, onClick, children, className = '', compact = false }: { active: boolean; onClick: () => void; children: React.ReactNode; className?: string; compact?: boolean; key?: React.Key }) => (
-  <button onClick={() => { playUiClickSfx(); onClick(); }} className={`relative h-[34px] active:scale-95 transition ${className}`}>
-    <ArtFrame
-      src={active ? uiEditorTabOnImage : uiEditorTabOffImage}
-      slice={[44, 44, 44, 44]}
-      width={[11, 11, 11, 11]}
-      className="absolute inset-0"
-      style={{ background: active ? 'rgba(96,68,16,0.6)' : 'rgba(0,0,0,0.4)' }}
-    />
-    <span className={`relative block ${compact ? 'px-2.5' : 'px-4'} uppercase tracking-[0.1em] text-[11px] whitespace-nowrap ${active ? 'text-[#fff1c9]' : 'text-[#a89a78]'}`} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>{children}</span>
-  </button>
+  <KitTab active={active} onClick={() => { playUiClickSfx(); onClick(); }} className={`${compact ? '' : 'px-2'} ${className}`}>{children}</KitTab>
 );
 
 // A selectable row inside a window (deck choice, Casual/Ranqueado): an engraved inset
 // with a soft top highlight and a gold accent on the left instead of a boxed outline.
 const WindowOption = ({ children, onClick }: { children: React.ReactNode; onClick: () => void; key?: React.Key }) => (
-  <button onClick={() => { playUiClickSfx(); onClick(); }} className="block w-full text-left active:brightness-125 active:scale-[0.98] transition">
-    <ThinFrame px={13} style={{ background: 'linear-gradient(to right, rgba(74,48,20,0.5), rgba(24,15,7,0.5))', }}>
-      <div className="px-2 py-1">{children}</div>
-    </ThinFrame>
-  </button>
+  <KitRow onClick={() => { playUiClickSfx(); onClick(); }}>{children}</KitRow>
 );
 
 const WindowText = ({ children }: { children: React.ReactNode }) => (
   <p className="text-center text-[13px] leading-snug text-[#dccfae]" style={{ fontFamily: "'PT Serif', serif" }}>{children}</p>
 );
 
-const WindowButton = ({ children, onClick, primary = false, className = '' }: { children: React.ReactNode; onClick: () => void; primary?: boolean; className?: string }) => (
-  <button onClick={() => { playUiClickSfx(); onClick(); }} className={`active:scale-95 active:brightness-125 transition ${className}`}>
-    <ThinFrame px={11} style={{ background: primary ? 'rgba(122,90,22,0.55)' : 'rgba(20,13,6,0.45)', }}>
-      <span
-        className="block px-4 py-0.5 text-xs uppercase tracking-[0.12em] text-[#f0e0bb]"
-        style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}
-      >
-        {children}
-      </span>
-    </ThinFrame>
-  </button>
+const WindowButton = ({ children, onClick, primary = false, danger = false, className = '' }: { children: React.ReactNode; onClick: () => void; primary?: boolean; danger?: boolean; className?: string }) => (
+  <KitButton tone={primary ? 'gold' : danger ? 'danger' : 'normal'} className={className} onClick={() => { playUiClickSfx(); onClick(); }}>{children}</KitButton>
 );
 
 // Local gallery picker — same modal-overlay pattern as InstallPrompt/
@@ -4674,12 +4623,7 @@ const VolumeRow = ({ label, value, onChange, onRelease, dim }: { label: string; 
       <span className="text-[11px] uppercase tracking-[0.18em] text-[#d8c9a3]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>{label}</span>
       <span className="text-[12px] tabular-nums text-[#f3e3c3]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>{Math.round(value * 100)}%</span>
     </div>
-    <input
-      type="range" min={0} max={100} step={1} value={Math.round(value * 100)} aria-label={label}
-      className="vol-range" style={{ ['--v' as string]: `${Math.round(value * 100)}%` }}
-      onChange={e => onChange(Number(e.target.value) / 100)}
-      onPointerUp={onRelease} onKeyUp={onRelease}
-    />
+    <KitRange label={label} value={value} onChange={onChange} onRelease={onRelease} />
   </div>
 );
 const ToggleRow = ({ label, sub, on, onChange }: { label: string; sub: string; on: boolean; onChange: (v: boolean) => void }) => (
@@ -4688,9 +4632,7 @@ const ToggleRow = ({ label, sub, on, onChange }: { label: string; sub: string; o
       <span className="text-[11px] uppercase tracking-[0.14em] text-[#d8c9a3]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>{label}</span>
       <span className="text-[11px] leading-snug text-[#a89a78]" style={{ fontFamily: "'PT Serif', serif" }}>{sub}</span>
     </span>
-    <span className="shrink-0 relative rounded-full transition-colors" style={{ width: 44, height: 24, background: on ? 'rgba(180,134,36,0.9)' : 'rgba(60,48,30,0.9)', border: '1px solid rgba(232,220,192,0.55)' }}>
-      <span className="absolute top-[2px] rounded-full transition-all" style={{ width: 18, height: 18, left: on ? 22 : 2, background: on ? '#fff0c4' : '#9b8d6c' }} />
-    </span>
+    <KitToggle on={on} />
   </button>
 );
 // Opções: the optional on-screen hints and the sound (overall, music, effects, mute). Reachable from the menu and during a match.
@@ -4746,7 +4688,7 @@ const SettingsModal = ({ session, profileName, onClose }: { session: Session | n
           {!confirming ? (
             <div className="flex gap-3">
               <WindowButton onClick={onClose}>Fechar</WindowButton>
-              <WindowButton onClick={() => setConfirming(true)}>Sair da conta</WindowButton>
+              <WindowButton danger onClick={() => setConfirming(true)}>Sair da conta</WindowButton>
             </div>
           ) : (
             <>

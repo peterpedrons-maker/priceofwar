@@ -1,6 +1,6 @@
 # Janelas do jogo e o kit de interface (levantamento + mockup)
 
-Pedido do dono: aplicar o kit de interface (o mesmo da tela de Desafios) às demais janelas, aos poucos. Primeiro passo: levantar o que existe e mostrar 5 janelas com o kit para aprovar (`/mockups/janelas/`, com botão Antes/Depois; comparativos em `docs/janelas/`). **Nada foi aplicado no jogo ainda.**
+Pedido do dono: aplicar o kit de interface (o mesmo da tela de Desafios) às demais janelas, aos poucos. Primeiro passo: levantar o que existe e mostrar 5 janelas com o kit para aprovar (`/mockups/janelas/`, com botão Antes/Depois; comparativos em `docs/janelas/`). **Passo 1 aplicado no jogo** (ver "No jogo" no fim).
 
 ## O que existe hoje (em `src/App.tsx`, `src/ui/ThinFrame.tsx`)
 Duas famílias de peças:
@@ -45,3 +45,9 @@ Pontos de atenção: o texto da descrição fica um pouco maior (Crimson Pro 13,
 - Em `public/mockups/janelas/kit/`: abas (`tab_on/off`), campo de busca, contador, botão de perigo (vermelho), moeda "+", balão de fala, botão do slider e ícones (`i_voltar`, `i_busca`, `i_filtro`, `i_carta`, `i_lista`, `i_grade`, lixeira etc.). O mockup `public/mockups/janelas/` já usa todas.
 - Ressalvas: os ícones têm contorno vinho escuro, um pouco mais "cartoon" que o resto do kit; textos que a IA pôs nos selos foram apagados; conferido só no navegador de computador (390×844), não no celular.
 - Próximo passo (depois da aprovação do dono): criar `src/ui/Kit.tsx` e trocar o interior de FramedWindow/WindowTitle/WindowButton/WindowOption/ToggleRow/VolumeRow/ArtChip.
+
+## No jogo (passo 1, aplicado)
+- `src/ui/Kit.tsx` + `src/ui/kit.css` + `src/assets/kit/`: `KitWindow`, `KitTitle`, `KitButton` (normal/gold/danger), `KitRow`, `KitTab`, `KitToggle`, `KitRange`.
+- `FramedWindow`, `WindowTitle`, `WindowButton` (novo `danger`), `WindowOption`, `ArtChip`, `ToggleRow`, `VolumeRow` em `App.tsx` agora só chamam o kit; as ≈16 janelas mudaram sozinhas (conferidas: Opções, Configurações, Online). "Sair da conta" usa o botão vermelho.
+- `WindowOption` usa a linha do kit sem encaixe de retrato (o conteúdo traz o próprio ícone).
+- Ainda no estilo antigo: Editor de decks (cabeçalho/abas/busca à mão), Loja (fala), Login, partida (GameBox/GameButton). `ThinFrame`, `uiWindowFrame` e `.vol-range` seguem usados por essas telas.

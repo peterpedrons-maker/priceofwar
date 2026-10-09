@@ -1,0 +1,60 @@
+// Peças do kit de interface das janelas (9 fatias em CSS, ver src/ui/kit.css e docs/janelas-ui.md).
+// FramedWindow/WindowTitle/WindowButton/WindowOption/ToggleRow/VolumeRow/ArtChip, em App.tsx, são só invólucros destas.
+import React from 'react';
+import './kit.css';
+import frameImg from '../assets/kit/modal-frame.png';
+import dividerImg from '../assets/kit/divider.png';
+import btnSecondary from '../assets/kit/btn-secondary.png';
+import btnPrimary from '../assets/kit/btn-primary.png';
+import btnDanger from '../assets/kit/perigo.png';
+import rowImg from '../assets/kit/panel-row.png';
+import rowSelImg from '../assets/kit/row-selected.png';
+import tabOn from '../assets/kit/tab_on.png';
+import tabOff from '../assets/kit/tab_off.png';
+import toggleOn from '../assets/kit/toggle-on.png';
+import toggleOff from '../assets/kit/toggle-off.png';
+import knobImg from '../assets/kit/slider_botao.png';
+
+export const KitWindow = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
+  <div className={`kit-win ${className}`} style={{ borderImageSource: `url(${frameImg})` }}>{children}</div>
+);
+
+export const KitTitle = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex flex-col gap-2">
+    <h2 className="kit-title">{children}</h2>
+    <i className="kit-div" aria-hidden style={{ backgroundImage: `url(${dividerImg})` }} />
+  </div>
+);
+
+export const KitButton = ({ children, onClick, tone = 'normal', className = '', disabled }: {
+  children: React.ReactNode; onClick: () => void; tone?: 'normal' | 'gold' | 'danger'; className?: string; disabled?: boolean;
+}) => (
+  <button
+    onClick={onClick} disabled={disabled}
+    className={`kit-btn ${tone === 'gold' ? 'gold' : tone === 'danger' ? 'danger' : ''} ${disabled ? 'opacity-50 pointer-events-none' : ''} ${className}`}
+    style={{ borderImageSource: `url(${tone === 'gold' ? btnPrimary : tone === 'danger' ? btnDanger : btnSecondary})` }}
+  >{children}</button>
+);
+
+export const KitRow = ({ children, onClick, selected = false }: { children: React.ReactNode; onClick: () => void; selected?: boolean; key?: React.Key }) => (
+  <button onClick={onClick} className="kit-row" style={{ borderImageSource: `url(${selected ? rowSelImg : rowImg})`, filter: selected ? 'drop-shadow(0 0 7px rgba(240,200,100,.5))' : undefined }}>{children}</button>
+);
+
+export const KitTab = ({ active, onClick, children, className = '' }: { active: boolean; onClick: () => void; children: React.ReactNode; className?: string; key?: React.Key }) => (
+  <button
+    onClick={onClick} className={`kit-tab ${className}`}
+    style={{ borderImageSource: `url(${active ? tabOn : tabOff})`, color: active ? '#2a1604' : '#a99768', textShadow: active ? '0 1px 0 rgba(255,255,255,.5)' : undefined }}
+  >{children}</button>
+);
+
+export const KitToggle = ({ on }: { on: boolean }) => (
+  <span className={`kit-tg ${on ? 'on' : ''}`} style={{ backgroundImage: `url(${on ? toggleOn : toggleOff})` }} />
+);
+
+export const KitRange = ({ value, onChange, onRelease, label }: { value: number; onChange: (v: number) => void; onRelease?: () => void; label: string }) => (
+  <input
+    type="range" min={0} max={100} step={1} value={Math.round(value * 100)} aria-label={label}
+    className="kit-range" style={{ ['--v' as string]: `${Math.round(value * 100)}%`, ['--kit-knob' as string]: `url(${knobImg})` }}
+    onChange={e => onChange(Number(e.target.value) / 100)} onPointerUp={onRelease} onKeyUp={onRelease}
+  />
+);
