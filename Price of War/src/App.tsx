@@ -9038,7 +9038,7 @@ export default function App() {
                 mine={isPlayerTurn}
                 phase={shownPhase}
                 locked={locked}
-                name={isPlayerTurn ? undefined : 'ADVERSÁRIO'}
+                name={isPlayerTurn ? undefined : 'TURNO DO ADVERSÁRIO'}
                 tappable={isPlayerTurn && (!automatic || tutTracker !== null)}
                 action={isPlayerTurn && !automatic && !tutOn && !phaseBanner && matchIntroStage === null && !!engineRef.current && bannerDoneKey === `${engineRef.current.turn.round}-${engineRef.current.turn.active}-${shownPhase}` && !phaseTransitionLock && autoPhase === null && (shownPhase === 'preparacao' || shownPhase === 'combate' || shownPhase === 'movimentacao') ? `ENCERRAR ${TRACKER_NAMES[shownPhase]}` : undefined}
                 onEnd={endTurnNow}

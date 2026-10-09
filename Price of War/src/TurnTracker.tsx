@@ -120,7 +120,7 @@ export function TurnTracker({ mine, phase, locked, caption, name, tappable, acti
       <div className="trk-diamond" />
       <div className="trk-lab" key={label}>
         {caption && <em>{caption}</em>}
-        <b className={action ? 'act' : label.length > 11 ? 'long' : ''}>{label}</b>
+        <b className={action || (name && label.length > 14) ? 'act' : label.length > 11 ? 'long' : ''}>{label}</b>
         {tappable && <s>››</s>}
       </div>
       {TRACKER_PHASES.map((p, i) => {
