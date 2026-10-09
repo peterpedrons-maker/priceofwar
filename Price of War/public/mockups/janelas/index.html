@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Janelas do jogo com o kit de interface (mockup)</title>
+<style>
+  @font-face { font-family:'Cinzel'; font-weight:400 900; font-display:swap; src:url(../desafios/fonts/cinzel-regular.woff2) format('woff2'); }
+  @font-face { font-family:'Cinzel Decorative'; font-weight:700; font-display:swap; src:url(../desafios/fonts/cinzel-decorative-700.woff2) format('woff2'); }
+  @font-face { font-family:'Crimson Pro'; font-weight:600; font-display:swap; src:url(../desafios/fonts/crimson-pro-600.woff2) format('woff2'); }
+  :root { --gold:#e6c36a; --gold2:#f6e3a3; --ivory:#f3e8cc; --muted:#b9a77a; --serif:'Crimson Pro',Georgia,serif; --cin:'Cinzel',Georgia,serif; --dec:'Cinzel Decorative','Cinzel',Georgia,serif; --ui:url(../desafios/ui/); }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  html,body { margin:0; height:100%; background:#050403; color:var(--ivory); font-family:var(--cin); overflow:hidden; }
+  #app { position:relative; width:100%; max-width:430px; height:100dvh; margin:0 auto; overflow:hidden; background:#0a0705; }
+  /* barra do mockup (não faz parte do desenho) */
+  #bar { position:absolute; left:0; right:0; top:0; z-index:100; display:flex; gap:6px; padding:6px; background:rgba(8,5,3,.92); border-bottom:1px solid #4a3818; overflow-x:auto; scrollbar-width:none; }
+  #bar::-webkit-scrollbar { display:none; }
+  #bar button { all:unset; flex:none; cursor:pointer; padding:7px 11px; border-radius:14px; font:700 10.5px var(--cin); letter-spacing:.08em; text-transform:uppercase; color:#b9a77a; background:#1a120a; box-shadow:inset 0 0 0 1px #4a3818; }
+  #bar button.on { color:#2a1604; background:linear-gradient(#f0d68a,#b88b2c); box-shadow:none; }
+  #bar .sp { flex:1 0 8px; }
+  #stage { position:absolute; inset:46px 0 0 0; overflow:hidden; }
+  .bg { position:absolute; inset:0; background-size:cover; background-position:center top; }
+  .dim { position:absolute; inset:0; background:rgba(0,0,0,.62); }
+  #antes { position:absolute; inset:0; background-size:100% 100%; background-position:center; background-repeat:no-repeat; display:none; background-color:#000; }
+  body.antes #antes { display:block; } body.antes #depois { visibility:hidden; }
+
+  /* ───── janela (moldura do kit) ───── */
+  .center { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:14px; }
+  .win { position:relative; width:100%; max-width:372px; max-height:100%; display:flex; flex-direction:column; border-style:solid; border-width:22px; border-image:url(../desafios/ui/modal-frame.png) 34 34 34 34 fill stretch; padding:4px 0 0; filter:drop-shadow(0 12px 24px rgba(0,0,0,.8)); animation:pop .3s cubic-bezier(.2,.9,.3,1.2); }
+  @keyframes pop { from { opacity:0; transform:translateY(14px) scale(.96); } to { opacity:1; transform:none; } }
+  .wtitle { text-align:center; margin:0 0 12px; }
+  .wtitle h2 { margin:0; font:700 22px/1 var(--dec); letter-spacing:.15em; padding-left:.15em; background:linear-gradient(#fff7d6,#ecca74 48%,#a8792a); -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(0 2px 1px rgba(0,0,0,.95)) drop-shadow(0 0 10px rgba(230,180,70,.3)); }
+  .wtitle i { display:block; width:200px; height:10px; margin:8px auto 0; background:url(../desafios/ui/divider.png) center/100% 100% no-repeat; }
+  .x { position:absolute; right:-18px; top:-18px; width:40px; height:40px; background:url(../desafios/ui/icon-btn.png) center/contain no-repeat; color:var(--gold2); font-size:23px; display:flex; align-items:center; justify-content:center; padding-bottom:2px; cursor:pointer; filter:drop-shadow(0 3px 4px rgba(0,0,0,.7)); }
+  .body { overflow-y:auto; padding:0 8px; scrollbar-width:none; }
+  .sec { margin:12px 2px 6px; font:700 10px var(--cin); letter-spacing:.24em; text-transform:uppercase; color:#cdb77c; background:url(../desafios/ui/divider.png) left bottom/60% 6px no-repeat; padding-bottom:8px; }
+  .sec:first-child { margin-top:0; }
+  .opt { display:flex; align-items:center; gap:10px; padding:9px 4px; border-bottom:1px solid rgba(111,83,36,.35); }
+  .opt:last-of-type { border-bottom:none; }
+  .opt .tx { flex:1; min-width:0; } .opt b { display:block; font:700 12.5px var(--cin); letter-spacing:.06em; color:var(--gold2); text-transform:uppercase; }
+  .opt small { display:block; margin-top:2px; font:600 13.5px/1.25 var(--serif); color:#b9a77a; }
+  .tg { flex:none; width:56px; height:30px; background:url(../desafios/ui/toggle-off.png) center/contain no-repeat; cursor:pointer; transition:filter .2s; }
+  .tg.on { background-image:url(../desafios/ui/toggle-on.png); filter:drop-shadow(0 0 6px rgba(230,150,70,.45)); }
+  .vol { padding:8px 4px 10px; } .vol .hd { display:flex; justify-content:space-between; font:700 12px var(--cin); letter-spacing:.06em; text-transform:uppercase; color:var(--gold2); margin-bottom:7px; } .vol .hd span { color:#cdb77c; }
+  .sl { position:relative; height:16px; border-radius:9px; background:linear-gradient(#0c0805,#1a120a); box-shadow:inset 0 0 0 1px #6f5324, inset 0 2px 3px rgba(0,0,0,.8); }
+  .sl .f { position:absolute; left:2px; top:2px; bottom:2px; border-radius:7px; background:linear-gradient(#f6dc8a,#c9962f 60%,#8f6a1c); box-shadow:0 0 6px rgba(240,200,100,.35); }
+  .sl .th { position:absolute; top:-5px; width:26px; height:26px; margin-left:-13px; background:url(../desafios/ui/icon-btn.png) center/contain no-repeat; filter:drop-shadow(0 2px 3px rgba(0,0,0,.8)); }
+  .btns { display:flex; gap:8px; padding:8px 8px 6px; } .btns > * { flex:1; }
+  .btn { all:unset; box-sizing:border-box; cursor:pointer; display:flex; align-items:center; justify-content:center; text-align:center; height:46px; border-style:solid; border-width:9px 26px; border-image:url(../desafios/ui/btn-secondary.png) 20 56 20 56 fill stretch; font:700 12px/1.1 var(--cin); letter-spacing:.16em; color:var(--gold2); text-transform:uppercase; text-shadow:0 1px 2px #000; transition:transform .1s, filter .1s; }
+  .btn:active { transform:translateY(2px); border-image-source:url(../desafios/ui/btn-secondary-pressed.png); }
+  .btn.gold { height:50px; border-width:12px 40px; border-image:url(../desafios/ui/btn-primary.png) 20 80 20 80 fill stretch; font-weight:900; font-size:13px; color:#2a1604; text-shadow:0 1px 0 rgba(255,255,255,.55); filter:drop-shadow(0 4px 6px rgba(0,0,0,.6)); }
+  .btn.gold:active { filter:brightness(.82) drop-shadow(0 2px 3px rgba(0,0,0,.6)); }
+  .btn.sm { height:38px; border-width:8px 18px; font-size:10.5px; letter-spacing:.12em; }
+  .note { margin:6px 10px 10px; text-align:center; font:600 14px/1.35 var(--serif); color:#d8c89b; }
+  .note b { color:var(--gold2); }
+  /* linha tocável do kit (Online, Config) */
+  .row { position:relative; display:flex; align-items:center; min-height:68px; margin:0 0 10px 46px; padding:0 0 0 8px; border-style:solid; border-width:11px 11px 11px 58px; border-image:url(../desafios/ui/panel-row.png) 22 22 22 112 fill stretch; cursor:pointer; transition:transform .12s; }
+  .row:active { transform:scale(.985); }
+  .row .ic { position:absolute; left:-52px; top:calc(50% - 22px); width:44px; height:44px; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:24px; background:linear-gradient(#2c2014,#140d07); box-shadow:0 0 0 1px #000, inset 0 0 0 1px #8a6a2c; }
+  .row h3 { margin:0; font:700 15px var(--cin); letter-spacing:.06em; color:var(--gold2); text-transform:uppercase; }
+  .row p { margin:2px 0 0; font:600 13.5px/1.25 var(--serif); color:#b9a77a; }
+  .row.sel { border-image-source:url(../desafios/ui/row-selected.png); filter:drop-shadow(0 0 7px rgba(240,200,100,.5)); }
+  .pill { display:inline-block; margin-top:6px; padding:3px 9px 2px; border-radius:10px; background:rgba(0,0,0,.4); box-shadow:inset 0 0 0 1px rgba(230,195,106,.45); font:700 9px var(--cin); letter-spacing:.14em; text-transform:uppercase; color:#d9c487; }
+
+  /* ───── Config: conta ───── */
+  .acc { text-align:center; padding:2px 8px 8px; } .acc .lbl { font:700 10px var(--cin); letter-spacing:.24em; color:#a99768; text-transform:uppercase; } .acc .nm { margin:4px 0 2px; font:700 26px var(--dec); letter-spacing:.1em; color:var(--gold2); text-shadow:0 2px 2px #000; } .acc .gu { font:600 14px var(--serif); color:#b9a77a; }
+  /* ───── Editor de decks (tela cheia) ───── */
+  .scr { position:absolute; inset:0; display:flex; flex-direction:column; padding:10px 10px 12px; background:radial-gradient(ellipse at 50% 18%, #2a1d10 0, #140d07 60%, #0b0704 100%); }
+  .scr::before { content:''; position:absolute; inset:6px; border-radius:6px; box-shadow:inset 0 0 0 1px #5a431c, inset 0 0 22px rgba(0,0,0,.7); pointer-events:none; }
+  .top { display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+  .tabs { display:flex; gap:5px; flex:1; } .tab { flex:1; height:36px; display:flex; align-items:center; justify-content:center; font:700 11px var(--cin); letter-spacing:.1em; text-transform:uppercase; color:#a99768; border-radius:8px; background:linear-gradient(#241a10,#140d07); box-shadow:inset 0 0 0 1px #5a431c; cursor:pointer; }
+  .tab.on { color:#2a1604; background:linear-gradient(#f3d98c,#bd8f2f); box-shadow:inset 0 1px 0 rgba(255,255,255,.55), 0 0 10px rgba(240,200,100,.35); }
+  .ib { flex:none; width:42px; height:42px; background:url(../desafios/ui/icon-btn.png) center/contain no-repeat; display:flex; align-items:center; justify-content:center; color:var(--gold2); font-size:22px; padding-bottom:3px; cursor:pointer; filter:drop-shadow(0 3px 4px rgba(0,0,0,.6)); }
+  .nameRow { position:relative; display:flex; align-items:center; gap:8px; min-height:62px; margin:0 0 8px 46px; padding:0 8px 0 6px; border-style:solid; border-width:11px 11px 11px 58px; border-image:url(../desafios/ui/panel-row.png) 22 22 22 112 fill stretch; }
+  .nameRow .face { position:absolute; left:-52px; top:calc(50% - 22px); width:44px; height:44px; border-radius:5px; background:url(../desafios/portraits/cardeal.webp) 50% 12%/cover; box-shadow:0 0 0 1px #000, 0 0 0 2px #8a6a2c; }
+  .nameRow b { flex:1; min-width:0; font:700 12px var(--cin); letter-spacing:.03em; color:var(--gold2); text-transform:uppercase; line-height:1.2; }
+  .nameRow small { font:700 8.5px var(--cin); letter-spacing:.1em; color:#a99768; text-transform:uppercase; text-align:right; line-height:1.25; }
+  .count { flex:none; min-width:42px; height:30px; padding:0 9px; display:flex; align-items:center; justify-content:center; border-radius:15px; font:900 15px var(--cin); color:#9fe0a8; background:#0e1a10; box-shadow:inset 0 0 0 1.5px #5fae6d, 0 0 8px rgba(110,200,120,.35); }
+  .seg { display:flex; gap:6px; margin-bottom:8px; } .seg .tab { height:40px; font-size:12.5px; }
+  .filt { display:flex; gap:6px; align-items:center; margin-bottom:8px; }
+  .search { flex:1; height:42px; border-radius:21px; padding:0 14px; display:flex; align-items:center; font:600 14px var(--serif); color:#8a7a56; background:linear-gradient(#0c0805,#16100a); box-shadow:inset 0 0 0 1px #6f5324, inset 0 2px 4px rgba(0,0,0,.8); }
+  .grid { flex:1; min-height:0; border-radius:8px; overflow:hidden; background:#0d0805 url(img/grade-cartas.jpg) center top/100% auto no-repeat; box-shadow:inset 0 0 0 1px #5a431c; position:relative; }
+  .grid::after { content:''; position:absolute; left:0; right:0; bottom:0; height:46px; background:linear-gradient(transparent,#0d0805); }
+  .foot { display:flex; gap:8px; margin-top:8px; } .foot > * { flex:1; }
+  /* ───── Loja ───── */
+  .coroas { position:absolute; right:12px; top:12px; display:flex; align-items:center; gap:7px; height:40px; padding:0 14px 0 8px; border-style:solid; border-width:9px 20px; border-image:url(../desafios/ui/chip.png) 22 62 22 62 fill stretch; font:700 15px var(--cin); color:var(--gold2); filter:drop-shadow(0 3px 4px rgba(0,0,0,.6)); }
+  .coroas i { width:22px; height:22px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #fff1b0, #d9a93a 55%, #8a5f14); box-shadow:0 0 0 1.5px #3a2406; }
+  .speech { position:absolute; left:10px; right:10px; bottom:14px; padding:6px 0 0; border-style:solid; border-width:22px; border-image:url(../desafios/ui/modal-frame.png) 34 34 34 34 fill stretch; filter:drop-shadow(0 10px 20px rgba(0,0,0,.8)); animation:pop .3s ease-out; }
+  .speech .who { margin:-6px 0 4px; font:700 11px var(--cin); letter-spacing:.2em; text-transform:uppercase; color:#cdb77c; text-align:center; }
+  .speech p { margin:0 4px 10px; text-align:center; font:600 17px/1.3 var(--serif); color:#efe3c2; }
+  .sub { margin:0 auto 6px; text-align:center; font:600 12px var(--cin); letter-spacing:.14em; color:#a99768; text-transform:uppercase; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="bar"></div>
+  <div id="stage"><div id="depois"></div><div id="antes"></div></div>
+</div>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const VIEWS = [
+  { id:'opcoes', nome:'Opções' }, { id:'config', nome:'Config.' }, { id:'online', nome:'Online' }, { id:'editor', nome:'Editor de decks' }, { id:'loja', nome:'Loja' },
+];
+if (new URLSearchParams(location.search).has('limpo')) { document.head.insertAdjacentHTML('beforeend','<style>#bar{display:none}#stage{inset:0}</style>'); }
+let cur = new URLSearchParams(location.search).get('v') || 'opcoes', antes = new URLSearchParams(location.search).has('antes');
+const tg = on => `<i class="tg${on ? ' on' : ''}" onclick="this.classList.toggle('on')"></i>`;
+const vol = (n, v) => `<div class="vol"><div class="hd">${n}<span>${v}%</span></div><div class="sl"><div class="f" style="width:calc(${v}% - 4px)"></div><div class="th" style="left:calc(${v}% - ${v * .26}px + 13px - 13px)"></div></div></div>`;
+const win = (titulo, corpo, btns, x = true) => `<div class="center"><div class="win">${x ? '<div class="x">×</div>' : ''}<div class="wtitle"><h2>${titulo}</h2><i></i></div><div class="body">${corpo}</div>${btns}</div></div>`;
+const R = {
+  opcoes: () => `<div class="bg" style="background-image:url(img/menu-fundo.jpg)"></div><div class="dim"></div>` + win('Opções',
+    `<div class="sec">Avisos na tela</div>
+     <div class="opt"><div class="tx"><b>Dicas de arrastar</b><small>Dedo sobre a mão, “segure e arraste” e “solte aqui”.</small></div>${tg(true)}</div>
+     <div class="opt"><div class="tx"><b>Dicas no tabuleiro</b><small>Palavras nas casas (Ataca, Reserva, Protegida) e nos alvos das Táticas.</small></div>${tg(true)}</div>
+     <div class="sec">Efeitos</div>
+     <div class="opt"><div class="tx"><b>Terrenos animados</b><small>A muralha da Fortaleza de Pedra sobe e tem tochas. Desligado: imagem parada, mais leve.</small></div>${tg(true)}</div>
+     <div class="sec">Som</div>${vol('Geral', 100)}${vol('Música', 70)}${vol('Efeitos', 100)}`,
+    `<div class="btns"><button class="btn">Mudo</button><button class="btn gold">Fechar</button></div>`, false),
+  config: () => `<div class="bg" style="background-image:url(img/menu-fundo.jpg)"></div><div class="dim"></div>` + win('Configurações',
+    `<div class="acc"><div class="lbl">Conta</div><div class="nm">Teste</div><div class="gu">Convidado</div></div>
+     <p class="note">Como convidado, seu progresso existe <b>só neste aparelho</b>. Ligue uma conta para não perdê-lo.</p>`,
+    `<div class="btns"><button class="btn">Sair da conta</button><button class="btn gold">Fechar</button></div>`, false),
+  online: () => `<div class="bg" style="background-image:url(img/menu-fundo.jpg)"></div><div class="dim"></div>` + win('Online',
+    `<div class="row"><div class="ic">⚔</div><div><h3>Casual</h3><p>Partidas amistosas, sem pontos em jogo.</p></div></div>
+     <div class="row sel"><div class="ic">🏆</div><div><h3>Ranqueado</h3><p>Suba de rank e ganhe recompensas.</p><span class="pill">Em breve</span></div></div>`,
+    `<div class="btns"><button class="btn">Voltar</button></div>`, false),
+  editor: () => `<div class="scr">
+      <div class="top"><div class="ib">‹</div><div class="tabs"><div class="tab on">Deck 1</div><div class="tab">Deck 2</div><div class="tab">Deck 3</div></div></div>
+      <div class="nameRow"><div class="face"></div><b>Deck Cardeal Pedro ✎</b><small>Mín. 40</small><span class="count">60</span></div>
+      <div class="seg"><div class="tab on">Deck (60)</div><div class="tab">Reserva (134)</div></div>
+      <div class="filt"><div class="search">Buscar…</div><div class="ib">▭</div><div class="ib">☰</div><div class="ib">▦</div><button class="btn sm" style="flex:none;width:auto;padding:0 6px">Filtros</button></div>
+      <div class="grid"></div>
+      <div class="foot"><button class="btn">Limpar deck</button><button class="btn gold">Preencher automático</button></div>
+    </div>`,
+  loja: () => `<div class="bg" style="background-image:url(img/loja-fundo.jpg);background-size:100% auto;background-position:center top"></div><div style="position:absolute;left:0;right:0;bottom:0;height:300px;background:linear-gradient(transparent,#0a0705 55%)"></div>
+    <div class="coroas"><i></i>150</div>
+    <div class="speech"><div class="who">Mercador</div><p>Bem-vindo, viajante! Cartas novas para o seu baralho? Chegou na loja certa.</p><div class="btns"><button class="btn">Sair</button><button class="btn gold">Comprar</button></div></div>`,
+};
+function render() {
+  document.body.classList.toggle('antes', antes);
+  $('#bar').innerHTML = VIEWS.map(v => `<button class="${v.id === cur ? 'on' : ''}" data-v="${v.id}">${v.nome}</button>`).join('') + '<span class="sp"></span>' + `<button class="${antes ? 'on' : ''}" data-a="1">${antes ? 'Antes' : 'Depois'}</button>`;
+  $('#depois').innerHTML = R[cur](); $('#antes').style.backgroundImage = `url(antes/${cur === 'loja' ? 'loja' : cur === 'editor' ? 'editor' : cur}.jpg)`;
+  document.querySelectorAll('#bar button').forEach(b => b.onclick = () => { if (b.dataset.v) cur = b.dataset.v; else antes = !antes; render(); });
+}
+render();
+</script>
+</body>
+</html>
