@@ -130,7 +130,7 @@ export function TurnTracker({ mine, phase, locked, caption, name, tappable, acti
     </div>
     {onEnd && (
       <div className={`trk-end ${endReady ? 'ready' : ''} ${endPressed ? 'press' : ''}`} data-tut="end-turn" role="button" aria-disabled={!endReady}
-        style={{ left: PLATE_W * scale, width: END_W * scale, height: PLATE_H * scale, '--esc': scale, '--mend': `url(${endMask})`, '--aend': `url(${endArt})` } as CSSProperties}
+        style={{ left: PLATE_W * scale, width: END_W * scale, height: PLATE_H * scale, '--esc': scale, '--b1': pal.b1, '--b2': pal.b2, '--glow': pal.glow, '--mend': `url(${endMask})`, '--aend': `url(${endArt})` } as CSSProperties}
         onPointerDown={(e) => { e.stopPropagation(); if (endReady) setEndPressed(true); }}
         onPointerUp={() => setEndPressed(false)} onPointerLeave={() => setEndPressed(false)} onPointerCancel={() => setEndPressed(false)}
         onClick={(e) => { e.stopPropagation(); if (endReady) onEnd(); }}>

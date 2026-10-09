@@ -8,11 +8,12 @@
 .trk-end { position: absolute; top: 0; cursor: pointer; filter: drop-shadow(0 3px 6px rgba(0,0,0,.72)); -webkit-tap-highlight-color: transparent; transition: transform .08s; }
 .trk-end.press { transform: scale(.95); }
 .trk-end-fill { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(46,36,26,.94), rgba(16,11,7,.96)); -webkit-mask: var(--mend) 0 0/100% 100% no-repeat; mask: var(--mend) 0 0/100% 100% no-repeat; }
-.trk-end.ready .trk-end-fill { background: linear-gradient(180deg, #f3d37a, #c59a35 55%, #94701d); }
+.trk-end .trk-end-fill { background: linear-gradient(180deg, var(--b1), var(--b2)); filter: brightness(.55) saturate(.75); transition: filter .25s; }
+.trk-end.ready .trk-end-fill { filter: none; }
 .trk-end-art { position: absolute; inset: 0; background: var(--aend) 0 0/100% 100% no-repeat; }
 .trk-end > span { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; line-height: 1.05; }
-.trk-end b { font-family: 'Cinzel Decorative', 'Cinzel', serif; font-weight: 900; font-size: calc(9.2px * var(--esc, .7)); letter-spacing: .03em; text-transform: uppercase; color: #8b7f66; text-shadow: 0 1px 2px #000; }
-.trk-end.ready b { color: #2b1a06; text-shadow: 0 1px 0 rgba(255,236,170,.55); }
+.trk-end b { font-family: 'Cinzel Decorative', 'Cinzel', serif; font-weight: 900; font-size: calc(9.2px * var(--esc, .7)); letter-spacing: .03em; text-transform: uppercase; color: rgba(255,250,240,.62); text-shadow: 0 1px 2px #000; }
+.trk-end.ready b { color: #fffaf0; text-shadow: 0 1px 2px #000, 0 0 6px rgba(0,0,0,.6), 0 0 12px var(--glow); }
 .trk-neutral { background: linear-gradient(180deg, rgba(46,36,26,.94), rgba(16,11,7,.96)); -webkit-mask: var(--mneu) 0 0/100% 100% no-repeat; mask: var(--mneu) 0 0/100% 100% no-repeat; }
 .trk-band { overflow: hidden; -webkit-mask: var(--mband) 0 0/100% 100% no-repeat; mask: var(--mband) 0 0/100% 100% no-repeat; }
 .trk-fill { position: absolute; inset: 0; background: linear-gradient(180deg, var(--b1), var(--b2)); }
