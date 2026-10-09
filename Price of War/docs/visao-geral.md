@@ -30,6 +30,7 @@ Menu principal (fundo "A guerra dos dois Generais", logo no céu e cinco placas 
 - **Coleção e inventário reais:** hoje todo jogador tem as cartas dos três decks e os boosters nunca acabam (`TEST_FREE_BOOSTERS`). Falta quantidade real de cada booster, bolsos vazios no livro e decidir coleções (por facção, "base", cartas em mais de uma coleção).
 - **Booster do Capitão:** arte provisória (letra "C").
 - **Balanceamento a revisar:** Mercador da Cruzada (agora com custo de 1 de ouro e resto ao cemitério) e as outras cartas que compram carta (Intendente, Recrutar Veteranos); viradas (comeback) com pessoas reais; novos decks só depois de o equilíbrio atual estar bom.
+- **Migração para o Godot (decidida, em breve):** plano, riscos e perguntas abertas em `docs/godot.md`; o Godot nunca mexe no web.
 - **Efeitos de ativação do Cardeal: no jogo** (8 cartas; ver `docs/animacoes.md`). Mockup em `/mockups/efeitos-cardeal/`.
 - **Efeitos das cartas únicas (Mercenários e Capitão): no jogo** (campo `fx` do catálogo + `src/combatFx.ts`; ver `docs/animacoes.md`). Foram aprovados no mockup (`/mockups/efeitos-decks/`) e ligados sem as linhas de onda. Qualquer um sai do jogo tirando o `fx` da carta. Online/IA usam o mesmo caminho (eventos do motor).
 - **Deck Bardos (proposta, nada aplicado):** `docs/deck-bardos.md` (30 cartas diferentes, 60 no total, cartas com mais de um efeito, núcleo repetido). Depende de marca "Bardo", aura "ao lado" e mais de um rótulo de gatilho no motor.

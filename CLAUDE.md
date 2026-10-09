@@ -1,6 +1,6 @@
 # Price of War (guia para Claude)
 
-Jogo de cartas digital em React + TypeScript; o app fica em `Price of War/` (há também `Price of War Godot/`, protótipo antigo). Responda **sempre em português do Brasil**; o dono joga no celular (mobile primeiro, poucos toques) e quer ver mockup/opinião antes de mudanças visuais grandes. Não crie PR sem pedido; desenvolva na branch `claude/price-of-war-project-xgzrn3` (commit + `git push -u origin` dela, com as linhas de atribuição pedidas pelo ambiente).
+Jogo de cartas digital em React + TypeScript; o app fica em `Price of War/` (há também `Price of War Godot/`, o projeto da migração para o Godot em andamento: leia `Price of War/docs/godot.md`). Responda **sempre em português do Brasil**; o dono joga no celular (mobile primeiro, poucos toques) e quer ver mockup/opinião antes de mudanças visuais grandes. Não crie PR sem pedido; desenvolva na branch `claude/price-of-war-project-xgzrn3` (commit + `git push -u origin` dela, com as linhas de atribuição pedidas pelo ambiente).
 
 ## Antes de mexer (para não reler o jogo inteiro)
 1. Leia `Price of War/docs/visao-geral.md` (uma página: regras, decks, decisões, pendências, "onde mexer para...").
@@ -18,6 +18,7 @@ Jogo de cartas digital em React + TypeScript; o app fica em `Price of War/` (há
 - Teste visual: servidor estático do `dist` e scripts Playwright (Chromium já instalado; não rode `playwright install`).
 
 ## Regras de ouro do projeto
+- **Godot x web isolados:** trabalho do Godot só em `Price of War Godot/` (commits `Godot: ...`); nunca altere `Price of War/`, `supabase/` ou `.github/` por causa dele, nem importe uma pasta da outra (artes e dados são copiados/gerados). Exceções listadas em `docs/godot.md` seção 7.
 - O motor (`src/engine`) é a única fonte das regras; cliente e servidor só o chamam. O que uma carta faz está em dados no catálogo, não em código por nome de carta.
 - Hooks do React ficam antes dos `return` antecipados do componente `App`.
 - Mudança de regra, carta ou equilíbrio: meça antes no laboratório (IA × IA mostra tendência, não a verdade).

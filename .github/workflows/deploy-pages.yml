@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - claude/price-of-war-project-xgzrn3
+    # Mexer só no protótipo do Godot não republica o site (ver docs/godot.md).
+    paths-ignore:
+      - "Price of War Godot/**"
   workflow_dispatch:
 
 permissions:
