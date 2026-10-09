@@ -228,6 +228,7 @@ import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettin
 import { useGameSettings, setGameSettings } from './gameSettings';
 import tutHandSprite from './assets/tut-hand.webp';
 import type { Trigger } from './engine/types';
+import { preloadTerrainFx, syncTerrainFx, clearTerrainFx, type TerrainFxKind } from './terrainFx';
 import { DesafiosScreen, type DzDeck, type DzOpponent } from './DesafiosScreen';
 import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
@@ -4707,6 +4708,10 @@ const OptionsModal = ({ onClose }: { onClose: () => void }) => {
             <ToggleRow label="Dicas no tabuleiro" sub="Palavras nas casas (Ataca, Reserva, Protegida) e nos alvos das Táticas." on={g.hintsBoard} onChange={v => setGameSettings({ hintsBoard: v })} />
           </div>
           <div className="w-full flex flex-col gap-3">
+            <span className="text-[10px] uppercase tracking-[0.2em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>Efeitos</span>
+            <ToggleRow label="Terrenos animados" sub="A muralha da Fortaleza de Pedra sobe, tem tochas e bandeiras que se mexem. Desligado: imagem parada, mais leve para o celular." on={g.terrainFx} onChange={v => setGameSettings({ terrainFx: v })} />
+          </div>
+          <div className="w-full flex flex-col gap-3">
             <span className="text-[10px] uppercase tracking-[0.2em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>Som</span>
             <VolumeRow label="Geral" value={a.master} dim={a.muted} onChange={v => setAudioSettings({ master: v })} />
             <VolumeRow label="Música" value={a.music} dim={a.muted} onChange={v => setAudioSettings({ music: v })} />
@@ -5174,6 +5179,7 @@ export default function App() {
       if (ctx.state === 'suspended') ctx.resume().catch(() => {});
       [attackSfxUrl, destroySfxUrl, effectSfxUrl].forEach(preloadSfx);   // decoded now, so the first blow / burn starts on time
       preloadHolyFx();
+      void preloadTerrainFx();
       void preloadCombatFx();   // the combat effects (src/combatFx.ts): images and sounds ready before the first Tática
       if (!duelMusicBufferRef.current) {
         const arrayBuffer = await fetch(duelMusicUrl).then(r => r.arrayBuffer());
@@ -5706,6 +5712,17 @@ export default function App() {
     });
     seen.ready = true;
   }, [playerSlots, npcSlots]);
+  // Terreno com efeito permanente (a muralha da Fortaleza de Pedra): sobe quando entra em campo, desaba quando sai (src/terrainFx.ts).
+  const terrainFxPlayer = (getCardDef(playerSlots[11]?.name ?? '')?.fx === 'muralha' ? 'muralha' : null) as TerrainFxKind | null;
+  const terrainFxNpc = (getCardDef(npcSlots[11]?.name ?? '')?.fx === 'muralha' ? 'muralha' : null) as TerrainFxKind | null;
+  const terrainFxFirst = useRef(true);
+  useEffect(() => {
+    if (!gameMode) { clearTerrainFx(); terrainFxFirst.current = true; return; }
+    // a primeira leitura da partida (ou da retomada) mostra o Terreno já de pé; as seguintes animam a subida
+    const first = terrainFxFirst.current; terrainFxFirst.current = false;
+    syncTerrainFx({ player: terrainFxPlayer, npc: terrainFxNpc }, first && (!!terrainFxPlayer || !!terrainFxNpc));
+  }, [gameMode, terrainFxPlayer, terrainFxNpc]);
+  useEffect(() => () => clearTerrainFx(), []);
 
   // Holds the camera's zoomed-in focus for a brief moment after the card lands,
   // so the placement reads clearly before the view eases back to normal.

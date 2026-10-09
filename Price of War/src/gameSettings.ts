@@ -5,13 +5,14 @@ import { useSyncExternalStore } from 'react';
 export type GameSettings = {
   hintsDrag: boolean;   // finger above the hand, "segure e arraste" in the card view, the "Solte…" pill while dragging
   hintsBoard: boolean;  // the words on the board slots (ATACA / RESERVA / PROTEGIDA) and on Tática targets
+  terrainFx: boolean;   // the animated Terreno effects over the board (the wall rising, torches, banners); off = still picture, lighter on the phone
 };
 const KEY = 'pow.settings';
-const DEFAULTS: GameSettings = { hintsDrag: true, hintsBoard: true };
+const DEFAULTS: GameSettings = { hintsDrag: true, hintsBoard: true, terrainFx: true };
 const load = (): GameSettings => {
   try {
     const r = JSON.parse(localStorage.getItem(KEY) || '{}');
-    return { hintsDrag: r.hintsDrag !== false, hintsBoard: r.hintsBoard !== false };
+    return { hintsDrag: r.hintsDrag !== false, hintsBoard: r.hintsBoard !== false, terrainFx: r.terrainFx !== false };
   } catch { return { ...DEFAULTS }; }
 };
 let state: GameSettings = load();

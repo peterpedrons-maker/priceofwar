@@ -196,6 +196,7 @@ var CARD_DEFS = [
   },
   {
     name: "Fortaleza de Pedra",
+    fx: "muralha",
     cardType: "Terreno",
     atk: 0,
     hp: 8,

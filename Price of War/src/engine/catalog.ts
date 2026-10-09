@@ -62,7 +62,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     abilities: [{ on: 'ambush', do: [{ kind: 'displace_attacker' }] }] },
   { name: "Estandarte da Legião", fx: 'estandarte', cardType: "Relíquia", atk: 0, hp: 5, cost: 3, isFullArt: true, effect: "+1/+1 em combate às suas cartas em campo.",
     passives: [{ kind: 'aura', who: { side: 'own' }, atk: 1, combatHp: 1 }] },
-  { name: "Fortaleza de Pedra", cardType: "Terreno", atk: 0, hp: 8, cost: 3, isFullArt: true, effect: "Suas unidades na Retaguarda: -1 de dano de ataques.",
+  { name: "Fortaleza de Pedra", fx: 'muralha', cardType: "Terreno", atk: 0, hp: 8, cost: 3, isFullArt: true, effect: "Suas unidades na Retaguarda: -1 de dano de ataques.",
     passives: [{ kind: 'aura', who: { side: 'own', row: 'back' }, reduce: 1 }] },
   { name: "Pântano Maldito", fx: 'pantano', cardType: "Terreno", atk: 0, hp: 6, cost: 2, effect: "Inimigos na Vanguarda: -1 ATK.",
     passives: [{ kind: 'aura', who: { side: 'enemy', row: 'front' }, atk: -1 }] },
