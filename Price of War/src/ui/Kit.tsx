@@ -27,7 +27,7 @@ export const KitTitle = ({ children }: { children: React.ReactNode }) => (
 );
 
 export const KitButton = ({ children, onClick, tone = 'normal', className = '', disabled }: {
-  children: React.ReactNode; onClick: () => void; tone?: 'normal' | 'gold' | 'danger'; className?: string; disabled?: boolean;
+  children: React.ReactNode; onClick: () => void; tone?: 'normal' | 'gold' | 'danger'; className?: string; disabled?: boolean; key?: React.Key;
 }) => (
   <button
     onClick={onClick} disabled={disabled}
@@ -78,8 +78,10 @@ import iCarta from '../assets/kit/i_carta.png';
 import iLista from '../assets/kit/i_lista.png';
 import iGrade from '../assets/kit/i_grade.png';
 import iLixo from '../assets/kit/i_lixo.png';
+import iEspadas from '../assets/kit/i_espadas.png';
+import iCartas from '../assets/kit/i_cartas.png';
 
-export const KIT_ICONS = { voltar: iVoltar, busca: iBusca, filtro: iFiltro, carta: iCarta, lista: iLista, grade: iGrade, lixo: iLixo };
+export const KIT_ICONS = { voltar: iVoltar, busca: iBusca, filtro: iFiltro, carta: iCarta, lista: iLista, grade: iGrade, lixo: iLixo, espadas: iEspadas, cartas: iCartas };
 
 export const KitIcon = ({ src, size = 20, className = '' }: { src: string; size?: number; className?: string }) => (
   <i aria-hidden className={`kit-ic ${className}`} style={{ width: size, height: size, backgroundImage: `url(${src})` }} />
@@ -127,4 +129,13 @@ import fieldFocusImg from '../assets/kit/campo_foco.png';
 // Campo de texto (login, nome do comandante): o <input> vai dentro; a moldura acende no foco.
 export const KitField = ({ children }: { children: React.ReactNode }) => (
   <div className="kit-field" style={{ ['--kf' as string]: `url(${fieldImg})`, ['--kff' as string]: `url(${fieldFocusImg})` }}>{children}</div>
+);
+
+// Título de prompt da partida (Manutenção, modo da Relíquia, escolher carta): o mesmo título das janelas, com divisor e uma frase de apoio.
+export const PromptTitle = ({ title, sub, small = false }: { title: string; sub?: React.ReactNode; small?: boolean }) => (
+  <div className="text-center pointer-events-none flex flex-col items-center gap-1.5 px-3">
+    <h2 className="kit-title" style={small ? { fontSize: 17, letterSpacing: '.09em', lineHeight: 1.2 } : undefined}>{title}</h2>
+    <i className="kit-div" aria-hidden style={{ backgroundImage: `url(${dividerImg})` }} />
+    {sub && <p className="m-0 text-[#e6d6ae]" style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontWeight: 600, fontSize: 14.5, lineHeight: 1.25, textShadow: '0 2px 6px #000' }}>{sub}</p>}
+  </div>
 );

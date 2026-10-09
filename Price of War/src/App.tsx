@@ -234,7 +234,7 @@ import { DesafiosScreen, type DzDeck, type DzOpponent } from './DesafiosScreen';
 import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
 import { STEPS as TUT_STEPS, BEATS as TUT_BEATS, COIN_STEP as TUT_COIN_STEP, OUTRO as TUT_OUTRO, CHAPTERS as TUT_CHAPTERS, createTutorialMatch, nextEnemyAction as tutEnemyAction, type Step as TutStep, type Tgt as TutTgt, type Until as TutUntil } from './tutorial/script';
-import { KitWindow, KitTitle, KitButton, KitRow, KitTab, KitToggle, KitRange, KitIconButton, KitPlate, KitCount, KitSearch, KitIcon, KitCoins, KitField, KIT_ICONS } from './ui/Kit';
+import { KitWindow, KitTitle, KitButton, KitRow, KitTab, KitToggle, KitRange, KitIconButton, KitPlate, KitCount, KitSearch, KitIcon, KitCoins, KitField, PromptTitle, KIT_ICONS } from './ui/Kit';
 import googleLogo from './assets/brand/google.svg';
 import discordLogo from './assets/brand/discord.svg';
 import portraitCapitaoImg from './assets/desafios/capitao.webp';
@@ -5188,6 +5188,17 @@ export default function App() {
   // decides (see playAiTurn's Arqueiro da Ordem case), so it never needs to
   // consult this.
   const [playerAttackCounts, setPlayerAttackCounts] = useState<Record<number, number>>({});
+  // Fase de Combate: quais unidades de quem joga ainda podem atacar ("ready") e quais já atacaram ("used"); lido do estado do motor.
+  const attackMarkFor = (side: 'player' | 'npc', i: number): 'ready' | 'used' | undefined => {
+    const e = engineRef.current;
+    if (!e || e.winner || e.turn.phase !== 'combate' || i > 9) return undefined;
+    const seat: Seat = side === 'player' ? 0 : 1;
+    if (e.turn.active !== seat || e.pending) return undefined;
+    const c = e.players[seat].board[i]; if (!c) return undefined;
+    if ((e.turn.attackCounts[i] ?? 0) >= getMaxAttacksPerTurn(c)) return 'used';
+    if (getEffectiveAtk(c, i, e.players[seat].board, e.players[1 - seat].board) <= 0 || (c.cardType === 'Infantaria' && isBackline(i))) return undefined;
+    return 'ready';
+  };
 
   // The reveal/search Táticas (Retorno do Soldado, Graal da Dádiva, Nova
   // Tática, Recrutamento Seletivo, Recrutar Veteranos, Chamado às Armas) all boil down to
@@ -8786,6 +8797,7 @@ export default function App() {
                 isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(i) && !!npcSlots[i]}
                 isTacticDragTarget={isTacticTargetSlot('npc', i)}
                 tacticTag={tacticTagFor('npc', i)}
+                attackMark={attackMarkFor('npc', i)}
               />
             ))}
           </div>
@@ -8807,6 +8819,7 @@ export default function App() {
                 isInvalidAttackTarget={selectedAttackerIndex !== null && !validAttackTargets.has(i) && !!npcSlots[i]}
                 isTacticDragTarget={isTacticTargetSlot('npc', i)}
                 tacticTag={tacticTagFor('npc', i)}
+                attackMark={attackMarkFor('npc', i)}
               />
             ))}
           </div>
@@ -8841,6 +8854,7 @@ export default function App() {
                 isMoverSelected={selectedMoverIndex === i}
                 isValidMoveTarget={validMoveTargets.has(i)}
                 hasMoved={movedSlots.has(i)}
+                attackMark={attackMarkFor('player', i)}
                 isTacticDragTarget={isTacticTargetSlot('own', i)}
                 tacticTag={tacticTagFor('own', i)}
               />
@@ -8869,6 +8883,7 @@ export default function App() {
                 isMoverSelected={selectedMoverIndex === i}
                 isValidMoveTarget={validMoveTargets.has(i)}
                 hasMoved={movedSlots.has(i)}
+                attackMark={attackMarkFor('player', i)}
                 isTacticDragTarget={isTacticTargetSlot('own', i)}
                 tacticTag={tacticTagFor('own', i)}
               />
@@ -9357,6 +9372,16 @@ export default function App() {
               className="fixed inset-x-0 bottom-0 z-[268] flex flex-col items-center justify-end gap-3 pb-4 pointer-events-none"
               style={{ top: topClear, background: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 14%)' }}
             >
+            <div className="fixed inset-x-6 z-[269] pointer-events-none" style={{ top: 70 }}>
+              <GameBox px={14} tint="rgba(120,16,16,0.75)">
+                <div className="px-3 py-1 text-center">
+                  <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#e6c9a0' }}>Emboscada!</div>
+                  <div style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontWeight: 600, fontSize: 16, lineHeight: 1.25, color: '#f3e3c3' }}>
+                    {ambushPrompt.attackerName ? `${ambushPrompt.attackerName} ataca${ambushPrompt.defenderName ? ` ${ambushPrompt.defenderName}` : ' você'}.` : 'O adversário ataca!'} Ativar uma Emboscada?
+                  </div>
+                </div>
+              </GameBox>
+            </div>
               <div className="flex items-start justify-center" style={{ gap }}>
                 {ambushPrompt.options.map(opt => (
                   <div key={opt.id} className="flex flex-col items-center gap-2 pointer-events-auto" style={{ width: HAND_CARD_WIDTH * scale }}>
@@ -9397,12 +9422,7 @@ export default function App() {
             <motion.div key="upkeep-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="fixed inset-x-0 bottom-0 z-[268] flex flex-col items-center justify-end gap-2 pb-3 pointer-events-none"
               style={{ top: 120, background: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.62) 18%)' }}>
-              <div className="pointer-events-none text-center px-3" style={{ textShadow: '0 2px 6px #000' }}>
-                <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 17, letterSpacing: '0.08em', color: '#f4dfa6' }}>MANUTENÇÃO DA COMPANHIA</div>
-                <div style={{ fontFamily: "'PT Serif', serif", fontSize: 12, color: '#e6d6ae' }}>
-                  Você tem <b style={{ color: '#ffd36a' }}>{playerMana}</b> de ouro. Quem não for pago vai embora.{upkeepPrompt.discount > 0 ? ` A Relíquia abate ${upkeepPrompt.discount}.` : ''}
-                </div>
-              </div>
+              <PromptTitle title="Manutenção" sub={<>Você tem <b style={{ color: '#ffd36a' }}>{playerMana}</b> de ouro. Quem não for pago vai embora.{upkeepPrompt.discount > 0 ? ` A Relíquia abate ${upkeepPrompt.discount}.` : ''}</>} />
               <div className="flex flex-wrap items-start justify-center overflow-y-auto" style={{ gap, maxWidth: windowSize.width - 12, maxHeight: '58vh' }}>
                 {rows.map(({ e, c }, i) => {
                   const kept = upkeepKeep[e.cardId] !== false;
@@ -9446,19 +9466,18 @@ export default function App() {
                   <div style={{ width: HAND_CARD_WIDTH, height: HAND_CARD_HEIGHT, transform: `scale(${scale})`, transformOrigin: 'top left' }}><CardFace card={rc} variant="hand" /></div>
                 </motion.div>
               )}
-              <div className="pointer-events-none text-center px-3" style={{ textShadow: '0 2px 6px #000' }}>
-                <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 16, letterSpacing: '0.08em', color: '#f4dfa6' }}>ESCOLHA O MODO</div>
-                <div style={{ fontFamily: "'PT Serif', serif", fontSize: 11.5, color: '#e6d6ae' }}>Vale até o fim do seu próximo turno (o adversário vê qual é).</div>
-              </div>
-              <div className="flex flex-col gap-1.5 pointer-events-auto" style={{ width: Math.min(360, windowSize.width - 24) }}>
+              <PromptTitle title="Escolha o modo" sub="Vale até o fim do seu próximo turno. O adversário vê qual é." />
+              <div className="flex flex-col gap-2.5 pointer-events-auto" style={{ width: Math.min(360, windowSize.width - 24) }}>
                 {relicPrompt.modes.map(m => {
                   const on = relicPrompt.pick === m.id;
                   return (
-                    <button key={m.id} className="text-left active:scale-[0.99] transition" style={{ padding: '8px 12px', borderRadius: 10, background: on ? 'rgba(120,88,22,0.82)' : 'rgba(20,14,8,0.78)', border: `1.5px solid ${on ? '#e8c766' : 'rgba(255,255,255,0.2)'}`, boxShadow: on ? '0 0 14px rgba(232,199,102,0.6)' : 'none' }}
-                      onClick={(ev) => { ev.stopPropagation(); playUiClickSfx(); setRelicPrompt(p => (p ? { ...p, pick: m.id } : p)); }}>
-                      <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 13.5, color: on ? '#fff1c9' : '#e8dcc0' }}>{m.name}{m.id === relicPrompt.current ? ' · em uso' : ''}</div>
-                      <div style={{ fontFamily: "'PT Serif', serif", fontSize: 11.5, color: '#d8c79e' }}>{m.effect}</div>
-                    </button>
+                    <KitButton key={m.id} tone={on ? 'gold' : 'normal'} className="w-full !justify-start !min-h-[68px]"
+                      onClick={() => { playUiClickSfx(); setRelicPrompt(p => (p ? { ...p, pick: m.id } : p)); }}>
+                      <span className="block text-left" style={{ letterSpacing: 0 }}>
+                        <span className="block" style={{ fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 14, letterSpacing: '0.07em' }}>{m.name}{m.id === relicPrompt.current ? ' · em uso' : ''}</span>
+                        <span className="block mt-0.5" style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontWeight: 600, fontSize: 14, textTransform: 'none', letterSpacing: 0, lineHeight: 1.2, opacity: 0.92, textShadow: 'none' }}>{m.effect}</span>
+                      </span>
+                    </KitButton>
                   );
                 })}
               </div>
@@ -10097,9 +10116,7 @@ export default function App() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[220] flex flex-col items-center justify-center gap-4 p-4 bg-black/80 backdrop-blur-sm pointer-events-auto"
           >
-            <GameBox px={14} className="max-w-xs">
-              <p className="px-3 py-1 text-center text-[#ffe3a1] font-bold uppercase tracking-wide text-[13px] leading-snug" style={{ fontFamily: "'Cinzel', serif" }}>{cardPicker.title}</p>
-            </GameBox>
+            <PromptTitle small title={cardPicker.title} />
             <div className="grid grid-cols-3 gap-3 overflow-y-auto max-h-[65vh] w-full max-w-md px-2 py-2 content-start">
               {cardPicker.options.map(opt => {
                 const isSelected = cardPicker.selected.some(c => c.id === opt.id);
@@ -10574,7 +10591,7 @@ const CardSlot = ({
   isAttacking = false, isImpactingTarget = false, isImpactingAttacker = false, attackDirection = 'up', hint, rowRoleHint,
   isValidAttackTarget = false, isInvalidAttackTarget = false, slotId,
   isMoverSelected = false, isValidMoveTarget = false, hasMoved = false,
-  isTacticDragTarget = false, tacticTag,
+  isTacticDragTarget = false, tacticTag, attackMark,
 }: {
   onClick?: (el: HTMLElement) => void, onInfoClick?: (card: CardData) => void, card?: CardData | null,
   isSelected?: boolean, isAttacking?: boolean, isImpactingTarget?: boolean, attackDirection?: 'up' | 'down',
@@ -10609,6 +10626,8 @@ const CardSlot = ({
   // a unit picked up to move, the adjacent slots it can move/swap into, and a unit
   // that already used its reposition this turn (dimmed, still clickable to inspect).
   isMoverSelected?: boolean, isValidMoveTarget?: boolean, hasMoved?: boolean,
+  // Fase de Combate: a unidade ainda pode atacar ('ready', medalha dourada) ou já atacou ('used', apagada com um visto).
+  attackMark?: 'ready' | 'used',
 }) => {
   const hintsBoard = useGameSettings().hintsBoard;
   const attackY = attackDirection === 'up' ? -150 : 150;
@@ -10707,7 +10726,7 @@ const CardSlot = ({
         if (card && !card.isDestroyed && onInfoClick) onInfoClick(card);
       }}
       style={carvedStyle}
-      className={`w-[7.5rem] h-[9.5rem] md:w-[9.5rem] md:h-[12.5rem] rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : unitSlot ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${!card ? hintClass : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${!card && isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''}`}
+      className={`w-[7.5rem] h-[9.5rem] md:w-[9.5rem] md:h-[12.5rem] rounded-lg bg-transparent flex items-center justify-center transition-colors group relative ${card && !card.isDestroyed ? '' : unitSlot ? '' : 'border-[3px] border-[#e8dcc0]/35 hover:border-[#e8dcc0]/70 hover:bg-[#e8dcc0]/10 hover:shadow-[0_0_25px_rgba(232,220,192,0.45)]'} ${onClick ? 'cursor-pointer pointer-events-auto' : ''} ${!card ? hintClass : ''} ${isInvalidAttackTarget ? 'opacity-40 saturate-50' : ''} ${!card && isValidMoveTarget ? 'ring-4 ring-sky-300/80 shadow-[0_0_22px_rgba(125,211,252,0.6)]' : ''} ${hasMoved && card ? 'opacity-60 saturate-[.6]' : ''} ${attackMark === 'used' && card ? 'opacity-60 saturate-[.5]' : ''}`}
     >
       {unitSlot && !hint && <div className="absolute inset-0 rounded-lg bg-[#e8dcc0]/0 group-hover:bg-[#e8dcc0]/10 transition-colors pointer-events-none" />}
       {unitSlot && hint !== 'invalid' && <SlotEmblem kind={emblemKind} lit={hint === 'valid'} offsetY={special ? -7 : 0} tone={special ? 'amber' : slotRow === 'front' ? 'amber' : 'sky'} />}
@@ -10797,6 +10816,30 @@ const CardSlot = ({
             {tacticTag.text}
           </span>
         </div>
+      )}
+      {attackMark && card && !card.isDestroyed && (
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-[17%] z-[36] pointer-events-none">
+          {attackMark === 'ready' ? (
+            <motion.div className="flex items-center justify-center rounded-full" style={{ width: 42, height: 42, background: 'radial-gradient(circle at 35% 30%, #3a2f1f, #14100a)', boxShadow: '0 0 0 3px #f0cf72' }}
+              animate={{ boxShadow: ['0 0 0 3px #f0cf72, 0 0 8px 2px rgba(255,200,80,0.45)', '0 0 0 3px #f0cf72, 0 0 20px 6px rgba(255,200,80,0.9)', '0 0 0 3px #f0cf72, 0 0 8px 2px rgba(255,200,80,0.45)'] }}
+              transition={{ duration: 1.3, repeat: Infinity, ease: 'easeInOut' }}>
+              <img src={KIT_ICONS.espadas} alt="" draggable={false} style={{ width: 28, height: 28 }} />
+            </motion.div>
+          ) : (
+            <div className="flex items-center justify-center rounded-full" style={{ width: 42, height: 42, background: '#2b2620', boxShadow: '0 0 0 3px #8a8372, 0 3px 6px rgba(0,0,0,0.7)' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#bdb6a2" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5 5L20 6.5" /></svg>
+            </div>
+          )}
+        </div>
+      )}
+      {card?.mode && slotId && /-10$/.test(slotId) && (
+        <motion.div key={`seal-${card.mode}`} className="absolute z-[37] pointer-events-none" style={{ right: -10, top: -10 }}
+          initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 380, damping: 14, delay: 0.25 }}>
+          <motion.span className="absolute rounded-full" style={{ inset: -4, border: '3px solid #ffd66e' }} initial={{ scale: 0.8, opacity: 0.95 }} animate={{ scale: 2.4, opacity: 0 }} transition={{ duration: 0.9, delay: 0.25 }} />
+          <div className="flex items-center justify-center rounded-full" style={{ width: 50, height: 50, background: 'radial-gradient(circle at 35% 30%, #3a2f1f, #14100a)', boxShadow: '0 0 0 3px #e6c36a, 0 3px 8px rgba(0,0,0,0.8)' }}>
+            <img src={card.mode === 'saque' ? KIT_ICONS.cartas : KIT_ICONS.espadas} alt="" draggable={false} style={{ width: 32, height: 32 }} />
+          </div>
+        </motion.div>
       )}
       {card?.mode && (
         <div className="absolute inset-x-0 bottom-0 z-[35] flex justify-center pointer-events-none">

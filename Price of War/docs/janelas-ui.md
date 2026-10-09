@@ -90,3 +90,10 @@ Página: `public/mockups/batalha/` (`/mockups/batalha/`, tem botão "Som"). GIFs
 - **Ajustes pedidos pelo dono (hora da batalha):** os estandartes agora **sobem do chão como as peças dos terrenos** (com poeira na base e uma leve passada), têm **tocha acesa bem de leve** (brilho quente suave) e **ficam enquanto a batalha acontece**, afundando no fim da fase. A corneta virou um **"tum tuuum" curto** (≈1,6 s: batida de tambor + nota curta, e logo uma nota longa que cai), sintetizada por código; arquivo `corneta-guerra.mp3/.wav`.
 
 - **Decisão do dono (hora da batalha):** os estandartes, as espadas e os demais efeitos visuais da hora da batalha foram **descartados** (os arquivos do mockup ficam só como histórico). Ficou só o **som de corneta** no começo de cada fase de Combate (ver `docs/audio.md`). Seguem em avaliação: medalhas de quem já atacou, desenho do modo da Relíquia e selo do modo no adversário.
+
+## Aplicado no jogo (rodada final desta fase)
+- **Quem já atacou:** na fase de Combate, as unidades de quem joga (`attackMarkFor` em `App.tsx`, lido de `turn.attackCounts` do motor) mostram medalha dourada com espadas pulsando (ainda ataca) ou ficam apagadas com um visto (já atacou). Vale para os dois lados, inclusive o adversário.
+- **Selo do modo da Relíquia:** a Relíquia com `mode` (a minha e a do adversário) ganha um selo redondo no canto com o ícone do modo (espadas = Soldo em Dobro, cartas = Saque), com um pulso ao aparecer. O efeito das moedas da Manutenção não foi tocado.
+- **Modo da Relíquia:** título "Escolha o modo" no estilo das janelas; cada modo é um botão da moldura da Manutenção (escolhido dourado, outro escuro); Voltar/Encerrar turno dourados.
+- **Títulos:** Manutenção ("Manutenção"), escolher carta (`PromptTitle`) e Emboscada (faixa vermelha "Emboscada!" com quem ataca) no estilo novo.
+- **Som:** corneta no começo do Combate (ver `docs/audio.md`). Estandartes/tochas/espadas da hora da batalha foram descartados.
