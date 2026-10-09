@@ -10,7 +10,7 @@ import { getGameSettings, subscribeSettings } from './gameSettings';
 
 export type TerrainFxKind = 'muralha';
 type Side = 'player' | 'npc';
-type Sprite = { n: 'torre' | 'muro_a' | 'muro_b' | 'portao'; x: number; h: number; ap: number; kind: 'wall' | 'tower' | 'gate'; flip?: boolean; yb?: number; tip?: boolean; crop?: boolean };
+type Sprite = { n: 'torre' | 'muro_a' | 'muro_b' | 'portao'; x: number; h: number; ap: number; kind: 'wall' | 'tower' | 'gate'; flip?: boolean; yb?: number; tip?: boolean; crop?: boolean; w?: number };
 interface Inst { side: Side; kind: TerrainFxKind; t0: number; end: number | null; hit: number | null }
 
 const SRC: Record<string, string> = { torre: imgTorre, muro_a: imgMuroA, muro_b: imgMuroB, portao: imgPortao, pedra: imgPedra };
@@ -25,11 +25,17 @@ let seed = 17; const rnd = () => (seed = (seed * 16807) % 2147483647) / 21474836
 
 // ── a muralha, em coordenadas de "projeto" (390 de largura, 1 casa = 71 de altura); y = 0 é a linha do chão, para cima é negativo ──
 const GX = 196;
+// Os muros preenchem exatamente o vão entre cada torre e o portão: entram um pouco por baixo deles (que são desenhados por cima) e se sobrepõem entre si,
+// então não sobra espaço nem aparece a quina da imagem. As larguras vêm da proporção das imagens (torre 159x330, portão 238x330).
+const TOWER_H = 80, GATE_H = 63, WALL_H = 38, TOWER_W = TOWER_H * 159 / 330, GATE_W = GATE_H * 238 / 330, SEG = 3, OVER = 6;
+const wallRun = (from: number, to: number, flip: boolean, ap0: number): Sprite[] => Array.from({ length: SEG }, (_, i) => {
+  const step = (to - from) / SEG, w = Math.abs(step) + OVER;
+  return { n: (i % 2 ? 'muro_a' : 'muro_b') as Sprite['n'], x: from + step * (i + .5), h: WALL_H, w, ap: ap0 + i * 150, kind: 'wall' as const, flip, crop: true };
+});
 const SPRITES: Sprite[] = [
-  { n: 'muro_b', x: 74, h: 38, ap: 950, kind: 'wall', crop: true }, { n: 'muro_a', x: 122, h: 38, ap: 1100, kind: 'wall', crop: true }, { n: 'muro_b', x: 160, h: 38, ap: 1250, kind: 'wall', crop: true },
-  { n: 'muro_b', x: 318, h: 38, ap: 1100, kind: 'wall', flip: true, crop: true }, { n: 'muro_a', x: 270, h: 38, ap: 1250, kind: 'wall', flip: true, crop: true }, { n: 'muro_b', x: 232, h: 38, ap: 1400, kind: 'wall', flip: true, crop: true },
-  { n: 'torre', x: 22, h: 80, ap: 150, kind: 'tower', yb: 1, tip: true }, { n: 'torre', x: 368, h: 80, ap: 380, kind: 'tower', flip: true, yb: 1, tip: true },
-  { n: 'portao', x: GX, h: 63, ap: 1800, kind: 'gate', yb: 1 },
+  ...wallRun(34, GX - GATE_W / 2 + 9, false, 950), ...wallRun(356, GX + GATE_W / 2 - 9, true, 1100),
+  { n: 'torre', x: 22, h: TOWER_H, ap: 150, kind: 'tower', yb: 1, tip: true }, { n: 'torre', x: 368, h: TOWER_H, ap: 380, kind: 'tower', flip: true, yb: 1, tip: true },
+  { n: 'portao', x: GX, h: GATE_H, ap: 1800, kind: 'gate', yb: 1 },
 ];
 const SIDE_X = [{ x: 0, ap: 1100 }, { x: 380, ap: 1250 }];
 const TORCHES: [number, number][] = [[66, -17], [326, -17], [GX - 30, -21], [GX + 30, -21]];
@@ -67,9 +73,9 @@ const geoOf = (side: Side): Geo | null => {
   return { s, x0, base: a.top - 6 * s, dir: 1, len: (b.bottom - (a.top - 6 * s)) + 6 * s };
 };
 
-function spr(c: CanvasRenderingContext2D, n: string, x: number, yb: number, h: number, o: { flip?: boolean; a?: number; dy?: number; rot?: number; rise?: number; crop?: boolean } = {}) {
+function spr(c: CanvasRenderingContext2D, n: string, x: number, yb: number, h: number, o: { flip?: boolean; a?: number; dy?: number; rot?: number; rise?: number; crop?: boolean; w?: number } = {}) {
   const im = IMG[n]; if (!im || !im.naturalWidth) return; const a = o.a ?? 1; if (a <= 0) return;
-  const cropX = o.crop ? im.naturalWidth * .07 : 0, sw = im.naturalWidth - cropX * 2, w = h * sw / im.naturalHeight;
+  const cropX = o.crop ? im.naturalWidth * .07 : 0, sw = im.naturalWidth - cropX * 2, w = o.w ?? h * sw / im.naturalHeight;
   c.save(); c.globalAlpha = a; c.translate(x, yb + (o.dy || 0)); if (o.rot) c.rotate(o.rot); c.scale(o.flip ? -1 : 1, 1);
   if (o.rise != null && o.rise < 1) { c.beginPath(); c.rect(-w / 2 - 4, -h - 6, w + 8, h * 1.1 * clamp(o.rise)); c.clip(); }
   c.drawImage(im, cropX, 0, sw, im.naturalHeight, -w / 2, -h, w, h); c.restore();
@@ -104,7 +110,7 @@ function drawSide(inst: Inst, now: number) {
     sc.save(); sc.globalAlpha = a; sc.translate(x + 5, y + 7); sc.rotate(rot); sc.translate(-5, -7); sc.beginPath(); sc.rect(0, 0, 10, 14); sc.clip(); if (pedraPat) { sc.fillStyle = pedraPat; sc.fillRect(0, 0, 10, 14); } sc.fillStyle = 'rgba(0,0,0,.25)'; sc.fillRect(0, 0, 10, 14); sc.fillStyle = 'rgba(255,238,200,.28)'; sc.fillRect(0, 0, 10, 1.2); sc.fillStyle = 'rgba(0,0,0,.55)'; sc.fillRect(0, 12.4, 10, 1.6); sc.restore(); }
   const list = SPRITES.map((sp, i) => ({ sp, i })).sort((A, B) => ORDER[A.sp.kind] - ORDER[B.sp.kind]);
   for (const { sp, i } of list) {
-    const o: { flip?: boolean; a?: number; dy?: number; rot?: number; rise?: number; crop?: boolean } = { flip: sp.flip, crop: sp.crop }; let dx = 0;
+    const o: { flip?: boolean; a?: number; dy?: number; rot?: number; rise?: number; crop?: boolean; w?: number } = { flip: sp.flip, crop: sp.crop, w: sp.w }; let dx = 0;
     if (!dead) { const pr = clamp((t - sp.ap) / (sp.kind === 'wall' ? 450 : 800)); if (pr <= 0) continue; o.rise = easeOut(pr); o.dy = (1 - easeOut(pr)) * 3; o.a = clamp(pr * 4); }
     else { const v = PIECES[i], q = Math.max(0, td - v.d - (sp.kind === 'tower' ? 0 : .05)), a = clamp(1 - (q - .1) / 1.1); if (a <= 0) continue; o.dy = 330 * q * q - 30 * q; o.rot = v.vr * q * (sp.kind === 'wall' ? 1 : .35) * (sp.flip ? -1 : 1); o.a = a; dx = v.vx * q * .5; }
     spr(sc, sp.n, sp.x + dx, (sp.yb ?? 0), sp.h, o);
