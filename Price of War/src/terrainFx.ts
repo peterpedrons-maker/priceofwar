@@ -26,8 +26,8 @@ let seed = 17; const rnd = () => (seed = (seed * 16807) % 2147483647) / 21474836
 // ── a muralha, em coordenadas de "projeto" (390 de largura, 1 casa = 71 de altura); y = 0 é a linha do chão, para cima é negativo ──
 const GX = 196;
 // Os muros preenchem exatamente o vão entre cada torre e o portão: entram um pouco por baixo deles (que são desenhados por cima) e se sobrepõem entre si,
-// então não sobra espaço nem aparece a quina da imagem. As larguras vêm da proporção das imagens (torre 159x330, portão 238x330).
-const TOWER_H = 80, GATE_H = 63, WALL_H = 38, TOWER_W = TOWER_H * 159 / 330, GATE_W = GATE_H * 238 / 330, SEG = 3, OVER = 6;
+// então não sobra espaço nem aparece a quina da imagem. As larguras vêm da proporção das imagens (torre 159x330; o portão foi desentortado: cisalhado para ficar de frente e espelhado ao meio, 416x583).
+const TOWER_H = 80, GATE_H = 63, WALL_H = 38, TOWER_W = TOWER_H * 159 / 330, GATE_W = GATE_H * 416 / 583, SEG = 3, OVER = 6;
 const wallRun = (from: number, to: number, flip: boolean, ap0: number): Sprite[] => Array.from({ length: SEG }, (_, i) => {
   const step = (to - from) / SEG, w = Math.abs(step) + OVER;
   return { n: (i % 2 ? 'muro_a' : 'muro_b') as Sprite['n'], x: from + step * (i + .5), h: WALL_H, w, ap: ap0 + i * 150, kind: 'wall' as const, flip, crop: true };
