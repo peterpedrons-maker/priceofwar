@@ -38,6 +38,10 @@
 .trk-lab b.long { font-size: 15px; letter-spacing: .04em; }
 .trk-lab:has(b.long) em { font-size: 7px; letter-spacing: .14em; }
 .trk-lab s { text-decoration: none; color: #fff; font-weight: 900; font-size: calc(15px * var(--fb, 1)); letter-spacing: -2px; text-shadow: 0 1px 2px rgba(0,0,0,.7), 0 0 8px #fff; }
+.trk-lab b.act { font-family: 'Cinzel', serif; font-weight: 900; font-size: 12.5px; letter-spacing: .03em; }
+.trk-lab b.act ~ s { font-size: 14px; letter-spacing: -1px; }
+.trk-m.next::before { content: ''; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid var(--glow); animation: trk-next 1.4s ease-out infinite; pointer-events: none; }
+@keyframes trk-next { 0% { transform: scale(.85); opacity: .95; } 100% { transform: scale(1.55); opacity: 0; } }
 .trk-lab b.long ~ s { font-size: 14px; }
 .trk-m { position: absolute; top: calc(var(--my) * 100%); width: 22px; height: 22px; transform: translate(-50%, -50%); border-radius: 50%; z-index: 3; }
 .trk-m.future { background: #0a0704; opacity: .3; mix-blend-mode: multiply; }

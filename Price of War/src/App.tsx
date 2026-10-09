@@ -3,7 +3,7 @@ import { fetchProfile, usernameAvailable, createProfile, updateProfileFields, fe
 import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authErrorDetail, authMode, type Session } from './services/auth';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate, type MotionValue } from 'motion/react';
 import { X, ArrowUp, ArrowDown } from 'lucide-react';
-import { TurnTracker } from './TurnTracker';
+import { TurnTracker, TRACKER_NAMES } from './TurnTracker';
 // The 3D viewer (and three.js with it) is only downloaded the first time a card is opened in 3D.
 const CardViewer3D = lazy(() => import('./CardViewer3D'));
 const CollectionRoom = lazy(() => import('./CollectionRoom'));
@@ -5297,8 +5297,12 @@ export default function App() {
   };
   // While "Encerrar turno" runs through the remaining phases in one go, the per-phase banners stay quiet.
   const skipPhaseBannersRef = useRef(false);
+  // Which phase of which turn has had its banner ("Fase de Preparação"): only after that does the plate say what a tap does ("ENCERRAR PREPARAÇÃO").
+  const [bannerDoneKey, setBannerDoneKey] = useState('');
   const announcePhase = (phase: TurnPhase) => {
     const { title, subtitle } = PHASE_BANNER_TEXT[phase];
+    const t = engineRef.current?.turn;
+    if (t) setBannerDoneKey(`${t.round}-${t.active}-${phase}`);
     showBanner(title, subtitle);
   };
   // "Seu Turno" / "Turno do Adversário" — the same handoff moment used to only
@@ -9036,6 +9040,7 @@ export default function App() {
                 locked={locked}
                 name={isPlayerTurn ? undefined : 'ADVERSÁRIO'}
                 tappable={isPlayerTurn && (!automatic || tutTracker !== null)}
+                action={isPlayerTurn && !automatic && !tutOn && !phaseBanner && matchIntroStage === null && !!engineRef.current && bannerDoneKey === `${engineRef.current.turn.round}-${engineRef.current.turn.active}-${shownPhase}` && !phaseTransitionLock && autoPhase === null && (shownPhase === 'preparacao' || shownPhase === 'combate' || shownPhase === 'movimentacao') ? `ENCERRAR ${TRACKER_NAMES[shownPhase]}` : undefined}
                 onEnd={endTurnNow}
                 endReady={isPlayerTurn && !automatic && !phaseTransitionLock && !tutOn && autoPhase === null}
               />

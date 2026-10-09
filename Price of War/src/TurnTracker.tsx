@@ -51,18 +51,20 @@ type Props = {
   name?: string;
   // Tappable phases show the double chevron; automatic ones and the adversary's turn do not.
   tappable: boolean;
+  // What a tap on the plate does, in words ("ENCERRAR PREPARAÇÃO"): replaces the name once the phase banner is over, and the next medallion pulses.
+  action?: string;
   // The extra segment on the right that ends the turn at once (the plate itself still goes phase by phase). Absent: no segment.
   onEnd?: () => void;
   // The segment is lit (the player can end the turn now); otherwise it sits dark.
   endReady?: boolean;
 };
 
-export function TurnTracker({ mine, phase, locked, caption, name, tappable, onEnd, endReady = false }: Props) {
+export function TurnTracker({ mine, phase, locked, caption, name, tappable, action, onEnd, endReady = false }: Props) {
   const scale = useTrackerScale();
   const pal = PALETTE[mine ? 'me' : 'foe'];
   const shown = phase ?? 'preparacao';
   const nowIndex = TRACKER_PHASES.indexOf(shown);
-  const label = name ?? TRACKER_NAMES[shown];
+  const label = action ?? name ?? TRACKER_NAMES[shown];
 
   // Green ↔ red: the new colour wipes across the band over the old one.
   const [wipe, setWipe] = useState<{ id: number; fromMine: boolean } | null>(null);
@@ -118,12 +120,12 @@ export function TurnTracker({ mine, phase, locked, caption, name, tappable, onEn
       <div className="trk-diamond" />
       <div className="trk-lab" key={label}>
         {caption && <em>{caption}</em>}
-        <b className={label.length > 11 ? 'long' : ''}>{label}</b>
+        <b className={action ? 'act' : label.length > 11 ? 'long' : ''}>{label}</b>
         {tappable && <s>››</s>}
       </div>
       {TRACKER_PHASES.map((p, i) => {
         const state = locked.includes(p) ? 'lock' : !mine && phase === null ? 'future' : i < nowIndex ? 'done' : i === nowIndex ? 'now' : 'future';
-        return <div key={p} className={`trk-m ${state}`} style={{ left: `${MEDALLION_X[i]}%` }} />;
+        return <div key={p} className={`trk-m ${state}${action && i === nowIndex + 1 ? ' next' : ''}`} style={{ left: `${MEDALLION_X[i]}%` }} />;
       })}
     </div>
     {onEnd && (
