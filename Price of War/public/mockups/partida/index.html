@@ -63,7 +63,9 @@
   .tot { font:600 15px var(--serif); color:#e8d7ae; text-shadow:0 1px 4px #000; } .tot b { color:#ffd36a; }
   /* faixa verde da fase (réplica da barra do jogo) */
   .band { position:absolute; left:87px; top:386px; width:175px; height:17px; border-radius:3px; background:linear-gradient(#17c777,#07803f); box-shadow:inset 0 1px 0 rgba(255,255,255,.35); display:flex; align-items:center; justify-content:center; font:700 11px var(--cin); letter-spacing:.08em; color:#eafff0; text-shadow:0 1px 2px #000; white-space:nowrap; }
-  .band s { text-decoration:none; margin-left:5px; animation:nudge 1.1s ease-in-out infinite; } @keyframes nudge { 50% { transform:translateX(3px); } }
+  .band { font-size:10.5px; } .band s { text-decoration:none; margin-left:5px; animation:nudge 1.1s ease-in-out infinite; } @keyframes nudge { 50% { transform:translateX(3px); } }
+  .ring { position:absolute; width:28px; height:28px; border-radius:50%; border:2px solid #7dffc4; box-shadow:0 0 10px #5af0a8; animation:pulse 1.4s ease-out infinite; pointer-events:none; } @keyframes pulse { 0% { transform:scale(.8); opacity:.95; } 100% { transform:scale(1.5); opacity:0; } }
+  .nxt { position:absolute; font:900 11px var(--cin); color:#9dffd0; text-shadow:0 0 6px #000; animation:nudge 1.1s ease-in-out infinite; }
   .cap { position:absolute; left:87px; width:175px; top:370px; text-align:center; font:700 8.5px var(--cin); letter-spacing:.16em; text-transform:uppercase; color:#e6d6ae; text-shadow:0 1px 3px #000, 0 0 6px #000; }
   .tip { position:absolute; left:40px; right:40px; top:304px; padding:2px 4px; animation:bob 1.8s ease-in-out infinite; } @keyframes bob { 50% { transform:translateY(-3px); } }
   .tip::after { content:''; position:absolute; left:calc(50% - 8px); bottom:-9px; border:8px solid transparent; border-top-color:#6f5324; border-bottom:0; filter:drop-shadow(0 2px 2px rgba(0,0,0,.6)); }
@@ -150,19 +152,20 @@ const SCENES = {
 };
 
 const FASE = {
-  h: { t:'Hoje', l:'Hoje: a faixa verde mostra só o NOME da fase atual ("Preparação »"). Quem está começando não sabe que ela é um botão, nem que "Combate" é a próxima. Quem lê "Combate" pode achar que precisa tocar nela para atacar.' },
-  a: { t:'A · Ação no botão', l:'A: a faixa passa a dizer o QUE ACONTECE ao tocar ("Ir ao combate »") e a fase atual vira uma legenda pequena acima ("Fase: Preparação"). Na Combate: "Ir à movimentação »". Na Movimentação: "Passar a vez »". Sem Combate liberado: "Ir à movimentação »".' },
-  b: { t:'B · Dica de iniciante', l:'B: o botão não muda; uma dica pulsando aponta para ele ("Terminou de jogar? Toque aqui para ir ao Combate") e outra para "Encerrar turno" ("Pula tudo e passa a vez"). Aparece nas primeiras partidas, no tutorial e depois só se o jogador ficar parado, e some sozinha.' },
-  c: { t:'C · Combinada (recomendo)', l:'C: A + B só no começo. A faixa diz a ação, a fase atual fica na legenda, e nas primeiras partidas uma dica curta aponta a faixa. "Encerrar turno" ganha a legenda "pula tudo" na primeira vez. Depois de 3 partidas, só ficam a faixa com a ação e a legenda.' },
+  h: { t:'Hoje', l:'Hoje: a faixa mostra só o nome da fase atual ("Preparação »"). Não diz que é um botão nem o que o toque faz.' },
+  a: { t:'A · Próxima fase', l:'A: "PRÓXIMA FASE »" em todas as fases. Curto e igual sempre; o nome da fase atual continua nos medalhões (o aceso é a fase de agora).' },
+  b: { t:'B · Encerrar fase', l:'B (recomendo): "ENCERRAR PREPARAÇÃO »", "ENCERRAR COMBATE »", "ENCERRAR MOVIMENTO »". Combina com o botão ao lado ("ENCERRAR TURNO") e diz a ação. O próximo medalhão pulsa de leve para mostrar para onde vai.' },
+  c: { t:'C · Só visual', l:'C: sem texto novo. A faixa continua com o nome da fase, mas a seta » anda e o PRÓXIMO medalhão pulsa. Quem nunca viu entende que "vai para lá".' },
 };
-let vr = q.get('w') || 'c';
+let vr = q.get('w') || 'b';
+// medalhões da barra (css px, medidos na captura): x = 87,5 + 175 × [.1086 .2986 .4886 .6786 .8686], y ≈ 412
+const MED = [106.5, 139.7, 173, 206.3, 239.5];
 function faseBody() {
-  const tipHtml = (txt, cls='') => `<div class="tip toast ${cls}"><p style="font:700 14px/1.25 var(--serif)">${txt}</p></div>`;
   let h = '';
-  if (vr === 'a' || vr === 'c') h += `<div class="band">IR AO COMBATE<s>››</s></div><div class="cap">Fase: Preparação</div>`;
-  if (vr === 'b') h += tipHtml('Terminou de jogar? Toque aqui para ir ao Combate.') + `<div class="tip toast up" style="top:440px;left:150px;right:14px;animation-delay:.5s"><p style="font:700 13px/1.25 var(--serif)">Encerrar turno pula tudo.</p></div>`;
-  if (vr === 'c') h += tipHtml('Toque aqui quando terminar de jogar cartas.');
-  if (vr === 'c') h += `<div class="cap" style="left:262px;width:64px;top:428px;font-size:7.5px;letter-spacing:.06em">pula tudo</div>`;
+  const pulse = (i) => `<div class="ring" style="left:${MED[i]-14}px;top:${398}px"></div>`;
+  if (vr === 'a') h += `<div class="band">PRÓXIMA FASE<s>››</s></div>`;
+  if (vr === 'b') h += `<div class="band">ENCERRAR PREPARAÇÃO<s>››</s></div>` + pulse(3);
+  if (vr === 'c') h += `<div class="band">PREPARAÇÃO<s>››</s></div>` + pulse(3);
   return h;
 }
 function render() {
