@@ -97,3 +97,6 @@ Página: `public/mockups/batalha/` (`/mockups/batalha/`, tem botão "Som"). GIFs
 - **Modo da Relíquia:** título "Escolha o modo" no estilo das janelas; cada modo é um botão da moldura da Manutenção (escolhido dourado, outro escuro); Voltar/Encerrar turno dourados.
 - **Títulos:** Manutenção ("Manutenção"), escolher carta (`PromptTitle`) e Emboscada (faixa vermelha "Emboscada!" com quem ataca) no estilo novo.
 - **Som:** corneta no começo do Combate (ver `docs/audio.md`). Estandartes/tochas/espadas da hora da batalha foram descartados.
+
+- **Janela Online (celular real):** os ícones das linhas ficaram desalinhados com o encaixe da arte; o `.kit-sock` agora não desenha moldura própria e fica centrado no encaixe da arte (`left -47px`, 42×44).
+- **Demonstração:** GIFs e vídeo do jogo (gravados com Playwright, 390×844, sem áudio) em `docs/demo/` (fora do git por tamanho).

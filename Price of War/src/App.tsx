@@ -190,7 +190,7 @@ import duelMusicUrl from './assets/music-duelo.mp3';
 // for the card-play thud, picked and approved by the user over a few rounds (see git
 // history) rather than a first guess. No attribution is legally required for CC0, but
 // noting the source here for anyone maintaining this later.
-import cardPlaySfxUrl from './assets/sfx-jogar-carta.wav';
+import cardPlaySfxUrl from './assets/sfx-convocar.mp3';
 import attackSfxUrl from './assets/sfx-combate-explosao.wav';
 import tacticSfxUrl from './assets/sfx-tatica.wav';
 import effectSfxUrl from './assets/sfx-efeito-magico.mp3';
@@ -308,7 +308,7 @@ const playCardDrawSfx = () => {
 // the thing that just happened on screen.
 const playCardPlaySfx = () => {
   const audio = new Audio(cardPlaySfxUrl);
-  audio.volume = sfxVol(0.7);
+  audio.volume = sfxVol(0.32);
   audio.play().catch(() => {});
 };
 // The blow: sfx-combate-explosao.wav has its loud hit 42 ms in, so it is started just before the 40 ms hit-stop (HIT_STOP_MS)
@@ -2960,7 +2960,7 @@ const OnlineModeModal = ({ onPick, onClose }: { onPick: (mode: 'casual' | 'ranke
       <div className="flex flex-col gap-3 px-1 py-1">
         <WindowTitle>Online</WindowTitle>
         {ONLINE_MODES.map(m => (
-          <WindowOption key={m.id} onClick={() => onPick(m.id)} icon={<img src={m.icon} alt="" className="w-[78%] h-[78%] object-contain select-none" style={{ filter: 'brightness(1.2) saturate(1.1)' }} draggable={false} />}>
+          <WindowOption key={m.id} onClick={() => onPick(m.id)} icon={<img src={m.icon} alt="" className="w-[74%] h-[74%] object-contain select-none" style={{ filter: 'brightness(1.2) saturate(1.1)' }} draggable={false} />}>
             <div className="flex flex-col min-w-0 py-1">
               <span className="uppercase text-[#f3e3c3]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 15, letterSpacing: '0.08em' }}>{m.title}</span>
               <span className="text-[11px] leading-tight text-[#cdbd97]" style={{ fontFamily: "'PT Serif', serif" }}>{m.desc}</span>

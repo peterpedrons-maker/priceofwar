@@ -13,6 +13,8 @@ de áudio, para cair no mesmo quadro da imagem. Um `<audio>` comum atrasaria um 
 
 | Começa uma fase de Combate (de qualquer lado) | `sfx-corneta-guerra.mp3` (volume 0,8, `playWarHornSfx`, tocado junto com o banner "Fase de Combate" em `showBanner`) | "Tum tuuum" de ~1,9 s feito de **gravações reais de trompa** (notas C2 e G2 do pacote npm `tonejs-instrument-french-horn-mp3`, amostras da Universidade de Iowa, livres para uso), mais uma batida e eco curto. Não é uma corneta de guerra gravada: sites de som (freesound, opengameart etc.) estão bloqueados neste ambiente. Pode ser trocada por um arquivo melhor com o mesmo nome. |
 
+| Convocar carta (carta cai no tabuleiro) | `sfx-convocar.mp3` (volume 0,32, `playCardPlaySfx`) | Baque grave + estalo + trava, mixados de amostras CC0 do pacote npm `uisfx` (estilos "cinematic" e "mechanical": `drop`, `snap`, `lock`); ~0,8 s. Antes: `sfx-jogar-carta.wav` (ainda no repositório). Variante mais seca: ver `docs/janelas/convocar-B.mp3`. |
+
 Outros sons (jogar carta, comprar, selecionar, tática, banner etc.) continuam como estavam, tocando por `<audio>`.
 
 Para trocar um som mantendo a sincronia: encontre o instante do golpe forte no arquivo, corte o silêncio inicial para que ele caia no instante da imagem
