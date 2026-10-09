@@ -61,6 +61,14 @@
   .hd.d span { font:600 14px/1.25 var(--serif); color:#e6d6ae; }
   .note { font:600 11px var(--serif); color:#ffb8a6; text-shadow:0 1px 3px #000; text-align:center; height:14px; }
   .tot { font:600 15px var(--serif); color:#e8d7ae; text-shadow:0 1px 4px #000; } .tot b { color:#ffd36a; }
+  /* faixa verde da fase (réplica da barra do jogo) */
+  .band { position:absolute; left:87px; top:386px; width:175px; height:17px; border-radius:3px; background:linear-gradient(#17c777,#07803f); box-shadow:inset 0 1px 0 rgba(255,255,255,.35); display:flex; align-items:center; justify-content:center; font:700 11px var(--cin); letter-spacing:.08em; color:#eafff0; text-shadow:0 1px 2px #000; white-space:nowrap; }
+  .band s { text-decoration:none; margin-left:5px; animation:nudge 1.1s ease-in-out infinite; } @keyframes nudge { 50% { transform:translateX(3px); } }
+  .cap { position:absolute; left:87px; width:175px; top:370px; text-align:center; font:700 8.5px var(--cin); letter-spacing:.16em; text-transform:uppercase; color:#e6d6ae; text-shadow:0 1px 3px #000, 0 0 6px #000; }
+  .tip { position:absolute; left:40px; right:40px; top:304px; padding:2px 4px; animation:bob 1.8s ease-in-out infinite; } @keyframes bob { 50% { transform:translateY(-3px); } }
+  .tip::after { content:''; position:absolute; left:calc(50% - 8px); bottom:-9px; border:8px solid transparent; border-top-color:#6f5324; border-bottom:0; filter:drop-shadow(0 2px 2px rgba(0,0,0,.6)); }
+  .tip.up::after { bottom:auto; top:-9px; left:auto; right:34px; border:8px solid transparent; border-bottom-color:#6f5324; border-top:0; }
+  .endlab { position:absolute; left:268px; top:384px; width:52px; height:40px; background:linear-gradient(#e7c35a,#a97c1f); border-radius:4px; box-shadow:inset 0 0 0 1px #f6e3a3; display:flex; align-items:center; justify-content:center; text-align:center; font:800 8.5px/1.1 var(--cin); letter-spacing:.04em; color:#3a2406; text-transform:uppercase; }
   #legend { position:absolute; left:8px; right:8px; bottom:8px; z-index:50; font:600 11px/1.3 var(--serif); color:#d9cba4; background:rgba(0,0,0,.72); padding:6px 9px; border-radius:9px; pointer-events:none; }
   body.limpo #legend { display:none; }
 </style>
@@ -74,7 +82,7 @@
 'use strict';
 const $ = s => document.querySelector(s);
 const VIEWS = [
-  { id:'hud', nome:'Tabuleiro' }, { id:'emb', nome:'Emboscada' }, { id:'man', nome:'Manutenção' }, { id:'rel', nome:'Relíquia' }, { id:'esc', nome:'Escolher carta' },
+  { id:'hud', nome:'Tabuleiro' }, { id:'emb', nome:'Emboscada' }, { id:'man', nome:'Manutenção' }, { id:'rel', nome:'Relíquia' }, { id:'esc', nome:'Escolher carta' }, { id:'fase', nome:'Botão de fase' },
 ];
 const q = new URLSearchParams(location.search);
 let cur = q.get('v') || 'hud', antes = q.has('antes');
@@ -141,7 +149,29 @@ const SCENES = {
     legenda: 'Escolher carta (buscar no baralho, descartar, etc.): título no estilo das janelas com uma frase de apoio, a carta escolhida brilha em dourado (hoje é verde) e "Confirmar" é o botão dourado.' },
 };
 
+const FASE = {
+  h: { t:'Hoje', l:'Hoje: a faixa verde mostra só o NOME da fase atual ("Preparação »"). Quem está começando não sabe que ela é um botão, nem que "Combate" é a próxima. Quem lê "Combate" pode achar que precisa tocar nela para atacar.' },
+  a: { t:'A · Ação no botão', l:'A: a faixa passa a dizer o QUE ACONTECE ao tocar ("Ir ao combate »") e a fase atual vira uma legenda pequena acima ("Fase: Preparação"). Na Combate: "Ir à movimentação »". Na Movimentação: "Passar a vez »". Sem Combate liberado: "Ir à movimentação »".' },
+  b: { t:'B · Dica de iniciante', l:'B: o botão não muda; uma dica pulsando aponta para ele ("Terminou de jogar? Toque aqui para ir ao Combate") e outra para "Encerrar turno" ("Pula tudo e passa a vez"). Aparece nas primeiras partidas, no tutorial e depois só se o jogador ficar parado, e some sozinha.' },
+  c: { t:'C · Combinada (recomendo)', l:'C: A + B só no começo. A faixa diz a ação, a fase atual fica na legenda, e nas primeiras partidas uma dica curta aponta a faixa. "Encerrar turno" ganha a legenda "pula tudo" na primeira vez. Depois de 3 partidas, só ficam a faixa com a ação e a legenda.' },
+};
+let vr = q.get('w') || 'c';
+function faseBody() {
+  const tipHtml = (txt, cls='') => `<div class="tip toast ${cls}"><p style="font:700 14px/1.25 var(--serif)">${txt}</p></div>`;
+  let h = '';
+  if (vr === 'a' || vr === 'c') h += `<div class="band">IR AO COMBATE<s>››</s></div><div class="cap">Fase: Preparação</div>`;
+  if (vr === 'b') h += tipHtml('Terminou de jogar? Toque aqui para ir ao Combate.') + `<div class="tip toast up" style="top:440px;left:150px;right:14px;animation-delay:.5s"><p style="font:700 13px/1.25 var(--serif)">Encerrar turno pula tudo.</p></div>`;
+  if (vr === 'c') h += tipHtml('Toque aqui quando terminar de jogar cartas.');
+  if (vr === 'c') h += `<div class="cap" style="left:262px;width:64px;top:428px;font-size:7.5px;letter-spacing:.06em">pula tudo</div>`;
+  return h;
+}
 function render() {
+  if (cur === 'fase') {
+    $('#bar').innerHTML = VIEWS.map(v => `<button class="${v.id===cur?'on':''}" data-v="${v.id}">${v.nome}</button>`).join('') + '<span class="sp"></span>' + ['h','a','b','c'].map(k => `<button class="${vr===k?'on':''}" data-w="${k}">${FASE[k].t}</button>`).join('');
+    $('#stage').innerHTML = `<div class="bg" style="background-image:url(img/board-clean.jpg)"></div>${vr==='h'?'':faseBody()}<div id="legend">${FASE[vr].l}</div>`;
+    document.querySelectorAll('#bar button').forEach(b => b.onclick = () => { if (b.dataset.v) cur = b.dataset.v; if (b.dataset.w) vr = b.dataset.w; render(); });
+    return;
+  }
   const sc = SCENES[cur];
   $('#bar').innerHTML = VIEWS.map(v => `<button class="${v.id===cur?'on':''}" data-v="${v.id}">${v.nome}</button>`).join('') + '<span class="sp"></span>' +
     `<button class="${antes?'':'on'}" data-m="d">Depois</button><button class="${antes?'on':''}" data-m="a">Antes</button>`;

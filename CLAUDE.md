@@ -19,6 +19,7 @@ Jogo de cartas digital em React + TypeScript; o app fica em `Price of War/` (há
 
 ## Regras de ouro do projeto
 - **Godot x web isolados:** trabalho do Godot só em `Price of War Godot/` (commits `Godot: ...`); nunca altere `Price of War/`, `supabase/` ou `.github/` por causa dele, nem importe uma pasta da outra (artes e dados são copiados/gerados). Exceções listadas em `docs/godot.md` seção 7.
+- **Contêiner/destaque de carta sempre no formato exato da carta** (brilho e sombra seguem o recorte real, nunca uma caixa retangular gerada por código; em mockup, recorte as cartas do jogo com transparência real).
 - O motor (`src/engine`) é a única fonte das regras; cliente e servidor só o chamam. O que uma carta faz está em dados no catálogo, não em código por nome de carta.
 - Hooks do React ficam antes dos `return` antecipados do componente `App`.
 - Mudança de regra, carta ou equilíbrio: meça antes no laboratório (IA × IA mostra tendência, não a verdade).

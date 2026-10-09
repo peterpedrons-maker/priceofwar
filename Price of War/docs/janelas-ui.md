@@ -63,3 +63,6 @@ Decisões propostas (a aprovar): botão afirmativo (Ativar, Pagar, Confirmar, En
 Se aprovado, a troca é por dentro de `GameBox` e `GameButton` (`src/ui/ThinFrame.tsx`) mais os títulos dos prompts em `App.tsx`; pesar a leitura das cartas e testar no celular.
 
 - **Botão dourado sem espadas (pedido do dono):** as espadas cruzadas das pontas foram apagadas da arte `btn-primary` (e das versões `-dark` e `-off`) por interpolação do dourado; vale para o jogo (`src/assets/kit/`, `src/assets/desafios/ui/`) e para os mockups. As pontas do botão ficaram mais curtas (`border-width` 24 px no kit, 34 px no Batalha). Original com espadas: `git show 7cea410:"Price of War/public/mockups/desafios/ui/btn-primary.png"`.
+
+- **Mockup, cartas sem caixa:** as cartas do mockup `partida/` agora são recortes com transparência real (capturadas duas vezes, sobre preto e sobre branco, e separadas por diferença), então o brilho segue o contorno da carta. Antes havia um retângulo escuro em volta (erro do mockup, não do jogo).
+- **Botão de fase (central):** nova tela "Botão de fase" no mockup com 3 propostas (A ação no botão, B dica de iniciante, C combinada). Hoje (`src/TurnTracker.tsx`) a faixa mostra só o nome da fase e `››`; tocar nela avança a fase (da última, encerra o turno) e "Encerrar turno" pula as restantes. Recomendação: C.
