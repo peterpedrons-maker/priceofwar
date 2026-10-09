@@ -11,8 +11,12 @@
 .kit-btn.gold { min-height: 46px; border-width: 11px 34px; border-image-slice: 20 80 20 80 fill; font-weight: 900; color: #2a1604; text-shadow: 0 1px 0 rgba(255,255,255,.55); filter: drop-shadow(0 4px 6px rgba(0,0,0,.6)); }
 .kit-btn.gold:active { filter: brightness(.82) drop-shadow(0 2px 3px rgba(0,0,0,.6)); }
 .kit-btn.danger { border-image-slice: 22 60 22 60 fill; color: #ffd9d2; }
-.kit-row { display: block; width: 100%; text-align: left; border-style: solid; border-width: 11px 14px; border-image-slice: 22 fill; border-image-repeat: stretch; padding: 3px 4px; cursor: pointer; transition: transform .12s; -webkit-tap-highlight-color: transparent; }
+.kit-row { position: relative; display: block; width: 100%; text-align: left; border-style: solid; border-image-repeat: stretch; cursor: pointer; transition: transform .12s; -webkit-tap-highlight-color: transparent; }
 .kit-row:active { transform: scale(.985); }
+.kit-row-plain { border-width: 9px 20px; border-image-slice: 20 56 20 56 fill; padding: 4px 2px; }
+.kit-row-ic { min-height: 68px; border-width: 11px 11px 11px 58px; border-image-slice: 22 22 22 112 fill; padding: 0 0 0 8px; display: flex; align-items: center; }
+.kit-sock { position: absolute; left: -52px; top: calc(50% - 22px); width: 44px; height: 44px; border-radius: 5px; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(#2c2014,#140d07); box-shadow: 0 0 0 1px #000, inset 0 0 0 1px #8a6a2c; }
 .kit-tab { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0 4px;
   border-style: solid; border-width: 11px 14px 5px; border-image-slice: 24 24 8 24 fill; border-image-repeat: stretch;
   font: 700 11px 'Cinzel',serif; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; -webkit-tap-highlight-color: transparent; }

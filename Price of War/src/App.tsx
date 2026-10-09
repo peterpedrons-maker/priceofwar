@@ -2749,8 +2749,8 @@ const ArtChip = ({ active, onClick, children, className = '', compact = false }:
 
 // A selectable row inside a window (deck choice, Casual/Ranqueado): an engraved inset
 // with a soft top highlight and a gold accent on the left instead of a boxed outline.
-const WindowOption = ({ children, onClick }: { children: React.ReactNode; onClick: () => void; key?: React.Key }) => (
-  <KitRow onClick={() => { playUiClickSfx(); onClick(); }}>{children}</KitRow>
+const WindowOption = ({ children, onClick, icon }: { children: React.ReactNode; onClick: () => void; icon?: React.ReactNode; key?: React.Key }) => (
+  <KitRow icon={icon} onClick={() => { playUiClickSfx(); onClick(); }}>{children}</KitRow>
 );
 
 const WindowText = ({ children }: { children: React.ReactNode }) => (
@@ -2948,16 +2948,10 @@ const OnlineModeModal = ({ onPick, onClose }: { onPick: (mode: 'casual' | 'ranke
       <div className="flex flex-col gap-3 px-1 py-1">
         <WindowTitle>Online</WindowTitle>
         {ONLINE_MODES.map(m => (
-          <WindowOption key={m.id} onClick={() => onPick(m.id)}>
-            <div className="flex items-center gap-3">
-              <div className="relative w-12 h-12 shrink-0">
-                <img src={uiIconButtonImage} alt="" className="absolute inset-0 w-full h-full select-none" draggable={false} />
-                <img src={m.icon} alt="" className="absolute left-1/2 top-1/2 w-[62%] h-[62%] -translate-x-1/2 -translate-y-1/2 object-contain select-none" style={{ filter: 'brightness(1.2) saturate(1.1)' }} draggable={false} />
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="uppercase text-[#f3e3c3]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 15, letterSpacing: '0.08em' }}>{m.title}</span>
-                <span className="text-[11px] leading-tight text-[#cdbd97]" style={{ fontFamily: "'PT Serif', serif" }}>{m.desc}</span>
-              </div>
+          <WindowOption key={m.id} onClick={() => onPick(m.id)} icon={<img src={m.icon} alt="" className="w-[78%] h-[78%] object-contain select-none" style={{ filter: 'brightness(1.2) saturate(1.1)' }} draggable={false} />}>
+            <div className="flex flex-col min-w-0 py-1">
+              <span className="uppercase text-[#f3e3c3]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 15, letterSpacing: '0.08em' }}>{m.title}</span>
+              <span className="text-[11px] leading-tight text-[#cdbd97]" style={{ fontFamily: "'PT Serif', serif" }}>{m.desc}</span>
             </div>
           </WindowOption>
         ))}

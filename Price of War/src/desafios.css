@@ -26,8 +26,8 @@
   .dz-tint { position:absolute; inset:0; pointer-events:none; mix-blend-mode:soft-light; transition:background .8s; }
   .dz-dust { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; mix-blend-mode:screen; }
   /* pino (fixo na tela; o mapa se move por baixo) */
-  .dz-pin { position:absolute; left:195px; top:215px; width:0; height:0; pointer-events:none; transition:opacity .5s; }
-  .dz-pin.dz-hide, .dz-place.dz-hide { opacity:0; }
+  .dz-pin { position:absolute; left:195px; top:215px; width:0; height:0; pointer-events:none; transition:opacity .4s 1.15s; }
+  .dz-pin.dz-hide, .dz-place.dz-hide { opacity:0; transition-delay:0s; }
   .dz-pin svg { position:absolute; left:-17px; top:-50px; width:34px; height:52px; filter:drop-shadow(0 4px 6px rgba(0,0,0,.8)) drop-shadow(0 0 10px rgba(255,214,110,.55)); animation:bob 2.2s ease-in-out infinite; }
   .dz-pin .dz-pulse { position:absolute; left:-26px; top:-8px; width:52px; height:16px; border-radius:50%; border:2px solid rgba(246,227,163,.8); animation:pulse 2s ease-out infinite; }
   .dz-pin .dz-pulse.b { animation-delay:1s; }

@@ -50,11 +50,13 @@ export const DesafiosScreen = ({ opponents, decks, onBack, onEditDecks, onStart 
 
   // O mapa afastado (nenhum selecionado) ou com zoom na cidade escolhida.
   const o = sel >= 0 ? all[sel] : null, pl = o ? PLACES[o.id] : null;
-  const pinX = size.w / 2, pinY = Math.round(size.h * (sel >= 0 ? .3 : .5));
+  const aimX = size.w / 2, aimY = Math.round(size.h * (sel >= 0 ? .3 : .5));
   const ovScale = .42 * size.w / 390;
   const xs = all.map(a => PLACES[a.id].px * ZOOM), minX = Math.min(...xs), maxX = Math.max(...xs);
   const ovTx = size.w / 2 - (minX + maxX) / 2 * ovScale, ovTy = size.h / 2 - MAPPX / 2 * ovScale + 6;
-  const zTx = pl ? Math.min(0, Math.max(size.w - MAPPX, pinX - pl.px * ZOOM)) : 0, zTy = pl ? Math.min(0, Math.max(size.h - MAPPX, pinY - pl.py * ZOOM)) : 0;
+  const zTx = pl ? Math.min(0, Math.max(size.w - MAPPX, aimX - pl.px * ZOOM)) : 0, zTy = pl ? Math.min(0, Math.max(size.h - MAPPX, aimY - pl.py * ZOOM)) : 0;
+  // O pino do zoom fica exatamente sobre o ponto do mapa (o mapa trava nas bordas, então ele pode sair do alvo).
+  const pinX = pl ? zTx + pl.px * ZOOM : aimX, pinY = pl ? zTy + pl.py * ZOOM : aimY;
   const mapTransform = sel < 0 ? `translate(${ovTx}px, ${ovTy}px) scale(${ovScale})` : `translate(${zTx}px, ${zTy}px) scale(1)`;
 
   // As plaquinhas dos pinos não podem sair da tela.

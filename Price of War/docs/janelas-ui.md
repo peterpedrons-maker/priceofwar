@@ -51,3 +51,4 @@ Pontos de atenção: o texto da descrição fica um pouco maior (Crimson Pro 13,
 - `FramedWindow`, `WindowTitle`, `WindowButton` (novo `danger`), `WindowOption`, `ArtChip`, `ToggleRow`, `VolumeRow` em `App.tsx` agora só chamam o kit; as ≈16 janelas mudaram sozinhas (conferidas: Opções, Configurações, Online). "Sair da conta" usa o botão vermelho.
 - `WindowOption` usa a linha do kit sem encaixe de retrato (o conteúdo traz o próprio ícone).
 - Ainda no estilo antigo: Editor de decks (cabeçalho/abas/busca à mão), Loja (fala), Login, partida (GameBox/GameButton). `ThinFrame`, `uiWindowFrame` e `.vol-range` seguem usados por essas telas.
+- Correção: `KitRow` com `icon` usa a arte com encaixe de retrato (o ícone vai dentro do encaixe, como no mockup); sem `icon`, usa a faixa lisa do botão secundário. Antes a arte do encaixe era esticada nas linhas sem retrato e aparecia uma moldura deslocada (tela Online).

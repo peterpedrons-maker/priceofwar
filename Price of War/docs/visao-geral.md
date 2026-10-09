@@ -60,3 +60,4 @@ Menu principal (fundo "A guerra dos dois Generais", logo no céu e cinco placas 
 | Editor de decks e coleção salva | `src/App.tsx` (`DeckEditor`, `loadDeckStore`) |
 | Tutorial | `src/tutorial/` (+ `docs/tutorial.md`) |
 | Online | `server/`, `src/services/online.ts` (+ `docs/online-setup.md`) |
+- **Desafios, pino do zoom:** o mapa trava nas bordas ao dar zoom, então o pino do zoom é posicionado sobre o ponto real do mapa (`pinX/pinY` em `DesafiosScreen.tsx`) e só aparece quando o zoom termina; conferido por medição (diferença < 1 px nos 3 pinos).

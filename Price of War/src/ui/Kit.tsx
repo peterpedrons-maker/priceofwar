@@ -36,8 +36,15 @@ export const KitButton = ({ children, onClick, tone = 'normal', className = '', 
   >{children}</button>
 );
 
-export const KitRow = ({ children, onClick, selected = false }: { children: React.ReactNode; onClick: () => void; selected?: boolean; key?: React.Key }) => (
-  <button onClick={onClick} className="kit-row" style={{ borderImageSource: `url(${selected ? rowSelImg : rowImg})`, filter: selected ? 'drop-shadow(0 0 7px rgba(240,200,100,.5))' : undefined }}>{children}</button>
+// Linha tocável. Com `icon`, usa a arte com encaixe de retrato (o ícone vai no encaixe); sem, usa a faixa lisa do botão secundário.
+export const KitRow = ({ children, onClick, selected = false, icon }: { children: React.ReactNode; onClick: () => void; selected?: boolean; icon?: React.ReactNode; key?: React.Key }) => (
+  <button
+    onClick={onClick} className={icon ? 'kit-row kit-row-ic' : 'kit-row kit-row-plain'}
+    style={{ borderImageSource: `url(${icon ? (selected ? rowSelImg : rowImg) : btnSecondary})`, filter: selected ? 'drop-shadow(0 0 7px rgba(240,200,100,.5))' : undefined }}
+  >
+    {icon && <span className="kit-sock">{icon}</span>}
+    {children}
+  </button>
 );
 
 export const KitTab = ({ active, onClick, children, className = '' }: { active: boolean; onClick: () => void; children: React.ReactNode; className?: string; key?: React.Key }) => (
