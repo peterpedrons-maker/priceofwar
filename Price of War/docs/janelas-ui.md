@@ -40,3 +40,8 @@ As janelas atuais já são coerentes e bonitas; o ganho do kit é mais de **hier
 - interruptores com ON/OFF escrito, controles de volume mais "táteis", linhas com encaixe de retrato (decks, Online);
 - título com dourado em degradê e divisor ornamentado, iguais ao da tela de Desafios.
 Pontos de atenção: o texto da descrição fica um pouco maior (Crimson Pro 13,5 px); o editor de decks ganha cabeçalho mais limpo, mas continua com a mesma grade de cartas; a Loja só troca o quadro de fala e os botões (a cena do mercador continua igual).
+
+## Peças novas do kit (já extraídas)
+- Em `public/mockups/janelas/kit/`: abas (`tab_on/off`), campo de busca, contador, botão de perigo (vermelho), moeda "+", balão de fala, botão do slider e ícones (`i_voltar`, `i_busca`, `i_filtro`, `i_carta`, `i_lista`, `i_grade`, lixeira etc.). O mockup `public/mockups/janelas/` já usa todas.
+- Ressalvas: os ícones têm contorno vinho escuro, um pouco mais "cartoon" que o resto do kit; textos que a IA pôs nos selos foram apagados; conferido só no navegador de computador (390×844), não no celular.
+- Próximo passo (depois da aprovação do dono): criar `src/ui/Kit.tsx` e trocar o interior de FramedWindow/WindowTitle/WindowButton/WindowOption/ToggleRow/VolumeRow/ArtChip.

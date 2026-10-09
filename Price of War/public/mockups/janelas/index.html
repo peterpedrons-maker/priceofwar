@@ -70,7 +70,7 @@
   .top { display:flex; align-items:center; gap:6px; margin-bottom:8px; }
   .tabs { display:flex; gap:5px; flex:1; } .tab { flex:1; height:36px; display:flex; align-items:center; justify-content:center; font:700 11px var(--cin); letter-spacing:.1em; text-transform:uppercase; color:#a99768; border-radius:8px; background:linear-gradient(#241a10,#140d07); box-shadow:inset 0 0 0 1px #5a431c; cursor:pointer; }
   .tab.on { color:#2a1604; background:linear-gradient(#f3d98c,#bd8f2f); box-shadow:inset 0 1px 0 rgba(255,255,255,.55), 0 0 10px rgba(240,200,100,.35); }
-  .ib { flex:none; width:42px; height:42px; background:url(../desafios/ui/icon-btn.png) center/contain no-repeat; display:flex; align-items:center; justify-content:center; color:var(--gold2); font-size:22px; padding-bottom:3px; cursor:pointer; filter:drop-shadow(0 3px 4px rgba(0,0,0,.6)); }
+  .ib { flex:none; width:36px; height:36px; background:url(../desafios/ui/icon-btn.png) center/contain no-repeat; display:flex; align-items:center; justify-content:center; color:var(--gold2); font-size:22px; padding-bottom:3px; cursor:pointer; filter:drop-shadow(0 3px 4px rgba(0,0,0,.6)); }
   .nameRow { position:relative; display:flex; align-items:center; gap:8px; min-height:62px; margin:0 0 8px 46px; padding:0 8px 0 6px; border-style:solid; border-width:11px 11px 11px 58px; border-image:url(../desafios/ui/panel-row.png) 22 22 22 112 fill stretch; }
   .nameRow .face { position:absolute; left:-52px; top:calc(50% - 22px); width:44px; height:44px; border-radius:5px; background:url(../desafios/portraits/cardeal.webp) 50% 12%/cover; box-shadow:0 0 0 1px #000, 0 0 0 2px #8a6a2c; }
   .nameRow b { flex:1; min-width:0; font:700 12px var(--cin); letter-spacing:.03em; color:var(--gold2); text-transform:uppercase; line-height:1.2; }
@@ -89,6 +89,24 @@
   .speech .who { margin:-6px 0 4px; font:700 11px var(--cin); letter-spacing:.2em; text-transform:uppercase; color:#cdb77c; text-align:center; }
   .speech p { margin:0 4px 10px; text-align:center; font:600 17px/1.3 var(--serif); color:#efe3c2; }
   .sub { margin:0 auto 6px; text-align:center; font:600 12px var(--cin); letter-spacing:.14em; color:#a99768; text-transform:uppercase; }
+
+  /* ───── peças novas do kit (segunda folha) ───── */
+  .ic { display:inline-block; width:var(--s,22px); height:var(--s,22px); background-size:contain; background-repeat:no-repeat; background-position:center; flex:none; filter:drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
+  .tab { height:40px; border-style:solid; border-width:12px 16px 5px; border-image:url(kit/tab_off.png) 24 24 8 24 fill stretch; background:none; box-shadow:none; color:#a99768; }
+  .tab.on { border-image-source:url(kit/tab_on.png); color:#2a1604; box-shadow:none; background:none; text-shadow:0 1px 0 rgba(255,255,255,.5); }
+  .seg .tab { height:44px; }
+  .search { position:relative; height:46px; border-style:solid; border-width:14px 14px; border-image:url(kit/busca.png) 30 31 fill stretch; background:none; box-shadow:none; padding:0 0 0 30px; color:#8a7a56; min-width:0; overflow:hidden; white-space:nowrap; }
+  .count { min-width:60px; height:32px; background:url(kit/cont_ok.png) center/100% 100% no-repeat; box-shadow:none; color:#e4ffe9; text-shadow:0 1px 2px #000; padding:0 12px; }
+  .btn.danger { border-image:url(kit/perigo.png) 22 60 22 60 fill stretch; color:#ffd9d2; }
+  .btn.danger:active { filter:brightness(.8); transform:translateY(2px); }
+  .btn .ic { margin-right:8px; --s:17px; }
+  .ib .ic { --s:21px; }
+  .coroas { border:none; width:156px; height:50px; padding:0 40px 0 58px; justify-content:flex-start; background:url(kit/moeda_mais.png) center/100% 100% no-repeat; filter:drop-shadow(0 3px 4px rgba(0,0,0,.6)); }
+  .coroas i { display:none; }
+  .speech { border:none; background:none; padding:30px 24px 14px; filter:none; }
+  .speech::before { content:''; position:absolute; inset:0; border-style:solid; border-width:34px; border-image:url(kit/balao_baixo.png) 34 fill stretch; transform:scaleY(-1); filter:drop-shadow(0 10px 18px rgba(0,0,0,.8)); z-index:-1; }
+  .speech { z-index:1; }
+  .sl .th { background-image:url(kit/slider_botao.png); width:30px; height:30px; margin-left:-15px; top:-7px; }
 </style>
 </head>
 <body>
@@ -119,22 +137,22 @@ const R = {
   config: () => `<div class="bg" style="background-image:url(img/menu-fundo.jpg)"></div><div class="dim"></div>` + win('Configurações',
     `<div class="acc"><div class="lbl">Conta</div><div class="nm">Teste</div><div class="gu">Convidado</div></div>
      <p class="note">Como convidado, seu progresso existe <b>só neste aparelho</b>. Ligue uma conta para não perdê-lo.</p>`,
-    `<div class="btns"><button class="btn">Sair da conta</button><button class="btn gold">Fechar</button></div>`, false),
+    `<div class="btns"><button class="btn danger">Sair da conta</button><button class="btn gold">Fechar</button></div>`, false),
   online: () => `<div class="bg" style="background-image:url(img/menu-fundo.jpg)"></div><div class="dim"></div>` + win('Online',
     `<div class="row"><div class="ic">⚔</div><div><h3>Casual</h3><p>Partidas amistosas, sem pontos em jogo.</p></div></div>
      <div class="row sel"><div class="ic">🏆</div><div><h3>Ranqueado</h3><p>Suba de rank e ganhe recompensas.</p><span class="pill">Em breve</span></div></div>`,
     `<div class="btns"><button class="btn">Voltar</button></div>`, false),
   editor: () => `<div class="scr">
-      <div class="top"><div class="ib">‹</div><div class="tabs"><div class="tab on">Deck 1</div><div class="tab">Deck 2</div><div class="tab">Deck 3</div></div></div>
+      <div class="top"><div class="ib"><i class="ic" style="background-image:url(kit/i_voltar.png)"></i></div><div class="tabs"><div class="tab on">Deck 1</div><div class="tab">Deck 2</div><div class="tab">Deck 3</div></div></div>
       <div class="nameRow"><div class="face"></div><b>Deck Cardeal Pedro ✎</b><small>Mín. 40</small><span class="count">60</span></div>
       <div class="seg"><div class="tab on">Deck (60)</div><div class="tab">Reserva (134)</div></div>
-      <div class="filt"><div class="search">Buscar…</div><div class="ib">▭</div><div class="ib">☰</div><div class="ib">▦</div><button class="btn sm" style="flex:none;width:auto;padding:0 6px">Filtros</button></div>
+      <div class="filt"><div class="search"><i class="ic" style="position:absolute;left:2px;top:50%;margin-top:-8px;--s:16px;background-image:url(kit/i_busca.png)"></i>Buscar…</div><div class="ib"><i class="ic" style="background-image:url(kit/i_carta.png)"></i></div><div class="ib"><i class="ic" style="background-image:url(kit/i_lista.png)"></i></div><div class="ib"><i class="ic" style="background-image:url(kit/i_grade.png)"></i></div><button class="btn sm" style="flex:none;width:auto;padding:0 2px;font-size:12px"><i class="ic" style="background-image:url(kit/i_filtro.png)"></i>Filtros</button></div>
       <div class="grid"></div>
-      <div class="foot"><button class="btn">Limpar deck</button><button class="btn gold">Preencher automático</button></div>
+      <div class="foot"><button class="btn danger"><i class="ic" style="background-image:url(kit/i_lixo.png)"></i>Limpar deck</button><button class="btn gold">Preencher automático</button></div>
     </div>`,
   loja: () => `<div class="bg" style="background-image:url(img/loja-fundo.jpg);background-size:100% auto;background-position:center top"></div><div style="position:absolute;left:0;right:0;bottom:0;height:300px;background:linear-gradient(transparent,#0a0705 55%)"></div>
-    <div class="coroas"><i></i>150</div>
-    <div class="speech"><div class="who">Mercador</div><p>Bem-vindo, viajante! Cartas novas para o seu baralho? Chegou na loja certa.</p><div class="btns"><button class="btn">Sair</button><button class="btn gold">Comprar</button></div></div>`,
+    <div class="coroas">150</div>
+    <div class="speech"><div class="who" style="margin-top:6px">Mercador</div><p>Bem-vindo, viajante! Cartas novas para o seu baralho? Chegou na loja certa.</p><div class="btns"><button class="btn">Sair</button><button class="btn gold">Comprar</button></div></div>`,
 };
 function render() {
   document.body.classList.toggle('antes', antes);
