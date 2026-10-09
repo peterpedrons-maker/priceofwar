@@ -65,3 +65,53 @@ export const KitRange = ({ value, onChange, onRelease, label }: { value: number;
     onChange={e => onChange(Number(e.target.value) / 100)} onPointerUp={onRelease} onKeyUp={onRelease}
   />
 );
+
+// ── Editor de decks e telas cheias ──────────────────────────────────────────
+import iconBtnImg from '../assets/kit/icon-btn.png';
+import countOk from '../assets/kit/cont_ok.png';
+import countBad from '../assets/kit/cont_inc.png';
+import searchImg from '../assets/kit/busca.png';
+import iVoltar from '../assets/kit/i_voltar.png';
+import iBusca from '../assets/kit/i_busca.png';
+import iFiltro from '../assets/kit/i_filtro.png';
+import iCarta from '../assets/kit/i_carta.png';
+import iLista from '../assets/kit/i_lista.png';
+import iGrade from '../assets/kit/i_grade.png';
+import iLixo from '../assets/kit/i_lixo.png';
+
+export const KIT_ICONS = { voltar: iVoltar, busca: iBusca, filtro: iFiltro, carta: iCarta, lista: iLista, grade: iGrade, lixo: iLixo };
+
+export const KitIcon = ({ src, size = 20, className = '' }: { src: string; size?: number; className?: string }) => (
+  <i aria-hidden className={`kit-ic ${className}`} style={{ width: size, height: size, backgroundImage: `url(${src})` }} />
+);
+
+// Botão redondo com ícone (voltar, ver em cartas/lista, tamanho). `on` = selecionado (brilho dourado).
+export const KitIconButton = ({ icon, onClick, label, on = false, disabled = false, size = 38, children }: {
+  icon?: string; onClick: () => void; label: string; on?: boolean; disabled?: boolean; size?: number; children?: React.ReactNode; key?: React.Key;
+}) => (
+  <button
+    aria-label={label} title={label} onClick={onClick} disabled={disabled}
+    className={`kit-ib ${disabled ? 'opacity-35 pointer-events-none' : ''}`}
+    style={{ width: size, height: size, backgroundImage: `url(${iconBtnImg})`, filter: on ? 'brightness(1.25) drop-shadow(0 0 6px rgba(240,200,100,.6))' : 'brightness(.8) drop-shadow(0 3px 4px rgba(0,0,0,.6))' }}
+  >{icon ? <KitIcon src={icon} size={Math.round(size * .55)} /> : children}</button>
+);
+
+// Placa com encaixe de retrato (nome do deck + General): o retrato vai no encaixe, o resto à direita.
+export const KitPlate = ({ portrait, children }: { portrait: string; children: React.ReactNode }) => (
+  <div className="kit-row kit-row-ic" style={{ borderImageSource: `url(${rowImg})`, cursor: 'default', minHeight: 58 }}>
+    <span className="kit-sock" style={{ backgroundImage: `url(${portrait})`, backgroundSize: 'cover', backgroundPosition: '50% 12%' }} />
+    {children}
+  </div>
+);
+
+// Contador (60) em pílula verde; vermelha quando o deck está fora do limite.
+export const KitCount = ({ children, bad = false }: { children: React.ReactNode; bad?: boolean }) => (
+  <span className="kit-count" style={{ backgroundImage: `url(${bad ? countBad : countOk})` }}>{children}</span>
+);
+
+export const KitSearch = ({ value, onChange, placeholder = 'Buscar...' }: { value: string; onChange: (v: string) => void; placeholder?: string }) => (
+  <label className="kit-search" style={{ borderImageSource: `url(${searchImg})` }}>
+    <KitIcon src={iBusca} size={16} className="kit-search-ic" />
+    <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} />
+  </label>
+);

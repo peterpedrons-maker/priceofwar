@@ -233,7 +233,10 @@ import { DesafiosScreen, type DzDeck, type DzOpponent } from './DesafiosScreen';
 import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
 import { STEPS as TUT_STEPS, BEATS as TUT_BEATS, COIN_STEP as TUT_COIN_STEP, OUTRO as TUT_OUTRO, CHAPTERS as TUT_CHAPTERS, createTutorialMatch, nextEnemyAction as tutEnemyAction, type Step as TutStep, type Tgt as TutTgt, type Until as TutUntil } from './tutorial/script';
-import { KitWindow, KitTitle, KitButton, KitRow, KitTab, KitToggle, KitRange } from './ui/Kit';
+import { KitWindow, KitTitle, KitButton, KitRow, KitTab, KitToggle, KitRange, KitIconButton, KitPlate, KitCount, KitSearch, KitIcon, KIT_ICONS } from './ui/Kit';
+import portraitCapitaoImg from './assets/desafios/capitao.webp';
+import portraitCardealImg from './assets/desafios/cardeal.webp';
+import portraitMercenariosImg from './assets/desafios/mercenarios.webp';
 import { ThinFrame, GameBox, GameButton } from './ui/ThinFrame';
 import { NpcPanel, TapHand, Spotlight, TutorialList, TutorialIntro, markTutorialDone, type Hole as TutHole } from './tutorial/ui';
 import { DECK_MAX_CARDS, DECK_MAX_COPIES, DECK_MIN_CARDS } from './engine/deck';
@@ -2744,7 +2747,7 @@ const HLine = ({ className = '' }: { className?: string }) => (
 
 // Small pill button drawn with the tab art (bright when selected, dim when not).
 const ArtChip = ({ active, onClick, children, className = '', compact = false }: { active: boolean; onClick: () => void; children: React.ReactNode; className?: string; compact?: boolean; key?: React.Key }) => (
-  <KitTab active={active} onClick={() => { playUiClickSfx(); onClick(); }} className={`${compact ? '' : 'px-2'} ${className}`}>{children}</KitTab>
+  <KitTab active={active} onClick={() => { playUiClickSfx(); onClick(); }} className={`${compact ? '!px-0 !text-[10px] !tracking-[0.04em] min-w-0 shrink' : 'px-2'} ${className}`}>{children}</KitTab>
 );
 
 // A selectable row inside a window (deck choice, Casual/Ranqueado): an engraved inset
@@ -3301,7 +3304,7 @@ type DeckSide = 'deck' | 'reserve';
 type EditorSort = 'custo' | 'nome' | 'tipo';
 const EDITOR_SORTS: EditorSort[] = ['custo', 'nome', 'tipo'];
 const EDITOR_MARGIN = 5;
-const EDITOR_FRAME = 18;
+const EDITOR_FRAME = 2;
 const EDITOR_PAD = 6;
 // Spreadsheet columns of the list: cost | name | type | ATK | HP | quantity. Header and rows share
 // this template, and the cells are split by the thin gold line art (ui-line-v / ui-line-h).
@@ -3476,135 +3479,78 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
       <div
         className="w-full max-w-[480px] flex flex-col h-full gap-2"
         style={{
-          borderStyle: 'solid',
-          borderColor: 'transparent',
+          borderRadius: 6,
           borderWidth: EDITOR_FRAME,
-          borderImageSource: `url(${uiWindowFrameImage})`,
-          borderImageSlice: '90',
-          borderImageWidth: `${EDITOR_FRAME}px`,
-          borderImageRepeat: 'stretch',
+          borderStyle: 'solid',
+          borderColor: '#5a431c',
           padding: `6px ${EDITOR_PAD}px`,
-          backgroundColor: overRoom ? 'rgba(34,16,13,0.8)' : '#22100d',
-          backgroundImage: `radial-gradient(ellipse at 50% 20%, rgba(170,70,50,0.22), rgba(170,70,50,0) 70%), linear-gradient(rgba(34,14,12,0.55), rgba(20,8,7,0.7)), url(${uiWindowTextureImage})`,
-          backgroundSize: '100% 100%, 100% 100%, 400px 400px',
-          backgroundRepeat: 'no-repeat, no-repeat, repeat',
-          backgroundOrigin: 'border-box',
-          backgroundClip: 'border-box',
+          backgroundColor: overRoom ? 'rgba(20,13,7,0.82)' : '#140d07',
+          backgroundImage: 'radial-gradient(ellipse at 50% 18%, #2a1d10 0, rgba(20,13,7,0) 70%)',
+          boxShadow: 'inset 0 0 22px rgba(0,0,0,.7)',
         }}
       >
         {/* Header: back arrow, deck slots, save */}
         <div className="flex items-center gap-2 shrink-0">
-          <button aria-label="Voltar" onClick={() => { playUiClickSfx(); requestClose(); }} className="shrink-0 active:scale-95 transition">
-            <ThinFrame px={9} style={{ background: 'rgba(20,13,6,0.45)' }}>
-              <span className="flex items-center gap-1 pl-1.5 pr-2.5 py-[2px] text-[10px] uppercase tracking-[0.1em] text-[#f0e0bb]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#f0e0bb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
-                Voltar
-              </span>
-            </ThinFrame>
-          </button>
-          <div className="flex gap-1.5 flex-1 justify-center">
+          <KitIconButton icon={KIT_ICONS.voltar} label="Voltar" size={40} onClick={() => { playUiClickSfx(); requestClose(); }} />
+          <div className="flex gap-1 flex-1 min-w-0 justify-center">
             {store.slots.map((sl, i) => (
               <ArtChip key={sl.id} compact active={i === slotIdx} onClick={() => { setSlotIdx(i); setPicked(null); }}>Deck {i + 1}</ArtChip>
             ))}
           </div>
-          {/* Lit like a selected button (with a red dot) while there are unsaved changes */}
-          <button onClick={() => { if (dirty) { playUiClickSfx(); saveNow(); } }} disabled={!dirty} aria-label="Salvar alterações" className={`relative h-[34px] shrink-0 transition ${dirty ? 'active:scale-95' : ''}`}>
-            <ArtFrame src={dirty ? uiEditorTabOnImage : uiEditorTabOffImage} slice={[44, 44, 44, 44]} width={[11, 11, 11, 11]} className="absolute inset-0" style={{ background: dirty ? 'rgba(122,90,22,0.75)' : 'rgba(0,0,0,0.4)' }} />
-            <span className={`relative block px-3 uppercase tracking-[0.08em] text-[11px] whitespace-nowrap ${dirty ? 'text-[#fff1c9]' : 'text-[#8fe0a4]/80'}`} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>{dirty ? 'Salvar' : 'Salvo ✓'}</span>
+          {/* Lit like a selected tab (with a red dot) while there are unsaved changes */}
+          <button onClick={() => { if (dirty) { playUiClickSfx(); saveNow(); } }} disabled={!dirty} aria-label="Salvar alterações" className={`relative shrink-0 transition ${dirty ? 'active:scale-95' : ''}`}>
+            <KitTab active={dirty} onClick={() => {}} className="pointer-events-none !px-0 !text-[10px] !tracking-[0.04em]">{dirty ? 'Salvar' : 'Salvo ✓'}</KitTab>
             {dirty && <motion.span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#d8402a] shadow-[0_0_0_1.5px_#e8c766]" animate={{ scale: [1, 1.3, 1] }} transition={{ duration: 1.2, repeat: Infinity }} />}
           </button>
         </div>
         {dirty && <p className="text-center text-[11px] -mt-1 text-[#f2c66a]" style={{ fontFamily: "'PT Serif', serif" }}>Alterações não salvas</p>}
 
-        {/* Deck title + general + counter (the counter sits in the plate's own socket) */}
-        <ArtFrame src={uiEditorHeaderImage} slice={[50, 130, 50, 70]} width={[15, 39, 15, 21]} className="relative shrink-0" style={{ height: 56, background: 'rgba(20,13,6,0.55)' }}>
-          <div className="absolute inset-0 flex items-center gap-2 pl-6" style={{ paddingRight: 9 }}>
+        {/* Deck title + general + counter (the portrait sits in the plate's socket) */}
+        <KitPlate portrait={{ capitao: portraitCapitaoImg, mercenarios: portraitMercenariosImg, cardeal: portraitCardealImg }[deckIdOfGeneral(slot.general)]}>
+          <div className="flex items-center gap-2 w-full min-w-0 pr-1">
             <button onClick={() => { playUiClickSfx(); setGeneralChoice(slot.general); setGeneralOpen(true); }} aria-label="Trocar General" className="flex items-center min-w-0 flex-1 text-left gap-1.5">
-              <span className="truncate uppercase text-[#f3e3c3] leading-tight" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700, fontSize: 12, letterSpacing: '0.02em' }}>{slot.name}</span>
+              <span className="uppercase text-[#f6e3a3] leading-tight line-clamp-2" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 12, letterSpacing: '0.03em' }}>{slot.name}</span>
               <span className="shrink-0 text-[12px] text-[#e8c766] opacity-80">✎</span>
             </button>
-            <span className="shrink-0 flex flex-col text-right leading-tight" style={{ fontFamily: "'Cinzel', serif" }}>
-              <span className="text-[9px] font-bold uppercase tracking-[0.03em] text-[#f3e3c3]">de {DECK_MAX_CARDS} cartas</span>
-              <span className={`text-[8px] uppercase tracking-[0.03em] ${total < DECK_MIN_CARDS ? 'text-[#f08a78]' : 'text-[#a89a78]'}`}>mínimo {DECK_MIN_CARDS}</span>
-            </span>
-            <span className="shrink-0 w-[28px] text-center font-black leading-none" style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: problem ? '#f08a78' : '#8fe0a4' }}><motion.span key={total} className="inline-block" initial={{ scale: 1.6 }} animate={{ scale: 1 }} transition={{ duration: 0.4 }}>{total}</motion.span></span>
+            <span className={`shrink-0 text-[8.5px] uppercase tracking-[0.1em] ${total < DECK_MIN_CARDS ? 'text-[#f08a78]' : 'text-[#a99768]'}`} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>Mín. {DECK_MIN_CARDS}</span>
+            <KitCount bad={!!problem}><motion.span key={total} className="inline-block" initial={{ scale: 1.6 }} animate={{ scale: 1 }} transition={{ duration: 0.4 }}>{total}</motion.span></KitCount>
           </div>
-        </ArtFrame>
+        </KitPlate>
         {problem && <p className="text-center text-[11px] text-[#f0a595] -mt-1" style={{ fontFamily: "'PT Serif', serif" }}>{problem}</p>}
 
         {/* The switch: deck side / reserve side */}
         <div className="grid grid-cols-2 gap-2 shrink-0">
           {([['deck', 'Deck', total], ['reserve', 'Reserva', reserveCount]] as const).map(([id, label, n]) => (
-            <button
-              key={id}
-              ref={id === 'deck' ? deckTabRef : reserveTabRef}
-              onClick={() => { if (side === id) return; playUiClickSfx(); flipDir.current = id === 'reserve' ? 1 : -1; setSide(id); setPicked(null); }}
-              className="relative h-[42px] active:scale-[0.97] transition"
-            >
-              <ArtFrame
-                src={side === id ? uiEditorTabOnImage : uiEditorTabOffImage}
-                slice={[44, 44, 44, 44]}
-                width={[14, 14, 14, 14]}
-                className="absolute inset-0"
-                style={{ background: side === id ? 'rgba(96,68,16,0.6)' : 'rgba(0,0,0,0.4)' }}
-              />
-              <span className={`relative uppercase tracking-[0.12em] ${side === id ? 'text-[#fff1c9]' : 'text-[#a89a78]'}`} style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 13 }}>
-                {label} <motion.span key={n} className="inline-block opacity-90" initial={{ scale: 1.55, color: '#ffe08a' }} animate={{ scale: 1, color: side === id ? '#fff1c9' : '#a89a78' }} transition={{ duration: 0.45 }}>({n})</motion.span>
-              </span>
-            </button>
+            <div key={id} ref={id === 'deck' ? deckTabRef : reserveTabRef} className="flex">
+              <KitTab
+                active={side === id} className="flex-1 !h-[44px] !text-[13px] !tracking-[0.12em]"
+                onClick={() => { if (side === id) return; playUiClickSfx(); flipDir.current = id === 'reserve' ? 1 : -1; setSide(id); setPicked(null); }}
+              >
+                {label} <motion.span key={n} className="inline-block ml-1.5 opacity-90" initial={{ scale: 1.55 }} animate={{ scale: 1 }} transition={{ duration: 0.45 }}>({n})</motion.span>
+              </KitTab>
+            </div>
           ))}
         </div>
 
         {/* Search + one Filtros button (type, order and view live in its window) */}
-        <div className="flex gap-2 shrink-0">
-          <ThinFrame px={11} className="flex-1 min-w-0" style={{ background: 'rgba(0,0,0,0.35)' }}>
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar..."
-              className="block w-full bg-transparent px-2 py-1 text-[13px] text-[#f3e3c3] placeholder:text-[#8d7f60] outline-none"
-              style={{ fontFamily: "'PT Serif', serif" }}
-            />
-          </ThinFrame>
-          <div className="flex gap-1 shrink-0">
-            {([['cartas', 'Ver em cartas'], ['lista', 'Ver em lista']] as const).map(([id, label]) => (
-              <button key={id} aria-label={label} title={label} onClick={() => { if (view !== id) { playUiClickSfx(); changeView(id); } }} className="relative w-[38px] flex items-center justify-center active:scale-95 transition">
-                <ArtFrame src={view === id ? uiEditorTabOnImage : uiEditorTabOffImage} slice={[44, 44, 44, 44]} width={[11, 11, 11, 11]} className="absolute inset-0" style={{ background: view === id ? 'rgba(96,68,16,0.6)' : 'rgba(0,0,0,0.4)' }} />
-                {id === 'lista' ? (
-                  <svg viewBox="0 0 24 24" className="relative mx-auto" width="24" height="24" fill="none" stroke={view === id ? '#fff1c9' : '#a89a78'} strokeWidth="2.2" strokeLinecap="round">
-                    <path d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                ) : (
-                  // a tiny real card frame from the game's own art
-                  <img src={uiIconCardImage} alt="" className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[calc(100%-10px)] w-auto" style={{ opacity: view === id ? 1 : 0.55 }} />
-                )}
-              </button>
-            ))}
-          </div>
+        <div className="flex gap-1.5 shrink-0 items-center">
+          <KitSearch value={query} onChange={setQuery} />
+          {([['cartas', 'Ver em cartas', KIT_ICONS.carta], ['lista', 'Ver em lista', KIT_ICONS.lista]] as const).map(([id, label, ic]) => (
+            <KitIconButton key={id} icon={ic} label={label} size={36} on={view === id} onClick={() => { if (view !== id) { playUiClickSfx(); changeView(id); } }} />
+          ))}
           {/* Always on screen so the header never shifts; dimmed and disabled in list view */}
-          <button
-            aria-label="Tamanho das cartas"
-            title="Tamanho das cartas"
-            disabled={view !== 'cartas'}
+          <KitIconButton
+            icon={KIT_ICONS.grade} label="Tamanho das cartas" size={36} disabled={view !== 'cartas'}
             onClick={() => { playUiClickSfx(); const next = gridCols === 3 ? 4 : gridCols === 4 ? 5 : 3; setGridCols(next); showToast(`Cartas ${next === 3 ? 'grandes' : next === 4 ? 'médias' : 'pequenas'}`); }}
-            className={`relative shrink-0 w-[38px] flex items-center justify-center transition ${view === 'cartas' ? 'active:scale-95' : 'opacity-35 cursor-default'}`}
-          >
-            <ArtFrame src={uiEditorTabOffImage} slice={[44, 44, 44, 44]} width={[11, 11, 11, 11]} className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.4)' }} />
-            <svg viewBox="0 0 24 24" className="relative" width="22" height="22" fill="#e8c766">
-              {Array.from({ length: gridCols === 3 ? 9 : gridCols === 4 ? 12 : 15 }).map((_, i) => {
-                const rows = 3, c = gridCols, gap = 1.4, cw = (20 - gap * (c - 1)) / c, ch = (20 - gap * (rows - 1)) / rows;
-                return <rect key={i} x={2 + (i % c) * (cw + gap)} y={2 + Math.floor(i / c) * (ch + gap)} width={cw} height={ch} rx="0.8" />;
-              })}
-            </svg>
-          </button>
-          <button onClick={() => { playUiClickSfx(); setDraft({ type: typeFilter, sort }); setFilterOpen(true); }} className="relative shrink-0 active:scale-95 transition">
-            <ThinFrame px={11} style={{ background: filterCount > 0 ? 'rgba(122,90,22,0.55)' : 'rgba(20,13,6,0.45)' }}>
-              <span className="block px-2 py-1 text-xs uppercase tracking-[0.1em] text-[#f0e0bb]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>Filtros</span>
-            </ThinFrame>
+          />
+          <div className="relative shrink-0">
+            <KitButton tone={filterCount > 0 ? 'gold' : 'normal'} className="!min-h-[38px] !px-0 !text-[10.5px] !tracking-[0.08em]" onClick={() => { playUiClickSfx(); setDraft({ type: typeFilter, sort }); setFilterOpen(true); }}>
+              <KitIcon src={KIT_ICONS.filtro} size={15} className="mr-1.5" />Filtros
+            </KitButton>
             {filterCount > 0 && (
               <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center text-[9px] font-black text-[#fff1c9] bg-[#8a2a1a] shadow-[0_0_0_1.5px_#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>{filterCount}</span>
             )}
-          </button>
+          </div>
         </div>
 
         {/* Cards: list (default) or card grid. Switching Deck <-> Reserva turns the page: the
@@ -3706,17 +3652,19 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
         </div>
 
         {/* Shortcuts */}
-        <div className="flex gap-2 justify-center pt-1">
+        <div className="grid grid-cols-2 gap-2 pt-1">
           <WindowButton
+            danger className="w-full"
             onClick={() => setConfirm({
               title: 'Limpar deck',
               message: total === 0 ? 'O deck já está vazio.' : `Todas as ${total} cartas do ${slot.name} voltam para a reserva. O General continua o mesmo.`,
               run: () => { if (total > 0) commit(d => { d.slots[slotIdx].cards = {}; }); },
             })}
           >
-            Limpar deck
+            <KitIcon src={KIT_ICONS.lixo} size={16} className="mr-2" />Limpar deck
           </WindowButton>
           <WindowButton
+            primary className="w-full"
             onClick={() => {
               const plan = autoFillPlan();
               const add = Object.values(plan).reduce((a, b) => a + b, 0);
