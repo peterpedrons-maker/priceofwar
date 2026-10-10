@@ -222,6 +222,7 @@ import { CARD_DEFS, DECK_RECIPES, LEGACY_STARTERS, LEGACY_CARD_NAMES, currentCar
 import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActivePhases, createMatch, deckSetupFromRecipe, newMatchLog, type MatchLog } from './engine/game';
 import { aiNextAction } from './engine/ai';
 import { glyphUrl, burstUrl, NUMBER_GLOW, type NumberKind } from './numberGlyphs';
+import { Emotes } from './Emotes';
 import { triggerOf, triggerKeyOf, pulseCard, usePulse, TRIGGER_GLOW, TRIGGER_ICON } from './triggers';
 import { playSfx, preloadSfx, dbgMark } from './sfx';
 import { fxTactic, fxHero, fxRanged, fxLanding, fxUpkeep, fxGoldGain, fxRelicSoldo, fxLoot, fxPlaced, fxReformar, fxAmbush, fxBencao, fxCalice, fxHospitalario, fxNobre, fxReforco, fxComandante, fxRetorno, fxAtirador, preloadHolyFx, preloadCombatFx, type FxEnv, type FxRect, type FxSide, type FxTarget } from './combatFx';
@@ -5814,6 +5815,8 @@ export default function App() {
   const [clockNow, setClockNow] = useState(0);
   const [matchReward, setMatchReward] = useState<RewardInfo | 'pending' | null>(null);
   const [opponentInfo, setOpponentInfo] = useState<{ name: string; avatarId: string; bot: boolean } | null>(null);
+  // Online person-vs-person match: the id the quick messages (src/Emotes.tsx) go through, and both Generals (the first phrase is the deck's own).
+  const [emoteMatch, setEmoteMatch] = useState<{ id: string; myGeneral: string; opponentGeneral: string } | null>(null);
   const [waitingRemote, setWaitingRemote] = useState(false);
 
   // Where a newly drawn card should land: right next to the last real hand card (or the
@@ -6586,6 +6589,7 @@ export default function App() {
     }
     onlineRef.current = null;
     setOpponentInfo(null);
+    setEmoteMatch(null);
     setWaitingRemote(false);
     setTurnClock(null);
   };
@@ -7114,6 +7118,7 @@ export default function App() {
     onlineRef.current = online;
     setOnlinePick(null);
     setOpponentInfo(init.opponent);
+    setEmoteMatch(init.opponent.bot ? null : { id: init.id, myGeneral: init.myDeck.general, opponentGeneral: init.opponentGeneral });
     const sel: DeckSelection = { cards: init.myDeck.cards, general: init.myDeck.general, npcDeckId: 'cardeal', npcGeneral: init.opponentGeneral };
     resetGame(sel);
     setGameMode('Quick Match');
@@ -10377,6 +10382,9 @@ export default function App() {
           );
         })()}
       </AnimatePresence>
+
+      {/* Online, against a person: ready-made phrases and emojis (never free text). */}
+      {emoteMatch && gameMode && !tutOn && gameOverWinner === null && <Emotes matchId={emoteMatch.id} enabled myGeneral={emoteMatch.myGeneral} opponentGeneral={emoteMatch.opponentGeneral} />}
 
       {/* While the player has not yet learned the gesture: a finger sliding from the hand up to the board, above the hand. */}
       <AnimatePresence>

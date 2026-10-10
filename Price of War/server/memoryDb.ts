@@ -1,6 +1,6 @@
 // An in-memory Db: used by the tests and by the local mock server, so the very same handler runs without Supabase.
 import type { Seat } from '../src/engine/types';
-import type { Db, MatchPatch, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
+import type { Db, EmoteRow, MatchPatch, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
 
 export interface MemoryTables {
   profiles: { id: string; username: string; avatar_id: string; level?: number; xp?: number; coroas?: number }[];
@@ -14,7 +14,9 @@ export class MemoryDb implements Db {
   matches: MatchRow[] = [];
   stepRows: (StepRow & { match_id: string })[] = [];
   viewRows: (ViewRow & { match_id: string })[] = [];
+  emoteRows: (EmoteRow & { match_id: string })[] = [];
   private nextId = 1;
+  private nextEmote = 1;
   constructor(public tables: MemoryTables = { profiles: [], collection: [] }) {}
 
   async collection(userId: string) {
@@ -65,6 +67,14 @@ export class MemoryDb implements Db {
   async latestView(matchId: string, viewer: Seat) {
     const all = await this.views(matchId, viewer, 0);
     return all.length ? all[all.length - 1] : null;
+  }
+  async addEmote(matchId: string, seat: Seat, code: string, at: number) {
+    const row = { id: this.nextEmote++, seat, code, at };
+    this.emoteRows.push({ ...row, match_id: matchId });
+    return row;
+  }
+  async emotesSince(matchId: string, sinceId: number) {
+    return this.emoteRows.filter(e => e.match_id === matchId && e.id > sinceId).sort((a, b) => a.id - b.id).map(({ id, seat, code, at }) => ({ id, seat, code, at }));
   }
   async applyRewards(matchId: string, rows: RewardRow[]) {
     const m = this.matches.find(x => x.id === matchId);

@@ -393,6 +393,29 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     eq(f.rewards!.find(x => x.user_id === lost)!.reason, 'abandoned');
   });
 
+  await test('quick messages: sent to the other chair only, with a pause, a code whitelist and no bot', async () => {
+    const db = fresh();
+    const { id } = await pvp(db);
+    const A = userOf(db, 0), B = userOf(db, 1);
+    const sent = await handleGame(db, A, { op: 'emote', matchId: id, code: 'p2' }, cfg);
+    ok(sent.ok === true && sent.status === 'emotes' && sent.emotes.length === 1 && sent.emotes[0].from === 0, 'sender sees it as its own: ' + JSON.stringify(sent));
+    const seen = await handleGame(db, B, { op: 'emotes', matchId: id, since: 0 }, cfg);
+    ok(seen.ok === true && seen.status === 'emotes' && seen.emotes.length === 1 && seen.emotes[0].from === 1 && seen.emotes[0].code === 'p2', 'receiver: ' + JSON.stringify(seen));
+    const later = await handleGame(db, B, { op: 'emotes', matchId: id, since: 1 }, cfg);
+    ok(later.ok === true && later.status === 'emotes' && later.emotes.length === 0, 'nothing new after the last id');
+    const tooSoon = await handleGame(db, A, { op: 'emote', matchId: id, code: 'e1' }, cfg);
+    ok(tooSoon.ok === false, 'two messages in a row are refused');
+    clock += 3000;
+    ok((await handleGame(db, A, { op: 'emote', matchId: id, code: 'e1' }, cfg)).ok === true, 'after the pause it goes through');
+    clock += 3000;
+    ok((await handleGame(db, A, { op: 'emote', matchId: id, code: 'tudo livre' }, cfg)).ok === false, 'free text is refused');
+    ok((await handleGame(db, A, { op: 'emote', matchId: id, code: 'p9' }, cfg)).ok === false, 'unknown code is refused');
+    ok((await handleGame(db, 'C', { op: 'emote', matchId: id, code: 'p1' }, cfg)).ok === false, 'a stranger cannot speak');
+    const db2 = fresh();
+    const b = await botMatch(db2);
+    ok((await handleGame(db2, 'A', { op: 'emote', matchId: b.id, code: 'p1' }, cfg)).ok === false, 'no messages against the bot');
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);
 })();

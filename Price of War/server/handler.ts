@@ -52,19 +52,27 @@ export interface MatchInit {
   now: number;
 }
 
+// Quick messages: only ready-made codes (p1..p6 phrases, e1..e6 emojis), a pause between two of them, a cap per match.
+const EMOTE_CODE = /^[pe][1-6]$/;
+const EMOTE_GAP_MS = 2500;
+const EMOTE_MAX_PER_MATCH = 80;
+
 export type GameRequest =
   | { op: 'queue'; cards: Record<string, number>; general: string; vsBot?: boolean; botDeck?: string }
   | { op: 'status' }
   | { op: 'cancel' }
   | { op: 'act'; matchId: string; action: Action; since?: number }
   | { op: 'tick'; matchId: string; since?: number }
-  | { op: 'result'; matchId: string };
+  | { op: 'result'; matchId: string }
+  | { op: 'emote'; matchId: string; code: string; since?: number }
+  | { op: 'emotes'; matchId: string; since?: number };
 
 export type GameResponse =
   | { ok: true; status: 'waiting' | 'none' }
   | { ok: true; status: 'matched'; match: MatchInit }
   | { ok: true; status: 'acted'; rows: ViewRow[]; finished: boolean; deadline: number | null; now: number; reward: RewardRow | null }
   | { ok: true; status: 'result'; finished: boolean; reward: RewardRow | null }
+  | { ok: true; status: 'emotes'; emotes: { id: number; from: 0 | 1; code: string }[] }
   | { ok: false; error: string };
 
 const BOT_PROFILE = { name: 'Adversário', avatarId: 'batedora' };
@@ -353,6 +361,25 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
       if (!m || playerOf(m, userId) === null) return { ok: false, error: 'Partida não encontrada.' };
       const rewards = await ensureRewards(db, m);
       return { ok: true, status: 'result', finished: m.status === 'finished', reward: rewardOf(m, rewards, userId) };
+    }
+    case 'emote':
+    case 'emotes': {
+      const m = await db.getMatch(req.matchId);
+      if (!m) return { ok: false, error: 'Partida não encontrada.' };
+      const seat = playerOf(m, userId);
+      if (seat === null) return { ok: false, error: 'Você não está nessa partida.' };
+      if (req.op === 'emote') {
+        if (m.status !== 'active') return { ok: false, error: 'A partida já terminou.' };
+        if (m.bot_seat !== null) return { ok: false, error: 'Contra o adversário automático não há mensagens.' };
+        if (typeof req.code !== 'string' || !EMOTE_CODE.test(req.code)) return { ok: false, error: 'Mensagem inválida.' };
+        const mine = (await db.emotesSince(m.id, 0)).filter(e => e.seat === seat);
+        const now = cfg.now();
+        if (mine.length >= EMOTE_MAX_PER_MATCH) return { ok: false, error: 'Mensagens demais nessa partida.' };
+        if (mine.length && now - mine[mine.length - 1].at < EMOTE_GAP_MS) return { ok: false, error: 'Espere um instante.' };
+        await db.addEmote(m.id, seat, req.code, now);
+      }
+      const rows = await db.emotesSince(m.id, Math.max(0, Number(req.since) || 0));
+      return { ok: true, status: 'emotes', emotes: rows.map(e => ({ id: e.id, from: (e.seat === seat ? 0 : 1) as 0 | 1, code: e.code })) };
     }
     default:
       return { ok: false, error: 'Pedido desconhecido.' };

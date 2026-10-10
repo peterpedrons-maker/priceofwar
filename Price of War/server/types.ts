@@ -66,6 +66,9 @@ export interface MatchRow {
 
 export type MatchPatch = Pick<MatchRow, 'state' | 'steps_count' | 'status' | 'winner' | 'turn_deadline' | 'timeouts' | 'end_reason'>;
 
+// A quick message (a ready-made phrase or emoji, never free text) from one chair to the other.
+export interface EmoteRow { id: number; seat: Seat; code: string; at: number }
+
 export interface Db {
   collection(userId: string): Promise<Record<string, number>>;
   profile(userId: string): Promise<{ username: string; avatar_id: string; level: number; xp: number; coroas: number } | null>;
@@ -82,6 +85,8 @@ export interface Db {
   steps(matchId: string, sinceN: number): Promise<StepRow[]>;
   views(matchId: string, viewer: Seat, sinceN: number): Promise<ViewRow[]>;
   latestView(matchId: string, viewer: Seat): Promise<ViewRow | null>;
+  addEmote(matchId: string, seat: Seat, code: string, at: number): Promise<EmoteRow>;
+  emotesSince(matchId: string, sinceId: number): Promise<EmoteRow[]>;
   // Pays a match's rewards exactly once: false when they were already paid.
   applyRewards(matchId: string, rows: RewardRow[]): Promise<boolean>;
 }

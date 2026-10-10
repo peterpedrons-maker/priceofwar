@@ -2825,6 +2825,9 @@ var eventsFor = (events, seat) => seat === 1 ? mirrorEvents(redactEvents(events,
 
 // server/handler.ts
 var defaultConfig = () => ({ botAfterMs: 15e3, turnMs: 15e4, promptMs: 6e4, maxTimeouts: 2, now: () => Date.now(), random: Math.random });
+var EMOTE_CODE = /^[pe][1-6]$/;
+var EMOTE_GAP_MS = 2500;
+var EMOTE_MAX_PER_MATCH = 80;
 var BOT_PROFILE = { name: "Advers\xE1rio", avatarId: "batedora" };
 var STALE_MATCH_MS = 45 * 60 * 1e3;
 var BOT_STEP_LIMIT = 600;
@@ -3101,6 +3104,25 @@ var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
       const rewards = await ensureRewards(db, m);
       return { ok: true, status: "result", finished: m.status === "finished", reward: rewardOf(m, rewards, userId) };
     }
+    case "emote":
+    case "emotes": {
+      const m = await db.getMatch(req.matchId);
+      if (!m) return { ok: false, error: "Partida n\xE3o encontrada." };
+      const seat = playerOf(m, userId);
+      if (seat === null) return { ok: false, error: "Voc\xEA n\xE3o est\xE1 nessa partida." };
+      if (req.op === "emote") {
+        if (m.status !== "active") return { ok: false, error: "A partida j\xE1 terminou." };
+        if (m.bot_seat !== null) return { ok: false, error: "Contra o advers\xE1rio autom\xE1tico n\xE3o h\xE1 mensagens." };
+        if (typeof req.code !== "string" || !EMOTE_CODE.test(req.code)) return { ok: false, error: "Mensagem inv\xE1lida." };
+        const mine = (await db.emotesSince(m.id, 0)).filter((e) => e.seat === seat);
+        const now = cfg.now();
+        if (mine.length >= EMOTE_MAX_PER_MATCH) return { ok: false, error: "Mensagens demais nessa partida." };
+        if (mine.length && now - mine[mine.length - 1].at < EMOTE_GAP_MS) return { ok: false, error: "Espere um instante." };
+        await db.addEmote(m.id, seat, req.code, now);
+      }
+      const rows = await db.emotesSince(m.id, Math.max(0, Number(req.since) || 0));
+      return { ok: true, status: "emotes", emotes: rows.map((e) => ({ id: e.id, from: e.seat === seat ? 0 : 1, code: e.code })) };
+    }
     default:
       return { ok: false, error: "Pedido desconhecido." };
   }
@@ -3194,6 +3216,14 @@ var supabaseDb = (c) => ({
   async latestView(matchId, viewer) {
     const rows = must(await c.from("match_views").select("n, viewer, viewer_user, actor, action, events, state, deadline").eq("match_id", matchId).eq("viewer", viewer).order("n", { ascending: false }).limit(1), "latest view");
     return rows.length ? viewFromDb(rows[0]) : null;
+  },
+  async addEmote(matchId, seat, code, at) {
+    const r = must(await c.from("match_emotes").insert({ match_id: matchId, seat, code, at }).select("id, seat, code, at").single(), "add emote");
+    return { id: Number(r.id), seat: r.seat, code: r.code, at: Number(r.at) };
+  },
+  async emotesSince(matchId, sinceId) {
+    const rows = must(await c.from("match_emotes").select("id, seat, code, at").eq("match_id", matchId).gt("id", sinceId).order("id", { ascending: true }).limit(200), "emotes");
+    return rows.map((r) => ({ id: Number(r.id), seat: r.seat, code: r.code, at: Number(r.at) }));
   },
   async applyRewards(matchId, rows) {
     return must(await c.rpc("apply_match_rewards", { p_match: matchId, p_rows: rows }), "apply rewards") === true;

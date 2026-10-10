@@ -99,3 +99,11 @@ export const fetchViews = async (matchId: string, since: number): Promise<ViewRo
     return (data as any[]).map(r => ({ ...r, deadline: r.deadline === null || r.deadline === undefined ? null : Number(r.deadline) })) as ViewRow[];
   } catch { return null; }
 };
+
+// Quick messages (ready-made phrases and emojis, see src/Emotes.tsx): `from` 0 = me, 1 = the opponent. `since` = the last id already seen.
+export type EmoteMsg = { id: number; from: 0 | 1; code: string };
+export type EmoteResult = { ok: true; emotes: EmoteMsg[] } | { ok: false; error: string; unavailable?: boolean };
+const asEmoteResult = (r: any): EmoteResult =>
+  r && r.ok === true && r.status === 'emotes' ? { ok: true, emotes: r.emotes ?? [] } : { ok: false, error: r?.error ?? 'Resposta inesperada do servidor.', unavailable: r?.unavailable };
+export const sendEmote = async (matchId: string, code: string, since: number): Promise<EmoteResult> => asEmoteResult(await call({ op: 'emote', matchId, code, since }));
+export const fetchEmotes = async (matchId: string, since: number): Promise<EmoteResult> => asEmoteResult(await call({ op: 'emotes', matchId, since }));

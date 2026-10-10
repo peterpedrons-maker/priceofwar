@@ -1,7 +1,7 @@
 // The Db on Supabase (Postgres), used by the Edge Function with the service-role key. Tables and the queue_take /
 // apply_match_rewards functions are created by docs/supabase-online.sql and docs/supabase-online-2.sql.
 import type { Seat } from '../src/engine/types';
-import type { Db, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
+import type { Db, EmoteRow, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
 
 // Only the tiny part of the supabase-js client this file touches.
 type Client = any;
@@ -82,6 +82,14 @@ export const supabaseDb = (c: Client): Db => ({
   async latestView(matchId, viewer: Seat) {
     const rows = must(await c.from('match_views').select('n, viewer, viewer_user, actor, action, events, state, deadline').eq('match_id', matchId).eq('viewer', viewer).order('n', { ascending: false }).limit(1), 'latest view') as any[];
     return rows.length ? viewFromDb(rows[0]) : null;
+  },
+  async addEmote(matchId, seat: Seat, code, at) {
+    const r = must(await c.from('match_emotes').insert({ match_id: matchId, seat, code, at }).select('id, seat, code, at').single(), 'add emote') as any;
+    return { id: Number(r.id), seat: r.seat, code: r.code, at: Number(r.at) } as EmoteRow;
+  },
+  async emotesSince(matchId, sinceId) {
+    const rows = must(await c.from('match_emotes').select('id, seat, code, at').eq('match_id', matchId).gt('id', sinceId).order('id', { ascending: true }).limit(200), 'emotes') as any[];
+    return rows.map(r => ({ id: Number(r.id), seat: r.seat, code: r.code, at: Number(r.at) }));
   },
   async applyRewards(matchId, rows: RewardRow[]) {
     return must(await c.rpc('apply_match_rewards', { p_match: matchId, p_rows: rows }), 'apply rewards') === true;

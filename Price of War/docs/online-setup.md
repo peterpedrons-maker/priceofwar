@@ -16,6 +16,9 @@ Supabase → **SQL Editor** → New query → paste the file → Run, in this or
 Run step 2 **right after** the new version of the app and the function are published: the old app does not know the
 new tables.
 
+## 1b. Quick messages (phrases and emojis): one more table
+Supabase → SQL Editor → New query → paste `docs/supabase-online-3.sql` → Run (safe to repeat). It creates `match_emotes`, which only the game server reads and writes. **Without it the rest of the game works; only the new balloon button fails** (the server answers an error and nothing is shown). Run it right after publishing the new server function (step 2).
+
 ## 2. Deploy the game server
 
 The server is one file: `supabase/functions/game/index.ts` (generated from `server/` and `src/engine/`; rebuild it
