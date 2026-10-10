@@ -1,6 +1,6 @@
 # Molduras das ligas (ranqueado)
 
-**Decisão final do dono:** uma moldura por liga (8 no total), sem moldura diferente por divisão (IV a I). As artes foram entregues em uma folha (prompt abaixo) e recortadas do magenta, com o furo do miolo transparente, em `src/assets/ligas/<liga>.webp` (288x288, o furo tem raio = 0,2567 do lado, igual nas oito, então o retrato de diâmetro 0,5134 x lado cabe em todas):
+**Decisão final do dono:** uma moldura por liga (8 no total), sem moldura diferente por divisão (IV a I). As artes foram entregues em uma folha (prompt abaixo) e recortadas do magenta, com o furo do miolo transparente, em `src/assets/ligas/<liga>.webp` (288x288; o furo tem diâmetro = 1/3 do lado nas oito, então o retrato de diâmetro 0,3267 x lado encaixa em todas; só o maior pedaço de cada anel é guardado, sem sobras dos vizinhos, e bolsões do miolo ficam preenchidos para o fundo não vazar):
 ferro, bronze, prata, ouro, platina, diamante, mestre, senhor-da-guerra (nome provisório da liga de topo).
 Prévia: `docs/janelas/ranqueado-ligas-com-retratos.png` e, no tabuleiro, `ranqueado-moldura-com-aneis.png`.
 A divisão (IV a I) aparece como medalhinha/número desenhado pelo jogo, não na moldura. A moldura que o jogador usa é a da maior liga que alcançou na temporada anterior.
