@@ -56,6 +56,7 @@ var CARD_DEFS = [
   },
   {
     name: "Batedor",
+    trigger: "ofensiva",
     cardType: "Infantaria",
     atk: 1,
     hp: 2,
@@ -75,6 +76,7 @@ var CARD_DEFS = [
   },
   {
     name: "Cavaleiro T\xE1tico",
+    trigger: "manobra",
     cardType: "Cavalaria",
     atk: 4,
     hp: 4,
@@ -185,6 +187,7 @@ var CARD_DEFS = [
   },
   {
     name: "Estandarte da Legi\xE3o",
+    trigger: "postura",
     fx: "estandarte",
     cardType: "Rel\xEDquia",
     atk: 0,
@@ -196,6 +199,7 @@ var CARD_DEFS = [
   },
   {
     name: "Fortaleza de Pedra",
+    trigger: "postura",
     fx: "muralha",
     cardType: "Terreno",
     atk: 0,
@@ -207,6 +211,7 @@ var CARD_DEFS = [
   },
   {
     name: "P\xE2ntano Maldito",
+    trigger: "postura",
     fx: "pantano",
     cardType: "Terreno",
     atk: 0,
@@ -232,6 +237,7 @@ var CARD_DEFS = [
   },
   {
     name: "C\xE1lice das Duas B\xEAn\xE7\xE3os",
+    trigger: "postura",
     fx: "calice",
     cardType: "Rel\xEDquia",
     atk: 0,
@@ -372,6 +378,7 @@ var CARD_DEFS = [
   },
   {
     name: "Arqueiro de Dois Sinos",
+    trigger: "postura",
     cardType: "Arqueiro",
     atk: 1,
     hp: 4,

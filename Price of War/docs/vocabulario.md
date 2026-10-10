@@ -77,7 +77,9 @@ Não são gatilhos: são mecânicas. Ficam em **negrito** no texto, sem ícone p
 | Manobra | Capitão de Formação, Aurelion ("Após Remanejamento"), Avanço Coordenado ("Após mover") |
 | Comando | Mercador, Intendente, Hospitalário e as habilidades dos Generais |
 | Postura | Escudeiro de Linha, Lanceiro de Controle, Marechal do Sol Poente, Veterano de Guerra, Confessor Silencioso, passiva do Aurelion |
-| Reforço | nenhuma ainda |
+| Reforço | Sentinela do Claustro |
+
+Rodada 21 (pedido do dono): Batedor (Ofensiva), Cavaleiro Tático (Manobra), Arqueiro de Dois Sinos, Estandarte da Legião, Cálice das Duas Bênçãos, Fortaleza de Pedra e Pântano Maldito (Postura) ganharam o ícone. Seguem sem ícone: Soldado Tático (efeito no fim do turno), Aurelion (dois gatilhos), Táticas e Emboscadas, e os efeitos de cura (Noviço, Paladino) e de Rescisão, que não têm gatilho no vocabulário.
 
 Sem gatilho próprio por ora (texto simples): "ao ser curada" (Noviço Renascido), "fim do turno" (Soldado Tático) e
 "após o combate" (Batedor). Se aparecerem mais cartas assim, criar gatilho. Táticas e Emboscadas **não** levam ícone de
