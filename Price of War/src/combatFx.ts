@@ -427,7 +427,7 @@ function weaponReveal(env: FxEnv, side: FxSide, sp: any, { len, tint, dur = 2.2,
 // ── the API ──────────────────────────────────────────────────────────────────────────────────────────────────
 const once = (fn: () => void) => { let done = false; return () => { if (!done) { done = true; fn(); } }; };
 
-// Catapulta de Guerra / Trabuco de Cerco / Balestra de Precisão: the card lands on the board, glows and the effect leaves it.
+// Catapulta do Dilúvio de Pedra / Trabuco da Trombeta Final / Balestra da Penitência: the card lands on the board, glows and the effect leaves it.
 // `targets` come from the damage events; resolves when the next thing may be shown.
 export async function fxTactic(kind: 'catapulta' | 'trabuco' | 'balestra' | 'muralha' | 'chuva' | 'punhal', env: FxEnv, side: FxSide, targets: FxTarget[]): Promise<void> {
   await preloadCombatFx(); ensureCanvas(); setScale(env);
@@ -539,7 +539,7 @@ export async function fxTactic(kind: 'catapulta' | 'trabuco' | 'balestra' | 'mur
 }
 
 // The General's ability (they do not attack: the weapon is raised upright, shines, and the effect is released).
-//   'cura'  — Cardeal Pedro: green; the light goes down to the healed unit (`targets` = the heal events)
+//   'cura'  — Cardeal Anselmo: green; the light goes down to the healed unit (`targets` = the heal events)
 //   'bonus' — Aurelion: red; a wave passes through the allied units that got the bonus (nothing is held back)
 export async function fxHero(kind: 'cura' | 'bonus', env: FxEnv, side: FxSide, targets: FxTarget[]): Promise<void> {
   await preloadCombatFx(); ensureCanvas(); setScale(env);
@@ -895,7 +895,7 @@ function cometaFly({ from, to, dur = .5, delay = 0, arc = 0, sc = .5, onEnd }: {
   }, end() { onEnd && onEnd(); } }));
 }
 
-// Cardeal Pedro, Comando (paga 2 de ouro: +1 HP; com o Cálice, +2): o campo escurece, as moedas se apagam no General, o sigilo, as asas e o sol acendem,
+// Cardeal Anselmo, Comando (paga 2 de ouro: +1 HP; com o Cálice, +2): o campo escurece, as moedas se apagam no General, o sigilo, as asas e o sol acendem,
 // um orbe voa até o aliado e o pilar de luz desce nele, com o coração. `commit` mostra a vida nova no momento do pilar.
 export async function fxBencao(env: FxEnv, side: FxSide, targets: FxTarget[]): Promise<void> {
   await startHoly(env);
@@ -923,7 +923,7 @@ export async function fxBencao(env: FxEnv, side: FxSide, targets: FxTarget[]): P
   await new Promise<void>(r => at(T1 + (cup ? 2.0 : 1.7), r));
 }
 
-// Cálice da Graça (a Relíquia entra em campo): pilar e sol sobre a relíquia e um fio de orbes escorre até o General, que acende.
+// Cálice das Duas Bênçãos (a Relíquia entra em campo): pilar e sol sobre a relíquia e um fio de orbes escorre até o General, que acende.
 export async function fxCalice(env: FxEnv, side: FxSide): Promise<void> {
   await startHoly(env);
   const r = pt(env, side, 10), g = pt(env, side, 12); if (!r || !g) return;
@@ -934,7 +934,7 @@ export async function fxCalice(env: FxEnv, side: FxSide): Promise<void> {
   await new Promise<void>(rs => at(2.3, rs));
 }
 
-// Cavaleiro Hospitalário, Comando: pilar e coração no aliado ferido, depois um cometa sagrado que se crava no inimigo da Vanguarda.
+// Samaritano de Aço, Comando: pilar e coração no aliado ferido, depois um cometa sagrado que se crava no inimigo da Vanguarda.
 export async function fxHospitalario(env: FxEnv, side: FxSide, from: number, heal: FxTarget | null, hit: FxTarget | null): Promise<void> {
   await startHoly(env);
   const k = pt(env, side, from); if (!k) { env.commit(); return; }
@@ -960,7 +960,7 @@ export async function fxHospitalario(env: FxEnv, side: FxSide, from: number, hea
   await new Promise<void>(r => at(tEnd, r));
 }
 
-// Nobre da Cruzada, Convocação: sigilo e portal gótico de luz em cada espaço onde um Soldado Leal apareceu.
+// Barão da Procissão, Convocação: sigilo e portal gótico de luz em cada espaço onde um Acólito Leal apareceu.
 export async function fxNobre(env: FxEnv, side: FxSide, slot: number, tokens: number[]): Promise<void> {
   await startHoly(env);
   const n = pt(env, side, slot); if (!n) return;
@@ -974,7 +974,7 @@ export async function fxNobre(env: FxEnv, side: FxSide, slot: number, tokens: nu
   await new Promise<void>(r => at(2.4, r));
 }
 
-// Soldados da Ordem, Reforço: a de trás desce numa trilha de brilhos e o escudo heráldico se forma sobre ela.
+// Sentinela do Claustro, Reforço: a de trás desce numa trilha de brilhos e o escudo heráldico se forma sobre ela.
 export async function fxReforco(env: FxEnv, side: FxSide, from: number, to: number): Promise<void> {
   await startHoly(env);
   const f = pt(env, side, from), q = pt(env, side, to); if (!f || !q) return;
@@ -987,7 +987,7 @@ export async function fxReforco(env: FxEnv, side: FxSide, from: number, to: numb
   await new Promise<void>(r => at(2.3, r));
 }
 
-// Comandante da Ordem, Postura: o sol de raios abre atrás dele e orbes de luz alcançam cada Infantaria e Arqueiro aliado.
+// Marechal do Sol Poente, Postura: o sol de raios abre atrás dele e orbes de luz alcançam cada Infantaria e Arqueiro aliado.
 export async function fxComandante(env: FxEnv, side: FxSide, slot: number, allies: number[]): Promise<void> {
   await startHoly(env);
   const c = pt(env, side, slot); if (!c) return;
@@ -1001,7 +1001,7 @@ export async function fxComandante(env: FxEnv, side: FxSide, slot: number, allie
   await new Promise<void>(r => at(2.6, r));
 }
 
-// Retorno do Soldado (e qualquer carta que traz uma do cemitério para a mão): a alma sai da pilha em espiral e desce em arco até a mão.
+// Chamado do Túmulo Santo (e qualquer carta que traz uma do cemitério para a mão): a alma sai da pilha em espiral e desce em arco até a mão.
 export async function fxRetorno(env: FxEnv, side: FxSide): Promise<void> {
   await startHoly(env);
   const g = toU(env.gravePoint(side)), h = toU(env.handPoint(side)); if (!g || !h) return;
@@ -1026,7 +1026,7 @@ export async function fxRetorno(env: FxEnv, side: FxSide): Promise<void> {
   await new Promise<void>(r => at(P0 + FL + .5, r));
 }
 
-// Atirador da Cruzada, Queda: facho de luz, penas brancas caindo e duas cartas voando até a mão.
+// Vigia do Último Salmo, Queda: facho de luz, penas brancas caindo e duas cartas voando até a mão.
 export async function fxAtirador(env: FxEnv, side: FxSide, slot: number, draws: number): Promise<void> {
   await startHoly(env);
   const q = pt(env, side, slot), hp = toU(env.handPoint(side)); if (!q) return;

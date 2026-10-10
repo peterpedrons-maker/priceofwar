@@ -75,11 +75,11 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
 (async () => {
   await test('deck rules are enforced on the server (size, copies, ownership)', async () => {
     const db = fresh();
-    const small = await handleGame(db, 'A', { op: 'queue', cards: { 'Soldados da Ordem': 2 }, general: DECK_RECIPES.cardeal.general }, cfg);
+    const small = await handleGame(db, 'A', { op: 'queue', cards: { 'Sentinela do Claustro': 2 }, general: DECK_RECIPES.cardeal.general }, cfg);
     ok(small.ok === false && /Faltam/.test(small.error), 'too small: ' + JSON.stringify(small));
     const notMine = await handleGame(db, 'A', { op: 'queue', ...deckOf('capitao') }, cfg);
     ok(notMine.ok === false && /não tem/.test(notMine.error), 'not owned: ' + JSON.stringify(notMine));
-    const cheat = await handleGame(db, 'A', { op: 'queue', cards: { ...deckOf('cardeal').cards, 'Cavaleiro da Luz': 9 }, general: DECK_RECIPES.cardeal.general }, cfg);
+    const cheat = await handleGame(db, 'A', { op: 'queue', cards: { ...deckOf('cardeal').cards, 'Paladino do Alvorecer': 9 }, general: DECK_RECIPES.cardeal.general }, cfg);
     ok(cheat.ok === false, 'too many copies');
   });
 

@@ -344,3 +344,12 @@ Mudanças: Capa-Rota 4/3 → 5/3 · Florete de Aposta 5/2 → 6/2, sem voltar à
 | Antes (rodada 17, M4) | 55% | 44% | 5,3 | 1,4 (0,8 voltavam à mão) |
 | **Depois** | **57,5%** | **58%** | **7,4** | **0,7** (nenhuma volta) |
 Leitura: o deck passou a vencer o Capitão (+14 pontos) e o Cardeal (+2,5). A IA subestima o Capitão (não procura as combinações humanas; ver rodada 18), então o número real contra uma pessoa deve ficar mais perto de 50%, mas o deck agora é o mais forte dos três na simulação. Por isso **as outras quatro cartas (Pés-de-Lama, Besteiro, Rato, Boca-de-Fogo) não receberam ataque extra**. Cartas que mais pesam ao comprar: Chuva de Ferro Barato, Capitão Barba-de-Corvo, Tambor do Soldo Fácil, Capa-Rota; o Florete rende ligeiramente menos que a média (−1,9). Próximo passo sugerido: jogar contra pessoas antes de mexer mais; se for preciso conter, o primeiro botão é a manutenção do Capitão Barba-de-Corvo ou o custo do Florete.
+
+## Rodada 20: Cardeal Anselmo, Voz da Fé (deck de vida; 100 partidas por confronto, IA × IA)
+Mudanças: General "Cardeal Anselmo" cura 1 HP de graça, uma vez por turno (duas com o Cálice das Duas Bênçãos); 31 cartas renomeadas, soldados com mais vida e menos ataque, Couraça do Mártir dá Guarda (absorve o primeiro golpe inteiro), Paladino do Alvorecer ganha +1 ATK temporário quando um vizinho é curado. Detalhes em `docs/textos-cartas.md`.
+| | Cardeal novo | Observação |
+|---|---|---|
+| × Capitão (`balance-lab.ts`, 200 partidas) | **60,5%** | rodadas 8,2 (antes 54%) |
+| × Capitão (`balance-merc.ts`, 100 partidas) | **57%** | rodadas 8,1 |
+| × Mercenários (100 partidas) | **75%** | rodadas 7,8 (antes ~41%) |
+Leitura: contra o Capitão ficou dentro da faixa de 40–60% (no limite). Contra os Mercenários ficou forte demais, mas o deck Mercenários é experimental e foi calibrado contra o Cardeal antigo (menos vida, mais ataque); ele precisa de nova rodada. Testado: trocar o ganho do Noviço Renascido de "para sempre" para "até o próximo turno" não mudou nada (75% e 61%), então a cura grátis do Noviço não é o motor. Próximo passo sugerido: se o jogo humano confirmar a força, o primeiro botão é a vida dos soldados do Cardeal (−1 HP) e não a cura do General.

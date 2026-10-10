@@ -14,7 +14,7 @@ import {
   SOLDIER_TYPES, abilityOn, abilityPhases, adjacentSlots, areSlotsAdjacent, auraTotal, blocksAmbush, canPlaceInSlot, canReposition,
   getAuraCombatHpBonus, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction, getMaxAttacksPerTurn, getMoveRow,
   getValidAttackTargets, isBackline, isCardDamaged, isFrontline, isUnitSlot, locksGeneralOnDamage, reinforceShield, canReinforce,
-  restingPhasesForTurn, specCandidatesOn, targetSpecsOf, verbsOn, canPlayInPhase, withEquippedWeapons, relicModeOf, upkeepOf, type Board,
+  restingPhasesForTurn, specCandidatesOn, targetSpecsOf, verbsOn, canPlayInPhase, withEquippedWeapons, relicModeOf, maxGeneralAbilityUses, upkeepOf, type Board,
 } from './rules';
 import {
   GENERAL_SLOT, SLOT_COUNT, otherSeat,
@@ -49,7 +49,7 @@ export interface MatchOptions {
 const cardFromName = (s: GameState, name: string, prefix = 'c'): Card => {
   const def = requireCardDef(name);
   s.uid += 1;
-  const card: Card = { id: `${prefix}${s.uid}`, name: def.name, cardType: def.cardType, atk: def.atk, hp: def.hp, cost: def.cost, effect: def.effect };
+  const card: Card = { id: `${prefix}${s.uid}`, name: def.name, cardType: def.cardType, atk: s.statOverrides?.[name]?.atk ?? def.atk, hp: s.statOverrides?.[name]?.hp ?? def.hp, cost: def.cost, effect: def.effect };
   if (def.isFullArt) card.isFullArt = true;
   if (def.trigger) card.trigger = def.trigger;
   return card;
@@ -223,13 +223,14 @@ const damageSlot = (c: Ctx, seat: Seat, slot: number, amount: number): { slot: n
   return null;
 };
 
-// Healing a card: +HP, and the card's own `healed` effects (Recruta Devoto) react.
+// Healing a card: +HP, and the card's own `healed` effects (Noviço Renascido) react.
 const healSlot = (c: Ctx, seat: Seat, slot: number, amount: number) => {
   const board = P(c, seat).board;
   const card = board[slot]!;
   board[slot] = { ...card, hp: card.hp + amount };
   c.ev.push({ t: 'heal', seat, slot, amount });
   runAbilities(c, seat, board[slot]!, slot, 'healed');
+  adjacentSlots(slot).forEach(j => { if (board[j]) runAbilities(c, seat, board[j]!, j, 'ally_healed'); });
 };
 
 // ── Turn flow ───────────────────────────────────────────────────────────────
@@ -263,7 +264,7 @@ const startTurn = (c: Ctx, seat: Seat) => {
     log(c, seat, 'A fase de Compra foi pulada!');
   } else {
     drawCards(c, seat, DRAW_PER_TURN, 'turn');
-    // `turn_start` effects (Intendente do Exército refills the hand).
+    // `turn_start` effects (Despenseiro do Mosteiro refills the hand).
     for (let i = 0; i <= 9; i++) { const card = p.board[i]; if (card) runAbilities(c, seat, card, i, 'turn_start'); }
   }
 
@@ -506,7 +507,15 @@ const runVerb = (c: Ctx, fx: Fx, v: Verb, slot: number | undefined) => {
       const target = own[slot!]!;
       own[slot!] = { ...target, atk: target.atk + (v.atk ?? 0), hp: target.hp + (v.hp ?? 0), equippedWeapons: [...(target.equippedWeapons ?? []), fx.source] };
       c.ev.push({ t: 'equip', seat, slot: slot!, card: fx.source, atk: v.atk ?? 0, hp: v.hp ?? 0 });
+      if (v.block) grantBlock(c, seat, slot!);
       log(c, seat, `${target.name} equipado: ${name}!`);
+      return;
+    }
+    case 'buff_self_temp': {
+      const card = own[fx.slot!];
+      if (!card) return;
+      own[fx.slot!] = { ...card, formationBuffAtk: (card.formationBuffAtk ?? 0) + v.atk };
+      c.ev.push({ t: 'buff', seat, slot: fx.slot!, atk: v.atk, hp: 0 });
       return;
     }
     case 'guard_adjacent':
@@ -687,8 +696,8 @@ const useAbility = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'ability' }>)
   }
   const isGeneral = a.slot === GENERAL_SLOT;
   if (isGeneral) {
-    if (p.generalAbilityUses >= 1) fail('A habilidade do General já foi usada neste turno.');
-    if (p.generalAbilityBlocked) fail('Infiltrado da Ordem: a habilidade do General está bloqueada neste turno.');
+    if (p.generalAbilityUses >= maxGeneralAbilityUses(p.board)) fail('A habilidade do General já foi usada neste turno.');
+    if (p.generalAbilityBlocked) fail('Confessor Silencioso: a habilidade do General está bloqueada neste turno.');
   } else if (ability.once && c.s.turn.activated.includes(card.id)) {
     fail('Essa habilidade já foi usada neste turno.');
   }
@@ -889,13 +898,13 @@ const resolveCombat = (c: Ctx, aSeat: Seat, from: number, to: number, ambush: Ca
   const atkSoak = soak(c, aSeat, from, attacker, damageToAttacker);
   const throughToDefender = defSoak.through, throughToAttacker = atkSoak.through;
 
-  // Infiltrado da Ordem: a General that takes damage cannot use its ability on its next turn.
+  // Confessor Silencioso: a General that takes damage cannot use its ability on its next turn.
   if (target === 12 && throughToDefender > 0 && locksGeneralOnDamage(dBoard)) {
     P(c, dSeat).pendingGeneralBlock = true;
     log(c, dSeat, 'A habilidade do General foi bloqueada no próximo turno!');
   }
 
-  // Bonus HP (Comandante da Ordem's aura, Aurelion's one-time +1/+1) is a buffer that exists only for this
+  // Bonus HP (Marechal do Sol Poente's aura, Aurelion's one-time +1/+1) is a buffer that exists only for this
   // combat: damage eats into it first and whatever is left of it disappears afterwards.
   const newAttacker: Card = { ...atkSoak.card, hp: attacker.hp - Math.max(0, throughToAttacker - attackerHpBonus), pendingCombatBonus: undefined };
   const newDefender: Card = { ...defSoak.card, hp: defender.hp - Math.max(0, throughToDefender - defenderHpBonus), pendingCombatBonus: undefined };

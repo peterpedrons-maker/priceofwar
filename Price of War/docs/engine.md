@@ -33,7 +33,7 @@ else { state = r.state; animate(r.events); }                                    
 | `play {cardId, slot?, target?}` | play a hand card: `slot` for creatures/Relíquia/Terreno, `target` for targeted Táticas |
 | `attack {from, to}` | Combate phase; may open an ambush prompt for the defender |
 | `move {from, to}` | Movimentação (or Batedor's free move) |
-| `ability {slot, target?, target2?}` | once-per-turn abilities (Cardeal Pedro, Mercador, Hospitalário) |
+| `ability {slot, target?, target2?}` | once-per-turn abilities (Cardeal Anselmo, Mercador, Hospitalário) |
 | `ambush {cardId \| null}` | the defender answers an ambush prompt |
 | `choose {cardIds}` | answers a search/reveal prompt |
 | `discard {cardIds}` | answers the end-of-turn discard prompt (see below) |
@@ -53,15 +53,15 @@ Everything that happened comes back as events (`turn_start`, `gold`, `draw`, `at
 
 - Turn phases: **Compra → Suprimentos → Preparação → Combate → Movimentação**, then the end-of-turn discard check. Compra (draw 1, Intendente) and Suprimentos (+5 gold from round 2, stacking) run by themselves inside `startTurn`; the seat only rests in the last three (`activePhases`). `phasesForTurn(combatOpen)` lists all five for the UI. A card effect can skip them: set `players[seat].skip = { compra?, suprimentos? }` before that seat's next turn start (emits a `skip` event instead of drawing / paying).
 - Combate only exists once combat is open; the first player's first turn goes Preparação → Movimentação.
-- Which phase an active ability works in is `abilityPhases(cardName)` in `rules.ts` (default Preparação; the General's heal and Cavaleiro Hospitalário also in Movimentação).
+- Which phase an active ability works in is `abilityPhases(cardName)` in `rules.ts` (default Preparação; the General's heal and Samaritano de Aço also in Movimentação).
 - 15 gold and 7 cards each; one card drawn at the start of every turn, always (there is no cap on starting a turn with cards).
 - The hand limit (10) is only checked at the END of a turn: with more, the player must choose which cards to discard, down to 10 (`state.pending.kind === 'discard'`), the cards go to the graveyard, and only then does the turn pass.
 - Combat opens from the 2nd turn of the match: the first player cannot attack in their first turn.
-- Cards are played in Preparação. In Movimentação only Táticas can come out of the hand (`canPlayInPhase` in `rules.ts`; never units, Relíquias or Terrenos — Chamado às Armas still summons), plus moving troops and the abilities above. Avanço Coordenado is meant for Movimentação (after moving).
+- Cards are played in Preparação. In Movimentação only Táticas can come out of the hand (`canPlayInPhase` in `rules.ts`; never units, Relíquias or Terrenos — Toque dos Sinos de Guerra still summons), plus moving troops and the abilities above. Avanço Coordenado is meant for Movimentação (after moving).
 - **Escudo e Bloqueio** (`Card.shield`, `Card.block`): damage — from combat or from any effect — meets a card's Bloqueio first (the whole instance is negated, however big, and the Bloqueio is spent), then its Escudo (it absorbs up to N points and is worn down by them; anything over N goes on to HP). The order, everywhere damage is dealt (`attack` and `damageSlot`, via `soak()`): reduction (Fortaleza / Linha Fechada) → Bloqueio → Escudo → bonus-HP buffer → HP. The attacker's retaliation is not affected by the defender's Escudo/Bloqueio. Events: `shield` (gained) and `shield_hit` (absorbed / left / broken / blocked). `grantShield` / `grantBlock` are the hooks for future cards, boosters and General abilities; no card grants them yet except Reforço.
 - **Reforço:** when a Vanguarda card is destroyed (combat, Táticas, abilities — everything goes through `sendDestroyed`), the Infantaria standing right behind it in the Retaguarda steps forward for free and arrives with an Escudo of `REINFORCE_SHIELD` points (2), and a `reinforce` event is emitted (after the `destroyed` one, followed by the `shield` one). `canReinforce` in `rules.ts` is the single place that decides who may do it: today every Infantaria; later it can become a card keyword ("Infantaria Reforço") and cards can add their own effect on `reinforce`.
 - Relíquia goes only in slot 10, Terreno only in slot 11.
-- Bonus HP in combat (Comandante da Ordem's aura, Aurelion's +2/+1) lasts only for that combat.
+- Bonus HP in combat (Marechal do Sol Poente's aura, Aurelion's +2/+1) lasts only for that combat.
 - Contra-Manobra: the adjacent ally steps into the targeted slot and takes the hit.
 - Batedor's free move ends when the Combate phase does.
 
@@ -97,7 +97,7 @@ the opponent's steps arrive ready-made and are played out with the usual animati
 and `deck.ts` the deck rules the server checks when a player enters the queue.
 
 ## Baralho finito
-O baralho é exatamente o que o jogador montou: `drawPile` (ordem de compra) e `deckList` (o que ainda resta, sem a ordem) começam iguais e só **diminuem**. Comprar, buscar (Graal, Doutrina, Recrutamento), revelar (Mercador, Recrutar Veteranos) e convocar (Chamado às Armas) tiram a carta do baralho; ela nunca volta, só vai para mão, campo e cemitério. As cartas reveladas e não escolhidas voltam para o **fundo** (Recrutar Veteranos) ou vão para o **cemitério** quando o efeito tem `rest: 'graveyard'` (Mercador da Cruzada). Baralho vazio = não compra nada ("O baralho acabou"). Há um contador de cartas no monte de cada lado do campo. Teste: `engine-rules` ("the deck is finite") e o invariante em `engine-sim`.
+O baralho é exatamente o que o jogador montou: `drawPile` (ordem de compra) e `deckList` (o que ainda resta, sem a ordem) começam iguais e só **diminuem**. Comprar, buscar (Graal, Doutrina, Recrutamento), revelar (Mercador, Convocação dos Veteranos de Fé) e convocar (Toque dos Sinos de Guerra) tiram a carta do baralho; ela nunca volta, só vai para mão, campo e cemitério. As cartas reveladas e não escolhidas voltam para o **fundo** (Convocação dos Veteranos de Fé) ou vão para o **cemitério** quando o efeito tem `rest: 'graveyard'` (Cambista do Dízimo). Baralho vazio = não compra nada ("O baralho acabou"). Há um contador de cartas no monte de cada lado do campo. Teste: `engine-rules` ("the deck is finite") e o invariante em `engine-sim`.
 
 ## Efeitos por tipo
 O que cada carta faz está no catálogo, descrito por tipos de efeito (sem código por nome de carta). Vocabulário, `on`, alvos, passivas e como criar uma carta: [`docs/efeitos.md`](efeitos.md).

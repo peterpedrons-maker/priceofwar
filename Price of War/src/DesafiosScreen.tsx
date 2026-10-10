@@ -15,7 +15,7 @@ export type DzDeck = { id: string; name: string; deckId: string; count: number; 
 // Onde cada general mora no mapa (coordenadas na arte de 1024 px) e o clima de cada região.
 const PLACES: Record<string, { px: number; py: number; region: string; lbl: string; tint: string; img?: string }> = {
   capitao: { px: 158, py: 488, region: 'Marca de Aurelion', lbl: 'Aurelion', tint: 'rgba(200,70,40,.5)', img: portraitCapitao },
-  cardeal: { px: 676, py: 500, region: 'Sé de Pedro', lbl: 'Cardeal Pedro', tint: 'rgba(240,200,90,.55)', img: portraitCardeal },
+  cardeal: { px: 676, py: 500, region: 'Sé de Pedro', lbl: 'Cardeal Anselmo', tint: 'rgba(240,200,90,.55)', img: portraitCardeal },
   mercenarios: { px: 790, py: 745, region: 'Porto das Meias-Coroas', lbl: 'Brann', tint: 'rgba(120,150,60,.5)', img: portraitMercenarios },
   bardos: { px: 432, py: 705, region: 'Vila do Javali Dourado', lbl: 'Aldric', tint: 'rgba(150,80,170,.45)' },
 };

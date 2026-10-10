@@ -82,7 +82,7 @@ export const reinforceShield = (card: { name: string } | null | undefined): numb
 export const canReinforce = (card: { name: string } | null | undefined): boolean => reinforceShield(card) > 0;
 
 // ── Auras e marcas (passivas) ───────────────────────────────────────────────────────────────────────────────────
-type AuraStat = 'atk' | 'combatHp' | 'reduce' | 'healBonus' | 'attacks';
+type AuraStat = 'atk' | 'combatHp' | 'reduce' | 'healBonus' | 'attacks' | 'abilityUses';
 const rowOk = (row: 'front' | 'back' | undefined, slot: number) => !row || (row === 'front' ? isFrontline(slot) : isBackline(slot));
 const whoMatches = (who: Who, sourceSlot: number, targetSlot: number, target: { cardType?: CardType } | null): boolean => {
   if (who.side === 'self') return sourceSlot === targetSlot;
@@ -115,6 +115,8 @@ export const auraTotal = (stat: AuraStat, slot: number, own: Board, enemy: Board
   scan(enemy, 'enemy');
   return total;
 };
+// Quantas vezes por turno o General pode usar a habilidade (1, +1 com o Cálice das Duas Bênçãos).
+export const maxGeneralAbilityUses = (board: Board): number => 1 + auraTotal('abilityUses', 12, board);
 // A flag some card on the board carries (and whose position condition holds).
 export const boardHasFlag = (board: Board, flag: 'row_swap' | 'blocks_ambush' | 'locks_general'): boolean =>
   board.some((c, i) => !!c && passivesOf(c.name).some(p => p.kind === 'flag' && p.flag === flag && rowOk(p.from, i)));
@@ -190,9 +192,9 @@ export const isAliveAt = (board: Board, slot: number, name: string) => board[slo
 
 export const isCardDamaged = (card: Unit): boolean => card.hp < (getCardDef(card.name)?.hp ?? card.hp);
 
-// Extra HP a unit has only during combat (an aura like Comandante da Ordem's).
+// Extra HP a unit has only during combat (an aura like Marechal do Sol Poente's).
 export const getAuraCombatHpBonus = (slot: number, own: Board): number => auraTotal('combatHp', slot, own);
-// An Emboscada is blocked while the ATTACKER's side has a card that stops them (Infiltrado da Ordem in its Vanguarda).
+// An Emboscada is blocked while the ATTACKER's side has a card that stops them (Confessor Silencioso in its Vanguarda).
 export const blocksAmbush = (board: Board): boolean => boardHasFlag(board, 'blocks_ambush');
 // A card on the board that locks the General's ability when the General takes damage.
 export const locksGeneralOnDamage = (board: Board): boolean => boardHasFlag(board, 'locks_general');

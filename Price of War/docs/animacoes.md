@@ -39,7 +39,7 @@ O fogo começa embaixo, no meio (onde a pancada pegou) e se espalha. `BurningCar
 e rodar de novo.
 
 ## Escolher alvo de um efeito (feito)
-Tudo que pede um alvo no tabuleiro (habilidade do General, Cavaleiro Hospitalário, Táticas com alvo) usa o mesmo visual,
+Tudo que pede um alvo no tabuleiro (habilidade do General, Samaritano de Aço, Táticas com alvo) usa o mesmo visual,
 `TargetingHud` + a camada de alvos em `App.tsx` (`targetingMode` calcula carta de origem, tipo do efeito, frase e alvos legais):
 - a carta de origem fica grande e brilhando no canto inferior esquerdo (aura pulsando na cor do efeito, faíscas subindo);
   no caso do General ela vem do centro (onde pergunta "Pagar 2 ouro / Não ativar") e assenta no canto;
@@ -138,7 +138,7 @@ A placa continua passando fase por fase. O segmento passa todas as fases que fal
 
 ## Números das cartas no tabuleiro: o valor real, em verde ou vermelho
 
-O ATK e o HP desenhados numa carta do tabuleiro são os valores de verdade naquele momento (`CardData.shown`, calculado em `shownStats` no App.tsx): o ATK passa por `getEffectiveAtk` (a mesma função do combate: auras, bônus do Aurelion, Capitão de Formação, armas, bônus permanentes) e o HP soma o que vale em combate (bônus do Aurelion, auras como a do Comandante da Ordem).
+O ATK e o HP desenhados numa carta do tabuleiro são os valores de verdade naquele momento (`CardData.shown`, calculado em `shownStats` no App.tsx): o ATK passa por `getEffectiveAtk` (a mesma função do combate: auras, bônus do Aurelion, Capitão de Formação, armas, bônus permanentes) e o HP soma o que vale em combate (bônus do Aurelion, auras como a do Marechal do Sol Poente).
 
 Cor: **verde** quando o número está acima do impresso na carta, **vermelho** quando está abaixo. Para o HP, "abaixo" significa ferida (HP atual menor que o impresso mais o que as armas dão); ferida tem prioridade sobre bônus. Cartas na mão, no cemitério e no catálogo continuam com os números impressos. O ícone de espada/coração pequeno nos cantos continua indicando bônus permanentes.
 
@@ -286,13 +286,13 @@ As Táticas (Catapulta, Trabuco, Balestra) **descem no tabuleiro** com peso (que
 Tudo o que o mockup `public/mockups/projeteis/` mostrava está no jogo, com o mesmo visual e os mesmos sons. A engine é a do mockup (linha do tempo própria, partículas, explosões, projéteis) num canvas por cima do tabuleiro (`z-index` 285; acima dele só os números flutuantes e as janelas). Escrita em coordenadas lógicas em que a casa tem 64 de largura (`U` = largura real da casa / 64), então fica igual em qualquer tela. O arquivo usa `// @ts-nocheck` (é a engine do mockup portada; a API exportada é pequena e comentada).
 - **Quando acontece:**
   - **Catapulta, Trabuco e Balestra** (`fxTactic`): ao jogar a carta ela **desce no tabuleiro** (faixa do meio; `tacticSpot`), brilha e o efeito sai dela. Os alvos e os números vêm dos eventos `damage` do motor (nada é decidido na animação). Vale para você, para a IA e para o adversário online (tudo passa por `commitState`).
-  - **Cardeal Pedro (cura)** (`fxHero('cura')`): o General ergue o martelo na vertical, brilha em verde com som, a luz verde desce até a unidade curada.
+  - **Cardeal Anselmo (cura)** (`fxHero('cura')`): o General ergue o martelo na vertical, brilha em verde com som, a luz verde desce até a unidade curada.
   - **Aurelion (+2/+1)** (`fxHero('bonus')`): ergue a espada, brilho vermelho; a onda passa pelas unidades que ganharam o bônus. Roda junto com o fim do turno (não segura nada).
   - **Jorge e Arqueiros** (`fxRanged`): no ataque, em vez do avanço da carta, a lança (com impulso, atravessa o alvo e acerta a carta de trás) ou a flecha (arco alto, encolhe com a distância) voa e o golpe só é aplicado quando chega (`await fx.impact`). Ataque que mata o General mantém o avanço em câmera lenta.
 - **Fila de apresentação (`commitState`)**: o motor já decidiu tudo; a tela mostra o resultado quando o efeito chega ao alvo. Se um lote tem efeito, ele entra numa fila (`fxQueueRef`) e o que vem depois espera; sem efeito e fila vazia, mostra na hora como antes. Enquanto a fila trabalha (`fxBusy`), uma camada transparente (z 284) segura os toques. A mão e o ouro já atualizam quando a carta pousa. `processEvents` recebe `fxNumbers` (os números de dano/cura saem do efeito, no instante de cada acerto), `fxSkipAbility` e `fxSkipTacticSfx`.
 - **Arte e som:** arte pintada em `src/assets/proj-art-*.webp` (feita pelo dono; `tools/vfx/key_art.py` tira o fundo) e fogo/fumaça/explosão sagrada/poeira/pedaços em `proj-boom-*`, `proj-holy`, `proj-puff`, `proj-debris` (`tools/vfx/projectiles.py`). Sons do próprio jogo (`sfx-destruicao-fogo`, `sfx-combate-explosao`, `sfx-dano`, `sfx-efeito-magico`) mais um "vush" sintetizado; tudo respeita o volume de Efeitos (`playSfxAt`, `playWhoosh` em `src/sfx.ts`).
 - **Números:** o número de dano/cura voltou a ter a **estrela** atrás (uma só, sem anéis), como no mockup.
-- **Fora desta versão:** Flechas Venenosas (equipa, não ataca), o ataque de unidades no online do lado do adversário passa pelo mesmo laço da IA e já usa o efeito; a tutorial não tem tática de dano ainda.
+- **Fora desta versão:** Setas de Cicuta (equipa, não ataca), o ataque de unidades no online do lado do adversário passa pelo mesmo laço da IA e já usa o efeito; a tutorial não tem tática de dano ainda.
 - **Teste:** com `?debug`, `window.__powAct(seat, action)` aplica uma ação do motor e `window.__powSet` monta a situação (ver `docs/animacoes.md`, "Como conferir uma animação").
 
 ### Ajustes depois do teste do dono (carta tática no tabuleiro e pouso das cartas)
@@ -316,20 +316,20 @@ Tudo o que o mockup `public/mockups/projeteis/` mostrava está no jogo, com o me
 
 Folhas desenhadas em Python (`tools/vfx/efeitos_cardeal.py`, saída em `public/mockups/efeitos-cardeal/`), tudo aditivo (cor em RGB, intensidade em alfa; desenhar com `lighter`) salvo onde indicado: `fx-pilar` (pilar de luz volumétrico em leque, poça no chão com ondas e estrelas em hélice), `fx-sigilo` / `fx-sigilo-azul` (rosácea gótica, runas giratórias e cruzes), `fx-cruz` (cruz de luz com estilhaços e anéis), `fx-brilhos` (4 variantes de brilho de 4 e 6 pontas, usadas como partículas), `fx-coracao` (coração dourado, normal), `fx-cometa` (cabeça em cruz estrelada e cauda), `fx-escudo` (escudo heráldico, normal), `fx-alma` (elmo de luz com cauda de chama), `fx-asas` (asas de luz), `fx-sol` (sol de raios giratório, laço), `fx-portal` (arco gótico de luz que se abre), `fx-penas` (normal) e `fx-trompa`.
 
-Página de teste: `/mockups/efeitos-cardeal/` (montada por `tools/vfx/mockup-src/build_cardeal.py`, rodando dentro de `public/mockups`; cenas em `scenes_cardeal.js`). Receita de todas as cenas: **foco** (o campo escurece e deixa um holofote no alvo: `dim`), **antecipação** (brilhos convergem para quem age: `charge`), **ação** (orbe/cometa com rastro de brilhos), **impacto** (clarão de tela, tremida, pilar, sigilo, poça de luz, a carta se ergue: `lift`), **resultado** (coração, número, brilhos subindo). Extras de impacto: `punch` (tremida com zoom na direção do golpe), `hitstop` (pausa de ~0,1 s no impacto) e `godrays` (feixes diagonais). Cada carta tem uma assinatura própria: asas e sol no Cardeal Pedro, cometa no Hospitalário, portais góticos no Nobre, sol no Comandante, alma com elmo no Retorno. Cuidado de leitura: efeitos aditivos grandes escondem a carta que age (as asas e o sol do General ficam em baixa intensidade). Cenas: Cardeal Pedro, Cálice da Graça (dose dupla), Cavaleiro Hospitalário (pilar e cometa), Nobre da Cruzada (sigilos e Soldados Leais), Soldados da Ordem (Reforço e emblema "2" que fica na carta), Comandante da Ordem (trompa e +1/+1), Retorno do Soldado (alma azul até a mão), Atirador da Cruzada (penas e +2 cartas). Para ligar ao jogo: mesmo caminho dos efeitos do Capitão/Mercenários (campo `fx` no catálogo + `cardOverlayFx` em `App.tsx` + funções em `src/combatFx.ts`).
+Página de teste: `/mockups/efeitos-cardeal/` (montada por `tools/vfx/mockup-src/build_cardeal.py`, rodando dentro de `public/mockups`; cenas em `scenes_cardeal.js`). Receita de todas as cenas: **foco** (o campo escurece e deixa um holofote no alvo: `dim`), **antecipação** (brilhos convergem para quem age: `charge`), **ação** (orbe/cometa com rastro de brilhos), **impacto** (clarão de tela, tremida, pilar, sigilo, poça de luz, a carta se ergue: `lift`), **resultado** (coração, número, brilhos subindo). Extras de impacto: `punch` (tremida com zoom na direção do golpe), `hitstop` (pausa de ~0,1 s no impacto) e `godrays` (feixes diagonais). Cada carta tem uma assinatura própria: asas e sol no Cardeal Anselmo, cometa no Hospitalário, portais góticos no Nobre, sol no Comandante, alma com elmo no Retorno. Cuidado de leitura: efeitos aditivos grandes escondem a carta que age (as asas e o sol do General ficam em baixa intensidade). Cenas: Cardeal Anselmo, Cálice das Duas Bênçãos (dose dupla), Samaritano de Aço (pilar e cometa), Barão da Procissão (sigilos e Acólitos Leais), Sentinela do Claustro (Reforço e emblema "2" que fica na carta), Marechal do Sol Poente (trompa e +1/+1), Chamado do Túmulo Santo (alma azul até a mão), Vigia do Último Salmo (penas e +2 cartas). Para ligar ao jogo: mesmo caminho dos efeitos do Capitão/Mercenários (campo `fx` no catálogo + `cardOverlayFx` em `App.tsx` + funções em `src/combatFx.ts`).
 
 **No jogo** (`src/combatFx.ts`, seção "Efeitos de ativação do Cardeal"; as 14 folhas ficam em `src/assets/fx-sagrado-*.webp` e carregam em ociosidade, `preloadHolyFx`): o campo `fx` do catálogo nomeia a carta e `App.tsx` liga cada efeito ao evento do motor.
 | Carta (`fx`) | Evento | Função | Modo |
 |---|---|---|---|
-| Cardeal Pedro (General com cura) | `ability` do General + `heal` | `fxBencao` (Cálice: dose dupla quando a cura é ≥ 2) | segura a tela até o pilar (`planFx`) |
-| Cavaleiro Hospitalário (`hospitalario`) | `ability` + `heal` + `damage` | `fxHospitalario` | segura a tela até o cometa acertar |
-| Cálice da Graça (`calice`) | `place` na casa 10 | `fxCalice` | sobreposição |
-| Nobre da Cruzada (`nobre`) | `summon` de Soldado Leal | `fxNobre` | sobreposição |
-| Soldados da Ordem (`soldados`) | `reinforce` | `fxReforco` | sobreposição |
-| Comandante da Ordem (`comandante`) | `place`/`move` para a Vanguarda | `fxComandante` | sobreposição |
-| Atirador da Cruzada (`atirador`) | `destroyed` | `fxAtirador` | sobreposição |
+| Cardeal Anselmo (General com cura) | `ability` do General + `heal` | `fxBencao` (Cálice: dose dupla quando a cura é ≥ 2) | segura a tela até o pilar (`planFx`) |
+| Samaritano de Aço (`hospitalario`) | `ability` + `heal` + `damage` | `fxHospitalario` | segura a tela até o cometa acertar |
+| Cálice das Duas Bênçãos (`calice`) | `place` na casa 10 | `fxCalice` | sobreposição |
+| Barão da Procissão (`nobre`) | `summon` de Acólito Leal | `fxNobre` | sobreposição |
+| Sentinela do Claustro (`soldados`) | `reinforce` | `fxReforco` | sobreposição |
+| Marechal do Sol Poente (`comandante`) | `place`/`move` para a Vanguarda | `fxComandante` | sobreposição |
+| Vigia do Último Salmo (`atirador`) | `destroyed` | `fxAtirador` | sobreposição |
 | qualquer carta que traz soldado do cemitério | uma carta sai do cemitério + `draw` de efeito | `fxRetorno` | sobreposição |
-Para tirar um efeito do jogo, remova o `fx` da carta no catálogo (o do Cardeal Pedro e o do Retorno ficam em `planFx`/`cardOverlayFx`). Não há "soco" de zoom nem pausa no impacto no jogo (só no mockup), porque mexeriam no tabuleiro de React.
+Para tirar um efeito do jogo, remova o `fx` da carta no catálogo (o do Cardeal Anselmo e o do Retorno ficam em `planFx`/`cardOverlayFx`). Não há "soco" de zoom nem pausa no impacto no jogo (só no mockup), porque mexeriam no tabuleiro de React.
 
 ## Efeitos permanentes de terreno (mockups, ainda não estão no jogo)
 Canvas por cima do tabuleiro real (`tools/vfx/mockup-src/`), medindo as casas pelos ids `player-N` da página; cada efeito tem `start`/`end` (jogada e terreno destruído).
@@ -356,4 +356,4 @@ Arte gerada pelo dono (castelo: torre, muros e portão; acampamento: barracas, a
 
 ## Ritmo da IA e cura do General (ajuste)
 - **Ritmo do turno da IA** (`runAiTurn` em `App.tsx`): a carta que a IA joga fica anunciada 1,9 s antes de cair e 1,5 s depois (táticas com efeito: 1,1 s depois); o cartaz da carta dura 2,3 s; reposicionar 0,8 s; habilidade 1,6 s; depois de um ataque 0,7 s (1,5 s se algo caiu). Antes eram 1,0/0,7 s, 0,4 s, 0,35 s, 0,7 s e 0,3 s.
-- **Cura do General (Cardeal Pedro):** volta a ser a antiga (`fxHero('cura', ...)`: ele ergue a marreta e a luz desce até quem foi curado); a `fxBencao` ficou no código mas não é mais usada.
+- **Cura do General (Cardeal Anselmo):** volta a ser a antiga (`fxHero('cura', ...)`: ele ergue a marreta e a luz desce até quem foi curado); a `fxBencao` ficou no código mas não é mais usada.

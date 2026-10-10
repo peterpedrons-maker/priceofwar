@@ -217,47 +217,47 @@ var CARD_DEFS = [
   },
   // ── cardeal ──
   {
-    name: "Cardeal Pedro, Voz da F\xE9",
+    name: "Cardeal Anselmo, Voz da F\xE9",
     trigger: "comando",
     cardType: "General",
     atk: 0,
     hp: 30,
     cost: 0,
     isFullArt: true,
-    effect: "Pague 2 de ouro: +1 HP a uma unidade aliada.",
+    effect: "Uma vez por turno: +1 HP a uma unidade aliada.",
     faction: "fe",
-    abilities: [{ on: "ability", phases: ["preparacao", "movimentacao"], once: true, cost: 2, do: [
-      { kind: "heal", amount: 1, withAuras: true, target: { ...OWN_UNIT, prompt: "Escolha um soldado aliado no campo." } }
+    abilities: [{ on: "ability", phases: ["preparacao", "movimentacao"], once: true, do: [
+      { kind: "heal", amount: 1, target: { ...OWN_UNIT, prompt: "Escolha um soldado aliado no campo." } }
     ] }]
   },
   {
-    name: "C\xE1lice da Gra\xE7a",
+    name: "C\xE1lice das Duas B\xEAn\xE7\xE3os",
     fx: "calice",
     cardType: "Rel\xEDquia",
     atk: 0,
-    hp: 5,
+    hp: 6,
     cost: 3,
     isFullArt: true,
-    effect: "Seu General d\xE1 +2 HP em vez de +1.",
-    passives: [{ kind: "aura", who: { side: "own", slots: [12] }, healBonus: 1 }]
+    effect: "Seu General pode curar 2 vezes por turno.",
+    passives: [{ kind: "aura", who: { side: "own", slots: [12] }, abilityUses: 1 }]
   },
-  { name: "Devotos da Cruzada", cardType: "Infantaria", atk: 0, hp: 3, cost: 1, effect: "" },
+  { name: "Penitente de Pedra", cardType: "Infantaria", atk: 0, hp: 4, cost: 1, effect: "" },
   {
-    name: "Mercador da Cruzada",
+    name: "Cambista do D\xEDzimo",
     trigger: "comando",
     cardType: "Infantaria",
     atk: 1,
-    hp: 1,
+    hp: 2,
     cost: 1,
     effect: "Pague 1 de ouro: veja 2 cartas do topo do baralho, fique com 1 e mande a outra para o cemit\xE9rio.",
     abilities: [{ on: "ability", once: true, cost: 1, do: [{ kind: "look_top", count: 2, keepMin: 1, keepMax: 1, rest: "graveyard" }] }]
   },
   {
-    name: "Infiltrado da Ordem",
+    name: "Confessor Silencioso",
     trigger: "postura",
     cardType: "Infantaria",
     atk: 1,
-    hp: 2,
+    hp: 3,
     cost: 1,
     effect: "Na Vanguarda, Emboscadas inimigas n\xE3o ativam. Se seu General sofrer dano, ele fica sem habilidade no pr\xF3ximo turno.",
     passives: [
@@ -266,40 +266,40 @@ var CARD_DEFS = [
     ]
   },
   {
-    name: "Fan\xE1tico da Cruzada",
+    name: "Zeloso da Pira",
     cardType: "Infantaria",
     atk: 1,
-    hp: 2,
+    hp: 3,
     cost: 1,
     trigger: "ofensiva",
     effect: "+2 ATK contra General de fac\xE7\xE3o oposta.",
     abilities: [{ on: "attack", do: [{ kind: "attack_bonus", amount: 2, ifEnemyGeneral: "other_faction" }] }]
   },
   {
-    name: "Recruta Devoto",
+    name: "Novi\xE7o Renascido",
     cardType: "Infantaria",
     atk: 0,
-    hp: 2,
+    hp: 3,
     cost: 1,
     effect: "Quando \xE9 curado: +1 ATK para sempre.",
     abilities: [{ on: "healed", do: [{ kind: "buff", atk: 1 }] }]
   },
   {
-    name: "Intendente do Ex\xE9rcito",
+    name: "Despenseiro do Mosteiro",
     trigger: "comando",
     cardType: "Infantaria",
     atk: 2,
-    hp: 3,
+    hp: 4,
     cost: 3,
     effect: "No in\xEDcio do turno, compre at\xE9 ter 2 cartas na m\xE3o.",
     abilities: [{ on: "turn_start", do: [{ kind: "refill_hand", to: 2 }] }]
   },
   {
-    name: "Soldados da Ordem",
+    name: "Sentinela do Claustro",
     fx: "soldados",
     cardType: "Infantaria",
-    atk: 3,
-    hp: 4,
+    atk: 2,
+    hp: 6,
     cost: 3,
     trigger: "reforco",
     effect: "Se a da frente cair, desce e ganha Escudo 2.",
@@ -308,8 +308,8 @@ var CARD_DEFS = [
   {
     name: "Jorge, Lan\xE7a Sagrada",
     cardType: "Cavalaria",
-    atk: 4,
-    hp: 6,
+    atk: 3,
+    hp: 7,
     cost: 4,
     isFullArt: true,
     trigger: "ofensiva",
@@ -317,39 +317,48 @@ var CARD_DEFS = [
     abilities: [{ on: "attack", do: [{ kind: "splash_behind", amount: 2 }] }]
   },
   {
-    name: "Cavaleiro Hospital\xE1rio",
+    name: "Samaritano de A\xE7o",
     fx: "hospitalario",
     trigger: "comando",
     cardType: "Cavalaria",
     atk: 2,
-    hp: 3,
+    hp: 5,
     cost: 3,
-    effect: "+1 HP a um aliado ferido e 1 de dano a um inimigo da Vanguarda.",
+    effect: "+2 HP a um aliado ferido e 1 de dano a um inimigo da Vanguarda.",
     abilities: [{ on: "ability", phases: ["preparacao", "movimentacao"], once: true, do: [
-      { kind: "heal", amount: 1, target: { ...OWN_UNIT, needs: "damaged", optional: true, prompt: "Toque em um aliado ferido." } },
+      { kind: "heal", amount: 2, target: { ...OWN_UNIT, needs: "damaged", optional: true, prompt: "Toque em um aliado ferido." } },
       { kind: "damage", amount: 1, target: { ...ENEMY_UNIT, where: "front", optional: true, prompt: "Toque em um inimigo da Vanguarda." } }
     ] }]
   },
   {
-    name: "Nobre da Cruzada",
+    name: "Bar\xE3o da Prociss\xE3o",
     fx: "nobre",
     cardType: "Cavalaria",
-    atk: 4,
-    hp: 5,
+    atk: 3,
+    hp: 6,
     cost: 4,
     isFullArt: true,
     trigger: "convocacao",
-    effect: "Soldados Leais (1/1) nos espa\xE7os livres ao lado.",
-    abilities: [{ on: "place", do: [{ kind: "summon_token", token: "Soldado Leal" }] }]
+    effect: "Ac\xF3litos Leais (1/2) nos espa\xE7os livres ao lado.",
+    abilities: [{ on: "place", do: [{ kind: "summon_token", token: "Ac\xF3lito Leal" }] }]
   },
-  { name: "Cavaleiro da Luz", cardType: "Cavalaria", atk: 4, hp: 5, cost: 4, isFullArt: true, effect: "" },
   {
-    name: "Comandante da Ordem",
+    name: "Paladino do Alvorecer",
+    cardType: "Cavalaria",
+    atk: 3,
+    hp: 6,
+    cost: 4,
+    isFullArt: true,
+    effect: "Quando uma unidade ao lado \xE9 curada: +1 ATK at\xE9 o seu pr\xF3ximo turno.",
+    abilities: [{ on: "ally_healed", do: [{ kind: "buff_self_temp", atk: 1 }] }]
+  },
+  {
+    name: "Marechal do Sol Poente",
     fx: "comandante",
     trigger: "postura",
     cardType: "Cavalaria",
-    atk: 5,
-    hp: 5,
+    atk: 4,
+    hp: 6,
     cost: 4,
     isFullArt: true,
     effect: "Na Vanguarda, seus Infantaria e Arqueiros t\xEAm +1/+1 em combate.",
@@ -362,27 +371,27 @@ var CARD_DEFS = [
     }]
   },
   {
-    name: "Arqueiro da Ordem",
+    name: "Arqueiro de Dois Sinos",
     cardType: "Arqueiro",
     atk: 1,
-    hp: 4,
+    hp: 5,
     cost: 3,
     effect: "Ataca 2 vezes por rodada.",
     passives: [{ kind: "aura", who: { side: "self" }, attacks: 1 }]
   },
   {
-    name: "Atirador da Cruzada",
+    name: "Vigia do \xDAltimo Salmo",
     fx: "atirador",
     cardType: "Arqueiro",
     atk: 1,
-    hp: 3,
+    hp: 4,
     cost: 3,
     trigger: "queda",
     effect: "Compre 2 cartas.",
     abilities: [{ on: "destroyed", do: [{ kind: "draw", amount: 2 }] }]
   },
   {
-    name: "Trabuco de Cerco",
+    name: "Trabuco da Trombeta Final",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -392,7 +401,7 @@ var CARD_DEFS = [
     abilities: [{ on: "play", do: [{ kind: "damage", amount: 2, all: "enemy" }] }]
   },
   {
-    name: "Catapulta de Guerra",
+    name: "Catapulta do Dil\xFAvio de Pedra",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -403,7 +412,7 @@ var CARD_DEFS = [
     ] }]
   },
   {
-    name: "Balestra de Precis\xE3o",
+    name: "Balestra da Penit\xEAncia",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -414,29 +423,29 @@ var CARD_DEFS = [
     ] }]
   },
   {
-    name: "Armadura de Guerra",
+    name: "Coura\xE7a do M\xE1rtir",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
     cost: 1,
-    effect: "Equipe uma Infantaria: +2 HP.",
+    effect: "Equipe uma Infantaria: +2 HP e Guarda (absorve o primeiro golpe inteiro).",
     abilities: [{ on: "play", do: [
-      { kind: "equip", hp: 2, target: { ...OWN_UNIT, types: ["Infantaria"], prompt: "Escolha uma Infantaria sua para equipar (+2 HP)." } }
+      { kind: "equip", hp: 2, block: true, target: { ...OWN_UNIT, types: ["Infantaria"], prompt: "Escolha uma Infantaria sua para equipar (+2 HP e Guarda)." } }
     ] }]
   },
   {
-    name: "Coura\xE7a Refor\xE7ada",
+    name: "Gib\xE3o Bento",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
     cost: 1,
-    effect: "Equipe uma Infantaria ou Arqueiro: +1 HP.",
+    effect: "Equipe uma Infantaria ou Arqueiro: +2 HP.",
     abilities: [{ on: "play", do: [
-      { kind: "equip", hp: 1, target: { ...OWN_UNIT, types: ["Arqueiro", "Infantaria"], prompt: "Escolha um Arqueiro ou Infantaria sua para equipar (+1 HP)." } }
+      { kind: "equip", hp: 2, target: { ...OWN_UNIT, types: ["Arqueiro", "Infantaria"], prompt: "Escolha um Arqueiro ou Infantaria sua para equipar (+2 HP)." } }
     ] }]
   },
   {
-    name: "Flechas Venenosas",
+    name: "Setas de Cicuta",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -447,7 +456,7 @@ var CARD_DEFS = [
     ] }]
   },
   {
-    name: "Espada Longa",
+    name: "L\xE2mina do Juramento",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -458,16 +467,16 @@ var CARD_DEFS = [
     ] }]
   },
   {
-    name: "Refor\xE7os Ocultos",
+    name: "Preces na Sombra",
     cardType: "Emboscada",
     atk: 0,
     hp: 0,
     cost: 1,
-    effect: "A unidade atacada ganha +2 ATK e +1 HP at\xE9 o fim do turno.",
-    abilities: [{ on: "ambush", do: [{ kind: "buff_defender", atk: 2, hp: 1 }] }]
+    effect: "A unidade atacada ganha +1 ATK e +3 HP at\xE9 o fim do turno.",
+    abilities: [{ on: "ambush", do: [{ kind: "buff_defender", atk: 1, hp: 3 }] }]
   },
   {
-    name: "Retorno do Soldado",
+    name: "Chamado do T\xFAmulo Santo",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -477,7 +486,7 @@ var CARD_DEFS = [
     abilities: [{ on: "play", do: [{ kind: "search", zone: "graveyard", filter: { types: SOLDIERS } }] }]
   },
   {
-    name: "Graal da D\xE1diva",
+    name: "Peregrina\xE7\xE3o ao Graal",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -486,7 +495,7 @@ var CARD_DEFS = [
     abilities: [{ on: "play", do: [{ kind: "search", zone: "deck", filter: { types: ["Terreno", "Rel\xEDquia"] } }] }]
   },
   {
-    name: "Doutrina Renovada",
+    name: "Serm\xE3o da Estrat\xE9gia",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -495,7 +504,7 @@ var CARD_DEFS = [
     abilities: [{ on: "play", do: [{ kind: "search", zone: "deck", filter: { types: ["T\xE1tica"] } }] }]
   },
   {
-    name: "Recrutamento Seletivo",
+    name: "Alistamento do P\xFAlpito",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -504,7 +513,7 @@ var CARD_DEFS = [
     abilities: [{ on: "play", do: [{ kind: "search", zone: "deck", filter: { types: SOLDIERS } }] }]
   },
   {
-    name: "Recrutar Veteranos",
+    name: "Convoca\xE7\xE3o dos Veteranos de F\xE9",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -513,7 +522,7 @@ var CARD_DEFS = [
     abilities: [{ on: "play", do: [{ kind: "look_top", count: 4, keepMin: 1, keepMax: 2 }] }]
   },
   {
-    name: "Tributo de Guerra",
+    name: "D\xEDzimo de Guerra",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -522,7 +531,7 @@ var CARD_DEFS = [
     abilities: [{ on: "play", do: [{ kind: "gold", amount: 1 }] }]
   },
   {
-    name: "Chamado \xE0s Armas",
+    name: "Toque dos Sinos de Guerra",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -724,9 +733,9 @@ var DECK_RECIPES = {
       "Reposicionamento R\xE1pido": 1,
       "Linha Fechada": 4,
       "Ordem de Retirada": 4,
-      "Catapulta de Guerra": 2,
-      "Balestra de Precis\xE3o": 2,
-      "Trabuco de Cerco": 1,
+      "Catapulta do Dil\xFAvio de Pedra": 2,
+      "Balestra da Penit\xEAncia": 2,
+      "Trabuco da Trombeta Final": 1,
       "Bloqueio Instant\xE2neo": 4,
       "Contra-Manobra": 2,
       "Forma\xE7\xE3o Quebrada": 2,
@@ -737,40 +746,40 @@ var DECK_RECIPES = {
   },
   cardeal: {
     id: "cardeal",
-    name: "Deck Cardeal Pedro",
+    name: "Deck Cardeal Anselmo",
     description: "F\xE9 e ferro \u2014 cura, convoca\xE7\xF5es e emboscadas sagradas.",
-    general: "Cardeal Pedro, Voz da F\xE9",
+    general: "Cardeal Anselmo, Voz da F\xE9",
     cards: {
-      "C\xE1lice da Gra\xE7a": 1,
-      "Devotos da Cruzada": 4,
-      "Mercador da Cruzada": 1,
-      "Infiltrado da Ordem": 1,
-      "Fan\xE1tico da Cruzada": 1,
-      "Recruta Devoto": 4,
-      "Intendente do Ex\xE9rcito": 3,
-      "Soldados da Ordem": 4,
+      "C\xE1lice das Duas B\xEAn\xE7\xE3os": 1,
+      "Penitente de Pedra": 4,
+      "Cambista do D\xEDzimo": 1,
+      "Confessor Silencioso": 1,
+      "Zeloso da Pira": 1,
+      "Novi\xE7o Renascido": 4,
+      "Despenseiro do Mosteiro": 3,
+      "Sentinela do Claustro": 4,
       "Jorge, Lan\xE7a Sagrada": 2,
-      "Cavaleiro Hospital\xE1rio": 3,
-      "Nobre da Cruzada": 2,
-      "Cavaleiro da Luz": 3,
-      "Comandante da Ordem": 1,
-      "Arqueiro da Ordem": 3,
-      "Atirador da Cruzada": 3,
-      "Trabuco de Cerco": 1,
-      "Catapulta de Guerra": 1,
-      "Balestra de Precis\xE3o": 1,
-      "Armadura de Guerra": 2,
-      "Coura\xE7a Refor\xE7ada": 2,
-      "Flechas Venenosas": 1,
-      "Espada Longa": 2,
-      "Refor\xE7os Ocultos": 2,
-      "Retorno do Soldado": 1,
-      "Graal da D\xE1diva": 1,
-      "Doutrina Renovada": 3,
-      "Recrutamento Seletivo": 2,
-      "Recrutar Veteranos": 1,
-      "Tributo de Guerra": 2,
-      "Chamado \xE0s Armas": 2
+      "Samaritano de A\xE7o": 3,
+      "Bar\xE3o da Prociss\xE3o": 2,
+      "Paladino do Alvorecer": 3,
+      "Marechal do Sol Poente": 1,
+      "Arqueiro de Dois Sinos": 3,
+      "Vigia do \xDAltimo Salmo": 3,
+      "Trabuco da Trombeta Final": 1,
+      "Catapulta do Dil\xFAvio de Pedra": 1,
+      "Balestra da Penit\xEAncia": 1,
+      "Coura\xE7a do M\xE1rtir": 2,
+      "Gib\xE3o Bento": 2,
+      "Setas de Cicuta": 1,
+      "L\xE2mina do Juramento": 2,
+      "Preces na Sombra": 2,
+      "Chamado do T\xFAmulo Santo": 1,
+      "Peregrina\xE7\xE3o ao Graal": 1,
+      "Serm\xE3o da Estrat\xE9gia": 3,
+      "Alistamento do P\xFAlpito": 2,
+      "Convoca\xE7\xE3o dos Veteranos de F\xE9": 1,
+      "D\xEDzimo de Guerra": 2,
+      "Toque dos Sinos de Guerra": 2
     }
   },
   mercenarios: {
@@ -824,10 +833,10 @@ var LEGACY_STARTERS = {
   capitao: [
     { "Soldado T\xE1tico": 4, "Escudeiro de Linha": 4, "Capit\xE3o de Forma\xE7\xE3o": 4, "Batedor": 4, "Lanceiro de Controle": 4, "Cavaleiro T\xE1tico": 4, "Veterano de Guerra": 3, "Reformar Linhas": 3, "Avan\xE7o Coordenado": 4, "Reposicionamento R\xE1pido": 3, "Linha Fechada": 4, "Ordem de Retirada": 4, "Bloqueio Instant\xE2neo": 4, "Contra-Manobra": 4, "Forma\xE7\xE3o Quebrada": 4, "Estandarte da Legi\xE3o": 1, "Fortaleza de Pedra": 1, "P\xE2ntano Maldito": 1 },
     // the version of the first balance pass (borrowed tactics, Veterano x4), before the effect changes
-    { "Soldado T\xE1tico": 4, "Escudeiro de Linha": 4, "Capit\xE3o de Forma\xE7\xE3o": 4, "Batedor": 4, "Lanceiro de Controle": 4, "Cavaleiro T\xE1tico": 4, "Veterano de Guerra": 4, "Reformar Linhas": 1, "Avan\xE7o Coordenado": 4, "Reposicionamento R\xE1pido": 2, "Ordem de Retirada": 2, "Bloqueio Instant\xE2neo": 2, "Contra-Manobra": 1, "Forma\xE7\xE3o Quebrada": 2, "Estandarte da Legi\xE3o": 1, "P\xE2ntano Maldito": 1, "Catapulta de Guerra": 4, "Balestra de Precis\xE3o": 4, "Armadura de Guerra": 4, "Trabuco de Cerco": 2, "Recrutamento Seletivo": 2 }
+    { "Soldado T\xE1tico": 4, "Escudeiro de Linha": 4, "Capit\xE3o de Forma\xE7\xE3o": 4, "Batedor": 4, "Lanceiro de Controle": 4, "Cavaleiro T\xE1tico": 4, "Veterano de Guerra": 4, "Reformar Linhas": 1, "Avan\xE7o Coordenado": 4, "Reposicionamento R\xE1pido": 2, "Ordem de Retirada": 2, "Bloqueio Instant\xE2neo": 2, "Contra-Manobra": 1, "Forma\xE7\xE3o Quebrada": 2, "Estandarte da Legi\xE3o": 1, "P\xE2ntano Maldito": 1, "Catapulta do Dil\xFAvio de Pedra": 4, "Balestra da Penit\xEAncia": 4, "Coura\xE7a do M\xE1rtir": 4, "Trabuco da Trombeta Final": 2, "Alistamento do P\xFAlpito": 2 }
   ],
   cardeal: [
-    { "C\xE1lice da Gra\xE7a": 1, "Devotos da Cruzada": 4, "Mercador da Cruzada": 2, "Infiltrado da Ordem": 1, "Fan\xE1tico da Cruzada": 1, "Recruta Devoto": 2, "Intendente do Ex\xE9rcito": 2, "Soldados da Ordem": 2, "Jorge, Lan\xE7a Sagrada": 3, "Cavaleiro Hospital\xE1rio": 2, "Nobre da Cruzada": 2, "Cavaleiro da Luz": 4, "Comandante da Ordem": 1, "Arqueiro da Ordem": 2, "Atirador da Cruzada": 2, "Trabuco de Cerco": 2, "Catapulta de Guerra": 3, "Balestra de Precis\xE3o": 1, "Armadura de Guerra": 2, "Coura\xE7a Refor\xE7ada": 2, "Flechas Venenosas": 1, "Espada Longa": 2, "Refor\xE7os Ocultos": 2, "Retorno do Soldado": 1, "Graal da D\xE1diva": 1, "Doutrina Renovada": 2, "Recrutamento Seletivo": 2, "Recrutar Veteranos": 2, "Tributo de Guerra": 2, "Chamado \xE0s Armas": 2 }
+    { "C\xE1lice das Duas B\xEAn\xE7\xE3os": 1, "Penitente de Pedra": 4, "Cambista do D\xEDzimo": 2, "Confessor Silencioso": 1, "Zeloso da Pira": 1, "Novi\xE7o Renascido": 2, "Despenseiro do Mosteiro": 2, "Sentinela do Claustro": 2, "Jorge, Lan\xE7a Sagrada": 3, "Samaritano de A\xE7o": 2, "Bar\xE3o da Prociss\xE3o": 2, "Paladino do Alvorecer": 4, "Marechal do Sol Poente": 1, "Arqueiro de Dois Sinos": 2, "Vigia do \xDAltimo Salmo": 2, "Trabuco da Trombeta Final": 2, "Catapulta do Dil\xFAvio de Pedra": 3, "Balestra da Penit\xEAncia": 1, "Coura\xE7a do M\xE1rtir": 2, "Gib\xE3o Bento": 2, "Setas de Cicuta": 1, "L\xE2mina do Juramento": 2, "Preces na Sombra": 2, "Chamado do T\xFAmulo Santo": 1, "Peregrina\xE7\xE3o ao Graal": 1, "Serm\xE3o da Estrat\xE9gia": 2, "Alistamento do P\xFAlpito": 2, "Convoca\xE7\xE3o dos Veteranos de F\xE9": 2, "D\xEDzimo de Guerra": 2, "Toque dos Sinos de Guerra": 2 }
   ]
 };
 var BY_NAME = {};
@@ -862,7 +871,39 @@ var LEGACY_CARD_NAMES = {
   "Ag\xEAncia de Recrutamento": "Tambor do Soldo F\xE1cil",
   "Resgate de Mercen\xE1rio": "Ningu\xE9m Fica na Lama",
   "Recrutamento de Rua": "Os Dois do Beco",
-  "Suborno": "O Peso da Bolsa"
+  "Suborno": "O Peso da Bolsa",
+  // Cardeal (renomeado na rodada 20)
+  "Cardeal Pedro, Voz da F\xE9": "Cardeal Anselmo, Voz da F\xE9",
+  "C\xE1lice da Gra\xE7a": "C\xE1lice das Duas B\xEAn\xE7\xE3os",
+  "Devotos da Cruzada": "Penitente de Pedra",
+  "Recruta Devoto": "Novi\xE7o Renascido",
+  "Mercador da Cruzada": "Cambista do D\xEDzimo",
+  "Infiltrado da Ordem": "Confessor Silencioso",
+  "Fan\xE1tico da Cruzada": "Zeloso da Pira",
+  "Intendente do Ex\xE9rcito": "Despenseiro do Mosteiro",
+  "Soldados da Ordem": "Sentinela do Claustro",
+  "Cavaleiro Hospital\xE1rio": "Samaritano de A\xE7o",
+  "Cavaleiro da Luz": "Paladino do Alvorecer",
+  "Nobre da Cruzada": "Bar\xE3o da Prociss\xE3o",
+  "Comandante da Ordem": "Marechal do Sol Poente",
+  "Soldado Leal": "Ac\xF3lito Leal",
+  "Arqueiro da Ordem": "Arqueiro de Dois Sinos",
+  "Atirador da Cruzada": "Vigia do \xDAltimo Salmo",
+  "Armadura de Guerra": "Coura\xE7a do M\xE1rtir",
+  "Coura\xE7a Refor\xE7ada": "Gib\xE3o Bento",
+  "Flechas Venenosas": "Setas de Cicuta",
+  "Espada Longa": "L\xE2mina do Juramento",
+  "Refor\xE7os Ocultos": "Preces na Sombra",
+  "Trabuco de Cerco": "Trabuco da Trombeta Final",
+  "Catapulta de Guerra": "Catapulta do Dil\xFAvio de Pedra",
+  "Balestra de Precis\xE3o": "Balestra da Penit\xEAncia",
+  "Retorno do Soldado": "Chamado do T\xFAmulo Santo",
+  "Graal da D\xE1diva": "Peregrina\xE7\xE3o ao Graal",
+  "Doutrina Renovada": "Serm\xE3o da Estrat\xE9gia",
+  "Recrutamento Seletivo": "Alistamento do P\xFAlpito",
+  "Recrutar Veteranos": "Convoca\xE7\xE3o dos Veteranos de F\xE9",
+  "Tributo de Guerra": "D\xEDzimo de Guerra",
+  "Chamado \xE0s Armas": "Toque dos Sinos de Guerra"
 };
 var currentCardName = (name) => LEGACY_CARD_NAMES[name] ?? name;
 var currentNames = (m) => {
@@ -875,7 +916,7 @@ var currentNames = (m) => {
 };
 var isGeneralName = (name) => BY_NAME[name]?.cardType === "General";
 var TOKEN_DEFS = [
-  { name: "Soldado Leal", cardType: "Infantaria", atk: 1, hp: 1, cost: 0, effect: "" }
+  { name: "Ac\xF3lito Leal", cardType: "Infantaria", atk: 1, hp: 2, cost: 0, effect: "" }
 ];
 TOKEN_DEFS.forEach((c) => {
   BY_NAME[c.name] = c;
@@ -971,6 +1012,7 @@ var auraTotal = (stat, slot, own, enemy = []) => {
   scan(enemy, "enemy");
   return total;
 };
+var maxGeneralAbilityUses = (board) => 1 + auraTotal("abilityUses", 12, board);
 var boardHasFlag = (board, flag) => board.some((c, i) => !!c && passivesOf(c.name).some((p) => p.kind === "flag" && p.flag === flag && rowOk(p.from, i)));
 var upkeepOf = (name) => getCardDef(name)?.upkeep ?? 0;
 var relicModeOf = (board) => {
@@ -1061,7 +1103,7 @@ var expandCards = (cards) => Array.isArray(cards) ? [...cards] : Object.entries(
 var cardFromName = (s, name, prefix = "c") => {
   const def = requireCardDef(name);
   s.uid += 1;
-  const card = { id: `${prefix}${s.uid}`, name: def.name, cardType: def.cardType, atk: def.atk, hp: def.hp, cost: def.cost, effect: def.effect };
+  const card = { id: `${prefix}${s.uid}`, name: def.name, cardType: def.cardType, atk: s.statOverrides?.[name]?.atk ?? def.atk, hp: s.statOverrides?.[name]?.hp ?? def.hp, cost: def.cost, effect: def.effect };
   if (def.isFullArt) card.isFullArt = true;
   if (def.trigger) card.trigger = def.trigger;
   return card;
@@ -1219,6 +1261,13 @@ var grantShield = (c, seat, slot, amount) => {
   board[slot] = { ...card, shield: (card.shield ?? 0) + amount };
   c.ev.push({ t: "shield", seat, slot, shield: amount, block: false });
 };
+var grantBlock = (c, seat, slot) => {
+  const board = P(c, seat).board;
+  const card = board[slot];
+  if (!card || card.block) return;
+  board[slot] = { ...card, block: true };
+  c.ev.push({ t: "shield", seat, slot, shield: 0, block: true });
+};
 var damageSlot = (c, seat, slot, amount) => {
   const board = P(c, seat).board;
   const card = board[slot];
@@ -1239,6 +1288,9 @@ var healSlot = (c, seat, slot, amount) => {
   board[slot] = { ...card, hp: card.hp + amount };
   c.ev.push({ t: "heal", seat, slot, amount });
   runAbilities(c, seat, board[slot], slot, "healed");
+  adjacentSlots(slot).forEach((j) => {
+    if (board[j]) runAbilities(c, seat, board[j], j, "ally_healed");
+  });
 };
 var startTurn = (c, seat) => {
   const t = c.s.turn;
@@ -1483,7 +1535,15 @@ var runVerb = (c, fx, v, slot) => {
       const target = own[slot];
       own[slot] = { ...target, atk: target.atk + (v.atk ?? 0), hp: target.hp + (v.hp ?? 0), equippedWeapons: [...target.equippedWeapons ?? [], fx.source] };
       c.ev.push({ t: "equip", seat, slot, card: fx.source, atk: v.atk ?? 0, hp: v.hp ?? 0 });
+      if (v.block) grantBlock(c, seat, slot);
       log(c, seat, `${target.name} equipado: ${name}!`);
+      return;
+    }
+    case "buff_self_temp": {
+      const card = own[fx.slot];
+      if (!card) return;
+      own[fx.slot] = { ...card, formationBuffAtk: (card.formationBuffAtk ?? 0) + v.atk };
+      c.ev.push({ t: "buff", seat, slot: fx.slot, atk: v.atk, hp: 0 });
       return;
     }
     case "guard_adjacent":
@@ -1647,8 +1707,8 @@ var useAbility = (c, seat, a) => {
   }
   const isGeneral = a.slot === GENERAL_SLOT;
   if (isGeneral) {
-    if (p.generalAbilityUses >= 1) fail("A habilidade do General j\xE1 foi usada neste turno.");
-    if (p.generalAbilityBlocked) fail("Infiltrado da Ordem: a habilidade do General est\xE1 bloqueada neste turno.");
+    if (p.generalAbilityUses >= maxGeneralAbilityUses(p.board)) fail("A habilidade do General j\xE1 foi usada neste turno.");
+    if (p.generalAbilityBlocked) fail("Confessor Silencioso: a habilidade do General est\xE1 bloqueada neste turno.");
   } else if (ability.once && c.s.turn.activated.includes(card.id)) {
     fail("Essa habilidade j\xE1 foi usada neste turno.");
   }
@@ -2195,7 +2255,7 @@ var abilityAction = (s, seat, slot, rand) => {
   const ab = card ? abilityOn(card.name, "ability") : void 0;
   if (!card || !ab) return null;
   if (!abilityPhases(card.name).includes(s.turn.phase)) return null;
-  if (slot === 12 ? me.generalAbilityUses >= 1 || me.generalAbilityBlocked : ab.once && s.turn.activated.includes(card.id)) return null;
+  if (slot === 12 ? me.generalAbilityUses >= maxGeneralAbilityUses(me.board) || me.generalAbilityBlocked : ab.once && s.turn.activated.includes(card.id)) return null;
   if (me.gold < (ab.cost ?? 0)) return null;
   const picks = [];
   let any = false;
@@ -2427,7 +2487,7 @@ var candidates = (s, seat, rand) => {
       const card = me.board[slot];
       const ab = card ? abilityOn(card.name, "ability") : void 0;
       if (!card || !ab || !abilityPhases(card.name).includes(t.phase)) continue;
-      if (slot === 12 ? me.generalAbilityUses >= 1 || me.generalAbilityBlocked : ab.once && t.activated.includes(card.id)) continue;
+      if (slot === 12 ? me.generalAbilityUses >= maxGeneralAbilityUses(me.board) || me.generalAbilityBlocked : ab.once && t.activated.includes(card.id)) continue;
       if (me.gold < (ab.cost ?? 0)) continue;
       const specs = targetSpecsOf(ab.do);
       if (specs.length === 0) {

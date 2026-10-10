@@ -8,7 +8,7 @@
 import { getCardDef } from './catalog';
 import { applyAction, combatOpen } from './game';
 import {
-  HAND_LIMIT, SOLDIER_TYPES, abilityOn, canPlayInPhase, relicModeOf, upkeepOf, abilityPhases, adjacentSlots, canReposition, getEffectiveAtk, getIncomingDamageReduction,
+  HAND_LIMIT, SOLDIER_TYPES, abilityOn, canPlayInPhase, relicModeOf, maxGeneralAbilityUses, upkeepOf, abilityPhases, adjacentSlots, canReposition, getEffectiveAtk, getIncomingDamageReduction,
   getLaneCol, getMaxAttacksPerTurn, getValidAttackTargets, hasVerb, isCardDamaged, specCandidatesOn, targetSpecsOf, verbsOn,
   type Board,
 } from './rules';
@@ -278,7 +278,7 @@ const abilityAction = (s: GameState, seat: Seat, slot: number, rand: Rand): Acti
   const ab = card ? abilityOn(card.name, 'ability') : undefined;
   if (!card || !ab) return null;
   if (!abilityPhases(card.name).includes(s.turn.phase)) return null;
-  if (slot === 12 ? me.generalAbilityUses >= 1 || me.generalAbilityBlocked : ab.once && s.turn.activated.includes(card.id)) return null;
+  if (slot === 12 ? me.generalAbilityUses >= maxGeneralAbilityUses(me.board) || me.generalAbilityBlocked : ab.once && s.turn.activated.includes(card.id)) return null;
   if (me.gold < (ab.cost ?? 0)) return null;
   const picks: (number | undefined)[] = [];
   let any = false;
@@ -561,7 +561,7 @@ const candidates = (s: GameState, seat: Seat, rand: Rand): Action[] => {
       const card = me.board[slot];
       const ab = card ? abilityOn(card.name, 'ability') : undefined;
       if (!card || !ab || !abilityPhases(card.name).includes(t.phase)) continue;
-      if (slot === 12 ? me.generalAbilityUses >= 1 || me.generalAbilityBlocked : ab.once && t.activated.includes(card.id)) continue;
+      if (slot === 12 ? me.generalAbilityUses >= maxGeneralAbilityUses(me.board) || me.generalAbilityBlocked : ab.once && t.activated.includes(card.id)) continue;
       if (me.gold < (ab.cost ?? 0)) continue;
       const specs = targetSpecsOf(ab.do);
       if (specs.length === 0) { out.push({ type: 'ability', slot }); continue; }

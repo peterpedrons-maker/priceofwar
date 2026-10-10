@@ -34,7 +34,7 @@ As cartas foram renomeadas (estilo Magic/Yu-Gi-Oh, aprovado pelo dono). Os regis
 - **Sem "contratar a carta do adversário"** (roubo). É a parte mais frustrante de enfrentar e a mais difícil de equilibrar, e complica o motor e o online (decisão do adversário no início do turno). Pode voltar depois, como poucas cartas, se o deck ficar sem graça.
 - **Manutenção só em algumas cartas**, paga na fase de **Suprimentos** (depois dos +5 de ouro), numa decisão única por turno: pagar ou dispensar cada carta. Quem não for pago sai do campo.
 - **Ao dispensar:** a carta vai ao cemitério (perda de verdade); só o Rato da Muralha tem **Rescisão** (compra 1 carta). A ideia de "voltar para a mão" foi descartada pelo dono (rodada 19); o campo `dismiss: 'hand'` continua existindo no motor, sem nenhuma carta usando.
-- **Relíquia como base do deck**: 3 ou 4 cópias, mais cartas que a buscam (hoje já existe o Graal da Dádiva). Cada Relíquia tem **vários modos** e o jogador escolhe um. O modo é trocado **no fim do turno do dono** e fica travado até o fim do turno seguinte. O modo ativo é público.
+- **Relíquia como base do deck**: 3 ou 4 cópias, mais cartas que a buscam (hoje já existe a Peregrinação ao Graal). Cada Relíquia tem **vários modos** e o jogador escolhe um. O modo é trocado **no fim do turno do dono** e fica travado até o fim do turno seguinte. O modo ativo é público.
 - Modos propostos: **Cofre de Guerra** (cada mercenário paga 1 a menos, mínimo 0) · **Extorsão** (+1 ouro por carta inimiga destruída, máx. 2 por turno) · **Soldo em Dobro** (mercenários +1 ATK).
 - Cartas universais (Trabuco, Catapulta etc.) valem em qualquer deck; o deck precisa ser testado também com elas.
 

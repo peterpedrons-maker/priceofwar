@@ -1,12 +1,20 @@
 import './raw-stats';
 // Scenario tests, one per rule:  npx tsx tests/engine-rules.ts
-import { CARD_DEFS, getCardDef, requireCardDef, LEGACY_CARD_NAMES, currentCardName, currentNames } from '../src/engine/catalog';
+import { CARD_DEFS, getCardDef, requireCardDef, registerCardDefs, LEGACY_CARD_NAMES, currentCardName, currentNames } from '../src/engine/catalog';
 import { aiNextAction } from '../src/engine/ai';
 import { mirrorEvents, mirrorSeats } from '../src/engine/view';
 import { applyReward, rewardFor, xpToNext } from '../src/engine/rewards';
 import { applyAction, combatOpen, createMatch, deckSetupFromRecipe, newMatchLog, replayMatch } from '../src/engine/game';
 import { HAND_LIMIT, getEffectiveAtk, getIncomingDamageReduction, hasVerb, reinforceShield, START_HAND, targetSpecsOf, verbsOn } from '../src/engine/rules';
 import { TRIGGER_LABEL, type Action, type Card, type GameEvent, type GameState, type Seat } from '../src/engine/types';
+
+// Cartas de teste com os números antigos (os testes de regra contam pontos de vida e de ataque exatos; as cartas reais do Cardeal mudaram na rodada 20).
+registerCardDefs([
+  { name: 'Paladino de Teste', cardType: 'Cavalaria', atk: 4, hp: 5, cost: 4, effect: '' },
+  { name: 'Penitente de Teste', cardType: 'Infantaria', atk: 0, hp: 3, cost: 1, effect: '' },
+  { ...requireCardDef('Sentinela do Claustro'), name: 'Sentinela de Teste', atk: 3, hp: 4 },
+  { ...requireCardDef('Vigia do Último Salmo'), name: 'Vigia de Teste', hp: 3 },
+] as any);
 
 let passed = 0, failed = 0;
 const test = (name: string, fn: () => void) => {
@@ -137,17 +145,17 @@ test('skip flags: a card can skip the next Compra / Suprimentos', () => {
 });
 test('Movimentação: Táticas only — never units, Relíquias or Terrenos from the hand', () => {
   const s = fresh({ round: 2, phase: 'movimentacao' });
-  const soldier = give(s, 0, 'Batedor'); const relic = give(s, 0, 'Cálice da Graça'); const tac = give(s, 0, 'Chamado às Armas');
+  const soldier = give(s, 0, 'Batedor'); const relic = give(s, 0, 'Cálice das Duas Bênçãos'); const tac = give(s, 0, 'Toque dos Sinos de Guerra');
   refused(s, 0, { type: 'play', cardId: soldier.id, slot: 1 }, 'Movimentação');
   refused(s, 0, { type: 'play', cardId: relic.id, slot: 10 }, 'Movimentação');
   const t = act(s, 0, { type: 'play', cardId: tac.id }).s;
-  ok(t.pending?.kind === 'pick', 'Chamado às Armas opens its pick in Movimentação');
+  ok(t.pending?.kind === 'pick', 'Toque dos Sinos de Guerra opens its pick in Movimentação');
 });
-test('ability phases: General heal and Cavaleiro Hospitalário also work in Movimentação, Mercador only in Preparação', () => {
+test('ability phases: General heal and Samaritano de Aço also work in Movimentação, Mercador only in Preparação', () => {
   let s = fresh({ a: 'cardeal', round: 2, phase: 'movimentacao' });
   put(s, 0, 3, 'Batedor').hp -= 1;
   s = act(s, 0, { type: 'ability', slot: 12, target: 3 }).s;
-  const m = put(s, 0, 4, 'Mercador da Cruzada');
+  const m = put(s, 0, 4, 'Cambista do Dízimo');
   refused(s, 0, { type: 'ability', slot: 4 }, 'Preparação');
   ok(!!m, 'placed');
   const c = fresh({ a: 'cardeal', round: 2, phase: 'combate' }); put(c, 0, 3, 'Batedor');
@@ -184,7 +192,7 @@ test('exactly at the limit nothing has to be discarded', () => {
 test('cards that draw can take the hand past the limit during the turn', () => {
   let s = fresh({ a: 'cardeal' });
   for (let i = 0; i < HAND_LIMIT; i++) give(s, 0, 'Batedor');
-  const c = give(s, 0, 'Recrutamento Seletivo');
+  const c = give(s, 0, 'Alistamento do Púlpito');
   s = act(s, 0, { type: 'play', cardId: c.id }).s;
   s = act(s, 0, { type: 'choose', cardIds: [(s.pending as any).options[0].id] }).s;
   eq(s.players[0].hand.length, HAND_LIMIT + 1);
@@ -222,18 +230,18 @@ test('Relíquia goes in slot 10, Terreno in slot 11 only; only in Preparação (
   const late = fresh(); const c = give(late, 0, 'Batedor'); late.turn.phase = 'movimentacao';
   refused(late, 0, { type: 'play', cardId: c.id, slot: 1 }, 'Movimentação');
 });
-test('Nobre da Cruzada summons Soldados Leais on free neighbours', () => {
+test('Barão da Procissão summons Acólitos Leais on free neighbours', () => {
   const s = fresh();
   put(s, 0, 3, 'Batedor');
-  const c = give(s, 0, 'Nobre da Cruzada');
+  const c = give(s, 0, 'Barão da Procissão');
   const r = act(s, 0, { type: 'play', cardId: c.id, slot: 2 }).s;
-  eq([r.players[0].board[1]?.name, r.players[0].board[3]?.name], ['Soldado Leal', 'Batedor']);
+  eq([r.players[0].board[1]?.name, r.players[0].board[3]?.name], ['Acólito Leal', 'Batedor']);
 });
 
 // ── combat ──────────────────────────────────────────────────────────────────
 test('melee must hit the card in front; ranged can pick a neighbouring lane', () => {
   const s = combat(fresh());
-  put(s, 0, 2, 'Soldados da Ordem'); put(s, 0, 1, 'Arqueiro da Ordem');
+  put(s, 0, 2, 'Sentinela de Teste'); put(s, 0, 1, 'Arqueiro de Dois Sinos');
   put(s, 1, 2, 'Soldado Tático'); put(s, 1, 1, 'Escudeiro de Linha'); put(s, 1, 6, 'Batedor');
   refused(s, 0, { type: 'attack', from: 2, to: 1 }, 'alcance');
   act(s, 0, { type: 'attack', from: 2, to: 2 });
@@ -242,27 +250,27 @@ test('melee must hit the card in front; ranged can pick a neighbouring lane', ()
 });
 test('back row is reachable only when its own front is empty; General only through a clear lane', () => {
   const s = combat(fresh());
-  put(s, 0, 2, 'Cavaleiro da Luz');
+  put(s, 0, 2, 'Paladino de Teste');
   put(s, 1, 7, 'Batedor');
   refused(s, 0, { type: 'attack', from: 2, to: 12 }, 'alcance');
   act(s, 0, { type: 'attack', from: 2, to: 7 });
-  const s2 = combat(fresh()); put(s2, 0, 2, 'Cavaleiro da Luz');
+  const s2 = combat(fresh()); put(s2, 0, 2, 'Paladino de Teste');
   eq(act(s2, 0, { type: 'attack', from: 2, to: 12 }).s.players[1].board[12]!.hp, 30 - 4);
 });
 test('damage exchange, death goes to the graveyard, equipped weapons follow', () => {
   const s = combat(fresh());
-  put(s, 0, 2, 'Cavaleiro da Luz'); // 4/5
+  put(s, 0, 2, 'Paladino de Teste'); // 4/5
   const def = put(s, 1, 2, 'Batedor'); // 1/2
-  def.equippedWeapons = [mk('Espada Longa')];
+  def.equippedWeapons = [mk('Lâmina do Juramento')];
   const r = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
   eq(r.players[0].board[2]!.hp, 4);
   eq(r.players[1].board[2], null);
-  eq(names(r.players[1].graveyard), ['Batedor', 'Espada Longa']);
+  eq(names(r.players[1].graveyard), ['Batedor', 'Lâmina do Juramento']);
 });
-test('a unit attacks once per turn; Arqueiro da Ordem twice', () => {
+test('a unit attacks once per turn; Arqueiro de Dois Sinos twice', () => {
   const s = combat(fresh());
-  put(s, 0, 2, 'Soldados da Ordem'); put(s, 0, 1, 'Arqueiro da Ordem');
-  put(s, 1, 2, 'Devotos da Cruzada').hp = 30; // 0 ATK, lots of HP: nobody dies, nothing hits back
+  put(s, 0, 2, 'Sentinela de Teste'); put(s, 0, 1, 'Arqueiro de Dois Sinos');
+  put(s, 1, 2, 'Penitente de Teste').hp = 30; // 0 ATK, lots of HP: nobody dies, nothing hits back
   let r = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
   refused(r, 0, { type: 'attack', from: 2, to: 2 }, 'já atacou');
   r = act(r, 0, { type: 'attack', from: 1, to: 2 }).s;
@@ -273,12 +281,12 @@ test('Infantaria in the Retaguarda cannot attack; only Combate allows attacks', 
   const s = combat(fresh());
   put(s, 0, 7, 'Soldado Tático'); put(s, 1, 2, 'Batedor');
   refused(s, 0, { type: 'attack', from: 7, to: 2 }, 'Retaguarda');
-  const p = fresh(); put(p, 0, 2, 'Cavaleiro da Luz'); put(p, 1, 2, 'Batedor');
+  const p = fresh(); put(p, 0, 2, 'Paladino de Teste'); put(p, 1, 2, 'Batedor');
   refused(p, 0, { type: 'attack', from: 2, to: 2 }, 'Combate');
 });
 test('General dies -> the attacker wins', () => {
   const s = combat(fresh());
-  put(s, 0, 2, 'Comandante da Ordem'); // 5 ATK
+  put(s, 0, 2, 'Marechal do Sol Poente'); // 5 ATK
   s.players[1].board[12]!.hp = 3;
   const r = act(s, 0, { type: 'attack', from: 2, to: 12 });
   eq(r.s.winner, 0);
@@ -288,7 +296,7 @@ test('Estandarte +1 ATK to allies, Veterano +2 in column 3 and +1 in the Vanguar
   const s = combat(fresh());
   put(s, 0, 10, 'Estandarte da Legião');
   put(s, 0, 2, 'Veterano de Guerra'); // 4 +1 (Estandarte) +2 (column 3) +1 (Vanguarda) = 8
-  put(s, 1, 2, 'Devotos da Cruzada').hp = 30;
+  put(s, 1, 2, 'Penitente de Teste').hp = 30;
   const r = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
   eq(r.players[1].board[2]!.hp, 30 - 8);
   const l = combat(fresh());
@@ -300,28 +308,28 @@ test('Pântano Maldito (-1 ATK to the Vanguarda it faces); Fortaleza and Aurelio
   const s = combat(fresh());
   put(s, 0, 2, 'Soldado Tático'); // 3 ATK
   put(s, 1, 11, 'Pântano Maldito');
-  put(s, 1, 2, 'Devotos da Cruzada').hp = 30;
+  put(s, 1, 2, 'Penitente de Teste').hp = 30;
   eq(act(s, 0, { type: 'attack', from: 2, to: 2 }).s.players[1].board[2]!.hp, 30 - 2);
   const f = combat(fresh());
-  put(f, 0, 2, 'Cavaleiro da Luz'); // ranged target in the back row
-  put(f, 1, 11, 'Fortaleza de Pedra'); put(f, 1, 7, 'Devotos da Cruzada').hp = 30;
-  put(f, 0, 1, 'Arqueiro da Ordem'); // 1 ATK, -1 from Fortaleza -> 0
+  put(f, 0, 2, 'Paladino de Teste'); // ranged target in the back row
+  put(f, 1, 11, 'Fortaleza de Pedra'); put(f, 1, 7, 'Penitente de Teste').hp = 30;
+  put(f, 0, 1, 'Arqueiro de Dois Sinos'); // 1 ATK, -1 from Fortaleza -> 0
   eq(act(f, 0, { type: 'attack', from: 1, to: 7 }).s.players[1].board[7]!.hp, 30);
   const a = combat(fresh({ b: 'capitao' }));
-  put(a, 0, 2, 'Cavaleiro da Luz');
+  put(a, 0, 2, 'Paladino de Teste');
   put(a, 1, 10, 'Estandarte da Legião'); a.players[1].board[10]!.hp = 30;
   // Aurelion's passive covers the relic/terrain slots next to it: 4 ATK - 1 = 3 (lane 1 is clear, so slot 10 is reachable)
   eq(act(a, 0, { type: 'attack', from: 2, to: 10 }).s.players[1].board[10]!.hp, 28); // ...and the Estandarte's own +1 combat HP soaks 1 more
 });
-test('Comandante da Ordem: Infantaria/Arqueiro allies +1 ATK and +1 HP during combat', () => {
+test('Marechal do Sol Poente: Infantaria/Arqueiro allies +1 ATK and +1 HP during combat', () => {
   const s = combat(fresh());
-  put(s, 0, 0, 'Comandante da Ordem'); put(s, 0, 2, 'Soldados da Ordem'); // 3/4 -> 4 ATK, 5 effective HP
-  put(s, 1, 2, 'Cavaleiro da Luz'); // 4/5
+  put(s, 0, 0, 'Marechal do Sol Poente'); put(s, 0, 2, 'Sentinela de Teste'); // 3/4 -> 4 ATK, 5 effective HP
+  put(s, 1, 2, 'Paladino de Teste'); // 4/5
   const r = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
   eq(r.players[1].board[2]!.hp, 1); // 5 - 4
   eq(r.players[0].board[2]!.hp, 1); // took 4, but the aura's +1 HP absorbed 1 of it: 4 - 3 = 1 (and the bonus is gone afterwards)
   const again = combat(fresh());
-  put(again, 0, 0, 'Comandante da Ordem'); put(again, 0, 2, 'Soldados da Ordem'); put(again, 1, 2, 'Devotos da Cruzada').hp = 30;
+  put(again, 0, 0, 'Marechal do Sol Poente'); put(again, 0, 2, 'Sentinela de Teste'); put(again, 1, 2, 'Penitente de Teste').hp = 30;
   eq(act(again, 0, { type: 'attack', from: 2, to: 2 }).s.players[0].board[2]!.hp, 4); // untouched: no permanent +1 HP
 });
 test('Jorge splashes the Retaguarda card behind a Vanguarda target', () => {
@@ -331,22 +339,22 @@ test('Jorge splashes the Retaguarda card behind a Vanguarda target', () => {
   const r = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
   eq(r.players[1].board[7], null);
 });
-test('Fanático da Cruzada gets +2 ATK against a General that is not Cardeal Pedro', () => {
+test('Zeloso da Pira gets +2 ATK against a General that is not Cardeal Anselmo', () => {
   const s = combat(fresh({ a: 'cardeal', b: 'capitao' }));
-  put(s, 0, 2, 'Fanático da Cruzada');
+  put(s, 0, 2, 'Zeloso da Pira');
   const r = act(s, 0, { type: 'attack', from: 2, to: 12 }).s;
   eq(r.players[1].board[12]!.hp, 30 - 3);
 });
-test('Atirador da Cruzada draws 2 cards when it dies', () => {
+test('Vigia do Último Salmo draws 2 cards when it dies', () => {
   const s = combat(fresh());
-  put(s, 0, 2, 'Cavaleiro da Luz');
-  put(s, 1, 2, 'Atirador da Cruzada');
+  put(s, 0, 2, 'Paladino de Teste');
+  put(s, 1, 2, 'Vigia de Teste');
   const r = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
   eq(r.players[1].hand.length, 2);
 });
-test('Infiltrado da Ordem: damaging the General blocks its ability next turn', () => {
+test('Confessor Silencioso: damaging the General blocks its ability next turn', () => {
   const s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
-  put(s, 0, 2, 'Cavaleiro da Luz'); put(s, 1, 5, 'Infiltrado da Ordem');
+  put(s, 0, 2, 'Paladino de Teste'); put(s, 1, 5, 'Confessor Silencioso');
   let r = act(s, 0, { type: 'attack', from: 2, to: 12 }).s;
   eq(r.players[1].pendingGeneralBlock, true);
   r = act(r, 0, { type: 'advance' }).s; // -> movimentacao
@@ -359,7 +367,7 @@ test('Infiltrado da Ordem: damaging the General blocks its ability next turn', (
 // ── ambushes ────────────────────────────────────────────────────────────────
 const ambushSetup = (cardName: string) => {
   const s = combat(fresh({ a: 'cardeal', b: 'capitao' }));
-  const atk = put(s, 0, 2, 'Cavaleiro da Luz');
+  const atk = put(s, 0, 2, 'Paladino de Teste');
   const defA = put(s, 1, 2, 'Escudeiro de Linha');
   const emb = give(s, 1, cardName);
   return { s, atk, defA, emb };
@@ -398,16 +406,16 @@ test('Formação Quebrada pulls the attacker to a random free slot, no damage', 
   eq(r.players[1].board[2]!.hp, 4);
   eq(r.players[0].board.filter((c, i) => i <= 9 && c).length, 1);
 });
-test('Reforços Ocultos buffs the defender (+2/+1) before damage', () => {
-  const { s, emb } = ambushSetup('Reforços Ocultos');
+test('Preces na Sombra buffs the defender (+1 ATK, +3 HP) before damage', () => {
+  const { s, emb } = ambushSetup('Preces na Sombra');
   let r = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
   r = act(r, 1, { type: 'ambush', cardId: emb.id }).s;
-  eq(r.players[1].board[2]!.hp, 4 + 1 - 3); // 4/4 Escudeiro +1 HP, takes 4 -1 (his own protection)
-  eq(r.players[0].board[2]!.hp, 5 - 4); // defender ATK 2+2
+  eq(r.players[1].board[2]!.hp, 4 + 3 - 3); // 4/4 Escudeiro +3 HP, takes 4 -1 (his own protection)
+  eq(r.players[0].board[2]!.hp, 5 - 3); // defender ATK 2+1
 });
-test('Infiltrado da Ordem in the attacker Vanguarda stops the ambush prompt', () => {
+test('Confessor Silencioso in the attacker Vanguarda stops the ambush prompt', () => {
   const { s } = ambushSetup('Bloqueio Instantâneo');
-  put(s, 0, 4, 'Infiltrado da Ordem');
+  put(s, 0, 4, 'Confessor Silencioso');
   const r = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
   eq(r.pending, null);
 });
@@ -418,16 +426,16 @@ test('Reformar Linhas: +3 bonus repositions, to the graveyard', () => {
   const r = act(s, 0, { type: 'play', cardId: c.id }).s;
   eq([r.turn.bonusRepositions, names(r.players[0].graveyard)], [3, ['Reformar Linhas']]);
 });
-test('Tributo de Guerra: free and +1 gold', () => {
-  const s = fresh(); const c = give(s, 0, 'Tributo de Guerra');
+test('Dízimo de Guerra: free and +1 gold', () => {
+  const s = fresh(); const c = give(s, 0, 'Dízimo de Guerra');
   eq(act(s, 0, { type: 'play', cardId: c.id }).s.players[0].gold, 51);
 });
-test('Trabuco de Cerco: 2 damage to every enemy unit and the General', () => {
-  const s = fresh(); const c = give(s, 0, 'Trabuco de Cerco');
-  put(s, 1, 0, 'Batedor'); put(s, 1, 5, 'Soldados da Ordem');
+test('Trabuco da Trombeta Final: 2 damage to every enemy unit and the General', () => {
+  const s = fresh(); const c = give(s, 0, 'Trabuco da Trombeta Final');
+  put(s, 1, 0, 'Batedor'); put(s, 1, 5, 'Sentinela de Teste');
   const r = act(s, 0, { type: 'play', cardId: c.id }).s;
-  // the Batedor falls; the Soldados da Ordem behind it (2 HP left) steps forward (it is tagged Reforço)
-  eq([r.players[1].board[0]?.name, r.players[1].board[0]?.hp, r.players[1].board[5], r.players[1].board[12]!.hp], ['Soldados da Ordem', 2, null, 28]);
+  // the Batedor falls; the Sentinela do Claustro behind it (2 HP left) steps forward (it is tagged Reforço)
+  eq([r.players[1].board[0]?.name, r.players[1].board[0]?.hp, r.players[1].board[5], r.players[1].board[12]!.hp], ['Sentinela de Teste', 2, null, 28]);
 });
 test('targeted Táticas validate before spending anything', () => {
   const s = fresh({ a: 'capitao' });
@@ -458,52 +466,52 @@ test('Reposicionamento Rápido displaces an enemy to an adjacent free slot', () 
   eq(r.players[1].board.filter((x, i) => i <= 9 && x).length, 1);
 });
 test('Balestra: 3 damage to a unit (kills it); Catapulta: 2 to a whole row', () => {
-  let s = fresh(); const b = give(s, 0, 'Balestra de Precisão'); put(s, 1, 2, 'Escudeiro de Linha');
+  let s = fresh(); const b = give(s, 0, 'Balestra da Penitência'); put(s, 1, 2, 'Escudeiro de Linha');
   s = act(s, 0, { type: 'play', cardId: b.id, target: 2 }).s;
   eq(s.players[1].board[2]!.hp, 1);
-  const cat = give(s, 0, 'Catapulta de Guerra'); put(s, 1, 0, 'Batedor'); put(s, 1, 4, 'Batedor');
+  const cat = give(s, 0, 'Catapulta do Dilúvio de Pedra'); put(s, 1, 0, 'Batedor'); put(s, 1, 4, 'Batedor');
   s = act(s, 0, { type: 'play', cardId: cat.id, target: 3 }).s;
   eq([s.players[1].board[0], s.players[1].board[4], s.players[1].board[2]], [null, null, null]);
 });
 test('equipment: right unit types only, stays attached, stats change', () => {
-  const s = fresh({ a: 'capitao', b: 'cardeal' }); const sw = give(s, 0, 'Espada Longa'); const ar = give(s, 0, 'Flechas Venenosas');
-  put(s, 0, 0, 'Soldado Tático'); put(s, 0, 1, 'Arqueiro da Ordem');
+  const s = fresh({ a: 'capitao', b: 'cardeal' }); const sw = give(s, 0, 'Lâmina do Juramento'); const ar = give(s, 0, 'Setas de Cicuta');
+  put(s, 0, 0, 'Soldado Tático'); put(s, 0, 1, 'Arqueiro de Dois Sinos');
   refused(s, 0, { type: 'play', cardId: ar.id, target: 0 }, 'tipo certo');
   let r = act(s, 0, { type: 'play', cardId: sw.id, target: 0 }).s;
-  eq([r.players[0].board[0]!.atk, names(r.players[0].board[0]!.equippedWeapons!), r.players[0].graveyard.length], [5, ['Espada Longa'], 0]);
+  eq([r.players[0].board[0]!.atk, names(r.players[0].board[0]!.equippedWeapons!), r.players[0].graveyard.length], [5, ['Lâmina do Juramento'], 0]);
   r = act(r, 0, { type: 'play', cardId: ar.id, target: 1 }).s;
   eq(r.players[0].board[1]!.atk, 2);
 });
 test('Emboscadas and not-yet-implemented cards cannot be played', () => {
-  const s = fresh(); const e = give(s, 0, 'Reforços Ocultos');
+  const s = fresh(); const e = give(s, 0, 'Preces na Sombra');
   refused(s, 0, { type: 'play', cardId: e.id, slot: 1 }, 'Emboscadas');
 });
 
 // ── picks ───────────────────────────────────────────────────────────────────
-test('Retorno do Soldado: pick a soldier from the graveyard', () => {
-  let s = fresh(); const c = give(s, 0, 'Retorno do Soldado');
+test('Chamado do Túmulo Santo: pick a soldier from the graveyard', () => {
+  let s = fresh(); const c = give(s, 0, 'Chamado do Túmulo Santo');
   refused(s, 0, { type: 'play', cardId: c.id }, 'cemitério');
   s.players[0].graveyard.push(mk('Batedor'));
   s = act(s, 0, { type: 'play', cardId: c.id }).s;
   eq(s.pending?.kind, 'pick');
   const opt = (s.pending as any).options[0];
   s = act(s, 0, { type: 'choose', cardIds: [opt.id] }).s;
-  eq([names(s.players[0].hand), names(s.players[0].graveyard)], [['Batedor'], ['Retorno do Soldado']]);
+  eq([names(s.players[0].hand), names(s.players[0].graveyard)], [['Batedor'], ['Chamado do Túmulo Santo']]);
 });
 test('deck searches: Graal, Doutrina, Recrutamento', () => {
-  let s = fresh(); const g = give(s, 0, 'Graal da Dádiva');
+  let s = fresh(); const g = give(s, 0, 'Peregrinação ao Graal');
   s = act(s, 0, { type: 'play', cardId: g.id }).s;
-  eq(names((s.pending as any).options), ['Cálice da Graça']);
+  eq(names((s.pending as any).options), ['Cálice das Duas Bênçãos']);
   s = act(s, 0, { type: 'choose', cardIds: [(s.pending as any).options[0].id] }).s;
-  eq(names(s.players[0].hand), ['Cálice da Graça']);
-  const r = give(s, 0, 'Recrutamento Seletivo');
+  eq(names(s.players[0].hand), ['Cálice das Duas Bênçãos']);
+  const r = give(s, 0, 'Alistamento do Púlpito');
   s = act(s, 0, { type: 'play', cardId: r.id }).s;
   ok((s.pending as any).options.every((o: Card) => ['Infantaria', 'Cavalaria', 'Arqueiro', 'Artilharia'].includes(o.cardType)), 'only soldiers');
   refused(s, 0, { type: 'choose', cardIds: [] });
   refused(s, 1, { type: 'choose', cardIds: [(s.pending as any).options[0].id] }, 'não é sua');
 });
-test('Recrutar Veteranos: keep 1-2 of the top 4, the rest go to the bottom', () => {
-  let s = fresh(); const c = give(s, 0, 'Recrutar Veteranos');
+test('Convocação dos Veteranos de Fé: keep 1-2 of the top 4, the rest go to the bottom', () => {
+  let s = fresh(); const c = give(s, 0, 'Convocação dos Veteranos de Fé');
   const before = s.players[0].drawPile.length;
   s = act(s, 0, { type: 'play', cardId: c.id }).s;
   const pend: any = s.pending;
@@ -513,38 +521,42 @@ test('Recrutar Veteranos: keep 1-2 of the top 4, the rest go to the bottom', () 
   eq([s.players[0].hand.length, s.pending], [2, null]);
   ok(s.players[0].drawPile.length >= before - 4 + 2, 'two cards went to the bottom of the deck');
 });
-test('Chamado às Armas summons 0-ATK soldiers into free Vanguarda slots', () => {
-  let s = fresh(); const c = give(s, 0, 'Chamado às Armas');
+test('Toque dos Sinos de Guerra summons 0-ATK soldiers into free Vanguarda slots', () => {
+  let s = fresh(); const c = give(s, 0, 'Toque dos Sinos de Guerra');
   put(s, 0, 0, 'Batedor');
   s = act(s, 0, { type: 'play', cardId: c.id }).s;
   const pend: any = s.pending;
-  eq(names(pend.options), ['Devotos da Cruzada', 'Recruta Devoto']);
+  eq(names(pend.options), ['Penitente de Pedra', 'Noviço Renascido']);
   s = act(s, 0, { type: 'choose', cardIds: pend.options.map((o: Card) => o.id) }).s;
-  eq([s.players[0].board[1]?.name, s.players[0].board[2]?.name], ['Devotos da Cruzada', 'Recruta Devoto']);
+  eq([s.players[0].board[1]?.name, s.players[0].board[2]?.name], ['Penitente de Pedra', 'Noviço Renascido']);
 });
 
 // ── abilities ───────────────────────────────────────────────────────────────
-test('Cardeal Pedro: pay 2, heal 1 (2 with Cálice), once per turn; Recruta Devoto gains ATK', () => {
+test('Cardeal Anselmo: heals 1 for free, once per turn (twice with the Cálice); Noviço Renascido gains ATK', () => {
   let s = fresh({ a: 'cardeal' });
-  put(s, 0, 1, 'Recruta Devoto');
+  put(s, 0, 1, 'Noviço Renascido');
   s = act(s, 0, { type: 'ability', slot: 12, target: 1 }).s;
-  eq([s.players[0].board[1]!.hp, s.players[0].board[1]!.atk, s.players[0].gold], [3, 1, 48]);
+  eq([s.players[0].board[1]!.hp, s.players[0].board[1]!.atk, s.players[0].gold], [4, 1, 50]);   // free: the gold is untouched
   refused(s, 0, { type: 'ability', slot: 12, target: 1 }, 'já foi usada');
-  const t = fresh({ a: 'cardeal' }); put(t, 0, 10, 'Cálice da Graça'); put(t, 0, 1, 'Batedor');
-  eq(act(t, 0, { type: 'ability', slot: 12, target: 1 }).s.players[0].board[1]!.hp, 4);
+  const t = fresh({ a: 'cardeal' }); put(t, 0, 10, 'Cálice das Duas Bênçãos'); put(t, 0, 1, 'Batedor');
+  const t1 = act(t, 0, { type: 'ability', slot: 12, target: 1 }).s;
+  eq(t1.players[0].board[1]!.hp, 3);   // Batedor 2 + 1 (the Cálice does not make the heal bigger...)
+  const t2 = act(t1, 0, { type: 'ability', slot: 12, target: 1 }).s;   // ...it gives a second use
+  eq(t2.players[0].board[1]!.hp, 4);
+  refused(t2, 0, { type: 'ability', slot: 12, target: 1 }, 'já foi usada');
 });
-test('Cavaleiro Hospitalário: heal a damaged ally and hit an enemy Vanguarda card', () => {
+test('Samaritano de Aço: heal a damaged ally and hit an enemy Vanguarda card', () => {
   let s = fresh({ a: 'cardeal' });
-  put(s, 0, 4, 'Cavaleiro Hospitalário'); const hurt = put(s, 0, 1, 'Soldados da Ordem'); hurt.hp = 1;
+  put(s, 0, 4, 'Samaritano de Aço'); const hurt = put(s, 0, 1, 'Sentinela de Teste'); hurt.hp = 1;
   put(s, 1, 2, 'Batedor');
   refused(s, 0, { type: 'ability', slot: 4, target: 1 }, 'Vanguarda');
   s = act(s, 0, { type: 'ability', slot: 4, target: 1, target2: 2 }).s;
-  eq([s.players[0].board[1]!.hp, s.players[1].board[2]!.hp], [2, 1]);
+  eq([s.players[0].board[1]!.hp, s.players[1].board[2]!.hp], [3, 1]);   // heals 2
   refused(s, 0, { type: 'ability', slot: 4, target: 1, target2: 2 }, 'já foi usada');
 });
-test('Mercador da Cruzada: pay 1 gold, see 2, keep 1, the other goes to the graveyard', () => {
+test('Cambista do Dízimo: pay 1 gold, see 2, keep 1, the other goes to the graveyard', () => {
   let s = fresh({ a: 'cardeal' });
-  put(s, 0, 1, 'Mercador da Cruzada');
+  put(s, 0, 1, 'Cambista do Dízimo');
   const gold = s.players[0].gold;
   s = act(s, 0, { type: 'ability', slot: 1 }).s;
   eq(s.players[0].gold, gold - 1);
@@ -553,12 +565,12 @@ test('Mercador da Cruzada: pay 1 gold, see 2, keep 1, the other goes to the grav
   const before = s.players[0].drawPile.length, grave = s.players[0].graveyard.length;
   s = act(s, 0, { type: 'choose', cardIds: [pend.options[0].id] }).s;
   eq([s.players[0].hand.length, s.players[0].drawPile.length, s.players[0].graveyard.length], [1, before, grave + 1]);
-  s = fresh({ a: 'cardeal' }); put(s, 0, 1, 'Mercador da Cruzada'); s.players[0].gold = 0;
+  s = fresh({ a: 'cardeal' }); put(s, 0, 1, 'Cambista do Dízimo'); s.players[0].gold = 0;
   refused(s, 0, { type: 'ability', slot: 1 }, 'Ouro');
 });
-test('Intendente do Exército refills the hand to 2 at turn start', () => {
+test('Despenseiro do Mosteiro refills the hand to 2 at turn start', () => {
   let s = fresh({ a: 'cardeal', b: 'cardeal' });
-  put(s, 1, 1, 'Intendente do Exército');
+  put(s, 1, 1, 'Despenseiro do Mosteiro');
   s = act(s, 0, { type: 'advance' }).s; s = act(s, 0, { type: 'advance' }).s;
   ok(s.players[1].hand.length >= 2, 'drew up to 2');
 });
@@ -593,19 +605,19 @@ test('Capitão de Formação: neighbours +2 ATK after it moves, gone at its owne
 // ── Reforço ─────────────────────────────────────────────────────────────────
 test('Reforço: when a Vanguarda card falls, the Infantaria behind it steps forward with an Escudo', () => {
   let s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
-  put(s, 0, 2, 'Cavaleiro da Luz'); put(s, 1, 2, 'Devotos da Cruzada'); put(s, 1, 7, 'Soldados da Ordem');
+  put(s, 0, 2, 'Paladino de Teste'); put(s, 1, 2, 'Penitente de Teste'); put(s, 1, 7, 'Sentinela de Teste');
   const r = act(s, 0, { type: 'attack', from: 2, to: 2 });
   const foe = r.s.players[1].board;
-  eq([foe[2]?.name, foe[7]], ['Soldados da Ordem', null]);
-  eq([foe[2]!.shield, foe[2]!.pendingCombatBonus], [reinforceShield({ name: 'Soldados da Ordem' }), undefined]);
+  eq([foe[2]?.name, foe[7]], ['Sentinela de Teste', null]);
+  eq([foe[2]!.shield, foe[2]!.pendingCombatBonus], [reinforceShield({ name: 'Sentinela de Teste' }), undefined]);
   const ev = r.ev.find(e => e.t === 'reinforce') as any;
-  eq([ev.seat, ev.from, ev.to, ev.card.name], [1, 7, 2, 'Soldados da Ordem']);
-  ok(r.ev.some(e => e.t === 'shield' && (e as any).slot === 2 && (e as any).shield === reinforceShield({ name: 'Soldados da Ordem' })), 'the Escudo is announced');
+  eq([ev.seat, ev.from, ev.to, ev.card.name], [1, 7, 2, 'Sentinela de Teste']);
+  ok(r.ev.some(e => e.t === 'shield' && (e as any).slot === 2 && (e as any).shield === reinforceShield({ name: 'Sentinela de Teste' })), 'the Escudo is announced');
   ok(r.ev.findIndex(e => e.t === 'destroyed') < r.ev.findIndex(e => e.t === 'reinforce'), 'the fall comes before the step forward');
 });
 test('Reforço: an Infantaria that is NOT tagged Reforço stays where it is when the card in front falls', () => {
   const s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
-  put(s, 0, 2, 'Cavaleiro da Luz'); put(s, 1, 2, 'Devotos da Cruzada'); put(s, 1, 7, 'Escudeiro de Linha');
+  put(s, 0, 2, 'Paladino de Teste'); put(s, 1, 2, 'Penitente de Teste'); put(s, 1, 7, 'Escudeiro de Linha');
   const r = act(s, 0, { type: 'attack', from: 2, to: 2 });
   eq([r.s.players[1].board[2], r.s.players[1].board[7]?.name], [null, 'Escudeiro de Linha']);
   ok(!r.ev.some(e => e.t === 'reinforce'), 'no Reforço without the tag');
@@ -618,9 +630,9 @@ test('Reforço: the Escudo comes only when the reserve ADVANCES — an Infantari
 });
 test('Reforço: only Infantaria steps forward, and only when the front slot is really empty', () => {
   let s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
-  put(s, 0, 2, 'Cavaleiro da Luz'); put(s, 1, 2, 'Devotos da Cruzada'); put(s, 1, 7, 'Arqueiro da Ordem');
+  put(s, 0, 2, 'Paladino de Teste'); put(s, 1, 2, 'Penitente de Teste'); put(s, 1, 7, 'Arqueiro de Dois Sinos');
   let r = act(s, 0, { type: 'attack', from: 2, to: 2 });
-  eq([r.s.players[1].board[2], r.s.players[1].board[7]?.name], [null, 'Arqueiro da Ordem']);
+  eq([r.s.players[1].board[2], r.s.players[1].board[7]?.name], [null, 'Arqueiro de Dois Sinos']);
   ok(!r.ev.some(e => e.t === 'reinforce'), 'an archer does not reinforce');
   s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
   put(s, 0, 2, 'Batedor'); put(s, 1, 2, 'Veterano de Guerra'); put(s, 1, 7, 'Escudeiro de Linha');
@@ -630,15 +642,15 @@ test('Reforço: only Infantaria steps forward, and only when the front slot is r
 });
 test('Reforço: also after effects — Balestra, and Catapulta clearing a whole row', () => {
   let s = fresh({ a: 'cardeal', b: 'capitao' });
-  put(s, 1, 1, 'Recruta Devoto'); put(s, 1, 6, 'Soldados da Ordem');
-  const bal = give(s, 0, 'Balestra de Precisão');
+  put(s, 1, 1, 'Noviço Renascido').hp = 2; put(s, 1, 6, 'Sentinela de Teste');
+  const bal = give(s, 0, 'Balestra da Penitência');
   let r = act(s, 0, { type: 'play', cardId: bal.id, target: 1 });
-  eq([r.s.players[1].board[1]?.name, r.s.players[1].board[6]], ['Soldados da Ordem', null]);
+  eq([r.s.players[1].board[1]?.name, r.s.players[1].board[6]], ['Sentinela de Teste', null]);
   s = fresh({ a: 'cardeal', b: 'capitao' });
-  [0, 1, 2].forEach(i => { put(s, 1, i, 'Recruta Devoto'); put(s, 1, i + 5, 'Soldados da Ordem'); });
-  const cat = give(s, 0, 'Catapulta de Guerra');
+  [0, 1, 2].forEach(i => { put(s, 1, i, 'Noviço Renascido').hp = 2; put(s, 1, i + 5, 'Sentinela de Teste'); });
+  const cat = give(s, 0, 'Catapulta do Dilúvio de Pedra');
   r = act(s, 0, { type: 'play', cardId: cat.id, target: 0 });
-  eq([0, 1, 2].map(i => r.s.players[1].board[i]?.name), ['Soldados da Ordem', 'Soldados da Ordem', 'Soldados da Ordem']);
+  eq([0, 1, 2].map(i => r.s.players[1].board[i]?.name), ['Sentinela de Teste', 'Sentinela de Teste', 'Sentinela de Teste']);
   eq([5, 6, 7].map(i => r.s.players[1].board[i]), [null, null, null]);
 });
 
@@ -647,7 +659,7 @@ const shielded = (name: string, shield: number, block = false) => { const c = mk
 test('Escudo: a weak hit only wears it down — HP is untouched', () => {
   let s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
   put(s, 0, 2, 'Batedor');                                    // ATK 1
-  s.players[1].board[2] = shielded('Devotos da Cruzada', 3);
+  s.players[1].board[2] = shielded('Penitente de Teste', 3);
   const r = act(s, 0, { type: 'attack', from: 2, to: 2 });
   const d = r.s.players[1].board[2]!;
   eq([d.shield, d.hp], [2, 3]);
@@ -656,7 +668,7 @@ test('Escudo: a weak hit only wears it down — HP is untouched', () => {
 });
 test('Escudo: a hit bigger than it breaks it and the rest goes through to HP', () => {
   let s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
-  put(s, 0, 2, 'Cavaleiro da Luz');                           // ATK 4
+  put(s, 0, 2, 'Paladino de Teste');                           // ATK 4
   s.players[1].board[2] = shielded('Veterano de Guerra', 3);  // HP 3 -> takes 1
   const r = act(s, 0, { type: 'attack', from: 2, to: 2 });
   const d = r.s.players[1].board[2]!;
@@ -665,7 +677,7 @@ test('Escudo: a hit bigger than it breaks it and the rest goes through to HP', (
 });
 test('Bloqueio: negates one whole hit however big, then it is gone', () => {
   let s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
-  put(s, 0, 2, 'Cavaleiro da Luz').hp = 20; put(s, 0, 3, 'Cavaleiro da Luz').hp = 20;   // sturdy: the retaliation still lands
+  put(s, 0, 2, 'Paladino de Teste').hp = 20; put(s, 0, 3, 'Paladino de Teste').hp = 20;   // sturdy: the retaliation still lands
   s.players[1].board[2] = shielded('Veterano de Guerra', 0, true);
   let r = act(s, 0, { type: 'attack', from: 2, to: 2 });
   eq([r.s.players[1].board[2]!.block, r.s.players[1].board[2]!.hp], [undefined, 3]);
@@ -676,18 +688,18 @@ test('Bloqueio: negates one whole hit however big, then it is gone', () => {
 test('Escudo / Bloqueio also soak damage from effects, and the attacker still takes the normal retaliation', () => {
   let s = fresh({ a: 'cardeal', b: 'capitao' });
   s.players[1].board[1] = shielded('Veterano de Guerra', 2);
-  const bal = give(s, 0, 'Balestra de Precisão');             // 3 damage
+  const bal = give(s, 0, 'Balestra da Penitência');             // 3 damage
   const r = act(s, 0, { type: 'play', cardId: bal.id, target: 1 });
   eq([r.s.players[1].board[1]!.shield, r.s.players[1].board[1]!.hp], [undefined, 2]);
   let t = combat(fresh({ a: 'capitao', b: 'cardeal' }));
   put(t, 0, 2, 'Batedor'); t.players[0].board[2]!.hp = 5;
-  t.players[1].board[2] = { ...shielded('Soldados da Ordem', 0, true) };   // ATK 3
+  t.players[1].board[2] = { ...shielded('Sentinela de Teste', 0, true) };   // ATK 3
   const r2 = act(t, 0, { type: 'attack', from: 2, to: 2 });
   eq(r2.s.players[0].board[2]!.hp, 2);                        // the Batedor still takes the 3 back
 });
 
 test('Batedor moves once, free, right after attacking', () => {
-  let s = combat(fresh({ a: 'capitao' })); put(s, 0, 2, 'Batedor'); put(s, 1, 2, 'Devotos da Cruzada').hp = 30;
+  let s = combat(fresh({ a: 'capitao' })); put(s, 0, 2, 'Batedor'); put(s, 1, 2, 'Penitente de Teste').hp = 30;
   s = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
   eq(s.turn.batedorFree, 2);
   refused(s, 0, { type: 'move', from: 2, to: 8 }, 'adjacente');
@@ -717,7 +729,7 @@ const aiTurn = (s: GameState, seat: Seat): { s: GameState; played: string[] } =>
 test('AI plays Relíquia and Terreno into their own slots', () => {
   let s = fresh({ a: 'capitao', b: 'capitao', first: 1 });
   s.turn.active = 1; s.turn.first = 1;
-  give(s, 1, 'Estandarte da Legião'); give(s, 1, 'Fortaleza de Pedra'); give(s, 1, 'Tributo de Guerra'); give(s, 1, 'Batedor');
+  give(s, 1, 'Estandarte da Legião'); give(s, 1, 'Fortaleza de Pedra'); give(s, 1, 'Dízimo de Guerra'); give(s, 1, 'Batedor');
   const r = aiTurn(s, 1);
   eq([r.s.players[1].board[10]?.name, r.s.players[1].board[11]?.name], ['Estandarte da Legião', 'Fortaleza de Pedra']);
   ok(r.played.includes('Batedor'), 'and still fields the unit: ' + r.played);
@@ -726,28 +738,28 @@ test('AI uses Balestra on a unit it can kill, Trabuco/Catapulta when they pay of
   let s = fresh({ a: 'capitao', b: 'cardeal', first: 1 });
   s.turn.active = 1; s.turn.first = 1;
   put(s, 0, 2, 'Escudeiro de Linha'); put(s, 0, 0, 'Batedor'); put(s, 0, 4, 'Batedor'); put(s, 0, 5, 'Batedor'); put(s, 0, 7, 'Batedor');
-  put(s, 1, 1, 'Soldados da Ordem');
-  give(s, 1, 'Balestra de Precisão'); give(s, 1, 'Espada Longa'); give(s, 1, 'Trabuco de Cerco');
+  put(s, 1, 1, 'Sentinela de Teste');
+  give(s, 1, 'Balestra da Penitência'); give(s, 1, 'Lâmina do Juramento'); give(s, 1, 'Trabuco da Trombeta Final');
   const r = aiTurn(s, 1);
-  ok(r.played.includes('Balestra de Precisão') || r.played.includes('Trabuco de Cerco'), 'removal was used: ' + r.played);
-  ok(r.played.includes('Espada Longa'), 'equip was used: ' + r.played);
+  ok(r.played.includes('Balestra da Penitência') || r.played.includes('Trabuco da Trombeta Final'), 'removal was used: ' + r.played);
+  ok(r.played.includes('Lâmina do Juramento'), 'equip was used: ' + r.played);
   ok(r.s.players[1].board.some((c, i) => i <= 4 && c?.equippedWeapons?.length), 'sword rides on a front-line unit');
 });
 test('AI repositions: brings back-row Infantaria forward (or into the General lane), and covers an exposed General lane', () => {
   let s = fresh({ a: 'capitao', b: 'cardeal', first: 1 });
   s.turn.active = 1; s.turn.first = 1; s.turn.phase = 'movimentacao';
   s.players[1].generalAbilityUses = 1; // keep the General's heal out of this test
-  put(s, 1, 6, 'Soldados da Ordem'); // 3/4 Infantaria stuck in the back row: cannot attack there
+  put(s, 1, 6, 'Sentinela de Teste'); // 3/4 Infantaria stuck in the back row: cannot attack there
   put(s, 0, 2, 'Soldado Tático');    // the enemy has something that can hit
   const a1 = aiNextAction(s, 1, () => 0.5);
   eq(a1.type, 'move');
   s = act(s, 1, a1).s;
-  ok(s.players[1].board.some((c, i) => (i <= 4 || i === 7) && c?.name === 'Soldados da Ordem'), 'moved to the Vanguarda or into the General\'s lane: ' + JSON.stringify(s.players[1].board.map(c => c?.name ?? null)));
+  ok(s.players[1].board.some((c, i) => (i <= 4 || i === 7) && c?.name === 'Sentinela de Teste'), 'moved to the Vanguarda or into the General\'s lane: ' + JSON.stringify(s.players[1].board.map(c => c?.name ?? null)));
   // exposed lane: units everywhere except columns 2
   let t = fresh({ a: 'capitao', b: 'cardeal', first: 1 });
   t.turn.active = 1; t.turn.first = 1; t.turn.phase = 'movimentacao';
   t.players[1].generalAbilityUses = 1;
-  put(t, 1, 1, 'Soldados da Ordem'); put(t, 1, 3, 'Soldados da Ordem'); put(t, 0, 2, 'Soldado Tático');
+  put(t, 1, 1, 'Sentinela de Teste'); put(t, 1, 3, 'Sentinela de Teste'); put(t, 0, 2, 'Soldado Tático');
   const moves: string[] = [];
   for (let i = 0; i < 6 && t.turn.active === 1; i++) { const a = aiNextAction(t, 1, () => 0.5); if (a.type === 'move') moves.push(`${a.from}>${a.to}`); t = act(t, 1, a).s; }
   ok(!!(t.players[1].board[2] || t.players[1].board[7]), 'the General lane is covered after moving: ' + moves.join(','));
@@ -766,7 +778,7 @@ test('AI uses the free Batedor move only when it helps; Avanço Coordenado after
 test('AI discards down to the limit by itself', () => {
   let s = fresh({ first: 1 });
   s.turn.active = 1; s.turn.first = 1;
-  for (let i = 0; i < 14; i++) give(s, 1, i % 2 ? 'Reforços Ocultos' : 'Cavaleiro da Luz');
+  for (let i = 0; i < 14; i++) give(s, 1, i % 2 ? 'Preces na Sombra' : 'Paladino de Teste');
   s.players[1].gold = 0;
   const r = aiTurn(s, 1);
   eq([r.s.turn.active, r.s.players[1].hand.length], [0, HAND_LIMIT]);
@@ -830,17 +842,17 @@ test('the deck is finite: drawn and searched cards never come back, an empty dec
   const count = (arr: string[], n: string) => arr.filter(x => x === n).length;
   eq(p.deckList.length, p.drawPile.length);
   // a search takes that copy out of the deck for good
-  const before = { n: p.deckList.length, cálice: count(p.deckList, 'Cálice da Graça') };
-  const g = give(s, 0, 'Graal da Dádiva');
+  const before = { n: p.deckList.length, cálice: count(p.deckList, 'Cálice das Duas Bênçãos') };
+  const g = give(s, 0, 'Peregrinação ao Graal');
   s = act(s, 0, { type: 'play', cardId: g.id }).s;
   s = act(s, 0, { type: 'choose', cardIds: [(s.pending as any).options[0].id] }).s;
   eq([s.players[0].deckList.length, s.players[0].drawPile.length], [before.n - 1, before.n - 1]);
-  eq(count(s.players[0].deckList, 'Cálice da Graça'), before.cálice - 1);
+  eq(count(s.players[0].deckList, 'Cálice das Duas Bênçãos'), before.cálice - 1);
   // the draw pile runs dry: nothing is drawn and nothing is reshuffled in
   s.players[0].drawPile = ['Batedor']; s.players[0].deckList = ['Batedor'];
   s.players[0].hand = [];
-  const m = give(s, 0, 'Mercador da Cruzada'); s.players[0].hand = [];
-  put(s, 0, 1, 'Mercador da Cruzada');
+  const m = give(s, 0, 'Cambista do Dízimo'); s.players[0].hand = [];
+  put(s, 0, 1, 'Cambista do Dízimo');
   s = act(s, 0, { type: 'ability', slot: 1 }).s;
   eq((s.pending as any).options.length, 1);   // only one card was left to reveal
   s = act(s, 0, { type: 'choose', cardIds: [(s.pending as any).options[0].id] }).s;
@@ -916,7 +928,7 @@ test('Aurelion: only 2 of the units that moved are buffed, units that stayed put
 });
 test('Capitão balance pass: Batedor grows +1 ATK after each attack it survives; Cavaleiro Tático\'s move gives its neighbours +1 ATK; Reformar Linhas draws a card', () => {
   let s = combat(fresh({ a: 'capitao', b: 'cardeal' }));
-  put(s, 0, 2, 'Batedor'); put(s, 1, 2, 'Devotos da Cruzada').hp = 30;
+  put(s, 0, 2, 'Batedor'); put(s, 1, 2, 'Penitente de Teste').hp = 30;
   s = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
   eq(s.players[0].board[2]!.atk, 2, 'Batedor 1 -> 2');
   let t = fresh({ a: 'capitao', phase: 'movimentacao' }); t.turn.round = 3;
@@ -943,67 +955,67 @@ test('Jorge, Lança Sagrada (Ofensiva): hitting the Vanguarda also deals 2 to th
   s = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
   eq(s.players[1].board[7]!.hp, before - 2, 'the card behind takes 2');
 });
-test('Fanático da Cruzada (Ofensiva): +2 ATK against a General of the other faction, not against units', () => {
+test('Zeloso da Pira (Ofensiva): +2 ATK against a General of the other faction, not against units', () => {
   const s = fresh({ a: 'cardeal', b: 'capitao' }); combat(s);
-  put(s, 0, 2, 'Fanático da Cruzada');
+  put(s, 0, 2, 'Zeloso da Pira');
   const base = atkOf(s, 0, 2);
   let t = act(s, 0, { type: 'attack', from: 2, to: 12 });
   ok(t.ev.some(e => e.t === 'attack'), 'the general can be reached');
   const gHp = s.players[1].board[12]!.hp;
   eq(gHp - t.s.players[1].board[12]!.hp, base + 2, 'ATK +2 on the General');
-  put(s, 1, 2, 'Batedor'); put(s, 0, 3, 'Fanático da Cruzada');
+  put(s, 1, 2, 'Batedor'); put(s, 0, 3, 'Zeloso da Pira');
 });
-test('Intendente do Exército (Comando): at the start of its owner\'s turn the hand is refilled to 2', () => {
+test('Despenseiro do Mosteiro (Comando): at the start of its owner\'s turn the hand is refilled to 2', () => {
   let s = fresh({ a: 'cardeal', b: 'capitao', phase: 'movimentacao' }); s.turn.round = 3;
-  put(s, 0, 2, 'Intendente do Exército');
+  put(s, 0, 2, 'Despenseiro do Mosteiro');
   s = endTurnOf(s, 0); s = endTurnOf(s, 1);
   ok(s.turn.active === 0, 'back to seat 0');
   ok(s.players[0].hand.length >= 2, 'at least 2 cards in hand');
 });
-test('Atirador da Cruzada (Queda): destroyed, its owner draws 2', () => {
+test('Vigia do Último Salmo (Queda): destroyed, its owner draws 2', () => {
   let s = fresh({ a: 'cardeal', b: 'capitao' }); combat(s);
-  put(s, 1, 2, 'Atirador da Cruzada'); put(s, 0, 2, 'Jorge, Lança Sagrada');
+  put(s, 1, 2, 'Vigia de Teste'); put(s, 0, 2, 'Jorge, Lança Sagrada');
   s.turn.active = 0;
   const hand = s.players[1].hand.length;
   s = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
   eq(s.players[1].board[2], null, 'the Atirador fell');
   eq(s.players[1].hand.length, hand + 2, 'drew 2');
 });
-test('Nobre da Cruzada (Convocação): placing it summons Soldados Leais into the free slots beside it', () => {
+test('Barão da Procissão (Convocação): placing it summons Acólitos Leais into the free slots beside it', () => {
   let s = fresh({ a: 'cardeal', b: 'capitao', round: 3 }); s.turn.phase = 'preparacao';
-  const nobre = give(s, 0, 'Nobre da Cruzada');
+  const nobre = give(s, 0, 'Barão da Procissão');
   s = act(s, 0, { type: 'play', cardId: nobre.id, slot: 2 }).s;
-  eq([s.players[0].board[1]?.name, s.players[0].board[3]?.name], ['Soldado Leal', 'Soldado Leal']);
+  eq([s.players[0].board[1]?.name, s.players[0].board[3]?.name], ['Acólito Leal', 'Acólito Leal']);
 });
 test('Pântano Maldito: enemies in the Vanguarda have -1 ATK, the Retaguarda is spared', () => {
   const s = fresh({ a: 'cardeal', b: 'capitao' });
-  put(s, 0, 11, 'Pântano Maldito'); put(s, 1, 2, 'Soldado Tático'); put(s, 1, 7, 'Arqueiro da Ordem');
+  put(s, 0, 11, 'Pântano Maldito'); put(s, 1, 2, 'Soldado Tático'); put(s, 1, 7, 'Arqueiro de Dois Sinos');
   eq(atkOf(s, 1, 2), 2, 'Vanguarda: 3 -1');
   eq(atkOf(s, 1, 7), 1, 'Retaguarda: unchanged');
 });
-test('Catapulta de Guerra: 2 damage to every unit of one enemy row', () => {
+test('Catapulta do Dilúvio de Pedra: 2 damage to every unit of one enemy row', () => {
   let s = fresh({ a: 'cardeal', b: 'capitao', round: 3 }); s.turn.phase = 'preparacao';
-  put(s, 1, 0, 'Escudeiro de Linha'); put(s, 1, 1, 'Soldado Tático'); put(s, 1, 6, 'Arqueiro da Ordem');
-  const c = give(s, 0, 'Catapulta de Guerra');
+  put(s, 1, 0, 'Escudeiro de Linha'); put(s, 1, 1, 'Soldado Tático'); put(s, 1, 6, 'Arqueiro de Dois Sinos');
+  const c = give(s, 0, 'Catapulta do Dilúvio de Pedra');
   const hp = [s.players[1].board[0]!.hp, s.players[1].board[1]!.hp, s.players[1].board[6]!.hp];
   s = act(s, 0, { type: 'play', cardId: c.id, target: 1 }).s;
   eq([s.players[1].board[0]!.hp, s.players[1].board[1]!.hp, s.players[1].board[6]!.hp], [hp[0] - 2, hp[1] - 2, hp[2]], 'the Vanguarda row only');
 });
-test('Armadura de Guerra / Couraça Reforçada / Flechas Venenosas equip the units they name, and refuse the others', () => {
+test('Couraça do Mártir / Gibão Bento / Setas de Cicuta equip the units they name, and refuse the others', () => {
   let s = fresh({ a: 'cardeal', b: 'capitao', round: 3 }); s.turn.phase = 'preparacao';
-  put(s, 0, 0, 'Soldado Tático'); put(s, 0, 1, 'Arqueiro da Ordem'); put(s, 0, 2, 'Cavaleiro Tático');
-  const arm = give(s, 0, 'Armadura de Guerra'), cur = give(s, 0, 'Couraça Reforçada'), fle = give(s, 0, 'Flechas Venenosas');
+  put(s, 0, 0, 'Soldado Tático'); put(s, 0, 1, 'Arqueiro de Dois Sinos'); put(s, 0, 2, 'Cavaleiro Tático');
+  const arm = give(s, 0, 'Couraça do Mártir'), cur = give(s, 0, 'Gibão Bento'), fle = give(s, 0, 'Setas de Cicuta');
   refused(s, 0, { type: 'play', cardId: arm.id, target: 2 });                         // Cavalaria: no
   refused(s, 0, { type: 'play', cardId: fle.id, target: 0 });                         // Infantaria: no
   const hp0 = s.players[0].board[0]!.hp, hp1 = s.players[0].board[1]!.hp, a1 = s.players[0].board[1]!.atk;
   s = act(s, 0, { type: 'play', cardId: arm.id, target: 0 }).s;
   s = act(s, 0, { type: 'play', cardId: cur.id, target: 1 }).s;
   s = act(s, 0, { type: 'play', cardId: fle.id, target: 1 }).s;
-  eq([s.players[0].board[0]!.hp, s.players[0].board[1]!.hp, s.players[0].board[1]!.atk], [hp0 + 2, hp1 + 1, a1 + 1]);
+  eq([s.players[0].board[0]!.hp, s.players[0].board[1]!.hp, s.players[0].board[1]!.atk], [hp0 + 2, hp1 + 2, a1 + 1]);
 });
-test('Doutrina Renovada: take a Tática from the deck to the hand', () => {
+test('Sermão da Estratégia: take a Tática from the deck to the hand', () => {
   let s = fresh({ a: 'cardeal', b: 'capitao', round: 3 }); s.turn.phase = 'preparacao';
-  const c = give(s, 0, 'Doutrina Renovada');
+  const c = give(s, 0, 'Sermão da Estratégia');
   const before = s.players[0].deckList.filter(n => requireCardDef(n).cardType === 'Tática').length;
   s = act(s, 0, { type: 'play', cardId: c.id }).s;
   ok(s.pending?.kind === 'pick', 'a pick prompt opens');
@@ -1055,32 +1067,32 @@ for (const me of [0, 1] as Seat[]) {
   });
   test(`seat ${me}: Jorge splashes the card behind, Fanático hits a General for +2, Atirador draws 2 when it falls`, () => {
     let s = start('cardeal', 'capitao', 'combate');
-    put(s, me, 2, 'Jorge, Lança Sagrada'); put(s, foe, 2, 'Atirador da Cruzada'); put(s, foe, 7, 'Escudeiro de Linha');
+    put(s, me, 2, 'Jorge, Lança Sagrada'); put(s, foe, 2, 'Vigia de Teste'); put(s, foe, 7, 'Escudeiro de Linha');
     const behind = s.players[foe].board[7]!.hp, hand = s.players[foe].hand.length;
     s = act(s, me, { type: 'attack', from: 2, to: 2 }).s;
     eq(s.players[foe].board[7]!.hp, behind - 2, 'splash');
     eq(s.players[foe].board[2], null, 'Atirador fell');
     eq(s.players[foe].hand.length, hand + 2, 'Queda draws 2');
   });
-  test(`seat ${me}: Nobre summons its Soldados Leais, Soldados da Ordem reinforce, Tática equip works`, () => {
+  test(`seat ${me}: Nobre summons its Acólitos Leais, Sentinela do Claustro reinforce, Tática equip works`, () => {
     let s = start('cardeal', 'capitao', 'preparacao');
-    const nobre = give(s, me, 'Nobre da Cruzada');
+    const nobre = give(s, me, 'Barão da Procissão');
     s = act(s, me, { type: 'play', cardId: nobre.id, slot: 2 }).s;
-    eq([s.players[me].board[1]?.name, s.players[me].board[3]?.name], ['Soldado Leal', 'Soldado Leal']);
+    eq([s.players[me].board[1]?.name, s.players[me].board[3]?.name], ['Acólito Leal', 'Acólito Leal']);
     put(s, me, 0, 'Soldado Tático');
-    const sword = give(s, me, 'Espada Longa'); const atk = s.players[me].board[0]!.atk;
+    const sword = give(s, me, 'Lâmina do Juramento'); const atk = s.players[me].board[0]!.atk;
     s = act(s, me, { type: 'play', cardId: sword.id, target: 0 }).s;
     eq(s.players[me].board[0]!.atk, atk + 2);
   });
-  test(`seat ${me}: Cavaleiro Hospitalário (Comando) heals an ally and hits a foe in the Vanguarda; the Cardeal heals for 2 gold`, () => {
+  test(`seat ${me}: Samaritano de Aço (Comando) heals an ally and hits a foe in the Vanguarda; the Cardeal heals for free`, () => {
     let s = start('cardeal', 'capitao', 'preparacao');
-    put(s, me, 2, 'Cavaleiro Hospitalário'); put(s, me, 3, 'Soldado Tático'); put(s, foe, 1, 'Escudeiro de Linha');
+    put(s, me, 2, 'Samaritano de Aço'); put(s, me, 3, 'Soldado Tático'); put(s, foe, 1, 'Escudeiro de Linha');
     s.players[me].board[3]!.hp -= 2; const hurt = s.players[me].board[3]!.hp, foeHp = s.players[foe].board[1]!.hp;
     s = act(s, me, { type: 'ability', slot: 2, target: 3, target2: 1 }).s;
-    eq([s.players[me].board[3]!.hp, s.players[foe].board[1]!.hp], [hurt + 1, foeHp - 1]);
+    eq([s.players[me].board[3]!.hp, s.players[foe].board[1]!.hp], [hurt + 2, foeHp - 1]);
     const gold = s.players[me].gold;
     s = act(s, me, { type: 'ability', slot: 12, target: 3 }).s;
-    eq([s.players[me].gold, s.players[me].board[3]!.hp], [gold - 2, hurt + 2]);
+    eq([s.players[me].gold, s.players[me].board[3]!.hp], [gold, hurt + 3]);   // Samaritano +2, General +1, no gold spent
   });
 }
 
@@ -1163,11 +1175,35 @@ test('Relíquia com modos: Saque draws one card per enemy unit destroyed, at mos
 
 test('Mercenários: nomes antigos viram os nomes atuais (saves antigos) e todos os nomes atuais existem no catálogo', () => {
   const m = LEGACY_CARD_NAMES;
-  eq(Object.keys(m).length, 22);
+  eq(Object.keys(m).length, 53);   // 22 dos Mercenários + 31 do Cardeal (rodada 20)
   for (const [old, now] of Object.entries(m)) { ok(!getCardDef(old), `o nome antigo ${old} ainda existe no catálogo`); ok(!!getCardDef(now), `${now} não existe no catálogo`); }
   eq(currentCardName('Suborno'), 'O Peso da Bolsa');
-  eq(currentCardName('Cardeal Pedro, Voz da Fé'), 'Cardeal Pedro, Voz da Fé');
-  eq(currentNames({ 'Desertor': 2, 'Rato da Muralha': 1, 'Trabuco de Cerco': 3 }), { 'Rato da Muralha': 3, 'Trabuco de Cerco': 3 });
+  eq(currentCardName('Cardeal Pedro, Voz da Fé'), 'Cardeal Anselmo, Voz da Fé');
+  eq(currentCardName('Cardeal Anselmo, Voz da Fé'), 'Cardeal Anselmo, Voz da Fé');
+  eq(currentNames({ 'Desertor': 2, 'Rato da Muralha': 1, 'Trabuco de Cerco': 3 }), { 'Rato da Muralha': 3, 'Trabuco da Trombeta Final': 3 });
+});
+
+test('Couraça do Mártir dá Guarda: o primeiro golpe é absorvido inteiro, mesmo grande, e só uma vez', () => {
+  let s = fresh({ a: 'cardeal', b: 'capitao', round: 3 }); s.turn.phase = 'preparacao';
+  put(s, 0, 2, 'Soldado Tático');
+  const arm = give(s, 0, 'Couraça do Mártir');
+  s = act(s, 0, { type: 'play', cardId: arm.id, target: 2 }).s;
+  eq(!!s.players[0].board[2]!.block, true);
+  const hp = s.players[0].board[2]!.hp;
+  let t = combat(s); t.turn.active = 1; t.turn.phase = 'combate'; put(t, 1, 2, 'Cavaleiro Tático');
+  const r1 = act(t, 1, { type: 'attack', from: 2, to: 2 }).s;
+  eq(r1.players[0].board[2]!.hp, hp);                 // o golpe inteiro foi absorvido
+  eq(!!r1.players[0].board[2]!.block, false);         // e a Guarda se foi
+});
+test('Paladino do Alvorecer: ganha +1 ATK quando uma unidade ao lado é curada (e só ao lado)', () => {
+  let s = fresh({ a: 'cardeal' });
+  put(s, 0, 2, 'Paladino do Alvorecer'); const hurt = put(s, 0, 1, 'Batedor'); hurt.hp = 1; const far = put(s, 0, 3, 'Batedor'); far.hp = 1;
+  const base = s.players[0].board[2]!.atk;
+  s = act(s, 0, { type: 'ability', slot: 12, target: 1 }).s;
+  eq(s.players[0].board[2]!.atk + (s.players[0].board[2]!.formationBuffAtk ?? 0), base + 1);
+  const t = fresh({ a: 'cardeal' }); put(t, 0, 2, 'Paladino do Alvorecer'); put(t, 0, 4, 'Batedor').hp = 1;
+  const r = act(t, 0, { type: 'ability', slot: 12, target: 4 }).s;
+  eq(r.players[0].board[2]!.formationBuffAtk ?? 0, 0);   // longe demais: nada
 });
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

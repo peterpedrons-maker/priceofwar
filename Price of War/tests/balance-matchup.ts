@@ -1,5 +1,5 @@
 // Cardeal × Capitão with the planner AI on both sides, alternating chairs and who starts:   N=20 npx tsx tests/balance-matchup.ts
-// MERC_COST=2 tries a gold cost on the Mercador da Cruzada's ability (without touching the catalog), to see what it does to the matchup.
+// MERC_COST=2 tries a gold cost on the Cambista do Dízimo's ability (without touching the catalog), to see what it does to the matchup.
 import { CARD_DEFS } from '../src/engine/catalog';
 import { aiNextAction } from '../src/engine/ai';
 import { applyAction, createMatch, deckSetupFromRecipe } from '../src/engine/game';
@@ -8,7 +8,7 @@ import type { GameState, Seat } from '../src/engine/types';
 
 const N = Number(process.env.N ?? 20);
 if (process.env.MERC_COST !== undefined) {
-  const m = CARD_DEFS.find(c => c.name === 'Mercador da Cruzada') as any;
+  const m = CARD_DEFS.find(c => c.name === 'Cambista do Dízimo') as any;
   m.abilities[0].cost = Number(process.env.MERC_COST);
 }
 let cardealWins = 0, capitaoWins = 0, undecided = 0, rounds = 0, games = 0;

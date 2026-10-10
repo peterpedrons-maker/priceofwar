@@ -13,7 +13,7 @@ Batedor e Cavaleiro Tático. Nenhuma carta usa Reforço ainda.
 Um gatilho é o momento em que o efeito da carta acontece. Na carta, a linha começa com o **ícone + nome do gatilho** em
 dourado e depois o efeito em texto normal, como no Yu-Gi-Oh ("Efeito Flip: ..."):
 
-> `[ícone] CONVOCAÇÃO — Convoca Soldados Leais nos slots adjacentes livres.`
+> `[ícone] CONVOCAÇÃO — Convoca Acólitos Leais nos slots adjacentes livres.`
 
 | Gatilho | Quando acontece | Verbo que o jogador usa | Símbolo do ícone |
 | --- | --- | --- | --- |
@@ -39,21 +39,21 @@ Prompts na seção 4z2 de `art-prompts/README.md`; arquivos esperados
 - A carta com Reforço tem **um efeito principal**: o Reforço conta como esse efeito. Balanceamento pela ficha da carta.
 - A descida é automática; só pergunta algo se o efeito tiver escolha.
 - **No motor (feito):** só desce a Infantaria cujo cartão tem o gatilho `reforco` (`canReinforce` em `src/engine/rules.ts` lê `card.trigger`, copiado do
-  catálogo). A única carta marcada hoje é **Soldados da Ordem** ("Se a carta da frente da coluna cair, esta desce e ganha Escudo 2."), que também
+  catálogo). A única carta marcada hoje é **Sentinela do Claustro** ("Se a carta da frente da coluna cair, esta desce e ganha Escudo 2."), que também
   mantém o Tutorial 1 funcionando. As outras Infantarias ficam onde estão; marque outras cartas com `trigger: "reforco"` no catálogo.
 
 ## 2. Verbos fixos
 
 | Ideia | Verbo | Exemplo |
 | --- | --- | --- |
-| Colocar uma unidade em campo | **convocar** | "Eu convoco o Cavaleiro da Luz." |
-| Jogar uma Tática | **usar** | "Eu uso Balestra de Precisão." |
+| Colocar uma unidade em campo | **convocar** | "Eu convoco o Paladino do Alvorecer." |
+| Jogar uma Tática | **usar** | "Eu uso Balestra da Penitência." |
 | Colocar uma Emboscada | **armar** | "Eu armo Bloqueio Instantâneo." |
 | Mudar de casa | **mover** / **trocar** | "Move 1 casa." / "Troca com aliado adjacente." |
 | Carta destruída em campo | **cair** / **destruída** | "A Devotos caiu." |
 
 "Invocar" não existe mais. Tudo que traz tropas ao campo é **convocar**
-(já trocado em Nobre da Cruzada, Chamado às Armas, descrição do Deck Cardeal Pedro e nas mensagens da partida).
+(já trocado em Barão da Procissão, Toque dos Sinos de Guerra, descrição do Deck Cardeal Anselmo e nas mensagens da partida).
 
 ## 3. Lugares e palavras de campo
 
@@ -71,15 +71,15 @@ Não são gatilhos: são mecânicas. Ficam em **negrito** no texto, sem ícone p
 
 | Gatilho | Cartas de hoje |
 | --- | --- |
-| Convocação | Nobre da Cruzada |
-| Ofensiva | Fanático da Cruzada ("Ao atacar"), Jorge, Lança Sagrada ("Ao atacar a Vanguarda") |
-| Queda | Atirador da Cruzada (hoje diz "ao ir ao cemitério"; passa a valer só para destruída em campo) |
+| Convocação | Barão da Procissão |
+| Ofensiva | Zeloso da Pira ("Ao atacar"), Jorge, Lança Sagrada ("Ao atacar a Vanguarda") |
+| Queda | Vigia do Último Salmo (hoje diz "ao ir ao cemitério"; passa a valer só para destruída em campo) |
 | Manobra | Capitão de Formação, Aurelion ("Após Remanejamento"), Avanço Coordenado ("Após mover") |
 | Comando | Mercador, Intendente, Hospitalário e as habilidades dos Generais |
-| Postura | Escudeiro de Linha, Lanceiro de Controle, Comandante da Ordem, Veterano de Guerra, Infiltrado da Ordem, passiva do Aurelion |
+| Postura | Escudeiro de Linha, Lanceiro de Controle, Marechal do Sol Poente, Veterano de Guerra, Confessor Silencioso, passiva do Aurelion |
 | Reforço | nenhuma ainda |
 
-Sem gatilho próprio por ora (texto simples): "ao ser curada" (Recruta Devoto), "fim do turno" (Soldado Tático) e
+Sem gatilho próprio por ora (texto simples): "ao ser curada" (Noviço Renascido), "fim do turno" (Soldado Tático) e
 "após o combate" (Batedor). Se aparecerem mais cartas assim, criar gatilho. Táticas e Emboscadas **não** levam ícone de
 gatilho: o tipo da carta já é a identidade. Relíquias e Terrenos seguem com "Permanente." (ficam na casa), diferente de Postura.
 
@@ -92,16 +92,16 @@ gatilho: o tipo da carta já é a identidade. Relíquias e Terrenos seguem com "
 
 ## 7. Pendências de nomes
 
-- A Emboscada **Reforços Ocultos** tem a palavra do gatilho: renomear (sugestão: "Tropas de Flanco").
-  *Couraça Reforçada* é só adjetivo e pode ficar.
-- Atirador da Cruzada: "ao ir ao cemitério" → Queda (apenas destruída em campo; descarte por limite de mão não conta).
+- A Emboscada **Preces na Sombra** tem a palavra do gatilho: renomear (sugestão: "Tropas de Flanco").
+  *Gibão Bento* é só adjetivo e pode ficar.
+- Vigia do Último Salmo: "ao ir ao cemitério" → Queda (apenas destruída em campo; descarte por limite de mão não conta).
 - Cartas com "Remanejamento", "Reposicionamento" e "Reorganiza" nos textos: padronizar em **mover/trocar**.
 - Aplicar gatilhos e rótulos nas cartas só quando os ícones estiverem prontos e o mockup for aprovado.
 
 ## 8. Como o gatilho aparece na carta (implementado)
 
 - **Dado:** `trigger?: Trigger` em cada entrada de `CARD_DEFS` (`src/engine/catalog.ts`); tipos e rótulos em `src/engine/types.ts`
-  (`Trigger`, `TRIGGER_LABEL`). Exemplo: `{ name: "Nobre da Cruzada", trigger: "convocacao", ... }`.
+  (`Trigger`, `TRIGGER_LABEL`). Exemplo: `{ name: "Barão da Procissão", trigger: "convocacao", ... }`.
 - **Ícones:** `src/assets/trigger-<nome>.webp` (256 px, bronze, **sem aro**, borda esfumada nos 7% finais), ligados em `src/triggers.ts`.
   Origem: folha enviada pelo usuário (`art-prompts/reference/ui-trigger-sheet.jpg`), recortada em círculo.
 - **Linha do tipo:** o ícone fica à direita do tipo (ex.: "INFANTARIA ●"). Moldura padrão: altura = 72% da caixa do tipo (7% da carta ≈ 5%
@@ -110,8 +110,8 @@ gatilho: o tipo da carta já é a identidade. Relíquias e Terrenos seguem com "
 - **Texto:** o nome do gatilho entra em dourado e negrito como primeira palavra do efeito ("Queda: ao cair, compre 2 cartas").
 - **Onde aparece:** carta aberta, carta levantada na mão e leque (parcial). Cartas pequenas do campo não mostram texto nem ícone.
 
-Textos já ajustados para não repetir o gatilho: Nobre da Cruzada ("Convoca Soldados Leais..."), Fanático da Cruzada ("Se o General inimigo
-for de tipo oposto, ganha +2 ATK."), Jorge ("Contra a Vanguarda, causa 2 de dano..."), Atirador da Cruzada ("Compre 2 cartas.", que no motor
+Textos já ajustados para não repetir o gatilho: Barão da Procissão ("Convoca Acólitos Leais..."), Zeloso da Pira ("Se o General inimigo
+for de tipo oposto, ganha +2 ATK."), Jorge ("Contra a Vanguarda, causa 2 de dano..."), Vigia do Último Salmo ("Compre 2 cartas.", que no motor
 já só vale quando ela é destruída em campo) e Capitão de Formação ("Adjacentes ganham +1 ATK."). Comando e Postura mantêm o texto
 (o "uma vez por turno" continua escrito).
 
@@ -158,8 +158,8 @@ Sem caixa de texto grande: uma pílula curta no topo, as casas acesas e um **Can
 Os textos das cartas seguem `docs/textos-cartas.md`: frases curtas e telegráficas ("+1 HP a uma unidade aliada", "3 de dano a uma unidade inimiga"). A palavra do gatilho (Reforço, Postura, Comando…) aparece como uma **etiqueta de bronze** com o ícone do gatilho, antes do texto (`KeywordPill` em `src/App.tsx`); uma palavra a mais dentro do texto, sem ícone, escreve-se `**assim**` (ex.: Aurelion: **Fim do turno**, **Passiva**). O texto da carta não repete a palavra do gatilho: ela vem do campo `trigger`.
 
 O que cada palavra já quer dizer (não é repetido nas cartas):
-- **Comando**: habilidade ativa, 1 vez por turno (o Intendente do Exército é o único automático: age no início do turno).
+- **Comando**: habilidade ativa, 1 vez por turno (o Despenseiro do Mosteiro é o único automático: age no início do turno).
 - **Manobra**: ao mover.
 - **Queda**: ao ser destruída.
 - **Ofensiva**: ao atacar. **Postura**: vale enquanto a carta estiver na posição indicada. **Convocação**: ao entrar em campo. **Reforço**: quando a carta da frente cai.
-- **Ganho de vida é sempre "+N HP"**: no jogo a vida não tem teto, então vale para qualquer unidade (só o Cavaleiro Hospitalário exige uma unidade "ferida").
+- **Ganho de vida é sempre "+N HP"**: no jogo a vida não tem teto, então vale para qualquer unidade (só o Samaritano de Aço exige uma unidade "ferida").

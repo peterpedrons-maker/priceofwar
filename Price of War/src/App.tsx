@@ -131,8 +131,8 @@ import cardealPedroFullArt from './assets/card-cardeal-pedro-full.webp';
 // Deck Capitão's own card art (see art-prompts/README.md's "Deck Capitão" section
 // for the prompts these came from). Six of these are Full Art prints used in place
 // of their Padrão counterpart — same choice Deck Cardeal makes for its own
-// Nobre da Cruzada/Cavaleiro da Luz/Comandante da Ordem/Trabuco de
-// Cerco/Retorno do Soldado above (both versions exist, Full Art is just the one
+// Barão da Procissão/Paladino do Alvorecer/Marechal do Sol Poente/Trabuco de
+// Cerco/Chamado do Túmulo Santo above (both versions exist, Full Art is just the one
 // actually wired into CardData below).
 import comandanteAurelionFullArt from './assets/card-comandante-aurelion-full.webp';
 import estandarteDaLegiaoFullArt from './assets/card-estandarte-da-legiao-full.webp';
@@ -246,7 +246,7 @@ import { DECK_MAX_CARDS, DECK_MAX_COPIES, DECK_MIN_CARDS } from './engine/deck';
 import {
   GOLD_PER_TURN, HAND_LIMIT, START_GOLD, START_HAND,
   abilityOn, abilityPhases, canPlayInPhase, areSlotsAdjacent, auraTotal, canPlaceInSlot, canReposition, getAuraCombatHpBonus, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction,
-  getLaneCol, getMaxAttacksPerTurn, getMoveRow, getValidAttackTargets, isBackline, isCardDamaged, isFrontline, needsHiddenInfo, phasesForTurn,
+  getLaneCol, getMaxAttacksPerTurn, maxGeneralAbilityUses, getMoveRow, getValidAttackTargets, isBackline, isCardDamaged, isFrontline, needsHiddenInfo, phasesForTurn,
   specCandidatesOn, targetSpecOf, targetSpecsOf, verbsOn, upkeepOf, relicModeOf,
 } from './engine/rules';
 import { otherSeat, type Action as EngineAction, type Card as EngineCard, type GameEvent, type GameState, type Seat, type TurnPhase } from './engine/types';
@@ -285,7 +285,7 @@ const ALL_PRELOAD_IMAGES: string[] = [
 const DRAW_FLIGHT_MS = 750;
 
 // One-shot SFX helper — a fresh Audio() per call (rather than one shared/reused
-// element) so overlapping draws (e.g. Recrutar Veteranos drawing several cards at
+// element) so overlapping draws (e.g. Convocação dos Veteranos de Fé drawing several cards at
 // once) each get their own independent playback instead of cutting each other off.
 // Delayed by the same duration as the draw's own flight animation so the sound
 // lands when the card actually arrives in hand, not the instant it's dealt off
@@ -483,7 +483,7 @@ export type CardData = {
   // burst, not a free permanent stack. Read in getEffectiveAtk.
   formationBuffAtk?: number;
   // The explicit exception to "Táticas are single-use and never sit on the board":
-  // an Armamento (Armadura de Guerra/Couraça Reforçada/Flechas Venenosas/Espada Longa) doesn't
+  // an Armamento (Couraça do Mártir/Gibão Bento/Setas de Cicuta/Lâmina do Juramento) doesn't
   // go to the graveyard when used — it stays equipped, rendered as a card peeking
   // out from behind this one (see CardSlot), until this unit dies (see
   // graveyardWithEquipment, which sends any equipped weapons along with it).
@@ -670,7 +670,7 @@ const SlashEffect = () => (
 );
 
 // ── Choosing a target for an effect (Hearthstone-style) ─────────────────────────────────────────────────────────────
-// Whatever asks the player to pick a board target — the General's ability, Cavaleiro Hospitalário, a Tática from the
+// Whatever asks the player to pick a board target — the General's ability, Samaritano de Aço, a Tática from the
 // hand — shows the same thing: the source card parked big and glowing in the bottom-left corner, a bar saying what to
 // do, the legal targets marked with the attack reticle (recoloured by what the effect does) and everything else dimmed.
 type TargetKind = 'heal' | 'damage' | 'buff' | 'move';
@@ -1992,7 +1992,7 @@ const CardFaceStandardMini = ({ card }: { card: CardData }) => {
         <div className="absolute px-1 flex items-center" style={{ top: '3%', left: '12%', right: '26%', height: `${8 * s}%` }}>
           {/* A single truncated line, not FitText's shrink-and-wrap — this bar
               is only ~7px tall at mini scale, nowhere near enough height for
-              a wrapped 2nd line (a long name like "Mercador da Cruzada" wrapped
+              a wrapped 2nd line (a long name like "Cambista do Dízimo" wrapped
               and overflowed past the plate). Every name is still fully
               readable from the tap-to-expand preview this mini card opens. */}
           <span
@@ -2210,37 +2210,37 @@ const ART_BY_NAME: Record<string, string> = {
   "Estandarte da Legião": estandarteDaLegiaoFullArt,
   "Fortaleza de Pedra": fortalezaDePedraFullArt,
   "Pântano Maldito": pantanoMalditoArt,
-  "Cardeal Pedro, Voz da Fé": cardealPedroFullArt,
-  "Cálice da Graça": caliceDaVidaFullArt,
-  "Devotos da Cruzada": multidaoDeFieisArt,
-  "Mercador da Cruzada": comercianteDasCruzadasArt,
-  "Infiltrado da Ordem": espiaoSabotadorArt,
-  "Fanático da Cruzada": soldadoFanaticoArt,
-  "Recruta Devoto": recrutaDevotoArt,
-  "Intendente do Exército": vigiaDeMantimentosArt,
-  "Soldados da Ordem": infantariaTreinadaArt,
+  "Cardeal Anselmo, Voz da Fé": cardealPedroFullArt,
+  "Cálice das Duas Bênçãos": caliceDaVidaFullArt,
+  "Penitente de Pedra": multidaoDeFieisArt,
+  "Cambista do Dízimo": comercianteDasCruzadasArt,
+  "Confessor Silencioso": espiaoSabotadorArt,
+  "Zeloso da Pira": soldadoFanaticoArt,
+  "Noviço Renascido": recrutaDevotoArt,
+  "Despenseiro do Mosteiro": vigiaDeMantimentosArt,
+  "Sentinela do Claustro": infantariaTreinadaArt,
   "Jorge, Lança Sagrada": jorgeOLanceiroFullArt,
-  "Cavaleiro Hospitalário": hospitalarioArt,
-  "Nobre da Cruzada": nobreReligiosoFullArt,
-  "Cavaleiro da Luz": cavaleiroDaLuzFullArt,
-  "Comandante da Ordem": liderDeEsquadraoFullArt,
-  "Arqueiro da Ordem": arqueiroProfissionalArt,
-  "Atirador da Cruzada": atiradorInfluenteArt,
-  "Trabuco de Cerco": trabucoDeCercoFullArt,
-  "Catapulta de Guerra": catapultaDeGuerraArt,
-  "Balestra de Precisão": balestraDePrecisaoArt,
-  "Armadura de Guerra": armaduraDeGuerraArt,
-  "Couraça Reforçada": couracaReforcadaArt,
-  "Flechas Venenosas": flechasVenenosasArt,
-  "Espada Longa": espadaLongaArt,
-  "Reforços Ocultos": reforcosOcultosArt,
-  "Retorno do Soldado": retornoDoSoldadoFullArt,
-  "Graal da Dádiva": graalDaDadivaArt,
-  "Doutrina Renovada": doutrinaRenovadaArt,
-  "Recrutamento Seletivo": recrutamentoSeletivoArt,
-  "Recrutar Veteranos": recrutarVeteranosArt,
-  "Tributo de Guerra": tributoDeGuerraArt,
-  "Chamado às Armas": chamadoAsArmasArt,
+  "Samaritano de Aço": hospitalarioArt,
+  "Barão da Procissão": nobreReligiosoFullArt,
+  "Paladino do Alvorecer": cavaleiroDaLuzFullArt,
+  "Marechal do Sol Poente": liderDeEsquadraoFullArt,
+  "Arqueiro de Dois Sinos": arqueiroProfissionalArt,
+  "Vigia do Último Salmo": atiradorInfluenteArt,
+  "Trabuco da Trombeta Final": trabucoDeCercoFullArt,
+  "Catapulta do Dilúvio de Pedra": catapultaDeGuerraArt,
+  "Balestra da Penitência": balestraDePrecisaoArt,
+  "Couraça do Mártir": armaduraDeGuerraArt,
+  "Gibão Bento": couracaReforcadaArt,
+  "Setas de Cicuta": flechasVenenosasArt,
+  "Lâmina do Juramento": espadaLongaArt,
+  "Preces na Sombra": reforcosOcultosArt,
+  "Chamado do Túmulo Santo": retornoDoSoldadoFullArt,
+  "Peregrinação ao Graal": graalDaDadivaArt,
+  "Sermão da Estratégia": doutrinaRenovadaArt,
+  "Alistamento do Púlpito": recrutamentoSeletivoArt,
+  "Convocação dos Veteranos de Fé": recrutarVeteranosArt,
+  "Dízimo de Guerra": tributoDeGuerraArt,
+  "Toque dos Sinos de Guerra": chamadoAsArmasArt,
 };
 
 // Mercenários: uma imagem por carta em src/assets/merc/<nome-sem-acento>.webp (hoje provisórias; troque o arquivo pela arte real, mesmo nome).
@@ -2279,7 +2279,7 @@ const DECKS = {
   },
   cardeal: {
     id: 'cardeal' as const,
-    name: 'Deck Cardeal Pedro',
+    name: 'Deck Cardeal Anselmo',
     description: 'Fé e ferro — cura, convocações e emboscadas sagradas.',
     general: DECK_CARDEAL.find(c => c.cardType === 'General')!,
     pool: DECK_CARDEAL.filter(c => c.cardType !== 'General'),
@@ -2451,9 +2451,9 @@ let lastSanitizeMigrated = false;
 const sanitizeDeckStore = (raw: any): DeckStore | null => {
   if (!raw || typeof raw !== 'object' || typeof raw.collection !== 'object' || !Array.isArray(raw.slots) || raw.slots.length < 2) return null;
   lastSanitizeMigrated = Object.keys(raw.collection).some(n => n in LEGACY_CARD_NAMES)
-    || raw.slots.some((sl: any) => sl && (currentCardName(sl.general) !== sl.general || Object.keys(sl.cards ?? {}).some(n => n in LEGACY_CARD_NAMES)));
+    || raw.slots.some((sl: any) => sl && (sl.name === 'Deck Cardeal Pedro' || currentCardName(sl.general) !== sl.general || Object.keys(sl.cards ?? {}).some(n => n in LEGACY_CARD_NAMES)));
   if (lastSanitizeMigrated) {
-    raw = { ...raw, collection: currentNames(raw.collection), slots: raw.slots.map((sl: any) => sl && ({ ...sl, general: currentCardName(sl.general), cards: currentNames(sl.cards ?? {}) })) };
+    raw = { ...raw, collection: currentNames(raw.collection), slots: raw.slots.map((sl: any) => sl && ({ ...sl, name: sl.name === 'Deck Cardeal Pedro' ? 'Deck Cardeal Anselmo' : sl.name, general: currentCardName(sl.general), cards: currentNames(sl.cards ?? {}) })) };
   }
   const collection: Record<string, number> = {};
   Object.entries(raw.collection as Record<string, number>).forEach(([name, n]) => {
@@ -3889,7 +3889,7 @@ type NpcMood = 'greet' | 'show' | 'happy' | 'sorry';
 type BoosterDef = { id: string; name: string; description: string; faction: DeckId; price: number; cards: number; accent: string };
 
 const BOOSTERS: BoosterDef[] = [
-  { id: 'cardeal', name: 'Booster Cardeal', description: '5 cartas do baralho do Cardeal Pedro, Voz da Fé. Uma delas é sempre de custo 3 ou mais.', faction: 'cardeal', price: 100, cards: 5, accent: '#d9cfae' },
+  { id: 'cardeal', name: 'Booster Cardeal', description: '5 cartas do baralho do Cardeal Anselmo, Voz da Fé. Uma delas é sempre de custo 3 ou mais.', faction: 'cardeal', price: 100, cards: 5, accent: '#d9cfae' },
   { id: 'capitao', name: 'Booster Capitão', description: '5 cartas do baralho do Capitão. Uma delas é sempre de custo 3 ou mais.', faction: 'capitao', price: 100, cards: 5, accent: '#b8402c' },
   { id: 'mercenarios', name: 'Booster Mercenários', description: '5 cartas do baralho dos Mercenários. Uma delas é sempre de custo 3 ou mais.', faction: 'mercenarios', price: 100, cards: 5, accent: '#c8923a' },
 ];
@@ -5125,7 +5125,7 @@ export default function App() {
   const [batedorFreeMove, setBatedorFreeMove] = useState<number | null>(null);
 
   // ── General activatable abilities (Yu-Gi-Oh-style "you may activate this" prompt) ──
-  // Cardeal Pedro, Voz da Fé's "Fase Principal: cure 1 HP em um soldado aliado. Pague 1 ouro
+  // Cardeal Anselmo, Voz da Fé's "Fase Principal: cure 1 HP em um soldado aliado. Pague 1 ouro
   // para curar 3 HP em vez disso." used to be pure flavor text with no way to trigger
   // it at all. Instead of hardcoding just this one ability, this is meant to read as
   // the general shape a card game like this needs: the game itself notices the
@@ -5146,10 +5146,10 @@ export default function App() {
   const pendingAbilityRef = useRef(pendingAbility);
   pendingAbilityRef.current = pendingAbility;
 
-  // Infiltrado da Ordem's "Se o General aliado receber dano, no próximo turno não
+  // Confessor Silencioso's "Se o General aliado receber dano, no próximo turno não
   // poderá usar sua habilidade." pendingPlayerGeneralAbilityBlock/
   // pendingNpcGeneralAbilityBlock are set the moment that side's General takes
-  // damage while a living Infiltrado da Ordem is on their own board (see the damage
+  // damage while a living Confessor Silencioso is on their own board (see the damage
   // checks in handleNpcSlotClick and the AI turn loop). The "...BlockedThisTurn"
   // pair is what actually gates the ability and is deliberately a ref, not
   // state: it's flipped on inside the currentTurn-start effect (copied from the
@@ -5166,15 +5166,15 @@ export default function App() {
   const playerGeneralAbilityBlockedThisTurnRef = useRef(false);
   const npcGeneralAbilityBlockedThisTurnRef = useRef(false);
 
-  // Mercador da Cruzada ("Uma vez por turno: veja as 2 cartas do topo do
-  // deck...") and Cavaleiro Hospitalário ("Uma vez por turno: cure 1 HP...") — the same
+  // Cambista do Dízimo ("Uma vez por turno: veja as 2 cartas do topo do
+  // deck...") and Samaritano de Aço ("Uma vez por turno: cure 1 HP...") — the same
   // Yu-Gi-Oh-style on-board prompt as the General's own ability above, just keyed
   // per-card instead of only the General slot (see getPlayerCreatureAbilityKind).
   // Tracks card INSTANCE ids (stable while a card sits on the board) rather than
   // names, since both cards have 2 copies that could be on the field at once, each
   // usable independently. Resets every player turn (see the currentTurn effect).
   const [playerActivatedAbilityIds, setPlayerActivatedAbilityIds] = useState<Set<string>>(new Set());
-  // Arqueiro da Ordem's "Pode atacar duas vezes por rodada" is the game's
+  // Arqueiro de Dois Sinos's "Pode atacar duas vezes por rodada" is the game's
   // first case of any unit attacking more than once a turn, which means this is
   // also the game's first "already attacked this turn" tracker — every other
   // unit is implicitly capped at 1 through the exact same map (see
@@ -5185,7 +5185,7 @@ export default function App() {
   // not really reachable in practice. Reset every player turn (see the
   // currentTurn effect). The AI's own attacks aren't tracked here at all — it
   // never lets a unit swing more than aiService.ts's own per-unit loop already
-  // decides (see playAiTurn's Arqueiro da Ordem case), so it never needs to
+  // decides (see playAiTurn's Arqueiro de Dois Sinos case), so it never needs to
   // consult this.
   const [playerAttackCounts, setPlayerAttackCounts] = useState<Record<number, number>>({});
   // Fase de Combate: quais unidades de quem joga ainda podem atacar ("ready") e quais já atacaram ("used"); lido do estado do motor.
@@ -5200,8 +5200,8 @@ export default function App() {
     return 'ready';
   };
 
-  // The reveal/search Táticas (Retorno do Soldado, Graal da Dádiva, Nova
-  // Tática, Recrutamento Seletivo, Recrutar Veteranos, Chamado às Armas) all boil down to
+  // The reveal/search Táticas (Chamado do Túmulo Santo, Peregrinação ao Graal, Nova
+  // Tática, Alistamento do Púlpito, Convocação dos Veteranos de Fé, Toque dos Sinos de Guerra) all boil down to
   // the same shape: show the player a set of candidate cards and let them pick
   // one (or a couple), then do something with the pick(s) — see openCardPicker
   // and its call sites in handlePlayCardButtonClick.
@@ -5258,7 +5258,7 @@ export default function App() {
     const text = (kind === 'heal' || kind === 'gold-gain') ? `+${value}` : `-${value}`;
     // A little horizontal jitter so two numbers landing on the same spot at once
     // (e.g. an attacker and defender trading damage right next to each other, or
-    // Trabuco de Cerco's AOE hitting a whole row at once) don't render as one
+    // Trabuco da Trombeta Final's AOE hitting a whole row at once) don't render as one
     // unreadable stack of overlapping digits.
     const jitterX = x + (Math.random() - 0.5) * 16;
     setFloatingNumbers(prev => [...prev, { id, x: jitterX, y, text, kind }]);
@@ -6288,8 +6288,8 @@ export default function App() {
         if (c && getCardDef(c.name)?.fx === 'comandante') run(fxComandante(env, sideOf(e.seat), e.to, cur.players[e.seat].board.flatMap((x, slot) => (x && slot < 10 && slot !== e.to && (x.cardType === 'Infantaria' || x.cardType === 'Arqueiro') ? [slot] : []))));
       }
     });
-    // Nobre da Cruzada: the Soldados Leais that appeared beside it
-    const tokens = events.flatMap(e => (e.t === 'summon' && e.card.name === 'Soldado Leal' ? [e] : []));
+    // Barão da Procissão: the Acólitos Leais that appeared beside it
+    const tokens = events.flatMap(e => (e.t === 'summon' && e.card.name === 'Acólito Leal' ? [e] : []));
     if (tokens.length) {
       const seat = tokens[0].seat, nb = events.find(e => e.t === 'place' && e.seat === seat && getCardDef(e.card.name)?.fx === 'nobre');
       if (nb && nb.t === 'place') run(fxNobre(env, sideOf(seat), nb.slot, tokens.filter(t => t.seat === seat).map(t => t.slot)));
@@ -6355,7 +6355,7 @@ export default function App() {
     if (!a || !b) return { cx: window.innerWidth / 2, cy: window.innerHeight / 2, w: 56, h: 71 };
     return { cx: (a.cx + b.cx) / 2, cy: (a.cy + a.h / 2 + b.cy - b.h / 2) / 2 + (seat === 0 ? 1 : -1) * a.h * .3, w: a.w, h: a.h };
   };
-  const FX_TACTICS: Record<string, 'catapulta' | 'trabuco' | 'balestra'> = { 'Catapulta de Guerra': 'catapulta', 'Trabuco de Cerco': 'trabuco', 'Balestra de Precisão': 'balestra' };
+  const FX_TACTICS: Record<string, 'catapulta' | 'trabuco' | 'balestra'> = { 'Catapulta do Dilúvio de Pedra': 'catapulta', 'Trabuco da Trombeta Final': 'trabuco', 'Balestra da Penitência': 'balestra' };
   // (the cards of the Mercenários have their effect named in the catalog: `fx`)
   const tacticFxOf = (name: string): 'catapulta' | 'trabuco' | 'balestra' | 'muralha' | 'chuva' | 'punhal' | null => {
     const fx = getCardDef(name)?.fx;
@@ -6378,7 +6378,7 @@ export default function App() {
         return { run: commit => fxHero('cura', fxEnvFor(commit), sideOf(ab.seat), heals), flags: { fxNumbers: true, fxSkipAbility: true, fxSkipTacticSfx: false } };
       }
     }
-    // Cavaleiro Hospitalário (Comando): the cure on one ally and the blow on one enemy
+    // Samaritano de Aço (Comando): the cure on one ally and the blow on one enemy
     if (ab && ab.t === 'ability' && ab.slot !== 12) {
       const unit = engineRef.current?.players[ab.seat].board[ab.slot];
       if (unit && getCardDef(unit.name)?.fx === 'hospitalario') {
@@ -7194,7 +7194,7 @@ export default function App() {
           const card = shownPlay && shownPlay.t === 'play' ? shownPlay.card : s.players[1].hand.find(h => h.id === action.cardId);
           if (!card) break;
           // Show the card big in the corner and pause on it for a beat BEFORE it lands on the board.
-          const fxCard = ['Catapulta de Guerra', 'Trabuco de Cerco', 'Balestra de Precisão'].includes(card.name);   // (it lands on the board: see combatFx)
+          const fxCard = ['Catapulta do Dilúvio de Pedra', 'Trabuco da Trombeta Final', 'Balestra da Penitência'].includes(card.name);   // (it lands on the board: see combatFx)
           if (!fxCard) { announceCardPlay(toCardData(card), 'npc'); await sleep(1900); }   // long enough to read the card before it lands
           if (dispatchAction(1, action).ok === false) break;
           await sleep(fxCard ? 1100 : 1500);   // and a pause after, so the plays do not run into each other
@@ -7499,7 +7499,7 @@ export default function App() {
       // occupied slot — see getCardDropKind), that destination is a highlighted
       // slot elsewhere on the board (see getPlayerSlotHint/isTacticTargetSlot), so
       // re-tapping the card itself just cancels the selection. An immediate-effect
-      // or blocked card (Reformar Linhas, Tributo de Guerra, Emboscada, ...) has no
+      // or blocked card (Reformar Linhas, Dízimo de Guerra, Emboscada, ...) has no
       // such destination at all — the card itself IS the only thing to tap to
       // confirm it, so this second tap plays it instead (handlePlayCardButtonClick
       // resolves it fully, or shows the explanatory toast for a blocked one).
@@ -7599,19 +7599,10 @@ export default function App() {
   const activePhases = eng ? engineActivePhases(eng) : phasesForTurn(false);
   const isLastPhaseOfTurn = activePhases[activePhases.length - 1] === turnPhase;
 
-  // Cálice da Graça (Relíquia, the slot-10 special slot) used to grant a second use per
-  // turn, which combined with the old free-heal exploit (see playerGeneralAbilityAvailable's
-  // history below) let its ATK stacking double up. It now boosts the heal amount
-  // instead (see activateGeneralHeal's call sites), so the ability stays capped at
-  // once per turn regardless of relics equipped.
-  const playerGeneralAbilityMaxUses = 1;
-  // Whether the player's own General has an activatable Fase-Principal ability ready
-  // right now — drives the glowing prompt icon on the General slot (see CardSlot's
-  // showAbilityPrompt call sites). The ability now always costs 2 gold and can target
-  // any ally, including one at full HP — healing an already-full Recruta Devoto (0/2,
-  // "Ao ser curado: recebe +1 ATK permanente") still grants its ATK bonus, but paying
-  // 2 gold for it every turn is a deliberate trade-off now instead of the free,
-  // unlimited stack this used to be before the ability had any cost at all.
+  // Cálice das Duas Bênçãos (Relíquia, slot 10): with it in play the General can use his free heal twice a turn (1 HP each; see maxGeneralAbilityUses).
+  const playerGeneralAbilityMaxUses = playerSlots[10] ? maxGeneralAbilityUses(playerSlots as any) : 1;
+  // Whether the player's own General has an activatable Fase-Principal ability ready right now — drives the glowing prompt icon on the General slot.
+  // The ability is free (once per turn, twice with the Cálice) and can target any ally, including one at full HP.
   // The units each of an ability's targeted effects could land on right now (empty = nothing to choose; fine for an `optional` one).
   const abilityStepCandidates = (ab: NonNullable<ReturnType<typeof abilityOn>>) =>
     targetSpecsOf(ab.do).map(spec => specCandidatesOn(spec, playerSlots, npcSlots, [...movedSlots]));
@@ -7630,7 +7621,7 @@ export default function App() {
     playerGeneralAbilityUses < playerGeneralAbilityMaxUses &&
     !tutOn &&   // every ability is off in the tutorial (Tutorial 2 teaches them)
     playerMana >= (playerGeneralAbility.cost ?? 0) &&
-    // Infiltrado da Ordem: blocked for exactly the one turn following the General
+    // Confessor Silencioso: blocked for exactly the one turn following the General
     // taking damage (see playerGeneralAbilityBlockedThisTurnRef's own comment).
     !playerGeneralAbilityBlockedThisTurnRef.current &&
     abilityHasTargets(playerGeneralAbility);
@@ -7813,14 +7804,14 @@ export default function App() {
     if (!pendingTacticAction || getCardDropKind(pendingTacticAction.card) === 'enemyTarget') return;
     playPendingTactic(slotIndex);
   };
-  // Reposicionamento Rápido / Balestra de Precisão / Catapulta de Guerra target the ENEMY board.
+  // Reposicionamento Rápido / Balestra da Penitência / Catapulta do Dilúvio de Pedra target the ENEMY board.
   const resolveEnemyTacticTarget = (slotIndex: number) => {
     if (!pendingTacticAction || getCardDropKind(pendingTacticAction.card) !== 'enemyTarget') return;
     playPendingTactic(slotIndex);
   };
 
   // Toggles one option in/out of the current cardPicker selection — used by the
-  // multi-pick cases (Recrutar Veteranos, Chamado às Armas); single-pick cases resolve
+  // multi-pick cases (Convocação dos Veteranos de Fé, Toque dos Sinos de Guerra); single-pick cases resolve
   // immediately on tap instead (see the cardPicker modal below) and never call this.
   const toggleCardPickerSelection = (option: CardData) => {
     setCardPicker(prev => {
@@ -7881,7 +7872,7 @@ export default function App() {
   };
 
   // "You may activate this" prompts (the General's own Fase-Principal ability, plus
-  // Mercador da Cruzada / Cavaleiro Hospitalário on their own slots) — used to be a
+  // Cambista do Dízimo / Samaritano de Aço on their own slots) — used to be a
   // small circular Sparkles badge in the corner of each CardSlot; the user asked for
   // the reference sheet's own glowing card-frame border instead, sized to the whole
   // card so it reads as "the whole thing is armed," not a tiny decoration easy to
@@ -8291,7 +8282,7 @@ export default function App() {
       // happens in Movimentação, attacking in Combate.
       return;
     } else if (selectedCardIndex === null && playerSlots[slotIndex]) {
-      // Only turnPhase === 'combate' reaches here. Arqueiro da Ordem gets 2 attacks this turn; every other unit
+      // Only turnPhase === 'combate' reaches here. Arqueiro de Dois Sinos gets 2 attacks this turn; every other unit
       // gets 1 (see getMaxAttacksPerTurn/playerAttackCounts).
       const usedAttacks = playerAttackCounts[slotIndex] ?? 0;
       if (usedAttacks >= getMaxAttacksPerTurn(playerSlots[slotIndex]!)) {
@@ -9724,7 +9715,7 @@ export default function App() {
 
       {/* Explicit "Cancelar" button — handleBackgroundClick already backed out of
           every one of these states (a hand card merely selected/previewed, or a
-          committed Tática/cura do General/Cavaleiro Hospitalário waiting on a
+          committed Tática/cura do General/Samaritano de Aço waiting on a
           target) whenever the player tapped the board/background around the
           hand, but nothing on screen ever said that tap did anything — found only
           by accident. Same fixed spot every time, so it's learnable at a glance
@@ -10096,8 +10087,8 @@ export default function App() {
           nextLabel={tutShown.id === 'outro' ? 'CONCLUIR' : undefined} />
       )}
 
-      {/* Card Picker — the reveal/search Táticas (Retorno do Soldado, Graal da
-          Dádiva, Doutrina Renovada, Recrutamento Seletivo, Recrutar Veteranos, Chamado às Armas) all
+      {/* Card Picker — the reveal/search Táticas (Chamado do Túmulo Santo, Graal da
+          Dádiva, Sermão da Estratégia, Alistamento do Púlpito, Convocação dos Veteranos de Fé, Toque dos Sinos de Guerra) all
           resolve through this: a set of real candidate cards the game found (in the
           graveyard, the deck's pool, or the actual top of the deck), tap one to pick
           it. Multi-pick cases (maxPicks > 1) toggle a selection and need an explicit

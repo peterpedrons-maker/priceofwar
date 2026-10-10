@@ -16,7 +16,7 @@ Para criar outro tutorial: acrescentar em `TUTORIALS` e escrever o roteiro dele 
 
 Cada passo (`Step`) é de **ler** (botão ENTENDI), de **fazer** (só o que está aceso responde; `until` diz o que conta como feito),
 de **esperar** (`wait`) ou a vez do treinador (`enemy`). `targets` diz o que acender: uma casa/carta (`{ sel: '#player-3' }`), várias
-(`{ sels }`), a mão (`{ hand: true }`) ou uma carta da mão pelo nome (`{ handCard: 'Soldados da Ordem' }`).
+(`{ sels }`), a mão (`{ hand: true }`) ou uma carta da mão pelo nome (`{ handCard: 'Sentinela do Claustro' }`).
 O passo só aparece quando o tabuleiro está quieto (sem faixa de fase nem animação). A vez do treinador chama `tutBeat('start' | 'afterAttack')`
 para parar e explicar entre as jogadas dele (`BEATS['enemy<rodada>:<momento>']`).
 

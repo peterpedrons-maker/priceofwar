@@ -55,7 +55,8 @@ export type Verb =
   | { kind: 'heal'; amount: number; target: TargetSpec; withAuras?: boolean }
   // Atributos e proteção
   | { kind: 'buff'; atk?: number; hp?: number; target?: TargetSpec }       // sem `target`: a própria carta, para sempre
-  | { kind: 'equip'; atk?: number; hp?: number; target: TargetSpec }       // fica presa à unidade até ela cair
+  | { kind: 'equip'; atk?: number; hp?: number; block?: boolean; target: TargetSpec }   // fica presa à unidade até ela cair (`block`: também dá Guarda = Bloqueio, absorve o primeiro golpe inteiro)
+  | { kind: 'buff_self_temp'; atk: number }                                // a própria carta: +ATK até o próximo turno do dono
   | { kind: 'guard_adjacent'; amount: number; target: TargetSpec }         // aliados ao lado do alvo sofrem menos dano
   | { kind: 'buff_adjacent'; atk: number }                                 // aliados ao lado: +ATK até o próximo turno do dono
   | { kind: 'buff_moved'; count: number; atk: number; hp: number }        // unidades que se moveram: bônus no próximo combate
@@ -89,6 +90,7 @@ export type AbilityOn =
   | 'destroyed'     // a carta caiu (Queda)
   | 'move'          // a carta se reposicionou (Manobra)
   | 'healed'        // a carta foi curada
+  | 'ally_healed'   // uma unidade ao lado desta foi curada
   | 'turn_start' | 'turn_end'
   | 'dismissed'     // a carta foi dispensada por falta de pagamento da manutenção (Rescisão); só verbos sem escolha de alvo
   | 'front_fell'    // a carta da frente da coluna caiu (Reforço)
@@ -119,7 +121,7 @@ export type Passive =
       kind: 'aura'; who: Who;
       from?: 'front' | 'back';          // só vale se esta carta estiver nessa fileira
       when?: { col: number };           // só vale se o alvo estiver nessa coluna
-      atk?: number; combatHp?: number; reduce?: number; healBonus?: number; attacks?: number;
+      atk?: number; combatHp?: number; reduce?: number; healBonus?: number; attacks?: number; abilityUses?: number;
     }
   | { kind: 'flag'; flag: 'row_swap' | 'blocks_ambush' | 'locks_general'; from?: 'front' };
 
@@ -149,7 +151,7 @@ export interface CardDef {
   // O que a carta faz, por tipo de efeito (veja acima). Uma carta sem nenhum dos dois é só estatística.
   abilities?: Ability[];
   passives?: Passive[];
-  // Só nos Generais: a "tendência" (Fanático da Cruzada compara com a do General inimigo).
+  // Só nos Generais: a "tendência" (Zeloso da Pira compara com a do General inimigo).
   faction?: string;
   // Manutenção (ouro por turno, paga na fase de Suprimentos); quem não for pago é dispensado: vai ao cemitério, ou volta para a mão com `dismiss: 'hand'`.
   upkeep?: number;
@@ -209,7 +211,7 @@ export interface PlayerState {
   deckList: string[];
   drawPile: string[];
   general: string;
-  // General ability (Cardeal Pedro): uses this turn, blocked this turn, blocked next turn.
+  // General ability (Cardeal Anselmo): uses this turn, blocked this turn, blocked next turn.
   generalAbilityUses: number;
   generalAbilityBlocked: boolean;
   pendingGeneralBlock: boolean;
@@ -255,7 +257,7 @@ export type Pending =
       revealed?: boolean;
       // With `revealed`: the cards not kept go to the graveyard instead of the bottom of the deck.
       restTo?: 'graveyard';
-      // Chamado às Armas: where the summoned soldiers land.
+      // Toque dos Sinos de Guerra: where the summoned soldiers land.
       slots?: number[];
     }
   | {
@@ -286,6 +288,8 @@ export interface GameState {
   v: 1;
   rng: number;
   uid: number;
+  // Only the tutorial duel sets this: fixed ATK/HP per card name, so the scripted fight survives catalog rebalances.
+  statOverrides?: Record<string, { atk: number; hp: number }>;
   players: [PlayerState, PlayerState];
   turn: TurnState;
   pending: Pending | null;

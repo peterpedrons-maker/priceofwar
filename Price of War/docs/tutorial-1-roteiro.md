@@ -10,7 +10,7 @@ Os mockups visuais estão em `art-prompts`/conversa; o duelo foi testado no moto
   Relíquia ou Terreno (ficam para o Tutorial 2 e 3).
 - **Todas as habilidades desativadas** (General e cartas). Habilidades de busca/cemitério/baralho = Tutorial 2.
 - **Táticas e Emboscadas** = Tutorial 3. O jogo avisa isso uma única vez ("Você aprende isso em outro tutorial").
-- O jogador começa (a moeda sempre cai para ele). General dele: Cardeal Pedro. Adversário ("o treinador"): Comandante Aurelion.
+- O jogador começa (a moeda sempre cai para ele). General dele: Cardeal Anselmo. Adversário ("o treinador"): Comandante Aurelion.
 - Mão, ordem das compras e jogadas do treinador são fixas. Só o que está em destaque pode ser tocado.
 - Todo passo é de **ler** (botão ENTENDI) ou de **fazer** (só o alvo em destaque responde; mãozinha animada).
 - Botão PULAR sempre visível. Dicas ligam/desligam nas configurações.
@@ -18,9 +18,9 @@ Os mockups visuais estão em `art-prompts`/conversa; o duelo foi testado no moto
 
 ## Cartas e números (verificados no motor)
 
-Mão inicial (7): Devotos da Cruzada (0/3, custo 1), Soldados da Ordem ×3 (3/4, custo 2), Cavaleiro da Luz (4/5, custo 3), Devotos, Soldados.
-Compras: T1 Soldados, T2 Cavaleiro da Luz, depois Soldados. Ouro: 15 no início, +5 a partir da 2ª rodada.
-Treinador: Soldados da Ordem e Devotos da Cruzada. General dele: 20 de vida (o treinador é mais fraco; numa partida de verdade cada General tem 30).
+Mão inicial (7): Penitente de Pedra (0/3, custo 1), Sentinela do Claustro ×3 (3/4, custo 2), Paladino do Alvorecer (4/5, custo 3), Devotos, Soldados.
+Compras: T1 Soldados, T2 Paladino do Alvorecer, depois Soldados. Ouro: 15 no início, +5 a partir da 2ª rodada.
+Treinador: Sentinela do Claustro e Penitente de Pedra. General dele: 20 de vida (o treinador é mais fraco; numa partida de verdade cada General tem 30).
 
 ## Capítulos (14)
 
@@ -52,9 +52,9 @@ Painel: "Fase principal: aqui você joga cartas, gastando ouro." Fazer: tocar na
 (única casa acesa, com ATACA). "Ela ataca dali, mas também apanha."
 
 ### 8. Preparação: Retaguarda, Reforço e fechar a fase
-Fazer: **Soldados da Ordem** na Retaguarda, **atrás** da Devotos (única casa acesa, com RESERVA). Painel do Reforço:
+Fazer: **Sentinela do Claustro** na Retaguarda, **atrás** da Devotos (única casa acesa, com RESERVA). Painel do Reforço:
 "Se a carta da frente cair, esta desce **de graça** e ganha **Escudo 2**. Aqui atrás ela ainda não ataca." Depois:
-**Cavaleiro da Luz** na Vanguarda (coluna 3), ouro descendo 15 → 9, e toque em **Finalizar preparação**.
+**Paladino do Alvorecer** na Vanguarda (coluna 3), ouro descendo 15 → 9, e toque em **Finalizar preparação**.
 Como é o 1º turno de quem começa, o Combate não existe: o painel explica por que as fases de ataque aparecem trancadas.
 
 ### 9. Movimentação (turno 1)
@@ -68,7 +68,7 @@ Painel: "A Devotos caiu, então a Soldados de trás desceu de graça e ganhou Es
 
 ### 11. Turno 2 — automático, Combate e abrir caminho
 Compra e Suprimentos agora acontecem sozinhas, com aviso curto e o **+5** de ouro destacado.
-Preparação: **Cavaleiro da Luz** na coluna 2 e **Soldados** na Retaguarda (reserva). Combate (primeira vez):
+Preparação: **Paladino do Alvorecer** na coluna 2 e **Soldados** na Retaguarda (reserva). Combate (primeira vez):
 1. Cavaleiro (coluna 2) ataca o **Soldados inimigo** (Vanguarda coluna 1): setas verdes nos alvos válidos; dano = ATK;
    o defensor **revida** (o Cavaleiro perde 3); o inimigo cai.
 2. Com a coluna livre, a Soldados com escudo ataca **direto o General** (−3).

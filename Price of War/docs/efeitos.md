@@ -19,16 +19,16 @@ que aparece na carta; quem faz a regra são as habilidades abaixo. Um teste (`en
 
 | `on` | Quando acontece | Exemplo de uso |
 |---|---|---|
-| `play` | Tática jogada da mão (`phases`: fases **extras** além de Preparação; Táticas valem também na Movimentação) | Tributo de Guerra, Balestra |
+| `play` | Tática jogada da mão (`phases`: fases **extras** além de Preparação; Táticas valem também na Movimentação) | Dízimo de Guerra, Balestra |
 | `ability` | habilidade ativa, tocada por quem joga (`phases`, `once`, `cost`) | Mercador, Hospitalário, General Cardeal |
-| `place` | a carta entrou em campo | Nobre da Cruzada (convoca fichas) |
+| `place` | a carta entrou em campo | Barão da Procissão (convoca fichas) |
 | `attack` | a carta atacou | Fanático (+ATK), Jorge (dano atrás) |
 | `after_attack` | logo depois de atacar e sobreviver | Batedor (movimento grátis) |
-| `destroyed` | a carta caiu | Atirador da Cruzada (compra 2) |
+| `destroyed` | a carta caiu | Vigia do Último Salmo (compra 2) |
 | `move` | a carta se reposicionou | Capitão de Formação |
-| `healed` | a carta foi curada | Recruta Devoto (+1 ATK) |
+| `healed` | a carta foi curada | Noviço Renascido (+1 ATK) |
 | `turn_start` / `turn_end` | início / fim do turno do dono | Intendente / Aurelion, Soldado Tático |
-| `front_fell` | a carta da frente da coluna caiu | Soldados da Ordem (Reforço) |
+| `front_fell` | a carta da frente da coluna caiu | Sentinela do Claustro (Reforço) |
 | `ambush` | Emboscada ativada | as quatro Emboscadas |
 
 ## O que (tipos de efeito, `do`)
@@ -73,7 +73,7 @@ Cada efeito com `target` pede uma escolha no tabuleiro, na ordem em que aparecem
        { kind: 'draw', amount: 1 },
      ] }] },
    ```
-   *(uma Tática pede no máximo uma escolha no tabuleiro; habilidades de unidades (`ability`) podem pedir duas, como o Cavaleiro Hospitalário.)*
+   *(uma Tática pede no máximo uma escolha no tabuleiro; habilidades de unidades (`ability`) podem pedir duas, como o Samaritano de Aço.)*
 2. Coloque a carta num baralho (`DECK_RECIPES`) e a arte em `App.tsx` (mapa de arte por nome).
 3. Rode `npm test`: o teste do catálogo confere que a descrição está completa e as partidas IA×IA exercitam a carta (a IA joga qualquer
    Tática pelos tipos de efeito dela, sem código novo).
@@ -90,3 +90,10 @@ Usados pelo deck Mercenários (cartas no `catalog.ts`, receita em `DECK_RECIPES.
 
 ## O que não é efeito
 - A tela tem fluxos próprios só para *como pedir* os alvos (qual toque vem primeiro), nunca para *o que a carta faz*.
+
+## Cardeal Anselmo (rodada 20): peças de motor novas
+- Aura `abilityUses` (Cálice das Duas Bênçãos): soma usos extras da habilidade do General (`maxGeneralAbilityUses` em `rules.ts`).
+- Gatilho `ally_healed`: roda na carta vizinha quando um aliado é curado (Paladino do Alvorecer).
+- Verbo `buff_self_temp`: +ATK até o início do próximo turno do dono.
+- `equip` com `block: true` concede Guarda (Couraça do Mártir).
+- `GameState.statOverrides` (só tutorial): números fixos por nome de carta.

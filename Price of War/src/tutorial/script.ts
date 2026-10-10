@@ -54,21 +54,29 @@ export type Step = {
 export const CHAPTERS = 14;
 
 // ── The fixed duel ───────────────────────────────────────────────────────────
-const HAND_P = ['Devotos da Cruzada', 'Soldados da Ordem', 'Soldados da Ordem', 'Cavaleiro da Luz', 'Soldados da Ordem', 'Devotos da Cruzada', 'Soldados da Ordem'];
-const PILE_P = ['Soldados da Ordem', 'Cavaleiro da Luz', 'Soldados da Ordem', 'Cavaleiro da Luz', 'Soldados da Ordem', 'Soldados da Ordem', 'Soldados da Ordem', 'Soldados da Ordem'];
-const HAND_E = ['Soldados da Ordem', 'Devotos da Cruzada', 'Devotos da Cruzada', 'Soldados da Ordem', 'Devotos da Cruzada', 'Soldados da Ordem', 'Soldados da Ordem'];
-const PILE_E = ['Soldados da Ordem', 'Devotos da Cruzada', 'Soldados da Ordem', 'Devotos da Cruzada', 'Soldados da Ordem', 'Soldados da Ordem', 'Soldados da Ordem', 'Soldados da Ordem'];
+const HAND_P = ['Penitente de Pedra', 'Sentinela do Claustro', 'Sentinela do Claustro', 'Paladino do Alvorecer', 'Sentinela do Claustro', 'Penitente de Pedra', 'Sentinela do Claustro'];
+const PILE_P = ['Sentinela do Claustro', 'Paladino do Alvorecer', 'Sentinela do Claustro', 'Paladino do Alvorecer', 'Sentinela do Claustro', 'Sentinela do Claustro', 'Sentinela do Claustro', 'Sentinela do Claustro'];
+const HAND_E = ['Sentinela do Claustro', 'Penitente de Pedra', 'Penitente de Pedra', 'Sentinela do Claustro', 'Penitente de Pedra', 'Sentinela do Claustro', 'Sentinela do Claustro'];
+const PILE_E = ['Sentinela do Claustro', 'Penitente de Pedra', 'Sentinela do Claustro', 'Penitente de Pedra', 'Sentinela do Claustro', 'Sentinela do Claustro', 'Sentinela do Claustro', 'Sentinela do Claustro'];
 
 let uid = 0;
+// The scripted duel was written around these numbers, so the trainer's cards keep them even when the catalog is rebalanced.
+const TUTORIAL_STATS: Record<string, { atk: number; hp: number }> = {
+  'Penitente de Pedra': { atk: 0, hp: 3 },
+  'Sentinela do Claustro': { atk: 3, hp: 4 },
+  'Paladino do Alvorecer': { atk: 4, hp: 5 },
+};
 const fresh = (name: string): Card => {
   const d = requireCardDef(name);
-  return { id: `tut${++uid}`, name: d.name, cardType: d.cardType, atk: d.atk, hp: d.hp, cost: d.cost, effect: d.effect, ...(d.trigger ? { trigger: d.trigger } : {}) };
+  const st = TUTORIAL_STATS[name] ?? d;
+  return { id: `tut${++uid}`, name: d.name, cardType: d.cardType, atk: st.atk, hp: st.hp, cost: d.cost, effect: d.effect, ...(d.trigger ? { trigger: d.trigger } : {}) };
 };
 
 // The match as it stands before the first turn: the Generals in place, the fixed hands dealt, the draw piles stacked.
 export const createTutorialMatch = (): GameState => {
   uid = 0;
   const s = createMatch({ seed: 11, decks: [deckSetupFromRecipe('cardeal'), deckSetupFromRecipe('capitao')], first: 0 }).state;
+  s.statOverrides = TUTORIAL_STATS;
   s.players[0].hand = HAND_P.map(fresh); s.players[0].drawPile = [...PILE_P];
   s.players[1].hand = HAND_E.map(fresh); s.players[1].drawPile = [...PILE_E];
   // A real match gives each General 30 HP; the trainer keeps 20, so the lesson still ends on the player's 4th turn.
@@ -80,9 +88,9 @@ export const createTutorialMatch = (): GameState => {
 export type EnemyMove = { play: string; slot: number } | { attack: [number, number] } | { advance: true };
 const ADV: EnemyMove = { advance: true };
 export const ENEMY_SCRIPT: Record<number, EnemyMove[]> = {
-  1: [{ play: 'Soldados da Ordem', slot: 1 }, { play: 'Devotos da Cruzada', slot: 3 }, ADV, { attack: [1, 1] }, ADV, ADV, ADV],
-  2: [{ play: 'Soldados da Ordem', slot: 0 }, { play: 'Soldados da Ordem', slot: 5 }, ADV, { attack: [0, 1] }, ADV, ADV, ADV],
-  3: [{ play: 'Devotos da Cruzada', slot: 2 }, ADV, { attack: [0, 1] }, ADV, ADV, ADV],
+  1: [{ play: 'Sentinela do Claustro', slot: 1 }, { play: 'Penitente de Pedra', slot: 3 }, ADV, { attack: [1, 1] }, ADV, ADV, ADV],
+  2: [{ play: 'Sentinela do Claustro', slot: 0 }, { play: 'Sentinela do Claustro', slot: 5 }, ADV, { attack: [0, 1] }, ADV, ADV, ADV],
+  3: [{ play: 'Penitente de Pedra', slot: 2 }, ADV, { attack: [0, 1] }, ADV, ADV, ADV],
 };
 // `done` = how many moves of this turn were already made.
 export const nextEnemyAction = (s: GameState, done: number): Action | null => {
@@ -98,8 +106,8 @@ export const nextEnemyAction = (s: GameState, done: number): Action | null => {
 // The player's whole path, used by the headless test (the real thing is driven by the taps the steps ask for).
 export type PlayerMove = { play: string; slot: number } | { attack: [number, number] } | { move: [number, number] } | { advance: true };
 export const PLAYER_PATH: PlayerMove[][] = [
-  [{ play: 'Devotos da Cruzada', slot: 1 }, { play: 'Soldados da Ordem', slot: 6 }, { play: 'Cavaleiro da Luz', slot: 3 }, ADV, ADV],
-  [{ play: 'Cavaleiro da Luz', slot: 2 }, { play: 'Soldados da Ordem', slot: 7 }, ADV, { attack: [2, 1] }, { attack: [1, 12] }, { attack: [3, 3] }, ADV, ADV],
+  [{ play: 'Penitente de Pedra', slot: 1 }, { play: 'Sentinela do Claustro', slot: 6 }, { play: 'Paladino do Alvorecer', slot: 3 }, ADV, ADV],
+  [{ play: 'Paladino do Alvorecer', slot: 2 }, { play: 'Sentinela do Claustro', slot: 7 }, ADV, { attack: [2, 1] }, { attack: [1, 12] }, { attack: [3, 3] }, ADV, ADV],
   [ADV, { attack: [1, 12] }, { attack: [2, 12] }, { attack: [3, 12] }, ADV, { move: [7, 6] }, ADV],
   [ADV, { attack: [2, 2] }, { attack: [3, 12] }, { attack: [1, 12] }],
 ];
@@ -132,8 +140,8 @@ export const STEPS: Step[] = [
   { id: 'pilhas', kind: 'read', expr: 'neutral', chapter: 2, title: 'BARALHO E CEMITÉRIO', lines: ['À direita está o seu baralho: de lá saem as cartas que você compra.', 'À esquerda está o cemitério: para onde vão as cartas destruídas.'], targets: [{ sel: '[data-tut="deck"]', pad: 6 }, { sel: '[data-tut="graveyard"]', pad: 6 }] },
   // 3. the hand
   { id: 'mao', kind: 'read', expr: 'point', chapter: 3, title: 'SUAS CARTAS', lines: ['Estas são as cartas da sua mão. Você começa com 7.', 'No fim do turno o máximo é 10. O que passar disso vai para o cemitério.'], targets: [{ hand: true }] },
-  { id: 'toque-carta', kind: 'do', expr: 'point', chapter: 3, title: 'VAMOS LER UMA CARTA', lines: ['Toque na Devotos da Cruzada para ver os detalhes dela.'], targets: [{ handCard: 'Devotos da Cruzada' }], until: { t: 'select', card: 'Devotos da Cruzada' } },
-  { id: 'anatomia', kind: 'read', expr: 'point', chapter: 3, title: 'COMO LER UMA CARTA', lines: ['A moeda no canto é o custo: quanto ouro você paga para jogá-la.', 'O número da esquerda é o ataque e o da direita é a vida.'], targets: [{ handCard: 'Devotos da Cruzada' }], enter: 'keep-selection', panel: 'top' },
+  { id: 'toque-carta', kind: 'do', expr: 'point', chapter: 3, title: 'VAMOS LER UMA CARTA', lines: ['Toque na Penitente de Pedra para ver os detalhes dela.'], targets: [{ handCard: 'Penitente de Pedra' }], until: { t: 'select', card: 'Penitente de Pedra' } },
+  { id: 'anatomia', kind: 'read', expr: 'point', chapter: 3, title: 'COMO LER UMA CARTA', lines: ['A moeda no canto é o custo: quanto ouro você paga para jogá-la.', 'O número da esquerda é o ataque e o da direita é a vida.'], targets: [{ handCard: 'Penitente de Pedra' }], enter: 'keep-selection', panel: 'top' },
   // 4. gold
   { id: 'ouro', kind: 'read', expr: 'point', chapter: 4, title: 'O OURO', lines: ['Este é o seu ouro. O do adversário fica do outro lado.', 'Você começa com 15 e ganha +5 a cada turno, a partir da 2ª rodada.', 'É com ouro que você paga para jogar cartas. O que sobra fica guardado.'], targets: [GOLD_ME, GOLD_FOE], enter: 'unselect', panel: 'top' },
   // 5. draw phase
@@ -143,10 +151,10 @@ export const STEPS: Step[] = [
   { id: 'suprimentos', kind: 'do', expr: 'think', chapter: 6, title: 'FASE DE SUPRIMENTOS', lines: ['Agora os Suprimentos: é aqui que você recebe ouro.', 'No 1º turno ninguém recebe. O +5 começa na 2ª rodada.'], note: 'Toque em SUPRIMENTOS para continuar.', targets: [TRACKER, GOLD_ME], allow: [TRACKER], point: TRACKER, until: { t: 'tracker' }, tracker: 'suprimentos', panel: 'top' },
   // 7-8. preparation
   { id: 'prep', kind: 'read', expr: 'neutral', chapter: 7, enter: 'announce-prep', title: 'FASE DE PREPARAÇÃO', lines: ['Esta é a fase principal do turno.', 'Aqui você coloca cartas no campo, pagando o custo em ouro.'], targets: [TRACKER], panel: 'top' },
-  { id: 'devotos', kind: 'do', expr: 'point', chapter: 7, title: 'SUA PRIMEIRA CARTA', lines: ['Toque na Devotos da Cruzada e depois na casa brilhante da Vanguarda.', 'Ela é fraca: vai servir de isca para o inimigo.'], targets: [{ handCard: 'Devotos da Cruzada' }, G(1)], until: { t: 'play', card: 'Devotos da Cruzada', slot: 1 } },
-  { id: 'reforco-aviso', kind: 'read', expr: 'warn', chapter: 8, title: 'ATENÇÃO: REFORÇO', lines: ['Agora vem um truque importante. Vou pôr a Soldados da Ordem ATRÁS da Devotos.', 'Se a Devotos cair, a Soldados desce de graça e ganha Escudo 2.'], targets: [G(1), G(6)], panel: 'bottom' },
-  { id: 'soldados', kind: 'do', expr: 'point', chapter: 8, title: 'A RESERVA', lines: ['Toque na Soldados da Ordem e depois na casa de trás, bem atrás da Devotos.'], targets: [{ handCard: 'Soldados da Ordem' }, G(6)], until: { t: 'play', card: 'Soldados da Ordem', slot: 6 } },
-  { id: 'cavaleiro', kind: 'do', expr: 'point', chapter: 8, title: 'UM CAVALEIRO FORTE', lines: ['Agora o Cavaleiro da Luz: ataque 4 e vida 5.', 'Coloque-o na Vanguarda, na casa indicada.'], targets: [{ handCard: 'Cavaleiro da Luz' }, G(3)], until: { t: 'play', card: 'Cavaleiro da Luz', slot: 3 } },
+  { id: 'devotos', kind: 'do', expr: 'point', chapter: 7, title: 'SUA PRIMEIRA CARTA', lines: ['Toque na Penitente de Pedra e depois na casa brilhante da Vanguarda.', 'Ela é fraca: vai servir de isca para o inimigo.'], targets: [{ handCard: 'Penitente de Pedra' }, G(1)], until: { t: 'play', card: 'Penitente de Pedra', slot: 1 } },
+  { id: 'reforco-aviso', kind: 'read', expr: 'warn', chapter: 8, title: 'ATENÇÃO: REFORÇO', lines: ['Agora vem um truque importante. Vou pôr a Sentinela do Claustro ATRÁS da Devotos.', 'Se a Devotos cair, a Soldados desce de graça e ganha Escudo 2.'], targets: [G(1), G(6)], panel: 'bottom' },
+  { id: 'soldados', kind: 'do', expr: 'point', chapter: 8, title: 'A RESERVA', lines: ['Toque na Sentinela do Claustro e depois na casa de trás, bem atrás da Devotos.'], targets: [{ handCard: 'Sentinela do Claustro' }, G(6)], until: { t: 'play', card: 'Sentinela do Claustro', slot: 6 } },
+  { id: 'cavaleiro', kind: 'do', expr: 'point', chapter: 8, title: 'UM CAVALEIRO FORTE', lines: ['Agora o Paladino do Alvorecer: ataque 4 e vida 5.', 'Coloque-o na Vanguarda, na casa indicada.'], targets: [{ handCard: 'Paladino do Alvorecer' }, G(3)], until: { t: 'play', card: 'Paladino do Alvorecer', slot: 3 } },
   { id: 'ouro-gasto', kind: 'read', expr: 'happy', chapter: 8, title: 'OURO GASTO', lines: ['Você gastou 6 de ouro e ficou com 9.', 'O que sobra fica guardado para os próximos turnos.'], targets: [GOLD_ME], panel: 'top' },
   { id: 'finalizar-prep', kind: 'do', expr: 'point', chapter: 8, title: 'JOGOU TUDO?', lines: ['Quando terminar de jogar cartas, toque em FINALIZAR PREPARAÇÃO.'], targets: [TRACKER], until: { t: 'advance', from: 'preparacao' }, panel: 'top' },
   // 9. movement (turn 1)
@@ -157,8 +165,8 @@ export const STEPS: Step[] = [
   { id: 'enemy1', kind: 'enemy' },
   // 11. turn 2
   { id: 'auto', kind: 'read', expr: 'happy', chapter: 11, title: 'AGORA É AUTOMÁTICO', lines: ['Compra e Suprimentos agora acontecem sozinhas.', 'Repare: você comprou uma carta e o ouro subiu para 14 (+5).'], targets: [GOLD_ME, { hand: true }], panel: 'top' },
-  { id: 't2-cavaleiro', kind: 'do', expr: 'point', chapter: 11, title: 'MAIS UM CAVALEIRO', lines: ['Coloque o Cavaleiro da Luz na Vanguarda, na casa do meio.'], targets: [{ handCard: 'Cavaleiro da Luz' }, G(2)], until: { t: 'play', card: 'Cavaleiro da Luz', slot: 2 } },
-  { id: 't2-reserva', kind: 'do', expr: 'point', chapter: 11, title: 'OUTRA RESERVA', lines: ['Agora uma Soldados da Ordem na Retaguarda, atrás do Cavaleiro.', 'Ela ficará de reserva para ele.'], targets: [{ handCard: 'Soldados da Ordem' }, G(7)], until: { t: 'play', card: 'Soldados da Ordem', slot: 7 } },
+  { id: 't2-cavaleiro', kind: 'do', expr: 'point', chapter: 11, title: 'MAIS UM CAVALEIRO', lines: ['Coloque o Paladino do Alvorecer na Vanguarda, na casa do meio.'], targets: [{ handCard: 'Paladino do Alvorecer' }, G(2)], until: { t: 'play', card: 'Paladino do Alvorecer', slot: 2 } },
+  { id: 't2-reserva', kind: 'do', expr: 'point', chapter: 11, title: 'OUTRA RESERVA', lines: ['Agora uma Sentinela do Claustro na Retaguarda, atrás do Cavaleiro.', 'Ela ficará de reserva para ele.'], targets: [{ handCard: 'Sentinela do Claustro' }, G(7)], until: { t: 'play', card: 'Sentinela do Claustro', slot: 7 } },
   { id: 't2-fin-prep', kind: 'do', expr: 'point', chapter: 11, title: 'HORA DO COMBATE', lines: ['Agora o Combate está liberado!', 'Toque em FINALIZAR PREPARAÇÃO para ir à batalha.'], targets: [TRACKER], until: { t: 'advance', from: 'preparacao' }, panel: 'top' },
   { id: 'combate', kind: 'read', expr: 'warn', chapter: 11, title: 'FASE DE COMBATE', lines: ['Aqui suas cartas atacam, uma vez por turno cada.', 'O dano é o número de ataque. Cuidado: quem apanha revida!'], targets: [TRACKER], panel: 'top', tracker: 'combate' },
   { id: 'atq1', kind: 'do', expr: 'point', chapter: 11, title: 'PRIMEIRO ATAQUE', lines: ['Toque no Cavaleiro do meio e depois na Soldados inimiga, à esquerda.'], targets: [G(2), E(1)], until: { t: 'attack', from: 2, to: 1 } },
