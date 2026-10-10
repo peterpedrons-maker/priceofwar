@@ -62,3 +62,6 @@ Menu principal (fundo "A guerra dos dois Generais", logo no céu e cinco placas 
 | Tutorial | `src/tutorial/` (+ `docs/tutorial.md`) |
 | Online | `server/`, `src/services/online.ts` (+ `docs/online-setup.md`) |
 - **Desafios, pino do zoom:** o mapa trava nas bordas ao dar zoom, então o pino do zoom é posicionado sobre o ponto real do mapa (`pinX/pinY` em `DesafiosScreen.tsx`) e só aparece quando o zoom termina; conferido por medição (diferença < 1 px nos 3 pinos).
+
+## Ranqueado com ligas (em conversa com o dono; nada aplicado)
+Decisões até agora: 8 ligas (Ferro, Bronze, Prata, Ouro, Platina, Diamante, Mestre e uma liga de topo com nome medieval a escolher, no lugar de "Lenda"), cada uma com 4 divisões (IV a I; Mestre e o topo só com pontos). Pontos de Liga visíveis + Elo escondido para o pareamento; 5 partidas de classificação. **Tirar o adversário automático das partidas online (casual e ranqueado); a IA fica só nos Desafios.** Quais decks valem no ranqueado fica para depois (testar limites de cartas). Fim de temporada: moldura ao redor do retrato do jogador (pela maior liga), coroas e boosters. No tabuleiro: retrato + nome + liga de cada jogador. Mockups: `docs/janelas/ranqueado-jogadores-no-tabuleiro.png` e `ranqueado-molduras-ligas.png`.
