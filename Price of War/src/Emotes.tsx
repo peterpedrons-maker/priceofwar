@@ -19,7 +19,7 @@ import kitPrimary from './assets/kit/btn-primary.png';
 // The pause between two of my messages (the server enforces 2.5 s; this shows it).
 const GAP_MS = 2600;
 // How long a balloon stays (appearing included) before it fades out.
-const SHOW_MS = 2000;
+const SHOW_MS = 3500;
 
 // Phrase 1 is the deck's own (by the sender's General); the others are the same for everyone.
 const DECK_PHRASE: Record<string, string> = { cardeal: 'Que a fé o guie!', capitao: 'Em formação!', mercenarios: 'O preço subiu.' };
