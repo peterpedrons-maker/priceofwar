@@ -1,0 +1,498 @@
+// The Sala de Coleção: one painted room (a single image) with things to tap. Each one zooms the camera into it and opens what it stands for:
+// the book (the whole collection, in a binder with clear plastic sheets over the pages), the door (the shop), the war table (the deck editor).
+// The room is drawn on a 768 x 1376 stage that is fitted to the screen's height; dragging (or tilting the phone) looks around a little.
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties, type MutableRefObject, type PointerEvent as RPointerEvent, type RefObject } from 'react';
+import { CARD_DEFS } from './engine/catalog';
+import { cardSlug } from './card3d';
+import roomImage from './assets/room-collection.webp';
+import coverImage from './assets/room-book-cover.webp';
+import pageImage from './assets/room-book-page.webp';
+import insideImage from './assets/room-book-inside.webp';
+
+const CardViewer3D = lazy(() => import('./CardViewer3D'));
+const THUMBS = import.meta.glob('./assets/card-thumb/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+const thumbOf = (name: string): string | undefined => THUMBS[`./assets/card-thumb/${cardSlug(name)}.webp`];
+
+const SW = 768, SH = 1376;                         // the stage (the room image's own size)
+const PER = 9;                                     // cards on a page (3 x 3)
+const BOOK_W = 330, BOOK_H = 464;                  // the open book on screen, in css px
+const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+const wait = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+const GOLD = '#e8c46a';
+
+// Things to tap, in stage coordinates (measured off the room image).
+const SPOTS = {
+  book: { x: 66, y: 316, w: 196, h: 252, cx: 160, cy: 436, zoom: 2.35, label: 'COLEÇÃO' },
+  door: { x: 506, y: 336, w: 262, h: 566, cx: 640, cy: 640, zoom: 2.0, label: 'LOJA' },
+  deck: { x: 428, y: 1166, w: 340, h: 210, cx: 600, cy: 1270, zoom: 2.2, label: 'MEU DECK' },
+  shelf: { x: 24, y: 638, w: 357, h: 274, cx: 204, cy: 792, zoom: 2.2, label: 'BOOSTERS' },
+} as const;
+type SpotKey = keyof typeof SPOTS;
+
+/* a little wooden plaque with a metal frame and four rivets (like the shop sign), nailed on the shelf and on the table; x, y = its center in stage px */
+function Plaque({ x, y, w, h, size, spacing, rot = 0, children }: { x: number; y: number; w: number; h: number; size: number; spacing: string; rot?: number; children: string }) {
+  const rivet = (l: string, t: string): CSSProperties => ({ position: 'absolute', left: l, top: t, width: 2.4, height: 2.4, margin: '-1.2px 0 0 -1.2px', borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #f0e0b8, #8b7348 60%, #3a2e1c)' });
+  return (
+    <div style={{ position: 'absolute', left: x - w / 2, top: y - h / 2, width: w, height: h, pointerEvents: 'none', borderRadius: 4, transform: `rotate(${rot}deg)`, padding: 2.2, boxSizing: 'border-box',
+      background: 'linear-gradient(180deg,#9b8b76,#5a4e40 55%,#42382d)', border: '1px solid #c99a55', boxShadow: '0 3px 5px rgba(0,0,0,.65), 0 1px 0 rgba(255,235,190,.3) inset' }}>
+      <div style={{ position: 'relative', width: '100%', height: '100%', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'repeating-linear-gradient(178deg, rgba(40,18,6,.0) 0 2.2px, rgba(40,18,6,.22) 2.2px 2.8px), linear-gradient(180deg,#8d5a2e,#6b4120 60%,#7b4c26)', boxShadow: 'inset 0 0 5px rgba(0,0,0,.7)' }}>
+        <span className="t-gold" style={{ fontFamily: "'Cinzel',serif", fontWeight: 800, fontSize: size, letterSpacing: spacing, paddingLeft: spacing, lineHeight: 1 }}>{children}</span>
+        <i style={rivet('5px', '50%')} /><i style={rivet('calc(100% - 5px)', '50%')} />
+      </div>
+    </div>
+  );
+}
+
+/* "COLEÇÃO" stamped in gold foil on the book cover (the same on the room's book and on the binder's cover) */
+function BookTitle({ size, count }: { size: number; count: string }) {
+  return (
+    <div className="t-gold" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontWeight: 800 }}>
+      <div style={{ fontSize: size, letterSpacing: '.1em', paddingLeft: '.1em' }}>COLEÇÃO</div>
+      <div style={{ width: size * 5.2, height: Math.max(1, size * 0.07), margin: `${size * 0.42}px 0 ${size * 0.4}px`, background: 'linear-gradient(90deg,transparent,#e3b556,transparent)' }} />
+      <div style={{ fontSize: size * 0.62, letterSpacing: '.08em' }}>{count}</div>
+    </div>
+  );
+}
+
+/* Where each kind of booster stands on the shelf in the room image: three rows (the plank tops, in stage px), up to three kinds per row,
+   the first ones in the middle row at eye level. */
+const SHELF_ROWS = [807, 729, 879], SHELF_CX = 204, SHELF_GAP = 76;
+function shelfSlot(t: number, total: number) {
+  const row = Math.floor(t / 3) % SHELF_ROWS.length, inRow = Math.min(3, total - Math.floor(t / 3) * 3);
+  return { y: SHELF_ROWS[row], cx: SHELF_CX + ((t % 3) - (inRow - 1) / 2) * SHELF_GAP };
+}
+
+type Entry = { name: string; type: string; full: boolean };
+
+export type RoomPack = { id: string; name: string; art: ReactNode };
+export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overlayOpen, packs, renderOpening }: { onClose: () => void; onOpenShop: () => void; onOpenDeck: () => void; overlayOpen: boolean; packs: RoomPack[]; renderOpening: (id: string, onDone: () => void) => ReactNode }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const fitRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const dustRef = useRef<HTMLCanvasElement>(null);
+  const busy = useRef(false);
+  const [bookState, setBookState] = useState<'closed' | 'opening' | 'open'>('closed');
+  const [shelfMode, setShelfMode] = useState(false);          // the camera is on the booster shelf: the stacks can be tapped
+  const [openingPack, setOpeningPack] = useState<string | null>(null);
+  const [served, setServed] = useState<Record<string, number>>({});   // packs taken from each stack so far (the stock never runs out: the next one slides forward)
+  const [hint, setHint] = useState(true);
+  const [toast, setToast] = useState<string | null>(null);
+  const [zoomClass, setZoomClass] = useState(false);
+
+  const entries: Entry[] = useMemo(() => CARD_DEFS.map(d => ({ name: d.name, type: d.cardType, full: !!d.isFullArt })), []);
+
+  // ── the whole room is always on screen: the stage is fitted to the screen (nothing to drag or tilt), the leftover goes dark above and below ──
+  const fitScale = () => { const root = rootRef.current; return root ? Math.min(root.clientHeight / SH, root.clientWidth / SW) : 1; };
+  useEffect(() => {
+    const fit = () => { const el = fitRef.current; if (!el) return; el.style.transform = `translate(-50%,-50%) scale(${fitScale()})`; };
+    fit(); window.addEventListener('resize', fit); return () => window.removeEventListener('resize', fit);
+  }, []);
+
+  // ── dust drifting in the light ──
+  useEffect(() => {
+    const cv = dustRef.current, root = rootRef.current; if (!cv || !root) return; const cx = cv.getContext('2d'); if (!cx) return;
+    const size = () => { cv.width = root.clientWidth; cv.height = root.clientHeight; };
+    size(); window.addEventListener('resize', size);
+    const motes = Array.from({ length: 34 }, () => ({ x: Math.random(), y: Math.random(), r: 0.6 + Math.random() * 1.5, s: 0.00008 + Math.random() * 0.00018, p: Math.random() * 6 }));
+    let raf = 0; const t0 = performance.now();
+    const loop = (now: number) => {
+      const t = (now - t0) / 1000; cx.clearRect(0, 0, cv.width, cv.height);
+      motes.forEach(m => { m.y -= m.s * 16; m.x += Math.sin(t * 0.6 + m.p) * 0.00035; if (m.y < -0.01) { m.y = 1.01; m.x = Math.random(); } cx.globalAlpha = 0.18 + 0.3 * Math.sin(t * 1.3 + m.p) ** 2; cx.fillStyle = '#ffe3a8'; cx.beginPath(); cx.arc(m.x * cv.width, m.y * cv.height, m.r, 0, 7); cx.fill(); });
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', size); };
+  }, []);
+
+  const say = (m: string) => { setToast(m); setTimeout(() => setToast(null), 1900); };
+
+  // ── camera: push into a spot, and back out ──
+  const camTo = (k: SpotKey | null) => {
+    const el = stageRef.current, root = rootRef.current; if (!el || !root) return;
+    if (!k) { el.style.transform = ''; el.style.filter = ''; return; }
+    const sp = SPOTS[k];
+    // the zoom values were tuned for a stage as tall as the screen; the stage may be smaller now (the whole width fits), so keep the same size on screen
+    const fs = fitScale(), Z = sp.zoom * (root.clientHeight / SH) / fs;
+    // keep the camera inside the picture: the view never goes past an edge, so no black shows (a spot near the bottom is framed higher)
+    const vw = root.clientWidth / fs, vh = root.clientHeight / fs, hx = vw / (2 * Z), hy = vh / (2 * Z);
+    const cx = vw / Z >= SW ? SW / 2 : clamp(sp.cx, hx, SW - hx), cy = vh / Z >= SH ? SH / 2 : clamp(sp.cy, hy, SH - hy);
+    el.style.transformOrigin = `${cx}px ${cy}px`; el.style.transform = `translate(${SW / 2 - cx}px, ${SH / 2 - cy}px) scale(${Z})`; el.style.filter = k === 'deck' ? 'brightness(.5)' : k === 'shelf' ? 'brightness(.92)' : 'brightness(.82)';
+  };
+  const wasOverlay = useRef(false);
+  useEffect(() => {
+    if (overlayOpen) { wasOverlay.current = true; return; }
+    if (wasOverlay.current) { wasOverlay.current = false; camTo(null); setZoomClass(false); busy.current = false; }   // coming back from the shop / deck editor: the camera pulls back
+  }, [overlayOpen]);
+
+  const tap = (k: SpotKey) => async () => {
+    if (busy.current) return;
+    busy.current = true; setHint(false); setZoomClass(true); camTo(k); await wait(520);
+    if (k === 'book') { setBookState('opening'); return; }
+    if (k === 'shelf') { setShelfMode(true); return; }
+    if (k === 'door') onOpenShop(); else onOpenDeck();
+    // busy stays true until the screen opened over the room closes (see the overlayOpen effect)
+  };
+  const closeShelf = async () => { setShelfMode(false); camTo(null); await wait(640); setZoomClass(false); busy.current = false; };
+  const closeBook = async () => {
+    setBookState('closed'); await wait(700); camTo(null); await wait(620); setZoomClass(false); busy.current = false;
+  };
+
+  const flame = (x: number, y: number, r: number, d = 0): CSSProperties => ({ position: 'absolute', left: x - r, top: y - r, width: r * 2, height: r * 2, borderRadius: '50%', background: 'radial-gradient(closest-side, rgba(255,190,90,.55), rgba(255,150,50,.18) 55%, transparent 75%)', mixBlendMode: 'screen', animation: `roomflick ${1.3 + d}s ease-in-out infinite`, animationDelay: `${-d * 2}s`, pointerEvents: 'none' });
+
+  return (
+    <div ref={rootRef} className="fixed inset-0 overflow-hidden select-none" style={{ zIndex: 250, background: '#0d0905', touchAction: 'none', overflow: 'clip' }}>
+      <style>{`
+        @keyframes roomflick { 0%,100% { opacity:.55; transform:scale(.94);} 35% { opacity:1; transform:scale(1.05);} 65% { opacity:.7; transform:scale(.98);} }
+        @keyframes roompulse { 0%,100% { opacity:.25; transform:scale(.94);} 50% { opacity:.85; transform:scale(1.05);} }
+        .room-title { position:absolute; transform:translate(-50%,-50%) rotate(var(--r,0deg)); white-space:nowrap; text-align:center; line-height:1; font-family:'Cinzel',serif; font-weight:800; pointer-events:none; }
+        .t-gold { background:linear-gradient(180deg,#fff0b8 0%,#e3b556 46%,#f7da86 54%,#a8741f 100%); -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(0 1px 0 rgba(30,12,2,.9)) drop-shadow(0 0 2px rgba(0,0,0,.45)); }
+        .t-burn { color:#2a1507; text-shadow:0 1px 0 rgba(255,214,140,.38); }
+        .t-ink { color:#4b3014; text-shadow:0 0 1px rgba(255,240,200,.35); mix-blend-mode:multiply; }
+        .room-zoomed .room-glow { opacity:0 !important; animation:none; }
+        @keyframes roomstockin { from { opacity:0 } to { opacity:1 } }
+        .room-stack-label { position:absolute; text-align:center; font-family:'Cinzel',serif; font-weight:700; font-size:6.5px; letter-spacing:.12em; color:#ffe9b0; text-shadow:0 1px 2px #000; pointer-events:none; }
+        .room-glow { position:absolute; border-radius:46%; background:radial-gradient(closest-side, rgba(255,214,120,.5), rgba(255,190,80,.15) 60%, transparent 78%); mix-blend-mode:screen; animation:roompulse 2.6s ease-in-out infinite; pointer-events:none; transition:opacity .25s; }
+        .room-chip { border:1px solid rgba(217,178,90,.55); background:rgba(14,10,6,.62); color:#ffe9b0; border-radius:10px; padding:7px 12px; font-family:'Cinzel',serif; font-size:11px; letter-spacing:.1em; font-weight:700; backdrop-filter:blur(4px); }
+      `}</style>
+
+      <div ref={fitRef} className={zoomClass ? 'room-zoomed' : ''} style={{ position: 'absolute', left: '50%', top: '50%', width: SW, height: SH, transformOrigin: 'center' }}>
+        <div style={{ position: 'absolute', inset: 0 }}>
+          <div ref={stageRef} style={{ position: 'absolute', inset: 0, transition: 'transform .62s cubic-bezier(.55,0,.25,1), filter .62s', willChange: 'transform' }}>
+            <img src={roomImage} alt="" draggable={false} style={{ position: 'absolute', left: 0, top: 0, width: SW, height: SH, display: 'block' }} />
+            {/* light that moves: the torches, the lantern, the candles */}
+            <div style={flame(235, 190, 64)} /><div style={flame(538, 196, 64, 0.2)} /><div style={flame(610, 545, 70, 0.4)} /><div style={flame(316, 428, 46, 0.1)} /><div style={flame(745, 1205, 48, 0.3)} />
+            {/* the booster shelf: each kind of booster is a stack going back into the shelf (a little smaller, higher and darker the farther back), the one
+                in front is taken and the next slides forward: the stock never runs out */}
+            {packs.map((pk, t) => {
+              const PW = 34, PH = PW / PACK_ASPECT, { cx, y: plankY } = shelfSlot(t, packs.length), base = served[pk.id] ?? 0;
+              return [0, 1, 2, 3].map(j => {
+                const serial = base + j, sc = 1 - j * 0.07;
+                return (
+                  <button key={`${pk.id}-${serial}`} aria-label={`Pegar ${pk.name}`} onClick={() => { if (shelfMode) setOpeningPack(pk.id); else void tap('shelf')(); }}
+                    style={{ position: 'absolute', left: cx - PW / 2 + j * 4.2, top: plankY - 1 - PH * sc - j * 4.6, width: PW * sc, height: PH * sc, margin: 0, padding: 0, border: 0, background: 'none',
+                      filter: `brightness(${(1 - j * 0.13).toFixed(2)})`, zIndex: 10 - j, transition: 'left .5s cubic-bezier(.2,.9,.25,1), top .5s cubic-bezier(.2,.9,.25,1), width .5s cubic-bezier(.2,.9,.25,1), height .5s cubic-bezier(.2,.9,.25,1), filter .5s', animation: j === 3 ? 'roomstockin .6s ease both' : undefined }}>
+                    {pk.art}
+                  </button>
+                );
+              });
+            })}
+            {shelfMode && packs.map((pk, t) => <div key={`l${pk.id}`} className="room-stack-label" style={{ left: shelfSlot(t, packs.length).cx - 40, top: shelfSlot(t, packs.length).y + 2, width: 80 }}>{pk.name.replace('Booster ', '').toUpperCase()}</div>)}
+            {/* the names are written on the things themselves: the book cover, the shop sign, and two little plaques (the shelf, the table) */}
+            <div className="room-title" style={{ left: 164, top: 438 }}><BookTitle size={11.5} count={`${entries.length}/${entries.length}`} /></div>
+            <div className="room-title t-gold" style={{ left: 683, top: 383, fontSize: 27, letterSpacing: '.14em', paddingLeft: '.14em' }}>LOJA</div>
+            <Plaque x={204} y={652} w={120} h={25} size={11} spacing=".3em">BOOSTERS</Plaque>
+            <Plaque x={592} y={1300} w={134} h={35} size={14.5} spacing=".2em" rot={-1.5}>MEU DECK</Plaque>
+            {/* what can be tapped */}
+            {(Object.keys(SPOTS) as SpotKey[]).map(k => {
+              const s = SPOTS[k];
+              return (
+                <div key={k}>
+                  <div className="room-glow" style={{ left: s.x, top: s.y, width: s.w, height: s.h }} />
+                  <button data-spot={k} aria-label={s.label} onClick={tap(k)} style={{ position: 'absolute', left: s.x, top: s.y, width: s.w, height: s.h, background: 'none', border: 0, padding: 0 }} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <canvas ref={dustRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', mixBlendMode: 'screen' }} />
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse at 50% 46%, transparent 40%, rgba(0,0,0,.5) 100%)' }} />
+
+      <div data-ui style={{ position: 'absolute', left: 0, right: 0, top: 0, padding: 'max(10px, env(safe-area-inset-top)) 12px 8px', display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'none', opacity: shelfMode ? 0 : 1, transition: 'opacity .3s' }}>
+        <button className="room-chip" style={{ pointerEvents: 'auto' }} onClick={onClose}>‹ MENU</button>
+        <div style={{ flex: 1, textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.2em', color: '#ffe9b0', textShadow: '0 1px 3px #000' }}>SALA DE COLEÇÃO</div>
+        <div className="room-chip" style={{ opacity: 0 }}>‹ MENU</div>
+      </div>
+      {hint && bookState === 'closed' && !shelfMode && <div style={{ position: 'absolute', left: 0, right: 0, bottom: 'max(10px, env(safe-area-inset-bottom))', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.14em', color: 'rgba(255,233,176,.7)', textShadow: '0 1px 2px #000', pointerEvents: 'none' }}>TOQUE NOS OBJETOS</div>}
+      {toast && <div style={{ position: 'absolute', left: '50%', top: 64, transform: 'translateX(-50%)', padding: '9px 14px', borderRadius: 10, background: 'rgba(14,10,6,.9)', border: '1px solid #d9b25a', color: '#ffe9b0', fontSize: 12, whiteSpace: 'nowrap' }}>{toast}</div>}
+
+      {shelfMode && (
+        <div data-ui style={{ position: 'absolute', left: 0, right: 0, top: 0, padding: 'max(10px, env(safe-area-inset-top)) 12px 8px', display: 'flex', alignItems: 'center', gap: 8, zIndex: 30 }}>
+          <button className="room-chip" onClick={closeShelf}>‹ SALA</button>
+          <div style={{ flex: 1, textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.2em', color: '#ffe9b0', textShadow: '0 1px 3px #000' }}>BOOSTERS</div>
+          <div className="room-chip" style={{ opacity: 0 }}>‹ SALA</div>
+        </div>
+      )}
+      {shelfMode && <div style={{ position: 'absolute', left: 0, right: 0, bottom: 'max(14px, env(safe-area-inset-bottom))', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 10.5, letterSpacing: '0.16em', color: 'rgba(255,233,176,.8)', textShadow: '0 1px 2px #000', pointerEvents: 'none', zIndex: 30 }}>TOQUE NUM PACOTE PARA ABRIR</div>}
+      {openingPack && renderOpening(openingPack, () => { setServed(m => ({ ...m, [openingPack]: (m[openingPack] ?? 0) + 1 })); setOpeningPack(null); })}
+      {bookState !== 'closed' && <Binder entries={entries} opening={bookState === 'opening'} onOpened={() => setBookState('open')} onClose={closeBook} />}
+    </div>
+  );
+}
+
+// ───────────────────────────── the collection book ─────────────────────────────
+const NS = 9;                 // a page that turns is cut into this many slices, each hinged on the one before it, so the paper really bends
+const SS = BOOK_W / NS;       // width of one slice
+const BEND = 78;              // degrees of bend at the middle of a turn
+type Rect = { x: number; y: number; w: number; h: number };
+type Phase = 'slide' | 'fly' | 'settled' | 'back1' | 'insert';
+
+function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; opening: boolean; onOpened: () => void; onClose: () => void }) {
+  const pages = Math.ceil(entries.length / PER);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const bookRef = useRef<HTMLDivElement>(null);
+  const coverRef = useRef<HTMLDivElement>(null);
+  const leafRefs = useRef<(HTMLDivElement | null)[]>([]);       // the flat pages (what is on screen when nothing is turning)
+  const shadeRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const segRefs = useRef<(HTMLDivElement | null)[]>([]);        // the bendable pages (only the ones next to the current page exist)
+  const segCache = useRef<Map<number, { el: HTMLDivElement; strips: HTMLElement[]; shades: HTMLElement[][] }>>(new Map());
+  const pos = useRef(0);
+  const anim = useRef(0);
+  const drag = useRef<{ x: number; base: number; moved: number; t: number; lx: number; v: number; target: EventTarget | null } | null>(null);
+  const [page, setPage] = useState(0);
+  const [ui, setUi] = useState(false);
+  const [missing, setMissing] = useState(false);
+  const MISSING = useMemo(() => new Set([4, 7, 13, 19, 22, 28, 33, 38, 41, 45]), []);
+  const owned = (i: number) => !missing || !MISSING.has(i);
+  const count = entries.filter((_, i) => owned(i)).length;
+
+  const segOf = (i: number) => {
+    const el = segRefs.current[i]; if (!el) return null;
+    let c = segCache.current.get(i);
+    if (!c || c.el !== el) {
+      const strips = [...el.querySelectorAll<HTMLElement>('[data-strip]')];
+      c = { el, strips, shades: strips.map(st => [...st.querySelectorAll<HTMLElement>(':scope > .bk-sface > [data-sh]')]) };
+      segCache.current.set(i, c);
+    }
+    return c;
+  };
+  // Every frame of a turn: the page that is turning bends. The slice at the spine turns least, each next one turns a little more than the
+  // one before, so the free edge leads and the paper curves; at rest and at the end the bend is zero and it lies flat.
+  const layout = () => {
+    const p = pos.current, base = Math.floor(p + 1e-6), frac = p - base;
+    leafRefs.current.forEach((leaf, i) => {
+      if (!leaf) return;
+      const a = clamp(p - i, 0, 1), turning = a > 0.0004 && a < 0.9996, z = String(i < base ? i : i === base ? 100 : 60 - i);
+      const seg = turning ? segOf(i) : null;
+      leaf.style.zIndex = z;
+      if (seg) {
+        leaf.style.display = 'none';
+        seg.el.style.display = ''; seg.el.style.zIndex = z;
+        const b = BEND * Math.sin(Math.PI * a), a0 = 180 * a - b / 2, d = b / (NS - 1);
+        seg.strips.forEach((st, j) => {
+          const rel = j === 0 ? a0 : d; st.style.transform = `rotateY(${(-rel).toFixed(2)}deg)`;
+          const abs = a0 + j * d, sh = (0.06 + 0.4 * Math.abs(Math.sin((abs * Math.PI) / 180))).toFixed(3);
+          seg.shades[j].forEach(x => { x.style.opacity = sh; });
+        });
+      } else {
+        const done = a >= 0.9996, hidden = i > base + 1 || (done && i < base - 4);
+        leaf.style.display = hidden ? 'none' : '';
+        // a page that has turned stays lying on the left of the spine (a few of them, a hair apart), as the mark of the pages already seen
+        leaf.style.transform = turning ? `rotateY(${(-180 * a).toFixed(2)}deg)` : done ? `rotateY(${(-180 + 1.4 * Math.min(4, base - 1 - i)).toFixed(2)}deg)` : '';
+        const sh = shadeRefs.current[i]; if (sh) sh.style.opacity = (i === base + 1 && frac > 0 ? 0.4 * (1 - frac) : 0).toFixed(3);
+        const sg = segRefs.current[i]; if (sg) sg.style.display = 'none';
+      }
+    });
+    setPage(Math.round(p));
+  };
+  const glide = (to: number, ms = 520) => new Promise<void>(res => {
+    cancelAnimationFrame(anim.current); const from = pos.current, s = performance.now();
+    const step = (n: number) => { const u = clamp((n - s) / ms, 0, 1), e = 1 - Math.pow(1 - u, 3); pos.current = from + (to - from) * e; layout(); if (u < 1) anim.current = requestAnimationFrame(step); else res(); };
+    anim.current = requestAnimationFrame(step);
+  });
+  const go = (d: number) => glide(clamp(Math.round(pos.current) + d, 0, pages - 1), 760);
+
+  // the cover swings open on the spine, then the page is there
+  const setCover = (v: number) => { const el = coverRef.current; if (!el) return; el.style.transform = `rotateY(${(-180 * v).toFixed(2)}deg)`; el.style.zIndex = v >= 0.999 ? '0' : '150'; };
+  const tween = (fn: (v: number) => void, from: number, to: number, ms: number) => new Promise<void>(res => {
+    const s = performance.now(); const ease = (u: number) => (u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2);
+    const step = (n: number) => { const u = clamp((n - s) / ms, 0, 1); fn(from + (to - from) * ease(u)); if (u < 1) requestAnimationFrame(step); else res(); };
+    requestAnimationFrame(step);
+  });
+  useEffect(() => { layout(); }, [missing, page]);
+  useEffect(() => {
+    let dead = false;
+    (async () => { if (opening) { setCover(0); await wait(200); if (dead) return; await tween(setCover, 0, 1, 950); if (dead) return; setUi(true); onOpened(); } })();
+    return () => { dead = true; cancelAnimationFrame(anim.current); };
+  }, []);
+  const close = async () => { setUi(false); await glide(0, 300); setCover(1); if (coverRef.current) coverRef.current.style.zIndex = '150'; await tween(setCover, 1, 0, 720); onClose(); };
+
+  // ── turning pages with the finger ──
+  const down = (e: RPointerEvent) => { if (!ui || lift) return; cancelAnimationFrame(anim.current); drag.current = { x: e.clientX, base: pos.current, moved: 0, t: performance.now(), lx: e.clientX, v: 0, target: e.target }; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); };
+  const move = (e: RPointerEvent) => {
+    const d = drag.current; if (!d) return; const dx = e.clientX - d.x; d.moved = Math.max(d.moved, Math.abs(dx));
+    const now = performance.now(); d.v = (e.clientX - d.lx) / Math.max(1, now - d.t); d.lx = e.clientX; d.t = now;
+    pos.current = clamp(d.base - dx / 260, 0, pages - 1); layout();
+  };
+  const up = () => {
+    const d = drag.current; if (!d) return; drag.current = null;
+    if (d.moved < 8) { pos.current = d.base; layout(); const pk = (d.target as HTMLElement | null)?.closest?.('[data-card]') as HTMLElement | null; if (pk) openCard(Number(pk.dataset.card), pk); return; }
+    let to = Math.round(pos.current); if (Math.abs(d.v) > 0.45) to = d.v < 0 ? Math.floor(d.base) + 1 : Math.ceil(d.base) - 1;
+    glide(clamp(to, 0, pages - 1), 620);
+  };
+
+  // ── a card taken out of its plastic: the sleeve opens at the top, so the card slides UP and all the way out of its slot (under the plastic),
+  //    and only then comes forward over a darkened page; the 3D viewer takes over. Closing is the same, backwards: the card returns above its
+  //    slot, then slides back down into the plastic. ──
+  const [lift, setLift] = useState<null | { i: number; src: string; up: Rect | null; to: Rect; phase: Phase }>(null);
+  const [flyGo, setFlyGo] = useState(false);
+  const [viewerReady, setViewerReady] = useState(false);
+  const liftCell = useRef<HTMLElement | null>(null);
+  const openCard = (i: number, pk: HTMLElement) => {
+    if (lift) return; const img = pk.querySelector('img') as HTMLImageElement | null; if (!img) return;
+    const W = window.innerWidth, H = window.innerHeight, ar = img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 0.679;
+    // The card where the 3D viewer will show it, to the pixel: its camera (fov 40 on a narrow screen, else 32, 9.4 away) sees 2 * 9.4 * tan(fov / 2)
+    // units over the screen's height, and the card's art (wings included, which is what the thumbnail is cut to) is 3.77 units tall.
+    const fov = (W / H < 0.8 ? 40 : 32) * Math.PI / 180, ppu = H / (2 * 9.4 * Math.tan(fov / 2));
+    const h = 3.77 * ppu, w = h * ar;
+    liftCell.current = pk; setViewerReady(false); setFlyGo(false);
+    pk.style.transition = 'transform 780ms cubic-bezier(.5,.05,.25,1)'; pk.style.willChange = 'transform';
+    requestAnimationFrame(() => requestAnimationFrame(() => { pk.style.transform = 'translateY(-102%) scale(1.03)'; }));
+    setLift({ i, src: img.src, up: null, to: { x: (W - w) / 2, y: (H - h) / 2 + 0.05 * ppu, w, h }, phase: 'slide' });
+  };
+  useEffect(() => {
+    if (!lift) return;
+    let dead = false; const later = (ms: number, fn: () => void) => setTimeout(() => { if (!dead) fn(); }, ms);
+    const pk = liftCell.current, img = pk?.querySelector('img') as HTMLImageElement | null;
+    if (lift.phase === 'slide') later(830, () => { if (!img || !pk) return; const r = img.getBoundingClientRect(); pk.style.visibility = 'hidden'; setLift(l => (l ? { ...l, up: { x: r.left, y: r.top, w: r.width, h: r.height }, phase: 'fly' } : l)); });
+    if (lift.phase === 'fly') { setFlyGo(false); requestAnimationFrame(() => requestAnimationFrame(() => { if (!dead) setFlyGo(true); })); later(1000, () => setLift(l => (l ? { ...l, phase: 'settled' } : l)));
+    }
+    if (lift.phase === 'back1') later(860, () => setLift(l => (l ? { ...l, phase: 'insert' } : l)));
+    if (lift.phase === 'insert' && pk) {
+      pk.style.visibility = 'visible'; pk.style.transition = 'transform 820ms cubic-bezier(.4,0,.2,1)'; requestAnimationFrame(() => requestAnimationFrame(() => { pk.style.transform = ''; }));
+      later(900, () => { pk.style.transition = ''; pk.style.willChange = ''; setLift(null); setViewerReady(false); });
+    }
+    return () => { dead = true; };
+  }, [lift?.phase, lift?.i]);
+  const showViewer = !!lift && lift.phase === 'settled' && viewerReady;
+  const closeCard = () => { setLift(l => (l && l.phase === 'settled' ? { ...l, phase: 'back1' } : l)); };
+
+  const sheetLines = (() => { const l = (dir: string, at: string) => `linear-gradient(${dir}, transparent calc(${at} - 1.5px), rgba(255,255,255,.30) calc(${at} - 1.5px), rgba(255,255,255,.30) calc(${at} + .5px), rgba(0,0,0,.35) calc(${at} + .5px), rgba(0,0,0,.35) calc(${at} + 1.5px), transparent calc(${at} + 1.5px))`; return [l('90deg', '33.333%'), l('90deg', '66.666%'), l('180deg', '33.333%'), l('180deg', '66.666%')].join(','); })();
+
+  // one page, drawn once and used both flat and (cut into slices) while it bends: the page art, the nine cards, and ONE clear sheet over it all
+  const pageFront = (p: number) => (
+    <>
+      <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${pageImage})`, backgroundSize: '100% 100%' }} />
+      <div style={{ position: 'absolute', left: '8.8%', right: '3.5%', top: '3.2%', bottom: '3.4%', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(3, 1fr)' }}>
+        {Array.from({ length: PER }, (_, k) => {
+          const i = p * PER + k, e = entries[i];
+          if (!e) return <div key={k} />;
+          if (!owned(i)) return <div key={k} style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ width: '78%', height: '82%', borderRadius: 7, border: '1px solid rgba(232,196,106,.16)', background: 'rgba(0,0,0,.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(232,196,106,.3)', fontSize: 24 }}>?</div></div>;
+          const t = thumbOf(e.name);
+          return (
+            <div key={k} data-card={i} style={{ position: 'relative', padding: '6% 5%' }}>
+              {t && <img src={t} alt={e.name} loading="lazy" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.7))' }} />}
+              {t && e.full && <div className="bk-foil" style={{ inset: '6% 5%', WebkitMaskImage: `url(${t})`, maskImage: `url(${t})` }} />}
+            </div>
+          );
+        })}
+      </div>
+      <div className="bk-sheet" />
+    </>
+  );
+  const slice = (j: number, p: number): ReactNode => (
+    <div key={j} data-strip style={{ position: 'absolute', left: j === 0 ? 0 : SS, top: 0, width: SS, height: BOOK_H, transformOrigin: '0 50%', transformStyle: 'preserve-3d' }}>
+      <div className="bk-sface" style={{ width: SS + 0.8, height: BOOK_H }}>
+        <div style={{ position: 'absolute', left: -j * SS, top: 0, width: BOOK_W, height: BOOK_H }}>{pageFront(p)}</div>
+        <div data-sh style={{ position: 'absolute', inset: 0, background: '#000', opacity: 0, pointerEvents: 'none' }} />
+      </div>
+      <div className="bk-sface" style={{ width: SS + 0.8, height: BOOK_H, transform: 'rotateY(180deg)', backgroundImage: `url(${insideImage})`, backgroundSize: `${BOOK_W}px ${BOOK_H}px`, backgroundPosition: `${-(BOOK_W - (j + 1) * SS)}px 0` }}>
+        <div data-sh style={{ position: 'absolute', inset: 0, background: '#000', opacity: 0, pointerEvents: 'none' }} />
+      </div>
+      {j < NS - 1 && slice(j + 1, p)}
+    </div>
+  );
+
+  return (
+    <div ref={rootRef} style={{ position: 'absolute', inset: 0, zIndex: 20, background: 'radial-gradient(ellipse at 50% 40%, #2a1a10 0%, #0d0905 75%)', animation: 'binderin .25s ease both' }}>
+      <style>{`
+        @keyframes binderin { from { opacity:0 } to { opacity:1 } }
+        .bk-face { position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden; overflow:hidden; border-radius:3px 9px 9px 3px; background-size:100% 100%; }
+        .bk-sface { position:absolute; left:0; top:0; backface-visibility:hidden; -webkit-backface-visibility:hidden; overflow:hidden; }
+        .bk-sheet { position:absolute; left:8.8%; right:3.5%; top:3.2%; bottom:3.4%; border-radius:9px; pointer-events:none;
+          background-image: ${sheetLines}, linear-gradient(112deg, transparent 36%, rgba(255,255,255,.17) 47%, rgba(255,255,255,.05) 56%, transparent 66%), linear-gradient(160deg, rgba(255,255,255,.07), rgba(255,255,255,0) 40%, rgba(255,255,255,.04));
+          background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 280% 100%, 100% 100%; background-position: 0 0, 0 0, 0 0, 0 0, calc(var(--sheen,0) * 100%) 0, 0 0;
+          box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.34), inset 0 3px 0 rgba(255,255,255,.18), inset 0 -10px 18px rgba(0,0,0,.28), 0 1px 3px rgba(0,0,0,.6); }
+        .bk-foil { position:absolute; inset:0; mix-blend-mode:color-dodge; opacity:.34; background:linear-gradient(115deg,#ff5fa2,#ffe46b,#5ff0ff,#9b6bff,#ff5fa2); background-size:300% 100%; background-position:calc(var(--sheen,0) * 100%) 0; -webkit-mask-size:contain; mask-size:contain; -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat; -webkit-mask-position:center; mask-position:center; }
+        .bk-chip { border:1px solid rgba(217,178,90,.55); background:rgba(14,10,6,.65); color:#ffe9b0; border-radius:10px; padding:7px 12px; font-family:'Cinzel',serif; font-size:11px; letter-spacing:.1em; font-weight:700; }
+        .bk-arrow { width:46px; height:46px; border-radius:12px; border:1px solid rgba(217,178,90,.55); background:rgba(14,10,6,.65); color:#ffe9b0; font-size:24px; display:flex; align-items:center; justify-content:center; }
+        .bk-arrow:disabled { opacity:.25; }
+      `}</style>
+      <SheenDriver root={rootRef} pos={pos} />
+
+      <div style={{ position: 'absolute', left: 0, right: 0, top: 0, padding: 'max(10px, env(safe-area-inset-top)) 12px 8px', display: 'flex', alignItems: 'center', gap: 8, zIndex: 40, opacity: ui ? 1 : 0, transition: 'opacity .35s', pointerEvents: ui ? 'auto' : 'none' }}>
+        <button className="bk-chip" onClick={close}>‹ SALA</button>
+        <div style={{ flex: 1, textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.18em', color: '#ffe9b0' }}>COLEÇÃO {count}/{entries.length}</div>
+        <button className="bk-chip" style={{ fontSize: 9.5, background: missing ? 'rgba(232,196,106,.22)' : undefined }} onClick={() => setMissing(m => !m)}>SIMULAR FALTANTES</button>
+      </div>
+
+      <div ref={bookRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
+        style={{ position: 'absolute', left: '50%', top: 'calc(50% + 4px)', width: BOOK_W, height: BOOK_H, margin: `${-BOOK_H / 2}px 0 0 ${-BOOK_W / 2}px`, perspective: 1700, transformStyle: 'preserve-3d', touchAction: 'none' }}>
+        {/* the back board and the page block under the pages */}
+        <div style={{ position: 'absolute', inset: '-8px -9px -8px -12px', borderRadius: '8px 14px 14px 8px', backgroundImage: `url(${coverImage})`, backgroundSize: '100% 100%', filter: 'brightness(.5)', boxShadow: '0 18px 40px rgba(0,0,0,.7)' }} />
+        <div style={{ position: 'absolute', right: -5, top: 3, bottom: 3, width: 8, borderRadius: '0 4px 4px 0', background: 'repeating-linear-gradient(180deg,#d9c9a0 0 2px,#b9a878 2px 3px)', boxShadow: 'inset -2px 0 3px rgba(0,0,0,.4)' }} />
+        {Array.from({ length: pages }, (_, p) => (
+          <div key={p}>
+            <div ref={el => { leafRefs.current[p] = el; }} style={{ position: 'absolute', inset: 0, transformOrigin: '0 50%', transformStyle: 'preserve-3d', display: p > 1 ? 'none' : undefined, zIndex: 60 - p, willChange: 'transform' }}>
+              <div className="bk-face" style={{ overflow: 'visible' }}>
+                {pageFront(p)}
+                <div ref={el => { shadeRefs.current[p] = el; }} style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg,#000,rgba(0,0,0,.6))', opacity: 0, pointerEvents: 'none' }} />
+              </div>
+              <div className="bk-face" style={{ transform: 'rotateY(180deg)', backgroundImage: `url(${insideImage})`, borderRadius: '9px 3px 3px 9px' }}>
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(270deg,rgba(0,0,0,.45),rgba(0,0,0,.05) 40%)' }} />
+              </div>
+            </div>
+            {Math.abs(p - page) <= 1 && (p === page || p === page - 1) && (
+              <div ref={el => { segRefs.current[p] = el; }} style={{ position: 'absolute', inset: 0, display: 'none', transformStyle: 'preserve-3d' }}>
+                {slice(0, p)}
+              </div>
+            )}
+          </div>
+        ))}
+        {/* the cover, hinged on the spine */}
+        <div ref={coverRef} style={{ position: 'absolute', left: -BOOK_W * 0.043, top: -BOOK_H * 0.0225, width: BOOK_W * 1.1, height: BOOK_H * 1.045, transformOrigin: '5% 50%', transformStyle: 'preserve-3d', zIndex: 150 }}>
+          <div className="bk-face" style={{ backgroundImage: `url(${coverImage})`, borderRadius: 0, filter: 'drop-shadow(0 10px 18px rgba(0,0,0,.6))' }}>
+            <div style={{ position: 'absolute', left: '52.3%', top: '47%', transform: 'translate(-50%,-50%)', pointerEvents: 'none' }}><BookTitle size={26} count={`${count}/${entries.length}`} /></div>
+          </div>
+          <div className="bk-face" style={{ transform: 'rotateY(180deg)', backgroundImage: `url(${insideImage})`, borderRadius: '9px 3px 3px 9px' }} />
+        </div>
+      </div>
+
+      <div style={{ position: 'absolute', left: 0, right: 0, top: 'calc(50% + 250px)', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.14em', color: 'rgba(255,233,176,.55)', opacity: ui ? 1 : 0, transition: 'opacity .35s', pointerEvents: 'none' }}>DESLIZE PARA VIRAR · TOQUE NA CARTA PARA VER EM 3D</div>
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '10px 14px max(14px, env(safe-area-inset-bottom))', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, zIndex: 40, opacity: ui ? 1 : 0, transition: 'opacity .35s', pointerEvents: ui ? 'auto' : 'none' }}>
+        <button className="bk-arrow" aria-label="Página anterior" disabled={page < 1} onClick={() => go(-1)}>‹</button>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ display: 'flex', gap: 7, justifyContent: 'center' }}>{Array.from({ length: pages }, (_, i) => <b key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: i === page ? '#f6d77a' : 'rgba(232,196,106,.25)', boxShadow: i === page ? '0 0 8px #f6d77a' : 'none', transform: i === page ? 'scale(1.35)' : 'none', transition: 'all .25s' }} />)}</div>
+          <div style={{ marginTop: 7, fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '.2em', color: 'rgba(255,233,176,.65)' }}>PÁGINA {page + 1} DE {pages}</div>
+        </div>
+        <button className="bk-arrow" aria-label="Próxima página" disabled={page > pages - 2} onClick={() => go(1)}>›</button>
+      </div>
+
+      {lift && (() => {
+        const showCard = lift.phase === 'fly' || lift.phase === 'settled' || lift.phase === 'back1';
+        const r = lift.phase === 'settled' ? lift.to : lift.phase === 'fly' ? (flyGo ? lift.to : lift.up ?? lift.to) : lift.up ?? lift.to;
+        const trans = lift.phase === 'fly' ? (flyGo ? 'transform .95s cubic-bezier(.2,.8,.2,1), width .95s cubic-bezier(.2,.8,.2,1), height .95s cubic-bezier(.2,.8,.2,1)' : 'none') : lift.phase === 'back1' ? 'transform .82s cubic-bezier(.4,0,.2,1), width .82s cubic-bezier(.4,0,.2,1), height .82s cubic-bezier(.4,0,.2,1)' : 'none';
+        return (
+          <>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 880, background: 'radial-gradient(ellipse at 50% 45%, rgba(13,9,5,.72), rgba(5,3,2,.94))', opacity: lift.phase === 'fly' || lift.phase === 'settled' ? 1 : 0, transition: 'opacity .7s', pointerEvents: 'none' }} />
+            {showCard && (
+              <img src={lift.src} alt="" draggable={false} style={{
+                position: 'fixed', left: 0, top: 0, zIndex: 890, pointerEvents: 'none', objectFit: 'contain', width: r.w, height: r.h, transform: `translate(${r.x}px, ${r.y}px)`,
+                filter: 'drop-shadow(0 18px 24px rgba(0,0,0,.75))', opacity: showViewer ? 0 : 1, transition: `${trans === 'none' ? '' : trans + ', '}opacity .25s`,
+              }} />
+            )}
+            <div style={{ position: 'fixed', inset: 0, zIndex: 900, opacity: showViewer ? 1 : 0, pointerEvents: showViewer ? 'auto' : 'none', transition: 'opacity .25s' }}>
+              <Suspense fallback={null}>
+                <CardViewer3D cards={entries} index={lift.i} onIndex={() => {}} onClose={closeCard} onReady={() => setViewerReady(true)} hideArrows noIntro />
+              </Suspense>
+            </div>
+          </>
+        );
+      })()}
+    </div>
+  );
+}
+
+const PACK_ASPECT = 512 / 882;
+
+// The plastic's glint moves a little with the page and with time (written to a css variable, no React renders).
+function SheenDriver({ root, pos }: { root: RefObject<HTMLDivElement | null>; pos: MutableRefObject<number> }) {
+  useEffect(() => {
+    let raf = 0; const t0 = performance.now();
+    const loop = (now: number) => { const t = (now - t0) / 1000; root.current?.style.setProperty('--sheen', ((Math.sin(t * 0.55) * 0.5 + 0.5) * 0.6 + pos.current * 0.35).toFixed(3)); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop); return () => cancelAnimationFrame(raf);
+  }, []);
+  return null;
+}

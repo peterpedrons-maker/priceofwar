@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Hora da batalha e marcações (mockup)</title>
+<style>
+  @font-face { font-family:'Cinzel'; font-weight:400 900; font-display:swap; src:url(../desafios/fonts/cinzel-regular.woff2) format('woff2'); }
+  @font-face { font-family:'Cinzel Decorative'; font-weight:700; font-display:swap; src:url(../desafios/fonts/cinzel-decorative-700.woff2) format('woff2'); }
+  @font-face { font-family:'Crimson Pro'; font-weight:600; font-display:swap; src:url(../desafios/fonts/crimson-pro-600.woff2) format('woff2'); }
+  :root { --gold2:#f6e3a3; --serif:'Crimson Pro',Georgia,serif; --cin:'Cinzel',Georgia,serif; --dec:'Cinzel Decorative','Cinzel',Georgia,serif; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  html,body { margin:0; height:100%; background:#050403; color:#f3e8cc; font-family:var(--cin); overflow:hidden; }
+  #app { position:relative; width:100%; max-width:430px; height:100dvh; margin:0 auto; overflow:hidden; background:#0a0705; }
+  #bar { position:absolute; left:0; right:0; top:0; z-index:100; display:flex; gap:6px; padding:6px; background:rgba(8,5,3,.92); border-bottom:1px solid #4a3818; overflow-x:auto; scrollbar-width:none; }
+  #bar::-webkit-scrollbar { display:none; }
+  #bar button { all:unset; flex:none; cursor:pointer; padding:7px 11px; border-radius:14px; font:700 10.5px var(--cin); letter-spacing:.08em; text-transform:uppercase; color:#b9a77a; background:#1a120a; box-shadow:inset 0 0 0 1px #4a3818; }
+  #bar button.on { color:#2a1604; background:linear-gradient(#f0d68a,#b88b2c); box-shadow:none; }
+  #bar .sp { flex:1 0 8px; }
+  #stage { position:absolute; inset:46px 0 0 0; overflow:hidden; background:#000; }
+  body.limpo #bar { display:none; } body.limpo #stage { inset:0; }
+  #stage { width:390px; height:844px; left:0 !important; right:0 !important; margin:0 auto; }
+  body:not(.limpo) #stage { height:calc(100% - 46px); }
+  .bg { position:absolute; left:0; top:0; width:390px; height:844px; background:url(img/scene.jpg) 0 0/390px 844px no-repeat; }
+  .abs { position:absolute; }
+  #legend { position:absolute; left:8px; right:8px; bottom:8px; z-index:90; font:600 11.5px/1.3 var(--serif); color:#d9cba4; background:rgba(0,0,0,.78); padding:6px 9px; border-radius:9px; }
+  body.limpo #legend { display:none; }
+
+  /* peças do kit */
+  .btn { cursor:pointer; display:flex; align-items:center; justify-content:center; text-align:center; min-height:44px; border-style:solid; border-width:9px 22px; border-image:url(../desafios/ui/btn-secondary.png) 20 56 20 56 fill stretch; font:700 var(--s,13px)/1.1 var(--cin); letter-spacing:.14em; color:var(--gold2); text-transform:uppercase; text-shadow:0 1px 2px #000; }
+  .btn.gold { min-height:48px; border-width:11px 24px; border-image:url(../desafios/ui/btn-primary.png) 20 80 20 80 fill stretch; font-weight:900; color:#2a1604; text-shadow:0 1px 0 rgba(255,255,255,.55); filter:drop-shadow(0 4px 6px rgba(0,0,0,.6)); }
+  .mode { display:block; width:100%; padding:2px 6px; text-align:left; min-height:74px; justify-content:flex-start; letter-spacing:.04em; }
+  .mode b { display:block; font:800 15px var(--cin); letter-spacing:.08em; text-transform:uppercase; }
+  .mode small { display:block; margin-top:3px; font:600 14px/1.25 var(--serif); letter-spacing:0; text-transform:none; opacity:.92; }
+  .mode.gold b { color:#2a1604; } .mode.gold small { color:#4a2f0c; text-shadow:none; }
+  .mode:not(.gold) b { color:var(--gold2); } .mode:not(.gold) small { color:#c9b98c; }
+  .hd.d { text-align:center; text-shadow:0 2px 6px #000; }
+  .hd.d b { display:block; font:700 22px var(--dec); letter-spacing:.14em; padding-left:.14em; background:linear-gradient(#fff7d6,#ecca74 48%,#a8792a); -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(0 2px 1px rgba(0,0,0,.95)) drop-shadow(0 0 10px rgba(230,180,70,.3)); }
+  .hd.d i { display:block; width:190px; height:10px; margin:6px auto 5px; background:url(../desafios/ui/divider.png) center/100% 100% no-repeat; }
+  .hd.d span { font:600 14.5px/1.25 var(--serif); color:#e6d6ae; }
+  .ribbon { position:absolute; left:0; right:0; height:62px; background:linear-gradient(#6d0f16,#44070c); border-top:2px solid #e8b94a; border-bottom:2px solid #e8b94a; text-align:center; box-shadow:0 6px 20px rgba(0,0,0,.7); }
+  .ribbon b { display:block; margin-top:7px; font:700 22px var(--dec); letter-spacing:.1em; color:#f7e7c0; text-shadow:0 2px 4px #000; }
+  .ribbon span { font:700 10.5px var(--cin); letter-spacing:.22em; text-transform:uppercase; color:#f3dba0; }
+  .badge { position:absolute; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+  .badge img { width:15px; height:15px; filter:drop-shadow(0 1px 1px #000); }
+</style>
+</head>
+<body>
+<div id="app"><div id="bar"></div><div id="stage"></div></div>
+<audio id="som" src="corneta-guerra.mp3" preload="auto"></audio>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const Q = new URLSearchParams(location.search);
+if (Q.has('limpo')) document.body.classList.add('limpo');
+const R = {"player-0": [43.4, 433.2, 56.2, 71.1], "player-1": [105.1, 433.2, 56.2, 71.1], "player-2": [166.9, 433.2, 56.2, 71.1], "player-3": [228.7, 433.2, 56.2, 71.1], "player-4": [290.5, 433.2, 56.2, 71.1], "player-5": [43.4, 511.9, 56.2, 71.1], "player-6": [105.1, 511.9, 56.2, 71.1], "player-7": [166.9, 511.9, 56.2, 71.1], "player-8": [228.7, 511.9, 56.2, 71.1], "player-9": [290.5, 511.9, 56.2, 71.1], "player-10": [105.1, 590.5, 56.2, 71.1], "player-11": [228.7, 590.5, 56.2, 71.1], "player-12": [166.9, 590.5, 56.2, 71.1], "npc-0": [43.4, 301.7, 56.2, 71.1], "npc-1": [105.1, 301.7, 56.2, 71.1], "npc-2": [166.9, 301.7, 56.2, 71.1], "npc-3": [228.7, 301.7, 56.2, 71.1], "npc-4": [290.5, 301.7, 56.2, 71.1], "npc-5": [43.4, 223.1, 56.2, 71.1], "npc-6": [105.1, 223.1, 56.2, 71.1], "npc-7": [166.9, 223.1, 56.2, 71.1], "npc-8": [228.7, 223.1, 56.2, 71.1], "npc-9": [290.5, 223.1, 56.2, 71.1], "npc-10": [105.1, 144.5, 56.2, 71.1], "npc-11": [228.7, 144.5, 56.2, 71.1], "npc-12": [166.9, 144.5, 56.2, 71.1]};
+const KIT = '../janelas/kit/';
+const VIEWS = [
+  { id:'batalha', nome:'Hora da batalha', dur:4.8 },
+  { id:'atacou', nome:'Quem já atacou', dur:2.4 },
+  { id:'modo', nome:'Modo da Relíquia', dur:0 },
+  { id:'adv', nome:'Adversário decide', dur:4.0 },
+];
+let cur = Q.get('v') || 'batalha', T0 = performance.now();
+const clamp = (x,a=0,b=1) => Math.max(a, Math.min(b, x));
+const ease = x => 1 - Math.pow(1 - clamp(x), 3);
+const back = x => { x = clamp(x); const c1 = 1.9, c3 = c1 + 1; return 1 + c3*Math.pow(x-1,3) + c1*Math.pow(x-1,2); };
+const rr = k => R[k];
+
+// ───────── 1. Hora da batalha ─────────
+// Estandarte com tocha: sobe do chão como as peças dos terrenos (muralha), com poeira na base, fica enquanto durar o combate e afunda no fim.
+function standard(x, base, side, t, i, tEnd) {
+  const H = 150, W = 44;                       // caixa recortada na linha do chão
+  const land = 0.15 + i*0.1 + 0.6;
+  const up = 1 - back((t - 0.15 - i*0.1) / 0.6) * 1;   // 1 = escondido, 0 = em pé (com leve passada)
+  const down = clamp((t - tEnd) / 0.55);
+  const off = (Math.max(0, up) + ease(down)) * (H + 16);
+  const fl = Math.sin(t*6.5 + i*1.9), fl2 = Math.sin(t*11 + i*2.7);
+  const lit = clamp((t - land) / 0.35) * (1 - clamp((t - tEnd) / 0.3));
+  const dir = side === 'L' ? 1 : -1;              // para onde o pano aponta (para dentro do tabuleiro)
+  const px = side === 'L' ? 5 : W - 9;           // x do mastro dentro da caixa
+  const sway = 3.4*fl;
+  const bx = px + 2, by = 14, bw = 26*dir, bh = 66;
+  const cloth = `M${bx} ${by} L${bx + bw} ${by + 1} L${bx + bw - dir*3 + sway*dir} ${by + bh*0.55} L${bx + bw*0.55 + sway*dir*1.4} ${by + bh} L${bx + 1} ${by + bh*0.8} Z`;
+  const tx = px + 2, ty = 98;                    // tocha presa ao mastro
+  const fs = 0.8 + 0.25*fl2;
+  const flame = (k) => `<path d="M${tx} ${ty-1} C${tx-6+k} ${ty-7} ${tx-3} ${ty-13*fs-k*3} ${tx+k} ${ty-20*fs-k*2} C${tx+3} ${ty-12*fs} ${tx+6-k} ${ty-7} ${tx} ${ty-1} Z" fill="${k===0?'#ffd24a':k>0?'#ff9a2a':'#ff7a1e'}" opacity="${k===0?0.95:0.8}"/>`;
+  const dust = t > land - 0.1 && t < land + 0.7 ? [0,1,2,3,4].map(j => { const p = clamp((t - land + 0.1) / 0.8); return `<circle cx="${W/2 + (j-2)*(7 + p*7)}" cy="${H - 3 - p*9}" r="${3 + p*7}" fill="rgba(170,140,100,${0.5*(1-p)})"/>`; }).join('') : '';
+  return `<div class="abs" style="left:${x}px;top:${base - H}px;width:${W}px;height:${H}px;overflow:hidden">
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="position:absolute;left:0;top:0;transform:translateY(${off}px);overflow:visible">
+      <circle cx="${tx}" cy="${ty-9}" r="${34*lit}" fill="url(#gl${i})" style="mix-blend-mode:screen"/>
+      <defs><radialGradient id="gl${i}"><stop offset="0" stop-color="rgba(255,190,90,.42)"/><stop offset="1" stop-color="rgba(255,150,60,0)"/></radialGradient>
+      <linearGradient id="cl${i}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#c0192a"/><stop offset="1" stop-color="#6d0c14"/></linearGradient></defs>
+      <rect x="${px - 1.5}" y="6" width="5" height="${H - 6}" rx="1.5" fill="#6b4a22" stroke="#2c1a08" stroke-width=".8"/>
+      <path d="M${px + 1} -6 L${px + 5.5} 8 L${px - 3.5} 8 Z" fill="#e8c766" stroke="#7a5a1c" stroke-width=".8"/>
+      <rect x="${px - 3}" y="${by - 3}" width="${14*dir > 0 ? 14 : -14}" height="3" fill="#b88b2c" transform="${dir < 0 ? `translate(${2*px + 5} 0) scale(-1 1)` : ''}"/>
+      <path d="${cloth}" fill="url(#cl${i})" stroke="#e8b94a" stroke-width="1.3" stroke-linejoin="round"/>
+      <image href="${KIT}i_espadas.png" x="${bx + bw*0.5 - 7 + sway*0.3*dir}" y="${by + 14}" width="14" height="14" opacity=".92"/>
+      <path d="M${tx - 6} ${ty} L${tx + 6} ${ty} L${tx + 4} ${ty + 9} L${tx - 4} ${ty + 9} Z" fill="#3a3028" stroke="#14100c" stroke-width=".8"/>
+      <rect x="${tx - 7}" y="${ty - 1.5}" width="14" height="2.6" rx="1" fill="#55483a"/>
+      <g opacity="${lit}">${flame(-1)}${flame(1)}${flame(0)}</g>
+    </svg>
+    ${dust ? `<svg class="abs" style="left:0;top:0" width="${W}" height="${H}">${dust}</svg>` : ''}
+  </div>`;
+}
+function batalha(t) {
+  const vig = t < 4.1 ? ease((t-0.05)/0.5) * (0.78 + 0.1*Math.sin(t*5)) : 0.8*(1 - clamp((t-4.1)/0.6));
+  const dim = 0.4 * (clamp((t-0.05)/0.3) - clamp((t-1.5)/0.5));
+  const outf = 1 - clamp((t-4.1)/0.6);
+  let h = `<div class="bg"></div>
+    <div class="abs" style="inset:0;background:rgba(0,0,0,${dim})"></div>
+    <div class="abs" style="inset:0;opacity:${vig};background:radial-gradient(ellipse at 50% 48%, rgba(120,0,0,0) 52%, rgba(150,10,10,.55) 100%)"></div>`;
+  h += `<div>${standard(0, 306, 'L', t, 0, 4.1)}${standard(346, 306, 'R', t, 1, 4.1)}${standard(0, 694, 'L', t, 2, 4.1)}${standard(346, 694, 'R', t, 3, 4.1)}</div>`;
+  // espadas cruzadas + onda de choque
+  const s = t < 0.45 ? 0 : t < 0.75 ? 0.3 + 0.95*ease((t-0.45)/0.3) : t < 1.0 ? 1.25 - 0.25*ease((t-0.75)/0.25) : 1;
+  const so = t < 0.45 ? 0 : (1 - clamp((t-1.35)/0.45));
+  if (so > 0) h += `<img class="abs" src="${KIT}i_espadas.png" style="left:${195-70}px;top:${392-70}px;width:140px;opacity:${so};transform:scale(${s});filter:drop-shadow(0 0 18px rgba(255,200,80,.95)) drop-shadow(0 0 40px rgba(255,120,40,.7))">`;
+  const rw = clamp((t-0.55)/0.8);
+  if (rw > 0 && rw < 1) h += `<div class="abs" style="left:${195-30-rw*230}px;top:${392-30-rw*230}px;width:${60+rw*460}px;height:${60+rw*460}px;border-radius:50%;border:${4-3*rw}px solid rgba(255,214,110,${0.9*(1-rw)});box-shadow:0 0 30px rgba(255,160,50,${0.6*(1-rw)})"></div>`;
+  // faixa "Fase de Combate"
+  const rin = ease((t-1.55)/0.35), rout = clamp((t-3.3)/0.4);
+  if (rin > 0 && rout < 1) h += `<div class="ribbon" style="top:${392-31}px;opacity:${rin*(1-rout)};transform:translateX(${(1-rin)*-120}px)"><b>FASE DE COMBATE</b><span>Ataque com suas unidades</span></div>`;
+  return h;
+}
+
+// ───────── 2. Quem já atacou ─────────
+const USED = [0, 2, 3], READY = [1, 4, 5, 7];
+function atacou(t) {
+  let h = `<div class="bg"></div>`;
+  const pulse = 0.5 + 0.5*Math.sin(t*5);
+  for (const i of USED.concat(READY)) {
+    const [x,y,w,hh] = rr('player-' + i), used = USED.includes(i);
+    if (used) {
+      h += `<div class="abs" style="left:${x}px;top:${y}px;width:${w}px;height:${hh}px;border-radius:5px;background:rgba(14,9,5,.58);backdrop-filter:grayscale(.85) brightness(.75)"></div>`;
+      h += `<div class="badge" style="left:${x+w/2-12}px;top:${y+hh-27}px;background:#2b2620;box-shadow:0 0 0 1.5px #8a8372,0 2px 4px rgba(0,0,0,.7)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#bdb6a2" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></div>`;
+    } else {
+      h += `<div class="abs" style="left:${x-1}px;top:${y-1}px;width:${w+2}px;height:${hh+2}px;border-radius:6px;box-shadow:0 0 ${5+8*pulse}px rgba(255,210,100,${0.3+0.35*pulse});pointer-events:none"></div>`;
+      h += `<div class="badge" style="left:${x+w/2-12}px;top:${y+hh-27}px;background:radial-gradient(circle at 35% 30%,#3a2f1f,#14100a);box-shadow:0 0 0 1.8px #f0cf72,0 0 ${6+9*pulse}px rgba(255,200,80,${0.55+0.4*pulse})"><img src="${KIT}i_espadas.png" style="width:17px;height:17px"></div>`;
+    }
+  }
+  return h;
+}
+
+// ───────── 3. Modo da Relíquia (novo desenho) ─────────
+function modo() {
+  const mode = (n, d, sel) => `<div class="btn mode ${sel ? 'gold' : ''}"><div><b>${n}</b><small>${d}</small></div></div>`;
+  return `<div class="bg"></div><div class="abs" style="inset:0;background:linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,.88) 14%)"></div>
+    <img class="abs" src="img/relic.webp" style="left:${195-82}px;top:44px;width:164px;filter:drop-shadow(0 0 16px rgba(255,214,110,.95))">
+    <div class="hd d abs" style="left:10px;right:10px;top:286px"><b>Escolha o modo</b><i></i><span>Vale até o fim do seu próximo turno.<br>O adversário vê qual é.</span></div>
+    <div class="abs" style="left:18px;right:18px;top:410px;display:flex;flex-direction:column;gap:12px">
+      ${mode('Soldo em Dobro', 'Cartas com manutenção têm +1 ATK.', true)}
+      ${mode('Saque', 'Ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo).', false)}
+    </div>
+    <div class="abs" style="left:18px;right:18px;top:712px;display:flex;gap:12px"><div class="btn gold" style="flex:1">Voltar</div><div class="btn gold" style="flex:1.6">Encerrar turno</div></div>`;
+}
+
+// ───────── 4. Adversário decide (a Relíquia dele mostra o modo) ─────────
+function emblem(kind, size) {
+  const ic = kind === 'soldo' ? `${KIT}i_espadas.png` : `${KIT}i_cartas.png`;
+  return `<img src="${ic}" style="width:${size}px;height:${size}px;filter:drop-shadow(0 1px 1px #000)">`;
+}
+function adv(t) {
+  let h = `<div class="bg"></div>`;
+  const [x,y,w,hh] = rr('npc-10');
+  const t0 = 0.55, ring = clamp((t - t0) / 0.9), pop = t > t0 + 0.35 ? back((t - t0 - 0.35) / 0.4) : 0;
+  const glow = t > t0 ? 0.7 + 0.3*Math.sin(t*4) : 0;
+  if (t > t0 && t < t0 + 2.4) h += `<div class="abs" style="left:${x-2}px;top:${y-2}px;width:${w+4}px;height:${hh+4}px;border-radius:6px;box-shadow:0 0 ${14*glow}px ${3*glow}px rgba(255,214,110,${0.85*glow})"></div>`;
+  if (ring > 0 && ring < 1) h += `<div class="abs" style="left:${x+w/2-20-ring*34}px;top:${y+hh/2-20-ring*34}px;width:${40+ring*68}px;height:${40+ring*68}px;border-radius:50%;border:2px solid rgba(255,214,110,${0.9*(1-ring)})"></div>`;
+  if (pop > 0) h += `<div class="badge" style="left:${x+w-14}px;top:${y-11}px;width:30px;height:30px;transform:scale(${pop});background:radial-gradient(circle at 35% 30%,#3a2f1f,#14100a);box-shadow:0 0 0 1.8px #e6c36a,0 2px 5px rgba(0,0,0,.8)">${emblem('saque', 19)}</div>`;
+  // a minha Relíquia também mostra o modo que escolhi (Soldo em Dobro)
+  const [mx,my,mw,mh] = rr('player-10');
+  h += `<div class="badge" style="left:${mx+mw-14}px;top:${my-11}px;width:30px;height:30px;background:radial-gradient(circle at 35% 30%,#3a2f1f,#14100a);box-shadow:0 0 0 1.8px #e6c36a,0 2px 5px rgba(0,0,0,.8)">${emblem('soldo', 19)}</div>`;
+  return h;
+}
+
+const LEG = {
+  batalha: 'Hora da batalha: ao começar a fase de Combate (a sua ou a do adversário), quatro estandartes sobem nos cantos do tabuleiro, as espadas cruzadas surgem no centro com uma onda dourada, a corneta de guerra toca e a faixa "Fase de Combate" entra. Depois a borda do tabuleiro fica avermelhada, pulsando de leve, até o fim da fase. Toque em "Som" para ouvir a corneta.',
+  atacou: 'Quem já atacou: unidade que ainda pode atacar ganha uma medalha dourada com espadas (pulsa) e um brilho suave; a que já atacou fica apagada, em cinza, com um "visto". Aparece só na fase de Combate, no lado de quem está jogando. Aqui: 4 prontas e 3 que já atacaram.',
+  modo: 'Modo da Relíquia (novo desenho): sem quadrado nem círculo. Os modos são botões da mesma moldura da Manutenção: o escolhido fica dourado e o outro escuro, com nome e descrição. "Voltar" e "Encerrar turno" dourados.',
+  adv: 'Adversário decide: quando ele escolhe o modo da Relíquia, a carta dele brilha, uma onda sai dela e um selo com o ícone do modo aparece e fica (aqui: Saque, cartas). O meu selo (Soldo em Dobro, moeda) também fica visível. Nada de texto. O efeito das moedas pagando a manutenção continua como está.',
+};
+
+function frame(t) {
+  const d = { batalha, atacou, modo, adv }[cur];
+  $('#stage').innerHTML = d(t) + `<div id="legend">${LEG[cur]}</div>`;
+}
+function bar() {
+  $('#bar').innerHTML = VIEWS.map(v => `<button class="${v.id===cur?'on':''}" data-v="${v.id}">${v.nome}</button>`).join('') + '<span class="sp"></span><button data-s="1">▶ Som</button>';
+  document.querySelectorAll('#bar button').forEach(b => b.onclick = () => { if (b.dataset.v) { cur = b.dataset.v; T0 = performance.now(); bar(); } if (b.dataset.s) { const a = $('#som'); a.currentTime = 0; a.play(); T0 = performance.now(); } });
+}
+window.seek = t => { cur = Q.get('v') || cur; frame(t); };
+bar();
+if (Q.has('t')) { frame(parseFloat(Q.get('t'))); }
+else (function loop() { const v = VIEWS.find(v => v.id === cur); const dur = v.dur || 1; frame(v.dur ? ((performance.now() - T0) / 1000) % (dur + 0.8) : 0); requestAnimationFrame(loop); })();
+</script>
+</body>
+</html>

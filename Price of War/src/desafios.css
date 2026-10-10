@@ -1,0 +1,118 @@
+/* Tela Desafios (mapa + cartão do adversário). Veio do mockup public/mockups/desafios; as classes levam o prefixo dz-. */
+
+  .dz-wrap { position:fixed; inset:0; z-index:60; background:#050403; }
+  .dz-wrap, .dz-wrap * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  .dz { --gold:#e6c36a; --gold2:#f6e3a3; --ivory:#f3e8cc; --muted:#b9a77a; --serif:'Crimson Pro',Georgia,serif; --cin:'Cinzel',Georgia,serif; --dec:'Cinzel Decorative','Cinzel',Georgia,serif;
+    position:relative; width:100%; max-width:460px; height:100%; margin:0 auto; overflow:hidden; background:#0a0705; color:var(--ivory); font-family:var(--cin); display:flex; flex-direction:column; }
+  /* ── mapa: a câmera desliza até a região do adversário ── */
+  .dz-stage::before { content:''; position:absolute; inset:-30px; background:url('./assets/desafios/map.webp') center/cover; filter:blur(10px) brightness(.8) saturate(.9); }
+  .dz-stage { position:relative; flex:1 1 auto; min-height:260px; overflow:hidden; }
+  .dz-fx { position:absolute; inset:0; transform-origin:195px 215px; }
+  .dz-map { position:absolute; left:0; top:0; width:1150px; height:1150px; transform-origin:0 0; background:url('./assets/desafios/map.webp') 0 0/100% 100% no-repeat; transition:transform 1.4s cubic-bezier(.45,.05,.2,1); will-change:transform; filter:saturate(.92) brightness(.92) contrast(1.04); }
+  .dz-map .dz-mk { position:absolute; width:0; height:0; opacity:0; transition:opacity .6s; cursor:pointer; }
+  .dz-map.over .dz-mk { opacity:1; }
+  .dz-stage.ov .dz-shade { opacity:.45; }
+  .dz-map { -webkit-mask-image:radial-gradient(closest-side, #000 84%, transparent 100%); mask-image:radial-gradient(closest-side, #000 84%, transparent 100%); }
+  .dz-map.zoomed { -webkit-mask-image:none; mask-image:none; }
+  .dz-map .dz-mk svg { position:absolute; left:-17px; top:-52px; width:34px; height:52px; transform-origin:17px 52px; transform:scale(var(--inv,1)); filter:drop-shadow(0 3px 5px rgba(0,0,0,.85)) drop-shadow(0 0 7px rgba(240,200,100,.45)); }
+  .dz-map .dz-mk.lock svg { filter:grayscale(1) brightness(.7) drop-shadow(0 3px 5px rgba(0,0,0,.85)); }
+  .dz-map .dz-mk::after { content:''; position:absolute; left:-30px; top:-30px; width:60px; height:60px; transform:scale(var(--inv,1)); transform-origin:30px 30px; }
+  .dz-fx.hop { animation:hop 1.4s cubic-bezier(.45,.05,.2,1); }
+  @keyframes hop { 0%{transform:scale(1)} 38%{transform:scale(.8)} 100%{transform:scale(1)} }
+  .dz-shade { transition:opacity .8s; position:absolute; inset:0; pointer-events:none; background:
+      linear-gradient(rgba(5,3,2,.9), rgba(5,3,2,0) 28%),
+      linear-gradient(rgba(5,3,2,0) 50%, rgba(5,3,2,.94) 100%),
+      radial-gradient(ellipse at 50% 42%, rgba(0,0,0,0) 38%, rgba(0,0,0,.62) 100%); }
+  .dz-tint { position:absolute; inset:0; pointer-events:none; mix-blend-mode:soft-light; transition:background .8s; }
+  .dz-dust { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; mix-blend-mode:screen; }
+  /* pino (fixo na tela; o mapa se move por baixo) */
+  .dz-pin { position:absolute; left:195px; top:215px; width:0; height:0; pointer-events:none; transition:opacity .4s 1.15s; }
+  .dz-pin.dz-hide, .dz-place.dz-hide { opacity:0; transition-delay:0s; }
+  .dz-pin svg { position:absolute; left:-17px; top:-50px; width:34px; height:52px; filter:drop-shadow(0 4px 6px rgba(0,0,0,.8)) drop-shadow(0 0 10px rgba(255,214,110,.55)); animation:bob 2.2s ease-in-out infinite; }
+  .dz-pin .dz-pulse { position:absolute; left:-26px; top:-8px; width:52px; height:16px; border-radius:50%; border:2px solid rgba(246,227,163,.8); animation:pulse 2s ease-out infinite; }
+  .dz-pin .dz-pulse.b { animation-delay:1s; }
+  @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+  @keyframes pulse { 0%{transform:scale(.3); opacity:.9} 100%{transform:scale(1.7); opacity:0} }
+  .dz-pin.locked svg { filter:grayscale(1) brightness(.7) drop-shadow(0 4px 6px rgba(0,0,0,.8)); }
+  /* topo */
+  .dz-head { position:absolute; left:0; right:0; top:0; padding:calc(env(safe-area-inset-top) + 10px) 10px 0 12px; display:flex; align-items:flex-start; justify-content:space-between; z-index:5; pointer-events:none; }
+  .dz-head > * { pointer-events:auto; }
+  .dz-iconbtn { width:46px; height:46px; background:url('./assets/desafios/ui/icon-btn.png') center/contain no-repeat; display:flex; align-items:center; justify-content:center; color:var(--gold2); font-size:26px; padding-bottom:3px; cursor:pointer; filter:drop-shadow(0 3px 4px rgba(0,0,0,.6)); }
+  .dz-iconbtn:active { background-image:url('./assets/desafios/ui/icon-btn-dark.png'); }
+  .dz-title { position:absolute; left:50%; top:calc(env(safe-area-inset-top) + 9px); transform:translateX(-50%); text-align:center; pointer-events:none; }
+  .dz-title h1 { margin:0; font:700 21px/1 var(--dec); letter-spacing:.15em; padding-left:.15em; background:linear-gradient(#fff7d6,#ecca74 48%,#a8792a); -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(0 2px 1px rgba(0,0,0,.95)) drop-shadow(0 0 10px rgba(230,180,70,.35)); }
+  .dz-title i { display:block; width:150px; height:10px; margin:7px auto 0; background:url('./assets/desafios/ui/divider.png') center/100% 100% no-repeat; opacity:.95; }
+  /* nome da região sobre o mapa */
+  .dz-place { transition:opacity .5s; position:absolute; left:0; right:0; top:236px; display:flex; flex-direction:column; align-items:center; gap:5px; pointer-events:none; }
+  .dz-plaque { border-style:solid; border-width:12px 34px; border-image:url('./assets/desafios/ui/chip.png') 22 62 22 62 fill stretch; height:46px; display:flex; align-items:center; font:700 14px var(--cin); letter-spacing:.14em; color:var(--gold2); white-space:nowrap; text-transform:uppercase; text-shadow:0 1px 2px #000; filter:drop-shadow(0 4px 6px rgba(0,0,0,.7)); }
+  .dz-place .dz-sub { font:600 10px var(--cin); letter-spacing:.2em; color:#d6c48e; text-transform:uppercase; text-shadow:0 1px 3px #000, 0 0 8px #000; }
+  #info { position:absolute; left:18px; right:18px; bottom:10px; text-align:center; z-index:3; }
+  #info .one { font:600 15px var(--serif); color:#f0e4c4; text-shadow:0 1px 3px #000, 0 0 8px #000; font-style:italic; }
+  .dz-hint { position:absolute; left:0; right:0; bottom:calc(env(safe-area-inset-bottom) + 26px); text-align:center; font:600 11.5px var(--cin); letter-spacing:.26em; text-transform:uppercase; color:#ecd9a0; text-shadow:0 1px 4px #000, 0 0 10px #000; transition:opacity .5s; pointer-events:none; animation:breathe 2.6s ease-in-out infinite; }
+  .dz-hint.dz-hide { opacity:0; animation:none; }
+  @keyframes breathe { 0%,100%{opacity:.65} 50%{opacity:1} }
+  /* cartão do adversário (sobe de baixo) */
+  .dz-card { position:absolute; left:0; right:0; bottom:0; z-index:6; padding:18px 14px calc(env(safe-area-inset-bottom) + 14px); background:linear-gradient(#1a120b,#0c0804 70%); border-top:2px solid #8a6a2c; border-radius:18px 18px 0 0; box-shadow:0 -14px 30px rgba(0,0,0,.8), inset 0 1px 0 rgba(246,227,163,.35); transform:translateY(105%); transition:transform .5s cubic-bezier(.2,.85,.3,1); }
+  .dz-card.on { transform:none; }
+  .dz-card:not(.on) { visibility:hidden; transition:transform .5s cubic-bezier(.2,.85,.3,1), visibility 0s .5s; }
+  .dz-card::before { content:''; position:absolute; left:50%; top:-9px; width:160px; height:14px; margin-left:-80px; background:url('./assets/desafios/ui/divider.png') center/100% 100% no-repeat; }
+  .dz-card .x { position:absolute; right:10px; top:-20px; width:40px; height:40px; background:url('./assets/desafios/ui/icon-btn.png') center/contain no-repeat; color:var(--gold2); font-size:23px; display:flex; align-items:center; justify-content:center; padding-bottom:2px; cursor:pointer; filter:drop-shadow(0 3px 4px rgba(0,0,0,.7)); }
+  .dz-card .x:active { background-image:url('./assets/desafios/ui/icon-btn-dark.png'); }
+  .dz-who { display:flex; gap:12px; align-items:center; }
+  .dz-who .dz-pt { flex:none; width:78px; height:92px; border-radius:8px; background-size:cover; background-position:50% 14%; box-shadow:0 0 0 1px #000, 0 0 0 3px #8a6a2c, 0 6px 12px rgba(0,0,0,.7); position:relative; }
+  .dz-who .dz-pt.lock { background:linear-gradient(#2a2620,#14110d); display:flex; align-items:center; justify-content:center; font-size:34px; filter:grayscale(1); }
+  .dz-who .dz-nm { min-width:0; flex:1; padding-right:34px; }
+  .dz-who h2 { margin:0; font:700 19px/1.1 var(--cin); letter-spacing:.04em; color:var(--gold2); text-shadow:0 2px 2px #000; }
+  .dz-who .dz-ep { margin:3px 0 7px; font:600 10.5px var(--cin); letter-spacing:.14em; color:#b9a77a; text-transform:uppercase; }
+  .dz-who .dz-meta { display:flex; align-items:center; gap:8px; }
+  .dz-cdesc { margin:12px 2px 0; font:600 15px/1.3 var(--serif); color:#ece0bf; }
+  .dz-chips { display:flex; gap:7px; flex-wrap:wrap; margin-top:10px; }
+  .dz-chip { border-style:solid; border-width:8px 16px; border-image:url('./assets/desafios/ui/chip.png') 22 62 22 62 fill stretch; font:600 10.5px var(--cin); color:#f0dca0; white-space:nowrap; letter-spacing:.05em; display:flex; align-items:center; height:32px; }
+  .dz-card .dz-lockbox { margin:14px 2px 0; padding:11px 13px; border-radius:8px; background:rgba(0,0,0,.35); box-shadow:inset 0 0 0 1px #5a431c; font:600 14.5px/1.3 var(--serif); color:#d8c89b; }
+  .dz-card .dz-lockbox b { color:var(--gold2); }
+  /* botões */
+  .dz-fight { all:unset; position:relative; display:flex; align-items:center; justify-content:center; width:100%; height:62px; margin-top:10px; cursor:pointer; border-style:solid; border-width:14px 34px; border-image:url('./assets/desafios/ui/btn-primary.png') 20 80 20 80 fill stretch; font:900 21px var(--cin); letter-spacing:.3em; padding-left:.3em; color:#2a1604; text-shadow:0 1px 0 rgba(255,255,255,.55); text-transform:uppercase; box-sizing:border-box; transition:filter .1s, transform .1s; filter:drop-shadow(0 6px 8px rgba(0,0,0,.6)); }
+  .dz-fight::after { content:''; position:absolute; inset:-2px -44px; background:linear-gradient(100deg, transparent 38%, rgba(255,255,255,.62) 50%, transparent 62%); background-size:260% 100%; background-position:150% 0; animation:shine 3.8s ease-in-out infinite; mix-blend-mode:soft-light; pointer-events:none; }
+  @keyframes shine { 0%,55% { background-position:150% 0; } 100% { background-position:-60% 0; } }
+  .dz-fight:active { filter:brightness(.8) drop-shadow(0 2px 3px rgba(0,0,0,.6)); transform:translateY(3px); }
+  .dz-fight.off { border-image-source:url('./assets/desafios/ui/btn-primary-off.png'); color:#3b3a37; text-shadow:0 1px 0 rgba(255,255,255,.25); font-size:17px; pointer-events:none; filter:none; }
+  .dz-fight.off::after { display:none; }
+  /* dock: deck + lutar */
+  .dz-dockhead { display:flex; align-items:center; justify-content:space-between; margin:10px 2px 6px; }
+  .dz-dockhead span { font:700 10px var(--cin); letter-spacing:.24em; text-transform:uppercase; color:#cdb77c; }
+  .dz-editlink { all:unset; cursor:pointer; display:flex; align-items:center; gap:6px; height:32px; padding:0 4px 0 8px; font:700 10.5px var(--cin); letter-spacing:.14em; text-transform:uppercase; color:var(--gold2); }
+  .dz-editlink svg { width:15px; height:15px; }
+  .dz-editlink:active { opacity:.6; }
+  .dz-decks { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+  .dz-dk { position:relative; height:58px; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; padding:0 5px 0 6px; overflow:hidden;
+    background:linear-gradient(#241a10,#140d07); box-shadow:inset 0 0 0 1px #5a431c, inset 0 1px 0 rgba(246,227,163,.18), 0 3px 6px rgba(0,0,0,.5); transition:transform .12s, box-shadow .25s, background .25s; }
+  .dz-dk:active { transform:scale(.96); }
+  .dz-dk .dz-th { flex:none; width:28px; height:36px; border-radius:5px; background-size:cover; background-position:50% 12%; box-shadow:0 0 0 1px #000, 0 0 0 2px #6f5324; }
+  .dz-dk .dz-tx { min-width:0; line-height:1.15; }
+  .dz-dk b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; font:700 10.5px var(--cin); letter-spacing:.02em; color:#d9c487; }
+  .dz-dk small { display:flex; align-items:center; gap:4px; font:700 9.5px var(--cin); letter-spacing:.02em; color:#a99768; margin-top:2px; white-space:nowrap; }
+  .dz-dk .dz-ck { display:inline-block; width:12px; height:12px; border-radius:50%; background:#6d9a4a; color:#10200a; font-size:9px; line-height:12px; text-align:center; font-weight:900; }
+  .dz-dk .dz-ck.no { background:#d9674a; color:#2a0c05; }
+  .dz-dk.sel { background:linear-gradient(#5a431a,#2d1f0b); box-shadow:inset 0 0 0 2px var(--gold), inset 0 1px 0 rgba(255,240,180,.5), 0 0 14px rgba(240,200,100,.5), 0 3px 6px rgba(0,0,0,.5); animation:glow2 2.6s ease-in-out infinite; }
+  .dz-dk.sel b { color:#fff3c4; } .dz-dk.sel small { color:#ecd9a0; }
+  .dz-dk.sel::after { content:'EM USO'; position:absolute; right:0; top:0; font:900 7px/1 var(--cin); letter-spacing:.12em; padding:3px 6px 3px 7px; border-radius:0 0 0 7px; background:linear-gradient(#f0d68a,#b88b2c); color:#2a1a05; }
+  .dz-dk.bad { box-shadow:inset 0 0 0 1px #8a3a28, 0 3px 6px rgba(0,0,0,.5); background:linear-gradient(#2a1510,#160b08); }
+  .dz-dk.bad.sel { box-shadow:inset 0 0 0 2px #e0745a, 0 0 14px rgba(224,100,70,.6); animation:none; background:linear-gradient(#4a1f16,#26110c); }
+  .dz-dk.bad.sel::after { content:'INCOMPLETO'; background:linear-gradient(#f2a08c,#b84a30); color:#2a0c05; }
+  .dz-dk.bad small { color:#f0a58f; }
+  .dz-dk.empty { background:rgba(0,0,0,.25); box-shadow:inset 0 0 0 1px #5a431c; border:1px dashed #7a6130; justify-content:center; flex-direction:column; gap:1px; }
+  .dz-dk.empty .dz-plus { font:400 22px/1 var(--cin); color:#d9c487; }
+  .dz-dk.empty small { margin:0; color:#a99768; }
+  @keyframes glow2 { 0%,100% { box-shadow:inset 0 0 0 2px var(--gold), inset 0 1px 0 rgba(255,240,180,.5), 0 0 8px rgba(240,200,100,.35), 0 3px 6px rgba(0,0,0,.5); } 50% { box-shadow:inset 0 0 0 2px #ffe29a, inset 0 1px 0 rgba(255,240,180,.5), 0 0 17px rgba(255,220,130,.75), 0 3px 6px rgba(0,0,0,.5); } }
+  .dz-why { min-height:20px; margin-top:7px; text-align:center; font:600 13px/1.25 var(--serif); color:#bfae80; transition:color .25s; }
+  .dz-why b { color:var(--gold2); } .dz-why.warn { color:#ffb9a2; } .dz-why.warn b { color:#ffd9c9; }
+  .dz-tag { font:700 8px/1 var(--cin); letter-spacing:.12em; padding:3px 6px 2px; vertical-align:1px; border-radius:8px; background:linear-gradient(#f0d68a,#b88b2c); color:#2a1a05; text-transform:uppercase; text-shadow:none; flex:none; margin-left:6px; vertical-align:2px; }
+  .dz-tag.win { background:linear-gradient(#a6d27c,#4f7f31); color:#0f2007; }
+  .dz-map .dz-mk.new svg { animation:bob2 2.2s ease-in-out infinite; }
+  @keyframes bob2 { 0%,100% { translate:0 0; } 50% { translate:0 -4px; } }
+  .dz-map .dz-mk.won svg { filter:hue-rotate(60deg) saturate(.9) drop-shadow(0 3px 5px rgba(0,0,0,.85)) drop-shadow(0 0 7px rgba(150,220,110,.5)); }
+  .dz-lbl { position:absolute; left:0; top:5px; transform:translateX(calc(-50% + var(--lx,0px))) scale(var(--inv,1)); transform-origin:50% 0; white-space:nowrap; font:700 11px var(--cin); letter-spacing:.08em; text-transform:uppercase; color:var(--gold2); padding:3px 8px 2px; border-radius:9px; background:rgba(14,9,5,.82); box-shadow:0 0 0 1px #6f5324, 0 3px 6px rgba(0,0,0,.7); pointer-events:none; }
+  .dz-map .dz-mk.lock .dz-lbl { color:#9d978a; box-shadow:0 0 0 1px #4a4538, 0 3px 6px rgba(0,0,0,.7); }
+  .dz-map .dz-mk.sel2 svg { animation:none; }
+  .dz-toast { position:absolute; left:50%; bottom:90px; transform:translateX(-50%); z-index:40; padding:9px 16px; border-radius:16px; background:rgba(18,12,8,.96); border:1px solid #6f5324; font:600 11.5px var(--cin); letter-spacing:.06em; color:var(--gold2); opacity:0; transition:opacity .3s; pointer-events:none; white-space:nowrap; }
+  .dz-toast.on { opacity:1; }
