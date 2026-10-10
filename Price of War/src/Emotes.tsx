@@ -12,22 +12,14 @@ import surpresa from './assets/emotes/surpresa.webp';
 import pensativo from './assets/emotes/pensativo.webp';
 import ops from './assets/emotes/ops.webp';
 import trofeu from './assets/emotes/trofeu.webp';
-import sfxJoinha from './assets/emotes/sfx-joinha.mp3';
-import sfxPalmas from './assets/emotes/sfx-palmas.mp3';
-import sfxPrece from './assets/emotes/sfx-prece.mp3';
-import sfxAperto from './assets/emotes/sfx-aperto.mp3';
-import sfxSurpresa from './assets/emotes/sfx-surpresa.mp3';
-import sfxPensativo from './assets/emotes/sfx-pensativo.mp3';
-import sfxOps from './assets/emotes/sfx-ops.mp3';
-import sfxTrofeu from './assets/emotes/sfx-trofeu.mp3';
-import { playSfx, preloadSfx } from './sfx';
 import kitIconBtn from './assets/kit/icon-btn.png';
 import kitSecondary from './assets/kit/btn-secondary.png';
 import kitPrimary from './assets/kit/btn-primary.png';
 
 // The pause between two of my messages (the server enforces 2.5 s; this shows it).
 const GAP_MS = 2600;
-const SHOW_MS = 3200;
+// How long a balloon stays (appearing included) before it fades out.
+const SHOW_MS = 2000;
 
 // Phrase 1 is the deck's own (by the sender's General); the others are the same for everyone.
 const DECK_PHRASE: Record<string, string> = { cardeal: 'Que a fé o guie!', capitao: 'Em formação!', mercenarios: 'O preço subiu.' };
@@ -45,17 +37,21 @@ const EMOJIS: { code: string; icon: string }[] = [
 const phraseText = (code: string, senderGeneral: string): string | undefined => code === 'p1' ? DECK_PHRASE[deckOfGeneral(senderGeneral)] : PHRASES.find(p => p.code === code)?.text;
 const iconOf = (code: string): string | undefined => PHRASES.find(p => p.code === code)?.icon ?? EMOJIS.find(e => e.code === code)?.icon;
 
-// One sound per icon (CC0 samples of the npm package `uisfx`, see docs/audio.md): it plays when the balloon appears, for both sides.
-const SOUND: Record<string, string> = {
-  p1: sfxPrece, p2: sfxPalmas, p3: sfxAperto, p4: sfxPensativo, p5: sfxOps, p6: sfxTrofeu,
-  e1: sfxJoinha, e2: sfxPalmas, e3: sfxPrece, e4: sfxSurpresa, e5: sfxPensativo, e6: sfxAperto,
-};
-const ALL_SOUNDS = Object.values(SOUND);
-
 type Bubble = { key: number; side: 'me' | 'foe'; code: string };
 
 // TESTE: `local` = contra a IA, sem servidor: a mensagem aparece só no seu aparelho e a IA "responde" com uma mensagem sorteada, para testar o menu,
 // os balões e o Silenciar sem precisar de duas pessoas. Remover junto com TEST_EMOTES_VS_AI no App.tsx.
+// A small cloud of smoke that blooms and fades where the balloon appears.
+const PUFFS = [{ x: -22, y: -8, s: 30, d: 0 }, { x: 20, y: -10, s: 34, d: 0.03 }, { x: -8, y: 14, s: 36, d: 0.05 }, { x: 24, y: 12, s: 28, d: 0.02 }, { x: 0, y: -18, s: 32, d: 0.06 }, { x: -26, y: 10, s: 26, d: 0.04 }];
+const Puff = () => (
+  <div aria-hidden style={{ position: 'absolute', left: '50%', top: '50%', width: 0, height: 0, pointerEvents: 'none', zIndex: 2 }}>
+    {PUFFS.map((c, i) => (
+      <motion.span key={i} initial={{ opacity: 0.8, scale: 0.3, x: 0, y: 0 }} animate={{ opacity: 0, scale: 1.7, x: c.x, y: c.y }} transition={{ duration: 0.7, delay: c.d, ease: 'easeOut' }}
+        style={{ position: 'absolute', left: -c.s / 2, top: -c.s / 2, width: c.s, height: c.s, borderRadius: '50%', background: 'radial-gradient(circle, rgba(246,236,212,.85) 0%, rgba(246,236,212,.45) 45%, rgba(246,236,212,0) 72%)' }} />
+    ))}
+  </div>
+);
+
 export const Emotes = ({ matchId, enabled, myGeneral, opponentGeneral, local = false }: { matchId: string; enabled: boolean; myGeneral: string; opponentGeneral: string; local?: boolean }) => {
   const [open, setOpen] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -72,7 +68,6 @@ export const Emotes = ({ matchId, enabled, myGeneral, opponentGeneral, local = f
     if (seen.current.has(id)) return;
     seen.current.add(id);
     const key = id;
-    if (SOUND[code]) playSfx(SOUND[code], 0.75);
     // one balloon per side at a time: the newest replaces the old
     setBubbles(b => [...b.filter(x => x.side !== side), { key, side, code }]);
     window.setTimeout(() => setBubbles(b => b.filter(x => x.key !== key)), SHOW_MS);
@@ -85,8 +80,6 @@ export const Emotes = ({ matchId, enabled, myGeneral, opponentGeneral, local = f
       show(e.from === 0 ? 'me' : 'foe', e.code, e.id);
     });
   };
-
-  useEffect(() => { ALL_SOUNDS.forEach(preloadSfx); }, []);
 
   // The messages of the opponent arrive by a light poll (the first answer is history: shown by nobody).
   useEffect(() => {
@@ -149,27 +142,25 @@ export const Emotes = ({ matchId, enabled, myGeneral, opponentGeneral, local = f
             ? { position: 'relative' as const, display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px 7px 8px', borderRadius: 14, background: 'linear-gradient(#2a1d12,#150e08)', border: `2px solid ${edge}`, boxShadow: '0 4px 14px rgba(0,0,0,.7)', color: '#f3e3bd', maxWidth: 230 }
             : { position: 'relative' as const, display: 'flex', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,.7))' };
           return (
-            <motion.div key={b.key} initial={{ opacity: 0, scale: 0.4 }} animate={{ opacity: 1, scale: [0.4, 1.12, 1] }} exit={{ opacity: 0, scale: 0.88, y: p.up ? -12 : 12, transition: { duration: 0.65, ease: 'easeIn' } }} transition={{ duration: 0.5, times: [0, 0.65, 1], ease: 'easeOut', opacity: { duration: 0.28, ease: 'easeOut' } }}
+            <motion.div key={b.key} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.5, ease: 'easeIn' } }} transition={{ duration: 0.15 }}
               style={{ position: 'fixed', pointerEvents: 'none', left: p.left, top: p.top, width: 0, height: 0, zIndex: 236 }}>
               <div style={{ transform: `translate(-50%, ${p.up ? '-100%' : '0'})`, display: 'flex', flexDirection: p.up ? 'column-reverse' : 'column', alignItems: 'center', gap: 4, width: 'max-content' }}>
-              {b.side === 'foe' && (
-                <button onClick={() => { setMuted(true); setBubbles(x => x.filter(y => y.side !== 'foe')); }}
-                  style={{ pointerEvents: 'auto', cursor: 'pointer', fontFamily: serif, fontWeight: 700, fontSize: 9, letterSpacing: '0.1em', color: '#e9d8ad', background: 'rgba(10,8,5,.82)', border: '1px solid #8a6a28', borderRadius: 10, padding: '3px 9px' }}>
-                  Silenciar
-                </button>
-              )}
-              <div style={box}>
-                {text && <span style={{ position: 'absolute', left: '50%', [p.up ? 'bottom' : 'top']: -8, width: 12, height: 12, marginLeft: -6, transform: 'rotate(45deg)', background: p.up ? '#150e08' : '#2a1d12',
-                  [p.up ? 'borderRight' : 'borderLeft']: `2px solid ${edge}`, [p.up ? 'borderBottom' : 'borderTop']: `2px solid ${edge}` }} />}
-                {!text && <motion.span aria-hidden initial={{ opacity: 0.85, scale: 0.6 }} animate={{ opacity: 0, scale: 2.1 }} transition={{ duration: 0.9, ease: 'easeOut' }}
-                  style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid #ffd36a', boxShadow: '0 0 18px 4px rgba(255,205,90,.7)' }} />}
-                {icon && (text
-                  ? <img src={icon} alt="" style={{ width: 34, height: 34 }} draggable={false} />
-                  : <motion.img src={icon} alt="" draggable={false} style={{ width: 54, height: 54 }}
-                      initial={{ rotate: -14 }} animate={{ rotate: [-14, 7, -3, 0], y: [0, -3, 0, -3, 0] }}
-                      transition={{ rotate: { duration: 0.7, ease: 'easeOut' }, y: { duration: 2.2, ease: 'easeInOut', repeat: Infinity, delay: 0.6 } }} />)}
-                {text && <span style={{ fontFamily: serif, fontWeight: 800, fontSize: 13, lineHeight: 1.15, color: '#f3e3bd', textShadow: '0 1px 2px #000' }}>{text}</span>}
-              </div>
+                {b.side === 'foe' && (
+                  <button onClick={() => { setMuted(true); setBubbles(x => x.filter(y => y.side !== 'foe')); }}
+                    style={{ pointerEvents: 'auto', cursor: 'pointer', fontFamily: serif, fontWeight: 700, fontSize: 9, letterSpacing: '0.1em', color: '#e9d8ad', background: 'rgba(10,8,5,.82)', border: '1px solid #8a6a28', borderRadius: 10, padding: '3px 9px' }}>
+                    Silenciar
+                  </button>
+                )}
+                {/* "Pluf": it materializes out of nothing (small, blurred and transparent, then sharp and whole) inside a puff of smoke. */}
+                <motion.div initial={{ scale: 0.35, opacity: 0, filter: 'blur(10px)' }} animate={{ scale: 1, opacity: 1, filter: 'blur(0px)' }} transition={{ duration: 0.5, ease: [0.2, 0.8, 0.25, 1] }} style={{ position: 'relative' }}>
+                  <div style={box}>
+                    {text && <span style={{ position: 'absolute', left: '50%', [p.up ? 'bottom' : 'top']: -8, width: 12, height: 12, marginLeft: -6, transform: 'rotate(45deg)', background: p.up ? '#150e08' : '#2a1d12',
+                      [p.up ? 'borderRight' : 'borderLeft']: `2px solid ${edge}`, [p.up ? 'borderBottom' : 'borderTop']: `2px solid ${edge}` }} />}
+                    {icon && <img src={icon} alt="" style={{ width: text ? 34 : 54, height: text ? 34 : 54 }} draggable={false} />}
+                    {text && <span style={{ fontFamily: serif, fontWeight: 800, fontSize: 13, lineHeight: 1.15, color: '#f3e3bd', textShadow: '0 1px 2px #000' }}>{text}</span>}
+                  </div>
+                  <Puff />
+                </motion.div>
               </div>
             </motion.div>
           );

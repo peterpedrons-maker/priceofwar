@@ -17,7 +17,7 @@ de áudio, para cair no mesmo quadro da imagem. Um `<audio>` comum atrasaria um 
 
 | Cura (General do Cardeal, Samaritano de Aço, Bênção) | `sfx-cura.mp3` (arquivo enviado pelo dono, "holy healing spell", 2,5 s; volume 0,7 em `src/combatFx.ts`, nome `cura`) | Toca uma vez no momento em que a luz chega à unidade curada. |
 
-| Frases e emojis da partida online (balão aparece, para os dois lados) | `src/assets/emotes/sfx-*.mp3` (volume 0,75, `src/Emotes.tsx`) | Um som por ícone, de amostras CC0 do pacote npm `uisfx`: joinha = `cinematic/success`, palmas = `cinematic/reward`, prece = `cinematic/info`, aperto de mãos = `cinematic/connect`, surpresa = `cinematic/notification`, pensativo = `organic/processing`, "ops" = `organic/error`, troféu = `cinematic/level-up`. Cortados, normalizados e em mono. Ouça todos em `docs/janelas/sons-emojis.mp3` (na ordem). Não passam por silenciar mensagens: se o jogador silenciou o adversário, o som dele também não toca. |
+| Frases e emojis da partida online | (sem som, decisão do dono: os sons testados foram recusados) | Se um dia voltar, usar um único som para todos. |
 
 Outros sons (jogar carta, comprar, selecionar, tática, banner etc.) continuam como estavam, tocando por `<audio>`.
 
