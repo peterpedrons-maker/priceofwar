@@ -130,7 +130,7 @@ export const Emotes = ({ matchId, enabled, myGeneral, opponentGeneral, local = f
             ? { position: 'relative' as const, display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px 7px 8px', borderRadius: 14, background: 'linear-gradient(#2a1d12,#150e08)', border: `2px solid ${edge}`, boxShadow: '0 4px 14px rgba(0,0,0,.7)', color: '#f3e3bd', maxWidth: 230 }
             : { display: 'flex', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,.7))' };
           return (
-            <motion.div key={b.key} initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.2 }}
+            <motion.div key={b.key} initial={{ opacity: 0, scale: 0.55 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.55, ease: 'easeIn' } }} transition={{ type: 'spring', stiffness: 170, damping: 17, opacity: { duration: 0.4, ease: 'easeOut' } }}
               style={{ position: 'fixed', pointerEvents: 'none', left: p.left, top: p.top, width: 0, height: 0, zIndex: 236 }}>
               <div style={{ transform: `translate(-50%, ${p.up ? '-100%' : '0'})`, display: 'flex', flexDirection: p.up ? 'column-reverse' : 'column', alignItems: 'center', gap: 4, width: 'max-content' }}>
               {b.side === 'foe' && (
@@ -151,9 +151,10 @@ export const Emotes = ({ matchId, enabled, myGeneral, opponentGeneral, local = f
         })}
       </AnimatePresence>
 
-      {open && <div style={{ position: 'fixed', inset: 0, zIndex: 237, background: 'rgba(6,4,2,0.5)' }} onClick={() => setOpen(false)} />}
+      <AnimatePresence>
+      {open && <motion.div key="emote-dim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} style={{ position: 'fixed', inset: 0, zIndex: 237, background: 'rgba(6,4,2,0.5)' }} onClick={() => setOpen(false)} />}
       {open && (
-        <div style={{ position: 'fixed', left: 12, right: 12, bottom: 196, zIndex: 238 }} onClick={e => e.stopPropagation()}>
+        <motion.div key="emote-menu" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.28, ease: 'easeOut' }} style={{ position: 'fixed', left: 12, right: 12, bottom: 196, zIndex: 238 }} onClick={e => e.stopPropagation()}>
           <div style={{ fontFamily: serif, fontWeight: 900, fontSize: 11, letterSpacing: '0.2em', color: '#d9b45a', textShadow: '0 1px 2px #000', marginBottom: 6 }}>FRASES</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'space-between' }}>
             {PHRASES.map(p => (
@@ -167,8 +168,9 @@ export const Emotes = ({ matchId, enabled, myGeneral, opponentGeneral, local = f
               <button key={e.code} onClick={() => say(e.code)} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', width: 44, height: 44, flex: '0 0 44px' }}><img src={e.icon} alt="" style={{ width: '100%', height: '100%' }} draggable={false} /></button>
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
       <button onClick={() => (muted ? setMuted(false) : setOpen(o => !o))} disabled={waiting && !muted}
         style={{ position: 'fixed', border: 'none', cursor: 'pointer', left: 10, bottom: 146, width: 44, height: 44, zIndex: 239, background: `url(${kitIconBtn}) 0 0/100% 100% no-repeat`, display: 'grid', placeItems: 'center', opacity: waiting && !muted ? 0.55 : 1, filter: 'drop-shadow(0 2px 4px #000)' }}
         aria-label={muted ? 'Mensagens silenciadas (toque para ativar)' : 'Frases e emojis'}>
