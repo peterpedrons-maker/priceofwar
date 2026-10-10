@@ -1,21 +1,52 @@
-# Símbolos das ligas (ranqueado): prompt para gerar com IA
+# Símbolos das ligas (ranqueado): prompts para gerar com IA, um por liga
 
-O **símbolo da liga** (emblema) é diferente da **moldura do retrato**: a moldura é o anel em volta do retrato (já entregue, `src/assets/ligas/`); o símbolo é o brasão da liga atual, grande, usado na tela de Ligas, no fim da partida e no ranking. Mockup com símbolos provisórios: `docs/janelas/ranqueado-simbolos-provisorios.png` e `ranqueado-tela-ligas.png`.
-Oito brasões em forma de escudo, um símbolo heráldico por liga, mais ricos a cada liga. Sem texto; fundo magenta `#FF00FF` chapado (para recortar). A divisão (IV a I) é desenhada pelo jogo, em losangos, não no símbolo.
+O **símbolo da liga** é diferente da **moldura do retrato** (o anel, já entregue em `src/assets/ligas/`): é o emblema grande da liga atual, usado na tela de Ligas, no fim da partida e no ranking. O dono pediu algo no nível dos emblemas de elo dos jogos competitivos atuais: cada liga é uma peça única, ornamentada, que ganha asas, cristais, chifres e brilho conforme sobe; **não** um escudo chapado com um desenho. Gerar **um por vez** (mais qualidade), todos com o mesmo texto base e só a última linha mudando.
+Fundo magenta `#FF00FF`, sem texto. Depois de gerar: recortar do magenta e guardar em `src/assets/ligas/simbolo-<liga>.webp`. A divisão (IV a I) é desenhada pelo jogo, em losangos. Mockups das telas (com símbolos provisórios): `docs/janelas/ranqueado-tela-ligas.png`.
 
-## Prompt: folha com os oito símbolos
+## Ferro
 ```
-Emblem sheet for a medieval dark-fantasy mobile card game. Eight heraldic shield-shaped rank emblems laid out in a 4x2 grid on a perfectly flat solid magenta #FF00FF background, generous spacing, each fully contained, all the same size. NO text, NO letters, NO numbers.
-Style: hand-painted medieval metal and enamel, thick worn metal rim, soft highlights, light from the top left, flat front view, no cast shadow on the background. Each emblem is a shield with a bold simple heraldic symbol in the middle; the symbol must read clearly when shrunk to 48 px. Each emblem is richer than the previous one but all clearly belong to one family.
-From lowest to highest rank:
-1) IRON: dull dark grey iron shield with a plain simple kettle helmet, a few rivets.
-2) BRONZE: warm bronze shield with two crossed swords.
-3) SILVER: polished silver shield with a castle tower.
-4) GOLD: polished gold shield with a lion head and a small laurel branch on each side.
-5) PLATINUM: cool teal-white shield with a winged wyvern, delicate engraved edge.
-6) DIAMOND: deep blue steel shield with a crown made of faceted pale-blue crystals.
-7) MASTER: dark violet shield with gold edges, an upright sword with two large wings.
-8) WARLORD (top rank): blackened red-gold shield with a great horned war helmet wreathed in flames and two crossed greatswords behind it, the most impressive of the eight.
-Palette hints: iron #7d838c, bronze #9a5f2c / #e2a56a, silver #9aa6b3 / #eef3f8, gold #c8962c / #ffe08a, platinum #4aa7a0 / #b8fff2, diamond #4f7fe0 / #bcd7ff, master #8a4fc4 / #e2c0ff, warlord #c0392b / #ffd36a.
+Ranked tier emblem for a medieval dark-fantasy mobile card game, centered, single object on a perfectly flat solid magenta #FF00FF background, NO text, NO letters, NO numbers. A highly detailed, ornate, sculpted metal crest with a central gemstone, rendered like a premium 3D game rank badge: polished and worn metal, engraved details, soft glowing highlights, dramatic top-left lighting, depth and bevels, crisp silhouette that still reads clearly at 64 px. Medieval heraldic feeling (wings, spikes, crowns, banners), NOT a flat shield with a small icon. Square image, the emblem fills about 80% of the frame, no cast shadow on the background.
+THIS TIER: IRON: a crude, heavy iron crest, riveted plates and rough hammered metal, tiny stubby wing stumps, a small dull grey stone.
 ```
-Se a folha vier fraca: peça um símbolo por vez com o mesmo texto de estilo. Depois: recorto do magenta e guardo em `src/assets/ligas/simbolo-<liga>.webp`.
+
+## Bronze
+```
+Ranked tier emblem for a medieval dark-fantasy mobile card game, centered, single object on a perfectly flat solid magenta #FF00FF background, NO text, NO letters, NO numbers. A highly detailed, ornate, sculpted metal crest with a central gemstone, rendered like a premium 3D game rank badge: polished and worn metal, engraved details, soft glowing highlights, dramatic top-left lighting, depth and bevels, crisp silhouette that still reads clearly at 64 px. Medieval heraldic feeling (wings, spikes, crowns, banners), NOT a flat shield with a small icon. Square image, the emblem fills about 80% of the frame, no cast shadow on the background.
+THIS TIER: BRONZE: a warm bronze crest with short folded wings and a rope-like trim, a copper gem.
+```
+
+## Prata
+```
+Ranked tier emblem for a medieval dark-fantasy mobile card game, centered, single object on a perfectly flat solid magenta #FF00FF background, NO text, NO letters, NO numbers. A highly detailed, ornate, sculpted metal crest with a central gemstone, rendered like a premium 3D game rank badge: polished and worn metal, engraved details, soft glowing highlights, dramatic top-left lighting, depth and bevels, crisp silhouette that still reads clearly at 64 px. Medieval heraldic feeling (wings, spikes, crowns, banners), NOT a flat shield with a small icon. Square image, the emblem fills about 80% of the frame, no cast shadow on the background.
+THIS TIER: SILVER: a polished silver crest with two elegant spread wings and engraved feathers, a pale gem.
+```
+
+## Ouro
+```
+Ranked tier emblem for a medieval dark-fantasy mobile card game, centered, single object on a perfectly flat solid magenta #FF00FF background, NO text, NO letters, NO numbers. A highly detailed, ornate, sculpted metal crest with a central gemstone, rendered like a premium 3D game rank badge: polished and worn metal, engraved details, soft glowing highlights, dramatic top-left lighting, depth and bevels, crisp silhouette that still reads clearly at 64 px. Medieval heraldic feeling (wings, spikes, crowns, banners), NOT a flat shield with a small icon. Square image, the emblem fills about 80% of the frame, no cast shadow on the background.
+THIS TIER: GOLD: a gold crest with large detailed wings and a laurel wreath, a bright yellow gem.
+```
+
+## Platina
+```
+Ranked tier emblem for a medieval dark-fantasy mobile card game, centered, single object on a perfectly flat solid magenta #FF00FF background, NO text, NO letters, NO numbers. A highly detailed, ornate, sculpted metal crest with a central gemstone, rendered like a premium 3D game rank badge: polished and worn metal, engraved details, soft glowing highlights, dramatic top-left lighting, depth and bevels, crisp silhouette that still reads clearly at 64 px. Medieval heraldic feeling (wings, spikes, crowns, banners), NOT a flat shield with a small icon. Square image, the emblem fills about 80% of the frame, no cast shadow on the background.
+THIS TIER: PLATINUM: a cool teal-white crest with engraved patterns, large swept wings made of layered blades and a glowing mint gem.
+```
+
+## Diamante
+```
+Ranked tier emblem for a medieval dark-fantasy mobile card game, centered, single object on a perfectly flat solid magenta #FF00FF background, NO text, NO letters, NO numbers. A highly detailed, ornate, sculpted metal crest with a central gemstone, rendered like a premium 3D game rank badge: polished and worn metal, engraved details, soft glowing highlights, dramatic top-left lighting, depth and bevels, crisp silhouette that still reads clearly at 64 px. Medieval heraldic feeling (wings, spikes, crowns, banners), NOT a flat shield with a small icon. Square image, the emblem fills about 80% of the frame, no cast shadow on the background.
+THIS TIER: DIAMOND: a deep blue crest covered in faceted pale-blue crystals, crystal wings and spires, a radiant blue gem.
+```
+
+## Mestre
+```
+Ranked tier emblem for a medieval dark-fantasy mobile card game, centered, single object on a perfectly flat solid magenta #FF00FF background, NO text, NO letters, NO numbers. A highly detailed, ornate, sculpted metal crest with a central gemstone, rendered like a premium 3D game rank badge: polished and worn metal, engraved details, soft glowing highlights, dramatic top-left lighting, depth and bevels, crisp silhouette that still reads clearly at 64 px. Medieval heraldic feeling (wings, spikes, crowns, banners), NOT a flat shield with a small icon. Square image, the emblem fills about 80% of the frame, no cast shadow on the background.
+THIS TIER: MASTER: a dark violet and gold crest with tall curved horns, ornate wings and a glowing violet gem, magical aura.
+```
+
+## Senhor da Guerra
+```
+Ranked tier emblem for a medieval dark-fantasy mobile card game, centered, single object on a perfectly flat solid magenta #FF00FF background, NO text, NO letters, NO numbers. A highly detailed, ornate, sculpted metal crest with a central gemstone, rendered like a premium 3D game rank badge: polished and worn metal, engraved details, soft glowing highlights, dramatic top-left lighting, depth and bevels, crisp silhouette that still reads clearly at 64 px. Medieval heraldic feeling (wings, spikes, crowns, banners), NOT a flat shield with a small icon. Square image, the emblem fills about 80% of the frame, no cast shadow on the background.
+THIS TIER: WARLORD (the top rank, the most majestic of all): a blackened red-gold crest with a spiked crown, great horns, wings of flame and embers, small floating sparks and a glowing ruby, an intense aura.
+```
