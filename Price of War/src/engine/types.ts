@@ -48,6 +48,8 @@ export type Verb =
   // Recursos
   | { kind: 'gold'; amount: number }
   | { kind: 'draw'; amount: number }
+  | { kind: 'lose_gold'; amount: number }                                 // o dono perde ouro da reserva (até o que tem); Rescisão
+  | { kind: 'hurt_own_general'; amount: number }                          // o General do dono sofre dano; Rescisão
   | { kind: 'refill_hand'; to: number }
   | { kind: 'extra_moves'; amount: number }
   // Dano e cura (`all: 'enemy'` = todas as unidades inimigas e o General, sem escolher)
@@ -133,6 +135,7 @@ export interface RelicMode {
   name: string;
   effect: string;
   upkeepFlat?: number;
+  upkeepEach?: number;   // cada carta com manutenção paga esse tanto a menos (nunca abaixo de 1)
   loot?: { gold?: number; draw?: number; cap: number };   // por unidade inimiga destruída (ouro e/ou cartas), com teto por ciclo
   atk?: number;
 }

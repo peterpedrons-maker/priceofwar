@@ -353,3 +353,11 @@ Mudanças: General "Cardeal Anselmo" cura 1 HP de graça, uma vez por turno (dua
 | × Capitão (`balance-merc.ts`, 100 partidas) | **57%** | rodadas 8,1 |
 | × Mercenários (100 partidas) | **75%** | rodadas 7,8 (antes ~41%) |
 Leitura: contra o Capitão ficou dentro da faixa de 40–60% (no limite). Contra os Mercenários ficou forte demais, mas o deck Mercenários é experimental e foi calibrado contra o Cardeal antigo (menos vida, mais ataque); ele precisa de nova rodada. Testado: trocar o ganho do Noviço Renascido de "para sempre" para "até o próximo turno" não mudou nada (75% e 61%), então a cura grátis do Noviço não é o motor. Próximo passo sugerido: se o jogo humano confirmar a força, o primeiro botão é a vida dos soldados do Cardeal (−1 HP) e não a cura do General.
+
+## Rodada 21: Mercenários com manutenção que pesa (a pedido do dono; 200 partidas por confronto, IA × IA, `tests/balance-merc.ts`)
+Mudanças nos Mercenários: tropas baratas e fortes com Rescisão que custa algo (Capa-Rota 4/4 custo 1 manutenção 3, perde 3 de ouro; Florete de Aposta 5/3 manutenção 3, perde 3 de ouro; Cavaleiro do Escudo Raspado 5/5 custo 2 manutenção 2, 2 de dano no General; Capitão Barba-de-Corvo, 2 de dano no General; Boca-de-Fogo 4/3 custo 2 manutenção 2, perde 2 de ouro). Relíquia: terceiro modo **Quitação** (manutenção −1 por carta, mínimo 1) e Soldo em Dobro passou a +2 ATK (com +1 quase ninguém o escolhia: 9%). A tela de manutenção sempre abre. No Cardeal, para equilibrar: vida −1 em Sentinela, Paladino, Barão, Marechal e Arqueiro de Dois Sinos, −1 em Jorge.
+| | × Cardeal | × Capitão | Modos escolhidos (saque / soldo / quitação) |
+|---|---|---|---|
+| Antes (rodada 20) | 25% | ~60% | 77% / 23% / – |
+| **Depois** | **44%** | **62,5%** | 49% / 26% / 26% |
+Cardeal × Capitão ficou em 55%. Leitura: o Cardeal novo estava forte demais (75% contra os Mercenários), então perdeu 1 de vida nos soldados maiores; os Mercenários ficaram dentro de 40–60% contra o Cardeal e um pouco acima contra o Capitão (a IA subestima o Capitão, ver rodada 18). Os três modos agora são usados. A manutenção pesa mais (9,3 de ouro por partida, antes 5) mas a IA ainda dispensa só 1 carta por partida; ver como pessoas jogam.

@@ -299,7 +299,7 @@ var CARD_DEFS = [
     fx: "soldados",
     cardType: "Infantaria",
     atk: 2,
-    hp: 6,
+    hp: 5,
     cost: 3,
     trigger: "reforco",
     effect: "Se a da frente cair, desce e ganha Escudo 2.",
@@ -309,7 +309,7 @@ var CARD_DEFS = [
     name: "Jorge, Lan\xE7a Sagrada",
     cardType: "Cavalaria",
     atk: 3,
-    hp: 7,
+    hp: 6,
     cost: 4,
     isFullArt: true,
     trigger: "ofensiva",
@@ -335,7 +335,7 @@ var CARD_DEFS = [
     fx: "nobre",
     cardType: "Cavalaria",
     atk: 3,
-    hp: 6,
+    hp: 5,
     cost: 4,
     isFullArt: true,
     trigger: "convocacao",
@@ -346,7 +346,7 @@ var CARD_DEFS = [
     name: "Paladino do Alvorecer",
     cardType: "Cavalaria",
     atk: 3,
-    hp: 6,
+    hp: 5,
     cost: 4,
     isFullArt: true,
     effect: "Quando uma unidade ao lado \xE9 curada: +1 ATK at\xE9 o seu pr\xF3ximo turno.",
@@ -358,7 +358,7 @@ var CARD_DEFS = [
     trigger: "postura",
     cardType: "Cavalaria",
     atk: 4,
-    hp: 6,
+    hp: 5,
     cost: 4,
     isFullArt: true,
     effect: "Na Vanguarda, seus Infantaria e Arqueiros t\xEAm +1/+1 em combate.",
@@ -374,7 +374,7 @@ var CARD_DEFS = [
     name: "Arqueiro de Dois Sinos",
     cardType: "Arqueiro",
     atk: 1,
-    hp: 5,
+    hp: 4,
     cost: 3,
     effect: "Ataca 2 vezes por rodada.",
     passives: [{ kind: "aura", who: { side: "self" }, attacks: 1 }]
@@ -555,7 +555,16 @@ var CARD_DEFS = [
   // ── mercenários (com manutenção) ──
   { name: "Lanceiro P\xE9s-de-Lama", cardType: "Infantaria", atk: 2, hp: 2, cost: 1, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.**" },
   { name: "Besteiro Dedo-Ligeiro", cardType: "Arqueiro", atk: 2, hp: 2, cost: 2, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.**" },
-  { name: "Capa-Rota", cardType: "Infantaria", atk: 5, hp: 3, cost: 2, upkeep: 2, effect: "**Manuten\xE7\xE3o 2.**" },
+  {
+    name: "Capa-Rota",
+    cardType: "Infantaria",
+    atk: 4,
+    hp: 4,
+    cost: 1,
+    upkeep: 3,
+    effect: "**Manuten\xE7\xE3o 3.** Rescis\xE3o: voc\xEA perde 3 de ouro.",
+    abilities: [{ on: "dismissed", do: [{ kind: "lose_gold", amount: 3 }] }]
+  },
   {
     name: "Rato da Muralha",
     cardType: "Infantaria",
@@ -575,12 +584,41 @@ var CARD_DEFS = [
     hp: 5,
     cost: 3,
     upkeep: 2,
-    effect: "**Manuten\xE7\xE3o 2.** Na Vanguarda, seus Infantaria e Arqueiros t\xEAm +1 ATK.",
+    effect: "**Manuten\xE7\xE3o 2.** Na Vanguarda, seus Infantaria e Arqueiros t\xEAm +1 ATK. Rescis\xE3o: 2 de dano ao seu General.",
+    abilities: [{ on: "dismissed", do: [{ kind: "hurt_own_general", amount: 2 }] }],
     passives: [{ kind: "aura", who: { side: "own", types: ["Infantaria", "Arqueiro"] }, from: "front", atk: 1 }]
   },
-  { name: "Cavaleiro do Escudo Raspado", isFullArt: true, cardType: "Cavalaria", atk: 5, hp: 5, cost: 3, upkeep: 2, effect: "**Manuten\xE7\xE3o 2.**" },
-  { name: "Florete de Aposta", cardType: "Infantaria", atk: 6, hp: 2, cost: 2, upkeep: 2, effect: "**Manuten\xE7\xE3o 2.**" },
-  { name: "Boca-de-Fogo", cardType: "Artilharia", atk: 3, hp: 2, cost: 3, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.** Ataca \xE0 dist\xE2ncia." },
+  {
+    name: "Cavaleiro do Escudo Raspado",
+    isFullArt: true,
+    cardType: "Cavalaria",
+    atk: 5,
+    hp: 5,
+    cost: 2,
+    upkeep: 2,
+    effect: "**Manuten\xE7\xE3o 2.** Rescis\xE3o: 2 de dano ao seu General.",
+    abilities: [{ on: "dismissed", do: [{ kind: "hurt_own_general", amount: 2 }] }]
+  },
+  {
+    name: "Florete de Aposta",
+    cardType: "Infantaria",
+    atk: 5,
+    hp: 3,
+    cost: 2,
+    upkeep: 3,
+    effect: "**Manuten\xE7\xE3o 3.** Rescis\xE3o: voc\xEA perde 3 de ouro.",
+    abilities: [{ on: "dismissed", do: [{ kind: "lose_gold", amount: 3 }] }]
+  },
+  {
+    name: "Boca-de-Fogo",
+    cardType: "Artilharia",
+    atk: 4,
+    hp: 3,
+    cost: 2,
+    upkeep: 2,
+    effect: "**Manuten\xE7\xE3o 2.** Ataca \xE0 dist\xE2ncia. Rescis\xE3o: voc\xEA perde 2 de ouro.",
+    abilities: [{ on: "dismissed", do: [{ kind: "lose_gold", amount: 2 }] }]
+  },
   // ── sem manutenção ──
   { name: "Vigia da \xDAltima Brasa", cardType: "Infantaria", atk: 2, hp: 4, cost: 2, effect: "" },
   {
@@ -707,10 +745,11 @@ var CARD_DEFS = [
     hp: 5,
     cost: 3,
     isFullArt: true,
-    effect: "Escolha 1 modo no fim do seu turno. Soldo em Dobro: cartas com manuten\xE7\xE3o t\xEAm +1 ATK. Saque: ao destruir uma unidade inimiga, compre 1 carta (m\xE1x. 1 por ciclo).",
+    effect: "Escolha 1 modo no fim do seu turno. Soldo em Dobro: cartas com manuten\xE7\xE3o t\xEAm +2 ATK. Saque: ao destruir uma unidade inimiga, compre 1 carta (m\xE1x. 1 por ciclo). Quita\xE7\xE3o: a manuten\xE7\xE3o de cada carta custa 1 a menos (m\xEDnimo 1).",
     modes: [
-      { id: "soldo", name: "Soldo em Dobro", effect: "Cartas com manuten\xE7\xE3o t\xEAm +1 ATK.", atk: 1 },
-      { id: "saque", name: "Saque", effect: "Ao destruir uma unidade inimiga, compre 1 carta (m\xE1x. 1 por ciclo).", loot: { draw: 1, cap: 1 } }
+      { id: "soldo", name: "Soldo em Dobro", effect: "Cartas com manuten\xE7\xE3o t\xEAm +2 ATK.", atk: 2 },
+      { id: "saque", name: "Saque", effect: "Ao destruir uma unidade inimiga, compre 1 carta (m\xE1x. 1 por ciclo).", loot: { draw: 1, cap: 1 } },
+      { id: "quitacao", name: "Quita\xE7\xE3o", effect: "A manuten\xE7\xE3o de cada carta custa 1 a menos (nunca menos de 1).", upkeepEach: 1 }
     ]
   }
 ];
@@ -1334,10 +1373,10 @@ var startTurn = (c, seat) => {
   const entries = [];
   for (let i = 0; i <= 9; i++) {
     const card = p.board[i];
-    if (card && upkeepOf(card.name) > 0) entries.push({ slot: i, cardId: card.id, cost: upkeepOf(card.name) });
+    if (card && upkeepOf(card.name) > 0) entries.push({ slot: i, cardId: card.id, cost: Math.max(1, upkeepOf(card.name) - (relicModeOf(p.board)?.upkeepEach ?? 0)) });
   }
   const discount = relicModeOf(p.board)?.upkeepFlat ?? 0;
-  if (entries.length > 0 && entries.reduce((a, e) => a + e.cost, 0) > discount) {
+  if (entries.length > 0) {
     c.s.pending = { kind: "upkeep", seat, entries, discount };
     log(c, seat, "Manuten\xE7\xE3o: escolha quais mercen\xE1rios continuam (pagando) e quais s\xE3o dispensados.");
     return;
@@ -1495,6 +1534,18 @@ var runVerb = (c, fx, v, slot) => {
     case "draw":
       drawCards(c, seat, v.amount, "effect");
       return;
+    case "lose_gold": {
+      const lost = Math.min(v.amount, p.gold);
+      if (lost > 0) addGold(c, seat, -lost, "spend");
+      log(c, seat, `${name}: ${lost > 0 ? `perdeu ${lost} de ouro` : "n\xE3o havia ouro para perder"}.`);
+      return;
+    }
+    case "hurt_own_general": {
+      const dead = damageSlot(c, seat, GENERAL_SLOT, v.amount);
+      log(c, seat, `${name}: o General sofre ${v.amount} de dano!`);
+      sendDestroyed(c, seat, dead ? [dead] : []);
+      return;
+    }
     case "refill_hand":
       if (p.hand.length < v.to) drawCards(c, seat, v.to - p.hand.length, "effect");
       return;
@@ -2282,7 +2333,7 @@ var upkeepAnswer = (state, seat) => {
     const card = me.board[e.slot];
     const def = getCardDef(card.name);
     const back = def?.dismiss === "hand" ? 0.6 * cardValue(card) : 0;
-    const rescisao = (def?.abilities ?? []).some((a) => a.on === "dismissed" && a.do.some((v) => v.kind === "draw")) ? 3 : 0;
+    const rescisao = (def?.abilities ?? []).filter((a) => a.on === "dismissed").reduce((n2, a) => n2 + a.do.reduce((m, v) => m + (v.kind === "draw" ? 3 : v.kind === "lose_gold" ? -0.9 * Math.min(v.amount, me.gold) : v.kind === "hurt_own_general" ? -1.2 * v.amount : 0), 0), 0);
     return { id: e.cardId, cost: e.cost, worth: unitWorth(card), consolation: back + rescisao };
   });
   const items = me.hand.filter((c) => c.cardType !== "Emboscada").map((c) => ({ cost: c.cost, value: cardValue(c) }));
@@ -2323,7 +2374,11 @@ var wantedRelicMode = (state, seat) => {
   const mercs = UNIT_SLOTS.filter((i) => me.board[i] && upkeepOf(me.board[i].name) > 0).length;
   const foes = UNIT_SLOTS.filter((i) => foe.board[i]).length;
   const attackers = UNIT_SLOTS.filter((i) => me.board[i] && me.board[i].atk > 0).length;
-  const value = (m) => (m.upkeepFlat ? Math.min(m.upkeepFlat, mercs) : 0) + (m.loot ? Math.min(m.loot.cap, attackers, foes) * ((m.loot.gold ?? 0) + (m.loot.draw ?? 0) * 3) : 0) + (m.atk ? Math.min(mercs, foes + 1) * m.atk * 0.55 : 0);
+  const value = (m) => (m.upkeepFlat ? Math.min(m.upkeepFlat, mercs) : 0) + (m.upkeepEach ? UNIT_SLOTS.reduce((n, i) => {
+    const c = me.board[i];
+    const u = c ? upkeepOf(c.name) : 0;
+    return n + (u > 0 ? Math.min(m.upkeepEach, u - 1) : 0);
+  }, 0) : 0) + (m.loot ? Math.min(m.loot.cap, attackers, foes) * ((m.loot.gold ?? 0) + (m.loot.draw ?? 0) * 3) : 0) + (m.atk ? Math.min(mercs, foes + 1) * m.atk * 0.55 : 0);
   return [...modes].sort((a, b) => value(b) - value(a))[0].id;
 };
 var aiLegacyAction = (state, seat, rand = Math.random) => {
@@ -2450,7 +2505,10 @@ var sideValue = (p, q) => {
   if (relicModeOf(p.board)) v += 6 + 0.7 * UNIT_SLOTS.filter((i) => p.board[i] && upkeepOf(p.board[i].name) > 0).length;
   return v + boardScore(p.board, q.board);
 };
-var upkeepBurden = (p) => Math.max(0, UNIT_SLOTS.reduce((n, i) => n + (p.board[i] ? upkeepOf(p.board[i].name) : 0), 0) - (relicModeOf(p.board)?.upkeepFlat ?? 0));
+var upkeepBurden = (p) => Math.max(0, UNIT_SLOTS.reduce((n, i) => {
+  const u = p.board[i] ? upkeepOf(p.board[i].name) : 0;
+  return n + (u > 0 ? Math.max(1, u - (relicModeOf(p.board)?.upkeepEach ?? 0)) : 0);
+}, 0) - (relicModeOf(p.board)?.upkeepFlat ?? 0));
 var evalState = (s, seat) => {
   if (s.winner !== null) return s.winner === seat ? 1e5 : -1e5;
   const me = s.players[seat];

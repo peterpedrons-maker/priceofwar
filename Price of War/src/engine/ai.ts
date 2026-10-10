@@ -308,7 +308,9 @@ const upkeepAnswer = (state: GameState, seat: Seat): Action => {
     const card = me.board[e.slot]!;
     const def = getCardDef(card.name);
     const back = def?.dismiss === 'hand' ? 0.6 * cardValue(card) : 0;
-    const rescisao = (def?.abilities ?? []).some(a => a.on === 'dismissed' && a.do.some(v => v.kind === 'draw')) ? 3 : 0;
+    // Rescisão: comprar carta compensa; perder ouro ou vida do General pesa (o ouro conta 0,9 por ponto, a vida do General 1,2).
+    const rescisao = (def?.abilities ?? []).filter(a => a.on === 'dismissed').reduce((n, a) => n + a.do.reduce((m, v) =>
+      m + (v.kind === 'draw' ? 3 : v.kind === 'lose_gold' ? -0.9 * Math.min(v.amount, me.gold) : v.kind === 'hurt_own_general' ? -1.2 * v.amount : 0), 0), 0);
     return { id: e.cardId, cost: e.cost, worth: unitWorth(card), consolation: back + rescisao };
   });
   // O que dá para jogar da mão (Emboscada fica guardada): custo e valor de cada carta.
@@ -348,6 +350,7 @@ const wantedRelicMode = (state: GameState, seat: Seat): string | null => {
   const attackers = UNIT_SLOTS.filter(i => me.board[i] && me.board[i]!.atk > 0).length;
   const value = (m: (typeof modes)[number]) =>
     (m.upkeepFlat ? Math.min(m.upkeepFlat, mercs) : 0) +
+    (m.upkeepEach ? UNIT_SLOTS.reduce((n, i) => { const c = me.board[i]; const u = c ? upkeepOf(c.name) : 0; return n + (u > 0 ? Math.min(m.upkeepEach!, u - 1) : 0); }, 0) : 0) +
     (m.loot ? Math.min(m.loot.cap, attackers, foes) * ((m.loot.gold ?? 0) + (m.loot.draw ?? 0) * 3) : 0) +
     (m.atk ? Math.min(mercs, foes + 1) * m.atk * 0.55 : 0);
   return [...modes].sort((a, b) => value(b) - value(a))[0].id;
@@ -518,7 +521,7 @@ const sideValue = (p: PlayerState, q: PlayerState): number => {
 // The whole position, from `seat`'s point of view: higher is better.
 // Ouro de manutenção que a mesa de um lado vai cobrar no próximo turno (já com o desconto da Relíquia).
 const upkeepBurden = (p: PlayerState): number =>
-  Math.max(0, UNIT_SLOTS.reduce((n, i) => n + (p.board[i] ? upkeepOf(p.board[i]!.name) : 0), 0) - (relicModeOf(p.board)?.upkeepFlat ?? 0));
+  Math.max(0, UNIT_SLOTS.reduce((n, i) => { const u = p.board[i] ? upkeepOf(p.board[i]!.name) : 0; return n + (u > 0 ? Math.max(1, u - (relicModeOf(p.board)?.upkeepEach ?? 0)) : 0); }, 0) - (relicModeOf(p.board)?.upkeepFlat ?? 0));
 
 const evalState = (s: GameState, seat: Seat): number => {
   if (s.winner !== null) return s.winner === seat ? 1e5 : -1e5;

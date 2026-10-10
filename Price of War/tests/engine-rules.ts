@@ -1115,21 +1115,21 @@ test('Mercenários: the upkeep prompt opens at Suprimentos; paying keeps the uni
   const esp = put(s, 0, 2, 'Capa-Rota'), duel = put(s, 0, 1, 'Florete de Aposta'), lanc = put(s, 0, 3, 'Lanceiro Pés-de-Lama');
   s = toNextTurn(s);
   ok(s.pending?.kind === 'upkeep' && s.pending.seat === 0, 'no upkeep prompt');
-  eq((s.pending as any).entries.map((e: any) => [e.cardId, e.cost]), [[duel.id, 2], [esp.id, 2], [lanc.id, 1]]);
+  eq((s.pending as any).entries.map((e: any) => [e.cardId, e.cost]), [[duel.id, 3], [esp.id, 3], [lanc.id, 1]]);
   eq(s.turn.phase, 'suprimentos');
   const gold = s.players[0].gold;                       // 20 + 5 (round 2)
   refused(s, 0, { type: 'play', cardId: 'nada', slot: 4 }, 'pendente');
   const r = act(s, 0, { type: 'upkeep', keep: [esp.id, duel.id] });
   s = r.s;
-  eq([s.players[0].gold, s.turn.phase, s.pending], [gold - 4, 'preparacao', null]);
+  eq([s.players[0].gold, s.turn.phase, s.pending], [gold - 6, 'preparacao', null]);
   eq([s.players[0].board[3], names(s.players[0].graveyard)], [null, ['Lanceiro Pés-de-Lama']]);
-  ok(r.ev.some(e => e.t === 'upkeep' && e.paid === 4 && e.dismissed === 1), 'upkeep event');
+  ok(r.ev.some(e => e.t === 'upkeep' && e.paid === 6 && e.dismissed === 1), 'upkeep event');
 });
 test('Mercenários: not enough gold to pay everyone is refused; dismissing is the way out', () => {
   let s = freshMerc();
   const esp = put(s, 0, 2, 'Capa-Rota'), duel = put(s, 0, 1, 'Florete de Aposta');
   s = toNextTurn(s);
-  s.players[0].gold = 3;                                  // as duas juntas custam 4
+  s.players[0].gold = 3;                                  // as duas juntas custam 6
   refused(s, 0, { type: 'upkeep', keep: [esp.id, duel.id] }, 'Ouro insuficiente');
   s = act(s, 0, { type: 'upkeep', keep: [esp.id] }).s;
   eq([s.players[0].board[2]?.name, s.players[0].board[1]], ['Capa-Rota', null]);
@@ -1145,12 +1145,12 @@ test('Mercenários: a dismissed Florete de Aposta is lost (graveyard); a dismiss
   eq(s.players[0].hand.length, handBefore + 1, 'only the Rescisão draw');
   void duel; void des;
 });
-test('Relíquia com modos: Soldo em Dobro gives +1 ATK to cards with upkeep; the mode changes only in Movimentação', () => {
+test('Relíquia com modos: Soldo em Dobro gives +2 ATK to cards with upkeep; the mode changes only in Movimentação', () => {
   let s = freshMerc();
   s.players[0].board[10] = { ...mk('Códice das Mil Dívidas'), mode: 'soldo' };
   put(s, 0, 2, 'Capa-Rota'); put(s, 0, 3, 'Vigia da Última Brasa');
   const b = s.players[0].board, foe = s.players[1].board;
-  eq([getEffectiveAtk(b[2]!, 2, b, foe), getEffectiveAtk(b[3]!, 3, b, foe)], [6, 2]);   // Sentinela has no upkeep
+  eq([getEffectiveAtk(b[2]!, 2, b, foe), getEffectiveAtk(b[3]!, 3, b, foe)], [6, 2]);   // Sentinela has no upkeep (Capa-Rota 4 + 2)
   refused(s, 0, { type: 'relic_mode', mode: 'saque' }, 'fim do turno');
   s.turn.phase = 'movimentacao';
   refused(s, 0, { type: 'relic_mode', mode: 'nao-existe' }, 'não existe');
@@ -1158,7 +1158,26 @@ test('Relíquia com modos: Soldo em Dobro gives +1 ATK to cards with upkeep; the
   eq(r.s.players[0].board[10]?.mode, 'saque');
   ok(r.ev.some(e => e.t === 'relic_mode' && e.mode === 'saque'), 'relic_mode event');
   const b2 = r.s.players[0].board;
-  eq(getEffectiveAtk(b2[2]!, 2, b2, foe), 5);
+  eq(getEffectiveAtk(b2[2]!, 2, b2, foe), 4);
+});
+test('Mercenários: Quitação takes 1 off each card with upkeep (never below 1); the prompt always opens', () => {
+  let s = freshMerc();
+  s.players[0].board[10] = { ...mk('Códice das Mil Dívidas'), mode: 'quitacao' };
+  const esp = put(s, 0, 2, 'Capa-Rota'), lanc = put(s, 0, 3, 'Lanceiro Pés-de-Lama');
+  s = toNextTurn(s);
+  ok(s.pending?.kind === 'upkeep', 'the prompt must open even when everything is cheap');
+  eq((s.pending as any).entries.map((e: any) => [e.cardId, e.cost]), [[esp.id, 2], [lanc.id, 1]]);
+});
+test('Mercenários: Rescisão that costs gold or hurts the own General', () => {
+  let s = freshMerc();
+  const esp = put(s, 0, 2, 'Capa-Rota'), cav = put(s, 0, 1, 'Cavaleiro do Escudo Raspado');
+  s = toNextTurn(s);
+  s.players[0].gold = 5;
+  const gen = s.players[0].board[12]!.hp;
+  s = act(s, 0, { type: 'upkeep', keep: [] }).s;
+  eq([s.players[0].board[2], s.players[0].board[1]], [null, null]);
+  eq([s.players[0].gold, s.players[0].board[12]!.hp], [2, gen - 2]);   // Capa-Rota: perde 3 de ouro; Cavaleiro: 2 de dano ao General
+  void esp; void cav;
 });
 test('Relíquia com modos: Saque draws one card per enemy unit destroyed, at most 1 per cycle', () => {
   let s = freshMerc();

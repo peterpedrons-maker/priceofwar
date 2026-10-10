@@ -42,15 +42,15 @@ FxSide:48 · FxRect:49 · FxTarget:50 · FxEnv:52 · cv:66 · ctx:67 · RES:68 �
 
 DzOpponent:12 · DzDeck:13 · PLACES:16 · LOCKED:22 · MAPPX:24 · PIN_SVG:25 · LAST_DECK_KEY:26 · DesafiosScreen:28
 
-## src/engine/ai.ts  (736 linhas)
+## src/engine/ai.ts  (739 linhas)
 A IA do adversário: planeja o turno simulando no próprio motor (aiNextAction) e a IA antiga (aiLegacyAction).
 
-Rand:18 · randomOf:20 · weakest:22 · UNIT_SLOTS:25 · isSoldier:26 · cardValue:29 · unitWorth:37 · isRangedType:42 · boardScore:44 · swapped:79 · MoveOption:85 · moveOptions:88 · bestMove:112 · planGain:119 · bestSlot:147 · attackScore:162 · matches:182 · tacticPlay:185 · abilityAction:274 · bestIds:297 · upkeepAnswer:304 · wantedRelicMode:340 · aiLegacyAction:356 · AiStyle:471 · STYLE:472 · holdValue:475 · attackPotential:490 · sideValue:503 · upkeepBurden:520 · evalState:523 · sortedDesc:538 · forSearch:541 · candidates:551 · lastPhaseOf:622 · fingerprint:625 · Line:634 · SEARCH:636 · settle:639 · planTurn:650 · memo:691 · answerPending:693 · aiNextAction:712 · aiNextActionInner:717
+Rand:18 · randomOf:20 · weakest:22 · UNIT_SLOTS:25 · isSoldier:26 · cardValue:29 · unitWorth:37 · isRangedType:42 · boardScore:44 · swapped:79 · MoveOption:85 · moveOptions:88 · bestMove:112 · planGain:119 · bestSlot:147 · attackScore:162 · matches:182 · tacticPlay:185 · abilityAction:274 · bestIds:297 · upkeepAnswer:304 · wantedRelicMode:342 · aiLegacyAction:359 · AiStyle:474 · STYLE:475 · holdValue:478 · attackPotential:493 · sideValue:506 · upkeepBurden:523 · evalState:526 · sortedDesc:541 · forSearch:544 · candidates:554 · lastPhaseOf:625 · fingerprint:628 · Line:637 · SEARCH:639 · settle:642 · planTurn:653 · memo:694 · answerPending:696 · aiNextAction:715 · aiNextActionInner:720
 
-## src/engine/catalog.ts  (421 linhas)
+## src/engine/catalog.ts  (427 linhas)
 TODAS as cartas (atributos, texto, efeitos em dados), as receitas dos dois decks, balanceamento (BALANCE), listas iniciais antigas (LEGACY_STARTERS).
 
-SOLDIERS:8 · OWN_UNIT:9 · ENEMY_UNIT:10 · CARD_DEFS:12 · DeckId:215 · DeckRecipe:217 · DECK_RECIPES:219 · BALANCE:302 · STARTER_TRIM:314 · starterDeckCards:315 · LEGACY_STARTERS:323 · BY_NAME:337 · getCardDef:340 · registerCardDefs:342 · requireCardDef:343 · LEGACY_CARD_NAMES:350 · currentCardName:406 · currentNames:408 · isGeneralName:413 · TOKEN_DEFS:417
+SOLDIERS:8 · OWN_UNIT:9 · ENEMY_UNIT:10 · CARD_DEFS:12 · DeckId:221 · DeckRecipe:223 · DECK_RECIPES:225 · BALANCE:308 · STARTER_TRIM:320 · starterDeckCards:321 · LEGACY_STARTERS:329 · BY_NAME:343 · getCardDef:346 · registerCardDefs:348 · requireCardDef:349 · LEGACY_CARD_NAMES:356 · currentCardName:412 · currentNames:414 · isGeneralName:419 · TOKEN_DEFS:423
 
 ## src/engine/deck.ts  (29 linhas)
 Regras de montagem de deck (40 a 60 cartas, 4 cópias).
@@ -62,10 +62,10 @@ DECK_MIN_CARDS:5 · DECK_MAX_CARDS:6 · DECK_MAX_COPIES:7 · deckCardCount:9 · 
 
 names:7 · MERCENARIOS_DEFS:8 · MERCENARIOS_RECIPE:9 · registerMercenarios:10
 
-## src/engine/game.ts  (1071 linhas)
+## src/engine/game.ts  (1084 linhas)
 O motor: createMatch e applyAction (jogar, atacar, mover, habilidades, emboscada, fim de turno, vitória).
 
-DeckSetup:25 · deckSetupFromRecipe:31 · expandCards:36 · MatchOptions:41 · cardFromName:49 · createMatch:58 · Ctx:84 · RuleError:87 · fail:88 · log:90 · P:91 · combatOpen:93 · activePhases:94 · addGold:97 · removeOne:106 · takeFromDeck:107 · drawCards:109 · removeFromHand:122 · discard:129 · sendDestroyed:136 · reinforceFrom:159 · setWinner:176 · soak:185 · grantShield:197 · grantBlock:203 · damageSlot:211 · healSlot:227 · startTurn:237 · enterPreparation:293 · payUpkeep:300 · setRelicMode:333 · runTurnEnd:346 · endTurn:366 · assertCanAct:376 · Fx:387 · uniqueByName:394 · matchesFilter:395 · filterLabel:397 · specCandidates:400 · checkTarget:404 · activeTargets:422 · validateTargets:426 · checkVerb:433 · checkVerbTarget:447 · openPick:451 · runVerb:458 · runAbilities:605 · grantMovedBuff:611 · playCard:621 · useAbility:685 · choose:725 · attack:781 · respondAmbush:807 · resolveAmbushEffect:824 · resolveCombat:857 · move:934 · advance:967 · discardExcess:989 · clone:1006 · applyAction:1008 · MatchLog:1050 · newMatchLog:1057 · replayMatch:1060
+DeckSetup:25 · deckSetupFromRecipe:31 · expandCards:36 · MatchOptions:41 · cardFromName:49 · createMatch:58 · Ctx:84 · RuleError:87 · fail:88 · log:90 · P:91 · combatOpen:93 · activePhases:94 · addGold:97 · removeOne:106 · takeFromDeck:107 · drawCards:109 · removeFromHand:122 · discard:129 · sendDestroyed:136 · reinforceFrom:159 · setWinner:176 · soak:185 · grantShield:197 · grantBlock:203 · damageSlot:211 · healSlot:227 · startTurn:237 · enterPreparation:294 · payUpkeep:301 · setRelicMode:334 · runTurnEnd:347 · endTurn:367 · assertCanAct:377 · Fx:388 · uniqueByName:395 · matchesFilter:396 · filterLabel:398 · specCandidates:401 · checkTarget:405 · activeTargets:423 · validateTargets:427 · checkVerb:434 · checkVerbTarget:448 · openPick:452 · runVerb:459 · runAbilities:618 · grantMovedBuff:624 · playCard:634 · useAbility:698 · choose:738 · attack:794 · respondAmbush:820 · resolveAmbushEffect:837 · resolveCombat:870 · move:947 · advance:980 · discardExcess:1002 · clone:1019 · applyAction:1021 · MatchLog:1063 · newMatchLog:1070 · replayMatch:1073
 
 ## src/engine/rewards.ts  (38 linhas)
 Regras de recompensa (XP, Coroas, nível).
@@ -82,10 +82,10 @@ Constantes (ouro, mão, início do combate) e perguntas sobre o tabuleiro (alcan
 
 R:8 · START_GOLD:9 · START_HAND:10 · DRAW_PER_TURN:12 · GOLD_PER_TURN:13 · GOLD_FROM_ROUND:14 · COMBAT_FROM_ROUND:16 · HAND_LIMIT:17 · Unit:21 · Board:26 · phasesForTurn:29 · AUTOMATIC_PHASES:35 · restingPhasesForTurn:36 · abilitiesOf:41 · passivesOf:42 · abilityOn:43 · verbsOn:44 · hasVerb:45 · abilityPhases:48 · specCandidatesOn:51 · targetSpecsOf:66 · playTargetSpecs:67 · targetSpecOf:69 · needsHiddenInfo:73 · reinforceShield:78 · canReinforce:82 · AuraStat:85 · rowOk:86 · whoMatches:87 · auraTotal:97 · maxGeneralAbilityUses:119 · boardHasFlag:121 · upkeepOf:125 · relicModeOf:127 · canPlayInPhase:135 · isFrontline:139 · isBackline:140 · isUnitSlot:141 · getLaneCol:142 · getMoveRow:147 · getMoveCol:148 · areSlotsAdjacent:150 · adjacentSlots:154 · canReposition:158 · SOLDIER_TYPES:165 · CardDropKind:167 · getCardDropKind:170 · canPlaceInSlot:182 · isAliveAt:191 · isCardDamaged:193 · getAuraCombatHpBonus:196 · blocksAmbush:198 · locksGeneralOnDamage:200 · getMaxAttacksPerTurn:202 · getEffectiveAtk:206 · getIncomingDamageReduction:214 · getValidAttackTargets:218 · withEquippedWeapons:249
 
-## src/engine/types.ts  (367 linhas)
+## src/engine/types.ts  (370 linhas)
 Tipos: GameState, Action, GameEvent, CardDef, os verbos de efeito (Verb) e passivas.
 
-CardType:4 · Seat:10 · otherSeat:11 · TurnPhase:15 · Trigger:19 · TRIGGER_LABEL:20 · TargetSpec:31 · CardFilter:43 · Verb:47 · AbilityOn:84 · Ability:99 · Who:109 · Passive:119 · RelicMode:131 · CardDef:141 · Card:167 · SLOT_COUNT:198 · GENERAL_SLOT:199 · RELIC_SLOT:200 · TERRAIN_SLOT:201 · PlayerState:203 · TurnState:224 · PickMode:242 · Pending:245 · GameState:287 · Action:300 · GameEvent:327 · ActionResult:364
+CardType:4 · Seat:10 · otherSeat:11 · TurnPhase:15 · Trigger:19 · TRIGGER_LABEL:20 · TargetSpec:31 · CardFilter:43 · Verb:47 · AbilityOn:86 · Ability:101 · Who:111 · Passive:121 · RelicMode:133 · CardDef:144 · Card:170 · SLOT_COUNT:201 · GENERAL_SLOT:202 · RELIC_SLOT:203 · TERRAIN_SLOT:204 · PlayerState:206 · TurnState:227 · PickMode:245 · Pending:248 · GameState:290 · Action:303 · GameEvent:330 · ActionResult:367
 
 ## src/engine/view.ts  (66 linhas)
 O que cada jogador pode ver (esconde mão e baralho do outro).
@@ -245,7 +245,7 @@ UNITS:10 · bandCost:11 · defs:12 · where:13 · rows:19 · off:32
 
 dir:10 · out:11 · cmd:12 · fresh:14 · committed:15
 
-## tests/engine-rules.ts  (1210 linhas)
+## tests/engine-rules.ts  (1229 linhas)
 Um cenário por regra do jogo (npm test).
 
 passed:19 · test:20 · eq:23 · ok:26 · n:29 · mk:30 · fresh:35 · put:46 · give:47 · act:48 · refused:53 · names:58 · combat:59 · ambushSetup:368 · shielded:658 · aiTurn:719 · atkOf:897 · endTurnOf:898 · freshMerc:1100 · toNextTurn:1107

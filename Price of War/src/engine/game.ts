@@ -280,9 +280,10 @@ const startTurn = (c: Ctx, seat: Seat) => {
 
   // Manutenção: as cartas com `upkeep` pedem pagamento; o dono decide quais ficam (a turma só segue depois da resposta).
   const entries: { slot: number; cardId: string; cost: number }[] = [];
-  for (let i = 0; i <= 9; i++) { const card = p.board[i]; if (card && upkeepOf(card.name) > 0) entries.push({ slot: i, cardId: card.id, cost: upkeepOf(card.name) }); }
+  for (let i = 0; i <= 9; i++) { const card = p.board[i]; if (card && upkeepOf(card.name) > 0) entries.push({ slot: i, cardId: card.id, cost: Math.max(1, upkeepOf(card.name) - (relicModeOf(p.board)?.upkeepEach ?? 0)) }); }
   const discount = relicModeOf(p.board)?.upkeepFlat ?? 0;
-  if (entries.length > 0 && entries.reduce((a, e) => a + e.cost, 0) > discount) {
+  // Sempre abre a tela quando há mercenários: o dono vê o que paga ou perde, mesmo sem ouro (ver docs/deck-mercenarios.md).
+  if (entries.length > 0) {
     c.s.pending = { kind: 'upkeep', seat, entries, discount };
     log(c, seat, 'Manutenção: escolha quais mercenários continuam (pagando) e quais são dispensados.');
     return;
@@ -470,6 +471,18 @@ const runVerb = (c: Ctx, fx: Fx, v: Verb, slot: number | undefined) => {
     case 'draw':
       drawCards(c, seat, v.amount, 'effect');
       return;
+    case 'lose_gold': {
+      const lost = Math.min(v.amount, p.gold);
+      if (lost > 0) addGold(c, seat, -lost, 'spend');
+      log(c, seat, `${name}: ${lost > 0 ? `perdeu ${lost} de ouro` : 'não havia ouro para perder'}.`);
+      return;
+    }
+    case 'hurt_own_general': {
+      const dead = damageSlot(c, seat, GENERAL_SLOT, v.amount);
+      log(c, seat, `${name}: o General sofre ${v.amount} de dano!`);
+      sendDestroyed(c, seat, dead ? [dead] : []);
+      return;
+    }
     case 'refill_hand':
       if (p.hand.length < v.to) drawCards(c, seat, v.to - p.hand.length, 'effect');
       return;
