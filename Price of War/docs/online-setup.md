@@ -49,8 +49,10 @@ Nothing else to configure: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are pr
 - **Two people (or two devices / one normal + one private window):** each opens the game, signs in (guest is fine),
   Online → Casual → pick a deck. The first one waits on "Procurando adversário…"; as soon as the second joins both get
   "Adversário encontrado!", the coin toss, and the match.
-- **Alone:** Online → Casual and wait about 15 s: an AI opponent takes the other chair. It is the same server, the
-  same rules and the same match record as a match between people.
+- **Alone:** Online → Casual keeps waiting on "Procurando adversário…": **there is no AI opponent in online play** (owner's
+  decision, rodada 21). The AI is only in the **Desafios**. Testing the online mode alone therefore needs two accounts or two devices.
+  A waiting player's queue entry is refreshed by every status poll; an entry nobody has refreshed for 20 s (`queueStaleMs`) is a player who
+  left and is skipped, so nobody is matched with a ghost. Without an account, Online shows "Online precisa de conta".
 - **Desafios** (against the AI) also goes through the server now, so it is recorded like any other match.
 - **Desistir** (top right) gives up. Reloading mid-match and choosing Online → Casual again brings you back to the match.
 
@@ -84,7 +86,7 @@ Nothing else to configure: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are pr
 
 `tests/mock-supabase.ts` is a local stand-in that runs the real game server code in memory:
 ```
-MOCK_BOT_MS=4000 npx tsx tests/mock-supabase.ts
+npx tsx tests/mock-supabase.ts
 VITE_SUPABASE_URL=http://localhost:54321 VITE_SUPABASE_ANON_KEY=test.anon.key npm run build
 ```
 (`MOCK_TURN_MS` / `MOCK_PROMPT_MS` shorten the turn clock for tests.)

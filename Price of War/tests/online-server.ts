@@ -19,7 +19,7 @@ const eq = (a: unknown, b: unknown, msg = '') => { if (JSON.stringify(a) !== JSO
 let clock = 1_700_000_000_000;
 let rngState = 7;
 const cfg: GameConfig = {
-  botAfterMs: 15000, turnMs: 100000, promptMs: 40000, maxTimeouts: 2, now: () => clock,
+  queueStaleMs: 20000, turnMs: 100000, promptMs: 40000, maxTimeouts: 2, now: () => clock,
   random: () => { rngState = (rngState * 1103515245 + 12345) & 0x7fffffff; return rngState / 0x7fffffff; },
 };
 
@@ -246,14 +246,24 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     ok(steps.every((s, i) => s.n === i + 1), 'steps are numbered 1..n');
   });
 
-  await test('nobody to play with: after the wait the bot takes the other chair', async () => {
+  await test('nobody to play with: the player keeps waiting, no bot takes the other chair', async () => {
     const db = fresh();
     await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal') }, cfg);
-    clock += 5000;
-    eq(((await handleGame(db, 'A', { op: 'status' }, cfg)) as any).status, 'waiting');
-    clock += 11000;
-    const init = matched(await handleGame(db, 'A', { op: 'status' }, cfg));
-    eq(init.opponent.bot, true);
+    for (let i = 0; i < 12; i++) { clock += 5000; eq(((await handleGame(db, 'A', { op: 'status' }, cfg)) as any).status, 'waiting'); }
+    eq(db.queue.length, 1);
+    eq(db.matches.length, 0);
+  });
+
+  await test('a player who left (no status polls) is skipped; a polling player is still matched', async () => {
+    const db = fresh();
+    await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal') }, cfg);
+    clock += 25000;                                        // A closed the app long ago
+    const r = await handleGame(db, 'B', { op: 'queue', ...deckOf('capitao') }, cfg);
+    ok(r.ok === true && r.status === 'waiting', 'B must wait instead of facing a ghost: ' + JSON.stringify(r));
+    clock += 8000; await handleGame(db, 'B', { op: 'status' }, cfg);   // B polls, so B stays fresh
+    clock += 8000;
+    const c = await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal') }, cfg);   // A is back
+    ok(c.ok === true && c.status === 'matched', 'A meets the still-polling B: ' + JSON.stringify(c));
     eq(db.queue.length, 0);
   });
 

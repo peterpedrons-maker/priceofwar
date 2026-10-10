@@ -1,5 +1,5 @@
 // A stand-in for Supabase on localhost, to try the online game without a real project:
-//   MOCK_BOT_MS=4000 npx tsx tests/mock-supabase.ts          (listens on 54321)
+//   npx tsx tests/mock-supabase.ts          (listens on 54321)
 // It speaks just enough of the auth, REST and Edge Function APIs for the game, and runs the REAL game-server handler
 // (server/handler.ts) on an in-memory database. Build the app against it with:
 //   VITE_SUPABASE_URL=http://localhost:54321 VITE_SUPABASE_ANON_KEY=test.anon.key npm run build
@@ -11,7 +11,7 @@ type Row = Record<string, any>;
 const tables: { profiles: Row[]; collection: Row[]; decks: Row[] } = { profiles: [], collection: [], decks: [] };
 const memory = new MemoryDb({ profiles: tables.profiles as any, collection: tables.collection as any });
 const cfg: GameConfig = {
-  botAfterMs: Number(process.env.MOCK_BOT_MS ?? 15000), turnMs: Number(process.env.MOCK_TURN_MS ?? 150000), promptMs: Number(process.env.MOCK_PROMPT_MS ?? 60000),
+  queueStaleMs: Number(process.env.MOCK_STALE_MS ?? 20000), turnMs: Number(process.env.MOCK_TURN_MS ?? 150000), promptMs: Number(process.env.MOCK_PROMPT_MS ?? 60000),
   maxTimeouts: 2, now: () => Date.now(), random: Math.random,
 };
 
@@ -114,5 +114,5 @@ http.createServer(async (req, res) => {
     return send(res, 204);
   }
   send(res, 405, {});
-}).listen(Number(process.env.PORT ?? 54321), () => console.log('mock supabase on ' + (process.env.PORT ?? 54321) + ' (bot after ' + cfg.botAfterMs + ' ms)'));
+}).listen(Number(process.env.PORT ?? 54321), () => console.log('mock supabase on ' + (process.env.PORT ?? 54321) + ' (stale queue entries after ' + cfg.queueStaleMs + ' ms)'));
 setInterval(() => {}, 1e6);

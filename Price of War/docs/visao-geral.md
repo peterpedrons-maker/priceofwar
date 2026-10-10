@@ -68,3 +68,5 @@ Decisões até agora: 8 ligas (Ferro, Bronze, Prata, Ouro, Platina, Diamante, Me
 Alternativa em avaliação (ideia do dono): em vez da placa lateral, uma moldura nova no lugar do contador de ouro, já com retrato (moldura da liga), nome e ouro (`docs/janelas/ranqueado-moldura-do-ouro.png`). Cuidados: espaço de ~66 px, nome curto, animações do ouro apontam para o contador atual.
 
 Molduras das ligas: **entregues e recortadas** (uma por liga, 8 ao todo, sem moldura por divisão) em `src/assets/ligas/`; ainda **não estão ligadas ao jogo** (a moldura compacta junto ao ouro é a escolhida, mockup `ranqueado-moldura-com-aneis.png`).
+
+**Online só entre pessoas (rodada 21, a pedido do dono):** o adversário automático saiu das partidas online (casual e, no futuro, ranqueado); a IA fica só nos Desafios. A fila espera por outro jogador; entradas paradas há mais de 20 s são ignoradas (`queueStaleMs`). Testar o online sozinho exige duas contas ou dois aparelhos.

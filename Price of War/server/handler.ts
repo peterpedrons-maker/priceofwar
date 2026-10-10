@@ -14,8 +14,8 @@ import { eventsFor, viewFor } from '../src/engine/view';
 import type { Db, DeckJson, EndReason, MatchPatch, MatchRow, RewardRow, StepRow, ViewRow } from './types';
 
 export interface GameConfig {
-  // How long a player waits in the queue before a bot takes the other chair.
-  botAfterMs: number;
+  // A waiting player refreshes their queue entry with every status poll; an entry older than this is a player who left, and is skipped.
+  queueStaleMs: number;
   // The clock: time for a whole turn, and for answering a prompt (an ambush, a pick, a discard).
   turnMs: number;
   promptMs: number;
@@ -25,7 +25,7 @@ export interface GameConfig {
   random: () => number;
 }
 
-export const defaultConfig = (): GameConfig => ({ botAfterMs: 15000, turnMs: 150000, promptMs: 60000, maxTimeouts: 2, now: () => Date.now(), random: Math.random });
+export const defaultConfig = (): GameConfig => ({ queueStaleMs: 20000, turnMs: 150000, promptMs: 60000, maxTimeouts: 2, now: () => Date.now(), random: Math.random });
 
 export interface MatchInit {
   id: string;
@@ -285,7 +285,11 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
         const m = await startMatch(db, cfg, { user: userId, deck }, { user: null, deck: chosen });
         return { ok: true, status: 'matched', match: await initOf(db, m, userId, cfg) };
       }
-      const other = await db.queueTake(userId);
+      // Matchmaking is between people only: nobody is waiting -> wait (the AI is only for challenges, `vsBot` above).
+      // Entries nobody has refreshed lately belong to players who left: skip them.
+      let other = await db.queueTake(userId);
+      for (let i = 0; other && cfg.now() - Date.parse(other.created_at) > cfg.queueStaleMs && i < 20; i++) other = await db.queueTake(userId);
+      if (other && cfg.now() - Date.parse(other.created_at) > cfg.queueStaleMs) other = null;
       if (other) {
         const m = await startMatch(db, cfg, { user: userId, deck }, { user: other.user_id, deck: other.deck });
         return { ok: true, status: 'matched', match: await initOf(db, m, userId, cfg) };
@@ -298,12 +302,8 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
       if (active) return { ok: true, status: 'matched', match: await initOf(db, await enforceClock(db, active, cfg), userId, cfg) };
       const q = await db.queueGet(userId);
       if (!q) return { ok: true, status: 'none' };
-      if (cfg.now() - Date.parse(q.created_at) >= cfg.botAfterMs) {
-        // Nobody showed up: the bot takes the other chair (same rules, same record, same rewards).
-        await db.queueDelete(userId);
-        const m = await startMatch(db, cfg, { user: userId, deck: q.deck }, { user: null, deck: botDeckFor(q.deck) });
-        return { ok: true, status: 'matched', match: await initOf(db, m, userId, cfg) };
-      }
+      // Still waiting (no bot fills in): polling keeps the entry fresh.
+      await db.queuePut({ user_id: userId, deck: q.deck, created_at: new Date(cfg.now()).toISOString() });
       return { ok: true, status: 'waiting' };
     }
     case 'cancel': {

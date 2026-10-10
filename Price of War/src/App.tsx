@@ -4791,9 +4791,10 @@ const CoinToss = ({ onResolved, mySide, forced, canChoose = false, remote }: { o
 
 // "Procurando adversário" -> "Adversário encontrado" before the match loads. For now the opponent is the
 // AI; the same screen will front the real matchmaking queue.
-const MatchSearchOverlay = ({ onReady, onCancel }: { onReady: () => void; onCancel: () => void; key?: React.Key }) => {
+const MatchSearchOverlay = ({ onReady, onCancel, challenge }: { onReady: () => void; onCancel: () => void; challenge: boolean; key?: React.Key }) => {
   const [found, setFound] = useState(false);
   useEffect(() => {
+    if (!challenge) return;   // Online play is between people only: without an account there is nobody to find (the AI lives in the Desafios).
     const t1 = window.setTimeout(() => { setFound(true); playBannerSfx('turn'); }, 1800 + Math.random() * 1600);
     return () => window.clearTimeout(t1);
   }, []);
@@ -4802,6 +4803,13 @@ const MatchSearchOverlay = ({ onReady, onCancel }: { onReady: () => void; onCanc
     const t = window.setTimeout(onReady, 1700);
     return () => window.clearTimeout(t);
   }, [found]);
+  if (!challenge) return (
+    <motion.div className="fixed inset-0 z-[600] flex flex-col items-center justify-center gap-5 bg-black/85" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <span className="text-[16px] uppercase tracking-[0.14em] text-[#f0a595] text-center px-8" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700 }}>Online precisa de conta</span>
+      <span className="text-[12px] text-[#dccfae] text-center px-8" style={{ fontFamily: "'PT Serif', serif" }}>Entre com uma conta para jogar contra outras pessoas. Para jogar contra a IA, use os Desafios.</span>
+      <WindowButton primary onClick={onCancel}>Voltar</WindowButton>
+    </motion.div>
+  );
   return (
     <motion.div className="fixed inset-0 z-[600] flex flex-col items-center justify-center gap-5 bg-black/85" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       {!found ? (
@@ -4838,6 +4846,12 @@ const OnlineSearchOverlay = ({ selection, challenge, onMatched, onCancel, onUnav
       if (cancelled) return;
       if (r.ok === true && r.status === 'matched') return found(r.match);
       if (r.ok === false && !r.unavailable) { setStage({ kind: 'error', message: r.error }); return; }
+      // The server forgot this entry (the connection dropped for a while): put the player back in the queue.
+      if (r.ok === true && r.status === 'none') {
+        const q = await queueForMatch({ general: selection.general, cards: selection.cards }, challenge, challenge ? selection.npcDeckId : undefined);
+        if (cancelled) return;
+        if (q.ok === true && q.status === 'matched') return found(q.match);
+      }
       timer = window.setTimeout(poll, 1200);
     };
     (async () => {
@@ -4866,7 +4880,7 @@ const OnlineSearchOverlay = ({ selection, challenge, onMatched, onCancel, onUnav
         <>
           <motion.div className="w-14 h-14 rounded-full border-4 border-[#d4af37]/30 border-t-[#e8c766]" animate={{ rotate: 360 }} transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }} />
           <span className="text-[16px] uppercase tracking-[0.16em] text-[#fff1c9]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700 }}>{challenge ? 'Preparando o desafio…' : 'Procurando adversário…'}</span>
-          {!challenge && <span className="text-[11px] text-[#a89a78] text-center px-8" style={{ fontFamily: "'PT Serif', serif" }}>Se ninguém aparecer em cerca de 15 segundos, um adversário controlado pela IA assume a partida.</span>}
+          {!challenge && <span className="text-[11px] text-[#a89a78] text-center px-8" style={{ fontFamily: "'PT Serif', serif" }}>Aguardando outro jogador. Para jogar contra a IA, use os Desafios.</span>}
           <WindowButton onClick={cancel}>Cancelar</WindowButton>
         </>
       )}
@@ -7475,7 +7489,7 @@ export default function App() {
               onUnavailable={searching.challenge ? () => { const sel = searching.sel; setSearching(null); startGame('Quick Match', sel); } : undefined}
             />
           )}
-          {searching && authMode !== 'supabase' && <MatchSearchOverlay key="searching" onCancel={() => setSearching(null)} onReady={() => { const sel = searching.sel; setSearching(null); startGame('Quick Match', sel); }} />}
+          {searching && authMode !== 'supabase' && <MatchSearchOverlay key="searching" challenge={searching.challenge} onCancel={() => setSearching(null)} onReady={() => { const sel = searching.sel; setSearching(null); startGame('Quick Match', sel); }} />}
         </AnimatePresence>
         <AnimatePresence>
           {installPromptKind && (

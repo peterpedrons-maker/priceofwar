@@ -2824,7 +2824,7 @@ var viewFor = (state, seat) => seat === 1 ? mirrorSeats(redactFor(state, seat)) 
 var eventsFor = (events, seat) => seat === 1 ? mirrorEvents(redactEvents(events, seat)) : redactEvents(events, seat);
 
 // server/handler.ts
-var defaultConfig = () => ({ botAfterMs: 15e3, turnMs: 15e4, promptMs: 6e4, maxTimeouts: 2, now: () => Date.now(), random: Math.random });
+var defaultConfig = () => ({ queueStaleMs: 2e4, turnMs: 15e4, promptMs: 6e4, maxTimeouts: 2, now: () => Date.now(), random: Math.random });
 var EMOTE_CODE = /^[pe][1-6]$/;
 var EMOTE_GAP_MS = 2500;
 var EMOTE_MAX_PER_MATCH = 80;
@@ -3031,7 +3031,9 @@ var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
         const m = await startMatch(db, cfg, { user: userId, deck }, { user: null, deck: chosen });
         return { ok: true, status: "matched", match: await initOf(db, m, userId, cfg) };
       }
-      const other = await db.queueTake(userId);
+      let other = await db.queueTake(userId);
+      for (let i = 0; other && cfg.now() - Date.parse(other.created_at) > cfg.queueStaleMs && i < 20; i++) other = await db.queueTake(userId);
+      if (other && cfg.now() - Date.parse(other.created_at) > cfg.queueStaleMs) other = null;
       if (other) {
         const m = await startMatch(db, cfg, { user: userId, deck }, { user: other.user_id, deck: other.deck });
         return { ok: true, status: "matched", match: await initOf(db, m, userId, cfg) };
@@ -3044,11 +3046,7 @@ var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
       if (active) return { ok: true, status: "matched", match: await initOf(db, await enforceClock(db, active, cfg), userId, cfg) };
       const q = await db.queueGet(userId);
       if (!q) return { ok: true, status: "none" };
-      if (cfg.now() - Date.parse(q.created_at) >= cfg.botAfterMs) {
-        await db.queueDelete(userId);
-        const m = await startMatch(db, cfg, { user: userId, deck: q.deck }, { user: null, deck: botDeckFor(q.deck) });
-        return { ok: true, status: "matched", match: await initOf(db, m, userId, cfg) };
-      }
+      await db.queuePut({ user_id: userId, deck: q.deck, created_at: new Date(cfg.now()).toISOString() });
       return { ok: true, status: "waiting" };
     }
     case "cancel": {
