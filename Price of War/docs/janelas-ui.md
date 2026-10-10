@@ -100,3 +100,6 @@ Página: `public/mockups/batalha/` (`/mockups/batalha/`, tem botão "Som"). GIFs
 
 - **Janela Online (celular real):** os ícones das linhas ficaram desalinhados com o encaixe da arte; o `.kit-sock` agora não desenha moldura própria e fica centrado no encaixe da arte (`left -47px`, 42×44).
 - **Demonstração:** GIFs e vídeo do jogo (gravados com Playwright, 390×844, sem áudio) em `docs/demo/` (fora do git por tamanho).
+
+## Mockup: Relíquia com 3 modos (aguardando aprovação; nada aplicado no jogo)
+Arquivos em `docs/janelas/`: `modo-reliquia-tres-modos.png`, `modos-lado-a-lado.png`, `modos-reliquia.gif`. Modos: Soldo em Dobro (+1 ATK), Saque (compra 1 carta) e **Quitação** (nome provisório: manutenção −1 em todas as cartas, mínimo 1). Parte da reformulação do deck Mercenários (manutenção pesando, rescisão com preço por carta, tela de manutenção sempre visível).
