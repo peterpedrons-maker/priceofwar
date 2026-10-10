@@ -2327,6 +2327,9 @@ const isGeneralName = (name: string) => cardByName(name)?.cardType === 'General'
 type DeckSlot = { id: string; name: string; general: string; cards: Record<string, number> };
 type DeckStore = { collection: Record<string, number>; slots: DeckSlot[]; owner?: string };
 // What a match needs from a deck: the draw pool, the General, and which prebuilt deck the AI takes.
+// TESTE (remover depois): mostra o botão de frases e emojis também contra a IA, que "responde" com uma mensagem sorteada (ver src/Emotes.tsx).
+const TEST_EMOTES_VS_AI = true;
+
 type DeckSelection = { cards: Record<string, number>; general: string; npcDeckId: DeckId; npcGeneral?: string };
 
 // An online match, seen from this device. The server holds the real match; this device holds MY VIEW of it (the
@@ -10385,6 +10388,8 @@ export default function App() {
 
       {/* Online, against a person: ready-made phrases and emojis (never free text). */}
       {emoteMatch && gameMode && !tutOn && gameOverWinner === null && <Emotes matchId={emoteMatch.id} enabled myGeneral={emoteMatch.myGeneral} opponentGeneral={emoteMatch.opponentGeneral} />}
+      {/* TESTE (remover depois): contra a IA o botão aparece e a IA responde com uma mensagem sorteada. */}
+      {TEST_EMOTES_VS_AI && !emoteMatch && gameMode && !tutOn && gameOverWinner === null && <Emotes matchId="teste-local" enabled local myGeneral={matchSelectionRef.current.general} opponentGeneral={matchSelectionRef.current.npcGeneral ?? DECKS[matchSelectionRef.current.npcDeckId].general.name} />}
 
       {/* While the player has not yet learned the gesture: a finger sliding from the hand up to the board, above the hand. */}
       <AnimatePresence>

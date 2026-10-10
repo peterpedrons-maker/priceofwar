@@ -38,7 +38,9 @@ const iconOf = (code: string): string | undefined => PHRASES.find(p => p.code ==
 
 type Bubble = { key: number; side: 'me' | 'foe'; code: string };
 
-export const Emotes = ({ matchId, enabled, myGeneral, opponentGeneral }: { matchId: string; enabled: boolean; myGeneral: string; opponentGeneral: string }) => {
+// TESTE: `local` = contra a IA, sem servidor: a mensagem aparece só no seu aparelho e a IA "responde" com uma mensagem sorteada, para testar o menu,
+// os balões e o Silenciar sem precisar de duas pessoas. Remover junto com TEST_EMOTES_VS_AI no App.tsx.
+export const Emotes = ({ matchId, enabled, myGeneral, opponentGeneral, local = false }: { matchId: string; enabled: boolean; myGeneral: string; opponentGeneral: string; local?: boolean }) => {
   const [open, setOpen] = useState(false);
   const [muted, setMuted] = useState(false);
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
@@ -48,6 +50,7 @@ export const Emotes = ({ matchId, enabled, myGeneral, opponentGeneral }: { match
   const mutedRef = useRef(false);
   mutedRef.current = muted;
   const seen = useRef(new Set<number>());
+  const localId = useRef(0);
 
   const show = (side: 'me' | 'foe', code: string, id: number) => {
     if (seen.current.has(id)) return;
@@ -68,7 +71,7 @@ export const Emotes = ({ matchId, enabled, myGeneral, opponentGeneral }: { match
 
   // The messages of the opponent arrive by a light poll (the first answer is history: shown by nobody).
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || local) return;
     let stopped = false, timer = 0, first = true;
     const poll = async () => {
       const r = await fetchEmotes(matchId, sinceRef.current);
@@ -93,6 +96,15 @@ export const Emotes = ({ matchId, enabled, myGeneral, opponentGeneral }: { match
     if (waiting) return;
     setOpen(false);
     setWaitUntil(Date.now() + GAP_MS);
+    if (local) {
+      const id = ++localId.current;
+      absorb([{ id, from: 0, code }], false);
+      window.setTimeout(() => {
+        const codes = [...PHRASES, ...EMOJIS].map(x => x.code);
+        absorb([{ id: ++localId.current, from: 1, code: codes[Math.floor(Math.random() * codes.length)] }], false);
+      }, 1300);
+      return;
+    }
     const r = await sendEmote(matchId, code, sinceRef.current);
     if (r.ok) absorb(r.emotes, false);
   };
