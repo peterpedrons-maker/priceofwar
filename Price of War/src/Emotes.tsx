@@ -109,10 +109,14 @@ export const Emotes = ({ matchId, enabled, myGeneral, opponentGeneral, local = f
     if (r.ok) absorb(r.emotes, false);
   };
 
+  // Where each balloon sits: mine under my General (between him and my hand), the opponent's above his General (over his hand).
   const pos = (side: 'me' | 'foe') => {
     const el = document.getElementById(side === 'me' ? 'player-12' : 'npc-12');
     const r = el?.getBoundingClientRect();
-    return r ? { left: Math.min(window.innerWidth - 210, r.right + 14), top: r.top + r.height / 2 - 24 } : { left: 150, top: side === 'me' ? 500 : 120 };
+    const cx = r ? r.left + r.width / 2 : window.innerWidth / 2;
+    return side === 'me'
+      ? { left: cx, top: r ? r.bottom + 12 : 640, up: false }
+      : { left: cx, top: r ? r.top - 12 : 140, up: true };
   };
   const serif = "'Cinzel', serif";
 
@@ -121,22 +125,27 @@ export const Emotes = ({ matchId, enabled, myGeneral, opponentGeneral, local = f
       <AnimatePresence>
         {bubbles.map(b => {
           const p = pos(b.side), icon = iconOf(b.code), text = phraseText(b.code, b.side === 'me' ? myGeneral : opponentGeneral);
+          const edge = b.side === 'me' ? '#d9b45a' : '#b9746a';
+          const box = text
+            ? { position: 'relative' as const, display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px 7px 8px', borderRadius: 14, background: 'linear-gradient(#2a1d12,#150e08)', border: `2px solid ${edge}`, boxShadow: '0 4px 14px rgba(0,0,0,.7)', color: '#f3e3bd', maxWidth: 230 }
+            : { display: 'flex', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,.7))' };
           return (
-            <motion.div key={b.key} initial={{ opacity: 0, scale: 0.7, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.2 }}
-              style={{ position: 'fixed', pointerEvents: 'none', left: p.left, top: p.top, zIndex: 236, maxWidth: 200 }}>
-              <div style={text
-                ? { position: 'relative', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 13px 7px 8px', borderRadius: 14, background: 'linear-gradient(#2a1d12,#150e08)', border: `2px solid ${b.side === 'me' ? '#d9b45a' : '#b9746a'}`, boxShadow: '0 4px 14px rgba(0,0,0,.7)', color: '#f3e3bd' }
-                : { display: 'flex', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,.7))' }}>
-                {text && <span style={{ position: 'absolute', left: -8, top: '50%', width: 12, height: 12, marginTop: -6, transform: 'rotate(45deg)', background: '#1f150c', borderLeft: `2px solid ${b.side === 'me' ? '#d9b45a' : '#b9746a'}`, borderBottom: `2px solid ${b.side === 'me' ? '#d9b45a' : '#b9746a'}` }} />}
-                {icon && <img src={icon} alt="" style={{ width: text ? 34 : 54, height: text ? 34 : 54 }} draggable={false} />}
-                {text && <span style={{ fontFamily: serif, fontWeight: 800, fontSize: 13, lineHeight: 1.15, color: '#f3e3bd', textShadow: '0 1px 2px #000' }}>{text}</span>}
-              </div>
+            <motion.div key={b.key} initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.2 }}
+              style={{ position: 'fixed', pointerEvents: 'none', left: p.left, top: p.top, width: 0, height: 0, zIndex: 236 }}>
+              <div style={{ transform: `translate(-50%, ${p.up ? '-100%' : '0'})`, display: 'flex', flexDirection: p.up ? 'column-reverse' : 'column', alignItems: 'center', gap: 4, width: 'max-content' }}>
               {b.side === 'foe' && (
                 <button onClick={() => { setMuted(true); setBubbles(x => x.filter(y => y.side !== 'foe')); }}
-                  style={{ pointerEvents: 'auto', cursor: 'pointer', marginTop: 4, fontFamily: serif, fontWeight: 700, fontSize: 9, letterSpacing: '0.1em', color: '#e9d8ad', background: 'rgba(10,8,5,.82)', border: '1px solid #8a6a28', borderRadius: 10, padding: '3px 9px' }}>
+                  style={{ pointerEvents: 'auto', cursor: 'pointer', fontFamily: serif, fontWeight: 700, fontSize: 9, letterSpacing: '0.1em', color: '#e9d8ad', background: 'rgba(10,8,5,.82)', border: '1px solid #8a6a28', borderRadius: 10, padding: '3px 9px' }}>
                   Silenciar
                 </button>
               )}
+              <div style={box}>
+                {text && <span style={{ position: 'absolute', left: '50%', [p.up ? 'bottom' : 'top']: -8, width: 12, height: 12, marginLeft: -6, transform: 'rotate(45deg)', background: p.up ? '#150e08' : '#2a1d12',
+                  [p.up ? 'borderRight' : 'borderLeft']: `2px solid ${edge}`, [p.up ? 'borderBottom' : 'borderTop']: `2px solid ${edge}` }} />}
+                {icon && <img src={icon} alt="" style={{ width: text ? 34 : 54, height: text ? 34 : 54 }} draggable={false} />}
+                {text && <span style={{ fontFamily: serif, fontWeight: 800, fontSize: 13, lineHeight: 1.15, color: '#f3e3bd', textShadow: '0 1px 2px #000' }}>{text}</span>}
+              </div>
+              </div>
             </motion.div>
           );
         })}
