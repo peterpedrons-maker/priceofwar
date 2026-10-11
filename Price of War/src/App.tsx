@@ -1349,7 +1349,7 @@ const HpBadge = ({ value, className = "" }: { value: number, className?: string 
   );
 };
 
-const GoldBadge = ({ value, className = "" }: { value: number; className?: string }) => (
+const GoldBadge = ({ value, className = "", numberSize }: { value: number; className?: string; numberSize?: number }) => (
   <div className={`relative overflow-hidden ${className}`}>
     {/* Scaled up ~18% and cropped by the wrapper's own overflow-hidden — makes the coin
         and plate fill noticeably more of the same box footprint (per the user's ask:
@@ -1361,7 +1361,7 @@ const GoldBadge = ({ value, className = "" }: { value: number; className?: strin
         never reaches the strip's edges, comfortably fitting three digits (mana has no
         upper cap from turn 3 on) with real margin to spare, rather than a dynamic
         shrink that still read as "leaking" close to the border. */}
-    <span className="absolute inset-y-0 right-[6%] left-[36%] flex items-center justify-center text-amber-100 font-black text-sm md:text-base drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] leading-none">
+    <span className={`absolute inset-y-0 right-[6%] left-[36%] flex items-center justify-center text-amber-100 font-black drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] leading-none ${numberSize ? '' : 'text-sm md:text-base'}`} style={numberSize ? { fontSize: numberSize } : undefined}>
       {value}
     </span>
   </div>
@@ -2675,20 +2675,22 @@ const AvatarBadge = ({ avatarId, size = 48, bare = false }: { avatarId: string; 
 
 // A player's plate beside the turn panel (online matches): portrait (with the league ring when ranked), gold and name.
 // The gold element keeps the old ids so the coin animations still fly to it.
-const PlayerPlate = ({ name, avatarId, league, gold, goldId, foe }: { name: string; avatarId: string; league?: string | null; gold: number; goldId: string; foe?: boolean }) => (
-  <div className="flex flex-col items-center shrink-0" style={{ width: 76 }}>
-    <div className="flex items-center justify-center" style={{ gap: 3 }}>
-      <div className="relative shrink-0" style={{ width: 30, height: 30 }}>
+const PlayerPlate = ({ name, avatarId, league, gold, goldId, foe }: { name: string; avatarId: string; league?: string | null; gold: number; goldId: string; foe?: boolean }) => {
+  const digits = String(gold).length;
+  return (
+    // Stacked (portrait, then gold, then name) so each plate stays ~56 px wide and never reaches the turn panel.
+    <div className="flex flex-col items-center shrink-0" style={{ width: 56 }}>
+      <div className="relative shrink-0" style={{ width: 30, height: 30, marginTop: league ? 8 : 0 }}>
         <AvatarBadge avatarId={avatarId} size={30} bare={!!league} />
         {league && <LeagueRing league={league} size={30} />}
       </div>
-      <div id={goldId} onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
-        <GoldBadge value={gold} className="w-[38px]" />
+      <div id={goldId} onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0 relative" style={{ width: 54, marginTop: league ? 6 : 2 }}>
+        <GoldBadge value={gold} className="w-full" numberSize={digits >= 4 ? 8 : digits === 3 ? 10 : 13} />
       </div>
+      <span className={`mt-0.5 max-w-full truncate text-[7px] leading-none font-black uppercase tracking-wide drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] ${foe ? 'text-red-300' : 'text-amber-300'}`}>{name}</span>
     </div>
-    <span className={`${league ? 'mt-2' : 'mt-0.5'} max-w-full truncate text-[7px] font-black uppercase tracking-wide drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] ${foe ? 'text-red-300' : 'text-amber-300'}`}>{name}</span>
-  </div>
-);
+  );
+};
 
 // ---- Shared window layout ------------------------------------------------------
 // Every window/popup in the menu (Online, avatars, "coming soon", deck picker, install
