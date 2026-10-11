@@ -52,6 +52,8 @@ iluminados e gravuras; still-lifes de equipamento pedem realismo macro
 hiper-detalhado. Isso é uma camada a mais de variedade além do cenário/
 ângulo de cada carta (já tratado acima).
 
+**⚠️ Lições de prompt (rodada 23):** nunca escrever "realismo", "fotográfico", "cinematográfico" ou "macro" (a IA faz foto de pessoas de verdade) e nunca citar o nome de um jogo ou "monster card" (a IA desenha a carta inteira, com nome e ataque/defesa). Descrever só a técnica (pintura digital, pincelada, cores chapadas, contorno firme, diagonal) e fechar com "ARTWORK ONLY: no card frame, no border, no title, no name, no attack or defense numbers, no cost, no icons, no letters; not a photograph, stylized painterly characters". Detalhes e exemplos em `art-prompts/cartas-novas-rodada-23.md`.
+
 Os prompts abaixo estão em inglês (é o que os geradores de imagem
 respondem melhor), com as notas em português.
 
