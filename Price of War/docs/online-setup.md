@@ -22,6 +22,8 @@ Supabase → SQL Editor → New query → paste `docs/supabase-online-3.sql` →
 ## 1c. Ranked ladder: one more SQL
 Run `docs/supabase-online-4.sql` (safe to repeat; also included at the end of `docs/supabase-tudo.sql`). It adds the ranked flag to the queue and matches, the `ranked_profiles` table, and the `queue_take` / `apply_ranked_result` functions. Run it before using ranked. Casual matches keep working on a database that has not run it yet (the server only touches the ranked columns for a ranked match). See `docs/ranqueado.md`.
 
+Then run `docs/supabase-online-5.sql` (ranked seasons: the `frame` column, the `ranked_seasons` table, `close_ranked_season` / `claim_ranked_season`, and an updated `apply_ranked_result`; also at the end of `docs/supabase-tudo.sql`). The new server needs it for any ranked call.
+
 ## 2. Deploy the game server
 
 The server is one file: `supabase/functions/game/index.ts` (generated from `server/` and `src/engine/`; rebuild it
