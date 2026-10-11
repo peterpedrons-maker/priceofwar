@@ -83,3 +83,5 @@ Ajuste (dono): no ranking a faixa da temporada saiu (agora é só uma linha de t
 Ajustes das telas do kit (dono): fita de título (Ligas/Ranking) desce para dentro da moldura da janela; linhas da lista passam a usar a moldura com o encaixe do símbolo no quadrado da própria arte (emblema centralizado no quadrado, em vez de um retângulo dentro de outro); a faixa da temporada (arte gerada) volta no Ranking com o texto centralizado no pergaminho; a tela de vitória não mudou.
 
 Ajuste (dono): as linhas da lista (Ligas e Ranking) usam agora `linha-normal-livre.png` e `linha-atual-livre.png` (o quadrado do símbolo foi apagado da arte; o símbolo da liga fica solto, maior, à esquerda); as linhas bloqueadas são a mesma linha escurecida (sem o cadeado, que cortava o símbolo). A faixa da temporada tem o texto grande ("TEMPORADA 1", "termina em 41 dias") centralizado no pergaminho.
+
+Ajuste (dono): símbolos das linhas menores (42 px); linha de Ligas em três colunas (nome, faixa de pontos no centro, recompensa à direita); "TEMPORADA 1" na fonte Cinzel Decorative, a mesma do botão Encerrar turno e da barra de fase.
