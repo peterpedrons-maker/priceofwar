@@ -29,3 +29,6 @@ Elements, each fully contained:
 6) SMALL REWARD SLOT: a square frame with a gold edge and a dark center, three states: normal, glowing (unclaimed), greyed (claimed).
 ```
 Depois de gerar: recorto, fatio as molduras e monto os componentes em código (substituindo o kit atual dessas telas). Os símbolos e as molduras das ligas ficam como estão.
+
+## ENTREGUE (rodada 21)
+As duas folhas foram geradas e recortadas (fundo transparente, os textos de legenda e as sombras roxas foram removidos) em `src/assets/kit-rank/`: barra-moldura, enchimento-ouro/verde/vermelho, gema-cheia/vazia, aba-ativa/inativa, fita-coroa, fita, medalha-ouro/prata/bronze, chip-neutro/verde/vermelho, janela, linha-normal/atual/bloqueada, faixa-temporada, botao-primario (e pressionado), botao-secundario, slot-normal/brilhando/cinza. Mockups das telas montadas com elas: `docs/janelas/ranqueado-kit-telas.png` (Ligas, Vitória, Ranking). Ainda não estão ligadas ao jogo.
