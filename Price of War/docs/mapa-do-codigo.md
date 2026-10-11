@@ -182,22 +182,22 @@ Entrada da Edge Function (gerada em supabase/functions/game).
 
 cors:10 · json:15
 
-## server/handler.ts  (480 linhas)
+## server/handler.ts  (487 linhas)
 Servidor da partida online: fila, passos, relógio, recompensas.
 
-GameConfig:17 · defaultConfig:29 · MatchInit:31 · EMOTE_CODE:60 · EMOTE_GAP_MS:61 · EMOTE_MAX_PER_MATCH:62 · RankedView:65 · PLACEMENT:68 · frameRank:69 · rankedView:70 · ladderOf:82 · GameRequest:95 · GameResponse:108 · BOT_PROFILE:119 · STALE_MATCH_MS:120 · BOT_STEP_LIMIT:121 · AUTO_STEP_LIMIT:122 · recipeDeck:124 · botDeckFor:126 · playerOf:127 · userOfSeat:128 · moverOf:129 · moverKey:130 · Work:135 · startWork:144 · applyStep:147 · runBot:170 · patchOf:181 · ensureRewards:188 · publicReward:226 · rewardOf:232 · enforceClock:237 · openMatch:275 · viewRowsOf:282 · initOf:284 · startMatch:311 · finishIfStale:337 · handleGame:347
+GameConfig:17 · defaultConfig:29 · MatchInit:31 · EMOTE_CODE:60 · EMOTE_GAP_MS:61 · EMOTE_MAX_PER_MATCH:62 · RankedView:65 · PLACEMENT:68 · frameRank:69 · calendar:71 · rankedView:76 · ladderOf:89 · GameRequest:102 · GameResponse:115 · BOT_PROFILE:126 · STALE_MATCH_MS:127 · BOT_STEP_LIMIT:128 · AUTO_STEP_LIMIT:129 · recipeDeck:131 · botDeckFor:133 · playerOf:134 · userOfSeat:135 · moverOf:136 · moverKey:137 · Work:142 · startWork:151 · applyStep:154 · runBot:177 · patchOf:188 · ensureRewards:195 · publicReward:233 · rewardOf:239 · enforceClock:244 · openMatch:282 · viewRowsOf:289 · initOf:291 · startMatch:318 · finishIfStale:344 · handleGame:354
 
-## server/memoryDb.ts  (124 linhas)
+## server/memoryDb.ts  (126 linhas)
 Banco em memória (testes).
 
 MemoryTables:6 · clone:11 · MemoryDb:13
 
-## server/supabaseDb.ts  (135 linhas)
+## server/supabaseDb.ts  (141 linhas)
 Banco no Supabase.
 
 Client:8 · must:10 · viewToDb:15 · viewFromDb:18 · profileFromDb:19 · matchFromDb:20 · supabaseDb:22
 
-## server/types.ts  (119 linhas)
+## server/types.ts  (121 linhas)
 Tipos do servidor e do banco.
 
 DeckJson:7 · QueueRow:9 · StepRow:17 · ViewRow:25 · EndReason:36 · RewardRow:38 · RankedOutcome:51 · MatchRow:56 · MatchPatch:77 · EmoteRow:80 · SeasonRow:83 · Db:85
@@ -280,7 +280,7 @@ Supabase falso para os testes online.
 
 Row:10 · tables:11 · memory:12 · cfg:13 · b64:18 · users:19 · cors:20 · send:26 · readBody:30 · uidFrom:33
 
-## tests/online-server.ts  (508 linhas)
+## tests/online-server.ts  (525 linhas)
 Testes do servidor online (npm test).
 
 passed:13 · test:14 · ok:17 · eq:18 · clock:20 · rngState:21 · cfg:22 · fresh:27 · deckOf:38 · matched:44 · userOf:46 · choose:48 · botMatch:50 · pvp:57 · drive:65

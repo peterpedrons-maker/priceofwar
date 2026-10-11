@@ -115,6 +115,12 @@ export const supabaseDb = (c: Client): Db => ({
     const rows = must(await c.from('ranked_seasons').select('season, peak, league, coroas, claimed').eq('user_id', userId).order('season', { ascending: false }).limit(6), 'ranked seasons') as any[];
     return rows.map(r => ({ season: r.season, peak: r.peak, league: r.league, coroas: r.coroas, claimed: r.claimed }));
   },
+  async seasonOffsetDays() {
+    // Tolerant: a database without the settings table (or an unreadable value) means no offset.
+    const r = await c.from('game_settings').select('value').eq('key', 'season_offset_days').maybeSingle();
+    const n = r.error || !r.data ? 0 : Number((r.data as any).value);
+    return Number.isFinite(n) ? Math.round(n) : 0;
+  },
   async rankedClaim(userId, season) {
     const r = must(await c.rpc('claim_ranked_season', { p_user: userId, p_season: season }), 'claim ranked season') as any;
     const row = Array.isArray(r) ? r[0] : r;

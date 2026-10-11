@@ -107,6 +107,8 @@ export interface Db {
   // Closes a season for one player exactly once: records the season's result (paid later by `rankedClaim`) and swaps the ladder row for the reset one. False when it was already closed.
   rankedCloseSeason(userId: string, row: SeasonRow, next: RankedProfile): Promise<boolean>;
   rankedSeasons(userId: string): Promise<SeasonRow[]>;
+  // Test aid: days the season calendar is moved forward (0 normally). Only the season number and its end use it, never the match clock.
+  seasonOffsetDays(): Promise<number>;
   // Pays a closed season's Coroas once: the amount paid and the new balance, or null when there is nothing (left) to claim.
   rankedClaim(userId: string, season: number): Promise<{ coroas: number; coroas_after: number } | null>;
   addEmote(matchId: string, seat: Seat, code: string, at: number): Promise<EmoteRow>;

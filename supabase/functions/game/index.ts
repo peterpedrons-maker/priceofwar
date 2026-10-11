@@ -2927,9 +2927,15 @@ var EMOTE_GAP_MS = 2500;
 var EMOTE_MAX_PER_MATCH = 80;
 var PLACEMENT = 5;
 var frameRank = (k) => k === "senhor-da-guerra" ? LEAGUES.length : k ? LEAGUES.indexOf(k) : -1;
+var calendar = async (db, cfg) => {
+  const offset = Math.round(await db.seasonOffsetDays() * 864e5);
+  const s = seasonAt(cfg.now() + offset);
+  return { number: s.number, endsAt: s.endsAt - offset };
+};
 var rankedView = async (db, cfg, p, userId) => {
   const l = leagueOf(p.points);
-  const season = p.season ?? seasonAt(cfg.now()).number;
+  const cal = await calendar(db, cfg);
+  const season = p.season ?? cal.number;
   const position = await db.rankedPosition(p.points, season);
   const top = p.points >= MESTRE_FROM && position <= TOP_LEAGUE_SIZE;
   const pending = userId ? (await db.rankedSeasons(userId)).filter((x) => !x.claimed).map((x) => ({ season: x.season, league: x.league, coroas: x.coroas })) : [];
@@ -2948,13 +2954,13 @@ var rankedView = async (db, cfg, p, userId) => {
     position,
     top,
     season,
-    endsAt: seasonAt(cfg.now()).endsAt,
+    endsAt: cal.endsAt,
     frame: p.frame ?? null,
     pending
   };
 };
 var ladderOf = async (db, cfg, userId) => {
-  const current = seasonAt(cfg.now()).number;
+  const current = (await calendar(db, cfg)).number;
   const p = await db.rankedProfile(userId);
   if (!p) return newRankedProfile(current);
   const old = p.season ?? 1;
@@ -3435,6 +3441,11 @@ var supabaseDb = (c) => ({
   async rankedSeasons(userId) {
     const rows = must(await c.from("ranked_seasons").select("season, peak, league, coroas, claimed").eq("user_id", userId).order("season", { ascending: false }).limit(6), "ranked seasons");
     return rows.map((r) => ({ season: r.season, peak: r.peak, league: r.league, coroas: r.coroas, claimed: r.claimed }));
+  },
+  async seasonOffsetDays() {
+    const r = await c.from("game_settings").select("value").eq("key", "season_offset_days").maybeSingle();
+    const n = r.error || !r.data ? 0 : Number(r.data.value);
+    return Number.isFinite(n) ? Math.round(n) : 0;
   },
   async rankedClaim(userId, season) {
     const r = must(await c.rpc("claim_ranked_season", { p_user: userId, p_season: season }), "claim ranked season");

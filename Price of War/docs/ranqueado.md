@@ -38,6 +38,7 @@ Só entre pessoas (o adversário automático saiu do online; a IA fica nos Desaf
 - **Senhor da Guerra** na recompensa: pico em Mestre e posição ≤ 50 entre as linhas da temporada antiga **ainda não fechadas** no momento do fechamento do jogador (aproximado: quem já fechou sai da conta). Para ser exato seria preciso um fechamento global.
 - O Ranking lista só quem está na temporada atual (quem ainda não jogou nela não aparece até abrir o jogo).
 - **Anel do retrato no tabuleiro:** o melhor entre a moldura conquistada e a liga atual.
+- **Adiantar o calendário (teste):** tabela `game_settings`, chave `season_offset_days` (SQL 5). No SQL Editor: `update public.game_settings set value = '61' where key = 'season_offset_days';` faz o servidor achar que já se passaram 61 dias; na próxima vez que cada jogador abrir Ligas/Ranking, a temporada 1 fecha e aparece o cartão Resgatar. Para voltar ao normal: `'0'`. Só mexe no número da temporada e no "termina em" (nunca no relógio das partidas). Quem já fechou continua na temporada nova depois de voltar a `0`, então use contas de teste. O servidor lê o valor a cada consulta (sem republicar) e, sem a tabela, assume 0.
 - SQL: `docs/supabase-online-5.sql` (coluna `frame`, tabela `ranked_seasons`, funções `close_ranked_season` e `claim_ranked_season`, `apply_ranked_result` agora leva `season` e `frame`). Já incluído em `supabase-tudo.sql`.
 
 ## Ordem de publicação

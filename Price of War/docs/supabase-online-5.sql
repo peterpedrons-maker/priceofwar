@@ -88,3 +88,14 @@ begin
 end;
 $$;
 revoke all on function public.claim_ranked_season(uuid, int) from public, anon, authenticated;
+
+-- Test aid: moves the season calendar forward so a season end can be tried without waiting 60 days.
+-- To try it: update public.game_settings set value = '61' where key = 'season_offset_days';   (back to normal: '0')
+-- Only the season number and its end use it; match clocks are untouched. Players closed while it was on keep their new season.
+create table if not exists public.game_settings (
+  key   text primary key,
+  value text not null
+);
+alter table public.game_settings enable row level security;
+revoke all on public.game_settings from anon, authenticated;
+insert into public.game_settings (key, value) values ('season_offset_days', '0') on conflict (key) do nothing;

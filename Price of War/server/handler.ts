@@ -67,20 +67,27 @@ export interface RankedView { points: number; label: string; league: string; div
   season: number; endsAt: number; frame: string | null; pending: { season: number; league: string; coroas: number }[] }
 const PLACEMENT = 5;
 const frameRank = (k: string | null | undefined) => (k === 'senhor-da-guerra' ? LEAGUES.length : k ? LEAGUES.indexOf(k as any) : -1);
+// The season calendar, moved forward by the test setting `season_offset_days` (0 normally). `endsAt` is returned in real time.
+const calendar = async (db: Db, cfg: GameConfig) => {
+  const offset = Math.round((await db.seasonOffsetDays()) * 86400000);
+  const s = seasonAt(cfg.now() + offset);
+  return { number: s.number, endsAt: s.endsAt - offset };
+};
 const rankedView = async (db: Db, cfg: GameConfig, p: RankedProfile, userId?: string): Promise<RankedView> => {
   const l = leagueOf(p.points);
-  const season = p.season ?? seasonAt(cfg.now()).number;
+  const cal = await calendar(db, cfg);
+  const season = p.season ?? cal.number;
   const position = await db.rankedPosition(p.points, season);
   const top = p.points >= MESTRE_FROM && position <= TOP_LEAGUE_SIZE;
   const pending = userId ? (await db.rankedSeasons(userId)).filter(x => !x.claimed).map(x => ({ season: x.season, league: x.league, coroas: x.coroas })) : [];
   return { points: p.points, label: leagueLabel(p.points, top), league: top ? 'senhor-da-guerra' : l.league, division: l.division, inDivision: l.inDivision, games: p.games, wins: p.wins, losses: p.losses, shield: p.shield, peak: p.peak, placementLeft: Math.max(0, PLACEMENT - p.games), position, top,
-    season, endsAt: seasonAt(cfg.now()).endsAt, frame: p.frame ?? null, pending };
+    season, endsAt: cal.endsAt, frame: p.frame ?? null, pending };
 };
 
 // The player's ladder row for the CURRENT season. A row left over from an older season is closed first (once): the season pays by the highest
 // league reached (Senhor da Guerra if they were among the best Mestres), the points are halved and the frame is kept.
 const ladderOf = async (db: Db, cfg: GameConfig, userId: string): Promise<RankedProfile> => {
-  const current = seasonAt(cfg.now()).number;
+  const current = (await calendar(db, cfg)).number;
   const p = await db.rankedProfile(userId);
   if (!p) return newRankedProfile(current);
   const old = p.season ?? 1;

@@ -454,6 +454,23 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     clock = saved;
   });
 
+  await test('ranked seasons: the test offset moves the calendar forward without touching the clock', async () => {
+    const db = fresh();
+    db.rankedRows.set('A', { points: 900, peak: 900, mmr: 1000, games: 10, wins: 6, losses: 4, shield: false, season: 1, frame: null });
+    const saved = clock;
+    clock = SEASON_ONE_START + 86400000;
+    const before = await handleGame(db, 'A', { op: 'ranked' }, cfg);
+    ok(before.ok === true && before.status === 'ranked' && before.profile.season === 1 && before.profile.pending.length === 0, 'still season 1: ' + JSON.stringify(before));
+    db.seasonOffset = 61;
+    const after = await handleGame(db, 'A', { op: 'ranked' }, cfg);
+    ok(after.ok === true && after.status === 'ranked' && after.profile.season === 2 && after.profile.pending.length === 1 && after.profile.pending[0].league === 'prata', 'season 2 after the offset: ' + JSON.stringify(after));
+    if (after.ok === true && after.status === 'ranked') {
+      const days = (after.profile.endsAt - clock) / 86400000;
+      ok(days > 58 && days < 60, 'the end is reported in real time: ' + days);
+    }
+    clock = saved;
+  });
+
   await test('ranked: the ranked queue never mixes with the casual one, and a bot is never ranked', async () => {
     const db = fresh();
     await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal'), ranked: true }, cfg);

@@ -31,6 +31,8 @@ export class MemoryDb implements Db {
   }
   rankedRows = new Map<string, RankedProfile>();
   seasonRows: SeasonRow[] = [];
+  seasonOffset = 0;
+  async seasonOffsetDays() { return this.seasonOffset; }
   async queueTake(excludeUserId: string, ranked: boolean) {
     const i = this.queue.findIndex(q => q.user_id !== excludeUserId && !!q.ranked === ranked);
     return i === -1 ? null : this.queue.splice(i, 1)[0];
