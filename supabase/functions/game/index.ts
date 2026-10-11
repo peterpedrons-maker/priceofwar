@@ -3066,6 +3066,12 @@ var initOf = async (db, m, userId, cfg) => {
   const rows = await viewRowsOf(db, m, seat, 0);
   const resumed = rows.length > 0 && (rows.some((r) => r.actor === 0 && r.action.type !== "begin" && r.action.type !== "choose_first") || cfg.now() - Date.parse(m.created_at) > 6e4);
   const start = viewFor(createMatch({ seed: m.seed, decks: m.decks, first: m.state.turn.first }).state, seat);
+  let leagues;
+  if (m.ranked) {
+    const ids = [userId, oppId];
+    const keys = await Promise.all(ids.map(async (u) => u ? (await rankedView(db, await db.rankedProfile(u) ?? newRankedProfile())).league : "ferro"));
+    leagues = [keys[0], keys[1]];
+  }
   return {
     id: m.id,
     iGoFirst: m.state.turn.first === seat,
@@ -3082,6 +3088,7 @@ var initOf = async (db, m, userId, cfg) => {
     winner: m.winner === null ? null : m.winner === seat ? 0 : 1,
     resumed,
     ranked: m.ranked,
+    leagues,
     deadline: m.turn_deadline,
     now: cfg.now()
   };

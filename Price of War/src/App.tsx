@@ -223,7 +223,7 @@ import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActi
 import { aiNextAction } from './engine/ai';
 import { glyphUrl, burstUrl, NUMBER_GLOW, type NumberKind } from './numberGlyphs';
 import { Emotes } from './Emotes';
-import { LigasScreen, RankingScreen, RankedResult, PromotionOverlay, EMBLEM, keyOfPoints, labelOfPoints, type LeagueKey } from './RankedScreens';
+import { LeagueRing, LigasScreen, RankingScreen, RankedResult, PromotionOverlay, EMBLEM, keyOfPoints, labelOfPoints, type LeagueKey } from './RankedScreens';
 import { triggerOf, triggerKeyOf, pulseCard, usePulse, TRIGGER_GLOW, TRIGGER_ICON } from './triggers';
 import { playSfx, preloadSfx, dbgMark } from './sfx';
 import { fxTactic, fxHero, fxRanged, fxLanding, fxUpkeep, fxGoldGain, fxRelicSoldo, fxLoot, fxPlaced, fxReformar, fxAmbush, fxBencao, fxCalice, fxHospitalario, fxNobre, fxReforco, fxComandante, fxRetorno, fxAtirador, preloadHolyFx, preloadCombatFx, type FxEnv, type FxRect, type FxSide, type FxTarget } from './combatFx';
@@ -2672,6 +2672,23 @@ const AvatarBadge = ({ avatarId, size = 48, bare = false }: { avatarId: string; 
     </div>
   );
 };
+
+// A player's plate beside the turn panel (online matches): portrait (with the league ring when ranked), gold and name.
+// The gold element keeps the old ids so the coin animations still fly to it.
+const PlayerPlate = ({ name, avatarId, league, gold, goldId, foe }: { name: string; avatarId: string; league?: string | null; gold: number; goldId: string; foe?: boolean }) => (
+  <div className="flex flex-col items-center shrink-0" style={{ width: 76 }}>
+    <div className="flex items-center justify-center" style={{ gap: 3 }}>
+      <div className="relative shrink-0" style={{ width: 30, height: 30 }}>
+        <AvatarBadge avatarId={avatarId} size={30} bare={!!league} />
+        {league && <LeagueRing league={league} size={30} />}
+      </div>
+      <div id={goldId} onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
+        <GoldBadge value={gold} className="w-[38px]" />
+      </div>
+    </div>
+    <span className={`${league ? 'mt-2' : 'mt-0.5'} max-w-full truncate text-[7px] font-black uppercase tracking-wide drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] ${foe ? 'text-red-300' : 'text-amber-300'}`}>{name}</span>
+  </div>
+);
 
 // ---- Shared window layout ------------------------------------------------------
 // Every window/popup in the menu (Online, avatars, "coming soon", deck picker, install
@@ -5839,6 +5856,8 @@ export default function App() {
   // Ranked: the league changed in this match -> the emblem celebration (src/RankedScreens.tsx).
   const [promo, setPromo] = useState<{ from: LeagueKey; to: LeagueKey; label: string } | null>(null);
   const [opponentInfo, setOpponentInfo] = useState<{ name: string; avatarId: string; bot: boolean } | null>(null);
+  // Ranked online only: my name/avatar and each player's league (mine first), for the portrait plates beside the turn panel.
+  const [plates, setPlates] = useState<{ me: { name: string; avatarId: string }; leagues: [string, string] | null } | null>(null);
   // Online person-vs-person match: the id the quick messages (src/Emotes.tsx) go through, and both Generals (the first phrase is the deck's own).
   const [emoteMatch, setEmoteMatch] = useState<{ id: string; myGeneral: string; opponentGeneral: string } | null>(null);
   const [waitingRemote, setWaitingRemote] = useState(false);
@@ -6613,6 +6632,7 @@ export default function App() {
     }
     onlineRef.current = null;
     setOpponentInfo(null);
+    setPlates(null);
     setEmoteMatch(null);
     setWaitingRemote(false);
     setTurnClock(null);
@@ -7142,6 +7162,7 @@ export default function App() {
     onlineRef.current = online;
     setOnlinePick(null);
     setOpponentInfo(init.opponent);
+    { const mp = loadProfile(); setPlates(init.opponent.bot ? null : { me: { name: mp.name, avatarId: mp.avatarId }, leagues: init.ranked && init.leagues ? init.leagues : null }); }
     setEmoteMatch(init.opponent.bot ? null : { id: init.id, myGeneral: init.myDeck.general, opponentGeneral: init.opponentGeneral });
     const sel: DeckSelection = { cards: init.myDeck.cards, general: init.myDeck.general, npcDeckId: 'cardeal', npcGeneral: init.opponentGeneral };
     resetGame(sel);
@@ -9054,6 +9075,7 @@ export default function App() {
             row had room for (the label text was visibly clipped at the screen's own
             edge), and freeing that width is what let the center turn button grow to
             its current size below. */}
+        {plates && opponentInfo ? <PlayerPlate foe name={opponentInfo.name} avatarId={opponentInfo.avatarId} league={plates.leagues?.[1]} gold={npcMana} goldId="npc-gold-badge" /> : (
         <div className="flex flex-col items-center gap-0.5 shrink-0">
           <div id="npc-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
             <GoldBadge value={npcMana} className="w-[46px] md:w-16" />
@@ -9062,6 +9084,7 @@ export default function App() {
             {opponentInfo?.name ?? 'Adversário'}
           </span>
         </div>
+        )}
 
         <div
           className="flex flex-col items-center gap-0.5 cursor-pointer shrink-0 pointer-events-auto"
@@ -9107,6 +9130,7 @@ export default function App() {
 
         {/* Player's gold — same distance from the button as the NPC's above, same
             stacked-and-shrunk treatment (see that badge's own comment for why). */}
+        {plates ? <PlayerPlate name={plates.me.name} avatarId={plates.me.avatarId} league={plates.leagues?.[0]} gold={playerMana} goldId="player-gold-badge" /> : (
         <div className="flex flex-col items-center gap-0.5 shrink-0">
           <div id="player-gold-badge" onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0">
             <GoldBadge value={playerMana} className="w-[46px] md:w-16" />
@@ -9115,6 +9139,7 @@ export default function App() {
             Jogador
           </span>
         </div>
+        )}
       </div>
       </motion.div>
 

@@ -50,6 +50,8 @@ export interface MatchInit {
   winner: Seat | null;
   resumed: boolean;
   ranked: boolean;
+  // Ranked only: the league key of each player, mine first (public, like the ranking list); drives the ring around the portraits.
+  leagues?: [string, string];
   deadline: number | null;
   now: number;
 }
@@ -263,11 +265,17 @@ const initOf = async (db: Db, m: MatchRow, userId: string, cfg: GameConfig): Pro
   const rows = await viewRowsOf(db, m, seat, 0);
   const resumed = rows.length > 0 && (rows.some(r => r.actor === 0 && r.action.type !== 'begin' && r.action.type !== 'choose_first') || cfg.now() - Date.parse(m.created_at) > 60000);
   const start = viewFor(createMatch({ seed: m.seed, decks: m.decks, first: m.state.turn.first }).state, seat);
+  let leagues: [string, string] | undefined;
+  if (m.ranked) {
+    const ids = [userId, oppId];
+    const keys = await Promise.all(ids.map(async u => (u ? (await rankedView(db, (await db.rankedProfile(u)) ?? newRankedProfile())).league : 'ferro')));
+    leagues = [keys[0], keys[1]];
+  }
   return {
     id: m.id, iGoFirst: m.state.turn.first === seat, iWonToss: m.first === seat, chosen: m.steps_count > 0, mySide: seat === 0 ? 'cara' : 'coroa', myDeck: m.decks[seat], opponentGeneral: m.decks[otherSeat(seat)].general,
     opponent: oppId ? { name: prof?.username ?? 'Jogador', avatarId: prof?.avatar_id ?? 'batedora', bot: false } : { ...BOT_PROFILE, bot: true },
     start, rows: resumed ? [] : rows, latest: resumed ? (rows[rows.length - 1] ?? null) : null,
-    status: m.status, winner: m.winner === null ? null : (m.winner === seat ? 0 : 1), resumed, ranked: m.ranked, deadline: m.turn_deadline, now: cfg.now(),
+    status: m.status, winner: m.winner === null ? null : (m.winner === seat ? 0 : 1), resumed, ranked: m.ranked, leagues, deadline: m.turn_deadline, now: cfg.now(),
   };
 };
 

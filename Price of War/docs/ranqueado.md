@@ -28,10 +28,11 @@ Só entre pessoas (o adversário automático saiu do online; a IA fica nos Desaf
 - **Ligas** (botão dentro do Ranking, e o Ranking dentro das Ligas): o símbolo da sua liga, as divisões em gemas, a barra de pontos, vitórias e derrotas, e a lista das 8 ligas (emblema, nome e faixa de pontos; sem recompensas nas linhas). Um ícone redondo "Recompensas" (coroa) no canto abre `RewardsScreen`, janela própria com a moldura e o prêmio de cada liga. Prévia: `docs/janelas/ranqueado-ligas-e-recompensas.png`. Os prêmios listados (`REWARD_LINES`) são exemplos; a entrega real vem com as temporadas.
 - **Fim de partida ranqueada** (`RankedResult`, na tela de Vitória/Derrota): símbolo da liga, pontos ganhos ou perdidos, barra de tubo de vidro (ganho em verde, perda hachurada em vermelho), aviso do escudo e da classificação.
 - **Subida de liga** (`PromotionOverlay`): o símbolo antigo se apaga, um clarão, o símbolo novo surge (com partículas e raios girando devagar), o nome da liga e Continuar. Dispara quando a recompensa diz `promoted`.
-- Ainda falta: a moldura do retrato no tabuleiro (retrato, nome e ouro juntos) e a entrega das recompensas de temporada. Prévias: `docs/janelas/ranqueado-telas-no-jogo.png`, `ranqueado-subida-de-liga.gif`.
+- **Placas no tabuleiro** (`PlayerPlate` em `App.tsx`): nas partidas online contra pessoas, cada lado do painel de turno mostra retrato + ouro + nome; no ranqueado o retrato ganha o anel da liga (`LeagueRing`, arte em `src/assets/ligas/<liga>.webp`, o anel tem 3x o retrato). O servidor manda `leagues` (liga de cada jogador, minha primeiro) no `MatchInit` das partidas ranqueadas. O elemento do ouro mantém os ids `npc-gold-badge`/`player-gold-badge`, então as animações de ouro seguem funcionando. Contra a IA (Desafios) continua o contador antigo. Prévia: `docs/janelas/ranqueado-placas-no-tabuleiro.png`.
+- Ainda falta: a entrega das recompensas de temporada. Prévias: `docs/janelas/ranqueado-telas-no-jogo.png`, `ranqueado-subida-de-liga.gif`.
 
 ## Ordem de publicação
 O servidor novo continua funcionando para partidas casuais mesmo antes do SQL 4 (as colunas de ranqueado só são usadas em partida ranqueada). Rode o SQL 4 antes de usar o ranqueado.
 
 ## Ainda não existe
-Temporadas (o campo `season` já está na tabela), recompensas de fim de temporada, regras de quais decks valem no ranqueado, janela de Elo na fila, a moldura do retrato no tabuleiro.
+Temporadas (o campo `season` já está na tabela), recompensas de fim de temporada, regras de quais decks valem no ranqueado, janela de Elo na fila.

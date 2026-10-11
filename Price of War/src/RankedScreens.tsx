@@ -32,9 +32,24 @@ import symPlatina from './assets/ligas/simbolo-platina.webp';
 import symDiamante from './assets/ligas/simbolo-diamante.webp';
 import symMestre from './assets/ligas/simbolo-mestre.webp';
 import symTopo from './assets/ligas/simbolo-senhor-da-guerra.webp';
+import ringFerro from './assets/ligas/ferro.webp';
+import ringBronze from './assets/ligas/bronze.webp';
+import ringPrata from './assets/ligas/prata.webp';
+import ringOuro from './assets/ligas/ouro.webp';
+import ringPlatina from './assets/ligas/platina.webp';
+import ringDiamante from './assets/ligas/diamante.webp';
+import ringMestre from './assets/ligas/mestre.webp';
+import ringSenhorDaGuerra from './assets/ligas/senhor-da-guerra.webp';
 
 export type LeagueKey = League | 'senhor-da-guerra';
 export const EMBLEM: Record<LeagueKey, string> = { ferro: symFerro, bronze: symBronze, prata: symPrata, ouro: symOuro, platina: symPlatina, diamante: symDiamante, mestre: symMestre, 'senhor-da-guerra': symTopo };
+const RING: Record<LeagueKey, string> = { ferro: ringFerro, bronze: ringBronze, prata: ringPrata, ouro: ringOuro, platina: ringPlatina, diamante: ringDiamante, mestre: ringMestre, 'senhor-da-guerra': ringSenhorDaGuerra };
+// The league ring around a portrait: the image is 3x the portrait (its hole is a third of the width), so it is laid over it and spills out.
+export const LeagueRing = ({ league, size }: { league: string; size: number }) => {
+  const src = RING[league as LeagueKey];
+  if (!src) return null;
+  return <img src={src} alt="" draggable={false} className="absolute pointer-events-none select-none" style={{ width: size * 3, height: size * 3, left: '50%', top: '50%', transform: 'translate(-50%, -50%)', maxWidth: 'none' }} />;
+};
 const LEAGUE_COLOR: Record<LeagueKey, string> = { ferro: '#c3c9d0', bronze: '#e2a56a', prata: '#eef3f8', ouro: '#ffe08a', platina: '#b8fff2', diamante: '#bcd7ff', mestre: '#e2c0ff', 'senhor-da-guerra': '#ffd36a' };
 const RANGES: Record<League, string> = { ferro: '0–399', bronze: '400–799', prata: '800–1199', ouro: '1200–1599', platina: '1600–1999', diamante: '2000–2399', mestre: '2400+' };
 export const keyOfPoints = (points: number): League => leagueOf(points).league;

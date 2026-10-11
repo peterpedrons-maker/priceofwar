@@ -47,6 +47,7 @@ export interface MatchInit {
   winner: Seat | null;
   resumed: boolean;
   ranked?: boolean;
+  leagues?: [string, string];
   deadline: number | null;
   now: number;
 }
