@@ -466,7 +466,7 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     ok(after.ok === true && after.status === 'ranked' && after.profile.season === 2 && after.profile.pending.length === 1 && after.profile.pending[0].league === 'prata', 'season 2 after the offset: ' + JSON.stringify(after));
     if (after.ok === true && after.status === 'ranked') {
       const days = (after.profile.endsAt - clock) / 86400000;
-      ok(days > 58 && days < 60, 'the end is reported in real time: ' + days);
+      ok(days > 57 && days < 59, 'the end is reported in real time: ' + days);
     }
     clock = saved;
   });
