@@ -76,8 +76,8 @@ const Win = ({ title, children, footer, onClose }: { title: string; children: Re
   </motion.div>
 );
 
-export const KitButton = ({ children, primary, onClick, width = 210 }: { children: ReactNode; primary?: boolean; onClick: () => void; width?: number }) => (
-  <button onClick={onClick} style={{ width: '100%', maxWidth: width, minWidth: 0, flex: '1 1 0', height: primary ? 56 : 48, backgroundImage: `url(${primary ? botaoPrimario : botaoSecundario})`, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat', border: 'none', color: primary ? '#2a1a05' : '#ecdcb8', fontFamily: CINZEL, fontWeight: 900, fontSize: 13, letterSpacing: '0.1em', paddingLeft: '0.1em', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>{children}</button>
+export const KitButton = ({ children, primary, onClick, width = 210, height }: { children: ReactNode; primary?: boolean; onClick: () => void; width?: number; height?: number }) => (
+  <button onClick={onClick} style={{ width: '100%', maxWidth: width, minWidth: 0, flex: '1 1 0', height: height ?? (primary ? 56 : 48), backgroundImage: `url(${primary ? botaoPrimario : botaoSecundario})`, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat', border: 'none', color: primary ? '#2a1a05' : '#ecdcb8', fontFamily: CINZEL, fontWeight: 900, fontSize: 13, letterSpacing: '0.1em', paddingLeft: '0.1em', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>{children}</button>
 );
 
 const Row = ({ current, locked, children, emblem }: { current?: boolean; locked?: boolean; children: ReactNode; emblem?: string; key?: React.Key }) => (
@@ -330,8 +330,8 @@ export const ConfirmDialog = ({ title, text, confirmLabel, cancelLabel, onConfir
       </div>
       <div style={{ padding: '14px 4px 6px', textAlign: 'center', fontFamily: SERIF, fontSize: 15, lineHeight: 1.35, color: '#f3e3bd' }}>{text}</div>
       <div className="flex w-full justify-center" style={{ gap: 4, paddingTop: 8 }}>
-        <KitButton primary onClick={onCancel} width={150}>{cancelLabel}</KitButton>
-        <KitButton onClick={onConfirm} width={150}>{confirmLabel}</KitButton>
+        <KitButton primary onClick={onCancel} width={150} height={52}>{cancelLabel}</KitButton>
+        <KitButton onClick={onConfirm} width={150} height={52}>{confirmLabel}</KitButton>
       </div>
     </motion.div>
   </motion.div>
