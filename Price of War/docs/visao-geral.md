@@ -77,3 +77,5 @@ Tela própria de **Ligas** e **símbolos das ligas** (ideia do dono): mockup `do
 Símbolos das ligas (brasões esculpidos, um por liga) **entregues e recortados** em `src/assets/ligas/simbolo-*.webp`; mockups das telas de Ligas e de fim de partida já com eles: `docs/janelas/ranqueado-telas-com-simbolos.png`. Ainda não ligados ao jogo.
 
 Kit de interface do ranqueado **entregue e recortado** (`src/assets/kit-rank/`) e testado em mockup (`docs/janelas/ranqueado-kit-telas.png`): barra de progresso de tubo de vidro com enchimento (ouro, verde para ganho, vermelho para perda), gemas das divisões, janela de metal, linhas da lista, fitas, medalhas, chips, botões. Ainda não ligado ao jogo.
+
+Ajuste (dono): no ranking a faixa da temporada saiu (agora é só uma linha de texto sob o título) e o texto da fita de título passou a ficar centralizado na fita (o espaçamento de letras empurrava o texto para o lado).
