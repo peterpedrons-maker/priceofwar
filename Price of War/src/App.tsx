@@ -2677,17 +2677,20 @@ const AvatarBadge = ({ avatarId, size = 48, bare = false }: { avatarId: string; 
 // The gold element keeps the old ids so the coin animations still fly to it.
 const PlayerPlate = ({ name, avatarId, league, gold, goldId, foe }: { name: string; avatarId: string; league?: string | null; gold: number; goldId: string; foe?: boolean }) => {
   const digits = String(gold).length;
+  // The plate sits in the gap between the two Vanguarda labels (~62 px tall), so it stays under ~56 px: portrait and gold side by side,
+  // the name under them. The league ring spills 8 px around the 28 px portrait, so its row is 44 px tall.
   return (
-    // Stacked (portrait, then gold, then name) so each plate stays ~56 px wide and never reaches the turn panel.
-    <div className="flex flex-col items-center shrink-0" style={{ width: 56 }}>
-      <div className="relative shrink-0" style={{ width: 30, height: 30, marginTop: league ? 8 : 0 }}>
-        <AvatarBadge avatarId={avatarId} size={30} bare={!!league} />
-        {league && <LeagueRing league={league} size={30} />}
+    <div className="flex flex-col items-center shrink-0" style={{ width: 72 }}>
+      <div className="flex items-center justify-center" style={{ gap: league ? 6 : 3, height: league ? 44 : 28 }}>
+        <div className="relative shrink-0" style={{ width: 28, height: 28 }}>
+          <AvatarBadge avatarId={avatarId} size={28} bare={!!league} />
+          {league && <LeagueRing league={league} size={28} />}
+        </div>
+        <div id={goldId} onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0 relative" style={{ width: 36 }}>
+          <GoldBadge value={gold} className="w-full" numberSize={digits >= 4 ? 7 : digits === 3 ? 9 : 11} />
+        </div>
       </div>
-      <div id={goldId} onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0 relative" style={{ width: 54, marginTop: league ? 6 : 2 }}>
-        <GoldBadge value={gold} className="w-full" numberSize={digits >= 4 ? 8 : digits === 3 ? 10 : 13} />
-      </div>
-      <span className={`mt-0.5 max-w-full truncate text-[7px] leading-none font-black uppercase tracking-wide drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] ${foe ? 'text-red-300' : 'text-amber-300'}`}>{name}</span>
+      <span className={`mt-px max-w-full truncate text-[7px] leading-none font-black uppercase tracking-wide drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] ${foe ? 'text-red-300' : 'text-amber-300'}`}>{name}</span>
     </div>
   );
 };
