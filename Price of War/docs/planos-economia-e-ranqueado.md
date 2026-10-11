@@ -27,3 +27,10 @@ Hoje: vitória +20 e derrota −18 de base, ajustadas até ±8 pela diferença d
 - O ranqueado só abre depois de o jogador ter **nível mínimo** (ideia: 10 a 15), jogando casual e contra a IA, para conhecer o jogo antes.
 - Pontos a decidir: a curva de XP hoje é muito rápida (subiu ao nível 4 na primeira partida), então o nível precisa ser reajustado para esse número significar algumas horas de jogo; além do nível, pode exigir ter concluído o tutorial. Mostrar no menu "Ranqueado libera no nível N" com o progresso.
 - O servidor confere o nível (não o aparelho).
+
+## 5. Limite de cópias por carta (ideia do dono; nada aplicado)
+Hoje o limite é **4 por carta** (`DECK_MAX_COPIES` em `src/engine/deck.ts`, baralho de 40 a 60). Proposta: **3 no máximo** para as cartas de núcleo e **1 ou 2** para as mais fortes.
+- Fazer em **dados**: um campo `maxCopies` por carta (padrão 3; fortes 2; únicas 1), conferido no editor, no servidor e na IA. Casa com a ideia de raridade dos boosters (comum 3, rara 2, única 1) e com a lista de limites do ranqueado (a lista do ranqueado passa a servir só para exceções temporárias).
+- Peso da mudança hoje (cartas com 4 cópias): **Capitão 11** (21 diferentes), **Mercenários 8** (21 diferentes), **Cardeal 3** (30 diferentes). São 11, 8 e 3 vagas a refazer; o Capitão e os Mercenários precisam de umas 6 a 10 cartas diferentes novas cada um para o deck não ficar sem folga (com 21 diferentes e limite 3, o máximo é 63 cartas: quase todas teriam de ter 3 cópias, sem espaço para cartas de 1 ou 2).
+- Os decks novos (Bardos e Campo) já foram desenhados com 30 diferentes.
+- Efeitos: decks menos consistentes (menos cópias do núcleo) -> buscas e compra de cartas ganham valor; rodar o laboratório de novo (os números atuais, ex.: Capitão ~37,5%, mudam); migrar decks já salvos que passem do limite (avisar em vez de apagar); colecionar um conjunto completo fica mais barato (3 em vez de 4).
