@@ -223,7 +223,7 @@ import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActi
 import { aiNextAction } from './engine/ai';
 import { glyphUrl, burstUrl, NUMBER_GLOW, type NumberKind } from './numberGlyphs';
 import { Emotes } from './Emotes';
-import { LeagueRing, LigasScreen, RankingScreen, RankedResult, PromotionOverlay, EMBLEM, keyOfPoints, labelOfPoints, type LeagueKey } from './RankedScreens';
+import { ConfirmDialog, MatchResult, LeagueRing, LigasScreen, RankingScreen, RankedResult, PromotionOverlay, EMBLEM, keyOfPoints, labelOfPoints, type LeagueKey } from './RankedScreens';
 import { triggerOf, triggerKeyOf, pulseCard, usePulse, TRIGGER_GLOW, TRIGGER_ICON } from './triggers';
 import { playSfx, preloadSfx, dbgMark } from './sfx';
 import { fxTactic, fxHero, fxRanged, fxLanding, fxUpkeep, fxGoldGain, fxRelicSoldo, fxLoot, fxPlaced, fxReformar, fxAmbush, fxBencao, fxCalice, fxHospitalario, fxNobre, fxReforco, fxComandante, fxRetorno, fxAtirador, preloadHolyFx, preloadCombatFx, type FxEnv, type FxRect, type FxSide, type FxTarget } from './combatFx';
@@ -5859,6 +5859,8 @@ export default function App() {
   const [promo, setPromo] = useState<{ from: LeagueKey; to: LeagueKey; label: string } | null>(null);
   const [opponentInfo, setOpponentInfo] = useState<{ name: string; avatarId: string; bot: boolean } | null>(null);
   // Ranked online only: my name/avatar and each player's league (mine first), for the portrait plates beside the turn panel.
+  const [leaveAsk, setLeaveAsk] = useState(false);
+  useEffect(() => { setLeaveAsk(false); }, [gameMode, gameOverWinner]);
   const [plates, setPlates] = useState<{ me: { name: string; avatarId: string }; leagues: [string, string] | null } | null>(null);
   // Online person-vs-person match: the id the quick messages (src/Emotes.tsx) go through, and both Generals (the first phrase is the deck's own).
   const [emoteMatch, setEmoteMatch] = useState<{ id: string; myGeneral: string; opponentGeneral: string } | null>(null);
@@ -9838,10 +9840,18 @@ export default function App() {
       {/* Leaving a match: online, it counts as giving up. */}
       {gameMode && !gameOverWinner && matchIntroStage === null && (
         <GameButton className="fixed top-3 right-3 z-[205]" size={10}
-          onClick={() => { if (window.confirm(onlineRef.current ? 'Desistir da partida? Você perde a batalha.' : 'Sair da partida?')) { playUiClickSfx(); void leaveMatch(); } }}>
+          onClick={() => { playUiClickSfx(); setLeaveAsk(true); }}>
           {onlineRef.current ? 'Desistir' : 'Sair'}
         </GameButton>
       )}
+      <AnimatePresence>
+        {leaveAsk && gameMode && !gameOverWinner && (
+          <ConfirmDialog key="leave" title={onlineRef.current ? 'Desistir?' : 'Sair?'}
+            text={onlineRef.current ? <>Você perde a batalha{plates?.leagues ? <> e <b style={{ color: '#ffe08a' }}>pontos de liga</b></> : null}.</> : 'A partida em andamento será encerrada.'}
+            cancelLabel="Continuar" confirmLabel={onlineRef.current ? 'Desistir' : 'Sair'}
+            onCancel={() => { playUiClickSfx(); setLeaveAsk(false); }} onConfirm={() => { playUiClickSfx(); setLeaveAsk(false); void leaveMatch(); }} />
+        )}
+      </AnimatePresence>
 
       {/* Toast Notification — same dark-crimson/gold-border/Crimson-Pro treatment as
           the phase announcement banner below, instead of a generic bright-red pill
@@ -10082,7 +10092,7 @@ export default function App() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="fixed inset-0 z-[300] flex flex-col items-center justify-center gap-6 bg-black/90 pointer-events-auto"
+            className="fixed inset-0 z-[300] flex flex-col items-center justify-center gap-4 bg-black/90 pointer-events-auto overflow-y-auto py-4"
           >
             {gameOverWinner === 'player' ? (
               <div className="relative flex items-center justify-center w-[85vw] max-w-lg">
@@ -10118,31 +10128,7 @@ export default function App() {
                 />
               </div>
             )}
-            <p className="text-zinc-300 text-sm md:text-base text-center max-w-xs">
-              {gameOverWinner === 'player' ? 'O General inimigo caiu em batalha.' : 'Seu General caiu em batalha.'}
-            </p>
-            {matchReward === 'pending' && <p className="text-amber-200/80 text-xs uppercase tracking-widest">Calculando recompensas…</p>}
-            {matchReward && matchReward !== 'pending' && (
-              <div className="flex flex-col items-center gap-1 px-5 py-3 rounded-xl border border-amber-400/50 bg-black/60 text-center">
-                {matchReward.reason === 'too_short' && <p className="text-zinc-300 text-xs">Partida curta demais para render recompensas.</p>}
-                {matchReward.reason === 'abandoned' && <p className="text-zinc-300 text-xs">Partida abandonada: sem recompensas.</p>}
-                {matchReward.ranked && <RankedResult reward={matchReward} />}
-                {(matchReward.reason === 'win' || matchReward.reason === 'loss') && (
-                  <>
-                    <p className="text-amber-300 font-black text-sm tracking-wide">+{matchReward.xp} XP · +{matchReward.coroas} Coroas</p>
-                    {matchReward.levels_gained > 0 && <p className="text-emerald-300 font-black text-xs uppercase tracking-widest">Subiu para o nível {matchReward.level}!</p>}
-                  </>
-                )}
-              </div>
-            )}
-            {!tutOn && (
-            <button
-              onClick={() => { playUiClickSfx(); stopOnline(); setGameMode(null); }}
-              className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-full font-black uppercase tracking-widest text-white shadow-[0_0_30px_rgba(99,102,241,0.6)] transition-colors"
-            >
-              Voltar ao Menu
-            </button>
-            )}
+            <MatchResult won={gameOverWinner === 'player'} reward={matchReward} onMenu={tutOn ? undefined : () => { playUiClickSfx(); stopOnline(); setGameMode(null); }} />
           </motion.div>
         )}
       </AnimatePresence>

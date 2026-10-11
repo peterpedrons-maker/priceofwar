@@ -317,3 +317,56 @@ export const PromotionOverlay = ({ from, to, label, onDone }: { from: LeagueKey;
 };
 
 export { AnimatePresence };
+
+// ── Match dialogs (same kit as the screens above) ───────────────────────────
+// A small confirm window: used instead of the phone's own confirm() box. The safe answer is the gold button.
+export const ConfirmDialog = ({ title, text, confirmLabel, cancelLabel, onConfirm, onCancel }: { title: string; text: ReactNode; confirmLabel: string; cancelLabel: string; onConfirm: () => void; onCancel: () => void; key?: React.Key }) => (
+  <motion.div className="fixed inset-0 z-[620] grid place-items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}
+    style={{ background: 'rgba(6,4,2,0.82)', backdropFilter: 'blur(3px)', padding: '0 14px' }} onClick={onCancel}>
+    <motion.div className="relative" onClick={e => e.stopPropagation()} initial={{ scale: 0.9, y: 14 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.94, opacity: 0 }} transition={{ type: 'spring', damping: 20, stiffness: 260 }}
+      style={{ width: 'min(100%, 340px)', border: '34px solid transparent', borderImage: `url(${janela}) 95 fill / 34px stretch`, filter: 'drop-shadow(0 8px 24px #000)', marginTop: 40 }}>
+      <div className="absolute left-1/2 z-10" style={{ top: -62, transform: 'translateX(-50%)', width: 236, height: 73, backgroundImage: `url(${fitaCoroa})`, backgroundSize: '100% 100%', display: 'grid', placeItems: 'center' }}>
+        <span style={{ fontFamily: CINZEL, fontWeight: 900, fontSize: 17, letterSpacing: '0.2em', paddingLeft: '0.2em', color: '#2a1a05', textShadow: '0 1px 0 rgba(255,240,180,.7)', textTransform: 'uppercase' }}>{title}</span>
+      </div>
+      <div style={{ padding: '14px 4px 6px', textAlign: 'center', fontFamily: SERIF, fontSize: 15, lineHeight: 1.35, color: '#f3e3bd' }}>{text}</div>
+      <div className="flex w-full justify-center" style={{ gap: 4, paddingTop: 8 }}>
+        <KitButton primary onClick={onCancel} width={150}>{cancelLabel}</KitButton>
+        <KitButton onClick={onConfirm} width={150}>{confirmLabel}</KitButton>
+      </div>
+    </motion.div>
+  </motion.div>
+);
+
+const Chip = ({ children }: { children: ReactNode }) => (
+  <span className="inline-flex items-center" style={{ gap: 6, padding: '5px 13px', borderRadius: 999, background: 'rgba(0,0,0,.5)', boxShadow: 'inset 0 0 0 1.5px #8a6a2a', fontFamily: CINZEL, fontWeight: 900, fontSize: 14, letterSpacing: '0.06em', color: '#ffe08a' }}>{children}</span>
+);
+
+// Everything under the Vitória/Derrota banner: what the match paid, the ladder result when ranked, and the way back to the menu.
+export const MatchResult = ({ won, reward, onMenu }: { won: boolean; reward: RewardInfo | 'pending' | null; onMenu?: () => void }) => {
+  const paid = reward && reward !== 'pending' && (reward.reason === 'win' || reward.reason === 'loss');
+  const note = reward && reward !== 'pending' ? (reward.reason === 'too_short' ? 'Partida curta demais para render recompensas.' : reward.reason === 'abandoned' ? 'Partida abandonada: sem recompensas.' : '') : '';
+  return (
+    <motion.div className="flex flex-col items-center" style={{ gap: 12, width: 'min(92vw, 360px)' }} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, duration: 0.5 }}>
+      <div style={{ fontFamily: SERIF, fontSize: 16, color: won ? '#f3e3bd' : '#cdbd97', textAlign: 'center' }}>{won ? 'O General inimigo caiu em batalha.' : 'Seu General caiu em batalha.'}</div>
+      {reward === 'pending' && <div style={{ fontFamily: CINZEL, fontWeight: 700, fontSize: 11, letterSpacing: '0.18em', color: '#e8c766', textTransform: 'uppercase' }}>Calculando recompensas…</div>}
+      {reward && reward !== 'pending' && (note || paid || reward.ranked) && (
+        <div className="w-full" style={{ border: '26px solid transparent', borderImage: `url(${janela}) 95 fill / 26px stretch`, filter: 'drop-shadow(0 6px 18px #000)' }}>
+          <div className="flex flex-col items-center" style={{ gap: 8, margin: '-8px -6px -6px' }}>
+            {note && <div style={{ fontFamily: SERIF, fontSize: 14, color: '#cdbd97', textAlign: 'center' }}>{note}</div>}
+            {reward.ranked && <RankedResult reward={reward} />}
+            {paid && (
+              <>
+                <div className="flex items-center justify-center" style={{ gap: 8 }}>
+                  <Chip>+{reward.xp} XP</Chip>
+                  <Chip><img src={iconeCoroa} alt="" draggable={false} style={{ width: 18, height: 18, objectFit: 'contain' }} />+{reward.coroas}</Chip>
+                </div>
+                {reward.levels_gained > 0 && <div style={{ fontFamily: CINZEL, fontWeight: 900, fontSize: 13, letterSpacing: '0.16em', color: '#ffe08a', textShadow: '0 0 12px rgba(255,205,90,.6)', textTransform: 'uppercase' }}>★ Subiu para o nível {reward.level}! ★</div>}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+      {onMenu && <div className="flex w-full justify-center"><KitButton primary onClick={onMenu} width={240}>Voltar ao menu</KitButton></div>}
+    </motion.div>
+  );
+};
