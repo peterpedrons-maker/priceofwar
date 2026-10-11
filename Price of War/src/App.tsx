@@ -223,6 +223,7 @@ import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActi
 import { aiNextAction } from './engine/ai';
 import { glyphUrl, burstUrl, NUMBER_GLOW, type NumberKind } from './numberGlyphs';
 import { Emotes } from './Emotes';
+import { LigasScreen, RankingScreen, RankedResult, PromotionOverlay, EMBLEM, keyOfPoints, labelOfPoints, type LeagueKey } from './RankedScreens';
 import { triggerOf, triggerKeyOf, pulseCard, usePulse, TRIGGER_GLOW, TRIGGER_ICON } from './triggers';
 import { playSfx, preloadSfx, dbgMark } from './sfx';
 import { fxTactic, fxHero, fxRanged, fxLanding, fxUpkeep, fxGoldGain, fxRelicSoldo, fxLoot, fxPlaced, fxReformar, fxAmbush, fxBencao, fxCalice, fxHospitalario, fxNobre, fxReforco, fxComandante, fxRetorno, fxAtirador, preloadHolyFx, preloadCombatFx, type FxEnv, type FxRect, type FxSide, type FxTarget } from './combatFx';
@@ -3119,6 +3120,9 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   const [comingSoon, setComingSoon] = useState<{ title: string; message: string } | null>(null);
   const [onlineOpen, setOnlineOpen] = useState(false);
+  // Ranked mode screens: the ranking list and the leagues (each one can open the other).
+  const [rankingOpen, setRankingOpen] = useState(false);
+  const [ligasOpen, setLigasOpen] = useState(false);
   const [deckEditorOpen, setDeckEditorOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   const [roomOpen, setRoomOpen] = useState(() => new URLSearchParams(window.location.search).has('colecao'));   // the Sala de Coleção: the shop and the deck editor open over it, and closing them leaves you in it
@@ -3202,10 +3206,14 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
             onPick={(mode) => {
               setOnlineOpen(false);
               if (mode === 'casual') { onSelectMode('OnlineCasual'); return; }
-              setComingSoon({ title: 'Online Ranqueado', message: 'O sistema de partidas ranqueadas ainda está por vir.' });
+              onSelectMode('OnlineRanked');
             }}
           />
         )}
+        <AnimatePresence>
+          {rankingOpen && <RankingScreen key="ranking" onClose={() => setRankingOpen(false)} onLigas={() => { setRankingOpen(false); setLigasOpen(true); }} />}
+          {ligasOpen && <LigasScreen key="ligas" onClose={() => setLigasOpen(false)} onRanking={() => { setLigasOpen(false); setRankingOpen(true); }} />}
+        </AnimatePresence>
         {comingSoon && (
           <ComingSoonModal
             title={comingSoon.title}
@@ -3235,7 +3243,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
       >
         <MenuIconButton icon={uiIconConfigImage} label="Config." onClick={() => setSettingsOpen(true)} />
         <MenuIconButton icon={uiIconTutoriaisImage} label="Tutoriais" onClick={onTutorials} />
-        <MenuIconButton icon={uiIconRankingImage} label="Ranking" onClick={() => setComingSoon({ title: 'Ranking', message: 'O sistema de partidas ranqueadas ainda está por vir.' })} />
+        <MenuIconButton icon={uiIconRankingImage} label="Ranking" onClick={() => setRankingOpen(true)} />
         <MenuIconButton icon={uiIconSomImage} label="Opções" onClick={() => setSoundOpen(true)} />
       </div>
     </motion.div>
@@ -4832,8 +4840,8 @@ const MatchSearchOverlay = ({ onReady, onCancel, challenge }: { onReady: () => v
 // The real queue: "Procurando adversário" while the server looks for another player (or hands the chair to the AI
 // after a short wait), then "Adversário encontrado" with who it is. `challenge` is a match against the AI that still
 // goes through the same server (Desafios).
-const OnlineSearchOverlay = ({ selection, challenge, onMatched, onCancel, onUnavailable }: {
-  selection: DeckSelection; challenge: boolean; onMatched: (init: MatchInit) => void; onCancel: () => void; onUnavailable?: () => void; key?: React.Key;
+const OnlineSearchOverlay = ({ selection, challenge, ranked, onMatched, onCancel, onUnavailable }: {
+  selection: DeckSelection; challenge: boolean; ranked?: boolean; onMatched: (init: MatchInit) => void; onCancel: () => void; onUnavailable?: () => void; key?: React.Key;
 }) => {
   const [stage, setStage] = useState<{ kind: 'searching' } | { kind: 'found'; init: MatchInit } | { kind: 'error'; message: string }>({ kind: 'searching' });
   useEffect(() => {
@@ -4848,7 +4856,7 @@ const OnlineSearchOverlay = ({ selection, challenge, onMatched, onCancel, onUnav
       if (r.ok === false && !r.unavailable) { setStage({ kind: 'error', message: r.error }); return; }
       // The server forgot this entry (the connection dropped for a while): put the player back in the queue.
       if (r.ok === true && r.status === 'none') {
-        const q = await queueForMatch({ general: selection.general, cards: selection.cards }, challenge, challenge ? selection.npcDeckId : undefined);
+        const q = await queueForMatch({ general: selection.general, cards: selection.cards }, challenge, challenge ? selection.npcDeckId : undefined, !!ranked);
         if (cancelled) return;
         if (q.ok === true && q.status === 'matched') return found(q.match);
       }
@@ -4856,7 +4864,7 @@ const OnlineSearchOverlay = ({ selection, challenge, onMatched, onCancel, onUnav
     };
     (async () => {
       await flushCloudSync();
-      const r = await queueForMatch({ general: selection.general, cards: selection.cards }, challenge, challenge ? selection.npcDeckId : undefined);
+      const r = await queueForMatch({ general: selection.general, cards: selection.cards }, challenge, challenge ? selection.npcDeckId : undefined, !!ranked);
       if (cancelled) return;
       if (r.ok === false) {
         if (r.unavailable && onUnavailable) { onUnavailable(); return; }
@@ -4879,7 +4887,7 @@ const OnlineSearchOverlay = ({ selection, challenge, onMatched, onCancel, onUnav
       {stage.kind === 'searching' && (
         <>
           <motion.div className="w-14 h-14 rounded-full border-4 border-[#d4af37]/30 border-t-[#e8c766]" animate={{ rotate: 360 }} transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }} />
-          <span className="text-[16px] uppercase tracking-[0.16em] text-[#fff1c9]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700 }}>{challenge ? 'Preparando o desafio…' : 'Procurando adversário…'}</span>
+          <span className="text-[16px] uppercase tracking-[0.16em] text-[#fff1c9]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700 }}>{challenge ? 'Preparando o desafio…' : ranked ? 'Procurando adversário ranqueado…' : 'Procurando adversário…'}</span>
           {!challenge && <span className="text-[11px] text-[#a89a78] text-center px-8" style={{ fontFamily: "'PT Serif', serif" }}>Aguardando outro jogador. Para jogar contra a IA, use os Desafios.</span>}
           <WindowButton onClick={cancel}>Cancelar</WindowButton>
         </>
@@ -5047,11 +5055,11 @@ export default function App() {
   // see DECKS above and the DeckPickerModal rendered in the !gameMode branch.
   const [deckPickerOpen, setDeckPickerOpen] = useState(false);
   // Online Casual: which deck was chosen while the "searching for an opponent" screen is up.
-  const [deckPickerFor, setDeckPickerFor] = useState<'desafios' | 'casual'>('desafios');
+  const [deckPickerFor, setDeckPickerFor] = useState<'desafios' | 'casual' | 'ranked'>('desafios');
   // Desafios: the deck editor opened over the opponent map (and a counter so the saved decks are re-read when it closes).
   const [dzEditorOpen, setDzEditorOpen] = useState(false);
   const [dzVersion, setDzVersion] = useState(0);
-  const [searching, setSearching] = useState<{ sel: DeckSelection; challenge: boolean } | null>(null);
+  const [searching, setSearching] = useState<{ sel: DeckSelection; challenge: boolean; ranked?: boolean } | null>(null);
 
   // Duel background music: decoded once into a raw AudioBuffer and looped through
   // the Web Audio API — NOT a plain <audio loop> element. A looping <audio> element
@@ -5828,6 +5836,8 @@ export default function App() {
   const [turnClock, setTurnClock] = useState<{ deadline: number; skew: number } | null>(null);
   const [clockNow, setClockNow] = useState(0);
   const [matchReward, setMatchReward] = useState<RewardInfo | 'pending' | null>(null);
+  // Ranked: the league changed in this match -> the emblem celebration (src/RankedScreens.tsx).
+  const [promo, setPromo] = useState<{ from: LeagueKey; to: LeagueKey; label: string } | null>(null);
   const [opponentInfo, setOpponentInfo] = useState<{ name: string; avatarId: string; bot: boolean } | null>(null);
   // Online person-vs-person match: the id the quick messages (src/Emotes.tsx) go through, and both Generals (the first phrase is the deck's own).
   const [emoteMatch, setEmoteMatch] = useState<{ id: string; myGeneral: string; opponentGeneral: string } | null>(null);
@@ -7318,7 +7328,12 @@ export default function App() {
       for (let i = 0; i < 8 && alive; i++) {
         const reward = online.reward ?? (await fetchResult(online.init.id))?.reward ?? null;
         if (!alive) return;
-        if (reward) { online.reward = reward; applyRewardToProfile(reward); setMatchReward(reward); return; }
+        if (reward) {
+          online.reward = reward; applyRewardToProfile(reward); setMatchReward(reward);
+          const rk = reward.ranked;
+          if (rk?.promoted) setPromo({ from: keyOfPoints(Math.max(0, rk.profile.points - rk.delta)), to: keyOfPoints(rk.profile.points), label: rk.league_after });
+          return;
+        }
         await sleep(1200);
       }
       if (alive) setMatchReward(null);
@@ -7443,6 +7458,7 @@ export default function App() {
           // check in the NPC turn effect).
           if (mode === 'Campaign') { setDeckPickerFor('desafios'); setDeckPickerOpen(true); }
           else if (mode === 'OnlineCasual') { setDeckPickerFor('casual'); setDeckPickerOpen(true); }
+          else if (mode === 'OnlineRanked') { setDeckPickerFor('ranked'); setDeckPickerOpen(true); }
           else startGame(mode);
         }} />
         <AnimatePresence>
@@ -7454,6 +7470,13 @@ export default function App() {
             <DeckPickerModal
               store={loadDeckStore()}
               onSelect={(sel) => { setDeckPickerOpen(false); setSearching({ sel, challenge: false }); }}
+              onClose={() => setDeckPickerOpen(false)}
+            />
+          )}
+          {deckPickerOpen && deckPickerFor === 'ranked' && (
+            <DeckPickerModal
+              store={loadDeckStore()}
+              onSelect={(sel) => { setDeckPickerOpen(false); setSearching({ sel, challenge: false, ranked: true }); }}
               onClose={() => setDeckPickerOpen(false)}
             />
           )}
@@ -7483,6 +7506,7 @@ export default function App() {
               key="searching-online"
               selection={searching.sel}
               challenge={searching.challenge}
+              ranked={!!searching.ranked}
               onCancel={() => setSearching(null)}
               onMatched={(init) => { setSearching(null); startOnlineMatch(init); }}
               // The server is not reachable (not deployed yet, no connection): a challenge still plays locally.
@@ -10075,6 +10099,7 @@ export default function App() {
               <div className="flex flex-col items-center gap-1 px-5 py-3 rounded-xl border border-amber-400/50 bg-black/60 text-center">
                 {matchReward.reason === 'too_short' && <p className="text-zinc-300 text-xs">Partida curta demais para render recompensas.</p>}
                 {matchReward.reason === 'abandoned' && <p className="text-zinc-300 text-xs">Partida abandonada: sem recompensas.</p>}
+                {matchReward.ranked && <RankedResult reward={matchReward} />}
                 {(matchReward.reason === 'win' || matchReward.reason === 'loss') && (
                   <>
                     <p className="text-amber-300 font-black text-sm tracking-wide">+{matchReward.xp} XP · +{matchReward.coroas} Coroas</p>
@@ -10094,6 +10119,8 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>{promo && <PromotionOverlay key="promo" from={promo.from} to={promo.to} label={promo.label} onDone={() => setPromo(null)} />}</AnimatePresence>
 
       {tutOn && !tutShown && gameMode && (
         <GameButton tutUi size={10} onClick={tutExit} className="fixed z-[955] top-2.5 right-2.5">PULAR</GameButton>

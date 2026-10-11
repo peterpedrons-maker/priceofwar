@@ -20,10 +20,18 @@ Só entre pessoas (o adversário automático saiu do online; a IA fica nos Desaf
 - `queue` com `ranked: true`: entra na fila ranqueada. `vsBot` nunca é ranqueado.
 - Ao fim da partida, `ensureRewards` calcula, para os dois jogadores (lendo os dois perfis antes de mexer em qualquer um), o resultado de ladder e o guarda dentro da recompensa (`reward.ranked`); em seguida `rankedSettle` aplica uma única vez (`matches.ranked_done`), mesmo se a chamada que pagou as recompensas tiver caído no meio.
 - `ranked` devolve os números do jogador (liga, divisão, pontos na divisão, vitórias, derrotas, escudo, pico, partidas de classificação que faltam, posição); `ranking` devolve a lista (até 100) e o jogador marcado. **O Elo escondido nunca vai para o aparelho** (há teste para isso).
-- O aparelho já tem `fetchRanked`, `fetchRanking` e o parâmetro `ranked` em `queueForMatch` (`src/services/online.ts`). **As telas ainda não estão ligadas** (mockups em `docs/janelas/ranqueado-*.png`).
+- O aparelho usa `fetchRanked`, `fetchRanking` e o parâmetro `ranked` em `queueForMatch` (`src/services/online.ts`).
+
+## Telas (no jogo, `src/RankedScreens.tsx`)
+- **Online → Ranqueado:** escolhe o deck e entra na fila ranqueada ("Procurando adversário ranqueado…"). Sem conta: "Online precisa de conta".
+- **Ranking** (botão do menu): temporada, abas Global e Minha liga, lista com medalhas de 1º a 3º, o símbolo da liga de cada um, e a sua linha fixa embaixo (com a posição) quando você não está entre os 50.
+- **Ligas** (botão dentro do Ranking, e o Ranking dentro das Ligas): o símbolo da sua liga, as divisões em gemas, a barra de pontos, vitórias e derrotas, e a lista das 8 ligas com a recompensa de cada.
+- **Fim de partida ranqueada** (`RankedResult`, na tela de Vitória/Derrota): símbolo da liga, pontos ganhos ou perdidos, barra de tubo de vidro (ganho em verde, perda hachurada em vermelho), aviso do escudo e da classificação.
+- **Subida de liga** (`PromotionOverlay`): o símbolo antigo se apaga, um clarão, o símbolo novo surge (com partículas e raios girando devagar), o nome da liga e Continuar. Dispara quando a recompensa diz `promoted`.
+- Ainda falta: a moldura do retrato no tabuleiro (retrato, nome e ouro juntos) e a janela de recompensas de temporada. Prévias: `docs/janelas/ranqueado-telas-no-jogo.png`, `ranqueado-subida-de-liga.gif`.
 
 ## Ordem de publicação
 O servidor novo continua funcionando para partidas casuais mesmo antes do SQL 4 (as colunas de ranqueado só são usadas em partida ranqueada). Rode o SQL 4 antes de usar o ranqueado.
 
 ## Ainda não existe
-Temporadas (o campo `season` já está na tabela), recompensas de fim de temporada, regras de quais decks valem no ranqueado, janela de Elo na fila, telas no jogo (Ligas, Ranking, fim de partida ranqueada, moldura do retrato no tabuleiro).
+Temporadas (o campo `season` já está na tabela), recompensas de fim de temporada, regras de quais decks valem no ranqueado, janela de Elo na fila, a moldura do retrato no tabuleiro.
