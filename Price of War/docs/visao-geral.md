@@ -79,3 +79,5 @@ Símbolos das ligas (brasões esculpidos, um por liga) **entregues e recortados*
 Kit de interface do ranqueado **entregue e recortado** (`src/assets/kit-rank/`) e testado em mockup (`docs/janelas/ranqueado-kit-telas.png`): barra de progresso de tubo de vidro com enchimento (ouro, verde para ganho, vermelho para perda), gemas das divisões, janela de metal, linhas da lista, fitas, medalhas, chips, botões. Ainda não ligado ao jogo.
 
 Ajuste (dono): no ranking a faixa da temporada saiu (agora é só uma linha de texto sob o título) e o texto da fita de título passou a ficar centralizado na fita (o espaçamento de letras empurrava o texto para o lado).
+
+Ajustes das telas do kit (dono): fita de título (Ligas/Ranking) desce para dentro da moldura da janela; linhas da lista passam a usar a moldura com o encaixe do símbolo no quadrado da própria arte (emblema centralizado no quadrado, em vez de um retângulo dentro de outro); a faixa da temporada (arte gerada) volta no Ranking com o texto centralizado no pergaminho; a tela de vitória não mudou.
