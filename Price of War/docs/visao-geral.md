@@ -10,7 +10,7 @@ Jogo de cartas digital (TCG) em português do Brasil, feito para jogar no celula
 2. **Ouro como recurso de tudo:** você gasta ouro para jogar e ativar; não é mana que sobe sozinha nem um jogo sem recurso.
 
 ## Regras em uma página
-- Cada lado tem 13 casas: **0–4 Vanguarda**, **5–9 Retaguarda**, **10 Relíquia**, **11 Terreno**, **12 General**. Ganha quem derruba o General inimigo (**30 de vida** nos dois).
+- **Terreno não tem vida e não pode ser atacado** (só é trocado por outro Terreno do mesmo dono). Cada lado tem 13 casas: **0–4 Vanguarda**, **5–9 Retaguarda**, **10 Relíquia**, **11 Terreno**, **12 General**. Ganha quem derruba o General inimigo (**30 de vida** nos dois).
 - Começo: 15 de ouro, 7 cartas na mão. A cada turno compra 1 carta; a partir da rodada 2 ganha +5 de ouro. Limite de mão 10 (o excesso se descarta no fim do turno). Rodada = um turno de cada jogador.
 - Fases do turno: Compra → Suprimentos → **Preparação** (convocar, usar táticas, armar emboscadas) → **Combate** → **Movimentação** (mover tropas; só táticas saem da mão). Quem começa não ataca no primeiro turno.
 - Tipos de carta: Infantaria, Cavalaria, Arqueiro, Tática (uso único), Emboscada (armada, o defensor decide responder), Relíquia, Terreno, Armamento (equipamento), General. Alcance: corpo a corpo acerta o da frente; à distância olha as três colunas; o General só é atingido por uma coluna livre.
@@ -33,6 +33,7 @@ Menu principal (fundo "A guerra dos dois Generais", logo no céu e cinco placas 
 - **Migração para o Godot (adiada; foco no web):** plano, riscos e perguntas abertas em `docs/godot.md`; o Godot nunca mexe no web.
 - **Efeitos de ativação do Cardeal: no jogo** (8 cartas; ver `docs/animacoes.md`). Mockup em `/mockups/efeitos-cardeal/`.
 - **Efeitos das cartas únicas (Mercenários e Capitão): no jogo** (campo `fx` do catálogo + `src/combatFx.ts`; ver `docs/animacoes.md`). Foram aprovados no mockup (`/mockups/efeitos-decks/`) e ligados sem as linhas de onda. Qualquer um sai do jogo tirando o `fx` da carta. Online/IA usam o mesmo caminho (eventos do motor).
+- **Cartas novas para Capitão e Mercenários (proposta, nada aplicado):** `docs/novas-cartas-capitao-mercenarios.md` (10 e 9 ideias; os dois decks ficam apertados com 50 cartas e teto de 3).
 - **Deck de Campo (proposta, nada aplicado):** `docs/deck-campo.md` (ideia de um amigo do dono: equipamento + Terrenos; 30 cartas diferentes, todas novas, 60 no total; General Margrave Osric). Depende de efeito "por equipamento preso", condições "armada"/"com Terreno" e verbos de devolver e mover equipamento.
 - **Deck Bardos (proposta, nada aplicado):** `docs/deck-bardos.md` (30 cartas diferentes, 60 no total, cartas com mais de um efeito, núcleo repetido). Depende de marca "Bardo", aura "ao lado" e mais de um rótulo de gatilho no motor.
 - **Muralha animada (no jogo):** a Fortaleza de Pedra ganhou efeito permanente com arte pintada (torres, muros e portão sobem do chão, tochas, flâmulas, desaba quando o terreno sai), nos dois lados do tabuleiro. Código em `src/terrainFx.ts`; opção "Terrenos animados" em Opções. Detalhes em `docs/animacoes.md`. Pendentes: ligar a reação "protegeu de dano" (`terrainHit`), e os mockups de Solo Sagrado e Acampamento dos Mercenários dependem de as cartas existirem.

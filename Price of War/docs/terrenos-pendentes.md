@@ -17,7 +17,7 @@ O que já está no jogo desta família: a **muralha da Fortaleza de Pedra** (`sr
   - Ao sair o terreno: tudo se apaga aos poucos.
   - Intensidade única `I` (0,3 em repouso, 0,8 na entrada). Se ficar forte ou fraco no celular, mexer só nela.
   - Só o lado de quem jogou o terreno tem o efeito.
-- **Carta (PROPOSTA, nada decidido):** nome provisório "Solo Sagrado", Terreno, vida 6, custo 2. Efeito possível, no tema de cura do Cardeal: "Suas unidades na Retaguarda: +1 de cura recebida" (já existe `healBonus` em `aura`, ver `docs/efeitos.md`) ou "no fim do seu turno, cure 1 de vida a uma unidade sua". Medir no laboratório antes de aceitar.
+- **Carta (PROPOSTA, nada decidido):** nome provisório "Solo Sagrado", Terreno (sem vida), custo 2. Efeito possível, no tema de cura do Cardeal: "Suas unidades na Retaguarda: +1 de cura recebida" (já existe `healBonus` em `aura`, ver `docs/efeitos.md`) ou "no fim do seu turno, cure 1 de vida a uma unidade sua". Medir no laboratório antes de aceitar.
 - **Falta:** a carta e o desenho dele em `terrainFx.ts` (portar o mockup para TypeScript, em camada de faixa e não de tela inteira, como a muralha).
 
 ## 2. Acampamento dos Mercenários (nome provisório "Acampamento de Contratos")
@@ -27,7 +27,7 @@ Hoje o deck Mercenários **não tem nenhuma carta de Terreno** (só Capitão tem
   - Cena desenhada **sem luz**, escurecida como noite e iluminada só pela fogueira, portas das barracas, vela e baú (mesmo pipeline da muralha).
   - Montagem: terra batida, estacas e corda, barracas sobem, adereços caem com poeira e tremor leve, fogueira acende, dois mercenários chegam andando (quadros de caminhada alternados) e se sentam, guarda na barraca, bandeirolas e estandarte. Ao sair o terreno tudo desaba e os mercenários fogem.
   - Animado por código: chamas em línguas, brasas, fumaça e vapor da panela, brilho do ouro do baú, vela.
-- **Carta (PROPOSTA, nada decidido):** "Acampamento de Contratos", Terreno, vida 6, custo 2. Efeitos possíveis ligados à manutenção (o motor já tem `discount` na manutenção e `upkeepFlat` nos modos da Relíquia, ver `docs/efeitos.md`): "a manutenção das suas cartas custa 1 a menos no total" ou "no início do seu turno, se tiver 3 ou mais unidades, ganhe 1 de ouro". Mercenários já está forte nas simulações (`docs/balanceamento.md`, rodada 19), então medir com cuidado.
+- **Carta (PROPOSTA, nada decidido):** "Acampamento de Contratos", Terreno (sem vida), custo 2. Efeitos possíveis ligados à manutenção (o motor já tem `discount` na manutenção e `upkeepFlat` nos modos da Relíquia, ver `docs/efeitos.md`): "a manutenção das suas cartas custa 1 a menos no total" ou "no início do seu turno, se tiver 3 ou mais unidades, ganhe 1 de ouro". Mercenários já está forte nas simulações (`docs/balanceamento.md`, rodada 19), então medir com cuidado.
 - **Falta:** definir a carta, portar o mockup para `terrainFx.ts` (as imagens passam para `src/assets/terrenos/` em webp) e conferir o peso no celular (são muitas peças e camadas de luz; manter o desenho só na faixa de baixo do tabuleiro e respeitar a opção "Terrenos animados").
 
 ## Lições que valem para qualquer terreno novo

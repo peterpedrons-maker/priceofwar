@@ -236,9 +236,9 @@ export const getValidAttackTargets = (attackerIndex: number, attackerBoard: Boar
     else if (enemyBoard[col + 5]) valid.add(col + 5); // the back card is reachable only if its front is empty
   });
 
-  // Center lane (Relíquia 10 at col 1, General 12 at col 2, Terreno 11 at col 3): reachable when the scan
-  // includes that column AND the whole lane in front of it is clear.
-  [{ col: 1, target: 10 }, { col: 2, target: 12 }, { col: 3, target: 11 }].forEach(({ col, target }) => {
+  // Center lane (Relíquia 10 at col 1, General 12 at col 2): reachable when the scan includes that column AND the whole lane in front of it is
+  // clear. The Terreno (slot 11) has no HP and is never a target: it only leaves when its owner plays another one.
+  [{ col: 1, target: 10 }, { col: 2, target: 12 }].forEach(({ col, target }) => {
     if (!enemyBoard[target] || !scanCols.includes(col)) return;
     if (!enemyBoard[col] && !enemyBoard[col + 5]) valid.add(target);
   });

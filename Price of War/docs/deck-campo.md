@@ -9,12 +9,12 @@ Dois planos que se ajudam, sem depender de uma única carta:
 1. **Alto (armar):** uma unidade boa recebe 1 a 3 equipamentos e vira ameaça. O risco clássico é perder 3 cartas num único abate; por isso o deck **recupera o equipamento** (volta para a mão ou do cemitério).
 2. **Largo (campo):** um Terreno barato dá +1 a um tipo inteiro de unidade. Não gasta carta por unidade: é a parte "segura" do deck.
 
-Para o plano funcionar sempre, o deck **compra o que precisa**: unidades que, ao entrar, trazem do baralho um Equipamento ou um Terreno. Como só existe **um espaço de Terreno** por jogador, o Terreno novo substitui o anterior e vale a pena ter vários baratos para trocar conforme o tabuleiro (quando o adversário muda de plano, você muda de campo). A decisão "qual campo agora?" e "em quem armo?" é a graça do deck.
+Para o plano funcionar sempre, o deck **compra o que precisa**: unidades que, ao entrar, trazem do baralho um Equipamento ou um Terreno. Como só existe **um espaço de Terreno** por jogador, o Terreno novo substitui o anterior (é a **única** forma de um Terreno sair: Terreno não tem vida e nenhum ataque o alcança) e vale a pena ter vários baratos para trocar conforme o tabuleiro (quando o adversário muda de plano, você muda de campo). A decisão "qual campo agora?" e "em quem armo?" é a graça do deck.
 
-Ritmo esperado: turnos 1 e 2 unidades baratas que trazem peças; turno 3 um Terreno; turno 4 em diante armar quem sobrevive e trocar o campo. Fraquezas naturais: dano em área (Catapulta, Trabuco), Silenciar, destruir o Terreno e partidas em que o adversário abate a unidade armada antes de ela atacar.
+Ritmo esperado: turnos 1 e 2 unidades baratas que trazem peças; turno 3 um Terreno; turno 4 em diante armar quem sobrevive e trocar o campo. Fraquezas naturais: dano em área (Catapulta, Trabuco), Silenciar, e partidas em que o adversário abate a unidade armada antes de ela atacar.
 
 **General: Margrave Osric, Senhor das Marcas** (30 de vida; nome provisório).
-*Passiva:* Terreno e Relíquia seus recebem −1 de dano. *Comando* (pague 2, uma vez por turno): leve 1 Equipamento do cemitério para a mão ("recolher o espólio do campo").
+*Passiva:* Relíquia sua recebe −1 de dano; unidades suas armadas recebem −1 de dano de ataques (a passiva do Terreno some: **Terreno não tem vida e não pode ser atacado**). *Comando* (pague 2, uma vez por turno): leve 1 Equipamento do cemitério para a mão ("recolher o espólio do campo").
 
 ## Lista (60 cartas, 30 diferentes)
 "Armada" = tem pelo menos 1 equipamento preso. "Equipamento" = Tática com o verbo `equip` (o motor reconhece pelo efeito, sem marcar nada à mão). "Com Terreno" = você tem um Terreno em campo.
@@ -54,14 +54,14 @@ Ritmo esperado: turnos 1 e 2 unidades baratas que trazem peças; turno 3 um Terr
 | Machado de Guerra | 1 | 2 | Infantaria: +3 ATK. |
 | Sela Reforçada | 2 | 2 | Cavalaria: +2 ATK e +2 HP. |
 
-### Terrenos (6, um espaço só, cada um troca o anterior)
+### Terrenos (6; sem vida, nenhum ataque os alcança; um espaço só, cada um troca o anterior)
 | Carta | Cópias | Custo | Efeito |
 |---|---|---|---|
-| Campina Aberta | 2 | 2 (6 de vida) | Suas Cavalarias +1 ATK; o inimigo à frente de cada Cavalaria sua tem −1 ATK. |
-| Colina Fortificada | 1 | 2 (7 de vida) | Suas Infantarias na Vanguarda +1 HP em combate e −1 de dano de ataques. |
-| Floresta Espessa | 1 | 2 (6 de vida) | Seus Arqueiros +1 HP em combate; Arqueiros na Retaguarda recebem −1 de dano. |
-| Forja de Campanha | 1 | 3 (6 de vida) | Suas unidades armadas +1 HP em combate. |
-| Vau do Rio | 1 | 2 (6 de vida) | Unidades suas que se movem ganham +1 ATK até o próximo turno. |
+| Campina Aberta | 2 | 2 | Suas Cavalarias +1 ATK; o inimigo à frente de cada Cavalaria sua tem −1 ATK. |
+| Colina Fortificada | 1 | 2 | Suas Infantarias na Vanguarda +1 HP em combate e −1 de dano de ataques. |
+| Floresta Espessa | 1 | 2 | Seus Arqueiros +1 HP em combate; Arqueiros na Retaguarda recebem −1 de dano. |
+| Forja de Campanha | 1 | 3 | Suas unidades armadas +1 HP em combate. |
+| Vau do Rio | 1 | 2 | Unidades suas que se movem ganham +1 ATK até o próximo turno. |
 
 ### Outras Táticas, Emboscadas e Relíquia
 | Carta | Cópias | Tipo, custo | Efeito |

@@ -265,15 +265,15 @@ passed:4 · test:5 · ok:6 · eq:7 · recipe:9 · listOf:11
 
 dir:10 · out:11 · cmd:12 · fresh:14 · committed:15
 
-## tests/engine-rules.ts  (1231 linhas)
+## tests/engine-rules.ts  (1241 linhas)
 Um cenário por regra do jogo (npm test).
 
-passed:19 · test:20 · eq:23 · ok:26 · n:29 · FIXTURE_HP:31 · mk:32 · fresh:37 · put:48 · give:49 · act:50 · refused:55 · names:60 · combat:61 · ambushSetup:370 · shielded:660 · aiTurn:721 · atkOf:899 · endTurnOf:900 · freshMerc:1102 · toNextTurn:1109
+passed:19 · test:20 · eq:23 · ok:26 · n:29 · FIXTURE_HP:31 · mk:32 · fresh:37 · put:48 · give:49 · act:50 · refused:55 · names:60 · combat:61 · ambushSetup:380 · shielded:670 · aiTurn:731 · atkOf:909 · endTurnOf:910 · freshMerc:1112 · toNextTurn:1119
 
-## tests/engine-sim.ts  (185 linhas)
+## tests/engine-sim.ts  (186 linhas)
 Partidas IA × IA com invariantes, repetição determinística e fuzz (npm test).
 
-failures:13 · usage:14 · tactics:15 · discards:16 · check:17 · allCards:19 · invariants:27 · play:47 · decks:80 · finished:81 · winsByDeck:82 · rnd:111 · R:112 · accepted:113
+failures:13 · usage:14 · tactics:15 · discards:16 · check:17 · allCards:19 · invariants:27 · play:48 · decks:81 · finished:82 · winsByDeck:83 · rnd:112 · R:113 · accepted:114
 
 ## tests/match-report.ts  (164 linhas)
 (sem descrição ainda: acrescente em FILE_NOTES)

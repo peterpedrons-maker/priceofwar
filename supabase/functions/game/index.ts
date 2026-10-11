@@ -16,10 +16,10 @@ var CARD_DEFS = [
     hp: 30,
     cost: 0,
     isFullArt: true,
-    effect: "**Fim do turno** At\xE9 2 unidades que se moveram ganham +2/+1 no pr\xF3ximo combate. **Passiva** Rel\xEDquia e Terreno recebem -1 de dano.",
+    effect: "**Fim do turno** At\xE9 2 unidades que se moveram ganham +2/+1 no pr\xF3ximo combate. **Passiva** Rel\xEDquia recebe -1 de dano.",
     faction: "ordem",
     abilities: [{ on: "turn_end", do: [{ kind: "buff_moved", count: 2, atk: 2, hp: 1 }] }],
-    passives: [{ kind: "aura", who: { side: "own", slots: [10, 11] }, reduce: 1 }]
+    passives: [{ kind: "aura", who: { side: "own", slots: [10] }, reduce: 1 }]
   },
   {
     name: "Soldado T\xE1tico",
@@ -207,7 +207,7 @@ var CARD_DEFS = [
     fx: "muralha",
     cardType: "Terreno",
     atk: 0,
-    hp: 8,
+    hp: 0,
     cost: 3,
     isFullArt: true,
     effect: "Suas unidades na Retaguarda: -1 de dano de ataques.",
@@ -220,7 +220,7 @@ var CARD_DEFS = [
     fx: "pantano",
     cardType: "Terreno",
     atk: 0,
-    hp: 6,
+    hp: 0,
     cost: 2,
     effect: "Inimigos na Vanguarda: -1 ATK.",
     passives: [{ kind: "aura", who: { side: "enemy", row: "front" }, atk: -1 }]
@@ -1161,7 +1161,7 @@ var getValidAttackTargets = (attackerIndex, attackerBoard, enemyBoard) => {
     if (enemyBoard[col]) valid.add(col);
     else if (enemyBoard[col + 5]) valid.add(col + 5);
   });
-  [{ col: 1, target: 10 }, { col: 2, target: 12 }, { col: 3, target: 11 }].forEach(({ col, target }) => {
+  [{ col: 1, target: 10 }, { col: 2, target: 12 }].forEach(({ col, target }) => {
     if (!enemyBoard[target] || !scanCols.includes(col)) return;
     if (!enemyBoard[col] && !enemyBoard[col + 5]) valid.add(target);
   });

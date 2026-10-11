@@ -341,6 +341,16 @@ test('Jorge splashes the Retaguarda card behind a Vanguarda target', () => {
   const r = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
   eq(r.players[1].board[7], null);
 });
+test('Terreno has no HP: an attack can never target it, even with its whole lane clear', () => {
+  const s = combat(fresh());
+  put(s, 0, 3, 'Soldado Tático');
+  put(s, 1, 11, 'Pântano Maldito');
+  eq(s.players[1].board[11]!.hp, 0);
+  refused(s, 0, { type: 'attack', from: 3, to: 11 }, 'Alvo fora de alcance');
+  // the General behind is still reachable through a clear lane, as before
+  put(s, 0, 2, 'Soldado Tático');
+  eq(act(s, 0, { type: 'attack', from: 2, to: 12 }).s.players[1].board[12]!.hp < 30, true);
+});
 test('Zeloso da Pira gets +2 ATK against a General that is not Cardeal Anselmo', () => {
   const s = combat(fresh({ a: 'cardeal', b: 'capitao' }));
   put(s, 0, 2, 'Zeloso da Pira');

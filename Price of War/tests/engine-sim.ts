@@ -30,7 +30,8 @@ const invariants = (s: GameState, where: string) => {
     check(p.board.every(c => c === null || typeof c === 'object'), `${where}: board ${i} has an undefined slot`);
     check(p.gold >= 0, `${where}: seat ${i} gold ${p.gold} < 0`);
     check(p.hand.length <= 24, `${where}: seat ${i} hand ${p.hand.length}`);
-    check(p.board.every(c => !c || c.hp > 0), `${where}: a dead card is still on seat ${i}'s board`);
+    // A Terreno has no HP (hp 0): nothing can hit it, so it is the one card that may sit on the board with 0.
+    check(p.board.every(c => !c || c.hp > 0 || c.cardType === 'Terreno'), `${where}: a dead card is still on seat ${i}'s board`);
     if (s.winner === null) check(!!p.board[12], `${where}: seat ${i} lost the General but no winner`);
     check(p.board[10] === null || ['Relíquia'].includes(p.board[10]!.cardType), `${where}: slot 10 holds ${p.board[10]?.cardType}`);
     check(p.board[11] === null || ['Terreno'].includes(p.board[11]!.cardType), `${where}: slot 11 holds ${p.board[11]?.cardType}`);

@@ -23,7 +23,7 @@ Cartas com gatilho (Reforço, Postura, Comando, …) mostram a palavra automatic
 
 | Carta | Hoje | Proposta |
 |---|---|---|
-| Comandante Aurelion (General) | Após Remanejamento: até 2 unidades que se moveram ganham +2/+1 no próximo combate. Passiva: unidades adjacentes recebem -1 de dano. | **Fim do turno:** até 2 unidades que se moveram ganham +2/+1 no próximo combate. **Passiva:** Relíquia e Terreno recebem -1 de dano. |
+| Comandante Aurelion (General) | Após Remanejamento: até 2 unidades que se moveram ganham +2/+1 no próximo combate. Passiva: unidades adjacentes recebem -1 de dano. | **Fim do turno:** até 2 unidades que se moveram ganham +2/+1 no próximo combate. **Passiva:** Relíquia recebe -1 de dano. |
 | Cardeal Anselmo (General) | Fase Principal: cure 1 HP de um soldado aliado (grátis, 1 vez por turno; 2 vezes com o Cálice das Duas Bênçãos), mesmo com HP cheio. | **Comando:** +1 HP a uma unidade aliada. |
 | Soldado Tático | Troca com aliado adjacente no fim do turno. | No fim do turno, troca de lugar com um aliado ao lado. |
 | Escudeiro de Linha | Postura: Na Vanguarda: a unidade logo atrás dele, na mesma coluna, recebe -1 de dano. | **Postura:** recebe -1 de dano. Na Vanguarda, a carta atrás também recebe -1 de dano. |

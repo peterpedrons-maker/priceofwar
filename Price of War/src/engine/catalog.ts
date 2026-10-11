@@ -11,10 +11,10 @@ const ENEMY_UNIT: TargetSpec = { side: 'enemy', area: 'unit' };
 
 export const CARD_DEFS: readonly CardDef[] = [
   // ── capitao ──
-  { name: "Comandante Aurelion, Mestre da Formação", cardType: "General", atk: 0, hp: 30, cost: 0, isFullArt: true, effect: "**Fim do turno** Até 2 unidades que se moveram ganham +2/+1 no próximo combate. **Passiva** Relíquia e Terreno recebem -1 de dano.",
+  { name: "Comandante Aurelion, Mestre da Formação", cardType: "General", atk: 0, hp: 30, cost: 0, isFullArt: true, effect: "**Fim do turno** Até 2 unidades que se moveram ganham +2/+1 no próximo combate. **Passiva** Relíquia recebe -1 de dano.",
     faction: "ordem",
     abilities: [{ on: 'turn_end', do: [{ kind: 'buff_moved', count: 2, atk: 2, hp: 1 }] }],
-    passives: [{ kind: 'aura', who: { side: 'own', slots: [10, 11] }, reduce: 1 }] },
+    passives: [{ kind: 'aura', who: { side: 'own', slots: [10] }, reduce: 1 }] },
   { name: "Soldado Tático", cardType: "Infantaria", atk: 3, hp: 4, cost: 2, trigger: "manobra", effect: "No fim do turno, troca de lugar com um aliado ao lado.",
     abilities: [{ on: 'turn_end', do: [{ kind: 'swap_adjacent' }] }] },
   { name: "Escudeiro de Linha", trigger: "postura", cardType: "Infantaria", atk: 2, hp: 4, cost: 2, effect: "Recebe -1 de dano. Na Vanguarda, a carta atrás também recebe -1 de dano.",
@@ -62,9 +62,9 @@ export const CARD_DEFS: readonly CardDef[] = [
     abilities: [{ on: 'ambush', do: [{ kind: 'displace_attacker' }] }] },
   { name: "Estandarte da Legião", maxCopies: 1, trigger: "postura", fx: 'estandarte', cardType: "Relíquia", atk: 0, hp: 5, cost: 3, isFullArt: true, effect: "+1/+1 em combate às suas cartas em campo.",
     passives: [{ kind: 'aura', who: { side: 'own' }, atk: 1, combatHp: 1 }] },
-  { name: "Fortaleza de Pedra", maxCopies: 1, trigger: "postura", fx: 'muralha', cardType: "Terreno", atk: 0, hp: 8, cost: 3, isFullArt: true, effect: "Suas unidades na Retaguarda: -1 de dano de ataques.",
+  { name: "Fortaleza de Pedra", maxCopies: 1, trigger: "postura", fx: 'muralha', cardType: "Terreno", atk: 0, hp: 0, cost: 3, isFullArt: true, effect: "Suas unidades na Retaguarda: -1 de dano de ataques.",
     passives: [{ kind: 'aura', who: { side: 'own', row: 'back' }, reduce: 1 }] },
-  { name: "Pântano Maldito", maxCopies: 1, trigger: "postura", fx: 'pantano', cardType: "Terreno", atk: 0, hp: 6, cost: 2, effect: "Inimigos na Vanguarda: -1 ATK.",
+  { name: "Pântano Maldito", maxCopies: 1, trigger: "postura", fx: 'pantano', cardType: "Terreno", atk: 0, hp: 0, cost: 2, effect: "Inimigos na Vanguarda: -1 ATK.",
     passives: [{ kind: 'aura', who: { side: 'enemy', row: 'front' }, atk: -1 }] },
   // ── cardeal ──
   { name: "Cardeal Anselmo, Voz da Fé", trigger: "comando", cardType: "General", atk: 0, hp: 30, cost: 0, isFullArt: true, effect: "Uma vez por turno: +1 HP a uma unidade aliada.",

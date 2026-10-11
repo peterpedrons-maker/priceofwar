@@ -51,8 +51,8 @@ Dois princípios novos pedidos pelo dono: (1) uma carta pode ter **mais de um ef
 | Coro Repentino | 2 | Emboscada, 2 | A unidade atacada ganha +2 ATK e +1 HP até o fim do turno, e as aliadas ao lado +1 ATK. |
 | Aplauso da Multidão | 1 | Emboscada, 3 | Cancela um ataque e você compra 1 carta. |
 | Alaúde do Rei | 2 | Relíquia (5 de vida), 3 | Suas unidades de ATK 2 ou menos ganham +1 ATK. |
-| Taverna do Javali Dourado | 2 | Terreno (6 de vida), 2 | No início do seu turno, se você tem 4 ou mais unidades, ganhe 1 de ouro. |
-| Palanque da Feira | 1 | Terreno (6 de vida), 2 | Inimigos na Vanguarda: -1 ATK. |
+| Taverna do Javali Dourado | 2 | Terreno, 2 | No início do seu turno, se você tem 4 ou mais unidades, ganhe 1 de ouro. |
+| Palanque da Feira | 1 | Terreno, 2 | Inimigos na Vanguarda: -1 ATK. |
 
 Contagem: 18 (núcleo) + 16 (apoio, contando as 2 cópias do Pífaro) + 5 (únicas) + 13 (Táticas) + 3 (Emboscadas) + 2 (Relíquia) + 3 (Terrenos) = 60.
 
