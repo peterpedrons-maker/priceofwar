@@ -79,6 +79,8 @@ Não são gatilhos: são mecânicas. Ficam em **negrito** no texto, sem ícone p
 | Postura | Escudeiro de Linha, Lanceiro de Controle, Marechal do Sol Poente, Veterano de Guerra, Confessor Silencioso, passiva do Aurelion |
 | Reforço | Sentinela do Claustro |
 
+Rodada 23 (cartas novas): Convocação: Corneteiro da Coluna. Manobra: Tenente de Marcha. Ofensiva: Escolta Montada, Brigadeiro Voss. Postura: Guarda de Fileira, Campo de Treino, Sentinela de Aluguel.
+
 Rodada 22 (pedido do dono): Soldado Tático ganhou o gatilho **Manobra** (ele troca de lugar com um aliado: o medalhão dos dois soldados trocando de lugar combina). Seguem sem ícone: Aurelion (é General; dois gatilhos no texto em negrito), cura (Noviço Renascido, Paladino do Alvorecer) e Rescisão (Capa-Rota, Florete, Cavaleiro do Escudo Raspado, Boca-de-Fogo, Rato da Muralha): precisam de **arte nova** (prompts em `art-prompts/gatilhos-cura-rescisao.md`).
 
 Rodada 21 (pedido do dono): Batedor (Ofensiva), Cavaleiro Tático (Manobra), Arqueiro de Dois Sinos, Estandarte da Legião, Cálice das Duas Bênçãos, Fortaleza de Pedra e Pântano Maldito (Postura) ganharam o ícone. Seguem sem ícone: Soldado Tático (efeito no fim do turno), Aurelion (dois gatilhos), Táticas e Emboscadas, e os efeitos de cura (Noviço, Paladino) e de Rescisão, que não têm gatilho no vocabulário.

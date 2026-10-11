@@ -27,7 +27,7 @@ que aparece na carta; quem faz a regra são as habilidades abaixo. Um teste (`en
 | `destroyed` | a carta caiu | Vigia do Último Salmo (compra 2) |
 | `move` | a carta se reposicionou | Capitão de Formação |
 | `healed` | a carta foi curada | Noviço Renascido (+1 ATK) |
-| `turn_start` / `turn_end` | início / fim do turno do dono | Intendente / Aurelion, Soldado Tático |
+| `turn_start` / `turn_end` | início / fim do turno do dono (`turn_start` vale também para a Relíquia no slot 10) | Quillon, Despenseiro, Mapa de Campanha / Aurelion, Soldado Tático |
 | `front_fell` | a carta da frente da coluna caiu | Sentinela do Claustro (Reforço) |
 | `ambush` | Emboscada ativada | as quatro Emboscadas |
 
@@ -47,9 +47,9 @@ que aparece na carta; quem faz a regra são as habilidades abaixo. Um teste (`en
 **Cartas:** `look_top {count, keepMin, keepMax, rest?}` (`rest: 'graveyard'`: o que não fica vai para o cemitério em vez do fundo) · `search {zone:'deck'|'graveyard', filter}` ·
 `summon_deck {max, filter}` · `summon_token {token}`
 
-**Combate:** `attack_bonus {amount, ifEnemyGeneral?}` · `splash_behind {amount}`
+**Combate:** `attack_bonus {amount, ifEnemyGeneral?, ifTarget?}` (`ifTarget: 'general'`: só quando o alvo do ataque é o General: Brigadeiro Voss) · `splash_behind {amount}`
 
-**Emboscada:** `cancel_attack {ifAdjacentAlly?}` · `swap_defender` · `displace_attacker` · `buff_defender {atk, hp}`
+**Emboscada:** `cancel_attack {ifAdjacentAlly?}` · `swap_defender` · `displace_attacker` · `buff_defender {atk, hp}` (bônus **só neste combate**, como diz o texto "até o fim do turno"; antes era permanente por engano) · `draw {amount}` (quem respondeu com a Emboscada compra: Carta Branca)
 
 ### Alvos (`target`)
 `{ side: 'own'|'enemy', area: 'unit'|'row', where?: 'front'|'back', types?: [...], needs?: 'moved'|'damaged', optional?, prompt }`.

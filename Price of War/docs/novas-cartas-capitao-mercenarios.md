@@ -1,4 +1,6 @@
-# Ideias de cartas novas: Capitão e Mercenários (PROPOSTA, nada aplicado)
+# Cartas novas: Capitão e Mercenários (13 já no jogo na rodada 23; o resto é proposta)
+
+**Já no jogo (sem arte, prompts em `art-prompts/cartas-novas-rodada-23.md`):** Capitão: Corneteiro da Coluna, Tenente de Marcha, Escolta Montada, Guarda de Fileira, Brigadeiro Voss, Passo Cadenciado, Revista de Tropas, Resposta Disciplinada, Campo de Treino, Mapa de Campanha. Mercenários: Sentinela de Aluguel, Atirador de Aluguel, Carta Branca (versão com compra de carta, custo 3). **Ainda proposta (pedem motor novo):** Cobrador de Dívidas, Caçador de Recompensas, Intendente do Soldo, Contrato Rasgado, Folha de Pagamento, Acampamento de Contratos. Medidas e ajustes: rodada 23 em `docs/balanceamento.md`.
 
 **Por que:** com baralho de 50 cartas e no máximo 3 cópias, o Capitão e os Mercenários (21 cartas diferentes cada) são obrigados a jogar quase todas as cartas, inclusive as fracas (`docs/balanceamento.md`, rodada 22). Com **8 a 10 cartas novas** cada um passa a ter ~30 diferentes e o jogador a escolher. Regras lembradas: Terreno **não tem vida e nenhum ataque o alcança**; limite de cópias por carta: 3 (comuns), 2 (fortes), 1 (únicas).
 Coluna "Motor": **ok** = só usa efeitos que o jogo já tem (`docs/efeitos.md`); **novo** = pede uma pequena adição ao motor.

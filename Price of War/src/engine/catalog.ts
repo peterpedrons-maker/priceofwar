@@ -66,6 +66,30 @@ export const CARD_DEFS: readonly CardDef[] = [
     passives: [{ kind: 'aura', who: { side: 'own', row: 'back' }, reduce: 1 }] },
   { name: "Pântano Maldito", maxCopies: 1, trigger: "postura", fx: 'pantano', cardType: "Terreno", atk: 0, hp: 0, cost: 2, effect: "Inimigos na Vanguarda: -1 ATK.",
     passives: [{ kind: 'aura', who: { side: 'enemy', row: 'front' }, atk: -1 }] },
+  // ── novas do Capitão (rodada 23): compra de cartas, defesa e um jeito de fechar a partida ──
+  { name: "Corneteiro da Coluna", cardType: "Infantaria", atk: 1, hp: 2, cost: 2, trigger: "convocacao", effect: "Compre 1 carta.",
+    abilities: [{ on: 'place', do: [{ kind: 'draw', amount: 1 }] }] },
+  { name: "Tenente de Marcha", cardType: "Infantaria", atk: 2, hp: 3, cost: 3, maxCopies: 1, trigger: "manobra", effect: "Ao se mover, compre 1 carta.",
+    abilities: [{ on: 'move', do: [{ kind: 'draw', amount: 1 }] }] },
+  { name: "Escolta Montada", cardType: "Cavalaria", atk: 3, hp: 3, cost: 2, trigger: "ofensiva", effect: "Depois de atacar e sobreviver, move-se 1 casa de graça.",
+    abilities: [{ on: 'after_attack', do: [{ kind: 'free_move' }] }] },
+  { name: "Guarda de Fileira", cardType: "Infantaria", atk: 2, hp: 5, cost: 3, trigger: "postura", effect: "Suas unidades na Retaguarda: +1 HP em combate.",
+    passives: [{ kind: 'aura', who: { side: 'own', row: 'back' }, combatHp: 1 }] },
+  { name: "Brigadeiro Voss, Quebra-Linhas", cardType: "Infantaria", atk: 4, hp: 5, cost: 4, maxCopies: 1, trigger: "ofensiva", effect: "Ao atacar o General: +3 ATK.",
+    abilities: [{ on: 'attack', do: [{ kind: 'attack_bonus', amount: 3, ifTarget: 'general' }] }] },
+  { name: "Passo Cadenciado", cardType: "Tática", atk: 0, hp: 0, cost: 1, maxCopies: 2, effect: "2 movimentos extras neste turno.",
+    abilities: [{ on: 'play', do: [{ kind: 'extra_moves', amount: 2 }] }] },
+  { name: "Revista de Tropas", cardType: "Tática", atk: 0, hp: 0, cost: 2, maxCopies: 2, effect: "Compre 1 carta. Uma unidade sua que se moveu neste turno ganha +1 ATK para sempre.",
+    abilities: [{ on: 'play', do: [
+      { kind: 'draw', amount: 1 },
+      { kind: 'buff', atk: 1, target: { ...OWN_UNIT, needs: 'moved', prompt: 'Escolha uma unidade sua que já se moveu neste turno.' } },
+    ] }] },
+  { name: "Resposta Disciplinada", cardType: "Emboscada", atk: 0, hp: 0, cost: 2, maxCopies: 2, effect: "A unidade atacada ganha +2 ATK e +2 HP até o fim do turno.",
+    abilities: [{ on: 'ambush', do: [{ kind: 'buff_defender', atk: 2, hp: 2 }] }] },
+  { name: "Campo de Treino", cardType: "Terreno", atk: 0, hp: 0, cost: 2, maxCopies: 1, trigger: "postura", effect: "Suas Infantarias na Vanguarda: +1 HP em combate.",
+    passives: [{ kind: 'aura', who: { side: 'own', types: ['Infantaria'], row: 'front' }, combatHp: 1 }] },
+  { name: "Mapa de Campanha", cardType: "Relíquia", atk: 0, hp: 5, cost: 2, maxCopies: 1, effect: "No início do seu turno: 1 movimento extra.",
+    abilities: [{ on: 'turn_start', do: [{ kind: 'extra_moves', amount: 1 }] }] },
   // ── cardeal ──
   { name: "Cardeal Anselmo, Voz da Fé", trigger: "comando", cardType: "General", atk: 0, hp: 30, cost: 0, isFullArt: true, effect: "Uma vez por turno: +1 HP a uma unidade aliada.",
     faction: "fe",
@@ -173,6 +197,15 @@ export const CARD_DEFS: readonly CardDef[] = [
   { name: 'Boca-de-Fogo', cardType: 'Artilharia', atk: 4, hp: 3, cost: 2, upkeep: 2, effect: '**Manutenção 2.** Ataca à distância. Rescisão: você perde 2 de ouro.',
     abilities: [{ on: 'dismissed', do: [{ kind: 'lose_gold', amount: 2 }] }] },
 
+  // ── novas dos Mercenários (rodada 23) ──
+  { name: 'Sentinela de Aluguel', cardType: 'Infantaria', atk: 1, hp: 5, cost: 2, upkeep: 1, trigger: 'postura', effect: '**Manutenção 1.** Recebe -1 de dano. Rescisão: compre 1 carta.',
+    abilities: [{ on: 'dismissed', do: [{ kind: 'draw', amount: 1 }] }],
+    passives: [{ kind: 'aura', who: { side: 'self' }, reduce: 1 }] },
+  { name: 'Atirador de Aluguel', cardType: 'Arqueiro', atk: 3, hp: 2, cost: 2, upkeep: 2, effect: '**Manutenção 2.** Rescisão: você perde 1 de ouro.',
+    abilities: [{ on: 'dismissed', do: [{ kind: 'lose_gold', amount: 1 }] }] },
+  { name: 'Carta Branca', cardType: 'Emboscada', atk: 0, hp: 0, cost: 3, maxCopies: 2, effect: 'Cancela um ataque a uma de suas unidades e você compra 1 carta.',
+    abilities: [{ on: 'ambush', do: [{ kind: 'cancel_attack' }, { kind: 'draw', amount: 1 }] }] },
+
   // ── sem manutenção ──
   { name: 'Vigia da Última Brasa', cardType: 'Infantaria', atk: 2, hp: 4, cost: 2, effect: '' },
   { name: 'Quillon Contamoedas', fx: 'moeda', trigger: 'comando', cardType: 'Infantaria', atk: 1, hp: 3, cost: 2, effect: 'No início do turno, ganhe 1 de ouro.',
@@ -226,15 +259,15 @@ export const DECK_RECIPES: Record<DeckId, DeckRecipe> = {
   capitao: {
     id: 'capitao', name: "Deck Capitão", description: "Infantaria disciplinada e reformação tática.", general: "Comandante Aurelion, Mestre da Formação",
     cards: {
-      "Soldado Tático": 3,
+      "Soldado Tático": 2,
       "Escudeiro de Linha": 3,
       "Capitão de Formação": 3,
       "Batedor": 3,
-      "Lanceiro de Controle": 3,
+      "Lanceiro de Controle": 2,
       "Cavaleiro Tático": 3,
       "Veterano de Guerra": 3,
       "Reformar Linhas": 3,
-      "Avanço Coordenado": 3,
+      "Avanço Coordenado": 2,
       "Linha Fechada": 3,
       "Ordem de Retirada": 3,
       "Catapulta do Dilúvio de Pedra": 2,
@@ -242,10 +275,14 @@ export const DECK_RECIPES: Record<DeckId, DeckRecipe> = {
       "Trabuco da Trombeta Final": 1,
       "Bloqueio Instantâneo": 3,
       "Contra-Manobra": 3,
-      "Formação Quebrada": 3,
+      "Formação Quebrada": 2,
       "Estandarte da Legião": 1,
-      "Fortaleza de Pedra": 1,
       "Pântano Maldito": 1,
+      "Corneteiro da Coluna": 1,
+      "Resposta Disciplinada": 1,
+      "Campo de Treino": 1,
+      "Passo Cadenciado": 1,
+      "Guarda de Fileira": 1,
     },
   },
   cardeal: {
@@ -286,16 +323,30 @@ export const DECK_RECIPES: Record<DeckId, DeckRecipe> = {
   mercenarios: {
     id: 'mercenarios', name: "Deck Mercenários", description: "Tropas de aluguel, manutenção e uma Relíquia de contratos.", general: "Brann Meia-Coroa, Comprador de Guerras",
     cards: {
-      // 31 mercenários (com manutenção) e 7 sem manutenção
-      "Lanceiro Pés-de-Lama": 3, "Besteiro Dedo-Ligeiro": 3, "Capa-Rota": 3, "Rato da Muralha": 3, "Capitão Barba-de-Corvo": 3,
-      "Cavaleiro do Escudo Raspado": 2, "Florete de Aposta": 3, "Boca-de-Fogo": 3,
-      "Vigia da Última Brasa": 3, "Quillon Contamoedas": 3,
-      // a Relíquia e quem a busca
-      "Códice das Mil Dívidas": 2, "Escriba do Códice": 3,
-      // táticas, equipamentos e emboscada próprios
-      "Chuva de Ferro Barato": 2, "Pacto do Punhal Vermelho": 2, "O Dia em que a Muralha Caiu": 1,
-      "Peitoral de Muitos Donos": 3, "Espada de Mil Mãos": 2,
-      "Tambor do Soldo Fácil": 1, "Ninguém Fica na Lama": 2, "Os Dois do Beco": 1, "O Peso da Bolsa": 2,
+      "Lanceiro Pés-de-Lama": 2,
+      "Besteiro Dedo-Ligeiro": 3,
+      "Capa-Rota": 3,
+      "Rato da Muralha": 2,
+      "Capitão Barba-de-Corvo": 3,
+      "Cavaleiro do Escudo Raspado": 2,
+      "Florete de Aposta": 3,
+      "Boca-de-Fogo": 3,
+      "Vigia da Última Brasa": 2,
+      "Quillon Contamoedas": 2,
+      "Códice das Mil Dívidas": 2,
+      "Escriba do Códice": 2,
+      "Chuva de Ferro Barato": 2,
+      "Pacto do Punhal Vermelho": 2,
+      "O Dia em que a Muralha Caiu": 1,
+      "Peitoral de Muitos Donos": 2,
+      "Espada de Mil Mãos": 2,
+      "Tambor do Soldo Fácil": 1,
+      "Ninguém Fica na Lama": 2,
+      "Os Dois do Beco": 1,
+      "O Peso da Bolsa": 2,
+      "Sentinela de Aluguel": 2,
+      "Atirador de Aluguel": 2,
+      "Carta Branca": 2,
     },
   },
 };
@@ -314,6 +365,13 @@ if (!(globalThis as { __POW_RAW_STATS__?: boolean }).__POW_RAW_STATS__) {
   });
 }
 
+// Cards that exist for a faction but are not in its prebuilt deck (they come from boosters). Counts are how many copies the booster pool holds.
+export const BOOSTER_EXTRA: Record<DeckId, Record<string, number>> = {
+  capitao: { "Brigadeiro Voss, Quebra-Linhas": 1, "Mapa de Campanha": 1, "Tenente de Marcha": 1, "Revista de Tropas": 2, "Escolta Montada": 2, "Guarda de Fileira": 2, "Fortaleza de Pedra": 1, "Reposicionamento Rápido": 2 },
+  cardeal: {},
+  mercenarios: {},
+};
+
 // The prebuilt lists as a player can use them: a deck holds at most 60 cards (see deck.ts). Both recipes have exactly 60 now, so nothing is trimmed;
 // the hook stays for a recipe that grows past the limit (the AI would still play the full recipe).
 const STARTER_TRIM: Partial<Record<DeckId, Record<string, number>>> = {};
@@ -327,15 +385,24 @@ export const starterDeckCards = (id: DeckId): Record<string, number> => {
 // by the player, so it is replaced by the new list.
 export const LEGACY_STARTERS: Record<DeckId, Record<string, number>[]> = {
   // O Mercenários nasceu depois dos ajustes: só tem a lista atual (a mesma da receita).
-  mercenarios: [DECK_RECIPES.mercenarios.cards],
+  mercenarios: [
+    {"Lanceiro Pés-de-Lama":4,"Besteiro Dedo-Ligeiro":4,"Capa-Rota":4,"Rato da Muralha":4,"Capitão Barba-de-Corvo":3,"Cavaleiro do Escudo Raspado":3,"Florete de Aposta":4,"Boca-de-Fogo":4,"Vigia da Última Brasa":4,"Quillon Contamoedas":4,"Códice das Mil Dívidas":3,"Escriba do Códice":3,"Chuva de Ferro Barato":2,"Pacto do Punhal Vermelho":2,"O Dia em que a Muralha Caiu":1,"Peitoral de Muitos Donos":3,"Espada de Mil Mãos":2,"Tambor do Soldo Fácil":1,"Ninguém Fica na Lama":2,"Os Dois do Beco":1,"O Peso da Bolsa":2},
+    {"Lanceiro Pés-de-Lama":3,"Besteiro Dedo-Ligeiro":3,"Capa-Rota":3,"Rato da Muralha":3,"Capitão Barba-de-Corvo":3,"Cavaleiro do Escudo Raspado":2,"Florete de Aposta":3,"Boca-de-Fogo":3,"Vigia da Última Brasa":3,"Quillon Contamoedas":3,"Códice das Mil Dívidas":2,"Escriba do Códice":3,"Chuva de Ferro Barato":2,"Pacto do Punhal Vermelho":2,"O Dia em que a Muralha Caiu":1,"Peitoral de Muitos Donos":3,"Espada de Mil Mãos":2,"Tambor do Soldo Fácil":1,"Ninguém Fica na Lama":2,"Os Dois do Beco":1,"O Peso da Bolsa":2},
+  ],
   // The first list of each deck is also the faction's own set of cards (what its boosters can hold).
   capitao: [
     {"Soldado Tático":4,"Escudeiro de Linha":4,"Capitão de Formação":4,"Batedor":4,"Lanceiro de Controle":4,"Cavaleiro Tático":4,"Veterano de Guerra":3,"Reformar Linhas":3,"Avanço Coordenado":4,"Reposicionamento Rápido":3,"Linha Fechada":4,"Ordem de Retirada":4,"Bloqueio Instantâneo":4,"Contra-Manobra":4,"Formação Quebrada":4,"Estandarte da Legião":1,"Fortaleza de Pedra":1,"Pântano Maldito":1},
     // the version of the first balance pass (borrowed tactics, Veterano x4), before the effect changes
     {"Soldado Tático":4,"Escudeiro de Linha":4,"Capitão de Formação":4,"Batedor":4,"Lanceiro de Controle":4,"Cavaleiro Tático":4,"Veterano de Guerra":4,"Reformar Linhas":1,"Avanço Coordenado":4,"Reposicionamento Rápido":2,"Ordem de Retirada":2,"Bloqueio Instantâneo":2,"Contra-Manobra":1,"Formação Quebrada":2,"Estandarte da Legião":1,"Pântano Maldito":1,"Catapulta do Dilúvio de Pedra":4,"Balestra da Penitência":4,"Couraça do Mártir":4,"Trabuco da Trombeta Final":2,"Alistamento do Púlpito":2},
+    // rodada 22 e antes: 60 cartas com até 4 cópias, e a primeira lista de 50 cartas
+    {"Soldado Tático":4,"Escudeiro de Linha":4,"Capitão de Formação":4,"Batedor":4,"Lanceiro de Controle":4,"Cavaleiro Tático":4,"Veterano de Guerra":4,"Reformar Linhas":3,"Avanço Coordenado":4,"Reposicionamento Rápido":1,"Linha Fechada":4,"Ordem de Retirada":4,"Catapulta do Dilúvio de Pedra":2,"Balestra da Penitência":2,"Trabuco da Trombeta Final":1,"Bloqueio Instantâneo":4,"Contra-Manobra":2,"Formação Quebrada":2,"Estandarte da Legião":1,"Fortaleza de Pedra":1,"Pântano Maldito":1},
+    {"Soldado Tático":3,"Escudeiro de Linha":3,"Capitão de Formação":3,"Batedor":3,"Lanceiro de Controle":3,"Cavaleiro Tático":3,"Veterano de Guerra":3,"Reformar Linhas":3,"Avanço Coordenado":3,"Linha Fechada":3,"Ordem de Retirada":3,"Catapulta do Dilúvio de Pedra":2,"Balestra da Penitência":2,"Trabuco da Trombeta Final":1,"Bloqueio Instantâneo":3,"Contra-Manobra":3,"Formação Quebrada":3,"Estandarte da Legião":1,"Fortaleza de Pedra":1,"Pântano Maldito":1},
   ],
   cardeal: [
     {"Cálice das Duas Bênçãos":1,"Penitente de Pedra":4,"Cambista do Dízimo":2,"Confessor Silencioso":1,"Zeloso da Pira":1,"Noviço Renascido":2,"Despenseiro do Mosteiro":2,"Sentinela do Claustro":2,"Jorge, Lança Sagrada":3,"Samaritano de Aço":2,"Barão da Procissão":2,"Paladino do Alvorecer":4,"Marechal do Sol Poente":1,"Arqueiro de Dois Sinos":2,"Vigia do Último Salmo":2,"Trabuco da Trombeta Final":2,"Catapulta do Dilúvio de Pedra":3,"Balestra da Penitência":1,"Couraça do Mártir":2,"Gibão Bento":2,"Setas de Cicuta":1,"Lâmina do Juramento":2,"Preces na Sombra":2,"Chamado do Túmulo Santo":1,"Peregrinação ao Graal":1,"Sermão da Estratégia":2,"Alistamento do Púlpito":2,"Convocação dos Veteranos de Fé":2,"Dízimo de Guerra":2,"Toque dos Sinos de Guerra":2},
+    // rodada 22 e antes: 60 cartas com até 4 cópias, e a primeira lista de 50 cartas
+    {"Cálice das Duas Bênçãos":1,"Penitente de Pedra":4,"Cambista do Dízimo":1,"Confessor Silencioso":1,"Zeloso da Pira":1,"Noviço Renascido":4,"Despenseiro do Mosteiro":3,"Sentinela do Claustro":4,"Jorge, Lança Sagrada":2,"Samaritano de Aço":3,"Barão da Procissão":2,"Paladino do Alvorecer":3,"Marechal do Sol Poente":1,"Arqueiro de Dois Sinos":3,"Vigia do Último Salmo":3,"Trabuco da Trombeta Final":1,"Catapulta do Dilúvio de Pedra":1,"Balestra da Penitência":1,"Couraça do Mártir":2,"Gibão Bento":2,"Setas de Cicuta":1,"Lâmina do Juramento":2,"Preces na Sombra":2,"Chamado do Túmulo Santo":1,"Peregrinação ao Graal":1,"Sermão da Estratégia":3,"Alistamento do Púlpito":2,"Convocação dos Veteranos de Fé":1,"Dízimo de Guerra":2,"Toque dos Sinos de Guerra":2},
+    {"Cálice das Duas Bênçãos":1,"Penitente de Pedra":3,"Cambista do Dízimo":1,"Confessor Silencioso":1,"Zeloso da Pira":1,"Noviço Renascido":3,"Despenseiro do Mosteiro":1,"Sentinela do Claustro":3,"Jorge, Lança Sagrada":2,"Samaritano de Aço":3,"Barão da Procissão":2,"Paladino do Alvorecer":2,"Marechal do Sol Poente":1,"Arqueiro de Dois Sinos":2,"Vigia do Último Salmo":1,"Trabuco da Trombeta Final":1,"Catapulta do Dilúvio de Pedra":1,"Balestra da Penitência":1,"Couraça do Mártir":3,"Gibão Bento":2,"Setas de Cicuta":1,"Lâmina do Juramento":3,"Preces na Sombra":2,"Chamado do Túmulo Santo":1,"Peregrinação ao Graal":1,"Sermão da Estratégia":1,"Alistamento do Púlpito":2,"Convocação dos Veteranos de Fé":1,"Dízimo de Guerra":1,"Toque dos Sinos de Guerra":2},
   ],
 };
 

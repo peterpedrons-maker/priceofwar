@@ -218,7 +218,7 @@ import batalhaBannerSfxUrl from './assets/sfx-batalha-banner.wav';
 // something heavy hitting the ground" calls for a stone/masonry thud, not a musical
 // stinger.
 import batalhaImpactSfxUrl from './assets/sfx-batalha-impacto.wav';
-import { CARD_DEFS, DECK_RECIPES, LEGACY_STARTERS, LEGACY_CARD_NAMES, currentCardName, currentNames, requireCardDef, getCardDef, starterDeckCards, type DeckId } from './engine/catalog';
+import { BOOSTER_EXTRA, CARD_DEFS, DECK_RECIPES, LEGACY_STARTERS, LEGACY_CARD_NAMES, currentCardName, currentNames, requireCardDef, getCardDef, starterDeckCards, type DeckId } from './engine/catalog';
 import { applyAction, combatOpen as engineCombatOpen, activePhases as engineActivePhases, createMatch, deckSetupFromRecipe, newMatchLog, type MatchLog } from './engine/game';
 import { aiNextAction } from './engine/ai';
 import { glyphUrl, burstUrl, NUMBER_GLOW, type NumberKind } from './numberGlyphs';
@@ -2301,9 +2301,14 @@ const ALL_DECK_IDS: DeckId[] = ['cardeal', 'capitao', 'mercenarios'];
 
 // What a booster of each faction can hold: the faction's own cards (the lists from before the balance pass), not the tactics a deck borrows.
 const BOOSTER_POOLS: Record<DeckId, CardData[]> = { capitao: [], cardeal: [], mercenarios: [] };
-ALL_DECK_IDS.forEach(id => Object.entries(LEGACY_STARTERS[id][0]).forEach(([name, n]) => {
-  for (let i = 0; i < n; i++) BOOSTER_POOLS[id].push(cardDataFromName(name, `pool_${id}_${name}_${i}`));
-}));
+// (the old first list plus today's deck, taking the larger count of each card: the cards added since then are in boosters too)
+ALL_DECK_IDS.forEach(id => {
+  const pool: Record<string, number> = { ...LEGACY_STARTERS[id][0] };
+  [DECK_RECIPES[id].cards, BOOSTER_EXTRA[id]].forEach(list => Object.entries(list).forEach(([name, n]) => { pool[name] = Math.max(pool[name] ?? 0, n); }));
+  Object.entries(pool).forEach(([name, n]) => {
+    for (let i = 0; i < n; i++) BOOSTER_POOLS[id].push(cardDataFromName(name, `pool_${id}_${name}_${i}`));
+  });
+});
 
 // ── Collection and saved decks (local-only for now) ─────────────────────────
 // What the deck editor edits. The player owns a COLLECTION (card name -> copies) and builds

@@ -74,7 +74,7 @@ export type Verb =
   | { kind: 'summon_deck'; max: number; filter: CardFilter }               // convoca soldados do baralho na Vanguarda
   | { kind: 'summon_token'; token: string }                                // convoca fichas nos slots livres ao lado
   // Combate
-  | { kind: 'attack_bonus'; amount: number; ifEnemyGeneral?: 'other_faction' }
+  | { kind: 'attack_bonus'; amount: number; ifEnemyGeneral?: 'other_faction'; ifTarget?: 'general' }  // `ifTarget: 'general'`: só quando o alvo do ataque é o General (Brigadeiro Voss)
   | { kind: 'splash_behind'; amount: number }                              // atingiu a Vanguarda: dano na carta de trás
   // Emboscada (resolvem o ataque que a ativou)
   | { kind: 'cancel_attack'; ifAdjacentAlly?: boolean }

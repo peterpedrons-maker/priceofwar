@@ -265,7 +265,8 @@ const startTurn = (c: Ctx, seat: Seat) => {
   } else {
     drawCards(c, seat, DRAW_PER_TURN, 'turn');
     // `turn_start` effects (Despenseiro do Mosteiro refills the hand).
-    for (let i = 0; i <= 9; i++) { const card = p.board[i]; if (card) runAbilities(c, seat, card, i, 'turn_start'); }
+    // (units, and the Relíquia in slot 10: Mapa de Campanha)
+    for (let i = 0; i <= 10; i++) { const card = p.board[i]; if (card) runAbilities(c, seat, card, i, 'turn_start'); }
   }
 
   // Suprimentos. Gold is a growing, saved-up pile: nothing in round 1, then +5 every turn without a cap.
@@ -835,7 +836,7 @@ const respondAmbush = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'ambush' }
 
 // What a chosen Emboscada does to the attack that triggered it (its `ambush` verbs, in order). Mutates the two boards.
 const resolveAmbushEffect = (
-  c: Ctx, ambush: Card, attackerBoard: Board, attackerIndex: number, defenderBoard: Board, defenderIndex: number,
+  c: Ctx, ambush: Card, attackerBoard: Board, attackerIndex: number, defenderBoard: Board, defenderIndex: number, defenderSeat: Seat,
 ): { defenderIndex: number; cancelled: boolean } => {
   const unitSlots = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
   let cancelled = false;
@@ -860,8 +861,11 @@ const resolveAmbushEffect = (
       }
       cancelled = true;
     } else if (v.kind === 'buff_defender') {
+      // A combat-only bonus (it is spent in this combat), not a permanent change: the text says "até o fim do turno".
       const defender = defenderBoard[defenderIndex];
-      if (defender) defenderBoard[defenderIndex] = { ...defender, atk: defender.atk + v.atk, hp: defender.hp + v.hp };
+      if (defender) defenderBoard[defenderIndex] = { ...defender, pendingCombatBonus: { atk: (defender.pendingCombatBonus?.atk ?? 0) + v.atk, hp: (defender.pendingCombatBonus?.hp ?? 0) + v.hp } };
+    } else if (v.kind === 'draw') {
+      drawCards(c, defenderSeat, v.amount, 'effect');   // the one who answered with the Emboscada draws (Carta Branca)
     }
   });
   return { defenderIndex, cancelled };
@@ -877,7 +881,7 @@ const resolveCombat = (c: Ctx, aSeat: Seat, from: number, to: number, ambush: Ca
   let cancelled = false;
 
   if (ambush) {
-    const r = resolveAmbushEffect(c, ambush, aBoard, from, dBoard, to);
+    const r = resolveAmbushEffect(c, ambush, aBoard, from, dBoard, to, dSeat);
     target = r.defenderIndex;
     cancelled = r.cancelled;
     if (cancelled) c.ev.push({ t: 'cancelled', seat: aSeat, from, to });
@@ -896,6 +900,7 @@ const resolveCombat = (c: Ctx, aSeat: Seat, from: number, to: number, ambush: Ca
     if (v.kind !== 'attack_bonus') return;
     const foeGeneral = dBoard[GENERAL_SLOT] ? getCardDef(dBoard[GENERAL_SLOT]!.name) : undefined;
     const myGeneral = aBoard[GENERAL_SLOT] ? getCardDef(aBoard[GENERAL_SLOT]!.name) : undefined;
+    if (v.ifTarget === 'general' && target !== GENERAL_SLOT) return;
     if (!v.ifEnemyGeneral || (foeGeneral && foeGeneral.faction !== myGeneral?.faction)) attackerAtk += v.amount;
   });
   const defenderAtk = getEffectiveAtk(defender, target, dBoard, aBoard);

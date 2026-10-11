@@ -5,7 +5,7 @@ import { aiNextAction } from '../src/engine/ai';
 import { mirrorEvents, mirrorSeats } from '../src/engine/view';
 import { applyReward, rewardFor, xpToNext } from '../src/engine/rewards';
 import { applyAction, combatOpen, createMatch, deckSetupFromRecipe, newMatchLog, replayMatch } from '../src/engine/game';
-import { HAND_LIMIT, getEffectiveAtk, getIncomingDamageReduction, hasVerb, reinforceShield, START_HAND, targetSpecsOf, verbsOn } from '../src/engine/rules';
+import { HAND_LIMIT, getAuraCombatHpBonus, getEffectiveAtk, getIncomingDamageReduction, hasVerb, reinforceShield, START_HAND, targetSpecsOf, verbsOn } from '../src/engine/rules';
 import { TRIGGER_LABEL, type Action, type Card, type GameEvent, type GameState, type Seat } from '../src/engine/types';
 
 // Cartas de teste com os números antigos (os testes de regra contam pontos de vida e de ataque exatos; as cartas reais do Cardeal mudaram na rodada 20).
@@ -341,6 +341,59 @@ test('Jorge splashes the Retaguarda card behind a Vanguarda target', () => {
   const r = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
   eq(r.players[1].board[7], null);
 });
+// ── Cartas novas do Capitão e dos Mercenários (rodada 23) ───────────────────
+test('Corneteiro da Coluna: draws 1 card when it enters play', () => {
+  const s = fresh({ a: 'capitao' });
+  const c = give(s, 0, 'Corneteiro da Coluna');
+  const r = act(s, 0, { type: 'play', cardId: c.id, slot: 2 }).s;
+  eq([r.players[0].board[2]?.name, r.players[0].hand.length], ['Corneteiro da Coluna', 1]);
+});
+test('Tenente de Marcha: draws 1 card when it moves', () => {
+  const s = fresh({ a: 'capitao' }); put(s, 0, 0, 'Tenente de Marcha'); s.turn.phase = 'movimentacao';
+  const r = act(s, 0, { type: 'move', from: 0, to: 1 }).s;
+  eq(r.players[0].hand.length, 1);
+});
+test('Escolta Montada: moves 1 square for free after attacking', () => {
+  let s = combat(fresh({ a: 'capitao' })); put(s, 0, 2, 'Escolta Montada'); put(s, 1, 2, 'Penitente de Teste').hp = 30;
+  s = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
+  eq(s.turn.batedorFree, 2);
+  s = act(s, 0, { type: 'move', from: 2, to: 7 }).s;
+  eq(s.players[0].board[7]?.name, 'Escolta Montada');
+});
+test('Guarda de Fileira and Campo de Treino: +1 HP in combat to the units they cover; Terreno has no HP', () => {
+  const s = fresh({ a: 'capitao' });
+  put(s, 0, 8, 'Soldado Tático'); put(s, 0, 3, 'Escudeiro de Linha');
+  eq([getAuraCombatHpBonus(8, s.players[0].board), getAuraCombatHpBonus(3, s.players[0].board)], [0, 0]);
+  put(s, 0, 4, 'Guarda de Fileira');
+  eq(getAuraCombatHpBonus(8, s.players[0].board), 1, 'a Retaguarda unit');
+  eq(getAuraCombatHpBonus(3, s.players[0].board), 0, 'a Vanguarda unit is not covered');
+  const t = put(s, 0, 11, 'Campo de Treino');
+  eq([t.hp, getAuraCombatHpBonus(3, s.players[0].board), getAuraCombatHpBonus(8, s.players[0].board)], [0, 1, 1], 'Infantaria in the front +1, Retaguarda still +1 from the Guarda');
+});
+test('Brigadeiro Voss: +3 ATK only when the target is the General', () => {
+  const g = combat(fresh({ a: 'capitao', b: 'cardeal' })); put(g, 0, 2, 'Brigadeiro Voss, Quebra-Linhas');
+  const hit = act(g, 0, { type: 'attack', from: 2, to: 12 }).s;
+  eq(hit.players[1].board[12]!.hp, 30 - 7, 'General takes 4 + 3');
+  const u = combat(fresh({ a: 'capitao', b: 'cardeal' })); put(u, 0, 2, 'Brigadeiro Voss, Quebra-Linhas'); put(u, 1, 2, 'Penitente de Teste').hp = 30;
+  eq(act(u, 0, { type: 'attack', from: 2, to: 2 }).s.players[1].board[2]!.hp, 30 - 4, 'a unit takes only 4');
+});
+test('Passo Cadenciado: 2 extra moves; Revista de Tropas: draw 1 and +1 ATK forever to a unit that moved', () => {
+  let s = fresh({ a: 'capitao' }); const p = give(s, 0, 'Passo Cadenciado');
+  s = act(s, 0, { type: 'play', cardId: p.id }).s;
+  eq(s.turn.bonusRepositions, 2);
+  let t = fresh({ a: 'capitao' }); put(t, 0, 0, 'Soldado Tático'); t.turn.phase = 'movimentacao';
+  t = act(t, 0, { type: 'move', from: 0, to: 1 }).s;
+  const handBefore = t.players[0].hand.length;
+  const r = give(t, 0, 'Revista de Tropas');
+  t = act(t, 0, { type: 'play', cardId: r.id, target: 1 }).s;
+  eq([t.players[0].board[1]!.atk, t.players[0].hand.length], [3 + 1, handBefore + 1]);
+});
+test('Mapa de Campanha (Relíquia): 1 extra move at the start of its owner turn', () => {
+  let s = fresh({ a: 'capitao' }); put(s, 0, 10, 'Mapa de Campanha');
+  for (let g = 0; g < 40 && s.turn.active === 0; g++) s = act(s, 0, { type: 'advance' }).s;
+  for (let g = 0; g < 40 && s.turn.active === 1; g++) s = act(s, 1, { type: 'advance' }).s;
+  eq([s.turn.active, s.turn.bonusRepositions], [0, 1]);
+});
 test('Terreno has no HP: an attack can never target it, even with its whole lane clear', () => {
   const s = combat(fresh());
   put(s, 0, 3, 'Soldado Tático');
@@ -384,6 +437,18 @@ const ambushSetup = (cardName: string) => {
   const emb = give(s, 1, cardName);
   return { s, atk, defA, emb };
 };
+test('Resposta Disciplinada: the attacked unit gets +2 ATK and +2 HP for that combat only; Carta Branca cancels the attack and draws 1', () => {
+  const a = ambushSetup('Resposta Disciplinada');
+  let r = act(a.s, 0, { type: 'attack', from: 2, to: 2 }).s;
+  r = act(r, 1, { type: 'ambush', cardId: a.emb.id }).s;
+  eq([r.players[1].board[2]!.hp, r.players[0].board[2]!.hp], [4 + 2 - 3, 5 - (2 + 2)], 'defender +2 HP, attacker takes 2+2');
+  eq([r.players[1].board[2]!.atk, r.players[1].board[2]!.pendingCombatBonus ?? null], [2, null], 'the bonus is spent: the Escudeiro is back to 2 ATK');
+  const b = ambushSetup('Carta Branca');
+  let q = act(b.s, 0, { type: 'attack', from: 2, to: 2 }).s;
+  q = act(q, 1, { type: 'ambush', cardId: b.emb.id }).s;
+  eq([q.players[1].board[2]!.hp, q.players[0].board[2]!.hp], [4, 5], 'the attack was cancelled: nobody is hurt');
+  eq(q.players[1].hand.length, 1, 'and the defender draws 1 card (the Emboscada left the hand, one came in)');
+});
 test('an attack against a defender holding an Emboscada waits for its answer', () => {
   const { s } = ambushSetup('Bloqueio Instantâneo');
   const r = act(s, 0, { type: 'attack', from: 2, to: 2 }).s;
@@ -1122,6 +1187,16 @@ const toNextTurn = (s: GameState): GameState => {
   leave(st => st.turn.active === 0);
   return s;
 };
+test('Mercenários novos: Sentinela de Aluguel takes -1 damage and draws on Rescisão; Atirador de Aluguel loses 1 gold on Rescisão', () => {
+  let s = freshMerc();
+  const sen = put(s, 0, 1, 'Sentinela de Aluguel'); put(s, 0, 3, 'Atirador de Aluguel');
+  eq(getIncomingDamageReduction(1, s.players[0].board, s.players[1].board), 1);
+  s = toNextTurn(s);
+  const hand = s.players[0].hand.length, gold = s.players[0].gold;
+  s = act(s, 0, { type: 'upkeep', keep: [] }).s;
+  eq([s.players[0].hand.length, s.players[0].gold], [hand + 1, gold - 1], 'Sentinela draws 1, Atirador costs 1 gold');
+  void sen;
+});
 test('Mercenários: the upkeep prompt opens at Suprimentos; paying keeps the unit, dismissing sends it to the graveyard', () => {
   let s = freshMerc();
   const esp = put(s, 0, 2, 'Capa-Rota'), duel = put(s, 0, 1, 'Florete de Aposta'), lanc = put(s, 0, 3, 'Lanceiro Pés-de-Lama');

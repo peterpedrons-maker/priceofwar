@@ -225,6 +225,113 @@ var CARD_DEFS = [
     effect: "Inimigos na Vanguarda: -1 ATK.",
     passives: [{ kind: "aura", who: { side: "enemy", row: "front" }, atk: -1 }]
   },
+  // ── novas do Capitão (rodada 23): compra de cartas, defesa e um jeito de fechar a partida ──
+  {
+    name: "Corneteiro da Coluna",
+    cardType: "Infantaria",
+    atk: 1,
+    hp: 2,
+    cost: 2,
+    trigger: "convocacao",
+    effect: "Compre 1 carta.",
+    abilities: [{ on: "place", do: [{ kind: "draw", amount: 1 }] }]
+  },
+  {
+    name: "Tenente de Marcha",
+    cardType: "Infantaria",
+    atk: 2,
+    hp: 3,
+    cost: 3,
+    maxCopies: 1,
+    trigger: "manobra",
+    effect: "Ao se mover, compre 1 carta.",
+    abilities: [{ on: "move", do: [{ kind: "draw", amount: 1 }] }]
+  },
+  {
+    name: "Escolta Montada",
+    cardType: "Cavalaria",
+    atk: 3,
+    hp: 3,
+    cost: 2,
+    trigger: "ofensiva",
+    effect: "Depois de atacar e sobreviver, move-se 1 casa de gra\xE7a.",
+    abilities: [{ on: "after_attack", do: [{ kind: "free_move" }] }]
+  },
+  {
+    name: "Guarda de Fileira",
+    cardType: "Infantaria",
+    atk: 2,
+    hp: 5,
+    cost: 3,
+    trigger: "postura",
+    effect: "Suas unidades na Retaguarda: +1 HP em combate.",
+    passives: [{ kind: "aura", who: { side: "own", row: "back" }, combatHp: 1 }]
+  },
+  {
+    name: "Brigadeiro Voss, Quebra-Linhas",
+    cardType: "Infantaria",
+    atk: 4,
+    hp: 5,
+    cost: 4,
+    maxCopies: 1,
+    trigger: "ofensiva",
+    effect: "Ao atacar o General: +3 ATK.",
+    abilities: [{ on: "attack", do: [{ kind: "attack_bonus", amount: 3, ifTarget: "general" }] }]
+  },
+  {
+    name: "Passo Cadenciado",
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 1,
+    maxCopies: 2,
+    effect: "2 movimentos extras neste turno.",
+    abilities: [{ on: "play", do: [{ kind: "extra_moves", amount: 2 }] }]
+  },
+  {
+    name: "Revista de Tropas",
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 2,
+    maxCopies: 2,
+    effect: "Compre 1 carta. Uma unidade sua que se moveu neste turno ganha +1 ATK para sempre.",
+    abilities: [{ on: "play", do: [
+      { kind: "draw", amount: 1 },
+      { kind: "buff", atk: 1, target: { ...OWN_UNIT, needs: "moved", prompt: "Escolha uma unidade sua que j\xE1 se moveu neste turno." } }
+    ] }]
+  },
+  {
+    name: "Resposta Disciplinada",
+    cardType: "Emboscada",
+    atk: 0,
+    hp: 0,
+    cost: 2,
+    maxCopies: 2,
+    effect: "A unidade atacada ganha +2 ATK e +2 HP at\xE9 o fim do turno.",
+    abilities: [{ on: "ambush", do: [{ kind: "buff_defender", atk: 2, hp: 2 }] }]
+  },
+  {
+    name: "Campo de Treino",
+    cardType: "Terreno",
+    atk: 0,
+    hp: 0,
+    cost: 2,
+    maxCopies: 1,
+    trigger: "postura",
+    effect: "Suas Infantarias na Vanguarda: +1 HP em combate.",
+    passives: [{ kind: "aura", who: { side: "own", types: ["Infantaria"], row: "front" }, combatHp: 1 }]
+  },
+  {
+    name: "Mapa de Campanha",
+    cardType: "Rel\xEDquia",
+    atk: 0,
+    hp: 5,
+    cost: 2,
+    maxCopies: 1,
+    effect: "No in\xEDcio do seu turno: 1 movimento extra.",
+    abilities: [{ on: "turn_start", do: [{ kind: "extra_moves", amount: 1 }] }]
+  },
   // ── cardeal ──
   {
     name: "Cardeal Anselmo, Voz da F\xE9",
@@ -651,6 +758,39 @@ var CARD_DEFS = [
     effect: "**Manuten\xE7\xE3o 2.** Ataca \xE0 dist\xE2ncia. Rescis\xE3o: voc\xEA perde 2 de ouro.",
     abilities: [{ on: "dismissed", do: [{ kind: "lose_gold", amount: 2 }] }]
   },
+  // ── novas dos Mercenários (rodada 23) ──
+  {
+    name: "Sentinela de Aluguel",
+    cardType: "Infantaria",
+    atk: 1,
+    hp: 5,
+    cost: 2,
+    upkeep: 1,
+    trigger: "postura",
+    effect: "**Manuten\xE7\xE3o 1.** Recebe -1 de dano. Rescis\xE3o: compre 1 carta.",
+    abilities: [{ on: "dismissed", do: [{ kind: "draw", amount: 1 }] }],
+    passives: [{ kind: "aura", who: { side: "self" }, reduce: 1 }]
+  },
+  {
+    name: "Atirador de Aluguel",
+    cardType: "Arqueiro",
+    atk: 3,
+    hp: 2,
+    cost: 2,
+    upkeep: 2,
+    effect: "**Manuten\xE7\xE3o 2.** Rescis\xE3o: voc\xEA perde 1 de ouro.",
+    abilities: [{ on: "dismissed", do: [{ kind: "lose_gold", amount: 1 }] }]
+  },
+  {
+    name: "Carta Branca",
+    cardType: "Emboscada",
+    atk: 0,
+    hp: 0,
+    cost: 3,
+    maxCopies: 2,
+    effect: "Cancela um ataque a uma de suas unidades e voc\xEA compra 1 carta.",
+    abilities: [{ on: "ambush", do: [{ kind: "cancel_attack" }, { kind: "draw", amount: 1 }] }]
+  },
   // ── sem manutenção ──
   { name: "Vigia da \xDAltima Brasa", cardType: "Infantaria", atk: 2, hp: 4, cost: 2, effect: "" },
   {
@@ -798,15 +938,15 @@ var DECK_RECIPES = {
     description: "Infantaria disciplinada e reforma\xE7\xE3o t\xE1tica.",
     general: "Comandante Aurelion, Mestre da Forma\xE7\xE3o",
     cards: {
-      "Soldado T\xE1tico": 3,
+      "Soldado T\xE1tico": 2,
       "Escudeiro de Linha": 3,
       "Capit\xE3o de Forma\xE7\xE3o": 3,
       "Batedor": 3,
-      "Lanceiro de Controle": 3,
+      "Lanceiro de Controle": 2,
       "Cavaleiro T\xE1tico": 3,
       "Veterano de Guerra": 3,
       "Reformar Linhas": 3,
-      "Avan\xE7o Coordenado": 3,
+      "Avan\xE7o Coordenado": 2,
       "Linha Fechada": 3,
       "Ordem de Retirada": 3,
       "Catapulta do Dil\xFAvio de Pedra": 2,
@@ -814,10 +954,14 @@ var DECK_RECIPES = {
       "Trabuco da Trombeta Final": 1,
       "Bloqueio Instant\xE2neo": 3,
       "Contra-Manobra": 3,
-      "Forma\xE7\xE3o Quebrada": 3,
+      "Forma\xE7\xE3o Quebrada": 2,
       "Estandarte da Legi\xE3o": 1,
-      "Fortaleza de Pedra": 1,
-      "P\xE2ntano Maldito": 1
+      "P\xE2ntano Maldito": 1,
+      "Corneteiro da Coluna": 1,
+      "Resposta Disciplinada": 1,
+      "Campo de Treino": 1,
+      "Passo Cadenciado": 1,
+      "Guarda de Fileira": 1
     }
   },
   cardeal: {
@@ -864,30 +1008,30 @@ var DECK_RECIPES = {
     description: "Tropas de aluguel, manuten\xE7\xE3o e uma Rel\xEDquia de contratos.",
     general: "Brann Meia-Coroa, Comprador de Guerras",
     cards: {
-      // 31 mercenários (com manutenção) e 7 sem manutenção
-      "Lanceiro P\xE9s-de-Lama": 3,
+      "Lanceiro P\xE9s-de-Lama": 2,
       "Besteiro Dedo-Ligeiro": 3,
       "Capa-Rota": 3,
-      "Rato da Muralha": 3,
+      "Rato da Muralha": 2,
       "Capit\xE3o Barba-de-Corvo": 3,
       "Cavaleiro do Escudo Raspado": 2,
       "Florete de Aposta": 3,
       "Boca-de-Fogo": 3,
-      "Vigia da \xDAltima Brasa": 3,
-      "Quillon Contamoedas": 3,
-      // a Relíquia e quem a busca
+      "Vigia da \xDAltima Brasa": 2,
+      "Quillon Contamoedas": 2,
       "C\xF3dice das Mil D\xEDvidas": 2,
-      "Escriba do C\xF3dice": 3,
-      // táticas, equipamentos e emboscada próprios
+      "Escriba do C\xF3dice": 2,
       "Chuva de Ferro Barato": 2,
       "Pacto do Punhal Vermelho": 2,
       "O Dia em que a Muralha Caiu": 1,
-      "Peitoral de Muitos Donos": 3,
+      "Peitoral de Muitos Donos": 2,
       "Espada de Mil M\xE3os": 2,
       "Tambor do Soldo F\xE1cil": 1,
       "Ningu\xE9m Fica na Lama": 2,
       "Os Dois do Beco": 1,
-      "O Peso da Bolsa": 2
+      "O Peso da Bolsa": 2,
+      "Sentinela de Aluguel": 2,
+      "Atirador de Aluguel": 2,
+      "Carta Branca": 2
     }
   }
 };
@@ -902,19 +1046,6 @@ if (!globalThis.__POW_RAW_STATS__) {
     def.cost += d.cost ?? 0;
   });
 }
-var LEGACY_STARTERS = {
-  // O Mercenários nasceu depois dos ajustes: só tem a lista atual (a mesma da receita).
-  mercenarios: [DECK_RECIPES.mercenarios.cards],
-  // The first list of each deck is also the faction's own set of cards (what its boosters can hold).
-  capitao: [
-    { "Soldado T\xE1tico": 4, "Escudeiro de Linha": 4, "Capit\xE3o de Forma\xE7\xE3o": 4, "Batedor": 4, "Lanceiro de Controle": 4, "Cavaleiro T\xE1tico": 4, "Veterano de Guerra": 3, "Reformar Linhas": 3, "Avan\xE7o Coordenado": 4, "Reposicionamento R\xE1pido": 3, "Linha Fechada": 4, "Ordem de Retirada": 4, "Bloqueio Instant\xE2neo": 4, "Contra-Manobra": 4, "Forma\xE7\xE3o Quebrada": 4, "Estandarte da Legi\xE3o": 1, "Fortaleza de Pedra": 1, "P\xE2ntano Maldito": 1 },
-    // the version of the first balance pass (borrowed tactics, Veterano x4), before the effect changes
-    { "Soldado T\xE1tico": 4, "Escudeiro de Linha": 4, "Capit\xE3o de Forma\xE7\xE3o": 4, "Batedor": 4, "Lanceiro de Controle": 4, "Cavaleiro T\xE1tico": 4, "Veterano de Guerra": 4, "Reformar Linhas": 1, "Avan\xE7o Coordenado": 4, "Reposicionamento R\xE1pido": 2, "Ordem de Retirada": 2, "Bloqueio Instant\xE2neo": 2, "Contra-Manobra": 1, "Forma\xE7\xE3o Quebrada": 2, "Estandarte da Legi\xE3o": 1, "P\xE2ntano Maldito": 1, "Catapulta do Dil\xFAvio de Pedra": 4, "Balestra da Penit\xEAncia": 4, "Coura\xE7a do M\xE1rtir": 4, "Trabuco da Trombeta Final": 2, "Alistamento do P\xFAlpito": 2 }
-  ],
-  cardeal: [
-    { "C\xE1lice das Duas B\xEAn\xE7\xE3os": 1, "Penitente de Pedra": 4, "Cambista do D\xEDzimo": 2, "Confessor Silencioso": 1, "Zeloso da Pira": 1, "Novi\xE7o Renascido": 2, "Despenseiro do Mosteiro": 2, "Sentinela do Claustro": 2, "Jorge, Lan\xE7a Sagrada": 3, "Samaritano de A\xE7o": 2, "Bar\xE3o da Prociss\xE3o": 2, "Paladino do Alvorecer": 4, "Marechal do Sol Poente": 1, "Arqueiro de Dois Sinos": 2, "Vigia do \xDAltimo Salmo": 2, "Trabuco da Trombeta Final": 2, "Catapulta do Dil\xFAvio de Pedra": 3, "Balestra da Penit\xEAncia": 1, "Coura\xE7a do M\xE1rtir": 2, "Gib\xE3o Bento": 2, "Setas de Cicuta": 1, "L\xE2mina do Juramento": 2, "Preces na Sombra": 2, "Chamado do T\xFAmulo Santo": 1, "Peregrina\xE7\xE3o ao Graal": 1, "Serm\xE3o da Estrat\xE9gia": 2, "Alistamento do P\xFAlpito": 2, "Convoca\xE7\xE3o dos Veteranos de F\xE9": 2, "D\xEDzimo de Guerra": 2, "Toque dos Sinos de Guerra": 2 }
-  ]
-};
 var BY_NAME = {};
 CARD_DEFS.forEach((c) => {
   BY_NAME[c.name] = c;
@@ -1394,7 +1525,7 @@ var startTurn = (c, seat) => {
     log(c, seat, "A fase de Compra foi pulada!");
   } else {
     drawCards(c, seat, DRAW_PER_TURN, "turn");
-    for (let i = 0; i <= 9; i++) {
+    for (let i = 0; i <= 10; i++) {
       const card = p.board[i];
       if (card) runAbilities(c, seat, card, i, "turn_start");
     }
@@ -1911,7 +2042,7 @@ var respondAmbush = (c, seat, a) => {
   c.s.pending = null;
   resolveCombat(c, pend.attacker, pend.from, pend.to, chosen);
 };
-var resolveAmbushEffect = (c, ambush, attackerBoard, attackerIndex, defenderBoard, defenderIndex) => {
+var resolveAmbushEffect = (c, ambush, attackerBoard, attackerIndex, defenderBoard, defenderIndex, defenderSeat) => {
   const unitSlots = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
   let cancelled = false;
   verbsOn(ambush.name, "ambush").forEach((v) => {
@@ -1933,7 +2064,9 @@ var resolveAmbushEffect = (c, ambush, attackerBoard, attackerIndex, defenderBoar
       cancelled = true;
     } else if (v.kind === "buff_defender") {
       const defender = defenderBoard[defenderIndex];
-      if (defender) defenderBoard[defenderIndex] = { ...defender, atk: defender.atk + v.atk, hp: defender.hp + v.hp };
+      if (defender) defenderBoard[defenderIndex] = { ...defender, pendingCombatBonus: { atk: (defender.pendingCombatBonus?.atk ?? 0) + v.atk, hp: (defender.pendingCombatBonus?.hp ?? 0) + v.hp } };
+    } else if (v.kind === "draw") {
+      drawCards(c, defenderSeat, v.amount, "effect");
     }
   });
   return { defenderIndex, cancelled };
@@ -1947,7 +2080,7 @@ var resolveCombat = (c, aSeat, from, to, ambush) => {
   let target = to;
   let cancelled = false;
   if (ambush) {
-    const r = resolveAmbushEffect(c, ambush, aBoard, from, dBoard, to);
+    const r = resolveAmbushEffect(c, ambush, aBoard, from, dBoard, to, dSeat);
     target = r.defenderIndex;
     cancelled = r.cancelled;
     if (cancelled) c.ev.push({ t: "cancelled", seat: aSeat, from, to });
@@ -1961,6 +2094,7 @@ var resolveCombat = (c, aSeat, from, to, ambush) => {
     if (v.kind !== "attack_bonus") return;
     const foeGeneral = dBoard[GENERAL_SLOT] ? getCardDef(dBoard[GENERAL_SLOT].name) : void 0;
     const myGeneral = aBoard[GENERAL_SLOT] ? getCardDef(aBoard[GENERAL_SLOT].name) : void 0;
+    if (v.ifTarget === "general" && target !== GENERAL_SLOT) return;
     if (!v.ifEnemyGeneral || foeGeneral && foeGeneral.faction !== myGeneral?.faction) attackerAtk += v.amount;
   });
   const defenderAtk = getEffectiveAtk(defender, target, dBoard, aBoard);

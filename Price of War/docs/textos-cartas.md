@@ -101,3 +101,20 @@ O catálogo continua com texto simples ("+2 ATK", "+1 HP", "3 de dano", "+1/+1")
 - `3 de dano` → a estrela de dano com o 3 dentro. Redução ("-1 de dano") continua em palavras.
 
 Os ícones são a arte dos efeitos de buff sem o "+" desenhado (o sinal é texto). Tamanhos em `em`, um pouco menores que duas linhas para que símbolos em linhas vizinhas não se encostem. O coração do efeito "+HP" (sheet `fx-hp-up-sheet` e o still) agora é vermelho; `tools/vfx/recolor_hp_up_red.py` refaz a recoloração e recorta os ícones de texto.
+
+## Cartas novas da rodada 23 (Capitão e Mercenários)
+| Carta | Texto |
+|---|---|
+| Corneteiro da Coluna (Capitão) | Compre 1 carta. |
+| Tenente de Marcha (Capitão) | Ao se mover, compre 1 carta. |
+| Escolta Montada (Capitão) | Depois de atacar e sobreviver, move-se 1 casa de graça. |
+| Guarda de Fileira (Capitão) | Suas unidades na Retaguarda: +1 HP em combate. |
+| Brigadeiro Voss, Quebra-Linhas (Capitão) | Ao atacar o General: +3 ATK. |
+| Passo Cadenciado (Capitão, Tática) | 2 movimentos extras neste turno. |
+| Revista de Tropas (Capitão, Tática) | Compre 1 carta. Uma unidade sua que se moveu neste turno ganha +1 ATK para sempre. |
+| Resposta Disciplinada (Capitão, Emboscada) | A unidade atacada ganha +2 ATK e +2 HP até o fim do turno. |
+| Campo de Treino (Capitão, Terreno) | Suas Infantarias na Vanguarda: +1 HP em combate. |
+| Mapa de Campanha (Capitão, Relíquia) | No início do seu turno: 1 movimento extra. |
+| Sentinela de Aluguel (Mercenários) | **Manutenção 1.** Recebe -1 de dano. Rescisão: compre 1 carta. |
+| Atirador de Aluguel (Mercenários) | **Manutenção 2.** Rescisão: você perde 1 de ouro. |
+| Carta Branca (Mercenários, Emboscada) | Cancela um ataque a uma de suas unidades e você compra 1 carta. |
