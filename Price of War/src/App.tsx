@@ -244,7 +244,7 @@ import portraitCardealImg from './assets/desafios/cardeal.webp';
 import portraitMercenariosImg from './assets/desafios/mercenarios.webp';
 import { ThinFrame, GameBox, GameButton } from './ui/ThinFrame';
 import { NpcPanel, TapHand, Spotlight, TutorialList, TutorialIntro, markTutorialDone, type Hole as TutHole } from './tutorial/ui';
-import { DECK_MAX_CARDS, DECK_MAX_COPIES, DECK_MIN_CARDS } from './engine/deck';
+import { DECK_MAX_CARDS, DECK_MIN_CARDS, maxCopiesOf } from './engine/deck';
 import {
   GOLD_PER_TURN, HAND_LIMIT, START_GOLD, START_HAND,
   abilityOn, abilityPhases, canPlayInPhase, areSlotsAdjacent, auraTotal, canPlaceInSlot, canReposition, getAuraCombatHpBonus, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction,
@@ -2471,7 +2471,7 @@ const sanitizeDeckStore = (raw: any): DeckStore | null => {
     const cards: Record<string, number> = {};
     Object.entries((sl?.cards ?? {}) as Record<string, number>).forEach(([name, n]) => {
       const own = collection[name] ?? 0;
-      if (own > 0 && !isGeneralName(name) && Number.isFinite(n) && n > 0) cards[name] = Math.min(Math.floor(n), own, DECK_MAX_COPIES);
+      if (own > 0 && !isGeneralName(name) && Number.isFinite(n) && n > 0) cards[name] = Math.min(Math.floor(n), own);   // not trimmed to the copy limit: the editor tells the player what to fix
     });
     return {
       id: `slot${i + 1}`,
@@ -2566,6 +2566,8 @@ const deckProblem = (slot: DeckSlot): string | null => {
   const n = deckCardCount(slot);
   if (n < DECK_MIN_CARDS) return `Faltam ${DECK_MIN_CARDS - n} cartas (mínimo ${DECK_MIN_CARDS})`;
   if (n > DECK_MAX_CARDS) return `${n - DECK_MAX_CARDS} cartas a mais (máximo ${DECK_MAX_CARDS})`;
+  const over = Object.entries(slot.cards).find(([name, copies]) => copies > maxCopiesOf(name));
+  if (over) return `Limite de ${maxCopiesOf(over[0])} cópias por carta (${over[0]})`;
   return null;
 };
 const buildDeckSelection = (slot: DeckSlot): DeckSelection => {
@@ -3425,11 +3427,11 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
   const inDeck = (name: string) => slot.cards[name] ?? 0;
   const owned = (name: string) => store.collection[name] ?? 0;
   // How many copies can move each way right now.
-  const canAdd = (name: string) => Math.max(0, Math.min(owned(name) - inDeck(name), DECK_MAX_COPIES - inDeck(name), DECK_MAX_CARDS - total));
+  const canAdd = (name: string) => Math.max(0, Math.min(owned(name) - inDeck(name), maxCopiesOf(name) - inDeck(name), DECK_MAX_CARDS - total));
   const canRemove = (name: string) => inDeck(name);
   const addReason = (name: string) =>
     owned(name) - inDeck(name) <= 0 ? 'Sem cópias na reserva'
-      : inDeck(name) >= DECK_MAX_COPIES ? `Limite de ${DECK_MAX_COPIES} cópias por carta`
+      : inDeck(name) >= maxCopiesOf(name) ? `Limite de ${maxCopiesOf(name)} cópias por carta`
       : total >= DECK_MAX_CARDS ? `Deck cheio (${DECK_MAX_CARDS}/${DECK_MAX_CARDS})` : '';
 
   const rows = (() => {
@@ -3484,7 +3486,7 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
       for (const name of names) {
         if (sum >= DECK_MAX_CARDS) break;
         const have = inDeck(name) + (plan[name] ?? 0);
-        if (have < Math.min(owned(name), DECK_MAX_COPIES)) { plan[name] = (plan[name] ?? 0) + 1; sum++; added = true; }
+        if (have < Math.min(owned(name), maxCopiesOf(name))) { plan[name] = (plan[name] ?? 0) + 1; sum++; added = true; }
       }
     }
     return plan;
@@ -3715,7 +3717,7 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
               const add = Object.values(plan).reduce((a, b) => a + b, 0);
               setConfirm({
                 title: 'Preencher automático',
-                message: add === 0 ? `Nada para adicionar: o deck já tem ${total} cartas ou a reserva não tem mais cartas que caibam.` : `Vai adicionar ${add} cartas da reserva ao ${slot.name}, até ${DECK_MAX_CARDS}, respeitando o limite de ${DECK_MAX_COPIES} cópias.`,
+                message: add === 0 ? `Nada para adicionar: o deck já tem ${total} cartas ou a reserva não tem mais cartas que caibam.` : `Vai adicionar ${add} cartas da reserva ao ${slot.name}, até ${DECK_MAX_CARDS}, respeitando o limite de cópias de cada carta.`,
                 run: () => { if (add > 0) commit(d => { Object.entries(plan).forEach(([n, c]) => { d.slots[slotIdx].cards[n] = (d.slots[slotIdx].cards[n] ?? 0) + c; }); }); },
               });
             }}

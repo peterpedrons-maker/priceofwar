@@ -41,3 +41,8 @@ Hoje o limite é **4 por carta** (`DECK_MAX_COPIES` em `src/engine/deck.ts`, bar
 - As partidas duram ~7 rodadas, então o jogador vê só ~14 das cartas; cartas além disso quase não aparecem. Baralho vazio **não faz perder** (só deixa de comprar), então não existe estratégia de "esvaziar o baralho".
 - Com 50 e teto 3, o Capitão e os Mercenários (21 cartas diferentes cada) **cabem sem cartas novas** (ex.: 12 de 3 cópias, 6 de 2 e 2 de 1 = 50), mas ficam sem escolha para o jogador: o deck é quase todo o pool. Cartas novas são necessárias para os **boosters e a coleção**, não para a regra funcionar.
 - **Mínimo sem máximo:** o mínimo é o que importa (mais cartas só diluem o deck, então todo mundo escolhe o mínimo), mas mantém-se um **teto técnico** (ex.: 60 ou 80): equilíbrio testável, tamanho do pedido ao servidor, efeitos futuros que dependam do tamanho do baralho. Referências: Yu-Gi-Oh 40 a 60; Hearthstone exatamente 30; Magic mínimo 60 sem máximo. Sugestão: **mínimo 50, máximo 60** (os decks salvos de 60 continuam válidos, sem migração).
+
+### 5.2 Passo 1 feito (regra técnica)
+- `src/engine/deck.ts`: mínimo **50**, máximo **60**, `DECK_DEFAULT_MAX_COPIES = 3` e `maxCopiesOf(nome)` (campo `maxCopies` opcional em `CardDef`). O editor de decks, a mensagem de deck inválido e o servidor usam o limite de cada carta.
+- As 22 cartas que os decks prontos usam acima de 3 cópias ganharam `maxCopies: 4` **provisório** (assim nada quebra). O passo 2 (refazer os três decks para 50 cartas) tira essas exceções. Teste: `tests/deck-rules.ts`.
+- Ao carregar decks salvos, o jogo **não corta mais as cópias em silêncio** (só limita ao que o jogador possui): o editor mostra "Limite de N cópias por carta (nome)" e o deck não entra na fila até ser ajustado.

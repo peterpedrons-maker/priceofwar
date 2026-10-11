@@ -2,9 +2,11 @@
 // cheated or stale deck when a match starts).
 import { getCardDef, isGeneralName } from './catalog';
 
-export const DECK_MIN_CARDS = 40;
+export const DECK_MIN_CARDS = 50;
 export const DECK_MAX_CARDS = 60;
-export const DECK_MAX_COPIES = 4;
+// Copies of one card: 3 unless the card says otherwise (`maxCopies` in the catalog: strong cards 2, unique cards 1).
+export const DECK_DEFAULT_MAX_COPIES = 3;
+export const maxCopiesOf = (name: string): number => getCardDef(name)?.maxCopies ?? DECK_DEFAULT_MAX_COPIES;
 
 export const deckCardCount = (cards: Record<string, number>): number =>
   Object.values(cards).reduce((sum, n) => sum + n, 0);
@@ -20,7 +22,7 @@ export const deckProblem = (cards: Record<string, number>, general: string, coll
     const def = getCardDef(name);
     if (!def || def.cardType === 'General') return `Carta inválida no deck: ${name}`;
     if (!Number.isInteger(copies) || copies < 1) return `Quantidade inválida de ${name}`;
-    if (copies > DECK_MAX_COPIES) return `Limite de ${DECK_MAX_COPIES} cópias por carta (${name})`;
+    if (copies > maxCopiesOf(name)) return `Limite de ${maxCopiesOf(name)} cópias por carta (${name})`;
     if (collection && copies > (collection[name] ?? 0)) return `Você não tem ${copies} cópias de ${name}`;
   }
   if (collection && (collection[general] ?? 0) < 1) return `Você não tem o General ${general}`;

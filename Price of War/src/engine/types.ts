@@ -142,6 +142,8 @@ export interface RelicMode {
 
 // What the catalog stores for a card name (no artwork, no per-copy data).
 export interface CardDef {
+  // Most copies a deck may hold (default `DECK_DEFAULT_MAX_COPIES` = 3: core 3, strong 2, unique 1). A 4 here is a TEMPORARY exception, kept only until the three prebuilt decks are rebuilt (docs/planos-economia-e-ranqueado.md, 5).
+  maxCopies?: number;
   name: string;
   cardType: CardType;
   atk: number;

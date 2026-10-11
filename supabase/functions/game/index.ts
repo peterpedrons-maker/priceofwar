@@ -23,6 +23,7 @@ var CARD_DEFS = [
   },
   {
     name: "Soldado T\xE1tico",
+    maxCopies: 4,
     cardType: "Infantaria",
     atk: 3,
     hp: 3,
@@ -33,6 +34,7 @@ var CARD_DEFS = [
   },
   {
     name: "Escudeiro de Linha",
+    maxCopies: 4,
     trigger: "postura",
     cardType: "Infantaria",
     atk: 2,
@@ -46,6 +48,7 @@ var CARD_DEFS = [
   },
   {
     name: "Capit\xE3o de Forma\xE7\xE3o",
+    maxCopies: 4,
     cardType: "Infantaria",
     atk: 3,
     hp: 4,
@@ -57,6 +60,7 @@ var CARD_DEFS = [
   },
   {
     name: "Batedor",
+    maxCopies: 4,
     trigger: "ofensiva",
     cardType: "Infantaria",
     atk: 1,
@@ -67,6 +71,7 @@ var CARD_DEFS = [
   },
   {
     name: "Lanceiro de Controle",
+    maxCopies: 4,
     trigger: "postura",
     cardType: "Infantaria",
     atk: 3,
@@ -77,6 +82,7 @@ var CARD_DEFS = [
   },
   {
     name: "Cavaleiro T\xE1tico",
+    maxCopies: 4,
     trigger: "manobra",
     cardType: "Cavalaria",
     atk: 4,
@@ -89,6 +95,7 @@ var CARD_DEFS = [
   },
   {
     name: "Veterano de Guerra",
+    maxCopies: 4,
     trigger: "postura",
     cardType: "Infantaria",
     atk: 4,
@@ -114,6 +121,7 @@ var CARD_DEFS = [
   },
   {
     name: "Avan\xE7o Coordenado",
+    maxCopies: 4,
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -136,6 +144,7 @@ var CARD_DEFS = [
   },
   {
     name: "Linha Fechada",
+    maxCopies: 4,
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -147,6 +156,7 @@ var CARD_DEFS = [
   },
   {
     name: "Ordem de Retirada",
+    maxCopies: 4,
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -158,6 +168,7 @@ var CARD_DEFS = [
   },
   {
     name: "Bloqueio Instant\xE2neo",
+    maxCopies: 4,
     cardType: "Emboscada",
     atk: 0,
     hp: 0,
@@ -248,7 +259,7 @@ var CARD_DEFS = [
     effect: "Seu General pode curar 2 vezes por turno.",
     passives: [{ kind: "aura", who: { side: "own", slots: [12] }, abilityUses: 1 }]
   },
-  { name: "Penitente de Pedra", cardType: "Infantaria", atk: 0, hp: 4, cost: 1, effect: "" },
+  { name: "Penitente de Pedra", maxCopies: 4, cardType: "Infantaria", atk: 0, hp: 4, cost: 1, effect: "" },
   {
     name: "Cambista do D\xEDzimo",
     trigger: "comando",
@@ -284,6 +295,7 @@ var CARD_DEFS = [
   },
   {
     name: "Novi\xE7o Renascido",
+    maxCopies: 4,
     cardType: "Infantaria",
     atk: 0,
     hp: 3,
@@ -303,6 +315,7 @@ var CARD_DEFS = [
   },
   {
     name: "Sentinela do Claustro",
+    maxCopies: 4,
     fx: "soldados",
     cardType: "Infantaria",
     atk: 2,
@@ -561,10 +574,11 @@ var CARD_DEFS = [
     abilities: [{ on: "ability", phases: ["preparacao"], once: true, cost: 3, do: [{ kind: "draw", amount: 1 }] }]
   },
   // ── mercenários (com manutenção) ──
-  { name: "Lanceiro P\xE9s-de-Lama", cardType: "Infantaria", atk: 2, hp: 2, cost: 1, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.**" },
-  { name: "Besteiro Dedo-Ligeiro", cardType: "Arqueiro", atk: 2, hp: 2, cost: 2, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.**" },
+  { name: "Lanceiro P\xE9s-de-Lama", maxCopies: 4, cardType: "Infantaria", atk: 2, hp: 2, cost: 1, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.**" },
+  { name: "Besteiro Dedo-Ligeiro", maxCopies: 4, cardType: "Arqueiro", atk: 2, hp: 2, cost: 2, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.**" },
   {
     name: "Capa-Rota",
+    maxCopies: 4,
     cardType: "Infantaria",
     atk: 4,
     hp: 4,
@@ -575,6 +589,7 @@ var CARD_DEFS = [
   },
   {
     name: "Rato da Muralha",
+    maxCopies: 4,
     cardType: "Infantaria",
     atk: 2,
     hp: 2,
@@ -609,6 +624,7 @@ var CARD_DEFS = [
   },
   {
     name: "Florete de Aposta",
+    maxCopies: 4,
     cardType: "Infantaria",
     atk: 5,
     hp: 3,
@@ -619,6 +635,7 @@ var CARD_DEFS = [
   },
   {
     name: "Boca-de-Fogo",
+    maxCopies: 4,
     cardType: "Artilharia",
     atk: 4,
     hp: 3,
@@ -628,9 +645,10 @@ var CARD_DEFS = [
     abilities: [{ on: "dismissed", do: [{ kind: "lose_gold", amount: 2 }] }]
   },
   // ── sem manutenção ──
-  { name: "Vigia da \xDAltima Brasa", cardType: "Infantaria", atk: 2, hp: 4, cost: 2, effect: "" },
+  { name: "Vigia da \xDAltima Brasa", maxCopies: 4, cardType: "Infantaria", atk: 2, hp: 4, cost: 2, effect: "" },
   {
     name: "Quillon Contamoedas",
+    maxCopies: 4,
     fx: "moeda",
     trigger: "comando",
     cardType: "Infantaria",
@@ -2744,9 +2762,10 @@ var aiNextActionInner = (state, seat, rand, style) => {
 };
 
 // src/engine/deck.ts
-var DECK_MIN_CARDS = 40;
+var DECK_MIN_CARDS = 50;
 var DECK_MAX_CARDS = 60;
-var DECK_MAX_COPIES = 4;
+var DECK_DEFAULT_MAX_COPIES = 3;
+var maxCopiesOf = (name) => getCardDef(name)?.maxCopies ?? DECK_DEFAULT_MAX_COPIES;
 var deckCardCount = (cards) => Object.values(cards).reduce((sum, n) => sum + n, 0);
 var deckProblem = (cards, general, collection) => {
   if (!isGeneralName(general)) return "General inv\xE1lido.";
@@ -2757,7 +2776,7 @@ var deckProblem = (cards, general, collection) => {
     const def = getCardDef(name);
     if (!def || def.cardType === "General") return `Carta inv\xE1lida no deck: ${name}`;
     if (!Number.isInteger(copies) || copies < 1) return `Quantidade inv\xE1lida de ${name}`;
-    if (copies > DECK_MAX_COPIES) return `Limite de ${DECK_MAX_COPIES} c\xF3pias por carta (${name})`;
+    if (copies > maxCopiesOf(name)) return `Limite de ${maxCopiesOf(name)} c\xF3pias por carta (${name})`;
     if (collection && copies > (collection[name] ?? 0)) return `Voc\xEA n\xE3o tem ${copies} c\xF3pias de ${name}`;
   }
   if (collection && (collection[general] ?? 0) < 1) return `Voc\xEA n\xE3o tem o General ${general}`;
