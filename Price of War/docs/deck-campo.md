@@ -1,8 +1,8 @@
 # Deck de Campo: Equipamento + Terreno (PROPOSTA, nada aplicado no jogo)
 
-Ideia do dono (vinda de um amigo): um deck que vive de **equipamentos** (as Táticas que equipam uma unidade, que já existem) e de **Terrenos** ("campos"). Cartas que ficam melhores **por estarem armadas**, e Terrenos que dão vantagem a um tipo de unidade (exemplo do dono: a **Campina** dá +1 de ATK às suas Cavalarias e atrapalha os inimigos). Os três decks iniciais **não mudam**.
+Ideia do dono (vinda de um amigo): um deck que vive de **equipamentos** (Táticas que equipam uma unidade, no estilo das que o jogo já tem, mas aqui **todas novas**) e de **Terrenos** ("campos"). Cartas que ficam melhores **por estarem armadas**, e Terrenos que dão vantagem a um tipo de unidade (exemplo do dono: a **Campina** dá +1 de ATK às suas Cavalarias e atrapalha os inimigos). **As 30 cartas diferentes são todas novas** (nenhum nome repete o catálogo atual). Os três decks iniciais **não mudam**.
 
-> Interpretações minhas (confirmar): (1) o segundo efeito da Campina é "o inimigo à frente de cada Cavalaria sua tem −1 ATK"; (2) "equipamento" = as Táticas que usam o verbo `equip` (Couraça do Mártir, Gibão Bento, Setas de Cicuta, Lâmina do Juramento…), mais algumas novas.
+> Interpretações minhas (confirmar): (1) o segundo efeito da Campina é "o inimigo à frente de cada Cavalaria sua tem −1 ATK"; (2) "equipamento" = Táticas que usam o verbo `equip` (que o motor já tem), mas com cartas novas.
 
 ## A forma do deck (para ser eficiente e divertido)
 Dois planos que se ajudam, sem depender de uma única carta:
@@ -44,15 +44,15 @@ Ritmo esperado: turnos 1 e 2 unidades baratas que trazem peças; turno 3 um Terr
 | Lorde das Campinas | Cavalaria 4/4, 4 | **Postura:** suas outras Cavalarias +1 ATK. |
 | Mestre de Armas | Infantaria 2/4, 3 | **Comando:** pague 1 de ouro: mude um equipamento de uma unidade sua para outra unidade sua (do mesmo tipo permitido pelo equipamento). |
 
-### Equipamentos (Táticas, 13)
+### Equipamentos (Táticas, 13; todos novos, cada um com um papel)
 | Carta | Cópias | Custo | Efeito |
 |---|---|---|---|
-| Couraça do Mártir | 2 | 1 | (já existe) Infantaria: +2 HP e Guarda. |
-| Gibão Bento | 3 | 1 | (já existe) Infantaria ou Arqueiro: +2 HP. |
-| Setas de Cicuta | 2 | 1 | (já existe) Arqueiro: +1 ATK. |
-| Lâmina do Juramento | 3 | 1 | (já existe) Infantaria ou Cavalaria: +2 ATK. |
-| Lança de Cavaleiro | 2 | 1 | **Nova.** Cavalaria: +2 ATK. |
-| Escudo de Torre | 1 | 2 | **Nova.** Infantaria ou Cavalaria: +1 HP e Guarda. |
+| Cota Remendada | 3 | 1 | Infantaria ou Cavalaria: +1 ATK e +1 HP. |
+| Escudo de Carvalho | 2 | 1 | Infantaria ou Cavalaria: Guarda (absorve o primeiro golpe inteiro). |
+| Lança de Fresno | 3 | 1 | Cavalaria: +2 ATK. |
+| Arco Longo de Teixo | 2 | 1 | Arqueiro: +1 ATK e +1 HP. |
+| Machado de Guerra | 1 | 2 | Infantaria: +3 ATK. |
+| Sela Reforçada | 2 | 2 | Cavalaria: +2 ATK e +2 HP. |
 
 ### Terrenos (6, um espaço só, cada um troca o anterior)
 | Carta | Cópias | Custo | Efeito |
