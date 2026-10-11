@@ -117,10 +117,10 @@ Imagens dos números (ATK/HP/dano) usadas nas cartas.
 
 NumberKind:3 · files:5 · NAME:6 · glyphUrl:8 · burstUrl:9 · NUMBER_GLOW:12
 
-## src/RankedScreens.tsx  (257 linhas)
+## src/RankedScreens.tsx  (283 linhas)
 (sem descrição ainda: acrescente em FILE_NOTES)
 
-LeagueKey:36 · EMBLEM:37 · LEAGUE_COLOR:38 · RANGES:39 · REWARDS:40 · keyOfPoints:41 · labelOfPoints:42 · DECO:44 · CINZEL:45 · SERIF:46 · Win:49 · KitButton:65 · Row:69 · Divisions:77 · PointsBar:84 · Emblem:102 · LigasScreen:105 · RankingScreen:146 · RankedResult:191 · PromoBurst:219 · PromotionOverlay:233
+LeagueKey:36 · EMBLEM:37 · LEAGUE_COLOR:38 · RANGES:39 · keyOfPoints:40 · labelOfPoints:41 · DECO:43 · CINZEL:44 · SERIF:45 · Win:48 · KitButton:64 · Row:68 · Divisions:76 · PointsBar:83 · Emblem:101 · LigasScreen:104 · REWARD_LINES:153 · RewardsScreen:157 · RankingScreen:172 · RankedResult:217 · PromoBurst:245 · PromotionOverlay:259
 
 ## src/services/auth.ts  (130 linhas)
 Login (convidado, Google, Discord, e-mail) via Supabase.

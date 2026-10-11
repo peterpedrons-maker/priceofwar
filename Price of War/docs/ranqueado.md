@@ -25,10 +25,10 @@ Só entre pessoas (o adversário automático saiu do online; a IA fica nos Desaf
 ## Telas (no jogo, `src/RankedScreens.tsx`)
 - **Online → Ranqueado:** escolhe o deck e entra na fila ranqueada ("Procurando adversário ranqueado…"). Sem conta: "Online precisa de conta".
 - **Ranking** (botão do menu): temporada, abas Global e Minha liga, lista com medalhas de 1º a 3º, o símbolo da liga de cada um, e a sua linha fixa embaixo (com a posição) quando você não está entre os 50.
-- **Ligas** (botão dentro do Ranking, e o Ranking dentro das Ligas): o símbolo da sua liga, as divisões em gemas, a barra de pontos, vitórias e derrotas, e a lista das 8 ligas com a recompensa de cada.
+- **Ligas** (botão dentro do Ranking, e o Ranking dentro das Ligas): o símbolo da sua liga, as divisões em gemas, a barra de pontos, vitórias e derrotas, e a lista das 8 ligas (emblema, nome e faixa de pontos; sem recompensas nas linhas). Um ícone redondo "Recompensas" (coroa) no canto abre `RewardsScreen`, janela própria com a moldura e o prêmio de cada liga. Prévia: `docs/janelas/ranqueado-ligas-e-recompensas.png`. Os prêmios listados (`REWARD_LINES`) são exemplos; a entrega real vem com as temporadas.
 - **Fim de partida ranqueada** (`RankedResult`, na tela de Vitória/Derrota): símbolo da liga, pontos ganhos ou perdidos, barra de tubo de vidro (ganho em verde, perda hachurada em vermelho), aviso do escudo e da classificação.
 - **Subida de liga** (`PromotionOverlay`): o símbolo antigo se apaga, um clarão, o símbolo novo surge (com partículas e raios girando devagar), o nome da liga e Continuar. Dispara quando a recompensa diz `promoted`.
-- Ainda falta: a moldura do retrato no tabuleiro (retrato, nome e ouro juntos) e a janela de recompensas de temporada. Prévias: `docs/janelas/ranqueado-telas-no-jogo.png`, `ranqueado-subida-de-liga.gif`.
+- Ainda falta: a moldura do retrato no tabuleiro (retrato, nome e ouro juntos) e a entrega das recompensas de temporada. Prévias: `docs/janelas/ranqueado-telas-no-jogo.png`, `ranqueado-subida-de-liga.gif`.
 
 ## Ordem de publicação
 O servidor novo continua funcionando para partidas casuais mesmo antes do SQL 4 (as colunas de ranqueado só são usadas em partida ranqueada). Rode o SQL 4 antes de usar o ranqueado.

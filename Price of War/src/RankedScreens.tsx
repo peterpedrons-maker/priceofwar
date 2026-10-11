@@ -23,7 +23,7 @@ import botaoSecundario from './assets/kit-rank/botao-secundario.png';
 import medOuro from './assets/kit-rank/medalha-ouro.png';
 import medPrata from './assets/kit-rank/medalha-prata.png';
 import medBronze from './assets/kit-rank/medalha-bronze.png';
-import chipNeutro from './assets/kit-rank/chip-neutro.png';
+import iconeCoroa from './assets/ui-icon-coroa.webp';
 import symFerro from './assets/ligas/simbolo-ferro.webp';
 import symBronze from './assets/ligas/simbolo-bronze.webp';
 import symPrata from './assets/ligas/simbolo-prata.webp';
@@ -37,7 +37,6 @@ export type LeagueKey = League | 'senhor-da-guerra';
 export const EMBLEM: Record<LeagueKey, string> = { ferro: symFerro, bronze: symBronze, prata: symPrata, ouro: symOuro, platina: symPlatina, diamante: symDiamante, mestre: symMestre, 'senhor-da-guerra': symTopo };
 const LEAGUE_COLOR: Record<LeagueKey, string> = { ferro: '#c3c9d0', bronze: '#e2a56a', prata: '#eef3f8', ouro: '#ffe08a', platina: '#b8fff2', diamante: '#bcd7ff', mestre: '#e2c0ff', 'senhor-da-guerra': '#ffd36a' };
 const RANGES: Record<League, string> = { ferro: '0–399', bronze: '400–799', prata: '800–1199', ouro: '1200–1599', platina: '1600–1999', diamante: '2000–2399', mestre: '2400+' };
-const REWARDS: Record<LeagueKey, string> = { ferro: 'Moldura', bronze: '+ 1 booster', prata: '+ 100 coroas', ouro: '+ 200 coroas', platina: 'Booster raro', diamante: '+ avatar', mestre: 'Verso de carta', 'senhor-da-guerra': 'Carta exclusiva' };
 export const keyOfPoints = (points: number): League => leagueOf(points).league;
 export const labelOfPoints = (points: number, top = false): string => { const l = leagueOf(points); return l.league === 'mestre' ? (top ? LEAGUE_NAMES['senhor-da-guerra'] : LEAGUE_NAMES.mestre) : `${LEAGUE_NAMES[l.league]} ${ROMAN[l.division!]}`; };
 
@@ -104,12 +103,20 @@ const Emblem = ({ k, size, style }: { k: LeagueKey; size: number; style?: CSSPro
 // ── Ligas ───────────────────────────────────────────────────────────────────
 export const LigasScreen = ({ onClose, onRanking }: { onClose: () => void; onRanking?: () => void; key?: React.Key }) => {
   const [me, setMe] = useState<RankedView | null | undefined>(undefined);
+  const [rewardsOpen, setRewardsOpen] = useState(false);
   useEffect(() => { let on = true; fetchRanked().then(r => { if (on) setMe(r); }); return () => { on = false; }; }, []);
   const key = (me?.league ?? 'ferro') as LeagueKey;
   const idx = LEAGUES.indexOf(me && me.league !== 'senhor-da-guerra' ? (me.league as League) : (me ? 'mestre' : 'ferro'));
   return (
+    <>
     <Win title="Ligas" onClose={onClose} footer={<div className="flex gap-2">{onRanking && <KitButton onClick={onRanking}>Ranking</KitButton>}<KitButton onClick={onClose} width={onRanking ? 150 : 210}>Voltar</KitButton></div>}>
-      <div className="flex flex-col items-center" style={{ paddingTop: 22 }}>
+      <div className="flex flex-col items-center relative" style={{ paddingTop: 22 }}>
+        <button onClick={() => setRewardsOpen(true)} aria-label="Ver recompensas" className="absolute flex flex-col items-center" style={{ right: 16, top: 14, background: 'none', border: 'none', zIndex: 2 }}>
+          <span className="grid place-items-center" style={{ width: 46, height: 46, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #4a3512, #150e08)', boxShadow: 'inset 0 0 0 2px #d9b45a, 0 0 10px rgba(255,205,90,.35), 0 3px 6px #000' }}>
+            <img src={iconeCoroa} alt="" draggable={false} style={{ width: 28, height: 28, objectFit: 'contain' }} />
+          </span>
+          <span style={{ fontFamily: CINZEL, fontWeight: 800, fontSize: 8, letterSpacing: '0.08em', color: '#e8d6b0', marginTop: 3, textTransform: 'uppercase' }}>Recompensas</span>
+        </button>
         {me === undefined ? <div style={{ color: '#cdbd97', fontFamily: SERIF, padding: 40 }}>Carregando…</div> : (
           <>
             <Emblem k={key} size={112} />
@@ -124,23 +131,42 @@ export const LigasScreen = ({ onClose, onRanking }: { onClose: () => void; onRan
             <div style={{ width: 'calc(100% - 28px)' }}>
               {LEAGUES.map((l, i) => (
                 <Row key={l} current={i === idx} locked={i > idx} emblem={EMBLEM[l]}>
-                  <div style={{ width: 72, flex: 'none' }}><b style={{ display: 'block', fontFamily: CINZEL, fontWeight: 800, fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: LEAGUE_COLOR[l] }}>{LEAGUE_NAMES[l]}</b></div>
-                  <div className="flex-1 text-center"><u style={{ display: 'block', textDecoration: 'none', fontFamily: CINZEL, fontWeight: 800, fontSize: 11, color: '#e8d6b0', whiteSpace: 'nowrap' }}>{RANGES[l]}</u><i style={{ display: 'block', fontFamily: SERIF, fontSize: 10, color: '#a89a78', fontStyle: 'normal' }}>pontos</i></div>
-                  <div style={{ width: 70, flex: 'none', height: 24, marginLeft: 'auto', backgroundImage: `url(${chipNeutro})`, backgroundSize: '100% 100%', display: 'grid', placeItems: 'center', fontFamily: CINZEL, fontWeight: 800, fontSize: 7, letterSpacing: '0.05em', color: '#3a2a10', textTransform: 'uppercase', textAlign: 'center' }}>{REWARDS[l]}</div>
+                  <div style={{ width: 112, flex: 'none' }}><b style={{ display: 'block', fontFamily: CINZEL, fontWeight: 800, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', color: LEAGUE_COLOR[l] }}>{LEAGUE_NAMES[l]}</b></div>
+                  <div className="flex-1" style={{ textAlign: 'right' }}><u style={{ display: 'block', textDecoration: 'none', fontFamily: CINZEL, fontWeight: 800, fontSize: 14, color: '#e8d6b0', whiteSpace: 'nowrap' }}>{RANGES[l]}</u><i style={{ display: 'block', fontFamily: SERIF, fontSize: 11, color: '#a89a78', fontStyle: 'normal' }}>pontos</i></div>
                 </Row>
               ))}
               <Row locked={!(me && me.top)} emblem={EMBLEM['senhor-da-guerra']}>
-                <div style={{ width: 72, flex: 'none' }}><b style={{ display: 'block', fontFamily: CINZEL, fontWeight: 800, fontSize: 10.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: LEAGUE_COLOR['senhor-da-guerra'], lineHeight: 1.1 }}>Senhor da Guerra</b></div>
-                <div className="flex-1 text-center"><u style={{ display: 'block', textDecoration: 'none', fontFamily: CINZEL, fontWeight: 800, fontSize: 10, color: '#e8d6b0', whiteSpace: 'nowrap' }}>os 50 melhores</u><i style={{ display: 'block', fontFamily: SERIF, fontSize: 10, color: '#a89a78', fontStyle: 'normal' }}>do Mestre</i></div>
-                <div style={{ width: 70, flex: 'none', height: 24, marginLeft: 'auto', backgroundImage: `url(${chipNeutro})`, backgroundSize: '100% 100%', display: 'grid', placeItems: 'center', fontFamily: CINZEL, fontWeight: 800, fontSize: 7, letterSpacing: '0.05em', color: '#3a2a10', textTransform: 'uppercase', textAlign: 'center' }}>{REWARDS['senhor-da-guerra']}</div>
+                <div style={{ width: 100, flex: 'none' }}><b style={{ display: 'block', fontFamily: CINZEL, fontWeight: 800, fontSize: 11.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: LEAGUE_COLOR['senhor-da-guerra'], lineHeight: 1.1 }}>Senhor da Guerra</b></div>
+                <div className="flex-1" style={{ textAlign: 'right' }}><u style={{ display: 'block', textDecoration: 'none', fontFamily: CINZEL, fontWeight: 800, fontSize: 12, color: '#e8d6b0', whiteSpace: 'nowrap' }}>os 50 melhores</u><i style={{ display: 'block', fontFamily: SERIF, fontSize: 11, color: '#a89a78', fontStyle: 'normal' }}>do Mestre</i></div>
               </Row>
             </div>
           </>
         )}
       </div>
     </Win>
+    <AnimatePresence>{rewardsOpen && <RewardsScreen key="rewards" onClose={() => setRewardsOpen(false)} />}</AnimatePresence>
+    </>
   );
 };
+
+// The rewards of each league (what the season gives for the highest league reached), on their own window.
+const REWARD_LINES: Record<LeagueKey, string[]> = {
+  ferro: ['Moldura'], bronze: ['Moldura', '1 booster'], prata: ['Moldura', '100 coroas'], ouro: ['Moldura', '200 coroas'],
+  platina: ['Moldura', '1 booster raro'], diamante: ['Moldura', 'Avatar exclusivo'], mestre: ['Moldura', 'Verso de carta'], 'senhor-da-guerra': ['Moldura', 'Carta exclusiva'],
+};
+const RewardsScreen = ({ onClose }: { onClose: () => void; key?: React.Key }) => (
+  <Win title="Recompensas" onClose={onClose} footer={<KitButton onClick={onClose}>Voltar</KitButton>}>
+    <div style={{ padding: '14px 12px 0' }}>
+      <div style={{ textAlign: 'center', fontFamily: SERIF, fontSize: 13, color: '#cdbd97', margin: '0 8px 10px' }}>No fim da temporada você recebe a moldura do retrato e os prêmios da <b style={{ color: '#ffe08a' }}>maior liga</b> que alcançou.</div>
+      {([...LEAGUES, 'senhor-da-guerra'] as LeagueKey[]).map(k => (
+        <Row key={k} emblem={EMBLEM[k]}>
+          <div style={{ width: 100, flex: 'none' }}><b style={{ display: 'block', fontFamily: CINZEL, fontWeight: 800, fontSize: 11.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: LEAGUE_COLOR[k], lineHeight: 1.1 }}>{LEAGUE_NAMES[k]}</b></div>
+          <div className="flex-1" style={{ textAlign: 'right' }}>{REWARD_LINES[k].map(t => <div key={t} style={{ fontFamily: SERIF, fontSize: 12.5, color: '#f3e3bd', lineHeight: 1.2 }}>{t}</div>)}</div>
+        </Row>
+      ))}
+    </div>
+  </Win>
+);
 
 // ── Ranking ─────────────────────────────────────────────────────────────────
 export const RankingScreen = ({ onClose, onLigas }: { onClose: () => void; onLigas?: () => void; key?: React.Key }) => {
