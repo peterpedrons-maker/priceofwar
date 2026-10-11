@@ -62,7 +62,7 @@ const Win = ({ title, children, footer, onClose }: { title: string; children: Re
 );
 
 export const KitButton = ({ children, primary, onClick, width = 210 }: { children: ReactNode; primary?: boolean; onClick: () => void; width?: number }) => (
-  <button onClick={onClick} style={{ width, height: primary ? 56 : 48, backgroundImage: `url(${primary ? botaoPrimario : botaoSecundario})`, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat', border: 'none', color: primary ? '#2a1a05' : '#ecdcb8', fontFamily: CINZEL, fontWeight: 900, fontSize: 13, letterSpacing: '0.14em', paddingLeft: '0.14em', textTransform: 'uppercase' }}>{children}</button>
+  <button onClick={onClick} style={{ width: '100%', maxWidth: width, minWidth: 0, flex: '1 1 0', height: primary ? 56 : 48, backgroundImage: `url(${primary ? botaoPrimario : botaoSecundario})`, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat', border: 'none', color: primary ? '#2a1a05' : '#ecdcb8', fontFamily: CINZEL, fontWeight: 900, fontSize: 13, letterSpacing: '0.1em', paddingLeft: '0.1em', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>{children}</button>
 );
 
 const Row = ({ current, locked, children, emblem }: { current?: boolean; locked?: boolean; children: ReactNode; emblem?: string; key?: React.Key }) => (
@@ -81,12 +81,11 @@ const Divisions = ({ division }: { division: number | null }) => {
 
 // The glass tube: the gold part is where I am, `gain` (green) or `loss` (red hatched) is what the last match changed. Values are 0 to 100.
 export const PointsBar = ({ base, gain = 0, loss = 0, width = 330, animate = true }: { base: number; gain?: number; loss?: number; width?: number; animate?: boolean }) => {
-  const h = width * 0.25;
   const part = (img: string, left: number, w: number, delay: number) => (
     <motion.img src={img} alt="" draggable={false} style={{ position: 'absolute', top: 0, height: '100%', left: `${left}%`, objectFit: 'fill', transformOrigin: 'left' }}
       initial={animate ? { width: 0 } : false} animate={{ width: `${w}%` }} transition={{ duration: 0.9, delay, ease: 'easeOut' }} />);
   return (
-    <div className="relative" style={{ width, height: h }}>
+    <div className="relative" style={{ width: '100%', maxWidth: width, aspectRatio: '4 / 1' }}>
       <img src={barraMoldura} alt="" draggable={false} className="absolute inset-0 w-full h-full" />
       <div className="absolute overflow-hidden" style={{ left: '12.3%', right: '12.1%', top: '17%', bottom: '22%', borderRadius: 14 }}>
         {part(encOuro, 0, loss > 0 ? Math.max(0, base - 0) : base, 0.2)}
@@ -109,13 +108,13 @@ export const LigasScreen = ({ onClose, onRanking }: { onClose: () => void; onRan
   const idx = LEAGUES.indexOf(me && me.league !== 'senhor-da-guerra' ? (me.league as League) : (me ? 'mestre' : 'ferro'));
   return (
     <>
-    <Win title="Ligas" onClose={onClose} footer={<div className="flex gap-2">{onRanking && <KitButton onClick={onRanking}>Ranking</KitButton>}<KitButton onClick={onClose} width={onRanking ? 150 : 210}>Voltar</KitButton></div>}>
+    <Win title="Ligas" onClose={onClose} footer={<div className="flex w-full justify-center" style={{ gap: 4 }}>{onRanking && <KitButton onClick={onRanking}>Ranking</KitButton>}<KitButton onClick={onClose} width={onRanking ? 150 : 210}>Voltar</KitButton></div>}>
       <div className="flex flex-col items-center relative" style={{ paddingTop: 22 }}>
-        <button onClick={() => setRewardsOpen(true)} aria-label="Ver recompensas" className="absolute flex flex-col items-center" style={{ right: 16, top: 14, background: 'none', border: 'none', zIndex: 2 }}>
+        <button onClick={() => setRewardsOpen(true)} aria-label="Ver recompensas" className="absolute flex flex-col items-center" style={{ right: 4, top: 10, background: 'none', border: 'none', zIndex: 2 }}>
           <span className="grid place-items-center" style={{ width: 46, height: 46, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #4a3512, #150e08)', boxShadow: 'inset 0 0 0 2px #d9b45a, 0 0 10px rgba(255,205,90,.35), 0 3px 6px #000' }}>
             <img src={iconeCoroa} alt="" draggable={false} style={{ width: 28, height: 28, objectFit: 'contain' }} />
           </span>
-          <span style={{ fontFamily: CINZEL, fontWeight: 800, fontSize: 8, letterSpacing: '0.08em', color: '#e8d6b0', marginTop: 3, textTransform: 'uppercase' }}>Recompensas</span>
+          <span style={{ fontFamily: CINZEL, fontWeight: 800, fontSize: 8, letterSpacing: '0.04em', color: '#e8d6b0', marginTop: 3, textTransform: 'uppercase' }}>Recompensas</span>
         </button>
         {me === undefined ? <div style={{ color: '#cdbd97', fontFamily: SERIF, padding: 40 }}>Carregando…</div> : (
           <>
@@ -123,21 +122,21 @@ export const LigasScreen = ({ onClose, onRanking }: { onClose: () => void; onRan
             <div style={{ fontFamily: CINZEL, fontWeight: 900, fontSize: 18, letterSpacing: '0.14em', color: LEAGUE_COLOR[key], textShadow: '0 2px 4px #000', textTransform: 'uppercase' }}>{me?.label ?? 'Ferro IV'}</div>
             <Divisions division={me ? me.division : 4} />
             <PointsBar base={me?.inDivision ?? 0} />
-            <div className="flex justify-between" style={{ width: 300, marginTop: -4, fontFamily: CINZEL, fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', color: '#cdbd97' }}>
+            <div className="flex justify-between" style={{ width: '100%', maxWidth: 300, padding: '0 6px', boxSizing: 'border-box', marginTop: -4, fontFamily: CINZEL, fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', color: '#cdbd97' }}>
               <span>{me ? (me.division === null ? `${me.points} pontos` : `${me.inDivision} / 100`) : '0 / 100'}</span>
               <span>{me && me.placementLeft > 0 ? `Classificação: faltam ${me.placementLeft}` : me?.shield ? 'Escudo ativo' : ''}</span>
             </div>
             <div style={{ fontFamily: SERIF, fontSize: 12, color: '#a89a78', margin: '4px 0 8px' }}>{me ? `${me.wins} vitórias · ${me.losses} derrotas` : 'Jogue uma partida ranqueada para começar'}</div>
-            <div style={{ width: 'calc(100% - 28px)' }}>
+            <div style={{ width: 'calc(100% - 12px)' }}>
               {LEAGUES.map((l, i) => (
                 <Row key={l} current={i === idx} locked={i > idx} emblem={EMBLEM[l]}>
-                  <div style={{ width: 112, flex: 'none' }}><b style={{ display: 'block', fontFamily: CINZEL, fontWeight: 800, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', color: LEAGUE_COLOR[l] }}>{LEAGUE_NAMES[l]}</b></div>
-                  <div className="flex-1" style={{ textAlign: 'right' }}><u style={{ display: 'block', textDecoration: 'none', fontFamily: CINZEL, fontWeight: 800, fontSize: 14, color: '#e8d6b0', whiteSpace: 'nowrap' }}>{RANGES[l]}</u><i style={{ display: 'block', fontFamily: SERIF, fontSize: 11, color: '#a89a78', fontStyle: 'normal' }}>pontos</i></div>
+                  <div style={{ flex: '1 1 0', minWidth: 0 }}><b style={{ display: 'block', fontFamily: CINZEL, fontWeight: 800, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', color: LEAGUE_COLOR[l] }}>{LEAGUE_NAMES[l]}</b></div>
+                  <div style={{ textAlign: 'right', flex: 'none' }}><u style={{ display: 'block', textDecoration: 'none', fontFamily: CINZEL, fontWeight: 800, fontSize: 14, color: '#e8d6b0', whiteSpace: 'nowrap' }}>{RANGES[l]}</u><i style={{ display: 'block', fontFamily: SERIF, fontSize: 11, color: '#a89a78', fontStyle: 'normal' }}>pontos</i></div>
                 </Row>
               ))}
               <Row locked={!(me && me.top)} emblem={EMBLEM['senhor-da-guerra']}>
-                <div style={{ width: 100, flex: 'none' }}><b style={{ display: 'block', fontFamily: CINZEL, fontWeight: 800, fontSize: 11.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: LEAGUE_COLOR['senhor-da-guerra'], lineHeight: 1.1 }}>Senhor da Guerra</b></div>
-                <div className="flex-1" style={{ textAlign: 'right' }}><u style={{ display: 'block', textDecoration: 'none', fontFamily: CINZEL, fontWeight: 800, fontSize: 12, color: '#e8d6b0', whiteSpace: 'nowrap' }}>os 50 melhores</u><i style={{ display: 'block', fontFamily: SERIF, fontSize: 11, color: '#a89a78', fontStyle: 'normal' }}>do Mestre</i></div>
+                <div style={{ flex: '1 1 0', minWidth: 0 }}><b style={{ display: 'block', fontFamily: CINZEL, fontWeight: 800, fontSize: 11.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: LEAGUE_COLOR['senhor-da-guerra'], lineHeight: 1.1 }}>Senhor da Guerra</b></div>
+                <div style={{ textAlign: 'right', flex: 'none' }}><u style={{ display: 'block', textDecoration: 'none', fontFamily: CINZEL, fontWeight: 800, fontSize: 12, color: '#e8d6b0', whiteSpace: 'nowrap' }}>os 50 melhores</u><i style={{ display: 'block', fontFamily: SERIF, fontSize: 11, color: '#a89a78', fontStyle: 'normal' }}>do Mestre</i></div>
               </Row>
             </div>
           </>
@@ -160,7 +159,7 @@ const RewardsScreen = ({ onClose }: { onClose: () => void; key?: React.Key }) =>
       <div style={{ textAlign: 'center', fontFamily: SERIF, fontSize: 13, color: '#cdbd97', margin: '0 8px 10px' }}>No fim da temporada você recebe a moldura do retrato e os prêmios da <b style={{ color: '#ffe08a' }}>maior liga</b> que alcançou.</div>
       {([...LEAGUES, 'senhor-da-guerra'] as LeagueKey[]).map(k => (
         <Row key={k} emblem={EMBLEM[k]}>
-          <div style={{ width: 100, flex: 'none' }}><b style={{ display: 'block', fontFamily: CINZEL, fontWeight: 800, fontSize: 11.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: LEAGUE_COLOR[k], lineHeight: 1.1 }}>{LEAGUE_NAMES[k]}</b></div>
+          <div style={{ flex: '1 1 0', minWidth: 0 }}><b style={{ display: 'block', fontFamily: CINZEL, fontWeight: 800, fontSize: 11.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: LEAGUE_COLOR[k], lineHeight: 1.1 }}>{LEAGUE_NAMES[k]}</b></div>
           <div className="flex-1" style={{ textAlign: 'right' }}>{REWARD_LINES[k].map(t => <div key={t} style={{ fontFamily: SERIF, fontSize: 12.5, color: '#f3e3bd', lineHeight: 1.2 }}>{t}</div>)}</div>
         </Row>
       ))}
@@ -189,13 +188,13 @@ export const RankingScreen = ({ onClose, onLigas }: { onClose: () => void; onLig
     );
   };
   return (
-    <Win title="Ranking" onClose={onClose} footer={<div className="flex gap-2">{onLigas && <KitButton onClick={onLigas} width={150}>Ligas</KitButton>}<KitButton onClick={onClose} width={onLigas ? 150 : 210}>Voltar</KitButton></div>}>
+    <Win title="Ranking" onClose={onClose} footer={<div className="flex w-full justify-center" style={{ gap: 4 }}>{onLigas && <KitButton onClick={onLigas} width={150}>Ligas</KitButton>}<KitButton onClick={onClose} width={onLigas ? 150 : 210}>Voltar</KitButton></div>}>
       <div style={{ padding: '4px 12px 0' }}>
-        <div className="relative mx-auto" style={{ width: 316, height: 118, marginBottom: 4 }}>
+        <div className="relative mx-auto" style={{ width: '100%', maxWidth: 316, aspectRatio: '316 / 118', marginBottom: 4, containerType: 'inline-size' }}>
           <img src={faixaTemporada} alt="" draggable={false} className="absolute inset-0 w-full h-full" />
           <div className="absolute flex flex-col items-center justify-center text-center" style={{ left: '14%', right: '14%', top: '40%', bottom: '12%' }}>
-            <div style={{ fontFamily: DECO, fontWeight: 900, fontSize: 22, letterSpacing: '0.06em', paddingLeft: '0.06em', whiteSpace: 'nowrap', color: '#3a2a10', textShadow: '0 1px 0 rgba(255,240,190,.85),0 2px 3px rgba(60,40,10,.35)', lineHeight: 1 }}>TEMPORADA 1</div>
-            <div style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 14, color: '#4a3820', marginTop: 4 }}>em andamento</div>
+            <div style={{ fontFamily: DECO, fontWeight: 900, fontSize: '6.6cqw', letterSpacing: '0.06em', paddingLeft: '0.06em', whiteSpace: 'nowrap', color: '#3a2a10', textShadow: '0 1px 0 rgba(255,240,190,.85),0 2px 3px rgba(60,40,10,.35)', lineHeight: 1 }}>TEMPORADA 1</div>
+            <div style={{ fontFamily: SERIF, fontWeight: 700, fontSize: '4.4cqw', color: '#4a3820', marginTop: 4 }}>em andamento</div>
           </div>
         </div>
         <div className="flex" style={{ gap: 4, margin: '0 0 8px' }}>{tabBtn('global', 'Global', tab === 'global')}{tabBtn('minha', 'Minha liga', tab === 'minha')}</div>
