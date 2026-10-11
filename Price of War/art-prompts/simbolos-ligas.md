@@ -1,6 +1,7 @@
 # Símbolos das ligas (ranqueado): prompts para gerar com IA, um por liga
 
 O **símbolo da liga** é diferente da **moldura do retrato** (o anel, já entregue em `src/assets/ligas/`): é o emblema grande da liga atual, usado na tela de Ligas, no fim da partida e no ranking. O dono pediu algo no nível dos emblemas de elo dos jogos competitivos atuais: cada liga é uma peça única, ornamentada, que ganha asas, cristais, chifres e brilho conforme sobe; **não** um escudo chapado com um desenho. Gerar **um por vez** (mais qualidade), todos com o mesmo texto base e só a última linha mudando.
+**ENTREGUES (rodada 21):** os 8 símbolos foram gerados, recortados do magenta (fundo transparente, também sobre fundo claro) e guardados em `src/assets/ligas/simbolo-<liga>.webp` (512x512): ferro, bronze, prata, ouro, platina, diamante, mestre, senhor-da-guerra. Prévia: `docs/janelas/ranqueado-simbolos-ligas.png` e `ranqueado-telas-com-simbolos.png`. Ainda não estão ligados ao jogo.
 Fundo magenta `#FF00FF`, sem texto. Depois de gerar: recortar do magenta e guardar em `src/assets/ligas/simbolo-<liga>.webp`. A divisão (IV a I) é desenhada pelo jogo, em losangos. Mockups das telas (com símbolos provisórios): `docs/janelas/ranqueado-tela-ligas.png`.
 
 ## Ferro
