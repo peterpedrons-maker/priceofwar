@@ -2677,18 +2677,20 @@ const AvatarBadge = ({ avatarId, size = 48, bare = false }: { avatarId: string; 
 // The gold element keeps the old ids so the coin animations still fly to it.
 const PlayerPlate = ({ name, avatarId, league, gold, goldId, foe }: { name: string; avatarId: string; league?: string | null; gold: number; goldId: string; foe?: boolean }) => {
   const digits = String(gold).length;
-  // The plate sits in the gap between the two Vanguarda labels (~62 px tall), so it stays under ~56 px: portrait and gold side by side,
-  // the name under them. The league ring spills 8 px around the 28 px portrait, so its row is 44 px tall.
+  // Room on a phone: ~62 px each side of the turn panel (which is centred while plates are shown), and the left plate lives in the
+  // ~61 px gap between the two Vanguarda labels. So: portrait (the league ring spills 7 px around its 26 px), the gold counter overlapping the
+  // bottom of the ring, then the name. ~58 px tall.
+  const ring = league ? 41 : 26;
   return (
-    <div className="flex flex-col items-center shrink-0" style={{ width: 72 }}>
-      <div className="flex items-center justify-center" style={{ gap: league ? 6 : 3, height: league ? 44 : 28 }}>
-        <div className="relative shrink-0" style={{ width: 28, height: 28 }}>
-          <AvatarBadge avatarId={avatarId} size={28} bare={!!league} />
-          {league && <LeagueRing league={league} size={28} />}
+    <div className="flex flex-col items-center shrink-0" style={{ width: 62 }}>
+      <div className="relative shrink-0 flex items-center justify-center" style={{ width: ring, height: ring }}>
+        <div className="relative" style={{ width: 26, height: 26 }}>
+          <AvatarBadge avatarId={avatarId} size={26} bare={!!league} />
+          {league && <LeagueRing league={league} size={26} />}
         </div>
-        <div id={goldId} onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0 relative" style={{ width: 36 }}>
-          <GoldBadge value={gold} className="w-full" numberSize={digits >= 4 ? 7 : digits === 3 ? 9 : 11} />
-        </div>
+      </div>
+      <div id={goldId} onClick={(e) => e.stopPropagation()} className="pointer-events-auto shrink-0 relative" style={{ width: 44, marginTop: league ? -6 : 2, zIndex: 1 }}>
+        <GoldBadge value={gold} className="w-full" numberSize={digits >= 4 ? 8 : digits === 3 ? 10 : 12} />
       </div>
       <span className={`mt-px max-w-full truncate text-[7px] leading-none font-black uppercase tracking-wide drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] ${foe ? 'text-red-300' : 'text-amber-300'}`}>{name}</span>
     </div>
@@ -9096,7 +9098,7 @@ export default function App() {
         <div
           className="flex flex-col items-center gap-0.5 cursor-pointer shrink-0 pointer-events-auto"
           data-tut="tracker"
-          style={{ transform: 'translateX(8px)' }} // a little right of the screen's center (user's request)
+          style={{ transform: plates ? undefined : 'translateX(8px)' }} // a little right of the screen's center (user's request); centred when the player plates flank it
           onClick={(e) => {
             e.stopPropagation();
             if (currentTurn !== 'player') return;
