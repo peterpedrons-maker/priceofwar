@@ -11,8 +11,8 @@ import { applyReward, rewardFor } from '../src/engine/rewards';
 import type { Action, GameEvent, GameState, Seat } from '../src/engine/types';
 import { otherSeat } from '../src/engine/types';
 import { eventsFor, viewFor } from '../src/engine/view';
-import { LEAGUES, MESTRE_FROM, TOP_LEAGUE_SIZE, applyRankedMatch, closeSeason, leagueLabel, leagueOf, newRankedProfile, seasonAt, withTopLeague, type RankedProfile } from '../src/engine/ranked';
-import type { Db, DeckJson, EndReason, MatchPatch, MatchRow, RewardRow, StepRow, ViewRow } from './types';
+import { LEAGUES, MESTRE_FROM, TOP_LEAGUE_SIZE, applyRankedMatch, closeSeason, leagueLabel, mmrWindow, leagueOf, newRankedProfile, seasonAt, withTopLeague, type RankedProfile } from '../src/engine/ranked';
+import type { Db, DeckJson, EndReason, MatchPatch, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
 
 export interface GameConfig {
   // A waiting player refreshes their queue entry with every status poll; an entry older than this is a player who left, and is skipped.
@@ -66,6 +66,7 @@ export interface RankedView { points: number; label: string; league: string; div
   // The season these numbers belong to, when it ends, the portrait frame won earlier, and finished seasons whose Coroas were not claimed yet.
   season: number; endsAt: number; frame: string | null; pending: { season: number; league: string; coroas: number }[] }
 const PLACEMENT = 5;
+const REPEAT_LIMIT = 3;
 const frameRank = (k: string | null | undefined) => (k === 'senhor-da-guerra' ? LEAGUES.length : k ? LEAGUES.indexOf(k as any) : -1);
 // The season calendar, moved forward by the test setting `season_offset_days` (0 normally). `endsAt` is returned in real time.
 const calendar = async (db: Db, cfg: GameConfig) => {
@@ -190,6 +191,26 @@ const patchOf = (m: MatchRow, w: Work, extra: Partial<MatchPatch> = {}): MatchPa
   turn_deadline: w.deadline, timeouts: m.timeouts, end_reason: m.end_reason, ...extra,
 });
 
+
+// ── Ranked matchmaking ──────────────────────────────────────────────────────
+// Players of similar hidden Elo are paired. The accepted gap starts at 100 and widens with the longest wait of the two (`mmrWindow`), so
+// nobody waits forever. The closest Elo among those inside the window is taken; if somebody else took it first, the next one is tried.
+const pickRankedOpponent = async (db: Db, cfg: GameConfig, userId: string, myWaitedMs: number): Promise<QueueRow | null> => {
+  const waiting = (await db.queueWaiting(userId, true)).filter(q => cfg.now() - Date.parse(q.created_at) <= cfg.queueStaleMs);
+  if (!waiting.length) return null;
+  const mine = (await ladderOf(db, cfg, userId)).mmr;
+  const scored: { q: QueueRow; gap: number }[] = [];
+  for (const q of waiting) {
+    const theirs = (await ladderOf(db, cfg, q.user_id)).mmr;
+    const waited = Math.max(myWaitedMs, cfg.now() - Date.parse(q.since ?? q.created_at));
+    const gap = Math.abs(mine - theirs);
+    if (gap <= mmrWindow(waited)) scored.push({ q, gap });
+  }
+  scored.sort((a, b) => a.gap - b.gap);
+  for (const { q } of scored) { const taken = await db.queueTakeUser(q.user_id); if (taken) return taken; }
+  return null;
+};
+
 // ── Rewards ─────────────────────────────────────────────────────────────────
 // Pays the match's rewards once it is over. Safe to call again: the database refuses to pay twice.
 const ensureRewards = async (db: Db, cfg: GameConfig, m: MatchRow): Promise<RewardRow[] | null> => {
@@ -199,6 +220,9 @@ const ensureRewards = async (db: Db, cfg: GameConfig, m: MatchRow): Promise<Rewa
     const made: RewardRow[] = [];
     // Ranked: both players' ladder numbers are read before either moves, so the result does not depend on the order.
     const ladder: Partial<Record<Seat, RankedProfile>> = {};
+    // Fair play: the same two players can earn points from only the first REPEAT_LIMIT matches against each other in 24 hours.
+    let repeat = false;
+    if (m.ranked && m.seat0 && m.seat1) repeat = (await db.rankedPairCount(m.seat0, m.seat1, cfg.now() - 24 * 3600 * 1000, m.id)) >= REPEAT_LIMIT;
     if (m.ranked) for (const seat of [0, 1] as Seat[]) { const u = userOfSeat(m, seat); if (u) ladder[seat] = await ladderOf(db, cfg, u); }
     for (const seat of [0, 1] as Seat[]) {
       const user = userOfSeat(m, seat);
@@ -212,8 +236,8 @@ const ensureRewards = async (db: Db, cfg: GameConfig, m: MatchRow): Promise<Rewa
       const row: RewardRow = { user_id: user, seat, reason: reward.reason, xp: reward.xp, coroas: reward.coroas, level: after.level, xp_after: after.xp, coroas_after: after.coroas, levels_gained: after.levelsGained };
       const me = ladder[seat], foe = ladder[otherSeat(seat)];
       if (m.ranked && me && foe) {
-        const r = applyRankedMatch({ me, opponentMmr: foe.mmr, won, ending, counts: reward.reason !== 'too_short' });
-        row.ranked = { delta: r.delta, mmr_delta: r.mmrDelta, placement: r.placement, promoted: r.promoted, demoted: r.demoted, shield_used: r.shieldUsed, league_before: r.leagueBefore, league_after: r.leagueAfter, profile: r.next };
+        const r = applyRankedMatch({ me, opponentMmr: foe.mmr, won, ending, counts: reward.reason !== 'too_short' && !repeat });
+        row.ranked = { delta: r.delta, mmr_delta: r.mmrDelta, placement: r.placement, promoted: r.promoted, demoted: r.demoted, shield_used: r.shieldUsed, league_before: r.leagueBefore, league_after: r.leagueAfter, profile: r.next, ...(repeat && reward.reason !== 'too_short' ? { repeat: true } : {}) };
       }
       made.push(row);
     }
@@ -351,7 +375,33 @@ const finishIfStale = async (db: Db, cfg: GameConfig, m: MatchRow | null): Promi
 };
 
 // ── Requests ────────────────────────────────────────────────────────────────
+// A request is untrusted input from a phone: the shape and sizes are checked before anything reads it (the game rules themselves are checked by the engine).
+const OPS = new Set(['queue', 'ranked', 'claim', 'ranking', 'status', 'cancel', 'act', 'tick', 'result', 'emote', 'emotes']);
+export const badRequest = (req: unknown): string | null => {
+  if (!req || typeof req !== 'object' || Array.isArray(req)) return 'Pedido inválido.';
+  const r = req as Record<string, unknown>;
+  if (typeof r.op !== 'string' || !OPS.has(r.op)) return 'Pedido desconhecido.';
+  if (r.matchId !== undefined && (typeof r.matchId !== 'string' || r.matchId.length > 64)) return 'Pedido inválido.';
+  if (r.since !== undefined && !(Number.isInteger(r.since) && (r.since as number) >= 0 && (r.since as number) < 1e7)) return 'Pedido inválido.';
+  if (r.season !== undefined && !(Number.isInteger(r.season) && (r.season as number) >= 0 && (r.season as number) < 1e4)) return 'Pedido inválido.';
+  if (r.limit !== undefined && !(typeof r.limit === 'number' && Number.isFinite(r.limit))) return 'Pedido inválido.';
+  if (r.code !== undefined && (typeof r.code !== 'string' || r.code.length > 8)) return 'Pedido inválido.';
+  if (r.general !== undefined && (typeof r.general !== 'string' || r.general.length > 80)) return 'Deck inválido.';
+  if (r.botDeck !== undefined && (typeof r.botDeck !== 'string' || r.botDeck.length > 40)) return 'Pedido inválido.';
+  if (r.cards !== undefined) {
+    const c = r.cards;
+    if (!c || typeof c !== 'object' || Array.isArray(c)) return 'Deck inválido.';
+    const entries = Object.entries(c as Record<string, unknown>);
+    if (entries.length > 200) return 'Deck inválido.';
+    for (const [name, n] of entries) if (name.length > 80 || !Number.isInteger(n) || (n as number) < 0 || (n as number) > 99) return 'Deck inválido.';
+  }
+  if (r.action !== undefined && (!r.action || typeof r.action !== 'object' || Array.isArray(r.action) || JSON.stringify(r.action).length > 2000)) return 'Ação inválida.';
+  return null;
+};
+
 export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: GameConfig = defaultConfig()): Promise<GameResponse> => {
+  const invalid = badRequest(req);
+  if (invalid) return { ok: false, error: invalid };
   switch (req.op) {
     case 'queue': {
       if (!req.cards || typeof req.cards !== 'object' || typeof req.general !== 'string') return { ok: false, error: 'Deck inválido.' };
@@ -372,14 +422,18 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
       }
       // Matchmaking is between people only: nobody is waiting -> wait (the AI is only for challenges, `vsBot` above).
       // Entries nobody has refreshed lately belong to players who left: skip them.
-      let other = await db.queueTake(userId, ranked);
-      for (let i = 0; other && cfg.now() - Date.parse(other.created_at) > cfg.queueStaleMs && i < 20; i++) other = await db.queueTake(userId, ranked);
-      if (other && cfg.now() - Date.parse(other.created_at) > cfg.queueStaleMs) other = null;
+      let other: QueueRow | null;
+      if (ranked) other = await pickRankedOpponent(db, cfg, userId, 0);
+      else {
+        other = await db.queueTake(userId, ranked);
+        for (let i = 0; other && cfg.now() - Date.parse(other.created_at) > cfg.queueStaleMs && i < 20; i++) other = await db.queueTake(userId, ranked);
+        if (other && cfg.now() - Date.parse(other.created_at) > cfg.queueStaleMs) other = null;
+      }
       if (other) {
         const m = await startMatch(db, cfg, { user: userId, deck }, { user: other.user_id, deck: other.deck }, ranked);
         return { ok: true, status: 'matched', match: await initOf(db, m, userId, cfg) };
       }
-      await db.queuePut({ user_id: userId, deck, created_at: new Date(cfg.now()).toISOString(), ranked });
+      await db.queuePut({ user_id: userId, deck, created_at: new Date(cfg.now()).toISOString(), ranked, ...(ranked ? { since: new Date(cfg.now()).toISOString() } : {}) });
       return { ok: true, status: 'waiting' };
     }
     case 'status': {
@@ -387,8 +441,20 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
       if (active) return { ok: true, status: 'matched', match: await initOf(db, await enforceClock(db, active, cfg), userId, cfg) };
       const q = await db.queueGet(userId);
       if (!q) return { ok: true, status: 'none' };
+      // Ranked: the window of accepted Elo gaps widens with the wait, so each poll looks again for someone now inside it.
+      if (q.ranked) {
+        const waited = cfg.now() - Date.parse(q.since ?? q.created_at);
+        const other = await pickRankedOpponent(db, cfg, userId, waited);
+        if (other) {
+          // Take my own entry first: if somebody paired with me meanwhile, that match is mine (and the opponent I picked goes back to waiting).
+          const mine = await db.queueTakeUser(userId);
+          if (!mine) { await db.queuePut(other); const done = await db.activeMatchOf(userId); if (done) return { ok: true, status: 'matched', match: await initOf(db, done, userId, cfg) }; return { ok: true, status: 'waiting' }; }
+          const m = await startMatch(db, cfg, { user: userId, deck: mine.deck }, { user: other.user_id, deck: other.deck }, true);
+          return { ok: true, status: 'matched', match: await initOf(db, m, userId, cfg) };
+        }
+      }
       // Still waiting (no bot fills in): polling keeps the entry fresh.
-      await db.queuePut({ user_id: userId, deck: q.deck, created_at: new Date(cfg.now()).toISOString(), ranked: q.ranked });
+      await db.queuePut({ user_id: userId, deck: q.deck, created_at: new Date(cfg.now()).toISOString(), ranked: q.ranked, ...(q.ranked ? { since: q.since ?? q.created_at } : {}) });
       return { ok: true, status: 'waiting' };
     }
     case 'cancel': {

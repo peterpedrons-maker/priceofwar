@@ -793,6 +793,9 @@ const silhouetteFor = (card: CardData | null): { masks: readonly [string, string
   return { masks: SILHOUETTES[key], box: { width: '122%', height: '145.5%', top: '50%', left: '50%', transform: 'translate(-50%, -46%)' } };
 };
 // The gatilho icon in a card's type line. It lights up (halo, same size) when that card's effect fires.
+// Test hooks (the engine state, setting up a board…) exist only when the game runs on this very computer with ?debug: on the published site nobody can reach them from the console.
+const DEBUG_HOOKS = typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname) && new URLSearchParams(window.location.search).has('debug');
+
 const TriggerIcon = ({ cardId, icon, trig, className = '', style }: { cardId: string; icon: string; trig: Trigger; className?: string; style?: React.CSSProperties }) => {
   const pulse = usePulse(cardId);
   return (
@@ -5814,7 +5817,7 @@ export default function App() {
   const engineRef = useRef<GameState | null>(null);
   // Test hook: with ?debug in the address the full engine state can be read from the console / a test.
   useEffect(() => {
-    if (!new URLSearchParams(window.location.search).has('debug')) return;
+    if (!DEBUG_HOOKS) return;
     (window as any).__powEngine = () => engineRef.current;
     (window as any).__powMatchLog = () => matchLogRef.current;
     // Lets a test set up a situation (give a card, move a unit…) and have the screen follow.
@@ -6799,7 +6802,7 @@ export default function App() {
   // touch only what the step lights up.
   // "Busy" = something is still moving on the board: a banner, a card flying in from the hand, an attack, a slide, an equip.
   tutBusyRef.current = !!(phaseTransitionLock || autoPhase || attackAnim || repositionFlight || matchIntroStage || npcKickoffPending || equipFx || announcedCard || preZoomSlot || flyingCard || cameraSettling || isAnimating || fxBusy || tacticLand);
-  if (typeof window !== 'undefined' && window.location.search.includes('debug')) {
+  if (DEBUG_HOOKS) {
     (window as any).__tutDebug = () => ({ shown: tutShown ? { id: tutShown.id, kind: tutShown.kind, until: tutShown.until ?? null } : null, current: tutCurrent()?.id ?? null, busy: tutBusyRef.current });
   }
   const tutCurrent = (): TutStep | null => {

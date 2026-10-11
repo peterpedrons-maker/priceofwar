@@ -14,7 +14,12 @@ Ferro, Bronze, Prata, Ouro, Platina, Diamante e Mestre. 100 pontos = uma divisã
 - Os pontos nunca ficam abaixo de 0.
 
 ## Fila
-Só entre pessoas (o adversário automático saiu do online; a IA fica nos Desafios). A fila ranqueada e a casual não se misturam (`queue.ranked`). Hoje a fila pega o jogador que espera há mais tempo; a função `mmrWindow` (janela de Elo que alarga com a espera) já existe e entra quando houver gente suficiente.
+Só entre pessoas (o adversário automático saiu do online; a IA fica nos Desafios). A fila ranqueada e a casual não se misturam (`queue.ranked`). A **casual** pega quem espera há mais tempo.
+
+**Ranqueada: pareamento por Elo escondido.** Dois jogadores só são pareados se a diferença de Elo cabe na janela `mmrWindow(espera)`: começa em 100 e abre 50 a cada 5 segundos da **maior** espera entre os dois (depois de ~70 s uma diferença de 800 já cabe; ninguém espera para sempre). Entre os que cabem, escolhe-se o mais próximo (`pickRankedOpponent`). Quem entra e não acha ninguém dentro da janela espera; a cada consulta de status ele procura de novo (`status` do servidor), com a janela já maior. Para saber há quanto tempo cada um espera sem perder o sinal de "ainda estou aqui" (`created_at` é renovado a cada consulta), a fila guarda `queue.since` (SQL 5, última linha).
+
+## Jogo justo
+Ver `docs/anti-trapaca.md`. No ranqueado: depois de 3 partidas em 24 h entre as mesmas duas contas, a seguinte não move pontos (`REPEAT_LIMIT` em `handler.ts`; `reward.ranked.repeat`; a tela de fim de partida avisa).
 
 ## Servidor
 - `queue` com `ranked: true`: entra na fila ranqueada. `vsBot` nunca é ranqueado.
@@ -45,4 +50,4 @@ Só entre pessoas (o adversário automático saiu do online; a IA fica nos Desaf
 O servidor novo continua funcionando para partidas casuais mesmo antes do SQL 4 (as colunas de ranqueado só são usadas em partida ranqueada). Rode o SQL 4 e o SQL 5 (ou o `supabase-tudo.sql`) antes de usar o ranqueado; o servidor novo exige as colunas `season` e `frame`.
 
 ## Ainda não existe
-Regras de quais decks valem no ranqueado, janela de Elo na fila.
+Regras de quais decks valem no ranqueado (esperam os novos decks do dono).

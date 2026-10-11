@@ -37,6 +37,11 @@ export class MemoryDb implements Db {
     const i = this.queue.findIndex(q => q.user_id !== excludeUserId && !!q.ranked === ranked);
     return i === -1 ? null : this.queue.splice(i, 1)[0];
   }
+  async queueWaiting(excludeUserId: string, ranked: boolean) { return this.queue.filter(q => q.user_id !== excludeUserId && !!q.ranked === ranked).map(q => ({ ...q })); }
+  async queueTakeUser(userId: string) {
+    const i = this.queue.findIndex(q => q.user_id === userId);
+    return i === -1 ? null : this.queue.splice(i, 1)[0];
+  }
   async queueGet(userId: string) { return this.queue.find(q => q.user_id === userId) ?? null; }
   async queuePut(row: QueueRow) { this.queue = this.queue.filter(q => q.user_id !== row.user_id); this.queue.push(row); }
   async queueDelete(userId: string) { this.queue = this.queue.filter(q => q.user_id !== userId); }
@@ -94,6 +99,10 @@ export class MemoryDb implements Db {
     if (!this.seasonRows.some(x => x.user_id === userId && x.season === row.season)) this.seasonRows.push({ ...row, user_id: userId, claimed: false });
     this.rankedRows.set(userId, { ...next });
     return true;
+  }
+  async rankedPairCount(a: string, b: string, sinceMs: number, exceptMatchId: string) {
+    return this.matches.filter(m => m.ranked && m.status === 'finished' && m.id !== exceptMatchId && Date.parse(m.created_at) >= sinceMs
+      && ((m.seat0 === a && m.seat1 === b) || (m.seat0 === b && m.seat1 === a))).length;
   }
   async rankedSeasons(userId: string) { return this.seasonRows.filter(x => x.user_id === userId).sort((a, b) => b.season - a.season).slice(0, 6).map(x => ({ ...x })); }
   async rankedClaim(userId: string, season: number) {

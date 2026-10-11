@@ -33,11 +33,23 @@ export const supabaseDb = (c: Client): Db => ({
     const rows = must(await c.rpc('queue_take', ranked ? { p_me: excludeUserId, p_ranked: true } : { p_me: excludeUserId }), 'queue_take') as QueueRow[] | null;
     return rows && rows.length ? rows[0] : null;
   },
+  async queueWaiting(excludeUserId, ranked) {
+    const rows = must(await c.from('queue').select('*').neq('user_id', excludeUserId).eq('ranked', ranked).order('created_at', { ascending: true }).limit(60), 'queue waiting') as QueueRow[];
+    return rows ?? [];
+  },
+  async queueTakeUser(userId) {
+    const rows = must(await c.from('queue').delete().eq('user_id', userId).select('*'), 'queue take user') as QueueRow[];
+    return rows && rows.length ? rows[0] : null;
+  },
   async queueGet(userId) {
     return must(await c.from('queue').select('*').eq('user_id', userId).maybeSingle(), 'queue get');
   },
   async queuePut(row) {
-    must(await c.from('queue').upsert({ user_id: row.user_id, deck: row.deck, created_at: row.created_at, ...(row.ranked ? { ranked: true } : {}) }), 'queue put');
+    const base = { user_id: row.user_id, deck: row.deck, created_at: row.created_at, ...(row.ranked ? { ranked: true } : {}) };
+    // `since` (SQL 5) is only for the ranked Elo window; a database that has not run it yet still queues (and then matches by the shortest wait).
+    const r = await c.from('queue').upsert(row.ranked ? { ...base, since: row.since ?? row.created_at } : base);
+    if (r.error && row.ranked && /since/i.test(r.error.message)) must(await c.from('queue').upsert(base), 'queue put');
+    else must(r, 'queue put');
   },
   async queueDelete(userId) {
     must(await c.from('queue').delete().eq('user_id', userId), 'queue delete');
@@ -110,6 +122,12 @@ export const supabaseDb = (c: Client): Db => ({
   },
   async rankedCloseSeason(userId, row, next) {
     return must(await c.rpc('close_ranked_season', { p_user: userId, p_season: row.season, p_peak: row.peak, p_league: row.league, p_coroas: row.coroas, p_next: next }), 'close ranked season') === true;
+  },
+  async rankedPairCount(a, b, sinceMs, exceptMatchId) {
+    const r = await c.from('matches').select('id', { count: 'exact', head: true }).eq('ranked', true).eq('status', 'finished').neq('id', exceptMatchId)
+      .gte('created_at', new Date(sinceMs).toISOString()).or(`and(seat0.eq.${a},seat1.eq.${b}),and(seat0.eq.${b},seat1.eq.${a})`);
+    if (r.error) throw new Error(`ranked pair count: ${r.error.message}`);
+    return r.count ?? 0;
   },
   async rankedSeasons(userId) {
     const rows = must(await c.from('ranked_seasons').select('season, peak, league, coroas, claimed').eq('user_id', userId).order('season', { ascending: false }).limit(6), 'ranked seasons') as any[];

@@ -27,6 +27,7 @@ var CARD_DEFS = [
     atk: 3,
     hp: 3,
     cost: 2,
+    trigger: "manobra",
     effect: "No fim do turno, troca de lugar com um aliado ao lado.",
     abilities: [{ on: "turn_end", do: [{ kind: "swap_adjacent" }] }]
   },
@@ -2899,6 +2900,7 @@ var applyRankedMatch = (r) => {
   void after;
   return { next, delta: points - me.points, mmrDelta, placement, promoted, demoted, shieldUsed, leagueBefore: leagueLabel(me.points), leagueAfter: leagueLabel(points) };
 };
+var mmrWindow = (waitedMs) => 100 + Math.floor(waitedMs / 5e3) * 50;
 var withTopLeague = (rows) => {
   const sorted = [...rows].sort((a, b) => b.points - a.points);
   return sorted.map((r, i) => ({ ...r, rank: i + 1, top: i < TOP_LEAGUE_SIZE && r.points >= MESTRE_FROM }));
@@ -2926,6 +2928,7 @@ var EMOTE_CODE = /^[pe][1-6]$/;
 var EMOTE_GAP_MS = 2500;
 var EMOTE_MAX_PER_MATCH = 80;
 var PLACEMENT = 5;
+var REPEAT_LIMIT = 3;
 var frameRank = (k) => k === "senhor-da-guerra" ? LEAGUES.length : k ? LEAGUES.indexOf(k) : -1;
 var calendar = async (db, cfg) => {
   const offset = Math.round(await db.seasonOffsetDays() * 864e5);
@@ -3030,12 +3033,32 @@ var patchOf = (m, w, extra = {}) => ({
   end_reason: m.end_reason,
   ...extra
 });
+var pickRankedOpponent = async (db, cfg, userId, myWaitedMs) => {
+  const waiting = (await db.queueWaiting(userId, true)).filter((q) => cfg.now() - Date.parse(q.created_at) <= cfg.queueStaleMs);
+  if (!waiting.length) return null;
+  const mine = (await ladderOf(db, cfg, userId)).mmr;
+  const scored = [];
+  for (const q of waiting) {
+    const theirs = (await ladderOf(db, cfg, q.user_id)).mmr;
+    const waited = Math.max(myWaitedMs, cfg.now() - Date.parse(q.since ?? q.created_at));
+    const gap = Math.abs(mine - theirs);
+    if (gap <= mmrWindow(waited)) scored.push({ q, gap });
+  }
+  scored.sort((a, b) => a.gap - b.gap);
+  for (const { q } of scored) {
+    const taken = await db.queueTakeUser(q.user_id);
+    if (taken) return taken;
+  }
+  return null;
+};
 var ensureRewards = async (db, cfg, m) => {
   if (m.status !== "finished" || m.winner === null) return null;
   let rows = m.rewards;
   if (!rows) {
     const made = [];
     const ladder = {};
+    let repeat = false;
+    if (m.ranked && m.seat0 && m.seat1) repeat = await db.rankedPairCount(m.seat0, m.seat1, cfg.now() - 24 * 3600 * 1e3, m.id) >= REPEAT_LIMIT;
     if (m.ranked) for (const seat of [0, 1]) {
       const u = userOfSeat(m, seat);
       if (u) ladder[seat] = await ladderOf(db, cfg, u);
@@ -3052,8 +3075,8 @@ var ensureRewards = async (db, cfg, m) => {
       const row = { user_id: user, seat, reason: reward.reason, xp: reward.xp, coroas: reward.coroas, level: after.level, xp_after: after.xp, coroas_after: after.coroas, levels_gained: after.levelsGained };
       const me = ladder[seat], foe = ladder[otherSeat(seat)];
       if (m.ranked && me && foe) {
-        const r = applyRankedMatch({ me, opponentMmr: foe.mmr, won, ending, counts: reward.reason !== "too_short" });
-        row.ranked = { delta: r.delta, mmr_delta: r.mmrDelta, placement: r.placement, promoted: r.promoted, demoted: r.demoted, shield_used: r.shieldUsed, league_before: r.leagueBefore, league_after: r.leagueAfter, profile: r.next };
+        const r = applyRankedMatch({ me, opponentMmr: foe.mmr, won, ending, counts: reward.reason !== "too_short" && !repeat });
+        row.ranked = { delta: r.delta, mmr_delta: r.mmrDelta, placement: r.placement, promoted: r.promoted, demoted: r.demoted, shield_used: r.shieldUsed, league_before: r.leagueBefore, league_after: r.leagueAfter, profile: r.next, ...repeat && reward.reason !== "too_short" ? { repeat: true } : {} };
       }
       made.push(row);
     }
@@ -3197,7 +3220,31 @@ var finishIfStale = async (db, cfg, m) => {
   }
   return m;
 };
+var OPS = /* @__PURE__ */ new Set(["queue", "ranked", "claim", "ranking", "status", "cancel", "act", "tick", "result", "emote", "emotes"]);
+var badRequest = (req) => {
+  if (!req || typeof req !== "object" || Array.isArray(req)) return "Pedido inv\xE1lido.";
+  const r = req;
+  if (typeof r.op !== "string" || !OPS.has(r.op)) return "Pedido desconhecido.";
+  if (r.matchId !== void 0 && (typeof r.matchId !== "string" || r.matchId.length > 64)) return "Pedido inv\xE1lido.";
+  if (r.since !== void 0 && !(Number.isInteger(r.since) && r.since >= 0 && r.since < 1e7)) return "Pedido inv\xE1lido.";
+  if (r.season !== void 0 && !(Number.isInteger(r.season) && r.season >= 0 && r.season < 1e4)) return "Pedido inv\xE1lido.";
+  if (r.limit !== void 0 && !(typeof r.limit === "number" && Number.isFinite(r.limit))) return "Pedido inv\xE1lido.";
+  if (r.code !== void 0 && (typeof r.code !== "string" || r.code.length > 8)) return "Pedido inv\xE1lido.";
+  if (r.general !== void 0 && (typeof r.general !== "string" || r.general.length > 80)) return "Deck inv\xE1lido.";
+  if (r.botDeck !== void 0 && (typeof r.botDeck !== "string" || r.botDeck.length > 40)) return "Pedido inv\xE1lido.";
+  if (r.cards !== void 0) {
+    const c = r.cards;
+    if (!c || typeof c !== "object" || Array.isArray(c)) return "Deck inv\xE1lido.";
+    const entries = Object.entries(c);
+    if (entries.length > 200) return "Deck inv\xE1lido.";
+    for (const [name, n] of entries) if (name.length > 80 || !Number.isInteger(n) || n < 0 || n > 99) return "Deck inv\xE1lido.";
+  }
+  if (r.action !== void 0 && (!r.action || typeof r.action !== "object" || Array.isArray(r.action) || JSON.stringify(r.action).length > 2e3)) return "A\xE7\xE3o inv\xE1lida.";
+  return null;
+};
 var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
+  const invalid = badRequest(req);
+  if (invalid) return { ok: false, error: invalid };
   switch (req.op) {
     case "queue": {
       if (!req.cards || typeof req.cards !== "object" || typeof req.general !== "string") return { ok: false, error: "Deck inv\xE1lido." };
@@ -3214,14 +3261,18 @@ var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
         const m = await startMatch(db, cfg, { user: userId, deck }, { user: null, deck: chosen });
         return { ok: true, status: "matched", match: await initOf(db, m, userId, cfg) };
       }
-      let other = await db.queueTake(userId, ranked);
-      for (let i = 0; other && cfg.now() - Date.parse(other.created_at) > cfg.queueStaleMs && i < 20; i++) other = await db.queueTake(userId, ranked);
-      if (other && cfg.now() - Date.parse(other.created_at) > cfg.queueStaleMs) other = null;
+      let other;
+      if (ranked) other = await pickRankedOpponent(db, cfg, userId, 0);
+      else {
+        other = await db.queueTake(userId, ranked);
+        for (let i = 0; other && cfg.now() - Date.parse(other.created_at) > cfg.queueStaleMs && i < 20; i++) other = await db.queueTake(userId, ranked);
+        if (other && cfg.now() - Date.parse(other.created_at) > cfg.queueStaleMs) other = null;
+      }
       if (other) {
         const m = await startMatch(db, cfg, { user: userId, deck }, { user: other.user_id, deck: other.deck }, ranked);
         return { ok: true, status: "matched", match: await initOf(db, m, userId, cfg) };
       }
-      await db.queuePut({ user_id: userId, deck, created_at: new Date(cfg.now()).toISOString(), ranked });
+      await db.queuePut({ user_id: userId, deck, created_at: new Date(cfg.now()).toISOString(), ranked, ...ranked ? { since: new Date(cfg.now()).toISOString() } : {} });
       return { ok: true, status: "waiting" };
     }
     case "status": {
@@ -3229,7 +3280,22 @@ var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
       if (active) return { ok: true, status: "matched", match: await initOf(db, await enforceClock(db, active, cfg), userId, cfg) };
       const q = await db.queueGet(userId);
       if (!q) return { ok: true, status: "none" };
-      await db.queuePut({ user_id: userId, deck: q.deck, created_at: new Date(cfg.now()).toISOString(), ranked: q.ranked });
+      if (q.ranked) {
+        const waited = cfg.now() - Date.parse(q.since ?? q.created_at);
+        const other = await pickRankedOpponent(db, cfg, userId, waited);
+        if (other) {
+          const mine = await db.queueTakeUser(userId);
+          if (!mine) {
+            await db.queuePut(other);
+            const done = await db.activeMatchOf(userId);
+            if (done) return { ok: true, status: "matched", match: await initOf(db, done, userId, cfg) };
+            return { ok: true, status: "waiting" };
+          }
+          const m = await startMatch(db, cfg, { user: userId, deck: mine.deck }, { user: other.user_id, deck: other.deck }, true);
+          return { ok: true, status: "matched", match: await initOf(db, m, userId, cfg) };
+        }
+      }
+      await db.queuePut({ user_id: userId, deck: q.deck, created_at: new Date(cfg.now()).toISOString(), ranked: q.ranked, ...q.ranked ? { since: q.since ?? q.created_at } : {} });
       return { ok: true, status: "waiting" };
     }
     case "cancel": {
@@ -3358,11 +3424,22 @@ var supabaseDb = (c) => ({
     const rows = must(await c.rpc("queue_take", ranked ? { p_me: excludeUserId, p_ranked: true } : { p_me: excludeUserId }), "queue_take");
     return rows && rows.length ? rows[0] : null;
   },
+  async queueWaiting(excludeUserId, ranked) {
+    const rows = must(await c.from("queue").select("*").neq("user_id", excludeUserId).eq("ranked", ranked).order("created_at", { ascending: true }).limit(60), "queue waiting");
+    return rows ?? [];
+  },
+  async queueTakeUser(userId) {
+    const rows = must(await c.from("queue").delete().eq("user_id", userId).select("*"), "queue take user");
+    return rows && rows.length ? rows[0] : null;
+  },
   async queueGet(userId) {
     return must(await c.from("queue").select("*").eq("user_id", userId).maybeSingle(), "queue get");
   },
   async queuePut(row) {
-    must(await c.from("queue").upsert({ user_id: row.user_id, deck: row.deck, created_at: row.created_at, ...row.ranked ? { ranked: true } : {} }), "queue put");
+    const base = { user_id: row.user_id, deck: row.deck, created_at: row.created_at, ...row.ranked ? { ranked: true } : {} };
+    const r = await c.from("queue").upsert(row.ranked ? { ...base, since: row.since ?? row.created_at } : base);
+    if (r.error && row.ranked && /since/i.test(r.error.message)) must(await c.from("queue").upsert(base), "queue put");
+    else must(r, "queue put");
   },
   async queueDelete(userId) {
     must(await c.from("queue").delete().eq("user_id", userId), "queue delete");
@@ -3438,6 +3515,11 @@ var supabaseDb = (c) => ({
   async rankedCloseSeason(userId, row, next) {
     return must(await c.rpc("close_ranked_season", { p_user: userId, p_season: row.season, p_peak: row.peak, p_league: row.league, p_coroas: row.coroas, p_next: next }), "close ranked season") === true;
   },
+  async rankedPairCount(a, b, sinceMs, exceptMatchId) {
+    const r = await c.from("matches").select("id", { count: "exact", head: true }).eq("ranked", true).eq("status", "finished").neq("id", exceptMatchId).gte("created_at", new Date(sinceMs).toISOString()).or(`and(seat0.eq.${a},seat1.eq.${b}),and(seat0.eq.${b},seat1.eq.${a})`);
+    if (r.error) throw new Error(`ranked pair count: ${r.error.message}`);
+    return r.count ?? 0;
+  },
   async rankedSeasons(userId) {
     const rows = must(await c.from("ranked_seasons").select("season, peak, league, coroas, claimed").eq("user_id", userId).order("season", { ascending: false }).limit(6), "ranked seasons");
     return rows.map((r) => ({ season: r.season, peak: r.peak, league: r.league, coroas: r.coroas, claimed: r.claimed }));
@@ -3474,6 +3556,7 @@ var cors = {
 var json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "content-type": "application/json" } });
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (req.method !== "POST") return json({ ok: false, error: "M\xE9todo n\xE3o permitido." }, 405);
   try {
     const url = Deno.env.get("SUPABASE_URL");
     const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -3481,7 +3564,15 @@ Deno.serve(async (req) => {
     const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
     const { data, error } = await admin.auth.getUser(token);
     if (error || !data?.user) return json({ ok: false, error: "Entre na sua conta para jogar online." }, 401);
-    const body = await req.json();
+    if (Number(req.headers.get("content-length") ?? 0) > 1e5) return json({ ok: false, error: "Pedido grande demais." }, 413);
+    const raw = await req.text();
+    if (raw.length > 1e5) return json({ ok: false, error: "Pedido grande demais." }, 413);
+    let body;
+    try {
+      body = JSON.parse(raw);
+    } catch {
+      return json({ ok: false, error: "Pedido inv\xE1lido." }, 400);
+    }
     return json(await handleGame(supabaseDb(admin), data.user.id, body));
   } catch (e) {
     console.error("game function error", e);

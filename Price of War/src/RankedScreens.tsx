@@ -273,7 +273,7 @@ export const RankedResult = ({ reward }: { reward: RewardInfo }) => {
       <div style={{ fontFamily: CINZEL, fontWeight: 900, fontSize: 36, color: r.delta > 0 ? '#8fe0a4' : r.delta < 0 ? '#f0a595' : '#e8d6b0', textShadow: '0 2px 8px #000', lineHeight: 1.1 }}>{r.delta > 0 ? `+${r.delta}` : r.delta < 0 ? `−${-r.delta}` : '0'}</div>
       <div style={{ fontFamily: SERIF, fontSize: 12, color: '#dccfae', marginBottom: 2 }}>pontos de liga{r.placement ? ' · partida de classificação' : ''}</div>
       <PointsBar base={base} gain={gain} loss={loss} width={300} />
-      <div style={{ fontFamily: SERIF, fontSize: 12, color: '#9ad0ff', marginTop: -2, minHeight: 16, textAlign: 'center', maxWidth: 300 }}>{r.shield_used ? 'O escudo protegeu você: nenhum ponto perdido' : r.profile.shield ? 'Escudo ativo: a próxima derrota não custa pontos' : ''}</div>
+      <div style={{ fontFamily: SERIF, fontSize: 12, color: '#9ad0ff', marginTop: -2, minHeight: 16, textAlign: 'center', maxWidth: 300 }}>{r.repeat ? 'Muitas partidas hoje contra o mesmo adversário: sem pontos desta vez' : r.shield_used ? 'O escudo protegeu você: nenhum ponto perdido' : r.profile.shield ? 'Escudo ativo: a próxima derrota não custa pontos' : ''}</div>
     </div>
   );
 };

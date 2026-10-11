@@ -15,7 +15,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     faction: "ordem",
     abilities: [{ on: 'turn_end', do: [{ kind: 'buff_moved', count: 2, atk: 2, hp: 1 }] }],
     passives: [{ kind: 'aura', who: { side: 'own', slots: [10, 11] }, reduce: 1 }] },
-  { name: "Soldado Tático", cardType: "Infantaria", atk: 3, hp: 3, cost: 2, effect: "No fim do turno, troca de lugar com um aliado ao lado.",
+  { name: "Soldado Tático", cardType: "Infantaria", atk: 3, hp: 3, cost: 2, trigger: "manobra", effect: "No fim do turno, troca de lugar com um aliado ao lado.",
     abilities: [{ on: 'turn_end', do: [{ kind: 'swap_adjacent' }] }] },
   { name: "Escudeiro de Linha", trigger: "postura", cardType: "Infantaria", atk: 2, hp: 4, cost: 2, effect: "Recebe -1 de dano. Na Vanguarda, a carta atrás também recebe -1 de dano.",
     passives: [

@@ -21,7 +21,7 @@ export interface ViewRow {
 export interface RewardInfo {
   reason: 'win' | 'loss' | 'too_short' | 'abandoned';
   // Ranked matches only: what the match did to the ladder (the hidden Elo is not sent to the device).
-  ranked?: { delta: number; placement: boolean; promoted: boolean; demoted: boolean; shield_used: boolean; league_before: string; league_after: string; profile: { points: number; games: number; wins: number; losses: number; shield: boolean; peak: number } };
+  ranked?: { repeat?: boolean; delta: number; placement: boolean; promoted: boolean; demoted: boolean; shield_used: boolean; league_before: string; league_after: string; profile: { points: number; games: number; wins: number; losses: number; shield: boolean; peak: number } };
   xp: number;
   coroas: number;
   level: number;

@@ -9,7 +9,9 @@ export interface DeckJson { general: string; cards: Record<string, number> }
 export interface QueueRow {
   user_id: string;
   deck: DeckJson;
-  created_at: string; // ISO
+  created_at: string; // ISO (refreshed by every status poll: it says the player is still here)
+  // Ranked only: when the player first started waiting (never refreshed), for the widening Elo window.
+  since?: string;
   ranked: boolean;    // the ranked queue and the casual queue never mix
 }
 
@@ -51,6 +53,8 @@ export interface RewardRow {
 export interface RankedOutcome {
   delta: number; mmr_delta: number; placement: boolean; promoted: boolean; demoted: boolean; shield_used: boolean;
   league_before: string; league_after: string; profile: RankedProfile;
+  // The same two players already played several ranked matches today: this one moved no points (stops win-trading between friends or two accounts).
+  repeat?: boolean;
 }
 
 export interface MatchRow {
@@ -88,6 +92,9 @@ export interface Db {
   // Atomically removes and returns the oldest waiting entry belonging to someone else.
   queueTake(excludeUserId: string, ranked: boolean): Promise<QueueRow | null>;
   queueGet(userId: string): Promise<QueueRow | null>;
+  // Ranked matchmaking: everybody else waiting in the ranked queue (oldest first), and an atomic take of one chosen entry (null when somebody took it first).
+  queueWaiting(excludeUserId: string, ranked: boolean): Promise<QueueRow[]>;
+  queueTakeUser(userId: string): Promise<QueueRow | null>;
   queuePut(row: QueueRow): Promise<void>;
   queueDelete(userId: string): Promise<void>;
   createMatch(row: Omit<MatchRow, 'id' | 'created_at'>, steps: StepRow[], views: ViewRow[]): Promise<MatchRow>;
@@ -110,6 +117,8 @@ export interface Db {
   // Test aid: days the season calendar is moved forward (0 normally). Only the season number and its end use it, never the match clock.
   seasonOffsetDays(): Promise<number>;
   // Pays a closed season's Coroas once: the amount paid and the new balance, or null when there is nothing (left) to claim.
+  // Test of fair play: how many finished ranked matches these two players played since `sinceMs` (not counting `exceptMatchId`).
+  rankedPairCount(a: string, b: string, sinceMs: number, exceptMatchId: string): Promise<number>;
   rankedClaim(userId: string, season: number): Promise<{ coroas: number; coroas_after: number } | null>;
   addEmote(matchId: string, seat: Seat, code: string, at: number): Promise<EmoteRow>;
   emotesSince(matchId: string, sinceId: number): Promise<EmoteRow[]>;

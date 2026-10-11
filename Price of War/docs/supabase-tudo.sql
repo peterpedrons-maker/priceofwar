@@ -447,3 +447,6 @@ create table if not exists public.game_settings (
 alter table public.game_settings enable row level security;
 revoke all on public.game_settings from anon, authenticated;
 insert into public.game_settings (key, value) values ('season_offset_days', '0') on conflict (key) do nothing;
+
+-- Ranked matchmaking by Elo: when each player first started waiting (the window of accepted Elo gaps widens with the wait)
+alter table public.queue add column if not exists since timestamptz;

@@ -471,6 +471,42 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     clock = saved;
   });
 
+  await test('ranked matchmaking: players far apart in Elo are not paired at first, the window widens with the wait', async () => {
+    const db = fresh();
+    const setMmr = (u: string, mmr: number) => db.rankedRows.set(u, { points: 0, peak: 0, mmr, games: 10, wins: 5, losses: 5, shield: false, season: 1, frame: null });
+    setMmr('A', 1000); setMmr('B', 1800);
+    await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal'), ranked: true }, cfg);
+    const b = await handleGame(db, 'B', { op: 'queue', ...deckOf('capitao'), ranked: true }, cfg);
+    ok(b.ok === true && b.status === 'waiting', 'Elo 1000 and 1800 do not pair at once: ' + JSON.stringify(b));
+    const t0 = clock;
+    let matchedAt = -1;
+    for (let i = 1; i <= 7 && matchedAt < 0; i++) {
+      clock = t0 + i * 15000;
+      const a = await handleGame(db, 'A', { op: 'status' }, cfg);
+      const bb = await handleGame(db, 'B', { op: 'status' }, cfg);
+      if ((a.ok === true && a.status === 'matched') || (bb.ok === true && bb.status === 'matched')) matchedAt = i * 15;
+    }
+    clock = t0;
+    ok(matchedAt >= 75, 'a gap of 800 needs about 70 s of waiting, matched at ' + matchedAt + ' s');
+    eq(db.matches.length, 1, 'exactly one match was made');
+    eq(db.matches[0].ranked, true);
+  });
+
+  await test('ranked matchmaking: the closest Elo among those inside the window is chosen', async () => {
+    const db = fresh();
+    db.tables.profiles.push({ id: 'C', username: 'Carla', avatar_id: 'batedora' });
+    Object.entries(DECK_RECIPES.cardeal.cards).forEach(([card, copies]) => db.tables.collection.push({ user_id: 'C', card_name: card, copies }));
+    db.tables.collection.push({ user_id: 'C', card_name: DECK_RECIPES.cardeal.general, copies: 1 });
+    const setMmr = (u: string, mmr: number) => db.rankedRows.set(u, { points: 0, peak: 0, mmr, games: 10, wins: 5, losses: 5, shield: false, season: 1, frame: null });
+    setMmr('A', 1000); setMmr('C', 1300); setMmr('B', 1250);
+    await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal'), ranked: true }, cfg);
+    await handleGame(db, 'C', { op: 'queue', ...deckOf('cardeal'), ranked: true }, cfg);
+    eq(db.matches.length, 0, 'A and C are 300 apart: both wait');
+    const m = matched(await handleGame(db, 'B', { op: 'queue', ...deckOf('capitao'), ranked: true }, cfg));
+    eq(m.opponent.name, 'Carla', 'B (1250) is paired with C (1300), not A (1000)');
+    eq((await db.queueGet('A'))?.user_id, 'A', 'A keeps waiting');
+  });
+
   await test('ranked: the ranked queue never mixes with the casual one, and a bot is never ranked', async () => {
     const db = fresh();
     await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal'), ranked: true }, cfg);
@@ -485,6 +521,39 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     const db3 = fresh();
     const bot = matched(await handleGame(db3, 'A', { op: 'queue', ...deckOf('cardeal'), ranked: true, vsBot: true }, cfg));
     eq([bot.ranked, db3.matches[0].ranked], [false, false]);
+  });
+
+  await test('fair play: after 3 ranked matches in a day between the same two players, the next one moves no points', async () => {
+    const db = fresh();
+    await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal'), ranked: true }, cfg);
+    matched(await handleGame(db, 'B', { op: 'queue', ...deckOf('capitao'), ranked: true }, cfg));
+    const id = db.matches[0].id;
+    for (let i = 1; i <= 3; i++) db.matches.push({ ...JSON.parse(JSON.stringify(db.matches[0])), id: `old-${i}`, status: 'finished', created_at: new Date().toISOString() });
+    ok((await choose(db, true)).ok === true, 'chosen');
+    await drive(db, id, () => false, 4000);
+    const m = db.matches.find(x => x.id === id)!;
+    eq(m.status, 'finished');
+    const winner = userOf(db, m.winner as Seat);
+    const rw = await handleGame(db, winner, { op: 'result', matchId: id }, cfg);
+    ok(rw.ok === true && rw.status === 'result' && !!rw.reward && rw.reward.reason !== 'too_short', 'the match must count: ' + JSON.stringify(rw));
+    if (rw.ok === true && rw.status === 'result' && rw.reward && rw.reward.reason !== 'too_short') {
+      ok(rw.reward.ranked?.repeat === true && rw.reward.ranked.delta === 0, 'repeat flagged, no points: ' + JSON.stringify(rw.reward.ranked));
+      eq((await db.rankedProfile(winner))?.points ?? 0, 0, 'the winner keeps 0 points');
+    }
+  });
+
+  await test('requests: odd or oversized input is refused before anything reads it', async () => {
+    const db = fresh();
+    const bad = async (req: any) => { const r = await handleGame(db, 'A', req, cfg); ok(r.ok === false, 'refused: ' + JSON.stringify(req).slice(0, 80)); };
+    await bad(null); await bad([]); await bad({ op: 'drop table' }); await bad({ op: 5 }); await bad({});
+    await bad({ op: 'queue', cards: { ['X'.repeat(500)]: 1 }, general: 'g' });
+    await bad({ op: 'queue', cards: { Soldado: -3 }, general: 'g' });
+    await bad({ op: 'queue', cards: { Soldado: 1.5 }, general: 'g' });
+    await bad({ op: 'queue', cards: Object.fromEntries(Array.from({ length: 300 }, (_, i) => [`c${i}`, 1])), general: 'g' });
+    await bad({ op: 'act', matchId: 'm'.repeat(200), action: { type: 'pass' } });
+    await bad({ op: 'act', matchId: 'x', action: { type: 'pass', junk: 'y'.repeat(5000) } });
+    await bad({ op: 'status', since: -1 });
+    await bad({ op: 'emote', matchId: 'x', code: 'p1'.repeat(10) });
   });
 
   await test('ranked: a finished match moves the ladder once (winner up, loser down or kept at 0), and the reward carries it', async () => {
