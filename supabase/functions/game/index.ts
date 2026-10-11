@@ -2823,11 +2823,98 @@ var mirrorEvents = (events) => events.map((e) => "seat" in e ? { ...e, seat: e.s
 var viewFor = (state, seat) => seat === 1 ? mirrorSeats(redactFor(state, seat)) : redactFor(state, seat);
 var eventsFor = (events, seat) => seat === 1 ? mirrorEvents(redactEvents(events, seat)) : redactEvents(events, seat);
 
+// src/engine/ranked.ts
+var LEAGUES = ["ferro", "bronze", "prata", "ouro", "platina", "diamante", "mestre"];
+var LEAGUE_NAMES = {
+  ferro: "Ferro",
+  bronze: "Bronze",
+  prata: "Prata",
+  ouro: "Ouro",
+  platina: "Platina",
+  diamante: "Diamante",
+  mestre: "Mestre",
+  "senhor-da-guerra": "Senhor da Guerra"
+};
+var POINTS_PER_DIVISION = 100;
+var DIVISIONS = 4;
+var POINTS_PER_LEAGUE = POINTS_PER_DIVISION * DIVISIONS;
+var MESTRE_FROM = POINTS_PER_LEAGUE * 6;
+var TOP_LEAGUE_SIZE = 50;
+var PLACEMENT_MATCHES = 5;
+var START_MMR = 1e3;
+var START_POINTS = 0;
+var newRankedProfile = () => ({ points: START_POINTS, mmr: START_MMR, games: 0, wins: 0, losses: 0, shield: false, peak: START_POINTS });
+var leagueOf = (points) => {
+  const p = Math.max(0, Math.floor(points));
+  if (p >= MESTRE_FROM) return { league: "mestre", division: null, inDivision: p - MESTRE_FROM };
+  const li = Math.floor(p / POINTS_PER_LEAGUE);
+  const within = p - li * POINTS_PER_LEAGUE;
+  const di = Math.floor(within / POINTS_PER_DIVISION);
+  return { league: LEAGUES[li], division: DIVISIONS - di, inDivision: within - di * POINTS_PER_DIVISION };
+};
+var ROMAN = ["", "I", "II", "III", "IV"];
+var leagueLabel = (points, top = false) => {
+  const l = leagueOf(points);
+  if (l.league === "mestre") return top ? LEAGUE_NAMES["senhor-da-guerra"] : LEAGUE_NAMES.mestre;
+  return `${LEAGUE_NAMES[l.league]} ${ROMAN[l.division]}`;
+};
+var leagueIndex = (points) => LEAGUES.indexOf(leagueOf(points).league);
+var expected = (a, b) => 1 / (1 + Math.pow(10, (b - a) / 400));
+var clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+var applyRankedMatch = (r) => {
+  const me = r.me;
+  const before = leagueOf(me.points);
+  if (!r.counts) return { next: { ...me }, delta: 0, mmrDelta: 0, placement: false, promoted: false, demoted: false, shieldUsed: false, leagueBefore: leagueLabel(me.points), leagueAfter: leagueLabel(me.points) };
+  const placement = me.games < PLACEMENT_MATCHES;
+  const k = placement ? 48 : 32;
+  const mmrDelta = Math.round(k * ((r.won ? 1 : 0) - expected(me.mmr, r.opponentMmr)));
+  const gap = clamp((r.opponentMmr - me.mmr) / 80, -8, 8);
+  let delta;
+  if (r.won) delta = Math.round((placement ? 60 : 20) + (placement ? 0 : gap));
+  else delta = -Math.round((placement ? 6 : 18) + (placement ? 0 : -gap)) - (r.ending === "general" ? 0 : 6);
+  if (r.won) delta = Math.max(8, delta);
+  else delta = Math.min(-2, delta);
+  let shield = me.shield, shieldUsed = false;
+  if (!r.won && shield) {
+    delta = 0;
+    shield = false;
+    shieldUsed = true;
+  }
+  const points = Math.max(0, me.points + delta);
+  const after = leagueOf(points);
+  const promoted = leagueIndex(points) > LEAGUES.indexOf(before.league);
+  if (promoted) shield = true;
+  const demoted = leagueIndex(points) < LEAGUES.indexOf(before.league);
+  if (demoted) shield = false;
+  const next = {
+    points,
+    mmr: Math.max(100, me.mmr + mmrDelta),
+    games: me.games + 1,
+    wins: me.wins + (r.won ? 1 : 0),
+    losses: me.losses + (r.won ? 0 : 1),
+    shield,
+    peak: Math.max(me.peak, points)
+  };
+  void after;
+  return { next, delta: points - me.points, mmrDelta, placement, promoted, demoted, shieldUsed, leagueBefore: leagueLabel(me.points), leagueAfter: leagueLabel(points) };
+};
+var withTopLeague = (rows) => {
+  const sorted = [...rows].sort((a, b) => b.points - a.points);
+  return sorted.map((r, i) => ({ ...r, rank: i + 1, top: i < TOP_LEAGUE_SIZE && r.points >= MESTRE_FROM }));
+};
+
 // server/handler.ts
 var defaultConfig = () => ({ queueStaleMs: 2e4, turnMs: 15e4, promptMs: 6e4, maxTimeouts: 2, now: () => Date.now(), random: Math.random });
 var EMOTE_CODE = /^[pe][1-6]$/;
 var EMOTE_GAP_MS = 2500;
 var EMOTE_MAX_PER_MATCH = 80;
+var PLACEMENT = 5;
+var rankedView = async (db, p) => {
+  const l = leagueOf(p.points);
+  const position = await db.rankedPosition(p.points);
+  const top = p.points >= MESTRE_FROM && position <= TOP_LEAGUE_SIZE;
+  return { points: p.points, label: leagueLabel(p.points, top), league: top ? "senhor-da-guerra" : l.league, division: l.division, inDivision: l.inDivision, games: p.games, wins: p.wins, losses: p.losses, shield: p.shield, peak: p.peak, placementLeft: Math.max(0, PLACEMENT - p.games), position, top };
+};
 var BOT_PROFILE = { name: "Advers\xE1rio", avatarId: "batedora" };
 var STALE_MATCH_MS = 45 * 60 * 1e3;
 var BOT_STEP_LIMIT = 600;
@@ -2889,24 +2976,48 @@ var patchOf = (m, w, extra = {}) => ({
 });
 var ensureRewards = async (db, m) => {
   if (m.status !== "finished" || m.winner === null) return null;
-  if (m.rewards) return m.rewards;
-  const rows = [];
-  for (const seat of [0, 1]) {
-    const user = userOfSeat(m, seat);
-    if (!user) continue;
-    const prof = await db.profile(user);
-    if (!prof) continue;
-    const won = m.winner === seat;
-    const reward = rewardFor({ won, vsBot: m.bot_seat !== null, ending: won ? "general" : m.end_reason ?? "general", rounds: m.state.turn.round, steps: m.steps_count });
-    const after = applyReward({ level: prof.level, xp: prof.xp, coroas: prof.coroas }, reward);
-    rows.push({ user_id: user, seat, reason: reward.reason, xp: reward.xp, coroas: reward.coroas, level: after.level, xp_after: after.xp, coroas_after: after.coroas, levels_gained: after.levelsGained });
+  let rows = m.rewards;
+  if (!rows) {
+    const made = [];
+    const ladder = {};
+    if (m.ranked) for (const seat of [0, 1]) {
+      const u = userOfSeat(m, seat);
+      if (u) ladder[seat] = await db.rankedProfile(u) ?? newRankedProfile();
+    }
+    for (const seat of [0, 1]) {
+      const user = userOfSeat(m, seat);
+      if (!user) continue;
+      const prof = await db.profile(user);
+      if (!prof) continue;
+      const won = m.winner === seat;
+      const ending = won ? "general" : m.end_reason ?? "general";
+      const reward = rewardFor({ won, vsBot: m.bot_seat !== null, ending, rounds: m.state.turn.round, steps: m.steps_count });
+      const after = applyReward({ level: prof.level, xp: prof.xp, coroas: prof.coroas }, reward);
+      const row = { user_id: user, seat, reason: reward.reason, xp: reward.xp, coroas: reward.coroas, level: after.level, xp_after: after.xp, coroas_after: after.coroas, levels_gained: after.levelsGained };
+      const me = ladder[seat], foe = ladder[otherSeat(seat)];
+      if (m.ranked && me && foe) {
+        const r = applyRankedMatch({ me, opponentMmr: foe.mmr, won, ending, counts: reward.reason !== "too_short" });
+        row.ranked = { delta: r.delta, mmr_delta: r.mmrDelta, placement: r.placement, promoted: r.promoted, demoted: r.demoted, shield_used: r.shieldUsed, league_before: r.leagueBefore, league_after: r.leagueAfter, profile: r.next };
+      }
+      made.push(row);
+    }
+    if (made.length === 0) return null;
+    const applied = await db.applyRewards(m.id, made);
+    rows = applied ? made : (await db.getMatch(m.id))?.rewards ?? null;
   }
-  if (rows.length === 0) return null;
-  const applied = await db.applyRewards(m.id, rows);
-  if (applied) return rows;
-  return (await db.getMatch(m.id))?.rewards ?? null;
+  if (rows && m.ranked && !m.ranked_done) {
+    const items = rows.filter((r) => r.ranked).map((r) => ({ user_id: r.user_id, profile: r.ranked.profile }));
+    if (items.length) await db.rankedSettle(m.id, items);
+  }
+  return rows;
 };
-var rewardOf = (m, rows, userId) => rows?.find((r) => r.user_id === userId) ?? m.rewards?.find((r) => r.user_id === userId) ?? null;
+var publicReward = (r) => {
+  if (!r || !r.ranked) return r;
+  const { mmr: _mmr, ...profile } = r.ranked.profile;
+  const { mmr_delta: _d, ...rest } = r.ranked;
+  return { ...r, ranked: { ...rest, profile } };
+};
+var rewardOf = (m, rows, userId) => publicReward(rows?.find((r) => r.user_id === userId) ?? m.rewards?.find((r) => r.user_id === userId) ?? null);
 var enforceClock = async (db, m, cfg) => {
   for (let guard = 0; guard < 3; guard++) {
     if (m.status !== "active" || m.turn_deadline === null || cfg.now() <= m.turn_deadline) return m;
@@ -2970,11 +3081,12 @@ var initOf = async (db, m, userId, cfg) => {
     status: m.status,
     winner: m.winner === null ? null : m.winner === seat ? 0 : 1,
     resumed,
+    ranked: m.ranked,
     deadline: m.turn_deadline,
     now: cfg.now()
   };
 };
-var startMatch = async (db, cfg, a, b) => {
+var startMatch = async (db, cfg, a, b, ranked = false) => {
   const seed = Math.floor(cfg.random() * 2147483647) + 1;
   const first = cfg.random() < 0.5 ? 0 : 1;
   const [p0, p1] = cfg.random() < 0.5 ? [b, a] : [a, b];
@@ -2995,7 +3107,9 @@ var startMatch = async (db, cfg, a, b) => {
     turn_deadline: null,
     timeouts: [0, 0],
     end_reason: null,
-    rewards: null
+    rewards: null,
+    ranked,
+    ranked_done: false
   };
   const m = { ...draft, id: "", created_at: new Date(cfg.now()).toISOString() };
   const w = startWork(m);
@@ -3025,20 +3139,21 @@ var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
       const problem = deckProblem(cards, general, currentNames(await db.collection(userId)));
       if (problem) return { ok: false, error: problem };
       const deck = { general, cards };
+      const ranked = req.ranked === true && !req.vsBot;
       await db.queueDelete(userId);
       if (req.vsBot) {
         const chosen = typeof req.botDeck === "string" && Object.prototype.hasOwnProperty.call(DECK_RECIPES, req.botDeck) ? recipeDeck(req.botDeck) : botDeckFor(deck);
         const m = await startMatch(db, cfg, { user: userId, deck }, { user: null, deck: chosen });
         return { ok: true, status: "matched", match: await initOf(db, m, userId, cfg) };
       }
-      let other = await db.queueTake(userId);
-      for (let i = 0; other && cfg.now() - Date.parse(other.created_at) > cfg.queueStaleMs && i < 20; i++) other = await db.queueTake(userId);
+      let other = await db.queueTake(userId, ranked);
+      for (let i = 0; other && cfg.now() - Date.parse(other.created_at) > cfg.queueStaleMs && i < 20; i++) other = await db.queueTake(userId, ranked);
       if (other && cfg.now() - Date.parse(other.created_at) > cfg.queueStaleMs) other = null;
       if (other) {
-        const m = await startMatch(db, cfg, { user: userId, deck }, { user: other.user_id, deck: other.deck });
+        const m = await startMatch(db, cfg, { user: userId, deck }, { user: other.user_id, deck: other.deck }, ranked);
         return { ok: true, status: "matched", match: await initOf(db, m, userId, cfg) };
       }
-      await db.queuePut({ user_id: userId, deck, created_at: new Date(cfg.now()).toISOString() });
+      await db.queuePut({ user_id: userId, deck, created_at: new Date(cfg.now()).toISOString(), ranked });
       return { ok: true, status: "waiting" };
     }
     case "status": {
@@ -3046,7 +3161,7 @@ var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
       if (active) return { ok: true, status: "matched", match: await initOf(db, await enforceClock(db, active, cfg), userId, cfg) };
       const q = await db.queueGet(userId);
       if (!q) return { ok: true, status: "none" };
-      await db.queuePut({ user_id: userId, deck: q.deck, created_at: new Date(cfg.now()).toISOString() });
+      await db.queuePut({ user_id: userId, deck: q.deck, created_at: new Date(cfg.now()).toISOString(), ranked: q.ranked });
       return { ok: true, status: "waiting" };
     }
     case "cancel": {
@@ -3102,6 +3217,15 @@ var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
       const rewards = await ensureRewards(db, m);
       return { ok: true, status: "result", finished: m.status === "finished", reward: rewardOf(m, rewards, userId) };
     }
+    case "ranked": {
+      return { ok: true, status: "ranked", profile: await rankedView(db, await db.rankedProfile(userId) ?? newRankedProfile()) };
+    }
+    case "ranking": {
+      const limit = Math.max(1, Math.min(100, Math.floor(Number(req.limit) || 50)));
+      const top = withTopLeague((await db.rankedTop(limit)).map((r) => ({ ...r, points: r.profile.points })));
+      const mine = await db.rankedProfile(userId) ?? newRankedProfile();
+      return { ok: true, status: "ranking", me: await rankedView(db, mine), rows: top.map((r) => ({ rank: r.rank, user: r.user_id, name: r.username, avatarId: r.avatar_id, points: r.points, label: leagueLabel(r.points, r.top), top: r.top, me: r.user_id === userId })) };
+    }
     case "emote":
     case "emotes": {
       const m = await db.getMatch(req.matchId);
@@ -3143,7 +3267,7 @@ var viewToDb = (matchId, v) => ({
   deadline: v.deadline
 });
 var viewFromDb = (r) => ({ n: r.n, viewer: r.viewer, user: r.viewer_user, actor: r.actor, action: r.action, events: r.events, state: r.state, deadline: r.deadline === null ? null : Number(r.deadline) });
-var matchFromDb = (r) => ({ ...r, turn_deadline: r.turn_deadline === null || r.turn_deadline === void 0 ? null : Number(r.turn_deadline), timeouts: r.timeouts ?? [0, 0] });
+var matchFromDb = (r) => ({ ...r, turn_deadline: r.turn_deadline === null || r.turn_deadline === void 0 ? null : Number(r.turn_deadline), timeouts: r.timeouts ?? [0, 0], ranked: !!r.ranked, ranked_done: !!r.ranked_done });
 var supabaseDb = (c) => ({
   async collection(userId) {
     const rows = must(await c.from("collection").select("card_name, copies").eq("user_id", userId).limit(5e3), "collection");
@@ -3156,21 +3280,22 @@ var supabaseDb = (c) => ({
   async profile(userId) {
     return must(await c.from("profiles").select("username, avatar_id, level, xp, coroas").eq("id", userId).maybeSingle(), "profile");
   },
-  async queueTake(excludeUserId) {
-    const rows = must(await c.rpc("queue_take", { p_me: excludeUserId }), "queue_take");
+  async queueTake(excludeUserId, ranked) {
+    const rows = must(await c.rpc("queue_take", ranked ? { p_me: excludeUserId, p_ranked: true } : { p_me: excludeUserId }), "queue_take");
     return rows && rows.length ? rows[0] : null;
   },
   async queueGet(userId) {
-    return must(await c.from("queue").select("user_id, deck, created_at").eq("user_id", userId).maybeSingle(), "queue get");
+    return must(await c.from("queue").select("*").eq("user_id", userId).maybeSingle(), "queue get");
   },
   async queuePut(row) {
-    must(await c.from("queue").upsert({ user_id: row.user_id, deck: row.deck, created_at: row.created_at }), "queue put");
+    must(await c.from("queue").upsert({ user_id: row.user_id, deck: row.deck, created_at: row.created_at, ...row.ranked ? { ranked: true } : {} }), "queue put");
   },
   async queueDelete(userId) {
     must(await c.from("queue").delete().eq("user_id", userId), "queue delete");
   },
   async createMatch(row, steps, views) {
-    const m = matchFromDb(must(await c.from("matches").insert(row).select("*").single(), "create match"));
+    const { ranked, ranked_done, ...plain } = row;
+    const m = matchFromDb(must(await c.from("matches").insert(ranked ? { ...plain, ranked: true } : plain).select("*").single(), "create match"));
     if (steps.length) must(await c.from("match_steps").insert(steps.map((s) => ({ match_id: m.id, n: s.n, seat: s.seat, action: s.action }))), "create steps");
     if (views.length) must(await c.from("match_views").insert(views.map((v) => viewToDb(m.id, v))), "create views");
     return m;
@@ -3183,7 +3308,7 @@ var supabaseDb = (c) => ({
     const rows = must(await c.from("matches").select("*").eq("status", "active").or(`seat0.eq.${userId},seat1.eq.${userId}`).order("created_at", { ascending: false }).limit(1), "active match");
     return rows.length ? matchFromDb(rows[0]) : null;
   },
-  async saveMatch(id, expected, patch, newSteps, newViews) {
+  async saveMatch(id, expected2, patch, newSteps, newViews) {
     if (newSteps.length) {
       const ins = await c.from("match_steps").insert(newSteps.map((s) => ({ match_id: id, n: s.n, seat: s.seat, action: s.action })));
       if (ins.error) return false;
@@ -3196,7 +3321,7 @@ var supabaseDb = (c) => ({
       turn_deadline: patch.turn_deadline,
       timeouts: patch.timeouts,
       end_reason: patch.end_reason
-    }).eq("id", id).eq("steps_count", expected).select("id"), "save match");
+    }).eq("id", id).eq("steps_count", expected2).select("id"), "save match");
     if (upd.length === 0) {
       if (newSteps.length) await c.from("match_steps").delete().eq("match_id", id).in("n", newSteps.map((s) => s.n));
       return false;
@@ -3214,6 +3339,27 @@ var supabaseDb = (c) => ({
   async latestView(matchId, viewer) {
     const rows = must(await c.from("match_views").select("n, viewer, viewer_user, actor, action, events, state, deadline").eq("match_id", matchId).eq("viewer", viewer).order("n", { ascending: false }).limit(1), "latest view");
     return rows.length ? viewFromDb(rows[0]) : null;
+  },
+  async rankedProfile(userId) {
+    const r = must(await c.from("ranked_profiles").select("points, mmr, games, wins, losses, shield, peak").eq("user_id", userId).maybeSingle(), "ranked profile");
+    return r ? { points: r.points, mmr: r.mmr, games: r.games, wins: r.wins, losses: r.losses, shield: r.shield, peak: r.peak } : null;
+  },
+  async rankedSettle(matchId, rows) {
+    return must(await c.rpc("apply_ranked_result", { p_match: matchId, p_rows: rows }), "apply ranked") === true;
+  },
+  async rankedTop(limit) {
+    const rows = must(await c.from("ranked_profiles").select("user_id, points, mmr, games, wins, losses, shield, peak").order("points", { ascending: false }).limit(limit), "ranked top");
+    if (!rows.length) return [];
+    const profs = must(await c.from("profiles").select("id, username, avatar_id").in("id", rows.map((r) => r.user_id)), "ranked names");
+    return rows.map((r) => {
+      const p = profs.find((x) => x.id === r.user_id);
+      return { user_id: r.user_id, username: p?.username ?? "Jogador", avatar_id: p?.avatar_id ?? "batedora", profile: { points: r.points, mmr: r.mmr, games: r.games, wins: r.wins, losses: r.losses, shield: r.shield, peak: r.peak } };
+    });
+  },
+  async rankedPosition(points) {
+    const r = await c.from("ranked_profiles").select("user_id", { count: "exact", head: true }).gt("points", points);
+    if (r.error) throw new Error(`ranked position: ${r.error.message}`);
+    return (r.count ?? 0) + 1;
   },
   async addEmote(matchId, seat, code, at) {
     const r = must(await c.from("match_emotes").insert({ match_id: matchId, seat, code, at }).select("id, seat, code, at").single(), "add emote");

@@ -426,6 +426,54 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     ok((await handleGame(db2, 'A', { op: 'emote', matchId: b.id, code: 'p1' }, cfg)).ok === false, 'no messages against the bot');
   });
 
+  await test('ranked: the ranked queue never mixes with the casual one, and a bot is never ranked', async () => {
+    const db = fresh();
+    await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal'), ranked: true }, cfg);
+    const casual = await handleGame(db, 'B', { op: 'queue', ...deckOf('capitao') }, cfg);
+    ok(casual.ok === true && casual.status === 'waiting', 'a casual player does not take a ranked one: ' + JSON.stringify(casual));
+    eq(db.queue.length, 2);
+    const db2 = fresh();
+    await handleGame(db2, 'A', { op: 'queue', ...deckOf('cardeal'), ranked: true }, cfg);
+    const r = matched(await handleGame(db2, 'B', { op: 'queue', ...deckOf('capitao'), ranked: true }, cfg));
+    eq(r.ranked, true);
+    eq(db2.matches[0].ranked, true);
+    const db3 = fresh();
+    const bot = matched(await handleGame(db3, 'A', { op: 'queue', ...deckOf('cardeal'), ranked: true, vsBot: true }, cfg));
+    eq([bot.ranked, db3.matches[0].ranked], [false, false]);
+  });
+
+  await test('ranked: a finished match moves the ladder once (winner up, loser down or kept at 0), and the reward carries it', async () => {
+    const db = fresh();
+    await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal'), ranked: true }, cfg);
+    matched(await handleGame(db, 'B', { op: 'queue', ...deckOf('capitao'), ranked: true }, cfg));
+    const id = db.matches[0].id;
+    const ch = await choose(db, true); ok(ch.ok === true, 'chosen');
+    await drive(db, id, () => false, 4000);
+    const m = db.matches[0];
+    eq(m.status, 'finished');
+    const winner = userOf(db, m.winner as Seat), loser = userOf(db, (m.winner === 0 ? 1 : 0) as Seat);
+    const rw = await handleGame(db, winner, { op: 'result', matchId: id }, cfg);
+    ok(rw.ok === true && rw.status === 'result' && !!rw.reward?.ranked, 'the winner gets ranked info: ' + JSON.stringify(rw));
+    ok(!JSON.stringify(rw).includes('mmr'), 'the hidden Elo is never sent to a device');
+    const rl = await handleGame(db, loser, { op: 'result', matchId: id }, cfg);
+    const p1 = await db.rankedProfile(winner), p2 = await db.rankedProfile(loser);
+    ok(!!p1 && !!p2, 'both ladder rows exist');
+    if (rw.ok === true && rw.status === 'result' && rw.reward?.reason !== 'too_short') {
+      ok(p1!.points > 0 && p1!.wins === 1 && p1!.games === 1, 'winner climbed: ' + JSON.stringify(p1));
+      ok(p2!.points === 0 && p2!.losses === 1, 'loser stays at the floor: ' + JSON.stringify(p2));
+      ok(p1!.mmr > 1000 && p2!.mmr < 1000, 'hidden Elo moved');
+    }
+    // asking again never applies it twice
+    await handleGame(db, winner, { op: 'result', matchId: id }, cfg); await handleGame(db, loser, { op: 'result', matchId: id }, cfg);
+    eq((await db.rankedProfile(winner))!.games, 1);
+    void rl;
+    // the client view: no hidden Elo, a position and the label
+    const v = await handleGame(db, winner, { op: 'ranked' }, cfg);
+    ok(v.ok === true && v.status === 'ranked' && !('mmr' in v.profile) && v.profile.position === 1 && /Ferro|Bronze/.test(v.profile.label), 'ranked view: ' + JSON.stringify(v));
+    const top = await handleGame(db, loser, { op: 'ranking' }, cfg);
+    ok(top.ok === true && top.status === 'ranking' && top.rows.length === 2 && top.rows[0].me === false && top.rows[1].me === true, 'ranking lists both, me flagged: ' + JSON.stringify(top));
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);
 })();

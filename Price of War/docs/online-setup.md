@@ -19,6 +19,9 @@ new tables.
 ## 1b. Quick messages (phrases and emojis): one more table
 Supabase → SQL Editor → New query → paste `docs/supabase-online-3.sql` → Run (safe to repeat). It creates `match_emotes`, which only the game server reads and writes. **Without it the rest of the game works; only the new balloon button fails** (the server answers an error and nothing is shown). Run it right after publishing the new server function (step 2).
 
+## 1c. Ranked ladder: one more SQL
+Run `docs/supabase-online-4.sql` (safe to repeat; also included at the end of `docs/supabase-tudo.sql`). It adds the ranked flag to the queue and matches, the `ranked_profiles` table, and the `queue_take` / `apply_ranked_result` functions. Run it before using ranked. Casual matches keep working on a database that has not run it yet (the server only touches the ranked columns for a ranked match). See `docs/ranqueado.md`.
+
 ## 2. Deploy the game server
 
 The server is one file: `supabase/functions/game/index.ts` (generated from `server/` and `src/engine/`; rebuild it

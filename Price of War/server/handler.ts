@@ -11,6 +11,7 @@ import { applyReward, rewardFor } from '../src/engine/rewards';
 import type { Action, GameEvent, GameState, Seat } from '../src/engine/types';
 import { otherSeat } from '../src/engine/types';
 import { eventsFor, viewFor } from '../src/engine/view';
+import { MESTRE_FROM, TOP_LEAGUE_SIZE, applyRankedMatch, leagueLabel, leagueOf, newRankedProfile, withTopLeague, type RankedProfile } from '../src/engine/ranked';
 import type { Db, DeckJson, EndReason, MatchPatch, MatchRow, RewardRow, StepRow, ViewRow } from './types';
 
 export interface GameConfig {
@@ -48,6 +49,7 @@ export interface MatchInit {
   status: 'active' | 'finished';
   winner: Seat | null;
   resumed: boolean;
+  ranked: boolean;
   deadline: number | null;
   now: number;
 }
@@ -57,8 +59,20 @@ const EMOTE_CODE = /^[pe][1-6]$/;
 const EMOTE_GAP_MS = 2500;
 const EMOTE_MAX_PER_MATCH = 80;
 
+// What a client may know about a player's ladder numbers (the hidden Elo stays on the server).
+export interface RankedView { points: number; label: string; league: string; division: number | null; inDivision: number; games: number; wins: number; losses: number; shield: boolean; peak: number; placementLeft: number; position: number; top: boolean }
+const PLACEMENT = 5;
+const rankedView = async (db: Db, p: RankedProfile): Promise<RankedView> => {
+  const l = leagueOf(p.points);
+  const position = await db.rankedPosition(p.points);
+  const top = p.points >= MESTRE_FROM && position <= TOP_LEAGUE_SIZE;
+  return { points: p.points, label: leagueLabel(p.points, top), league: top ? 'senhor-da-guerra' : l.league, division: l.division, inDivision: l.inDivision, games: p.games, wins: p.wins, losses: p.losses, shield: p.shield, peak: p.peak, placementLeft: Math.max(0, PLACEMENT - p.games), position, top };
+};
+
 export type GameRequest =
-  | { op: 'queue'; cards: Record<string, number>; general: string; vsBot?: boolean; botDeck?: string }
+  | { op: 'queue'; cards: Record<string, number>; general: string; vsBot?: boolean; botDeck?: string; ranked?: boolean }
+  | { op: 'ranked' }
+  | { op: 'ranking'; limit?: number }
   | { op: 'status' }
   | { op: 'cancel' }
   | { op: 'act'; matchId: string; action: Action; since?: number }
@@ -72,6 +86,8 @@ export type GameResponse =
   | { ok: true; status: 'matched'; match: MatchInit }
   | { ok: true; status: 'acted'; rows: ViewRow[]; finished: boolean; deadline: number | null; now: number; reward: RewardRow | null }
   | { ok: true; status: 'result'; finished: boolean; reward: RewardRow | null }
+  | { ok: true; status: 'ranked'; profile: RankedView }
+  | { ok: true; status: 'ranking'; rows: { rank: number; user: string; name: string; avatarId: string; points: number; label: string; top: boolean; me: boolean }[]; me: RankedView }
   | { ok: true; status: 'emotes'; emotes: { id: number; from: 0 | 1; code: string }[] }
   | { ok: false; error: string };
 
@@ -146,25 +162,49 @@ const patchOf = (m: MatchRow, w: Work, extra: Partial<MatchPatch> = {}): MatchPa
 // Pays the match's rewards once it is over. Safe to call again: the database refuses to pay twice.
 const ensureRewards = async (db: Db, m: MatchRow): Promise<RewardRow[] | null> => {
   if (m.status !== 'finished' || m.winner === null) return null;
-  if (m.rewards) return m.rewards;
-  const rows: RewardRow[] = [];
-  for (const seat of [0, 1] as Seat[]) {
-    const user = userOfSeat(m, seat);
-    if (!user) continue;
-    const prof = await db.profile(user);
-    if (!prof) continue;
-    const won = m.winner === seat;
-    const reward = rewardFor({ won, vsBot: m.bot_seat !== null, ending: won ? 'general' : (m.end_reason ?? 'general'), rounds: m.state.turn.round, steps: m.steps_count });
-    const after = applyReward({ level: prof.level, xp: prof.xp, coroas: prof.coroas }, reward);
-    rows.push({ user_id: user, seat, reason: reward.reason, xp: reward.xp, coroas: reward.coroas, level: after.level, xp_after: after.xp, coroas_after: after.coroas, levels_gained: after.levelsGained });
+  let rows: RewardRow[] | null = m.rewards;
+  if (!rows) {
+    const made: RewardRow[] = [];
+    // Ranked: both players' ladder numbers are read before either moves, so the result does not depend on the order.
+    const ladder: Partial<Record<Seat, RankedProfile>> = {};
+    if (m.ranked) for (const seat of [0, 1] as Seat[]) { const u = userOfSeat(m, seat); if (u) ladder[seat] = (await db.rankedProfile(u)) ?? newRankedProfile(); }
+    for (const seat of [0, 1] as Seat[]) {
+      const user = userOfSeat(m, seat);
+      if (!user) continue;
+      const prof = await db.profile(user);
+      if (!prof) continue;
+      const won = m.winner === seat;
+      const ending = won ? 'general' : (m.end_reason ?? 'general');
+      const reward = rewardFor({ won, vsBot: m.bot_seat !== null, ending, rounds: m.state.turn.round, steps: m.steps_count });
+      const after = applyReward({ level: prof.level, xp: prof.xp, coroas: prof.coroas }, reward);
+      const row: RewardRow = { user_id: user, seat, reason: reward.reason, xp: reward.xp, coroas: reward.coroas, level: after.level, xp_after: after.xp, coroas_after: after.coroas, levels_gained: after.levelsGained };
+      const me = ladder[seat], foe = ladder[otherSeat(seat)];
+      if (m.ranked && me && foe) {
+        const r = applyRankedMatch({ me, opponentMmr: foe.mmr, won, ending, counts: reward.reason !== 'too_short' });
+        row.ranked = { delta: r.delta, mmr_delta: r.mmrDelta, placement: r.placement, promoted: r.promoted, demoted: r.demoted, shield_used: r.shieldUsed, league_before: r.leagueBefore, league_after: r.leagueAfter, profile: r.next };
+      }
+      made.push(row);
+    }
+    if (made.length === 0) return null;
+    const applied = await db.applyRewards(m.id, made);
+    rows = applied ? made : (await db.getMatch(m.id))?.rewards ?? null;
   }
-  if (rows.length === 0) return null;
-  const applied = await db.applyRewards(m.id, rows);
-  if (applied) return rows;
-  return (await db.getMatch(m.id))?.rewards ?? null;
+  // The ladder points are applied once, even if the call that paid the rewards died before it got here.
+  if (rows && m.ranked && !m.ranked_done) {
+    const items = rows.filter(r => r.ranked).map(r => ({ user_id: r.user_id, profile: r.ranked!.profile }));
+    if (items.length) await db.rankedSettle(m.id, items);
+  }
+  return rows;
 };
 
-const rewardOf = (m: MatchRow, rows: RewardRow[] | null, userId: string): RewardRow | null => rows?.find(r => r.user_id === userId) ?? m.rewards?.find(r => r.user_id === userId) ?? null;
+// What a device may see of its reward: the hidden Elo (and how much it moved) is stripped from the ladder part.
+const publicReward = (r: RewardRow | null): RewardRow | null => {
+  if (!r || !r.ranked) return r;
+  const { mmr: _mmr, ...profile } = r.ranked.profile;
+  const { mmr_delta: _d, ...rest } = r.ranked;
+  return { ...r, ranked: { ...rest, profile } as any };
+};
+const rewardOf = (m: MatchRow, rows: RewardRow[] | null, userId: string): RewardRow | null => publicReward(rows?.find(r => r.user_id === userId) ?? m.rewards?.find(r => r.user_id === userId) ?? null);
 
 // ── The turn clock ──────────────────────────────────────────────────────────
 // Called whenever anybody touches the match: if the player who has to move ran out of time, their turn is played out
@@ -227,11 +267,11 @@ const initOf = async (db: Db, m: MatchRow, userId: string, cfg: GameConfig): Pro
     id: m.id, iGoFirst: m.state.turn.first === seat, iWonToss: m.first === seat, chosen: m.steps_count > 0, mySide: seat === 0 ? 'cara' : 'coroa', myDeck: m.decks[seat], opponentGeneral: m.decks[otherSeat(seat)].general,
     opponent: oppId ? { name: prof?.username ?? 'Jogador', avatarId: prof?.avatar_id ?? 'batedora', bot: false } : { ...BOT_PROFILE, bot: true },
     start, rows: resumed ? [] : rows, latest: resumed ? (rows[rows.length - 1] ?? null) : null,
-    status: m.status, winner: m.winner === null ? null : (m.winner === seat ? 0 : 1), resumed, deadline: m.turn_deadline, now: cfg.now(),
+    status: m.status, winner: m.winner === null ? null : (m.winner === seat ? 0 : 1), resumed, ranked: m.ranked, deadline: m.turn_deadline, now: cfg.now(),
   };
 };
 
-const startMatch = async (db: Db, cfg: GameConfig, a: { user: string | null; deck: DeckJson }, b: { user: string | null; deck: DeckJson }): Promise<MatchRow> => {
+const startMatch = async (db: Db, cfg: GameConfig, a: { user: string | null; deck: DeckJson }, b: { user: string | null; deck: DeckJson }, ranked = false): Promise<MatchRow> => {
   const seed = Math.floor(cfg.random() * 0x7fffffff) + 1;
   // The coin toss: its winner picks to play first or second (see `choose_first`); `first` stays the winner's chair.
   const first = (cfg.random() < 0.5 ? 0 : 1) as Seat;
@@ -242,7 +282,7 @@ const startMatch = async (db: Db, cfg: GameConfig, a: { user: string | null; dec
   const created = createMatch({ seed, decks, first });
   const draft: Omit<MatchRow, 'id' | 'created_at'> = {
     seed, status: 'active', first, seat0: p0.user, seat1: p1.user, bot_seat, decks, state: created.state, steps_count: 0, winner: null,
-    turn_deadline: null, timeouts: [0, 0], end_reason: null, rewards: null,
+    turn_deadline: null, timeouts: [0, 0], end_reason: null, rewards: null, ranked, ranked_done: false,
   };
   const m: MatchRow = { ...draft, id: '', created_at: new Date(cfg.now()).toISOString() };
   const w = startWork(m);
@@ -278,6 +318,7 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
       const problem = deckProblem(cards, general, currentNames(await db.collection(userId)));
       if (problem) return { ok: false, error: problem };
       const deck: DeckJson = { general, cards };
+      const ranked = req.ranked === true && !req.vsBot;   // ranked is people only; a challenge against the AI is never ranked
       await db.queueDelete(userId);
       if (req.vsBot) {
         // A challenge may name the opponent's prebuilt deck (the Desafios map); anything else falls back to the usual pick.
@@ -287,14 +328,14 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
       }
       // Matchmaking is between people only: nobody is waiting -> wait (the AI is only for challenges, `vsBot` above).
       // Entries nobody has refreshed lately belong to players who left: skip them.
-      let other = await db.queueTake(userId);
-      for (let i = 0; other && cfg.now() - Date.parse(other.created_at) > cfg.queueStaleMs && i < 20; i++) other = await db.queueTake(userId);
+      let other = await db.queueTake(userId, ranked);
+      for (let i = 0; other && cfg.now() - Date.parse(other.created_at) > cfg.queueStaleMs && i < 20; i++) other = await db.queueTake(userId, ranked);
       if (other && cfg.now() - Date.parse(other.created_at) > cfg.queueStaleMs) other = null;
       if (other) {
-        const m = await startMatch(db, cfg, { user: userId, deck }, { user: other.user_id, deck: other.deck });
+        const m = await startMatch(db, cfg, { user: userId, deck }, { user: other.user_id, deck: other.deck }, ranked);
         return { ok: true, status: 'matched', match: await initOf(db, m, userId, cfg) };
       }
-      await db.queuePut({ user_id: userId, deck, created_at: new Date(cfg.now()).toISOString() });
+      await db.queuePut({ user_id: userId, deck, created_at: new Date(cfg.now()).toISOString(), ranked });
       return { ok: true, status: 'waiting' };
     }
     case 'status': {
@@ -303,7 +344,7 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
       const q = await db.queueGet(userId);
       if (!q) return { ok: true, status: 'none' };
       // Still waiting (no bot fills in): polling keeps the entry fresh.
-      await db.queuePut({ user_id: userId, deck: q.deck, created_at: new Date(cfg.now()).toISOString() });
+      await db.queuePut({ user_id: userId, deck: q.deck, created_at: new Date(cfg.now()).toISOString(), ranked: q.ranked });
       return { ok: true, status: 'waiting' };
     }
     case 'cancel': {
@@ -361,6 +402,15 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
       if (!m || playerOf(m, userId) === null) return { ok: false, error: 'Partida não encontrada.' };
       const rewards = await ensureRewards(db, m);
       return { ok: true, status: 'result', finished: m.status === 'finished', reward: rewardOf(m, rewards, userId) };
+    }
+    case 'ranked': {
+      return { ok: true, status: 'ranked', profile: await rankedView(db, (await db.rankedProfile(userId)) ?? newRankedProfile()) };
+    }
+    case 'ranking': {
+      const limit = Math.max(1, Math.min(100, Math.floor(Number(req.limit) || 50)));
+      const top = withTopLeague((await db.rankedTop(limit)).map(r => ({ ...r, points: r.profile.points })));
+      const mine = (await db.rankedProfile(userId)) ?? newRankedProfile();
+      return { ok: true, status: 'ranking', me: await rankedView(db, mine), rows: top.map(r => ({ rank: r.rank, user: r.user_id, name: r.username, avatarId: r.avatar_id, points: r.points, label: leagueLabel(r.points, r.top), top: r.top, me: r.user_id === userId })) };
     }
     case 'emote':
     case 'emotes': {

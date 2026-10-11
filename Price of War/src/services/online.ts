@@ -20,6 +20,8 @@ export interface ViewRow {
 
 export interface RewardInfo {
   reason: 'win' | 'loss' | 'too_short' | 'abandoned';
+  // Ranked matches only: what the match did to the ladder (the hidden Elo is not sent to the device).
+  ranked?: { delta: number; placement: boolean; promoted: boolean; demoted: boolean; shield_used: boolean; league_before: string; league_after: string; profile: { points: number; games: number; wins: number; losses: number; shield: boolean; peak: number } };
   xp: number;
   coroas: number;
   level: number;
@@ -44,6 +46,7 @@ export interface MatchInit {
   status: 'active' | 'finished';
   winner: Seat | null;
   resumed: boolean;
+  ranked?: boolean;
   deadline: number | null;
   now: number;
 }
@@ -80,7 +83,7 @@ const asActResult = (r: any): ActResult =>
     ? { ok: true, rows: r.rows ?? [], finished: !!r.finished, deadline: r.deadline ?? null, now: r.now ?? Date.now(), reward: r.reward ?? null }
     : { ok: false, error: r?.error ?? 'Resposta inesperada do servidor.', unavailable: r?.unavailable };
 
-export const queueForMatch = (deck: DeckJson, vsBot: boolean, botDeck?: string): Promise<QueueResult> => call({ op: 'queue', cards: deck.cards, general: deck.general, vsBot, botDeck });
+export const queueForMatch = (deck: DeckJson, vsBot: boolean, botDeck?: string, ranked = false): Promise<QueueResult> => call({ op: 'queue', cards: deck.cards, general: deck.general, vsBot, botDeck, ranked });
 export const queueStatus = (): Promise<QueueResult> => call({ op: 'status' });
 export const cancelQueue = (): Promise<QueueResult> => call({ op: 'cancel' });
 export const sendAction = async (matchId: string, action: Action, since: number): Promise<ActResult> => asActResult(await call({ op: 'act', matchId, action, since }));
@@ -107,3 +110,9 @@ const asEmoteResult = (r: any): EmoteResult =>
   r && r.ok === true && r.status === 'emotes' ? { ok: true, emotes: r.emotes ?? [] } : { ok: false, error: r?.error ?? 'Resposta inesperada do servidor.', unavailable: r?.unavailable };
 export const sendEmote = async (matchId: string, code: string, since: number): Promise<EmoteResult> => asEmoteResult(await call({ op: 'emote', matchId, code, since }));
 export const fetchEmotes = async (matchId: string, since: number): Promise<EmoteResult> => asEmoteResult(await call({ op: 'emotes', matchId, since }));
+
+// The ladder (ranked mode): my numbers, and the ranking list with my place.
+export interface RankedView { points: number; label: string; league: string; division: number | null; inDivision: number; games: number; wins: number; losses: number; shield: boolean; peak: number; placementLeft: number; position: number; top: boolean }
+export interface RankingRow { rank: number; user: string; name: string; avatarId: string; points: number; label: string; top: boolean; me: boolean }
+export const fetchRanked = async (): Promise<RankedView | null> => { const r = await call({ op: 'ranked' }); return r && r.ok === true && r.status === 'ranked' ? r.profile : null; };
+export const fetchRanking = async (limit = 50): Promise<{ rows: RankingRow[]; me: RankedView } | null> => { const r = await call({ op: 'ranking', limit }); return r && r.ok === true && r.status === 'ranking' ? { rows: r.rows, me: r.me } : null; };

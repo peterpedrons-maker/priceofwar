@@ -85,3 +85,5 @@ Ajustes das telas do kit (dono): fita de título (Ligas/Ranking) desce para dent
 Ajuste (dono): as linhas da lista (Ligas e Ranking) usam agora `linha-normal-livre.png` e `linha-atual-livre.png` (o quadrado do símbolo foi apagado da arte; o símbolo da liga fica solto, maior, à esquerda); as linhas bloqueadas são a mesma linha escurecida (sem o cadeado, que cortava o símbolo). A faixa da temporada tem o texto grande ("TEMPORADA 1", "termina em 41 dias") centralizado no pergaminho.
 
 Ajuste (dono): símbolos das linhas menores (42 px); linha de Ligas em três colunas (nome, faixa de pontos no centro, recompensa à direita); "TEMPORADA 1" na fonte Cinzel Decorative, a mesma do botão Encerrar turno e da barra de fase.
+
+**Ranqueado, servidor pronto (rodada 21, sem telas ainda):** pontos, ligas, divisões, classificação (5 partidas), Elo escondido, escudo, fila ranqueada separada, `ranked` e `ranking` no servidor, SQL em `docs/supabase-online-4.sql` (já dentro de `docs/supabase-tudo.sql`). Regras e números em `docs/ranqueado.md`. Falta ligar as telas, temporadas e a regra de decks.
