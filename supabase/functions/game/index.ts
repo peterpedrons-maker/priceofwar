@@ -23,10 +23,9 @@ var CARD_DEFS = [
   },
   {
     name: "Soldado T\xE1tico",
-    maxCopies: 4,
     cardType: "Infantaria",
     atk: 3,
-    hp: 3,
+    hp: 4,
     cost: 2,
     trigger: "manobra",
     effect: "No fim do turno, troca de lugar com um aliado ao lado.",
@@ -34,7 +33,6 @@ var CARD_DEFS = [
   },
   {
     name: "Escudeiro de Linha",
-    maxCopies: 4,
     trigger: "postura",
     cardType: "Infantaria",
     atk: 2,
@@ -48,7 +46,6 @@ var CARD_DEFS = [
   },
   {
     name: "Capit\xE3o de Forma\xE7\xE3o",
-    maxCopies: 4,
     cardType: "Infantaria",
     atk: 3,
     hp: 4,
@@ -60,29 +57,26 @@ var CARD_DEFS = [
   },
   {
     name: "Batedor",
-    maxCopies: 4,
     trigger: "ofensiva",
     cardType: "Infantaria",
     atk: 1,
-    hp: 2,
+    hp: 3,
     cost: 1,
     effect: "Depois de atacar, move-se 1 casa de gra\xE7a e ganha +1 ATK para sempre.",
     abilities: [{ on: "after_attack", do: [{ kind: "free_move" }, { kind: "buff", atk: 1 }] }]
   },
   {
     name: "Lanceiro de Controle",
-    maxCopies: 4,
     trigger: "postura",
     cardType: "Infantaria",
     atk: 3,
-    hp: 2,
+    hp: 3,
     cost: 2,
     effect: "O inimigo \xE0 frente tem -2 ATK.",
     passives: [{ kind: "aura", who: { side: "enemy", facing: true }, atk: -2 }]
   },
   {
     name: "Cavaleiro T\xE1tico",
-    maxCopies: 4,
     trigger: "manobra",
     cardType: "Cavalaria",
     atk: 4,
@@ -95,7 +89,6 @@ var CARD_DEFS = [
   },
   {
     name: "Veterano de Guerra",
-    maxCopies: 4,
     trigger: "postura",
     cardType: "Infantaria",
     atk: 4,
@@ -121,7 +114,6 @@ var CARD_DEFS = [
   },
   {
     name: "Avan\xE7o Coordenado",
-    maxCopies: 4,
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -133,6 +125,7 @@ var CARD_DEFS = [
   },
   {
     name: "Reposicionamento R\xE1pido",
+    maxCopies: 2,
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -144,7 +137,6 @@ var CARD_DEFS = [
   },
   {
     name: "Linha Fechada",
-    maxCopies: 4,
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -156,7 +148,6 @@ var CARD_DEFS = [
   },
   {
     name: "Ordem de Retirada",
-    maxCopies: 4,
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -168,7 +159,6 @@ var CARD_DEFS = [
   },
   {
     name: "Bloqueio Instant\xE2neo",
-    maxCopies: 4,
     cardType: "Emboscada",
     atk: 0,
     hp: 0,
@@ -199,6 +189,7 @@ var CARD_DEFS = [
   },
   {
     name: "Estandarte da Legi\xE3o",
+    maxCopies: 1,
     trigger: "postura",
     fx: "estandarte",
     cardType: "Rel\xEDquia",
@@ -211,6 +202,7 @@ var CARD_DEFS = [
   },
   {
     name: "Fortaleza de Pedra",
+    maxCopies: 1,
     trigger: "postura",
     fx: "muralha",
     cardType: "Terreno",
@@ -223,6 +215,7 @@ var CARD_DEFS = [
   },
   {
     name: "P\xE2ntano Maldito",
+    maxCopies: 1,
     trigger: "postura",
     fx: "pantano",
     cardType: "Terreno",
@@ -249,6 +242,7 @@ var CARD_DEFS = [
   },
   {
     name: "C\xE1lice das Duas B\xEAn\xE7\xE3os",
+    maxCopies: 1,
     trigger: "postura",
     fx: "calice",
     cardType: "Rel\xEDquia",
@@ -259,9 +253,10 @@ var CARD_DEFS = [
     effect: "Seu General pode curar 2 vezes por turno.",
     passives: [{ kind: "aura", who: { side: "own", slots: [12] }, abilityUses: 1 }]
   },
-  { name: "Penitente de Pedra", maxCopies: 4, cardType: "Infantaria", atk: 0, hp: 4, cost: 1, effect: "" },
+  { name: "Penitente de Pedra", cardType: "Infantaria", atk: 0, hp: 4, cost: 1, effect: "" },
   {
     name: "Cambista do D\xEDzimo",
+    maxCopies: 1,
     trigger: "comando",
     cardType: "Infantaria",
     atk: 1,
@@ -272,6 +267,7 @@ var CARD_DEFS = [
   },
   {
     name: "Confessor Silencioso",
+    maxCopies: 1,
     trigger: "postura",
     cardType: "Infantaria",
     atk: 1,
@@ -285,6 +281,7 @@ var CARD_DEFS = [
   },
   {
     name: "Zeloso da Pira",
+    maxCopies: 1,
     cardType: "Infantaria",
     atk: 1,
     hp: 3,
@@ -295,7 +292,6 @@ var CARD_DEFS = [
   },
   {
     name: "Novi\xE7o Renascido",
-    maxCopies: 4,
     cardType: "Infantaria",
     atk: 0,
     hp: 3,
@@ -305,6 +301,7 @@ var CARD_DEFS = [
   },
   {
     name: "Despenseiro do Mosteiro",
+    maxCopies: 2,
     trigger: "comando",
     cardType: "Infantaria",
     atk: 2,
@@ -315,7 +312,6 @@ var CARD_DEFS = [
   },
   {
     name: "Sentinela do Claustro",
-    maxCopies: 4,
     fx: "soldados",
     cardType: "Infantaria",
     atk: 2,
@@ -327,6 +323,7 @@ var CARD_DEFS = [
   },
   {
     name: "Jorge, Lan\xE7a Sagrada",
+    maxCopies: 2,
     cardType: "Cavalaria",
     atk: 3,
     hp: 6,
@@ -352,6 +349,7 @@ var CARD_DEFS = [
   },
   {
     name: "Bar\xE3o da Prociss\xE3o",
+    maxCopies: 2,
     fx: "nobre",
     cardType: "Cavalaria",
     atk: 3,
@@ -364,6 +362,7 @@ var CARD_DEFS = [
   },
   {
     name: "Paladino do Alvorecer",
+    maxCopies: 2,
     cardType: "Cavalaria",
     atk: 3,
     hp: 5,
@@ -374,6 +373,7 @@ var CARD_DEFS = [
   },
   {
     name: "Marechal do Sol Poente",
+    maxCopies: 1,
     fx: "comandante",
     trigger: "postura",
     cardType: "Cavalaria",
@@ -392,6 +392,7 @@ var CARD_DEFS = [
   },
   {
     name: "Arqueiro de Dois Sinos",
+    maxCopies: 2,
     trigger: "postura",
     cardType: "Arqueiro",
     atk: 1,
@@ -402,6 +403,7 @@ var CARD_DEFS = [
   },
   {
     name: "Vigia do \xDAltimo Salmo",
+    maxCopies: 2,
     fx: "atirador",
     cardType: "Arqueiro",
     atk: 1,
@@ -413,6 +415,7 @@ var CARD_DEFS = [
   },
   {
     name: "Trabuco da Trombeta Final",
+    maxCopies: 1,
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -423,6 +426,7 @@ var CARD_DEFS = [
   },
   {
     name: "Catapulta do Dil\xFAvio de Pedra",
+    maxCopies: 2,
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -434,6 +438,7 @@ var CARD_DEFS = [
   },
   {
     name: "Balestra da Penit\xEAncia",
+    maxCopies: 2,
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -489,6 +494,7 @@ var CARD_DEFS = [
   },
   {
     name: "Preces na Sombra",
+    maxCopies: 2,
     cardType: "Emboscada",
     atk: 0,
     hp: 0,
@@ -498,6 +504,7 @@ var CARD_DEFS = [
   },
   {
     name: "Chamado do T\xFAmulo Santo",
+    maxCopies: 2,
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -508,6 +515,7 @@ var CARD_DEFS = [
   },
   {
     name: "Peregrina\xE7\xE3o ao Graal",
+    maxCopies: 1,
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -517,6 +525,7 @@ var CARD_DEFS = [
   },
   {
     name: "Serm\xE3o da Estrat\xE9gia",
+    maxCopies: 2,
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -535,6 +544,7 @@ var CARD_DEFS = [
   },
   {
     name: "Convoca\xE7\xE3o dos Veteranos de F\xE9",
+    maxCopies: 1,
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -574,11 +584,10 @@ var CARD_DEFS = [
     abilities: [{ on: "ability", phases: ["preparacao"], once: true, cost: 3, do: [{ kind: "draw", amount: 1 }] }]
   },
   // ── mercenários (com manutenção) ──
-  { name: "Lanceiro P\xE9s-de-Lama", maxCopies: 4, cardType: "Infantaria", atk: 2, hp: 2, cost: 1, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.**" },
-  { name: "Besteiro Dedo-Ligeiro", maxCopies: 4, cardType: "Arqueiro", atk: 2, hp: 2, cost: 2, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.**" },
+  { name: "Lanceiro P\xE9s-de-Lama", cardType: "Infantaria", atk: 2, hp: 2, cost: 1, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.**" },
+  { name: "Besteiro Dedo-Ligeiro", cardType: "Arqueiro", atk: 2, hp: 2, cost: 2, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.**" },
   {
     name: "Capa-Rota",
-    maxCopies: 4,
     cardType: "Infantaria",
     atk: 4,
     hp: 4,
@@ -589,7 +598,6 @@ var CARD_DEFS = [
   },
   {
     name: "Rato da Muralha",
-    maxCopies: 4,
     cardType: "Infantaria",
     atk: 2,
     hp: 2,
@@ -613,6 +621,7 @@ var CARD_DEFS = [
   },
   {
     name: "Cavaleiro do Escudo Raspado",
+    maxCopies: 2,
     isFullArt: true,
     cardType: "Cavalaria",
     atk: 5,
@@ -624,7 +633,6 @@ var CARD_DEFS = [
   },
   {
     name: "Florete de Aposta",
-    maxCopies: 4,
     cardType: "Infantaria",
     atk: 5,
     hp: 3,
@@ -635,7 +643,6 @@ var CARD_DEFS = [
   },
   {
     name: "Boca-de-Fogo",
-    maxCopies: 4,
     cardType: "Artilharia",
     atk: 4,
     hp: 3,
@@ -645,10 +652,9 @@ var CARD_DEFS = [
     abilities: [{ on: "dismissed", do: [{ kind: "lose_gold", amount: 2 }] }]
   },
   // ── sem manutenção ──
-  { name: "Vigia da \xDAltima Brasa", maxCopies: 4, cardType: "Infantaria", atk: 2, hp: 4, cost: 2, effect: "" },
+  { name: "Vigia da \xDAltima Brasa", cardType: "Infantaria", atk: 2, hp: 4, cost: 2, effect: "" },
   {
     name: "Quillon Contamoedas",
-    maxCopies: 4,
     fx: "moeda",
     trigger: "comando",
     cardType: "Infantaria",
@@ -670,6 +676,7 @@ var CARD_DEFS = [
   },
   {
     name: "Tambor do Soldo F\xE1cil",
+    maxCopies: 1,
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -688,6 +695,7 @@ var CARD_DEFS = [
   },
   {
     name: "Os Dois do Beco",
+    maxCopies: 1,
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -697,6 +705,7 @@ var CARD_DEFS = [
   },
   {
     name: "Chuva de Ferro Barato",
+    maxCopies: 2,
     fx: "chuva",
     cardType: "T\xE1tica",
     atk: 0,
@@ -709,6 +718,7 @@ var CARD_DEFS = [
   },
   {
     name: "Pacto do Punhal Vermelho",
+    maxCopies: 2,
     fx: "punhal",
     cardType: "T\xE1tica",
     atk: 0,
@@ -721,6 +731,7 @@ var CARD_DEFS = [
   },
   {
     name: "O Dia em que a Muralha Caiu",
+    maxCopies: 1,
     fx: "muralha",
     isFullArt: true,
     cardType: "T\xE1tica",
@@ -765,6 +776,7 @@ var CARD_DEFS = [
   // ── a Relíquia do deck: três modos, o dono escolhe um no fim do turno (vale até o fim do turno seguinte) ──
   {
     name: "C\xF3dice das Mil D\xEDvidas",
+    maxCopies: 2,
     fx: "codice",
     cardType: "Rel\xEDquia",
     atk: 0,
@@ -786,24 +798,23 @@ var DECK_RECIPES = {
     description: "Infantaria disciplinada e reforma\xE7\xE3o t\xE1tica.",
     general: "Comandante Aurelion, Mestre da Forma\xE7\xE3o",
     cards: {
-      "Soldado T\xE1tico": 4,
-      "Escudeiro de Linha": 4,
-      "Capit\xE3o de Forma\xE7\xE3o": 4,
-      "Batedor": 4,
-      "Lanceiro de Controle": 4,
-      "Cavaleiro T\xE1tico": 4,
-      "Veterano de Guerra": 4,
+      "Soldado T\xE1tico": 3,
+      "Escudeiro de Linha": 3,
+      "Capit\xE3o de Forma\xE7\xE3o": 3,
+      "Batedor": 3,
+      "Lanceiro de Controle": 3,
+      "Cavaleiro T\xE1tico": 3,
+      "Veterano de Guerra": 3,
       "Reformar Linhas": 3,
-      "Avan\xE7o Coordenado": 4,
-      "Reposicionamento R\xE1pido": 1,
-      "Linha Fechada": 4,
-      "Ordem de Retirada": 4,
+      "Avan\xE7o Coordenado": 3,
+      "Linha Fechada": 3,
+      "Ordem de Retirada": 3,
       "Catapulta do Dil\xFAvio de Pedra": 2,
       "Balestra da Penit\xEAncia": 2,
       "Trabuco da Trombeta Final": 1,
-      "Bloqueio Instant\xE2neo": 4,
-      "Contra-Manobra": 2,
-      "Forma\xE7\xE3o Quebrada": 2,
+      "Bloqueio Instant\xE2neo": 3,
+      "Contra-Manobra": 3,
+      "Forma\xE7\xE3o Quebrada": 3,
       "Estandarte da Legi\xE3o": 1,
       "Fortaleza de Pedra": 1,
       "P\xE2ntano Maldito": 1
@@ -816,34 +827,34 @@ var DECK_RECIPES = {
     general: "Cardeal Anselmo, Voz da F\xE9",
     cards: {
       "C\xE1lice das Duas B\xEAn\xE7\xE3os": 1,
-      "Penitente de Pedra": 4,
+      "Penitente de Pedra": 3,
       "Cambista do D\xEDzimo": 1,
       "Confessor Silencioso": 1,
       "Zeloso da Pira": 1,
-      "Novi\xE7o Renascido": 4,
-      "Despenseiro do Mosteiro": 3,
-      "Sentinela do Claustro": 4,
+      "Novi\xE7o Renascido": 3,
+      "Despenseiro do Mosteiro": 1,
+      "Sentinela do Claustro": 3,
       "Jorge, Lan\xE7a Sagrada": 2,
       "Samaritano de A\xE7o": 3,
       "Bar\xE3o da Prociss\xE3o": 2,
-      "Paladino do Alvorecer": 3,
+      "Paladino do Alvorecer": 2,
       "Marechal do Sol Poente": 1,
-      "Arqueiro de Dois Sinos": 3,
-      "Vigia do \xDAltimo Salmo": 3,
+      "Arqueiro de Dois Sinos": 2,
+      "Vigia do \xDAltimo Salmo": 1,
       "Trabuco da Trombeta Final": 1,
       "Catapulta do Dil\xFAvio de Pedra": 1,
       "Balestra da Penit\xEAncia": 1,
-      "Coura\xE7a do M\xE1rtir": 2,
+      "Coura\xE7a do M\xE1rtir": 3,
       "Gib\xE3o Bento": 2,
       "Setas de Cicuta": 1,
-      "L\xE2mina do Juramento": 2,
+      "L\xE2mina do Juramento": 3,
       "Preces na Sombra": 2,
       "Chamado do T\xFAmulo Santo": 1,
       "Peregrina\xE7\xE3o ao Graal": 1,
-      "Serm\xE3o da Estrat\xE9gia": 3,
+      "Serm\xE3o da Estrat\xE9gia": 1,
       "Alistamento do P\xFAlpito": 2,
       "Convoca\xE7\xE3o dos Veteranos de F\xE9": 1,
-      "D\xEDzimo de Guerra": 2,
+      "D\xEDzimo de Guerra": 1,
       "Toque dos Sinos de Guerra": 2
     }
   },
@@ -854,18 +865,18 @@ var DECK_RECIPES = {
     general: "Brann Meia-Coroa, Comprador de Guerras",
     cards: {
       // 31 mercenários (com manutenção) e 7 sem manutenção
-      "Lanceiro P\xE9s-de-Lama": 4,
-      "Besteiro Dedo-Ligeiro": 4,
-      "Capa-Rota": 4,
-      "Rato da Muralha": 4,
+      "Lanceiro P\xE9s-de-Lama": 3,
+      "Besteiro Dedo-Ligeiro": 3,
+      "Capa-Rota": 3,
+      "Rato da Muralha": 3,
       "Capit\xE3o Barba-de-Corvo": 3,
-      "Cavaleiro do Escudo Raspado": 3,
-      "Florete de Aposta": 4,
-      "Boca-de-Fogo": 4,
-      "Vigia da \xDAltima Brasa": 4,
-      "Quillon Contamoedas": 4,
+      "Cavaleiro do Escudo Raspado": 2,
+      "Florete de Aposta": 3,
+      "Boca-de-Fogo": 3,
+      "Vigia da \xDAltima Brasa": 3,
+      "Quillon Contamoedas": 3,
       // a Relíquia e quem a busca
-      "C\xF3dice das Mil D\xEDvidas": 3,
+      "C\xF3dice das Mil D\xEDvidas": 2,
       "Escriba do C\xF3dice": 3,
       // táticas, equipamentos e emboscada próprios
       "Chuva de Ferro Barato": 2,
@@ -2334,6 +2345,7 @@ var abilityAction = (s, seat, slot, rand) => {
   if (!abilityPhases(card.name).includes(s.turn.phase)) return null;
   if (slot === 12 ? me.generalAbilityUses >= maxGeneralAbilityUses(me.board) || me.generalAbilityBlocked : ab.once && s.turn.activated.includes(card.id)) return null;
   if (me.gold < (ab.cost ?? 0)) return null;
+  if (me.drawPile.length === 0 && ab.do.some((v) => v.kind === "look_top")) return null;
   const picks = [];
   let any = false;
   for (const spec of targetSpecsOf(ab.do)) {
@@ -2573,6 +2585,7 @@ var candidates = (s, seat, rand) => {
       if (!card || !ab || !abilityPhases(card.name).includes(t.phase)) continue;
       if (slot === 12 ? me.generalAbilityUses >= maxGeneralAbilityUses(me.board) || me.generalAbilityBlocked : ab.once && t.activated.includes(card.id)) continue;
       if (me.gold < (ab.cost ?? 0)) continue;
+      if (me.drawPile.length === 0 && ab.do.some((v) => v.kind === "look_top")) continue;
       const specs = targetSpecsOf(ab.do);
       if (specs.length === 0) {
         out.push({ type: "ability", slot });

@@ -27,9 +27,11 @@ const ok = (c: boolean, msg: string) => { if (!c) throw new Error(msg); };
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 let n = 0;
+// Rules tests use a few cheap units as targets: their HP is pinned here, so a balance change to the catalog (rodada 22 gave them more HP) does not break a rules test.
+const FIXTURE_HP: Record<string, number> = { 'Batedor': 2, 'Soldado Tático': 3, 'Lanceiro de Controle': 2 };
 const mk = (name: string): Card => {
   const d = requireCardDef(name);
-  return { id: `x${++n}`, name: d.name, cardType: d.cardType, atk: d.atk, hp: d.hp, cost: d.cost, effect: d.effect, ...(d.trigger ? { trigger: d.trigger } : {}) };
+  return { id: `x${++n}`, name: d.name, cardType: d.cardType, atk: d.atk, hp: FIXTURE_HP[name] ?? d.hp, cost: d.cost, effect: d.effect, ...(d.trigger ? { trigger: d.trigger } : {}) };
 };
 // A started match, seat 0 on turn, empty hands and boards (except Generals), plenty of gold.
 const fresh = (opts: { a?: 'capitao' | 'cardeal'; b?: 'capitao' | 'cardeal'; first?: Seat; round?: number; phase?: GameState['turn']['phase'] } = {}): GameState => {

@@ -42,17 +42,20 @@ test('copies: the default limit is 3 and a card can set its own', () => {
   ok(/Limite de 3 cópias/.test(deckProblem(cards, recipe.general) ?? ''), 'a 4th copy of a normal card is refused: ' + deckProblem(cards, recipe.general));
 });
 
-test('the prebuilt decks are valid, and only the temporary exceptions go above 3 copies', () => {
-  const above3 = new Set<string>();
+test('the prebuilt decks are 50 cards, valid, and respect each card\'s own limit (no exception above 3 is left)', () => {
   for (const [id, d] of Object.entries(DECK_RECIPES)) {
     ok(deckProblem(d.cards, d.general) === null, `${id} must be a valid deck: ${deckProblem(d.cards, d.general)}`);
-    ok(deckCardCount(d.cards) >= DECK_MIN_CARDS, `${id} has at least ${DECK_MIN_CARDS} cards`);
-    for (const [name, copies] of Object.entries(d.cards)) if ((copies as number) > DECK_DEFAULT_MAX_COPIES) above3.add(name);
+    eq(deckCardCount(d.cards), 50, `${id} has exactly 50 cards`);
+    for (const [name, copies] of Object.entries(d.cards)) ok((copies as number) <= maxCopiesOf(name), `${id}: ${name} x${copies} is above its limit ${maxCopiesOf(name)}`);
   }
-  // Every card with a limit above the default is one the prebuilt decks still need: when a deck is rebuilt to fit 3 copies, its exception goes away.
-  const exceptions = Object.keys(DECK_RECIPES).flatMap(id => Object.keys(DECK_RECIPES[id as keyof typeof DECK_RECIPES].cards)).filter((n, i, a) => a.indexOf(n) === i && maxCopiesOf(n) > DECK_DEFAULT_MAX_COPIES);
-  eq(exceptions.sort(), [...above3].sort(), 'temporary exceptions = cards the prebuilt decks run above 3');
-  eq(above3.size, 22, 'step 2 (rebuild the decks) removes these 22');
+  const above = Object.keys(DECK_RECIPES).flatMap(id => Object.keys(DECK_RECIPES[id as keyof typeof DECK_RECIPES].cards)).filter(n => maxCopiesOf(n) > DECK_DEFAULT_MAX_COPIES);
+  eq(above, [], 'no card may have a limit above the default');
+});
+
+test('limits follow strength: unique cards 1, strong cards 2', () => {
+  eq(['Trabuco da Trombeta Final', 'Estandarte da Legião', 'Cambista do Dízimo'].map(maxCopiesOf), [1, 1, 1]);
+  eq(['Jorge, Lança Sagrada', 'Vigia do Último Salmo', 'Códice das Mil Dívidas'].map(maxCopiesOf), [2, 2, 2]);
+  eq(['Batedor', 'Soldado Tático', 'Penitente de Pedra'].map(maxCopiesOf), [3, 3, 3]);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

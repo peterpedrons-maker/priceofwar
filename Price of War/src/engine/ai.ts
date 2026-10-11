@@ -280,6 +280,7 @@ const abilityAction = (s: GameState, seat: Seat, slot: number, rand: Rand): Acti
   if (!abilityPhases(card.name).includes(s.turn.phase)) return null;
   if (slot === 12 ? me.generalAbilityUses >= maxGeneralAbilityUses(me.board) || me.generalAbilityBlocked : ab.once && s.turn.activated.includes(card.id)) return null;
   if (me.gold < (ab.cost ?? 0)) return null;
+  if (me.drawPile.length === 0 && ab.do.some(v => v.kind === 'look_top')) return null;   // nothing to look at: the engine refuses
   const picks: (number | undefined)[] = [];
   let any = false;
   for (const spec of targetSpecsOf(ab.do)) {
@@ -566,6 +567,7 @@ const candidates = (s: GameState, seat: Seat, rand: Rand): Action[] => {
       if (!card || !ab || !abilityPhases(card.name).includes(t.phase)) continue;
       if (slot === 12 ? me.generalAbilityUses >= maxGeneralAbilityUses(me.board) || me.generalAbilityBlocked : ab.once && t.activated.includes(card.id)) continue;
       if (me.gold < (ab.cost ?? 0)) continue;
+      if (me.drawPile.length === 0 && ab.do.some(v => v.kind === 'look_top')) continue;   // nothing to look at: the engine refuses
       const specs = targetSpecsOf(ab.do);
       if (specs.length === 0) { out.push({ type: 'ability', slot }); continue; }
       const options = specs.map(spec => {

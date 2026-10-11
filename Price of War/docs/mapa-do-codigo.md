@@ -47,15 +47,15 @@ DzOpponent:12 · DzDeck:13 · PLACES:16 · LOCKED:22 · MAPPX:24 · PIN_SVG:25 �
 
 GAP_MS:20 · SHOW_MS:22 · DECK_PHRASE:25 · deckOfGeneral:26 · PHRASES:30 · EMOJIS:34 · phraseText:37 · iconOf:38 · Bubble:40 · PUFFS:43 · Puff:44 · Emotes:53
 
-## src/engine/ai.ts  (739 linhas)
+## src/engine/ai.ts  (741 linhas)
 A IA do adversário: planeja o turno simulando no próprio motor (aiNextAction) e a IA antiga (aiLegacyAction).
 
-Rand:18 · randomOf:20 · weakest:22 · UNIT_SLOTS:25 · isSoldier:26 · cardValue:29 · unitWorth:37 · isRangedType:42 · boardScore:44 · swapped:79 · MoveOption:85 · moveOptions:88 · bestMove:112 · planGain:119 · bestSlot:147 · attackScore:162 · matches:182 · tacticPlay:185 · abilityAction:274 · bestIds:297 · upkeepAnswer:304 · wantedRelicMode:342 · aiLegacyAction:359 · AiStyle:474 · STYLE:475 · holdValue:478 · attackPotential:493 · sideValue:506 · upkeepBurden:523 · evalState:526 · sortedDesc:541 · forSearch:544 · candidates:554 · lastPhaseOf:625 · fingerprint:628 · Line:637 · SEARCH:639 · settle:642 · planTurn:653 · memo:694 · answerPending:696 · aiNextAction:715 · aiNextActionInner:720
+Rand:18 · randomOf:20 · weakest:22 · UNIT_SLOTS:25 · isSoldier:26 · cardValue:29 · unitWorth:37 · isRangedType:42 · boardScore:44 · swapped:79 · MoveOption:85 · moveOptions:88 · bestMove:112 · planGain:119 · bestSlot:147 · attackScore:162 · matches:182 · tacticPlay:185 · abilityAction:274 · bestIds:298 · upkeepAnswer:305 · wantedRelicMode:343 · aiLegacyAction:360 · AiStyle:475 · STYLE:476 · holdValue:479 · attackPotential:494 · sideValue:507 · upkeepBurden:524 · evalState:527 · sortedDesc:542 · forSearch:545 · candidates:555 · lastPhaseOf:627 · fingerprint:630 · Line:639 · SEARCH:641 · settle:644 · planTurn:655 · memo:696 · answerPending:698 · aiNextAction:717 · aiNextActionInner:722
 
-## src/engine/catalog.ts  (427 linhas)
+## src/engine/catalog.ts  (426 linhas)
 TODAS as cartas (atributos, texto, efeitos em dados), as receitas dos dois decks, balanceamento (BALANCE), listas iniciais antigas (LEGACY_STARTERS).
 
-SOLDIERS:8 · OWN_UNIT:9 · ENEMY_UNIT:10 · CARD_DEFS:12 · DeckId:221 · DeckRecipe:223 · DECK_RECIPES:225 · BALANCE:308 · STARTER_TRIM:320 · starterDeckCards:321 · LEGACY_STARTERS:329 · BY_NAME:343 · getCardDef:346 · registerCardDefs:348 · requireCardDef:349 · LEGACY_CARD_NAMES:356 · currentCardName:412 · currentNames:414 · isGeneralName:419 · TOKEN_DEFS:423
+SOLDIERS:8 · OWN_UNIT:9 · ENEMY_UNIT:10 · CARD_DEFS:12 · DeckId:221 · DeckRecipe:223 · DECK_RECIPES:225 · BALANCE:307 · STARTER_TRIM:319 · starterDeckCards:320 · LEGACY_STARTERS:328 · BY_NAME:342 · getCardDef:345 · registerCardDefs:347 · requireCardDef:348 · LEGACY_CARD_NAMES:355 · currentCardName:411 · currentNames:413 · isGeneralName:418 · TOKEN_DEFS:422
 
 ## src/engine/deck.ts  (31 linhas)
 Regras de montagem de deck (40 a 60 cartas, 4 cópias).
@@ -255,7 +255,7 @@ Passa as regras do patch (ouro, início do combate) ao motor antes de ele carreg
 
 UNITS:10 · bandCost:11 · defs:12 · where:13 · rows:19 · off:32
 
-## tests/deck-rules.ts  (60 linhas)
+## tests/deck-rules.ts  (63 linhas)
 (sem descrição ainda: acrescente em FILE_NOTES)
 
 passed:4 · test:5 · ok:6 · eq:7 · recipe:9 · listOf:11
@@ -265,10 +265,10 @@ passed:4 · test:5 · ok:6 · eq:7 · recipe:9 · listOf:11
 
 dir:10 · out:11 · cmd:12 · fresh:14 · committed:15
 
-## tests/engine-rules.ts  (1229 linhas)
+## tests/engine-rules.ts  (1231 linhas)
 Um cenário por regra do jogo (npm test).
 
-passed:19 · test:20 · eq:23 · ok:26 · n:29 · mk:30 · fresh:35 · put:46 · give:47 · act:48 · refused:53 · names:58 · combat:59 · ambushSetup:368 · shielded:658 · aiTurn:719 · atkOf:897 · endTurnOf:898 · freshMerc:1100 · toNextTurn:1107
+passed:19 · test:20 · eq:23 · ok:26 · n:29 · FIXTURE_HP:31 · mk:32 · fresh:37 · put:48 · give:49 · act:50 · refused:55 · names:60 · combat:61 · ambushSetup:370 · shielded:660 · aiTurn:721 · atkOf:899 · endTurnOf:900 · freshMerc:1102 · toNextTurn:1109
 
 ## tests/engine-sim.ts  (185 linhas)
 Partidas IA × IA com invariantes, repetição determinística e fuzz (npm test).
