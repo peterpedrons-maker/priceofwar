@@ -81,3 +81,5 @@ Kit de interface do ranqueado **entregue e recortado** (`src/assets/kit-rank/`) 
 Ajuste (dono): no ranking a faixa da temporada saiu (agora é só uma linha de texto sob o título) e o texto da fita de título passou a ficar centralizado na fita (o espaçamento de letras empurrava o texto para o lado).
 
 Ajustes das telas do kit (dono): fita de título (Ligas/Ranking) desce para dentro da moldura da janela; linhas da lista passam a usar a moldura com o encaixe do símbolo no quadrado da própria arte (emblema centralizado no quadrado, em vez de um retângulo dentro de outro); a faixa da temporada (arte gerada) volta no Ranking com o texto centralizado no pergaminho; a tela de vitória não mudou.
+
+Ajuste (dono): as linhas da lista (Ligas e Ranking) usam agora `linha-normal-livre.png` e `linha-atual-livre.png` (o quadrado do símbolo foi apagado da arte; o símbolo da liga fica solto, maior, à esquerda); as linhas bloqueadas são a mesma linha escurecida (sem o cadeado, que cortava o símbolo). A faixa da temporada tem o texto grande ("TEMPORADA 1", "termina em 41 dias") centralizado no pergaminho.
