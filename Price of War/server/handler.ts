@@ -11,7 +11,7 @@ import { applyReward, rewardFor } from '../src/engine/rewards';
 import type { Action, GameEvent, GameState, Seat } from '../src/engine/types';
 import { otherSeat } from '../src/engine/types';
 import { eventsFor, viewFor } from '../src/engine/view';
-import { MESTRE_FROM, TOP_LEAGUE_SIZE, applyRankedMatch, leagueLabel, leagueOf, newRankedProfile, withTopLeague, type RankedProfile } from '../src/engine/ranked';
+import { LEAGUES, MESTRE_FROM, TOP_LEAGUE_SIZE, applyRankedMatch, closeSeason, leagueLabel, leagueOf, newRankedProfile, seasonAt, withTopLeague, type RankedProfile } from '../src/engine/ranked';
 import type { Db, DeckJson, EndReason, MatchPatch, MatchRow, RewardRow, StepRow, ViewRow } from './types';
 
 export interface GameConfig {
@@ -62,18 +62,40 @@ const EMOTE_GAP_MS = 2500;
 const EMOTE_MAX_PER_MATCH = 80;
 
 // What a client may know about a player's ladder numbers (the hidden Elo stays on the server).
-export interface RankedView { points: number; label: string; league: string; division: number | null; inDivision: number; games: number; wins: number; losses: number; shield: boolean; peak: number; placementLeft: number; position: number; top: boolean }
+export interface RankedView { points: number; label: string; league: string; division: number | null; inDivision: number; games: number; wins: number; losses: number; shield: boolean; peak: number; placementLeft: number; position: number; top: boolean;
+  // The season these numbers belong to, when it ends, the portrait frame won earlier, and finished seasons whose Coroas were not claimed yet.
+  season: number; endsAt: number; frame: string | null; pending: { season: number; league: string; coroas: number }[] }
 const PLACEMENT = 5;
-const rankedView = async (db: Db, p: RankedProfile): Promise<RankedView> => {
+const frameRank = (k: string | null | undefined) => (k === 'senhor-da-guerra' ? LEAGUES.length : k ? LEAGUES.indexOf(k as any) : -1);
+const rankedView = async (db: Db, cfg: GameConfig, p: RankedProfile, userId?: string): Promise<RankedView> => {
   const l = leagueOf(p.points);
-  const position = await db.rankedPosition(p.points);
+  const season = p.season ?? seasonAt(cfg.now()).number;
+  const position = await db.rankedPosition(p.points, season);
   const top = p.points >= MESTRE_FROM && position <= TOP_LEAGUE_SIZE;
-  return { points: p.points, label: leagueLabel(p.points, top), league: top ? 'senhor-da-guerra' : l.league, division: l.division, inDivision: l.inDivision, games: p.games, wins: p.wins, losses: p.losses, shield: p.shield, peak: p.peak, placementLeft: Math.max(0, PLACEMENT - p.games), position, top };
+  const pending = userId ? (await db.rankedSeasons(userId)).filter(x => !x.claimed).map(x => ({ season: x.season, league: x.league, coroas: x.coroas })) : [];
+  return { points: p.points, label: leagueLabel(p.points, top), league: top ? 'senhor-da-guerra' : l.league, division: l.division, inDivision: l.inDivision, games: p.games, wins: p.wins, losses: p.losses, shield: p.shield, peak: p.peak, placementLeft: Math.max(0, PLACEMENT - p.games), position, top,
+    season, endsAt: seasonAt(cfg.now()).endsAt, frame: p.frame ?? null, pending };
+};
+
+// The player's ladder row for the CURRENT season. A row left over from an older season is closed first (once): the season pays by the highest
+// league reached (Senhor da Guerra if they were among the best Mestres), the points are halved and the frame is kept.
+const ladderOf = async (db: Db, cfg: GameConfig, userId: string): Promise<RankedProfile> => {
+  const current = seasonAt(cfg.now()).number;
+  const p = await db.rankedProfile(userId);
+  if (!p) return newRankedProfile(current);
+  const old = p.season ?? 1;
+  if (old >= current) return p;
+  const reached = Math.max(p.peak, p.points);
+  const top = reached >= MESTRE_FROM && (await db.rankedPosition(reached, old)) <= TOP_LEAGUE_SIZE;
+  const c = closeSeason(p, current, top);
+  await db.rankedCloseSeason(userId, { season: old, peak: reached, league: c.league, coroas: c.coroas, claimed: false }, c.next);
+  return (await db.rankedProfile(userId)) ?? c.next;
 };
 
 export type GameRequest =
   | { op: 'queue'; cards: Record<string, number>; general: string; vsBot?: boolean; botDeck?: string; ranked?: boolean }
   | { op: 'ranked' }
+  | { op: 'claim'; season: number }
   | { op: 'ranking'; limit?: number }
   | { op: 'status' }
   | { op: 'cancel' }
@@ -89,6 +111,7 @@ export type GameResponse =
   | { ok: true; status: 'acted'; rows: ViewRow[]; finished: boolean; deadline: number | null; now: number; reward: RewardRow | null }
   | { ok: true; status: 'result'; finished: boolean; reward: RewardRow | null }
   | { ok: true; status: 'ranked'; profile: RankedView }
+  | { ok: true; status: 'claimed'; coroas: number; coroas_after: number; profile: RankedView }
   | { ok: true; status: 'ranking'; rows: { rank: number; user: string; name: string; avatarId: string; points: number; label: string; top: boolean; me: boolean }[]; me: RankedView }
   | { ok: true; status: 'emotes'; emotes: { id: number; from: 0 | 1; code: string }[] }
   | { ok: false; error: string };
@@ -162,14 +185,14 @@ const patchOf = (m: MatchRow, w: Work, extra: Partial<MatchPatch> = {}): MatchPa
 
 // ── Rewards ─────────────────────────────────────────────────────────────────
 // Pays the match's rewards once it is over. Safe to call again: the database refuses to pay twice.
-const ensureRewards = async (db: Db, m: MatchRow): Promise<RewardRow[] | null> => {
+const ensureRewards = async (db: Db, cfg: GameConfig, m: MatchRow): Promise<RewardRow[] | null> => {
   if (m.status !== 'finished' || m.winner === null) return null;
   let rows: RewardRow[] | null = m.rewards;
   if (!rows) {
     const made: RewardRow[] = [];
     // Ranked: both players' ladder numbers are read before either moves, so the result does not depend on the order.
     const ladder: Partial<Record<Seat, RankedProfile>> = {};
-    if (m.ranked) for (const seat of [0, 1] as Seat[]) { const u = userOfSeat(m, seat); if (u) ladder[seat] = (await db.rankedProfile(u)) ?? newRankedProfile(); }
+    if (m.ranked) for (const seat of [0, 1] as Seat[]) { const u = userOfSeat(m, seat); if (u) ladder[seat] = await ladderOf(db, cfg, u); }
     for (const seat of [0, 1] as Seat[]) {
       const user = userOfSeat(m, seat);
       if (!user) continue;
@@ -242,7 +265,7 @@ const enforceClock = async (db: Db, m: MatchRow, cfg: GameConfig): Promise<Match
     if (!fresh) return m;
     m = fresh;
     if (!saved) continue;
-    if (m.status === 'finished') await ensureRewards(db, m);
+    if (m.status === 'finished') await ensureRewards(db, cfg, m);
   }
   return m;
 };
@@ -268,7 +291,13 @@ const initOf = async (db: Db, m: MatchRow, userId: string, cfg: GameConfig): Pro
   let leagues: [string, string] | undefined;
   if (m.ranked) {
     const ids = [userId, oppId];
-    const keys = await Promise.all(ids.map(async u => (u ? (await rankedView(db, (await db.rankedProfile(u)) ?? newRankedProfile())).league : 'ferro')));
+    // The ring around a portrait: the better of the frame won in an earlier season and the current league.
+    const keys = await Promise.all(ids.map(async u => {
+      if (!u) return 'ferro';
+      const p = await ladderOf(db, cfg, u);
+      const now = (await rankedView(db, cfg, p)).league;
+      return frameRank(p.frame) > frameRank(now) ? (p.frame as string) : now;
+    }));
     leagues = [keys[0], keys[1]];
   }
   return {
@@ -381,7 +410,7 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
         m = await enforceClock(db, m, cfg);
         if (req.op === 'tick' || m.status !== 'active') {
           if (req.op === 'act') return { ok: false, error: 'A partida já terminou.' };
-          const rewards = await ensureRewards(db, m);
+          const rewards = await ensureRewards(db, cfg, m);
           return { ok: true, status: 'acted', rows: await db.views(m.id, seat, req.since ?? 0), finished: m.status === 'finished', deadline: m.turn_deadline, now: cfg.now(), reward: rewardOf(m, rewards, userId) };
         }
         const w = startWork(m);
@@ -400,7 +429,7 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
         const saved = await db.saveMatch(m.id, m.steps_count, patchOf({ ...m, timeouts }, w, { timeouts, end_reason: endReason }), w.steps, w.views);
         if (!saved) continue; // somebody else moved first: look again
         const fresh = (await db.getMatch(m.id)) ?? m;
-        const rewards = w.state.winner !== null ? await ensureRewards(db, fresh) : null;
+        const rewards = w.state.winner !== null ? await ensureRewards(db, cfg, fresh) : null;
         return { ok: true, status: 'acted', rows: await db.views(m.id, seat, req.since ?? 0), finished: w.state.winner !== null, deadline: w.deadline, now: cfg.now(), reward: rewardOf(fresh, rewards, userId) };
       }
       return { ok: false, error: 'A partida mudou enquanto você jogava. Tente de novo.' };
@@ -408,17 +437,22 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
     case 'result': {
       const m = await db.getMatch(req.matchId);
       if (!m || playerOf(m, userId) === null) return { ok: false, error: 'Partida não encontrada.' };
-      const rewards = await ensureRewards(db, m);
+      const rewards = await ensureRewards(db, cfg, m);
       return { ok: true, status: 'result', finished: m.status === 'finished', reward: rewardOf(m, rewards, userId) };
     }
     case 'ranked': {
-      return { ok: true, status: 'ranked', profile: await rankedView(db, (await db.rankedProfile(userId)) ?? newRankedProfile()) };
+      return { ok: true, status: 'ranked', profile: await rankedView(db, cfg, await ladderOf(db, cfg, userId), userId) };
+    }
+    case 'claim': {
+      const paid = await db.rankedClaim(userId, Math.floor(Number(req.season)));
+      if (!paid) return { ok: false, error: 'Nada para resgatar.' };
+      return { ok: true, status: 'claimed', coroas: paid.coroas, coroas_after: paid.coroas_after, profile: await rankedView(db, cfg, await ladderOf(db, cfg, userId), userId) };
     }
     case 'ranking': {
       const limit = Math.max(1, Math.min(100, Math.floor(Number(req.limit) || 50)));
-      const top = withTopLeague((await db.rankedTop(limit)).map(r => ({ ...r, points: r.profile.points })));
-      const mine = (await db.rankedProfile(userId)) ?? newRankedProfile();
-      return { ok: true, status: 'ranking', me: await rankedView(db, mine), rows: top.map(r => ({ rank: r.rank, user: r.user_id, name: r.username, avatarId: r.avatar_id, points: r.points, label: leagueLabel(r.points, r.top), top: r.top, me: r.user_id === userId })) };
+      const mine = await ladderOf(db, cfg, userId);
+      const top = withTopLeague((await db.rankedTop(limit, mine.season ?? 1)).map(r => ({ ...r, points: r.profile.points })));
+      return { ok: true, status: 'ranking', me: await rankedView(db, cfg, mine, userId), rows: top.map(r => ({ rank: r.rank, user: r.user_id, name: r.username, avatarId: r.avatar_id, points: r.points, label: leagueLabel(r.points, r.top), top: r.top, me: r.user_id === userId })) };
     }
     case 'emote':
     case 'emotes': {

@@ -3,8 +3,8 @@ import type React from 'react';
 // promotion celebration. Art: src/assets/kit-rank (UI kit), src/assets/ligas (league emblems and portrait rings). Mockups: docs/janelas/ranqueado-*.png.
 import { memo, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { LEAGUES, LEAGUE_NAMES, ROMAN, leagueOf, type League } from './engine/ranked';
-import { fetchRanked, fetchRanking, type RankedView, type RankingRow, type RewardInfo } from './services/online';
+import { LEAGUES, LEAGUE_NAMES, ROMAN, SEASON_COROAS, leagueOf, type League } from './engine/ranked';
+import { claimSeason, fetchRanked, fetchRanking, type RankedView, type RankingRow, type RewardInfo } from './services/online';
 import janela from './assets/kit-rank/janela.png';
 import fitaCoroa from './assets/kit-rank/fita-coroa.png';
 import barraMoldura from './assets/kit-rank/barra-moldura.png';
@@ -66,7 +66,7 @@ const Win = ({ title, children, footer, onClose }: { title: string; children: Re
     <div className="absolute inset-x-2 top-2 bottom-2 mx-auto max-w-[460px]" onClick={e => e.stopPropagation()}
       style={{ border: '34px solid transparent', borderImage: `url(${janela}) 95 fill / 34px stretch`, filter: 'drop-shadow(0 8px 24px #000)' }}>
       <div className="absolute left-1/2 z-10" style={{ top: -62, transform: 'translateX(-50%)', width: 236, height: 73, backgroundImage: `url(${fitaCoroa})`, backgroundSize: '100% 100%', display: 'grid', placeItems: 'center' }}>
-        <span style={{ fontFamily: CINZEL, fontWeight: 900, fontSize: 17, letterSpacing: '0.2em', paddingLeft: '0.2em', color: '#2a1a05', textShadow: '0 1px 0 rgba(255,240,180,.7)', textTransform: 'uppercase' }}>{title}</span>
+        <span style={{ fontFamily: CINZEL, fontWeight: 900, fontSize: title.length > 9 ? 14 : 17, letterSpacing: title.length > 9 ? '0.12em' : '0.2em', paddingLeft: title.length > 9 ? '0.12em' : '0.2em', color: '#2a1a05', textShadow: '0 1px 0 rgba(255,240,180,.7)', textTransform: 'uppercase' }}>{title}</span>
       </div>
       <div className="absolute inset-0 flex flex-col" style={{ padding: '30px 2px 0' }}>
         <div className="flex-1 min-h-0 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>{children}</div>
@@ -115,7 +115,7 @@ export const PointsBar = ({ base, gain = 0, loss = 0, width = 330, animate = tru
 const Emblem = ({ k, size, style }: { k: LeagueKey; size: number; style?: CSSProperties }) => <img src={EMBLEM[k]} alt="" draggable={false} style={{ width: size, height: size, objectFit: 'contain', filter: 'drop-shadow(0 4px 6px #000)', ...style }} />;
 
 // ── Ligas ───────────────────────────────────────────────────────────────────
-export const LigasScreen = ({ onClose, onRanking }: { onClose: () => void; onRanking?: () => void; key?: React.Key }) => {
+export const LigasScreen = ({ onClose, onRanking, onCoroas }: { onClose: () => void; onRanking?: () => void; onCoroas?: (balance: number) => void; key?: React.Key }) => {
   const [me, setMe] = useState<RankedView | null | undefined>(undefined);
   const [rewardsOpen, setRewardsOpen] = useState(false);
   useEffect(() => { let on = true; fetchRanked().then(r => { if (on) setMe(r); }); return () => { on = false; }; }, []);
@@ -129,6 +129,7 @@ export const LigasScreen = ({ onClose, onRanking }: { onClose: () => void; onRan
           <span className="grid place-items-center" style={{ width: 46, height: 46, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #4a3512, #150e08)', boxShadow: 'inset 0 0 0 2px #d9b45a, 0 0 10px rgba(255,205,90,.35), 0 3px 6px #000' }}>
             <img src={iconeCoroa} alt="" draggable={false} style={{ width: 28, height: 28, objectFit: 'contain' }} />
           </span>
+          {!!me?.pending.length && <span className="absolute" style={{ right: 0, top: 0, width: 14, height: 14, borderRadius: '50%', background: '#e0482f', boxShadow: '0 0 0 2px #1a0f08, 0 0 8px #ff7a4a', color: '#fff', fontFamily: CINZEL, fontWeight: 900, fontSize: 9, display: 'grid', placeItems: 'center' }}>{me.pending.length}</span>}
           <span style={{ fontFamily: CINZEL, fontWeight: 800, fontSize: 8, letterSpacing: '0.04em', color: '#e8d6b0', marginTop: 3, textTransform: 'uppercase' }}>Recompensas</span>
         </button>
         {me === undefined ? <div style={{ color: '#cdbd97', fontFamily: SERIF, padding: 40 }}>Carregando…</div> : (
@@ -158,29 +159,51 @@ export const LigasScreen = ({ onClose, onRanking }: { onClose: () => void; onRan
         )}
       </div>
     </Win>
-    <AnimatePresence>{rewardsOpen && <RewardsScreen key="rewards" onClose={() => setRewardsOpen(false)} />}</AnimatePresence>
+    <AnimatePresence>{rewardsOpen && <RewardsScreen key="rewards" me={me ?? null} onClose={() => setRewardsOpen(false)} onClaimed={(profile, balance) => { setMe(profile); onCoroas?.(balance); }} />}</AnimatePresence>
     </>
   );
 };
 
-// The rewards of each league (what the season gives for the highest league reached), on their own window.
-const REWARD_LINES: Record<LeagueKey, string[]> = {
-  ferro: ['Moldura'], bronze: ['Moldura', '1 booster'], prata: ['Moldura', '100 coroas'], ouro: ['Moldura', '200 coroas'],
-  platina: ['Moldura', '1 booster raro'], diamante: ['Moldura', 'Avatar exclusivo'], mestre: ['Moldura', 'Verso de carta'], 'senhor-da-guerra': ['Moldura', 'Carta exclusiva'],
+// What a season pays, by the highest league reached: the portrait frame of that league and Coroas (`SEASON_COROAS`, in engine/ranked.ts).
+const daysLeftText = (endsAt: number) => { const d = Math.ceil((endsAt - Date.now()) / 86400000); return d <= 1 ? 'termina hoje' : `termina em ${d} dias`; };
+const nameOfLeague = (k: string) => LEAGUE_NAMES[k as LeagueKey] ?? k;
+const RewardsScreen = ({ me, onClose, onClaimed }: { me: RankedView | null; onClose: () => void; onClaimed: (profile: RankedView, balance: number) => void; key?: React.Key }) => {
+  const [busy, setBusy] = useState<number | null>(null);
+  const [failed, setFailed] = useState(false);
+  const claim = async (season: number) => {
+    setBusy(season); setFailed(false);
+    const r = await claimSeason(season);
+    setBusy(null);
+    if (r) onClaimed(r.profile, r.coroas_after); else setFailed(true);
+  };
+  return (
+    <Win title="Recompensas" onClose={onClose} footer={<KitButton onClick={onClose}>Voltar</KitButton>}>
+      <div style={{ padding: '14px 12px 0' }}>
+        {me?.pending.map(p => (
+          <div key={p.season} className="flex flex-col items-center" style={{ gap: 6, margin: '0 0 12px', padding: '10px 10px 6px', borderRadius: 10, background: 'linear-gradient(180deg, rgba(120,84,20,.55), rgba(40,26,8,.7))', boxShadow: 'inset 0 0 0 1.5px #d9b45a, 0 0 14px rgba(255,205,90,.3)' }}>
+            <div className="flex items-center" style={{ gap: 10, width: '100%' }}>
+              <Emblem k={p.league as LeagueKey} size={48} />
+              <div className="flex-1 min-w-0" style={{ fontFamily: SERIF, fontSize: 13, color: '#f3e3bd', lineHeight: 1.25 }}>
+                <b style={{ fontFamily: CINZEL, fontSize: 11.5, letterSpacing: '0.06em', color: '#ffe08a', textTransform: 'uppercase' }}>Temporada {p.season} encerrada</b><br />
+                Você chegou à liga {nameOfLeague(p.league)}: moldura e <b style={{ color: '#ffe08a' }}>{p.coroas} coroas</b>.
+              </div>
+            </div>
+            <div className="flex w-full justify-center"><KitButton primary width={200} onClick={() => { if (busy === null) void claim(p.season); }}>{busy === p.season ? '…' : 'Resgatar'}</KitButton></div>
+          </div>
+        ))}
+        {failed && <div style={{ textAlign: 'center', fontFamily: SERIF, fontSize: 12, color: '#ff9a8a', margin: '0 0 8px' }}>Não deu para resgatar agora. Tente de novo.</div>}
+        <div style={{ textAlign: 'center', fontFamily: SERIF, fontSize: 13, color: '#cdbd97', margin: '0 8px 6px' }}>No fim da temporada você recebe a moldura do retrato e as coroas da <b style={{ color: '#ffe08a' }}>maior liga</b> que alcançou. Os pontos caem pela metade e as 5 partidas de classificação voltam.</div>
+        {me && <div style={{ textAlign: 'center', fontFamily: CINZEL, fontWeight: 700, fontSize: 10, letterSpacing: '0.08em', color: '#e8d6b0', margin: '0 0 10px', textTransform: 'uppercase' }}>Temporada {me.season} {daysLeftText(me.endsAt)}{me.frame ? ` · sua moldura: ${nameOfLeague(me.frame)}` : ''}</div>}
+        {([...LEAGUES, 'senhor-da-guerra'] as LeagueKey[]).map(k => (
+          <Row key={k} emblem={EMBLEM[k]}>
+            <div style={{ flex: '1 1 0', minWidth: 0 }}><b style={{ display: 'block', fontFamily: CINZEL, fontWeight: 800, fontSize: 11.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: LEAGUE_COLOR[k], lineHeight: 1.1 }}>{LEAGUE_NAMES[k]}</b></div>
+            <div className="flex-1" style={{ textAlign: 'right' }}>{['Moldura', `${SEASON_COROAS[k]} coroas`].map(t => <div key={t} style={{ fontFamily: SERIF, fontSize: 12.5, color: '#f3e3bd', lineHeight: 1.2 }}>{t}</div>)}</div>
+          </Row>
+        ))}
+      </div>
+    </Win>
+  );
 };
-const RewardsScreen = ({ onClose }: { onClose: () => void; key?: React.Key }) => (
-  <Win title="Recompensas" onClose={onClose} footer={<KitButton onClick={onClose}>Voltar</KitButton>}>
-    <div style={{ padding: '14px 12px 0' }}>
-      <div style={{ textAlign: 'center', fontFamily: SERIF, fontSize: 13, color: '#cdbd97', margin: '0 8px 10px' }}>No fim da temporada você recebe a moldura do retrato e os prêmios da <b style={{ color: '#ffe08a' }}>maior liga</b> que alcançou.</div>
-      {([...LEAGUES, 'senhor-da-guerra'] as LeagueKey[]).map(k => (
-        <Row key={k} emblem={EMBLEM[k]}>
-          <div style={{ flex: '1 1 0', minWidth: 0 }}><b style={{ display: 'block', fontFamily: CINZEL, fontWeight: 800, fontSize: 11.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: LEAGUE_COLOR[k], lineHeight: 1.1 }}>{LEAGUE_NAMES[k]}</b></div>
-          <div className="flex-1" style={{ textAlign: 'right' }}>{REWARD_LINES[k].map(t => <div key={t} style={{ fontFamily: SERIF, fontSize: 12.5, color: '#f3e3bd', lineHeight: 1.2 }}>{t}</div>)}</div>
-        </Row>
-      ))}
-    </div>
-  </Win>
-);
 
 // ── Ranking ─────────────────────────────────────────────────────────────────
 export const RankingScreen = ({ onClose, onLigas }: { onClose: () => void; onLigas?: () => void; key?: React.Key }) => {
@@ -208,8 +231,8 @@ export const RankingScreen = ({ onClose, onLigas }: { onClose: () => void; onLig
         <div className="relative mx-auto" style={{ width: '100%', maxWidth: 316, aspectRatio: '316 / 118', marginBottom: 4, containerType: 'inline-size' }}>
           <img src={faixaTemporada} alt="" draggable={false} className="absolute inset-0 w-full h-full" />
           <div className="absolute flex flex-col items-center justify-center text-center" style={{ left: '14%', right: '14%', top: '40%', bottom: '12%' }}>
-            <div style={{ fontFamily: DECO, fontWeight: 900, fontSize: '6.6cqw', letterSpacing: '0.06em', paddingLeft: '0.06em', whiteSpace: 'nowrap', color: '#3a2a10', textShadow: '0 1px 0 rgba(255,240,190,.85),0 2px 3px rgba(60,40,10,.35)', lineHeight: 1 }}>TEMPORADA 1</div>
-            <div style={{ fontFamily: SERIF, fontWeight: 700, fontSize: '4.4cqw', color: '#4a3820', marginTop: 4 }}>em andamento</div>
+            <div style={{ fontFamily: DECO, fontWeight: 900, fontSize: '6.6cqw', letterSpacing: '0.06em', paddingLeft: '0.06em', whiteSpace: 'nowrap', color: '#3a2a10', textShadow: '0 1px 0 rgba(255,240,190,.85),0 2px 3px rgba(60,40,10,.35)', lineHeight: 1 }}>TEMPORADA {data?.me.season ?? 1}</div>
+            <div style={{ fontFamily: SERIF, fontWeight: 700, fontSize: '4.4cqw', color: '#4a3820', marginTop: 4 }}>{data?.me ? daysLeftText(data.me.endsAt) : 'em andamento'}</div>
           </div>
         </div>
         <div className="flex" style={{ gap: 4, margin: '0 0 8px' }}>{tabBtn('global', 'Global', tab === 'global')}{tabBtn('minha', 'Minha liga', tab === 'minha')}</div>

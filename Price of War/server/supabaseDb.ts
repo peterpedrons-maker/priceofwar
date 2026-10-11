@@ -16,6 +16,7 @@ const viewToDb = (matchId: string, v: ViewRow) => ({
   match_id: matchId, n: v.n, viewer: v.viewer, viewer_user: v.user, actor: v.actor, action: v.action, events: v.events, state: v.state, deadline: v.deadline,
 });
 const viewFromDb = (r: any): ViewRow => ({ n: r.n, viewer: r.viewer, user: r.viewer_user, actor: r.actor, action: r.action, events: r.events, state: r.state, deadline: r.deadline === null ? null : Number(r.deadline) });
+const profileFromDb = (r: any): RankedProfile => ({ points: r.points, mmr: r.mmr, games: r.games, wins: r.wins, losses: r.losses, shield: r.shield, peak: r.peak, season: r.season ?? 1, frame: r.frame ?? null });
 const matchFromDb = (r: any): MatchRow => ({ ...r, turn_deadline: r.turn_deadline === null || r.turn_deadline === undefined ? null : Number(r.turn_deadline), timeouts: r.timeouts ?? [0, 0], ranked: !!r.ranked, ranked_done: !!r.ranked_done });
 
 export const supabaseDb = (c: Client): Db => ({
@@ -87,25 +88,37 @@ export const supabaseDb = (c: Client): Db => ({
     return rows.length ? viewFromDb(rows[0]) : null;
   },
   async rankedProfile(userId) {
-    const r = must(await c.from('ranked_profiles').select('points, mmr, games, wins, losses, shield, peak').eq('user_id', userId).maybeSingle(), 'ranked profile') as any;
-    return r ? ({ points: r.points, mmr: r.mmr, games: r.games, wins: r.wins, losses: r.losses, shield: r.shield, peak: r.peak } as RankedProfile) : null;
+    const r = must(await c.from('ranked_profiles').select('points, mmr, games, wins, losses, shield, peak, season, frame').eq('user_id', userId).maybeSingle(), 'ranked profile') as any;
+    return r ? profileFromDb(r) : null;
   },
   async rankedSettle(matchId, rows) {
     return must(await c.rpc('apply_ranked_result', { p_match: matchId, p_rows: rows }), 'apply ranked') === true;
   },
-  async rankedTop(limit) {
-    const rows = must(await c.from('ranked_profiles').select('user_id, points, mmr, games, wins, losses, shield, peak').order('points', { ascending: false }).limit(limit), 'ranked top') as any[];
+  async rankedTop(limit, season) {
+    const rows = must(await c.from('ranked_profiles').select('user_id, points, mmr, games, wins, losses, shield, peak, season, frame').eq('season', season).order('points', { ascending: false }).limit(limit), 'ranked top') as any[];
     if (!rows.length) return [];
     const profs = must(await c.from('profiles').select('id, username, avatar_id').in('id', rows.map(r => r.user_id)), 'ranked names') as any[];
     return rows.map(r => {
       const p = profs.find(x => x.id === r.user_id);
-      return { user_id: r.user_id, username: p?.username ?? 'Jogador', avatar_id: p?.avatar_id ?? 'batedora', profile: { points: r.points, mmr: r.mmr, games: r.games, wins: r.wins, losses: r.losses, shield: r.shield, peak: r.peak } };
+      return { user_id: r.user_id, username: p?.username ?? 'Jogador', avatar_id: p?.avatar_id ?? 'batedora', profile: profileFromDb(r) };
     });
   },
-  async rankedPosition(points) {
-    const r = await c.from('ranked_profiles').select('user_id', { count: 'exact', head: true }).gt('points', points);
+  async rankedPosition(points, season) {
+    const r = await c.from('ranked_profiles').select('user_id', { count: 'exact', head: true }).eq('season', season).gt('points', points);
     if (r.error) throw new Error(`ranked position: ${r.error.message}`);
     return (r.count ?? 0) + 1;
+  },
+  async rankedCloseSeason(userId, row, next) {
+    return must(await c.rpc('close_ranked_season', { p_user: userId, p_season: row.season, p_peak: row.peak, p_league: row.league, p_coroas: row.coroas, p_next: next }), 'close ranked season') === true;
+  },
+  async rankedSeasons(userId) {
+    const rows = must(await c.from('ranked_seasons').select('season, peak, league, coroas, claimed').eq('user_id', userId).order('season', { ascending: false }).limit(6), 'ranked seasons') as any[];
+    return rows.map(r => ({ season: r.season, peak: r.peak, league: r.league, coroas: r.coroas, claimed: r.claimed }));
+  },
+  async rankedClaim(userId, season) {
+    const r = must(await c.rpc('claim_ranked_season', { p_user: userId, p_season: season }), 'claim ranked season') as any;
+    const row = Array.isArray(r) ? r[0] : r;
+    return row && row.paid_coroas > 0 ? { coroas: row.paid_coroas, coroas_after: row.balance } : null;
   },
   async addEmote(matchId, seat: Seat, code, at) {
     const r = must(await c.from('match_emotes').insert({ match_id: matchId, seat, code, at }).select('id, seat, code, at').single(), 'add emote') as any;

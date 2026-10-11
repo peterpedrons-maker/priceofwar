@@ -1,5 +1,5 @@
 // The ladder's pure rules: leagues from points, what a win or a loss is worth, placement, the shield, the matchmaking window:   npx tsx tests/ranked.ts
-import { LEAGUES, applyRankedMatch, leagueLabel, leagueOf, mmrWindow, newRankedProfile, withTopLeague, MESTRE_FROM, type RankedProfile } from '../src/engine/ranked';
+import { LEAGUES, applyRankedMatch, leagueLabel, leagueOf, mmrWindow, newRankedProfile, withTopLeague, MESTRE_FROM, SEASON_COROAS, SEASON_DAYS, SEASON_ONE_START, closeSeason, seasonAt, type RankedProfile } from '../src/engine/ranked';
 let passed = 0, failed = 0;
 const test = (name: string, fn: () => void) => { try { fn(); passed++; } catch (e) { failed++; console.log(`  ✗ ${name}\n      ${(e as Error).message}`); } };
 const ok = (c: boolean, msg: string) => { if (!c) throw new Error(msg); };
@@ -64,6 +64,29 @@ test('matchmaking window widens with the wait; top league is the best Mestres on
   const rows = [{ points: 5000 }, { points: 2500 }, { points: 2399 }, { points: 100 }];
   const t = withTopLeague(rows); eq(t.map(r => r.top), [true, true, false, false]); eq(t.map(r => r.rank), [1, 2, 3, 4]);
   ok(MESTRE_FROM === 2400, 'mestre from 2400');
+});
+
+test('seasons follow the calendar: 60 days each, numbered from 1', () => {
+  eq(seasonAt(SEASON_ONE_START - 1000).number, 1, 'before the start counts as season 1');
+  eq(seasonAt(SEASON_ONE_START).number, 1);
+  const s1 = seasonAt(SEASON_ONE_START + 59 * 86400000); eq(s1.number, 1); eq(s1.endsAt - s1.startsAt, SEASON_DAYS * 86400000);
+  const s2 = seasonAt(s1.endsAt); eq(s2.number, 2); eq(s2.startsAt, s1.endsAt);
+});
+
+test('closing a season: reward by the highest league reached, soft reset, frame kept', () => {
+  const c = closeSeason(veteran(1283, { peak: 1450, wins: 30, losses: 12, shield: true }), 2, false);
+  eq(c.league, 'ouro'); eq(c.coroas, SEASON_COROAS.ouro);
+  eq(c.next.points, 600, 'half of 1283 down to a division edge'); eq(c.next.peak, 600);
+  eq([c.next.games, c.next.wins, c.next.losses, c.next.shield, c.next.season, c.next.frame], [0, 0, 0, false, 2, 'ouro']);
+  eq(c.next.mmr, 1000, 'the hidden Elo stays');
+});
+
+test('closing a season: Senhor da Guerra only for the top Mestres; a better old frame is kept', () => {
+  eq(closeSeason(veteran(3000), 2, true).league, 'senhor-da-guerra');
+  eq(closeSeason(veteran(3000), 2, false).league, 'mestre');
+  eq(closeSeason(veteran(100, { frame: 'diamante' }), 2, false).next.frame, 'diamante');
+  eq(closeSeason(veteran(100, { frame: 'diamante' }), 2, false).league, 'ferro');
+  eq(closeSeason(newRankedProfile(), 2, false).next.points, 0);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

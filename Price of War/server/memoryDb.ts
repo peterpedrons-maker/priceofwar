@@ -1,7 +1,7 @@
 // An in-memory Db: used by the tests and by the local mock server, so the very same handler runs without Supabase.
 import type { Seat } from '../src/engine/types';
 import type { RankedProfile } from '../src/engine/ranked';
-import type { Db, EmoteRow, MatchPatch, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
+import type { Db, EmoteRow, SeasonRow, MatchPatch, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
 
 export interface MemoryTables {
   profiles: { id: string; username: string; avatar_id: string; level?: number; xp?: number; coroas?: number }[];
@@ -30,6 +30,7 @@ export class MemoryDb implements Db {
     return p ? { username: p.username, avatar_id: p.avatar_id, level: p.level ?? 1, xp: p.xp ?? 0, coroas: p.coroas ?? 150 } : null;
   }
   rankedRows = new Map<string, RankedProfile>();
+  seasonRows: SeasonRow[] = [];
   async queueTake(excludeUserId: string, ranked: boolean) {
     const i = this.queue.findIndex(q => q.user_id !== excludeUserId && !!q.ranked === ranked);
     return i === -1 ? null : this.queue.splice(i, 1)[0];
@@ -78,13 +79,29 @@ export class MemoryDb implements Db {
     rows.forEach(r => this.rankedRows.set(r.user_id, { ...r.profile }));
     return true;
   }
-  async rankedTop(limit: number) {
-    return [...this.rankedRows.entries()].sort((a, b) => b[1].points - a[1].points).slice(0, limit).map(([user_id, profile]) => {
+  async rankedTop(limit: number, season: number) {
+    return [...this.rankedRows.entries()].filter(([, r]) => (r.season ?? 1) === season).sort((a, b) => b[1].points - a[1].points).slice(0, limit).map(([user_id, profile]) => {
       const p = this.tables.profiles.find(x => x.id === user_id);
       return { user_id, username: p?.username ?? 'Jogador', avatar_id: p?.avatar_id ?? 'batedora', profile: { ...profile } };
     });
   }
-  async rankedPosition(points: number) { return 1 + [...this.rankedRows.values()].filter(r => r.points > points).length; }
+  async rankedPosition(points: number, season: number) { return 1 + [...this.rankedRows.values()].filter(r => (r.season ?? 1) === season && r.points > points).length; }
+  async rankedCloseSeason(userId: string, row: SeasonRow, next: RankedProfile) {
+    const cur = this.rankedRows.get(userId);
+    if (!cur || (cur.season ?? 1) !== row.season) return false;
+    if (!this.seasonRows.some(x => x.user_id === userId && x.season === row.season)) this.seasonRows.push({ ...row, user_id: userId, claimed: false });
+    this.rankedRows.set(userId, { ...next });
+    return true;
+  }
+  async rankedSeasons(userId: string) { return this.seasonRows.filter(x => x.user_id === userId).sort((a, b) => b.season - a.season).slice(0, 6).map(x => ({ ...x })); }
+  async rankedClaim(userId: string, season: number) {
+    const row = this.seasonRows.find(x => x.user_id === userId && x.season === season && !x.claimed);
+    const prof = this.tables.profiles.find(x => x.id === userId);
+    if (!row || !prof) return null;
+    row.claimed = true;
+    prof.coroas = (prof.coroas ?? 150) + row.coroas;
+    return { coroas: row.coroas, coroas_after: prof.coroas };
+  }
   async addEmote(matchId: string, seat: Seat, code: string, at: number) {
     const row = { id: this.nextEmote++, seat, code, at };
     this.emoteRows.push({ ...row, match_id: matchId });

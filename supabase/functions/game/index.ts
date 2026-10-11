@@ -2843,7 +2843,7 @@ var TOP_LEAGUE_SIZE = 50;
 var PLACEMENT_MATCHES = 5;
 var START_MMR = 1e3;
 var START_POINTS = 0;
-var newRankedProfile = () => ({ points: START_POINTS, mmr: START_MMR, games: 0, wins: 0, losses: 0, shield: false, peak: START_POINTS });
+var newRankedProfile = (season = 1) => ({ points: START_POINTS, mmr: START_MMR, games: 0, wins: 0, losses: 0, shield: false, peak: START_POINTS, season, frame: null });
 var leagueOf = (points) => {
   const p = Math.max(0, Math.floor(points));
   if (p >= MESTRE_FROM) return { league: "mestre", division: null, inDivision: p - MESTRE_FROM };
@@ -2887,6 +2887,7 @@ var applyRankedMatch = (r) => {
   const demoted = leagueIndex(points) < LEAGUES.indexOf(before.league);
   if (demoted) shield = false;
   const next = {
+    ...me,
     points,
     mmr: Math.max(100, me.mmr + mmrDelta),
     games: me.games + 1,
@@ -2902,6 +2903,22 @@ var withTopLeague = (rows) => {
   const sorted = [...rows].sort((a, b) => b.points - a.points);
   return sorted.map((r, i) => ({ ...r, rank: i + 1, top: i < TOP_LEAGUE_SIZE && r.points >= MESTRE_FROM }));
 };
+var SEASON_DAYS = 60;
+var SEASON_ONE_START = Date.UTC(2026, 9, 1);
+var DAY_MS = 864e5;
+var seasonAt = (nowMs) => {
+  const n = Math.max(0, Math.floor((nowMs - SEASON_ONE_START) / (SEASON_DAYS * DAY_MS)));
+  return { number: n + 1, startsAt: SEASON_ONE_START + n * SEASON_DAYS * DAY_MS, endsAt: SEASON_ONE_START + (n + 1) * SEASON_DAYS * DAY_MS };
+};
+var SEASON_COROAS = { ferro: 25, bronze: 50, prata: 100, ouro: 200, platina: 350, diamante: 500, mestre: 800, "senhor-da-guerra": 1500 };
+var closeSeason = (p, newSeason, top) => {
+  const reached = leagueOf(Math.max(p.peak, p.points)).league;
+  const league = reached === "mestre" && top ? "senhor-da-guerra" : reached;
+  const rank = (k) => k === "senhor-da-guerra" ? LEAGUES.length : k ? LEAGUES.indexOf(k) : -1;
+  const frame = rank(league) >= rank(p.frame) ? league : p.frame;
+  const points = Math.floor(p.points / (2 * POINTS_PER_DIVISION)) * POINTS_PER_DIVISION;
+  return { league, coroas: SEASON_COROAS[league], next: { points, mmr: p.mmr, games: 0, wins: 0, losses: 0, shield: false, peak: points, season: newSeason, frame } };
+};
 
 // server/handler.ts
 var defaultConfig = () => ({ queueStaleMs: 2e4, turnMs: 15e4, promptMs: 6e4, maxTimeouts: 2, now: () => Date.now(), random: Math.random });
@@ -2909,11 +2926,44 @@ var EMOTE_CODE = /^[pe][1-6]$/;
 var EMOTE_GAP_MS = 2500;
 var EMOTE_MAX_PER_MATCH = 80;
 var PLACEMENT = 5;
-var rankedView = async (db, p) => {
+var frameRank = (k) => k === "senhor-da-guerra" ? LEAGUES.length : k ? LEAGUES.indexOf(k) : -1;
+var rankedView = async (db, cfg, p, userId) => {
   const l = leagueOf(p.points);
-  const position = await db.rankedPosition(p.points);
+  const season = p.season ?? seasonAt(cfg.now()).number;
+  const position = await db.rankedPosition(p.points, season);
   const top = p.points >= MESTRE_FROM && position <= TOP_LEAGUE_SIZE;
-  return { points: p.points, label: leagueLabel(p.points, top), league: top ? "senhor-da-guerra" : l.league, division: l.division, inDivision: l.inDivision, games: p.games, wins: p.wins, losses: p.losses, shield: p.shield, peak: p.peak, placementLeft: Math.max(0, PLACEMENT - p.games), position, top };
+  const pending = userId ? (await db.rankedSeasons(userId)).filter((x) => !x.claimed).map((x) => ({ season: x.season, league: x.league, coroas: x.coroas })) : [];
+  return {
+    points: p.points,
+    label: leagueLabel(p.points, top),
+    league: top ? "senhor-da-guerra" : l.league,
+    division: l.division,
+    inDivision: l.inDivision,
+    games: p.games,
+    wins: p.wins,
+    losses: p.losses,
+    shield: p.shield,
+    peak: p.peak,
+    placementLeft: Math.max(0, PLACEMENT - p.games),
+    position,
+    top,
+    season,
+    endsAt: seasonAt(cfg.now()).endsAt,
+    frame: p.frame ?? null,
+    pending
+  };
+};
+var ladderOf = async (db, cfg, userId) => {
+  const current = seasonAt(cfg.now()).number;
+  const p = await db.rankedProfile(userId);
+  if (!p) return newRankedProfile(current);
+  const old = p.season ?? 1;
+  if (old >= current) return p;
+  const reached = Math.max(p.peak, p.points);
+  const top = reached >= MESTRE_FROM && await db.rankedPosition(reached, old) <= TOP_LEAGUE_SIZE;
+  const c = closeSeason(p, current, top);
+  await db.rankedCloseSeason(userId, { season: old, peak: reached, league: c.league, coroas: c.coroas, claimed: false }, c.next);
+  return await db.rankedProfile(userId) ?? c.next;
 };
 var BOT_PROFILE = { name: "Advers\xE1rio", avatarId: "batedora" };
 var STALE_MATCH_MS = 45 * 60 * 1e3;
@@ -2974,7 +3024,7 @@ var patchOf = (m, w, extra = {}) => ({
   end_reason: m.end_reason,
   ...extra
 });
-var ensureRewards = async (db, m) => {
+var ensureRewards = async (db, cfg, m) => {
   if (m.status !== "finished" || m.winner === null) return null;
   let rows = m.rewards;
   if (!rows) {
@@ -2982,7 +3032,7 @@ var ensureRewards = async (db, m) => {
     const ladder = {};
     if (m.ranked) for (const seat of [0, 1]) {
       const u = userOfSeat(m, seat);
-      if (u) ladder[seat] = await db.rankedProfile(u) ?? newRankedProfile();
+      if (u) ladder[seat] = await ladderOf(db, cfg, u);
     }
     for (const seat of [0, 1]) {
       const user = userOfSeat(m, seat);
@@ -3048,7 +3098,7 @@ var enforceClock = async (db, m, cfg) => {
     if (!fresh) return m;
     m = fresh;
     if (!saved) continue;
-    if (m.status === "finished") await ensureRewards(db, m);
+    if (m.status === "finished") await ensureRewards(db, cfg, m);
   }
   return m;
 };
@@ -3069,7 +3119,12 @@ var initOf = async (db, m, userId, cfg) => {
   let leagues;
   if (m.ranked) {
     const ids = [userId, oppId];
-    const keys = await Promise.all(ids.map(async (u) => u ? (await rankedView(db, await db.rankedProfile(u) ?? newRankedProfile())).league : "ferro"));
+    const keys = await Promise.all(ids.map(async (u) => {
+      if (!u) return "ferro";
+      const p = await ladderOf(db, cfg, u);
+      const now = (await rankedView(db, cfg, p)).league;
+      return frameRank(p.frame) > frameRank(now) ? p.frame : now;
+    }));
     leagues = [keys[0], keys[1]];
   }
   return {
@@ -3195,7 +3250,7 @@ var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
         m = await enforceClock(db, m, cfg);
         if (req.op === "tick" || m.status !== "active") {
           if (req.op === "act") return { ok: false, error: "A partida j\xE1 terminou." };
-          const rewards2 = await ensureRewards(db, m);
+          const rewards2 = await ensureRewards(db, cfg, m);
           return { ok: true, status: "acted", rows: await db.views(m.id, seat, req.since ?? 0), finished: m.status === "finished", deadline: m.turn_deadline, now: cfg.now(), reward: rewardOf(m, rewards2, userId) };
         }
         const w = startWork(m);
@@ -3213,7 +3268,7 @@ var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
         const saved = await db.saveMatch(m.id, m.steps_count, patchOf({ ...m, timeouts }, w, { timeouts, end_reason: endReason }), w.steps, w.views);
         if (!saved) continue;
         const fresh = await db.getMatch(m.id) ?? m;
-        const rewards = w.state.winner !== null ? await ensureRewards(db, fresh) : null;
+        const rewards = w.state.winner !== null ? await ensureRewards(db, cfg, fresh) : null;
         return { ok: true, status: "acted", rows: await db.views(m.id, seat, req.since ?? 0), finished: w.state.winner !== null, deadline: w.deadline, now: cfg.now(), reward: rewardOf(fresh, rewards, userId) };
       }
       return { ok: false, error: "A partida mudou enquanto voc\xEA jogava. Tente de novo." };
@@ -3221,17 +3276,22 @@ var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
     case "result": {
       const m = await db.getMatch(req.matchId);
       if (!m || playerOf(m, userId) === null) return { ok: false, error: "Partida n\xE3o encontrada." };
-      const rewards = await ensureRewards(db, m);
+      const rewards = await ensureRewards(db, cfg, m);
       return { ok: true, status: "result", finished: m.status === "finished", reward: rewardOf(m, rewards, userId) };
     }
     case "ranked": {
-      return { ok: true, status: "ranked", profile: await rankedView(db, await db.rankedProfile(userId) ?? newRankedProfile()) };
+      return { ok: true, status: "ranked", profile: await rankedView(db, cfg, await ladderOf(db, cfg, userId), userId) };
+    }
+    case "claim": {
+      const paid = await db.rankedClaim(userId, Math.floor(Number(req.season)));
+      if (!paid) return { ok: false, error: "Nada para resgatar." };
+      return { ok: true, status: "claimed", coroas: paid.coroas, coroas_after: paid.coroas_after, profile: await rankedView(db, cfg, await ladderOf(db, cfg, userId), userId) };
     }
     case "ranking": {
       const limit = Math.max(1, Math.min(100, Math.floor(Number(req.limit) || 50)));
-      const top = withTopLeague((await db.rankedTop(limit)).map((r) => ({ ...r, points: r.profile.points })));
-      const mine = await db.rankedProfile(userId) ?? newRankedProfile();
-      return { ok: true, status: "ranking", me: await rankedView(db, mine), rows: top.map((r) => ({ rank: r.rank, user: r.user_id, name: r.username, avatarId: r.avatar_id, points: r.points, label: leagueLabel(r.points, r.top), top: r.top, me: r.user_id === userId })) };
+      const mine = await ladderOf(db, cfg, userId);
+      const top = withTopLeague((await db.rankedTop(limit, mine.season ?? 1)).map((r) => ({ ...r, points: r.profile.points })));
+      return { ok: true, status: "ranking", me: await rankedView(db, cfg, mine, userId), rows: top.map((r) => ({ rank: r.rank, user: r.user_id, name: r.username, avatarId: r.avatar_id, points: r.points, label: leagueLabel(r.points, r.top), top: r.top, me: r.user_id === userId })) };
     }
     case "emote":
     case "emotes": {
@@ -3274,6 +3334,7 @@ var viewToDb = (matchId, v) => ({
   deadline: v.deadline
 });
 var viewFromDb = (r) => ({ n: r.n, viewer: r.viewer, user: r.viewer_user, actor: r.actor, action: r.action, events: r.events, state: r.state, deadline: r.deadline === null ? null : Number(r.deadline) });
+var profileFromDb = (r) => ({ points: r.points, mmr: r.mmr, games: r.games, wins: r.wins, losses: r.losses, shield: r.shield, peak: r.peak, season: r.season ?? 1, frame: r.frame ?? null });
 var matchFromDb = (r) => ({ ...r, turn_deadline: r.turn_deadline === null || r.turn_deadline === void 0 ? null : Number(r.turn_deadline), timeouts: r.timeouts ?? [0, 0], ranked: !!r.ranked, ranked_done: !!r.ranked_done });
 var supabaseDb = (c) => ({
   async collection(userId) {
@@ -3348,25 +3409,37 @@ var supabaseDb = (c) => ({
     return rows.length ? viewFromDb(rows[0]) : null;
   },
   async rankedProfile(userId) {
-    const r = must(await c.from("ranked_profiles").select("points, mmr, games, wins, losses, shield, peak").eq("user_id", userId).maybeSingle(), "ranked profile");
-    return r ? { points: r.points, mmr: r.mmr, games: r.games, wins: r.wins, losses: r.losses, shield: r.shield, peak: r.peak } : null;
+    const r = must(await c.from("ranked_profiles").select("points, mmr, games, wins, losses, shield, peak, season, frame").eq("user_id", userId).maybeSingle(), "ranked profile");
+    return r ? profileFromDb(r) : null;
   },
   async rankedSettle(matchId, rows) {
     return must(await c.rpc("apply_ranked_result", { p_match: matchId, p_rows: rows }), "apply ranked") === true;
   },
-  async rankedTop(limit) {
-    const rows = must(await c.from("ranked_profiles").select("user_id, points, mmr, games, wins, losses, shield, peak").order("points", { ascending: false }).limit(limit), "ranked top");
+  async rankedTop(limit, season) {
+    const rows = must(await c.from("ranked_profiles").select("user_id, points, mmr, games, wins, losses, shield, peak, season, frame").eq("season", season).order("points", { ascending: false }).limit(limit), "ranked top");
     if (!rows.length) return [];
     const profs = must(await c.from("profiles").select("id, username, avatar_id").in("id", rows.map((r) => r.user_id)), "ranked names");
     return rows.map((r) => {
       const p = profs.find((x) => x.id === r.user_id);
-      return { user_id: r.user_id, username: p?.username ?? "Jogador", avatar_id: p?.avatar_id ?? "batedora", profile: { points: r.points, mmr: r.mmr, games: r.games, wins: r.wins, losses: r.losses, shield: r.shield, peak: r.peak } };
+      return { user_id: r.user_id, username: p?.username ?? "Jogador", avatar_id: p?.avatar_id ?? "batedora", profile: profileFromDb(r) };
     });
   },
-  async rankedPosition(points) {
-    const r = await c.from("ranked_profiles").select("user_id", { count: "exact", head: true }).gt("points", points);
+  async rankedPosition(points, season) {
+    const r = await c.from("ranked_profiles").select("user_id", { count: "exact", head: true }).eq("season", season).gt("points", points);
     if (r.error) throw new Error(`ranked position: ${r.error.message}`);
     return (r.count ?? 0) + 1;
+  },
+  async rankedCloseSeason(userId, row, next) {
+    return must(await c.rpc("close_ranked_season", { p_user: userId, p_season: row.season, p_peak: row.peak, p_league: row.league, p_coroas: row.coroas, p_next: next }), "close ranked season") === true;
+  },
+  async rankedSeasons(userId) {
+    const rows = must(await c.from("ranked_seasons").select("season, peak, league, coroas, claimed").eq("user_id", userId).order("season", { ascending: false }).limit(6), "ranked seasons");
+    return rows.map((r) => ({ season: r.season, peak: r.peak, league: r.league, coroas: r.coroas, claimed: r.claimed }));
+  },
+  async rankedClaim(userId, season) {
+    const r = must(await c.rpc("claim_ranked_season", { p_user: userId, p_season: season }), "claim ranked season");
+    const row = Array.isArray(r) ? r[0] : r;
+    return row && row.paid_coroas > 0 ? { coroas: row.paid_coroas, coroas_after: row.balance } : null;
   },
   async addEmote(matchId, seat, code, at) {
     const r = must(await c.from("match_emotes").insert({ match_id: matchId, seat, code, at }).select("id, seat, code, at").single(), "add emote");

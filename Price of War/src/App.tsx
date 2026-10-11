@@ -3231,7 +3231,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
         )}
         <AnimatePresence>
           {rankingOpen && <RankingScreen key="ranking" onClose={() => setRankingOpen(false)} onLigas={() => { setRankingOpen(false); setLigasOpen(true); }} />}
-          {ligasOpen && <LigasScreen key="ligas" onClose={() => setLigasOpen(false)} onRanking={() => { setLigasOpen(false); setRankingOpen(true); }} />}
+          {ligasOpen && <LigasScreen key="ligas" onClose={() => setLigasOpen(false)} onRanking={() => { setLigasOpen(false); setRankingOpen(true); }} onCoroas={(n) => updateProfile({ coroas: n })} />}
         </AnimatePresence>
         {comingSoon && (
           <ComingSoonModal

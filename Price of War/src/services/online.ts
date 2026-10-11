@@ -113,7 +113,11 @@ export const sendEmote = async (matchId: string, code: string, since: number): P
 export const fetchEmotes = async (matchId: string, since: number): Promise<EmoteResult> => asEmoteResult(await call({ op: 'emotes', matchId, since }));
 
 // The ladder (ranked mode): my numbers, and the ranking list with my place.
-export interface RankedView { points: number; label: string; league: string; division: number | null; inDivision: number; games: number; wins: number; losses: number; shield: boolean; peak: number; placementLeft: number; position: number; top: boolean }
+export interface RankedView { points: number; label: string; league: string; division: number | null; inDivision: number; games: number; wins: number; losses: number; shield: boolean; peak: number; placementLeft: number; position: number; top: boolean;
+  season: number; endsAt: number; frame: string | null; pending: { season: number; league: string; coroas: number }[] }
 export interface RankingRow { rank: number; user: string; name: string; avatarId: string; points: number; label: string; top: boolean; me: boolean }
 export const fetchRanked = async (): Promise<RankedView | null> => { const r = await call({ op: 'ranked' }); return r && r.ok === true && r.status === 'ranked' ? r.profile : null; };
 export const fetchRanking = async (limit = 50): Promise<{ rows: RankingRow[]; me: RankedView } | null> => { const r = await call({ op: 'ranking', limit }); return r && r.ok === true && r.status === 'ranking' ? { rows: r.rows, me: r.me } : null; };
+
+// Pays the Coroas of a finished season (once). `coroas_after` is the new balance, to show at once.
+export const claimSeason = async (season: number): Promise<{ coroas: number; coroas_after: number; profile: RankedView } | null> => { const r = await call({ op: 'claim', season }); return r && r.ok === true && r.status === 'claimed' ? { coroas: r.coroas, coroas_after: r.coroas_after, profile: r.profile } : null; };

@@ -79,6 +79,9 @@ export type MatchPatch = Pick<MatchRow, 'state' | 'steps_count' | 'status' | 'wi
 // A quick message (a ready-made phrase or emoji, never free text) from one chair to the other.
 export interface EmoteRow { id: number; seat: Seat; code: string; at: number }
 
+// One finished season of one player: the highest league reached and the Coroas it pays (`claimed` once paid).
+export interface SeasonRow { user_id?: string; season: number; peak: number; league: string; coroas: number; claimed: boolean }
+
 export interface Db {
   collection(userId: string): Promise<Record<string, number>>;
   profile(userId: string): Promise<{ username: string; avatar_id: string; level: number; xp: number; coroas: number } | null>;
@@ -99,8 +102,13 @@ export interface Db {
   rankedProfile(userId: string): Promise<RankedProfile | null>;
   // Applies a ranked match's results exactly once: false when it was already applied.
   rankedSettle(matchId: string, rows: { user_id: string; profile: RankedProfile }[]): Promise<boolean>;
-  rankedTop(limit: number): Promise<{ user_id: string; username: string; avatar_id: string; profile: RankedProfile }[]>;
-  rankedPosition(points: number): Promise<number>;
+  rankedTop(limit: number, season: number): Promise<{ user_id: string; username: string; avatar_id: string; profile: RankedProfile }[]>;
+  rankedPosition(points: number, season: number): Promise<number>;
+  // Closes a season for one player exactly once: records the season's result (paid later by `rankedClaim`) and swaps the ladder row for the reset one. False when it was already closed.
+  rankedCloseSeason(userId: string, row: SeasonRow, next: RankedProfile): Promise<boolean>;
+  rankedSeasons(userId: string): Promise<SeasonRow[]>;
+  // Pays a closed season's Coroas once: the amount paid and the new balance, or null when there is nothing (left) to claim.
+  rankedClaim(userId: string, season: number): Promise<{ coroas: number; coroas_after: number } | null>;
   addEmote(matchId: string, seat: Seat, code: string, at: number): Promise<EmoteRow>;
   emotesSince(matchId: string, sinceId: number): Promise<EmoteRow[]>;
   // Pays a match's rewards exactly once: false when they were already paid.

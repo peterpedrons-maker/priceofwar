@@ -6,6 +6,7 @@ import { applyAction, createMatch } from '../src/engine/game';
 import { applyReward, rewardFor } from '../src/engine/rewards';
 import type { Action, Seat } from '../src/engine/types';
 import { viewFor } from '../src/engine/view';
+import { SEASON_ONE_START } from '../src/engine/ranked';
 import { handleGame, type GameConfig, type GameResponse, type MatchInit } from '../server/handler';
 import { MemoryDb } from '../server/memoryDb';
 
@@ -424,6 +425,33 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     const db2 = fresh();
     const b = await botMatch(db2);
     ok((await handleGame(db2, 'A', { op: 'emote', matchId: b.id, code: 'p1' }, cfg)).ok === false, 'no messages against the bot');
+  });
+
+  await test('ranked seasons: a new season closes the old one once (reward, frame, soft reset) and the Coroas are claimed once', async () => {
+    const db = fresh();
+    db.rankedRows.set('A', { points: 1283, peak: 1450, mmr: 1100, games: 30, wins: 18, losses: 12, shield: true, season: 1, frame: null });
+    db.rankedRows.set('B', { points: 500, peak: 500, mmr: 1000, games: 9, wins: 5, losses: 4, shield: false, season: 1, frame: null });
+    const saved = clock;
+    clock = SEASON_ONE_START + 61 * 86400000;
+    const v = await handleGame(db, 'A', { op: 'ranked' }, cfg);
+    ok(v.ok === true && v.status === 'ranked', 'ranked view: ' + JSON.stringify(v));
+    if (v.ok === true && v.status === 'ranked') {
+      eq([v.profile.season, v.profile.points, v.profile.frame, v.profile.games, v.profile.shield], [2, 600, 'ouro', 0, false]);
+      eq(v.profile.pending, [{ season: 1, league: 'ouro', coroas: 200 }]);
+      ok(!('mmr' in v.profile), 'the hidden Elo stays hidden');
+    }
+    await handleGame(db, 'A', { op: 'ranked' }, cfg);
+    eq(db.seasonRows.filter(r => r.user_id === 'A').length, 1, 'closed only once');
+    const c1 = await handleGame(db, 'A', { op: 'claim', season: 1 }, cfg);
+    ok(c1.ok === true && c1.status === 'claimed' && c1.coroas === 200 && c1.coroas_after === 350 && c1.profile.pending.length === 0, 'claim pays: ' + JSON.stringify(c1));
+    const c2 = await handleGame(db, 'A', { op: 'claim', season: 1 }, cfg);
+    eq(c2.ok, false, 'a second claim pays nothing');
+    const c3 = await handleGame(db, 'B', { op: 'claim', season: 1 }, cfg);
+    eq(c3.ok, false, 'nothing to claim before the season is closed for B');
+    // the ranking only lists players of the current season (B was not closed yet, so is not listed)
+    const rk = await handleGame(db, 'A', { op: 'ranking' }, cfg);
+    ok(rk.ok === true && rk.status === 'ranking' && rk.rows.length === 1 && rk.rows[0].me, 'only the current season: ' + JSON.stringify(rk));
+    clock = saved;
   });
 
   await test('ranked: the ranked queue never mixes with the casual one, and a bot is never ranked', async () => {

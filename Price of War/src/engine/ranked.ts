@@ -21,8 +21,9 @@ export const PLACEMENT_MATCHES = 5;
 export const START_MMR = 1000;
 export const START_POINTS = 0;
 
-export interface RankedProfile { points: number; mmr: number; games: number; wins: number; losses: number; shield: boolean; peak: number }
-export const newRankedProfile = (): RankedProfile => ({ points: START_POINTS, mmr: START_MMR, games: 0, wins: 0, losses: 0, shield: false, peak: START_POINTS });
+// `season` is the season these numbers belong to; `frame` is the portrait frame (a league key) won in an earlier season.
+export interface RankedProfile { points: number; mmr: number; games: number; wins: number; losses: number; shield: boolean; peak: number; season?: number; frame?: string | null }
+export const newRankedProfile = (season = 1): RankedProfile => ({ points: START_POINTS, mmr: START_MMR, games: 0, wins: 0, losses: 0, shield: false, peak: START_POINTS, season, frame: null });
 
 export interface LeagueInfo { league: League; division: 1 | 2 | 3 | 4 | null; inDivision: number }
 // division 4 is the lowest (IV) and 1 the highest (I); Mestre has none.
@@ -82,7 +83,7 @@ export const applyRankedMatch = (r: RankedInput): RankedResult => {
   const demoted = leagueIndex(points) < LEAGUES.indexOf(before.league);
   if (demoted) shield = false;
   const next: RankedProfile = {
-    points, mmr: Math.max(100, me.mmr + mmrDelta), games: me.games + 1, wins: me.wins + (r.won ? 1 : 0), losses: me.losses + (r.won ? 0 : 1), shield, peak: Math.max(me.peak, points),
+    ...me, points, mmr: Math.max(100, me.mmr + mmrDelta), games: me.games + 1, wins: me.wins + (r.won ? 1 : 0), losses: me.losses + (r.won ? 0 : 1), shield, peak: Math.max(me.peak, points),
   };
   void after;
   return { next, delta: points - me.points, mmrDelta, placement, promoted, demoted, shieldUsed, leagueBefore: leagueLabel(me.points), leagueAfter: leagueLabel(points) };
@@ -95,4 +96,32 @@ export const mmrWindow = (waitedMs: number): number => 100 + Math.floor(waitedMs
 export const withTopLeague = <T extends { points: number }>(rows: T[]): (T & { rank: number; top: boolean })[] => {
   const sorted = [...rows].sort((a, b) => b.points - a.points);
   return sorted.map((r, i) => ({ ...r, rank: i + 1, top: i < TOP_LEAGUE_SIZE && r.points >= MESTRE_FROM }));
+};
+
+// ── Seasons ─────────────────────────────────────────────────────────────────
+// Seasons follow the calendar (no scheduled job): the number is computed from the date, and each player's ladder row is
+// closed lazily the first time the server sees them in a newer season (reward for their highest league, then a soft reset).
+export const SEASON_DAYS = 60;
+export const SEASON_ONE_START = Date.UTC(2026, 9, 1);   // 1 Oct 2026
+const DAY_MS = 86400000;
+export interface SeasonInfo { number: number; startsAt: number; endsAt: number }
+export const seasonAt = (nowMs: number): SeasonInfo => {
+  const n = Math.max(0, Math.floor((nowMs - SEASON_ONE_START) / (SEASON_DAYS * DAY_MS)));
+  return { number: n + 1, startsAt: SEASON_ONE_START + n * SEASON_DAYS * DAY_MS, endsAt: SEASON_ONE_START + (n + 1) * SEASON_DAYS * DAY_MS };
+};
+
+// What a season pays, by the highest league reached: the portrait frame of that league (always) and Coroas.
+export type RewardLeague = League | 'senhor-da-guerra';
+export const SEASON_COROAS: Record<RewardLeague, number> = { ferro: 25, bronze: 50, prata: 100, ouro: 200, platina: 350, diamante: 500, mestre: 800, 'senhor-da-guerra': 1500 };
+
+export interface SeasonClose { league: RewardLeague; coroas: number; next: RankedProfile }
+// Closes a season for one player. `top` = they finished among the best TOP_LEAGUE_SIZE Mestres. Points are halved (to a division edge),
+// the hidden Elo stays, the placement matches come back, and the frame is the better of the old one and this season's league.
+export const closeSeason = (p: RankedProfile, newSeason: number, top: boolean): SeasonClose => {
+  const reached = leagueOf(Math.max(p.peak, p.points)).league;
+  const league: RewardLeague = reached === 'mestre' && top ? 'senhor-da-guerra' : reached;
+  const rank = (k: string | null | undefined) => (k === 'senhor-da-guerra' ? LEAGUES.length : k ? LEAGUES.indexOf(k as League) : -1);
+  const frame = rank(league) >= rank(p.frame) ? league : (p.frame as string);
+  const points = Math.floor(p.points / (2 * POINTS_PER_DIVISION)) * POINTS_PER_DIVISION;
+  return { league, coroas: SEASON_COROAS[league], next: { points, mmr: p.mmr, games: 0, wins: 0, losses: 0, shield: false, peak: points, season: newSeason, frame } };
 };

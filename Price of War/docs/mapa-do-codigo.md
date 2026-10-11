@@ -72,10 +72,10 @@ O motor: createMatch e applyAction (jogar, atacar, mover, habilidades, emboscada
 
 DeckSetup:25 · deckSetupFromRecipe:31 · expandCards:36 · MatchOptions:41 · cardFromName:49 · createMatch:58 · Ctx:84 · RuleError:87 · fail:88 · log:90 · P:91 · combatOpen:93 · activePhases:94 · addGold:97 · removeOne:106 · takeFromDeck:107 · drawCards:109 · removeFromHand:122 · discard:129 · sendDestroyed:136 · reinforceFrom:159 · setWinner:176 · soak:185 · grantShield:197 · grantBlock:203 · damageSlot:211 · healSlot:227 · startTurn:237 · enterPreparation:294 · payUpkeep:301 · setRelicMode:334 · runTurnEnd:347 · endTurn:367 · assertCanAct:377 · Fx:388 · uniqueByName:395 · matchesFilter:396 · filterLabel:398 · specCandidates:401 · checkTarget:405 · activeTargets:423 · validateTargets:427 · checkVerb:434 · checkVerbTarget:448 · openPick:452 · runVerb:459 · runAbilities:618 · grantMovedBuff:624 · playCard:634 · useAbility:698 · choose:738 · attack:794 · respondAmbush:820 · resolveAmbushEffect:837 · resolveCombat:870 · move:947 · advance:980 · discardExcess:1002 · clone:1019 · applyAction:1021 · MatchLog:1063 · newMatchLog:1070 · replayMatch:1073
 
-## src/engine/ranked.ts  (99 linhas)
+## src/engine/ranked.ts  (128 linhas)
 (sem descrição ainda: acrescente em FILE_NOTES)
 
-LEAGUES:9 · League:10 · LEAGUE_NAMES:11 · POINTS_PER_DIVISION:14 · DIVISIONS:15 · POINTS_PER_LEAGUE:16 · MESTRE_FROM:17 · TOP_LEAGUE_SIZE:18 · PLACEMENT_MATCHES:20 · START_MMR:21 · START_POINTS:22 · RankedProfile:24 · newRankedProfile:25 · LeagueInfo:27 · leagueOf:29 · ROMAN:37 · leagueLabel:38 · leagueIndex:43 · RankedInput:46 · RankedResult:55 · expected:57 · clamp:58 · applyRankedMatch:60 · mmrWindow:92 · withTopLeague:95
+LEAGUES:9 · League:10 · LEAGUE_NAMES:11 · POINTS_PER_DIVISION:14 · DIVISIONS:15 · POINTS_PER_LEAGUE:16 · MESTRE_FROM:17 · TOP_LEAGUE_SIZE:18 · PLACEMENT_MATCHES:20 · START_MMR:21 · START_POINTS:22 · RankedProfile:25 · newRankedProfile:26 · LeagueInfo:28 · leagueOf:30 · ROMAN:38 · leagueLabel:39 · leagueIndex:44 · RankedInput:47 · RankedResult:56 · expected:58 · clamp:59 · applyRankedMatch:61 · mmrWindow:93 · withTopLeague:96 · SEASON_DAYS:104 · SEASON_ONE_START:105 · DAY_MS:106 · SeasonInfo:107 · seasonAt:108 · RewardLeague:114 · SEASON_COROAS:115 · SeasonClose:117 · closeSeason:120
 
 ## src/engine/rewards.ts  (38 linhas)
 Regras de recompensa (XP, Coroas, nível).
@@ -117,10 +117,10 @@ Imagens dos números (ATK/HP/dano) usadas nas cartas.
 
 NumberKind:3 · files:5 · NAME:6 · glyphUrl:8 · burstUrl:9 · NUMBER_GLOW:12
 
-## src/RankedScreens.tsx  (297 linhas)
+## src/RankedScreens.tsx  (320 linhas)
 (sem descrição ainda: acrescente em FILE_NOTES)
 
-LeagueKey:44 · EMBLEM:45 · RING:46 · LeagueRing:48 · LEAGUE_COLOR:53 · RANGES:54 · keyOfPoints:55 · labelOfPoints:56 · DECO:58 · CINZEL:59 · SERIF:60 · Win:63 · KitButton:79 · Row:83 · Divisions:91 · PointsBar:98 · Emblem:115 · LigasScreen:118 · REWARD_LINES:167 · RewardsScreen:171 · RankingScreen:186 · RankedResult:231 · PromoBurst:259 · PromotionOverlay:273
+LeagueKey:44 · EMBLEM:45 · RING:46 · LeagueRing:48 · LEAGUE_COLOR:53 · RANGES:54 · keyOfPoints:55 · labelOfPoints:56 · DECO:58 · CINZEL:59 · SERIF:60 · Win:63 · KitButton:79 · Row:83 · Divisions:91 · PointsBar:98 · Emblem:115 · LigasScreen:118 · daysLeftText:168 · nameOfLeague:169 · RewardsScreen:170 · RankingScreen:209 · RankedResult:254 · PromoBurst:282 · PromotionOverlay:296
 
 ## src/services/auth.ts  (130 linhas)
 Login (convidado, Google, Discord, e-mail) via Supabase.
@@ -132,10 +132,10 @@ Salvar/ler coleção e decks na nuvem.
 
 CloudProfile:5 · CloudResult:6 · COLUMNS:8 · fail:10 · fetchProfile:22 · usernameAvailable:30 · createProfile:38 · updateProfileFields:46 · CloudDeck:55 · CloudStore:56 · fetchStore:58 · pushStore:75
 
-## src/services/online.ts  (120 linhas)
+## src/services/online.ts  (124 linhas)
 Cliente do modo online: fila, partida por passos, relógio.
 
-DeckJson:9 · ViewRow:12 · RewardInfo:21 · MatchInit:33 · QueueResult:55 · ActResult:60 · call:65 · asActResult:82 · queueForMatch:87 · queueStatus:88 · cancelQueue:89 · sendAction:90 · tickMatch:92 · fetchResult:93 · fetchViews:99 · EmoteMsg:108 · EmoteResult:109 · asEmoteResult:110 · sendEmote:112 · fetchEmotes:113 · RankedView:116 · RankingRow:117 · fetchRanked:118 · fetchRanking:119
+DeckJson:9 · ViewRow:12 · RewardInfo:21 · MatchInit:33 · QueueResult:55 · ActResult:60 · call:65 · asActResult:82 · queueForMatch:87 · queueStatus:88 · cancelQueue:89 · sendAction:90 · tickMatch:92 · fetchResult:93 · fetchViews:99 · EmoteMsg:108 · EmoteResult:109 · asEmoteResult:110 · sendEmote:112 · fetchEmotes:113 · RankedView:116 · RankingRow:118 · fetchRanked:119 · fetchRanking:120 · claimSeason:123
 
 ## src/sfx.ts  (89 linhas)
 Efeitos sonoros curtos por Web Audio.
@@ -182,25 +182,25 @@ Entrada da Edge Function (gerada em supabase/functions/game).
 
 cors:10 · json:15
 
-## server/handler.ts  (446 linhas)
+## server/handler.ts  (480 linhas)
 Servidor da partida online: fila, passos, relógio, recompensas.
 
-GameConfig:17 · defaultConfig:29 · MatchInit:31 · EMOTE_CODE:60 · EMOTE_GAP_MS:61 · EMOTE_MAX_PER_MATCH:62 · RankedView:65 · PLACEMENT:66 · rankedView:67 · GameRequest:74 · GameResponse:86 · BOT_PROFILE:96 · STALE_MATCH_MS:97 · BOT_STEP_LIMIT:98 · AUTO_STEP_LIMIT:99 · recipeDeck:101 · botDeckFor:103 · playerOf:104 · userOfSeat:105 · moverOf:106 · moverKey:107 · Work:112 · startWork:121 · applyStep:124 · runBot:147 · patchOf:158 · ensureRewards:165 · publicReward:203 · rewardOf:209 · enforceClock:214 · openMatch:252 · viewRowsOf:259 · initOf:261 · startMatch:282 · finishIfStale:308 · handleGame:318
+GameConfig:17 · defaultConfig:29 · MatchInit:31 · EMOTE_CODE:60 · EMOTE_GAP_MS:61 · EMOTE_MAX_PER_MATCH:62 · RankedView:65 · PLACEMENT:68 · frameRank:69 · rankedView:70 · ladderOf:82 · GameRequest:95 · GameResponse:108 · BOT_PROFILE:119 · STALE_MATCH_MS:120 · BOT_STEP_LIMIT:121 · AUTO_STEP_LIMIT:122 · recipeDeck:124 · botDeckFor:126 · playerOf:127 · userOfSeat:128 · moverOf:129 · moverKey:130 · Work:135 · startWork:144 · applyStep:147 · runBot:170 · patchOf:181 · ensureRewards:188 · publicReward:226 · rewardOf:232 · enforceClock:237 · openMatch:275 · viewRowsOf:282 · initOf:284 · startMatch:311 · finishIfStale:337 · handleGame:347
 
-## server/memoryDb.ts  (107 linhas)
+## server/memoryDb.ts  (124 linhas)
 Banco em memória (testes).
 
 MemoryTables:6 · clone:11 · MemoryDb:13
 
-## server/supabaseDb.ts  (122 linhas)
+## server/supabaseDb.ts  (135 linhas)
 Banco no Supabase.
 
-Client:8 · must:10 · viewToDb:15 · viewFromDb:18 · matchFromDb:19 · supabaseDb:21
+Client:8 · must:10 · viewToDb:15 · viewFromDb:18 · profileFromDb:19 · matchFromDb:20 · supabaseDb:22
 
-## server/types.ts  (111 linhas)
+## server/types.ts  (119 linhas)
 Tipos do servidor e do banco.
 
-DeckJson:7 · QueueRow:9 · StepRow:17 · ViewRow:25 · EndReason:36 · RewardRow:38 · RankedOutcome:51 · MatchRow:56 · MatchPatch:77 · EmoteRow:80 · Db:82
+DeckJson:7 · QueueRow:9 · StepRow:17 · ViewRow:25 · EndReason:36 · RewardRow:38 · RankedOutcome:51 · MatchRow:56 · MatchPatch:77 · EmoteRow:80 · SeasonRow:83 · Db:85
 
 ## tests/ai-arena.ts  (39 linhas)
 IA nova contra a antiga.
@@ -280,12 +280,12 @@ Supabase falso para os testes online.
 
 Row:10 · tables:11 · memory:12 · cfg:13 · b64:18 · users:19 · cors:20 · send:26 · readBody:30 · uidFrom:33
 
-## tests/online-server.ts  (480 linhas)
+## tests/online-server.ts  (508 linhas)
 Testes do servidor online (npm test).
 
-passed:12 · test:13 · ok:16 · eq:17 · clock:19 · rngState:20 · cfg:21 · fresh:26 · deckOf:37 · matched:43 · userOf:45 · choose:47 · botMatch:49 · pvp:56 · drive:64
+passed:13 · test:14 · ok:17 · eq:18 · clock:20 · rngState:21 · cfg:22 · fresh:27 · deckOf:38 · matched:44 · userOf:46 · choose:48 · botMatch:50 · pvp:57 · drive:65
 
-## tests/ranked.ts  (71 linhas)
+## tests/ranked.ts  (94 linhas)
 (sem descrição ainda: acrescente em FILE_NOTES)
 
 passed:3 · test:4 · ok:5 · eq:6 · play:7 · veteran:8
