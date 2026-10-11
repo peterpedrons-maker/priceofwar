@@ -89,3 +89,5 @@ Ajuste (dono): símbolos das linhas menores (42 px); linha de Ligas em três col
 **Ranqueado, servidor pronto (rodada 21, sem telas ainda):** pontos, ligas, divisões, classificação (5 partidas), Elo escondido, escudo, fila ranqueada separada, `ranked` e `ranking` no servidor, SQL em `docs/supabase-online-4.sql` (já dentro de `docs/supabase-tudo.sql`). Regras e números em `docs/ranqueado.md`. Falta ligar as telas, temporadas e a regra de decks.
 
 **Ranqueado, telas no jogo (rodada 21):** Online → Ranqueado (fila), Ranking, Ligas, resultado com barra de pontos no fim da partida e efeito de subida de liga (`src/RankedScreens.tsx`, detalhes em `docs/ranqueado.md`). Conferido só em página de teste (com servidor de mentira), ainda não numa partida online real entre duas contas. Falta a moldura do retrato no tabuleiro.
+
+Planos futuros do dono (economia, boosters, limites de cartas no ranqueado, pontos guiados pelo Elo, nível mínimo para o ranqueado): `docs/planos-economia-e-ranqueado.md` (nada aplicado). Jogo justo: `docs/anti-trapaca.md`.
