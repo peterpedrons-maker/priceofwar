@@ -87,5 +87,6 @@ Depois de gerar: salvar em `src/assets/` como `card-<nome>.webp` e ligar no `ART
 
 ## Status das artes (entregues)
 - Integradas: Tenente de Marcha, Escolta Montada, Guarda de Fileira, Brigadeiro Voss, Passo Cadenciado (clareada por curva de gama), Revista de Tropas, Resposta Disciplinada, Campo de Treino, Mapa de Campanha (em `src/assets/capitao/<nome-sem-acento>.webp`, ligadas por nome em `App.tsx`) e Sentinela de Aluguel (`src/assets/merc/`).
-- Pendentes: Corneteiro (uniforme parece da Primeira Guerra, decisão do dono), Atirador de Aluguel e Carta Branca (palavra "CONTRACT" legível no papel da arte).
+- Também integradas: Atirador de Aluguel (palavra "CONTRACT" do papel coberta por retoque e trocada por riscos ilegíveis; a original não é guardada), Carta Branca (o papel é em branco, sem texto) e Corneteiro (Corneteiro da Coluna, em `capitao/`; aceito pelo dono mesmo com uniforme de Primeira Guerra).
+- Pendentes: nenhuma arte da rodada 23.
 - Conferência de repetição: `python3.11 -I tools/art-parecidas.py folha.png nome=imagem ...` (ranking + folha de contato contra as artes existentes).
