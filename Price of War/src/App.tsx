@@ -40,6 +40,7 @@ import shopNpcHappyImage from './assets/shop-npc-happy.webp';
 import shopNpcSorryImage from './assets/shop-npc-sorry.webp';
 import boosterCardealImage from './assets/booster-cardeal.webp';
 import coinCaraImage from './assets/coin-cara.webp';
+import uiIconOuro from './assets/ui-icon-ouro.webp';   // a moeda do contador de ouro do tabuleiro (recortada de hud-gold-badge)
 import coinCoroaImage from './assets/coin-coroa.webp';
 import uiStatAtkImage from './assets/ui-stat-atk.webp';
 import uiStatHpImage from './assets/ui-stat-hp.webp';
@@ -1643,7 +1644,7 @@ const StatSymbol = ({ amount, kind }: { amount: string; kind: 'atk' | 'hp'; key?
 );
 // Custo/ganho em ouro dentro do texto ("Pague 1 de ouro", "você perde 3 de ouro"): o número e a moeda do jogo no lugar de "de ouro".
 const CoinIcon = ({ size = '1.25em' }: { size?: string; key?: React.Key }) => (
-  <img src={coinCaraImage} alt="ouro" draggable={false} style={{ height: size, width: size, display: 'inline-block', verticalAlign: 'middle', margin: '-0.3em 0.08em' }} />
+  <img src={uiIconOuro} alt="ouro" draggable={false} style={{ height: size, width: size, display: 'inline-block', verticalAlign: 'middle', margin: '-0.3em 0.08em' }} />
 );
 const GoldSymbol = ({ amount }: { amount: string; key?: React.Key }) => (
   <span style={{ display: 'inline-block', whiteSpace: 'nowrap', margin: '0 0.12em' }}>
@@ -1813,7 +1814,7 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
                   {card.cardType}
                 </span>
                 {trig && <TriggerIcon cardId={card.id} icon={trig.icon} trig={trig.key} style={{ height: '1.5em', width: '1.5em', marginLeft: '0.45em' }} />}
-                {upkeepOf(card.name) > 0 && <img src={coinCaraImage} alt="" aria-hidden draggable={false} className="shrink-0 select-none pointer-events-none" style={{ height: '1.5em', width: '1.5em', marginLeft: '0.45em' }} />}
+                {upkeepOf(card.name) > 0 && <img src={uiIconOuro} alt="" aria-hidden draggable={false} className="shrink-0 select-none pointer-events-none" style={{ height: '1.5em', width: '1.5em', marginLeft: '0.45em' }} />}
               </div>
               <div className="w-2/3 h-px shrink-0 my-1" style={{ background: 'rgba(201,162,39,0.6)' }} />
             </>
@@ -2123,7 +2124,7 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
             {/* Gatilho: ícone sem aro ao lado do tipo, no máximo da abertura da faixa (≈4,4% da altura da carta
                 dentro de uma caixa de 7%): acima disso a moldura, que é desenhada por cima, corta o ícone. */}
             {trig && <TriggerIcon cardId={card.id} icon={trig.icon} trig={trig.key} style={{ height: '72%', aspectRatio: '1', marginLeft: '0.45em' }} />}
-            {upkeepOf(card.name) > 0 && <img src={coinCaraImage} alt="" aria-hidden draggable={false} className="shrink-0 select-none pointer-events-none" style={{ height: '72%', aspectRatio: '1', marginLeft: '0.3em' }} />}
+            {upkeepOf(card.name) > 0 && <img src={uiIconOuro} alt="" aria-hidden draggable={false} className="shrink-0 select-none pointer-events-none" style={{ height: '72%', aspectRatio: '1', marginLeft: '0.3em' }} />}
           </div>
         )}
 
