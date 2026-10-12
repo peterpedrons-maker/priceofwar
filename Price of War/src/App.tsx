@@ -1676,10 +1676,12 @@ const renderEffectText = (text: string): React.ReactNode[] => {
     if (t.startsWith('**')) {
       const word = t.slice(2, -2);
       const up = /^Manutenção (\d+)\.?$/.exec(word);
-      if (up) {   // "Manutenção" na etiqueta e o custo em moedas: Manutenção: (moeda)(moeda)(moeda)
-        out.push(<KeywordPill key={key++} label="Manutenção" />, ':', ...Array.from({ length: Number(up[1]) }, (_, i) => <CoinIcon key={`${key}-c${i}`} />), ' ');
-        key++;
-      } else if (/^Rescisão:?$/.test(word)) out.push(<b key={key++}><i>Rescisão:</i></b>);   // sem etiqueta: negrito em itálico no texto corrido
+      const lineBreak = () => { while (typeof out[out.length - 1] === 'string' && !(out[out.length - 1] as string).trim()) out.pop(); if (out.length && !(React.isValidElement(out[out.length - 1]) && (out[out.length - 1] as React.ReactElement).type === 'br')) out.push(<br key={`br${key++}`} />); };
+      if (up) {   // "Manutenção" na etiqueta e o custo: Manutenção: 3 (moeda); sempre na própria linha
+        lineBreak();
+        out.push(<KeywordPill key={key++} label="Manutenção" />, ':', <GoldSymbol key={key++} amount={up[1]} />);
+        if (text.slice(at + t.length).trim()) out.push(<br key={`br${key++}`} />);
+      } else if (/^Rescisão:?$/.test(word)) { lineBreak(); out.push(<b key={key++}><i>Rescisão:</i></b>); }   // própria linha, negrito em itálico, sem etiqueta
       else out.push(<KeywordPill key={key++} label={word} />);
     }
     else if (t.endsWith(' de ouro')) out.push(<GoldSymbol key={key++} amount={t.split(' ')[0]} />);
