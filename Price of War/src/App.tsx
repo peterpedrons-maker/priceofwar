@@ -1683,7 +1683,7 @@ const renderEffectText = (text: string, afterLead = false): React.ReactNode[] =>
         lineBreak();
         out.push(<KeywordPill key={key++} label="Contrato" compact />, ':', <GoldSymbol key={key++} amount={up[1]} />, <i key={`pt${key++}`} style={{ fontSize: '0.82em', whiteSpace: 'nowrap' }}> por turno</i>);   // o itálico fica para explicações
         if (text.slice(at + t.length).trim()) out.push(<br key={`br${key++}`} />);
-      } else if (/^Rescisão:?$/.test(word)) { lineBreak(); out.push(<b key={key++} style={{ fontWeight: 900 }}>Rescisão:</b>); }   // própria linha, só em negrito (o itálico fica para explicações), sem etiqueta
+      } else if (/^Rescisão:?$/.test(word)) { lineBreak(); out.push(<b key={key++} style={{ fontWeight: 900, WebkitTextStroke: "0.035em currentColor" }}>Rescisão:</b>); }   // própria linha, só em negrito (o itálico fica para explicações), sem etiqueta
       else out.push(<KeywordPill key={key++} label={word} />);
     }
     else if (t.endsWith(' de ouro')) out.push(<GoldSymbol key={key++} amount={t.split(' ')[0]} />);
