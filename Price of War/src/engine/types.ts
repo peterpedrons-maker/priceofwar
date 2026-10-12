@@ -40,7 +40,8 @@ export interface TargetSpec {
   prompt?: string;                   // frase mostrada ao jogador na hora de escolher
 }
 
-export interface CardFilter { types?: CardType[]; atk?: number }
+// `equipment`: Táticas com o verbo `equip` (o motor reconhece pelo efeito). Junto com `types`, vale uma OU a outra (Terreno ou Equipamento).
+export interface CardFilter { types?: CardType[]; atk?: number; equipment?: boolean }
 
 // Os tipos de efeito que o motor sabe executar. Os que têm `target` pedem uma escolha no tabuleiro (na ordem em que
 // aparecem na lista: o primeiro usa `target`, o segundo `target2` da ação).
@@ -75,12 +76,12 @@ export type Verb =
   | { kind: 'summon_token'; token: string }                                // convoca fichas nos slots livres ao lado
   // Combate
   | { kind: 'attack_bonus'; amount: number; ifEnemyGeneral?: 'other_faction'; ifTarget?: 'general' }  // `ifTarget: 'general'`: só quando o alvo do ataque é o General (Brigadeiro Voss)
-  | { kind: 'splash_behind'; amount: number }                              // atingiu a Vanguarda: dano na carta de trás
+  | { kind: 'splash_behind'; amount: number; ifArmed?: boolean }   // `ifArmed`: só se quem ataca tem equipamento preso                              // atingiu a Vanguarda: dano na carta de trás
   // Emboscada (resolvem o ataque que a ativou)
   | { kind: 'cancel_attack'; ifAdjacentAlly?: boolean }
   | { kind: 'swap_defender' }
   | { kind: 'displace_attacker' }
-  | { kind: 'buff_defender'; atk: number; hp: number };
+  | { kind: 'buff_defender'; atk: number; hp: number; ifArmed?: boolean };   // `ifArmed`: só se a unidade atacada tem equipamento preso
 
 // QUANDO o efeito acontece.
 export type AbilityOn =
@@ -115,6 +116,8 @@ export interface Who {
   slots?: number[];       // slots específicos (Relíquia 10, Terreno 11, General 12)
   facing?: boolean;       // 'enemy': só a carta no mesmo slot, de frente para esta
   behind?: boolean;       // 'own': só a carta logo atrás desta (mesma coluna, na Retaguarda)
+  armed?: boolean;        // só unidades com pelo menos 1 equipamento preso ("armadas")
+  facingOwn?: CardType[]; // 'enemy': só a unidade inimiga de frente para uma unidade do dono da aura desses tipos (a mesma coluna)
 }
 
 // O que a carta faz sozinha enquanto está em campo (sem ninguém tocar).
@@ -124,8 +127,10 @@ export type Passive =
       from?: 'front' | 'back';          // só vale se esta carta estiver nessa fileira
       when?: { col: number };           // só vale se o alvo estiver nessa coluna
       atk?: number; combatHp?: number; reduce?: number; healBonus?: number; attacks?: number; abilityUses?: number;
+      needs?: 'armed' | 'terrain';      // condição de quem dá a aura: tem equipamento preso / o dono tem um Terreno em campo
+      perEquip?: { cap: number };       // o valor vale uma vez por equipamento preso nesta carta, até `cap` (só com who: self)
     }
-  | { kind: 'flag'; flag: 'row_swap' | 'blocks_ambush' | 'locks_general'; from?: 'front' };
+  | { kind: 'flag'; flag: 'row_swap' | 'blocks_ambush' | 'locks_general' | 'recover_equipment'; from?: 'front' };   // `recover_equipment`: ao cair, o equipamento preso volta para a mão do dono (e não para o cemitério)
 
 // Um modo de uma Relíquia (a Relíquia tem vários e o dono escolhe um no fim do turno; vale até o fim do turno seguinte). Tudo em dados:
 // `upkeepFlat` tira esse tanto do total de manutenção do dono; `loot` dá ouro por unidade inimiga destruída (com teto por ciclo);

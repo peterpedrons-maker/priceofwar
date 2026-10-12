@@ -179,3 +179,5 @@ Rodada 24 (ajuste 2): **Manutenção N** agora mostra a etiqueta + dois-pontos +
 Rodada 24 (ajuste 3): depois da moeda, a Manutenção traz a explicação em itálico "*por turno*" (descartadas: "a cada turno seu", que soa estranha, e "uma vez por turno", que parece limite de uso; "a cada turno" não cabia numa linha). Fica: MANUTENÇÃO : 3🪙 *por turno*, com a etiqueta e a frase um pouco mais compactas (`compact` em `KeywordPill`). Se houver etiqueta de gatilho antes (Postura), a Manutenção começa em linha nova.
 
 Rodada 24 (ajuste 4): **Manutenção virou Contrato** em tudo que o jogador lê (etiqueta "Contrato", janela de Suprimentos "Contratos", mensagens, Relíquia e descrição do deck); nos documentos antigos "manutenção" significa o mesmo. Rescisão passou a mostrar a perda de ouro como "-N" + moeda. Hierarquia dos efeitos e frase única de redução de dano em `docs/textos-cartas.md`.
+
+Rodada 24 (deck de Campo, experimental): **Armada** = a unidade tem pelo menos 1 equipamento preso; **Com Terreno** = o dono tem um Terreno em campo. Os bônus "por equipamento" têm teto por carta.

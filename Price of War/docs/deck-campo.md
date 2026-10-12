@@ -1,4 +1,4 @@
-# Deck de Campo: Equipamento + Terreno (PROPOSTA, nada aplicado no jogo)
+# Deck de Campo: Equipamento + Terreno (EXPERIMENTAL: motor e laboratório prontos, ainda fora do jogo)
 
 Ideia do dono (vinda de um amigo): um deck que vive de **equipamentos** (Táticas que equipam uma unidade, no estilo das que o jogo já tem, mas aqui **todas novas**) e de **Terrenos** ("campos"). Cartas que ficam melhores **por estarem armadas**, e Terrenos que dão vantagem a um tipo de unidade (exemplo do dono: a **Campina** dá +1 de ATK às suas Cavalarias e atrapalha os inimigos). **As 30 cartas diferentes são todas novas** (nenhum nome repete o catálogo atual). Os três decks iniciais **não mudam**.
 
@@ -92,3 +92,34 @@ Contagem: 17 (núcleo) + 10 (apoio) + 3 (únicas) + 13 (equipamentos) + 6 (Terre
 - **Recolher o espólio** (General, Armeiro, Escudeiro Veterano): três fontes de recuperação; se o deck ficar longo demais, tirar uma.
 - **Tempo:** com 15 de ouro no começo e +5 por turno, equipamentos de custo 1 são baratos. Se ficar rápido demais, subir o custo de 2 ou 3 equipamentos.
 - Antes de qualquer teste: o dono já decidiu que **novos decks só entram depois de o equilíbrio dos três atuais estar bom** (`docs/visao-geral.md`). Este deck concorre com o dos Bardos pelo quarto lugar.
+
+
+---
+
+## Rodada 24: o que foi construído (experimental, só laboratório e testes)
+
+As cartas e a receita ficam em `src/engine/experimental.ts` (`CAMPO_DEFS`, `CAMPO_RECIPE`, `registerCampo()`); **não** estão no catálogo, nos boosters nem no cliente. Testes das regras novas: `tests/campo-rules.ts` (12). Laboratório: `tests/balance-campo.ts` (contra Cardeal, Capitão e Mercenários).
+
+### Motor (dados, nada por nome de carta)
+- **Por equipamento preso:** aura com `perEquip: { cap }` multiplica o bônus pelos equipamentos da própria carta (teto `cap`).
+- **Condições de quem dá a aura:** `needs: 'armed'` (a fonte tem equipamento) e `needs: 'terrain'` (o dono tem Terreno em campo).
+- **Condições de quem recebe:** `Who.armed` (só unidades armadas) e `Who.facingOwn` (só o inimigo de frente para uma unidade do dono da aura dos tipos listados; a Campina Aberta usa isso).
+- **Busca por Equipamento:** `CardFilter.equipment` (o motor reconhece a Tática pelo verbo `equip`); junto com `types`, vale uma OU outra (Reconhecimento do Terreno: Equipamento ou Terreno).
+- **`recover_equipment`:** ao cair, o equipamento preso volta para a mão em vez de ir ao cemitério (Escudeiro Veterano).
+- **`ifArmed`** em `splash_behind` (Lanceiro Montado) e em `buff_defender` (Contra-Carga).
+- Correção geral: um efeito que dispara sozinho (Queda, Convocação) e não acha nada para escolher agora segue em frente ("Nada para escolher."), em vez de travar a partida com uma escolha sem opções.
+
+### Mudanças em relação à proposta acima
+- **Cortados por custo de motor:** Vau do Rio (bônus ao mover) e o verbo `move_equipment` (Mestre de Armas) e `return_equipment` por carta. Entraram: **Colina Fortificada ×2** no lugar do Vau, e o **Mestre de Armas** virou "suas unidades armadas: +1 ATK".
+- **Armadilha de Estacas** (3 de dano ao atacante) virou **Cerca de Estacas** (+3 HP à unidade atacada até o fim do turno): o motor ainda não tem dano ao atacante numa Emboscada.
+- **Sargento de Marcha** sem a condição de Terreno (compra 1 carta ao entrar, custo 3). **Marcha Forçada**: 2 movimentos extras. **Lorde das Campinas**: "suas Cavalarias +1 ATK" (inclui ele).
+- Textos no padrão da rodada 24 (`docs/textos-cartas.md`): efeito principal primeiro, "N de dano a menos por ataque", "Equipe …: +A ATK e +H HP".
+- **Atributos** subiram depois da primeira medição (ver abaixo); as tabelas acima trazem os números originais.
+
+### Lista final (60 cartas, 30 nomes)
+Núcleo: Escudeiro de Campanha 3/4 (c2) ×3, Cavaleiro da Marca 3/4 (c3) ×3, Besteiro de Posto 2/3 (c2) ×3, Mapeador de Marchas 1/3 (c1) ×3, Guarda de Fronteira 2/5 (c3) ×3. Apoio: Armeiro de Campanha 2/4 (c2) ×2, Lanceiro Montado 3/5 (c3) ×2, Arqueiro de Colina 2/4 (c3) ×3, Sargento de Marcha 2/4 (c3) ×3, Escudeiro Veterano 2/5 (c3) ×2. Únicas: Campeão da Marca 4/6 (c4), Lorde das Campinas 3/5 (c4), Mestre de Armas 2/5 (c3). Equipamentos: Cota Remendada +1 ATK e +2 HP ×3, Escudo de Carvalho (Guarda) ×2, Lança de Fresno +2 ATK e +1 HP ×3, Arco Longo de Teixo +2 ATK e +1 HP ×2, Machado de Guerra +3 ATK ×1, Sela Reforçada +2/+2 ×2. Terrenos: Campina Aberta (Cavalarias +2 ATK, inimigos de frente para elas -2 ATK) ×2, Colina Fortificada (Infantarias na Vanguarda +2 HP em combate e 1 de dano a menos) ×2, Floresta Espessa (Arqueiros +2 HP em combate; Retaguarda 1 de dano a menos) ×1, Forja de Campanha (armadas +2 HP em combate) ×1. Táticas: Intendência de Campanha ×2, Reconhecimento do Terreno ×2, Marcha Forçada ×2. Emboscadas: Contra-Carga ×2, Cerca de Estacas ×1. Relíquia: Arsenal do Marquês (armadas recebem 2 de dano a menos) ×2. General: Margrave Osric, Senhor das Marcas (nome provisório).
+
+### Medição (laboratório, IA × IA)
+Ver `docs/balanceamento.md`, rodada 24. Antes de entrar no jogo faltam: **artes** das 30 cartas (prompts), registrar o deck no catálogo/cliente (DeckId, cartas, boosters, ícones), e o dono confirmar o nome do General.
+
+Resultado (IA × IA, 200 partidas por confronto, versão final): **Campo 73,0% contra o Cardeal, 44,5% contra o Capitão, 60,0% contra os Mercenários** (referência: Cardeal × Capitão 42/58; Mercenários 49/51,5 contra Cardeal/Capitão). Caminho: a primeira versão, com os atributos da proposta, perdia feio (45% × Cardeal, 18% × Capitão, 28% × Mercenários); subir os núcleos resolveu contra o Cardeal e os Mercenários, mas contra o Capitão (o deck mais agressivo) ficou em 33–42%; subir os Terrenos e a Relíquia (+2) devolveu importância ao "campo" e levou o Capitão a 44,5%. **Leitura:** o deck ainda é forte demais contra os decks lentos e um pouco fraco contra o Capitão; a IA joga o Terreno com pouca prioridade (turno 2–3 no lugar de uma unidade), então os Terrenos tendem a aparecer abaixo do que valem para uma pessoa. Se o dono quiser equilibrar mais antes de entrar no jogo, o próximo passo é testar -1 nos núcleos e +1 de custo nos 2 equipamentos mais fortes.

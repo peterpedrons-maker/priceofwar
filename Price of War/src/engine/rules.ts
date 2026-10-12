@@ -21,7 +21,7 @@ export const HAND_LIMIT = 10;
 export type Unit = {
   name: string; cardType?: CardType; atk: number; hp: number;
   pendingCombatBonus?: { atk: number; hp: number }; formationBuffAtk?: number; dmgReduction?: number;
-  shield?: number; block?: boolean;
+  shield?: number; block?: boolean; equippedWeapons?: unknown[];
 };
 export type Board = (Unit | null)[];
 
@@ -84,13 +84,15 @@ export const canReinforce = (card: { name: string } | null | undefined): boolean
 // ── Auras e marcas (passivas) ───────────────────────────────────────────────────────────────────────────────────
 type AuraStat = 'atk' | 'combatHp' | 'reduce' | 'healBonus' | 'attacks' | 'abilityUses';
 const rowOk = (row: 'front' | 'back' | undefined, slot: number) => !row || (row === 'front' ? isFrontline(slot) : isBackline(slot));
-const whoMatches = (who: Who, sourceSlot: number, targetSlot: number, target: { cardType?: CardType } | null): boolean => {
+const armedCount = (u: { equippedWeapons?: unknown[] } | null | undefined): number => u?.equippedWeapons?.length ?? 0;
+const whoMatches = (who: Who, sourceSlot: number, targetSlot: number, target: { cardType?: CardType; equippedWeapons?: unknown[] } | null): boolean => {
   if (who.side === 'self') return sourceSlot === targetSlot;
   if (who.facing && sourceSlot !== targetSlot) return false;
   if (who.behind && targetSlot !== sourceSlot + 5) return false;
   if (!rowOk(who.row, targetSlot)) return false;
   if (who.types && !(target?.cardType && who.types.includes(target.cardType))) return false;
   if (who.slots && !who.slots.includes(targetSlot)) return false;
+  if (who.armed && armedCount(target) === 0) return false;
   return true;
 };
 // Sum of one stat over every aura that touches the card standing in `slot` of `own` (auras from its own side and from the enemy's).
@@ -107,7 +109,10 @@ export const auraTotal = (stat: AuraStat, slot: number, own: Board, enemy: Board
         if (!rowOk(p.from, src)) continue;
         if (p.when && getLaneCol(slot) !== p.when.col) continue;
         if (!whoMatches(p.who, src, slot, target)) continue;
-        total += p[stat]!;
+        if (p.who.facingOwn && !(board[slot]?.cardType && p.who.facingOwn.includes(board[slot]!.cardType!))) continue;   // `board` é o lado de quem dá a aura
+        if (p.needs === 'armed' && armedCount(source) === 0) continue;
+        if (p.needs === 'terrain' && !board[11]) continue;
+        total += p[stat]! * (p.perEquip ? Math.min(armedCount(source), p.perEquip.cap) : 1);
       }
     }
   };

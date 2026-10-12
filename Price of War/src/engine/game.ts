@@ -14,7 +14,7 @@ import {
   SOLDIER_TYPES, abilityOn, abilityPhases, adjacentSlots, areSlotsAdjacent, auraTotal, blocksAmbush, canPlaceInSlot, canReposition,
   getAuraCombatHpBonus, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction, getMaxAttacksPerTurn, getMoveRow,
   getValidAttackTargets, isBackline, isCardDamaged, isFrontline, isUnitSlot, locksGeneralOnDamage, reinforceShield, canReinforce,
-  restingPhasesForTurn, specCandidatesOn, targetSpecsOf, verbsOn, canPlayInPhase, withEquippedWeapons, relicModeOf, maxGeneralAbilityUses, upkeepOf, type Board,
+  restingPhasesForTurn, specCandidatesOn, targetSpecsOf, verbsOn, canPlayInPhase, withEquippedWeapons, hasVerb, passivesOf, relicModeOf, maxGeneralAbilityUses, upkeepOf, type Board,
 } from './rules';
 import {
   GENERAL_SLOT, SLOT_COUNT, otherSeat,
@@ -138,7 +138,13 @@ const sendDestroyed = (c: Ctx, seat: Seat, entries: { slot: number; card: Card }
   const p = P(c, seat);
   entries.forEach(({ slot, card }) => c.ev.push({ t: 'destroyed', seat, slot, card }));
   const cards = entries.map(e => e.card);
-  withEquippedWeapons(cards).forEach(card => { p.graveyard.push(card); c.ev.push({ t: 'graveyard', seat, card }); });
+  // Equipamento preso a quem cai: vai para o cemitério junto, ou volta para a mão se a carta tem a marca `recover_equipment` (Escudeiro Veterano).
+  const recovers = (card: Card) => passivesOf(card.name).some(x => x.kind === 'flag' && x.flag === 'recover_equipment');
+  cards.forEach(card => {
+    const back = recovers(card) ? card.equippedWeapons ?? [] : [];
+    back.forEach(w => { p.hand.push(w); c.ev.push({ t: 'draw', seat, card: w, reason: 'effect' }); });
+    withEquippedWeapons([back.length ? { ...card, equippedWeapons: undefined } : card]).forEach(g => { p.graveyard.push(g); c.ev.push({ t: 'graveyard', seat, card: g }); });
+  });
   entries.forEach(({ slot, card }) => runAbilities(c, seat, card, slot, 'destroyed'));
   // Modo "loot" da Relíquia de quem destruiu: ouro por unidade inimiga destruída, com teto por ciclo.
   const killer = otherSeat(seat), mode = relicModeOf(P(c, killer).board);
@@ -394,10 +400,15 @@ interface Fx {
 }
 
 const uniqueByName = (names: string[]) => [...new Set(names)];
-const matchesFilter = (def: { cardType: string; atk: number }, f: CardFilter) =>
-  (!f.types || f.types.includes(def.cardType as never)) && (f.atk === undefined || def.atk === f.atk);
+const matchesFilter = (def: { name: string; cardType: string; atk: number }, f: CardFilter) => {
+  const byType = !f.types || f.types.includes(def.cardType as never);
+  const byEquip = !f.equipment || hasVerb(def.name, 'equip');
+  // Só tipos ou só equipamento: tem que bater; os dois juntos: uma OU a outra (Terreno ou Equipamento).
+  const kind = f.types && f.equipment ? (byType || byEquip) : (byType && byEquip);
+  return kind && (f.atk === undefined || def.atk === f.atk);
+};
 const filterLabel = (f: CardFilter) =>
-  !f.types ? 'carta' : f.types.length === SOLDIER_TYPES.length && SOLDIER_TYPES.every(t => f.types!.includes(t)) ? 'soldado' : f.types.join(' ou ');
+  f.equipment ? (f.types ? `${f.types.join(' ou ')} ou Equipamento` : 'Equipamento') : !f.types ? 'carta' : f.types.length === SOLDIER_TYPES.length && SOLDIER_TYPES.every(t => f.types!.includes(t)) ? 'soldado' : f.types.join(' ou ');
 
 const specCandidates = (c: Ctx, seat: Seat, spec: TargetSpec): number[] =>
   specCandidatesOn(spec, P(c, seat).board, P(c, otherSeat(seat)).board, c.s.turn.moved);
@@ -451,6 +462,8 @@ const checkVerbTarget = (c: Ctx, seat: Seat, v: Verb, slot: number) => {
 };
 
 const openPick = (c: Ctx, fx: Fx, mode: 'graveyard_soldier' | 'deck_search' | 'top_reveal' | 'summon', title: string, options: Card[], min: number, max: number, extra: { revealed?: boolean; restTo?: 'graveyard'; slots?: number[] } = {}) => {
+  // Um efeito que dispara sozinho (Queda, Convocação) pode não achar nada para escolher: segue sem abrir a escolha (senão a partida trava).
+  if (options.length === 0) { log(c, fx.seat, 'Nada para escolher.'); return; }
   // A Tática keeps resolving until the choice is made (it goes to the graveyard then); a board ability has no card to discard.
   c.s.pending = { kind: 'pick', seat: fx.seat, mode, title, options, min, max, source: fx.slot === null ? fx.source : null, ...extra };
   c.ev.push({ t: 'pick', seat: fx.seat, title });
@@ -863,7 +876,7 @@ const resolveAmbushEffect = (
     } else if (v.kind === 'buff_defender') {
       // A combat-only bonus (it is spent in this combat), not a permanent change: the text says "até o fim do turno".
       const defender = defenderBoard[defenderIndex];
-      if (defender) defenderBoard[defenderIndex] = { ...defender, pendingCombatBonus: { atk: (defender.pendingCombatBonus?.atk ?? 0) + v.atk, hp: (defender.pendingCombatBonus?.hp ?? 0) + v.hp } };
+      if (defender && (!v.ifArmed || (defender.equippedWeapons?.length ?? 0) > 0)) defenderBoard[defenderIndex] = { ...defender, pendingCombatBonus: { atk: (defender.pendingCombatBonus?.atk ?? 0) + v.atk, hp: (defender.pendingCombatBonus?.hp ?? 0) + v.hp } };
     } else if (v.kind === 'draw') {
       drawCards(c, defenderSeat, v.amount, 'effect');   // the one who answered with the Emboscada draws (Carta Branca)
     }
@@ -941,6 +954,7 @@ const resolveCombat = (c: Ctx, aSeat: Seat, from: number, to: number, ambush: Ca
   // `splash_behind` (Ofensiva): hitting a Vanguarda card also hurts the card behind it in the same column.
   verbsOn(attacker.name, 'attack').forEach(v => {
     if (v.kind !== 'splash_behind' || !isFrontline(target) || !dBoard[target + 5]) return;
+    if (v.ifArmed && (attacker.equippedWeapons?.length ?? 0) === 0) return;
     const d = damageSlot(c, dSeat, target + 5, v.amount);
     if (d) dead.push({ seat: dSeat, ...d });
   });

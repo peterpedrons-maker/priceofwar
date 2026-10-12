@@ -379,3 +379,7 @@ Cardeal × Capitão ficou em 55%. Leitura: o Cardeal novo estava forte demais (7
 ## Rodada 24: Mercenários sem o Besteiro (arte repetida)
 
 Besteiro Dedo-Ligeiro ×3 saiu da receita e entraram +1 Lanceiro Pés-de-Lama, +1 Rato da Muralha e +1 Vigia da Última Brasa (50 cartas). IA × IA, 200 partidas por confronto: Mercenários 49,0% × Cardeal, 51,5% × Capitão. Sem desequilíbrio novo. Detalhes em `docs/deck-mercenarios.md`.
+
+## Rodada 24: deck de Campo (experimental)
+
+Deck novo de Equipamento + Terreno medido só no laboratório (`tests/balance-campo.ts`, ainda fora do jogo). Versão final, IA × IA, 200 partidas: **73,0% × Cardeal, 44,5% × Capitão, 60,0% × Mercenários**. Fica forte contra os lentos e um pouco abaixo do Capitão. A IA não sabe tirar proveito do Terreno como uma pessoa (joga com pouca prioridade), então o número real tende a ser maior. Detalhes e a lista em `docs/deck-campo.md`.

@@ -1188,6 +1188,7 @@ var reinforceShield = (card) => {
 };
 var canReinforce = (card) => reinforceShield(card) > 0;
 var rowOk = (row, slot) => !row || (row === "front" ? isFrontline(slot) : isBackline(slot));
+var armedCount = (u) => u?.equippedWeapons?.length ?? 0;
 var whoMatches = (who, sourceSlot, targetSlot, target) => {
   if (who.side === "self") return sourceSlot === targetSlot;
   if (who.facing && sourceSlot !== targetSlot) return false;
@@ -1195,6 +1196,7 @@ var whoMatches = (who, sourceSlot, targetSlot, target) => {
   if (!rowOk(who.row, targetSlot)) return false;
   if (who.types && !(target?.cardType && who.types.includes(target.cardType))) return false;
   if (who.slots && !who.slots.includes(targetSlot)) return false;
+  if (who.armed && armedCount(target) === 0) return false;
   return true;
 };
 var auraTotal = (stat, slot, own, enemy = []) => {
@@ -1210,7 +1212,10 @@ var auraTotal = (stat, slot, own, enemy = []) => {
         if (!rowOk(p.from, src)) continue;
         if (p.when && getLaneCol(slot) !== p.when.col) continue;
         if (!whoMatches(p.who, src, slot, target)) continue;
-        total += p[stat];
+        if (p.who.facingOwn && !(board[slot]?.cardType && p.who.facingOwn.includes(board[slot].cardType))) continue;
+        if (p.needs === "armed" && armedCount(source) === 0) continue;
+        if (p.needs === "terrain" && !board[11]) continue;
+        total += p[stat] * (p.perEquip ? Math.min(armedCount(source), p.perEquip.cap) : 1);
       }
     }
   };
@@ -1410,9 +1415,17 @@ var sendDestroyed = (c, seat, entries) => {
   const p = P(c, seat);
   entries.forEach(({ slot, card }) => c.ev.push({ t: "destroyed", seat, slot, card }));
   const cards = entries.map((e) => e.card);
-  withEquippedWeapons(cards).forEach((card) => {
-    p.graveyard.push(card);
-    c.ev.push({ t: "graveyard", seat, card });
+  const recovers = (card) => passivesOf(card.name).some((x) => x.kind === "flag" && x.flag === "recover_equipment");
+  cards.forEach((card) => {
+    const back = recovers(card) ? card.equippedWeapons ?? [] : [];
+    back.forEach((w) => {
+      p.hand.push(w);
+      c.ev.push({ t: "draw", seat, card: w, reason: "effect" });
+    });
+    withEquippedWeapons([back.length ? { ...card, equippedWeapons: void 0 } : card]).forEach((g) => {
+      p.graveyard.push(g);
+      c.ev.push({ t: "graveyard", seat, card: g });
+    });
   });
   entries.forEach(({ slot, card }) => runAbilities(c, seat, card, slot, "destroyed"));
   const killer = otherSeat(seat), mode = relicModeOf(P(c, killer).board);
@@ -1638,8 +1651,13 @@ var assertCanAct = (c, seat, allowPending = false) => {
   if (s.pending && !allowPending) fail("Responda \xE0 escolha pendente primeiro.");
 };
 var uniqueByName = (names) => [...new Set(names)];
-var matchesFilter = (def, f) => (!f.types || f.types.includes(def.cardType)) && (f.atk === void 0 || def.atk === f.atk);
-var filterLabel = (f) => !f.types ? "carta" : f.types.length === SOLDIER_TYPES.length && SOLDIER_TYPES.every((t) => f.types.includes(t)) ? "soldado" : f.types.join(" ou ");
+var matchesFilter = (def, f) => {
+  const byType = !f.types || f.types.includes(def.cardType);
+  const byEquip = !f.equipment || hasVerb(def.name, "equip");
+  const kind = f.types && f.equipment ? byType || byEquip : byType && byEquip;
+  return kind && (f.atk === void 0 || def.atk === f.atk);
+};
+var filterLabel = (f) => f.equipment ? f.types ? `${f.types.join(" ou ")} ou Equipamento` : "Equipamento" : !f.types ? "carta" : f.types.length === SOLDIER_TYPES.length && SOLDIER_TYPES.every((t) => f.types.includes(t)) ? "soldado" : f.types.join(" ou ");
 var specCandidates = (c, seat, spec) => specCandidatesOn(spec, P(c, seat).board, P(c, otherSeat(seat)).board, c.s.turn.moved);
 var checkTarget = (c, seat, spec, slot) => {
   const own = spec.side === "own";
@@ -1683,6 +1701,10 @@ var checkVerbTarget = (c, seat, v, slot) => {
   if (v.kind === "retreat" && P(c, seat).board[slot + 5]) fail("A Retaguarda dessa coluna j\xE1 est\xE1 ocupada.");
 };
 var openPick = (c, fx, mode, title, options, min, max, extra = {}) => {
+  if (options.length === 0) {
+    log(c, fx.seat, "Nada para escolher.");
+    return;
+  }
   c.s.pending = { kind: "pick", seat: fx.seat, mode, title, options, min, max, source: fx.slot === null ? fx.source : null, ...extra };
   c.ev.push({ t: "pick", seat: fx.seat, title });
 };
@@ -2063,7 +2085,7 @@ var resolveAmbushEffect = (c, ambush, attackerBoard, attackerIndex, defenderBoar
       cancelled = true;
     } else if (v.kind === "buff_defender") {
       const defender = defenderBoard[defenderIndex];
-      if (defender) defenderBoard[defenderIndex] = { ...defender, pendingCombatBonus: { atk: (defender.pendingCombatBonus?.atk ?? 0) + v.atk, hp: (defender.pendingCombatBonus?.hp ?? 0) + v.hp } };
+      if (defender && (!v.ifArmed || (defender.equippedWeapons?.length ?? 0) > 0)) defenderBoard[defenderIndex] = { ...defender, pendingCombatBonus: { atk: (defender.pendingCombatBonus?.atk ?? 0) + v.atk, hp: (defender.pendingCombatBonus?.hp ?? 0) + v.hp } };
     } else if (v.kind === "draw") {
       drawCards(c, defenderSeat, v.amount, "effect");
     }
@@ -2127,6 +2149,7 @@ var resolveCombat = (c, aSeat, from, to, ambush) => {
   } else dBoard[target] = newDefender;
   verbsOn(attacker.name, "attack").forEach((v) => {
     if (v.kind !== "splash_behind" || !isFrontline(target) || !dBoard[target + 5]) return;
+    if (v.ifArmed && (attacker.equippedWeapons?.length ?? 0) === 0) return;
     const d = damageSlot(c, dSeat, target + 5, v.amount);
     if (d) dead.push({ seat: dSeat, ...d });
   });
