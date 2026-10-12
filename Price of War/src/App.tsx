@@ -1681,7 +1681,7 @@ const renderEffectText = (text: string): React.ReactNode[] => {
         lineBreak();
         out.push(<KeywordPill key={key++} label="Manutenção" />, ':', <GoldSymbol key={key++} amount={up[1]} />);
         if (text.slice(at + t.length).trim()) out.push(<br key={`br${key++}`} />);
-      } else if (/^Rescisão:?$/.test(word)) { lineBreak(); out.push(<b key={key++}><i>Rescisão:</i></b>); }   // própria linha, negrito em itálico, sem etiqueta
+      } else if (/^Rescisão:?$/.test(word)) { lineBreak(); out.push(<b key={key++}>Rescisão:</b>); }   // própria linha, só em negrito (o itálico fica para explicações), sem etiqueta
       else out.push(<KeywordPill key={key++} label={word} />);
     }
     else if (t.endsWith(' de ouro')) out.push(<GoldSymbol key={key++} amount={t.split(' ')[0]} />);
