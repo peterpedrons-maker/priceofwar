@@ -26,7 +26,7 @@
   "atk": 2,
   "hp": 4,
   "cost": 2,
-  "effect": "Recebe -1 de dano. Na Vanguarda, a carta atrás também recebe -1 de dano.",
+  "effect": "Recebe 1 de dano a menos por ataque. Na Vanguarda, a carta atrás também.",
   "full": false
  },
  {
@@ -116,7 +116,7 @@
   "atk": 0,
   "hp": 0,
   "cost": 2,
-  "effect": "-2 de dano, para sempre, nos aliados ao lado da unidade escolhida.",
+  "effect": "Aliados ao lado da unidade escolhida recebem 2 de dano a menos por ataque, para sempre.",
   "full": false
  },
  {
@@ -176,7 +176,7 @@
   "atk": 0,
   "hp": 0,
   "cost": 3,
-  "effect": "Suas unidades na Retaguarda: -1 de dano de ataques.",
+  "effect": "Suas unidades na Retaguarda recebem 1 de dano a menos por ataque.",
   "full": true
  },
  {
@@ -616,7 +616,7 @@
   "atk": 2,
   "hp": 2,
   "cost": 1,
-  "effect": "**Manutenção 1.**",
+  "effect": "**Contrato 1.**",
   "full": false
  },
  {
@@ -626,7 +626,7 @@
   "atk": 2,
   "hp": 2,
   "cost": 2,
-  "effect": "**Manutenção 1.**",
+  "effect": "**Contrato 1.**",
   "full": false
  },
  {
@@ -636,7 +636,7 @@
   "atk": 4,
   "hp": 4,
   "cost": 1,
-  "effect": "**Manutenção 3.** **Rescisão:** você perde 3 de ouro.",
+  "effect": "**Contrato 3.** **Rescisão:** -3 de ouro.",
   "full": false
  },
  {
@@ -646,7 +646,7 @@
   "atk": 2,
   "hp": 2,
   "cost": 1,
-  "effect": "**Manutenção 1.** **Rescisão:** compre 1 carta.",
+  "effect": "**Contrato 1.** **Rescisão:** compre 1 carta.",
   "full": false
  },
  {
@@ -656,7 +656,7 @@
   "atk": 4,
   "hp": 5,
   "cost": 3,
-  "effect": "**Manutenção 2.** Na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK. **Rescisão:** 2 de dano ao seu General.",
+  "effect": "Na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK. **Contrato 2.** **Rescisão:** 2 de dano ao seu General.",
   "full": true
  },
  {
@@ -666,7 +666,7 @@
   "atk": 5,
   "hp": 5,
   "cost": 2,
-  "effect": "**Manutenção 2.** **Rescisão:** 2 de dano ao seu General.",
+  "effect": "**Contrato 2.** **Rescisão:** 2 de dano ao seu General.",
   "full": true
  },
  {
@@ -676,7 +676,7 @@
   "atk": 5,
   "hp": 3,
   "cost": 2,
-  "effect": "**Manutenção 3.** **Rescisão:** você perde 3 de ouro.",
+  "effect": "**Contrato 3.** **Rescisão:** -3 de ouro.",
   "full": false
  },
  {
@@ -686,7 +686,7 @@
   "atk": 4,
   "hp": 3,
   "cost": 2,
-  "effect": "**Manutenção 2.** Ataca à distância. **Rescisão:** você perde 2 de ouro.",
+  "effect": "Ataca à distância. **Contrato 2.** **Rescisão:** -2 de ouro.",
   "full": false
  },
  {
@@ -696,7 +696,7 @@
   "atk": 1,
   "hp": 5,
   "cost": 2,
-  "effect": "**Manutenção 1.** Recebe -1 de dano. **Rescisão:** compre 1 carta.",
+  "effect": "Recebe 1 de dano a menos por ataque. **Contrato 1.** **Rescisão:** compre 1 carta.",
   "full": false
  },
  {
@@ -706,7 +706,7 @@
   "atk": 3,
   "hp": 2,
   "cost": 2,
-  "effect": "**Manutenção 2.** **Rescisão:** você perde 1 de ouro.",
+  "effect": "**Contrato 2.** **Rescisão:** -1 de ouro.",
   "full": false
  },
  {
@@ -736,7 +736,7 @@
   "atk": 1,
   "hp": 3,
   "cost": 2,
-  "effect": "No início do turno, ganhe 1 de ouro.",
+  "effect": "No início do turno, +1 de ouro.",
   "full": false
  },
  {
@@ -846,7 +846,7 @@
   "atk": 0,
   "hp": 5,
   "cost": 3,
-  "effect": "Escolha 1 modo no fim do seu turno. Soldo em Dobro: cartas com manutenção têm +2 ATK. Saque: ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo). Quitação: a manutenção de cada carta custa 1 a menos (mínimo 1).",
+  "effect": "Escolha 1 modo no fim do seu turno. Soldo em Dobro: cartas com contrato têm +2 ATK. Saque: ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo). Quitação: o contrato de cada carta custa 1 a menos (mínimo 1).",
   "full": true
  }
 ]

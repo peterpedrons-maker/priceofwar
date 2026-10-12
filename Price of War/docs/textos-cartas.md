@@ -13,6 +13,20 @@ Aplicada em `src/engine/catalog.ts` (campo `effect`) com a etiqueta de bronze (e
 7. **Nomes fixos**: unidade, aliado, inimigo, Vanguarda, Retaguarda, fileira, coluna, cemitério, baralho, mão.
 8. Carta sem efeito (Penitente de Pedra, Paladino do Alvorecer) fica sem texto, em vez do "—".
 
+### Hierarquia dos efeitos (rodada 24, pedido do dono)
+
+Toda carta lê na mesma ordem, de cima para baixo, uma ideia por linha:
+
+1. **Efeito principal** (o que a carta faz): a etiqueta do gatilho (Comando, Postura, Ofensiva…) e o texto dele. Sempre o primeiro.
+2. **Efeitos secundários e passivas** ("Ataca à distância", "Recebe 1 de dano a menos por ataque", "Na Vanguarda, …"), do mais importante para o menos.
+3. **Contrato e Rescisão** (o preço e a saída do mercenário) fecham a carta, sempre nessa ordem e cada um em linha própria: assim o jogador acha o preço no mesmo lugar em todas as cartas mercenárias.
+
+Regras de escrita que vieram junto:
+- **Ouro e números com sinal:** ganho é "+N de ouro", perda é "-N de ouro" (o jogo troca "de ouro" pela moeda do contador: `-3🪙`). Nada de "você perde 3": o sinal já diz. Custo de habilidade continua "Pague N de ouro:".
+- **Contrato N** vira a etiqueta "Contrato", dois-pontos, o número e uma moeda, e *por turno* em itálico (o contrato se repete todo turno, na fase de Suprimentos). **Rescisão:** só em negrito, sem etiqueta. O **itálico** fica reservado para explicações como "por turno".
+- **Redução de dano tem uma frase só:** "recebe N de dano a menos por ataque" (antes: "-1 de dano", "-1 de dano de ataques", "-2 de dano, para sempre"). Vale para Escudeiro de Linha, Sentinela de Aluguel, Linha Fechada e Fortaleza de Pedra.
+- **Nome da regra:** "Manutenção" virou **Contrato** (combina com Rescisão). O motor segue chamando de `upkeep`; só o texto que o jogador vê mudou (cartas, título da fase de Suprimentos, Relíquia, mensagens).
+
 ### A palavra de gatilho (ainda em escolha)
 
 Ver as imagens de estilos. Ideia atual: **etiqueta** antes do texto, em vez de só negrito — assim ela não se mistura com o resto. Opções: E (palavra numa linha própria com filete), F (selo escuro com letras claras), G (selo de bronze com o ícone do gatilho, a mesma cor do ícone ao lado do tipo).

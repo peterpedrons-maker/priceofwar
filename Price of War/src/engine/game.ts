@@ -286,7 +286,7 @@ const startTurn = (c: Ctx, seat: Seat) => {
   // Sempre abre a tela quando há mercenários: o dono vê o que paga ou perde, mesmo sem ouro (ver docs/deck-mercenarios.md).
   if (entries.length > 0) {
     c.s.pending = { kind: 'upkeep', seat, entries, discount };
-    log(c, seat, 'Manutenção: escolha quais mercenários continuam (pagando) e quais são dispensados.');
+    log(c, seat, 'Contrato: escolha quais mercenários continuam (pagando) e quais são dispensados.');
     return;
   }
   enterPreparation(c, seat);
@@ -302,15 +302,15 @@ const enterPreparation = (c: Ctx, seat: Seat) => {
 const payUpkeep = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'upkeep' }>) => {
   assertCanAct(c, seat, true);
   const pend = c.s.pending;
-  if (!pend || pend.kind !== 'upkeep') return fail('Não há manutenção para pagar.');
-  if (pend.seat !== seat) return fail('Essa manutenção não é sua.');
+  if (!pend || pend.kind !== 'upkeep') return fail('Não há contrato para pagar.');
+  if (pend.seat !== seat) return fail('Esse contrato não é seu.');
   const p = P(c, seat);
   const keep = new Set(a.keep);
-  if (!a.keep.every(id => pend.entries.some(e => e.cardId === id))) fail('Essa carta não está na lista de manutenção.');
+  if (!a.keep.every(id => pend.entries.some(e => e.cardId === id))) fail('Essa carta não está na lista de contratos.');
   const kept = pend.entries.filter(e => keep.has(e.cardId));
   const dismissed = pend.entries.filter(e => !keep.has(e.cardId));
   const total = Math.max(0, kept.reduce((n, e) => n + e.cost, 0) - pend.discount);
-  if (total > p.gold) fail('Ouro insuficiente para a manutenção: dispense alguém.');
+  if (total > p.gold) fail('Ouro insuficiente para os contratos: dispense alguém.');
   c.s.pending = null;
   if (total > 0) addGold(c, seat, -total, 'spend');
   c.ev.push({ t: 'upkeep', seat, paid: total, dismissed: dismissed.length });

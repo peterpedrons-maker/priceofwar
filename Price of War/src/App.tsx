@@ -1672,17 +1672,18 @@ const renderEffectText = (text: string, afterLead = false): React.ReactNode[] =>
     const prev = text[at - 1];
     const damage = t.endsWith(' de dano');
     if (damage && prev && /[-\d]/.test(prev)) continue;                  // "-1 de dano": a reduction, left as words
+    if (damage && text.startsWith(' a menos', at + t.length)) continue;   // "1 de dano a menos": também é redução, fica em palavras
     if (t.endsWith(' de ouro') && /^\d/.test(t) && prev && /\d/.test(prev)) continue;
     if (at > last) out.push(text.slice(last, at));
     if (t.startsWith('**')) {
       const word = t.slice(2, -2);
-      const up = /^Manutenção (\d+)\.?$/.exec(word);
+      const up = /^Contrato (\d+)\.?$/.exec(word);
       const lineBreak = () => { while (typeof out[out.length - 1] === 'string' && !(out[out.length - 1] as string).trim()) out.pop(); if (out.length && !(React.isValidElement(out[out.length - 1]) && (out[out.length - 1] as React.ReactElement).type === 'br')) out.push(<br key={`br${key++}`} />); };
       if (up) {   // "Manutenção" na etiqueta e o custo: Manutenção: 3 (moeda); sempre na própria linha
         lineBreak();
-        out.push(<KeywordPill key={key++} label="Manutenção" compact />, ':', <GoldSymbol key={key++} amount={up[1]} />, <i key={`pt${key++}`} style={{ fontSize: '0.82em', whiteSpace: 'nowrap' }}> por turno</i>);   // o itálico fica para explicações
+        out.push(<KeywordPill key={key++} label="Contrato" compact />, ':', <GoldSymbol key={key++} amount={up[1]} />, <i key={`pt${key++}`} style={{ fontSize: '0.82em', whiteSpace: 'nowrap' }}> por turno</i>);   // o itálico fica para explicações
         if (text.slice(at + t.length).trim()) out.push(<br key={`br${key++}`} />);
-      } else if (/^Rescisão:?$/.test(word)) { lineBreak(); out.push(<b key={key++}>Rescisão:</b>); }   // própria linha, só em negrito (o itálico fica para explicações), sem etiqueta
+      } else if (/^Rescisão:?$/.test(word)) { lineBreak(); out.push(<b key={key++} style={{ fontWeight: 900 }}>Rescisão:</b>); }   // própria linha, só em negrito (o itálico fica para explicações), sem etiqueta
       else out.push(<KeywordPill key={key++} label={word} />);
     }
     else if (t.endsWith(' de ouro')) out.push(<GoldSymbol key={key++} amount={t.split(' ')[0]} />);
@@ -6305,8 +6306,8 @@ export default function App() {
         case 'log':
           if (e.text.includes(' equipado: ')) break;   // the equip scene says it itself
           // The AI's own prompts and its ambush line have their own wording elsewhere.
-          if (e.seat === 1 && (e.text.includes('ativar Emboscada?') || e.text.startsWith('Emboscada ativada') || e.text.startsWith('Você tem') || e.text.startsWith('Manutenção:'))) break;
-          if (e.text.startsWith('Manutenção:')) break;   // the prompt itself says it
+          if (e.seat === 1 && (e.text.includes('ativar Emboscada?') || e.text.startsWith('Emboscada ativada') || e.text.startsWith('Você tem') || e.text.startsWith('Contrato:'))) break;
+          if (e.text.startsWith('Contrato:')) break;   // the prompt itself says it
           if (e.seat === 1 && e.text.includes(' foi dispensado')) { showToast(`O oponente: ${e.text}`); break; }
           showToast(e.seat === 1 && e.text.includes('descartada') ? `O oponente descartou ${e.text.split(' ')[0]} carta(s).` : e.text);
           break;
@@ -9531,7 +9532,7 @@ export default function App() {
             <motion.div key="upkeep-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="fixed inset-x-0 bottom-0 z-[268] flex flex-col items-center justify-end gap-2 pb-3 pointer-events-none"
               style={{ top: 120, background: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.62) 18%)' }}>
-              <PromptTitle title="Manutenção" sub={<>Você tem <b style={{ color: '#ffd36a' }}>{playerMana}</b> de ouro. Quem não for pago vai embora.{upkeepPrompt.discount > 0 ? ` A Relíquia abate ${upkeepPrompt.discount}.` : ''}</>} />
+              <PromptTitle title="Contratos" sub={<>Você tem <b style={{ color: '#ffd36a' }}>{playerMana}</b> de ouro. Quem não for pago vai embora.{upkeepPrompt.discount > 0 ? ` A Relíquia abate ${upkeepPrompt.discount}.` : ''}</>} />
               <div className="flex flex-wrap items-start justify-center overflow-y-auto" style={{ gap, maxWidth: windowSize.width - 12, maxHeight: '58vh' }}>
                 {rows.map(({ e, c }, i) => {
                   const kept = upkeepKeep[e.cardId] !== false;

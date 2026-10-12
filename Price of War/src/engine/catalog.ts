@@ -17,7 +17,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     passives: [{ kind: 'aura', who: { side: 'own', slots: [10] }, reduce: 1 }] },
   { name: "Soldado Tático", cardType: "Infantaria", atk: 3, hp: 4, cost: 2, trigger: "manobra", effect: "No fim do turno, troca de lugar com um aliado ao lado.",
     abilities: [{ on: 'turn_end', do: [{ kind: 'swap_adjacent' }] }] },
-  { name: "Escudeiro de Linha", trigger: "postura", cardType: "Infantaria", atk: 2, hp: 4, cost: 2, effect: "Recebe -1 de dano. Na Vanguarda, a carta atrás também recebe -1 de dano.",
+  { name: "Escudeiro de Linha", trigger: "postura", cardType: "Infantaria", atk: 2, hp: 4, cost: 2, effect: "Recebe 1 de dano a menos por ataque. Na Vanguarda, a carta atrás também.",
     passives: [
       { kind: 'aura', who: { side: 'own', behind: true }, from: 'front', reduce: 1 },
       { kind: 'aura', who: { side: 'self' }, reduce: 1 },
@@ -46,7 +46,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     abilities: [{ on: 'play', do: [
       { kind: 'displace', target: { ...ENEMY_UNIT, prompt: 'Escolha uma unidade inimiga para deslocar.' } },
     ] }] },
-  { name: "Linha Fechada", cardType: "Tática", atk: 0, hp: 0, cost: 2, effect: "-2 de dano, para sempre, nos aliados ao lado da unidade escolhida.",
+  { name: "Linha Fechada", cardType: "Tática", atk: 0, hp: 0, cost: 2, effect: "Aliados ao lado da unidade escolhida recebem 2 de dano a menos por ataque, para sempre.",
     abilities: [{ on: 'play', do: [
       { kind: 'guard_adjacent', amount: 2, target: { ...OWN_UNIT, prompt: 'Escolha uma unidade sua — os aliados ao lado dela recebem menos dano.' } },
     ] }] },
@@ -62,7 +62,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     abilities: [{ on: 'ambush', do: [{ kind: 'displace_attacker' }] }] },
   { name: "Estandarte da Legião", maxCopies: 1, trigger: "postura", fx: 'estandarte', cardType: "Relíquia", atk: 0, hp: 5, cost: 3, isFullArt: true, effect: "+1/+1 em combate às suas cartas em campo.",
     passives: [{ kind: 'aura', who: { side: 'own' }, atk: 1, combatHp: 1 }] },
-  { name: "Fortaleza de Pedra", maxCopies: 1, trigger: "postura", fx: 'muralha', cardType: "Terreno", atk: 0, hp: 0, cost: 3, isFullArt: true, effect: "Suas unidades na Retaguarda: -1 de dano de ataques.",
+  { name: "Fortaleza de Pedra", maxCopies: 1, trigger: "postura", fx: 'muralha', cardType: "Terreno", atk: 0, hp: 0, cost: 3, isFullArt: true, effect: "Suas unidades na Retaguarda recebem 1 de dano a menos por ataque.",
     passives: [{ kind: 'aura', who: { side: 'own', row: 'back' }, reduce: 1 }] },
   { name: "Pântano Maldito", maxCopies: 1, trigger: "postura", fx: 'pantano', cardType: "Terreno", atk: 0, hp: 0, cost: 2, effect: "Inimigos na Vanguarda: -1 ATK.",
     passives: [{ kind: 'aura', who: { side: 'enemy', row: 'front' }, atk: -1 }] },
@@ -181,34 +181,34 @@ export const CARD_DEFS: readonly CardDef[] = [
     abilities: [{ on: 'ability', phases: ['preparacao'], once: true, cost: 3, do: [{ kind: 'draw', amount: 1 }] }] },
 
   // ── mercenários (com manutenção) ──
-  { name: 'Lanceiro Pés-de-Lama', cardType: 'Infantaria', atk: 2, hp: 2, cost: 1, upkeep: 1, effect: '**Manutenção 1.**' },
-  { name: 'Besteiro Dedo-Ligeiro', cardType: 'Arqueiro', atk: 2, hp: 2, cost: 2, upkeep: 1, effect: '**Manutenção 1.**' },
-  { name: 'Capa-Rota', cardType: 'Infantaria', atk: 4, hp: 4, cost: 1, upkeep: 3, effect: '**Manutenção 3.** **Rescisão:** você perde 3 de ouro.',
+  { name: 'Lanceiro Pés-de-Lama', cardType: 'Infantaria', atk: 2, hp: 2, cost: 1, upkeep: 1, effect: '**Contrato 1.**' },
+  { name: 'Besteiro Dedo-Ligeiro', cardType: 'Arqueiro', atk: 2, hp: 2, cost: 2, upkeep: 1, effect: '**Contrato 1.**' },
+  { name: 'Capa-Rota', cardType: 'Infantaria', atk: 4, hp: 4, cost: 1, upkeep: 3, effect: '**Contrato 3.** **Rescisão:** -3 de ouro.',
     abilities: [{ on: 'dismissed', do: [{ kind: 'lose_gold', amount: 3 }] }] },
-  { name: 'Rato da Muralha', cardType: 'Infantaria', atk: 2, hp: 2, cost: 1, upkeep: 1, effect: '**Manutenção 1.** **Rescisão:** compre 1 carta.',
+  { name: 'Rato da Muralha', cardType: 'Infantaria', atk: 2, hp: 2, cost: 1, upkeep: 1, effect: '**Contrato 1.** **Rescisão:** compre 1 carta.',
     abilities: [{ on: 'dismissed', do: [{ kind: 'draw', amount: 1 }] }] },
-  { name: 'Capitão Barba-de-Corvo', isFullArt: true, trigger: 'postura', cardType: 'Infantaria', atk: 4, hp: 5, cost: 3, upkeep: 2, effect: '**Manutenção 2.** Na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK. **Rescisão:** 2 de dano ao seu General.',
+  { name: 'Capitão Barba-de-Corvo', isFullArt: true, trigger: 'postura', cardType: 'Infantaria', atk: 4, hp: 5, cost: 3, upkeep: 2, effect: 'Na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK. **Contrato 2.** **Rescisão:** 2 de dano ao seu General.',
     abilities: [{ on: 'dismissed', do: [{ kind: 'hurt_own_general', amount: 2 }] }],
     passives: [{ kind: 'aura', who: { side: 'own', types: ['Infantaria', 'Arqueiro'] }, from: 'front', atk: 1 }] },
-  { name: 'Cavaleiro do Escudo Raspado', maxCopies: 2, isFullArt: true, cardType: 'Cavalaria', atk: 5, hp: 5, cost: 2, upkeep: 2, effect: '**Manutenção 2.** **Rescisão:** 2 de dano ao seu General.',
+  { name: 'Cavaleiro do Escudo Raspado', maxCopies: 2, isFullArt: true, cardType: 'Cavalaria', atk: 5, hp: 5, cost: 2, upkeep: 2, effect: '**Contrato 2.** **Rescisão:** 2 de dano ao seu General.',
     abilities: [{ on: 'dismissed', do: [{ kind: 'hurt_own_general', amount: 2 }] }] },
-  { name: 'Florete de Aposta', cardType: 'Infantaria', atk: 5, hp: 3, cost: 2, upkeep: 3, effect: '**Manutenção 3.** **Rescisão:** você perde 3 de ouro.',
+  { name: 'Florete de Aposta', cardType: 'Infantaria', atk: 5, hp: 3, cost: 2, upkeep: 3, effect: '**Contrato 3.** **Rescisão:** -3 de ouro.',
     abilities: [{ on: 'dismissed', do: [{ kind: 'lose_gold', amount: 3 }] }] },
-  { name: 'Boca-de-Fogo', cardType: 'Artilharia', atk: 4, hp: 3, cost: 2, upkeep: 2, effect: '**Manutenção 2.** Ataca à distância. **Rescisão:** você perde 2 de ouro.',
+  { name: 'Boca-de-Fogo', cardType: 'Artilharia', atk: 4, hp: 3, cost: 2, upkeep: 2, effect: 'Ataca à distância. **Contrato 2.** **Rescisão:** -2 de ouro.',
     abilities: [{ on: 'dismissed', do: [{ kind: 'lose_gold', amount: 2 }] }] },
 
   // ── novas dos Mercenários (rodada 23) ──
-  { name: 'Sentinela de Aluguel', cardType: 'Infantaria', atk: 1, hp: 5, cost: 2, upkeep: 1, trigger: 'postura', effect: '**Manutenção 1.** Recebe -1 de dano. **Rescisão:** compre 1 carta.',
+  { name: 'Sentinela de Aluguel', cardType: 'Infantaria', atk: 1, hp: 5, cost: 2, upkeep: 1, trigger: 'postura', effect: 'Recebe 1 de dano a menos por ataque. **Contrato 1.** **Rescisão:** compre 1 carta.',
     abilities: [{ on: 'dismissed', do: [{ kind: 'draw', amount: 1 }] }],
     passives: [{ kind: 'aura', who: { side: 'self' }, reduce: 1 }] },
-  { name: 'Atirador de Aluguel', cardType: 'Arqueiro', atk: 3, hp: 2, cost: 2, upkeep: 2, effect: '**Manutenção 2.** **Rescisão:** você perde 1 de ouro.',
+  { name: 'Atirador de Aluguel', cardType: 'Arqueiro', atk: 3, hp: 2, cost: 2, upkeep: 2, effect: '**Contrato 2.** **Rescisão:** -1 de ouro.',
     abilities: [{ on: 'dismissed', do: [{ kind: 'lose_gold', amount: 1 }] }] },
   { name: 'Carta Branca', cardType: 'Emboscada', atk: 0, hp: 0, cost: 3, maxCopies: 2, effect: 'Cancela um ataque a uma de suas unidades e você compra 1 carta.',
     abilities: [{ on: 'ambush', do: [{ kind: 'cancel_attack' }, { kind: 'draw', amount: 1 }] }] },
 
   // ── sem manutenção ──
   { name: 'Vigia da Última Brasa', cardType: 'Infantaria', atk: 2, hp: 4, cost: 2, effect: '' },
-  { name: 'Quillon Contamoedas', fx: 'moeda', trigger: 'comando', cardType: 'Infantaria', atk: 1, hp: 3, cost: 2, effect: 'No início do turno, ganhe 1 de ouro.',
+  { name: 'Quillon Contamoedas', fx: 'moeda', trigger: 'comando', cardType: 'Infantaria', atk: 1, hp: 3, cost: 2, effect: 'No início do turno, +1 de ouro.',
     abilities: [{ on: 'turn_start', do: [{ kind: 'gold', amount: 1 }] }] },
 
   // ── táticas, equipamentos e emboscada próprios do deck (nenhuma carta é emprestada do Cardeal nem do Capitão) ──
@@ -243,11 +243,11 @@ export const CARD_DEFS: readonly CardDef[] = [
 
   // ── a Relíquia do deck: três modos, o dono escolhe um no fim do turno (vale até o fim do turno seguinte) ──
   { name: 'Códice das Mil Dívidas', maxCopies: 2, fx: 'codice', cardType: 'Relíquia', atk: 0, hp: 5, cost: 3, isFullArt: true,
-    effect: 'Escolha 1 modo no fim do seu turno. Soldo em Dobro: cartas com manutenção têm +2 ATK. Saque: ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo). Quitação: a manutenção de cada carta custa 1 a menos (mínimo 1).',
+    effect: 'Escolha 1 modo no fim do seu turno. Soldo em Dobro: cartas com contrato têm +2 ATK. Saque: ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo). Quitação: o contrato de cada carta custa 1 a menos (mínimo 1).',
     modes: [
-      { id: 'soldo', name: 'Soldo em Dobro', effect: 'Cartas com manutenção têm +2 ATK.', atk: 2 },
+      { id: 'soldo', name: 'Soldo em Dobro', effect: 'Cartas com contrato têm +2 ATK.', atk: 2 },
       { id: 'saque', name: 'Saque', effect: 'Ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo).', loot: { draw: 1, cap: 1 } },
-      { id: 'quitacao', name: 'Quitação', effect: 'A manutenção de cada carta custa 1 a menos (nunca menos de 1).', upkeepEach: 1 },
+      { id: 'quitacao', name: 'Quitação', effect: 'O contrato de cada carta custa 1 a menos (nunca menos de 1).', upkeepEach: 1 },
     ] },
 ];
 
@@ -321,7 +321,7 @@ export const DECK_RECIPES: Record<DeckId, DeckRecipe> = {
     },
   },
   mercenarios: {
-    id: 'mercenarios', name: "Deck Mercenários", description: "Tropas de aluguel, manutenção e uma Relíquia de contratos.", general: "Brann Meia-Coroa, Comprador de Guerras",
+    id: 'mercenarios', name: "Deck Mercenários", description: "Tropas de aluguel, contratos e uma Relíquia de dívidas.", general: "Brann Meia-Coroa, Comprador de Guerras",
     cards: {
       "Lanceiro Pés-de-Lama": 2,
       "Besteiro Dedo-Ligeiro": 3,

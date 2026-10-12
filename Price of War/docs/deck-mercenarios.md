@@ -1,3 +1,5 @@
+> **Nome na tela (rodada 24):** a regra que este documento chama de *manutenção* aparece para o jogador como **Contrato** ("Contrato: 3🪙 por turno"); a **Rescisão** continua igual. No código segue `upkeep`.
+
 # Deck Mercenários (no jogo; as 22 artes reais entregues)
 
 Terceiro deck do jogo. Ideia do dono: um deck cuja base é **ouro** (segundo pilar do jogo): as tropas cobram **manutenção**, e uma **Relíquia com modos** é o centro do deck.
