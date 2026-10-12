@@ -1618,12 +1618,10 @@ const FitText = ({ text, className, style }: { text: string, className?: string,
 // also stretch each already-wrapped line past the box horizontally.
 // The word that names an effect's trigger (Reforço, Postura, Comando…) as a small bronze label, with the trigger's own icon when there is
 // one; it sizes itself from the text around it (em), so it shrinks together with the effect text when that is fitted into the card.
-// Palavras de contrato dos Mercenários (Manutenção, Rescisão) ganham o tom vinho de contrato em vez do bronze, sem ícone próprio.
-const CONTRACT_WORDS = /^(manutenção|rescisão)\b/i;
 const KeywordPill = ({ label, icon }: { label: string; icon?: string; key?: React.Key }) => (
   <span style={{
     display: 'inline-block', fontFamily: "'Cinzel', serif", fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', fontSize: '0.68em',
-    color: '#fff3d0', ...(CONTRACT_WORDS.test(label) ? { background: 'linear-gradient(#a8333a, #6a161c)', border: '1px solid #3a0a0e' } : { background: 'linear-gradient(#b4742c, #7a4a12)', border: '1px solid #4a2a08' }), borderRadius: 5,
+    color: '#fff3d0', background: 'linear-gradient(#b4742c, #7a4a12)', border: '1px solid #4a2a08', borderRadius: 5,
     padding: icon ? '1px 0.7em 1px 0.3em' : '1px 0.7em', margin: '0 0.5em 0 0', verticalAlign: '0.1em', textShadow: '0 1px 1px rgba(0,0,0,0.5)', lineHeight: 1.35, whiteSpace: 'nowrap',
   }}>
     {icon && <img src={icon} alt="" draggable={false} style={{ width: '1.35em', height: '1.35em', objectFit: 'contain', display: 'inline-block', verticalAlign: 'middle', marginRight: '0.3em' }} />}
@@ -1634,13 +1632,22 @@ const KeywordPill = ({ label, icon }: { label: string; icon?: string; key?: Reac
 // heart, "3 de dano" → the damage burst with the 3 inside. "+1/+1" becomes both. A reduction ("-1 de dano") stays words. The sizes
 // are in em, so the symbols shrink with the text when it is fitted; they are a little under two lines' worth so that symbols on
 // neighbouring lines never touch.
-const STAT_TOKEN = /\*\*[^*]+\*\*|[+-]\d+\/[+-]\d+|[+-]\d+ (?:ATK|HP)\b|\d+ de dano/g;
+const STAT_TOKEN = /\*\*[^*]+\*\*|[+-]\d+\/[+-]\d+|[+-]\d+ (?:ATK|HP)\b|\d+ de dano|[+-]?\d+ de ouro/g;
 const STAT_NUMBER_STYLE: React.CSSProperties = { fontFamily: "'Cinzel', serif", fontWeight: 900, fontSize: '1.3em', lineHeight: 1, verticalAlign: 'middle', textShadow: '0 1px 0 #000, 0 -1px 0 #000, 1px 0 0 #000, -1px 0 0 #000, 0 0 3px #000' };
 const StatSymbol = ({ amount, kind }: { amount: string; kind: 'atk' | 'hp'; key?: React.Key }) => (
   <span style={{ display: 'inline-block', whiteSpace: 'nowrap', margin: '0 0.12em' }}>
     <span style={{ ...STAT_NUMBER_STYLE, color: kind === 'atk' ? '#ffe08a' : '#ffb3a8' }}>{amount}</span>
     <img src={kind === 'atk' ? uiIconSword : uiIconHeart} alt={kind === 'atk' ? 'ATK' : 'HP'} draggable={false}
       style={{ height: '1.6em', width: 'auto', display: 'inline-block', verticalAlign: 'middle', margin: '-0.5em 0 -0.5em 0.12em' }} />
+  </span>
+);
+// Custo/ganho em ouro dentro do texto ("Pague 1 de ouro", "você perde 3 de ouro"): o número e a moeda do jogo no lugar de "de ouro".
+const CoinIcon = ({ size = '1.25em' }: { size?: string; key?: React.Key }) => (
+  <img src={coinCaraImage} alt="ouro" draggable={false} style={{ height: size, width: size, display: 'inline-block', verticalAlign: 'middle', margin: '-0.3em 0.08em' }} />
+);
+const GoldSymbol = ({ amount }: { amount: string; key?: React.Key }) => (
+  <span style={{ display: 'inline-block', whiteSpace: 'nowrap', margin: '0 0.12em' }}>
+    <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 900, fontSize: '1.1em', lineHeight: 1, verticalAlign: 'middle' }}>{amount}</span><CoinIcon />
   </span>
 );
 const DamageSymbol = ({ amount }: { amount: string; key?: React.Key }) => {
@@ -1663,8 +1670,18 @@ const renderEffectText = (text: string): React.ReactNode[] => {
     const prev = text[at - 1];
     const damage = t.endsWith(' de dano');
     if (damage && prev && /[-\d]/.test(prev)) continue;                  // "-1 de dano": a reduction, left as words
+    if (t.endsWith(' de ouro') && /^\d/.test(t) && prev && /\d/.test(prev)) continue;
     if (at > last) out.push(text.slice(last, at));
-    if (t.startsWith('**')) out.push(<KeywordPill key={key++} label={t.slice(2, -2)} />);
+    if (t.startsWith('**')) {
+      const word = t.slice(2, -2);
+      const up = /^Manutenção (\d+)\.?$/.exec(word);
+      if (up) {   // "Manutenção" na etiqueta e o custo em moedas: Manutenção: (moeda)(moeda)(moeda)
+        out.push(<KeywordPill key={key++} label="Manutenção" />, ':', ...Array.from({ length: Number(up[1]) }, (_, i) => <CoinIcon key={`${key}-c${i}`} />), ' ');
+        key++;
+      } else if (/^Rescisão:?$/.test(word)) out.push(<b key={key++}><i>Rescisão:</i></b>);   // sem etiqueta: negrito em itálico no texto corrido
+      else out.push(<KeywordPill key={key++} label={word} />);
+    }
+    else if (t.endsWith(' de ouro')) out.push(<GoldSymbol key={key++} amount={t.split(' ')[0]} />);
     else if (damage) out.push(<DamageSymbol key={key++} amount={t.split(' ')[0]} />);
     else if (t.includes('/')) { const [a, h] = t.split('/'); out.push(<StatSymbol key={key++} amount={a} kind="atk" />, <StatSymbol key={key++} amount={h} kind="hp" />); }
     else out.push(<StatSymbol key={key++} amount={t.split(' ')[0]} kind={t.endsWith('ATK') ? 'atk' : 'hp'} />);
@@ -1796,6 +1813,7 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
                   {card.cardType}
                 </span>
                 {trig && <TriggerIcon cardId={card.id} icon={trig.icon} trig={trig.key} style={{ height: '1.5em', width: '1.5em', marginLeft: '0.45em' }} />}
+                {upkeepOf(card.name) > 0 && <img src={coinCaraImage} alt="" aria-hidden draggable={false} className="shrink-0 select-none pointer-events-none" style={{ height: '1.5em', width: '1.5em', marginLeft: '0.45em' }} />}
               </div>
               <div className="w-2/3 h-px shrink-0 my-1" style={{ background: 'rgba(201,162,39,0.6)' }} />
             </>
@@ -2093,7 +2111,7 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
         {card.cardType && (
           <div className="absolute flex items-center justify-center px-1 overflow-hidden" style={{ top: '56%', left: '12%', right: '12%', height: '7%' }}>
             <span
-              className={`${v.type} font-black uppercase tracking-widest truncate ${trig ? 'min-w-0' : 'w-full'} text-center`}
+              className={`${v.type} font-black uppercase tracking-widest truncate ${trig || upkeepOf(card.name) > 0 ? 'min-w-0' : 'w-full'} text-center`}
               style={{
                 fontFamily: "'Cinzel', serif",
                 color: card.cardType === 'Relíquia' ? '#6b3f00' : card.cardType === 'Terreno' ? '#17502a' : '#3a2408',
@@ -2105,6 +2123,7 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
             {/* Gatilho: ícone sem aro ao lado do tipo, no máximo da abertura da faixa (≈4,4% da altura da carta
                 dentro de uma caixa de 7%): acima disso a moldura, que é desenhada por cima, corta o ícone. */}
             {trig && <TriggerIcon cardId={card.id} icon={trig.icon} trig={trig.key} style={{ height: '72%', aspectRatio: '1', marginLeft: '0.45em' }} />}
+            {upkeepOf(card.name) > 0 && <img src={coinCaraImage} alt="" aria-hidden draggable={false} className="shrink-0 select-none pointer-events-none" style={{ height: '72%', aspectRatio: '1', marginLeft: '0.3em' }} />}
           </div>
         )}
 
@@ -3697,7 +3716,7 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
                         </div>
                       </div>
                       <span
-                        className={`absolute bottom-0 right-0 rounded-full flex items-center justify-center font-black text-[#fff1c9] bg-[#5a3d0c] shadow-[0_0_0_1.5px_#e8c766,0_2px_4px_rgba(0,0,0,0.6)] ${gridCols > 3 ? 'min-w-[14px] h-[14px] px-0.5 text-[8px]' : 'min-w-[18px] h-[18px] px-1 text-[10px]'}`}
+                        className={`absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full flex items-center justify-center font-black text-[#fff1c9] bg-[#5a3d0c] shadow-[0_0_0_1.5px_#e8c766,0_2px_4px_rgba(0,0,0,0.6)] ${gridCols > 3 ? 'min-w-[14px] h-[14px] px-0.5 text-[8px]' : 'min-w-[18px] h-[18px] px-1 text-[10px]'}`}
                         style={{ fontFamily: "'Cinzel', serif" }}
                       >
                         x{r.count}
