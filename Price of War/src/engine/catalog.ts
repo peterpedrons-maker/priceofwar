@@ -323,15 +323,14 @@ export const DECK_RECIPES: Record<DeckId, DeckRecipe> = {
   mercenarios: {
     id: 'mercenarios', name: "Deck Mercenários", description: "Tropas de aluguel, contratos e uma Relíquia de dívidas.", general: "Brann Meia-Coroa, Comprador de Guerras",
     cards: {
-      "Lanceiro Pés-de-Lama": 2,
-      "Besteiro Dedo-Ligeiro": 3,
+      "Lanceiro Pés-de-Lama": 3,
       "Capa-Rota": 3,
-      "Rato da Muralha": 2,
+      "Rato da Muralha": 3,
       "Capitão Barba-de-Corvo": 3,
       "Cavaleiro do Escudo Raspado": 2,
       "Florete de Aposta": 3,
       "Boca-de-Fogo": 3,
-      "Vigia da Última Brasa": 2,
+      "Vigia da Última Brasa": 3,
       "Quillon Contamoedas": 2,
       "Códice das Mil Dívidas": 2,
       "Escriba do Códice": 2,
@@ -386,6 +385,8 @@ export const starterDeckCards = (id: DeckId): Record<string, number> => {
 export const LEGACY_STARTERS: Record<DeckId, Record<string, number>[]> = {
   // O Mercenários nasceu depois dos ajustes: só tem a lista atual (a mesma da receita).
   mercenarios: [
+    // rodada 24: antes de trocar o Besteiro Dedo-Ligeiro (arte parecida com o Atirador de Aluguel) por mais cópias de outras cartas
+    {"Lanceiro Pés-de-Lama":2,"Besteiro Dedo-Ligeiro":3,"Capa-Rota":3,"Rato da Muralha":2,"Capitão Barba-de-Corvo":3,"Cavaleiro do Escudo Raspado":2,"Florete de Aposta":3,"Boca-de-Fogo":3,"Vigia da Última Brasa":2,"Quillon Contamoedas":2,"Códice das Mil Dívidas":2,"Escriba do Códice":2,"Chuva de Ferro Barato":2,"Pacto do Punhal Vermelho":2,"O Dia em que a Muralha Caiu":1,"Peitoral de Muitos Donos":2,"Espada de Mil Mãos":2,"Tambor do Soldo Fácil":1,"Ninguém Fica na Lama":2,"Os Dois do Beco":1,"O Peso da Bolsa":2,"Sentinela de Aluguel":2,"Atirador de Aluguel":2,"Carta Branca":2},
     {"Lanceiro Pés-de-Lama":4,"Besteiro Dedo-Ligeiro":4,"Capa-Rota":4,"Rato da Muralha":4,"Capitão Barba-de-Corvo":3,"Cavaleiro do Escudo Raspado":3,"Florete de Aposta":4,"Boca-de-Fogo":4,"Vigia da Última Brasa":4,"Quillon Contamoedas":4,"Códice das Mil Dívidas":3,"Escriba do Códice":3,"Chuva de Ferro Barato":2,"Pacto do Punhal Vermelho":2,"O Dia em que a Muralha Caiu":1,"Peitoral de Muitos Donos":3,"Espada de Mil Mãos":2,"Tambor do Soldo Fácil":1,"Ninguém Fica na Lama":2,"Os Dois do Beco":1,"O Peso da Bolsa":2},
     {"Lanceiro Pés-de-Lama":3,"Besteiro Dedo-Ligeiro":3,"Capa-Rota":3,"Rato da Muralha":3,"Capitão Barba-de-Corvo":3,"Cavaleiro do Escudo Raspado":2,"Florete de Aposta":3,"Boca-de-Fogo":3,"Vigia da Última Brasa":3,"Quillon Contamoedas":3,"Códice das Mil Dívidas":2,"Escriba do Códice":3,"Chuva de Ferro Barato":2,"Pacto do Punhal Vermelho":2,"O Dia em que a Muralha Caiu":1,"Peitoral de Muitos Donos":3,"Espada de Mil Mãos":2,"Tambor do Soldo Fácil":1,"Ninguém Fica na Lama":2,"Os Dois do Beco":1,"O Peso da Bolsa":2},
   ],

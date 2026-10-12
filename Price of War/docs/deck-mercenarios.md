@@ -93,3 +93,7 @@ Soldados com equipamentos de arremesso e veículos (lança-chamas, bombarda, ar�
 
 ## Rodada 19: tropa alugada (a pedido do dono)
 Raciocínio do dono: o custo real de uma tropa dos Mercenários é a compra mais a manutenção de cada turno (Capa-Rota: 2 + 2 por turno, ~8 de ouro em 3 turnos, contra 3 do Veterano de Guerra do Capitão com os mesmos 4/3). Então elas precisam ter **ataque acima da média**, custo de compra baixo e manutenção; dispensar tem de ser perda de verdade. Aplicado: Capa-Rota 5/3 · Florete de Aposta 6/2 (sem voltar à mão) · Cavaleiro do Escudo Raspado 5/5 com manutenção 2 (sem voltar à mão) · Capitão Barba-de-Corvo 4/5. Pés-de-Lama, Besteiro, Rato e Boca-de-Fogo ficam como estavam (ver `docs/balanceamento.md`, rodada 19).
+
+## Rodada 24: o Besteiro Dedo-Ligeiro sai do deck
+
+O Besteiro Dedo-Ligeiro (2/2, só atributos) e o Atirador de Aluguel tinham artes muito parecidas (arqueiro encapuzado com besta). Pedido do dono: tirar uma e manter 50 cartas. Saiu o **Besteiro** (3 cópias, sem texto; o Atirador tem Rescisão e mais identidade), e as 3 vagas foram para **+1 Lanceiro Pés-de-Lama (3), +1 Rato da Muralha (3) e +1 Vigia da Última Brasa (3)**, que têm atributos parecidos aos do Besteiro e artes diferentes. O Besteiro continua no catálogo e nos boosters (a lista antiga entra em `LEGACY_STARTERS`, então o deck de quem não mexeu atualiza sozinho). Medido (IA × IA, 200 partidas cada): **Mercenários 49,0% contra o Cardeal e 51,5% contra o Capitão**, Cardeal × Capitão 42/58 de referência.
