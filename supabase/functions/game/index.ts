@@ -38,7 +38,7 @@ var CARD_DEFS = [
     atk: 2,
     hp: 4,
     cost: 2,
-    effect: "Recebe -1 de dano. Na Vanguarda, a carta atr\xE1s tamb\xE9m recebe -1 de dano.",
+    effect: "Recebe 1 de dano a menos por ataque. Na Vanguarda, a carta atr\xE1s tamb\xE9m.",
     passives: [
       { kind: "aura", who: { side: "own", behind: true }, from: "front", reduce: 1 },
       { kind: "aura", who: { side: "self" }, reduce: 1 }
@@ -141,7 +141,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 2,
-    effect: "-2 de dano, para sempre, nos aliados ao lado da unidade escolhida.",
+    effect: "Aliados ao lado da unidade escolhida recebem 2 de dano a menos por ataque, para sempre.",
     abilities: [{ on: "play", do: [
       { kind: "guard_adjacent", amount: 2, target: { ...OWN_UNIT, prompt: "Escolha uma unidade sua \u2014 os aliados ao lado dela recebem menos dano." } }
     ] }]
@@ -210,7 +210,7 @@ var CARD_DEFS = [
     hp: 0,
     cost: 3,
     isFullArt: true,
-    effect: "Suas unidades na Retaguarda: -1 de dano de ataques.",
+    effect: "Suas unidades na Retaguarda recebem 1 de dano a menos por ataque.",
     passives: [{ kind: "aura", who: { side: "own", row: "back" }, reduce: 1 }]
   },
   {
@@ -691,8 +691,8 @@ var CARD_DEFS = [
     abilities: [{ on: "ability", phases: ["preparacao"], once: true, cost: 3, do: [{ kind: "draw", amount: 1 }] }]
   },
   // ── mercenários (com manutenção) ──
-  { name: "Lanceiro P\xE9s-de-Lama", cardType: "Infantaria", atk: 2, hp: 2, cost: 1, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.**" },
-  { name: "Besteiro Dedo-Ligeiro", cardType: "Arqueiro", atk: 2, hp: 2, cost: 2, upkeep: 1, effect: "**Manuten\xE7\xE3o 1.**" },
+  { name: "Lanceiro P\xE9s-de-Lama", cardType: "Infantaria", atk: 2, hp: 2, cost: 1, upkeep: 1, effect: "**Contrato 1.**" },
+  { name: "Besteiro Dedo-Ligeiro", cardType: "Arqueiro", atk: 2, hp: 2, cost: 2, upkeep: 1, effect: "**Contrato 1.**" },
   {
     name: "Capa-Rota",
     cardType: "Infantaria",
@@ -700,7 +700,7 @@ var CARD_DEFS = [
     hp: 4,
     cost: 1,
     upkeep: 3,
-    effect: "**Manuten\xE7\xE3o 3.** **Rescis\xE3o:** voc\xEA perde 3 de ouro.",
+    effect: "**Contrato 3.** **Rescis\xE3o:** -3 de ouro.",
     abilities: [{ on: "dismissed", do: [{ kind: "lose_gold", amount: 3 }] }]
   },
   {
@@ -710,7 +710,7 @@ var CARD_DEFS = [
     hp: 2,
     cost: 1,
     upkeep: 1,
-    effect: "**Manuten\xE7\xE3o 1.** **Rescis\xE3o:** compre 1 carta.",
+    effect: "**Contrato 1.** **Rescis\xE3o:** compre 1 carta.",
     abilities: [{ on: "dismissed", do: [{ kind: "draw", amount: 1 }] }]
   },
   {
@@ -722,7 +722,7 @@ var CARD_DEFS = [
     hp: 5,
     cost: 3,
     upkeep: 2,
-    effect: "**Manuten\xE7\xE3o 2.** Na Vanguarda, seus Infantaria e Arqueiros t\xEAm +1 ATK. **Rescis\xE3o:** 2 de dano ao seu General.",
+    effect: "Na Vanguarda, seus Infantaria e Arqueiros t\xEAm +1 ATK. **Contrato 2.** **Rescis\xE3o:** 2 de dano ao seu General.",
     abilities: [{ on: "dismissed", do: [{ kind: "hurt_own_general", amount: 2 }] }],
     passives: [{ kind: "aura", who: { side: "own", types: ["Infantaria", "Arqueiro"] }, from: "front", atk: 1 }]
   },
@@ -735,7 +735,7 @@ var CARD_DEFS = [
     hp: 5,
     cost: 2,
     upkeep: 2,
-    effect: "**Manuten\xE7\xE3o 2.** **Rescis\xE3o:** 2 de dano ao seu General.",
+    effect: "**Contrato 2.** **Rescis\xE3o:** 2 de dano ao seu General.",
     abilities: [{ on: "dismissed", do: [{ kind: "hurt_own_general", amount: 2 }] }]
   },
   {
@@ -745,7 +745,7 @@ var CARD_DEFS = [
     hp: 3,
     cost: 2,
     upkeep: 3,
-    effect: "**Manuten\xE7\xE3o 3.** **Rescis\xE3o:** voc\xEA perde 3 de ouro.",
+    effect: "**Contrato 3.** **Rescis\xE3o:** -3 de ouro.",
     abilities: [{ on: "dismissed", do: [{ kind: "lose_gold", amount: 3 }] }]
   },
   {
@@ -755,7 +755,7 @@ var CARD_DEFS = [
     hp: 3,
     cost: 2,
     upkeep: 2,
-    effect: "**Manuten\xE7\xE3o 2.** Ataca \xE0 dist\xE2ncia. **Rescis\xE3o:** voc\xEA perde 2 de ouro.",
+    effect: "Ataca \xE0 dist\xE2ncia. **Contrato 2.** **Rescis\xE3o:** -2 de ouro.",
     abilities: [{ on: "dismissed", do: [{ kind: "lose_gold", amount: 2 }] }]
   },
   // ── novas dos Mercenários (rodada 23) ──
@@ -767,7 +767,7 @@ var CARD_DEFS = [
     cost: 2,
     upkeep: 1,
     trigger: "postura",
-    effect: "**Manuten\xE7\xE3o 1.** Recebe -1 de dano. **Rescis\xE3o:** compre 1 carta.",
+    effect: "Recebe 1 de dano a menos por ataque. **Contrato 1.** **Rescis\xE3o:** compre 1 carta.",
     abilities: [{ on: "dismissed", do: [{ kind: "draw", amount: 1 }] }],
     passives: [{ kind: "aura", who: { side: "self" }, reduce: 1 }]
   },
@@ -778,7 +778,7 @@ var CARD_DEFS = [
     hp: 2,
     cost: 2,
     upkeep: 2,
-    effect: "**Manuten\xE7\xE3o 2.** **Rescis\xE3o:** voc\xEA perde 1 de ouro.",
+    effect: "**Contrato 2.** **Rescis\xE3o:** -1 de ouro.",
     abilities: [{ on: "dismissed", do: [{ kind: "lose_gold", amount: 1 }] }]
   },
   {
@@ -801,7 +801,7 @@ var CARD_DEFS = [
     atk: 1,
     hp: 3,
     cost: 2,
-    effect: "No in\xEDcio do turno, ganhe 1 de ouro.",
+    effect: "No in\xEDcio do turno, +1 de ouro.",
     abilities: [{ on: "turn_start", do: [{ kind: "gold", amount: 1 }] }]
   },
   // ── táticas, equipamentos e emboscada próprios do deck (nenhuma carta é emprestada do Cardeal nem do Capitão) ──
@@ -923,11 +923,11 @@ var CARD_DEFS = [
     hp: 5,
     cost: 3,
     isFullArt: true,
-    effect: "Escolha 1 modo no fim do seu turno. Soldo em Dobro: cartas com manuten\xE7\xE3o t\xEAm +2 ATK. Saque: ao destruir uma unidade inimiga, compre 1 carta (m\xE1x. 1 por ciclo). Quita\xE7\xE3o: a manuten\xE7\xE3o de cada carta custa 1 a menos (m\xEDnimo 1).",
+    effect: "Escolha 1 modo no fim do seu turno. Soldo em Dobro: cartas com contrato t\xEAm +2 ATK. Saque: ao destruir uma unidade inimiga, compre 1 carta (m\xE1x. 1 por ciclo). Quita\xE7\xE3o: o contrato de cada carta custa 1 a menos (m\xEDnimo 1).",
     modes: [
-      { id: "soldo", name: "Soldo em Dobro", effect: "Cartas com manuten\xE7\xE3o t\xEAm +2 ATK.", atk: 2 },
+      { id: "soldo", name: "Soldo em Dobro", effect: "Cartas com contrato t\xEAm +2 ATK.", atk: 2 },
       { id: "saque", name: "Saque", effect: "Ao destruir uma unidade inimiga, compre 1 carta (m\xE1x. 1 por ciclo).", loot: { draw: 1, cap: 1 } },
-      { id: "quitacao", name: "Quita\xE7\xE3o", effect: "A manuten\xE7\xE3o de cada carta custa 1 a menos (nunca menos de 1).", upkeepEach: 1 }
+      { id: "quitacao", name: "Quita\xE7\xE3o", effect: "O contrato de cada carta custa 1 a menos (nunca menos de 1).", upkeepEach: 1 }
     ]
   }
 ];
@@ -1005,7 +1005,7 @@ var DECK_RECIPES = {
   mercenarios: {
     id: "mercenarios",
     name: "Deck Mercen\xE1rios",
-    description: "Tropas de aluguel, manuten\xE7\xE3o e uma Rel\xEDquia de contratos.",
+    description: "Tropas de aluguel, contratos e uma Rel\xEDquia de d\xEDvidas.",
     general: "Brann Meia-Coroa, Comprador de Guerras",
     cards: {
       "Lanceiro P\xE9s-de-Lama": 2,
@@ -1546,7 +1546,7 @@ var startTurn = (c, seat) => {
   const discount = relicModeOf(p.board)?.upkeepFlat ?? 0;
   if (entries.length > 0) {
     c.s.pending = { kind: "upkeep", seat, entries, discount };
-    log(c, seat, "Manuten\xE7\xE3o: escolha quais mercen\xE1rios continuam (pagando) e quais s\xE3o dispensados.");
+    log(c, seat, "Contrato: escolha quais mercen\xE1rios continuam (pagando) e quais s\xE3o dispensados.");
     return;
   }
   enterPreparation(c, seat);
@@ -1558,15 +1558,15 @@ var enterPreparation = (c, seat) => {
 var payUpkeep = (c, seat, a) => {
   assertCanAct(c, seat, true);
   const pend = c.s.pending;
-  if (!pend || pend.kind !== "upkeep") return fail("N\xE3o h\xE1 manuten\xE7\xE3o para pagar.");
-  if (pend.seat !== seat) return fail("Essa manuten\xE7\xE3o n\xE3o \xE9 sua.");
+  if (!pend || pend.kind !== "upkeep") return fail("N\xE3o h\xE1 contrato para pagar.");
+  if (pend.seat !== seat) return fail("Esse contrato n\xE3o \xE9 seu.");
   const p = P(c, seat);
   const keep = new Set(a.keep);
-  if (!a.keep.every((id) => pend.entries.some((e) => e.cardId === id))) fail("Essa carta n\xE3o est\xE1 na lista de manuten\xE7\xE3o.");
+  if (!a.keep.every((id) => pend.entries.some((e) => e.cardId === id))) fail("Essa carta n\xE3o est\xE1 na lista de contratos.");
   const kept = pend.entries.filter((e) => keep.has(e.cardId));
   const dismissed = pend.entries.filter((e) => !keep.has(e.cardId));
   const total = Math.max(0, kept.reduce((n, e) => n + e.cost, 0) - pend.discount);
-  if (total > p.gold) fail("Ouro insuficiente para a manuten\xE7\xE3o: dispense algu\xE9m.");
+  if (total > p.gold) fail("Ouro insuficiente para os contratos: dispense algu\xE9m.");
   c.s.pending = null;
   if (total > 0) addGold(c, seat, -total, "spend");
   c.ev.push({ t: "upkeep", seat, paid: total, dismissed: dismissed.length });
