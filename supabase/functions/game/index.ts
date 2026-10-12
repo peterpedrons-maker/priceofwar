@@ -700,7 +700,7 @@ var CARD_DEFS = [
     hp: 4,
     cost: 1,
     upkeep: 3,
-    effect: "**Manuten\xE7\xE3o 3.** Rescis\xE3o: voc\xEA perde 3 de ouro.",
+    effect: "**Manuten\xE7\xE3o 3.** **Rescis\xE3o:** voc\xEA perde 3 de ouro.",
     abilities: [{ on: "dismissed", do: [{ kind: "lose_gold", amount: 3 }] }]
   },
   {
@@ -710,7 +710,7 @@ var CARD_DEFS = [
     hp: 2,
     cost: 1,
     upkeep: 1,
-    effect: "**Manuten\xE7\xE3o 1.** Rescis\xE3o: compre 1 carta.",
+    effect: "**Manuten\xE7\xE3o 1.** **Rescis\xE3o:** compre 1 carta.",
     abilities: [{ on: "dismissed", do: [{ kind: "draw", amount: 1 }] }]
   },
   {
@@ -722,7 +722,7 @@ var CARD_DEFS = [
     hp: 5,
     cost: 3,
     upkeep: 2,
-    effect: "**Manuten\xE7\xE3o 2.** Na Vanguarda, seus Infantaria e Arqueiros t\xEAm +1 ATK. Rescis\xE3o: 2 de dano ao seu General.",
+    effect: "**Manuten\xE7\xE3o 2.** Na Vanguarda, seus Infantaria e Arqueiros t\xEAm +1 ATK. **Rescis\xE3o:** 2 de dano ao seu General.",
     abilities: [{ on: "dismissed", do: [{ kind: "hurt_own_general", amount: 2 }] }],
     passives: [{ kind: "aura", who: { side: "own", types: ["Infantaria", "Arqueiro"] }, from: "front", atk: 1 }]
   },
@@ -735,7 +735,7 @@ var CARD_DEFS = [
     hp: 5,
     cost: 2,
     upkeep: 2,
-    effect: "**Manuten\xE7\xE3o 2.** Rescis\xE3o: 2 de dano ao seu General.",
+    effect: "**Manuten\xE7\xE3o 2.** **Rescis\xE3o:** 2 de dano ao seu General.",
     abilities: [{ on: "dismissed", do: [{ kind: "hurt_own_general", amount: 2 }] }]
   },
   {
@@ -745,7 +745,7 @@ var CARD_DEFS = [
     hp: 3,
     cost: 2,
     upkeep: 3,
-    effect: "**Manuten\xE7\xE3o 3.** Rescis\xE3o: voc\xEA perde 3 de ouro.",
+    effect: "**Manuten\xE7\xE3o 3.** **Rescis\xE3o:** voc\xEA perde 3 de ouro.",
     abilities: [{ on: "dismissed", do: [{ kind: "lose_gold", amount: 3 }] }]
   },
   {
@@ -755,7 +755,7 @@ var CARD_DEFS = [
     hp: 3,
     cost: 2,
     upkeep: 2,
-    effect: "**Manuten\xE7\xE3o 2.** Ataca \xE0 dist\xE2ncia. Rescis\xE3o: voc\xEA perde 2 de ouro.",
+    effect: "**Manuten\xE7\xE3o 2.** Ataca \xE0 dist\xE2ncia. **Rescis\xE3o:** voc\xEA perde 2 de ouro.",
     abilities: [{ on: "dismissed", do: [{ kind: "lose_gold", amount: 2 }] }]
   },
   // ── novas dos Mercenários (rodada 23) ──
@@ -767,7 +767,7 @@ var CARD_DEFS = [
     cost: 2,
     upkeep: 1,
     trigger: "postura",
-    effect: "**Manuten\xE7\xE3o 1.** Recebe -1 de dano. Rescis\xE3o: compre 1 carta.",
+    effect: "**Manuten\xE7\xE3o 1.** Recebe -1 de dano. **Rescis\xE3o:** compre 1 carta.",
     abilities: [{ on: "dismissed", do: [{ kind: "draw", amount: 1 }] }],
     passives: [{ kind: "aura", who: { side: "self" }, reduce: 1 }]
   },
@@ -778,7 +778,7 @@ var CARD_DEFS = [
     hp: 2,
     cost: 2,
     upkeep: 2,
-    effect: "**Manuten\xE7\xE3o 2.** Rescis\xE3o: voc\xEA perde 1 de ouro.",
+    effect: "**Manuten\xE7\xE3o 2.** **Rescis\xE3o:** voc\xEA perde 1 de ouro.",
     abilities: [{ on: "dismissed", do: [{ kind: "lose_gold", amount: 1 }] }]
   },
   {
