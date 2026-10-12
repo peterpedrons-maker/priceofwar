@@ -1619,11 +1619,11 @@ const FitText = ({ text, className, style }: { text: string, className?: string,
 // also stretch each already-wrapped line past the box horizontally.
 // The word that names an effect's trigger (Reforço, Postura, Comando…) as a small bronze label, with the trigger's own icon when there is
 // one; it sizes itself from the text around it (em), so it shrinks together with the effect text when that is fitted into the card.
-const KeywordPill = ({ label, icon }: { label: string; icon?: string; key?: React.Key }) => (
+const KeywordPill = ({ label, icon, compact }: { label: string; icon?: string; compact?: boolean; key?: React.Key }) => (
   <span style={{
-    display: 'inline-block', fontFamily: "'Cinzel', serif", fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', fontSize: '0.68em',
+    display: 'inline-block', fontFamily: "'Cinzel', serif", fontWeight: 800, textTransform: 'uppercase', letterSpacing: compact ? '0.03em' : '0.07em', fontSize: compact ? '0.64em' : '0.68em',
     color: '#fff3d0', background: 'linear-gradient(#b4742c, #7a4a12)', border: '1px solid #4a2a08', borderRadius: 5,
-    padding: icon ? '1px 0.7em 1px 0.3em' : '1px 0.7em', margin: '0 0.5em 0 0', verticalAlign: '0.1em', textShadow: '0 1px 1px rgba(0,0,0,0.5)', lineHeight: 1.35, whiteSpace: 'nowrap',
+    padding: icon ? '1px 0.7em 1px 0.3em' : compact ? '1px 0.5em' : '1px 0.7em', margin: compact ? '0 0.2em 0 0' : '0 0.5em 0 0', verticalAlign: '0.1em', textShadow: '0 1px 1px rgba(0,0,0,0.5)', lineHeight: 1.35, whiteSpace: 'nowrap',
   }}>
     {icon && <img src={icon} alt="" draggable={false} style={{ width: '1.35em', height: '1.35em', objectFit: 'contain', display: 'inline-block', verticalAlign: 'middle', marginRight: '0.3em' }} />}
     {label}
@@ -1662,8 +1662,9 @@ const DamageSymbol = ({ amount }: { amount: string; key?: React.Key }) => {
     </span>
   );
 };
-const renderEffectText = (text: string): React.ReactNode[] => {
+const renderEffectText = (text: string, afterLead = false): React.ReactNode[] => {
   const out: React.ReactNode[] = [];
+  if (afterLead) out.push(<span key="lead-gap" />);   // há etiqueta de gatilho antes do texto: Manutenção/Rescisão ainda quebram a linha
   let last = 0, key = 0, m: RegExpExecArray | null;
   STAT_TOKEN.lastIndex = 0;
   while ((m = STAT_TOKEN.exec(text))) {
@@ -1679,7 +1680,7 @@ const renderEffectText = (text: string): React.ReactNode[] => {
       const lineBreak = () => { while (typeof out[out.length - 1] === 'string' && !(out[out.length - 1] as string).trim()) out.pop(); if (out.length && !(React.isValidElement(out[out.length - 1]) && (out[out.length - 1] as React.ReactElement).type === 'br')) out.push(<br key={`br${key++}`} />); };
       if (up) {   // "Manutenção" na etiqueta e o custo: Manutenção: 3 (moeda); sempre na própria linha
         lineBreak();
-        out.push(<KeywordPill key={key++} label="Manutenção" />, ':', <GoldSymbol key={key++} amount={up[1]} />);
+        out.push(<KeywordPill key={key++} label="Manutenção" compact />, ':', <GoldSymbol key={key++} amount={up[1]} />, <i key={`pt${key++}`} style={{ fontSize: '0.82em', whiteSpace: 'nowrap' }}> por turno</i>);   // o itálico fica para explicações
         if (text.slice(at + t.length).trim()) out.push(<br key={`br${key++}`} />);
       } else if (/^Rescisão:?$/.test(word)) { lineBreak(); out.push(<b key={key++}>Rescisão:</b>); }   // própria linha, só em negrito (o itálico fica para explicações), sem etiqueta
       else out.push(<KeywordPill key={key++} label={word} />);
@@ -1735,7 +1736,7 @@ const FitEffectText = ({ text, className, style, align = 'center', lead }: { tex
     <div ref={containerRef} className={`w-full h-full flex overflow-hidden ${align === 'start' ? 'items-start justify-start' : 'items-center justify-center'}`}>
       <p ref={textRef} className={className} style={{ ...style, margin: 0 }}>
         {lead && <KeywordPill label={lead.label} icon={lead.icon} />}
-        {renderEffectText(text)}
+        {renderEffectText(text, !!lead)}
       </p>
     </div>
   );
