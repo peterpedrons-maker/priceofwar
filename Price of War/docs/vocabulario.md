@@ -169,3 +169,5 @@ O que cada palavra já quer dizer (não é repetido nas cartas):
 - **Queda**: ao ser destruída.
 - **Ofensiva**: ao atacar. **Postura**: vale enquanto a carta estiver na posição indicada. **Convocação**: ao entrar em campo. **Reforço**: quando a carta da frente cai.
 - **Ganho de vida é sempre "+N HP"**: no jogo a vida não tem teto, então vale para qualquer unidade (só o Samaritano de Aço exige uma unidade "ferida").
+
+Rodada 24 (decisão do dono): **cura e Rescisão ficam sem ícone de gatilho** (só a Manutenção marca o mercenário; a Rescisão é consequência de não pagar, não um momento que o jogador provoca). Em vez de arte nova, as palavras **Manutenção** e **Rescisão** aparecem como etiqueta no tom vinho de contrato (`CONTRACT_WORDS` em `App.tsx`), e a Rescisão passou a vir em negrito (`**Rescisão:**`) no texto das 8 cartas mercenárias.

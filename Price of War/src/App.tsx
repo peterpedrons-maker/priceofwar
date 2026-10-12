@@ -1618,10 +1618,12 @@ const FitText = ({ text, className, style }: { text: string, className?: string,
 // also stretch each already-wrapped line past the box horizontally.
 // The word that names an effect's trigger (Reforço, Postura, Comando…) as a small bronze label, with the trigger's own icon when there is
 // one; it sizes itself from the text around it (em), so it shrinks together with the effect text when that is fitted into the card.
+// Palavras de contrato dos Mercenários (Manutenção, Rescisão) ganham o tom vinho de contrato em vez do bronze, sem ícone próprio.
+const CONTRACT_WORDS = /^(manutenção|rescisão)\b/i;
 const KeywordPill = ({ label, icon }: { label: string; icon?: string; key?: React.Key }) => (
   <span style={{
     display: 'inline-block', fontFamily: "'Cinzel', serif", fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', fontSize: '0.68em',
-    color: '#fff3d0', background: 'linear-gradient(#b4742c, #7a4a12)', border: '1px solid #4a2a08', borderRadius: 5,
+    color: '#fff3d0', ...(CONTRACT_WORDS.test(label) ? { background: 'linear-gradient(#a8333a, #6a161c)', border: '1px solid #3a0a0e' } : { background: 'linear-gradient(#b4742c, #7a4a12)', border: '1px solid #4a2a08' }), borderRadius: 5,
     padding: icon ? '1px 0.7em 1px 0.3em' : '1px 0.7em', margin: '0 0.5em 0 0', verticalAlign: '0.1em', textShadow: '0 1px 1px rgba(0,0,0,0.5)', lineHeight: 1.35, whiteSpace: 'nowrap',
   }}>
     {icon && <img src={icon} alt="" draggable={false} style={{ width: '1.35em', height: '1.35em', objectFit: 'contain', display: 'inline-block', verticalAlign: 'middle', marginRight: '0.3em' }} />}

@@ -1,3 +1,5 @@
+> **Cancelado (rodada 24):** o dono decidiu não criar ícones de cura nem de Rescisão. Estes prompts ficam só como registro.
+
 # Dois gatilhos novos: Cura e Rescisão (prompts)
 
 Os sete medalhões atuais (`src/assets/trigger-*.webp`, folha em `art-prompts/reference/ui-trigger-sheet.jpg`) são **baixo-relevo em bronze**, sem aro, um objeto claro por medalhão. Faltam dois para completar as cartas que ficaram sem ícone:
