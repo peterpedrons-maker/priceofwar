@@ -84,3 +84,8 @@ WIDE LANDSCAPE IMAGE, aspect ratio approx 16:10 (width:height), approx 1600x1000
 ```
 
 Depois de gerar: salvar em `src/assets/` como `card-<nome>.webp` e ligar no `ART_BY_NAME` de `src/App.tsx` (mesmo caminho das outras cartas). Se a IA devolver uma carta inteira ou uma foto, reforçar no fim: `Pure illustration only, absolutely no card layout, no text, hand-painted, not a photograph.`
+
+## Status das artes (entregues)
+- Integradas: Tenente de Marcha, Escolta Montada, Guarda de Fileira, Brigadeiro Voss, Passo Cadenciado (clareada por curva de gama), Revista de Tropas, Resposta Disciplinada, Campo de Treino, Mapa de Campanha (em `src/assets/capitao/<nome-sem-acento>.webp`, ligadas por nome em `App.tsx`) e Sentinela de Aluguel (`src/assets/merc/`).
+- Pendentes: Corneteiro (uniforme parece da Primeira Guerra, decisão do dono), Atirador de Aluguel e Carta Branca (palavra "CONTRACT" legível no papel da arte).
+- Conferência de repetição: `python3.11 -I tools/art-parecidas.py folha.png nome=imagem ...` (ranking + folha de contato contra as artes existentes).

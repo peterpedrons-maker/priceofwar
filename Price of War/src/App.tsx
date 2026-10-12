@@ -2255,6 +2255,12 @@ const artSlug = (name: string) => name.normalize('NFD').replace(/[\u0300-\u036f]
   const url = MERC_ART_FILES[`./assets/merc/${artSlug(name)}.webp`];
   if (url) ART_BY_NAME[name] = url;
 });
+// Capitão (rodada 23): src/assets/capitao/<nome-sem-acento>.webp, mapeado pelo nome da carta.
+const CAPITAO_ART_FILES = import.meta.glob('./assets/capitao/*.webp', { eager: true, import: 'default' }) as Record<string, string>;
+Object.keys(DECK_RECIPES.capitao.cards).concat(DECK_RECIPES.capitao.general, BOOSTER_EXTRA.capitao ? Object.keys(BOOSTER_EXTRA.capitao) : []).forEach(name => {
+  const url = CAPITAO_ART_FILES[`./assets/capitao/${artSlug(name)}.webp`];
+  if (url) ART_BY_NAME[name] = url;
+});
 
 const cardDataFromName = (name: string, id: string): CardData => {
   const def = requireCardDef(name);
