@@ -6,7 +6,7 @@
   "atk": 0,
   "hp": 30,
   "cost": 0,
-  "effect": "**Fim do turno** Até 2 unidades que se moveram ganham +2/+1 no próximo combate. **Passiva** Relíquia e Terreno recebem -1 de dano.",
+  "effect": "**Fim do turno** Até 2 unidades que se moveram ganham +2/+1 no próximo combate. **Passiva** Relíquia recebe -1 de dano.",
   "full": true
  },
  {
@@ -14,7 +14,7 @@
   "name": "Soldado Tático",
   "type": "Infantaria",
   "atk": 3,
-  "hp": 3,
+  "hp": 4,
   "cost": 2,
   "effect": "No fim do turno, troca de lugar com um aliado ao lado.",
   "full": false
@@ -44,7 +44,7 @@
   "name": "Batedor",
   "type": "Infantaria",
   "atk": 1,
-  "hp": 2,
+  "hp": 3,
   "cost": 1,
   "effect": "Depois de atacar, move-se 1 casa de graça e ganha +1 ATK para sempre.",
   "full": false
@@ -54,7 +54,7 @@
   "name": "Lanceiro de Controle",
   "type": "Infantaria",
   "atk": 3,
-  "hp": 2,
+  "hp": 3,
   "cost": 2,
   "effect": "O inimigo à frente tem -2 ATK.",
   "full": false
@@ -174,7 +174,7 @@
   "name": "Fortaleza de Pedra",
   "type": "Terreno",
   "atk": 0,
-  "hp": 8,
+  "hp": 0,
   "cost": 3,
   "effect": "Suas unidades na Retaguarda: -1 de dano de ataques.",
   "full": true
@@ -184,97 +184,197 @@
   "name": "Pântano Maldito",
   "type": "Terreno",
   "atk": 0,
-  "hp": 6,
+  "hp": 0,
   "cost": 2,
   "effect": "Inimigos na Vanguarda: -1 ATK.",
   "full": false
  },
  {
-  "slug": "cardeal-pedro-voz-da-fe",
-  "name": "Cardeal Pedro, Voz da Fé",
+  "slug": "corneteiro-da-coluna",
+  "name": "Corneteiro da Coluna",
+  "type": "Infantaria",
+  "atk": 1,
+  "hp": 2,
+  "cost": 2,
+  "effect": "Compre 1 carta.",
+  "full": false
+ },
+ {
+  "slug": "tenente-de-marcha",
+  "name": "Tenente de Marcha",
+  "type": "Infantaria",
+  "atk": 2,
+  "hp": 3,
+  "cost": 3,
+  "effect": "Ao se mover, compre 1 carta.",
+  "full": false
+ },
+ {
+  "slug": "escolta-montada",
+  "name": "Escolta Montada",
+  "type": "Cavalaria",
+  "atk": 3,
+  "hp": 3,
+  "cost": 2,
+  "effect": "Depois de atacar e sobreviver, move-se 1 casa de graça.",
+  "full": false
+ },
+ {
+  "slug": "guarda-de-fileira",
+  "name": "Guarda de Fileira",
+  "type": "Infantaria",
+  "atk": 2,
+  "hp": 5,
+  "cost": 3,
+  "effect": "Suas unidades na Retaguarda: +1 HP em combate.",
+  "full": false
+ },
+ {
+  "slug": "brigadeiro-voss-quebra-linhas",
+  "name": "Brigadeiro Voss, Quebra-Linhas",
+  "type": "Infantaria",
+  "atk": 4,
+  "hp": 5,
+  "cost": 4,
+  "effect": "Ao atacar o General: +3 ATK.",
+  "full": false
+ },
+ {
+  "slug": "passo-cadenciado",
+  "name": "Passo Cadenciado",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "2 movimentos extras neste turno.",
+  "full": false
+ },
+ {
+  "slug": "revista-de-tropas",
+  "name": "Revista de Tropas",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Compre 1 carta. Uma unidade sua que se moveu neste turno ganha +1 ATK para sempre.",
+  "full": false
+ },
+ {
+  "slug": "resposta-disciplinada",
+  "name": "Resposta Disciplinada",
+  "type": "Emboscada",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "A unidade atacada ganha +2 ATK e +2 HP até o fim do turno.",
+  "full": false
+ },
+ {
+  "slug": "campo-de-treino",
+  "name": "Campo de Treino",
+  "type": "Terreno",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Suas Infantarias na Vanguarda: +1 HP em combate.",
+  "full": false
+ },
+ {
+  "slug": "mapa-de-campanha",
+  "name": "Mapa de Campanha",
+  "type": "Relíquia",
+  "atk": 0,
+  "hp": 5,
+  "cost": 2,
+  "effect": "No início do seu turno: 1 movimento extra.",
+  "full": false
+ },
+ {
+  "slug": "cardeal-anselmo-voz-da-fe",
+  "name": "Cardeal Anselmo, Voz da Fé",
   "type": "General",
   "atk": 0,
   "hp": 30,
   "cost": 0,
-  "effect": "Pague 2 de ouro: +1 HP a uma unidade aliada.",
+  "effect": "Uma vez por turno: +1 HP a uma unidade aliada.",
   "full": true
  },
  {
-  "slug": "calice-da-graca",
-  "name": "Cálice da Graça",
+  "slug": "calice-das-duas-bencaos",
+  "name": "Cálice das Duas Bênçãos",
   "type": "Relíquia",
   "atk": 0,
-  "hp": 5,
+  "hp": 6,
   "cost": 3,
-  "effect": "Seu General dá +2 HP em vez de +1.",
+  "effect": "Seu General pode curar 2 vezes por turno.",
   "full": true
  },
  {
-  "slug": "devotos-da-cruzada",
-  "name": "Devotos da Cruzada",
+  "slug": "penitente-de-pedra",
+  "name": "Penitente de Pedra",
   "type": "Infantaria",
   "atk": 0,
-  "hp": 3,
+  "hp": 4,
   "cost": 1,
   "effect": "",
   "full": false
  },
  {
-  "slug": "mercador-da-cruzada",
-  "name": "Mercador da Cruzada",
+  "slug": "cambista-do-dizimo",
+  "name": "Cambista do Dízimo",
   "type": "Infantaria",
   "atk": 1,
-  "hp": 1,
+  "hp": 2,
   "cost": 1,
   "effect": "Pague 1 de ouro: veja 2 cartas do topo do baralho, fique com 1 e mande a outra para o cemitério.",
   "full": false
  },
  {
-  "slug": "infiltrado-da-ordem",
-  "name": "Infiltrado da Ordem",
+  "slug": "confessor-silencioso",
+  "name": "Confessor Silencioso",
   "type": "Infantaria",
   "atk": 1,
-  "hp": 2,
+  "hp": 3,
   "cost": 1,
   "effect": "Na Vanguarda, Emboscadas inimigas não ativam. Se seu General sofrer dano, ele fica sem habilidade no próximo turno.",
   "full": false
  },
  {
-  "slug": "fanatico-da-cruzada",
-  "name": "Fanático da Cruzada",
+  "slug": "zeloso-da-pira",
+  "name": "Zeloso da Pira",
   "type": "Infantaria",
   "atk": 1,
-  "hp": 2,
+  "hp": 3,
   "cost": 1,
   "effect": "+2 ATK contra General de facção oposta.",
   "full": false
  },
  {
-  "slug": "recruta-devoto",
-  "name": "Recruta Devoto",
+  "slug": "novico-renascido",
+  "name": "Noviço Renascido",
   "type": "Infantaria",
   "atk": 0,
-  "hp": 2,
+  "hp": 3,
   "cost": 1,
   "effect": "Quando é curado: +1 ATK para sempre.",
   "full": false
  },
  {
-  "slug": "intendente-do-exercito",
-  "name": "Intendente do Exército",
+  "slug": "despenseiro-do-mosteiro",
+  "name": "Despenseiro do Mosteiro",
   "type": "Infantaria",
   "atk": 2,
-  "hp": 3,
+  "hp": 4,
   "cost": 3,
   "effect": "No início do turno, compre até ter 2 cartas na mão.",
   "full": false
  },
  {
-  "slug": "soldados-da-ordem",
-  "name": "Soldados da Ordem",
+  "slug": "sentinela-do-claustro",
+  "name": "Sentinela do Claustro",
   "type": "Infantaria",
-  "atk": 3,
-  "hp": 4,
+  "atk": 2,
+  "hp": 5,
   "cost": 3,
   "effect": "Se a da frente cair, desce e ganha Escudo 2.",
   "full": false
@@ -283,55 +383,55 @@
   "slug": "jorge-lanca-sagrada",
   "name": "Jorge, Lança Sagrada",
   "type": "Cavalaria",
-  "atk": 4,
+  "atk": 3,
   "hp": 6,
   "cost": 4,
   "effect": "Ao atacar a Vanguarda, 2 de dano à carta atrás.",
   "full": true
  },
  {
-  "slug": "cavaleiro-hospitalario",
-  "name": "Cavaleiro Hospitalário",
+  "slug": "samaritano-de-aco",
+  "name": "Samaritano de Aço",
   "type": "Cavalaria",
   "atk": 2,
-  "hp": 3,
+  "hp": 5,
   "cost": 3,
-  "effect": "+1 HP a um aliado ferido e 1 de dano a um inimigo da Vanguarda.",
+  "effect": "+2 HP a um aliado ferido e 1 de dano a um inimigo da Vanguarda.",
   "full": false
  },
  {
-  "slug": "nobre-da-cruzada",
-  "name": "Nobre da Cruzada",
+  "slug": "barao-da-procissao",
+  "name": "Barão da Procissão",
   "type": "Cavalaria",
-  "atk": 4,
+  "atk": 3,
   "hp": 5,
   "cost": 4,
-  "effect": "Soldados Leais (1/1) nos espaços livres ao lado.",
+  "effect": "Acólitos Leais (1/2) nos espaços livres ao lado.",
   "full": true
  },
  {
-  "slug": "cavaleiro-da-luz",
-  "name": "Cavaleiro da Luz",
+  "slug": "paladino-do-alvorecer",
+  "name": "Paladino do Alvorecer",
   "type": "Cavalaria",
-  "atk": 4,
+  "atk": 3,
   "hp": 5,
   "cost": 4,
-  "effect": "",
+  "effect": "Quando uma unidade ao lado é curada: +1 ATK até o seu próximo turno.",
   "full": true
  },
  {
-  "slug": "comandante-da-ordem",
-  "name": "Comandante da Ordem",
+  "slug": "marechal-do-sol-poente",
+  "name": "Marechal do Sol Poente",
   "type": "Cavalaria",
-  "atk": 5,
+  "atk": 4,
   "hp": 5,
   "cost": 4,
   "effect": "Na Vanguarda, seus Infantaria e Arqueiros têm +1/+1 em combate.",
   "full": true
  },
  {
-  "slug": "arqueiro-da-ordem",
-  "name": "Arqueiro da Ordem",
+  "slug": "arqueiro-de-dois-sinos",
+  "name": "Arqueiro de Dois Sinos",
   "type": "Arqueiro",
   "atk": 1,
   "hp": 4,
@@ -340,18 +440,18 @@
   "full": false
  },
  {
-  "slug": "atirador-da-cruzada",
-  "name": "Atirador da Cruzada",
+  "slug": "vigia-do-ultimo-salmo",
+  "name": "Vigia do Último Salmo",
   "type": "Arqueiro",
   "atk": 1,
-  "hp": 3,
+  "hp": 4,
   "cost": 3,
   "effect": "Compre 2 cartas.",
   "full": false
  },
  {
-  "slug": "trabuco-de-cerco",
-  "name": "Trabuco de Cerco",
+  "slug": "trabuco-da-trombeta-final",
+  "name": "Trabuco da Trombeta Final",
   "type": "Tática",
   "atk": 0,
   "hp": 0,
@@ -360,8 +460,8 @@
   "full": true
  },
  {
-  "slug": "catapulta-de-guerra",
-  "name": "Catapulta de Guerra",
+  "slug": "catapulta-do-diluvio-de-pedra",
+  "name": "Catapulta do Dilúvio de Pedra",
   "type": "Tática",
   "atk": 0,
   "hp": 0,
@@ -370,8 +470,8 @@
   "full": false
  },
  {
-  "slug": "balestra-de-precisao",
-  "name": "Balestra de Precisão",
+  "slug": "balestra-da-penitencia",
+  "name": "Balestra da Penitência",
   "type": "Tática",
   "atk": 0,
   "hp": 0,
@@ -380,28 +480,28 @@
   "full": false
  },
  {
-  "slug": "armadura-de-guerra",
-  "name": "Armadura de Guerra",
+  "slug": "couraca-do-martir",
+  "name": "Couraça do Mártir",
   "type": "Tática",
   "atk": 0,
   "hp": 0,
   "cost": 1,
-  "effect": "Equipe uma Infantaria: +2 HP.",
+  "effect": "Equipe uma Infantaria: +2 HP e Guarda (absorve o primeiro golpe inteiro).",
   "full": false
  },
  {
-  "slug": "couraca-reforcada",
-  "name": "Couraça Reforçada",
+  "slug": "gibao-bento",
+  "name": "Gibão Bento",
   "type": "Tática",
   "atk": 0,
   "hp": 0,
   "cost": 1,
-  "effect": "Equipe uma Infantaria ou Arqueiro: +1 HP.",
+  "effect": "Equipe uma Infantaria ou Arqueiro: +2 HP.",
   "full": false
  },
  {
-  "slug": "flechas-venenosas",
-  "name": "Flechas Venenosas",
+  "slug": "setas-de-cicuta",
+  "name": "Setas de Cicuta",
   "type": "Tática",
   "atk": 0,
   "hp": 0,
@@ -410,8 +510,8 @@
   "full": false
  },
  {
-  "slug": "espada-longa",
-  "name": "Espada Longa",
+  "slug": "lamina-do-juramento",
+  "name": "Lâmina do Juramento",
   "type": "Tática",
   "atk": 0,
   "hp": 0,
@@ -420,18 +520,18 @@
   "full": false
  },
  {
-  "slug": "reforcos-ocultos",
-  "name": "Reforços Ocultos",
+  "slug": "preces-na-sombra",
+  "name": "Preces na Sombra",
   "type": "Emboscada",
   "atk": 0,
   "hp": 0,
   "cost": 1,
-  "effect": "A unidade atacada ganha +2 ATK e +1 HP até o fim do turno.",
+  "effect": "A unidade atacada ganha +1 ATK e +3 HP até o fim do turno.",
   "full": false
  },
  {
-  "slug": "retorno-do-soldado",
-  "name": "Retorno do Soldado",
+  "slug": "chamado-do-tumulo-santo",
+  "name": "Chamado do Túmulo Santo",
   "type": "Tática",
   "atk": 0,
   "hp": 0,
@@ -440,8 +540,8 @@
   "full": true
  },
  {
-  "slug": "graal-da-dadiva",
-  "name": "Graal da Dádiva",
+  "slug": "peregrinacao-ao-graal",
+  "name": "Peregrinação ao Graal",
   "type": "Tática",
   "atk": 0,
   "hp": 0,
@@ -450,8 +550,8 @@
   "full": false
  },
  {
-  "slug": "doutrina-renovada",
-  "name": "Doutrina Renovada",
+  "slug": "sermao-da-estrategia",
+  "name": "Sermão da Estratégia",
   "type": "Tática",
   "atk": 0,
   "hp": 0,
@@ -460,8 +560,8 @@
   "full": false
  },
  {
-  "slug": "recrutamento-seletivo",
-  "name": "Recrutamento Seletivo",
+  "slug": "alistamento-do-pulpito",
+  "name": "Alistamento do Púlpito",
   "type": "Tática",
   "atk": 0,
   "hp": 0,
@@ -470,8 +570,8 @@
   "full": false
  },
  {
-  "slug": "recrutar-veteranos",
-  "name": "Recrutar Veteranos",
+  "slug": "convocacao-dos-veteranos-de-fe",
+  "name": "Convocação dos Veteranos de Fé",
   "type": "Tática",
   "atk": 0,
   "hp": 0,
@@ -480,8 +580,8 @@
   "full": false
  },
  {
-  "slug": "tributo-de-guerra",
-  "name": "Tributo de Guerra",
+  "slug": "dizimo-de-guerra",
+  "name": "Dízimo de Guerra",
   "type": "Tática",
   "atk": 0,
   "hp": 0,
@@ -490,8 +590,8 @@
   "full": false
  },
  {
-  "slug": "chamado-as-armas",
-  "name": "Chamado às Armas",
+  "slug": "toque-dos-sinos-de-guerra",
+  "name": "Toque dos Sinos de Guerra",
   "type": "Tática",
   "atk": 0,
   "hp": 0,
@@ -534,9 +634,9 @@
   "name": "Capa-Rota",
   "type": "Infantaria",
   "atk": 4,
-  "hp": 3,
-  "cost": 2,
-  "effect": "**Manutenção 2.**",
+  "hp": 4,
+  "cost": 1,
+  "effect": "**Manutenção 3.** **Rescisão:** você perde 3 de ouro.",
   "full": false
  },
  {
@@ -546,27 +646,27 @@
   "atk": 2,
   "hp": 2,
   "cost": 1,
-  "effect": "**Manutenção 1.** Rescisão: compre 1 carta.",
+  "effect": "**Manutenção 1.** **Rescisão:** compre 1 carta.",
   "full": false
  },
  {
   "slug": "capitao-barba-de-corvo",
   "name": "Capitão Barba-de-Corvo",
   "type": "Infantaria",
-  "atk": 3,
+  "atk": 4,
   "hp": 5,
   "cost": 3,
-  "effect": "**Manutenção 2.** Na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK.",
+  "effect": "**Manutenção 2.** Na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK. **Rescisão:** 2 de dano ao seu General.",
   "full": true
  },
  {
   "slug": "cavaleiro-do-escudo-raspado",
   "name": "Cavaleiro do Escudo Raspado",
   "type": "Cavalaria",
-  "atk": 4,
+  "atk": 5,
   "hp": 5,
-  "cost": 3,
-  "effect": "**Manutenção 1.** Se dispensado, volta para a mão.",
+  "cost": 2,
+  "effect": "**Manutenção 2.** **Rescisão:** 2 de dano ao seu General.",
   "full": true
  },
  {
@@ -574,19 +674,49 @@
   "name": "Florete de Aposta",
   "type": "Infantaria",
   "atk": 5,
-  "hp": 2,
+  "hp": 3,
   "cost": 2,
-  "effect": "**Manutenção 2.** Se dispensado, volta para a mão.",
+  "effect": "**Manutenção 3.** **Rescisão:** você perde 3 de ouro.",
   "full": false
  },
  {
   "slug": "boca-de-fogo",
   "name": "Boca-de-Fogo",
   "type": "Artilharia",
+  "atk": 4,
+  "hp": 3,
+  "cost": 2,
+  "effect": "**Manutenção 2.** Ataca à distância. **Rescisão:** você perde 2 de ouro.",
+  "full": false
+ },
+ {
+  "slug": "sentinela-de-aluguel",
+  "name": "Sentinela de Aluguel",
+  "type": "Infantaria",
+  "atk": 1,
+  "hp": 5,
+  "cost": 2,
+  "effect": "**Manutenção 1.** Recebe -1 de dano. **Rescisão:** compre 1 carta.",
+  "full": false
+ },
+ {
+  "slug": "atirador-de-aluguel",
+  "name": "Atirador de Aluguel",
+  "type": "Arqueiro",
   "atk": 3,
   "hp": 2,
+  "cost": 2,
+  "effect": "**Manutenção 2.** **Rescisão:** você perde 1 de ouro.",
+  "full": false
+ },
+ {
+  "slug": "carta-branca",
+  "name": "Carta Branca",
+  "type": "Emboscada",
+  "atk": 0,
+  "hp": 0,
   "cost": 3,
-  "effect": "**Manutenção 1.** Ataca à distância.",
+  "effect": "Cancela um ataque a uma de suas unidades e você compra 1 carta.",
   "full": false
  },
  {
@@ -716,7 +846,7 @@
   "atk": 0,
   "hp": 5,
   "cost": 3,
-  "effect": "Escolha 1 modo no fim do seu turno. Soldo em Dobro: cartas com manutenção têm +1 ATK. Saque: ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo).",
+  "effect": "Escolha 1 modo no fim do seu turno. Soldo em Dobro: cartas com manutenção têm +2 ATK. Saque: ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo). Quitação: a manutenção de cada carta custa 1 a menos (mínimo 1).",
   "full": true
  }
 ]

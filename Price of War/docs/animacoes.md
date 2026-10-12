@@ -169,8 +169,10 @@ As faces são a carta como o jogo a desenha, **pré-renderizada** em `src/assets
 ```
 npx tsx tools/card3d/list-cards.ts > tools/card3d/cards.json
 node tools/card3d/render-faces.cjs            # [pasta] [url] [slug,slug…]  (para refazer só algumas)
-python3 tools/card3d/to-webp.py
+python3 tools/card3d/to-webp.py             # demora uns 5 min para ~85 cartas
 ```
+
+Regerado na rodada 24 (as faces dos Mercenários estavam com números e textos antigos): `render-faces.cjs` passou a entrar pelo mapa de Desafios (o fluxo antigo, por "Deck Capitão", não existe mais) e usa o primeiro deck. Sempre que mudar o texto de uma carta (como Manutenção/Rescisão), regere as faces.
 
 O verso é o `card-backplate` do jogo **cortado na própria arte** (a imagem original tem margens transparentes; sem cortar, o verso ficava menor que a frente, com o corpo dourado aparecendo em volta). Brilho de folha holográfica: forte no General e nas full art, sutil nas outras.
 

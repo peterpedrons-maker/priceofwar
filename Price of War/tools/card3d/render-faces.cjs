@@ -14,13 +14,11 @@ const cards = JSON.parse(fs.readFileSync(path.join(__dirname, 'cards.json'), 'ut
   await page.evaluate(() => localStorage.clear()); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(2500);
   await page.getByText('Jogar como convidado').tap(); await page.waitForTimeout(800);
   await page.getByPlaceholder('Nome do comandante').fill('Cartas'); await page.getByText('Começar').tap(); await page.waitForTimeout(1500);
-  await page.getByText('Desafios', { exact: true }).first().tap(); await page.waitForTimeout(1200);
-  await page.evaluate(() => { window.__r = Math.random; Math.random = () => 0.1; });
-  await page.getByText('Deck Capitão').first().tap();
-  await page.waitForFunction(() => /Deu (Cara|Coroa)/i.test(document.body.innerText), null, { timeout: 20000 }); await page.waitForTimeout(1200);
-  if (await page.getByText('Começar', { exact: true }).count()) await page.getByText('Começar', { exact: true }).first().tap();
-  await page.evaluate(() => { Math.random = window.__r; });
-  await page.waitForFunction(() => window.__powEngine && window.__powEngine() && window.__powEngine().turn.started, null, { timeout: 30000 });
+  await page.getByText('Desafios', { exact: true }).first().tap(); await page.waitForSelector('.dz-map'); await page.waitForTimeout(2000);
+  const mk = await page.locator('.dz-map .dz-mk:nth-child(2) svg').boundingBox(); await page.touchscreen.tap(mk.x + mk.width / 2, mk.y + mk.height / 2); await page.waitForTimeout(2500);
+  await page.locator('.dz-decks .dz-dk').nth(0).tap(); await page.waitForTimeout(300); await page.locator('.dz-fight').tap();
+  for (let i = 0; i < 30 && !(await page.evaluate(() => window.__powEngine && window.__powEngine() && window.__powEngine().turn.started)); i++) { const bt = page.getByText('Começar', { exact: true }); if (await bt.count()) await bt.first().tap().catch(() => {}); await page.waitForTimeout(1200); }
+  await page.waitForFunction(() => window.__powEngine && window.__powEngine() && window.__powEngine().turn.started, null, { timeout: 60000 });
   for (const c of cards) {
     await page.evaluate((c) => window.__powSet(st => {
       st.turn.round = 3; st.turn.phase = 'preparacao'; st.turn.active = 0; st.players[0].gold = 15; st.players[1].hand = [];
