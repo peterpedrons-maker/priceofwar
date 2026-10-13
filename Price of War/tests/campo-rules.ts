@@ -28,8 +28,8 @@ const give = (s: GameState, seat: Seat, name: string): Card => { const c = mk(na
 const act = (s: GameState, seat: Seat, a: Action): { s: GameState; ev: GameEvent[] } => { const r = applyAction(s, seat, a); if (r.ok === false) throw new Error(`refused: ${r.error}`); return { s: r.state, ev: r.events }; };
 const arm = (s: GameState, slot: number, weapon: string) => { const u = s.players[0].board[slot]!; const w = mk(weapon); u.equippedWeapons = [...(u.equippedWeapons ?? []), w]; };
 
-test('o deck de Campo tem 60 cartas e 30 nomes (com o General), todos novos', () => {
-  eq(Object.values(CAMPO_RECIPE.cards).reduce((a, b) => a + b, 0), 60);
+test('o deck de Campo tem 50 cartas e 30 nomes (com o General), todos novos', () => {
+  eq(Object.values(CAMPO_RECIPE.cards).reduce((a, b) => a + b, 0), 50);
   eq(Object.keys(CAMPO_RECIPE.cards).length + 1, 30);
 });
 test('Cabide de Ferro: +1 ATK por equipamento preso, no máximo +2', () => {

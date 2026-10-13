@@ -22,7 +22,7 @@ const GAP_MS = 2600;
 const SHOW_MS = 3500;
 
 // Phrase 1 is the deck's own (by the sender's General); the others are the same for everyone.
-const DECK_PHRASE: Record<string, string> = { cardeal: 'Que a fé o guie!', capitao: 'Em formação!', mercenarios: 'O preço subiu.' };
+const DECK_PHRASE: Record<string, string> = { cardeal: 'Que a fé o guie!', capitao: 'Em formação!', mercenarios: 'O preço subiu.', campo: 'Armados e prontos.' };
 const deckOfGeneral = (general: string): string => {
   const hit = (Object.keys(DECK_RECIPES) as (keyof typeof DECK_RECIPES)[]).find(id => DECK_RECIPES[id].general === general);
   return hit ?? 'cardeal';

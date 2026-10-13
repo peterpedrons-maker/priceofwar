@@ -385,3 +385,7 @@ Besteiro Dedo-Ligeiro ×3 saiu da receita e entraram +1 Lanceiro Pés-de-Lama, +
 Deck novo de Equipamento + Terreno medido só no laboratório (`tests/balance-campo.ts`, ainda fora do jogo). Versão final, IA × IA, 200 partidas: **73,0% × Cardeal, 44,5% × Capitão, 60,0% × Mercenários**. Fica forte contra os lentos e um pouco abaixo do Capitão. A IA não sabe tirar proveito do Terreno como uma pessoa (joga com pouca prioridade), então o número real tende a ser maior. Detalhes e a lista em `docs/deck-campo.md`.
 
 Rodada 24, deck de Campo versão 2 (soldados Armados de qualquer tipo, 2 Terrenos com modos): **72,0% × Cardeal, 42,5% × Capitão, 60,0% × Mercenários** (IA × IA, 200 partidas). Ver `docs/deck-campo.md`, "Versão 2".
+
+
+## Rodada 25: Deck de Campo no jogo (50 cartas)
+N=100 (200 partidas por confronto, IA × IA): Campo 78,5% × Cardeal, 46,5% × Capitão, 56% × Mercenários; Cardeal × Capitão 42% × 58% (referência). Cortes para chegar a 50 em `docs/deck-campo.md`. Pior carta no laboratório: Noite Sem Parar (−7,1 pts).

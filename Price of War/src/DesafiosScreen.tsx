@@ -4,6 +4,7 @@ import mapImage from './assets/desafios/map.webp';
 import portraitCapitao from './assets/desafios/capitao.webp';
 import portraitCardeal from './assets/desafios/cardeal.webp';
 import portraitMercenarios from './assets/desafios/mercenarios.webp';
+import portraitCampo from './assets/campo/margrave-osric-senhor-das-marcas.webp';
 
 // Tela "Desafios": um mapa limpo com um pino por adversário; tocar num pino dá zoom na cidade e sobe o cartão do general
 // (retrato, descrição, seus decks e o botão Batalha). Veio do mockup public/mockups/desafios (ver docs/visao-geral.md).
@@ -17,6 +18,7 @@ const PLACES: Record<string, { px: number; py: number; region: string; lbl: stri
   capitao: { px: 158, py: 488, region: 'Marca de Aurelion', lbl: 'Aurelion', tint: 'rgba(200,70,40,.5)', img: portraitCapitao },
   cardeal: { px: 676, py: 500, region: 'Sé de Pedro', lbl: 'Cardeal Anselmo', tint: 'rgba(240,200,90,.55)', img: portraitCardeal },
   mercenarios: { px: 790, py: 745, region: 'Porto das Meias-Coroas', lbl: 'Brann', tint: 'rgba(120,150,60,.5)', img: portraitMercenarios },
+  campo: { px: 500, py: 449, region: 'Torre das Marcas', lbl: 'Osric', tint: 'rgba(110,140,80,.5)', img: portraitCampo },
   bardos: { px: 432, py: 705, region: 'Vila do Javali Dourado', lbl: 'Aldric', tint: 'rgba(150,80,170,.45)' },
 };
 const LOCKED: DzOpponent[] = [{ id: 'bardos', name: 'Aldric Língua-de-Prata', epithet: 'Menestrel do Rei', desc: 'Em breve: cantores que se dão bônus entre si; em grupo ficam difíceis de abater.' }];

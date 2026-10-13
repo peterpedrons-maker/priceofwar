@@ -7,6 +7,10 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 var SOLDIERS = ["Infantaria", "Cavalaria", "Arqueiro", "Artilharia"];
 var OWN_UNIT = { side: "own", area: "unit" };
 var ENEMY_UNIT = { side: "enemy", area: "unit" };
+var equip = (stats, prompt) => ({ on: "play", do: [{ kind: "equip", ...stats, target: { ...OWN_UNIT, prompt } }] });
+var GRAVE_EQUIP = { kind: "search", zone: "graveyard", filter: { equipment: true } };
+var DECK_EQUIP = { kind: "search", zone: "deck", filter: { equipment: true } };
+var ARMED = { side: "own", armed: true };
 var CARD_DEFS = [
   // ── capitao ──
   {
@@ -929,6 +933,318 @@ var CARD_DEFS = [
       { id: "saque", name: "Saque", effect: "Ao destruir uma unidade inimiga, compre 1 carta (m\xE1x. 1 por ciclo).", loot: { draw: 1, cap: 1 } },
       { id: "quitacao", name: "Quita\xE7\xE3o", effect: "O contrato de cada carta custa 1 a menos (nunca menos de 1).", upkeepEach: 1 }
     ]
+  },
+  // ── campo ── (deck de soldados Armados, de qualquer tipo; docs/deck-campo.md)
+  {
+    name: "Margrave Osric, Senhor das Marcas",
+    cardType: "General",
+    atk: 0,
+    hp: 30,
+    cost: 0,
+    isFullArt: true,
+    trigger: "comando",
+    faction: "marca",
+    effect: "Pague 2 de ouro: leve 1 Equipamento do cemit\xE9rio para a m\xE3o. **Passiva** Suas Armadas e a Rel\xEDquia recebem 1 de dano a menos por ataque.",
+    abilities: [{ on: "ability", once: true, cost: 2, do: [GRAVE_EQUIP] }],
+    passives: [{ kind: "aura", who: ARMED, reduce: 1 }, { kind: "aura", who: { side: "own", slots: [10] }, reduce: 1 }]
+  },
+  // núcleo (identidade: armada)
+  {
+    name: "Cabide de Ferro",
+    cardType: "Infantaria",
+    atk: 2,
+    hp: 4,
+    cost: 2,
+    trigger: "postura",
+    effect: "+1 ATK por equipamento preso (m\xE1x. +2).",
+    passives: [{ kind: "aura", who: { side: "self" }, from: "front", atk: 1, perEquip: { cap: 2 } }]
+  },
+  {
+    name: "Cavaleiro do Pinhal Cinzento",
+    cardType: "Cavalaria",
+    atk: 3,
+    hp: 4,
+    cost: 3,
+    trigger: "postura",
+    effect: "**Armada:** +1 ATK.",
+    passives: [{ kind: "aura", who: { side: "self" }, from: "front", needs: "armed", atk: 1 }]
+  },
+  {
+    name: "Vigia da Torre Mofada",
+    cardType: "Infantaria",
+    atk: 2,
+    hp: 4,
+    cost: 3,
+    trigger: "postura",
+    effect: "**Armada:** +1 HP em combate.",
+    passives: [{ kind: "aura", who: { side: "self" }, from: "front", needs: "armed", combatHp: 1 }]
+  },
+  {
+    name: "Cavaleiro Rompe-Escudos",
+    cardType: "Cavalaria",
+    atk: 3,
+    hp: 4,
+    cost: 3,
+    trigger: "ofensiva",
+    effect: "**Armada:** 2 de dano \xE0 carta atr\xE1s.",
+    abilities: [{ on: "attack", do: [{ kind: "splash_behind", amount: 2, ifArmed: true }] }]
+  },
+  {
+    name: "Arqueiro do \xDAltimo Sol",
+    cardType: "Arqueiro",
+    atk: 2,
+    hp: 3,
+    cost: 3,
+    trigger: "postura",
+    effect: "Na Retaguarda, +1 ATK por equipamento preso (m\xE1x. +2).",
+    passives: [{ kind: "aura", who: { side: "self" }, from: "back", atk: 1, perEquip: { cap: 2 } }]
+  },
+  {
+    name: "Olho-de-N\xE9voa",
+    cardType: "Arqueiro",
+    atk: 1,
+    hp: 3,
+    cost: 2,
+    trigger: "convocacao",
+    effect: "Leve 1 Equipamento do baralho para a m\xE3o.",
+    abilities: [{ on: "place", do: [DECK_EQUIP] }]
+  },
+  {
+    name: "Bigorna Andarilha",
+    cardType: "Infantaria",
+    atk: 1,
+    hp: 4,
+    cost: 2,
+    trigger: "queda",
+    effect: "Leve 1 Equipamento do cemit\xE9rio para a m\xE3o.",
+    abilities: [{ on: "destroyed", do: [GRAVE_EQUIP] }]
+  },
+  {
+    name: "Recolhe-Espadas",
+    cardType: "Infantaria",
+    atk: 2,
+    hp: 4,
+    cost: 3,
+    trigger: "queda",
+    effect: "O equipamento preso volta para a sua m\xE3o.",
+    passives: [{ kind: "flag", flag: "recover_equipment" }]
+  },
+  {
+    name: "Tra\xE7a-Vales",
+    cardType: "Arqueiro",
+    atk: 1,
+    hp: 3,
+    cost: 1,
+    trigger: "convocacao",
+    effect: "Leve 1 Terreno do baralho para a m\xE3o.",
+    abilities: [{ on: "place", do: [{ kind: "search", zone: "deck", filter: { types: ["Terreno"] } }] }]
+  },
+  // efeitos gerais, em menor escala
+  {
+    name: "Grita-Passo",
+    cardType: "Infantaria",
+    atk: 2,
+    hp: 3,
+    cost: 3,
+    trigger: "convocacao",
+    effect: "Compre 1 carta.",
+    abilities: [{ on: "place", do: [{ kind: "draw", amount: 1 }] }]
+  },
+  {
+    name: "O Contador de Lan\xE7as",
+    cardType: "Infantaria",
+    atk: 2,
+    hp: 3,
+    cost: 3,
+    trigger: "comando",
+    effect: "Pague 1 de ouro: compre 1 carta.",
+    abilities: [{ on: "ability", once: true, cost: 1, do: [{ kind: "draw", amount: 1 }] }]
+  },
+  {
+    name: "R\xE9dea-de-Vento",
+    cardType: "Cavalaria",
+    atk: 2,
+    hp: 3,
+    cost: 2,
+    trigger: "manobra",
+    effect: "+1 ATK at\xE9 o pr\xF3ximo turno.",
+    abilities: [{ on: "move", do: [{ kind: "buff_self_temp", atk: 1 }] }]
+  },
+  // únicas
+  {
+    name: "Aldric Mil-Armas, Campe\xE3o das Marcas",
+    maxCopies: 1,
+    cardType: "Cavalaria",
+    atk: 3,
+    hp: 5,
+    cost: 4,
+    trigger: "postura",
+    effect: "+1/+1 em combate por equipamento preso (m\xE1x. +3).",
+    passives: [{ kind: "aura", who: { side: "self" }, from: "front", atk: 1, combatHp: 1, perEquip: { cap: 3 } }]
+  },
+  {
+    name: "Mestre Pedra-de-Amolar",
+    maxCopies: 1,
+    cardType: "Infantaria",
+    atk: 2,
+    hp: 4,
+    cost: 3,
+    trigger: "postura",
+    effect: "Suas **Armadas:** +1 ATK.",
+    passives: [{ kind: "aura", who: ARMED, from: "front", atk: 1 }]
+  },
+  // equipamentos (qualquer unidade; toda unidade equipada fica Armada)
+  {
+    name: "Cota de Mil Remendos",
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 1,
+    effect: "Equipe uma unidade: +1 ATK e +2 HP. A unidade equipada fica **Armada**",
+    abilities: [equip({ atk: 1, hp: 2 }, "Escolha uma unidade sua para equipar (+1 ATK e +2 HP).")]
+  },
+  {
+    name: "Escudo Porco-Espinho",
+    maxCopies: 2,
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 1,
+    effect: "Equipe uma unidade: Guarda (absorve o primeiro golpe inteiro). A unidade equipada fica **Armada**",
+    abilities: [equip({ block: true }, "Escolha uma unidade sua para equipar (Guarda).")]
+  },
+  {
+    name: "Espada do Posto Esquecido",
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 1,
+    effect: "Equipe uma unidade: +2 ATK. A unidade equipada fica **Armada**",
+    abilities: [equip({ atk: 2 }, "Escolha uma unidade sua para equipar (+2 ATK).")]
+  },
+  {
+    name: "Elmo das Tr\xEAs Rendi\xE7\xF5es",
+    maxCopies: 2,
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 1,
+    effect: "Equipe uma unidade: +3 HP. A unidade equipada fica **Armada**",
+    abilities: [equip({ hp: 3 }, "Escolha uma unidade sua para equipar (+3 HP).")]
+  },
+  {
+    name: "Machado Racha-Tronco",
+    maxCopies: 1,
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 2,
+    effect: "Equipe uma unidade: +3 ATK. A unidade equipada fica **Armada**",
+    abilities: [equip({ atk: 3 }, "Escolha uma unidade sua para equipar (+3 ATK).")]
+  },
+  {
+    name: "Casca de A\xE7o",
+    maxCopies: 2,
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 2,
+    effect: "Equipe uma unidade: +2 ATK e +1 HP. A unidade equipada fica **Armada**",
+    abilities: [equip({ atk: 2, hp: 1 }, "Escolha uma unidade sua para equipar (+2 ATK e +1 HP).")]
+  },
+  // Terrenos com modos (sem vida; o dono escolhe o modo no fim do turno e ele vale até o fim do turno seguinte)
+  {
+    name: "A Forja que Nunca Apaga",
+    maxCopies: 2,
+    cardType: "Terreno",
+    atk: 0,
+    hp: 0,
+    cost: 3,
+    effect: "Escolha 1 modo no fim do seu turno. Muralha: suas Armadas t\xEAm +2 HP em combate. Afia\xE7\xE3o: suas Armadas t\xEAm +2 ATK.",
+    modes: [
+      { id: "muralha", name: "Muralha", effect: "Suas Armadas t\xEAm +2 HP em combate.", passives: [{ kind: "aura", who: ARMED, combatHp: 2 }] },
+      { id: "afiacao", name: "Afia\xE7\xE3o", effect: "Suas Armadas t\xEAm +2 ATK.", passives: [{ kind: "aura", who: ARMED, atk: 2 }] }
+    ]
+  },
+  {
+    name: "Posto do Fogo-Sinal",
+    maxCopies: 2,
+    cardType: "Terreno",
+    atk: 0,
+    hp: 0,
+    cost: 2,
+    effect: "Escolha 1 modo no fim do seu turno. Trincheira: suas Armadas recebem 1 de dano a menos por ataque. Saque: ao destruir uma unidade inimiga, compre 1 carta (m\xE1x. 1 por ciclo).",
+    modes: [
+      { id: "trincheira", name: "Trincheira", effect: "Suas Armadas recebem 1 de dano a menos por ataque.", passives: [{ kind: "aura", who: ARMED, reduce: 1 }] },
+      { id: "saque", name: "Saque", effect: "Ao destruir uma unidade inimiga, compre 1 carta (m\xE1x. 1 por ciclo).", loot: { draw: 1, cap: 1 } }
+    ]
+  },
+  // outras Táticas, Emboscadas e Relíquia
+  {
+    name: "Caixotes de Palha e A\xE7o",
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 1,
+    effect: "Leve 1 Equipamento do baralho para a m\xE3o.",
+    abilities: [{ on: "play", do: [DECK_EQUIP] }]
+  },
+  {
+    name: "Dois Olhos na Crista",
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 2,
+    effect: "Leve 1 Equipamento ou Terreno do baralho para a m\xE3o.",
+    abilities: [{ on: "play", do: [{ kind: "search", zone: "deck", filter: { types: ["Terreno"], equipment: true } }] }]
+  },
+  {
+    name: "A Coluna do Amanhecer",
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 2,
+    effect: "Leve 1 soldado do baralho para a m\xE3o.",
+    abilities: [{ on: "play", do: [{ kind: "search", zone: "deck", filter: { types: ["Infantaria", "Cavalaria", "Arqueiro", "Artilharia"] } }] }]
+  },
+  {
+    name: "Noite Sem Parar",
+    cardType: "T\xE1tica",
+    atk: 0,
+    hp: 0,
+    cost: 1,
+    effect: "2 movimentos extras neste turno.",
+    abilities: [{ on: "play", do: [{ kind: "extra_moves", amount: 2 }] }]
+  },
+  {
+    name: "A Mata Devolve",
+    cardType: "Emboscada",
+    atk: 0,
+    hp: 0,
+    cost: 2,
+    effect: "**Armada:** a unidade atacada ganha +2 ATK e +1 HP at\xE9 o fim do turno.",
+    abilities: [{ on: "ambush", do: [{ kind: "buff_defender", atk: 2, hp: 1, ifArmed: true }] }]
+  },
+  {
+    name: "Dentes da Cerca",
+    maxCopies: 1,
+    cardType: "Emboscada",
+    atk: 0,
+    hp: 0,
+    cost: 2,
+    effect: "A unidade atacada ganha +3 HP at\xE9 o fim do turno.",
+    abilities: [{ on: "ambush", do: [{ kind: "buff_defender", atk: 0, hp: 3 }] }]
+  },
+  {
+    name: "Arsenal dos Mil Invernos",
+    maxCopies: 2,
+    trigger: "postura",
+    cardType: "Rel\xEDquia",
+    atk: 0,
+    hp: 5,
+    cost: 3,
+    effect: "Suas **Armadas** recebem 2 de dano a menos por ataque.",
+    passives: [{ kind: "aura", who: ARMED, reduce: 2 }]
   }
 ];
 var DECK_RECIPES = {
@@ -1031,6 +1347,43 @@ var DECK_RECIPES = {
       "Sentinela de Aluguel": 2,
       "Atirador de Aluguel": 2,
       "Carta Branca": 2
+    }
+  },
+  campo: {
+    id: "campo",
+    name: "Deck de Campo",
+    description: "Soldados armados, de qualquer tipo: equipamentos, Terrenos com modos e busca.",
+    general: "Margrave Osric, Senhor das Marcas",
+    cards: {
+      "Cabide de Ferro": 2,
+      "Cavaleiro do Pinhal Cinzento": 2,
+      "Vigia da Torre Mofada": 2,
+      "Cavaleiro Rompe-Escudos": 2,
+      "Arqueiro do \xDAltimo Sol": 2,
+      "Olho-de-N\xE9voa": 3,
+      "Bigorna Andarilha": 2,
+      "Recolhe-Espadas": 1,
+      "Tra\xE7a-Vales": 2,
+      "Grita-Passo": 2,
+      "O Contador de Lan\xE7as": 1,
+      "R\xE9dea-de-Vento": 1,
+      "Aldric Mil-Armas, Campe\xE3o das Marcas": 1,
+      "Mestre Pedra-de-Amolar": 1,
+      "Cota de Mil Remendos": 2,
+      "Escudo Porco-Espinho": 2,
+      "Espada do Posto Esquecido": 2,
+      "Elmo das Tr\xEAs Rendi\xE7\xF5es": 2,
+      "Machado Racha-Tronco": 1,
+      "Casca de A\xE7o": 2,
+      "A Forja que Nunca Apaga": 2,
+      "Posto do Fogo-Sinal": 2,
+      "Caixotes de Palha e A\xE7o": 2,
+      "Dois Olhos na Crista": 2,
+      "A Coluna do Amanhecer": 1,
+      "Noite Sem Parar": 1,
+      "A Mata Devolve": 2,
+      "Dentes da Cerca": 1,
+      "Arsenal dos Mil Invernos": 2
     }
   }
 };

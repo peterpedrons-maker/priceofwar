@@ -1,4 +1,6 @@
-# Deck de Campo: soldados Armados (EXPERIMENTAL: motor e laboratório prontos, ainda fora do jogo)
+# Deck de Campo: soldados Armados (NO JOGO desde a rodada 25)
+
+> **Rodada 25:** o deck entrou no catálogo (`src/engine/catalog.ts`, `DECK_RECIPES.campo`; `experimental.ts` só reexporta os nomes para o laboratório). Receita final com **50 cartas** (as 60 da Versão 2 perderam 1 cópia de Cabide de Ferro, Cavaleiro do Pinhal Cinzento, Vigia da Torre Mofada, Cavaleiro Rompe-Escudos, Bigorna Andarilha, Cota de Mil Remendos, Espada do Posto Esquecido, Recolhe-Espadas, Rédea-de-Vento e O Contador de Lanças). Medido com N=100 (IA × IA): 78,5% × Cardeal, 46,5% × Capitão, 56% × Mercenários. Entra no jogo como 4º espaço de deck (aparelho), Booster Campo e adversário no mapa de Desafios (Torre das Marcas).
 
 > **Versão atual = a seção "Versão 2 (rodada 24)" no fim deste documento.** O que vem antes é a proposta inicial e a primeira implementação (4 Terrenos presos a tipos de unidade), mantidas só como histórico.
 

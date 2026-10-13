@@ -243,6 +243,7 @@ import discordLogo from './assets/brand/discord.svg';
 import portraitCapitaoImg from './assets/desafios/capitao.webp';
 import portraitCardealImg from './assets/desafios/cardeal.webp';
 import portraitMercenariosImg from './assets/desafios/mercenarios.webp';
+import portraitCampoImg from './assets/campo/margrave-osric-senhor-das-marcas.webp';
 import { ThinFrame, GameBox, GameButton } from './ui/ThinFrame';
 import { NpcPanel, TapHand, Spotlight, TutorialList, TutorialIntro, markTutorialDone, type Hole as TutHole } from './tutorial/ui';
 import { DECK_MAX_CARDS, DECK_MIN_CARDS, maxCopiesOf } from './engine/deck';
@@ -2290,6 +2291,12 @@ const artSlug = (name: string) => name.normalize('NFD').replace(/[\u0300-\u036f]
   const url = MERC_ART_FILES[`./assets/merc/${artSlug(name)}.webp`];
   if (url) ART_BY_NAME[name] = url;
 });
+// Campo: src/assets/campo/<nome-sem-acento>.webp, mapeado pelo nome da carta.
+const CAMPO_ART_FILES = import.meta.glob('./assets/campo/*.webp', { eager: true, import: 'default' }) as Record<string, string>;
+[DECK_RECIPES.campo.general, ...Object.keys(DECK_RECIPES.campo.cards)].forEach(name => {
+  const url = CAMPO_ART_FILES[`./assets/campo/${artSlug(name)}.webp`];
+  if (url) ART_BY_NAME[name] = url;
+});
 // Capitão (rodada 23): src/assets/capitao/<nome-sem-acento>.webp, mapeado pelo nome da carta.
 const CAPITAO_ART_FILES = import.meta.glob('./assets/capitao/*.webp', { eager: true, import: 'default' }) as Record<string, string>;
 Object.keys(DECK_RECIPES.capitao.cards).concat(DECK_RECIPES.capitao.general, BOOSTER_EXTRA.capitao ? Object.keys(BOOSTER_EXTRA.capitao) : []).forEach(name => {
@@ -2312,6 +2319,7 @@ const buildDeckCards = (deck: DeckId): CardData[] => {
 const DECK_CAPITAO: CardData[] = buildDeckCards('capitao');
 const DECK_CARDEAL: CardData[] = buildDeckCards('cardeal');
 const DECK_MERCENARIOS: CardData[] = buildDeckCards('mercenarios');
+const DECK_CAMPO: CardData[] = buildDeckCards('campo');
 
 // The playable pool each side actually draws from during a match — the General
 // isn't a draw, it's placed straight onto the board at kickoff (see resetGame).
@@ -2337,11 +2345,18 @@ const DECKS = {
     general: DECK_MERCENARIOS.find(c => c.cardType === 'General')!,
     pool: DECK_MERCENARIOS.filter(c => c.cardType !== 'General'),
   },
+  campo: {
+    id: 'campo' as const,
+    name: 'Deck de Campo',
+    description: 'Soldados armados, equipamentos e Terrenos com dois modos.',
+    general: DECK_CAMPO.find(c => c.cardType === 'General')!,
+    pool: DECK_CAMPO.filter(c => c.cardType !== 'General'),
+  },
 } as const;
-const ALL_DECK_IDS: DeckId[] = ['cardeal', 'capitao', 'mercenarios'];
+const ALL_DECK_IDS: DeckId[] = ['cardeal', 'capitao', 'mercenarios', 'campo'];
 
 // What a booster of each faction can hold: the faction's own cards (the lists from before the balance pass), not the tactics a deck borrows.
-const BOOSTER_POOLS: Record<DeckId, CardData[]> = { capitao: [], cardeal: [], mercenarios: [] };
+const BOOSTER_POOLS: Record<DeckId, CardData[]> = { capitao: [], cardeal: [], mercenarios: [], campo: [] };
 // (the old first list plus today's deck, taking the larger count of each card: the cards added since then are in boosters too)
 ALL_DECK_IDS.forEach(id => {
   const pool: Record<string, number> = { ...LEGACY_STARTERS[id][0] };
@@ -2440,9 +2455,10 @@ const countByName = (cards: readonly CardData[]) => {
 
 const CAPITAO_STARTER_NAME = 'Deck Capitão';
 const MERC_STARTER_NAME = 'Deck Mercenários';
-// A nuvem (docs/supabase-schema.sql) só aceita os decks 1 e 2; o 3º (Mercenários) fica no aparelho até rodar docs/supabase-slot-3.sql e subir isto para 3.
+const CAMPO_STARTER_NAME = 'Deck de Campo';
+// A nuvem (docs/supabase-schema.sql) só aceita os decks 1 e 2; o 3º (Mercenários) e o 4º (Campo) ficam no aparelho até rodar docs/supabase-slot-3.sql e subir isto para 3.
 const CLOUD_DECK_SLOTS = 2;
-const MAX_DECK_SLOTS = 3;
+const MAX_DECK_SLOTS = 4;
 // Everybody starts with both prebuilt decks: the Cardeal list in slot 1 and the Capitão list in slot 2, each ready to play (the whole
 // collection of both, so either can also be rebuilt).
 const buildStarterStore = (): DeckStore => {
@@ -2455,12 +2471,14 @@ const buildStarterStore = (): DeckStore => {
   ALL_DECK_IDS.forEach(id => [DECK_RECIPES[id].cards, ...LEGACY_STARTERS[id]].forEach(list => Object.entries(list).forEach(([name, n]) => { collection[name] = Math.max(collection[name] ?? 0, n); })));
   collection[DECKS.capitao.general.name] = 1;
   collection[DECKS.mercenarios.general.name] = 1;
+  collection[DECKS.campo.general.name] = 1;
   return {
     collection,
     slots: [
       { id: 'slot1', name: DECKS.cardeal.name, general: DECKS.cardeal.general.name, cards: { ...cardealCards } },
       { id: 'slot2', name: CAPITAO_STARTER_NAME, general: DECKS.capitao.general.name, cards: { ...capitaoCards } },
       { id: 'slot3', name: MERC_STARTER_NAME, general: DECKS.mercenarios.general.name, cards: { ...mercCards } },
+      { id: 'slot4', name: CAMPO_STARTER_NAME, general: DECKS.campo.general.name, cards: { ...starterDeckCards('campo') } },
     ],
   };
 };
@@ -2476,7 +2494,7 @@ const ensureStarterDecks = (store: DeckStore): boolean => {
   ALL_DECK_IDS.forEach(id => [DECK_RECIPES[id].cards, ...LEGACY_STARTERS[id]].forEach(list => Object.entries(list).forEach(([name, n]) => {
     if ((store.collection[name] ?? 0) < n) { store.collection[name] = n; changed = true; }
   })));
-  [DECKS.capitao.general.name, DECKS.mercenarios.general.name].forEach(g => { if ((store.collection[g] ?? 0) < 1) { store.collection[g] = 1; changed = true; } });
+  [DECKS.capitao.general.name, DECKS.mercenarios.general.name, DECKS.campo.general.name].forEach(g => { if ((store.collection[g] ?? 0) < 1) { store.collection[g] = 1; changed = true; } });
   ALL_DECK_IDS.forEach(id => store.slots.forEach(sl => {
     if (sl.general === DECKS[id].general.name && LEGACY_STARTERS[id].some(old => sameCards(sl.cards, old)) && !sameCards(sl.cards, starterDeckCards(id))) {
       sl.cards = { ...starterDeckCards(id) }; changed = true;
@@ -2488,8 +2506,13 @@ const ensureStarterDecks = (store: DeckStore): boolean => {
     changed = true;
   }
   // The 3rd deck (Mercenários) for accounts and devices that only had two: a new slot with the ready list.
-  if (store.slots.length < MAX_DECK_SLOTS) {
+  if (store.slots.length < 3) {
     store.slots.push({ id: `slot${store.slots.length + 1}`, name: MERC_STARTER_NAME, general: DECKS.mercenarios.general.name, cards: { ...starterDeckCards('mercenarios') } });
+    changed = true;
+  }
+  // O 4º deck (Campo) para quem só tinha três.
+  if (store.slots.length < MAX_DECK_SLOTS) {
+    store.slots.push({ id: `slot${store.slots.length + 1}`, name: CAMPO_STARTER_NAME, general: DECKS.campo.general.name, cards: { ...starterDeckCards('campo') } });
     changed = true;
   }
   return changed;
@@ -2619,12 +2642,12 @@ const deckProblem = (slot: DeckSlot): string | null => {
 const buildDeckSelection = (slot: DeckSlot): DeckSelection => {
   const general = cardByName(slot.general)?.name ?? DECKS.cardeal.general.name;
   // The AI plays the prebuilt deck of one of the OTHER factions (chosen at random each time you pick your deck).
-  const own: DeckId = general === DECKS.capitao.general.name ? 'capitao' : general === DECKS.mercenarios.general.name ? 'mercenarios' : 'cardeal';
+  const own = deckIdOfGeneral(general);
   const others = ALL_DECK_IDS.filter(id => id !== own);
   return { cards: { ...slot.cards }, general, npcDeckId: others[Math.floor(Math.random() * others.length)] };
 };
 // Which prebuilt deck a General belongs to (the avatar and the opponent matching on the Desafios map).
-const deckIdOfGeneral = (general: string): DeckId => (general === DECKS.capitao.general.name ? 'capitao' : general === DECKS.mercenarios.general.name ? 'mercenarios' : 'cardeal');
+const deckIdOfGeneral = (general: string): DeckId => (general === DECKS.capitao.general.name ? 'capitao' : general === DECKS.mercenarios.general.name ? 'mercenarios' : general === DECKS.campo.general.name ? 'campo' : 'cardeal');
 const DEFAULT_DECK_SELECTION: DeckSelection = { cards: countByName(DECKS.capitao.pool), general: DECKS.capitao.general.name, npcDeckId: 'cardeal' };
 
 // ── Player profile (local-only for now) ─────────────────────────────────────
@@ -3599,7 +3622,7 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
         {dirty && <p className="text-center text-[11px] -mt-1 text-[#f2c66a]" style={{ fontFamily: "'PT Serif', serif" }}>Alterações não salvas</p>}
 
         {/* Deck title + general + counter (the portrait sits in the plate's socket) */}
-        <KitPlate portrait={{ capitao: portraitCapitaoImg, mercenarios: portraitMercenariosImg, cardeal: portraitCardealImg }[deckIdOfGeneral(slot.general)]}>
+        <KitPlate portrait={{ capitao: portraitCapitaoImg, mercenarios: portraitMercenariosImg, campo: portraitCampoImg, cardeal: portraitCardealImg }[deckIdOfGeneral(slot.general)]}>
           <div className="flex items-center gap-2 w-full min-w-0 pr-1">
             <button onClick={() => { playUiClickSfx(); setGeneralChoice(slot.general); setGeneralOpen(true); }} aria-label="Trocar General" className="flex items-center min-w-0 flex-1 text-left gap-1.5">
               <span className="uppercase text-[#f6e3a3] leading-tight line-clamp-2" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 12, letterSpacing: '0.03em' }}>{slot.name}</span>
@@ -3976,6 +3999,7 @@ const BOOSTERS: BoosterDef[] = [
   { id: 'cardeal', name: 'Booster Cardeal', description: '5 cartas do baralho do Cardeal Anselmo, Voz da Fé. Uma delas é sempre de custo 3 ou mais.', faction: 'cardeal', price: 100, cards: 5, accent: '#d9cfae' },
   { id: 'capitao', name: 'Booster Capitão', description: '5 cartas do baralho do Capitão. Uma delas é sempre de custo 3 ou mais.', faction: 'capitao', price: 100, cards: 5, accent: '#b8402c' },
   { id: 'mercenarios', name: 'Booster Mercenários', description: '5 cartas do baralho dos Mercenários. Uma delas é sempre de custo 3 ou mais.', faction: 'mercenarios', price: 100, cards: 5, accent: '#c8923a' },
+  { id: 'campo', name: 'Booster Campo', description: '5 cartas do baralho do Campo, de Margrave Osric. Uma delas é sempre de custo 3 ou mais.', faction: 'campo', price: 100, cards: 5, accent: '#6f8a4a' },
 ];
 // Room for 50 boosters: 5 shelves of up to 10. A booster's slot is its index in BOOSTERS.
 // TEST BUILD: boosters cost nothing so the opening flow can be tried over and over. Set to false
