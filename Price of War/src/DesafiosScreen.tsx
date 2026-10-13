@@ -25,6 +25,10 @@ const LOCKED: DzOpponent[] = [{ id: 'bardos', name: 'Aldric Língua-de-Prata', e
 
 const MAPPX = 1150, ZOOM = MAPPX / 1024;
 const PIN_SVG = '<svg viewBox="0 0 34 52"><path d="M17 51 C5 33 1 26 1 17 A16 16 0 0 1 33 17 C33 26 29 33 17 51Z" fill="#e0b04a" stroke="#3a2406" stroke-width="2"/><circle cx="17" cy="17" r="7" fill="#1a0f06" stroke="#3a2406" stroke-width="1.5"/><circle cx="17" cy="17" r="3.2" fill="#ffe9a6"/></svg>';
+// O pino do mapa é a foto do general (círculo com aro de ouro e ponta para o local); o general ainda trancado mostra um cadeado.
+const PhotoPin = ({ img, locked, big }: { img?: string; locked?: boolean; big?: boolean }) => (
+  <span className={`dz-ph${big ? ' big' : ''}${locked ? ' lock' : ''}`}><i style={locked || !img ? undefined : { backgroundImage: `url('${img}')` }}>{locked ? '🔒' : ''}</i></span>
+);
 const LAST_DECK_KEY = 'pow-desafios-deck';
 
 export const DesafiosScreen = ({ opponents, decks, onBack, onEditDecks, onStart }: {
@@ -116,7 +120,7 @@ export const DesafiosScreen = ({ opponents, decks, onBack, onEditDecks, onStart 
             <div className={`dz-map ${sel < 0 ? 'over' : 'zoomed'}`} style={{ transform: mapTransform, ['--inv' as string]: (1.15 / ovScale).toFixed(3) }} onClick={() => { if (sel >= 0) select(-1); }}>
               {all.map((a, i) => (
                 <div key={a.id} className={`dz-mk ${a.locked ? 'lock' : 'new'}`} style={{ left: PLACES[a.id].px * ZOOM, top: PLACES[a.id].py * ZOOM }} onClick={e => { e.stopPropagation(); select(i); }}>
-                  <span dangerouslySetInnerHTML={{ __html: PIN_SVG }} />
+                  <PhotoPin img={PLACES[a.id].img} locked={a.locked} />
                   <div className="dz-lbl" ref={el => { lblRefs.current[i] = el; }} style={{ ['--lx' as string]: `${lx[i] ?? 0}px` }}>{a.locked ? '🔒 ' : ''}{PLACES[a.id].lbl}</div>
                 </div>
               ))}
@@ -127,7 +131,7 @@ export const DesafiosScreen = ({ opponents, decks, onBack, onEditDecks, onStart 
           <canvas className="dz-dust" ref={dustRef} />
           <div className={`dz-pin${sel < 0 ? ' dz-hide' : ''}${o?.locked ? ' locked' : ''}`} style={{ left: pinX, top: pinY }}>
             <div className="dz-pulse" /><div className="dz-pulse b" />
-            <span dangerouslySetInnerHTML={{ __html: PIN_SVG }} />
+            <PhotoPin img={pl?.img} locked={o?.locked} big />
           </div>
           <div className="dz-head">
             <div className="dz-iconbtn" onClick={() => { if (sel >= 0) select(-1); else onBack(); }}>‹</div>

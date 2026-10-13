@@ -16,7 +16,7 @@
   .dz-map.zoomed { -webkit-mask-image:none; mask-image:none; }
   .dz-map .dz-mk svg { position:absolute; left:-17px; top:-52px; width:34px; height:52px; transform-origin:17px 52px; transform:scale(var(--inv,1)); filter:drop-shadow(0 3px 5px rgba(0,0,0,.85)) drop-shadow(0 0 7px rgba(240,200,100,.45)); }
   .dz-map .dz-mk.lock svg { filter:grayscale(1) brightness(.7) drop-shadow(0 3px 5px rgba(0,0,0,.85)); }
-  .dz-map .dz-mk::after { content:''; position:absolute; left:-30px; top:-30px; width:60px; height:60px; transform:scale(var(--inv,1)); transform-origin:30px 30px; }
+  .dz-map .dz-mk::after { content:''; position:absolute; left:-32px; top:-76px; width:64px; height:84px; transform:scale(var(--inv,1)); transform-origin:32px 76px; }
   .dz-fx.hop { animation:hop 1.4s cubic-bezier(.45,.05,.2,1); }
   @keyframes hop { 0%{transform:scale(1)} 38%{transform:scale(.8)} 100%{transform:scale(1)} }
   .dz-shade { transition:opacity .8s; position:absolute; inset:0; pointer-events:none; background:
@@ -116,3 +116,14 @@
   .dz-map .dz-mk.sel2 svg { animation:none; }
   .dz-toast { position:absolute; left:50%; bottom:90px; transform:translateX(-50%); z-index:40; padding:9px 16px; border-radius:16px; background:rgba(18,12,8,.96); border:1px solid #6f5324; font:600 11.5px var(--cin); letter-spacing:.06em; color:var(--gold2); opacity:0; transition:opacity .3s; pointer-events:none; white-space:nowrap; }
   .dz-toast.on { opacity:1; }
+  /* Pino com a foto do general */
+  .dz-ph { position:absolute; left:-27px; top:-68px; width:54px; height:68px; pointer-events:none; }
+  .dz-map .dz-mk .dz-ph { transform-origin:27px 68px; transform:scale(var(--inv,1)); }
+  .dz-ph i { display:flex; align-items:center; justify-content:center; width:54px; height:54px; border-radius:50%; font-style:normal; font-size:22px; background:#1a1109 center 22%/cover no-repeat; box-shadow:0 0 0 2px #2a1a05, 0 0 0 4px #e0b04a, 0 0 0 5px #2a1a05, 0 4px 8px rgba(0,0,0,.85), 0 0 12px rgba(240,200,100,.5); }
+  .dz-ph::after { content:''; position:absolute; left:50%; top:57px; width:0; height:0; transform:translateX(-50%); border:8px solid transparent; border-top:11px solid #e0b04a; border-bottom:0; filter:drop-shadow(0 2px 2px rgba(0,0,0,.7)); }
+  .dz-ph.lock i { filter:grayscale(1) brightness(.75); background:linear-gradient(#2a2620,#14110d); }
+  .dz-ph.lock::after { border-top-color:#8a8576; }
+  .dz-ph.big { left:-35px; top:-86px; width:70px; height:86px; animation:bob 2.2s ease-in-out infinite; }
+  .dz-ph.big i { width:70px; height:70px; }
+  .dz-ph.big::after { top:73px; border-width:10px; border-top-width:13px; }
+  .dz-map .dz-mk.new .dz-ph { animation:bob2 2.2s ease-in-out infinite; }
