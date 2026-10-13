@@ -18,6 +18,7 @@ Jogo de cartas digital em React + TypeScript; o app fica em `Price of War/` (há
 - Teste visual: servidor estático do `dist` e scripts Playwright (Chromium já instalado; não rode `playwright install`).
 
 ## Regras de ouro do projeto
+- **Decks base:** cada um tem identidade própria, mas ela não é exclusiva: leva também efeitos universais (busca, Comando, Manobra…) em menor escala; a identidade não deve se prender a um tipo de unidade (`Price of War/docs/visao-geral.md`, "Como desenhar um deck base").
 - **Godot x web isolados:** trabalho do Godot só em `Price of War Godot/` (commits `Godot: ...`); nunca altere `Price of War/`, `supabase/` ou `.github/` por causa dele, nem importe uma pasta da outra (artes e dados são copiados/gerados). Exceções listadas em `docs/godot.md` seção 7.
 - **Contêiner/destaque de carta sempre no formato exato da carta** (brilho e sombra seguem o recorte real, nunca uma caixa retangular gerada por código; em mockup, recorte as cartas do jogo com transparência real).
 - O motor (`src/engine`) é a única fonte das regras; cliente e servidor só o chamam. O que uma carta faz está em dados no catálogo, não em código por nome de carta.

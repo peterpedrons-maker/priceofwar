@@ -45,6 +45,9 @@ Menu principal (fundo "A guerra dos dois Generais", logo no céu e cinco placas 
 - **Servidor online desatualizado = regras antigas:** o Desafio e o Online rodam o pacote `supabase/functions/game/index.ts` (gerado). Depois de mudar `src/engine`, rode `npm run build:edge` e faça commit; `tests/edge-bundle.ts` (dentro de `npm test`) falha se o pacote estiver defasado (foi assim que o General do Desafio nasceu com 20 de vida em vez de 30).
 - Tutoriais 2 e 3: "em breve".
 
+## Como desenhar um deck base (princípio do dono, rodada 24)
+Cada deck fechado tem uma **identidade própria** (Mercenários = contratos e ouro; Campo = soldados armados, de qualquer tipo; Capitão = formação e movimento; Cardeal = cura, convocação e emboscadas), mas a identidade **não é exclusiva**: o deck também leva cartas de efeitos universais (buscar do baralho ou do cemitério para a mão, Comando, Manobra, comprar cartas…), em menor escala. Modelo de comparação: um deck de Yu-Gi-Oh! "de rocha" gira em torno de devolver cartas à mão do adversário e de efeitos flip, e ainda assim usa busca e cemitério. Regra prática: a identidade ocupa a maior parte do deck (as cartas que só ele usaria), e o resto são ferramentas gerais que qualquer deck usaria. Não amarrar as cartas de identidade a um **tipo** de unidade (Infantaria/Cavalaria/Arqueiro) quando a identidade é outra coisa (ex.: "armada" vale para qualquer tipo).
+
 ## Decisões fixas de trabalho
 - Responder sempre em português do Brasil. Mobile primeiro. Mostrar mockup/opinião antes de mudanças visuais grandes.
 - Não criar PR sem pedido. Branch de desenvolvimento: `claude/price-of-war-project-xgzrn3`.
