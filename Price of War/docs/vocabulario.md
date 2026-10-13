@@ -185,3 +185,5 @@ Rodada 24 (deck de Campo, experimental): **Armada** = a unidade tem pelo menos 1
 Rodada 24 (ajuste 5): **Armada** é agora etiqueta (palavra-chave) do deck de Campo; **Terreno com modos** funciona como a Relíquia com modos (escolha no fim do turno do dono, vale até o fim do turno seguinte).
 
 Rodada 24 (ajuste 6): **Armada** vale para **todo equipamento de todo deck** (Couraça do Mártir, Gibão Bento, Setas de Cicuta, Lâmina do Juramento, Peitoral de Muitos Donos, Espada de Mil Mãos e os do deck de Campo): o texto termina com "Ela fica **Armada**". Regra de vocabulário: o texto da carta é universal, não por deck.
+
+Rodada 24 (ajuste 7): **Armada** não é etiqueta: é termo do jogo em *itálico*; "Ela fica Armada" vem em linha própria no equipamento. A etiqueta fica só para gatilhos e efeitos. Código: `renderEffectText` em `App.tsx`.
