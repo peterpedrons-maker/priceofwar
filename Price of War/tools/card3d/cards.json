@@ -486,7 +486,7 @@
   "atk": 0,
   "hp": 0,
   "cost": 1,
-  "effect": "Equipe uma Infantaria: +2 HP e Guarda (absorve o primeiro golpe inteiro). Ela fica **Armada**",
+  "effect": "Equipe uma Infantaria: +2 HP e Guarda (absorve o primeiro golpe inteiro). A unidade equipada fica **Armada**",
   "full": false
  },
  {
@@ -496,7 +496,7 @@
   "atk": 0,
   "hp": 0,
   "cost": 1,
-  "effect": "Equipe uma Infantaria ou Arqueiro: +2 HP. Ela fica **Armada**",
+  "effect": "Equipe uma Infantaria ou Arqueiro: +2 HP. A unidade equipada fica **Armada**",
   "full": false
  },
  {
@@ -506,7 +506,7 @@
   "atk": 0,
   "hp": 0,
   "cost": 1,
-  "effect": "Equipe um Arqueiro: +1 ATK. Ela fica **Armada**",
+  "effect": "Equipe um Arqueiro: +1 ATK. A unidade equipada fica **Armada**",
   "full": false
  },
  {
@@ -516,7 +516,7 @@
   "atk": 0,
   "hp": 0,
   "cost": 1,
-  "effect": "Equipe uma Infantaria ou Cavalaria: +2 ATK. Ela fica **Armada**",
+  "effect": "Equipe uma Infantaria ou Cavalaria: +2 ATK. A unidade equipada fica **Armada**",
   "full": false
  },
  {
@@ -816,7 +816,7 @@
   "atk": 0,
   "hp": 0,
   "cost": 1,
-  "effect": "Equipe uma Infantaria: +2 HP. Ela fica **Armada**",
+  "effect": "Equipe uma Infantaria: +2 HP. A unidade equipada fica **Armada**",
   "full": false
  },
  {
@@ -826,7 +826,7 @@
   "atk": 0,
   "hp": 0,
   "cost": 1,
-  "effect": "Equipe uma Infantaria ou Cavalaria: +2 ATK. Ela fica **Armada**",
+  "effect": "Equipe uma Infantaria ou Cavalaria: +2 ATK. A unidade equipada fica **Armada**",
   "full": false
  },
  {
