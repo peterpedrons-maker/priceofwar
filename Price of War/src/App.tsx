@@ -73,6 +73,11 @@ import avatar04Image from './assets/avatar-04.webp';
 import avatar05Image from './assets/avatar-05.webp';
 import avatar06Image from './assets/avatar-06.webp';
 import avatar07Image from './assets/avatar-07.webp';
+// Retratos dos Generais, também usados como avatar (art-prompts/retratos-generais.md).
+import avatarAurelionImage from './assets/retratos/aurelion.webp';
+import avatarAnselmoImage from './assets/retratos/anselmo.webp';
+import avatarBrannImage from './assets/retratos/brann.webp';
+import avatarOsricImage from './assets/retratos/osric.webp';
 // Combat visuals cropped from a single reference sheet the user supplied (a
 // collage of style options, not individually-shipped assets — see git history
 // for the exact crop coordinates) — one instance chosen per category instead of
@@ -278,7 +283,7 @@ const ALL_PRELOAD_IMAGES: string[] = [
   uiIconConfigImage, uiIconTutoriaisImage, uiIconRankingImage, uiIconSomImage,
   uiIconCoroaImage, uiIconDesafiosImage, uiIconOnlineImage, uiIconEditarDeckImage,
   uiIconLojaImage, uiIconMaisImage,
-  avatar01Image, avatar02Image, avatar04Image, avatar05Image, avatar06Image, avatar07Image,
+  avatar01Image, avatar02Image, avatar04Image, avatar05Image, avatar06Image, avatar07Image, avatarAurelionImage, avatarAnselmoImage, avatarBrannImage, avatarOsricImage,
 ];
 
 // How long a newly drawn card takes to travel from the deck and flip face-up in
@@ -2679,6 +2684,10 @@ const AVATAR_OPTIONS: { id: string; image: string }[] = [
   { id: 'clerigo', image: avatar05Image },
   { id: 'soldado', image: avatar06Image },
   { id: 'cacadora', image: avatar07Image },
+  { id: 'aurelion', image: avatarAurelionImage },
+  { id: 'anselmo', image: avatarAnselmoImage },
+  { id: 'brann', image: avatarBrannImage },
+  { id: 'osric', image: avatarOsricImage },
 ];
 const avatarById = (id: string) => AVATAR_OPTIONS.find(a => a.id === id) ?? AVATAR_OPTIONS[0];
 
