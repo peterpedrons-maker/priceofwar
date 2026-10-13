@@ -183,3 +183,5 @@ Rodada 24 (ajuste 4): **Manutenção virou Contrato** em tudo que o jogador lê 
 Rodada 24 (deck de Campo, experimental): **Armada** = a unidade tem pelo menos 1 equipamento preso; **Com Terreno** = o dono tem um Terreno em campo. Os bônus "por equipamento" têm teto por carta.
 
 Rodada 24 (ajuste 5): **Armada** é agora etiqueta (palavra-chave) do deck de Campo; **Terreno com modos** funciona como a Relíquia com modos (escolha no fim do turno do dono, vale até o fim do turno seguinte).
+
+Rodada 24 (ajuste 6): **Armada** vale para **todo equipamento de todo deck** (Couraça do Mártir, Gibão Bento, Setas de Cicuta, Lâmina do Juramento, Peitoral de Muitos Donos, Espada de Mil Mãos e os do deck de Campo): o texto termina com "Ela fica **Armada**". Regra de vocabulário: o texto da carta é universal, não por deck.

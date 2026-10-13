@@ -250,7 +250,7 @@ import {
   GOLD_PER_TURN, HAND_LIMIT, START_GOLD, START_HAND,
   abilityOn, abilityPhases, canPlayInPhase, areSlotsAdjacent, auraTotal, canPlaceInSlot, canReposition, getAuraCombatHpBonus, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction,
   getLaneCol, getMaxAttacksPerTurn, maxGeneralAbilityUses, getMoveRow, getValidAttackTargets, isBackline, isCardDamaged, isFrontline, needsHiddenInfo, phasesForTurn,
-  specCandidatesOn, targetSpecOf, targetSpecsOf, verbsOn, upkeepOf, relicModeOf,
+  specCandidatesOn, targetSpecOf, targetSpecsOf, verbsOn, upkeepOf, relicModeOf, terrainModeOf,
 } from './engine/rules';
 import { otherSeat, type Action as EngineAction, type Card as EngineCard, type GameEvent, type GameState, type Seat, type TurnPhase } from './engine/types';
 export type { TurnPhase };
@@ -5490,7 +5490,7 @@ export default function App() {
   // Mercenários: the upkeep prompt of the Suprimentos phase (which units stay, paid) and the Relíquia's mode picker at the end of the turn.
   const [upkeepPrompt, setUpkeepPrompt] = useState<{ entries: { slot: number; cardId: string; cost: number }[]; discount: number } | null>(null);
   const [upkeepKeep, setUpkeepKeep] = useState<Record<string, boolean>>({});
-  const [relicPrompt, setRelicPrompt] = useState<{ pick: string; modes: { id: string; name: string; effect: string }[]; current: string } | null>(null);
+  const [relicPrompt, setRelicPrompt] = useState<{ pick: string; modes: { id: string; name: string; effect: string }[]; current: string; slot: 10 | 11; queue: (10 | 11)[] } | null>(null);
   const relicAskedRef = useRef('');
   useEffect(() => { if (upkeepPrompt) setUpkeepKeep(Object.fromEntries(upkeepPrompt.entries.map(e => [e.cardId, true]))); }, [upkeepPrompt ? upkeepPrompt.entries.map(e => e.cardId).join(',') : '']);   // (closing the prompt resets the key, so the next one starts with everything kept)
   const [ambushPrompt, setAmbushPrompt] = useState<{
@@ -6358,7 +6358,7 @@ export default function App() {
       if (mode?.atk) runCoin(fxRelicSoldo(env, sideOf(e.seat), 10, cur.players[e.seat].board.flatMap((c, slot) => (c && slot < 10 && upkeepOf(c.name) > 0 ? [slot] : []))));
     });
     ([0, 1] as Seat[]).forEach(seat => {
-      const mode = relicModeOf(cur.players[seat].board);
+      const mode = [relicModeOf(cur.players[seat].board), terrainModeOf(cur.players[seat].board)].find(m => m?.loot?.draw) ?? null;
       if (!mode?.loot?.draw) return;
       const killed = events.find(e => e.t === 'destroyed' && e.seat !== seat && e.slot < 10);
       if (killed && killed.t === 'destroyed' && events.some(e => e.t === 'draw' && e.seat === seat && e.reason === 'effect')) run(fxLoot(env, sideOf(seat), { side: sideOf(killed.seat), slot: killed.slot }, 10));
@@ -6780,23 +6780,31 @@ export default function App() {
 
   // Mercenários: a Relíquia with modes asks, at the end of the turn (Movimentação), which mode holds until the end of the next turn.
   // Returns true when it opened the picker (the turn does not end yet; the picker's button ends it).
+  // (um Terreno com modos, deck de Campo, pergunta do mesmo jeito: primeiro a Relíquia, se tiver modos, depois o Terreno)
+  const openModePrompt = (slot: 10 | 11, queue: (10 | 11)[]): boolean => {
+    const card = engineRef.current?.players[0].board[slot];
+    const modes = card ? getCardDef(card.name)?.modes : undefined;
+    if (!card || !modes || modes.length === 0) return false;
+    setRelicPrompt({ pick: card.mode ?? modes[0].id, modes: modes.map(m => ({ id: m.id, name: m.name, effect: m.effect })), current: card.mode ?? modes[0].id, slot, queue });
+    return true;
+  };
   const maybePromptRelicMode = (): boolean => {
     const s = engineRef.current;
-    const relic = s?.players[0].board[10];
-    const modes = relic ? getCardDef(relic.name)?.modes : undefined;
-    if (!s || !relic || !modes || modes.length === 0 || s.turn.active !== 0 || s.turn.phase !== 'movimentacao') return false;
+    if (!s || s.turn.active !== 0 || s.turn.phase !== 'movimentacao') return false;
     const key = `${s.turn.round}:${s.turn.active}`;
     if (relicAskedRef.current === key) return false;   // already answered this turn
-    setRelicPrompt({ pick: relic.mode ?? modes[0].id, modes: modes.map(m => ({ id: m.id, name: m.name, effect: m.effect })), current: relic.mode ?? modes[0].id });
-    return true;
+    const slots = ([10, 11] as const).filter(sl => { const c = s.players[0].board[sl]; return !!c && (getCardDef(c.name)?.modes?.length ?? 0) > 0; });
+    if (slots.length === 0) return false;
+    return openModePrompt(slots[0], slots.slice(1));
   };
   const confirmRelicMode = () => {
     const rp = relicPrompt; const s = engineRef.current;
     if (!rp || !s) return;
     if (rp.pick !== rp.current) {
-      const r = dispatchAction(0, { type: 'relic_mode', mode: rp.pick });
+      const r = dispatchAction(0, { type: 'relic_mode', mode: rp.pick, ...(rp.slot === 11 ? { slot: 11 as const } : {}) });
       if (r.ok === false) { showToast(r.error); return; }
     }
+    if (rp.queue.length > 0 && openModePrompt(rp.queue[0], rp.queue.slice(1))) return;   // ainda falta o Terreno
     relicAskedRef.current = `${s.turn.round}:${s.turn.active}`;
     setRelicPrompt(null);
     window.setTimeout(() => endTurnNow(), 60);
@@ -9563,7 +9571,7 @@ export default function App() {
         })()}
         {/* Mercenários — fim do turno: the Relíquia itself rises, glowing, and the modes sit under it. */}
         {relicPrompt && (() => {
-          const relic = engineRef.current?.players[0].board[10];
+          const relic = engineRef.current?.players[0].board[relicPrompt.slot];
           const rc = relic ? toCardData(relic) : null;
           const scale = Math.max(0.5, Math.min(0.78, (windowSize.height - 120 - 56 * relicPrompt.modes.length - 90) / (HAND_CARD_HEIGHT + 34)));
           return (
@@ -9593,7 +9601,7 @@ export default function App() {
               </div>
               <div className="flex gap-2 pointer-events-auto" style={{ width: Math.min(360, windowSize.width - 24) }}>
                 <GameButton tone="primary" size={15} className="flex-1" onClick={(ev) => { ev.stopPropagation(); setRelicPrompt(null); }}>Voltar</GameButton>
-                <GameButton tone="primary" size={15} className="flex-[2]" onClick={(ev) => { ev.stopPropagation(); confirmRelicMode(); }}>Encerrar turno</GameButton>
+                <GameButton tone="primary" size={15} className="flex-[2]" onClick={(ev) => { ev.stopPropagation(); confirmRelicMode(); }}>{relicPrompt.queue.length > 0 ? 'Continuar' : 'Encerrar turno'}</GameButton>
               </div>
             </motion.div>
           );

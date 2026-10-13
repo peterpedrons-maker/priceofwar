@@ -143,19 +143,19 @@ export const CARD_DEFS: readonly CardDef[] = [
     abilities: [{ on: 'play', do: [
       { kind: 'damage', amount: 3, target: { ...ENEMY_UNIT, prompt: 'Escolha uma unidade inimiga para causar 3 de dano.' } },
     ] }] },
-  { name: "Couraça do Mártir", cardType: "Tática", atk: 0, hp: 0, cost: 1, effect: "Equipe uma Infantaria: +2 HP e Guarda (absorve o primeiro golpe inteiro).",
+  { name: "Couraça do Mártir", cardType: "Tática", atk: 0, hp: 0, cost: 1, effect: "Equipe uma Infantaria: +2 HP e Guarda (absorve o primeiro golpe inteiro). Ela fica **Armada**",
     abilities: [{ on: 'play', do: [
       { kind: 'equip', hp: 2, block: true, target: { ...OWN_UNIT, types: ['Infantaria'], prompt: 'Escolha uma Infantaria sua para equipar (+2 HP e Guarda).' } },
     ] }] },
-  { name: "Gibão Bento", cardType: "Tática", atk: 0, hp: 0, cost: 1, effect: "Equipe uma Infantaria ou Arqueiro: +2 HP.",
+  { name: "Gibão Bento", cardType: "Tática", atk: 0, hp: 0, cost: 1, effect: "Equipe uma Infantaria ou Arqueiro: +2 HP. Ela fica **Armada**",
     abilities: [{ on: 'play', do: [
       { kind: 'equip', hp: 2, target: { ...OWN_UNIT, types: ['Arqueiro', 'Infantaria'], prompt: 'Escolha um Arqueiro ou Infantaria sua para equipar (+2 HP).' } },
     ] }] },
-  { name: "Setas de Cicuta", cardType: "Tática", atk: 0, hp: 0, cost: 1, effect: "Equipe um Arqueiro: +1 ATK.",
+  { name: "Setas de Cicuta", cardType: "Tática", atk: 0, hp: 0, cost: 1, effect: "Equipe um Arqueiro: +1 ATK. Ela fica **Armada**",
     abilities: [{ on: 'play', do: [
       { kind: 'equip', atk: 1, target: { ...OWN_UNIT, types: ['Arqueiro'], prompt: 'Escolha um Arqueiro seu para equipar (+1 ATK).' } },
     ] }] },
-  { name: "Lâmina do Juramento", cardType: "Tática", atk: 0, hp: 0, cost: 1, effect: "Equipe uma Infantaria ou Cavalaria: +2 ATK.",
+  { name: "Lâmina do Juramento", cardType: "Tática", atk: 0, hp: 0, cost: 1, effect: "Equipe uma Infantaria ou Cavalaria: +2 ATK. Ela fica **Armada**",
     abilities: [{ on: 'play', do: [
       { kind: 'equip', atk: 2, target: { ...OWN_UNIT, types: ['Cavalaria', 'Infantaria'], prompt: 'Escolha uma Cavalaria ou Infantaria sua para equipar (+2 ATK).' } },
     ] }] },
@@ -230,11 +230,11 @@ export const CARD_DEFS: readonly CardDef[] = [
     ] }] },
   { name: 'O Dia em que a Muralha Caiu', maxCopies: 1, fx: 'muralha', isFullArt: true, cardType: 'Tática', atk: 0, hp: 0, cost: 3, effect: '2 de dano a todas as unidades inimigas e ao General.',
     abilities: [{ on: 'play', do: [{ kind: 'damage', amount: 2, all: 'enemy' }] }] },
-  { name: 'Peitoral de Muitos Donos', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Equipe uma Infantaria: +2 HP.',
+  { name: 'Peitoral de Muitos Donos', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Equipe uma Infantaria: +2 HP. Ela fica **Armada**',
     abilities: [{ on: 'play', do: [
       { kind: 'equip', hp: 2, target: { side: 'own', area: 'unit', types: ['Infantaria'], prompt: 'Escolha uma Infantaria sua para equipar (+2 HP).' } },
     ] }] },
-  { name: 'Espada de Mil Mãos', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Equipe uma Infantaria ou Cavalaria: +2 ATK.',
+  { name: 'Espada de Mil Mãos', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Equipe uma Infantaria ou Cavalaria: +2 ATK. Ela fica **Armada**',
     abilities: [{ on: 'play', do: [
       { kind: 'equip', atk: 2, target: { side: 'own', area: 'unit', types: ['Cavalaria', 'Infantaria'], prompt: 'Escolha uma Cavalaria ou Infantaria sua para equipar (+2 ATK).' } },
     ] }] },
