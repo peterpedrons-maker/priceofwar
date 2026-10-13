@@ -389,3 +389,5 @@ Rodada 24, deck de Campo versão 2 (soldados Armados de qualquer tipo, 2 Terreno
 
 ## Rodada 25: Deck de Campo no jogo (50 cartas)
 N=100 (200 partidas por confronto, IA × IA): Campo 78,5% × Cardeal, 46,5% × Capitão, 56% × Mercenários; Cardeal × Capitão 42% × 58% (referência). Cortes para chegar a 50 em `docs/deck-campo.md`. Pior carta no laboratório: Noite Sem Parar (−7,1 pts).
+
+**Princípio (dono, rodada 25):** equilíbrio perfeito entre os decks base não é meta. Cardeal e Capitão serão os iniciais e o jogador muda tudo com boosters; o que importa é cada deck base ser divertido e ter uma proposta clara baseada no General. Usar o laboratório só contra extremos.
