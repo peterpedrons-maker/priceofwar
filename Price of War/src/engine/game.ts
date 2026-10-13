@@ -14,7 +14,7 @@ import {
   SOLDIER_TYPES, abilityOn, abilityPhases, adjacentSlots, areSlotsAdjacent, auraTotal, blocksAmbush, canPlaceInSlot, canReposition,
   getAuraCombatHpBonus, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction, getMaxAttacksPerTurn, getMoveRow,
   getValidAttackTargets, isBackline, isCardDamaged, isFrontline, isUnitSlot, locksGeneralOnDamage, reinforceShield, canReinforce,
-  restingPhasesForTurn, specCandidatesOn, targetSpecsOf, verbsOn, canPlayInPhase, withEquippedWeapons, hasVerb, passivesOf, relicModeOf, maxGeneralAbilityUses, upkeepOf, type Board,
+  restingPhasesForTurn, specCandidatesOn, targetSpecsOf, verbsOn, canPlayInPhase, withEquippedWeapons, hasVerb, passivesOf, relicModeOf, terrainModeOf, maxGeneralAbilityUses, upkeepOf, type Board,
 } from './rules';
 import {
   GENERAL_SLOT, SLOT_COUNT, otherSeat,
@@ -147,7 +147,7 @@ const sendDestroyed = (c: Ctx, seat: Seat, entries: { slot: number; card: Card }
   });
   entries.forEach(({ slot, card }) => runAbilities(c, seat, card, slot, 'destroyed'));
   // Modo "loot" da Relíquia de quem destruiu: ouro por unidade inimiga destruída, com teto por ciclo.
-  const killer = otherSeat(seat), mode = relicModeOf(P(c, killer).board);
+  const killer = otherSeat(seat), killerBoard = P(c, killer).board, mode = [relicModeOf(killerBoard), terrainModeOf(killerBoard)].find(m => m?.loot) ?? null;
   if (mode?.loot) {
     cards.filter(card => SOLDIER_TYPES.includes(card.cardType)).forEach(() => {
       const kp = P(c, killer);
@@ -337,17 +337,18 @@ const payUpkeep = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'upkeep' }>) =
   enterPreparation(c, seat);
 };
 
-// The Relíquia's mode can only change at the end of the turn (Movimentação) and then holds until the end of the next one.
+// O modo de uma Relíquia (slot 10) ou de um Terreno (slot 11) com modos só muda no fim do turno (Movimentação) e vale até o fim do turno seguinte.
 const setRelicMode = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'relic_mode' }>) => {
   assertCanAct(c, seat);
-  if (c.s.turn.phase !== 'movimentacao') fail('O modo da Relíquia só muda no fim do turno (Movimentação).');
+  if (c.s.turn.phase !== 'movimentacao') fail('O modo só muda no fim do turno (Movimentação).');
   const p = P(c, seat);
-  const relic = p.board[10];
-  const def = relic ? getCardDef(relic.name) : undefined;
-  if (!relic || !def?.modes) fail('Você não tem uma Relíquia com modos em campo.');
-  if (!def!.modes!.some(m => m.id === a.mode)) fail('Esse modo não existe nessa Relíquia.');
-  p.board[10] = { ...relic!, mode: a.mode };
-  c.ev.push({ t: 'relic_mode', seat, mode: a.mode });
+  const slot = a.slot ?? 10;
+  const card = p.board[slot];
+  const def = card ? getCardDef(card.name) : undefined;
+  if (!card || !def?.modes) fail(slot === 11 ? 'Você não tem um Terreno com modos em campo.' : 'Você não tem uma Relíquia com modos em campo.');
+  if (!def!.modes!.some(m => m.id === a.mode)) fail('Esse modo não existe nessa carta.');
+  p.board[slot] = { ...card!, mode: a.mode };
+  c.ev.push({ t: 'relic_mode', seat, mode: a.mode, slot: slot as 10 | 11 });
 };
 
 // `turn_end` effects, once the owner's turn is over: bonuses for the units that moved (Aurelion), then swaps (Soldado Tático).

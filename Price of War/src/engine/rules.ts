@@ -103,7 +103,8 @@ export const auraTotal = (stat: AuraStat, slot: number, own: Board, enemy: Board
     for (let src = 0; src <= 12; src++) {
       const source = board[src];
       if (!source) continue;
-      for (const p of passivesOf(source.name)) {
+      const mode = (src === 10 || src === 11) ? modeAt(board, src) : null;
+      for (const p of [...passivesOf(source.name), ...(mode?.passives ?? [])]) {
         if (p.kind !== 'aura' || p[stat] === undefined) continue;
         if (p.who.side === 'enemy' ? side !== 'enemy' : side !== 'own') continue;
         if (!rowOk(p.from, src)) continue;
@@ -128,12 +129,14 @@ export const boardHasFlag = (board: Board, flag: 'row_swap' | 'blocks_ambush' | 
 
 // ── Manutenção e modos da Relíquia ──────────────────────────────────────────────────────────────
 export const upkeepOf = (name: string): number => getCardDef(name)?.upkeep ?? 0;
-// O modo ativo da Relíquia que está no slot 10 do tabuleiro `board` (null: sem Relíquia, ou sem modos).
-export const relicModeOf = (board: Board | (Card | null)[]): RelicMode | null => {
-  const relic = board[10] as (Card | null | undefined);
-  if (!relic?.mode) return null;
-  return getCardDef(relic.name)?.modes?.find(m => m.id === relic.mode) ?? null;
+// O modo ativo da carta com modos que está no `slot` (10 = Relíquia, 11 = Terreno) do tabuleiro `board` (null: sem carta, ou sem modos).
+export const modeAt = (board: Board | (Card | null)[], slot: 10 | 11): RelicMode | null => {
+  const card = board[slot] as (Card | null | undefined);
+  if (!card?.mode) return null;
+  return getCardDef(card.name)?.modes?.find(m => m.id === card.mode) ?? null;
 };
+export const relicModeOf = (board: Board | (Card | null)[]): RelicMode | null => modeAt(board, 10);
+export const terrainModeOf = (board: Board | (Card | null)[]): RelicMode | null => modeAt(board, 11);
 
 // Which cards may be played from the hand in a phase: everything in Preparação; in Movimentação (after combat) only Táticas — no more units,
 // Relíquias or Terrenos come down then.

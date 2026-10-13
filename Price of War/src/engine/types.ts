@@ -143,6 +143,7 @@ export interface RelicMode {
   upkeepEach?: number;   // cada carta com manutenção paga esse tanto a menos (nunca abaixo de 1)
   loot?: { gold?: number; draw?: number; cap: number };   // por unidade inimiga destruída (ouro e/ou cartas), com teto por ciclo
   atk?: number;
+  passives?: Passive[];   // auras que valem enquanto este modo é o escolhido (Terrenos com modos do deck de Campo)
 }
 
 // What the catalog stores for a card name (no artwork, no per-copy data).
@@ -328,7 +329,7 @@ export type Action =
   // Answers the Suprimentos upkeep prompt: the ids of the cards that stay (their upkeep is paid); the rest are dismissed.
   | { type: 'upkeep'; keep: string[] }
   // Escolhe o modo da Relíquia; só na Movimentação (fim do turno).
-  | { type: 'relic_mode'; mode: string }
+  | { type: 'relic_mode'; mode: string; slot?: 10 | 11 }   // `slot`: 10 = Relíquia (padrão), 11 = Terreno com modos
   // Ends the current phase (and the turn, from the last phase).
   | { type: 'advance' }
   | { type: 'concede' };
@@ -365,7 +366,7 @@ export type GameEvent =
   // Manutenção paga e cartas dispensadas; modo da Relíquia escolhido.
   | { t: 'upkeep'; seat: Seat; paid: number; dismissed: number }
   | { t: 'dismissed'; seat: Seat; slot: number; card: Card; toHand: boolean }
-  | { t: 'relic_mode'; seat: Seat; mode: string }
+  | { t: 'relic_mode'; seat: Seat; mode: string; slot?: 10 | 11 }
   | { t: 'winner'; seat: Seat }
   // Plain-language line for the UI toast/log (pt-BR).
   // `private`: only the acting seat gets to read it (it names a card taken from the deck/hand).

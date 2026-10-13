@@ -25,6 +25,8 @@ Regras de escrita que vieram junto:
 - **Ouro e números com sinal:** ganho é "+N de ouro", perda é "-N de ouro" (o jogo troca "de ouro" pela moeda do contador: `-3🪙`). Nada de "você perde 3": o sinal já diz. Custo de habilidade continua "Pague N de ouro:".
 - **Contrato N** vira a etiqueta "Contrato", dois-pontos, o número e uma moeda, e *por turno* em itálico (o contrato se repete todo turno, na fase de Suprimentos). **Rescisão:** só em negrito, sem etiqueta. O **itálico** fica reservado para explicações como "por turno".
 - **Redução de dano tem uma frase só:** "recebe N de dano a menos por ataque" (antes: "-1 de dano", "-1 de dano de ataques", "-2 de dano, para sempre"). Vale para Escudeiro de Linha, Sentinela de Aluguel, Linha Fechada e Fortaleza de Pedra.
+- **Armada** (rodada 24, deck de Campo): unidade com pelo menos 1 equipamento preso. Aparece como etiqueta (`**Armada**`) no texto das cartas que dependem disso ("**Armada:** +1 ATK") e o equipamento termina com "Ela fica **Armada**.". Equipamentos servem a qualquer unidade ("Equipe uma unidade: +2 ATK").
+- **Terreno ou Relíquia com modos:** "Escolha 1 modo no fim do seu turno. Nome: efeito. Nome: efeito." (o mesmo texto do Códice das Mil Dívidas).
 - **Nome da regra:** "Manutenção" virou **Contrato** (combina com Rescisão). O motor segue chamando de `upkeep`; só o texto que o jogador vê mudou (cartas, título da fase de Suprimentos, Relíquia, mensagens).
 
 ### A palavra de gatilho (ainda em escolha)

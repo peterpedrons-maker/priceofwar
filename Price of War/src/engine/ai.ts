@@ -357,6 +357,29 @@ const wantedRelicMode = (state: GameState, seat: Seat): string | null => {
   return [...modes].sort((a, b) => value(b) - value(a))[0].id;
 };
 
+// O modo que vale mais num Terreno com modos (auras por modo): conta quantas unidades sua mesa teria beneficiadas e o que cada aura rende.
+const wantedTerrainMode = (state: GameState, seat: Seat): string | null => {
+  const me = state.players[seat];
+  const foe = state.players[otherSeat(seat)];
+  const terrain = me.board[11];
+  const modes = terrain ? getCardDef(terrain.name)?.modes : undefined;
+  if (!terrain || !modes || modes.length === 0) return null;
+  const mine = UNIT_SLOTS.filter(i => me.board[i]);
+  const armed = mine.filter(i => (me.board[i]!.equippedWeapons?.length ?? 0) > 0).length;
+  const foeAtk = UNIT_SLOTS.filter(i => foe.board[i] && foe.board[i]!.atk > 0).length;
+  const value = (m: (typeof modes)[number]) => {
+    let v = 0;
+    for (const p of m.passives ?? []) {
+      if (p.kind !== 'aura') continue;
+      const n = p.who.armed ? armed : mine.length;
+      v += n * ((p.atk ?? 0) * 0.9 + (p.combatHp ?? 0) * 0.5 + (p.reduce ?? 0) * 0.35 * Math.min(foeAtk, 3));
+    }
+    if (m.loot) v += Math.min(m.loot.cap, mine.filter(i => me.board[i]!.atk > 0).length, UNIT_SLOTS.filter(i => foe.board[i]).length) * ((m.loot.gold ?? 0) + (m.loot.draw ?? 0) * 3);
+    return v;
+  };
+  return [...modes].sort((a, b) => value(b) - value(a))[0].id;
+};
+
 export const aiLegacyAction = (state: GameState, seat: Seat, rand: Rand = Math.random): Action => {
   const me = state.players[seat];
   const foe = state.players[otherSeat(seat)];
@@ -727,6 +750,8 @@ const aiNextActionInner = (state: GameState, seat: Seat, rand: Rand, style: AiSt
   if (t.phase === 'movimentacao') {
     const want = wantedRelicMode(state, seat);
     if (want && state.players[seat].board[10]?.mode !== want) return { type: 'relic_mode', mode: want };
+    const wantT = wantedTerrainMode(state, seat);
+    if (wantT && state.players[seat].board[11]?.mode !== wantT) return { type: 'relic_mode', mode: wantT, slot: 11 };
   }
   const key = `${style.ration ?? 0}|${fingerprint(state, seat)}`;
   const known = memo.get(key);

@@ -1206,7 +1206,8 @@ var auraTotal = (stat, slot, own, enemy = []) => {
     for (let src = 0; src <= 12; src++) {
       const source = board[src];
       if (!source) continue;
-      for (const p of passivesOf(source.name)) {
+      const mode = src === 10 || src === 11 ? modeAt(board, src) : null;
+      for (const p of [...passivesOf(source.name), ...mode?.passives ?? []]) {
         if (p.kind !== "aura" || p[stat] === void 0) continue;
         if (p.who.side === "enemy" ? side !== "enemy" : side !== "own") continue;
         if (!rowOk(p.from, src)) continue;
@@ -1226,11 +1227,13 @@ var auraTotal = (stat, slot, own, enemy = []) => {
 var maxGeneralAbilityUses = (board) => 1 + auraTotal("abilityUses", 12, board);
 var boardHasFlag = (board, flag) => board.some((c, i) => !!c && passivesOf(c.name).some((p) => p.kind === "flag" && p.flag === flag && rowOk(p.from, i)));
 var upkeepOf = (name) => getCardDef(name)?.upkeep ?? 0;
-var relicModeOf = (board) => {
-  const relic = board[10];
-  if (!relic?.mode) return null;
-  return getCardDef(relic.name)?.modes?.find((m) => m.id === relic.mode) ?? null;
+var modeAt = (board, slot) => {
+  const card = board[slot];
+  if (!card?.mode) return null;
+  return getCardDef(card.name)?.modes?.find((m) => m.id === card.mode) ?? null;
 };
+var relicModeOf = (board) => modeAt(board, 10);
+var terrainModeOf = (board) => modeAt(board, 11);
 var canPlayInPhase = (card, phase) => phase === "preparacao" || phase === "movimentacao" && card.cardType === "T\xE1tica";
 var isFrontline = (slot) => slot >= 0 && slot <= 4;
 var isBackline = (slot) => slot >= 5 && slot <= 9;
@@ -1428,7 +1431,7 @@ var sendDestroyed = (c, seat, entries) => {
     });
   });
   entries.forEach(({ slot, card }) => runAbilities(c, seat, card, slot, "destroyed"));
-  const killer = otherSeat(seat), mode = relicModeOf(P(c, killer).board);
+  const killer = otherSeat(seat), killerBoard = P(c, killer).board, mode = [relicModeOf(killerBoard), terrainModeOf(killerBoard)].find((m) => m?.loot) ?? null;
   if (mode?.loot) {
     cards.filter((card) => SOLDIER_TYPES.includes(card.cardType)).forEach(() => {
       const kp = P(c, killer);
@@ -1606,14 +1609,15 @@ var payUpkeep = (c, seat, a) => {
 };
 var setRelicMode = (c, seat, a) => {
   assertCanAct(c, seat);
-  if (c.s.turn.phase !== "movimentacao") fail("O modo da Rel\xEDquia s\xF3 muda no fim do turno (Movimenta\xE7\xE3o).");
+  if (c.s.turn.phase !== "movimentacao") fail("O modo s\xF3 muda no fim do turno (Movimenta\xE7\xE3o).");
   const p = P(c, seat);
-  const relic = p.board[10];
-  const def = relic ? getCardDef(relic.name) : void 0;
-  if (!relic || !def?.modes) fail("Voc\xEA n\xE3o tem uma Rel\xEDquia com modos em campo.");
-  if (!def.modes.some((m) => m.id === a.mode)) fail("Esse modo n\xE3o existe nessa Rel\xEDquia.");
-  p.board[10] = { ...relic, mode: a.mode };
-  c.ev.push({ t: "relic_mode", seat, mode: a.mode });
+  const slot = a.slot ?? 10;
+  const card = p.board[slot];
+  const def = card ? getCardDef(card.name) : void 0;
+  if (!card || !def?.modes) fail(slot === 11 ? "Voc\xEA n\xE3o tem um Terreno com modos em campo." : "Voc\xEA n\xE3o tem uma Rel\xEDquia com modos em campo.");
+  if (!def.modes.some((m) => m.id === a.mode)) fail("Esse modo n\xE3o existe nessa carta.");
+  p.board[slot] = { ...card, mode: a.mode };
+  c.ev.push({ t: "relic_mode", seat, mode: a.mode, slot });
 };
 var runTurnEnd = (c, seat) => {
   const board = P(c, seat).board;
@@ -2575,6 +2579,27 @@ var wantedRelicMode = (state, seat) => {
   }, 0) : 0) + (m.loot ? Math.min(m.loot.cap, attackers, foes) * ((m.loot.gold ?? 0) + (m.loot.draw ?? 0) * 3) : 0) + (m.atk ? Math.min(mercs, foes + 1) * m.atk * 0.55 : 0);
   return [...modes].sort((a, b) => value(b) - value(a))[0].id;
 };
+var wantedTerrainMode = (state, seat) => {
+  const me = state.players[seat];
+  const foe = state.players[otherSeat(seat)];
+  const terrain = me.board[11];
+  const modes = terrain ? getCardDef(terrain.name)?.modes : void 0;
+  if (!terrain || !modes || modes.length === 0) return null;
+  const mine = UNIT_SLOTS.filter((i) => me.board[i]);
+  const armed = mine.filter((i) => (me.board[i].equippedWeapons?.length ?? 0) > 0).length;
+  const foeAtk = UNIT_SLOTS.filter((i) => foe.board[i] && foe.board[i].atk > 0).length;
+  const value = (m) => {
+    let v = 0;
+    for (const p of m.passives ?? []) {
+      if (p.kind !== "aura") continue;
+      const n = p.who.armed ? armed : mine.length;
+      v += n * ((p.atk ?? 0) * 0.9 + (p.combatHp ?? 0) * 0.5 + (p.reduce ?? 0) * 0.35 * Math.min(foeAtk, 3));
+    }
+    if (m.loot) v += Math.min(m.loot.cap, mine.filter((i) => me.board[i].atk > 0).length, UNIT_SLOTS.filter((i) => foe.board[i]).length) * ((m.loot.gold ?? 0) + (m.loot.draw ?? 0) * 3);
+    return v;
+  };
+  return [...modes].sort((a, b) => value(b) - value(a))[0].id;
+};
 var aiLegacyAction = (state, seat, rand = Math.random) => {
   const me = state.players[seat];
   const foe = state.players[otherSeat(seat)];
@@ -2918,6 +2943,8 @@ var aiNextActionInner = (state, seat, rand, style) => {
   if (t.phase === "movimentacao") {
     const want = wantedRelicMode(state, seat);
     if (want && state.players[seat].board[10]?.mode !== want) return { type: "relic_mode", mode: want };
+    const wantT = wantedTerrainMode(state, seat);
+    if (wantT && state.players[seat].board[11]?.mode !== wantT) return { type: "relic_mode", mode: wantT, slot: 11 };
   }
   const key = `${style.ration ?? 0}|${fingerprint(state, seat)}`;
   const known = memo.get(key);

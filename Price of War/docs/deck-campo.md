@@ -1,4 +1,6 @@
-# Deck de Campo: Equipamento + Terreno (EXPERIMENTAL: motor e laboratório prontos, ainda fora do jogo)
+# Deck de Campo: soldados Armados (EXPERIMENTAL: motor e laboratório prontos, ainda fora do jogo)
+
+> **Versão atual = a seção "Versão 2 (rodada 24)" no fim deste documento.** O que vem antes é a proposta inicial e a primeira implementação (4 Terrenos presos a tipos de unidade), mantidas só como histórico.
 
 Ideia do dono (vinda de um amigo): um deck que vive de **equipamentos** (Táticas que equipam uma unidade, no estilo das que o jogo já tem, mas aqui **todas novas**) e de **Terrenos** ("campos"). Cartas que ficam melhores **por estarem armadas**, e Terrenos que dão vantagem a um tipo de unidade (exemplo do dono: a **Campina** dá +1 de ATK às suas Cavalarias e atrapalha os inimigos). **As 30 cartas diferentes são todas novas** (nenhum nome repete o catálogo atual). Os três decks iniciais **não mudam**.
 
@@ -127,3 +129,54 @@ Resultado (IA × IA, 200 partidas por confronto, versão final): **Campo 73,0% c
 ### Direção do dono (rodada 24, depois da primeira medição)
 - A identidade do deck é **"soldado armado", de qualquer tipo** (Infantaria, Cavalaria, Arqueiro), não "Cavalaria + Terreno". Isso pede equipamentos e Terrenos que sirvam a qualquer armada, e não Campina/Colina/Floresta presos a um tipo. O deck também leva efeitos gerais (busca, Comando, Manobra) em menor escala.
 - **Ideia dos Terrenos com modos:** em vez de 4 Terrenos de efeito fixo, 2 Terrenos com 2 modos cada, e o dono escolhe o modo no fim do turno (como o Códice das Mil Dívidas dos Mercenários). Avaliação e proposta de cartas: ver a conversa da rodada 24; ainda não aplicada no motor.
+
+
+---
+
+## Versão 2 (rodada 24): identidade "soldado Armado, de qualquer tipo"
+
+**Decisões do dono:** (1) a identidade do deck é estar **Armado** (a unidade tem pelo menos 1 equipamento preso), seja Infantaria, Cavalaria ou Arqueiro; (2) o deck também leva efeitos gerais (busca, Comando, Manobra, compra), em menor escala; (3) **dois Terrenos com dois modos cada**, escolhidos no fim do turno do dono e valendo até o fim do turno seguinte (como o Códice das Mil Dívidas), para o adversário poder punir a escolha errada; (4) **Armada** vira uma **etiqueta** no texto (como Contrato e os gatilhos), e o equipamento diz "Ela fica **Armada**".
+
+**Motor novo nesta versão:** modos em **Terreno** (`modeAt(board, 11)`, ação `relic_mode` com `slot: 11`), `RelicMode.passives` (auras que só valem no modo escolhido), a IA escolhe o modo do Terreno (`wantedTerrainMode`), e o modo Saque (comprar ao destruir) também vale num Terreno. Equipamentos agora servem a **qualquer unidade** (sem `types` no alvo). A parte do cliente (tela de escolha do modo do Terreno) **ainda não existe**: hoje só o laboratório e os testes usam. No tabuleiro o equipamento já aparece preso atrás da unidade (as cartas espiando por trás), então a unidade Armada já se vê.
+
+### Lista (60 cartas, 30 nomes; cópias com ×)
+| Carta | Tipo, custo | Efeito |
+|---|---|---|
+| Margrave Osric, Senhor das Marcas | General 30 de vida, custo 0 | Comando: Pague 2 de ouro: leve 1 Equipamento do cemitério para a mão. Passiva Suas Armadas e a Relíquia recebem 1 de dano a menos por ataque. |
+| Escudeiro de Campanha ×3 | Infantaria 2/4, custo 2 | Postura: +1 ATK por equipamento preso (máx. +2). |
+| Cavaleiro da Marca ×3 | Cavalaria 3/4, custo 3 | Postura: Armada: +1 ATK. |
+| Guarda de Fronteira ×3 | Infantaria 2/4, custo 3 | Postura: Armada: +1 HP em combate. |
+| Lanceiro Montado ×3 | Cavalaria 3/4, custo 3 | Ofensiva: Armada: 2 de dano à carta atrás. |
+| Arqueiro de Colina ×2 | Arqueiro 2/3, custo 3 | Postura: Na Retaguarda, +1 ATK por equipamento preso (máx. +2). |
+| Besteiro de Posto ×3 | Arqueiro 1/3, custo 2 | Convocação: Leve 1 Equipamento do baralho para a mão. |
+| Armeiro de Campanha ×3 | Infantaria 1/4, custo 2 | Queda: Leve 1 Equipamento do cemitério para a mão. |
+| Escudeiro Veterano ×2 | Infantaria 2/4, custo 3 | Queda: O equipamento preso volta para a sua mão. |
+| Mapeador de Marchas ×2 | Arqueiro 1/3, custo 1 | Convocação: Leve 1 Terreno do baralho para a mão. |
+| Sargento de Marcha ×2 | Infantaria 2/3, custo 3 | Convocação: Compre 1 carta. |
+| Intendente de Marcha ×2 | Infantaria 2/3, custo 3 | Comando: Pague 1 de ouro: compre 1 carta. |
+| Cavaleiro Batedor ×2 | Cavalaria 2/3, custo 2 | Manobra: +1 ATK até o próximo turno. |
+| Campeão da Marca ×1 | Cavalaria 3/5, custo 4 | Postura: +1/+1 em combate por equipamento preso (máx. +3). |
+| Mestre de Armas ×1 | Infantaria 2/4, custo 3 | Postura: Suas Armadas: +1 ATK. |
+| Cota Remendada ×3 | Tática, custo 1 | Equipe uma unidade: +1 ATK e +2 HP. Ela fica Armada. |
+| Escudo de Carvalho ×2 | Tática, custo 1 | Equipe uma unidade: Guarda (absorve o primeiro golpe inteiro). Ela fica Armada. |
+| Espada de Posto ×3 | Tática, custo 1 | Equipe uma unidade: +2 ATK. Ela fica Armada. |
+| Elmo Ferrado ×2 | Tática, custo 1 | Equipe uma unidade: +3 HP. Ela fica Armada. |
+| Machado de Guerra ×1 | Tática, custo 2 | Equipe uma unidade: +3 ATK. Ela fica Armada. |
+| Armadura de Placas ×2 | Tática, custo 2 | Equipe uma unidade: +2 ATK e +1 HP. Ela fica Armada. |
+| Forja de Campanha ×2 | Terreno, custo 3 | Escolha 1 modo no fim do seu turno. Muralha: suas Armadas têm +2 HP em combate. Afiação: suas Armadas têm +2 ATK. |
+| Posto de Marcha ×2 | Terreno, custo 2 | Escolha 1 modo no fim do seu turno. Trincheira: suas Armadas recebem 1 de dano a menos por ataque. Saque: ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo). |
+| Intendência de Campanha ×2 | Tática, custo 1 | Leve 1 Equipamento do baralho para a mão. |
+| Reconhecimento do Terreno ×2 | Tática, custo 2 | Leve 1 Equipamento ou Terreno do baralho para a mão. |
+| Reforços da Marca ×1 | Tática, custo 2 | Leve 1 soldado do baralho para a mão. |
+| Marcha Forçada ×1 | Tática, custo 1 | 2 movimentos extras neste turno. |
+| Contra-Carga ×2 | Emboscada, custo 2 | Armada: a unidade atacada ganha +2 ATK e +1 HP até o fim do turno. |
+| Cerca de Estacas ×1 | Emboscada, custo 2 | A unidade atacada ganha +3 HP até o fim do turno. |
+| Arsenal do Marquês ×2 | Relíquia (5 de vida), custo 3 | Postura: Suas Armadas recebem 2 de dano a menos por ataque. |
+
+
+Estrutura: 14 unidades (9 de identidade Armada, 3 de efeito geral, 2 únicas), 6 equipamentos (13 cópias), 2 Terrenos com modos (4 cópias), 4 Táticas gerais, 2 Emboscadas e 1 Relíquia.
+
+**Modos dos Terrenos.** *Forja de Campanha*: **Muralha** (Armadas +2 HP em combate) ou **Afiação** (Armadas +2 ATK). *Posto de Marcha*: **Trincheira** (Armadas recebem 1 de dano a menos por ataque) ou **Saque** (ao destruir uma unidade inimiga, compre 1 carta, máx. 1 por ciclo). O Terreno entra no primeiro modo; o dono troca na Movimentação.
+
+### Medição (IA × IA, 200 partidas por confronto)
+**72,0% × Cardeal, 42,5% × Capitão, 60,0% × Mercenários.** A primeira montagem com equipamento universal e os atributos anteriores deu 86% / 68,5% / 80%: forte demais, porque qualquer equipamento em qualquer unidade rende mais. Reduzi os atributos dos núcleos e dois equipamentos (Espada de Posto +2 ATK, Armadura de Placas +2/+1); com isso as duas cartas de Terreno passaram a ajudar (+5,3 e +2,8 pontos na vitória ao comprar, antes ficavam abaixo das unidades). Perfil parecido com o da versão 1: forte contra os decks lentos e abaixo do Capitão.

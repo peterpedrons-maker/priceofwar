@@ -181,3 +181,5 @@ Rodada 24 (ajuste 3): depois da moeda, a Manutenção traz a explicação em it�
 Rodada 24 (ajuste 4): **Manutenção virou Contrato** em tudo que o jogador lê (etiqueta "Contrato", janela de Suprimentos "Contratos", mensagens, Relíquia e descrição do deck); nos documentos antigos "manutenção" significa o mesmo. Rescisão passou a mostrar a perda de ouro como "-N" + moeda. Hierarquia dos efeitos e frase única de redução de dano em `docs/textos-cartas.md`.
 
 Rodada 24 (deck de Campo, experimental): **Armada** = a unidade tem pelo menos 1 equipamento preso; **Com Terreno** = o dono tem um Terreno em campo. Os bônus "por equipamento" têm teto por carta.
+
+Rodada 24 (ajuste 5): **Armada** é agora etiqueta (palavra-chave) do deck de Campo; **Terreno com modos** funciona como a Relíquia com modos (escolha no fim do turno do dono, vale até o fim do turno seguinte).
