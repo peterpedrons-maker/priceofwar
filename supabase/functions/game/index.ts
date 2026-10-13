@@ -16,7 +16,7 @@ var CARD_DEFS = [
     hp: 30,
     cost: 0,
     isFullArt: true,
-    effect: "**Fim do turno** At\xE9 2 unidades que se moveram ganham +2/+1 no pr\xF3ximo combate. **Passiva** Rel\xEDquia recebe -1 de dano.",
+    effect: "**Fim do turno** At\xE9 2 unidades que se moveram ganham +2/+1 no pr\xF3ximo combate. **Passiva** Sua Rel\xEDquia recebe 1 de dano a menos por ataque.",
     faction: "ordem",
     abilities: [{ on: "turn_end", do: [{ kind: "buff_moved", count: 2, atk: 2, hp: 1 }] }],
     passives: [{ kind: "aura", who: { side: "own", slots: [10] }, reduce: 1 }]
@@ -95,7 +95,7 @@ var CARD_DEFS = [
     hp: 3,
     cost: 3,
     isFullArt: true,
-    effect: "+2 ATK na coluna central e +1 ATK na Vanguarda.",
+    effect: "Coluna central: +2 ATK. Vanguarda: +1 ATK.",
     passives: [
       { kind: "aura", who: { side: "self" }, when: { col: 2 }, atk: 2 },
       { kind: "aura", who: { side: "self" }, from: "front", atk: 1 }
@@ -197,7 +197,7 @@ var CARD_DEFS = [
     hp: 5,
     cost: 3,
     isFullArt: true,
-    effect: "+1/+1 em combate \xE0s suas cartas em campo.",
+    effect: "Suas cartas em campo: +1/+1 em combate.",
     passives: [{ kind: "aura", who: { side: "own" }, atk: 1, combatHp: 1 }]
   },
   {
@@ -341,7 +341,7 @@ var CARD_DEFS = [
     hp: 30,
     cost: 0,
     isFullArt: true,
-    effect: "Uma vez por turno: +1 HP a uma unidade aliada.",
+    effect: "+1 HP a uma unidade aliada.",
     faction: "fe",
     abilities: [{ on: "ability", phases: ["preparacao", "movimentacao"], once: true, do: [
       { kind: "heal", amount: 1, target: { ...OWN_UNIT, prompt: "Escolha um soldado aliado no campo." } }
@@ -788,7 +788,7 @@ var CARD_DEFS = [
     hp: 0,
     cost: 3,
     maxCopies: 2,
-    effect: "Cancela um ataque a uma de suas unidades e voc\xEA compra 1 carta.",
+    effect: "Cancela um ataque a uma de suas unidades. Compre 1 carta.",
     abilities: [{ on: "ambush", do: [{ kind: "cancel_attack" }, { kind: "draw", amount: 1 }] }]
   },
   // ── sem manutenção ──

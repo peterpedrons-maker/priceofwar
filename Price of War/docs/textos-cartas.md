@@ -135,3 +135,13 @@ Os ícones são a arte dos efeitos de buff sem o "+" desenhado (o sinal é texto
 | Sentinela de Aluguel (Mercenários) | **Manutenção 1.** Recebe -1 de dano. Rescisão: compre 1 carta. |
 | Atirador de Aluguel (Mercenários) | **Manutenção 2.** Rescisão: você perde 1 de ouro. |
 | Carta Branca (Mercenários, Emboscada) | Cancela um ataque a uma de suas unidades e você compra 1 carta. |
+
+
+## Revisão geral dos textos (rodada 24)
+Todas as cartas do catálogo foram relidas contra o padrão da rodada 24 (efeito principal primeiro; Contrato e Rescisão no fim; sinais "+N"/"-N"; "recebe N de dano a menos por ataque"; etiqueta só para gatilho, negrito para nome de regra, itálico para explicação). Ajustes feitos:
+- **Comandante Aurelion:** "Relíquia recebe -1 de dano" → "Sua Relíquia recebe 1 de dano a menos por ataque".
+- **Cardeal Anselmo:** tirado "Uma vez por turno:" (o Comando já quer dizer isso; regra 3 deste documento).
+- **Carta Branca:** "Cancela um ataque a uma de suas unidades e você compra 1 carta" → "…unidades. Compre 1 carta." (a compra vira frase própria, no imperativo, como nas Táticas).
+- **Veterano de Guerra:** "+2 ATK na coluna central e +1 ATK na Vanguarda" → "Coluna central: +2 ATK. Vanguarda: +1 ATK."
+- **Estandarte da Legião:** "+1/+1 em combate às suas cartas em campo" → "Suas cartas em campo: +1/+1 em combate" (mesma ordem dos Terrenos e da Relíquia).
+Sem mudança (já no padrão): as demais cartas do Capitão, do Cardeal e dos Mercenários, os equipamentos (todos com "A unidade equipada fica **Armada**") e o deck de Campo. Padrão de pontuação das etiquetas: etiqueta de gatilho sem dois-pontos ("POSTURA Recebe…"); **Contrato** e **Rescisão** levam dois-pontos.

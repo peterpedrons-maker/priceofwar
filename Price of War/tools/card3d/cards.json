@@ -6,7 +6,7 @@
   "atk": 0,
   "hp": 30,
   "cost": 0,
-  "effect": "**Fim do turno** Até 2 unidades que se moveram ganham +2/+1 no próximo combate. **Passiva** Relíquia recebe -1 de dano.",
+  "effect": "**Fim do turno** Até 2 unidades que se moveram ganham +2/+1 no próximo combate. **Passiva** Sua Relíquia recebe 1 de dano a menos por ataque.",
   "full": true
  },
  {
@@ -76,7 +76,7 @@
   "atk": 4,
   "hp": 3,
   "cost": 3,
-  "effect": "+2 ATK na coluna central e +1 ATK na Vanguarda.",
+  "effect": "Coluna central: +2 ATK. Vanguarda: +1 ATK.",
   "full": true
  },
  {
@@ -166,7 +166,7 @@
   "atk": 0,
   "hp": 5,
   "cost": 3,
-  "effect": "+1/+1 em combate às suas cartas em campo.",
+  "effect": "Suas cartas em campo: +1/+1 em combate.",
   "full": true
  },
  {
@@ -296,7 +296,7 @@
   "atk": 0,
   "hp": 30,
   "cost": 0,
-  "effect": "Uma vez por turno: +1 HP a uma unidade aliada.",
+  "effect": "+1 HP a uma unidade aliada.",
   "full": true
  },
  {
@@ -716,7 +716,7 @@
   "atk": 0,
   "hp": 0,
   "cost": 3,
-  "effect": "Cancela um ataque a uma de suas unidades e você compra 1 carta.",
+  "effect": "Cancela um ataque a uma de suas unidades. Compre 1 carta.",
   "full": false
  },
  {

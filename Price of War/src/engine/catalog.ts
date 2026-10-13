@@ -11,7 +11,7 @@ const ENEMY_UNIT: TargetSpec = { side: 'enemy', area: 'unit' };
 
 export const CARD_DEFS: readonly CardDef[] = [
   // ── capitao ──
-  { name: "Comandante Aurelion, Mestre da Formação", cardType: "General", atk: 0, hp: 30, cost: 0, isFullArt: true, effect: "**Fim do turno** Até 2 unidades que se moveram ganham +2/+1 no próximo combate. **Passiva** Relíquia recebe -1 de dano.",
+  { name: "Comandante Aurelion, Mestre da Formação", cardType: "General", atk: 0, hp: 30, cost: 0, isFullArt: true, effect: "**Fim do turno** Até 2 unidades que se moveram ganham +2/+1 no próximo combate. **Passiva** Sua Relíquia recebe 1 de dano a menos por ataque.",
     faction: "ordem",
     abilities: [{ on: 'turn_end', do: [{ kind: 'buff_moved', count: 2, atk: 2, hp: 1 }] }],
     passives: [{ kind: 'aura', who: { side: 'own', slots: [10] }, reduce: 1 }] },
@@ -31,7 +31,7 @@ export const CARD_DEFS: readonly CardDef[] = [
   { name: "Cavaleiro Tático", trigger: "manobra", cardType: "Cavalaria", atk: 4, hp: 4, cost: 3, isFullArt: true, effect: "Troca de lugar com qualquer aliado da fileira. Ao se mover, aliados ao lado ganham +1 ATK até o próximo turno.",
     abilities: [{ on: 'move', do: [{ kind: 'buff_adjacent', atk: 1 }] }],
     passives: [{ kind: 'flag', flag: 'row_swap' }] },
-  { name: "Veterano de Guerra", trigger: "postura", cardType: "Infantaria", atk: 4, hp: 3, cost: 3, isFullArt: true, effect: "+2 ATK na coluna central e +1 ATK na Vanguarda.",
+  { name: "Veterano de Guerra", trigger: "postura", cardType: "Infantaria", atk: 4, hp: 3, cost: 3, isFullArt: true, effect: "Coluna central: +2 ATK. Vanguarda: +1 ATK.",
     passives: [
       { kind: 'aura', who: { side: 'self' }, when: { col: 2 }, atk: 2 },
       { kind: 'aura', who: { side: 'self' }, from: 'front', atk: 1 },
@@ -60,7 +60,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     abilities: [{ on: 'ambush', do: [{ kind: 'swap_defender' }] }] },
   { name: "Formação Quebrada", fx: 'formacao', cardType: "Emboscada", atk: 0, hp: 0, cost: 2, effect: "Move o atacante para um espaço livre aleatório. O ataque falha.",
     abilities: [{ on: 'ambush', do: [{ kind: 'displace_attacker' }] }] },
-  { name: "Estandarte da Legião", maxCopies: 1, trigger: "postura", fx: 'estandarte', cardType: "Relíquia", atk: 0, hp: 5, cost: 3, isFullArt: true, effect: "+1/+1 em combate às suas cartas em campo.",
+  { name: "Estandarte da Legião", maxCopies: 1, trigger: "postura", fx: 'estandarte', cardType: "Relíquia", atk: 0, hp: 5, cost: 3, isFullArt: true, effect: "Suas cartas em campo: +1/+1 em combate.",
     passives: [{ kind: 'aura', who: { side: 'own' }, atk: 1, combatHp: 1 }] },
   { name: "Fortaleza de Pedra", maxCopies: 1, trigger: "postura", fx: 'muralha', cardType: "Terreno", atk: 0, hp: 0, cost: 3, isFullArt: true, effect: "Suas unidades na Retaguarda recebem 1 de dano a menos por ataque.",
     passives: [{ kind: 'aura', who: { side: 'own', row: 'back' }, reduce: 1 }] },
@@ -91,7 +91,7 @@ export const CARD_DEFS: readonly CardDef[] = [
   { name: "Mapa de Campanha", cardType: "Relíquia", atk: 0, hp: 5, cost: 2, maxCopies: 1, effect: "No início do seu turno: 1 movimento extra.",
     abilities: [{ on: 'turn_start', do: [{ kind: 'extra_moves', amount: 1 }] }] },
   // ── cardeal ──
-  { name: "Cardeal Anselmo, Voz da Fé", trigger: "comando", cardType: "General", atk: 0, hp: 30, cost: 0, isFullArt: true, effect: "Uma vez por turno: +1 HP a uma unidade aliada.",
+  { name: "Cardeal Anselmo, Voz da Fé", trigger: "comando", cardType: "General", atk: 0, hp: 30, cost: 0, isFullArt: true, effect: "+1 HP a uma unidade aliada.",
     faction: "fe",
     abilities: [{ on: 'ability', phases: ['preparacao', 'movimentacao'], once: true, do: [
       { kind: 'heal', amount: 1, target: { ...OWN_UNIT, prompt: 'Escolha um soldado aliado no campo.' } },
@@ -203,7 +203,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     passives: [{ kind: 'aura', who: { side: 'self' }, reduce: 1 }] },
   { name: 'Atirador de Aluguel', cardType: 'Arqueiro', atk: 3, hp: 2, cost: 2, upkeep: 2, effect: '**Contrato 2.** **Rescisão:** -1 de ouro.',
     abilities: [{ on: 'dismissed', do: [{ kind: 'lose_gold', amount: 1 }] }] },
-  { name: 'Carta Branca', cardType: 'Emboscada', atk: 0, hp: 0, cost: 3, maxCopies: 2, effect: 'Cancela um ataque a uma de suas unidades e você compra 1 carta.',
+  { name: 'Carta Branca', cardType: 'Emboscada', atk: 0, hp: 0, cost: 3, maxCopies: 2, effect: 'Cancela um ataque a uma de suas unidades. Compre 1 carta.',
     abilities: [{ on: 'ambush', do: [{ kind: 'cancel_attack' }, { kind: 'draw', amount: 1 }] }] },
 
   // ── sem manutenção ──
