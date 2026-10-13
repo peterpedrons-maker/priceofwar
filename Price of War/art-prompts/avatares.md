@@ -34,7 +34,7 @@ SQUARE IMAGE 1:1, approx 1024x1024px. Head-and-shoulders portrait, face large an
 SQUARE IMAGE 1:1, approx 1024x1024px. Head-and-shoulders portrait, face large and centered with a margin of background around the head so a circular crop never cuts it. Match the painting style, brushwork, lighting and color grading of the first attached reference portrait exactly; only the person, clothing and background change. Same character, same face and same costume as the second attached reference, repainted realistically as an adult, not cartoon. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light falling on the face, muted earthy palette with deep shadows, no outlines, no smooth airbrushed skin, no digital sharpness, no cartoon look. A woman of about 30 with long wavy chestnut-brown hair blown by the wind under a faded red bandana, a bright confident smile, light brown eyes. Worn brown leather jacket with a quiver of arrows over one shoulder. Behind her a stormy teal-grey sky with clouds, windswept. Hands out of frame. Strictly medieval. Painted portrait, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no title, no name, no numbers, no icons, no text boxes, no letters, no readable writing, full-bleed artwork.
 ```
 
-## Ícones de símbolo (sem rosto): 24 sugestões (20 gerais + 4 emblemas dos decks)
+## Ícones de símbolo (sem rosto): 23 sugestões (19 gerais + 4 emblemas dos decks; **sem criaturas fantásticas**, decisão do dono: dragões e afins ficam para depois)
 Estilo único para todos: **emblema pintado a óleo como metal batido, aço e esmalte** (mesma técnica dos retratos, mas o objeto no centro, com margem larga para o recorte redondo). Anexar o retrato do Aurelion como referência de estilo. Salvar em `src/assets/avatares/<slug>.webp` e acrescentar em `AVATAR_OPTIONS`.
 
 ### Leão rampante
@@ -50,11 +50,6 @@ SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, fillin
 ### Corvo
 ```
 SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a black raven with spread wings perched on a gold-rimmed iron roundel, one glinting amber eye. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
-```
-
-### Dragão
-```
-SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a coiled red-and-gold dragon with folded wings and a long tail encircling a small flame, hammered metal look. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
 ```
 
 ### Cervo
@@ -109,7 +104,7 @@ SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, fillin
 
 ### Cálice
 ```
-SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a golden chalice with a warm glow rising from it, small jewels on the stem. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
+SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a golden chalice with small jewels on the stem, catching the warm light. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
 ```
 
 ### Bigorna
@@ -149,7 +144,7 @@ SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, fillin
 
 ### Emblema do Cardeal
 ```
-SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a large golden war hammer with a cross on its head standing upright, a faint holy glow behind it. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
+SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a large golden war hammer with a cross on its head standing upright, lit by warm candlelight. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
 ```
 
 ### Emblema do Capitão
