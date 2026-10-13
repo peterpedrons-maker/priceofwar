@@ -1824,3 +1824,7 @@ Single round trigger-badge icon for a fantasy card game, centered on a flat soli
 ```
 
 </details>
+
+
+## Retratos de rosto dos Generais (regra do dono, rodada 25)
+Ao criar a arte de um General ou personagem marcante, entregar também o prompt do **retrato de rosto**, sempre no estilo do Aurelion (fantasia sombria, claro-escuro). Molde, prompts dos quatro generais atuais e o que fazer com as imagens: `art-prompts/retratos-generais.md`.

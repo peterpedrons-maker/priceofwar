@@ -8,6 +8,7 @@ Ponto de entrada único. Reúne as decisões do dono sobre **nome**, **arte** (e
 3. **Texto da carta:** `docs/textos-cartas.md` (hierarquia dos efeitos, sinais, frase de redução de dano, três estilos: etiqueta = gatilho/efeito, negrito = nome de regra, itálico = explicação) e `docs/vocabulario.md`.
 4. **Arte:** seção "Arte" abaixo e `art-prompts/README.md`.
 5. **Padrão ou Full Art:** seção "Padrão x Full Art" abaixo; ao entregar prompts, **dizer quais cartas merecem Full Art e por quê**.
+6. **General ou personagem marcante?** Entregar também o prompt do **retrato de rosto** (sempre o mesmo estilo, o do Aurelion): `art-prompts/retratos-generais.md`.
 6. Conferir semelhança entre artes: `python3.11 -I tools/art-parecidas.py` (ver `art-prompts/cartas-novas-rodada-23.md`).
 7. Depois: atualizar o documento do deck, `npm test`, `npm run map` se mudou estrutura.
 
