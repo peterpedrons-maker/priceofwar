@@ -1,5 +1,7 @@
 # Artes do deck de Campo (30 cartas, rodada 24)
 
+> **Nomes provisórios:** vão ser trocados depois que o dono mandar as imagens (`docs/criacao-de-cartas.md`, seção "Nomes"); o nome não aparece nos prompts. **Full Art:** proposta de 6 cartas em `docs/deck-campo.md` ("Quais cartas ganhar Full Art"); o prompt de cada uma aqui é a versão **Padrão** (paisagem), exceto o General.
+
 Deck **experimental** (ainda sem arte no jogo). Identidade: as Marcas de fronteira, aço gasto e couro cozido, cinza-ardósia, laranja de brasa de forja e verde-musgo, torre de pedra cinza com lança e martelo cruzados em bandeiras verde-escuras, **extras presos em cada soldado** (a identidade "Armado"). Regras de estilo, lições e a cláusula final: `art-prompts/README.md` e `art-prompts/cartas-novas-rodada-23.md` (nunca "realismo/foto/cinematográfico", nunca o nome de um jogo, sempre "ARTWORK ONLY"). Cada carta usa uma família de estilo diferente da vizinha. **Padrão** = paisagem 16:10; só o General é **Full Art** (retrato ~0,72:1).
 
 **1. Margrave Osric, Senhor das Marcas (General (Full Art))**, estilo `epic`

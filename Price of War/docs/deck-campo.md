@@ -180,3 +180,10 @@ Estrutura: 14 unidades (9 de identidade Armada, 3 de efeito geral, 2 únicas), 6
 
 ### Medição (IA × IA, 200 partidas por confronto)
 **72,0% × Cardeal, 42,5% × Capitão, 60,0% × Mercenários.** A primeira montagem com equipamento universal e os atributos anteriores deu 86% / 68,5% / 80%: forte demais, porque qualquer equipamento em qualquer unidade rende mais. Reduzi os atributos dos núcleos e dois equipamentos (Espada de Posto +2 ATK, Armadura de Placas +2/+1); com isso as duas cartas de Terreno passaram a ajudar (+5,3 e +2,8 pontos na vitória ao comprar, antes ficavam abaixo das unidades). Perfil parecido com o da versão 1: forte contra os decks lentos e abaixo do Capitão.
+
+
+### Nomes provisórios e Full Art (rodada 24)
+**Nomes:** os nomes das cartas desta lista são provisórios e **genéricos demais** (Armeiro de Campanha, Escudeiro Veterano, Mapeador de Marchas, Sargento de Marcha, Guarda de Fronteira, Intendente de Marcha, Besteiro de Posto etc.). O dono mandou **trocar todos**, no estilo dos nomes do deck Mercenários (ver `docs/criacao-de-cartas.md`, seção "Nomes"), **depois de receber as imagens**, para o nome combinar com a arte. Não renomear antes.
+
+### Quais cartas ganhar Full Art (proposta, a confirmar)
+Sim (6): **Margrave Osric** (General, já é Full Art), **Campeão da Marca** (única, o herói do deck, cena heroica vertical), **Arsenal do Marquês** (Relíquia, a sala de armas é uma cena grandiosa), **Forja de Campanha** (Terreno de dois modos, a forja à noite funciona bem em retrato), **Armadura de Placas** (o objeto-símbolo da identidade "Armada", figura alta e central) e **Mestre de Armas** (única, retrato de personagem). Não: Táticas de busca e movimento, as emboscadas, os equipamentos simples, as unidades de 3 cópias. Cada Full Art precisa de uma **segunda arte** diferente da Padrão (ver `art-prompts/README.md`). Nada disso existe no jogo ainda (booster com arte alternativa e raridade vem depois).

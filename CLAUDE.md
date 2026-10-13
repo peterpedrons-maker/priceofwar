@@ -5,7 +5,8 @@ Jogo de cartas digital em React + TypeScript; o app fica em `Price of War/` (há
 ## Antes de mexer (para não reler o jogo inteiro)
 1. Leia `Price of War/docs/visao-geral.md` (uma página: regras, decks, decisões, pendências, "onde mexer para...").
 2. Ache o arquivo e a linha em `Price of War/docs/mapa-do-codigo.md` (`grep -n Nome`); leia só o trecho. `src/App.tsx` tem 10 mil linhas: nunca leia inteiro.
-3. Se o assunto tem documento próprio, leia só ele: regras do motor `docs/engine.md`, efeitos `docs/efeitos.md`, palavras do jogo `docs/vocabulario.md`, textos de carta `docs/textos-cartas.md`, balanceamento `docs/balanceamento.md`, animações `docs/animacoes.md`, tutorial `docs/tutorial.md`, online `docs/online-setup.md`, áudio `docs/audio.md`.
+3. **Vai criar carta, nome, deck ou prompt de arte?** Leia `Price of War/docs/criacao-de-cartas.md` antes (nomes com personalidade, estilo de arte, Padrão x Full Art e proposta de quais cartas merecem Full Art, texto, identidade do deck).
+4. Se o assunto tem documento próprio, leia só ele: regras do motor `docs/engine.md`, efeitos `docs/efeitos.md`, palavras do jogo `docs/vocabulario.md`, textos de carta `docs/textos-cartas.md`, balanceamento `docs/balanceamento.md`, animações `docs/animacoes.md`, tutorial `docs/tutorial.md`, online `docs/online-setup.md`, áudio `docs/audio.md`.
 
 ## Depois de mexer
 - Atualize o documento do assunto no mesmo commit (regra, carta ou decisão nova) e, se mudou a estrutura do código, rode `npm run map` (regera `docs/mapa-do-codigo.md`). Se mudou o estado do jogo ou as pendências, atualize `docs/visao-geral.md`.
