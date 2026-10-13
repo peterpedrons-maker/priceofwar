@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './desafios.css';
 import mapImage from './assets/desafios/map.webp';
-import portraitCapitao from './assets/desafios/capitao.webp';
-import portraitCardeal from './assets/desafios/cardeal.webp';
-import portraitMercenarios from './assets/desafios/mercenarios.webp';
-import portraitCampo from './assets/campo/margrave-osric-senhor-das-marcas.webp';
+import portraitCapitao from './assets/retratos/aurelion.webp';
+import portraitCardeal from './assets/retratos/anselmo.webp';
+import portraitMercenarios from './assets/retratos/brann.webp';
+import portraitCampo from './assets/retratos/osric.webp';
 
 // Tela "Desafios": um mapa limpo com um pino por adversário; tocar num pino dá zoom na cidade e sobe o cartão do general
 // (retrato, descrição, seus decks e o botão Batalha). Veio do mockup public/mockups/desafios (ver docs/visao-geral.md).

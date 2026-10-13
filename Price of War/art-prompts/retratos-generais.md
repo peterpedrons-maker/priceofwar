@@ -44,3 +44,6 @@ SQUARE IMAGE 1:1, approx 1024x1024px. Head-and-shoulders portrait, face large an
 
 ## O que fazer quando as imagens chegarem
 Salvar em `src/assets/retratos/<slug-do-general>.webp` (quadrado, ~512 px), usar no mapa de Desafios no lugar do pino (`src/DesafiosScreen.tsx`, `PLACES[...].img`), no cartão do general e como opção de avatar do jogador.
+
+## Estado (rodada 25)
+Os quatro retratos estão em `src/assets/retratos/{aurelion,anselmo,brann,osric}.webp` (512 px). O do Anselmo foi gerado por repintura (v3 em quadrinho repintado em óleo) e depois recebeu correção de cor (menos amarelo e mais contraste, para igualar os outros três). Usados no cartão do general e nos chips de deck da tela Desafios e no editor de decks. Falta: trocar os pinos do mapa por fotos redondas (mostrar mockup antes) e oferecê-los como avatares.

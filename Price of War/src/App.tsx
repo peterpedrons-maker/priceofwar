@@ -240,10 +240,10 @@ import { STEPS as TUT_STEPS, BEATS as TUT_BEATS, COIN_STEP as TUT_COIN_STEP, OUT
 import { KitWindow, KitTitle, KitButton, KitRow, KitTab, KitToggle, KitRange, KitIconButton, KitPlate, KitCount, KitSearch, KitIcon, KitCoins, KitField, PromptTitle, KIT_ICONS } from './ui/Kit';
 import googleLogo from './assets/brand/google.svg';
 import discordLogo from './assets/brand/discord.svg';
-import portraitCapitaoImg from './assets/desafios/capitao.webp';
-import portraitCardealImg from './assets/desafios/cardeal.webp';
-import portraitMercenariosImg from './assets/desafios/mercenarios.webp';
-import portraitCampoImg from './assets/campo/margrave-osric-senhor-das-marcas.webp';
+import portraitCapitaoImg from './assets/retratos/aurelion.webp';
+import portraitCardealImg from './assets/retratos/anselmo.webp';
+import portraitMercenariosImg from './assets/retratos/brann.webp';
+import portraitCampoImg from './assets/retratos/osric.webp';
 import { ThinFrame, GameBox, GameButton } from './ui/ThinFrame';
 import { NpcPanel, TapHand, Spotlight, TutorialList, TutorialIntro, markTutorialDone, type Hole as TutHole } from './tutorial/ui';
 import { DECK_MAX_CARDS, DECK_MIN_CARDS, maxCopiesOf } from './engine/deck';
