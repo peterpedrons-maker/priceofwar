@@ -61,17 +61,17 @@ export const CAMPO_DEFS: readonly CardDef[] = [
     passives: [{ kind: 'aura', who: ARMED, from: 'front', atk: 1 }] },
 
   // equipamentos (qualquer unidade; toda unidade equipada fica Armada)
-  { name: 'Cota Remendada', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Equipe uma unidade: +1 ATK e +2 HP. Ela fica **Armada**',
+  { name: 'Cota Remendada', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Equipe uma unidade: +1 ATK e +2 HP. A unidade equipada fica **Armada**',
     abilities: [equip({ atk: 1, hp: 2 }, 'Escolha uma unidade sua para equipar (+1 ATK e +2 HP).')] },
-  { name: 'Escudo de Carvalho', maxCopies: 2, cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Equipe uma unidade: Guarda (absorve o primeiro golpe inteiro). Ela fica **Armada**',
+  { name: 'Escudo de Carvalho', maxCopies: 2, cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Equipe uma unidade: Guarda (absorve o primeiro golpe inteiro). A unidade equipada fica **Armada**',
     abilities: [equip({ block: true }, 'Escolha uma unidade sua para equipar (Guarda).')] },
-  { name: 'Espada de Posto', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Equipe uma unidade: +2 ATK. Ela fica **Armada**',
+  { name: 'Espada de Posto', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Equipe uma unidade: +2 ATK. A unidade equipada fica **Armada**',
     abilities: [equip({ atk: 2 }, 'Escolha uma unidade sua para equipar (+2 ATK).')] },
-  { name: 'Elmo Ferrado', maxCopies: 2, cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Equipe uma unidade: +3 HP. Ela fica **Armada**',
+  { name: 'Elmo Ferrado', maxCopies: 2, cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Equipe uma unidade: +3 HP. A unidade equipada fica **Armada**',
     abilities: [equip({ hp: 3 }, 'Escolha uma unidade sua para equipar (+3 HP).')] },
-  { name: 'Machado de Guerra', maxCopies: 1, cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: 'Equipe uma unidade: +3 ATK. Ela fica **Armada**',
+  { name: 'Machado de Guerra', maxCopies: 1, cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: 'Equipe uma unidade: +3 ATK. A unidade equipada fica **Armada**',
     abilities: [equip({ atk: 3 }, 'Escolha uma unidade sua para equipar (+3 ATK).')] },
-  { name: 'Armadura de Placas', maxCopies: 2, cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: 'Equipe uma unidade: +2 ATK e +1 HP. Ela fica **Armada**',
+  { name: 'Armadura de Placas', maxCopies: 2, cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: 'Equipe uma unidade: +2 ATK e +1 HP. A unidade equipada fica **Armada**',
     abilities: [equip({ atk: 2, hp: 1 }, 'Escolha uma unidade sua para equipar (+2 ATK e +1 HP).')] },
 
   // Terrenos com modos (sem vida; o dono escolhe o modo no fim do turno e ele vale até o fim do turno seguinte)

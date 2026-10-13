@@ -561,7 +561,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 1,
-    effect: "Equipe uma Infantaria: +2 HP e Guarda (absorve o primeiro golpe inteiro). Ela fica **Armada**",
+    effect: "Equipe uma Infantaria: +2 HP e Guarda (absorve o primeiro golpe inteiro). A unidade equipada fica **Armada**",
     abilities: [{ on: "play", do: [
       { kind: "equip", hp: 2, block: true, target: { ...OWN_UNIT, types: ["Infantaria"], prompt: "Escolha uma Infantaria sua para equipar (+2 HP e Guarda)." } }
     ] }]
@@ -572,7 +572,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 1,
-    effect: "Equipe uma Infantaria ou Arqueiro: +2 HP. Ela fica **Armada**",
+    effect: "Equipe uma Infantaria ou Arqueiro: +2 HP. A unidade equipada fica **Armada**",
     abilities: [{ on: "play", do: [
       { kind: "equip", hp: 2, target: { ...OWN_UNIT, types: ["Arqueiro", "Infantaria"], prompt: "Escolha um Arqueiro ou Infantaria sua para equipar (+2 HP)." } }
     ] }]
@@ -583,7 +583,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 1,
-    effect: "Equipe um Arqueiro: +1 ATK. Ela fica **Armada**",
+    effect: "Equipe um Arqueiro: +1 ATK. A unidade equipada fica **Armada**",
     abilities: [{ on: "play", do: [
       { kind: "equip", atk: 1, target: { ...OWN_UNIT, types: ["Arqueiro"], prompt: "Escolha um Arqueiro seu para equipar (+1 ATK)." } }
     ] }]
@@ -594,7 +594,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 1,
-    effect: "Equipe uma Infantaria ou Cavalaria: +2 ATK. Ela fica **Armada**",
+    effect: "Equipe uma Infantaria ou Cavalaria: +2 ATK. A unidade equipada fica **Armada**",
     abilities: [{ on: "play", do: [
       { kind: "equip", atk: 2, target: { ...OWN_UNIT, types: ["Cavalaria", "Infantaria"], prompt: "Escolha uma Cavalaria ou Infantaria sua para equipar (+2 ATK)." } }
     ] }]
@@ -887,7 +887,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 1,
-    effect: "Equipe uma Infantaria: +2 HP. Ela fica **Armada**",
+    effect: "Equipe uma Infantaria: +2 HP. A unidade equipada fica **Armada**",
     abilities: [{ on: "play", do: [
       { kind: "equip", hp: 2, target: { side: "own", area: "unit", types: ["Infantaria"], prompt: "Escolha uma Infantaria sua para equipar (+2 HP)." } }
     ] }]
@@ -898,7 +898,7 @@ var CARD_DEFS = [
     atk: 0,
     hp: 0,
     cost: 1,
-    effect: "Equipe uma Infantaria ou Cavalaria: +2 ATK. Ela fica **Armada**",
+    effect: "Equipe uma Infantaria ou Cavalaria: +2 ATK. A unidade equipada fica **Armada**",
     abilities: [{ on: "play", do: [
       { kind: "equip", atk: 2, target: { side: "own", area: "unit", types: ["Cavalaria", "Infantaria"], prompt: "Escolha uma Cavalaria ou Infantaria sua para equipar (+2 ATK)." } }
     ] }]

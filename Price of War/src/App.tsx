@@ -1633,7 +1633,7 @@ const KeywordPill = ({ label, icon, compact }: { label: string; icon?: string; c
 // heart, "3 de dano" → the damage burst with the 3 inside. "+1/+1" becomes both. A reduction ("-1 de dano") stays words. The sizes
 // are in em, so the symbols shrink with the text when it is fitted; they are a little under two lines' worth so that symbols on
 // neighbouring lines never touch.
-const STAT_TOKEN = /Ela fica \*\*Armada\*\*|\*\*[^*]+\*\*|[+-]\d+\/[+-]\d+|[+-]\d+ (?:ATK|HP)\b|\d+ de dano|[+-]?\d+ de ouro/g;
+const STAT_TOKEN = /A unidade equipada fica \*\*Armada\*\*|\*\*[^*]+\*\*|[+-]\d+\/[+-]\d+|[+-]\d+ (?:ATK|HP)\b|\d+ de dano|[+-]?\d+ de ouro/g;
 const STAT_NUMBER_STYLE: React.CSSProperties = { fontFamily: "'Cinzel', serif", fontWeight: 900, fontSize: '1.3em', lineHeight: 1, verticalAlign: 'middle', textShadow: '0 1px 0 #000, 0 -1px 0 #000, 1px 0 0 #000, -1px 0 0 #000, 0 0 3px #000' };
 const StatSymbol = ({ amount, kind }: { amount: string; kind: 'atk' | 'hp'; key?: React.Key }) => (
   <span style={{ display: 'inline-block', whiteSpace: 'nowrap', margin: '0 0.12em' }}>
@@ -1662,6 +1662,8 @@ const DamageSymbol = ({ amount }: { amount: string; key?: React.Key }) => {
     </span>
   );
 };
+// Nome de regra do jogo (Rescisão, Armada): negrito de verdade (a fonte do texto só tem um peso, então um contorno fino reforça).
+const RULE_WORD_STYLE: React.CSSProperties = { fontWeight: 900, WebkitTextStroke: '0.035em currentColor' };
 const renderEffectText = (text: string, afterLead = false): React.ReactNode[] => {
   const out: React.ReactNode[] = [];
   if (afterLead) out.push(<span key="lead-gap" />);   // há etiqueta de gatilho antes do texto: Manutenção/Rescisão ainda quebram a linha
@@ -1675,10 +1677,10 @@ const renderEffectText = (text: string, afterLead = false): React.ReactNode[] =>
     if (damage && text.startsWith(' a menos', at + t.length)) continue;   // "1 de dano a menos": também é redução, fica em palavras
     if (t.endsWith(' de ouro') && /^\d/.test(t) && prev && /\d/.test(prev)) continue;
     if (at > last) out.push(text.slice(last, at));
-    if (t.startsWith('Ela fica')) {   // equipamento: a unidade fica Armada, em linha própria e em itálico (Armada não é gatilho, então não é etiqueta)
+    if (t.startsWith('A unidade equipada')) {   // equipamento: a explicação "fica Armada" vai em linha própria e em itálico (itálico = explicação)
       while (typeof out[out.length - 1] === 'string' && !(out[out.length - 1] as string).trim()) out.pop();
       if (out.length) out.push(<br key={`br${key++}`} />);
-      out.push(<i key={key++}>Ela fica Armada</i>);
+      out.push(<i key={key++}>A unidade equipada fica Armada</i>);
       last = at + t.length; continue;
     }
     if (t.startsWith('**')) {
@@ -1689,8 +1691,8 @@ const renderEffectText = (text: string, afterLead = false): React.ReactNode[] =>
         lineBreak();
         out.push(<KeywordPill key={key++} label="Contrato" compact />, ':', <GoldSymbol key={key++} amount={up[1]} />, <i key={`pt${key++}`} style={{ fontSize: '0.82em', whiteSpace: 'nowrap' }}> por turno</i>);   // o itálico fica para explicações
         if (text.slice(at + t.length).trim()) out.push(<br key={`br${key++}`} />);
-      } else if (/^Armadas?:?$/.test(word)) out.push(<i key={key++}>{word}</i>, ' ');   // termo do jogo que não é gatilho: itálico, não etiqueta
-      else if (/^Rescisão:?$/.test(word)) { lineBreak(); out.push(<b key={key++} style={{ fontWeight: 900, WebkitTextStroke: "0.035em currentColor" }}>Rescisão:</b>); }   // própria linha, só em negrito (o itálico fica para explicações), sem etiqueta
+      } else if (/^Armadas?:?$/.test(word)) out.push(<b key={key++} style={RULE_WORD_STYLE}>{word}</b>, ' ');   // nome de regra (como Rescisão): negrito, não etiqueta
+      else if (/^Rescisão:?$/.test(word)) { lineBreak(); out.push(<b key={key++} style={RULE_WORD_STYLE}>Rescisão:</b>); }   // própria linha, só em negrito (o itálico fica para explicações), sem etiqueta
       else out.push(<KeywordPill key={key++} label={word} />);
     }
     else if (t.endsWith(' de ouro')) out.push(<GoldSymbol key={key++} amount={t.split(' ')[0]} />);

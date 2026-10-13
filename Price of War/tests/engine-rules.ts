@@ -394,10 +394,10 @@ test('Mapa de Campanha (Relíquia): 1 extra move at the start of its owner turn'
   for (let g = 0; g < 40 && s.turn.active === 1; g++) s = act(s, 1, { type: 'advance' }).s;
   eq([s.turn.active, s.turn.bonusRepositions], [0, 1]);
 });
-test('texto universal: toda carta de Equipamento de qualquer deck termina com "Ela fica **Armada**"', () => {
+test('texto universal: toda carta de Equipamento de qualquer deck termina com "A unidade equipada fica **Armada**"', () => {
   const equips = CARD_DEFS.filter(d => d.abilities?.some(ab => ab.do.some(v => v.kind === 'equip')));
   ok(equips.length >= 6, 'achou os equipamentos do catálogo');
-  equips.forEach(d => ok(d.effect.endsWith('Ela fica **Armada**'), `${d.name} sem "Ela fica **Armada**"`));
+  equips.forEach(d => ok(d.effect.endsWith('A unidade equipada fica **Armada**'), `${d.name} sem "A unidade equipada fica **Armada**"`));
 });
 test('Terreno has no HP: an attack can never target it, even with its whole lane clear', () => {
   const s = combat(fresh());

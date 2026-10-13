@@ -187,3 +187,5 @@ Rodada 24 (ajuste 5): **Armada** é agora etiqueta (palavra-chave) do deck de Ca
 Rodada 24 (ajuste 6): **Armada** vale para **todo equipamento de todo deck** (Couraça do Mártir, Gibão Bento, Setas de Cicuta, Lâmina do Juramento, Peitoral de Muitos Donos, Espada de Mil Mãos e os do deck de Campo): o texto termina com "Ela fica **Armada**". Regra de vocabulário: o texto da carta é universal, não por deck.
 
 Rodada 24 (ajuste 7): **Armada** não é etiqueta: é termo do jogo em *itálico*; "Ela fica Armada" vem em linha própria no equipamento. A etiqueta fica só para gatilhos e efeitos. Código: `renderEffectText` em `App.tsx`.
+
+Rodada 24 (ajuste 8): três estilos, uma função cada: **etiqueta** = gatilho/efeito (Postura, Comando, Contrato); **negrito** = nome de regra (Rescisão, Armada); **itálico** = explicação/lembrete ("por turno", "A unidade equipada fica Armada", que substituiu "Ela fica Armada" por ser mais claro).
