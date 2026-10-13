@@ -160,3 +160,97 @@ SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, fillin
 - **Vale o MAIOR elo já alcançado** (não se perde ao cair de elo). Ao alcançar uma liga, o jogador libera o **ícone** (emblema) e a **moldura** (aro) dela.
 - **A moldura aparece em todo lugar** onde o avatar aparece (menu, seletor, partidas casuais e ranqueadas, ranking), não só nas ranqueadas.
 - O jogador escolhe ícone e moldura entre os liberados; os trancados mostram o cadeado e a liga necessária.
+
+## Ícones de símbolo, segunda leva (sem fantasia, medieval realista)
+Regra do dono: **nada de dragões nem criaturas ou coisas fantasiosas por enquanto**; só quando houver esse tema nas cartas. Mesmo molde dos 23 anteriores; anexar o retrato do Aurelion como estilo.
+
+### 24. Besta
+```
+SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a medieval crossbow of dark wood with a steel prod and a cocked bolt, a small windlass crank beside it. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval, no fantasy and no magic. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
+```
+
+### 25. Sino de guerra
+```
+SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a heavy bronze war bell hanging from a wooden beam, worn green patina, a rope hanging down. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval, no fantasy and no magic. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
+```
+
+### 26. Falcão
+```
+SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a hunting falcon perched on a thick leather falconer's gauntlet, wings half open, sharp eye. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval, no fantasy and no magic. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
+```
+
+### 27. Alabarda
+```
+SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a halberd with a long wooden shaft, an axe blade, a back spike and a steel spear point, a small tassel. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval, no fantasy and no magic. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
+```
+
+### 28. Cota de malha
+```
+SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a steel mail hauberk hung on a wooden stand, thousands of tiny rings catching the warm light. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval, no fantasy and no magic. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
+```
+
+### 29. Portão do castelo
+```
+SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a stone castle gatehouse seen from the front with a raised iron portcullis and a heavy wooden gate, arrow slits above. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval, no fantasy and no magic. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
+```
+
+### 30. Nau de guerra
+```
+SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a medieval cog sailing ship with a single square sail and a high stern castle, riding dark waves. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval, no fantasy and no magic. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
+```
+
+### 31. Balança do mercador
+```
+SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a brass merchant's balance scale with two pans, a few gold coins in one pan and a small iron weight in the other. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval, no fantasy and no magic. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
+```
+
+### 32. Pena e tinteiro
+```
+SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a goose-feather quill resting in a small iron inkwell beside a rolled blank parchment, no writing on it. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval, no fantasy and no magic. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
+```
+
+### 33. Rosa dos ventos
+```
+SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. an old brass compass with a pointed needle and ornate cardinal points shown only as pointed shapes, no letters. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval, no fantasy and no magic. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
+```
+
+### 34. Ampulheta
+```
+SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a wooden hourglass with brass fittings and fine golden sand running through, standing upright. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval, no fantasy and no magic. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
+```
+
+### 35. Maça
+```
+SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a spiked steel flanged mace with a wooden handle wrapped in leather, resting upright. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval, no fantasy and no magic. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
+```
+
+### 36. Lança com flâmula
+```
+SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a long lance with a steel point and a swallow-tailed crimson pennant fluttering from it. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval, no fantasy and no magic. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
+```
+
+### 37. Chaves cruzadas
+```
+SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. two large wrought iron keys crossed in an X, one gold-tinted and one dark iron, ornate bows. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval, no fantasy and no magic. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
+```
+
+### 38. Trompa de guerra
+```
+SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a curved war horn made of horn and bound with bronze bands, a leather strap hanging from it. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval, no fantasy and no magic. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
+```
+
+### 39. Mapa selado
+```
+SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a rolled parchment map tied with a cord and sealed with red wax, only faint lines and no writing. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval, no fantasy and no magic. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
+```
+
+### 40. Fogueira de acampamento
+```
+SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a soldiers' campfire with stacked logs and a bright orange flame, an iron cooking pot hanging over it. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval, no fantasy and no magic. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
+```
+
+### 41. Tenda de campanha
+```
+SQUARE IMAGE 1:1, approx 1024x1024px. A single heraldic emblem, centered, filling about 60% of the frame with a wide dark margin around it so a circular crop never cuts it. a medieval pavilion tent with a conical roof, striped fabric and a small pennant on top, ropes and pegs. STYLE: old-master oil painting on canvas, thick visible brushstrokes and impasto, matte surface, soft painterly edges, dark moody chiaroscuro with one warm light, muted earthy palette with deep shadows, the object rendered as if hammered gold, worn steel and enamel, no outlines, no smooth digital sharpness, no cartoon look. Plain dark textured background with a faint warm glow behind the emblem. Strictly medieval, no fantasy and no magic. Painted, not a photograph, not photorealistic. ARTWORK ONLY: no card frame, no border, no ring, no title, no name, no numbers, no text boxes, no letters, no readable writing, full-bleed artwork.
+```
+
