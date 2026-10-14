@@ -227,3 +227,15 @@ Sim (6): **Margrave Osric** (General, já é Full Art), **Aldric Mil-Armas, Camp
 **Todas as 30 artes recebidas** (rodada 24), conferidas contra as artes do jogo (nenhuma repetida; sem texto legível). Salvas em `src/assets/campo/<nome-sem-acento>.webp` com os nomes novos; **ainda não ligadas ao cliente** (o deck não está no catálogo): quando entrar no jogo, ligar por nome como `src/assets/capitao/`. **Uma precisa ser refeita:** *Dois Olhos na Crista* saiu com **binóculos e arma de fogo**, equipamento moderno que não existe no mundo do jogo; o prompt foi refeito (`art-prompts/deck-campo.md`, item 25) com "strictly medieval, no binoculars, no firearms". A arte atual fica só como provisória.
 
 **Atualização (equipamento em uso):** por decisão do dono, os prompts do **Machado Racha-Tronco** (item 20) e da **Casca de Aço** (item 21) foram refeitos mostrando o equipamento **em uso por um soldado em ação** (rachando uma tora; resistindo a flechas numa brecha), e não mais o objeto exposto. Os 4 equipamentos já recebidos (Cota, Escudo, Espada, Elmo) ficam como objeto exposto.
+
+
+### Efeito visual ao jogar (proposta, rodada 25, a confirmar)
+O Campo ainda não tem efeitos próprios (só a animação comum de equipar). Ordem sugerida, das que mais valem à pena:
+1. **A Forja que Nunca Apaga** (Terreno): a forja acende no chão do campo, faíscas de bigorna; modo Muralha = brasa cinza-laranja com reflexo de pedra nas Armadas, modo Afiação = faíscas brancas de afiar; fica um brilho permanente baixo.
+2. **Posto do Fogo-Sinal** (Terreno): uma torre de sinal acende na borda e a chama passa de uma ponta do tabuleiro à outra, coluna de fumaça; Saque solta brasas que viram uma carta, Trincheira levanta um barranco de terra.
+3. **Noite Sem Parar** (Tática): a tela escurece para azul-noite, rastros de tocha seguem a unidade nos dois movimentos extras, lua fina.
+4. **A Mata Devolve** (Emboscada): galhos e folhas estouram do chão em volta de quem foi atacado, onda verde-dourada e +2/+1 subindo.
+5. **Casca de Aço** e **Machado Racha-Tronco** (equipamentos): a armadura se fecha peça por peça com estalos; o machado racha o chão com lascas de madeira e onda de choque.
+6. **Arsenal dos Mil Invernos** (Relíquia, Full Art): armas sobem de uma geada, cristais de gelo cobrem a borda das Armadas, neve fina e fria permanente.
+7. **Aldric Mil-Armas** (única): as armas dele se abrem em leque atrás do corpo, um número +1/+1 por equipamento.
+8. Extras: **Dentes da Cerca** (estacas de madeira sobem à frente de quem defende), **Cavaleiro Rompe-Escudos** (onda quebra o escudo da carta de trás, estilhaços), **Margrave Osric** (Comando: equipamentos sobem do cemitério em chuva de metal), **Dois Olhos na Crista** (feixe varre o baralho e a carta achada voa à mão).

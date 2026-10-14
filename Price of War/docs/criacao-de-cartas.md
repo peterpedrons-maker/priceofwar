@@ -8,6 +8,7 @@ Ponto de entrada único. Reúne as decisões do dono sobre **nome**, **arte** (e
 3. **Texto da carta:** `docs/textos-cartas.md` (hierarquia dos efeitos, sinais, frase de redução de dano, três estilos: etiqueta = gatilho/efeito, negrito = nome de regra, itálico = explicação) e `docs/vocabulario.md`.
 4. **Arte:** seção "Arte" abaixo e `art-prompts/README.md`.
 5. **Padrão ou Full Art:** seção "Padrão x Full Art" abaixo; ao entregar prompts, **dizer quais cartas merecem Full Art e por quê**.
+5b. **Efeito visual (decisão do dono, rodada 25):** todo deck novo precisa ter efeitos visuais ao jogar suas cartas (os Mercenários, o Capitão e o Cardeal têm; o Campo ainda não tinha). **Ao entregar o deck, propor quais cartas merecem efeito visual e uma ideia de uma linha para cada**, escolhendo **as melhores para ficar bonito, de qualquer tipo** (criatura, soldado, Tática, Emboscada, Terreno, Relíquia, General): cartas com um momento claro no motor (evento `place`, `equip`, `ambush`, `move`, `search`...), um objeto ou cenário forte para animar (fogo, luz, pedra, gelo, folhas) e que aparecem seguido. Seção "Efeito visual" abaixo.
 6. **General ou personagem marcante?** Entregar também o prompt do **retrato de rosto** (sempre o mesmo estilo, o do Aurelion): `art-prompts/retratos-generais.md`.
 6. Conferir semelhança entre artes: `python3.11 -I tools/art-parecidas.py` (ver `art-prompts/cartas-novas-rodada-23.md`).
 7. Depois: atualizar o documento do deck, `npm test`, `npm run map` se mudou estrutura.
@@ -50,3 +51,10 @@ Regra completa em `art-prompts/README.md` ("Variedade de estilo pictórico") e l
   - Ordem de grandeza: **uns 15% a 25%** das cartas diferentes de um deck (3 a 7 em 30), sem contar o General.
   - Uma carta que já nasce Full Art (hoje: os Generais e algumas) continua tendo uma versão Padrão se fizer sentido no booster.
 - Proposta atual para o deck de Campo: ver `docs/deck-campo.md`, "Quais cartas ganhar Full Art".
+
+## Efeito visual de uma carta (decisão do dono, rodada 25)
+**Regra de trabalho:** ao criar ou revisar um deck, entregar sempre **duas propostas lado a lado**: (1) **Full Art** (quais cartas ganham a arte vertical, com a versão Padrão da mesma carta), e (2) **efeito visual ao jogar** (quais cartas ganham animação e qual).
+- **Como escolher as cartas para efeito visual:** não precisa ser a carta mais forte; vale a que **fica mais bonita**. Critérios: (a) o motor já emite um evento claro quando ela é jogada ou age (`place`, `equip`, `ambush`, `move`, `destroyed`, `search`, `relic_mode`); (b) tem um **elemento animável** forte (fogo, luz, faíscas, pedra, gelo, folhas, estacas, moedas, névoa); (c) aparece com frequência ou é marcante (únicas, Terrenos, Relíquias, o General); (d) o efeito diz o que a carta faz (o jogador entende só de olhar). Evitar efeitos em toda carta: **só nas melhores**, para continuarem especiais.
+- **Tipos que rendem mais:** Terreno e Relíquia (efeito permanente no chão ou nas cartas), Tática de ação, Emboscada (surpresa), General (ativação), cartas únicas. Soldados comuns só quando a ação deles é espetacular.
+- **Fluxo:** ideia de uma linha (no documento do deck) → mockup em `public/mockups/efeitos-<deck>/` para o dono aprovar → ligar ao jogo pelo campo `fx` da carta (`docs/animacoes.md`, `src/combatFx.ts`).
+- Equipamento já tem uma animação comum a todos (`EquipFxLayer`: a unidade levanta, a carta entra por baixo, clarão e anéis); o efeito próprio de cada equipamento vem por cima dela.
