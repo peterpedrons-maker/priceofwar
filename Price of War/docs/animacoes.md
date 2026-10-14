@@ -359,3 +359,13 @@ Arte gerada pelo dono (castelo: torre, muros e portão; acampamento: barracas, a
 ## Ritmo da IA e cura do General (ajuste)
 - **Ritmo do turno da IA** (`runAiTurn` em `App.tsx`): a carta que a IA joga fica anunciada 1,9 s antes de cair e 1,5 s depois (táticas com efeito: 1,1 s depois); o cartaz da carta dura 2,3 s; reposicionar 0,8 s; habilidade 1,6 s; depois de um ataque 0,7 s (1,5 s se algo caiu). Antes eram 1,0/0,7 s, 0,4 s, 0,35 s, 0,7 s e 0,3 s.
 - **Cura do General (Cardeal Anselmo):** volta a ser a antiga (`fxHero('cura', ...)`: ele ergue a marreta e a luz desce até quem foi curado); a `fxBencao` ficou no código mas não é mais usada.
+
+
+## Efeitos do Campo (mockup, ainda não estão no jogo)
+Mockup em `public/mockups/efeitos-campo/` (`/priceofwar/mockups/efeitos-campo/`): uma página só, tabuleiro real com as cartas do Campo (embaixo) contra o Capitão (em cima), sem sprites: tudo desenhado por código em dois canvas (um **atrás** das cartas, para brilhos de chão, outro **na frente**), com partículas (chama mole, brasa, faísca, fumaça, poeira, neve, folha, brilho, anel). Teste sem aparelho: `?manual` + `window.__run('forja'|'fogo'|'noite'|'mata'|'arsenal')` e `window.__step(segundos)`; `window.__do('forja-muralha')` etc. para os modos.
+- **A Forja que Nunca Apaga:** a carta sobe ao centro, voa para o espaço de Terreno e dá três marteladas (anel, faíscas em leque, poeira); uma onda de fogo corre pelo campo e fica uma forja baixa permanente (chamas atrás da fileira da frente, brasas, brilho laranja em cada Armada). Modo Muralha: aro de pedra-brasa e "+2" de vida; modo Afiação: lâmina de luz passando e "+2" de ataque.
+- **Posto do Fogo-Sinal:** torre de sinal à esquerda acende, uma bola de fogo atravessa o meio do tabuleiro deixando brasas e acende a torre da direita. Saque: a unidade inimiga vira brasa e uma carta voa para a mão ("+1 carta"). Trincheira: barrancos de terra sobem à frente das Armadas e "-1" de dano.
+- **Noite Sem Parar:** o campo escurece em azul-noite, estrelas e lua crescente; a unidade corre duas casas com rastro de tocha, poeira e brasas.
+- **A Mata Devolve:** a Emboscada sobe, galhos e folhas estouram em volta da unidade Armada atacada (onda verde, "+2" ataque e "+1" vida) e o atacante é lançado para trás.
+- **Arsenal dos Mil Invernos:** onda de frio varre o campo, armas fantasmas de gelo sobem, cristais e aro de geada ficam nas Armadas, neve fina permanente, "-2" nas Armadas.
+Aprovando, o próximo passo é ligar ao jogo (campo `fx` das cartas, `src/combatFx.ts`, `docs/animacoes.md` "No jogo"); os efeitos permanentes (Forja, Fogo-Sinal, Arsenal) seguem o padrão do `terrainFx.ts`.

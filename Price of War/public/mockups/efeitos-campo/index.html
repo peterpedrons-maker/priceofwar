@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Efeitos do Campo</title>
+<style>
+  :root { --gold:#e6c36a; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; height:100%; background:#0d0a07; color:#eadfc6; font-family:Georgia,'Times New Roman',serif; overflow:hidden; touch-action:manipulation; }
+  #app { display:flex; flex-direction:column; height:100dvh; }
+  header { padding:8px 12px 4px; text-align:center; flex:none; }
+  header h1 { font-size:15px; letter-spacing:.14em; margin:0; color:var(--gold); text-transform:uppercase; }
+  header p { margin:2px 0 0; font-size:11px; color:#a99d84; min-height:28px; line-height:1.25; }
+  #holder { flex:1; min-height:0; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  #stage { position:relative; width:390px; height:640px; flex:none; transform-origin:center center; border-radius:10px; overflow:hidden; background:#000; box-shadow:0 0 0 1px #3a2c1c, 0 10px 40px #000; }
+  #bg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:brightness(.82) saturate(.95); }
+  .slot { position:absolute; width:64px; height:94px; transform:translate(-50%,-50%); border-radius:6px; border:1px dashed rgba(255,255,255,.12); background:rgba(0,0,0,.18); }
+  .card { position:absolute; width:64px; transform:translate(-50%,-50%); border-radius:6px; box-shadow:0 4px 10px rgba(0,0,0,.7); user-select:none; -webkit-user-drag:none; will-change:transform, filter; }
+  .card.big { width:68px; }
+  .pc { position:absolute; width:64px; transform:translate(-50%,-50%); z-index:30; filter:drop-shadow(0 8px 14px rgba(0,0,0,.8)); pointer-events:none; }
+  .card.hit { animation:hit .5s ease-out; }
+  @keyframes hit { 0%{transform:translate(-50%,-50%) scale(1); filter:brightness(1)} 10%{transform:translate(calc(-50% - 7px),calc(-50% + 4px)) scale(.94) rotate(-4deg); filter:brightness(2.6) saturate(.6)} 30%{transform:translate(calc(-50% + 6px),calc(-50% - 3px)) scale(.97) rotate(3deg); filter:brightness(1.6)} 55%{transform:translate(calc(-50% - 3px),-50%) rotate(-1.5deg); filter:brightness(1.2)} 100%{transform:translate(-50%,-50%) scale(1) rotate(0); filter:brightness(1)} }
+  .card.pop { animation:pop .55s ease-out; }
+  @keyframes pop { 0%{transform:translate(-50%,-50%) scale(1)} 30%{transform:translate(-50%,-50%) scale(1.14); filter:brightness(1.6)} 100%{transform:translate(-50%,-50%) scale(1)} }
+  #night { position:absolute; inset:0; background:radial-gradient(ellipse at 50% 45%, rgba(14,22,52,.50) 0, rgba(6,10,30,.80) 100%); opacity:0; pointer-events:none; z-index:12; mix-blend-mode:multiply; }
+  #night2 { position:absolute; inset:0; background:linear-gradient(rgba(20,40,110,.35), rgba(8,14,50,.55)); opacity:0; pointer-events:none; z-index:12; }
+  canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  #fxb { z-index:3; } #cards { position:absolute; inset:0; z-index:5; } #fx { z-index:14; } #nums { position:absolute; inset:0; z-index:20; pointer-events:none; }
+  .num { position:absolute; transform:translate(-50%,-50%); font:900 26px/1 Georgia,serif; color:#fff3cf; letter-spacing:-.02em; pointer-events:none; animation:num 1.5s ease-out forwards;
+         text-shadow:0 0 2px #7a4a08, 0 2px 0 #c58a14, 0 -1px 0 #c58a14, 2px 0 0 #c58a14, -2px 0 0 #c58a14, 0 4px 6px rgba(0,0,0,.8); -webkit-text-stroke:1px #c58a14; }
+  .num.hp { color:#ffe3e3; text-shadow:0 0 2px #6a1010, 0 2px 0 #b32020, 0 -1px 0 #b32020, 2px 0 0 #b32020, -2px 0 0 #b32020, 0 4px 6px rgba(0,0,0,.8); -webkit-text-stroke:1px #b32020; }
+  .num.frio { color:#e8f6ff; text-shadow:0 0 2px #10406a, 0 2px 0 #2a78b8, 0 -1px 0 #2a78b8, 2px 0 0 #2a78b8, -2px 0 0 #2a78b8, 0 4px 6px rgba(0,0,0,.8); -webkit-text-stroke:1px #2a78b8; }
+  @keyframes num { 0%{transform:translate(-50%,-50%) scale(.3); opacity:0} 10%{transform:translate(-50%,-62%) scale(1.5); opacity:1} 25%{transform:translate(-50%,-80%) scale(1.15)} 70%{transform:translate(-50%,-125%) scale(1.15); opacity:1} 100%{transform:translate(-50%,-170%) scale(.95); opacity:0} }
+  .tag { position:absolute; transform:translate(-50%,-50%); font:900 17px/1 Georgia,serif; letter-spacing:.02em; pointer-events:none; white-space:nowrap; text-shadow:0 2px 0 rgba(40,20,0,.9), 0 0 6px rgba(0,0,0,.9), 1px 1px 0 #000, -1px -1px 0 #000; animation:tagup 1.9s ease-out forwards; z-index:25; }
+  @keyframes tagup { 0%{opacity:0; transform:translate(-50%,-30%) scale(.6)} 14%{opacity:1; transform:translate(-50%,-60%) scale(1.15)} 28%{transform:translate(-50%,-70%) scale(1)} 78%{opacity:1; transform:translate(-50%,-120%)} 100%{opacity:0; transform:translate(-50%,-150%)} }
+  nav { flex:none; padding:6px 8px calc(8px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:6px; background:linear-gradient(#0d0a07,#17110b); }
+  .tabs { display:grid; grid-template-columns:repeat(5,1fr); gap:5px; }
+  .grp { display:none; grid-template-columns:repeat(3,1fr); gap:6px; } .grp.on { display:grid; }
+  nav button { appearance:none; border:1px solid #6b5326; background:linear-gradient(#3a2c1a,#241a10); color:#f1dfae; font:700 12px Georgia,serif; letter-spacing:.03em; padding:8px 3px; border-radius:8px; }
+  nav button small { display:block; font-weight:400; font-size:9.5px; color:#b9a77d; margin-top:1px; letter-spacing:0; line-height:1.15; }
+  nav button:active { background:#4b381f; } nav button.on { border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset; }
+  .tabs button { font-size:11px; padding:7px 2px; }
+  #opts { display:flex; gap:12px; justify-content:center; font-size:11px; color:#c9b88f; align-items:center; }
+  #opts label { display:flex; align-items:center; gap:5px; } #opts button { padding:5px 10px; font-size:11px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Efeitos do Campo</h1>
+    <p id="cap">Campo (embaixo) contra Capitão (em cima). Escolha a carta e toque num botão. (Mockup: ainda não está no jogo.)</p>
+  </header>
+  <div id="holder">
+    <div id="stage">
+      <img id="bg" src="../projeteis/board-battlefield.webp" alt="">
+      <canvas id="fxb"></canvas>
+      <div id="cards"></div>
+      <div id="night"></div><div id="night2"></div>
+      <canvas id="fx"></canvas>
+      <div id="nums"></div>
+    </div>
+  </div>
+  <nav>
+    <div class="tabs">
+      <button data-g="g-forja" class="on">Forja</button><button data-g="g-fogo">Fogo-Sinal</button><button data-g="g-noite">Noite</button><button data-g="g-mata">Mata</button><button data-g="g-arsenal">Arsenal</button>
+    </div>
+    <div class="grp on" id="g-forja">
+      <button data-a="forja">Jogar a Forja<small>Terreno: a forja acende</small></button>
+      <button data-a="forja-muralha">Modo Muralha<small>+2 HP nas Armadas</small></button>
+      <button data-a="forja-afiacao">Modo Afiação<small>+2 ATK nas Armadas</small></button>
+    </div>
+    <div class="grp" id="g-fogo">
+      <button data-a="fogo">Jogar o Fogo-Sinal<small>Terreno: o sinal corre</small></button>
+      <button data-a="fogo-saque">Modo Saque<small>destrói e compra 1</small></button>
+      <button data-a="fogo-trincheira">Modo Trincheira<small>-1 de dano</small></button>
+    </div>
+    <div class="grp" id="g-noite">
+      <button data-a="noite">Noite Sem Parar<small>Tática: 2 movimentos extras</small></button>
+    </div>
+    <div class="grp" id="g-mata">
+      <button data-a="mata">A Mata Devolve<small>Emboscada: Armada +2/+1</small></button>
+    </div>
+    <div class="grp" id="g-arsenal">
+      <button data-a="arsenal">Arsenal dos Mil Invernos<small>Relíquia: geada nas Armadas</small></button>
+    </div>
+    <div id="opts"><label><input type="checkbox" id="slow"> Câmera lenta</label><button id="reset">Limpar o campo</button></div>
+  </nav>
+</div>
+<script>
+'use strict';
+const W = 390, H = 640;
+const $ = s => document.querySelector(s);
+const q = new URLSearchParams(location.search);
+const MANUAL = q.has('manual');
+const COLX = [55, 125, 195, 265, 335];
+const ROW = { eGen: 50, eBack: 142, eFront: 234, pFront: 410, pBack: 502, pGen: 592 };
+const FACE = 'cards/', CAPD = '../quarto/cards/';
+const TERRAIN = [60, ROW.pGen], RELIC = [330, ROW.pGen];
+
+// ── board ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+const cardsEl = $('#cards'); let els = [], armed = [], played = [];
+const R = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const eo = u => 1 - Math.pow(1 - clamp(u), 3), ei = u => clamp(u) * clamp(u), eio = u => { u = clamp(u); return u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; };
+const lerp = (a, b, u) => a + (b - a) * u;
+function mk(src, x, y, cls) { const im = document.createElement('img'); im.className = 'card ' + (cls || ''); im.src = src + '.webp'; im.style.left = x + 'px'; im.style.top = y + 'px'; im.draggable = false; im.dataset.x = x; im.dataset.y = y; cardsEl.appendChild(im); return im; }
+function buildBoard(opts = {}) {
+  cardsEl.innerHTML = ''; els = []; armed = []; played = [];
+  for (const row of [ROW.eBack, ROW.eFront, ROW.pFront, ROW.pBack]) for (const x of COLX) { const s = document.createElement('div'); s.className = 'slot'; s.style.left = x + 'px'; s.style.top = row + 'px'; cardsEl.appendChild(s); }
+  for (const p of [TERRAIN, RELIC]) { const s = document.createElement('div'); s.className = 'slot'; s.style.left = p[0] + 'px'; s.style.top = p[1] + 'px'; s.style.borderColor = 'rgba(230,195,106,.28)'; cardsEl.appendChild(s); }
+  const E = (n, x, y, c) => { const e = mk(CAPD + n, x, y, c); e.dataset.side = 'e'; els.push(e); return e; };
+  E('comandante-aurelion-mestre-da-formacao', 195, ROW.eGen, 'big');
+  E('cavaleiro-tatico', COLX[1], ROW.eBack); E('capitao-de-formacao', COLX[2], ROW.eBack);
+  [['escudeiro-de-linha', 0], ['soldado-tatico', 1], ['veterano-de-guerra', 2], ['batedor', 3], ['lanceiro-de-controle', 4]].forEach(([n, i]) => E(n, COLX[i], ROW.eFront));
+  const C = (n, x, y, isArmed, c) => { const e = mk(FACE + n, x, y, c); e.dataset.side = 'p'; els.push(e); if (isArmed) armed.push(e); return e; };
+  C('cabide-de-ferro', COLX[1], ROW.pFront, true); C('aldric-mil-armas-campeao-das-marcas', COLX[2], ROW.pFront, true);
+  C('vigia-da-torre-mofada', COLX[3], ROW.pFront, true); C('cavaleiro-rompe-escudos', COLX[4], ROW.pFront, true);
+  C('cavaleiro-do-pinhal-cinzento', COLX[1], ROW.pBack, true); C('arqueiro-do-ultimo-sol', COLX[3], ROW.pBack, true);
+  C('margrave-osric-senhor-das-marcas', 195, ROW.pGen, false, 'big');
+}
+const byName = n => els.find(e => e.src.includes(n));
+const pos = e => [+e.dataset.x, +e.dataset.y];
+function place(e, x, y) { e.dataset.x = x; e.dataset.y = y; e.style.left = x + 'px'; e.style.top = y + 'px'; }
+
+// ── canvas ────────────────────────────────────────────────────────────────────────────────────────────────────────
+const stage = $('#stage'), cvF = $('#fx'), cvB = $('#fxb'); const cF = cvF.getContext('2d'), cB = cvB.getContext('2d'); let ctx = cF, RES = 2;
+function fit() {
+  const h = $('#holder').getBoundingClientRect(); const k = Math.min(h.width / W, h.height / H);
+  stage.style.transform = `scale(${k})`; RES = Math.min(3, (window.devicePixelRatio || 1) * k);
+  for (const c of [cvF, cvB]) { c.width = Math.round(W * RES); c.height = Math.round(H * RES); }
+}
+addEventListener('resize', fit); fit();
+
+// ── simulation ────────────────────────────────────────────────────────────────────────────────────────────────────
+let now = 0; const fxs = [], sched = [], P = [];
+const at = (d, fn) => sched.push({ t: now + d, fn });
+const add = o => { o.t0 = now; o.dead = false; fxs.push(o); return o; };
+const stopFx = o => { o.dead = true; };
+const dur = () => (document.querySelector('#slow')?.checked ? 3.5 : 1);
+
+function tag(text, x, y, color) { const d = document.createElement('div'); d.className = 'tag'; d.textContent = text; d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.color = color || '#ffe6a0'; $('#nums').appendChild(d); setTimeout(() => d.remove(), 2200 * dur()); }
+function numPop(x, y, text, cls) { const d = document.createElement('div'); d.className = 'num ' + (cls || ''); d.textContent = text; d.style.left = x + 'px'; d.style.top = y + 'px'; $('#nums').appendChild(d); setTimeout(() => d.remove(), 1700 * dur()); }
+function flashCard(e, cls) { e.classList.remove('hit', 'pop'); void e.offsetWidth; e.classList.add(cls); setTimeout(() => e.classList.remove(cls), 700 * dur()); }
+
+// particles -----------------------------------------------------------------------------------------------------------
+function spawn(o) { o.age = 0; o.back = !!o.back; P.push(o); return o; }
+function glow(x, y, r, rgb, a, mode) { const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`); ctx.globalCompositeOperation = mode || 'lighter'; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); }
+function drawP(p) {
+  const u = clamp(p.age / p.life);
+  if (p.kind === 'flame') { const k = 1 - u * .55, h = p.s * 2.4 * k, w = p.s * .62 * (1 - u * .45), a = (1 - u) * p.a, sw = Math.sin(p.age * 13 + p.x * .3) * w * .4;
+    ctx.globalCompositeOperation = 'lighter';
+    const blob = (cy, rx, ry, rgb, al) => { ctx.save(); ctx.translate(p.x + sw * (1 - cy / h), p.y - cy); ctx.scale(rx / ry, 1); const g = ctx.createRadialGradient(0, 0, 0, 0, 0, ry); g.addColorStop(0, `rgba(${rgb},${al})`); g.addColorStop(1, `rgba(${rgb},0)`); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, ry, 0, 7); ctx.fill(); ctx.restore(); };
+    blob(h * .28, w * 1.3, h * .5, u < .5 ? '255,120,35' : '200,55,20', a * .55);
+    blob(h * .42, w, h * .42, '255,170,60', a * .6);
+    blob(h * .26, w * .55, h * .3, '255,235,160', a * .75); }
+  else if (p.kind === 'ember') { const f = .6 + .4 * Math.sin(p.age * 18 + p.ph); glow(p.x, p.y, p.s * 2.6, '255,150,50', (1 - u) * f * .55); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,225,150,${(1 - u) * f})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.s * .55, 0, 7); ctx.fill(); }
+  else if (p.kind === 'spark') { ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgba(${p.rgb || '255,230,160'},${(1 - u)})`; ctx.lineWidth = p.s; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * .035, p.y - p.vy * .035); ctx.stroke(); }
+  else if (p.kind === 'smoke') { ctx.globalCompositeOperation = 'source-over'; const r = p.s * (1 + u * 1.8); const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r); g.addColorStop(0, `rgba(${p.rgb || '70,62,56'},${(1 - u) * p.a})`); g.addColorStop(1, `rgba(${p.rgb || '70,62,56'},0)`); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill(); }
+  else if (p.kind === 'dust') { ctx.globalCompositeOperation = 'source-over'; const r = p.s * (1 + u * 1.4); const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r); g.addColorStop(0, `rgba(${p.rgb || '120,96,66'},${(1 - u) * p.a})`); g.addColorStop(1, `rgba(${p.rgb || '120,96,66'},0)`); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill(); }
+  else if (p.kind === 'snow') { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(225,242,255,${(1 - Math.abs(u * 2 - 1)) * p.a})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, 7); ctx.fill(); }
+  else if (p.kind === 'leaf') { ctx.globalCompositeOperation = 'source-over'; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot + p.age * p.vr); ctx.globalAlpha = (1 - u * u); ctx.fillStyle = p.col; ctx.beginPath(); ctx.ellipse(0, 0, p.s, p.s * .45, 0, 0, 7); ctx.fill(); ctx.strokeStyle = 'rgba(20,50,10,.6)'; ctx.lineWidth = .8; ctx.beginPath(); ctx.moveTo(-p.s, 0); ctx.lineTo(p.s, 0); ctx.stroke(); ctx.restore(); }
+  else if (p.kind === 'glint') { const a = Math.sin(u * Math.PI); ctx.globalCompositeOperation = 'lighter'; ctx.save(); ctx.translate(p.x, p.y); ctx.fillStyle = `rgba(${p.rgb || '255,255,255'},${a})`; ctx.beginPath(); const L = p.s * (.5 + a * .8), w = p.s * .12; ctx.moveTo(0, -L); ctx.lineTo(w, -w); ctx.lineTo(L, 0); ctx.lineTo(w, w); ctx.lineTo(0, L); ctx.lineTo(-w, w); ctx.lineTo(-L, 0); ctx.lineTo(-w, -w); ctx.closePath(); ctx.fill(); ctx.restore(); }
+  else if (p.kind === 'ring') { ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgba(${p.rgb},${(1 - u) * p.a})`; ctx.lineWidth = p.s * (1 - u * .6); ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r0 + (p.r1 - p.r0) * eo(u), (p.r0 + (p.r1 - p.r0) * eo(u)) * (p.sq || .5), 0, 0, 7); ctx.stroke(); }
+}
+function stepP(dt) { for (const p of P) { p.age += dt; if (p.vx !== undefined) { p.x += p.vx * dt; p.y += p.vy * dt; } if (p.g) p.vy += p.g * dt; if (p.drag) { const k = Math.pow(p.drag, dt * 60); p.vx *= k; p.vy *= k; } if (p.sway) p.x += Math.sin(p.age * 3 + p.ph) * p.sway * dt; } for (let i = P.length - 1; i >= 0; i--) if (P[i].age >= P[i].life) P.splice(i, 1); }
+const flame = (x, y, s = 14, o = {}) => spawn(Object.assign({ kind: 'flame', x, y, vx: R(-8, 8), vy: R(-50, -90), s, a: .9, life: R(.5, .9), drag: .99 }, o));
+const ember = (x, y, o = {}) => spawn(Object.assign({ kind: 'ember', x, y, vx: R(-14, 14), vy: R(-40, -90), s: R(1.4, 2.6), life: R(1.2, 2.4), ph: R(0, 6), sway: R(10, 24) }, o));
+const sparks = (x, y, n, sp = 220, o = {}) => { for (let i = 0; i < n; i++) { const a = R(0, 7), v = R(sp * .3, sp); spawn(Object.assign({ kind: 'spark', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40, g: 260, s: R(1, 2.2), life: R(.35, .8), drag: .985 }, o)); } };
+const fan = (x, y, n, a0, a1, sp, o = {}) => { for (let i = 0; i < n; i++) { const a = R(a0, a1), v = R(sp * .4, sp); spawn(Object.assign({ kind: 'spark', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 300, s: R(1, 2), life: R(.35, .7), drag: .985 }, o)); } };
+const ring = (x, y, r0, r1, rgb, s = 4, a = .9, life = .6, sq = .5) => spawn({ kind: 'ring', x, y, r0, r1, rgb, s, a, life, sq });
+const dust = (x, y, n, o = {}) => { for (let i = 0; i < n; i++) spawn(Object.assign({ kind: 'dust', x: x + R(-14, 14), y: y + R(-5, 5), vx: R(-40, 40), vy: R(-18, -4), s: R(8, 16), a: .5, life: R(.6, 1), drag: .97 }, o)); };
+
+// tween an element (position/scale/opacity) ---------------------------------------------------------------------------
+function tween(e, from, to, d, ease, done) {
+  const f = ease || eio; const o = add({ dur: d, e, from, to, f, done, tick(p) { const u = f(p); const v = k => lerp(from[k], to[k], u); e.style.left = v('x') + 'px'; e.style.top = v('y') + 'px'; e.style.opacity = from.o === undefined ? 1 : v('o'); e.style.transform = `translate(-50%,-50%) scale(${v('s')})`; } });
+  return o;
+}
+function vanish(c) { c.style.transition = 'opacity .45s'; c.style.opacity = 0; setTimeout(() => { c.remove(); const i = els.indexOf(c); if (i >= 0) els.splice(i, 1); }, 500); }
+function playCard(name, x, y, cb, tint) {
+  const e = document.createElement('img'); e.className = 'pc'; e.src = FACE + name + '.webp'; e.style.left = '195px'; e.style.top = '700px'; cardsEl.appendChild(e);
+  tween(e, { x: 195, y: 700, s: 1.1, o: 0 }, { x: 195, y: 400, s: 2.6, o: 1 }, .5, eo);
+  add({ dur: 1.0, aura: tint || '255,170,60', tick() {}, draw(p, self) { const u = clamp(p / 1); glow(195, 400, 120 + Math.sin(self * 9) * 6, this.aura, .35 * Math.sin(Math.min(1, p * 1.2) * Math.PI) + .15); } });
+  at(.95, () => tween(e, { x: 195, y: 400, s: 2.6, o: 1 }, { x, y, s: 1, o: 1 }, .36, ei, () => { e.remove(); const c = mk(FACE + name, x, y); c.dataset.side = 'p'; els.push(c); played.push(c); flashCard(c, 'pop'); cb && cb(c); }));
+}
+
+// ── scenes ──────────────────────────────────────────────────────────────────────────────────────────────────────
+let layers = {};   // persistent
+const clearLayer = k => { if (layers[k]) { stopFx(layers[k]); delete layers[k]; } };
+const front = armed => armed.map(pos);
+
+// 1) A Forja que Nunca Apaga ------------------------------------------------------------------------------------------
+function forjaLayer(mode) {
+  clearLayer('forja');
+  const L = add({ dur: 1e9, I: 0, tgt: .6, mode, tick(p, t, dt) { this.I += (this.tgt - this.I) * Math.min(1, dt * 1.8); const I = this.I;
+      if (Math.random() < dt * 70 * I) { const x = COLX[(Math.random() * 5) | 0] + R(-34, 34); flame(x, ROW.pFront - 44 + R(0, 8), R(12, 20) * (.6 + I * .5), { vy: R(-40, -85) * (.7 + I), a: .6 * Math.min(1, I) + .15, back: true, life: R(.45, .9) }); }
+      if (this.mode !== undefined && Math.random() < dt * 40 * I) flame(TERRAIN[0] + R(-26, 26), TERRAIN[1] - 40, R(9, 15), { vy: R(-40, -80), a: .7 });
+      if (Math.random() < dt * 22 * I) ember(R(30, 360), ROW.pFront - 36, { vy: R(-50, -110) }); },
+    draw(p, t) { const I = this.I; ctx = cB;
+      // fire glow along the floor between the rows
+      ctx.globalCompositeOperation = 'lighter'; for (const e of armed) { const [x, y] = pos(e); glow(x, y, 74, '255,130,40', .34 * Math.min(1, I) + .05 * Math.sin(t * 9 + x)); } glow(TERRAIN[0], TERRAIN[1], 80, '255,140,50', .4 * Math.min(1, I));
+      const g = ctx.createLinearGradient(0, 340, 0, 380); g.addColorStop(0, 'rgba(255,120,30,0)'); g.addColorStop(1, `rgba(255,150,50,${.3 * Math.min(1, I)})`); ctx.fillStyle = g; ctx.fillRect(0, 340, 390, 40);
+      // mode tint: Muralha (grey-orange stone), Afiação (white-yellow)
+      ctx.globalCompositeOperation = 'lighter';
+      for (const e of armed) { const [x, y] = pos(e);
+        if (this.mode === 'muralha') { ctx = cF; const a = .22 * I; ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgba(255,170,90,${a + .1 * Math.sin(t * 3 + x)})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(x - 34, y - 49, 68, 98, 8); ctx.stroke(); ctx = cB; }
+        else if (this.mode === 'afiacao') { ctx = cF; const ph = (t * .9 + x * .013) % 1; const sx = x - 30 + ph * 60, sy = y + 44 - ph * 88; glow(sx, sy, 16, '255,250,210', .5 * I); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgba(255,248,200,${.55 * I})`; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(sx - 9, sy + 9); ctx.lineTo(sx + 9, sy - 9); ctx.stroke(); ctx = cB; }
+      } ctx = cF; } });
+  layers.forja = L; return L;
+}
+function clang(x, y, big) { const c = [x, y]; ring(c[0], c[1], 6, big ? 70 : 46, '255,210,140', 4, .9, .5, .6); glow(c[0], c[1], big ? 70 : 46, '255,200,120', .9); fan(c[0], c[1], big ? 34 : 22, -2.9, -.2, big ? 330 : 240, { rgb: '255,236,170' }); fan(c[0], c[1], big ? 20 : 12, -3.1, 0, 160, { rgb: '255,160,60' }); }
+function forja(mode) {
+  const withCard = !mode;
+  const finish = (m) => { forjaLayer(m); };
+  const hasCard = played.some(e => e.src.includes('a-forja'));
+  if (hasCard || mode) {
+    if (!hasCard) { const c = mk(FACE + 'a-forja-que-nunca-apaga', TERRAIN[0], TERRAIN[1]); c.dataset.side = 'p'; els.push(c); played.push(c); }
+    const m = mode || 'muralha'; const L = layers.forja || forjaLayer(m); L.mode = m; L.tgt = .6;
+    // mode change flourish
+    tag(m === 'muralha' ? 'Muralha' : 'Afiação', 195, 372, m === 'muralha' ? '#ffcf9a' : '#fff6c4');
+    armed.forEach((e, i) => at(i * .09, () => { const [x, y] = pos(e); flashCard(e, 'pop');
+      if (m === 'muralha') { ring(x, y + 6, 10, 56, '255,170,90', 4, .8, .55, .7); dust(x, y + 44, 3, { rgb: '140,120,100', a: .4 }); numPop(x, y - 40, '+2', 'hp'); for (let k = 0; k < 6; k++) spawn({ kind: 'glint', x: x + R(-30, 30), y: y + R(-44, 44), s: 9, life: .5, rgb: '255,200,140' }); }
+      else { fan(x, y, 14, -2.6, -.5, 260, { rgb: '255,250,210' }); glow(x, y, 46, '255,248,210', .45); numPop(x, y - 40, '+2'); for (let k = 0; k < 4; k++) spawn({ kind: 'glint', x: x + R(-30, 30), y: y + R(-44, 44), s: 11, life: .45, rgb: '255,255,235' }); } }));
+    return;
+  }
+  playCard('a-forja-que-nunca-apaga', TERRAIN[0], TERRAIN[1], c => {
+    clang(TERRAIN[0], TERRAIN[1] + 20, true); dust(TERRAIN[0], TERRAIN[1] + 40, 6);
+    const L = forjaLayer('muralha'); L.tgt = 1.2;
+    [.35, .75, 1.15].forEach((d, i) => at(d, () => { clang(TERRAIN[0], TERRAIN[1] + 6, i === 2); flashCard(c, 'pop'); }));
+    at(1.2, () => { tag('A forja acendeu', 195, 372, '#ffcf8a'); }); at(1.9, () => { L.tgt = .6; });
+    // a wave of fire runs along the floor from the terrain to the right
+    add({ dur: 1.3, draw(p) { const x = TERRAIN[0] + p * 330; ctx = cB; glow(x, 458, 70, '255,150,50', .5 * (1 - p)); ctx = cF; }, tick(p, t, dt) { const x = TERRAIN[0] + p * 330; for (let i = 0; i < 2; i++) flame(x + R(-10, 10), 456, R(12, 20), { back: true, vy: R(-70, -130) }); if (Math.random() < .5) spawn({ kind: 'spark', x, y: 456, vx: R(-30, 60), vy: R(-200, -90), g: 300, s: 1.6, life: .6, rgb: '255,220,150' }); } });
+  });
+}
+
+// 2) Posto do Fogo-Sinal ----------------------------------------------------------------------------------------------
+function tower(x, yb, lit, t) {  // stone beacon tower drawn by code
+  ctx.globalCompositeOperation = 'source-over'; const w = 26, h = 62; ctx.fillStyle = '#2c2825'; ctx.strokeStyle = '#0c0a08'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x - w / 2, yb); ctx.lineTo(x - w / 2 + 3, yb - h); ctx.lineTo(x + w / 2 - 3, yb - h); ctx.lineTo(x + w / 2, yb); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#3a3531'; for (let i = 0; i < 3; i++) ctx.fillRect(x - w / 2 + 1 + i * 8, yb - h - 6, 7, 7);
+  ctx.fillStyle = '#1b1713'; ctx.fillRect(x - 3, yb - 40, 6, 12);
+  ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 1; for (let r = 1; r < 6; r++) { ctx.beginPath(); ctx.moveTo(x - w / 2 + 2, yb - r * 10); ctx.lineTo(x + w / 2 - 2, yb - r * 10); ctx.stroke(); }
+}
+function fogoLayer(mode) {
+  clearLayer('fogo');
+  const L = add({ dur: 1e9, I: 0, tgt: .5, lit: [0, 0], tick(p, t, dt) { this.I += (this.tgt - this.I) * Math.min(1, dt * 1.5);
+      for (let k = 0; k < 2; k++) { const lit = this.lit[k]; if (lit <= 0) continue; const x = k ? 372 : 18, yb = 372; if (Math.random() < dt * 45 * lit) flame(x + R(-5, 5), yb - 70, R(9, 15), { vy: R(-50, -95), a: .9 }); if (Math.random() < dt * 9 * lit) spawn({ kind: 'smoke', x: x + R(-4, 4), y: yb - 90, vx: R(6, 22) * (k ? -1 : 1), vy: R(-30, -50), s: R(10, 16), a: .32, life: R(1.6, 2.4), rgb: '86,78,70' }); if (Math.random() < dt * 12 * lit) ember(x + R(-5, 5), yb - 72); } },
+    draw(p, t) { ctx = cB; for (let k = 0; k < 2; k++) { const lit = this.lit[k]; const x = k ? 372 : 18; tower(x, 372, lit, t); if (lit > 0) glow(x, 300, 60 + 8 * Math.sin(t * 11), '255,150,50', .5 * lit); } ctx = cF; } });
+  layers.fogo = L; return L;
+}
+function fogo(mode) {
+  const hasCard = played.some(e => e.src.includes('posto-do-fogo'));
+  if (hasCard || mode) {
+    if (!hasCard) { const c = mk(FACE + 'posto-do-fogo-sinal', TERRAIN[0], TERRAIN[1]); c.dataset.side = 'p'; els.push(c); played.push(c); }
+    const L = layers.fogo || fogoLayer(); if (L.lit[0] === 0) { L.lit = [1, 1]; L.tgt = .5; }
+    if (mode === 'saque') {
+      const v = byName('veterano-de-guerra'); if (!v) { return; } const [x, y] = pos(v); tag('Saque', 195, 372, '#ffd49a');
+      add({ dur: .9, draw(p) { glow(x, y, 80 * (1 - p * .4), '255,120,40', .5 * (1 - p)); } });
+      fan(x, y, 40, -3.1, 0.1, 300, { rgb: '255,200,110' }); fan(x, y, 20, 0, 3.2, 150, { rgb: '255,120,40' }); dust(x, y, 6, { rgb: '70,60,50', a: .5 });
+      for (let i = 0; i < 24; i++) at(.1 + i * .02, () => ember(x + R(-18, 18), y + R(-20, 20), { vy: R(-30, 10), vx: R(-20, 20), life: 1.1 }));
+      v.style.transition = 'opacity .6s, filter .6s'; v.style.opacity = 0; v.style.filter = 'brightness(3) saturate(0)';
+      // embers fly into a card that goes to the hand
+      at(.5, () => { const cb = document.createElement('img'); cb.className = 'pc'; cb.src = FACE + '_back.webp'; cardsEl.appendChild(cb);
+        const o = tween(cb, { x, y, s: .5, o: 0 }, { x: 195, y: 700, s: 1.1, o: 1 }, .85, eio, () => { cb.remove(); numPop(195, 600, '+1 carta'); });
+        add({ dur: .85, draw(p) { const u = eio(p); const cx = lerp(x, 195, u), cy = lerp(y, 700, u); glow(cx, cy, 36, '255,160,60', .6 * (1 - p * .5)); ember(cx + R(-8, 8), cy + R(-8, 8), { vx: R(-10, 10), vy: R(-10, 10), life: .6 }); } }); });
+      return;
+    }
+    if (mode === 'trincheira') {
+      tag('Trincheira', 195, 372, '#e8cf9c');
+      // dirt ridge rises in front of the first row
+      add({ dur: 1.4, draw(p, t) { const u = eo(p / .55), a = p > .8 ? 1 - (p - .8) / .2 : 1; ctx = cB; ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = a; const yb = ROW.pFront - 52;
+          for (const x of COLX) { const h = 16 * u; const g = ctx.createLinearGradient(0, yb - h, 0, yb + 10); g.addColorStop(0, '#6e5538'); g.addColorStop(1, '#2d2318'); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x - 37, yb + 8); ctx.quadraticCurveTo(x - 20, yb - h * 1.6, x, yb - h); ctx.quadraticCurveTo(x + 20, yb - h * 1.6, x + 37, yb + 8); ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = 'rgba(10,6,2,.7)'; ctx.lineWidth = 1.2; ctx.stroke(); ctx.fillStyle = 'rgba(70,100,40,.9)'; for (let k = -2; k <= 2; k++) ctx.fillRect(x + k * 9, yb - h * (1 - Math.abs(k) * .22) - 2, 2, 3 + 2 * u); }
+          ctx.globalAlpha = 1; ctx = cF; } });
+      for (let i = 0; i < 5; i++) at(i * .06, () => { dust(COLX[i], ROW.pFront - 46, 3, { rgb: '120,96,66', a: .5 }); });
+      armed.forEach((e, i) => at(.5 + i * .08, () => { const [x, y] = pos(e); numPop(x, y - 36, '-1', 'frio'); ring(x, y, 12, 52, '255,214,150', 3, .7, .5, .8); }));
+      return;
+    }
+  }
+  playCard('posto-do-fogo-sinal', TERRAIN[0], TERRAIN[1], c => {
+    glow(TERRAIN[0], TERRAIN[1], 90, '255,170,60', .8); ring(TERRAIN[0], TERRAIN[1] + 20, 8, 60, '255,190,100', 4, .8, .55);
+    const L = fogoLayer(); at(.25, () => { L.lit[0] = 1; tag('Sinal aceso', 195, 372, '#ffcf8a'); flameBurst(18, 302); });
+    // the signal runs: a fire orb travels the middle of the board, leaving a trail of embers
+    at(.8, () => add({ dur: 1.5, draw(p) { const x = lerp(18, 372, eio(p)), y = 330 - Math.sin(p * Math.PI) * 18; glow(x, y, 34, '255,200,90', .9); glow(x, y, 16, '255,255,210', .8); }, tick(p, t, dt) { const x = lerp(18, 372, eio(p)), y = 330 - Math.sin(p * Math.PI) * 18; flame(x, y + 2, 11, { vx: R(-10, 10), vy: R(-14, 10), life: .5 }); ember(x + R(-4, 4), y, { vy: R(-10, 20), life: 1.4 }); } }));
+    at(2.35, () => { L.lit[1] = 1; flameBurst(372, 302); ring(372, 330, 6, 60, '255,190,100', 4, .8, .6); tag('Todo o campo viu', 195, 372, '#ffe3aa'); });
+  });
+}
+function flameBurst(x, y) { glow(x, y, 80, '255,200,100', .9); for (let i = 0; i < 26; i++) flame(x + R(-8, 8), y + R(-6, 8), R(10, 18), { vy: R(-90, -170), vx: R(-30, 30), life: R(.5, 1) }); fan(x, y, 20, -2.6, -.5, 260, { rgb: '255,210,130' }); }
+
+// 3) Noite Sem Parar --------------------------------------------------------------------------------------------------
+function noite() {
+  const u = byName('cavaleiro-do-pinhal'); if (!u) return; place(u, COLX[1], ROW.pBack);
+  const night = $('#night'), night2 = $('#night2'); night.style.transition = night2.style.transition = 'none';
+  const fade = (a, b, d) => add({ dur: d, tick(p) { night.style.opacity = lerp(a, b, eio(p)); night2.style.opacity = lerp(a, b, eio(p)) * .8; } });
+  playCard('noite-sem-parar', 195, 330, vanish, '90,130,255');
+  // the card shows over the middle, then goes; night falls
+  at(.85, () => { fade(0, 1, .9); tag('Noite Sem Parar', 195, 330, '#a8c4ff'); });
+  const stars = Array.from({ length: 44 }, () => ({ x: R(6, 384), y: R(6, 380), r: R(.6, 1.6), ph: R(0, 6) }));
+  add({ dur: 7, draw(p, t) { const a = clamp(p * 7 / .9) * (1 - clamp((p * 7 - 6.1) / .9)); ctx.globalCompositeOperation = 'lighter';
+      for (const s of stars) { const f = (.5 + .5 * Math.sin(t * 3 + s.ph)) * a; ctx.fillStyle = `rgba(210,225,255,${f * .9})`; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7); ctx.fill(); }
+      // crescent moon
+      glow(330, 56, 70, '170,190,255', .28 * a, 'lighter'); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = a; ctx.save(); ctx.beginPath(); ctx.rect(0, 0, 390, 640); ctx.arc(341, 50, 15, 0, 7); ctx.clip('evenodd'); ctx.fillStyle = '#e8eeff'; ctx.beginPath(); ctx.arc(330, 56, 17, 0, 7); ctx.fill(); ctx.restore(); ctx.globalAlpha = 1; } });
+  // two extra moves with a torch trail
+  const trail = []; const moves = [[COLX[0], ROW.pBack, 1.35], [COLX[0], ROW.pFront, 2.35]];
+  let from = pos(u);
+  const tr = add({ dur: 4.2, tick(p, t, dt) { const [x, y] = pos(u); trail.push({ x, y, a: 1 }); if (trail.length > 38) trail.shift(); for (const q of trail) q.a *= .94; },
+    draw(p, t) { if (trail.length < 2) return; ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      for (let i = 1; i < trail.length; i++) { const a = trail[i], b = trail[i - 1]; const k = i / trail.length; if (Math.hypot(a.x - b.x, a.y - b.y) < .2) continue; ctx.strokeStyle = `rgba(255,${120 + 90 * k | 0},50,${a.a * .5 * k})`; ctx.lineWidth = 4 + 22 * k * a.a; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(a.x, a.y); ctx.stroke(); ctx.strokeStyle = `rgba(255,240,190,${a.a * .6 * k})`; ctx.lineWidth = 2 + 6 * k * a.a; ctx.stroke(); } } });
+  moves.forEach(([x, y, d], i) => at(d, () => { const f = pos(u); numPop(Math.max(44, f[0]), f[1] - 36 - i * 34, i ? '2º passo' : '1º passo', 'frio');
+    add({ dur: .55, tick(p, t, dt) { const e = eio(p); place(u, lerp(f[0], x, e), lerp(f[1], y, e) - Math.sin(p * Math.PI) * 10); if (Math.random() < .9) { dust(+u.dataset.x, +u.dataset.y + 38, 1, { rgb: '90,100,130', a: .4 }); ember(+u.dataset.x + R(-6, 6), +u.dataset.y + R(-8, 20), { vy: R(-20, 10), life: .9 }); } },
+      draw(p) { const [cx, cy] = pos(u); glow(cx, cy + 10, 55, '255,150,60', .35 * Math.sin(p * Math.PI)); } }); at(.58, () => { const [cx, cy] = pos(u); ring(cx, cy + 36, 6, 34, '255,200,130', 3, .6, .4, .5); }); }));
+  at(4.1, () => fade(1, 0, .9));
+}
+
+// 4) A Mata Devolve ----------------------------------------------------------------------------------------------------
+function branch(x, y, ang, len, w, d, t0) {  // a growing curved branch with leaves along it
+  const pts = []; let cx = x, cy = y, a = ang; for (let i = 0; i <= 18; i++) { pts.push([cx, cy]); a += R(-.22, .22) + .02 * Math.sin(i * .9); cx += Math.cos(a) * len / 18; cy += Math.sin(a) * len / 18; }
+  return add({ dur: d, draw(p, t) { const g = eo(p * 1.6), fade = p > .7 ? 1 - (p - .7) / .3 : 1, n = Math.max(2, Math.floor(g * pts.length)); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = fade; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#2a1c0e'; ctx.lineWidth = w + 2; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < n; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.stroke();
+    ctx.strokeStyle = '#6a4a22'; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < n; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.stroke();
+    ctx.strokeStyle = 'rgba(150,200,80,.55)'; ctx.lineWidth = Math.max(1, w * .35); ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < n; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.stroke();
+    for (let i = 3; i < n; i += 3) { const [lx, ly] = pts[i]; const sc = clamp((g * pts.length - i) / 3); ctx.fillStyle = i % 2 ? '#7fae3a' : '#b6c94a'; ctx.beginPath(); ctx.ellipse(lx + (i % 2 ? 4 : -4), ly, 6 * sc, 3 * sc, i % 2 ? .6 : -.6, 0, 7); ctx.fill(); }
+    ctx.globalAlpha = 1; } });
+}
+function mata() {
+  const target = byName('aldric'), atk = byName('veterano-de-guerra'); if (!target || !atk) return; const [tx, ty] = pos(target), [ax, ay] = pos(atk); atk.style.opacity = 1; atk.style.filter = '';
+  // the enemy lunges at Aldric
+  tween(atk, { x: ax, y: ay, s: 1 }, { x: ax, y: ay + 52, s: 1.05 }, .5, eio); tag('Ataque!', ax, ay - 56, '#ffb0a0');
+  playCard('a-mata-devolve', 195, 330, vanish, '120,230,90');
+  at(1.05, () => { tag('Emboscada: A Mata Devolve', 195, 330, '#bff09a'); });
+  at(1.55, () => {
+    // roots and branches burst from the ground around the defender
+    ring(tx, ty + 40, 8, 80, '170,240,110', 5, .9, .7, .45); glow(tx, ty, 90, '150,240,90', .6); dust(tx, ty + 44, 8, { rgb: '90,70,40', a: .6 });
+    for (let i = 0; i < 9; i++) { const side = i % 2 ? 1 : -1; const bx = tx + side * R(14, 38), by = ty + 48; at(i * .035, () => branch(bx, by, -Math.PI / 2 + side * R(.15, .9), R(60, 96), R(3, 5.5), 1.6)); }
+    for (let i = 0; i < 26; i++) at(.1 + i * .02, () => spawn({ kind: 'leaf', x: tx + R(-40, 40), y: ty + R(10, 50), vx: R(-70, 70), vy: R(-150, -40), g: 120, s: R(4, 7), life: R(1, 1.8), rot: R(0, 6), vr: R(-5, 5), col: Math.random() < .5 ? '#7fae3a' : '#c8d64c', drag: .985, sway: 20, ph: R(0, 6) }));
+    flashCard(target, 'pop'); target.style.filter = 'drop-shadow(0 0 8px rgba(140,255,90,.9))'; setTimeout(() => { target.style.filter = ''; }, 2100 * dur());
+    numPop(tx - 12, ty - 40, '+2'); setTimeout(() => numPop(tx + 14, ty - 40, '+1', 'hp'), 180 * dur());
+    // the attacker is thrown back
+    at(.25, () => { flashCard(atk, 'hit'); tween(atk, { x: ax, y: ay + 52, s: 1.05 }, { x: ax, y: ay, s: 1 }, .5, eo); sparks(ax, ay + 40, 14, 200, { rgb: '200,255,150' }); });
+  });
+  at(3.2, () => { target.style.filter = ''; });
+}
+
+// 5) Arsenal dos Mil Invernos -------------------------------------------------------------------------------------------
+const WEAPONS = ['sword', 'axe', 'spear', 'sword', 'hammer', 'spear', 'axe'];
+function weaponPath(kind, x, yb, h) {
+  ctx.beginPath();
+  if (kind === 'sword') { ctx.moveTo(x, yb - h); ctx.lineTo(x + 3, yb - h * .35); ctx.lineTo(x + 9, yb - h * .3); ctx.lineTo(x + 9, yb - h * .24); ctx.lineTo(x + 2, yb - h * .22); ctx.lineTo(x + 2, yb); ctx.lineTo(x - 2, yb); ctx.lineTo(x - 2, yb - h * .22); ctx.lineTo(x - 9, yb - h * .24); ctx.lineTo(x - 9, yb - h * .3); ctx.lineTo(x - 3, yb - h * .35); }
+  else if (kind === 'spear') { ctx.moveTo(x, yb - h); ctx.lineTo(x + 5, yb - h * .85); ctx.lineTo(x + 1.5, yb - h * .8); ctx.lineTo(x + 1.5, yb); ctx.lineTo(x - 1.5, yb); ctx.lineTo(x - 1.5, yb - h * .8); ctx.lineTo(x - 5, yb - h * .85); }
+  else if (kind === 'axe') { ctx.moveTo(x - 1.5, yb); ctx.lineTo(x - 1.5, yb - h); ctx.lineTo(x + 14, yb - h * .98); ctx.quadraticCurveTo(x + 8, yb - h * .82, x + 14, yb - h * .66); ctx.lineTo(x + 1.5, yb - h * .72); ctx.lineTo(x + 1.5, yb); }
+  else { ctx.moveTo(x - 1.5, yb); ctx.lineTo(x - 1.5, yb - h * .82); ctx.lineTo(x - 11, yb - h * .82); ctx.lineTo(x - 11, yb - h); ctx.lineTo(x + 11, yb - h); ctx.lineTo(x + 11, yb - h * .82); ctx.lineTo(x + 1.5, yb - h * .82); ctx.lineTo(x + 1.5, yb); }
+  ctx.closePath();
+}
+function arsenalLayer() {
+  clearLayer('arsenal'); const crystals = armed.map(e => { const [x, y] = pos(e); return { x, y, c: Array.from({ length: 7 }, (_, i) => ({ side: ['t', 't', 'l', 'r', 'b', 't', 'l'][i], o: R(-.8, .8), h: R(6, 15), w: R(2.6, 4.4), ph: R(0, 6) })) }; });
+  const L = add({ dur: 1e9, I: 0, tgt: .5, tick(p, t, dt) { this.I += (this.tgt - this.I) * Math.min(1, dt * 1.6); if (Math.random() < dt * 30) spawn({ kind: 'snow', x: R(0, 390), y: -6, vx: R(-8, 10), vy: R(26, 52), s: R(1, 2.2), a: .5 + .4 * this.I, life: R(6, 9) * .0 + 11.5, sway: 14, ph: R(0, 6) }); if (Math.random() < dt * 6 * this.I) { const c = crystals[(Math.random() * crystals.length) | 0]; spawn({ kind: 'glint', x: c.x + R(-30, 30), y: c.y + R(-44, 44), s: R(6, 10), life: .7, rgb: '215,240,255' }); } },
+    draw(p, t) { const I = this.I; ctx = cB;
+      // cold mist on the floor
+      const g = ctx.createLinearGradient(0, 410, 0, 530); g.addColorStop(0, 'rgba(160,210,255,0)'); g.addColorStop(.5, `rgba(170,215,255,${.2 * I + .05 * Math.sin(t * 2)})`); g.addColorStop(1, 'rgba(160,210,255,0)'); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(0, 410, 390, 120);
+      ctx = cF; ctx.globalCompositeOperation = 'lighter';
+      // frost rim on the armed cards
+      for (const c of crystals) { ctx.strokeStyle = `rgba(190,232,255,${.35 * I + .12 * Math.sin(t * 2 + c.x)})`; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.roundRect(c.x - 33, c.y - 48, 66, 96, 7); ctx.stroke();
+        for (const k of c.c) { let bx, by, dx, dy; const hw = 33, hh = 48; if (k.side === 't') { bx = c.x + k.o * hw * .9; by = c.y - hh; dx = 0; dy = -1; } else if (k.side === 'b') { bx = c.x + k.o * hw * .9; by = c.y + hh; dx = 0; dy = 1; } else if (k.side === 'l') { bx = c.x - hw; by = c.y + k.o * hh * .9; dx = -1; dy = 0; } else { bx = c.x + hw; by = c.y + k.o * hh * .9; dx = 1; dy = 0; }
+          const h = k.h * clamp(I * 1.1) * (.9 + .1 * Math.sin(t * 2 + k.ph)), w = k.w * clamp(I * 1.1); const nx = -dy, ny = dx;
+          const gr = ctx.createLinearGradient(bx, by, bx + dx * h, by + dy * h); gr.addColorStop(0, 'rgba(210,240,255,.85)'); gr.addColorStop(1, 'rgba(120,190,255,.25)'); ctx.fillStyle = gr;
+          ctx.beginPath(); ctx.moveTo(bx - nx * w, by - ny * w); ctx.lineTo(bx + dx * h, by + dy * h); ctx.lineTo(bx + nx * w, by + ny * w); ctx.closePath(); ctx.fill(); } } } });
+  layers.arsenal = L; return L;
+}
+function arsenal() {
+  if (played.some(e => e.src.includes('arsenal'))) { return; }
+  playCard('arsenal-dos-mil-invernos', RELIC[0], RELIC[1], c => {
+    glow(RELIC[0], RELIC[1], 100, '170,225,255', .85); ring(RELIC[0], RELIC[1] + 20, 8, 70, '190,235,255', 5, .9, .6, .5);
+    // ice shards burst
+    for (let i = 0; i < 16; i++) { const a = R(-Math.PI, 0), v = R(120, 300); spawn({ kind: 'spark', x: RELIC[0], y: RELIC[1], vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 120, s: 2.4, life: .7, rgb: '200,236,255', drag: .98 }); }
+    const L = arsenalLayer(); L.tgt = 1.1; at(2.6, () => { L.tgt = .5; });
+    tag('Mil invernos', 195, 372, '#bfe6ff');
+    // a wave of cold sweeps over the field from the relic (soft, no hard edges)
+    add({ dur: 1.5, draw(p) { const x = lerp(RELIC[0] + 40, -80, eo(p)); ctx = cF; ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(x, 470, 0, x, 470, 120); g.addColorStop(0, `rgba(200,236,255,${.5 * (1 - p)})`); g.addColorStop(1, 'rgba(200,236,255,0)'); ctx.fillStyle = g; ctx.fillRect(x - 120, 350, 240, 240); } });
+    // ghostly ice weapons rise out of the frost over the whole field
+    const xs = [30, 90, 150, 210, 270, 330, 365]; xs.forEach((x, i) => at(.25 + i * .1, () => add({ dur: 2.2, draw(p, t) { const u = eo(p / .35), a = p < .7 ? 1 : 1 - (p - .7) / .3, h = (96 + (i % 3) * 22) * u; if (h < 2) return; ctx = cF; const yb = 556; ctx.globalCompositeOperation = 'lighter'; const gr = ctx.createLinearGradient(0, yb - h, 0, yb); gr.addColorStop(0, `rgba(240,250,255,${.8 * a})`); gr.addColorStop(1, `rgba(120,185,255,${.18 * a})`); ctx.fillStyle = gr; weaponPath(WEAPONS[i], x, yb, h); ctx.fill(); ctx.strokeStyle = `rgba(255,255,255,${.65 * a})`; ctx.lineWidth = 1.2; ctx.stroke(); glow(x, yb - h * .55, 26, '150,210,255', .2 * a); }, tick(p, t, dt) { if (p < .6 && Math.random() < .3) spawn({ kind: 'glint', x: x + R(-8, 8), y: 556 - R(10, 100), s: 8, life: .6, rgb: '230,248,255' }); } })));
+    armed.forEach((e, i) => at(.9 + i * .1, () => { const [x, y] = pos(e); flashCard(e, 'pop'); numPop(x, y - 40, '-2', 'frio'); ring(x, y, 12, 54, '190,235,255', 3, .8, .5, .8); }));
+  });
+}
+
+// ── main loop ─────────────────────────────────────────────────────────────────────────────────────────────────────
+function tick(dt) {
+  now += dt;
+  for (let i = sched.length - 1; i >= 0; i--) if (sched[i].t <= now) { const s = sched.splice(i, 1)[0]; s.fn(); }
+  stepP(dt);
+  for (const f of fxs) { if (f.dead) continue; const el = now - f.t0, p = clamp(el / f.dur); f.el = el; if (f.tick) f.tick(p, el, dt); if (f.done && el >= f.dur && !f.doned) { f.doned = true; f.done(); } if (el >= f.dur) f.dead = true; }
+  for (let i = fxs.length - 1; i >= 0; i--) if (fxs[i].dead) fxs.splice(i, 1);
+  render();
+}
+function render() {
+  for (const [c, cv] of [[cB, cvB], [cF, cvF]]) { c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height); c.setTransform(RES, 0, 0, RES, 0, 0); }
+  for (const pass of ['b', 'f']) {
+    ctx = pass === 'b' ? cB : cF;
+    for (const p of P) if ((p.back ? 'b' : 'f') === pass) { ctx.save(); drawP(p); ctx.restore(); }
+  }
+  for (const f of fxs) { if (f.dead || !f.draw) continue; ctx = cF; cF.save(); cB.save(); f.draw(clamp((now - f.t0) / f.dur), now - f.t0, f); cF.restore(); cB.restore(); }
+  cF.globalCompositeOperation = 'source-over'; cB.globalCompositeOperation = 'source-over';
+}
+let last = performance.now();
+function loop(ts) { const dt = Math.min(.05, (ts - last) / 1000) / dur(); last = ts; tick(dt); requestAnimationFrame(loop); }
+if (!MANUAL) requestAnimationFrame(loop);
+
+// ── controls ───────────────────────────────────────────────────────────────────────────────────────────────────────
+function resetAll() { for (const k of Object.keys(layers)) clearLayer(k); fxs.length = 0; sched.length = 0; P.length = 0; $('#nums').innerHTML = ''; $('#night').style.opacity = 0; $('#night2').style.opacity = 0; buildBoard(); }
+const ACT = {
+  'forja': () => { resetAll(); forja(); }, 'forja-muralha': () => forja('muralha'), 'forja-afiacao': () => forja('afiacao'),
+  'fogo': () => { resetAll(); fogo(); }, 'fogo-saque': () => fogo('saque'), 'fogo-trincheira': () => fogo('trincheira'),
+  'noite': () => { resetAll(); noite(); }, 'mata': () => { resetAll(); mata(); }, 'arsenal': () => { resetAll(); arsenal(); },
+};
+const CAP = { 'g-forja': 'A Forja que Nunca Apaga (Terreno): a forja acende no chão do campo; escolha o modo para ver o efeito nas Armadas.', 'g-fogo': 'Posto do Fogo-Sinal (Terreno): o sinal corre de uma ponta à outra; depois veja Saque e Trincheira.', 'g-noite': 'Noite Sem Parar (Tática): cai a noite e a unidade corre duas casas com rastro de tocha.', 'g-mata': 'A Mata Devolve (Emboscada): a mata reage quando a unidade Armada é atacada.', 'g-arsenal': 'Arsenal dos Mil Invernos (Relíquia): armas sobem da geada e o gelo cobre as Armadas.' };
+document.querySelectorAll('nav [data-a]').forEach(b => b.addEventListener('click', () => { const a = ACT[b.dataset.a]; if (a) a(); }));
+document.querySelectorAll('.tabs [data-g]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b)); document.querySelectorAll('.grp').forEach(g => g.classList.toggle('on', g.id === b.dataset.g)); $('#cap').textContent = CAP[b.dataset.g]; resetAll(); }));
+$('#reset').addEventListener('click', resetAll);
+buildBoard();
+window.__run = n => { resetAll(); if (n !== 'forja-muralha' && n !== 'forja-afiacao' && n !== 'fogo-saque' && n !== 'fogo-trincheira') {} ACT[n](); };
+window.__do = n => ACT[n]();
+window.__step = s => { const n = Math.max(1, Math.round(s * 60)); for (let i = 0; i < n; i++) tick(1 / 60); };
+</script>
+</body>
+</html>
