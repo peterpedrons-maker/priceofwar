@@ -412,3 +412,11 @@ Módulo próprio com dois canvas: o de **baixo** (z 30, como o `terrainFx`) guar
 - **Destruição:** golpe (flash, faíscas, a carta aperta e treme), queima de baixo para cima com shader de dissolver (ruído; borda incandescente acima de 1.0 para o bloom pegar, carvão atrás), brasas e fumaça saindo da frente da queima, marca de chamuscado e brasa no chão.
 - Sem onda de choque em anel no chão (o dono pediu para tirar na abertura de booster).
 - **Câmera plana de frente** (como o jogo, 2D) é o padrão; `?inclinado` dá a mesa deitada da primeira versão. No jogo, a ideia é um canvas WebGL transparente por cima do tabuleiro real, em câmera de frente, sem inclinar nada.
+
+## Efeitos de carta novos no canvas + GSAP (no jogo, rodada 26)
+`src/cardFx.ts` (um canvas z 288, só desenha enquanto há efeito; GSAP anima o "relógio" de cada efeito; sem WebGL, sem trocar nada no tabuleiro). Liga/desliga em Opções, "Efeitos de carta novos" (`fxNovo`, padrão ligado); desligado, o jogo usa os antigos (`PunchFx`, `BurningCard` com folhas, `fxLanding`).
+- **`fxLand(rect, big)`** (carta que desce e assenta; usado em `fireImpactBurst`): clarão, três ondas que correm pelo CONTORNO da carta, poeira dos lados, faíscas; arte total ganha mais.
+- **`fxImpact(rect, heavy, dir)`** (carta que leva o golpe; usado em `triggerPunch`): clarão branco, raios de estrela, anel achatado, rachaduras que brilham dentro da carta, faíscas em leque para o lado oposto ao atacante, lascas, poeira.
+- **`fxBurn(rect, onFrame, onEnd)`** (carta destruída; usado em `BurningCard`): a carta HTML é comida por uma máscara de ruído gerada no código (`burnMaskSheet()`, 40 quadros em folha de 8×5, nenhuma imagem), de baixo para o alto; o canvas põe a borda incandescente, o carvão, brasas, fumaça, cinzas, a luz sobre o entorno e a marca chamuscada. A mesma função `F` decide o que queimou na máscara e na borda.
+- Peso: o desenho da borda é uma imagem de 64×88 recalculada por quadro (só durante ~1,2 s) e esticada; partículas limitadas a 700.
+- Fica para a próxima: o ataque em si (a investida da carta é do `CardSlot`/framer-motion), a carta sendo jogada da mão e o resto das animações de carta.

@@ -231,7 +231,8 @@ import { triggerOf, triggerKeyOf, pulseCard, usePulse, TRIGGER_GLOW } from './tr
 import { playSfx, preloadSfx, dbgMark } from './sfx';
 import { fxTactic, fxHero, fxRanged, fxLanding, fxUpkeep, fxGoldGain, fxRelicSoldo, fxLoot, fxPlaced, fxReformar, fxAmbush, fxCalice, fxHospitalario, fxNobre, fxReforco, fxComandante, fxRetorno, fxAtirador, preloadHolyFx, preloadCombatFx, type FxEnv, type FxRect, type FxSide, type FxTarget } from './combatFx';
 import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettings, subscribeAudio } from './audioSettings';
-import { useGameSettings, setGameSettings } from './gameSettings';
+import { useGameSettings, setGameSettings, getGameSettings } from './gameSettings';
+import { fxLand, fxImpact, fxBurn, burnMaskSheet, BURN } from './cardFx';
 import tutHandSprite from './assets/tut-hand.webp';
 import type { Trigger } from './engine/types';
 import { preloadTerrainFx, syncTerrainFx, clearTerrainFx, type TerrainFxKind } from './terrainFx';
@@ -1175,10 +1176,14 @@ const BURN_FRAMES = 18, BURN_COLS = 6, BURN_ROWS = 3, BURN_FPS = 16;
 if (typeof Image !== 'undefined') { [fxBurnMask, fxBurnFire].forEach(src => { const warm = new Image(); warm.src = src; }); }
 const BurningCard = ({ children }: { children: React.ReactNode }) => {
   const [frame, setFrame] = useState(0);
+  const novo = getGameSettings().fxNovo, maskRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    dbgMark('visual:burn-start');
+    // new effect (src/cardFx.ts): the canvas drives the burn and tells which frame of the generated mask the card is at
+    const rect = novo ? maskRef.current?.getBoundingClientRect() : null;
+    if (rect && rect.width > 0) { fxBurn(rect, setFrame, () => setFrame(-1)); return; }
     let raf = 0;
     const t0 = performance.now();
-    dbgMark('visual:burn-start');
     const fps = BURN_FPS / TIME.k;
     const loop = (now: number) => {
       const i = Math.floor((now - t0) / (1000 / fps));
@@ -1188,29 +1193,31 @@ const BurningCard = ({ children }: { children: React.ReactNode }) => {
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, []);
-  if (frame >= BURN_FRAMES) return null;
-  const col = frame % BURN_COLS, row = Math.floor(frame / BURN_COLS);
-  const pos = `${(col / (BURN_COLS - 1)) * 100}% ${(row / (BURN_ROWS - 1)) * 100}%`;
-  const size = `${BURN_COLS * 100}% ${BURN_ROWS * 100}%`;
+  if (frame < 0 || (!novo && frame >= BURN_FRAMES)) return null;
+  const cols = novo ? BURN.cols : BURN_COLS, rows = novo ? BURN.rows : BURN_ROWS, url = novo ? burnMaskSheet() : fxBurnMask;
+  const col = frame % cols, row = Math.floor(frame / cols);
+  const pos = `${(col / (cols - 1)) * 100}% ${(row / (rows - 1)) * 100}%`;
+  const size = `${cols * 100}% ${rows * 100}%`;
   return (
     <>
       <div
+        ref={maskRef}
         className="absolute inset-0 z-40 pointer-events-none rounded-lg overflow-hidden w-full h-full"
         style={{
-          WebkitMaskImage: `url(${fxBurnMask})`, maskImage: `url(${fxBurnMask})`,
+          WebkitMaskImage: `url(${url})`, maskImage: `url(${url})`,
           WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat', WebkitMaskSize: size, maskSize: size,
           WebkitMaskPosition: pos, maskPosition: pos,
         }}
       >
         {children}
       </div>
-      <div
+      {!novo && <div
         className="absolute z-[45] pointer-events-none"
         style={{
           left: `${-PUNCH_PAD_X * 100}%`, top: `${-PUNCH_PAD_Y * 100}%`, width: `${PUNCH_FRAME_W * 100}%`, height: `${PUNCH_FRAME_H * 100}%`,
           backgroundImage: `url(${fxBurnFire})`, backgroundRepeat: 'no-repeat', backgroundSize: size, backgroundPosition: pos,
         }}
-      />
+      />}
     </>
   );
 };
@@ -4764,6 +4771,7 @@ const OptionsModal = ({ onClose }: { onClose: () => void }) => {
           <div className="w-full flex flex-col gap-3">
             <span className="text-[10px] uppercase tracking-[0.2em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>Efeitos</span>
             <ToggleRow label="Terrenos animados" sub="A muralha da Fortaleza de Pedra sobe, tem tochas e bandeiras que se mexem. Desligado: imagem parada, mais leve para o celular." on={g.terrainFx} onChange={v => setGameSettings({ terrainFx: v })} />
+            <ToggleRow label="Efeitos de carta novos" sub="Carta que cai, leva o golpe e queima com brasas, faíscas e luz. Desligado: os efeitos antigos, se o celular ficar pesado." on={g.fxNovo} onChange={v => setGameSettings({ fxNovo: v })} />
           </div>
           <div className="w-full flex flex-col gap-3">
             <span className="text-[10px] uppercase tracking-[0.2em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>Som</span>
@@ -5814,7 +5822,7 @@ export default function App() {
   const [cameraSettling, setCameraSettling] = useState<{ slotIndex: number } | null>(null);
   // A brief flash/ring burst at the screen position where a played card just landed.
   // (x, y) is the centre of the card that landed and w its width: the impact runs along the card's outline (see fxLanding); a full-art card gets more.
-  const fireImpactBurst = (x: number, y: number, big = false, w = 56) => fxLanding({ cx: x, cy: y, w, h: w * 1.27 }, big);
+  const fireImpactBurst = (x: number, y: number, big = false, w = 56) => { if (getGameSettings().fxNovo) fxLand({ left: x - w / 2, top: y - w * .635, width: w, height: w * 1.27 }, big); else fxLanding({ cx: x, cy: y, w, h: w * 1.27 }, big); };
   // A dropped card touched down: the thud, the dust, and the board reacting (see arrivalDrops).
   arrivalListener = (slotId, card) => {
     const r = document.getElementById(slotId)?.getBoundingClientRect();
@@ -7978,6 +7986,7 @@ export default function App() {
     const el = getCardVisualEl(`${targetSeat === 0 ? 'player' : 'npc'}-${index}`);
     if (!el) return;
     const r = el.getBoundingClientRect();
+    if (getGameSettings().fxNovo) { fxImpact({ left: r.left, top: r.top, width: r.width, height: r.height }, index === 12, targetSeat === 0 ? 1 : -1); return; }
     const key = Date.now();
     setPunchFx({ key, x: r.left, y: r.top, w: r.width, h: r.height, heavy: index === 12 });
     window.setTimeout(() => setPunchFx(prev => (prev && prev.key === key ? null : prev)), 700 * TIME.k);
