@@ -369,3 +369,5 @@ Mockup em `public/mockups/efeitos-campo/` (`/priceofwar/mockups/efeitos-campo/`)
 - **A Mata Devolve:** a Emboscada sobe, galhos e folhas estouram em volta da unidade Armada atacada (onda verde, "+2" ataque e "+1" vida) e o atacante é lançado para trás.
 - **Arsenal dos Mil Invernos:** onda de frio varre o campo, armas fantasmas de gelo sobem, cristais e aro de geada ficam nas Armadas, neve fina permanente, "-2" nas Armadas.
 Aprovando, o próximo passo é ligar ao jogo (campo `fx` das cartas, `src/combatFx.ts`, `docs/animacoes.md` "No jogo"); os efeitos permanentes (Forja, Fogo-Sinal, Arsenal) seguem o padrão do `terrainFx.ts`.
+
+GIFs do mockup do Campo (não ficam no repositório, pesam ~25 MB): `node tools/vfx/mockup-src/gravar-campo.cjs <url> <pasta>` grava os quadros (20 por segundo, avançando a simulação à mão e sincronizando as animações CSS e os `setTimeout`) e `python3 tools/vfx/mockup-src/montar-campo.py <pasta> <saida> 240 64` monta os GIFs (15 quadros por segundo, uma paleta só por GIF, que é o que mantém cada um em ~2 a 3,5 MB).
