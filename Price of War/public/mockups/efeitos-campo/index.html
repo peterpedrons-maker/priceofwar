@@ -387,13 +387,26 @@ function arsenal() {
 
 const glints = (x, y, n, rgb, spread = 30, s = 9) => { for (let k = 0; k < n; k++) spawn({ kind: 'glint', x: x + R(-spread, spread), y: y + R(-spread * 1.4, spread * 1.4), s, life: .5, rgb }); };
 // ── Aura em volta das Armadas e do Terreno/Relíquia + o efeito que "viaja" até a unidade recém-armada ───────────────────
-function edgePt(x, y, w, h) {
-  const wt = [w * .9, h * 1.2, w * .35, h * 1.2], tot = wt[0] + wt[1] + wt[2] + wt[3]; let u = Math.random() * tot, s = 0; while (s < 3 && u > wt[s]) { u -= wt[s]; s++; } const f = u / wt[s];
-  if (s === 0) return { x: x - w / 2 + 4 + f * (w - 8), y: y - h / 2, nx: 0, ny: -1, sz: 1 };
-  if (s === 1) return { x: x + w / 2, y: y - h / 2 + 6 + f * (h - 10), nx: 1, ny: 0, sz: .8 };
-  if (s === 2) return { x: x - w / 2 + 4 + f * (w - 8), y: y + h / 2, nx: 0, ny: 1, sz: .45 };
-  return { x: x - w / 2, y: y - h / 2 + 6 + f * (h - 10), nx: -1, ny: 0, sz: .8 };
+// ── silhueta REAL da carta (o alfa da própria imagem da carta, com asinhas e cantos), não o retângulo da casa ──
+const SIL = new Map();
+function silOf(img) {
+  const key = img.src; if (SIL.has(key)) return SIL.get(key); if (!img.complete || !img.naturalWidth) return null;
+  const ws = 64, hs = Math.round(64 * img.naturalHeight / img.naturalWidth), c = document.createElement('canvas'); c.width = ws; c.height = hs; const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, ws, hs);
+  const d = g.getImageData(0, 0, ws, hs).data, A = (x, y) => (x < 0 || y < 0 || x >= ws || y >= hs ? 0 : d[(y * ws + x) * 4 + 3]), edge = [];
+  for (let y = 0; y < hs; y++) for (let x = 0; x < ws; x++) { if (A(x, y) < 120) continue; let nx = 0, ny = 0, n = 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (A(x + dx, y + dy) < 120) { nx += dx; ny += dy; n++; } if (n) { const l = Math.hypot(nx, ny) || 1; edge.push({ u: x / ws, v: y / hs, nx: nx / l, ny: ny / l }); } }
+  const s = { img, edge, ring: new Map() }; SIL.set(key, s); return s;
 }
+const boxOf = e => { const [x, y] = pos(e), w = e.classList.contains('big') ? 68 : 64, h = w * e.naturalHeight / e.naturalWidth; return { x, y, w, h }; };
+// anel de brilho que segue o contorno exato (cacheado por cor): a silhueta pintada e repetida em volta, com o miolo recortado
+function ringOf(e, rgb) {
+  const s = silOf(e); if (!s) return null; const b = boxOf(e), pw = Math.round(b.w * RES), ph = Math.round(b.h * RES), key = rgb + '|' + pw; if (s.ring.has(key)) return s.ring.get(key);
+  const pad = Math.ceil(11 * RES), c = document.createElement('canvas'); c.width = pw + pad * 2; c.height = ph + pad * 2; const g = c.getContext('2d');
+  const t = document.createElement('canvas'); t.width = pw; t.height = ph; const tg = t.getContext('2d'); tg.drawImage(e, 0, 0, pw, ph); tg.globalCompositeOperation = 'source-in'; tg.fillStyle = `rgb(${rgb})`; tg.fillRect(0, 0, pw, ph);
+  for (const [r, al] of [[1.2, 1], [2.6, .6], [4.6, .34], [7, .16]]) { g.globalAlpha = al; for (let k = 0; k < 20; k++) { const a = k / 20 * Math.PI * 2; g.drawImage(t, pad + Math.cos(a) * r * RES, pad + Math.sin(a) * r * RES); } }
+  g.globalAlpha = 1; g.globalCompositeOperation = 'destination-out'; g.drawImage(t, pad, pad);
+  const o = { c, pad: pad / RES }; s.ring.set(key, o); return o;
+}
+function edgePt(e) { const s = silOf(e), b = boxOf(e); if (!s || !s.edge.length) return { x: b.x + R(-30, 30), y: b.y - b.h / 2, nx: 0, ny: -1, sz: 1 }; const q = s.edge[(Math.random() * s.edge.length) | 0]; return { x: b.x - b.w / 2 + q.u * b.w, y: b.y - b.h / 2 + q.v * b.h, nx: q.nx, ny: q.ny, sz: q.ny > .5 ? .45 : q.ny < -.3 ? 1 : .8 }; }
 function auraLayer(kind) {
   clearLayer('aura'); const holder = byName(kind === 'fogo' ? 'posto-do-fogo' : 'arsenal');
   const crys = new Map(); const crysFor = e => { if (!crys.has(e)) crys.set(e, Array.from({ length: 7 }, (_, i) => ({ s: i % 4, o: R(-.8, .8), h: R(6, 15), w: R(2.6, 4.4), ph: R(0, 6) }))); return crys.get(e); };
@@ -402,16 +415,16 @@ function auraLayer(kind) {
     tick(p, t, dt) { this.I += (1 - this.I) * Math.min(1, dt * 1.5);
       if (kind === 'arsenal' && Math.random() < dt * 26) spawn({ kind: 'snow', x: R(0, 390), y: -6, vx: R(-8, 10), vy: R(26, 52), s: R(1, 2.2), a: .6, life: 11.5, sway: 14, ph: R(0, 6) });
       for (const e of this.targets()) { const terr = e === holder; let k = this.k.get(e) ?? 0; k += ((this.held.has(e) ? 0 : 1) - k) * Math.min(1, dt * 3); this.k.set(e, k); const kk = (terr ? 1 : k) * Math.min(1, this.I); if (kk < .05) continue; const [x, y] = pos(e);
-        if (kind === 'fogo') { for (let c = dt * 24 * kk; c > 0; c -= 1) { if (Math.random() >= c) continue; const q = edgePt(x, y, 64, 92); flame(q.x, q.y, R(6, 10) * q.sz, { vx: q.nx * 8 + R(-5, 5), vy: -R(22, 48), a: .55 * kk, life: R(.5, .95) }); }
+        if (kind === 'fogo') { for (let c = dt * 24 * kk; c > 0; c -= 1) { if (Math.random() >= c) continue; const q = edgePt(e); flame(q.x, q.y, R(6, 10) * q.sz, { vx: q.nx * 8 + R(-5, 5), vy: -R(22, 48), a: .55 * kk, life: R(.5, .95) }); }
           if (Math.random() < dt * 5 * kk) spawn({ kind: 'smoke', x: x + R(-26, 26), y: y - 46, vx: R(-6, 10), vy: -R(26, 40), s: R(7, 11), a: .22, life: R(1.6, 2.4), rgb: '84,76,70', back: false }); if (Math.random() < dt * 8 * kk) ember(x + R(-28, 28), y - 44, { vy: -R(40, 90) }); }
-        else if (Math.random() < dt * 14 * kk) { const q = edgePt(x, y, 64, 92); spawn({ kind: 'glint', x: q.x, y: q.y, s: R(5, 9), life: .6, rgb: '215,240,255' }); } } },
+        else if (Math.random() < dt * 14 * kk) { const q = edgePt(e); spawn({ kind: 'glint', x: q.x, y: q.y, s: R(5, 9), life: .6, rgb: '215,240,255' }); } } },
     draw(p, t) { const I = Math.min(1, this.I); ctx = cF; ctx.globalCompositeOperation = 'lighter';
       for (const e of this.targets()) { const terr = e === holder; const k = (terr ? 1 : this.k.get(e) ?? 0) * I; if (k < .03) continue; const [x, y] = pos(e), fl = .8 + .2 * Math.sin(t * 9 + x * .1);
-        const rr = a => { ctx.beginPath(); ctx.roundRect(x - 32 - a, y - 46 - a, 64 + a * 2, 92 + a * 2, 7 + a); };
-        if (kind === 'fogo') { glow(x, y, 62, '255,120,40', .14 * k * fl); rr(3); ctx.strokeStyle = `rgba(255,95,30,${.2 * k * fl})`; ctx.lineWidth = 7; ctx.stroke(); rr(1); ctx.strokeStyle = `rgba(255,175,90,${.5 * k * fl})`; ctx.lineWidth = 2.2; ctx.stroke(); }
-        else { glow(x, y, 62, '150,210,255', .12 * k); rr(1); ctx.strokeStyle = `rgba(190,232,255,${.34 * k + .1 * Math.sin(t * 2 + x)})`; ctx.lineWidth = 2.2; ctx.stroke(); rr(4); ctx.strokeStyle = `rgba(150,205,255,${.1 * k})`; ctx.lineWidth = 6; ctx.stroke();
-          for (const c of crysFor(e)) { let bx, by, dx = 0, dy = 0; const hw = 32, hh = 46; if (c.s === 0) { bx = x + c.o * hw * .9; by = y - hh; dy = -1; } else if (c.s === 1) { bx = x - hw; by = y + c.o * hh * .9; dx = -1; } else if (c.s === 2) { bx = x + hw; by = y + c.o * hh * .9; dx = 1; } else { bx = x + c.o * hw * .9; by = y + hh; dy = 1; }
-            const h = c.h * clamp(k * 1.1) * (.9 + .1 * Math.sin(t * 2 + c.ph)), w = c.w * clamp(k * 1.1), nx = -dy, ny = dx; const gr = ctx.createLinearGradient(bx, by, bx + dx * h, by + dy * h); gr.addColorStop(0, 'rgba(210,240,255,.85)'); gr.addColorStop(1, 'rgba(120,190,255,.25)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(bx - nx * w, by - ny * w); ctx.lineTo(bx + dx * h, by + dy * h); ctx.lineTo(bx + nx * w, by + ny * w); ctx.closePath(); ctx.fill(); } } } } });
+        const ring = ringOf(e, kind === 'fogo' ? '255,120,40' : '170,220,255'), bx = boxOf(e);
+        if (ring) { ctx.globalAlpha = Math.min(1, (kind === 'fogo' ? .85 : .7) * k * (kind === 'fogo' ? fl : 1)); ctx.drawImage(ring.c, bx.x - bx.w / 2 - ring.pad, bx.y - bx.h / 2 - ring.pad, ring.c.width / RES, ring.c.height / RES); ctx.globalAlpha = 1; }
+        if (kind === 'fogo') glow(x, y, 62, '255,120,40', .1 * k * fl);
+        else { glow(x, y, 62, '150,210,255', .08 * k);
+          const s = silOf(e); if (s) for (let i = 0; i < 9; i++) { const q = s.edge[(i * 37 + Math.round(x)) % s.edge.length]; const h = (5 + (i * 7 % 9)) * clamp(k * 1.1) * (.9 + .1 * Math.sin(t * 2 + i)), w = (2.2 + (i % 3)) * clamp(k * 1.1); const px = bx.x - bx.w / 2 + q.u * bx.w, py = bx.y - bx.h / 2 + q.v * bx.h, nx = -q.ny, ny = q.nx; const gr = ctx.createLinearGradient(px, py, px + q.nx * h, py + q.ny * h); gr.addColorStop(0, 'rgba(210,240,255,.85)'); gr.addColorStop(1, 'rgba(120,190,255,.2)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(px - nx * w, py - ny * w); ctx.lineTo(px + q.nx * h, py + q.ny * h); ctx.lineTo(px + nx * w, py + ny * w); ctx.closePath(); ctx.fill(); } } } } });
   layers.aura = L; return L;
 }
 // o Terreno/Relíquia já está em campo; a unidade vai ser armada

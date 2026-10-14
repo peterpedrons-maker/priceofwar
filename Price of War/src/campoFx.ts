@@ -82,29 +82,53 @@ function tower(x: number, yb: number, flip: number) {
 }
 const armedOf = (s: GameState, seat: 0 | 1) => s.players[seat].board.flatMap((c, i) => (c && i < 10 && (c as any).equippedWeapons?.length ? [i] : []));
 
-// pontos ao longo do contorno da carta (retângulo arredondado); `sz` diminui a chama na borda de baixo para não cobrir a carta
-function edgePoint(r: { x: number; y: number; w: number; h: number }) {
-  const w = r.w, h = r.h, wt = [w * .9, h * 1.2, w * .35, h * 1.2], tot = wt[0] + wt[1] + wt[2] + wt[3]; let u = Math.random() * tot, side = 0; while (side < 3 && u > wt[side]) { u -= wt[side]; side++; }
-  const f = u / wt[side];
-  if (side === 0) return { x: r.x - w / 2 + 4 + f * (w - 8), y: r.y - h / 2, nx: 0, ny: -1, sz: 1 };
-  if (side === 1) return { x: r.x + w / 2, y: r.y - h / 2 + 6 + f * (h - 10), nx: 1, ny: 0, sz: .8 };
-  if (side === 2) return { x: r.x - w / 2 + 4 + f * (w - 8), y: r.y + h / 2, nx: 0, ny: 1, sz: .45 };
-  return { x: r.x - w / 2, y: r.y - h / 2 + 6 + f * (h - 10), nx: -1, ny: 0, sz: .8 };
-}
+// ── silhueta REAL da carta ─────────────────────────────────────────────────────────────────────────────────────────────
+// (decisão do dono: o brilho segue o formato exato da carta, com as asinhas e os cantos da moldura, nunca o retângulo da casa).
+// Lê o alfa da imagem da moldura da própria carta no DOM; daí saem o contorno (pontos com normal) e o anel de brilho (cacheado por cor e tamanho).
+interface Frame { img: HTMLImageElement; x: number; y: number; w: number; h: number }
+interface Sil { edge: { u: number; v: number; nx: number; ny: number }[]; ring: Map<string, { c: HTMLCanvasElement; pad: number }> }
+const SIL = new Map<string, Sil>();
+const frameOf = (side: Side, slot: number): Frame | null => {
+  const el = document.getElementById(`${side}-${slot}`); if (!el) return null; let best: HTMLImageElement | null = null, area = 0;
+  el.querySelectorAll('img.inset-0').forEach(im => { const r = (im as HTMLImageElement).getBoundingClientRect(), a = r.width * r.height; if (a > area) { area = a; best = im as HTMLImageElement; } });
+  if (!best) return null; const r = (best as HTMLImageElement).getBoundingClientRect(); return { img: best, x: (r.left + r.width / 2) / U, y: (r.top + r.height / 2) / U, w: r.width / U, h: r.height / U };
+};
+const silOf = (img: HTMLImageElement): Sil | null => {
+  const key = img.currentSrc || img.src; const hit = SIL.get(key); if (hit) return hit; if (!img.complete || !img.naturalWidth) return null;
+  const ws = 64, hs = Math.max(8, Math.round(64 * img.naturalHeight / img.naturalWidth)), c = document.createElement('canvas'); c.width = ws; c.height = hs; const g = c.getContext('2d', { willReadFrequently: true })!; g.drawImage(img, 0, 0, ws, hs);
+  let d: Uint8ClampedArray; try { d = g.getImageData(0, 0, ws, hs).data; } catch { return null; }
+  const A = (x: number, y: number) => (x < 0 || y < 0 || x >= ws || y >= hs ? 0 : d[(y * ws + x) * 4 + 3]), edge: Sil['edge'] = [];
+  for (let y = 0; y < hs; y++) for (let x = 0; x < ws; x++) { if (A(x, y) < 120) continue; let nx = 0, ny = 0, n = 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (A(x + dx, y + dy) < 120) { nx += dx; ny += dy; n++; } if (n) { const l = Math.hypot(nx, ny) || 1; edge.push({ u: x / ws, v: y / hs, nx: nx / l, ny: ny / l }); } }
+  const s: Sil = { edge, ring: new Map() }; SIL.set(key, s); return s;
+};
+const ringOf = (f: Frame, rgb: string) => {
+  const s = silOf(f.img); if (!s) return null; const sc = RES * U, pw = Math.round(f.w * sc), ph = Math.round(f.h * sc), key = rgb + '|' + pw; const hit = s.ring.get(key); if (hit) return hit;
+  const pad = Math.ceil(11 * sc), c = document.createElement('canvas'); c.width = pw + pad * 2; c.height = ph + pad * 2; const g = c.getContext('2d')!;
+  const t = document.createElement('canvas'); t.width = pw; t.height = ph; const tg = t.getContext('2d')!; tg.drawImage(f.img, 0, 0, pw, ph); tg.globalCompositeOperation = 'source-in'; tg.fillStyle = `rgb(${rgb})`; tg.fillRect(0, 0, pw, ph);
+  for (const [r, al] of [[1.2, 1], [2.6, .6], [4.6, .34], [7, .16]]) { g.globalAlpha = al; for (let k = 0; k < 20; k++) { const a = k / 20 * Math.PI * 2; g.drawImage(t, pad + Math.cos(a) * r * sc, pad + Math.sin(a) * r * sc); } }
+  g.globalAlpha = 1; g.globalCompositeOperation = 'destination-out'; g.drawImage(t, pad, pad);
+  const o = { c, pad: pad / sc }; s.ring.set(key, o); return o;
+};
+// um ponto qualquer do contorno (e para onde ele "olha"); `sz` diminui a chama na borda de baixo para não cobrir a carta
+const edgeOf = (f: Frame) => {
+  const s = silOf(f.img); if (!s || !s.edge.length) return { x: f.x + R(-f.w / 2, f.w / 2), y: f.y - f.h / 2, nx: 0, ny: -1, sz: 1 };
+  const q = s.edge[(Math.random() * s.edge.length) | 0]; return { x: f.x - f.w / 2 + q.u * f.w, y: f.y - f.h / 2 + q.v * f.h, nx: q.nx, ny: q.ny, sz: q.ny > .5 ? .45 : q.ny < -.3 ? 1 : .8 };
+};
+const drawRing = (f: Frame, rgb: string, alpha: number) => { const r = ringOf(f, rgb); if (!r || alpha < .01) return; const sc = RES * U; ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.min(1, alpha); ctx.drawImage(r.c, f.x - f.w / 2 - r.pad, f.y - f.h / 2 - r.pad, r.c.width / sc, r.c.height / sc); ctx.globalAlpha = 1; };
 const auraSlots = (L: Layer) => [...L.armed.map(slot => ({ slot, k: 1 })), { slot: 11, k: 1 }];
 function layerTick(L: Layer, dt: number) {
   L.age += dt; const target = L.end != null ? 0 : L.tgt; L.I += (target - L.I) * Math.min(1, dt * 1.7);
   const I = L.I, d = dirOf(L.side), cs = cols(L.side), ey = edgeY(L.side); if (!cs[0]) return;
   if (L.kind === 'forja') {
     const pal = L.mode === 'afiacao' ? 'w' : 'r';
-    for (const s of auraSlots(L)) { const r = rc(L.side, s.slot); if (!r) continue; s.k = Math.max(0, s.k); const targ = L.held.has(s.slot) ? 0 : 1; const cur = L.aura[s.slot] ?? 0; L.aura[s.slot] = cur + (targ - cur) * Math.min(1, dt * 3); const k = (s.slot === 11 ? 1 : L.aura[s.slot]) * Math.min(1, I / .6);
-      if (k < .05) continue; for (let c = dt * 30 * k; c > 0; c -= 1) { if (Math.random() >= c) continue; const e = edgePoint(r); flame(e.x, e.y, R(8, 13) * (.55 + .45 * k) * e.sz, { vx: e.nx * 10 + R(-5, 5), vy: -R(30, 62) + e.ny * 8, a: .62 * k + .1, life: R(.4, .8), dir: -1, pal, lay: 0 }); }
-      if (Math.random() < dt * 5 * k) ember(r.x + R(-r.w / 2, r.w / 2), r.y - r.h / 2, { lay: 0, vy: -R(40, 90) }); }
+    for (const s of auraSlots(L)) { const r = frameOf(L.side, s.slot); if (!r) continue; s.k = Math.max(0, s.k); const targ = L.held.has(s.slot) ? 0 : 1; const cur = L.aura[s.slot] ?? 0; L.aura[s.slot] = cur + (targ - cur) * Math.min(1, dt * 3); const k = (s.slot === 11 ? 1 : L.aura[s.slot]) * Math.min(1, I / .6);
+      if (k < .05) continue; for (let c = dt * 30 * k; c > 0; c -= 1) { if (Math.random() >= c) continue; const e = edgeOf(r); flame(e.x, e.y, R(8, 13) * (.55 + .45 * k) * e.sz, { vx: e.nx * 10 + R(-5, 5), vy: -R(30, 62) + e.ny * 8, a: .62 * k + .1, life: R(.4, .8), dir: -1, pal, lay: 0 }); }
+      if (Math.random() < dt * 5 * k) ember(r.x + R(-r.w / 3, r.w / 3), r.y - r.h / 2, { lay: 0, vy: -R(40, 90) }); }
   } else if (L.kind === 'fogo') {
     for (let k = 0; k < 2; k++) { const lit = L.lit[k]; if (lit <= 0) continue; const x = k ? cs[4] + 39 : cs[0] - 39, f2 = rc(L.side, 2), yb = f2 ? f2.y + f2.h / 2 : ey;
       if (Math.random() < dt * 45 * lit) flame(x + R(-5, 5), yb - 70, R(9, 15), { vy: -R(50, 95), a: .9, dir: -1, lay: 0 }); if (Math.random() < dt * 8 * lit) spawn({ kind: 'smoke', x: x + R(-4, 4), y: yb - 90, vx: R(6, 22) * (k ? -1 : 1), vy: R(-30, -50), s: R(10, 16), a: .3, life: R(1.6, 2.4), lay: 0 }); if (Math.random() < dt * 12 * lit) ember(x + R(-5, 5), yb - 72, { lay: 0 }); }
   } else if (L.kind === 'arsenal') {
-    if (Math.random() < dt * 5 * I && L.armed.length) { const i = L.armed[(Math.random() * L.armed.length) | 0], r = rc(L.side, i); if (r) spawn({ kind: 'glint', x: r.x + R(-30, 30), y: r.y + R(-44, 44), s: R(6, 10), life: .7, rgb: '215,240,255', lay: 0 }); }
+    if (Math.random() < dt * 5 * I && L.armed.length) { const i = L.armed[(Math.random() * L.armed.length) | 0], r = frameOf(L.side, i); if (r) { const e = edgeOf(r); spawn({ kind: 'glint', x: e.x, y: e.y, s: R(6, 10), life: .7, rgb: '215,240,255', lay: 0 }); } }
   }
 }
 // desenha uma camada (ctx = canvas de baixo)
@@ -112,20 +136,16 @@ function layerDraw(L: Layer) {
   const I = L.I, d = dirOf(L.side), cs = cols(L.side), ey = edgeY(L.side); if (!cs[0] || I < .02) return; const t = L.age;
   if (L.kind === 'forja') {
     const white = L.mode === 'afiacao';
-    for (const s of auraSlots(L)) { const r = rc(L.side, s.slot); if (!r) continue; const k = (s.slot === 11 ? 1 : L.aura[s.slot] ?? 0) * Math.min(1, I / .6); if (k < .03) continue; const fl = .8 + .2 * Math.sin(t * 9 + r.x * .1);
-      glow(r.x, r.y, 66, white ? '255,225,150' : '255,130,40', .16 * k * fl);
-      ctx.globalCompositeOperation = 'lighter'; const rr = (a: number, b: number) => { ctx.beginPath(); (ctx as any).roundRect(r.x - r.w / 2 - a, r.y - r.h / 2 - a, r.w + a * 2, r.h + a * 2, 7 + a); };
-      rr(3, 0); ctx.strokeStyle = white ? `rgba(255,235,170,${.16 * k * fl})` : `rgba(255,120,35,${.2 * k * fl})`; ctx.lineWidth = 7; ctx.stroke();
-      rr(1, 0); ctx.strokeStyle = white ? `rgba(255,252,225,${.5 * k * fl})` : `rgba(255,190,100,${.5 * k * fl})`; ctx.lineWidth = 2.2; ctx.stroke(); }
+    for (const s of auraSlots(L)) { const r = frameOf(L.side, s.slot); if (!r) continue; const k = (s.slot === 11 ? 1 : L.aura[s.slot] ?? 0) * Math.min(1, I / .6); if (k < .03) continue; const fl = .8 + .2 * Math.sin(t * 9 + r.x * .1);
+      glow(r.x, r.y, 60, white ? '255,225,150' : '255,130,40', .1 * k * fl); drawRing(r, white ? '255,225,140' : '255,115,35', .9 * k * fl); }
   } else if (L.kind === 'fogo') {
     const f2 = rc(L.side, 2), yb = f2 ? f2.y + f2.h / 2 : ey;
     for (let k = 0; k < 2; k++) { const x = k ? cs[4] + 39 : cs[0] - 39; tower(x, yb, 1); if (L.lit[k] > 0) glow(x, yb - 70, 56 + 7 * Math.sin(t * 11), '255,150,50', .42 * L.lit[k]); }
   } else if (L.kind === 'arsenal') {
     const mid = (rc(L.side, 2)?.y ?? 0) + d * 0 , h = rc(L.side, 2)?.h ?? 71;
     const g = ctx.createLinearGradient(0, ey - h * 1.2, 0, ey + h * 1.8); g.addColorStop(0, 'rgba(160,210,255,0)'); g.addColorStop(.5, `rgba(170,215,255,${.14 * I + .03 * Math.sin(t * 2)})`); g.addColorStop(1, 'rgba(160,210,255,0)'); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(0, ey - h * 1.2, window.innerWidth / U, h * 3); void mid;
-    for (const i of L.armed) { const r = rc(L.side, i); if (!r) continue; ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgba(190,232,255,${.3 * I + .1 * Math.sin(t * 2 + r.x)})`; ctx.lineWidth = 2; ctx.beginPath(); (ctx as any).roundRect(r.x - r.w / 2 - 1, r.y - r.h / 2 - 1, r.w + 2, r.h + 2, 7); ctx.stroke();
-      for (let k = 0; k < 6; k++) { const side = k % 4, o = ((k * 53 + i * 17) % 100) / 100 * 1.6 - .8, hw = r.w / 2, hh = r.h / 2; let bx: number, by: number, dx = 0, dy = 0; if (side === 0) { bx = r.x + o * hw * .9; by = r.y - hh; dy = -1; } else if (side === 1) { bx = r.x - hw; by = r.y + o * hh * .9; dx = -1; } else if (side === 2) { bx = r.x + hw; by = r.y + o * hh * .9; dx = 1; } else { bx = r.x + o * hw * .9; by = r.y + hh; dy = 1; }
-        const len = (6 + (k * 7 % 9)) * clamp(I * 1.1) * (.9 + .1 * Math.sin(t * 2 + k)), w = (2.6 + (k % 3)) * clamp(I * 1.1), nx = -dy, ny = dx; const gr = ctx.createLinearGradient(bx, by, bx + dx * len, by + dy * len); gr.addColorStop(0, 'rgba(210,240,255,.8)'); gr.addColorStop(1, 'rgba(120,190,255,.2)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(bx - nx * w, by - ny * w); ctx.lineTo(bx + dx * len, by + dy * len); ctx.lineTo(bx + nx * w, by + ny * w); ctx.closePath(); ctx.fill(); } }
+    for (const i of L.armed) { const r = frameOf(L.side, i); if (!r) continue; const sl = silOf(r.img); drawRing(r, '170,220,255', .8 * I + .1 * Math.sin(t * 2 + r.x)); if (!sl || !sl.edge.length) continue;
+      ctx.globalCompositeOperation = 'lighter'; for (let k = 0; k < 9; k++) { const q = sl.edge[(k * 37 + i * 11) % sl.edge.length], px = r.x - r.w / 2 + q.u * r.w, py = r.y - r.h / 2 + q.v * r.h, len = (5 + (k * 7 % 9)) * clamp(I * 1.1) * (.9 + .1 * Math.sin(t * 2 + k)), w = (2.2 + (k % 3)) * clamp(I * 1.1), nx = -q.ny, ny = q.nx; const gr = ctx.createLinearGradient(px, py, px + q.nx * len, py + q.ny * len); gr.addColorStop(0, 'rgba(210,240,255,.85)'); gr.addColorStop(1, 'rgba(120,190,255,.2)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(px - nx * w, py - ny * w); ctx.lineTo(px + q.nx * len, py + q.ny * len); ctx.lineTo(px + nx * w, py + ny * w); ctx.closePath(); ctx.fill(); } }
   }
 }
 function nightTick(dt: number) {
