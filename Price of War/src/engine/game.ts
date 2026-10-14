@@ -74,6 +74,7 @@ export const createMatch = (opts: MatchOptions): { state: GameState; events: Gam
   ([0, 1] as Seat[]).forEach(seat => {
     const p = s.players[seat];
     p.drawPile = shuffled(s, p.deckList);   // the deck is shuffled once; from here on cards only leave it
+    c.ev.push({ t: 'shuffle', seat, start: true });
     p.board[GENERAL_SLOT] = cardFromName(s, p.general, 'g');
     for (let i = 0; i < START_HAND; i++) drawCards(c, seat, 1, 'deal');
   });
@@ -776,6 +777,7 @@ const choose = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'choose' }>) => {
   } else if (pend.mode === 'deck_search') {
     takeFromDeck(p, picked[0].name);
     p.drawPile = shuffled(c.s, p.drawPile);
+    c.ev.push({ t: 'shuffle', seat });
     toHand(picked[0]);
     log(c, seat, `${picked[0].name} adicionada à mão!`, true);
   } else if (pend.mode === 'top_reveal') {
@@ -800,6 +802,7 @@ const choose = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'choose' }>) => {
       c.ev.push({ t: 'summon', seat, slot, card: copy });
     });
     p.drawPile = shuffled(c.s, p.drawPile);
+    c.ev.push({ t: 'shuffle', seat });
     log(c, seat, `${picked.length} soldado(s) convocado(s)! Deck embaralhado.`);
   }
   if (pend.source) discard(c, seat, pend.source);

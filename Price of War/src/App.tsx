@@ -232,8 +232,9 @@ import { playSfx, preloadSfx, dbgMark } from './sfx';
 import { fxTactic, fxHero, fxRanged, fxLanding, fxUpkeep, fxGoldGain, fxRelicSoldo, fxLoot, fxPlaced, fxReformar, fxAmbush, fxCalice, fxHospitalario, fxNobre, fxReforco, fxComandante, fxRetorno, fxAtirador, preloadHolyFx, preloadCombatFx, type FxEnv, type FxRect, type FxSide, type FxTarget } from './combatFx';
 import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettings, subscribeAudio } from './audioSettings';
 import { useGameSettings, setGameSettings, getGameSettings } from './gameSettings';
-import { fxLand, fxImpact, fxBurn, burnMaskSheet, BURN, fxLunge, fxDrop, fxArrows, fxHintFrame, type ArrowSpec } from './cardFx';
+import { fxLand, fxImpact, fxBurn, burnMaskSheet, BURN, fxLunge, fxDrop, fxArrows, fxHintFrame, fxDrawFollow, type ArrowSpec } from './cardFx';
 import gsap from 'gsap';
+import { fxShuffle } from './shuffleFx';
 import tutHandSprite from './assets/tut-hand.webp';
 import type { Trigger } from './engine/types';
 import { preloadTerrainFx, syncTerrainFx, clearTerrainFx, type TerrainFxKind } from './terrainFx';
@@ -291,7 +292,7 @@ const ALL_PRELOAD_IMAGES: string[] = [
 // at module level so playCardDrawSfx (below) can delay its cue to match, instead
 // of firing the instant the draw is logically resolved, well before the card is
 // actually visible.
-const DRAW_FLIGHT_MS = 750;
+const DRAW_FLIGHT_MS = 850;
 
 // One-shot SFX helper — a fresh Audio() per call (rather than one shared/reused
 // element) so overlapping draws (e.g. Convocação dos Veteranos de Fé drawing several cards at
@@ -6014,7 +6015,7 @@ export default function App() {
     };
     // Test hook: the client-side flow state (what is pending, which effect floats, how many glows are still playing).
     (window as any).__powFlow = () => ({ ability: pendingAbilityRef.current, floating: trigActiveIdRef.current, glows: trigGlowPendingRef.current });
-    (window as any).__cardFx = { fxLand, fxHintFrame };   // teste (`?debug`)
+    (window as any).__cardFx = { fxLand, fxHintFrame, shuffle: (side: 'player' | 'npc') => fxShuffle(side === 'player' ? playerDeckRef.current : npcDeckRef.current) };   // teste (`?debug`)
     (window as any).__campoFx = { fxForjaEquip, fxFogoEquip, fxArsenalEquip, fxMata, fxForjaPlaced, fxFogoPlaced, fxArsenalPlaced, fxNoiteTrail };   // teste: dispara um efeito do Campo direto (`?debug`)
     (window as any).__powAct = (seat: Seat, action: EngineAction) => { const r = dispatchActionRef.current(seat, action); return r.ok ? { ok: true } : r; };
     (window as any).__powSet = (mutate: (s: GameState) => void) => {
@@ -6521,6 +6522,7 @@ export default function App() {
       if (e.t === 'play' && getCardDef(e.card.name)?.fx === 'reformar') run(fxReformar(env, sideOf(e.seat)));
       if (e.t === 'play' && getCardDef(e.card.name)?.fx === 'noite') run(fxNoitePlay());
       // Forja: quando uma unidade fica Armada, o Terreno lança o fogo até ela
+      if (e.t === 'shuffle' && !e.start && getGameSettings().fxNovo) run(fxShuffle(e.seat === 0 ? playerDeckRef.current : npcDeckRef.current));
       if (e.t === 'equip') { const bd = cur.players[e.seat].board, tf = getCardDef(bd[11]?.name ?? '')?.fx, rf = getCardDef(bd[10]?.name ?? '')?.fx;
         if (tf === 'forja') run(fxForjaEquip(sideOf(e.seat), e.slot)); else if (tf === 'fogo') run(fxFogoEquip(sideOf(e.seat), e.slot)); else if (rf === 'arsenal') run(fxArsenalEquip(sideOf(e.seat), e.slot)); }
       // Noite Sem Parar: cada movimento que gasta um movimento extra deixa rastro de tocha
@@ -9484,6 +9486,7 @@ export default function App() {
           <AnimatePresence>
             {hand.map((card, i) => {
               const origin = drawOriginsRef.current[card.id];
+              const arcIn = !!origin && gameSettings.fxNovo;   // new draw (src/cardFx.ts fxDrawFollow): the card leaves the deck in an arc, bigger in the middle
               // An Emboscada card the player can react with right now (see
               // maybeActivatePlayerAmbush) — gets the exact same "floating preview"
               // treatment as a manually selected card below, so the ambush prompt
@@ -9506,7 +9509,7 @@ export default function App() {
                 // explicit animate/transition below and causing a visible re-bounce each
                 // time. key alone is enough for React to keep reusing this same DOM node.
                 key={card.id}
-                ref={(el) => { handCardRefs.current[card.id] = el; }}
+                ref={(el) => { handCardRefs.current[card.id] = el; if (el && drawOriginsRef.current[card.id] && getGameSettings().fxNovo && !el.dataset.fxd) { el.dataset.fxd = '1'; fxDrawFollow(el, playerDeckRef.current?.getBoundingClientRect() ?? null, DRAW_FLIGHT_MS / 1000); } }}
                 data-hand-card
                 data-card-name={card.name}
                 className={`w-56 h-80 shrink-0 cursor-pointer relative group ${viewState === 'field' || coveredBySelected ? 'pointer-events-none' : 'pointer-events-auto'}`}
@@ -9531,14 +9534,14 @@ export default function App() {
                   opacity: isHeld ? 0.22 : tapSelected ? 1 : coveredBySelected ? 0 : viewState === 'field'
                     ? (isFocused ? 1 : 0.4)
                     : (ambushPrompt && !isFocused ? 0.3 : 1),
-                  x: isFocused && viewState === 'field' ? getSelectedCardX(i) : tapSelected ? getTappedCardShift(i) : 0,
+                  x: arcIn ? [origin.x, origin.x * 0.42, 0] : isFocused && viewState === 'field' ? getSelectedCardX(i) : tapSelected ? getTappedCardShift(i) : 0,
                   // Float the previewed card up near the vertical center of the real screen
                   // instead of sitting down at the hand's normal resting height (see
                   // getSelectedCardY above for how mobile's handScale is compensated for).
                   // (the resting hand sits partly below the screen edge on mobile, so the lift also brings it back up)
-                  y: isFocused && viewState === 'field' ? getSelectedCardY() : tapSelected ? getFanLift(i) - (isMobile ? HAND_CARD_HEIGHT * 0.22 : 0) - 24 : getFanLift(i),
-                  scale: isFocused && viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) : tapSelected ? HAND_SELECT_SCALE : 1,
-                  rotateZ: isFocused || viewState === 'field' ? 0 : getFanRotation(i),
+                  y: arcIn ? [origin.y, origin.y * 0.4 - 150, getFanLift(i)] : isFocused && viewState === 'field' ? getSelectedCardY() : tapSelected ? getFanLift(i) - (isMobile ? HAND_CARD_HEIGHT * 0.22 : 0) - 24 : getFanLift(i),
+                  scale: arcIn ? [origin.scale, 1.14, 1] : isFocused && viewState === 'field' ? (isMobile ? FIELD_PREVIEW_SCALE.mobile : FIELD_PREVIEW_SCALE.desktop) : tapSelected ? HAND_SELECT_SCALE : 1,
+                  rotateZ: arcIn ? [0, -9, getFanRotation(i)] : isFocused || viewState === 'field' ? 0 : getFanRotation(i),
                   zIndex: isFocused && !tapSelected ? 150 : i + 1,
                   // boxShadow lives on the front face now (see below), not here: a shadow
                   // on THIS element is a flat 2D box that doesn't perspective-foreshorten
@@ -9561,7 +9564,7 @@ export default function App() {
                 // next card) goes back to the normal snappy transition.
                 transition={{
                   duration: origin ? DRAW_FLIGHT_MS / 1000 : 0.4,
-                  ease: "easeOut",
+                  ...(arcIn ? { times: [0, 0.5, 1], ease: ['easeOut', 'easeInOut'] } : { ease: 'easeOut' }),
                   zIndex: { delay: isFocused ? 0 : 0.4 },
                 }}
                 onAnimationComplete={() => { delete drawOriginsRef.current[card.id]; }}
@@ -9589,7 +9592,7 @@ export default function App() {
                     initial={{ rotateY: origin ? 0 : 180 }}
                     animate={{ rotateY: 180 }}
                     transition={origin
-                      ? { delay: DRAW_FLIGHT_MS * 0.55 / 1000, duration: DRAW_FLIGHT_MS * 0.4 / 1000, ease: "easeInOut" }
+                      ? (arcIn ? { delay: DRAW_FLIGHT_MS * 0.3 / 1000, duration: DRAW_FLIGHT_MS * 0.4 / 1000, ease: 'easeInOut' } : { delay: DRAW_FLIGHT_MS * 0.55 / 1000, duration: DRAW_FLIGHT_MS * 0.4 / 1000, ease: "easeInOut" })
                       : { duration: 0 }
                     }
                   >

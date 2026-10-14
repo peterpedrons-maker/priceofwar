@@ -367,6 +367,8 @@ export type GameEvent =
   | { t: 'upkeep'; seat: Seat; paid: number; dismissed: number }
   | { t: 'dismissed'; seat: Seat; slot: number; card: Card; toHand: boolean }
   | { t: 'relic_mode'; seat: Seat; mode: string; slot?: 10 | 11 }
+  // The deck was shuffled (`start`: the one at the beginning of the match). Only for the effect on screen: carries no card.
+  | { t: 'shuffle'; seat: Seat; start?: boolean }
   | { t: 'winner'; seat: Seat }
   // Plain-language line for the UI toast/log (pt-BR).
   // `private`: only the acting seat gets to read it (it names a card taken from the deck/hand).

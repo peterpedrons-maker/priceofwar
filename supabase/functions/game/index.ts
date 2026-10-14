@@ -1717,6 +1717,7 @@ var createMatch = (opts) => {
   [0, 1].forEach((seat) => {
     const p = s.players[seat];
     p.drawPile = shuffled(s, p.deckList);
+    c.ev.push({ t: "shuffle", seat, start: true });
     p.board[GENERAL_SLOT] = cardFromName(s, p.general, "g");
     for (let i = 0; i < START_HAND; i++) drawCards(c, seat, 1, "deal");
   });
@@ -2359,6 +2360,7 @@ var choose = (c, seat, a) => {
   } else if (pend.mode === "deck_search") {
     takeFromDeck(p, picked[0].name);
     p.drawPile = shuffled(c.s, p.drawPile);
+    c.ev.push({ t: "shuffle", seat });
     toHand(picked[0]);
     log(c, seat, `${picked[0].name} adicionada \xE0 m\xE3o!`, true);
   } else if (pend.mode === "top_reveal") {
@@ -2383,6 +2385,7 @@ var choose = (c, seat, a) => {
       c.ev.push({ t: "summon", seat, slot, card: copy });
     });
     p.drawPile = shuffled(c.s, p.drawPile);
+    c.ev.push({ t: "shuffle", seat });
     log(c, seat, `${picked.length} soldado(s) convocado(s)! Deck embaralhado.`);
   }
   if (pend.source) discard(c, seat, pend.source);

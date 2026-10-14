@@ -306,3 +306,22 @@ export function fxArrows(list: ArrowSpec[]) {
     if (!arrowItem) { arrowItem = true; add(dt => { ast.t += dt; if (!arrows.length && ast.a <= .01) { arrowItem = false; return false; } arrows.forEach((s, i) => { cx.save(); drawArrow(s, i, ast.a); cx.restore(); }); return true; }); }
   } else gsap.to(ast, { a: 0, duration: .14, overwrite: true });
 }
+
+// ── 7. compra de carta ────────────────────────────────────────────────────────────────────────────────────────────────
+// A carta comprada é o próprio card da mão (o framer-motion leva ela do baralho até o leque em arco, virando no meio); aqui o canvas acompanha o voo:
+// o topo do baralho acende ao sair, a carta deixa um rastro de luz que afina, no meio da virada solta um brilho com faíscas e na chegada dá um pulso.
+export function fxDrawFollow(el: HTMLElement, deck: CardRect | null, sec: number) {
+  const st = { t: 0 }; let done = false, flipped = false, landed = false; const trail: { x: number; y: number }[] = [];
+  gsap.to(st, { t: 1, duration: sec, ease: 'none', onComplete: () => { done = true; } });
+  if (deck) run(.5, 'power2.out', k => { const c = ctr(deck); softGlow(c.x, c.y, deck.width * (.7 + .5 * k), '255,228,160', (1 - k) * .75); cx.globalCompositeOperation = 'lighter'; cx.strokeStyle = `rgba(255,236,190,${(1 - k) * .7})`; cx.lineWidth = 2.4; cx.beginPath(); cx.roundRect(deck.left - 2 - 8 * k, deck.top - 2 - 8 * k, deck.width + 4 + 16 * k, deck.height + 4 + 16 * k, deck.width * .1); cx.stroke(); });
+  add(dt => {
+    if (done) return false; const r = el.getBoundingClientRect(); if (r.width < 2) return true; const c = { x: r.left + r.width / 2, y: r.top + r.height / 2 }, s = r.width / 56;
+    trail.push(c); if (trail.length > 9) trail.shift();
+    const fade = st.t < .85 ? 1 : Math.max(0, 1 - (st.t - .85) / .15);
+    for (let i = 1; i < trail.length; i++) { const a = i / trail.length; cx.globalCompositeOperation = 'lighter'; cx.strokeStyle = `rgba(255,232,170,${a * a * .45 * fade})`; cx.lineWidth = Math.min(r.width * .55, 40) * a; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(trail[i - 1].x, trail[i - 1].y); cx.lineTo(trail[i].x, trail[i].y); cx.stroke(); }
+    softGlow(c.x, c.y, r.width * .8, '255,226,160', .22 * fade);
+    if (!flipped && st.t > .42) { flipped = true; for (let i = 0; i < 12; i++) { const a = R(0, 6.283), v = R(60, 190) * s; emit({ kind: 'spark', x: c.x, y: c.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 120 * s, drag: .96, life: R(.3, .6), s: 1.4 * s, rgb: '255,240,200' }); } run(.35, 'power2.out', k => softGlow(c.x, c.y, r.width * (.6 + .9 * k), '255,246,215', (1 - k) * .7)); }
+    if (!landed && st.t > .96) { landed = true; run(.4, 'power2.out', k => softGlow(c.x, c.y, r.width * (.7 + .5 * k), '255,220,150', (1 - k) * .5)); }
+    return true;
+  });
+}
