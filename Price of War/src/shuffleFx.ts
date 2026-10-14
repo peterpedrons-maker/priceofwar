@@ -50,19 +50,22 @@ export async function fxShuffle(deckEl: HTMLElement | null, N = 16): Promise<voi
   // 2. riffle: as metades se abrem...
   const T1 = 1.3;
   cards.forEach((m, i) => { const left = i < h; tl.to(m.position, { x: left ? -CW * .56 : CW * .56, duration: .38, ease: 'power2.out' }, T1); tl.to(m.rotation, { z: left ? .24 : -.24, y: left ? .18 : -.18, duration: .38, ease: 'power2.out' }, T1); });
-  // ...e as cartas caem intercaladas, uma a uma (com um pulinho cada)
-  const T2 = T1 + .5;
-  for (let k = 0; k < N; k++) { const i = k % 2 === 0 ? k / 2 : h + (k - 1) / 2, m = cards[i], t0 = T2 + k * .045;
-    tl.to(m.position, { x: 0, duration: .22, ease: 'power2.inOut' }, t0); tl.to(m.position, { y: CH * .16, duration: .09, yoyo: true, repeat: 1, ease: 'sine.out' }, t0); tl.to(m.position, { z: gz(k), duration: .22, ease: 'power2.in' }, t0); tl.to(m.rotation, { z: 0, y: 0, duration: .22, ease: 'power2.inOut' }, t0); }
+  // ...e as cartas caem intercaladas, uma de cada vez, SEM se atravessar: cada uma sobe acima do monte, desliza para o centro e desce por cima da anterior
+  const T2 = T1 + .5, STEP = .075, hi = (N + 3) * gap;
+  for (let k = 0; k < N; k++) { const i = k % 2 === 0 ? k / 2 : h + (k - 1) / 2, m = cards[i], t0 = T2 + k * STEP;
+    tl.to(m.position, { z: hi, y: CH * .1, duration: .09, ease: 'power2.out' }, t0);                               // levanta
+    tl.to(m.position, { x: 0, duration: .13, ease: 'power2.inOut' }, t0 + .07);                                    // desliza por cima do monte
+    tl.to(m.rotation, { z: 0, y: 0, duration: .13, ease: 'power2.inOut' }, t0 + .07);
+    tl.to(m.position, { z: gz(k), y: 0, duration: .1, ease: 'power2.in' }, t0 + .19); }                            // pousa sobre a anterior
   const newOrder = Array.from({ length: N }, (_, k) => (k % 2 === 0 ? k / 2 : h + (k - 1) / 2)); newOrder.forEach((v, k) => { order[k] = v; });
-  tl.to(glow.material, { opacity: .85, duration: .2, yoyo: true, repeat: 1 }, T2 + .1);
-  // 3. corte: o bloco de cima vai para baixo
-  const T3 = T2 + N * .045 + .35, B = 6;
+  tl.to(glow.material, { opacity: .85, duration: .25, yoyo: true, repeat: 1 }, T2 + .1);
+  // 3. corte: o bloco de cima sai para o lado; os de baixo sobem; só depois o bloco entra por baixo (nunca ao mesmo tempo no mesmo lugar)
+  const T3 = T2 + N * STEP + .4, B = 6;
   for (let k = 0; k < N; k++) { const m = cards[order[k]], top = k >= N - B, nk = top ? k - (N - B) : k + B;
-    if (top) { tl.to(m.position, { x: CW * 1.05, y: CH * .22, duration: .3, ease: 'power2.out' }, T3); tl.to(m.rotation, { z: -.22, duration: .3, ease: 'power2.out' }, T3); tl.to(m.position, { x: 0, y: 0, z: gz(nk), duration: .32, ease: 'power2.inOut' }, T3 + .38); tl.to(m.rotation, { z: 0, duration: .32 }, T3 + .38); }
-    else tl.to(m.position, { z: gz(nk), duration: .32, ease: 'power2.inOut' }, T3 + .38); }
+    if (top) { tl.to(m.position, { x: CW * 1.12, y: CH * .1, z: gz(k) + 3 * gap, duration: .34, ease: 'power2.out' }, T3); tl.to(m.rotation, { z: -.18, duration: .34, ease: 'power2.out' }, T3); tl.to(m.position, { x: 0, y: 0, z: gz(nk), duration: .36, ease: 'power2.inOut' }, T3 + .85); tl.to(m.rotation, { z: 0, duration: .36 }, T3 + .85); }
+    else tl.to(m.position, { z: gz(nk), duration: .4, ease: 'power2.inOut' }, T3 + .4); }
   // 4. bate o monte para alinhar (pequeno quique) e brilha
-  const T4 = T3 + .8;
+  const T4 = T3 + 1.3;
   tl.to(stack.scale, { y: bigS * .94, duration: .08, ease: 'power2.in' }, T4).to(stack.scale, { y: bigS, duration: .22, ease: 'back.out(3)' }, T4 + .08);
   tl.to(glow.material, { opacity: .95, duration: .12 }, T4).to(glow.material, { opacity: .35, duration: .5 }, T4 + .12);
   // 5. volta para o lugar do baralho
