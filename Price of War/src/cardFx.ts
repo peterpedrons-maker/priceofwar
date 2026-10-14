@@ -266,8 +266,10 @@ const PERIOD = 1.3;
 function drawArrow(s: ArrowSpec, idx: number, a: number) {
   const dx = s.x2 - s.x1, dy = s.y2 - s.y1, dist = Math.hypot(dx, dy); if (dist < 4) return; const ux = dx / dist, uy = dy / dist;
   const t1 = exitT(ux, uy, s.w1, s.h1) - 7 * (s.w2 / 56), t2 = s.w2 * .36;   // a base entra um pouco na carta atacante: fica encostada nela
-  const p0 = { x: s.x1 + ux * t1, y: s.y1 + uy * t1 }, p1 = { x: s.x2 - ux * t2, y: s.y2 - uy * t2 }, len = Math.hypot(p1.x - p0.x, p1.y - p0.y); if (len < 10) return;
-  const k = s.w2 / 56 * Math.min(1.6, Math.max(1, .8 + len / 200));   // grande, e maior quando o alvo está longe
+  let p0 = { x: s.x1 + ux * t1, y: s.y1 + uy * t1 }; const p1 = { x: s.x2 - ux * t2, y: s.y2 - uy * t2 }; let len = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+  const k = s.w2 / 56 * Math.min(1.25, Math.max(.76, .62 + Math.max(len, 0) / 260));   // menor que antes; ainda cresce um pouco com a distância
+  // cartas coladas: a seta nunca fica só "ponta": se o caminho é curto, a base recua para dentro da carta atacante e ela sai inteira (cauda + ponta)
+  const need = (28 + 34) * k; if (len < need) { p0 = { x: p1.x - ux * need, y: p1.y - uy * need }; len = need; }
   // arco leve conforme o ângulo (alvo à direita curva para a direita; em frente, reto); liso, sem ondulação
   let px = -uy, py = ux; if (px * ux < 0) { px = -px; py = -py; }
   const bulge = Math.min(len * .28, 60 * k) * Math.min(1, Math.abs(ux) * 1.4), c = { x: (p0.x + p1.x) / 2 + px * bulge, y: (p0.y + p1.y) / 2 + py * bulge };
@@ -275,7 +277,7 @@ function drawArrow(s: ArrowSpec, idx: number, a: number) {
   const dirAt = (u: number) => { const e = .01, q0 = pos(Math.max(0, u - e)), q1 = pos(Math.min(1, u + e)), l = Math.hypot(q1.x - q0.x, q1.y - q0.y) || 1; return { x: (q1.x - q0.x) / l, y: (q1.y - q0.y) / l }; };
   const ph = ((ast.t + idx * .15) % PERIOD) / PERIOD, grow = clamp(ph / .66), uH = 1 - Math.pow(1 - grow, 2.2);
   const fade = Math.min(1, ph / .05) * (ph < .84 ? 1 : Math.max(0, 1 - (ph - .84) / .16)); const al = a * fade; if (al < .01 || uH < .02) return;
-  const headLen = 30 * k, headU = Math.min(.5, headLen / len), uShaft = Math.max(0, uH - headU), hwBase = 4.2 * k, hwTop = 8.2 * k, hwH = 19 * k;
+  const headLen = 28 * k, headU = Math.min(.5, headLen / len), uShaft = Math.max(0, uH - headU), hwBase = 4 * k, hwTop = 7.6 * k, hwH = 17.5 * k;
   const rgb = s.mine ? '255,70,44' : '60,140,255', rgbLite = s.mine ? '255,190,110' : '170,215,255', dark = s.mine ? '74,5,12' : '8,26,86';
   const N = 24, Lp: { x: number; y: number }[] = [], Rp: { x: number; y: number }[] = [];
   for (let i = 0; i <= N; i++) { const u = uShaft * i / N, q = pos(u), d = dirAt(u), hw = hwBase + (hwTop - hwBase) * (uShaft > 0 ? i / N : 1); Lp.push({ x: q.x - d.y * hw, y: q.y + d.x * hw }); Rp.push({ x: q.x + d.y * hw, y: q.y - d.x * hw }); }
