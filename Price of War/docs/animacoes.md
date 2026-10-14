@@ -444,3 +444,4 @@ Módulo próprio com dois canvas: o de **baixo** (z 30, como o `terrainFx`) guar
 - **A seta nasce na borda do atacante, corre até a mira do alvo e some ao tocá-lo; recomeça** (ciclo de 1,15 s: 80% viajando, 20% sumindo; `drawArrow` em `cardFx.ts`). Várias setas (vários alvos possíveis) ficam defasadas.
 - Visual de jogo: corpo com rabo afilado que ondula em S, ponta grande, contorno escuro grosso, degradê claro→cor cheia, faixa de brilho; curva conforme o ângulo (reta quando o alvo está em frente).
 - **Some no instante em que o ataque começa** (`!attackAnim`): não há mais seta durante a investida, nem no ataque do adversário.
+- **Sem zigue-zague** (3º feedback): a ondulação em S foi retirada; a seta segue um arco liso (só o suficiente para acompanhar o ângulo) de um lado ao outro.

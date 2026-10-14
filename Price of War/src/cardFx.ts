@@ -261,10 +261,10 @@ function drawArrow(s: ArrowSpec, idx: number, a: number) {
   const dx = s.x2 - s.x1, dy = s.y2 - s.y1, dist = Math.hypot(dx, dy); if (dist < 4) return; const ux = dx / dist, uy = dy / dist, k = s.w2 / 56;
   const t1 = exitT(ux, uy, s.w1, s.h1) - 2 * k, t2 = s.w2 * .36;
   const p0 = { x: s.x1 + ux * t1, y: s.y1 + uy * t1 }, p1 = { x: s.x2 - ux * t2, y: s.y2 - uy * t2 }, len = Math.hypot(p1.x - p0.x, p1.y - p0.y); if (len < 10) return;
-  // arco conforme o ângulo (alvo à direita curva para a direita; em frente, reto) + ondulação em S, para a seta nunca ficar dura
+  // arco uniforme conforme o ângulo (alvo à direita curva para a direita; em frente, reto); sem ondulação
   let px = -uy, py = ux; if (px * ux < 0) { px = -px; py = -py; }
-  const bulge = Math.min(len * .3, 60 * k) * Math.min(1, Math.abs(ux) * 1.4), c = { x: (p0.x + p1.x) / 2 + px * bulge, y: (p0.y + p1.y) / 2 + py * bulge }, amp = Math.min(9 * k, len * .1);
-  const pos = (u: number) => { const q = { x: (1 - u) * (1 - u) * p0.x + 2 * (1 - u) * u * c.x + u * u * p1.x, y: (1 - u) * (1 - u) * p0.y + 2 * (1 - u) * u * c.y + u * u * p1.y }, tx = 2 * (1 - u) * (c.x - p0.x) + 2 * u * (p1.x - c.x), ty = 2 * (1 - u) * (c.y - p0.y) + 2 * u * (p1.y - c.y), l = Math.hypot(tx, ty) || 1, w = amp * Math.sin(u * Math.PI * 2.2 + ast.t * 3.2 + idx) * Math.sin(Math.min(1, u * 5) * Math.PI / 2); return { x: q.x - ty / l * w, y: q.y + tx / l * w }; };
+  const bulge = Math.min(len * .3, 60 * k) * Math.min(1, Math.abs(ux) * 1.4), c = { x: (p0.x + p1.x) / 2 + px * bulge, y: (p0.y + p1.y) / 2 + py * bulge };
+  const pos = (u: number) => { const q = { x: (1 - u) * (1 - u) * p0.x + 2 * (1 - u) * u * c.x + u * u * p1.x, y: (1 - u) * (1 - u) * p0.y + 2 * (1 - u) * u * c.y + u * u * p1.y }; return q; };
   const dirAt = (u: number) => { const e = .01, q0 = pos(Math.max(0, u - e)), q1 = pos(Math.min(1, u + e)), l = Math.hypot(q1.x - q0.x, q1.y - q0.y) || 1; return { x: (q1.x - q0.x) / l, y: (q1.y - q0.y) / l }; };
   // fase do ciclo: a ponta corre de 0 a 1 em 80% do tempo (acelera no meio), depois a seta some; o corpo mede ~55% do caminho
   const ph = ((ast.t + idx * .13) % PERIOD) / PERIOD, run = clamp(ph / .8), uH = Math.pow(run, .85) * (3 - 2 * run) * .5 + run * .5;
