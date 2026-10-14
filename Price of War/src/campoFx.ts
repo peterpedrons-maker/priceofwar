@@ -7,6 +7,8 @@ import { getGameSettings } from './gameSettings';
 import type { GameState } from './engine/types';
 
 type Side = 'player' | 'npc';
+// Intensidade (pedido do dono, rodada 25): o jogador tem que perceber que há algo, sem ser agressivo. AURA = o que fica em campo; SHOT = clarões de uma vez só.
+const AURA = .5, SHOT = .7;
 interface Env { pop: (side: Side, slot: number, kind: 'atk-up' | 'hp-up' | 'swap', text: string) => void; handPoint: (side: Side) => { cx: number; cy: number; w: number; h: number } }
 
 // ── canvas e linha do tempo ─────────────────────────────────────────────────────────────────────────────────────────
@@ -37,7 +39,7 @@ const midY = () => { const a = rc('npc', 2), b = rc('player', 2); return a && b 
 
 // ── partículas ───────────────────────────────────────────────────────────────────────────────────────────────────────
 const spawn = (o: any) => { o.age = 0; o.lay = o.lay ?? 1; P.push(o); kick(); return o; };
-function glow(x: number, y: number, r: number, rgb: string, a: number, mode = 'lighter') { const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`); ctx.globalCompositeOperation = mode as GlobalCompositeOperation; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); }
+function glow(x: number, y: number, r: number, rgb: string, a: number, mode = 'lighter') { if (ctx === cxs[1]) a *= SHOT; const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`); ctx.globalCompositeOperation = mode as GlobalCompositeOperation; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); }
 function drawP(p: any) {
   const u = clamp(p.age / p.life);
   if (p.kind === 'flame') {
@@ -122,13 +124,13 @@ function layerTick(L: Layer, dt: number) {
   if (L.kind === 'forja') {
     const pal = L.mode === 'afiacao' ? 'w' : 'r';
     for (const s of auraSlots(L)) { const r = frameOf(L.side, s.slot); if (!r) continue; s.k = Math.max(0, s.k); const targ = L.held.has(s.slot) ? 0 : 1; const cur = L.aura[s.slot] ?? 0; L.aura[s.slot] = cur + (targ - cur) * Math.min(1, dt * 3); const k = (s.slot === 11 ? 1 : L.aura[s.slot]) * Math.min(1, I / .6);
-      if (k < .05) continue; for (let c = dt * 30 * k; c > 0; c -= 1) { if (Math.random() >= c) continue; const e = edgeOf(r); flame(e.x, e.y, R(8, 13) * (.55 + .45 * k) * e.sz, { vx: e.nx * 10 + R(-5, 5), vy: -R(30, 62) + e.ny * 8, a: .62 * k + .1, life: R(.4, .8), dir: -1, pal, lay: 0 }); }
-      if (Math.random() < dt * 5 * k) ember(r.x + R(-r.w / 3, r.w / 3), r.y - r.h / 2, { lay: 0, vy: -R(40, 90) }); }
+      if (k < .05) continue; for (let c = dt * 30 * k * AURA; c > 0; c -= 1) { if (Math.random() >= c) continue; const e = edgeOf(r); flame(e.x, e.y, R(8, 13) * (.55 + .45 * k) * e.sz, { vx: e.nx * 10 + R(-5, 5), vy: -R(30, 62) + e.ny * 8, a: (.62 * k + .1) * AURA, life: R(.4, .8), dir: -1, pal, lay: 0 }); }
+      if (Math.random() < dt * 5 * k * AURA) ember(r.x + R(-r.w / 3, r.w / 3), r.y - r.h / 2, { lay: 0, vy: -R(40, 90) }); }
   } else if (L.kind === 'fogo') {
     for (let k = 0; k < 2; k++) { const lit = L.lit[k]; if (lit <= 0) continue; const x = k ? cs[4] + 39 : cs[0] - 39, f2 = rc(L.side, 2), yb = f2 ? f2.y + f2.h / 2 : ey;
-      if (Math.random() < dt * 45 * lit) flame(x + R(-5, 5), yb - 70, R(9, 15), { vy: -R(50, 95), a: .9, dir: -1, lay: 0 }); if (Math.random() < dt * 8 * lit) spawn({ kind: 'smoke', x: x + R(-4, 4), y: yb - 90, vx: R(6, 22) * (k ? -1 : 1), vy: R(-30, -50), s: R(10, 16), a: .3, life: R(1.6, 2.4), lay: 0 }); if (Math.random() < dt * 12 * lit) ember(x + R(-5, 5), yb - 72, { lay: 0 }); }
+      if (Math.random() < dt * 45 * lit) flame(x + R(-5, 5), yb - 70, R(9, 15), { vy: -R(50, 95), a: .9 * AURA + .1, dir: -1, lay: 0 }); if (Math.random() < dt * 8 * lit) spawn({ kind: 'smoke', x: x + R(-4, 4), y: yb - 90, vx: R(6, 22) * (k ? -1 : 1), vy: R(-30, -50), s: R(10, 16), a: .3 * AURA, life: R(1.6, 2.4), lay: 0 }); if (Math.random() < dt * 12 * lit * AURA) ember(x + R(-5, 5), yb - 72, { lay: 0 }); }
   } else if (L.kind === 'arsenal') {
-    if (Math.random() < dt * 5 * I && L.armed.length) { const i = L.armed[(Math.random() * L.armed.length) | 0], r = frameOf(L.side, i); if (r) { const e = edgeOf(r); spawn({ kind: 'glint', x: e.x, y: e.y, s: R(6, 10), life: .7, rgb: '215,240,255', lay: 0 }); } }
+    if (Math.random() < dt * 5 * I * AURA && L.armed.length) { const i = L.armed[(Math.random() * L.armed.length) | 0], r = frameOf(L.side, i); if (r) { const e = edgeOf(r); spawn({ kind: 'glint', x: e.x, y: e.y, s: R(6, 10), life: .7, rgb: '215,240,255', lay: 0 }); } }
   }
 }
 // desenha uma camada (ctx = canvas de baixo)
@@ -137,15 +139,15 @@ function layerDraw(L: Layer) {
   if (L.kind === 'forja') {
     const white = L.mode === 'afiacao';
     for (const s of auraSlots(L)) { const r = frameOf(L.side, s.slot); if (!r) continue; const k = (s.slot === 11 ? 1 : L.aura[s.slot] ?? 0) * Math.min(1, I / .6); if (k < .03) continue; const fl = .8 + .2 * Math.sin(t * 9 + r.x * .1);
-      glow(r.x, r.y, 60, white ? '255,225,150' : '255,130,40', .1 * k * fl); drawRing(r, white ? '255,225,140' : '255,115,35', .9 * k * fl); }
+      glow(r.x, r.y, 60, white ? '255,225,150' : '255,130,40', .1 * AURA * k * fl); drawRing(r, white ? '255,225,140' : '255,115,35', .9 * AURA * k * fl); }
   } else if (L.kind === 'fogo') {
     const f2 = rc(L.side, 2), yb = f2 ? f2.y + f2.h / 2 : ey;
-    for (let k = 0; k < 2; k++) { const x = k ? cs[4] + 39 : cs[0] - 39; tower(x, yb, 1); if (L.lit[k] > 0) glow(x, yb - 70, 56 + 7 * Math.sin(t * 11), '255,150,50', .42 * L.lit[k]); }
+    for (let k = 0; k < 2; k++) { const x = k ? cs[4] + 39 : cs[0] - 39; tower(x, yb, 1); if (L.lit[k] > 0) glow(x, yb - 70, 56 + 7 * Math.sin(t * 11), '255,150,50', .42 * AURA * L.lit[k]); }
   } else if (L.kind === 'arsenal') {
     const mid = (rc(L.side, 2)?.y ?? 0) + d * 0 , h = rc(L.side, 2)?.h ?? 71;
-    const g = ctx.createLinearGradient(0, ey - h * 1.2, 0, ey + h * 1.8); g.addColorStop(0, 'rgba(160,210,255,0)'); g.addColorStop(.5, `rgba(170,215,255,${.14 * I + .03 * Math.sin(t * 2)})`); g.addColorStop(1, 'rgba(160,210,255,0)'); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(0, ey - h * 1.2, window.innerWidth / U, h * 3); void mid;
-    for (const i of L.armed) { const r = frameOf(L.side, i); if (!r) continue; const sl = silOf(r.img); drawRing(r, '170,220,255', .8 * I + .1 * Math.sin(t * 2 + r.x)); if (!sl || !sl.edge.length) continue;
-      ctx.globalCompositeOperation = 'lighter'; for (let k = 0; k < 9; k++) { const q = sl.edge[(k * 37 + i * 11) % sl.edge.length], px = r.x - r.w / 2 + q.u * r.w, py = r.y - r.h / 2 + q.v * r.h, len = (5 + (k * 7 % 9)) * clamp(I * 1.1) * (.9 + .1 * Math.sin(t * 2 + k)), w = (2.2 + (k % 3)) * clamp(I * 1.1), nx = -q.ny, ny = q.nx; const gr = ctx.createLinearGradient(px, py, px + q.nx * len, py + q.ny * len); gr.addColorStop(0, 'rgba(210,240,255,.85)'); gr.addColorStop(1, 'rgba(120,190,255,.2)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(px - nx * w, py - ny * w); ctx.lineTo(px + q.nx * len, py + q.ny * len); ctx.lineTo(px + nx * w, py + ny * w); ctx.closePath(); ctx.fill(); } }
+    const g = ctx.createLinearGradient(0, ey - h * 1.2, 0, ey + h * 1.8); g.addColorStop(0, 'rgba(160,210,255,0)'); g.addColorStop(.5, `rgba(170,215,255,${(.14 * I + .03 * Math.sin(t * 2)) * AURA})`); g.addColorStop(1, 'rgba(160,210,255,0)'); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(0, ey - h * 1.2, window.innerWidth / U, h * 3); void mid;
+    for (const i of L.armed) { const r = frameOf(L.side, i); if (!r) continue; const sl = silOf(r.img); drawRing(r, '170,220,255', (.8 * I + .1 * Math.sin(t * 2 + r.x)) * AURA); if (!sl || !sl.edge.length) continue;
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = AURA + .1; for (let k = 0; k < 9; k++) { const q = sl.edge[(k * 37 + i * 11) % sl.edge.length], px = r.x - r.w / 2 + q.u * r.w, py = r.y - r.h / 2 + q.v * r.h, len = (5 + (k * 7 % 9)) * clamp(I * 1.1) * (.9 + .1 * Math.sin(t * 2 + k)), w = (2.2 + (k % 3)) * clamp(I * 1.1), nx = -q.ny, ny = q.nx; const gr = ctx.createLinearGradient(px, py, px + q.nx * len, py + q.ny * len); gr.addColorStop(0, 'rgba(210,240,255,.85)'); gr.addColorStop(1, 'rgba(120,190,255,.2)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(px - nx * w, py - ny * w); ctx.lineTo(px + q.nx * len, py + q.ny * len); ctx.lineTo(px + nx * w, py + ny * w); ctx.closePath(); ctx.fill(); } ctx.globalAlpha = 1; }
   }
 }
 function nightTick(dt: number) {

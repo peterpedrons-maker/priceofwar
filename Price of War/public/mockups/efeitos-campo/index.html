@@ -102,6 +102,7 @@ const TERRAIN = [60, ROW.pGen], RELIC = [330, ROW.pGen];
 
 // ── board ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 const cardsEl = $('#cards'); let els = [], armed = [], played = [];
+const AURA = .5;   // intensidade do que fica em campo (pedido do dono: ~50% mais fraco)
 const R = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const eo = u => 1 - Math.pow(1 - clamp(u), 3), ei = u => clamp(u) * clamp(u), eio = u => { u = clamp(u); return u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; };
@@ -415,16 +416,16 @@ function auraLayer(kind) {
     tick(p, t, dt) { this.I += (1 - this.I) * Math.min(1, dt * 1.5);
       if (kind === 'arsenal' && Math.random() < dt * 26) spawn({ kind: 'snow', x: R(0, 390), y: -6, vx: R(-8, 10), vy: R(26, 52), s: R(1, 2.2), a: .6, life: 11.5, sway: 14, ph: R(0, 6) });
       for (const e of this.targets()) { const terr = e === holder; let k = this.k.get(e) ?? 0; k += ((this.held.has(e) ? 0 : 1) - k) * Math.min(1, dt * 3); this.k.set(e, k); const kk = (terr ? 1 : k) * Math.min(1, this.I); if (kk < .05) continue; const [x, y] = pos(e);
-        if (kind === 'fogo') { for (let c = dt * 24 * kk; c > 0; c -= 1) { if (Math.random() >= c) continue; const q = edgePt(e); flame(q.x, q.y, R(6, 10) * q.sz, { vx: q.nx * 8 + R(-5, 5), vy: -R(22, 48), a: .55 * kk, life: R(.5, .95) }); }
-          if (Math.random() < dt * 5 * kk) spawn({ kind: 'smoke', x: x + R(-26, 26), y: y - 46, vx: R(-6, 10), vy: -R(26, 40), s: R(7, 11), a: .22, life: R(1.6, 2.4), rgb: '84,76,70', back: false }); if (Math.random() < dt * 8 * kk) ember(x + R(-28, 28), y - 44, { vy: -R(40, 90) }); }
-        else if (Math.random() < dt * 14 * kk) { const q = edgePt(e); spawn({ kind: 'glint', x: q.x, y: q.y, s: R(5, 9), life: .6, rgb: '215,240,255' }); } } },
+        if (kind === 'fogo') { for (let c = dt * 24 * kk * AURA; c > 0; c -= 1) { if (Math.random() >= c) continue; const q = edgePt(e); flame(q.x, q.y, R(6, 10) * q.sz, { vx: q.nx * 8 + R(-5, 5), vy: -R(22, 48), a: .55 * kk * AURA + .08, life: R(.5, .95) }); }
+          if (Math.random() < dt * 5 * kk) spawn({ kind: 'smoke', x: x + R(-26, 26), y: y - 46, vx: R(-6, 10), vy: -R(26, 40), s: R(7, 11), a: .22 * AURA, life: R(1.6, 2.4), rgb: '84,76,70', back: false }); if (Math.random() < dt * 8 * kk * AURA) ember(x + R(-28, 28), y - 44, { vy: -R(40, 90) }); }
+        else if (Math.random() < dt * 14 * kk * AURA) { const q = edgePt(e); spawn({ kind: 'glint', x: q.x, y: q.y, s: R(5, 9), life: .6, rgb: '215,240,255' }); } } },
     draw(p, t) { const I = Math.min(1, this.I); ctx = cF; ctx.globalCompositeOperation = 'lighter';
       for (const e of this.targets()) { const terr = e === holder; const k = (terr ? 1 : this.k.get(e) ?? 0) * I; if (k < .03) continue; const [x, y] = pos(e), fl = .8 + .2 * Math.sin(t * 9 + x * .1);
         const ring = ringOf(e, kind === 'fogo' ? '255,120,40' : '170,220,255'), bx = boxOf(e);
-        if (ring) { ctx.globalAlpha = Math.min(1, (kind === 'fogo' ? .85 : .7) * k * (kind === 'fogo' ? fl : 1)); ctx.drawImage(ring.c, bx.x - bx.w / 2 - ring.pad, bx.y - bx.h / 2 - ring.pad, ring.c.width / RES, ring.c.height / RES); ctx.globalAlpha = 1; }
-        if (kind === 'fogo') glow(x, y, 62, '255,120,40', .1 * k * fl);
-        else { glow(x, y, 62, '150,210,255', .08 * k);
-          const s = silOf(e); if (s) for (let i = 0; i < 9; i++) { const q = s.edge[(i * 37 + Math.round(x)) % s.edge.length]; const h = (5 + (i * 7 % 9)) * clamp(k * 1.1) * (.9 + .1 * Math.sin(t * 2 + i)), w = (2.2 + (i % 3)) * clamp(k * 1.1); const px = bx.x - bx.w / 2 + q.u * bx.w, py = bx.y - bx.h / 2 + q.v * bx.h, nx = -q.ny, ny = q.nx; const gr = ctx.createLinearGradient(px, py, px + q.nx * h, py + q.ny * h); gr.addColorStop(0, 'rgba(210,240,255,.85)'); gr.addColorStop(1, 'rgba(120,190,255,.2)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(px - nx * w, py - ny * w); ctx.lineTo(px + q.nx * h, py + q.ny * h); ctx.lineTo(px + nx * w, py + ny * w); ctx.closePath(); ctx.fill(); } } } } });
+        if (ring) { ctx.globalAlpha = Math.min(1, (kind === 'fogo' ? .85 : .7) * AURA * k * (kind === 'fogo' ? fl : 1)); ctx.drawImage(ring.c, bx.x - bx.w / 2 - ring.pad, bx.y - bx.h / 2 - ring.pad, ring.c.width / RES, ring.c.height / RES); ctx.globalAlpha = 1; }
+        if (kind === 'fogo') glow(x, y, 62, '255,120,40', .1 * AURA * k * fl);
+        else { ctx.globalAlpha = AURA + .1; glow(x, y, 62, '150,210,255', .08 * AURA * k);
+          const s = silOf(e); if (s) for (let i = 0; i < 9; i++) { const q = s.edge[(i * 37 + Math.round(x)) % s.edge.length]; const h = (5 + (i * 7 % 9)) * clamp(k * 1.1) * (.9 + .1 * Math.sin(t * 2 + i)), w = (2.2 + (i % 3)) * clamp(k * 1.1); const px = bx.x - bx.w / 2 + q.u * bx.w, py = bx.y - bx.h / 2 + q.v * bx.h, nx = -q.ny, ny = q.nx; const gr = ctx.createLinearGradient(px, py, px + q.nx * h, py + q.ny * h); gr.addColorStop(0, 'rgba(210,240,255,.85)'); gr.addColorStop(1, 'rgba(120,190,255,.2)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(px - nx * w, py - ny * w); ctx.lineTo(px + q.nx * h, py + q.ny * h); ctx.lineTo(px + nx * w, py + ny * w); ctx.closePath(); ctx.fill(); } ctx.globalAlpha = 1; } } } });
   layers.aura = L; return L;
 }
 // o Terreno/Relíquia já está em campo; a unidade vai ser armada
