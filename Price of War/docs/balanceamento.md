@@ -391,3 +391,10 @@ Rodada 24, deck de Campo versão 2 (soldados Armados de qualquer tipo, 2 Terreno
 N=100 (200 partidas por confronto, IA × IA): Campo 78,5% × Cardeal, 46,5% × Capitão, 56% × Mercenários; Cardeal × Capitão 42% × 58% (referência). Cortes para chegar a 50 em `docs/deck-campo.md`. Pior carta no laboratório: Noite Sem Parar (−7,1 pts).
 
 **Princípio (dono, rodada 25):** equilíbrio perfeito entre os decks base não é meta. Cardeal e Capitão serão os iniciais e o jogador muda tudo com boosters; o que importa é cada deck base ser divertido e ter uma proposta clara baseada no General. Usar o laboratório só contra extremos.
+
+## Todos contra todos, 4 decks base (rodada 26; 300 partidas por confronto, 1.800 no total, IA × IA)
+Ferramentas: `tests/balance-todos.ts` (joga) e `tests/balance-todos-report.ts` (tabelas). `N=150 OUT=balance-out/todos npx tsx tests/balance-todos.ts`, depois `npx tsx tests/balance-todos-report.ts`.
+- Vitória média: Campo 61%, Mercenários 50%, Capitão 48%, Cardeal 41%. Pior confronto: Cardeal × Campo (26% × 74%). Quem começa vence 47%.
+- Partidas duram em média 8,2 rodadas (mais curta 2, mais longa 34; mais comum 6); 63% passam da 6ª. Nenhuma ficou sem vencedor.
+- Ouro: Capitão sobra 12,9 por turno (gasta pouco); Mercenários sobra 1,3 (gasta tudo).
+- Modos: Mercenários usa Saque (79%), Quitação (41%), Soldo (37%) por 100 partidas; Campo usa Saque 47%, Afiação 40%, Trincheira 33%, Muralha 14%.
