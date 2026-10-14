@@ -846,7 +846,7 @@ Entregue (cinza recortado do mesmo jeito da primeira rodada, ver 4e–4m):
   moedas, botão "+" verde). Foram separados por componente conectado, não por
   coluna fixa, porque a pena das cartas cruza a linha da grade.
 
-Avatares: **6 entregues e integrados** (`avatar-01/02/04/05/06/07.webp`, em estilo
+Avatares: **(rodada 25) os 6 foram refeitos em óleo, ver `art-prompts/avatares.md`**; o texto abaixo é a história da primeira leva (`avatar-01/02/04/05/06/07.webp`, já apagados do repositório, estilo
 de retrato ilustrado; a primeira versão dos prompts saía realista demais e foi
 trocada, ver o trecho comum abaixo). O usuário decidiu ficar só com esses por
 enquanto; os prompts 03 e 08-24 seguem guardados. O `AvatarBadge` corta em círculo

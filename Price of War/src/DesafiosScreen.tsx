@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './desafios.css';
-import mapImage from './assets/desafios/map.webp';
 import portraitCapitao from './assets/retratos/aurelion.webp';
 import portraitCardeal from './assets/retratos/anselmo.webp';
 import portraitMercenarios from './assets/retratos/brann.webp';
@@ -24,7 +23,6 @@ const PLACES: Record<string, { px: number; py: number; region: string; lbl: stri
 const LOCKED: DzOpponent[] = [{ id: 'bardos', name: 'Aldric Língua-de-Prata', epithet: 'Menestrel do Rei', desc: 'Em breve: cantores que se dão bônus entre si; em grupo ficam difíceis de abater.' }];
 
 const MAPPX = 1150, ZOOM = MAPPX / 1024;
-const PIN_SVG = '<svg viewBox="0 0 34 52"><path d="M17 51 C5 33 1 26 1 17 A16 16 0 0 1 33 17 C33 26 29 33 17 51Z" fill="#e0b04a" stroke="#3a2406" stroke-width="2"/><circle cx="17" cy="17" r="7" fill="#1a0f06" stroke="#3a2406" stroke-width="1.5"/><circle cx="17" cy="17" r="3.2" fill="#ffe9a6"/></svg>';
 // O pino do mapa é a foto do general (círculo com aro de ouro e ponta para o local); o general ainda trancado mostra um cadeado.
 const PhotoPin = ({ img, locked, big }: { img?: string; locked?: boolean; big?: boolean }) => (
   <span className={`dz-ph${big ? ' big' : ''}${locked ? ' lock' : ''}`}><i style={locked || !img ? undefined : { backgroundImage: `url('${img}')` }}>{locked ? '🔒' : ''}</i></span>

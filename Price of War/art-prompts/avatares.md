@@ -2,7 +2,7 @@
 
 **Decisão do dono (rodada 25):** os seis avatares antigos ficaram **cartunescos** ao lado dos retratos dos Generais. Vão ser refeitos **no estilo dos retratos** (`art-prompts/retratos-generais.md`: óleo sobre tela, claro-escuro), mantendo os **mesmos personagens** (rosto, roupa e cor de fundo reconhecíveis), só que adultos e pintados, não desenho.
 
-Como gerar (cada um): anexar **1º** o retrato aprovado do Aurelion (estilo) e **2º** o avatar antigo do personagem (`src/assets/avatar-0X.webp`). Mesmo bloco de estilo de sempre. Salvar quadrado (~512 px) em `src/assets/avatares/<id>.webp` e trocar o `image` da opção em `AVATAR_OPTIONS` (`src/App.tsx`); o id não muda, então quem já escolheu continua com o mesmo personagem.
+Como gerar (cada um): anexar **1º** o retrato aprovado do Aurelion (estilo) e **2º** o avatar antigo do personagem (já trocado no jogo; está no histórico do git, ou use o avatar atual em `src/assets/avatares/`). Mesmo bloco de estilo de sempre. Salvar quadrado (~512 px) em `src/assets/avatares/<id>.webp` e trocar o `image` da opção em `AVATAR_OPTIONS` (`src/App.tsx`); o id não muda, então quem já escolheu continua com o mesmo personagem.
 
 ## Prompts (versão 2: roupa e penteado de época)
 Lição: termos modernos (bandana, faixa, lenço, bob com franja, jaqueta) saíram em roupa estranha, e o avatar antigo anexado passava o visual cartunesco. Agora: roupa descrita com nomes medievais, cláusula de precisão medieval e o avatar antigo vale **só para o rosto**.
