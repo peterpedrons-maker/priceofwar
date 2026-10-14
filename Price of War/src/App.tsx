@@ -1140,6 +1140,43 @@ const PUNCH_FRAME_W = 1.431, PUNCH_FRAME_H = 1.347, PUNCH_PAD_X = 0.2155, PUNCH_
 if (typeof Image !== 'undefined') { const warm = new Image(); warm.src = fxPunchSheet; }
 // The card flying from the hand to its slot, new version (src/cardFx.ts fxDrop for the shadow and speed lines): GSAP drives the same keyframes
 // (rise to hover over the slot, hold, drop and stop dead at FLIGHT_HIT_MS) with a little overshoot on the way up and a lift before the slam.
+// A card drawn from the deck (new effects): an overlay card that REALLY leaves the deck pile on the board (the pile glows as it lifts off), swings up in an arc,
+// spins and turns face-up on the way, and lands exactly on its place in the hand (it reads that place live, so it still lands right while the hand slides up).
+// The real hand card waits hidden (visibility) until the overlay arrives. Trail, glow and sparks follow the overlay (src/cardFx.ts fxDrawFollow).
+const DrawFlightNovo = ({ card, handEl, deckRect, onDone }: { card: CardData; handEl: HTMLElement; deckRect: DOMRect; onDone: () => void; key?: React.Key }) => {
+  const ref = useRef<HTMLDivElement>(null), flipRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current, flip = flipRef.current; if (!el || !flip) return;
+    const HW = HAND_CARD_WIDTH / 2, HH = HAND_CARD_HEIGHT / 2, D = DRAW_FLIGHT_MS / 1000 * TIME.k;
+    const sx0 = deckRect.x + deckRect.width / 2, sy0 = deckRect.y + deckRect.height / 2, s0 = deckRect.width / HAND_CARD_WIDTH;
+    const end = () => { const r = handEl.getBoundingClientRect(), m = new DOMMatrixReadOnly(getComputedStyle(handEl).transform), rot = Math.atan2(m.b, m.a), c = Math.abs(Math.cos(rot)), sn = Math.abs(Math.sin(rot)); return { x: r.left + r.width / 2, y: r.top + r.height / 2, s: r.width / (HAND_CARD_WIDTH * c + HAND_CARD_HEIGHT * sn), rot: rot * 180 / Math.PI }; };
+    const st = { p: 0 }; let sparked = false;
+    fxDrawFollow(el, deckRect, D);
+    const place = () => {
+      const e = end(), p = st.p, ease = p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+      const x = sx0 + (e.x - sx0) * ease, y = sy0 + (e.y - sy0) * ease - Math.sin(Math.PI * Math.min(1, p)) * Math.min(170, Math.abs(e.y - sy0) * .35 + 60);
+      const sc = (s0 + (e.s - s0) * ease) * (1 + .22 * Math.sin(Math.PI * p));
+      const lift = Math.min(1, p / .12), rot = (1 - ease) * (sx0 < e.x ? -16 : 16) * lift + e.rot * ease;
+      gsap.set(el, { x: x - HW, y: y - HH, scale: sc, rotation: rot, opacity: Math.min(1, p / .06) });
+      const fp = Math.min(1, Math.max(0, (p - .28) / .42)); flip.style.transform = `rotateY(${fp * fp * (3 - 2 * fp) * 180}deg)`;
+      void sparked;
+    };
+    place();
+    gsap.to(st, { p: 1, duration: D, ease: 'none', onUpdate: place, onComplete: onDone });
+    return () => { gsap.killTweensOf(st); };
+  }, []);
+  return (
+    <div ref={ref} className="pointer-events-none" style={{ position: 'fixed', left: 0, top: 0, width: HAND_CARD_WIDTH, height: HAND_CARD_HEIGHT, zIndex: 480, willChange: 'transform', transformOrigin: '50% 50%', opacity: 0 }}>
+      <div className="absolute inset-0" style={{ perspective: 1000 }}>
+        <div ref={flipRef} className="relative w-full h-full" style={{ transformStyle: 'preserve-3d' }}>
+          <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden' }}><CardBack shadow /></div>
+          <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', filter: CARD_THICKNESS_SHADOW }}><CardFace card={card} variant="hand" /></div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const FlyingCardNovo = ({ f, onDone }: { f: { card: CardData; fromX: number; fromY: number; fromW: number; fromRot?: number; fromRx?: number; fromRy?: number; toX: number; toY: number; toW: number; toH: number }; onDone: () => void; key?: React.Key }) => {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -1171,6 +1208,7 @@ const FlyingCardNovo = ({ f, onDone }: { f: { card: CardData; fromX: number; fro
 };
 
 let lastArrowKey = '';
+const drawFlightDelay = { n: 0 };
 const PunchFx = ({ x, y, w, h, heavy = false }: { x: number; y: number; w: number; h: number; heavy?: boolean }) => {
   const [frame, setFrame] = useState(0);
   useEffect(() => {
@@ -5593,6 +5631,7 @@ export default function App() {
   const blowIsSoaked = (events: GameEvent[], defSeat: Seat, slot: number) =>
     events.some(e => e.t === 'shield_hit' && e.seat === defSeat && e.slot === slot) && !events.some(e => e.t === 'damage' && e.seat === defSeat && e.slot === slot && e.amount > 0);
   // The physical-hit sprite, drawn in a layer above the board over whichever card was hit (see PunchFx).
+  const [drawFlights, setDrawFlights] = useState<{ id: string; card: CardData; handEl: HTMLElement; deckRect: DOMRect }[]>([]);
   const [landShake, setLandShake] = useState(0);   // the board shudders when a card slams down (new effects only)
   const [punchFx, setPunchFx] = useState<{ key: number; x: number; y: number; w: number; h: number; heavy: boolean } | null>(null);
   const [attackAnim, setAttackAnim] = useState<{ attackerIndex: number, targetIndex: number, isPlayerAttacking: boolean } | null>(null);
@@ -9486,7 +9525,7 @@ export default function App() {
           <AnimatePresence>
             {hand.map((card, i) => {
               const origin = drawOriginsRef.current[card.id];
-              const arcIn = !!origin && gameSettings.fxNovo;   // new draw (src/cardFx.ts fxDrawFollow): the card leaves the deck in an arc, bigger in the middle
+              const arcIn = false;   // new draw (src/cardFx.ts fxDrawFollow): the card leaves the deck in an arc, bigger in the middle
               // An Emboscada card the player can react with right now (see
               // maybeActivatePlayerAmbush) — gets the exact same "floating preview"
               // treatment as a manually selected card below, so the ambush prompt
@@ -9509,7 +9548,7 @@ export default function App() {
                 // explicit animate/transition below and causing a visible re-bounce each
                 // time. key alone is enough for React to keep reusing this same DOM node.
                 key={card.id}
-                ref={(el) => { handCardRefs.current[card.id] = el; if (el && drawOriginsRef.current[card.id] && getGameSettings().fxNovo && !el.dataset.fxd) { el.dataset.fxd = '1'; fxDrawFollow(el, playerDeckRef.current?.getBoundingClientRect() ?? null, DRAW_FLIGHT_MS / 1000); } }}
+                ref={(el) => { handCardRefs.current[card.id] = el; if (el && drawOriginsRef.current[card.id] && getGameSettings().fxNovo && !el.dataset.fxd && playerDeckRef.current) { el.dataset.fxd = '1'; el.style.visibility = 'hidden'; const dr = playerDeckRef.current.getBoundingClientRect(), cd = card, delay = (drawFlightDelay.n++) * 0.22; setTimeout(() => setDrawFlights(f => [...f, { id: cd.id, card: cd, handEl: el, deckRect: dr }]), delay * 1000); } }}
                 data-hand-card
                 data-card-name={card.name}
                 className={`w-56 h-80 shrink-0 cursor-pointer relative group ${viewState === 'field' || coveredBySelected ? 'pointer-events-none' : 'pointer-events-auto'}`}
@@ -9869,6 +9908,7 @@ export default function App() {
         })()}
       </AnimatePresence>
 
+      {drawFlights.map(f => <DrawFlightNovo key={f.id} card={f.card} handEl={f.handEl} deckRect={f.deckRect} onDone={() => { f.handEl.style.visibility = ''; setDrawFlights(l => l.filter(x => x.id !== f.id)); if (!drawFlights.some(x => x.id !== f.id)) drawFlightDelay.n = 0; }} />)}
       {equipFx && <EquipFxLayer fx={equipFx} vw={windowSize.width} vh={windowSize.height} />}
       {trigFx && <TriggerFloatLayer fx={trigFx} />}
       {iconPops.map(p => <IconPop key={p.id} x={p.x} y={p.y} icon={p.icon} label={p.label} />)}
