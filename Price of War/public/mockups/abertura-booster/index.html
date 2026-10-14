@@ -142,7 +142,7 @@ function makeTimeline() {
   tl.fromTo(pack.position, { y: 6.5 }, { y: 0, duration: 1.05, ease: 'elastic.out(1,.55)' }, 0);
   tl.fromTo(pack.rotation, { z: .5, y: -.4, x: 0 }, { z: 0, y: 0, duration: 1.1, ease: 'power3.out' }, 0);
   tl.fromTo(pack.scale, { x: 1, y: 1, z: 1 }, { x: 1, y: 1, z: 1, duration: .01 }, 0);
-  tl.call(() => { burst(0, -1.6, .5, 26, 0xffe2a0, 3.2, .08, .9, 3); shock(0, -1.55, .3, 0xffd890, 3, .7); S.shake = Math.max(S.shake, .05); }, null, .42);
+  tl.call(() => { burst(0, -1.6, .5, 26, 0xffe2a0, 3.2, .08, .9, 3); S.shake = Math.max(S.shake, .05); }, null, .42);
   tl.fromTo(S, { shake: 0 }, { shake: .0, duration: .01 }, 0);
   // 2) carga de energia
   tl.fromTo(S, { charge: 0 }, { charge: 1, duration: 2.1, ease: 'power2.in' }, 1.1);
