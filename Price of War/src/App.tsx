@@ -232,7 +232,8 @@ import { playSfx, preloadSfx, dbgMark } from './sfx';
 import { fxTactic, fxHero, fxRanged, fxLanding, fxUpkeep, fxGoldGain, fxRelicSoldo, fxLoot, fxPlaced, fxReformar, fxAmbush, fxCalice, fxHospitalario, fxNobre, fxReforco, fxComandante, fxRetorno, fxAtirador, preloadHolyFx, preloadCombatFx, type FxEnv, type FxRect, type FxSide, type FxTarget } from './combatFx';
 import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettings, subscribeAudio } from './audioSettings';
 import { useGameSettings, setGameSettings, getGameSettings } from './gameSettings';
-import { fxLand, fxImpact, fxBurn, burnMaskSheet, BURN } from './cardFx';
+import { fxLand, fxImpact, fxBurn, burnMaskSheet, BURN, fxLunge, fxDrop } from './cardFx';
+import gsap from 'gsap';
 import tutHandSprite from './assets/tut-hand.webp';
 import type { Trigger } from './engine/types';
 import { preloadTerrainFx, syncTerrainFx, clearTerrainFx, type TerrainFxKind } from './terrainFx';
@@ -618,7 +619,7 @@ const PHASE_BANNER_MOTION: Record<'in' | 'hold' | 'out', { animate: { opacity: n
 const HIT_STOP_MS = 40;
 // The attack itself: the card pulls back to gather momentum (slow, ease-out), then strikes much faster (ease-in) with a
 // corner leading, like hitting with the edge of the card. Total ATTACK_MS; the wind-up takes ATTACK_WINDUP_FRAC of it.
-const ATTACK_MS = 400;
+const ATTACK_MS = 480;
 const ATTACK_WINDUP_FRAC = 0.74;
 const ATTACK_WINDUP_PX = 46;
 const ATTACK_TILT_DEG = 17;
@@ -1136,6 +1137,34 @@ const EquipFxLayer = ({ fx, vw, vh }: { fx: { side: 'player' | 'npc'; unit: Card
 const PUNCH_FRAMES = 14, PUNCH_COLS = 5, PUNCH_ROWS = 3, PUNCH_FPS = 30;
 const PUNCH_FRAME_W = 1.431, PUNCH_FRAME_H = 1.347, PUNCH_PAD_X = 0.2155, PUNCH_PAD_Y = 0.1736;   // frame size / padding as a fraction of the card
 if (typeof Image !== 'undefined') { const warm = new Image(); warm.src = fxPunchSheet; }
+// The card flying from the hand to its slot, new version (src/cardFx.ts fxDrop for the shadow and speed lines): GSAP drives the same keyframes
+// (rise to hover over the slot, hold, drop and stop dead at FLIGHT_HIT_MS) with a little overshoot on the way up and a lift before the slam.
+const FlyingCardNovo = ({ f, onDone }: { f: { card: CardData; fromX: number; fromY: number; fromW: number; fromRot?: number; fromRx?: number; fromRy?: number; toX: number; toY: number; toW: number; toH: number }; onDone: () => void; key?: React.Key }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const HW = HAND_CARD_WIDTH / 2, HH = HAND_CARD_HEIGHT / 2, k = TIME.k;
+    const s0 = f.fromW / HAND_CARD_WIDTH, s1 = f.toW / HAND_CARD_WIDTH, hs = s0 * Math.min(3, Math.max(0.8, 190 / f.fromW)), s1y = f.toH / HAND_CARD_HEIGHT;
+    const X0 = f.fromX - HW, X1 = f.toX - HW, Y0 = f.fromY - HH, Y1 = f.toY - 86 - HH, Y2 = f.toY - HH;
+    gsap.set(el, { x: X0, y: Y0, scaleX: s0, scaleY: s0, rotation: f.fromRot ?? 0, rotationX: f.fromRx ?? 0, rotationY: f.fromRy ?? 0, transformPerspective: 900, transformOrigin: '50% 50%' });
+    fxDrop(el, { cx: f.toX, cy: f.toY, w: f.toW, h: f.toH }, .62 * k, FLIGHT_HIT_MS / 1000 * k);
+    const tl = gsap.timeline({ onComplete: onDone });
+    tl.to(el, { x: X1, y: Y1, rotation: 0, rotationX: 0, rotationY: 0, duration: .42 * k, ease: 'power3.out' }, 0);
+    tl.to(el, { scaleX: hs, scaleY: hs, duration: .42 * k, ease: 'back.out(1.5)' }, 0);
+    tl.to(el, { y: Y1 - 6, rotation: (f.toX < window.innerWidth / 2 ? 1.5 : -1.5), duration: .17 * k, ease: 'sine.inOut' }, .42 * k);      // paira, ligeiramente inclinada
+    tl.to(el, { y: Y1 - 14, rotation: 0, duration: .06 * k, ease: 'power2.out' }, .59 * k);                                       // sobe um pouco antes de cair
+    tl.to(el, { y: Y2, duration: .15 * k, ease: 'power4.in' }, .65 * k);                                                           // queda que acelera
+    tl.to(el, { scaleX: s1, scaleY: s1y, duration: .12 * k, ease: 'power2.in' }, .66 * k);                                          // toma o tamanho exato da casa antes de bater
+    tl.to({}, { duration: .2 * k }, .8 * k);                                                                                       // segura até o fim do voo (poeira, som)
+    return () => { tl.kill(); };
+  }, []);
+  return (
+    <div ref={ref} className="pointer-events-none rounded-xl flex flex-col p-2 relative" style={{ position: 'fixed', left: 0, top: 0, width: HAND_CARD_WIDTH, height: HAND_CARD_HEIGHT, zIndex: 500, willChange: 'transform', boxShadow: cardBoxShadow(f.card, 'inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 40px rgba(212,175,55,0.6)') }}>
+      <CardFace card={f.card} variant="hand" />
+    </div>
+  );
+};
+
 const PunchFx = ({ x, y, w, h, heavy = false }: { x: number; y: number; w: number; h: number; heavy?: boolean }) => {
   const [frame, setFrame] = useState(0);
   useEffect(() => {
@@ -9743,7 +9772,16 @@ export default function App() {
           Rises to a large "presentation" size above the slot, holds briefly, then descends
           straight down into place. Kept simple on purpose: no wobble, dip, or shake. */}
       <AnimatePresence>
-        {flyingCard && (() => {
+        {flyingCard && getGameSettings().fxNovo && (
+          <FlyingCardNovo key="flying-card-novo" f={flyingCard} onDone={() => {
+            if (engineRef.current) syncView(engineRef.current);
+            const big = !!flyingCard.card.isFullArt;
+            setCameraSettling({ slotIndex: flyingCard.slotIndex });
+            setFlyingCard(null);
+            setTimeout(() => setCameraSettling(null), big ? 500 : 300);
+          }} />
+        )}
+        {flyingCard && !getGameSettings().fxNovo && (() => {
           // Keep the box at the card's real intrinsic size (same as the hand card's own
           // w-56 h-80) and do ALL resizing through the scale transform, exactly like the
           // hand card does. Setting literal width/height to the small on-screen pixel
@@ -10870,6 +10908,13 @@ const CardSlot = ({
 }) => {
   const hintsBoard = useGameSettings().hintsBoard;
   const attackY = attackDirection === 'up' ? -150 : 150;
+  // New lunge (src/cardFx.ts fxLunge): GSAP moves the card through the loose CSS properties (translate/rotate/scale) while framer-motion keeps the impact.
+  const visRef = useRef<HTMLDivElement>(null), lungeRef = useRef<ReturnType<typeof fxLunge> | null>(null), novoFx = useGameSettings().fxNovo, atkF = isAttacking && !novoFx;
+  useEffect(() => {
+    if (isAttacking && novoFx && visRef.current) lungeRef.current = fxLunge(visRef.current, attackY, ATTACK_MS * TIME.k, ATTACK_WINDUP_FRAC, ATTACK_WINDUP_PX, ATTACK_TILT_DEG);
+    else if (lungeRef.current) { lungeRef.current.settle(); lungeRef.current = null; }
+  }, [isAttacking]);
+  useEffect(() => { if (isImpactingAttacker) lungeRef.current?.impact(); }, [isImpactingAttacker]);
 
   // Drop-in arrival (see arrivalDrops): decided once per card that appears in this slot.
   const arrivalRef = useRef<{ id: string; delay: number; rot: number } | null>(null);
@@ -11119,7 +11164,7 @@ const CardSlot = ({
             // way to the target — reads as the card gathering momentum instead of
             // just teleporting to its lunge position. A full-art card landing
             // elsewhere on the board makes this one flinch (see shockActive).
-            y: isAttacking
+            y: atkF
               ? [0, attackY > 0 ? -ATTACK_WINDUP_PX : ATTACK_WINDUP_PX, attackY]
               : isImpactingTarget
                 // the defender is knocked back, away from whoever hit it, and settles
@@ -11138,40 +11183,41 @@ const CardSlot = ({
             // A quick "punch" scale-up on the attacker right as it connects, and a
             // matching flinch (brief shrink) on whatever it's hitting — the same
             // push/give pairing a real collision has.
-            scale: isImpactingAttacker ? 1.32 : isAttacking ? [1, 0.93, 1.2] : isImpactingTarget ? 0.95 : 1,
+            scale: isImpactingAttacker ? 1.32 : atkF ? [1, 0.93, 1.2] : isImpactingTarget ? 0.95 : 1,
             // (no squash on landing any more: see fxLanding) — formerly a squash-and-settle
             // on just the vertical axis, like the card actually has mass hitting the
             // table, instead of the plain uniform scale-in every card used to get.
             // Left undefined the rest of the time so it just follows `scale` above.
-            scaleY: isImpactingAttacker ? 0.9 : isImpactingTarget ? 0.88 : isAttacking ? 1.08 : 1,
+            scaleY: isImpactingAttacker ? 0.9 : isImpactingTarget ? 0.88 : atkF ? 1.08 : 1,
             // Stretch on the way in, squash on contact (volume stays put, so it reads as weight).
-            scaleX: isImpactingAttacker ? 1.08 : isImpactingTarget ? 1.09 : isAttacking ? 0.96 : 1,
+            scaleX: isImpactingAttacker ? 1.08 : isImpactingTarget ? 1.09 : atkF ? 0.96 : 1,
             // the card that takes the blow is thrown off-axis for a moment and rights itself
-            rotate: isAttacking
+            rotate: atkF
               // pulls back leaning one way, then the card comes in turned so a corner leads the blow
               ? [0, attackDirection === 'up' ? ATTACK_TILT_DEG * 0.5 : -ATTACK_TILT_DEG * 0.5, attackDirection === 'up' ? -ATTACK_TILT_DEG : ATTACK_TILT_DEG]
               : isImpactingTarget ? [0, attackDirection === 'up' ? -5 : 5, 2, 0] : 0,
-            rotateX: isAttacking ? (attackDirection === 'up' ? 20 : -20) : 0,
+            rotateX: atkF ? (attackDirection === 'up' ? 20 : -20) : 0,
           }}
           transition={{
-            duration: isAttacking ? ATTACK_MS * TIME.k / 1000 : 0.2,
-            times: isAttacking ? [0, ATTACK_WINDUP_FRAC, 1] : undefined,
-            scale: isAttacking && !isImpactingAttacker
+            duration: atkF ? ATTACK_MS * TIME.k / 1000 : 0.2,
+            times: atkF ? [0, ATTACK_WINDUP_FRAC, 1] : undefined,
+            scale: atkF && !isImpactingAttacker
               ? { duration: ATTACK_MS * TIME.k / 1000, times: [0, ATTACK_WINDUP_FRAC, 1], ease: ['easeOut', 'easeIn'] }
               : { type: "spring", stiffness: 400, damping: 15 },
             scaleY: { type: "spring", stiffness: 520, damping: 16 },
             scaleX: { type: "spring", stiffness: 520, damping: 16 },
-            rotate: isAttacking && !isImpactingAttacker
+            rotate: atkF && !isImpactingAttacker
               ? { duration: ATTACK_MS * TIME.k / 1000, times: [0, ATTACK_WINDUP_FRAC, 1], ease: ['easeOut', 'easeIn'] }
               : isImpactingTarget ? { duration: 0.3, ease: "easeOut", times: [0, 0.3, 0.65, 1] } : { duration: 0.2 },
             // ease-out into the pull-back, ease-in into the strike: it accelerates all the way to the hit
-            y: isAttacking ? { duration: ATTACK_MS * TIME.k / 1000, times: [0, ATTACK_WINDUP_FRAC, 1], ease: ['easeOut', 'easeIn'] } : isImpactingTarget ? { duration: 0.3, ease: "easeOut", times: [0, 0.35, 1] } : undefined,
+            y: atkF ? { duration: ATTACK_MS * TIME.k / 1000, times: [0, ATTACK_WINDUP_FRAC, 1], ease: ['easeOut', 'easeIn'] } : isImpactingTarget ? { duration: 0.3, ease: "easeOut", times: [0, 0.35, 1] } : undefined,
             x: damageFlash
               ? { duration: 0.45, ease: "easeOut" }
               : (isImpactingAttacker || isImpactingTarget) ? { duration: 0.25, ease: "easeOut" } : undefined,
           }}
           // CARD_THICKNESS_SHADOW (see its own comment) — a resting card reads as a
           // stack of real cardstock, not a flat sheet of paper.
+          ref={visRef}
           style={{ filter: CARD_THICKNESS_SHADOW }}
           className="w-full h-full rounded-lg flex flex-col p-1 relative"
           // Lets the attack-targeting-line overlay (see attackLines/activeAttackLine

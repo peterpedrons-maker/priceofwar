@@ -153,3 +153,52 @@ export function fxBurn(r: CardRect, onThr: (frame: number) => void, onEnd?: () =
     return true;
   });
 }
+
+// ── 4. investida do ataque ────────────────────────────────────────────────────────────────────────────────────────────
+// A carta que ataca (era um vaivém do framer-motion): recua para pegar embalo (luz dourada se juntando, faíscas sendo sugadas), treme de tensão e
+// dispara com um rastro de luz e linhas de velocidade. Move a carta pelas propriedades CSS soltas (translate / rotate / scale), que se somam ao
+// `transform` do framer-motion sem brigar com ele (o framer segue cuidando do impacto: escala 1,32, tremor). O tempo total é o de sempre (ms).
+export function fxLunge(el: HTMLElement, attackY: number, ms: number, windFrac: number, windPx: number, tiltDeg: number) {
+  const dir = Math.sign(attackY) || -1, st = { y: 0, rot: 0, sc: 1, sx: 1, sy: 1, charge: 0, speed: 0 };
+  const apply = () => { el.style.translate = `0 ${st.y}px`; el.style.rotate = `${st.rot}deg`; el.style.scale = `${st.sc * st.sx} ${st.sc * st.sy}`; };
+  const w = ms / 1000 * windFrac, sdur = ms / 1000 - w;
+  const tl = gsap.timeline({ onUpdate: apply });
+  tl.to(st, { y: -dir * windPx, rot: -dir * tiltDeg * .5, sc: 1.07, charge: 1, duration: w, ease: 'power2.out' }, 0);
+  tl.to(st, { rot: `+=${dir * 1.6}`, duration: .035, repeat: 3, yoyo: true, ease: 'sine.inOut' }, w * .55);                       // tremor de tensão
+  tl.to(st, { y: attackY, rot: dir * tiltDeg, sc: 1.2, sx: .96, sy: 1.08, charge: 0, speed: 1, duration: sdur, ease: 'power3.in' }, w);
+  let trail: { x: number; y: number }[] = [], dead = false, wasEnd = false;
+  const rect = () => el.getBoundingClientRect();
+  add(dt => {
+    if (dead) return false; const r = rect(), c = ctr({ left: r.left, top: r.top, width: r.width, height: r.height }), s = r.width / 56;
+    if (st.charge > .02) { softGlow(c.x, c.y, r.width * (.8 + .5 * st.charge), '255,205,110', .32 * st.charge); rr({ left: r.left, top: r.top, width: r.width, height: r.height }, 1 + 3 * st.charge); cx.globalCompositeOperation = 'lighter'; cx.strokeStyle = `rgba(255,224,150,${.55 * st.charge})`; cx.lineWidth = 2 * s; cx.stroke();
+      if (Math.random() < dt * 40 * st.charge) { const a = R(0, 6.283), d = R(.7, 1.2) * r.width; emit({ kind: 'ember', x: c.x + Math.cos(a) * d, y: c.y + Math.sin(a) * d, vx: -Math.cos(a) * d * 2.6, vy: -Math.sin(a) * d * 2.6, drag: .9, life: .28, s: 1.4 * s, rgb: '255,210,120' }); } }
+    if (st.speed > 0) {
+      trail.push(c); if (trail.length > 7) trail.shift();
+      for (let i = 1; i < trail.length; i++) { const a = i / trail.length; cx.globalCompositeOperation = 'lighter'; cx.strokeStyle = `rgba(255,236,190,${a * .5})`; cx.lineWidth = r.width * .55 * a; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(trail[i - 1].x, trail[i - 1].y); cx.lineTo(trail[i].x, trail[i].y); cx.stroke(); }
+      for (let i = 0; i < 4; i++) { const ox = (i - 1.5) * r.width * .3, L = R(40, 90) * s; cx.strokeStyle = `rgba(255,246,220,${R(.25, .5)})`; cx.lineWidth = 1.4 * s; cx.beginPath(); cx.moveTo(c.x + ox, c.y - dir * r.height * .45); cx.lineTo(c.x + ox, c.y - dir * (r.height * .45 + L)); cx.stroke(); }
+    }
+    if (tl.progress() >= 1 && !wasEnd) { wasEnd = true; trail = []; }
+    return !(wasEnd && st.speed >= 1 && dead);
+  });
+  return {
+    impact() { gsap.to(st, { sc: 1, sx: 1, sy: 1, speed: 0, duration: .06, onUpdate: apply }); },
+    settle() { dead = true; tl.kill(); gsap.to(st, { y: 0, rot: 0, sc: 1, sx: 1, sy: 1, charge: 0, speed: 0, duration: .28, ease: 'power2.out', onUpdate: apply, onComplete: () => { el.style.translate = ''; el.style.rotate = ''; el.style.scale = ''; } }); },
+  };
+}
+
+// ── 5. carta que vem da mão ─────────────────────────────────────────────────────────────────────────────────────────────
+// Acompanha o voo da carta (el) até a casa (alvo): a sombra na casa cresce e endurece conforme ela desce (dá a noção de altura) e, na queda,
+// linhas de velocidade acima da carta. t em segundos desde o começo do voo: sobe até pairar (hover), paira, cai (de tFall a tHit).
+export function fxDrop(el: HTMLElement, target: { cx: number; cy: number; w: number; h: number }, tFall: number, tHit: number) {
+  const st = { t: 0 }; let done = false;
+  gsap.to(st, { t: tHit + .05, duration: tHit + .05, ease: 'none', onComplete: () => { done = true; } });
+  const T = { left: target.cx - target.w / 2, top: target.cy - target.h / 2, width: target.w, height: target.h };
+  add(() => {
+    if (done) return false; const k = clamp((st.t - .15) / (tHit - .15)), fall = clamp((st.t - tFall) / (tHit - tFall)), s = target.w / 56;
+    // sombra: grande, fraca e borrada no alto; do tamanho da casa e escura quando a carta toca
+    const grow = (1 - k) * .55, a = (.12 + .5 * k * k) * 1;
+    cx.globalCompositeOperation = 'source-over'; cx.save(); const g = cx.createRadialGradient(target.cx, target.cy + target.h * .04, 0, target.cx, target.cy + target.h * .04, target.w * (.75 + grow)); g.addColorStop(0, `rgba(8,4,2,${a})`); g.addColorStop(.7, `rgba(8,4,2,${a * .6})`); g.addColorStop(1, 'rgba(8,4,2,0)'); cx.fillStyle = g; cx.scale(1, 1.25); cx.beginPath(); cx.arc(target.cx, (target.cy + target.h * .04) / 1.25, target.w * (.75 + grow), 0, 7); cx.fill(); cx.restore();
+    if (fall > 0 && fall < 1) { const r = el.getBoundingClientRect(); for (let i = 0; i < 5; i++) { const ox = (i - 2) * r.width * .22, L = R(30, 80) * s * fall; cx.globalCompositeOperation = 'lighter'; cx.strokeStyle = `rgba(255,240,200,${R(.2, .45) * fall})`; cx.lineWidth = 1.4 * s; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(r.left + r.width / 2 + ox, r.top - 2); cx.lineTo(r.left + r.width / 2 + ox, r.top - 2 - L); cx.stroke(); } }
+    void T; return true;
+  });
+}
