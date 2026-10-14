@@ -1155,6 +1155,7 @@ var CARD_DEFS = [
   // Terrenos com modos (sem vida; o dono escolhe o modo no fim do turno e ele vale até o fim do turno seguinte)
   {
     name: "A Forja que Nunca Apaga",
+    fx: "forja",
     maxCopies: 2,
     cardType: "Terreno",
     atk: 0,
@@ -1168,6 +1169,7 @@ var CARD_DEFS = [
   },
   {
     name: "Posto do Fogo-Sinal",
+    fx: "fogo",
     maxCopies: 2,
     cardType: "Terreno",
     atk: 0,
@@ -1209,6 +1211,7 @@ var CARD_DEFS = [
   },
   {
     name: "Noite Sem Parar",
+    fx: "noite",
     cardType: "T\xE1tica",
     atk: 0,
     hp: 0,
@@ -1218,6 +1221,7 @@ var CARD_DEFS = [
   },
   {
     name: "A Mata Devolve",
+    fx: "mata",
     cardType: "Emboscada",
     atk: 0,
     hp: 0,
@@ -1237,6 +1241,7 @@ var CARD_DEFS = [
   },
   {
     name: "Arsenal dos Mil Invernos",
+    fx: "arsenal",
     maxCopies: 2,
     trigger: "postura",
     cardType: "Rel\xEDquia",

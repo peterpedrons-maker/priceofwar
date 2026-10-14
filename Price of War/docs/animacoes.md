@@ -361,7 +361,7 @@ Arte gerada pelo dono (castelo: torre, muros e portão; acampamento: barracas, a
 - **Cura do General (Cardeal Anselmo):** volta a ser a antiga (`fxHero('cura', ...)`: ele ergue a marreta e a luz desce até quem foi curado); a `fxBencao` ficou no código mas não é mais usada.
 
 
-## Efeitos do Campo (mockup, ainda não estão no jogo)
+## Efeitos do Campo (no jogo desde a rodada 25; mockup aprovado)
 Mockup em `public/mockups/efeitos-campo/` (`/priceofwar/mockups/efeitos-campo/`): uma página só, tabuleiro real com as cartas do Campo (embaixo) contra o Capitão (em cima), sem sprites: tudo desenhado por código em dois canvas (um **atrás** das cartas, para brilhos de chão, outro **na frente**), com partículas (chama mole, brasa, faísca, fumaça, poeira, neve, folha, brilho, anel). Teste sem aparelho: `?manual` + `window.__run('forja'|'fogo'|'noite'|'mata'|'arsenal')` e `window.__step(segundos)`; `window.__do('forja-muralha')` etc. para os modos.
 - **A Forja que Nunca Apaga:** a carta sobe ao centro, voa para o espaço de Terreno e dá três marteladas (anel, faíscas em leque, poeira); uma onda de fogo corre pelo campo e fica uma forja baixa permanente (chamas atrás da fileira da frente, brasas, brilho laranja em cada Armada). Modo Muralha: aro de pedra-brasa e "+2" de vida; modo Afiação: lâmina de luz passando e "+2" de ataque.
 - **Posto do Fogo-Sinal:** torre de sinal à esquerda acende, uma bola de fogo atravessa o meio do tabuleiro deixando brasas e acende a torre da direita. Saque: a unidade inimiga vira brasa e uma carta voa para a mão ("+1 carta"). Trincheira: barrancos de terra sobem à frente das Armadas e "-1" de dano.
@@ -371,3 +371,17 @@ Mockup em `public/mockups/efeitos-campo/` (`/priceofwar/mockups/efeitos-campo/`)
 Aprovando, o próximo passo é ligar ao jogo (campo `fx` das cartas, `src/combatFx.ts`, `docs/animacoes.md` "No jogo"); os efeitos permanentes (Forja, Fogo-Sinal, Arsenal) seguem o padrão do `terrainFx.ts`.
 
 GIFs do mockup do Campo (não ficam no repositório, pesam ~25 MB): `node tools/vfx/mockup-src/gravar-campo.cjs <url> <pasta>` grava os quadros (20 por segundo, avançando a simulação à mão e sincronizando as animações CSS e os `setTimeout`) e `python3 tools/vfx/mockup-src/montar-campo.py <pasta> <saida> 240 64` monta os GIFs (15 quadros por segundo, uma paleta só por GIF, que é o que mantém cada um em ~2 a 3,5 MB).
+
+### No jogo (`src/campoFx.ts`)
+Módulo próprio com dois canvas: o de **baixo** (z 30, como o `terrainFx`) guarda o que **fica em campo** e o de **cima** (z 285, como o `combatFx`) toca os efeitos de **uma vez só**. Coordenadas "de projeto" (carta = 64), posições lidas do DOM (`player-N` / `npc-N`), igual aos outros efeitos. O campo `fx` do catálogo nomeia a carta: `forja` (A Forja que Nunca Apaga), `fogo` (Posto do Fogo-Sinal), `noite` (Noite Sem Parar), `mata` (A Mata Devolve), `arsenal` (Arsenal dos Mil Invernos).
+| Carta | Evento do motor | Função |
+|---|---|---|
+| A Forja que Nunca Apaga | `place` slot 11 | `fxForjaPlaced` (marteladas e onda de fogo) |
+| Forja, modo escolhido | `relic_mode` slot 11 | `fxForjaModo` (aro de pedra-brasa e +2 de vida, ou lâmina de luz e +2 de ataque nas Armadas) |
+| Posto do Fogo-Sinal | `place` slot 11 | `fxFogoPlaced` (a bola de fogo cruza o campo; as torres acendem) |
+| Fogo-Sinal, Trincheira | `relic_mode` slot 11 | `fxFogoTrincheira` (barrancos de terra) |
+| Fogo-Sinal, Saque | `destroyed` inimigo + `draw` | `fxFogoSaque` (a unidade vira brasa e uma carta voa à mão; substitui o `fxLoot` quando a fonte é o Fogo-Sinal) |
+| Noite Sem Parar | `play` e `move` que gasta movimento extra | `fxNoitePlay` (a noite cai) e `fxNoiteTrail` (rastro de tocha) |
+| A Mata Devolve | `ambush` + `prev.pending` | `fxMata` (galhos e folhas; só se a unidade atacada estava Armada) |
+| Arsenal dos Mil Invernos | `place` slot 10 | `fxArsenalPlaced` (onda de frio e armas fantasmas de gelo) |
+**O que fica em campo** (`syncCampoLayers(state)`, chamado em `syncView`): forja acesa (chamas no topo de cada Armada, brasas, brilho, aro ou lâmina conforme o modo), as duas torres de sinal acesas, geada e neve do Arsenal (aro e cristais nas Armadas), e a **noite** enquanto houver movimento extra (`turn.bonusRepositions > 0`). Desliga com a opção "Terrenos animados" das configurações. A primeira leitura da partida mostra tudo já aceso, sem ignição. `?debug`: `window.__campoFx.fxMata(env, 'player', 2)` etc. dispara um efeito direto.

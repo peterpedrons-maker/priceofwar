@@ -235,6 +235,7 @@ import { useGameSettings, setGameSettings } from './gameSettings';
 import tutHandSprite from './assets/tut-hand.webp';
 import type { Trigger } from './engine/types';
 import { preloadTerrainFx, syncTerrainFx, clearTerrainFx, type TerrainFxKind } from './terrainFx';
+import { syncCampoLayers, clearCampoLayers, fxForjaPlaced, fxForjaModo, fxFogoPlaced, fxFogoTrincheira, fxFogoSaque, fxNoitePlay, fxNoiteTrail, fxMata, fxArsenalPlaced } from './campoFx';
 import { DesafiosScreen, type DzDeck, type DzOpponent } from './DesafiosScreen';
 import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
@@ -5799,13 +5800,14 @@ export default function App() {
   const terrainFxPlayer = (getCardDef(playerSlots[11]?.name ?? '')?.fx === 'muralha' ? 'muralha' : null) as TerrainFxKind | null;
   const terrainFxNpc = (getCardDef(npcSlots[11]?.name ?? '')?.fx === 'muralha' ? 'muralha' : null) as TerrainFxKind | null;
   const terrainFxFirst = useRef(true);
+  const campoFxFirst = useRef(true);   // (efeitos do deck de Campo: a primeira leitura da partida mostra tudo já aceso, sem ignição)
   useEffect(() => {
-    if (!gameMode) { clearTerrainFx(); terrainFxFirst.current = true; return; }
+    if (!gameMode) { clearTerrainFx(); clearCampoLayers(); terrainFxFirst.current = true; campoFxFirst.current = true; return; }
     // a primeira leitura da partida (ou da retomada) mostra o Terreno já de pé; as seguintes animam a subida
     const first = terrainFxFirst.current; terrainFxFirst.current = false;
     syncTerrainFx({ player: terrainFxPlayer, npc: terrainFxNpc }, first && (!!terrainFxPlayer || !!terrainFxNpc));
   }, [gameMode, terrainFxPlayer, terrainFxNpc]);
-  useEffect(() => () => clearTerrainFx(), []);
+  useEffect(() => () => { clearTerrainFx(); clearCampoLayers(); }, []);
 
   // Holds the camera's zoomed-in focus for a brief moment after the card lands,
   // so the placement reads clearly before the view eases back to normal.
@@ -5969,6 +5971,7 @@ export default function App() {
     };
     // Test hook: the client-side flow state (what is pending, which effect floats, how many glows are still playing).
     (window as any).__powFlow = () => ({ ability: pendingAbilityRef.current, floating: trigActiveIdRef.current, glows: trigGlowPendingRef.current });
+    (window as any).__campoFx = { fxMata, fxForjaPlaced, fxFogoPlaced, fxArsenalPlaced, fxNoiteTrail };   // teste: dispara um efeito do Campo direto (`?debug`)
     (window as any).__powAct = (seat: Seat, action: EngineAction) => { const r = dispatchActionRef.current(seat, action); return r.ok ? { ok: true } : r; };
     (window as any).__powSet = (mutate: (s: GameState) => void) => {
       const next = JSON.parse(JSON.stringify(engineRef.current)) as GameState;
@@ -6181,6 +6184,7 @@ export default function App() {
   // Copies the engine state into the React mirror states. `skip` lets an animation hold back the hand or
   // the boards until it lands (a card in flight, for instance).
   const syncView = (s: GameState, skip: { hand?: boolean; boards?: boolean } = {}) => {
+    try { syncCampoLayers(s, campoFxFirst.current); campoFxFirst.current = false; } catch (err) { console.error('campo fx', err); }
     const me = s.players[0];
     const foe = s.players[1];
     const mine = s.turn.active === 0;
@@ -6423,6 +6427,7 @@ export default function App() {
 
   // Effects of the cards that play on top of the game (src/combatFx.ts) without holding anything back: they start from the events of one
   // batch, whoever caused it (you, the AI, the opponent online). The card's own effect is named in the catalog (`fx`).
+  const armedSlotsOf = (s: GameState, seat: Seat): number[] => s.players[seat].board.flatMap((c, i) => (c && i < 10 && ((c as { equippedWeapons?: unknown[] }).equippedWeapons?.length ?? 0) > 0 ? [i] : []));
   const cardOverlayFx = (events: GameEvent[], prev: GameState | null) => {
     const cur = engineRef.current; if (!cur) return;
     const sideOf = (seat: Seat): FxSide => (seat === 0 ? 'player' : 'npc');
@@ -6453,15 +6458,32 @@ export default function App() {
       const mode = [relicModeOf(cur.players[seat].board), terrainModeOf(cur.players[seat].board)].find(m => m?.loot?.draw) ?? null;
       if (!mode?.loot?.draw) return;
       const killed = events.find(e => e.t === 'destroyed' && e.seat !== seat && e.slot < 10);
-      if (killed && killed.t === 'destroyed' && events.some(e => e.t === 'draw' && e.seat === seat && e.reason === 'effect')) run(fxLoot(env, sideOf(seat), { side: sideOf(killed.seat), slot: killed.slot }, 10));
+      if (killed && killed.t === 'destroyed' && events.some(e => e.t === 'draw' && e.seat === seat && e.reason === 'effect')) {
+        const fromFogo = !relicModeOf(cur.players[seat].board)?.loot?.draw && getCardDef(cur.players[seat].board[11]?.name ?? '')?.fx === 'fogo';
+        if (fromFogo) run(fxFogoSaque(env, sideOf(seat), { side: sideOf(killed.seat), slot: killed.slot }));
+        else run(fxLoot(env, sideOf(seat), { side: sideOf(killed.seat), slot: killed.slot }, 10));
+      }
     });
     // Terreno / Relíquia / Tática that came into play with an effect of its own
     events.forEach(e => {
       if (e.t === 'place' && (e.slot === 10 || e.slot === 11)) {
         const fx = getCardDef(e.card.name)?.fx;
         if (fx === 'pantano' || fx === 'estandarte') run(fxPlaced(fx, env, sideOf(e.seat)));
+        // deck de Campo (src/campoFx.ts): a forja, o sinal e o arsenal que entram em campo
+        if (fx === 'forja' && e.slot === 11) run(fxForjaPlaced(sideOf(e.seat)));
+        if (fx === 'fogo' && e.slot === 11) run(fxFogoPlaced(sideOf(e.seat)));
+        if (fx === 'arsenal' && e.slot === 10) run(fxArsenalPlaced(sideOf(e.seat), armedSlotsOf(cur, e.seat)));
       }
       if (e.t === 'play' && getCardDef(e.card.name)?.fx === 'reformar') run(fxReformar(env, sideOf(e.seat)));
+      if (e.t === 'play' && getCardDef(e.card.name)?.fx === 'noite') run(fxNoitePlay());
+      // Noite Sem Parar: cada movimento que gasta um movimento extra deixa rastro de tocha
+      if (e.t === 'move' && prev && prev.turn.bonusRepositions > cur.turn.bonusRepositions) run(fxNoiteTrail(sideOf(e.seat), e.from, e.to));
+      // modo escolhido de um Terreno do Campo
+      if (e.t === 'relic_mode' && e.slot === 11) {
+        const tfx = getCardDef(cur.players[e.seat].board[11]?.name ?? '')?.fx;
+        if (tfx === 'forja') run(fxForjaModo(env, sideOf(e.seat), e.mode, armedSlotsOf(cur, e.seat)));
+        if (tfx === 'fogo' && e.mode === 'trincheira') run(fxFogoTrincheira(sideOf(e.seat), armedSlotsOf(cur, e.seat)));
+      }
     });
     // Cardeal: the cards with a light effect of their own (src/combatFx.ts, "efeitos de ativação do Cardeal")
     events.forEach(e => {
@@ -6499,6 +6521,11 @@ export default function App() {
         const id = prev.players[atkSeat].board[canc.from]?.id;
         const to = cur.players[atkSeat].board.findIndex(c => c?.id === id);
         if (to >= 0) run(fxAmbush('formacao', env, { attacker: { side: atk, from: canc.from, to }, defender: { side: def, slot: canc.to } }));
+      } else if (fx === 'mata') {
+        // a unidade atacada: o aviso da Emboscada (`prev.pending`) guarda a casa; o bônus é só de combate e não gera evento. Só mostra se ela estava Armada.
+        const pend = prev?.pending, atkEv = events.find(x => x.t === 'attack');
+        const target = pend && pend.kind === 'ambush' ? pend.to : atkEv && atkEv.t === 'attack' ? atkEv.to : -1;
+        if (target >= 0 && prev && armedSlotsOf(prev, e.seat).includes(target)) run(fxMata(env, def, target));
       } else if (fx === 'contra' && prev) {
         const changed = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => prev.players[e.seat].board[i]?.id !== cur.players[e.seat].board[i]?.id);
         if (changed.length >= 2) run(fxAmbush('contra', env, { attacker: { side: atk, from: 0 }, defender: { side: def, slot: changed[0] }, swap: [changed[0], changed[1]] }));

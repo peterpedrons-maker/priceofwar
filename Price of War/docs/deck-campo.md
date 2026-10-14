@@ -229,7 +229,7 @@ Sim (6): **Margrave Osric** (General, já é Full Art), **Aldric Mil-Armas, Camp
 **Atualização (equipamento em uso):** por decisão do dono, os prompts do **Machado Racha-Tronco** (item 20) e da **Casca de Aço** (item 21) foram refeitos mostrando o equipamento **em uso por um soldado em ação** (rachando uma tora; resistindo a flechas numa brecha), e não mais o objeto exposto. Os 4 equipamentos já recebidos (Cota, Escudo, Espada, Elmo) ficam como objeto exposto.
 
 
-### Efeito visual ao jogar (proposta, rodada 25; mockup dos 5 primeiros pronto em `public/mockups/efeitos-campo/`, ver `docs/animacoes.md`)
+### Efeito visual ao jogar (rodada 25; os 5 primeiros já estão no jogo, `src/campoFx.ts`; mockup em `public/mockups/efeitos-campo/`; ver `docs/animacoes.md`)
 O Campo ainda não tem efeitos próprios (só a animação comum de equipar). Ordem sugerida, das que mais valem à pena:
 1. **A Forja que Nunca Apaga** (Terreno): a forja acende no chão do campo, faíscas de bigorna; modo Muralha = brasa cinza-laranja com reflexo de pedra nas Armadas, modo Afiação = faíscas brancas de afiar; fica um brilho permanente baixo.
 2. **Posto do Fogo-Sinal** (Terreno): uma torre de sinal acende na borda e a chama passa de uma ponta do tabuleiro à outra, coluna de fumaça; Saque solta brasas que viram uma carta, Trincheira levanta um barranco de terra.

@@ -311,13 +311,13 @@ export const CARD_DEFS: readonly CardDef[] = [
     abilities: [equip({ atk: 2, hp: 1 }, 'Escolha uma unidade sua para equipar (+2 ATK e +1 HP).')] },
 
   // Terrenos com modos (sem vida; o dono escolhe o modo no fim do turno e ele vale até o fim do turno seguinte)
-  { name: 'A Forja que Nunca Apaga', maxCopies: 2, cardType: 'Terreno', atk: 0, hp: 0, cost: 3,
+  { name: 'A Forja que Nunca Apaga', fx: 'forja', maxCopies: 2, cardType: 'Terreno', atk: 0, hp: 0, cost: 3,
     effect: 'Escolha 1 modo no fim do seu turno. Muralha: suas Armadas têm +2 HP em combate. Afiação: suas Armadas têm +2 ATK.',
     modes: [
       { id: 'muralha', name: 'Muralha', effect: 'Suas Armadas têm +2 HP em combate.', passives: [{ kind: 'aura', who: ARMED, combatHp: 2 }] },
       { id: 'afiacao', name: 'Afiação', effect: 'Suas Armadas têm +2 ATK.', passives: [{ kind: 'aura', who: ARMED, atk: 2 }] },
     ] },
-  { name: 'Posto do Fogo-Sinal', maxCopies: 2, cardType: 'Terreno', atk: 0, hp: 0, cost: 2,
+  { name: 'Posto do Fogo-Sinal', fx: 'fogo', maxCopies: 2, cardType: 'Terreno', atk: 0, hp: 0, cost: 2,
     effect: 'Escolha 1 modo no fim do seu turno. Trincheira: suas Armadas recebem 1 de dano a menos por ataque. Saque: ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo).',
     modes: [
       { id: 'trincheira', name: 'Trincheira', effect: 'Suas Armadas recebem 1 de dano a menos por ataque.', passives: [{ kind: 'aura', who: ARMED, reduce: 1 }] },
@@ -331,13 +331,13 @@ export const CARD_DEFS: readonly CardDef[] = [
     abilities: [{ on: 'play', do: [{ kind: 'search', zone: 'deck', filter: { types: ['Terreno'], equipment: true } }] }] },
   { name: 'A Coluna do Amanhecer', cardType: 'Tática', atk: 0, hp: 0, cost: 2, effect: 'Leve 1 soldado do baralho para a mão.',
     abilities: [{ on: 'play', do: [{ kind: 'search', zone: 'deck', filter: { types: ['Infantaria', 'Cavalaria', 'Arqueiro', 'Artilharia'] } }] }] },
-  { name: 'Noite Sem Parar', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: '2 movimentos extras neste turno.',
+  { name: 'Noite Sem Parar', fx: 'noite', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: '2 movimentos extras neste turno.',
     abilities: [{ on: 'play', do: [{ kind: 'extra_moves', amount: 2 }] }] },
-  { name: 'A Mata Devolve', cardType: 'Emboscada', atk: 0, hp: 0, cost: 2, effect: '**Armada:** a unidade atacada ganha +2 ATK e +1 HP até o fim do turno.',
+  { name: 'A Mata Devolve', fx: 'mata', cardType: 'Emboscada', atk: 0, hp: 0, cost: 2, effect: '**Armada:** a unidade atacada ganha +2 ATK e +1 HP até o fim do turno.',
     abilities: [{ on: 'ambush', do: [{ kind: 'buff_defender', atk: 2, hp: 1, ifArmed: true }] }] },
   { name: 'Dentes da Cerca', maxCopies: 1, cardType: 'Emboscada', atk: 0, hp: 0, cost: 2, effect: 'A unidade atacada ganha +3 HP até o fim do turno.',
     abilities: [{ on: 'ambush', do: [{ kind: 'buff_defender', atk: 0, hp: 3 }] }] },
-  { name: 'Arsenal dos Mil Invernos', maxCopies: 2, trigger: 'postura', cardType: 'Relíquia', atk: 0, hp: 5, cost: 3, effect: 'Suas **Armadas** recebem 2 de dano a menos por ataque.',
+  { name: 'Arsenal dos Mil Invernos', fx: 'arsenal', maxCopies: 2, trigger: 'postura', cardType: 'Relíquia', atk: 0, hp: 5, cost: 3, effect: 'Suas **Armadas** recebem 2 de dano a menos por ataque.',
     passives: [{ kind: 'aura', who: ARMED, reduce: 2 }] },
 ];
 
