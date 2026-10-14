@@ -439,3 +439,8 @@ Módulo próprio com dois canvas: o de **baixo** (z 30, como o `terrainFx`) guar
 - **Seta plana:** haste de largura constante + ponta triangular, uma cor só (vermelho/azul), contorno branco fino e halo suave. Sem pontinhos nem bolinhas de luz.
 - **Curva conforme o ângulo:** alvo à direita curva para a direita, à esquerda para a esquerda, bem em frente vai **reta** (o arco é proporcional ao quanto o alvo está de lado).
 - **Contorno no formato EXATO da carta** (regra do dono): `silRing`/`drawSil` em `cardFx.ts` leem o alfa da moldura (`img.inset-0`), **preenchem as janelas** (`solidOf`: o que não é alcançável de fora por pixels transparentes), dilatam e tiram o miolo. Usado no recuo do ataque (`fxLunge`, a moldura da própria carta) e nas ondas do assentar (`fxLand`: a moldura de uma carta que já está no tabuleiro, `fxHintFrame`, posicionada como a moldura real: 122% x 145,5% da casa). Nada de retângulo de cantos arredondados.
+
+#### Seta que viaja (rodada 26, 2º feedback)
+- **A seta nasce na borda do atacante, corre até a mira do alvo e some ao tocá-lo; recomeça** (ciclo de 1,15 s: 80% viajando, 20% sumindo; `drawArrow` em `cardFx.ts`). Várias setas (vários alvos possíveis) ficam defasadas.
+- Visual de jogo: corpo com rabo afilado que ondula em S, ponta grande, contorno escuro grosso, degradê claro→cor cheia, faixa de brilho; curva conforme o ângulo (reta quando o alvo está em frente).
+- **Some no instante em que o ataque começa** (`!attackAnim`): não há mais seta durante a investida, nem no ataque do adversário.

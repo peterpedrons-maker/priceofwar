@@ -8046,10 +8046,9 @@ export default function App() {
   })();
   // New arrows (src/cardFx.ts fxArrows): a curved, glowing arrow from the edge of the attacker to the edge of the target.
   const novoArrows = gameSettings.fxNovo;
-  const arrowList: ArrowSpec[] = novoArrows
-    ? activeAttackLine
-      ? [{ ...activeAttackLine, kind: 'hit', mine: activeAttackLine.isPlayerAttacking }]
-      : attackLines.filter(l => l.valid).map(l => ({ ...l, kind: 'pick' as const, mine: true }))
+  // (only while the player is choosing: the moment an attack starts — his or the opponent's — the arrow is gone)
+  const arrowList: ArrowSpec[] = novoArrows && !attackAnim
+    ? attackLines.filter(l => l.valid).map(l => ({ ...l, kind: 'pick' as const, mine: true }))
     : [];
   const arrowKey = arrowList.map(a => [a.kind, a.mine, a.x1, a.y1, a.x2, a.y2].map(v => typeof v === 'number' ? Math.round(v) : v).join(',')).join('|');
   // (not a hook: this part of App renders after early returns; the key guard makes the call idempotent)

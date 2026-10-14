@@ -254,30 +254,39 @@ export function fxDrop(el: HTMLElement, target: { cx: number; cy: number; w: num
 export type ArrowSpec = { x1: number; y1: number; x2: number; y2: number; w1: number; h1: number; w2: number; h2: number; kind: 'pick' | 'hit'; mine: boolean };
 let arrows: ArrowSpec[] = [], arrowItem = false; const ast = { a: 0, t: 0 };
 const exitT = (dx: number, dy: number, w: number, h: number) => Math.min(Math.abs(dx) > 1e-6 ? (w / 2) / Math.abs(dx) : 1e9, Math.abs(dy) > 1e-6 ? (h / 2) / Math.abs(dy) : 1e9);
+// Uma seta "viaja": nasce na borda da carta que ataca, corre até a mira do alvo e some ao tocá-lo; recomeça. O corpo tem rabo afilado e ondula de leve (S), a ponta é
+// grande, com contorno escuro grosso, degradê e faixa de brilho (visual de jogo, plano). O ciclo dura PERIOD s: 80% de viagem, o resto some.
+const PERIOD = 1.15;
 function drawArrow(s: ArrowSpec, idx: number, a: number) {
-  const dx = s.x2 - s.x1, dy = s.y2 - s.y1, dist = Math.hypot(dx, dy); if (dist < 4) return; const ux = dx / dist, uy = dy / dist, k = s.w2 / 56 * (s.kind === 'hit' ? 1.25 : 1);
-  const t1 = exitT(ux, uy, s.w1, s.h1) - 2 * k, t2 = s.w2 * .36;   // sai da borda do atacante e entra até o anel da mira do alvo (as cartas ficam coladas: só até a borda seria curtíssima)
+  const dx = s.x2 - s.x1, dy = s.y2 - s.y1, dist = Math.hypot(dx, dy); if (dist < 4) return; const ux = dx / dist, uy = dy / dist, k = s.w2 / 56;
+  const t1 = exitT(ux, uy, s.w1, s.h1) - 2 * k, t2 = s.w2 * .36;
   const p0 = { x: s.x1 + ux * t1, y: s.y1 + uy * t1 }, p1 = { x: s.x2 - ux * t2, y: s.y2 - uy * t2 }, len = Math.hypot(p1.x - p0.x, p1.y - p0.y); if (len < 10) return;
-  // O arco depende do ângulo: alvo à direita curva para a direita, à esquerda curva para a esquerda, bem em frente vai reto.
+  // arco conforme o ângulo (alvo à direita curva para a direita; em frente, reto) + ondulação em S, para a seta nunca ficar dura
   let px = -uy, py = ux; if (px * ux < 0) { px = -px; py = -py; }
-  const bulge = Math.min(len * .3, 60 * k) * Math.min(1, Math.abs(ux) * 1.4), c = { x: (p0.x + p1.x) / 2 + px * bulge, y: (p0.y + p1.y) / 2 + py * bulge };
-  const B = (u: number) => ({ x: (1 - u) * (1 - u) * p0.x + 2 * (1 - u) * u * c.x + u * u * p1.x, y: (1 - u) * (1 - u) * p0.y + 2 * (1 - u) * u * c.y + u * u * p1.y });
-  const T = (u: number) => { const tx = 2 * (1 - u) * (c.x - p0.x) + 2 * u * (p1.x - c.x), ty = 2 * (1 - u) * (c.y - p0.y) + 2 * u * (p1.y - c.y), l = Math.hypot(tx, ty) || 1; return { x: tx / l, y: ty / l }; };
-  const rgb = s.mine ? '236,52,40' : '56,132,240', rgbHot = s.mine ? '255,170,100' : '170,210,255', head = 22 * k, uHead = Math.max(.5, 1 - head / len), hwS = 4.4 * k, hwH = 12.5 * k;
-  const breathe = .9 + .1 * Math.sin(ast.t * 4 + idx);
+  const bulge = Math.min(len * .3, 60 * k) * Math.min(1, Math.abs(ux) * 1.4), c = { x: (p0.x + p1.x) / 2 + px * bulge, y: (p0.y + p1.y) / 2 + py * bulge }, amp = Math.min(9 * k, len * .1);
+  const pos = (u: number) => { const q = { x: (1 - u) * (1 - u) * p0.x + 2 * (1 - u) * u * c.x + u * u * p1.x, y: (1 - u) * (1 - u) * p0.y + 2 * (1 - u) * u * c.y + u * u * p1.y }, tx = 2 * (1 - u) * (c.x - p0.x) + 2 * u * (p1.x - c.x), ty = 2 * (1 - u) * (c.y - p0.y) + 2 * u * (p1.y - c.y), l = Math.hypot(tx, ty) || 1, w = amp * Math.sin(u * Math.PI * 2.2 + ast.t * 3.2 + idx) * Math.sin(Math.min(1, u * 5) * Math.PI / 2); return { x: q.x - ty / l * w, y: q.y + tx / l * w }; };
+  const dirAt = (u: number) => { const e = .01, q0 = pos(Math.max(0, u - e)), q1 = pos(Math.min(1, u + e)), l = Math.hypot(q1.x - q0.x, q1.y - q0.y) || 1; return { x: (q1.x - q0.x) / l, y: (q1.y - q0.y) / l }; };
+  // fase do ciclo: a ponta corre de 0 a 1 em 80% do tempo (acelera no meio), depois a seta some; o corpo mede ~55% do caminho
+  const ph = ((ast.t + idx * .13) % PERIOD) / PERIOD, run = clamp(ph / .8), uH = Math.pow(run, .85) * (3 - 2 * run) * .5 + run * .5;
+  const fade = Math.min(1, ph / .06) * (ph < .8 ? 1 : Math.max(0, 1 - (ph - .8) / .2)); const al = a * fade; if (al < .01) return;
+  const head = 24 * k, headU = Math.min(.45, head / len), body = Math.max(.34, .55), uTail = Math.max(0, uH - body), uShaft = Math.max(uTail, uH - headU);
+  const rgb = s.mine ? '255,76,44' : '60,140,255', rgbTail = s.mine ? '255,170,70' : '120,200,255', dark = s.mine ? '78,6,10' : '8,28,84', hwMax = 5.6 * k, hwH = 14 * k;
+  const N = 24, L: { x: number; y: number }[] = [], Rt: { x: number; y: number }[] = [];
+  for (let i = 0; i <= N; i++) { const u = uTail + (uShaft - uTail) * i / N, q = pos(u), d = dirAt(u), sp = uShaft > uTail ? i / N : 1, hw = hwMax * Math.pow(Math.min(1, sp / .55), .8) + .5 * k; L.push({ x: q.x - d.y * hw, y: q.y + d.x * hw }); Rt.push({ x: q.x + d.y * hw, y: q.y - d.x * hw }); }
+  const hb = pos(uShaft), hd = dirAt(uH), tip = pos(uH);
+  const poly = () => { cx.beginPath(); L.forEach((q, i) => i ? cx.lineTo(q.x, q.y) : cx.moveTo(q.x, q.y)); cx.lineTo(hb.x - hd.y * hwH, hb.y + hd.x * hwH); cx.lineTo(tip.x, tip.y); cx.lineTo(hb.x + hd.y * hwH, hb.y - hd.x * hwH); for (let i = N; i >= 0; i--) cx.lineTo(Rt[i].x, Rt[i].y); cx.closePath(); };
   cx.lineCap = 'round'; cx.lineJoin = 'round';
-  const path = (to: number) => { cx.beginPath(); cx.moveTo(p0.x, p0.y); for (let i = 1; i <= 28; i++) { const q = B(to * i / 28); cx.lineTo(q.x, q.y); } };
-  // brilho suave por baixo (só um halo, sem textura)
-  cx.globalCompositeOperation = 'lighter'; path(uHead); cx.strokeStyle = `rgba(${rgb},${.22 * a})`; cx.lineWidth = hwS * 2 + 9 * k; cx.stroke();
-  // seta plana: haste de largura constante + ponta triangular, uma cor só, contorno fino
+  // halo suave
+  cx.globalCompositeOperation = 'lighter'; cx.beginPath(); for (let i = 0; i <= 20; i++) { const q = pos(uTail + (uH - uTail) * i / 20); i ? cx.lineTo(q.x, q.y) : cx.moveTo(q.x, q.y); } cx.strokeStyle = `rgba(${rgb},${.2 * al})`; cx.lineWidth = hwMax * 2 + 12 * k; cx.stroke();
   cx.globalCompositeOperation = 'source-over';
-  const N = 28, Lp: { x: number; y: number }[] = [], Rp: { x: number; y: number }[] = [];
-  for (let i = 0; i <= N; i++) { const u = uHead * i / N, q = B(u), t = T(u); Lp.push({ x: q.x - t.y * hwS, y: q.y + t.x * hwS }); Rp.push({ x: q.x + t.y * hwS, y: q.y - t.x * hwS }); }
-  const hb = B(uHead), tg = T(uHead), tip = { x: p1.x, y: p1.y };
-  const poly = () => { cx.beginPath(); Lp.forEach((q, i) => i ? cx.lineTo(q.x, q.y) : cx.moveTo(q.x, q.y)); cx.lineTo(hb.x - tg.y * hwH, hb.y + tg.x * hwH); cx.lineTo(tip.x, tip.y); cx.lineTo(hb.x + tg.y * hwH, hb.y - tg.x * hwH); for (let i = N; i >= 0; i--) cx.lineTo(Rp[i].x, Rp[i].y); cx.arc(p0.x, p0.y, hwS, Math.atan2(Rp[0].y - p0.y, Rp[0].x - p0.x), Math.atan2(Lp[0].y - p0.y, Lp[0].x - p0.x), false); cx.closePath(); };
-  poly(); cx.fillStyle = `rgba(${rgb},${.94 * a * breathe})`; cx.fill();
-  cx.strokeStyle = `rgba(255,255,255,${.7 * a})`; cx.lineWidth = 1.4 * k; cx.stroke();
-  cx.globalCompositeOperation = 'lighter'; cx.fillStyle = `rgba(${rgbHot},${.18 * a})`; poly(); cx.fill();
+  // contorno escuro grosso, degradê do rabo (claro) para a ponta (cor cheia), faixa de brilho
+  poly(); cx.strokeStyle = `rgba(${dark},${.95 * al})`; cx.lineWidth = 3.6 * k; cx.stroke();
+  const g = cx.createLinearGradient(pos(uTail).x, pos(uTail).y, tip.x, tip.y); g.addColorStop(0, `rgba(${rgbTail},${al})`); g.addColorStop(.5, `rgba(${rgb},${al})`); g.addColorStop(1, `rgba(${rgb},${al})`);
+  poly(); cx.fillStyle = g; cx.fill();
+  cx.globalCompositeOperation = 'lighter'; cx.beginPath(); for (let i = 0; i <= 20; i++) { const u = uTail + (uShaft - uTail) * i / 20, q = pos(u), d = dirAt(u); const o = hwMax * .4 * (i / 20); i ? cx.lineTo(q.x - d.y * o, q.y + d.x * o) : cx.moveTo(q.x - d.y * o, q.y + d.x * o); } cx.strokeStyle = `rgba(255,255,255,${.55 * al})`; cx.lineWidth = 1.8 * k; cx.stroke();
+  cx.beginPath(); cx.moveTo(hb.x - hd.y * hwH * .55, hb.y + hd.x * hwH * .55); cx.lineTo(tip.x - hd.x * 3 * k, tip.y - hd.y * 3 * k); cx.strokeStyle = `rgba(255,255,255,${.5 * al})`; cx.lineWidth = 1.8 * k; cx.stroke();
+  // faísca no toque
+  if (ph > .72 && ph < .92) softGlow(tip.x, tip.y, 16 * k, rgbTail, .5 * al);
 }
 // Define as setas do momento (lista vazia some com elas). Pode ser chamada a cada quadro do jogo: só liga o laço quando há seta.
 export function fxArrows(list: ArrowSpec[]) {
