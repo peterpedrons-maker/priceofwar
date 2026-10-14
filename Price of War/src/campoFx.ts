@@ -117,38 +117,41 @@ const edgeOf = (f: Frame) => {
   const q = s.edge[(Math.random() * s.edge.length) | 0]; return { x: f.x - f.w / 2 + q.u * f.w, y: f.y - f.h / 2 + q.v * f.h, nx: q.nx, ny: q.ny, sz: q.ny > .5 ? .45 : q.ny < -.3 ? 1 : .8 };
 };
 const drawRing = (f: Frame, rgb: string, alpha: number) => { const r = ringOf(f, rgb); if (!r || alpha < .01) return; const sc = RES * U; ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.min(1, alpha); ctx.drawImage(r.c, f.x - f.w / 2 - r.pad, f.y - f.h / 2 - r.pad, r.c.width / sc, r.c.height / sc); ctx.globalAlpha = 1; };
-const auraSlots = (L: Layer) => [...L.armed.map(slot => ({ slot, k: 1 })), { slot: 11, k: 1 }];
+const holderOf = (L: Layer) => (L.kind === 'arsenal' ? 10 : 11);
+const auraSlots = (L: Layer) => [...L.armed, holderOf(L)];
+// o contorno e as chamas ficam só por FORA da carta (sem brilho interno: mais leve e mais limpo)
 function layerTick(L: Layer, dt: number) {
   L.age += dt; const target = L.end != null ? 0 : L.tgt; L.I += (target - L.I) * Math.min(1, dt * 1.7);
-  const I = L.I, d = dirOf(L.side), cs = cols(L.side), ey = edgeY(L.side); if (!cs[0]) return;
+  const I = L.I, cs = cols(L.side), ey = edgeY(L.side); if (!cs[0]) return;
+  const hs = holderOf(L), kI = Math.min(1, I / .6);
+  for (const slot of auraSlots(L)) { const targ = slot !== hs && L.held.has(slot) ? 0 : 1, cur = L.aura[slot] ?? (slot === hs ? 1 : 0); L.aura[slot] = cur + (targ - cur) * Math.min(1, dt * 3); }
   if (L.kind === 'forja') {
     const pal = L.mode === 'afiacao' ? 'w' : 'r';
-    for (const s of auraSlots(L)) { const r = frameOf(L.side, s.slot); if (!r) continue; s.k = Math.max(0, s.k); const targ = L.held.has(s.slot) ? 0 : 1; const cur = L.aura[s.slot] ?? 0; L.aura[s.slot] = cur + (targ - cur) * Math.min(1, dt * 3); const k = (s.slot === 11 ? 1 : L.aura[s.slot]) * Math.min(1, I / .6);
+    for (const slot of auraSlots(L)) { const r = frameOf(L.side, slot); if (!r) continue; const k = L.aura[slot] * kI;
       if (k < .05) continue; for (let c = dt * 30 * k * AURA; c > 0; c -= 1) { if (Math.random() >= c) continue; const e = edgeOf(r); flame(e.x, e.y, R(8, 13) * (.55 + .45 * k) * e.sz, { vx: e.nx * 10 + R(-5, 5), vy: -R(30, 62) + e.ny * 8, a: (.62 * k + .1) * AURA, life: R(.4, .8), dir: -1, pal, lay: 0 }); }
       if (Math.random() < dt * 5 * k * AURA) ember(r.x + R(-r.w / 3, r.w / 3), r.y - r.h / 2, { lay: 0, vy: -R(40, 90) }); }
   } else if (L.kind === 'fogo') {
     for (let k = 0; k < 2; k++) { const lit = L.lit[k]; if (lit <= 0) continue; const x = k ? cs[4] + 39 : cs[0] - 39, f2 = rc(L.side, 2), yb = f2 ? f2.y + f2.h / 2 : ey;
       if (Math.random() < dt * 45 * lit) flame(x + R(-5, 5), yb - 70, R(9, 15), { vy: -R(50, 95), a: .9 * AURA + .1, dir: -1, lay: 0 }); if (Math.random() < dt * 8 * lit) spawn({ kind: 'smoke', x: x + R(-4, 4), y: yb - 90, vx: R(6, 22) * (k ? -1 : 1), vy: R(-30, -50), s: R(10, 16), a: .3 * AURA, life: R(1.6, 2.4), lay: 0 }); if (Math.random() < dt * 12 * lit * AURA) ember(x + R(-5, 5), yb - 72, { lay: 0 }); }
+    for (const slot of auraSlots(L)) { const r = frameOf(L.side, slot); if (!r) continue; const k = L.aura[slot] * kI; if (k < .05) continue;
+      for (let c = dt * 14 * k * AURA; c > 0; c -= 1) { if (Math.random() >= c) continue; const e = edgeOf(r); flame(e.x, e.y, R(5, 9) * e.sz, { vx: e.nx * 8 + R(-4, 4), vy: -R(24, 46) + e.ny * 6, a: (.5 * k + .1) * AURA, life: R(.4, .7), dir: -1, lay: 0 }); }
+      if (Math.random() < dt * 3 * k) { const e = edgeOf(r); spawn({ kind: 'smoke', x: e.x, y: e.y, vx: R(-6, 10), vy: R(-26, -40), s: R(6, 10), a: .22 * AURA, life: R(1, 1.6), lay: 0 }); }
+      if (Math.random() < dt * 4 * k * AURA) ember(r.x + R(-r.w / 3, r.w / 3), r.y - r.h / 2, { lay: 0, vy: -R(40, 80) }); }
   } else if (L.kind === 'arsenal') {
-    if (Math.random() < dt * 5 * I * AURA && L.armed.length) { const i = L.armed[(Math.random() * L.armed.length) | 0], r = frameOf(L.side, i); if (r) { const e = edgeOf(r); spawn({ kind: 'glint', x: e.x, y: e.y, s: R(6, 10), life: .7, rgb: '215,240,255', lay: 0 }); } }
+    for (const slot of auraSlots(L)) { const r = frameOf(L.side, slot); if (!r) continue; const k = L.aura[slot] * kI; if (k < .05) continue;
+      if (Math.random() < dt * 4 * k * AURA) { const e = edgeOf(r); spawn({ kind: 'glint', x: e.x, y: e.y, s: R(6, 10), life: .7, rgb: '215,240,255', lay: 0 }); } }
   }
 }
 // desenha uma camada (ctx = canvas de baixo)
 function layerDraw(L: Layer) {
-  const I = L.I, d = dirOf(L.side), cs = cols(L.side), ey = edgeY(L.side); if (!cs[0] || I < .02) return; const t = L.age;
-  if (L.kind === 'forja') {
-    const white = L.mode === 'afiacao';
-    for (const s of auraSlots(L)) { const r = frameOf(L.side, s.slot); if (!r) continue; const k = (s.slot === 11 ? 1 : L.aura[s.slot] ?? 0) * Math.min(1, I / .6); if (k < .03) continue; const fl = .8 + .2 * Math.sin(t * 9 + r.x * .1);
-      glow(r.x, r.y, 60, white ? '255,225,150' : '255,130,40', .1 * AURA * k * fl); drawRing(r, white ? '255,225,140' : '255,115,35', .9 * AURA * k * fl); }
-  } else if (L.kind === 'fogo') {
-    const f2 = rc(L.side, 2), yb = f2 ? f2.y + f2.h / 2 : ey;
-    for (let k = 0; k < 2; k++) { const x = k ? cs[4] + 39 : cs[0] - 39; tower(x, yb, 1); if (L.lit[k] > 0) glow(x, yb - 70, 56 + 7 * Math.sin(t * 11), '255,150,50', .42 * AURA * L.lit[k]); }
-  } else if (L.kind === 'arsenal') {
-    const mid = (rc(L.side, 2)?.y ?? 0) + d * 0 , h = rc(L.side, 2)?.h ?? 71;
-    const g = ctx.createLinearGradient(0, ey - h * 1.2, 0, ey + h * 1.8); g.addColorStop(0, 'rgba(160,210,255,0)'); g.addColorStop(.5, `rgba(170,215,255,${(.14 * I + .03 * Math.sin(t * 2)) * AURA})`); g.addColorStop(1, 'rgba(160,210,255,0)'); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(0, ey - h * 1.2, window.innerWidth / U, h * 3); void mid;
-    for (const i of L.armed) { const r = frameOf(L.side, i); if (!r) continue; const sl = silOf(r.img); drawRing(r, '170,220,255', (.8 * I + .1 * Math.sin(t * 2 + r.x)) * AURA); if (!sl || !sl.edge.length) continue;
-      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = AURA + .1; for (let k = 0; k < 9; k++) { const q = sl.edge[(k * 37 + i * 11) % sl.edge.length], px = r.x - r.w / 2 + q.u * r.w, py = r.y - r.h / 2 + q.v * r.h, len = (5 + (k * 7 % 9)) * clamp(I * 1.1) * (.9 + .1 * Math.sin(t * 2 + k)), w = (2.2 + (k % 3)) * clamp(I * 1.1), nx = -q.ny, ny = q.nx; const gr = ctx.createLinearGradient(px, py, px + q.nx * len, py + q.ny * len); gr.addColorStop(0, 'rgba(210,240,255,.85)'); gr.addColorStop(1, 'rgba(120,190,255,.2)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(px - nx * w, py - ny * w); ctx.lineTo(px + q.nx * len, py + q.ny * len); ctx.lineTo(px + nx * w, py + ny * w); ctx.closePath(); ctx.fill(); } ctx.globalAlpha = 1; }
-  }
+  const I = L.I, cs = cols(L.side), ey = edgeY(L.side); if (!cs[0] || I < .02) return; const t = L.age, hs = holderOf(L), kI = Math.min(1, I / .6);
+  if (L.kind === 'fogo') { const f2 = rc(L.side, 2), yb = f2 ? f2.y + f2.h / 2 : ey;
+    for (let k = 0; k < 2; k++) { const x = k ? cs[4] + 39 : cs[0] - 39; tower(x, yb, 1); if (L.lit[k] > 0) glow(x, yb - 70, 56 + 7 * Math.sin(t * 11), '255,150,50', .42 * AURA * L.lit[k]); } }
+  const white = L.kind === 'forja' && L.mode === 'afiacao', rgb = white ? '255,225,140' : L.kind === 'arsenal' ? '170,220,255' : L.kind === 'fogo' ? '255,95,25' : '255,115,35';
+  for (const slot of auraSlots(L)) { const r = frameOf(L.side, slot); if (!r) continue; const k = (L.aura[slot] ?? (slot === hs ? 1 : 0)) * kI; if (k < .03) continue; const fl = .8 + .2 * Math.sin(t * (L.kind === 'arsenal' ? 2 : 9) + r.x * .1);
+    drawRing(r, rgb, .9 * AURA * k * fl);
+    if (L.kind !== 'arsenal') continue; const sl = silOf(r.img); if (!sl || !sl.edge.length) continue;
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = (AURA + .1) * k; for (let j = 0; j < 9; j++) { const q = sl.edge[(j * 37 + slot * 11) % sl.edge.length], px = r.x - r.w / 2 + q.u * r.w, py = r.y - r.h / 2 + q.v * r.h, len = (5 + (j * 7 % 9)) * clamp(kI * 1.1) * (.9 + .1 * Math.sin(t * 2 + j)), w = (2.2 + (j % 3)) * clamp(kI * 1.1), nx = -q.ny, ny = q.nx; const gr = ctx.createLinearGradient(px, py, px + q.nx * len, py + q.ny * len); gr.addColorStop(0, 'rgba(210,240,255,.85)'); gr.addColorStop(1, 'rgba(120,190,255,.2)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(px - nx * w, py - ny * w); ctx.lineTo(px + q.nx * len, py + q.ny * len); ctx.lineTo(px + nx * w, py + ny * w); ctx.closePath(); ctx.fill(); } ctx.globalAlpha = 1; }
 }
 function nightTick(dt: number) {
   night.v += (night.tgt - night.v) * Math.min(1, dt * 2.2); if (night.tgt === 0 && night.v < .01) night.v = 0;
@@ -162,7 +165,13 @@ function nightDraw() {
 }
 
 // ── laço ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
-let inFrame = false;
+let inFrame = false, ovAt = 0, ovOn = false;
+// há uma janela quase de tela cheia (z alto) aberta? Verificado a cada ~250 ms
+function overlayOpen() {
+  const n = performance.now(); if (n - ovAt < 250) return ovOn; ovAt = n; ovOn = false;
+  document.querySelectorAll<HTMLElement>('div.fixed.inset-0').forEach(el => { if (ovOn) return; const cs = getComputedStyle(el); if (cs.pointerEvents === 'none' || cs.display === 'none' || cs.visibility === 'hidden' || (parseInt(cs.zIndex) || 0) < 100) return; if (el.offsetWidth >= window.innerWidth * .9 && el.offsetHeight >= window.innerHeight * .9) ovOn = true; });
+  return ovOn;
+}
 const busy = () => fxs.length || sched.length || P.length || layers.length || night.v > 0 || night.tgt > 0;
 function frame(ts: number) {
   raf = 0; if (!fxs.length && !sched.length && ts - last < 30) { raf = requestAnimationFrame(frame); return; }   // só camadas fixas: ~30 quadros por segundo bastam
@@ -179,8 +188,9 @@ function step(ts: number) {
   for (let i = layers.length - 1; i >= 0; i--) if (layers[i].end != null && layers[i].I < .02) layers.splice(i, 1);
   nightTick(dt); stepP(dt);
   cxs.forEach((c, i) => { c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cvs[i].width, cvs[i].height); c.setTransform(RES * U, 0, 0, RES * U, 0, 0); });
-  ctx = cxs[0]; nightDraw(); for (const L of layers) { ctx.save(); layerDraw(L); ctx.restore(); }
-  for (const lay of [0, 1]) { ctx = cxs[lay]; for (const p of P) if (p.lay === lay) { ctx.save(); drawP(p); ctx.restore(); } }
+  const hide = overlayOpen(); cvs[0].style.visibility = hide ? 'hidden' : 'visible';   // janela por cima (carta ampliada, vitória...): a camada fixa não aparece por baixo dela
+  ctx = cxs[0]; if (!hide) { nightDraw(); for (const L of layers) { ctx.save(); layerDraw(L); ctx.restore(); } }
+  for (const lay of hide ? [1] : [0, 1]) { ctx = cxs[lay]; for (const p of P) if (p.lay === lay) { ctx.save(); drawP(p); ctx.restore(); } }
   for (let i = 0; i < fxs.length; i++) { const f = fxs[i], p = (now - f.t0) / f.dur; if (p >= 1) { f.end && f.end(); fxs.splice(i, 1); i--; continue; } ctx = cxs[f.lay]; ctx.save(); f.draw && f.draw(p, now - f.t0); ctx.restore(); f.tick && f.tick(p, now - f.t0, dt); }
   cxs.forEach(c => { c.globalCompositeOperation = 'source-over'; });
 }
@@ -223,16 +233,22 @@ export async function fxForjaPlaced(side: Side): Promise<void> {
     tick: (p: number) => { const x = lerp(T.x, T.x + (cs[4] - T.x) * 1.1, p); for (let i = 0; i < 2; i++) flame(x + R(-10, 10), ey, R(12, 20), { vy: d * R(70, 130), dir: d }); if (Math.random() < .5) spawn({ kind: 'spark', x, y: ey, vx: R(-30, 60), vy: d * R(90, 200), g: -d * 300, s: 1.6, life: .6, rgb: '255,220,150' }); } }));
   await wait(1.6);
 }
-// Uma unidade acaba de ser Armada (equipamento): a forja lança uma bola de fogo do Terreno até ela, que passa a ter o contorno aceso
-export async function fxForjaEquip(side: Side, slot: number): Promise<void> {
-  prep(); const L = layers.find(l => l.kind === 'forja' && l.side === side && l.end == null); if (!L) return; L.held.add(slot); L.aura[slot] = 0;
-  at(1.5, () => { const a = rc(side, 11), b = rc(side, slot); if (!a || !b) { L.held.delete(slot); return; } const cx = (a.x + b.x) / 2, cy = Math.min(a.y, b.y) - 70;
+// Uma unidade acaba de ser Armada: o Terreno/Relíquia lança uma bola (fogo da forja, brasa do Fogo-Sinal ou estilhaço de gelo do Arsenal) até ela, que passa a ter o contorno aceso
+async function equipTransfer(kind: Layer['kind'], side: Side, slot: number): Promise<void> {
+  prep(); const L = layers.find(l => l.kind === kind && l.side === side && l.end == null); if (!L) return; const from = holderOf(L); L.held.add(slot); L.aura[slot] = 0;
+  const ice = kind === 'arsenal', ember2 = kind === 'fogo', c1 = ice ? '150,210,255' : '255,190,80', c2 = ice ? '235,248,255' : '255,250,210';
+  at(1.5, () => { const a = rc(side, from), b = rc(side, slot); if (!a || !b) { L.held.delete(slot); return; } const cx = (a.x + b.x) / 2, cy = Math.min(a.y, b.y) - 70;
     const pt = (u: number) => ({ x: (1 - u) * (1 - u) * a.x + 2 * (1 - u) * u * cx + u * u * b.x, y: (1 - u) * (1 - u) * a.y + 2 * (1 - u) * u * cy + u * u * b.y });
-    add({ dur: .75, draw: (p: number) => { const q = pt(eio(p)); glow(q.x, q.y, 30, '255,190,80', .9); glow(q.x, q.y, 14, '255,250,210', .9); },
-      tick: (p: number) => { const q = pt(eio(p)); flame(q.x, q.y + 3, 11, { vx: R(-12, 12), vy: R(-10, 14), life: .45 }); ember(q.x + R(-4, 4), q.y, { vy: R(-6, 20), life: 1 }); },
-      end: () => { const e = rc(side, slot); if (!e) { L.held.delete(slot); return; } add({ dur: .4, draw: (p: number) => glow(e.x, e.y, 70, '255,200,110', .8 * (1 - p)) }); ring(e.x, e.y, 10, 56, '255,190,100', 4, .8, .5, .8); fan(e.x, e.y, 22, -3.1, 0, 260, { rgb: '255,220,150' }); L.held.delete(slot); } }); });
+    add({ dur: .75, draw: (p: number) => { const q = pt(eio(p)); glow(q.x, q.y, 30, c1, .9); glow(q.x, q.y, 14, c2, .9); },
+      tick: (p: number) => { const q = pt(eio(p));
+        if (ice) { glints(q.x, q.y, 1, '215,240,255', 6, 8); spawn({ kind: 'spark', x: q.x, y: q.y, vx: R(-20, 20), vy: R(-10, 20), s: 1.4, life: .5, rgb: '190,230,255' }); }
+        else { flame(q.x, q.y + 3, ember2 ? 8 : 11, { vx: R(-12, 12), vy: R(-10, 14), life: .45 }); ember(q.x + R(-4, 4), q.y, { vy: R(-6, 20), life: 1 }); if (ember2 && Math.random() < .5) spawn({ kind: 'smoke', x: q.x, y: q.y, vx: R(-10, 10), vy: R(-14, -4), s: R(8, 12), a: .3, life: .9 }); } },
+      end: () => { const e = rc(side, slot); if (!e) { L.held.delete(slot); return; } add({ dur: .4, draw: (p: number) => glow(e.x, e.y, 70, ice ? '170,215,255' : '255,200,110', .8 * (1 - p)) }); ring(e.x, e.y, 10, 56, ice ? '170,220,255' : '255,190,100', 4, .8, .5, .8); if (ice) glints(e.x, e.y, 8, '225,245,255', 26, 10); else fan(e.x, e.y, 22, -3.1, 0, 260, { rgb: '255,220,150' }); L.held.delete(slot); } }); });
   await wait(2.5);
 }
+export const fxForjaEquip = (side: Side, slot: number) => equipTransfer('forja', side, slot);
+export const fxFogoEquip = (side: Side, slot: number) => equipTransfer('fogo', side, slot);
+export const fxArsenalEquip = (side: Side, slot: number) => equipTransfer('arsenal', side, slot);
 // Modo da Forja escolhido: aro (Muralha) ou lâmina de luz (Afiação) em cada Armada
 export async function fxForjaModo(env: Env, side: Side, mode: string, armed: number[]): Promise<void> {
   prep(); armed.forEach((slot, i) => at(i * .09, () => { const r = rc(side, slot); if (!r) return;
