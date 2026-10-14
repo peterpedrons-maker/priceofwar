@@ -211,3 +211,51 @@ export function fxDrop(el: HTMLElement, target: { cx: number; cy: number; w: num
     void T; return true;
   });
 }
+
+// ── 6. setas de ataque ────────────────────────────────────────────────────────────────────────────────────────────────
+// Substituem as setas antigas (uma imagem voando em linha reta de centro a centro, por cima das cartas). Agora: uma curva (arco) que sai da BORDA da carta
+// que ataca e termina antes da borda do alvo, com fita que engrossa até a ponta, brilho, pontinhos correndo e um pulso de luz; a ponta segue a tangente.
+// Vermelho: o jogador atacando; azul: o adversário. 'pick' = alvos possíveis enquanto escolhe; 'hit' = o ataque que está acontecendo (mais grosso).
+export type ArrowSpec = { x1: number; y1: number; x2: number; y2: number; w1: number; h1: number; w2: number; h2: number; kind: 'pick' | 'hit'; mine: boolean };
+let arrows: ArrowSpec[] = [], arrowItem = false; const ast = { a: 0, t: 0 };
+const exitT = (dx: number, dy: number, w: number, h: number) => Math.min(Math.abs(dx) > 1e-6 ? (w / 2) / Math.abs(dx) : 1e9, Math.abs(dy) > 1e-6 ? (h / 2) / Math.abs(dy) : 1e9);
+function drawArrow(s: ArrowSpec, idx: number, a: number) {
+  const dx = s.x2 - s.x1, dy = s.y2 - s.y1, dist = Math.hypot(dx, dy); if (dist < 4) return; const ux = dx / dist, uy = dy / dist, k = s.w2 / 56 * (s.kind === 'hit' ? 1.25 : 1);
+  const t1 = exitT(ux, uy, s.w1, s.h1) - 2 * k, t2 = s.w2 * .36;   // sai da borda do atacante e entra até o anel da mira do alvo (as cartas ficam coladas: só até a borda seria curtíssima)
+  const p0 = { x: s.x1 + ux * t1, y: s.y1 + uy * t1 }, p1 = { x: s.x2 - ux * t2, y: s.y2 - uy * t2 }, len = Math.hypot(p1.x - p0.x, p1.y - p0.y); if (len < 10) return;
+  const sign = Math.abs(ux) > .12 ? Math.sign(ux) : (idx % 2 ? 1 : -1), bulge = Math.min(54 * k, len * .2) * sign;
+  const c = { x: (p0.x + p1.x) / 2 - uy * bulge, y: (p0.y + p1.y) / 2 + ux * bulge };
+  const B = (u: number) => ({ x: (1 - u) * (1 - u) * p0.x + 2 * (1 - u) * u * c.x + u * u * p1.x, y: (1 - u) * (1 - u) * p0.y + 2 * (1 - u) * u * c.y + u * u * p1.y });
+  const T = (u: number) => { const tx = 2 * (1 - u) * (c.x - p0.x) + 2 * u * (p1.x - c.x), ty = 2 * (1 - u) * (c.y - p0.y) + 2 * u * (p1.y - c.y), l = Math.hypot(tx, ty) || 1; return { x: tx / l, y: ty / l }; };
+  const rgb = s.mine ? '255,70,50' : '70,150,255', rgbHot = s.mine ? '255,200,110' : '190,225,255', head = 21 * k, uHead = Math.max(.5, 1 - head / len);
+  cx.lineCap = 'round'; cx.lineJoin = 'round'; cx.globalCompositeOperation = 'lighter';
+  const path = (to: number) => { cx.beginPath(); cx.moveTo(p0.x, p0.y); for (let i = 1; i <= 28; i++) { const q = B(to * i / 28); cx.lineTo(q.x, q.y); } };
+  // brilho largo e fraco por baixo
+  path(uHead); cx.strokeStyle = `rgba(${rgb},${.2 * a})`; cx.lineWidth = 15 * k; cx.stroke();
+  // fita que engrossa do rabo para a ponta
+  const N = 28, L: { x: number; y: number }[] = [], Rr: { x: number; y: number }[] = [];
+  for (let i = 0; i <= N; i++) { const u = uHead * i / N, q = B(u), t = T(u), hw = k * (.9 + 4.6 * Math.pow(u / uHead, 1.3)); L.push({ x: q.x - t.y * hw, y: q.y + t.x * hw }); Rr.push({ x: q.x + t.y * hw, y: q.y - t.x * hw }); }
+  const g = cx.createLinearGradient(p0.x, p0.y, p1.x, p1.y); g.addColorStop(0, `rgba(${rgb},${.05 * a})`); g.addColorStop(.55, `rgba(${rgb},${.7 * a})`); g.addColorStop(1, `rgba(${rgbHot},${.95 * a})`);
+  cx.fillStyle = g; cx.beginPath(); L.forEach((q, i) => i ? cx.lineTo(q.x, q.y) : cx.moveTo(q.x, q.y)); for (let i = N; i >= 0; i--) cx.lineTo(Rr[i].x, Rr[i].y); cx.closePath(); cx.fill();
+  // núcleo claro e pontinhos correndo
+  path(uHead); cx.strokeStyle = `rgba(255,245,225,${.5 * a})`; cx.lineWidth = 1.3 * k; cx.stroke();
+  cx.setLineDash([2 * k, 11 * k]); cx.lineDashOffset = -ast.t * 70 * k; path(uHead); cx.strokeStyle = `rgba(255,250,235,${.75 * a})`; cx.lineWidth = 3 * k; cx.stroke(); cx.setLineDash([]);
+  // pulso de luz com rastro
+  const pu = ((ast.t * (s.kind === 'hit' ? 1.8 : 1.05) + idx * .19) % 1) * uHead;
+  for (let j = 0; j < 6; j++) { const q = B(Math.max(0, pu - j * .035 * uHead)); const f = 1 - j / 6; const gg = cx.createRadialGradient(q.x, q.y, 0, q.x, q.y, 9 * k * f + 2); gg.addColorStop(0, `rgba(255,248,230,${.95 * f * a})`); gg.addColorStop(1, `rgba(${rgbHot},0)`); cx.fillStyle = gg; cx.beginPath(); cx.arc(q.x, q.y, 9 * k * f + 2, 0, 7); cx.fill(); }
+  // ponta de seta alinhada com a tangente, com leve pulsar
+  const pulse = 1 + .07 * Math.sin(ast.t * 9 + idx), tg = T(1), hb = B(uHead), hl = head * pulse, hwid = 13 * k * pulse;
+  const tip = { x: p1.x, y: p1.y }, lft = { x: hb.x - tg.y * hwid, y: hb.y + tg.x * hwid }, rgt = { x: hb.x + tg.y * hwid, y: hb.y - tg.x * hwid }; void hl;
+  const gh = cx.createLinearGradient(hb.x, hb.y, tip.x, tip.y); gh.addColorStop(0, `rgba(${rgb},${.85 * a})`); gh.addColorStop(1, `rgba(255,235,200,${a})`);
+  softGlow(tip.x - tg.x * 6 * k, tip.y - tg.y * 6 * k, 22 * k, rgbHot, .55 * a);
+  cx.globalCompositeOperation = 'lighter'; cx.fillStyle = gh; cx.beginPath(); cx.moveTo(tip.x, tip.y); cx.lineTo(lft.x, lft.y); cx.lineTo(hb.x - tg.x * 2 * k, hb.y - tg.y * 2 * k); cx.lineTo(rgt.x, rgt.y); cx.closePath(); cx.fill();
+  cx.strokeStyle = `rgba(255,255,255,${.5 * a})`; cx.lineWidth = 1 * k; cx.stroke();
+}
+// Define as setas do momento (lista vazia some com elas). Pode ser chamada a cada quadro do jogo: só liga o laço quando há seta.
+export function fxArrows(list: ArrowSpec[]) {
+  arrows = list;
+  if (list.length) {
+    gsap.to(ast, { a: 1, duration: .18, overwrite: true });
+    if (!arrowItem) { arrowItem = true; add(dt => { ast.t += dt; if (!arrows.length && ast.a <= .01) { arrowItem = false; return false; } arrows.forEach((s, i) => { cx.save(); drawArrow(s, i, ast.a); cx.restore(); }); return true; }); }
+  } else gsap.to(ast, { a: 0, duration: .14, overwrite: true });
+}

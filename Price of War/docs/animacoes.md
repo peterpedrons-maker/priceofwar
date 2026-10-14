@@ -428,3 +428,9 @@ Módulo próprio com dois canvas: o de **baixo** (z 30, como o `terrainFx`) guar
 - **O tabuleiro treme** ao assentar (`landShake`: 6,5 px; 11 px se for arte total), junto com o som.
 - `fxLand` maior: clarão branco-quente, três ondas pelo contorno mais grossas, onda de poeira rasteira (elipse achatada, sem linha dura), rachaduras brilhando no chão, anel de poeira saindo para os lados, mais faíscas e lascas.
 - Observação: o brilho retangular que aparece sobre a casa logo depois (`tb-*`, `TriggerBurst`) é do jogo antigo e não foi mexido.
+
+### Setas de ataque novas (rodada 26; mockup no jogo real, pedido do dono: as antigas estavam mal posicionadas e mal feitas)
+`fxArrows(lista)` em `src/cardFx.ts` desenha no canvas; `App.tsx` monta a lista (`arrowList`: o ataque em andamento ou os alvos possíveis do atacante escolhido) e só chama quando a chave muda (não é hook: esse trecho do App renderiza depois de `return` antecipado). Ligado/desligado pelo mesmo botão "Efeitos de carta novos"; desligado, volta a `renderTravelingArrow` (imagem voando em linha reta).
+- Curva em arco que sai da **borda** do atacante e entra até o anel da mira do alvo (não vai mais de centro a centro por cima das cartas); fita que engrossa até a ponta, brilho largo por baixo, núcleo claro, pontinhos correndo, pulso de luz com rastro e ponta de seta alinhada com a tangente (pulsa de leve).
+- Vermelho = jogador atacando; azul = adversário; o ataque em andamento (`hit`) é 25% maior que os alvos possíveis (`pick`).
+- Limite do tabuleiro: as fileiras da frente ficam coladas (só a barra de fase no meio), então a seta é curta; a ponta entra no anel da mira para ser legível.

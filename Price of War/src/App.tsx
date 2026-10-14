@@ -232,7 +232,7 @@ import { playSfx, preloadSfx, dbgMark } from './sfx';
 import { fxTactic, fxHero, fxRanged, fxLanding, fxUpkeep, fxGoldGain, fxRelicSoldo, fxLoot, fxPlaced, fxReformar, fxAmbush, fxCalice, fxHospitalario, fxNobre, fxReforco, fxComandante, fxRetorno, fxAtirador, preloadHolyFx, preloadCombatFx, type FxEnv, type FxRect, type FxSide, type FxTarget } from './combatFx';
 import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettings, subscribeAudio } from './audioSettings';
 import { useGameSettings, setGameSettings, getGameSettings } from './gameSettings';
-import { fxLand, fxImpact, fxBurn, burnMaskSheet, BURN, fxLunge, fxDrop } from './cardFx';
+import { fxLand, fxImpact, fxBurn, burnMaskSheet, BURN, fxLunge, fxDrop, fxArrows, type ArrowSpec } from './cardFx';
 import gsap from 'gsap';
 import tutHandSprite from './assets/tut-hand.webp';
 import type { Trigger } from './engine/types';
@@ -1168,6 +1168,7 @@ const FlyingCardNovo = ({ f, onDone }: { f: { card: CardData; fromX: number; fro
   );
 };
 
+let lastArrowKey = '';
 const PunchFx = ({ x, y, w, h, heavy = false }: { x: number; y: number; w: number; h: number; heavy?: boolean }) => {
   const [frame, setFrame] = useState(0);
   useEffect(() => {
@@ -7938,7 +7939,7 @@ export default function App() {
   // or a border color the player has to notice on their own. Uses real on-screen
   // positions (via the slotId DOM ids) rather than board-local coordinates because the
   // two ends live in a 3D-tilted board and need to line up exactly as rendered.
-  const attackLines: { x1: number; y1: number; x2: number; y2: number; valid: boolean }[] = [];
+  const attackLines: { x1: number; y1: number; x2: number; y2: number; valid: boolean; w1: number; h1: number; w2: number; h2: number }[] = [];
   if (selectedAttackerIndex !== null) {
     const fromEl = getCardVisualEl(`player-${selectedAttackerIndex}`);
     if (fromEl) {
@@ -7952,7 +7953,7 @@ export default function App() {
         attackLines.push({
           x1: from.x, y1: from.y,
           x2: toRect.left + toRect.width / 2, y2: toRect.top + toRect.height / 2,
-          valid: validAttackTargets.has(i),
+          valid: validAttackTargets.has(i), w1: fromRect.width, h1: fromRect.height, w2: toRect.width, h2: toRect.height,
         });
       });
     }
@@ -8025,7 +8026,7 @@ export default function App() {
     window.setTimeout(() => setPunchFx(prev => (prev && prev.key === key ? null : prev)), 700 * TIME.k);
   };
 
-  const activeAttackLine: { x1: number; y1: number; x2: number; y2: number; isPlayerAttacking: boolean } | null = (() => {
+  const activeAttackLine: { x1: number; y1: number; x2: number; y2: number; isPlayerAttacking: boolean; w1: number; h1: number; w2: number; h2: number } | null = (() => {
     if (!attackAnim || isImpacting) return null;   // the arrow gets out of the way when the blow lands
     const fromId = attackAnim.isPlayerAttacking ? `player-${attackAnim.attackerIndex}` : `npc-${attackAnim.attackerIndex}`;
     const toId = attackAnim.isPlayerAttacking ? `npc-${attackAnim.targetIndex}` : `player-${attackAnim.targetIndex}`;
@@ -8038,8 +8039,19 @@ export default function App() {
       x1: fromRect.left + fromRect.width / 2, y1: fromRect.top + fromRect.height / 2,
       x2: toRect.left + toRect.width / 2, y2: toRect.top + toRect.height / 2,
       isPlayerAttacking: attackAnim.isPlayerAttacking,
+      w1: fromRect.width, h1: fromRect.height, w2: toRect.width, h2: toRect.height,
     };
   })();
+  // New arrows (src/cardFx.ts fxArrows): a curved, glowing arrow from the edge of the attacker to the edge of the target.
+  const novoArrows = gameSettings.fxNovo;
+  const arrowList: ArrowSpec[] = novoArrows
+    ? activeAttackLine
+      ? [{ ...activeAttackLine, kind: 'hit', mine: activeAttackLine.isPlayerAttacking }]
+      : attackLines.filter(l => l.valid).map(l => ({ ...l, kind: 'pick' as const, mine: true }))
+    : [];
+  const arrowKey = arrowList.map(a => [a.kind, a.mine, a.x1, a.y1, a.x2, a.y2].map(v => typeof v === 'number' ? Math.round(v) : v).join(',')).join('|');
+  // (not a hook: this part of App renders after early returns; the key guard makes the call idempotent)
+  if (arrowKey !== lastArrowKey) { lastArrowKey = arrowKey; const snapshot = arrowList; queueMicrotask(() => fxArrows(snapshot)); }
 
   // Shared visual for both attackLines and activeAttackLine above: the user's
   // own reference-sheet arrow art (see the asset imports above — attackArrowRed
@@ -9996,7 +10008,7 @@ export default function App() {
           </div>
         );
       })()}
-      {(attackLines.some(line => line.valid) || activeAttackLine) && (
+      {!novoArrows && (attackLines.some(line => line.valid) || activeAttackLine) && (
         <svg className="fixed inset-0 z-40 pointer-events-none" width="100%" height="100%">
           {attackLines.filter(line => line.valid).map((line, idx) => renderTravelingArrow(
             idx, line.x1, line.y1, line.x2, line.y2,
