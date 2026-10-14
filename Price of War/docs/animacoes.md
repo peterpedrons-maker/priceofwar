@@ -445,3 +445,7 @@ Módulo próprio com dois canvas: o de **baixo** (z 30, como o `terrainFx`) guar
 - Visual de jogo: corpo com rabo afilado que ondula em S, ponta grande, contorno escuro grosso, degradê claro→cor cheia, faixa de brilho; curva conforme o ângulo (reta quando o alvo está em frente).
 - **Some no instante em que o ataque começa** (`!attackAnim`): não há mais seta durante a investida, nem no ataque do adversário.
 - **Sem zigue-zague** (3º feedback): a ondulação em S foi retirada; a seta segue um arco liso (só o suficiente para acompanhar o ângulo) de um lado ao outro.
+
+#### Seta que cresce e contorno que acompanha (rodada 26, 4º feedback)
+- **Seta colada na carta:** a base fica encostada na borda do atacante e o corpo vai sendo desenhado até a mira do alvo (não voa solta); ao chegar, segura um instante e some; recomeça (1,3 s). Maior (cresce com a distância), corpo que se alarga para a ponta, ponta com farpas, contorno escuro grosso + aro branco + cor cheia, brilho que varre o corpo.
+- **Contorno do recuo acompanha a carta:** `fxLunge` não lê mais o DOM; desenha pelo MESMO estado do GSAP (y, rotação, escala), sem atraso de quadro. O `translate` do CSS anda em pixels locais e o tabuleiro é reduzido (~0,4): a posição na tela usa `gs = largura na tela / offsetWidth`.

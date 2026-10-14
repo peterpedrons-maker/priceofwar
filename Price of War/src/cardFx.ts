@@ -211,15 +211,20 @@ export function fxLunge(el: HTMLElement, attackY: number, ms: number, windFrac: 
   tl.to(st, { rot: `+=${dir * 1.6}`, duration: .035, repeat: 3, yoyo: true, ease: 'sine.inOut' }, w * .55);                       // tremor de tensão
   tl.to(st, { y: attackY, rot: dir * tiltDeg, sc: 1.2, sx: .96, sy: 1.08, charge: 0, speed: 1, duration: sdur, ease: 'power3.in' }, w);
   let trail: { x: number; y: number }[] = [], dead = false, wasEnd = false; const fimg = frameImgOf(el);
-  const rect = () => el.getBoundingClientRect();
+  // A posição vem do MESMO estado que o GSAP aplica na carta (não da leitura do DOM): o contorno e os rastros andam junto com ela, sem atraso de quadro.
+  const r0 = el.getBoundingClientRect(), c0 = { x: r0.left + r0.width / 2, y: r0.top + r0.height / 2 }, f0 = fimg ? fimg.getBoundingClientRect() : null;
+  const gs = el.offsetWidth > 0 ? r0.width / el.offsetWidth : 1;   // o tabuleiro é desenhado grande e reduzido: o translate do CSS (px locais) anda `gs` vezes na tela
   add(dt => {
-    if (dead) return false; const r = rect(), c = ctr({ left: r.left, top: r.top, width: r.width, height: r.height }), s = r.width / 56;
-    if (st.charge > .02) { softGlow(c.x, c.y, r.width * (.8 + .5 * st.charge), '255,205,110', .22 * st.charge); if (fimg) { const fr = fimg.getBoundingClientRect(); drawSil(fimg, { left: fr.left, top: fr.top, width: fr.width, height: fr.height }, '255,224,150', .85 * st.charge, 1 + .03 * st.charge); }
-      if (Math.random() < dt * 40 * st.charge) { const a = R(0, 6.283), d = R(.7, 1.2) * r.width; emit({ kind: 'ember', x: c.x + Math.cos(a) * d, y: c.y + Math.sin(a) * d, vx: -Math.cos(a) * d * 2.6, vy: -Math.sin(a) * d * 2.6, drag: .9, life: .28, s: 1.4 * s, rgb: '255,210,120' }); } }
+    if (dead) return false; const sxs = st.sc * st.sx, sys = st.sc * st.sy, c = { x: c0.x, y: c0.y + st.y * gs }, rw = r0.width * sxs, rh = r0.height * sys, s = r0.width / 56;
+    if (st.charge > .02) {
+      softGlow(c.x, c.y, r0.width * (.8 + .5 * st.charge), '255,205,110', .22 * st.charge);
+      if (fimg && f0) { cx.save(); cx.translate(c.x, c.y); cx.rotate(st.rot * Math.PI / 180); cx.scale(sxs, sys); drawSil(fimg, { left: f0.left - c0.x, top: f0.top - c0.y, width: f0.width, height: f0.height }, '255,224,150', .85 * st.charge, 1 + .03 * st.charge); cx.restore(); }
+      if (Math.random() < dt * 40 * st.charge) { const a = R(0, 6.283), d = R(.7, 1.2) * r0.width; emit({ kind: 'ember', x: c.x + Math.cos(a) * d, y: c.y + Math.sin(a) * d, vx: -Math.cos(a) * d * 2.6, vy: -Math.sin(a) * d * 2.6, drag: .9, life: .28, s: 1.4 * s, rgb: '255,210,120' }); }
+    }
     if (st.speed > 0) {
       trail.push(c); if (trail.length > 7) trail.shift();
-      for (let i = 1; i < trail.length; i++) { const a = i / trail.length; cx.globalCompositeOperation = 'lighter'; cx.strokeStyle = `rgba(255,236,190,${a * .5})`; cx.lineWidth = r.width * .55 * a; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(trail[i - 1].x, trail[i - 1].y); cx.lineTo(trail[i].x, trail[i].y); cx.stroke(); }
-      for (let i = 0; i < 4; i++) { const ox = (i - 1.5) * r.width * .3, L = R(40, 90) * s; cx.strokeStyle = `rgba(255,246,220,${R(.25, .5)})`; cx.lineWidth = 1.4 * s; cx.beginPath(); cx.moveTo(c.x + ox, c.y - dir * r.height * .45); cx.lineTo(c.x + ox, c.y - dir * (r.height * .45 + L)); cx.stroke(); }
+      for (let i = 1; i < trail.length; i++) { const a = i / trail.length; cx.globalCompositeOperation = 'lighter'; cx.strokeStyle = `rgba(255,236,190,${a * .5})`; cx.lineWidth = rw * .55 * a; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(trail[i - 1].x, trail[i - 1].y); cx.lineTo(trail[i].x, trail[i].y); cx.stroke(); }
+      for (let i = 0; i < 4; i++) { const ox = (i - 1.5) * rw * .3, L = R(40, 90) * s; cx.strokeStyle = `rgba(255,246,220,${R(.25, .5)})`; cx.lineWidth = 1.4 * s; cx.beginPath(); cx.moveTo(c.x + ox, c.y - dir * rh * .45); cx.lineTo(c.x + ox, c.y - dir * (rh * .45 + L)); cx.stroke(); }
     }
     if (tl.progress() >= 1 && !wasEnd) { wasEnd = true; trail = []; }
     return !(wasEnd && st.speed >= 1 && dead);
@@ -254,39 +259,42 @@ export function fxDrop(el: HTMLElement, target: { cx: number; cy: number; w: num
 export type ArrowSpec = { x1: number; y1: number; x2: number; y2: number; w1: number; h1: number; w2: number; h2: number; kind: 'pick' | 'hit'; mine: boolean };
 let arrows: ArrowSpec[] = [], arrowItem = false; const ast = { a: 0, t: 0 };
 const exitT = (dx: number, dy: number, w: number, h: number) => Math.min(Math.abs(dx) > 1e-6 ? (w / 2) / Math.abs(dx) : 1e9, Math.abs(dy) > 1e-6 ? (h / 2) / Math.abs(dy) : 1e9);
-// Uma seta "viaja": nasce na borda da carta que ataca, corre até a mira do alvo e some ao tocá-lo; recomeça. O corpo tem rabo afilado e ondula de leve (S), a ponta é
-// grande, com contorno escuro grosso, degradê e faixa de brilho (visual de jogo, plano). O ciclo dura PERIOD s: 80% de viagem, o resto some.
-const PERIOD = 1.15;
+// A seta "cresce": a base fica COLADA na borda do atacante e o corpo vai sendo desenhado até a mira do alvo; ao chegar, segura um instante e some; recomeça.
+// Visual de jogo, plano e grande (cresce com a distância): corpo que se alarga para a ponta, ponta com farpas recuadas, contorno escuro grosso + aro branco
+// + cor cheia, e um brilho que varre o corpo. Ciclo de PERIOD s: 66% crescendo, 16% parada tocando o alvo, 18% sumindo.
+const PERIOD = 1.3;
 function drawArrow(s: ArrowSpec, idx: number, a: number) {
-  const dx = s.x2 - s.x1, dy = s.y2 - s.y1, dist = Math.hypot(dx, dy); if (dist < 4) return; const ux = dx / dist, uy = dy / dist, k = s.w2 / 56;
-  const t1 = exitT(ux, uy, s.w1, s.h1) - 2 * k, t2 = s.w2 * .36;
+  const dx = s.x2 - s.x1, dy = s.y2 - s.y1, dist = Math.hypot(dx, dy); if (dist < 4) return; const ux = dx / dist, uy = dy / dist;
+  const t1 = exitT(ux, uy, s.w1, s.h1) - 7 * (s.w2 / 56), t2 = s.w2 * .36;   // a base entra um pouco na carta atacante: fica encostada nela
   const p0 = { x: s.x1 + ux * t1, y: s.y1 + uy * t1 }, p1 = { x: s.x2 - ux * t2, y: s.y2 - uy * t2 }, len = Math.hypot(p1.x - p0.x, p1.y - p0.y); if (len < 10) return;
-  // arco uniforme conforme o ângulo (alvo à direita curva para a direita; em frente, reto); sem ondulação
+  const k = s.w2 / 56 * Math.min(1.6, Math.max(1, .8 + len / 200));   // grande, e maior quando o alvo está longe
+  // arco leve conforme o ângulo (alvo à direita curva para a direita; em frente, reto); liso, sem ondulação
   let px = -uy, py = ux; if (px * ux < 0) { px = -px; py = -py; }
-  const bulge = Math.min(len * .3, 60 * k) * Math.min(1, Math.abs(ux) * 1.4), c = { x: (p0.x + p1.x) / 2 + px * bulge, y: (p0.y + p1.y) / 2 + py * bulge };
-  const pos = (u: number) => { const q = { x: (1 - u) * (1 - u) * p0.x + 2 * (1 - u) * u * c.x + u * u * p1.x, y: (1 - u) * (1 - u) * p0.y + 2 * (1 - u) * u * c.y + u * u * p1.y }; return q; };
+  const bulge = Math.min(len * .28, 60 * k) * Math.min(1, Math.abs(ux) * 1.4), c = { x: (p0.x + p1.x) / 2 + px * bulge, y: (p0.y + p1.y) / 2 + py * bulge };
+  const pos = (u: number) => ({ x: (1 - u) * (1 - u) * p0.x + 2 * (1 - u) * u * c.x + u * u * p1.x, y: (1 - u) * (1 - u) * p0.y + 2 * (1 - u) * u * c.y + u * u * p1.y });
   const dirAt = (u: number) => { const e = .01, q0 = pos(Math.max(0, u - e)), q1 = pos(Math.min(1, u + e)), l = Math.hypot(q1.x - q0.x, q1.y - q0.y) || 1; return { x: (q1.x - q0.x) / l, y: (q1.y - q0.y) / l }; };
-  // fase do ciclo: a ponta corre de 0 a 1 em 80% do tempo (acelera no meio), depois a seta some; o corpo mede ~55% do caminho
-  const ph = ((ast.t + idx * .13) % PERIOD) / PERIOD, run = clamp(ph / .8), uH = Math.pow(run, .85) * (3 - 2 * run) * .5 + run * .5;
-  const fade = Math.min(1, ph / .06) * (ph < .8 ? 1 : Math.max(0, 1 - (ph - .8) / .2)); const al = a * fade; if (al < .01) return;
-  const head = 24 * k, headU = Math.min(.45, head / len), body = Math.max(.34, .55), uTail = Math.max(0, uH - body), uShaft = Math.max(uTail, uH - headU);
-  const rgb = s.mine ? '255,76,44' : '60,140,255', rgbTail = s.mine ? '255,170,70' : '120,200,255', dark = s.mine ? '78,6,10' : '8,28,84', hwMax = 5.6 * k, hwH = 14 * k;
-  const N = 24, L: { x: number; y: number }[] = [], Rt: { x: number; y: number }[] = [];
-  for (let i = 0; i <= N; i++) { const u = uTail + (uShaft - uTail) * i / N, q = pos(u), d = dirAt(u), sp = uShaft > uTail ? i / N : 1, hw = hwMax * Math.pow(Math.min(1, sp / .55), .8) + .5 * k; L.push({ x: q.x - d.y * hw, y: q.y + d.x * hw }); Rt.push({ x: q.x + d.y * hw, y: q.y - d.x * hw }); }
-  const hb = pos(uShaft), hd = dirAt(uH), tip = pos(uH);
-  const poly = () => { cx.beginPath(); L.forEach((q, i) => i ? cx.lineTo(q.x, q.y) : cx.moveTo(q.x, q.y)); cx.lineTo(hb.x - hd.y * hwH, hb.y + hd.x * hwH); cx.lineTo(tip.x, tip.y); cx.lineTo(hb.x + hd.y * hwH, hb.y - hd.x * hwH); for (let i = N; i >= 0; i--) cx.lineTo(Rt[i].x, Rt[i].y); cx.closePath(); };
+  const ph = ((ast.t + idx * .15) % PERIOD) / PERIOD, grow = clamp(ph / .66), uH = 1 - Math.pow(1 - grow, 2.2);
+  const fade = Math.min(1, ph / .05) * (ph < .84 ? 1 : Math.max(0, 1 - (ph - .84) / .16)); const al = a * fade; if (al < .01 || uH < .02) return;
+  const headLen = 30 * k, headU = Math.min(.5, headLen / len), uShaft = Math.max(0, uH - headU), hwBase = 4.2 * k, hwTop = 8.2 * k, hwH = 19 * k;
+  const rgb = s.mine ? '255,70,44' : '60,140,255', rgbLite = s.mine ? '255,190,110' : '170,215,255', dark = s.mine ? '74,5,12' : '8,26,86';
+  const N = 24, Lp: { x: number; y: number }[] = [], Rp: { x: number; y: number }[] = [];
+  for (let i = 0; i <= N; i++) { const u = uShaft * i / N, q = pos(u), d = dirAt(u), hw = hwBase + (hwTop - hwBase) * (uShaft > 0 ? i / N : 1); Lp.push({ x: q.x - d.y * hw, y: q.y + d.x * hw }); Rp.push({ x: q.x + d.y * hw, y: q.y - d.x * hw }); }
+  const hb = pos(uShaft), hd = dirAt(uH), tip = pos(uH), nL = { x: -hd.y, y: hd.x };
+  const wL = { x: hb.x + nL.x * hwH - hd.x * headLen * .2, y: hb.y + nL.y * hwH - hd.y * headLen * .2 }, wR = { x: hb.x - nL.x * hwH - hd.x * headLen * .2, y: hb.y - nL.y * hwH - hd.y * headLen * .2 };
+  const notch = { x: hb.x - hd.x * headLen * .02, y: hb.y - hd.y * headLen * .02 };
+  const poly = () => { cx.beginPath(); Lp.forEach((q, i) => i ? cx.lineTo(q.x, q.y) : cx.moveTo(q.x, q.y)); cx.lineTo(notch.x + nL.x * hwTop, notch.y + nL.y * hwTop); cx.lineTo(wL.x, wL.y); cx.lineTo(tip.x, tip.y); cx.lineTo(wR.x, wR.y); cx.lineTo(notch.x - nL.x * hwTop, notch.y - nL.y * hwTop); for (let i = N; i >= 0; i--) cx.lineTo(Rp[i].x, Rp[i].y); cx.closePath(); };
   cx.lineCap = 'round'; cx.lineJoin = 'round';
-  // halo suave
-  cx.globalCompositeOperation = 'lighter'; cx.beginPath(); for (let i = 0; i <= 20; i++) { const q = pos(uTail + (uH - uTail) * i / 20); i ? cx.lineTo(q.x, q.y) : cx.moveTo(q.x, q.y); } cx.strokeStyle = `rgba(${rgb},${.2 * al})`; cx.lineWidth = hwMax * 2 + 12 * k; cx.stroke();
+  cx.globalCompositeOperation = 'lighter'; cx.beginPath(); for (let i = 0; i <= 20; i++) { const q = pos(uH * i / 20); i ? cx.lineTo(q.x, q.y) : cx.moveTo(q.x, q.y); } cx.strokeStyle = `rgba(${rgb},${.2 * al})`; cx.lineWidth = hwTop * 2 + 14 * k; cx.stroke();
   cx.globalCompositeOperation = 'source-over';
-  // contorno escuro grosso, degradê do rabo (claro) para a ponta (cor cheia), faixa de brilho
-  poly(); cx.strokeStyle = `rgba(${dark},${.95 * al})`; cx.lineWidth = 3.6 * k; cx.stroke();
-  const g = cx.createLinearGradient(pos(uTail).x, pos(uTail).y, tip.x, tip.y); g.addColorStop(0, `rgba(${rgbTail},${al})`); g.addColorStop(.5, `rgba(${rgb},${al})`); g.addColorStop(1, `rgba(${rgb},${al})`);
+  poly(); cx.strokeStyle = `rgba(${dark},${.96 * al})`; cx.lineWidth = 5.4 * k; cx.stroke();                         // contorno escuro grosso
+  const g = cx.createLinearGradient(p0.x, p0.y, tip.x, tip.y); g.addColorStop(0, `rgba(${rgb},${al})`); g.addColorStop(1, `rgba(${rgb},${al})`);
   poly(); cx.fillStyle = g; cx.fill();
-  cx.globalCompositeOperation = 'lighter'; cx.beginPath(); for (let i = 0; i <= 20; i++) { const u = uTail + (uShaft - uTail) * i / 20, q = pos(u), d = dirAt(u); const o = hwMax * .4 * (i / 20); i ? cx.lineTo(q.x - d.y * o, q.y + d.x * o) : cx.moveTo(q.x - d.y * o, q.y + d.x * o); } cx.strokeStyle = `rgba(255,255,255,${.55 * al})`; cx.lineWidth = 1.8 * k; cx.stroke();
-  cx.beginPath(); cx.moveTo(hb.x - hd.y * hwH * .55, hb.y + hd.x * hwH * .55); cx.lineTo(tip.x - hd.x * 3 * k, tip.y - hd.y * 3 * k); cx.strokeStyle = `rgba(255,255,255,${.5 * al})`; cx.lineWidth = 1.8 * k; cx.stroke();
-  // faísca no toque
-  if (ph > .72 && ph < .92) softGlow(tip.x, tip.y, 16 * k, rgbTail, .5 * al);
+  poly(); cx.strokeStyle = `rgba(255,255,255,${.9 * al})`; cx.lineWidth = 1.8 * k; cx.stroke();                         // aro branco por dentro do escuro
+  // brilho que varre o corpo (clip no formato da seta)
+  cx.save(); poly(); cx.clip(); const sw = ((ast.t * .9 + idx * .2) % 1.5) - .25, gx = p0.x + (tip.x - p0.x) * sw, gy = p0.y + (tip.y - p0.y) * sw, bw = Math.max(30, len * .25);
+  const gs = cx.createLinearGradient(gx - ux * bw, gy - uy * bw, gx + ux * bw, gy + uy * bw); gs.addColorStop(0, `rgba(${rgbLite},0)`); gs.addColorStop(.5, `rgba(255,255,255,${.5 * al})`); gs.addColorStop(1, `rgba(${rgbLite},0)`); cx.globalCompositeOperation = 'lighter'; cx.fillStyle = gs; cx.fillRect(Math.min(p0.x, tip.x) - 60, Math.min(p0.y, tip.y) - 60, Math.abs(tip.x - p0.x) + 120, Math.abs(tip.y - p0.y) + 120); cx.restore();
+  // brilho no ponto de contato
+  if (ph > .6 && ph < .92) softGlow(tip.x, tip.y, 20 * k, rgbLite, .55 * al);
 }
 // Define as setas do momento (lista vazia some com elas). Pode ser chamada a cada quadro do jogo: só liga o laço quando há seta.
 export function fxArrows(list: ArrowSpec[]) {
