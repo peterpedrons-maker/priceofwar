@@ -74,6 +74,7 @@
       <button data-a="fogo">Jogar o Fogo-Sinal<small>Terreno: o sinal corre</small></button>
       <button data-a="fogo-saque">Modo Saque<small>destrói e compra 1</small></button>
       <button data-a="fogo-trincheira">Modo Trincheira<small>-1 de dano</small></button>
+      <button data-a="fogo-armar">Armar uma unidade<small>aura + o sinal responde</small></button>
     </div>
     <div class="grp" id="g-noite">
       <button data-a="noite">Noite Sem Parar<small>Tática: 2 movimentos extras</small></button>
@@ -83,6 +84,7 @@
     </div>
     <div class="grp" id="g-arsenal">
       <button data-a="arsenal">Arsenal dos Mil Invernos<small>Relíquia: geada nas Armadas</small></button>
+      <button data-a="arsenal-armar">Armar uma unidade<small>aura + o gelo responde</small></button>
     </div>
     <div id="opts"><label><input type="checkbox" id="slow"> Câmera lenta</label><button id="reset">Limpar o campo</button></div>
   </nav>
@@ -117,6 +119,7 @@ function buildBoard(opts = {}) {
   C('cabide-de-ferro', COLX[1], ROW.pFront, true); C('aldric-mil-armas-campeao-das-marcas', COLX[2], ROW.pFront, true);
   C('vigia-da-torre-mofada', COLX[3], ROW.pFront, true); C('cavaleiro-rompe-escudos', COLX[4], ROW.pFront, true);
   C('cavaleiro-do-pinhal-cinzento', COLX[1], ROW.pBack, true); C('arqueiro-do-ultimo-sol', COLX[3], ROW.pBack, true);
+  C('olho-de-nevoa', COLX[0], ROW.pBack, false);
   C('margrave-osric-senhor-das-marcas', 195, ROW.pGen, false, 'big');
 }
 const byName = n => els.find(e => e.src.includes(n));
@@ -381,6 +384,57 @@ function arsenal() {
   });
 }
 
+
+const glints = (x, y, n, rgb, spread = 30, s = 9) => { for (let k = 0; k < n; k++) spawn({ kind: 'glint', x: x + R(-spread, spread), y: y + R(-spread * 1.4, spread * 1.4), s, life: .5, rgb }); };
+// ── Aura em volta das Armadas e do Terreno/Relíquia + o efeito que "viaja" até a unidade recém-armada ───────────────────
+function edgePt(x, y, w, h) {
+  const wt = [w * .9, h * 1.2, w * .35, h * 1.2], tot = wt[0] + wt[1] + wt[2] + wt[3]; let u = Math.random() * tot, s = 0; while (s < 3 && u > wt[s]) { u -= wt[s]; s++; } const f = u / wt[s];
+  if (s === 0) return { x: x - w / 2 + 4 + f * (w - 8), y: y - h / 2, nx: 0, ny: -1, sz: 1 };
+  if (s === 1) return { x: x + w / 2, y: y - h / 2 + 6 + f * (h - 10), nx: 1, ny: 0, sz: .8 };
+  if (s === 2) return { x: x - w / 2 + 4 + f * (w - 8), y: y + h / 2, nx: 0, ny: 1, sz: .45 };
+  return { x: x - w / 2, y: y - h / 2 + 6 + f * (h - 10), nx: -1, ny: 0, sz: .8 };
+}
+function auraLayer(kind) {
+  clearLayer('aura'); const holder = byName(kind === 'fogo' ? 'posto-do-fogo' : 'arsenal');
+  const crys = new Map(); const crysFor = e => { if (!crys.has(e)) crys.set(e, Array.from({ length: 7 }, (_, i) => ({ s: i % 4, o: R(-.8, .8), h: R(6, 15), w: R(2.6, 4.4), ph: R(0, 6) }))); return crys.get(e); };
+  const L = add({ dur: 1e9, I: 0, held: new Set(), k: new Map(), kind,
+    targets() { return holder ? [...armed, holder] : [...armed]; },
+    tick(p, t, dt) { this.I += (1 - this.I) * Math.min(1, dt * 1.5);
+      if (kind === 'arsenal' && Math.random() < dt * 26) spawn({ kind: 'snow', x: R(0, 390), y: -6, vx: R(-8, 10), vy: R(26, 52), s: R(1, 2.2), a: .6, life: 11.5, sway: 14, ph: R(0, 6) });
+      for (const e of this.targets()) { const terr = e === holder; let k = this.k.get(e) ?? 0; k += ((this.held.has(e) ? 0 : 1) - k) * Math.min(1, dt * 3); this.k.set(e, k); const kk = (terr ? 1 : k) * Math.min(1, this.I); if (kk < .05) continue; const [x, y] = pos(e);
+        if (kind === 'fogo') { for (let c = dt * 24 * kk; c > 0; c -= 1) { if (Math.random() >= c) continue; const q = edgePt(x, y, 64, 92); flame(q.x, q.y, R(6, 10) * q.sz, { vx: q.nx * 8 + R(-5, 5), vy: -R(22, 48), a: .55 * kk, life: R(.5, .95) }); }
+          if (Math.random() < dt * 5 * kk) spawn({ kind: 'smoke', x: x + R(-26, 26), y: y - 46, vx: R(-6, 10), vy: -R(26, 40), s: R(7, 11), a: .22, life: R(1.6, 2.4), rgb: '84,76,70', back: false }); if (Math.random() < dt * 8 * kk) ember(x + R(-28, 28), y - 44, { vy: -R(40, 90) }); }
+        else if (Math.random() < dt * 14 * kk) { const q = edgePt(x, y, 64, 92); spawn({ kind: 'glint', x: q.x, y: q.y, s: R(5, 9), life: .6, rgb: '215,240,255' }); } } },
+    draw(p, t) { const I = Math.min(1, this.I); ctx = cF; ctx.globalCompositeOperation = 'lighter';
+      for (const e of this.targets()) { const terr = e === holder; const k = (terr ? 1 : this.k.get(e) ?? 0) * I; if (k < .03) continue; const [x, y] = pos(e), fl = .8 + .2 * Math.sin(t * 9 + x * .1);
+        const rr = a => { ctx.beginPath(); ctx.roundRect(x - 32 - a, y - 46 - a, 64 + a * 2, 92 + a * 2, 7 + a); };
+        if (kind === 'fogo') { glow(x, y, 62, '255,120,40', .14 * k * fl); rr(3); ctx.strokeStyle = `rgba(255,95,30,${.2 * k * fl})`; ctx.lineWidth = 7; ctx.stroke(); rr(1); ctx.strokeStyle = `rgba(255,175,90,${.5 * k * fl})`; ctx.lineWidth = 2.2; ctx.stroke(); }
+        else { glow(x, y, 62, '150,210,255', .12 * k); rr(1); ctx.strokeStyle = `rgba(190,232,255,${.34 * k + .1 * Math.sin(t * 2 + x)})`; ctx.lineWidth = 2.2; ctx.stroke(); rr(4); ctx.strokeStyle = `rgba(150,205,255,${.1 * k})`; ctx.lineWidth = 6; ctx.stroke();
+          for (const c of crysFor(e)) { let bx, by, dx = 0, dy = 0; const hw = 32, hh = 46; if (c.s === 0) { bx = x + c.o * hw * .9; by = y - hh; dy = -1; } else if (c.s === 1) { bx = x - hw; by = y + c.o * hh * .9; dx = -1; } else if (c.s === 2) { bx = x + hw; by = y + c.o * hh * .9; dx = 1; } else { bx = x + c.o * hw * .9; by = y + hh; dy = 1; }
+            const h = c.h * clamp(k * 1.1) * (.9 + .1 * Math.sin(t * 2 + c.ph)), w = c.w * clamp(k * 1.1), nx = -dy, ny = dx; const gr = ctx.createLinearGradient(bx, by, bx + dx * h, by + dy * h); gr.addColorStop(0, 'rgba(210,240,255,.85)'); gr.addColorStop(1, 'rgba(120,190,255,.25)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(bx - nx * w, by - ny * w); ctx.lineTo(bx + dx * h, by + dy * h); ctx.lineTo(bx + nx * w, by + ny * w); ctx.closePath(); ctx.fill(); } } } } });
+  layers.aura = L; return L;
+}
+// o Terreno/Relíquia já está em campo; a unidade vai ser armada
+function armarCena(kind) {
+  resetAll(); const name = kind === 'fogo' ? 'posto-do-fogo-sinal' : 'arsenal-dos-mil-invernos', slot = kind === 'fogo' ? TERRAIN : RELIC;
+  const c = mk(FACE + name, slot[0], slot[1]); c.dataset.side = 'p'; els.push(c); played.push(c); auraLayer(kind);
+  at(1.9, () => armar(kind));
+}
+function armar(kind) {
+  const holder = played[0], u = byName('olho-de-nevoa'); if (!holder || !u) return; const [ax, ay] = pos(holder), [bx, by] = pos(u), L = layers.aura;
+  armed.push(u); L.held.add(u); L.k.set(u, 0);
+  tag(kind === 'fogo' ? 'Equipou: o sinal responde' : 'Equipou: o gelo responde', 195, 372, kind === 'fogo' ? '#ffcf8a' : '#bfe6ff');
+  const cx = (ax + bx) / 2, cy = Math.min(ay, by) - 70; const P2 = e => ({ x: (1 - e) * (1 - e) * ax + 2 * (1 - e) * e * cx + e * e * bx, y: (1 - e) * (1 - e) * ay + 2 * (1 - e) * e * cy + e * e * by });
+  add({ dur: .8, draw(p) { const q = P2(eio(p)); ctx = cF;
+      if (kind === 'fogo') { glow(q.x, q.y, 28, '255,170,70', .9); glow(q.x, q.y, 12, '255,250,210', .9); }
+      else { const q2 = P2(Math.min(1, eio(p) + .02)); const ang = Math.atan2(q2.y - q.y, q2.x - q.x); glow(q.x, q.y, 30, '150,210,255', .7); ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(ang); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createLinearGradient(-16, 0, 16, 0); g.addColorStop(0, 'rgba(120,190,255,.2)'); g.addColorStop(1, 'rgba(240,252,255,.95)'); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(18, 0); ctx.lineTo(0, -5); ctx.lineTo(-16, 0); ctx.lineTo(0, 5); ctx.closePath(); ctx.fill(); ctx.restore(); } },
+    tick(p, t, dt) { const q = P2(eio(p)); if (kind === 'fogo') { flame(q.x, q.y + 3, 9, { vx: R(-12, 12), vy: R(-10, 14), life: .45 }); ember(q.x + R(-4, 4), q.y, { vy: R(-6, 20), life: 1 }); spawn({ kind: 'smoke', x: q.x, y: q.y, vx: R(-8, 8), vy: R(-14, 4), s: 7, a: .2, life: .9, rgb: '90,82,76' }); }
+      else { spawn({ kind: 'glint', x: q.x + R(-6, 6), y: q.y + R(-6, 6), s: R(6, 11), life: .5, rgb: '225,245,255' }); spawn({ kind: 'snow', x: q.x, y: q.y, vx: R(-14, 14), vy: R(-8, 18), s: R(1, 2), a: .9, life: .7 }); } },
+    done() { const [ex, ey] = pos(u); ring(ex, ey, 10, kind === 'fogo' ? 56 : 58, kind === 'fogo' ? '255,190,100' : '190,235,255', 4, .85, .5, .8); add({ dur: .4, draw: p => { ctx = cF; glow(ex, ey, 70, kind === 'fogo' ? '255,200,110' : '170,225,255', .8 * (1 - p)); } });
+      fan(ex, ey, 22, -3.1, 0, 260, { rgb: kind === 'fogo' ? '255,220,150' : '215,240,255' }); if (kind === 'fogo') for (let i = 0; i < 10; i++) flame(ex + R(-26, 26), ey + R(-30, 30), R(8, 13), { vy: -R(40, 90) }); else glints(ex, ey, 8, '230,248,255', 30, 11);
+      L.held.delete(u); flashCard(u, 'pop'); } });
+}
+
 // ── main loop ─────────────────────────────────────────────────────────────────────────────────────────────────────
 function tick(dt) {
   now += dt;
@@ -406,6 +460,7 @@ if (!MANUAL) requestAnimationFrame(loop);
 // ── controls ───────────────────────────────────────────────────────────────────────────────────────────────────────
 function resetAll() { for (const k of Object.keys(layers)) clearLayer(k); fxs.length = 0; sched.length = 0; P.length = 0; $('#nums').innerHTML = ''; $('#night').style.opacity = 0; $('#night2').style.opacity = 0; buildBoard(); }
 const ACT = {
+  'fogo-armar': () => armarCena('fogo'), 'arsenal-armar': () => armarCena('arsenal'),
   'forja': () => { resetAll(); forja(); }, 'forja-muralha': () => forja('muralha'), 'forja-afiacao': () => forja('afiacao'),
   'fogo': () => { resetAll(); fogo(); }, 'fogo-saque': () => fogo('saque'), 'fogo-trincheira': () => fogo('trincheira'),
   'noite': () => { resetAll(); noite(); }, 'mata': () => { resetAll(); mata(); }, 'arsenal': () => { resetAll(); arsenal(); },

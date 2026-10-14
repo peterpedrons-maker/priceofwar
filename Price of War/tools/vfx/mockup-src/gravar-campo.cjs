@@ -4,9 +4,11 @@ const { chromium } = require('/opt/node22/lib/node_modules/playwright'); const f
 const url = process.argv[2] || 'http://localhost:4513/priceofwar/mockups/efeitos-campo/?manual', out = process.argv[3] || '/tmp/gifcampo';
 const FPS = 20;
 // [nome, cena, segundos antes de gravar, ação do modo (opcional), segundos gravados]
+const ONLY = process.argv[4] ? process.argv[4].split(',') : null;
 const PLAN = [
   ['forja', 'forja', 0, null, 4.4], ['forja-muralha', 'forja', 3.2, 'forja-muralha', 2.4], ['forja-afiacao', 'forja', 3.2, 'forja-afiacao', 2.4],
   ['fogo-sinal', 'fogo', 0, null, 4.4], ['fogo-saque', 'fogo', 3.8, 'fogo-saque', 2.6], ['fogo-trincheira', 'fogo', 3.8, 'fogo-trincheira', 2.4],
+  ['fogo-armar', 'fogo-armar', 0, null, 5.2], ['arsenal-armar', 'arsenal-armar', 0, null, 5.2],
   ['noite-sem-parar', 'noite', 0, null, 5.4], ['a-mata-devolve', 'mata', 0, null, 4.0], ['arsenal-dos-mil-invernos', 'arsenal', 0, null, 4.4],
 ];
 (async () => {
@@ -16,6 +18,7 @@ const PLAN = [
   await page.evaluate(() => { window.__starts = new Map(); window.setTimeout = (fn, ms) => { at(ms / 1000, fn); return 0; }; });
   const sync = () => page.evaluate(() => { for (const a of document.getAnimations()) { if (!__starts.has(a)) { __starts.set(a, now); a.pause(); } a.currentTime = (now - __starts.get(a)) * 1000; } });
   for (const [name, scene, pre, mode, secs] of PLAN) {
+    if (ONLY && !ONLY.includes(name)) continue;
     fs.rmSync(`${out}/${name}`, { recursive: true, force: true }); fs.mkdirSync(`${out}/${name}`, { recursive: true });
     await page.evaluate(([s, p]) => { window.__run(s); if (p) window.__step(p); }, [scene, pre]);
     if (mode) await page.evaluate(m => window.__do(m), mode);
