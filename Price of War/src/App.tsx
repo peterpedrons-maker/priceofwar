@@ -235,7 +235,7 @@ import { useGameSettings, setGameSettings } from './gameSettings';
 import tutHandSprite from './assets/tut-hand.webp';
 import type { Trigger } from './engine/types';
 import { preloadTerrainFx, syncTerrainFx, clearTerrainFx, type TerrainFxKind } from './terrainFx';
-import { syncCampoLayers, clearCampoLayers, fxForjaPlaced, fxForjaModo, fxFogoPlaced, fxFogoTrincheira, fxFogoSaque, fxNoitePlay, fxNoiteTrail, fxMata, fxArsenalPlaced } from './campoFx';
+import { syncCampoLayers, clearCampoLayers, fxForjaPlaced, fxForjaModo, fxFogoPlaced, fxFogoTrincheira, fxFogoSaque, fxNoitePlay, fxNoiteTrail, fxMata, fxArsenalPlaced, fxForjaEquip } from './campoFx';
 import { DesafiosScreen, type DzDeck, type DzOpponent } from './DesafiosScreen';
 import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
@@ -5971,7 +5971,7 @@ export default function App() {
     };
     // Test hook: the client-side flow state (what is pending, which effect floats, how many glows are still playing).
     (window as any).__powFlow = () => ({ ability: pendingAbilityRef.current, floating: trigActiveIdRef.current, glows: trigGlowPendingRef.current });
-    (window as any).__campoFx = { fxMata, fxForjaPlaced, fxFogoPlaced, fxArsenalPlaced, fxNoiteTrail };   // teste: dispara um efeito do Campo direto (`?debug`)
+    (window as any).__campoFx = { fxForjaEquip, fxMata, fxForjaPlaced, fxFogoPlaced, fxArsenalPlaced, fxNoiteTrail };   // teste: dispara um efeito do Campo direto (`?debug`)
     (window as any).__powAct = (seat: Seat, action: EngineAction) => { const r = dispatchActionRef.current(seat, action); return r.ok ? { ok: true } : r; };
     (window as any).__powSet = (mutate: (s: GameState) => void) => {
       const next = JSON.parse(JSON.stringify(engineRef.current)) as GameState;
@@ -6476,6 +6476,8 @@ export default function App() {
       }
       if (e.t === 'play' && getCardDef(e.card.name)?.fx === 'reformar') run(fxReformar(env, sideOf(e.seat)));
       if (e.t === 'play' && getCardDef(e.card.name)?.fx === 'noite') run(fxNoitePlay());
+      // Forja: quando uma unidade fica Armada, o Terreno lança o fogo até ela
+      if (e.t === 'equip' && getCardDef(cur.players[e.seat].board[11]?.name ?? '')?.fx === 'forja') run(fxForjaEquip(sideOf(e.seat), e.slot));
       // Noite Sem Parar: cada movimento que gasta um movimento extra deixa rastro de tocha
       if (e.t === 'move' && prev && prev.turn.bonusRepositions > cur.turn.bonusRepositions) run(fxNoiteTrail(sideOf(e.seat), e.from, e.to));
       // modo escolhido de um Terreno do Campo
