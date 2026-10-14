@@ -422,3 +422,9 @@ Módulo próprio com dois canvas: o de **baixo** (z 30, como o `terrainFx`) guar
 - **`fxLunge`** (a investida do ataque, `CardSlot`): a carta recua para pegar embalo (luz dourada e contorno se juntando, brasas sendo sugadas, tremor de tensão) e dispara com rastro de luz e linhas de velocidade. O GSAP move a carta pelas propriedades CSS soltas (`translate`, `rotate`, `scale`), que se somam ao `transform` do framer-motion; o framer segue cuidando do impacto (escala 1,32, tremor). `ATTACK_MS` subiu de 400 para 480 ms.
 - **`FlyingCardNovo` + `fxDrop`** (carta que vem da mão, no lugar do `motion.div` antigo): GSAP refaz as mesmas etapas (sobe com leve pulo até pairar sobre a casa, paira inclinada, sobe um pouco, cai acelerando e toma o tamanho exato da casa antes de bater em `FLIGHT_HIT_MS`) e o canvas desenha a sombra na casa (grande e fraca no alto, escura e do tamanho da casa ao tocar) e linhas de velocidade na queda.
 - Fica para a próxima: a carta que sai do baralho (compra), o movimento entre casas e as setas de ataque (o dono quer refazê-las: mal posicionadas).
+
+### Mais peso no assentar da carta (rodada 26, depois do feedback "a carta só encaixa")
+- A carta que cai agora **amassa** um instante no toque (achata e alarga, ~50 ms) e volta ao tamanho exato da casa antes de ser trocada pela carta de verdade.
+- **O tabuleiro treme** ao assentar (`landShake`: 6,5 px; 11 px se for arte total), junto com o som.
+- `fxLand` maior: clarão branco-quente, três ondas pelo contorno mais grossas, onda de poeira rasteira (elipse achatada, sem linha dura), rachaduras brilhando no chão, anel de poeira saindo para os lados, mais faíscas e lascas.
+- Observação: o brilho retangular que aparece sobre a casa logo depois (`tb-*`, `TriggerBurst`) é do jogo antigo e não foi mexido.

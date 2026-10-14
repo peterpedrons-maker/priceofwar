@@ -57,15 +57,24 @@ const ctr = (r: CardRect) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2
 // ── 1. carta que desce e assenta ─────────────────────────────────────────────────────────────────────────────────────
 // A carta toca o tabuleiro: clarão e três ondas que correm pelo CONTORNO (nunca uma caixa), poeira que sai dos lados e faíscas; carta de arte total (big) ganha mais.
 export function fxLand(r: CardRect, big = false) {
-  const s = r.width / 56, { x, y } = ctr(r);
-  run(.55, 'power2.out', k => {
+  const s = r.width / 56, { x, y } = ctr(r), base = r.top + r.height;
+  // fissuras no chão a partir das quinas de baixo e dos lados (curtas, escuras, com brilho laranja que apaga)
+  const cracks = Array.from({ length: big ? 7 : 5 }, (_, i) => { const sx = x + (i / (big ? 6 : 4) - .5) * r.width * 1.1, pts: [number, number][] = [[sx, base - r.height * .06]]; let a = Math.PI / 2 + R(-.7, .7) + (i - 2) * .12, px = sx, py = pts[0][1]; for (let j = 0; j < 3; j++) { a += R(-.5, .5); const l = R(.1, .2) * r.width * (big ? 1.3 : 1); px += Math.cos(a) * l; py += Math.sin(a) * l * .6; pts.push([px, py]); } return pts; });
+  run(.7, 'power2.out', k => {
     cx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 3; i++) { const kk = clamp((k - i * .1) / .7); if (kk <= 0) continue; const pad = r.width * (.03 + .16 * kk + i * .02); cx.strokeStyle = `rgba(${big ? '255,214,120' : '255,236,190'},${(1 - kk) * (big ? .85 : .6)})`; cx.lineWidth = (3.4 - i) * s * (1 - kk * .5); rr(r, pad); cx.stroke(); }
-    softGlow(x, y, r.width * .9, '255,214,150', (1 - k) * (1 - k) * (big ? .5 : .34));
+    // clarão branco-quente no toque
+    softGlow(x, y, r.width * (1.05 + .9 * k), '255,240,200', (1 - clamp(k / .35)) ** 2 * (big ? 1 : .8));
+    for (let i = 0; i < 3; i++) { const kk = clamp((k - i * .08) / .7); if (kk <= 0) continue; const pad = r.width * (.02 + .32 * kk + i * .03); cx.strokeStyle = `rgba(${big ? '255,214,120' : '255,236,190'},${(1 - kk) * (big ? .95 : .75)})`; cx.lineWidth = (5.5 - i * 1.3) * s * (1 - kk * .5); rr(r, pad); cx.stroke(); }
+    // onda de poeira/energia rente ao chão (elipse achatada, sem linha dura)
+    const kr = clamp(k / .75); const g = cx.createRadialGradient(x, base - 2 * s, r.width * .2 * kr, x, base - 2 * s, r.width * (.5 + 1.7 * kr)); g.addColorStop(0, 'rgba(255,230,170,0)'); g.addColorStop(.75, `rgba(255,220,150,${(1 - kr) * (big ? .62 : .46)})`); g.addColorStop(1, 'rgba(255,220,150,0)'); cx.save(); cx.translate(x, base - 2 * s); cx.scale(1, .32); cx.translate(-x, -(base - 2 * s)); cx.fillStyle = g; cx.beginPath(); cx.arc(x, base - 2 * s, r.width * (.5 + 1.7 * kr), 0, 7); cx.fill(); cx.restore();
+    // rachaduras no chão
+    const ac = (1 - clamp((k - .1) / .9)) * clamp(k / .1); cx.lineCap = 'round'; cx.lineJoin = 'round';
+    for (const c of cracks) { cx.beginPath(); c.forEach(([px, py], i) => i ? cx.lineTo(px, py) : cx.moveTo(px, py)); cx.strokeStyle = `rgba(255,130,50,${ac * .8})`; cx.lineWidth = 2.6 * s; cx.stroke(); cx.strokeStyle = `rgba(255,236,180,${ac})`; cx.lineWidth = 1 * s; cx.stroke(); }
   });
-  const n = big ? 16 : 9;
-  for (let i = 0; i < n; i++) { const side = i % 2 ? 1 : -1; emit({ kind: 'dust', x: x + side * r.width * R(.25, .5), y: r.top + r.height * R(.8, 1), vx: side * R(30, 90) * s, vy: R(-14, 4) * s, drag: .96, life: R(.45, .8), s: R(7, 13) * s, rgb: '150,126,92', a: .55 }); }
-  for (let i = 0; i < (big ? 14 : 7); i++) { const a = R(-Math.PI * .95, -Math.PI * .05), v = R(60, 190) * s; emit({ kind: 'spark', x: x + R(-.4, .4) * r.width, y: r.top + r.height * R(.7, 1), vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 520 * s, drag: .97, life: R(.3, .55), s: 1.5 * s, rgb: big ? '255,214,120' : '255,236,190' }); }
+  // poeira em anel que sai rasteira para os lados + nuvem que sobe
+  for (let i = 0; i < (big ? 30 : 22); i++) { const a = i / (big ? 30 : 22) * 6.283 + R(-.15, .15), v = R(110, 230) * s; emit({ kind: 'dust', x: x + Math.cos(a) * r.width * .3, y: base - r.height * .05, vx: Math.cos(a) * v, vy: Math.sin(a) * v * .3 - R(0, 12) * s, drag: .95, life: R(.5, .95), s: R(12, 24) * s, rgb: '150,126,92', a: .65 }); }
+  for (let i = 0; i < (big ? 26 : 18); i++) { const a = R(-Math.PI * .98, -Math.PI * .02), v = R(150, 430) * s; emit({ kind: 'spark', x: x + R(-.45, .45) * r.width, y: base - r.height * R(0, .15), vx: Math.cos(a) * v * 1.3, vy: Math.sin(a) * v, g: 620 * s, drag: .965, life: R(.3, .62), s: R(1.4, 2.4) * s, rgb: Math.random() < .4 ? '255,250,225' : (big ? '255,206,110' : '255,226,160') }); }
+  for (let i = 0; i < (big ? 12 : 8); i++) { const side = i % 2 ? 1 : -1, v = R(90, 280) * s; emit({ kind: 'chip', x: x + side * r.width * R(.2, .5), y: base - r.height * .05, vx: side * v * .7, vy: -R(120, 260) * s, g: 900 * s, drag: .985, life: R(.55, .9), s: R(2.2, 4.4) * s, rgb: Math.random() < .5 ? '170,128,70' : '82,58,40', rot: R(0, 6), vr: R(-14, 14) }); }
 }
 
 // ── 2. carta que leva o golpe ────────────────────────────────────────────────────────────────────────────────────────

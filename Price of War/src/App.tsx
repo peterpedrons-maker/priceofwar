@@ -1155,7 +1155,10 @@ const FlyingCardNovo = ({ f, onDone }: { f: { card: CardData; fromX: number; fro
     tl.to(el, { y: Y1 - 14, rotation: 0, duration: .06 * k, ease: 'power2.out' }, .59 * k);                                       // sobe um pouco antes de cair
     tl.to(el, { y: Y2, duration: .15 * k, ease: 'power4.in' }, .65 * k);                                                           // queda que acelera
     tl.to(el, { scaleX: s1, scaleY: s1y, duration: .12 * k, ease: 'power2.in' }, .66 * k);                                          // toma o tamanho exato da casa antes de bater
-    tl.to({}, { duration: .2 * k }, .8 * k);                                                                                       // segura até o fim do voo (poeira, som)
+    // peso no toque: a carta amassa um instante (achata e alarga) e volta ao tamanho exato da casa antes de ser trocada pela carta de verdade
+    tl.to(el, { scaleX: s1 * 1.07, scaleY: s1y * .91, duration: .05 * k, ease: 'power2.out' }, .8 * k);
+    tl.to(el, { scaleX: s1, scaleY: s1y, duration: .12 * k, ease: 'back.out(3)' }, .85 * k);
+    tl.to({}, { duration: .03 * k }, .97 * k);                                                                                     // segura até o fim do voo
     return () => { tl.kill(); };
   }, []);
   return (
@@ -5587,6 +5590,7 @@ export default function App() {
   const blowIsSoaked = (events: GameEvent[], defSeat: Seat, slot: number) =>
     events.some(e => e.t === 'shield_hit' && e.seat === defSeat && e.slot === slot) && !events.some(e => e.t === 'damage' && e.seat === defSeat && e.slot === slot && e.amount > 0);
   // The physical-hit sprite, drawn in a layer above the board over whichever card was hit (see PunchFx).
+  const [landShake, setLandShake] = useState(0);   // the board shudders when a card slams down (new effects only)
   const [punchFx, setPunchFx] = useState<{ key: number; x: number; y: number; w: number; h: number; heavy: boolean } | null>(null);
   const [attackAnim, setAttackAnim] = useState<{ attackerIndex: number, targetIndex: number, isPlayerAttacking: boolean } | null>(null);
   // Forces a re-render every animation frame while an attack is in flight, purely so
@@ -5863,7 +5867,7 @@ export default function App() {
   useEffect(() => {
     if (!flyingCard) return;
     const f = flyingCard;
-    const id = window.setTimeout(() => { playCardPlaySfx(); fireImpactBurst(f.toX, f.toY, !!f.card.isFullArt, f.toW); }, FLIGHT_HIT_MS);
+    const id = window.setTimeout(() => { playCardPlaySfx(); fireImpactBurst(f.toX, f.toY, !!f.card.isFullArt, f.toW); if (getGameSettings().fxNovo) { setLandShake(f.card.isFullArt ? 11 : 6.5); window.setTimeout(() => setLandShake(0), 360); } }, FLIGHT_HIT_MS);
     return () => window.clearTimeout(id);
   }, [flyingCard]);
   const handCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -8877,7 +8881,7 @@ export default function App() {
   // The board gives a short tremor when a hit lands (a General being hit shakes harder). Kept to a few pixels and a
   // third of a second — the camera must never read as moving. Pixel sizes are divided by the board's own scale so
   // they mean real screen pixels.
-  const shakePx = (attackAnim && isImpacting ? (attackAnim.targetIndex === 12 ? 6 : 3) : 0) / gridBaseAnim.scale;
+  const shakePx = Math.max(attackAnim && isImpacting ? (attackAnim.targetIndex === 12 ? 6 : 3) : 0, landShake) / gridBaseAnim.scale;
   const gridZoomDelta = shakePx > 0
     ? { x: [0, -shakePx, shakePx, -shakePx * 0.7, shakePx * 0.5, 0], y: [0, shakePx * 0.6, -shakePx * 0.5, shakePx * 0.3, -shakePx * 0.2, 0], scale: 1 }
     : { x: 0, y: 0, scale: 1 };
