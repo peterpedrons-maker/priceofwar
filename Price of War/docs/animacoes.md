@@ -411,3 +411,4 @@ Módulo próprio com dois canvas: o de **baixo** (z 30, como o `terrainFx`) guar
 - **Terreno (A Forja que Nunca Apaga):** a carta cai com rastro de luz, três marteladas (cada uma mais forte: faíscas, poeira, tremor, brilho), onda de fogo que corre pela fileira da frente com a câmera acompanhando, e depois brasas subindo da carta.
 - **Destruição:** golpe (flash, faíscas, a carta aperta e treme), queima de baixo para cima com shader de dissolver (ruído; borda incandescente acima de 1.0 para o bloom pegar, carvão atrás), brasas e fumaça saindo da frente da queima, marca de chamuscado e brasa no chão.
 - Sem onda de choque em anel no chão (o dono pediu para tirar na abertura de booster).
+- **Câmera plana de frente** (como o jogo, 2D) é o padrão; `?inclinado` dá a mesa deitada da primeira versão. No jogo, a ideia é um canvas WebGL transparente por cima do tabuleiro real, em câmera de frente, sem inclinar nada.

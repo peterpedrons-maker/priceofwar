@@ -58,7 +58,7 @@ const noiseAt = (u, v) => { const x = ((u * NS) % NS + NS) % NS, y = ((v * NS) %
 const burnF = (u, v) => noiseAt(u * 1.5, (1 - v) * 1.5) * .42 + (1 - (1 - v)) * 0 + (1 - v) * .58;   // v: 0 embaixo, 1 em cima -> queima de baixo para cima
 
 // ── mesa inclinada ─────────────────────────────────────────────────────────────────────────────────────────────────────
-const TILT = .62, UP = [0, Math.cos(TILT), Math.sin(TILT)];   // "para cima" na tela, em coordenadas da mesa
+const TILT = q.has('inclinado') ? .62 : 0, UP = [0, Math.cos(TILT), Math.sin(TILT)];   // padrão: câmera de frente, plana, como o jogo (2D)   // "para cima" na tela, em coordenadas da mesa
 const board = new THREE.Group(); board.rotation.x = -TILT; board.position.set(0, -.15, 0); board.scale.setScalar(1.32); scene.add(board);
 const loader = new THREE.TextureLoader(); const tex = u => new Promise(res => loader.load(u, t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; res(t); }));
 scene.add(new THREE.AmbientLight(0xffe9cf, .8)); const key = new THREE.DirectionalLight(0xfff0d8, 1.6); key.position.set(-3, 5, 6); scene.add(key);
