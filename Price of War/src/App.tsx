@@ -232,7 +232,7 @@ import { playSfx, preloadSfx, dbgMark } from './sfx';
 import { fxTactic, fxHero, fxRanged, fxLanding, fxUpkeep, fxGoldGain, fxRelicSoldo, fxLoot, fxPlaced, fxReformar, fxAmbush, fxCalice, fxHospitalario, fxNobre, fxReforco, fxComandante, fxRetorno, fxAtirador, preloadHolyFx, preloadCombatFx, type FxEnv, type FxRect, type FxSide, type FxTarget } from './combatFx';
 import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettings, subscribeAudio } from './audioSettings';
 import { useGameSettings, setGameSettings, getGameSettings } from './gameSettings';
-import { fxLand, fxImpact, fxBurn, burnMaskSheet, BURN, fxLunge, fxDrop, fxArrows, type ArrowSpec } from './cardFx';
+import { fxLand, fxImpact, fxBurn, burnMaskSheet, BURN, fxLunge, fxDrop, fxArrows, fxHintFrame, type ArrowSpec } from './cardFx';
 import gsap from 'gsap';
 import tutHandSprite from './assets/tut-hand.webp';
 import type { Trigger } from './engine/types';
@@ -1148,6 +1148,7 @@ const FlyingCardNovo = ({ f, onDone }: { f: { card: CardData; fromX: number; fro
     const X0 = f.fromX - HW, X1 = f.toX - HW, Y0 = f.fromY - HH, Y1 = f.toY - 86 - HH, Y2 = f.toY - HH;
     gsap.set(el, { x: X0, y: Y0, scaleX: s0, scaleY: s0, rotation: f.fromRot ?? 0, rotationX: f.fromRx ?? 0, rotationY: f.fromRy ?? 0, transformPerspective: 900, transformOrigin: '50% 50%' });
     fxDrop(el, { cx: f.toX, cy: f.toY, w: f.toW, h: f.toH }, .62 * k, FLIGHT_HIT_MS / 1000 * k);
+    fxHintFrame((document.querySelector('[data-card-visual]') as HTMLElement | null) ?? el);   // the landing ripples follow the frame of a card already on the board
     const tl = gsap.timeline({ onComplete: onDone });
     tl.to(el, { x: X1, y: Y1, rotation: 0, rotationX: 0, rotationY: 0, duration: .42 * k, ease: 'power3.out' }, 0);
     tl.to(el, { scaleX: hs, scaleY: hs, duration: .42 * k, ease: 'back.out(1.5)' }, 0);
@@ -6013,6 +6014,7 @@ export default function App() {
     };
     // Test hook: the client-side flow state (what is pending, which effect floats, how many glows are still playing).
     (window as any).__powFlow = () => ({ ability: pendingAbilityRef.current, floating: trigActiveIdRef.current, glows: trigGlowPendingRef.current });
+    (window as any).__cardFx = { fxLand, fxHintFrame };   // teste (`?debug`)
     (window as any).__campoFx = { fxForjaEquip, fxFogoEquip, fxArsenalEquip, fxMata, fxForjaPlaced, fxFogoPlaced, fxArsenalPlaced, fxNoiteTrail };   // teste: dispara um efeito do Campo direto (`?debug`)
     (window as any).__powAct = (seat: Seat, action: EngineAction) => { const r = dispatchActionRef.current(seat, action); return r.ok ? { ok: true } : r; };
     (window as any).__powSet = (mutate: (s: GameState) => void) => {

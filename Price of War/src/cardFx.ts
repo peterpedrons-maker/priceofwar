@@ -52,19 +52,54 @@ function drawParts() {
 }
 function softGlow(x: number, y: number, r: number, rgb: string, a: number) { if (a < .005) return; const g = cx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`); cx.globalCompositeOperation = 'lighter'; cx.fillStyle = g; cx.beginPath(); cx.arc(x, y, r, 0, 7); cx.fill(); }
 const rr = (r: CardRect, pad = 0) => { const rad = r.width * .09 + pad; cx.beginPath(); cx.roundRect(r.left - pad, r.top - pad, r.width + pad * 2, r.height + pad * 2, rad); };
+// ── contorno no formato EXATO da carta (regra do dono: nunca um retângulo de cantos arredondados) ───────────────────────────────────
+// Lê o alfa da imagem da moldura da própria carta (a `img.inset-0` dentro dela), dilata cópias coloridas e tira o miolo: sobra um brilho só por fora.
+const RINGS = new Map<string, { c: HTMLCanvasElement; pad: number; bw: number; bh: number }>();
+const frameImgOf = (el: Element | null): HTMLImageElement | null => { if (!el) return null; let best: HTMLImageElement | null = null, area = 0; el.querySelectorAll<HTMLImageElement>('img').forEach(im => { if (!im.complete || !im.naturalWidth || !/inset-0/.test(im.className)) return; const r = im.getBoundingClientRect(), ar = r.width * r.height; if (ar > area) { area = ar; best = im; } }); return best; };
+// silhueta MACIÇA da moldura: o que não é alcançável a partir de fora por pixels transparentes (as janelas de arte e de texto ficam preenchidas)
+const SOLID = new Map<string, HTMLCanvasElement>();
+function solidOf(img: HTMLImageElement): HTMLCanvasElement | null {
+  const key = img.currentSrc || img.src, hit = SOLID.get(key); if (hit) return hit;
+  const W = 96, H = Math.max(8, Math.round(W * img.naturalHeight / img.naturalWidth)), c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d', { willReadFrequently: true })!; g.drawImage(img, 0, 0, W, H);
+  let im: ImageData; try { im = g.getImageData(0, 0, W, H); } catch { return null; }
+  const d = im.data, out = new Uint8Array(W * H), q: number[] = [], push = (x: number, y: number) => { if (x < 0 || y < 0 || x >= W || y >= H) return; const i = y * W + x; if (out[i] || d[i * 4 + 3] > 40) return; out[i] = 1; q.push(i); };
+  for (let x = 0; x < W; x++) { push(x, 0); push(x, H - 1); } for (let y = 0; y < H; y++) { push(0, y); push(W - 1, y); }
+  for (let h = 0; h < q.length; h++) { const i = q[h], x = i % W, y = (i / W) | 0; push(x + 1, y); push(x - 1, y); push(x, y + 1); push(x, y - 1); }
+  for (let i = 0; i < W * H; i++) { d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = 255; d[i * 4 + 3] = out[i] ? 0 : 255; }
+  g.putImageData(im, 0, 0); SOLID.set(key, c); return c;
+}
+function silRing(img: HTMLImageElement, pw: number, ph: number, rgb: string) {
+  const key = `${img.currentSrc || img.src}|${Math.round(pw / 6)}|${rgb}`, hit = RINGS.get(key); if (hit) return hit;
+  const pad = Math.ceil(pw * .16), c = document.createElement('canvas'); c.width = Math.round(pw + pad * 2); c.height = Math.round(ph + pad * 2); const g = c.getContext('2d')!;
+  const t = document.createElement('canvas'); t.width = Math.round(pw); t.height = Math.round(ph); const tg = t.getContext('2d')!; tg.imageSmoothingEnabled = true; tg.drawImage(solidOf(img) ?? img, 0, 0, t.width, t.height); tg.globalCompositeOperation = 'source-in'; tg.fillStyle = `rgb(${rgb})`; tg.fillRect(0, 0, t.width, t.height);
+  const sc = pw / 64; for (const [r, al] of [[1.2, 1], [2.6, .6], [4.6, .34], [7, .16]]) { g.globalAlpha = al; for (let k = 0; k < 20; k++) { const an = k / 20 * Math.PI * 2; g.drawImage(t, pad + Math.cos(an) * r * sc, pad + Math.sin(an) * r * sc); } }
+  g.globalAlpha = 1; g.globalCompositeOperation = 'destination-out'; g.drawImage(t, pad, pad);
+  const o = { c, pad, bw: pw, bh: ph }; RINGS.set(key, o); return o;
+}
+// desenha o contorno da moldura `img`, que hoje ocupa `r`, ampliado `grow` vezes em volta do centro
+function drawSil(img: HTMLImageElement, r: CardRect, rgb: string, alpha: number, grow = 1) {
+  if (alpha < .01) return; const ring = silRing(img, r.width, r.height, rgb), sx = r.width / ring.bw * grow, sy = r.height / ring.bh * grow, w = ring.c.width * sx, h = ring.c.height * sy, { x, y } = ctr(r);
+  cx.globalCompositeOperation = 'lighter'; cx.globalAlpha = Math.min(1, alpha); cx.drawImage(ring.c, x - w / 2, y - h / 2, w, h); cx.globalAlpha = 1;
+}
+let hintEl: HTMLElement | null = null;
+// A carta que está pousando avisa qual elemento é ela (para o contorno do assentar seguir a moldura dela)
+export const fxHintFrame = (el: HTMLElement | null) => { hintEl = el; };
 const ctr = (r: CardRect) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
 
 // ── 1. carta que desce e assenta ─────────────────────────────────────────────────────────────────────────────────────
 // A carta toca o tabuleiro: clarão e três ondas que correm pelo CONTORNO (nunca uma caixa), poeira que sai dos lados e faíscas; carta de arte total (big) ganha mais.
 export function fxLand(r: CardRect, big = false) {
   const s = r.width / 56, { x, y } = ctr(r), base = r.top + r.height;
+  // o formato vem da moldura de uma carta que já está no tabuleiro (a da mão é retangular); ela ocupa 122% x 145,5% da casa, com o centro 5,8% mais baixo
+  const fimg = frameImgOf(hintEl); hintEl = null; const fw = r.width * 1.22, fh = r.height * 1.455, fr: CardRect | null = fimg ? { left: x - fw / 2, top: y + r.height * .058 - fh / 2, width: fw, height: fh } : null;
   // fissuras no chão a partir das quinas de baixo e dos lados (curtas, escuras, com brilho laranja que apaga)
   const cracks = Array.from({ length: big ? 7 : 5 }, (_, i) => { const sx = x + (i / (big ? 6 : 4) - .5) * r.width * 1.1, pts: [number, number][] = [[sx, base - r.height * .06]]; let a = Math.PI / 2 + R(-.7, .7) + (i - 2) * .12, px = sx, py = pts[0][1]; for (let j = 0; j < 3; j++) { a += R(-.5, .5); const l = R(.1, .2) * r.width * (big ? 1.3 : 1); px += Math.cos(a) * l; py += Math.sin(a) * l * .6; pts.push([px, py]); } return pts; });
   run(.7, 'power2.out', k => {
     cx.globalCompositeOperation = 'lighter';
     // clarão branco-quente no toque
     softGlow(x, y, r.width * (1.05 + .9 * k), '255,240,200', (1 - clamp(k / .35)) ** 2 * (big ? 1 : .8));
-    for (let i = 0; i < 3; i++) { const kk = clamp((k - i * .08) / .7); if (kk <= 0) continue; const pad = r.width * (.02 + .32 * kk + i * .03); cx.strokeStyle = `rgba(${big ? '255,214,120' : '255,236,190'},${(1 - kk) * (big ? .95 : .75)})`; cx.lineWidth = (5.5 - i * 1.3) * s * (1 - kk * .5); rr(r, pad); cx.stroke(); }
+    // ondas que crescem a partir da própria moldura (formato exato da carta)
+    for (let i = 0; i < 3; i++) { const kk = clamp((k - i * .08) / .7); if (kk <= 0) continue; if (fimg && fr) drawSil(fimg, fr, big ? '255,214,120' : '255,236,190', (1 - kk) * (big ? 1 : .85), 1 + (.05 + .36 * kk + i * .03)); }
     // onda de poeira/energia rente ao chão (elipse achatada, sem linha dura)
     const kr = clamp(k / .75); const g = cx.createRadialGradient(x, base - 2 * s, r.width * .2 * kr, x, base - 2 * s, r.width * (.5 + 1.7 * kr)); g.addColorStop(0, 'rgba(255,230,170,0)'); g.addColorStop(.75, `rgba(255,220,150,${(1 - kr) * (big ? .62 : .46)})`); g.addColorStop(1, 'rgba(255,220,150,0)'); cx.save(); cx.translate(x, base - 2 * s); cx.scale(1, .32); cx.translate(-x, -(base - 2 * s)); cx.fillStyle = g; cx.beginPath(); cx.arc(x, base - 2 * s, r.width * (.5 + 1.7 * kr), 0, 7); cx.fill(); cx.restore();
     // rachaduras no chão
@@ -175,11 +210,11 @@ export function fxLunge(el: HTMLElement, attackY: number, ms: number, windFrac: 
   tl.to(st, { y: -dir * windPx, rot: -dir * tiltDeg * .5, sc: 1.07, charge: 1, duration: w, ease: 'power2.out' }, 0);
   tl.to(st, { rot: `+=${dir * 1.6}`, duration: .035, repeat: 3, yoyo: true, ease: 'sine.inOut' }, w * .55);                       // tremor de tensão
   tl.to(st, { y: attackY, rot: dir * tiltDeg, sc: 1.2, sx: .96, sy: 1.08, charge: 0, speed: 1, duration: sdur, ease: 'power3.in' }, w);
-  let trail: { x: number; y: number }[] = [], dead = false, wasEnd = false;
+  let trail: { x: number; y: number }[] = [], dead = false, wasEnd = false; const fimg = frameImgOf(el);
   const rect = () => el.getBoundingClientRect();
   add(dt => {
     if (dead) return false; const r = rect(), c = ctr({ left: r.left, top: r.top, width: r.width, height: r.height }), s = r.width / 56;
-    if (st.charge > .02) { softGlow(c.x, c.y, r.width * (.8 + .5 * st.charge), '255,205,110', .32 * st.charge); rr({ left: r.left, top: r.top, width: r.width, height: r.height }, 1 + 3 * st.charge); cx.globalCompositeOperation = 'lighter'; cx.strokeStyle = `rgba(255,224,150,${.55 * st.charge})`; cx.lineWidth = 2 * s; cx.stroke();
+    if (st.charge > .02) { softGlow(c.x, c.y, r.width * (.8 + .5 * st.charge), '255,205,110', .22 * st.charge); if (fimg) { const fr = fimg.getBoundingClientRect(); drawSil(fimg, { left: fr.left, top: fr.top, width: fr.width, height: fr.height }, '255,224,150', .85 * st.charge, 1 + .03 * st.charge); }
       if (Math.random() < dt * 40 * st.charge) { const a = R(0, 6.283), d = R(.7, 1.2) * r.width; emit({ kind: 'ember', x: c.x + Math.cos(a) * d, y: c.y + Math.sin(a) * d, vx: -Math.cos(a) * d * 2.6, vy: -Math.sin(a) * d * 2.6, drag: .9, life: .28, s: 1.4 * s, rgb: '255,210,120' }); } }
     if (st.speed > 0) {
       trail.push(c); if (trail.length > 7) trail.shift();
@@ -223,33 +258,26 @@ function drawArrow(s: ArrowSpec, idx: number, a: number) {
   const dx = s.x2 - s.x1, dy = s.y2 - s.y1, dist = Math.hypot(dx, dy); if (dist < 4) return; const ux = dx / dist, uy = dy / dist, k = s.w2 / 56 * (s.kind === 'hit' ? 1.25 : 1);
   const t1 = exitT(ux, uy, s.w1, s.h1) - 2 * k, t2 = s.w2 * .36;   // sai da borda do atacante e entra até o anel da mira do alvo (as cartas ficam coladas: só até a borda seria curtíssima)
   const p0 = { x: s.x1 + ux * t1, y: s.y1 + uy * t1 }, p1 = { x: s.x2 - ux * t2, y: s.y2 - uy * t2 }, len = Math.hypot(p1.x - p0.x, p1.y - p0.y); if (len < 10) return;
-  const sign = Math.abs(ux) > .12 ? Math.sign(ux) : (idx % 2 ? 1 : -1), bulge = Math.min(54 * k, len * .2) * sign;
-  const c = { x: (p0.x + p1.x) / 2 - uy * bulge, y: (p0.y + p1.y) / 2 + ux * bulge };
+  // O arco depende do ângulo: alvo à direita curva para a direita, à esquerda curva para a esquerda, bem em frente vai reto.
+  let px = -uy, py = ux; if (px * ux < 0) { px = -px; py = -py; }
+  const bulge = Math.min(len * .3, 60 * k) * Math.min(1, Math.abs(ux) * 1.4), c = { x: (p0.x + p1.x) / 2 + px * bulge, y: (p0.y + p1.y) / 2 + py * bulge };
   const B = (u: number) => ({ x: (1 - u) * (1 - u) * p0.x + 2 * (1 - u) * u * c.x + u * u * p1.x, y: (1 - u) * (1 - u) * p0.y + 2 * (1 - u) * u * c.y + u * u * p1.y });
   const T = (u: number) => { const tx = 2 * (1 - u) * (c.x - p0.x) + 2 * u * (p1.x - c.x), ty = 2 * (1 - u) * (c.y - p0.y) + 2 * u * (p1.y - c.y), l = Math.hypot(tx, ty) || 1; return { x: tx / l, y: ty / l }; };
-  const rgb = s.mine ? '255,70,50' : '70,150,255', rgbHot = s.mine ? '255,200,110' : '190,225,255', head = 21 * k, uHead = Math.max(.5, 1 - head / len);
-  cx.lineCap = 'round'; cx.lineJoin = 'round'; cx.globalCompositeOperation = 'lighter';
+  const rgb = s.mine ? '236,52,40' : '56,132,240', rgbHot = s.mine ? '255,170,100' : '170,210,255', head = 22 * k, uHead = Math.max(.5, 1 - head / len), hwS = 4.4 * k, hwH = 12.5 * k;
+  const breathe = .9 + .1 * Math.sin(ast.t * 4 + idx);
+  cx.lineCap = 'round'; cx.lineJoin = 'round';
   const path = (to: number) => { cx.beginPath(); cx.moveTo(p0.x, p0.y); for (let i = 1; i <= 28; i++) { const q = B(to * i / 28); cx.lineTo(q.x, q.y); } };
-  // brilho largo e fraco por baixo
-  path(uHead); cx.strokeStyle = `rgba(${rgb},${.2 * a})`; cx.lineWidth = 15 * k; cx.stroke();
-  // fita que engrossa do rabo para a ponta
-  const N = 28, L: { x: number; y: number }[] = [], Rr: { x: number; y: number }[] = [];
-  for (let i = 0; i <= N; i++) { const u = uHead * i / N, q = B(u), t = T(u), hw = k * (.9 + 4.6 * Math.pow(u / uHead, 1.3)); L.push({ x: q.x - t.y * hw, y: q.y + t.x * hw }); Rr.push({ x: q.x + t.y * hw, y: q.y - t.x * hw }); }
-  const g = cx.createLinearGradient(p0.x, p0.y, p1.x, p1.y); g.addColorStop(0, `rgba(${rgb},${.05 * a})`); g.addColorStop(.55, `rgba(${rgb},${.7 * a})`); g.addColorStop(1, `rgba(${rgbHot},${.95 * a})`);
-  cx.fillStyle = g; cx.beginPath(); L.forEach((q, i) => i ? cx.lineTo(q.x, q.y) : cx.moveTo(q.x, q.y)); for (let i = N; i >= 0; i--) cx.lineTo(Rr[i].x, Rr[i].y); cx.closePath(); cx.fill();
-  // núcleo claro e pontinhos correndo
-  path(uHead); cx.strokeStyle = `rgba(255,245,225,${.5 * a})`; cx.lineWidth = 1.3 * k; cx.stroke();
-  cx.setLineDash([2 * k, 11 * k]); cx.lineDashOffset = -ast.t * 70 * k; path(uHead); cx.strokeStyle = `rgba(255,250,235,${.75 * a})`; cx.lineWidth = 3 * k; cx.stroke(); cx.setLineDash([]);
-  // pulso de luz com rastro
-  const pu = ((ast.t * (s.kind === 'hit' ? 1.8 : 1.05) + idx * .19) % 1) * uHead;
-  for (let j = 0; j < 6; j++) { const q = B(Math.max(0, pu - j * .035 * uHead)); const f = 1 - j / 6; const gg = cx.createRadialGradient(q.x, q.y, 0, q.x, q.y, 9 * k * f + 2); gg.addColorStop(0, `rgba(255,248,230,${.95 * f * a})`); gg.addColorStop(1, `rgba(${rgbHot},0)`); cx.fillStyle = gg; cx.beginPath(); cx.arc(q.x, q.y, 9 * k * f + 2, 0, 7); cx.fill(); }
-  // ponta de seta alinhada com a tangente, com leve pulsar
-  const pulse = 1 + .07 * Math.sin(ast.t * 9 + idx), tg = T(1), hb = B(uHead), hl = head * pulse, hwid = 13 * k * pulse;
-  const tip = { x: p1.x, y: p1.y }, lft = { x: hb.x - tg.y * hwid, y: hb.y + tg.x * hwid }, rgt = { x: hb.x + tg.y * hwid, y: hb.y - tg.x * hwid }; void hl;
-  const gh = cx.createLinearGradient(hb.x, hb.y, tip.x, tip.y); gh.addColorStop(0, `rgba(${rgb},${.85 * a})`); gh.addColorStop(1, `rgba(255,235,200,${a})`);
-  softGlow(tip.x - tg.x * 6 * k, tip.y - tg.y * 6 * k, 22 * k, rgbHot, .55 * a);
-  cx.globalCompositeOperation = 'lighter'; cx.fillStyle = gh; cx.beginPath(); cx.moveTo(tip.x, tip.y); cx.lineTo(lft.x, lft.y); cx.lineTo(hb.x - tg.x * 2 * k, hb.y - tg.y * 2 * k); cx.lineTo(rgt.x, rgt.y); cx.closePath(); cx.fill();
-  cx.strokeStyle = `rgba(255,255,255,${.5 * a})`; cx.lineWidth = 1 * k; cx.stroke();
+  // brilho suave por baixo (só um halo, sem textura)
+  cx.globalCompositeOperation = 'lighter'; path(uHead); cx.strokeStyle = `rgba(${rgb},${.22 * a})`; cx.lineWidth = hwS * 2 + 9 * k; cx.stroke();
+  // seta plana: haste de largura constante + ponta triangular, uma cor só, contorno fino
+  cx.globalCompositeOperation = 'source-over';
+  const N = 28, Lp: { x: number; y: number }[] = [], Rp: { x: number; y: number }[] = [];
+  for (let i = 0; i <= N; i++) { const u = uHead * i / N, q = B(u), t = T(u); Lp.push({ x: q.x - t.y * hwS, y: q.y + t.x * hwS }); Rp.push({ x: q.x + t.y * hwS, y: q.y - t.x * hwS }); }
+  const hb = B(uHead), tg = T(uHead), tip = { x: p1.x, y: p1.y };
+  const poly = () => { cx.beginPath(); Lp.forEach((q, i) => i ? cx.lineTo(q.x, q.y) : cx.moveTo(q.x, q.y)); cx.lineTo(hb.x - tg.y * hwH, hb.y + tg.x * hwH); cx.lineTo(tip.x, tip.y); cx.lineTo(hb.x + tg.y * hwH, hb.y - tg.x * hwH); for (let i = N; i >= 0; i--) cx.lineTo(Rp[i].x, Rp[i].y); cx.arc(p0.x, p0.y, hwS, Math.atan2(Rp[0].y - p0.y, Rp[0].x - p0.x), Math.atan2(Lp[0].y - p0.y, Lp[0].x - p0.x), false); cx.closePath(); };
+  poly(); cx.fillStyle = `rgba(${rgb},${.94 * a * breathe})`; cx.fill();
+  cx.strokeStyle = `rgba(255,255,255,${.7 * a})`; cx.lineWidth = 1.4 * k; cx.stroke();
+  cx.globalCompositeOperation = 'lighter'; cx.fillStyle = `rgba(${rgbHot},${.18 * a})`; poly(); cx.fill();
 }
 // Define as setas do momento (lista vazia some com elas). Pode ser chamada a cada quadro do jogo: só liga o laço quando há seta.
 export function fxArrows(list: ArrowSpec[]) {

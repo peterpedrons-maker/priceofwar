@@ -434,3 +434,8 @@ Módulo próprio com dois canvas: o de **baixo** (z 30, como o `terrainFx`) guar
 - Curva em arco que sai da **borda** do atacante e entra até o anel da mira do alvo (não vai mais de centro a centro por cima das cartas); fita que engrossa até a ponta, brilho largo por baixo, núcleo claro, pontinhos correndo, pulso de luz com rastro e ponta de seta alinhada com a tangente (pulsa de leve).
 - Vermelho = jogador atacando; azul = adversário; o ataque em andamento (`hit`) é 25% maior que os alvos possíveis (`pick`).
 - Limite do tabuleiro: as fileiras da frente ficam coladas (só a barra de fase no meio), então a seta é curta; a ponta entra no anel da mira para ser legível.
+
+#### Ajustes das setas e do contorno (rodada 26, feedback do dono)
+- **Seta plana:** haste de largura constante + ponta triangular, uma cor só (vermelho/azul), contorno branco fino e halo suave. Sem pontinhos nem bolinhas de luz.
+- **Curva conforme o ângulo:** alvo à direita curva para a direita, à esquerda para a esquerda, bem em frente vai **reta** (o arco é proporcional ao quanto o alvo está de lado).
+- **Contorno no formato EXATO da carta** (regra do dono): `silRing`/`drawSil` em `cardFx.ts` leem o alfa da moldura (`img.inset-0`), **preenchem as janelas** (`solidOf`: o que não é alcançável de fora por pixels transparentes), dilatam e tiram o miolo. Usado no recuo do ataque (`fxLunge`, a moldura da própria carta) e nas ondas do assentar (`fxLand`: a moldura de uma carta que já está no tabuleiro, `fxHintFrame`, posicionada como a moldura real: 122% x 145,5% da casa). Nada de retângulo de cantos arredondados.
