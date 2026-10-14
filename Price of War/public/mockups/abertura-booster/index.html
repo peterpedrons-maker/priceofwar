@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Abertura de booster (mockup Three.js + GSAP)</title>
+<style>
+  html,body{margin:0;height:100%;background:#07060a;overflow:hidden;font-family:Georgia,'Times New Roman',serif;color:#f3e7c6}
+  #stage{position:relative;width:100vw;height:100dvh;max-width:calc(100dvh*9/16);margin:0 auto;overflow:hidden;touch-action:none}
+  canvas{display:block;width:100%;height:100%}
+  #flash{position:absolute;inset:0;background:#fff8e0;opacity:0;pointer-events:none;mix-blend-mode:screen}
+  #cap{position:absolute;left:0;right:0;bottom:7%;text-align:center;pointer-events:none;opacity:0}
+  #cap b{display:block;font-size:clamp(18px,6.4vw,28px);letter-spacing:.14em;text-transform:uppercase;text-shadow:0 0 14px currentColor,0 2px 4px #000}
+  #cap i{display:block;font-size:clamp(11px,3.4vw,14px);font-style:normal;letter-spacing:.2em;opacity:.8;margin-top:4px}
+  #tap{position:absolute;inset:auto 0 3% 0;text-align:center;font-size:13px;letter-spacing:.2em;opacity:.0;pointer-events:none}
+  #replay{position:absolute;top:10px;right:10px;background:#000a;color:#f3e7c6;border:1px solid #f3e7c655;border-radius:6px;padding:8px 12px;font:13px Georgia,serif;opacity:0;transition:opacity .4s}
+  body.done #replay{opacity:1}
+  body.manual #replay{display:none}
+</style>
+</head>
+<body>
+<div id="stage"><div id="flash"></div><div id="cap"><b></b><i></i></div><button id="replay" type="button">Ver de novo</button></div>
+<script src="lib/gsap.min.js"></script>
+<script type="importmap">{"imports":{"three":"./lib/three.module.min.js","three/addons/":"./lib/addons/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const MANUAL = location.search.includes('manual');
+if (MANUAL) document.body.classList.add('manual');
+const stage = document.getElementById('stage'), flashEl = document.getElementById('flash'), capEl = document.getElementById('cap');
+
+// ── aleatório com semente (a gravação sai igual toda vez) ──────────────────────────────────────────────────────────────
+let seed = 7; const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const R = (a, b) => a + (b - a) * rnd();
+
+// ── renderizador, câmera, pós-processamento ────────────────────────────────────────────────────────────────────────────
+const W0 = stage.clientWidth, H0 = stage.clientHeight;
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(MANUAL ? 1 : Math.min(devicePixelRatio, 2)); renderer.setSize(W0, H0); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+stage.insertBefore(renderer.domElement, stage.firstChild);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x07060a);
+const cam = new THREE.PerspectiveCamera(32, W0 / H0, .1, 60); cam.position.set(0, 0, 10);
+const composer = new EffectComposer(renderer); composer.setSize(W0, H0);
+composer.addPass(new RenderPass(scene, cam));
+const bloom = new UnrealBloomPass(new THREE.Vector2(W0, H0), .28, .7, .78); composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+// ── texturas geradas por código (raios, halo, anel) ────────────────────────────────────────────────────────────────────
+const cv = (w, h, fn) => { const c = document.createElement('canvas'); c.width = w; c.height = h; fn(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const haloTex = cv(256, 256, (g, w, h) => { const r = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(.25, 'rgba(255,255,255,.45)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, w, h); });
+const ringTex = cv(256, 256, (g, w, h) => { const r = g.createRadialGradient(w / 2, h / 2, w * .3, w / 2, h / 2, w / 2); r.addColorStop(0, 'rgba(255,255,255,0)'); r.addColorStop(.7, 'rgba(255,255,255,.9)'); r.addColorStop(.85, 'rgba(255,255,255,.25)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, w, h); });
+const raysTex = (n, seedv) => cv(512, 512, (g, w, h) => { g.translate(w / 2, h / 2); let s = seedv; const rr = () => (s = (s * 16807) % 2147483647) / 2147483647; for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2 + rr() * .2, wd = .03 + rr() * .07, len = w * (.32 + rr() * .18); const gr = g.createLinearGradient(0, 0, Math.cos(a) * len, Math.sin(a) * len); gr.addColorStop(0, 'rgba(255,255,255,.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a - wd) * len, Math.sin(a - wd) * len); g.lineTo(Math.cos(a + wd) * len, Math.sin(a + wd) * len); g.closePath(); g.fill(); } });
+const bgTex = cv(256, 512, (g, w, h) => { const r = g.createRadialGradient(w / 2, h * .46, 8, w / 2, h * .46, h * .7); r.addColorStop(0, '#2a2118'); r.addColorStop(.5, '#120e0c'); r.addColorStop(1, '#050407'); g.fillStyle = r; g.fillRect(0, 0, w, h); });
+const bg = new THREE.Mesh(new THREE.PlaneGeometry(26, 46), new THREE.MeshBasicMaterial({ map: bgTex, toneMapped: false })); bg.position.z = -9; scene.add(bg);
+
+const additive = (tex, color, opacity = 1) => new THREE.MeshBasicMaterial({ map: tex, color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+const raysA = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), additive(raysTex(18, 11), 0xffd27a, 0)), raysB = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), additive(raysTex(26, 29), 0xfff0c0, 0));
+raysA.position.z = raysB.position.z = -1.2; scene.add(raysA, raysB);
+const coreGlow = new THREE.Mesh(new THREE.PlaneGeometry(7, 7), additive(haloTex, 0xffc060, 0)); coreGlow.position.z = -.9; scene.add(coreGlow);
+
+// ── luzes ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0xfff1dc, .85));
+const key = new THREE.DirectionalLight(0xfff0d8, 1.7); key.position.set(-3, 4, 6); scene.add(key);
+const rim = new THREE.PointLight(0xffd080, 14, 14, 1.6); rim.position.set(2.5, 1, 3); scene.add(rim);
+const inner = new THREE.PointLight(0xffb040, 0, 9, 1.4); inner.position.set(0, .2, -.2); scene.add(inner);
+
+// ── partículas (Points aditivos) ───────────────────────────────────────────────────────────────────────────────────────
+const MAXP = 2200, P = [];
+const pg = new THREE.BufferGeometry(), pPos = new Float32Array(MAXP * 3), pCol = new Float32Array(MAXP * 3), pSize = new Float32Array(MAXP), pAlpha = new Float32Array(MAXP);
+pg.setAttribute('position', new THREE.BufferAttribute(pPos, 3)); pg.setAttribute('color', new THREE.BufferAttribute(pCol, 3)); pg.setAttribute('size', new THREE.BufferAttribute(pSize, 1)); pg.setAttribute('alpha', new THREE.BufferAttribute(pAlpha, 1));
+const pm = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, uniforms: { k: { value: H0 / 2 } },
+  vertexShader: 'attribute float size;attribute float alpha;attribute vec3 color;varying float vA;varying vec3 vC;uniform float k;void main(){vA=alpha;vC=color;vec4 mv=modelViewMatrix*vec4(position,1.);gl_PointSize=size*k/-mv.z;gl_Position=projectionMatrix*mv;}',
+  fragmentShader: 'varying float vA;varying vec3 vC;void main(){float d=length(gl_PointCoord-.5)*2.;float a=exp(-d*d*3.2)*vA;if(a<.01)discard;gl_FragColor=vec4(vC*a*1.6,a);}' });
+const points = new THREE.Points(pg, pm); points.frustumCulled = false; points.renderOrder = 50; scene.add(points);
+const col = new THREE.Color();
+function emit(n, o) { for (let i = 0; i < n && P.length < MAXP; i++) { const p = typeof o === 'function' ? o() : o; col.set(p.c ?? 0xffd890); P.push({ x: p.x, y: p.y, z: p.z ?? 0, vx: p.vx ?? 0, vy: p.vy ?? 0, vz: p.vz ?? 0, g: p.g ?? 0, drag: p.drag ?? .98, life: p.life ?? 1, age: 0, s: p.s ?? .1, r: col.r, gg: col.g, b: col.b, a: p.a ?? 1, grow: p.grow ?? 0 }); } }
+function simP(dt) { for (let i = P.length - 1; i >= 0; i--) { const p = P[i]; p.age += dt; if (p.age >= p.life) { P.splice(i, 1); continue; } const k = Math.pow(p.drag, dt * 60); p.vx *= k; p.vy *= k; p.vz *= k; p.vy -= p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; } }
+function uploadP() { let i = 0; for (const p of P) { const u = p.age / p.life, f = u < .12 ? u / .12 : 1 - (u - .12) / .88; pPos[i * 3] = p.x; pPos[i * 3 + 1] = p.y; pPos[i * 3 + 2] = p.z; pCol[i * 3] = p.r; pCol[i * 3 + 1] = p.gg; pCol[i * 3 + 2] = p.b; pSize[i] = p.s * (1 + p.grow * u); pAlpha[i] = p.a * Math.max(0, f); i++; } for (; i < MAXP; i++) pAlpha[i] = 0; for (const a of ['position', 'color', 'size', 'alpha']) pg.attributes[a].needsUpdate = true; }
+const burst = (x, y, z, n, c, sp = 4, size = .09, life = 1.1, g = 2.2) => emit(n, () => { const a = R(0, 6.283), e = R(-.5, 1), v = R(sp * .3, sp); return { x, y, z, vx: Math.cos(a) * v * (1 - Math.abs(e) * .3), vy: Math.sin(a) * v * (1 - Math.abs(e) * .3) + R(0, 1), vz: R(-.5, 1.5), g, drag: .965, life: R(life * .5, life), s: R(size * .5, size), c, a: 1 }; });
+
+// ── anéis de choque ────────────────────────────────────────────────────────────────────────────────────────────────────
+const rings = [];
+function shock(x, y, z, color, size, dur = .8) { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), additive(ringTex, color, 1)); m.position.set(x, y, z); m.scale.setScalar(.2); scene.add(m); rings.push({ m, t0: tNow, dur, size }); }
+function stepRings() { for (let i = rings.length - 1; i >= 0; i--) { const r = rings[i], u = (tNow - r.t0) / r.dur; if (u >= 1) { scene.remove(r.m); rings.splice(i, 1); continue; } const e = 1 - Math.pow(1 - Math.max(0, u), 3); r.m.scale.setScalar(.2 + r.size * e); r.m.material.opacity = (1 - u) * (1 - u); } }
+
+// ── booster ────────────────────────────────────────────────────────────────────────────────────────────────────────────
+const PW = 1.8, PH = 3.1, SEAM = PH / 2 - PH * .093;
+const loader = new THREE.TextureLoader(); const tex = u => new Promise(res => loader.load(u, t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; res(t); }));
+const jag = x => .05 * (Math.abs(((x * 7.3 + 5) % 1) * 2 - 1) - .5) + .02 * Math.sin(x * 23);
+function panel(y0, y1, nx, ny, jagBottom, jagTop) {
+  const g = new THREE.BufferGeometry(), pos = [], uv = [], idx = [];
+  for (let j = 0; j <= ny; j++) for (let i = 0; i <= nx; i++) { const x = (i / nx - .5) * PW; let y = y0 + (y1 - y0) * j / ny; if (j === 0 && jagBottom) y += jag(x); if (j === ny && jagTop) y += jag(x);
+    const z = .13 * (1 - Math.pow(2 * x / PW, 2)) + .07 * (1 - Math.pow(2 * y / PH, 2)); pos.push(x, y, z); uv.push(x / PW + .5, y / PH + .5); }
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const a = j * (nx + 1) + i, b = a + 1, c = a + nx + 1, d = c + 1; idx.push(a, b, c, b, d, c); }
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); return g;
+}
+const pack = new THREE.Group(); scene.add(pack);
+const cardsG = new THREE.Group(); scene.add(cardsG);
+let body, strip, packMat;
+const cards = [];
+const HALO = [0xcfd8ff, 0xcfd8ff, 0x5ab4ff, 0x9a7bff, 0xffc85a];
+const LABEL = [['Comum', 'Penitente de Pedra'], ['Comum', 'Noviço Renascido'], ['Rara', 'Samaritano de Aço'], ['Rara', 'Paladino do Alvorecer'], ['Full Art · Lendária', 'Cardeal Anselmo, Voz da Fé']];
+const CARD_FILES = ['penitente-de-pedra', 'novico-renascido', 'samaritano-de-aco', 'paladino-do-alvorecer', 'cardeal-anselmo-voz-da-fe'];
+
+const sheenMat = (map, color) => new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: { map: { value: map }, t: { value: 0 }, amt: { value: 0 }, tint: { value: new THREE.Color(color) } },
+  vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+  fragmentShader: 'varying vec2 vUv;uniform sampler2D map;uniform float t;uniform float amt;uniform vec3 tint;void main(){vec4 c=texture2D(map,vUv);if(c.a<.5)discard;float d=vUv.x*.8+vUv.y*.6;float band=smoothstep(.0,.5,sin((d-t)*6.2832*1.2)*.5+.5);band=pow(band,3.);vec3 rb=.5+.5*cos(6.2832*(vec3(0.,.33,.67)+d*1.5-t*2.));vec3 col=mix(tint,rb,.65)*band*amt;gl_FragColor=vec4(col*.9,band*amt);}' });
+
+async function build() {
+  const [packTex, back, ...faces] = await Promise.all([tex('booster.webp'), tex('cards/_back.webp'), ...CARD_FILES.map(f => tex(`cards/${f}.webp`))]);
+  packMat = new THREE.MeshPhysicalMaterial({ map: packTex, roughness: .36, metalness: .28, clearcoat: .85, clearcoatRoughness: .22, side: THREE.DoubleSide, alphaTest: .3, emissive: 0xffcf80, emissiveMap: packTex, emissiveIntensity: 0 });
+  body = new THREE.Mesh(panel(-PH / 2, SEAM, 22, 40, false, true), packMat); strip = new THREE.Mesh(panel(SEAM, PH / 2, 22, 5, true, false), packMat); strip.position.z = .001;
+  pack.add(body, strip);
+  const slit = new THREE.Mesh(new THREE.PlaneGeometry(PW * .96, .5), additive(haloTex, 0xffe6a0, 0)); slit.position.set(0, SEAM, .2); slit.name = 'slit'; pack.add(slit);
+  faces.forEach((ft, i) => {
+    const CW = 1.5, CH = CW * ft.image.height / ft.image.width, g = new THREE.Group();
+    const fm = new THREE.MeshStandardMaterial({ map: ft, roughness: .5, metalness: .08, alphaTest: .4, emissive: 0xffffff, emissiveMap: ft, emissiveIntensity: 0 });
+    const bm = new THREE.MeshStandardMaterial({ map: back, roughness: .55, metalness: .1, alphaTest: .4 });
+    const front = new THREE.Mesh(new THREE.PlaneGeometry(CW, CH), fm); front.position.z = .004;
+    const bk = new THREE.Mesh(new THREE.PlaneGeometry(CW, CH), bm); bk.rotation.y = Math.PI; bk.position.z = -.004;
+    const sm = sheenMat(ft, HALO[i]); const sheen = new THREE.Mesh(new THREE.PlaneGeometry(CW, CH), sm); sheen.position.z = .008;
+    const halo = new THREE.Mesh(new THREE.PlaneGeometry(CW * 2.1, CH * 1.8), additive(haloTex, HALO[i], 0)); halo.position.z = -.05;
+    g.add(halo, bk, front, sheen); g.visible = false; cardsG.add(g); cards.push({ g, fm, sm, halo, front, CW, CH });
+  });
+}
+
+// ── estado animado pela linha do tempo ─────────────────────────────────────────────────────────────────────────────────
+const S = { charge: 0, flash: 0, rays: 0, bloom: .35, shake: 0, camZ: 10, camY: 0, glow: 0, hover: 0 };
+let tNow = 0;
+const fan = i => ({ x: (i - 2) * .56, y: -.55 - .04 * (i - 2) * (i - 2), rz: -(i - 2) * .075, s: .6 });
+const say = (a, b, color) => { capEl.querySelector('b').textContent = a; capEl.querySelector('i').textContent = b; capEl.style.color = color; if (MANUAL) capEl.style.opacity = 1; else gsap.fromTo(capEl, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: .3, overwrite: true }); };
+const hideCap = () => { if (MANUAL) capEl.style.opacity = 0; else gsap.to(capEl, { opacity: 0, duration: .3, overwrite: true }); };
+
+let tl;
+function makeTimeline() {
+  tl = gsap.timeline({ paused: true });
+  // 1) o pacote cai e assenta
+  tl.fromTo(pack.position, { y: 6.5 }, { y: 0, duration: 1.05, ease: 'elastic.out(1,.55)' }, 0);
+  tl.fromTo(pack.rotation, { z: .5, y: -.4, x: 0 }, { z: 0, y: 0, duration: 1.1, ease: 'power3.out' }, 0);
+  tl.fromTo(pack.scale, { x: 1, y: 1, z: 1 }, { x: 1, y: 1, z: 1, duration: .01 }, 0);
+  tl.call(() => { burst(0, -1.6, .5, 26, 0xffe2a0, 3.2, .08, .9, 3); shock(0, -1.55, .3, 0xffd890, 3, .7); S.shake = Math.max(S.shake, .05); }, null, .42);
+  tl.fromTo(S, { shake: 0 }, { shake: .0, duration: .01 }, 0);
+  // 2) carga de energia
+  tl.fromTo(S, { charge: 0 }, { charge: 1, duration: 2.1, ease: 'power2.in' }, 1.1);
+  tl.fromTo(S, { rays: 0 }, { rays: .55, duration: 2.1, ease: 'power2.in' }, 1.1);
+  tl.fromTo(S, { hover: 0 }, { hover: 1, duration: 2.1, ease: 'sine.inOut' }, 1.1);
+  tl.fromTo(S, { bloom: .28 }, { bloom: .5, duration: 2.1, ease: 'power2.in' }, 1.1);
+  // 3) rasga: a faixa de cima voa, clarão e onda de choque
+  tl.call(() => { burst(0, SEAM, .4, 90, 0xfff0b0, 6.5, .12, 1.4, 1.6); burst(0, SEAM, .4, 40, 0xffffff, 3.5, .18, .8, 0); shock(0, SEAM, .5, 0xfff0c0, 5.2, .9); shock(0, SEAM, .45, 0xffc060, 3.4, .6); S.shake = .1; }, null, 3.2);
+  tl.fromTo(S, { flash: 0 }, { flash: .5, duration: .08, ease: 'power2.out' }, 3.2).to(S, { flash: 0, duration: .55, ease: 'power2.in' }, 3.29);
+  tl.to(S, { bloom: .65, duration: .1 }, 3.2).to(S, { bloom: .4, duration: 1.2, ease: 'power2.out' }, 3.3);
+  tl.to(S, { rays: 1, duration: .15 }, 3.2).to(S, { rays: .5, duration: 1.8 }, 3.35);
+  tl.to(S, { shake: 0, duration: .5 }, 3.25);
+  tl.fromTo(S, { camZ: 10 }, { camZ: 9.2, duration: .12, ease: 'power2.out' }, 3.2).to(S, { camZ: 10, duration: 1.1, ease: 'power2.inOut' }, 3.32);
+  tl.fromTo(strip.position, { x: 0, y: 0, z: .001 }, { x: 1.9, y: 3.4, z: 2.2, duration: 1.15, ease: 'power2.out' }, 3.2);
+  tl.fromTo(strip.rotation, { x: 0, y: 0, z: 0 }, { x: 3.4, y: 1.4, z: 2.2, duration: 1.15, ease: 'power1.out' }, 3.2);
+  tl.fromTo(strip.scale, { x: 1, y: 1, z: 1 }, { x: .7, y: .7, z: .7, duration: 1.15 }, 3.2);
+  tl.fromTo(pack.getObjectByName('slit').material, { opacity: 0 }, { opacity: 1, duration: .1 }, 3.2).to(pack.getObjectByName('slit').material, { opacity: 0, duration: 1.4 }, 3.4);
+  // 4) as cartas sobem de dentro do pacote
+  cards.forEach((c, i) => {
+    tl.set(c.g, { visible: true }, 3.28);
+    tl.fromTo(c.g.position, { x: 0, y: -.5, z: -.06 - i * .004 }, { x: (i - 2) * .06, y: 1.55 + i * .05, z: -.06 - i * .004, duration: .85, ease: 'power3.out' }, 3.42 + i * .1);
+    tl.fromTo(c.g.rotation, { x: 0, y: Math.PI, z: 0 }, { x: 0, y: Math.PI, z: (i - 2) * .06, duration: .85, ease: 'power2.out' }, 3.42 + i * .1);
+    tl.fromTo(c.g.scale, { x: .72, y: .72, z: .72 }, { x: .85, y: .85, z: .85, duration: .85, ease: 'power2.out' }, 3.42 + i * .1);
+  });
+  // 5) o pacote vazio cai para fora da tela; as cartas se abrem em leque, viradas para baixo
+  tl.to(pack.position, { y: -7.5, duration: .8, ease: 'power2.in' }, 4.6);
+  tl.to(pack.rotation, { z: -.5, x: .4, duration: .8, ease: 'power1.in' }, 4.6);
+  tl.to(S, { rays: .22, duration: 1, ease: 'power1.out' }, 4.9);
+  cards.forEach((c, i) => { const f = fan(i), d = 4.95 + i * .06;
+    tl.to(c.g.position, { x: f.x, y: f.y, z: i * .01, duration: .65, ease: 'power3.inOut' }, d);
+    tl.to(c.g.rotation, { z: f.rz, duration: .65, ease: 'power3.inOut' }, d);
+    tl.to(c.g.scale, { x: f.s, y: f.s, z: f.s, duration: .65, ease: 'power3.inOut' }, d); });
+  // 6) viradas das quatro primeiras (cada uma com o brilho da sua raridade)
+  [0, 1, 2, 3].forEach(i => { const c = cards[i], at = 5.9 + i * .6, rare = i >= 2, f = fan(i);
+    tl.to(c.g.position, { x: f.x * .3, y: .1, z: 1.6, duration: .35, ease: 'power2.out' }, at).to(c.g.position, { x: f.x, y: f.y, z: i * .01, duration: .4, ease: 'power2.inOut' }, at + .75);
+    tl.to(c.g.scale, { x: .95, y: .95, z: .95, duration: .35, ease: 'power2.out' }, at).to(c.g.scale, { x: f.s, y: f.s, z: f.s, duration: .4, ease: 'power2.inOut' }, at + .75);
+    tl.to(c.g.rotation, { z: 0, duration: .35, ease: 'power2.out' }, at).to(c.g.rotation, { z: f.rz, duration: .4, ease: 'power2.inOut' }, at + .75);
+    tl.to(c.g.rotation, { y: 0, duration: .55, ease: 'power2.inOut' }, at + .2);
+    tl.call(() => { burst(f.x * .3, .1, 1.7, rare ? 34 : 14, HALO[i], rare ? 3.2 : 2, .07, .9, 1.4); if (rare) shock(f.x * .3, .1, 1.5, HALO[i], 2.2, .7); say(LABEL[i][0], LABEL[i][1], rare ? (i === 2 ? '#7cc4ff' : '#b79bff') : '#e8e0ce'); }, null, at + .5);
+    tl.fromTo(c.halo.material, { opacity: 0 }, { opacity: rare ? .85 : .4, duration: .2 }, at + .5).to(c.halo.material, { opacity: rare ? .3 : 0, duration: 1 }, at + .7);
+    if (rare) tl.fromTo(c.sm.uniforms.amt, { value: 0 }, { value: .5, duration: .3 }, at + .55).to(c.sm.uniforms.amt, { value: 0, duration: .9 }, at + 1.3);
+  });
+  // 7) a carta lendária: pausa, aproximação, virada lenta e explosão dourada
+  const L = cards[4];
+  tl.call(() => hideCap(), null, 8.9);
+  tl.to(S, { camZ: 8.6, camY: .15, duration: 1.7, ease: 'power2.inOut' }, 8.9);
+  [0, 1, 2, 3].forEach(i => tl.to(cards[i].g.position, { y: -2.3 - .04 * (i - 2) * (i - 2), duration: .7, ease: 'power2.inOut' }, 8.9).to(cards[i].g.scale, { x: .48, y: .48, z: .48, duration: .7, ease: 'power2.inOut' }, 8.9));
+  tl.to(L.g.position, { x: 0, y: .55, z: 1.7, duration: .8, ease: 'power3.inOut' }, 8.9);
+  tl.to(L.g.rotation, { z: 0, duration: .8, ease: 'power3.inOut' }, 8.9);
+  tl.to(L.g.scale, { x: 1.45, y: 1.45, z: 1.45, duration: .8, ease: 'power3.inOut' }, 8.9);
+  tl.to(S, { rays: .6, bloom: .55, duration: 1.3, ease: 'power2.in' }, 9.1);
+  tl.to(S, { glow: 1, duration: 1.3, ease: 'power2.in' }, 9.1);
+  tl.to(L.g.rotation, { y: Math.PI * .5, duration: .7, ease: 'power2.in' }, 9.95);     // vira até de lado, segura um instante e termina a virada
+  tl.to(L.g.rotation, { y: 0, duration: .55, ease: 'back.out(1.6)' }, 10.65);
+  tl.call(() => { const x = 0, y = .55; burst(x, y, 1.9, 150, 0xffd870, 7.5, .13, 1.7, 1.2); burst(x, y, 1.9, 60, 0xffffff, 4.5, .2, .9, 0); shock(x, y, 1.6, 0xffe6a0, 6.2, 1.1); shock(x, y, 1.65, 0xffb040, 4.2, .8); S.shake = .08; say('★ Full Art · Lendária', LABEL[4][1], '#ffd264'); }, null, 10.8);
+  tl.fromTo(S, { flash: 0 }, { flash: .4, duration: .08 }, 10.8).to(S, { flash: 0, duration: .6, ease: 'power2.in' }, 10.88);
+  tl.to(S, { shake: 0, duration: .6 }, 10.9);
+  tl.to(S, { bloom: .65, duration: .1 }, 10.8).to(S, { bloom: .4, duration: 1.4 }, 10.9);
+  tl.fromTo(L.halo.material, { opacity: 0 }, { opacity: 1, duration: .15 }, 10.8).to(L.halo.material, { opacity: .55, duration: 1.2 }, 10.95);
+  tl.fromTo(L.sm.uniforms.amt, { value: 0 }, { value: .55, duration: .4 }, 10.9);
+  tl.to(S, { camZ: 9.4, duration: 1.6, ease: 'power1.out' }, 10.9);
+  tl.set({}, {}, 13.4);
+}
+
+// ── laço: um único relógio T comanda tudo (timeline, partículas, luzes), para a gravação sair igual ───────────────────────
+let lastT = -1; const END = 13.4;
+function nz(t, f) { return Math.sin(t * f * 6.283) * .6 + Math.sin(t * f * 11.1 + 1.3) * .4; }
+function frame(T) {
+  tNow = T; const dt = lastT < 0 ? 0 : Math.max(0, T - lastT);
+  if (T < lastT) { P.length = 0; rings.forEach(r => scene.remove(r.m)); rings.length = 0; seed = 7; }
+  lastT = T; tl.seek(T, false);
+  // emissores contínuos
+  const spawnN = (rate, f) => { let n = rate * dt; while (n > 0) { if (rnd() < n) f(); n -= 1; } };
+  if (T > 1.1 && T < 3.2) { const c = S.charge; spawnN(70 * c + 8, () => { const a = R(0, 6.283), r = R(1.7, 2.8), x = Math.cos(a) * r, y = Math.sin(a) * r * 1.25; emit(1, { x, y, z: R(-.3, .6), vx: -x * 1.5 - y * .9, vy: -y * 1.5 + x * .9, drag: .98, life: R(.5, .9), s: R(.05, .11), c: rnd() < .3 ? 0xffffff : 0xffcf70, a: .9 }); }); }
+  if (T > 3.2 && T < 4.9) spawnN(80, () => emit(1, { x: R(-.7, .7), y: SEAM + R(0, .3), z: R(.1, .5), vx: R(-.6, .6), vy: R(.8, 2.6), g: -.2, drag: .985, life: R(.7, 1.3), s: R(.04, .1), c: 0xffe6a0, a: .9 }));
+  if (T > 9.4 && T < 10.8) spawnN(90, () => { const a = R(0, 6.283), r = R(1.4, 2.3); emit(1, { x: Math.cos(a) * r, y: .55 + Math.sin(a) * r * 1.2, z: 1.6, vx: -Math.cos(a) * 2.2, vy: -Math.sin(a) * 2.6, drag: .98, life: R(.5, .8), s: R(.05, .12), c: rnd() < .4 ? 0xffffff : 0xffd060, a: .9 }); });
+  if (T > 10.9 && T < 13.4) spawnN(26, () => emit(1, { x: R(-1.1, 1.1), y: R(-.6, 1.7), z: 1.8, vx: R(-.1, .1), vy: R(.2, .7), drag: .99, life: R(1, 1.8), s: R(.04, .09), c: 0xffe39a, a: .8 }));
+  spawnN(6, () => emit(1, { x: R(-1.8, 1.8), y: R(-3, 3), z: R(-2, 0), vx: R(-.05, .05), vy: R(.05, .25), drag: .995, life: R(3, 6), s: R(.025, .06), c: 0xd9b878, a: .45 }));   // poeira de ambiente
+  let r = dt; while (r > 1e-6) { const h = Math.min(r, 1 / 60); simP(h); r -= h; }
+  stepRings(); uploadP();
+  // aplica o estado
+  const sx = S.shake * nz(T, 9), sy = S.shake * nz(T + .37, 11);
+  cam.position.set(sx, S.camY + sy, S.camZ); cam.lookAt(0, S.camY * .5, 0);
+  const pk = Math.min(1, Math.max(0, S.charge));
+  pack.position.x = pk * .03 * nz(T, 17) * (T < 3.2 ? 1 : 0); if (T > 1.1 && T < 3.2) pack.position.y += Math.sin(T * 3) * .05 * S.hover + pk * .02 * nz(T, 23);
+  if (T > 1.1 && T < 3.2) { const s = 1 + pk * .06 + Math.sin(T * (6 + pk * 18)) * .012 * pk; pack.scale.setScalar(s); } else if (T >= 3.2) pack.scale.setScalar(1);
+  packMat.emissiveIntensity = pk * .28 * (T < 3.2 ? 1 : Math.max(0, 1 - (T - 3.2) * 1.5));
+  rim.position.set(Math.cos(T * 1.3) * 3, 1 + Math.sin(T * .9) * 1.5, 3); inner.intensity = pk * 16 * (T < 3.4 ? 1 : Math.max(0, 1 - (T - 3.4) * .8)); inner.position.z = -.2;
+  raysA.material.opacity = S.rays * .3; raysB.material.opacity = S.rays * .2; raysA.rotation.z = T * .12; raysB.rotation.z = -T * .08 + 1; raysA.scale.setScalar(.8 + S.rays * .5); raysB.scale.setScalar(.7 + S.rays * .4);
+  const gold = S.glow; coreGlow.material.opacity = Math.min(1, pk * .2 + gold * .22) * (T > 3.2 && T < 4.6 ? 1.15 : 1); coreGlow.position.z = T > 8.7 ? .9 : -.9; coreGlow.position.y = T > 8.7 ? .55 : 0; coreGlow.scale.setScalar(T > 8.7 ? 1.1 : 1);
+  cards.forEach((c, i) => { c.sm.uniforms.t.value = T * .35 + i * .13; });
+  bloom.strength = S.bloom; flashEl.style.opacity = S.flash;
+  composer.render();
+  if (T >= END) document.body.classList.add('done');
+}
+
+// ── execução ───────────────────────────────────────────────────────────────────────────────────────────────────────────
+await build(); makeTimeline();
+window.__frame = frame; window.__ready = true; window.__END = END;
+frame(0);
+if (!MANUAL) {
+  let t0 = 0, run = false;
+  const loop = ts => { if (run) { const T = (ts - t0) / 1000; frame(Math.min(T, END + .001)); if (T > END + .5) run = false; } requestAnimationFrame(loop); };
+  const start = () => { document.body.classList.remove('done'); lastT = -1; P.length = 0; t0 = performance.now(); run = true; };
+  document.getElementById('replay').onclick = start; start(); requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>

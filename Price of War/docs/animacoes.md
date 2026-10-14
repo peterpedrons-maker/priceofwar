@@ -399,3 +399,9 @@ Módulo próprio com dois canvas: o de **baixo** (z 30, como o `terrainFx`) guar
 - Fogo-Sinal: contorno laranja, chamas pequenas, fumaça e brasas (as torres continuam). Arsenal: contorno azul-gelo, cristais na borda e brilhos.
 - Ao equipar (`equip`), o Terreno/Relíquia lança uma bola até a unidade (`fxForjaEquip`/`fxFogoEquip`/`fxArsenalEquip`): fogo da forja, brasa com fumaça, estilhaço de gelo.
 - Camada fixa (canvas z30) fica escondida enquanto houver janela quase de tela cheia (`div.fixed.inset-0`, z ≥ 100, sem `pointer-events-none`): carta ampliada, vitória/derrota etc. (`overlayOpen`, checado a cada 250 ms).
+
+## Abertura de booster (mockup Three.js + GSAP; ainda fora do jogo)
+`public/mockups/abertura-booster/index.html` (`?manual` para gravar: `window.__frame(t)`; gravador em Playwright com `--use-angle=swiftshader`). Bibliotecas locais em `lib/` (three 0.169 + pós-processamento Bloom, GSAP 3). Um único relógio T comanda timeline, partículas, luzes e câmera, então a gravação sai igual toda vez (aleatório com semente).
+- Roteiro (13,4 s): pacote cai e assenta, carga de energia (partículas em espiral, raios de luz, brilho do pacote), rasga a faixa de cima com clarão e onda de choque, cartas sobem de dentro, pacote vazio cai, leque virado para baixo, viradas com brilho por raridade (Comum branco, Rara azul/roxo com folha holográfica) e a carta Full Art (Cardeal Anselmo) com aproximação, pausa, virada lenta e explosão dourada.
+- Ideias de raridade usadas (não existem no jogo): Comum, Rara, Full Art · Lendária.
+- Para ligar ao jogo: portar para um componente React com `three` já instalado; qualidade adaptativa (menos partículas e sem bloom em aparelho fraco); som sincronizado (rasgar, impacto, brilho por raridade).
