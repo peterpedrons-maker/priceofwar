@@ -67,12 +67,9 @@ import uiIconLojaImage from './assets/ui-icon-loja.webp';
 import uiIconMaisImage from './assets/ui-icon-mais.webp';
 // Player avatars (art-prompts/README.md 4n). Numbered after their prompt: 03 and
 // 08+ haven't been generated yet.
-import avatar01Image from './assets/avatar-01.webp';
-import avatar02Image from './assets/avatar-02.webp';
-import avatar04Image from './assets/avatar-04.webp';
-import avatar05Image from './assets/avatar-05.webp';
-import avatar06Image from './assets/avatar-06.webp';
-import avatar07Image from './assets/avatar-07.webp';
+// Avatares (art-prompts/avatares.md e folhas-de-icones.md): pessoas e ícones de símbolo em src/assets/avatares/<id>.webp.
+const AVATAR_FILES = import.meta.glob('./assets/avatares/*.webp', { eager: true, import: 'default' }) as Record<string, string>;
+const avatarFile = (id: string) => AVATAR_FILES[`./assets/avatares/${id}.webp`] ?? '';
 // Retratos dos Generais, também usados como avatar (art-prompts/retratos-generais.md).
 import avatarAurelionImage from './assets/retratos/aurelion.webp';
 import avatarAnselmoImage from './assets/retratos/anselmo.webp';
@@ -283,7 +280,7 @@ const ALL_PRELOAD_IMAGES: string[] = [
   uiIconConfigImage, uiIconTutoriaisImage, uiIconRankingImage, uiIconSomImage,
   uiIconCoroaImage, uiIconDesafiosImage, uiIconOnlineImage, uiIconEditarDeckImage,
   uiIconLojaImage, uiIconMaisImage,
-  avatar01Image, avatar02Image, avatar04Image, avatar05Image, avatar06Image, avatar07Image, avatarAurelionImage, avatarAnselmoImage, avatarBrannImage, avatarOsricImage,
+  avatarFile('batedora'), avatarFile('escudeiro'), avatarFile('arqueiro'), avatarFile('clerigo'), avatarFile('soldado'), avatarFile('cacadora'), avatarAurelionImage, avatarAnselmoImage, avatarBrannImage, avatarOsricImage,
 ];
 
 // How long a newly drawn card takes to travel from the deck and flip face-up in
@@ -2677,17 +2674,59 @@ type PlayerProfile = {
 // The avatar gallery: illustrated portraits (art-prompts/README.md 4n) picked in
 // AvatarPickerModal. A profile only stores the id, so adding the other prompts'
 // avatars later is just more entries here.
-const AVATAR_OPTIONS: { id: string; image: string }[] = [
-  { id: 'batedora', image: avatar01Image },
-  { id: 'escudeiro', image: avatar02Image },
-  { id: 'arqueiro', image: avatar04Image },
-  { id: 'clerigo', image: avatar05Image },
-  { id: 'soldado', image: avatar06Image },
-  { id: 'cacadora', image: avatar07Image },
-  { id: 'aurelion', image: avatarAurelionImage },
-  { id: 'anselmo', image: avatarAnselmoImage },
-  { id: 'brann', image: avatarBrannImage },
-  { id: 'osric', image: avatarOsricImage },
+// `group`: 'pessoa' (retratos) ou 'simbolo' (emblemas, sem rosto); o seletor mostra uma aba para cada um.
+const AVATAR_OPTIONS: { id: string; image: string; group: 'pessoa' | 'simbolo' }[] = [
+  { id: 'batedora', image: avatarFile('batedora'), group: 'pessoa' },
+  { id: 'escudeiro', image: avatarFile('escudeiro'), group: 'pessoa' },
+  { id: 'arqueiro', image: avatarFile('arqueiro'), group: 'pessoa' },
+  { id: 'clerigo', image: avatarFile('clerigo'), group: 'pessoa' },
+  { id: 'soldado', image: avatarFile('soldado'), group: 'pessoa' },
+  { id: 'cacadora', image: avatarFile('cacadora'), group: 'pessoa' },
+  { id: 'aurelion', image: avatarAurelionImage, group: 'pessoa' },
+  { id: 'anselmo', image: avatarAnselmoImage, group: 'pessoa' },
+  { id: 'brann', image: avatarBrannImage, group: 'pessoa' },
+  { id: 'osric', image: avatarOsricImage, group: 'pessoa' },
+  { id: 'leao', image: avatarFile('leao'), group: 'simbolo' },
+  { id: 'lobo', image: avatarFile('lobo'), group: 'simbolo' },
+  { id: 'corvo', image: avatarFile('corvo'), group: 'simbolo' },
+  { id: 'cervo', image: avatarFile('cervo'), group: 'simbolo' },
+  { id: 'javali', image: avatarFile('javali'), group: 'simbolo' },
+  { id: 'aguia', image: avatarFile('aguia'), group: 'simbolo' },
+  { id: 'falcao', image: avatarFile('falcao'), group: 'simbolo' },
+  { id: 'cavalo', image: avatarFile('cavalo'), group: 'simbolo' },
+  { id: 'coroa', image: avatarFile('coroa'), group: 'simbolo' },
+  { id: 'espada-e-escudo', image: avatarFile('espada-e-escudo'), group: 'simbolo' },
+  { id: 'machado-e-martelo', image: avatarFile('machado-e-martelo'), group: 'simbolo' },
+  { id: 'arco-e-flecha', image: avatarFile('arco-e-flecha'), group: 'simbolo' },
+  { id: 'besta', image: avatarFile('besta'), group: 'simbolo' },
+  { id: 'alabarda', image: avatarFile('alabarda'), group: 'simbolo' },
+  { id: 'maca', image: avatarFile('maca'), group: 'simbolo' },
+  { id: 'lanca-com-flamula', image: avatarFile('lanca-com-flamula'), group: 'simbolo' },
+  { id: 'elmo', image: avatarFile('elmo'), group: 'simbolo' },
+  { id: 'cota-de-malha', image: avatarFile('cota-de-malha'), group: 'simbolo' },
+  { id: 'torre', image: avatarFile('torre'), group: 'simbolo' },
+  { id: 'portao-do-castelo', image: avatarFile('portao-do-castelo'), group: 'simbolo' },
+  { id: 'estandarte', image: avatarFile('estandarte'), group: 'simbolo' },
+  { id: 'tenda-de-campanha', image: avatarFile('tenda-de-campanha'), group: 'simbolo' },
+  { id: 'fogueira', image: avatarFile('fogueira'), group: 'simbolo' },
+  { id: 'tocha', image: avatarFile('tocha'), group: 'simbolo' },
+  { id: 'trompa-de-guerra', image: avatarFile('trompa-de-guerra'), group: 'simbolo' },
+  { id: 'sino-de-guerra', image: avatarFile('sino-de-guerra'), group: 'simbolo' },
+  { id: 'catapulta', image: avatarFile('catapulta'), group: 'simbolo' },
+  { id: 'moedas', image: avatarFile('moedas'), group: 'simbolo' },
+  { id: 'balanca-do-mercador', image: avatarFile('balanca-do-mercador'), group: 'simbolo' },
+  { id: 'calice', image: avatarFile('calice'), group: 'simbolo' },
+  { id: 'bigorna', image: avatarFile('bigorna'), group: 'simbolo' },
+  { id: 'pena-e-tinteiro', image: avatarFile('pena-e-tinteiro'), group: 'simbolo' },
+  { id: 'rosa-dos-ventos', image: avatarFile('rosa-dos-ventos'), group: 'simbolo' },
+  { id: 'ampulheta', image: avatarFile('ampulheta'), group: 'simbolo' },
+  { id: 'mapa-selado', image: avatarFile('mapa-selado'), group: 'simbolo' },
+  { id: 'emblema-campo', image: avatarFile('emblema-campo'), group: 'simbolo' },
+  { id: 'emblema-mercenarios', image: avatarFile('emblema-mercenarios'), group: 'simbolo' },
+  { id: 'emblema-cardeal', image: avatarFile('emblema-cardeal'), group: 'simbolo' },
+  { id: 'emblema-capitao', image: avatarFile('emblema-capitao'), group: 'simbolo' },
+  { id: 'nau-de-guerra', image: avatarFile('nau-de-guerra'), group: 'simbolo' },
+  { id: 'flor-de-lis', image: avatarFile('flor-de-lis'), group: 'simbolo' },
 ];
 const avatarById = (id: string) => AVATAR_OPTIONS.find(a => a.id === id) ?? AVATAR_OPTIONS[0];
 
@@ -2886,30 +2925,41 @@ const WindowButton = ({ children, onClick, primary = false, danger = false, clas
 // DeckPickerModal elsewhere in this file.
 const AvatarPickerModal = ({ current, onSelect, onClose }: {
   current: string; onSelect: (id: string) => void; onClose: () => void;
-}) => (
-  <WindowOverlay onClose={onClose}>
-    <FramedWindow>
-      <div className="flex flex-col items-center gap-4 px-2 py-2">
-        <WindowTitle>Escolha seu Avatar</WindowTitle>
-        <div className="grid grid-cols-3 gap-4">
-          {AVATAR_OPTIONS.map(a => (
-            <button
-              key={a.id}
-              onClick={() => { playUiClickSfx(); onSelect(a.id); }}
-              className="relative active:scale-95 transition-transform"
-            >
-              <AvatarBadge avatarId={a.id} size={72} />
-              {a.id === current && (
-                <div className="absolute -inset-1 rounded-full border-2 border-emerald-400" />
-              )}
-            </button>
-          ))}
+}) => {
+  const [tab, setTab] = useState<'pessoa' | 'simbolo'>(() => (avatarById(current).group === 'simbolo' ? 'simbolo' : 'pessoa'));
+  const list = AVATAR_OPTIONS.filter(a => a.group === tab);
+  return (
+    <WindowOverlay onClose={onClose}>
+      <FramedWindow>
+        <div className="flex flex-col items-center gap-3 px-2 py-2">
+          <WindowTitle>Escolha seu Avatar</WindowTitle>
+          <div className="flex gap-2">
+            {([['pessoa', 'Personagens'], ['simbolo', 'Símbolos']] as const).map(([k, label]) => (
+              <button key={k} onClick={() => { playUiClickSfx(); setTab(k); }}
+                className={`px-3 py-1 rounded-full text-[12px] font-bold tracking-wide border ${tab === k ? 'bg-[#e8c766] text-[#2a1a05] border-[#e8c766]' : 'text-[#dccfae] border-[#6f5324]'}`}
+                style={{ fontFamily: "'Cinzel', serif" }}>{label}</button>
+            ))}
+          </div>
+          <div className="grid grid-cols-4 gap-3 overflow-y-auto p-1.5" style={{ maxHeight: '46vh' }}>
+            {list.map(a => (
+              <button
+                key={a.id}
+                onClick={() => { playUiClickSfx(); onSelect(a.id); }}
+                className="relative active:scale-95 transition-transform"
+              >
+                <AvatarBadge avatarId={a.id} size={62} />
+                {a.id === current && (
+                  <div className="absolute -inset-1 rounded-full border-2 border-emerald-400" />
+                )}
+              </button>
+            ))}
+          </div>
+          <WindowButton onClick={onClose}>Fechar</WindowButton>
         </div>
-        <WindowButton onClick={onClose}>Fechar</WindowButton>
-      </div>
-    </FramedWindow>
-  </WindowOverlay>
-);
+      </FramedWindow>
+    </WindowOverlay>
+  );
+};
 
 // The top profile bar — avatar (tap opens AvatarPickerModal), editable name,
 // a static rank badge (no ranked system yet, see the user's own roadmap; this
@@ -4652,7 +4702,7 @@ const ProfileSetupScreen = ({ initialName, initialAvatar, onSubmit }: { initialN
             <WindowTitle>Crie seu perfil</WindowTitle>
             <WindowText>Assim os outros jogadores vão ver você.</WindowText>
             <div className="grid grid-cols-3 gap-x-5 gap-y-3">
-              {AVATAR_OPTIONS.map(a => (
+              {AVATAR_OPTIONS.filter(a => a.group === 'pessoa').slice(0, 6).map(a => (
                 <button key={a.id} onClick={() => { playUiClickSfx(); setAvatar(a.id); }} className="relative active:scale-95 transition-transform" aria-label={`Avatar ${a.id}`}>
                   <AvatarBadge avatarId={a.id} size={62} />
                   {a.id === avatar && <div className="absolute -inset-1 rounded-full border-2 border-[#8fe0a4]" />}
