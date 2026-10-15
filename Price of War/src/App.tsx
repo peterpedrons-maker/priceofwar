@@ -2104,12 +2104,13 @@ const CardFaceFullArtMini = ({ card }: { card: CardData }) => {
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900" />
         )}
+        {shineOf(card.rarity, true) === 'card' && <div className="absolute inset-0 rar-card-shine" />}
       </div>
       <img src={cfg.image} alt="" aria-hidden className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
       <div className="absolute inset-0 z-10 pointer-events-none">
         <div className="absolute px-1 flex items-center" style={{ top: '8.5%', left: '9%', width: '62%', height: '5.5%' }}>
           <span
-            className="block w-full truncate text-center text-[7px] md:text-[9px] font-bold uppercase tracking-tight"
+            className={`block w-full truncate text-center text-[7px] md:text-[9px] font-bold uppercase tracking-tight ${rarNameCls(card, !lightBar)}`}
             style={{ fontFamily: "'Cinzel', serif", ...nameTextStyle(lightBar) }}
           >
             {card.name}
@@ -2157,6 +2158,7 @@ const CardFaceStandardMini = ({ card }: { card: CardData }) => {
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900" />
           )}
+          {(shineOf(card.rarity, false) === 'art' || shineOf(card.rarity, false) === 'art+name') && <div className={`absolute inset-0 rar-art-shine ${card.rarity === 'ultra' || card.rarity === 'secreta' ? 'ultra' : ''}`} />}
         </div>
         <img src={templateForTypeMini(card.cardType)} alt="" aria-hidden className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
       </div>
@@ -2169,7 +2171,7 @@ const CardFaceStandardMini = ({ card }: { card: CardData }) => {
               and overflowed past the plate). Every name is still fully
               readable from the tap-to-expand preview this mini card opens. */}
           <span
-            className="block w-full truncate text-center text-[7px] md:text-[9px] font-bold uppercase tracking-tight"
+            className={`block w-full truncate text-center text-[7px] md:text-[9px] font-bold uppercase tracking-tight ${rarNameCls(card)}`}
             style={{ fontFamily: "'Cinzel', serif", color: '#2a1605', textShadow: '0 1px 0 rgba(255,243,206,0.55)' }}
           >
             {card.name}
@@ -2535,7 +2537,8 @@ type DeckSlot = { id: string; name: string; general: string; cards: Record<strin
 // `rarities`: how many copies of each card are not common (the total stays in `collection`); local to this device for now (not synced to the cloud yet).
 type DeckStore = { collection: Record<string, number>; slots: DeckSlot[]; owner?: string; rarities?: Record<string, RarityCounts> };
 // What a match needs from a deck: the draw pool, the General, and which prebuilt deck the AI takes.
-type DeckSelection = { cards: Record<string, number>; general: string; npcDeckId: DeckId; npcGeneral?: string };
+type DeckSelection = { cards: Record<string, number>; general: string; npcDeckId: DeckId; npcGeneral?: string; rar?: Record<string, RarityCounts> };   // rar: which copies of the player's deck are special versions (cosmetic only)
+let lastDeckRar: Record<string, RarityCounts> | undefined;   // the versions of the deck picked last (the online match is built from what the server echoes back, which has names only)
 
 // An online match, seen from this device. The server holds the real match; this device holds MY VIEW of it (the
 // opponent's hand and every deck order removed). My own actions are applied to the view at once — so the screen
@@ -2721,14 +2724,14 @@ let cloudUserId: string | null = null;
 let pushTimer: number | undefined;
 let pushing = false;
 let pushAgain = false;
-const toCloudDecks = (store: DeckStore): CloudDeck[] => store.slots.slice(0, CLOUD_DECK_SLOTS).map((sl, i) => ({ slot: i + 1, name: sl.name, general: sl.general, cards: sl.cards }));
+const toCloudDecks = (store: DeckStore): CloudDeck[] => store.slots.slice(0, CLOUD_DECK_SLOTS).map((sl, i) => ({ slot: i + 1, name: sl.name, general: sl.general, cards: sl.cards, rar: sl.rar }));
 const runPush = async () => {
   if (!cloudUserId) return;
   if (pushing) { pushAgain = true; return; }
   pushing = true;
   try {
     const store = loadDeckStore();
-    const r = await pushStore(cloudUserId, { collection: store.collection, decks: toCloudDecks(store) });
+    const r = await pushStore(cloudUserId, { collection: store.collection, decks: toCloudDecks(store), rarities: store.rarities });
     if (r.ok === false) { console.error('cloud save failed', r.message); window.clearTimeout(pushTimer); pushTimer = window.setTimeout(runPush, 8000); }
   } finally {
     pushing = false;
@@ -2756,18 +2759,21 @@ const flushCloudSync = async (): Promise<void> => {
 const syncDeckStoreWithCloud = async (userId: string): Promise<string | null> => {
   const r = await fetchStore(userId);
   if (r.ok === false) return r.message;
-  const { collection, decks } = r.data;
+  const { collection, decks, rarities } = r.data;
   if (Object.keys(collection).length > 0) {
     const slots = [1, 2].map(n => {   // (a nuvem tem só 2 decks; o 3º vem do aparelho: ensureStarterDecks)
       const d = decks.find(x => x.slot === n);
-      return { id: `slot${n}`, name: d?.name || `Deck ${n}`, general: d?.general || '', cards: d?.cards ?? {} };
+      return { id: `slot${n}`, name: d?.name || `Deck ${n}`, general: d?.general || '', cards: d?.cards ?? {}, rar: d?.rar };
     });
-    const merged = sanitizeDeckStore({ collection, slots, owner: userId });
+    // an account that existed before rarities were synced: the versions opened on this device are kept (and sent up below)
+    let fromDevice = false;
+    if (Object.keys(rarities).length === 0) { try { const loc = JSON.parse(localStorage.getItem(DECK_STORE_KEY) ?? 'null'); if (loc?.owner === userId && loc.rarities && Object.keys(loc.rarities).length) { Object.assign(rarities, loc.rarities); fromDevice = true; } } catch { /* ignore */ } }
+    const merged = sanitizeDeckStore({ collection, slots, rarities, owner: userId });
     if (merged) {
-      const grew = ensureStarterDecks(merged) || lastSanitizeMigrated;
+      const grew = ensureStarterDecks(merged) || lastSanitizeMigrated || fromDevice;
       try { localStorage.setItem(DECK_STORE_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
       cloudUserId = userId;
-      if (grew) { const up = await pushStore(userId, { collection: merged.collection, decks: toCloudDecks(merged) }); if (up.ok === false) return up.message; }
+      if (grew) { const up = await pushStore(userId, { collection: merged.collection, decks: toCloudDecks(merged), rarities: merged.rarities }); if (up.ok === false) return up.message; }
       return null;
     }
   }
@@ -2775,7 +2781,7 @@ const syncDeckStoreWithCloud = async (userId: string): Promise<string | null> =>
   const base: DeckStore = local.owner === undefined || local.owner === userId ? local : buildStarterStore();
   base.owner = userId;
   try { localStorage.setItem(DECK_STORE_KEY, JSON.stringify(base)); } catch { /* ignore */ }
-  const up = await pushStore(userId, { collection: base.collection, decks: toCloudDecks(base) });
+  const up = await pushStore(userId, { collection: base.collection, decks: toCloudDecks(base), rarities: base.rarities });
   if (up.ok === false) return up.message;
   cloudUserId = userId;
   return null;
@@ -2796,7 +2802,8 @@ const buildDeckSelection = (slot: DeckSlot): DeckSelection => {
   // The AI plays the prebuilt deck of one of the OTHER factions (chosen at random each time you pick your deck).
   const own = deckIdOfGeneral(general);
   const others = ALL_DECK_IDS.filter(id => id !== own);
-  return { cards: { ...slot.cards }, general, npcDeckId: others[Math.floor(Math.random() * others.length)] };
+  lastDeckRar = slot.rar ? JSON.parse(JSON.stringify(slot.rar)) : undefined;
+  return { cards: { ...slot.cards }, general, npcDeckId: others[Math.floor(Math.random() * others.length)], rar: lastDeckRar };
 };
 // Which prebuilt deck a General belongs to (the avatar and the opponent matching on the Desafios map).
 const deckIdOfGeneral = (general: string): DeckId => (general === DECKS.capitao.general.name ? 'capitao' : general === DECKS.mercenarios.general.name ? 'mercenarios' : general === DECKS.campo.general.name ? 'campo' : 'cardeal');
@@ -6373,11 +6380,21 @@ export default function App() {
   // ── Engine bridge ───────────────────────────────────────────────────────────
   // Draws an engine card: the engine knows nothing about artwork, so it is looked up by name here.
   const toCardDataRef = useRef<(c: EngineCard) => CardData>(() => ({ id: '', name: '', atk: 0, hp: 0, cost: 0, art: '', effect: '' }));
+  // Versions of the player's own cards in a match (cosmetic): each copy of a card the player owns in more than one version gets one the first time it is seen in
+  // the player's hand / board / graveyard (the engine knows nothing about rarity), drawn from the versions the chosen deck holds.
+  const rarMemoRef = useRef<Map<string, Rarity>>(new Map());
+  const rarPoolRef = useRef<Map<string, Rarity[]>>(new Map());
+  const rarityOfCard = (c: EngineCard): Rarity | undefined => {
+    const memo = rarMemoRef.current.get(c.id); if (memo) return memo === 'comum' ? undefined : memo;
+    const pool = rarPoolRef.current.get(c.name); if (!pool?.length) return undefined;
+    const me = engineRef.current?.players[0]; if (!me || ![...me.hand, ...me.board, ...me.graveyard].some(x => x && x.id === c.id)) return undefined;
+    const r = pool.pop()!; rarMemoRef.current.set(c.id, r); return r === 'comum' ? undefined : r;
+  };
   const toCardData = (c: EngineCard): CardData => ({
     id: c.id, name: c.name, atk: c.atk, hp: c.hp, cost: c.cost, art: ART_BY_NAME[c.name] ?? '', effect: c.effect,
     cardType: c.cardType, isFullArt: c.isFullArt, pendingCombatBonus: c.pendingCombatBonus, dmgReduction: c.dmgReduction,
     formationBuffAtk: c.formationBuffAtk, equippedWeapons: c.equippedWeapons?.map(toCardData), shield: c.shield, block: c.block, mode: c.mode,
-    rarity: DEBUG_HOOKS ? (new URLSearchParams(window.location.search).get('rar') as Rarity | null) ?? undefined : undefined,   // test only (`?debug&rar=ultra`): the cards in play have no rarity yet
+    rarity: (DEBUG_HOOKS ? (new URLSearchParams(window.location.search).get('rar') as Rarity | null) ?? undefined : undefined) ?? rarityOfCard(c),   // `?debug&rar=ultra` forces one (test)
   });
   toCardDataRef.current = toCardData;
   // A unit that just died stays on its slot for a moment, flagged destroyed, so its explosion can play
@@ -7510,6 +7527,12 @@ export default function App() {
     setMatchReward(null);
     setTurnClock(null);
     matchSelectionRef.current = sel;
+    rarMemoRef.current = new Map(); rarPoolRef.current = new Map();
+    Object.entries(sel.rar ?? {}).forEach(([name, rc]) => {
+      const total = sel.cards[name] ?? 0, u = Math.min(rc.ultra ?? 0, total), ra = Math.min(rc.rara ?? 0, total - u), pool: Rarity[] = [...Array(u).fill('ultra'), ...Array(ra).fill('rara'), ...Array(Math.max(0, total - u - ra)).fill('comum')];
+      for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+      rarPoolRef.current.set(name, pool);
+    });
     ghostsRef.current = { player: {}, npc: {} }; holdsRef.current = { player: {}, npc: {} };
 
     firstSideRef.current = 'player';
@@ -7569,7 +7592,7 @@ export default function App() {
     setOpponentInfo(init.opponent);
     { const mp = loadProfile(); setPlates(init.opponent.bot ? null : { me: { name: mp.name, avatarId: mp.avatarId }, leagues: init.ranked && init.leagues ? init.leagues : null }); }
     setEmoteMatch(init.opponent.bot ? null : { id: init.id, myGeneral: init.myDeck.general, opponentGeneral: init.opponentGeneral });
-    const sel: DeckSelection = { cards: init.myDeck.cards, general: init.myDeck.general, npcDeckId: 'cardeal', npcGeneral: init.opponentGeneral };
+    const sel: DeckSelection = { cards: init.myDeck.cards, general: init.myDeck.general, npcDeckId: 'cardeal', npcGeneral: init.opponentGeneral, rar: lastDeckRar };
     resetGame(sel);
     setGameMode('Quick Match');
     if (init.resumed && init.latest) {
