@@ -9,6 +9,8 @@ import type { GameState } from './engine/types';
 type Side = 'player' | 'npc';
 // Intensidade (pedido do dono, rodada 25): o jogador tem que perceber que há algo, sem ser agressivo. AURA = o que fica em campo; SHOT = clarões de uma vez só.
 const AURA = .5, SHOT = .7;
+// Decisão do dono (rodada 26): estado permanente não brilha. As chamas, anéis e faíscas fixos de Forja, Fogo-Sinal e Arsenal ficam desligados; só os efeitos de uma vez (equipar, bloquear...) aparecem.
+const PERSISTENT_AURAS = false;
 interface Env { pop: (side: Side, slot: number, kind: 'atk-up' | 'hp-up' | 'swap', text: string) => void; handPoint: (side: Side) => { cx: number; cy: number; w: number; h: number } }
 
 // ── canvas e linha do tempo ─────────────────────────────────────────────────────────────────────────────────────────
@@ -117,6 +119,7 @@ function layerTick(L: Layer, dt: number) {
   const I = L.I, cs = cols(L.side), ey = edgeY(L.side); if (!cs[0]) return;
   const hs = holderOf(L), kI = Math.min(1, I / .6);
   for (const slot of auraSlots(L)) { const targ = slot !== hs && L.held.has(slot) ? 0 : 1, cur = L.aura[slot] ?? (slot === hs ? 1 : 0); L.aura[slot] = cur + (targ - cur) * Math.min(1, dt * 3); }
+  if (!PERSISTENT_AURAS) return;
   if (L.kind === 'forja') {
     const pal = L.mode === 'afiacao' ? 'w' : 'r';
     for (const slot of auraSlots(L)) { const r = frameOf(L.side, slot); if (!r) continue; const k = L.aura[slot] * kI;
@@ -137,6 +140,7 @@ function layerTick(L: Layer, dt: number) {
 }
 // desenha uma camada (ctx = canvas de baixo)
 function layerDraw(L: Layer) {
+  if (!PERSISTENT_AURAS) return;
   const I = L.I, cs = cols(L.side), ey = edgeY(L.side); if (!cs[0] || I < .02) return; const t = L.age, hs = holderOf(L), kI = Math.min(1, I / .6);
   if (L.kind === 'fogo') { const r = frameOf(L.side, 11); if (r) for (let k = 0; k < 2; k++) { const x = r.x + (k ? 1 : -1) * (r.w / 2 + 4); if (L.lit[k] > 0) glow(x, r.y + r.h * .1 - 6, 17 + 3 * Math.sin(t * 11), '255,150,50', .3 * AURA * L.lit[k]); } }
   const white = L.kind === 'forja' && L.mode === 'afiacao', rgb = white ? '255,225,140' : L.kind === 'arsenal' ? '170,220,255' : L.kind === 'fogo' ? '255,95,25' : '255,115,35';

@@ -524,3 +524,10 @@ Em `public/mockups/equipamento/index.html`, opção **C**: sem barra e 100% dent
 ### Como gravar os efeitos em vídeo (rodada 26)
 `tools/video/`: `gerar-defs.ts` (textos das cartas do catálogo) → `gravar-efeitos.cjs` (abre uma partida de teste com `?debug`, monta 23 cenas com `__powSet`/`__powAct` e grava frames pelo CDP em 2x, com um clarão branco de sincronia; `ONLY=03,19` grava só algumas; `PW=` aponta o módulo do Playwright) → `cortar-clipes.py` (um MP4 por cena). Cuidado: o vídeo nativo do Playwright não serve (mostra o jogo pequeno no canto).
 - O aviso "Fulano ataca X. Ativar Emboscada?" não aparece mais como aviso solto por baixo do pedido grande (era o mesmo texto duplicado).
+
+### Linguagem de brilhos: um sinal, um significado (rodada 26, decisão do dono)
+Diagnóstico: Escudo, Arsenal, Forja e Fogo-Sinal brilhavam o tempo todo, igual ao "efeito pronto", e o jogador não sabia ler nada. Regra nova:
+- **Varrido dourado subindo** = só "você pode ativar" (`AbilityReadyGlow`).
+- **Contorno fino azul/verde** = só durante a seleção de mover (`fxSelection`); **mira vermelha e setas** = só ao escolher alvo; **clarão de uma vez** = efeito que acabou de disparar.
+- **Estado permanente não brilha:** o Escudo virou um selinho parado com o número (a bolha de vidro só toca ao aparecer, absorver e quebrar: `ShieldFxOnce`); a Guarda é um selinho dourado "G". Chamas, anéis e faíscas fixos de Forja, Fogo-Sinal e Arsenal ficam desligados (`PERSISTENT_AURAS = false` em `campoFx.ts`; os efeitos de uma vez continuam). O brilho da Noite (movimentos extras) não mudou.
+- **Dica de arrastar** ("Arraste a carta para o campo"): só até o jogador arrastar 2 vezes (`DRAG_LESSONS`), nunca com efeito rodando, e fica logo acima da mão, sem cobrir a fileira de baixo.

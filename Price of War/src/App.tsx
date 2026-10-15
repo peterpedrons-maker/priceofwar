@@ -1065,25 +1065,14 @@ const SHIELD_SHEETS = {
   break: { sheet: fxShieldBreakSheet, rows: 3, frames: 18, fps: 28 },
 } as const;
 const GOLD_BUBBLE = 'hue-rotate(-165deg) saturate(1.5) brightness(1.1)';
-const ShieldAura = ({ kind, value }: { kind: 'shield' | 'block'; value?: number }) => {
-  const d = SHIELD_SHEETS.loop;
-  const [frame, setFrame] = useState(0);
-  useEffect(() => {
-    let raf = 0; const t0 = performance.now();
-    const loop = (now: number) => { setFrame(Math.floor(((now - t0) / 1000) * d.fps) % d.frames); raf = requestAnimationFrame(loop); };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, []);
-  const col = frame % 6, row = Math.floor(frame / 6);
-  return (
-    <div className="absolute pointer-events-none" style={{ left: `${-PUNCH_PAD_X * 100}%`, top: `${-PUNCH_PAD_Y * 100}%`, width: `${PUNCH_FRAME_W * 100}%`, height: `${PUNCH_FRAME_H * 100}%`, zIndex: 7 }}>
-      <div className="absolute inset-0" style={{ backgroundImage: `url(${d.sheet})`, backgroundRepeat: 'no-repeat', backgroundSize: `600% ${d.rows * 100}%`, backgroundPosition: `${(col / 5) * 100}% ${(row / (d.rows - 1)) * 100}%`, filter: kind === 'block' ? GOLD_BUBBLE : undefined }} />
-      {kind === 'shield' && value !== undefined && (
-        <div className="absolute flex items-center justify-center font-black" style={{ left: '50%', top: '20.5%', transform: 'translateX(-50%)', minWidth: 20, height: 20, padding: '0 5px', borderRadius: 10, background: 'linear-gradient(#5f7691, #2c3c52)', border: '1.5px solid #cfe7ff', boxShadow: '0 0 8px #7fb4ffaa, inset 0 1px 0 #ffffff55', color: '#f2f8ff', fontFamily: "'Cinzel', serif", fontSize: 12 }}>{value}</div>
-      )}
-    </div>
-  );
-};
+const ShieldAura = ({ kind, value }: { kind: 'shield' | 'block'; value?: number }) => (
+  // A permanent state is a still badge, never a moving glow: the glass bubble only plays when the shield appears, absorbs a hit or breaks (ShieldFxOnce).
+  <div className="absolute pointer-events-none" style={{ left: `${-PUNCH_PAD_X * 100}%`, top: `${-PUNCH_PAD_Y * 100}%`, width: `${PUNCH_FRAME_W * 100}%`, height: `${PUNCH_FRAME_H * 100}%`, zIndex: 7 }}>
+    <div className="absolute flex items-center justify-center font-black" style={kind === 'block'
+      ? { left: '50%', top: '20.5%', transform: 'translateX(-50%)', minWidth: 20, height: 20, padding: '0 5px', borderRadius: 10, background: 'linear-gradient(#a9863a, #5a4216)', border: '1.5px solid #ffe9a8', boxShadow: 'inset 0 1px 0 #ffffff55', color: '#fff6dc', fontFamily: "'Cinzel', serif", fontSize: 11 }
+      : { left: '50%', top: '20.5%', transform: 'translateX(-50%)', minWidth: 20, height: 20, padding: '0 5px', borderRadius: 10, background: 'linear-gradient(#5f7691, #2c3c52)', border: '1.5px solid #cfe7ff', boxShadow: 'inset 0 1px 0 #ffffff55', color: '#f2f8ff', fontFamily: "'Cinzel', serif", fontSize: 12 }}>{kind === 'block' ? 'G' : value}</div>
+  </div>
+);
 // The same bubble played once over a slot (it appearing, a hit it shrugs off, or it shattering).
 const ShieldFxOnce = ({ x, y, w, h, mode, gold }: { x: number; y: number; w: number; h: number; mode: 'appear' | 'hit' | 'break'; gold?: boolean; key?: React.Key }) => {
   const d = SHIELD_SHEETS[mode];
@@ -6138,6 +6127,7 @@ export default function App() {
   const gameSettings = useGameSettings();
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [dragLessons, setDragLessons] = useState<number>(() => { try { return Number(localStorage.getItem('pow.drags') || 0); } catch { return 0; } });
+  const DRAG_LESSONS = 2;   // the drag hints (finger, banner) show until the player has dragged twice, and never while an effect is playing
   const noteDragPlay = () => setDragLessons(n => { const v = n + 1; try { localStorage.setItem('pow.drags', String(v)); } catch { /* no storage */ } return v; });
   const inspectOpenedAtRef = useRef(0);   // a touch's own click lands on the freshly opened scrim: ignore clicks right after opening
   const [held, setHeld] = useState<{ id: string; zone: { left: number; top: number; width: number; height: number; label: string } | null } | null>(null);   // which card is held; where it is lives in refs (no React re-render per finger move)
@@ -11018,7 +11008,7 @@ export default function App() {
                   <div className="absolute inset-x-0 flex flex-col items-center gap-1 pointer-events-none" style={{ bottom: 22 }}>
                     {why ? (
                       <GameBox px={10} style={{ maxWidth: windowSize.width - 40 }}><span className="block px-2 py-0.5 text-center" style={{ color: '#f3e3c3', fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 12, letterSpacing: '0.06em' }}>{why}</span></GameBox>
-                    ) : !gameSettings.hintsDrag || dragLessons >= 1 ? null : (
+                    ) : !gameSettings.hintsDrag || dragLessons >= DRAG_LESSONS ? null : (
                       <>
                         <DragFinger size={30} travel={46} />
                         <GameBox px={10}><span className="block px-2 py-0.5" style={{ color: '#ffe9b0', fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
@@ -11039,10 +11029,10 @@ export default function App() {
 
       {/* While the player has not yet learned the gesture: a finger sliding from the hand up to the board, above the hand. */}
       <AnimatePresence>
-        {!tutOn && gameSettings.hintsDrag && !held && !inspectId && dragLessons < 1 && currentTurn === 'player' && turnPhase === 'preparacao' && viewState === 'hand' && !ambushPrompt && !targetingMode && !pendingAbility && !flyingCard && !preZoomSlot && !gameOverWinner
+        {!tutOn && gameSettings.hintsDrag && !held && !inspectId && dragLessons < DRAG_LESSONS && !fxBusy && !overlayBusy && currentTurn === 'player' && turnPhase === 'preparacao' && viewState === 'hand' && !ambushPrompt && !targetingMode && !pendingAbility && !flyingCard && !preZoomSlot && !gameOverWinner
           && hand.some(c => playerMana >= c.cost && getCardDropKind(c) !== 'blocked') && (
           <motion.div key="drag-hint" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            className="fixed left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none" style={{ bottom: 150, zIndex: 214 }}>
+            className="fixed left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none" style={{ bottom: 126, zIndex: 214 }}>
             <DragFinger size={36} travel={60} />
             <GameBox px={10}><span className="block px-2 py-0.5 text-center" style={{ color: '#ffe9b0', fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
               Arraste a carta para o campo
@@ -11059,7 +11049,7 @@ export default function App() {
         const { x, y } = dragPointRef.current;
         return (
           <>
-            {gameSettings.hintsDrag && dragLessons < 1 && <div className="fixed left-1/2 -translate-x-1/2 pointer-events-none px-4 py-1.5 rounded-md text-center" style={{ top: 84, zIndex: 321, background: 'rgba(14,10,6,0.9)', border: '1px solid rgba(255,214,110,0.8)', boxShadow: '0 0 16px rgba(255,200,80,0.45)', color: '#ffe9b0', fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+            {gameSettings.hintsDrag && dragLessons < DRAG_LESSONS && <div className="fixed left-1/2 -translate-x-1/2 pointer-events-none px-4 py-1.5 rounded-md text-center" style={{ top: 84, zIndex: 321, background: 'rgba(14,10,6,0.9)', border: '1px solid rgba(255,214,110,0.8)', boxShadow: '0 0 16px rgba(255,200,80,0.45)', color: '#ffe9b0', fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
               {(() => {
                 const k = getCardDropKind(card);
                 return k === 'place' ? 'Solte na casa acesa' : k === 'enemyTarget' ? 'Solte em um alvo inimigo' : k === 'ownTarget' ? 'Solte em uma unidade sua' : 'Solte no seu campo';
