@@ -5580,6 +5580,7 @@ export default function App() {
   // an attack, so handleSlotClick can grant it exactly one free reposition even
   // though it's the Batalha phase (see the reposition branch's own phase check).
   const [batedorFreeMove, setBatedorFreeMove] = useState<number | null>(null);
+  const batedorFreeRef = useRef<number | null>(null); batedorFreeRef.current = batedorFreeMove;
 
   // ── General activatable abilities (Yu-Gi-Oh-style "you may activate this" prompt) ──
   // Cardeal Anselmo, Voz da Fé's "Fase Principal: cure 1 HP em um soldado aliado. Pague 1 ouro
@@ -5998,7 +5999,7 @@ export default function App() {
   // A card's effect fires (gatilho): its colour glows over the card's exact silhouette and its type-line icon pulses.
   const [triggerBursts, setTriggerBursts] = useState<{ id: number; x: number; y: number; w: number; h: number; card: CardData; trig: Trigger }[]>([]);
   const burstIdRef = useRef(0);
-  const startTriggerFxRef = useRef<(side: 'player' | 'npc', slot: number, card: CardData, trig: Trigger, hold?: () => boolean) => void>(() => {});
+  const startTriggerFxRef = useRef<(side: 'player' | 'npc', slot: number, card: CardData, trig: Trigger, hold?: () => boolean, ms?: number) => void>(() => {});
   // Fires a card's trigger burst (set by burstAt) — a ref so the test hook can reach it.
   const burstFnRef = useRef<(side: 'player' | 'npc', slot: number, card: CardData, trig: Trigger, delay?: number) => void>(() => {});
   const burstAt = (side: 'player' | 'npc', slot: number, card: CardData, trig: Trigger, delay = 0) => {
@@ -6031,7 +6032,7 @@ export default function App() {
     trigGlowPendingRef.current = Math.max(0, trigGlowPendingRef.current - 1);
     if (trigGlowPendingRef.current === 0) { const w = trigGlowWaitersRef.current; trigGlowWaitersRef.current = []; w.forEach(f => f()); }
   };
-  const startTriggerFx = (side: 'player' | 'npc', slot: number, card: CardData, trig: Trigger, hold?: () => boolean) => {
+  const startTriggerFx = (side: 'player' | 'npc', slot: number, card: CardData, trig: Trigger, hold?: () => boolean, ms = TRIG_GLOW_MS) => {
     if (trigActiveIdRef.current === card.id) return;           // this card is already up: one float per effect
     trigActiveIdRef.current = card.id;
     trigGlowPendingRef.current += 1;
@@ -6046,7 +6047,7 @@ export default function App() {
       setTrigFx({ id, side, slot, card, rect: { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height }, stage: 'up' });
       pulseCard(card.id, trig, 2600);
       playEffectSfx();
-      await sleep(TRIG_GLOW_MS);
+      await sleep(ms);
       endGlow();
       await sleep(80);                                          // let whatever the glow's end opens (a pick, a target) register
       for (let g = 0; hold && hold() && g < 1200; g++) await sleep(100);
@@ -6588,7 +6589,7 @@ export default function App() {
           // The opponent's cards have no flight from a hand on screen: they drop in from above (see CardSlot's arrival).
           if (e.seat === 1) arrivalDrops.set(e.card.id, { delay: 0.05 });
           // Postura: the stance is on the moment the card stands in the Vanguarda — the same gold glow as any effect, once it has landed.
-          if (!opts.quietTurn && triggerKeyOf(e.card.name) === 'postura' && isFrontline(e.slot)) burstAt(ownerId(e.seat), e.slot, toCardData(e.card), 'postura', e.seat === 0 ? 1000 : 600);
+          if (!opts.quietTurn && triggerKeyOf(e.card.name) === 'postura' && isFrontline(e.slot)) { const sd = ownerId(e.seat), sl = e.slot, cd = toCardData(e.card); window.setTimeout(() => startTriggerFx(sd, sl, cd, 'postura', undefined, 1100), e.seat === 0 ? 1000 : 600); }
           break;
         case 'summon':
           // Summoned soldiers drop in one after another, never all at the same instant.
@@ -6631,7 +6632,13 @@ export default function App() {
           // A standing effect (Terreno, Relíquia, an aura) just changed this combat: the card flashes once, for both players to see.
           if (opts.quietTurn) break;
           const src = engineRef.current?.players[e.seat].board[e.slot];
-          if (src) burstAt(ownerId(e.seat), e.slot, toCardData(src), 'postura', e.after ? 700 : 0);
+          // Same flow as every other trigger: the card glows, lifts off the board for a moment with the effect sound, then sets back down (and
+          // stays up while someone still has to choose, e.g. Batedor's free move).
+          if (src) {
+            const side = ownerId(e.seat), cd = toCardData(src), slot = e.slot;
+            const hold = () => holdForSeat(e.seat)() || (e.seat === 0 && batedorFreeRef.current !== null);
+            window.setTimeout(() => startTriggerFx(side, slot, cd, 'postura', hold, 1100), e.after ? 700 : 0);
+          }
           break;
         }
         case 'shield_hit': {
@@ -6726,7 +6733,7 @@ export default function App() {
             });
           }, 1450);
           // Reforço: the card that moved up glows gold once its slide has landed.
-          if (!opts.quietTurn && triggerKeyOf(e.card.name) === 'reforco') burstAt(side, e.to, mover, 'reforco', 1450 + 480);
+          if (!opts.quietTurn && triggerKeyOf(e.card.name) === 'reforco') { const sl = e.to; window.setTimeout(() => startTriggerFx(side, sl, mover, 'reforco', undefined, 1100), 1450 + 480); }
           break;
         }
         case 'log':
