@@ -1406,7 +1406,9 @@ const FloatNumber = ({ text, kind }: { text: string; kind: keyof typeof NUMBER_K
   const h = tier.h;
   const burst = burstUrl(k);
   return (
-    <div className="relative flex items-center justify-center" style={{ height: h }}>
+    // the star and the number drift up TOGETHER (one outer element carries the drift), so the number never leaves the star
+    <motion.div className="relative flex items-center justify-center" style={{ height: h }}
+      initial={{ y: 0 }} animate={{ y: [0, -6, -20, -46, -80] }} transition={{ duration: tier.ms / 1000, ease: 'easeOut', times: [0, 0.12, 0.3, 0.72, 1] }}>
       {burst && (
         <motion.img
           src={burst} alt=""
@@ -1419,10 +1421,10 @@ const FloatNumber = ({ text, kind }: { text: string; kind: keyof typeof NUMBER_K
         />
       )}
       <motion.div
-        initial={{ scale: 0.3, opacity: 0, y: 0, rotate: -6 }}
+        initial={{ scale: 0.3, opacity: 0, rotate: -6 }}
         animate={{
           scale: [0.3, tier.peak, tier.peak * 0.76, tier.peak * 0.76, tier.peak * 0.62],
-          opacity: [0, 1, 1, 1, 0], y: [0, -6, -20, -46, -80],
+          opacity: [0, 1, 1, 1, 0],
           rotate: [-6, 5, -2, 0, 0],
           x: tier.shake ? [0, -tier.shake, tier.shake, -tier.shake * 0.6, tier.shake * 0.6, 0, 0] : 0,
         }}
@@ -1437,7 +1439,7 @@ const FloatNumber = ({ text, kind }: { text: string; kind: keyof typeof NUMBER_K
           return <img key={i} src={url} alt="" draggable={false} className="select-none" style={{ height: h * (isSign ? 1.05 : 1), marginLeft: i === 0 ? 0 : -h * 0.16 }} />;
         })}
       </motion.div>
-    </div>
+    </motion.div>
   );
 };
 
