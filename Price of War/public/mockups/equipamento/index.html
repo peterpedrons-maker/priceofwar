@@ -22,6 +22,10 @@
   .band{position:absolute;left:19%;right:19%;bottom:13px;height:6px;border-radius:4px;background:linear-gradient(#f3d98a,#a67a22);box-shadow:0 1px 2px #000;display:flex;align-items:center;justify-content:center;gap:2px;z-index:3}
   .band i{width:4px;height:4px;border-radius:50%;background:#2a1a08}
   .band svg{width:7px;height:7px}
+  /* C: círculo pequeno embaixo, no meio, com os ícones do jogo (espada+ = ganhou ATK, coração+ = ganhou vida) */
+  .medals{position:absolute;left:50%;bottom:-1px;transform:translateX(-50%);display:flex;gap:0;z-index:3}.medals .medal+.medal{margin-left:-3px}
+  .medal{width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#3b2a14,#120c06);box-shadow:0 0 0 1px #d9b25a,0 1px 3px #000;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .medal img{width:14px;height:14px;object-fit:contain;transform:scale(1.18)}
   .big{display:flex;justify-content:center;align-items:flex-start;gap:0;margin:10px 0 0;position:relative;height:330px}
   .big .main{position:absolute;left:62px;top:8px;width:230px;z-index:4;filter:drop-shadow(0 10px 14px #000a)}
   .big .main img,.big .eq img{display:block;width:100%}
@@ -31,10 +35,13 @@
 </head>
 <body>
 <div class="page">
-  <h2>A · Selo de arma no canto da arte</h2>
+  <h2>C · Círculo pequeno embaixo, no meio (ícones do jogo)</h2>
+  <p>Sem barra. Se o equipamento dá ataque, o círculo mostra a espada com +; se dá vida, o coração com +; se dá os dois, dois círculos lado a lado (sinal + sempre à esquerda). Fica entre os dois escudos, em cima do ornamento da moldura, sem tapar número nenhum.</p>
+  <div class="board" id="boardC"></div>
+  <h2>A · Selo de arma no canto da arte (anterior)</h2>
   <p>A unidade fica do tamanho normal, sem carta atrás. O selo (arma + quantidade) só aparece quando há equipamento. As cartas de equipamento aparecem na prévia (toque na carta), mais abaixo.</p>
   <div class="board" id="boardA"></div>
-  <h2>B · Faixa fina acima dos escudos</h2>
+  <h2>B · Faixa fina acima dos escudos (anterior, cobria números)</h2>
   <p>Uma barrinha dourada dentro da moldura, com um pontinho por arma. Mais discreta, mas também cobre menos.</p>
   <div class="board" id="boardB"></div>
   <h2>Prévia ao tocar na carta (vale para A e B)</h2>
@@ -46,9 +53,12 @@ const SWORD = '<svg viewBox="0 0 24 24"><path d="M14.5 3.5l6 .0.0 6-9.2 9.2-2.3-
 const SWORD_W = SWORD.replace(/#3a2408/g, '#2a1a08');
 const faces = { s: 'cards/sentinela-do-claustro.webp', b: 'cards/batedor.webp', c: 'cards/capitao-de-formacao.webp' };
 const layout = [['s', 0], ['b', 1], ['c', 2], ['s', 1], null];
+// C: o que cada carta ganhou com o equipamento: 'a' = ataque, 'h' = vida, 'ah' = os dois
+const layoutC = [['s', ''], ['b', 'a'], ['c', 'h'], ['s', 'ah'], ['b', 'a']], layoutC2 = [['c', 'ah'], null, ['s', 'h'], ['b', ''], ['c', 'a']];
 function slot(item, mode) {
   const el = document.createElement('div'); el.className = 'slot'; if (!item) return el;
   const [k, n] = item, c = document.createElement('div'); c.className = 'card'; c.innerHTML = `<img src="${faces[k]}" alt="">`;
+  if (mode === 'C' && n) c.innerHTML += `<div class="medals">${[...n].map(x => `<div class="medal"><img src="${x === 'a' ? 'ui-effect-atk-up.webp' : 'ui-effect-hp-up.webp'}" alt=""></div>`).join('')}</div>`;
   if (n && mode === 'A') c.innerHTML += `<div class="seal">${SWORD}${n > 1 ? `<b>${n}</b>` : ''}</div>`;
   if (n && mode === 'B') c.innerHTML += `<div class="band">${Array.from({ length: n }, () => `<i></i>`).join('')}</div>`;
   el.appendChild(c); return el;
@@ -58,6 +68,7 @@ function board(id, mode) {
   for (let r = 0; r < 2; r++) { const row = document.createElement('div'); row.className = 'rowl'; (r ? [['b', 1], null, ['s', 2], ['c', 0], ['b', 1]] : layout).forEach(it => row.appendChild(slot(it, mode))); b.appendChild(row); }
 }
 board('boardA', 'A'); board('boardB', 'B');
+(() => { const b = document.getElementById('boardC'); [layoutC, layoutC2].forEach(L => { const row = document.createElement('div'); row.className = 'rowl'; L.forEach(it => row.appendChild(slot(it, 'C'))); b.appendChild(row); }); })();
 const big = document.getElementById('big');
 big.innerHTML = `<div class="eq" style="left:170px;top:0;transform:rotate(9deg)"><img src="cards/cota-de-mil-remendos.webp" alt=""></div>
   <div class="eq" style="left:210px;top:56px;transform:rotate(15deg)"><img src="cards/cota-de-mil-remendos.webp" alt=""></div>

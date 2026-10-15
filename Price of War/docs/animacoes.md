@@ -504,3 +504,9 @@ Depois do "BATALHA", a distribuição alterna: uma carta sua sai do seu monte (v
 
 ### Mockup: equipamento como selo (rodada 26, ainda NÃO ligado ao jogo)
 `public/mockups/equipamento/index.html`: **A** selo de arma (ícone + quantidade) no canto da arte, a unidade fica do tamanho normal e sem carta atrás; **B** faixa fina dourada acima dos escudos, um ponto por arma; nos dois, as cartas de equipamento aparecem em leque atrás da carta ampliada (prévia ao tocar). O dono pediu o mockup do selo (A). Falta ele aprovar para ligar ao jogo (trocar o bloco `equippedWeapons` do `CardSlot` e o leque na prévia).
+
+### Ícones de bônus padronizados (rodada 26)
+O sinal (+ / −) fica sempre à ESQUERDA do ícone: a espada já era assim, e o coração tinha o sinal à direita. `ui-effect-hp-up.webp`, `ui-effect-hp-down.webp`, `fx-hp-up-sheet.webp` e `fx-hp-down-sheet.webp` foram espelhados (as folhas, quadro a quadro), então valem para o jogo todo (marcas nas cartas, pop-ups de +ATK/+HP, etc.).
+
+### Equipamento, mockup v2: círculo pequeno com ícone do jogo (ainda NÃO ligado ao jogo)
+Em `public/mockups/equipamento/index.html` a opção **C**: sem barra; um círculo de ~14 px embaixo, no meio da carta (entre os escudos), com o ícone espada+ (equipamento que dá ATK) ou coração+ (que dá vida); dá os dois = dois círculos lado a lado. Falta o dono aprovar.
