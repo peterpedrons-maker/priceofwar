@@ -11547,11 +11547,13 @@ const CardSlot = ({
               equip card, until this unit dies (equippedWeapons rides along with it to
               the graveyard then). Rendered before the CardFace below so it sits
               underneath in paint order, each one offset a little further out. */}
-          {card.equippedWeapons?.map((weapon, wi) => (
+          {/* (rodada 26: o equipamento aparece só por BAIXO e nunca para os lados, senão duas unidades equipadas lado a lado pareciam se sobrepor: a unidade se
+              levanta um pouco, com sombra, e o equipamento espia pela borda de baixo, uns poucos pixels por peça, sem passar da largura da carta) */}
+          {card.equippedWeapons?.slice(0, 3).map((weapon, wi) => (
             <div
               key={weapon.id}
               className="absolute inset-0 rounded-lg pointer-events-none"
-              style={{ transform: `translate(${9 + wi * 6}px, ${9 + wi * 6}px) scale(0.9)`, filter: CARD_THICKNESS_SHADOW }}
+              style={{ transform: `translate(0px, ${4 + wi * 3}px) scale(${0.93 - wi * 0.015})`, transformOrigin: '50% 100%', filter: CARD_THICKNESS_SHADOW }}
             >
               <CardFace card={weapon} variant="field" />
             </div>
@@ -11560,6 +11562,7 @@ const CardSlot = ({
           {/* No more Info button here — tapping the card itself (see the root
               onClick above) now shows the same enlarged preview this used to open
               on its own. */}
+          <div className="absolute inset-0" style={card.equippedWeapons?.length ? { transform: 'translateY(-4px) scale(1.02)', filter: 'drop-shadow(0 4px 3px rgba(0,0,0,.55))' } : undefined}>
           {card.isFullArt ? <CardFaceFullArtMini card={card} /> : <CardFaceStandardMini card={card} />}
           {(card.block || (card.shield ?? 0) > 0) && <ShieldAura kind={card.block ? 'block' : 'shield'} value={card.block ? undefined : card.shield} />}
           {/* Permanent marks: a card whose ATK or HP is above what is printed on it (equipment, buffs) wears the matching icon over that stat */}
@@ -11574,6 +11577,7 @@ const CardSlot = ({
               </>
             );
           })()}
+          </div>
         </motion.div>
         </motion.div>
       )}

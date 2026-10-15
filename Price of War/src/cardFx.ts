@@ -216,11 +216,7 @@ export function fxLunge(el: HTMLElement, attackY: number, ms: number, windFrac: 
   const gs = el.offsetWidth > 0 ? r0.width / el.offsetWidth : 1;   // o tabuleiro é desenhado grande e reduzido: o translate do CSS (px locais) anda `gs` vezes na tela
   add(dt => {
     if (dead) return false; const sxs = st.sc * st.sx, sys = st.sc * st.sy, c = { x: c0.x, y: c0.y + st.y * gs }, rw = r0.width * sxs, rh = r0.height * sys, s = r0.width / 56;
-    if (st.charge > .02) {
-      softGlow(c.x, c.y, r0.width * (.8 + .5 * st.charge), '255,205,110', .22 * st.charge);
-      if (fimg && f0) { cx.save(); cx.translate(c.x, c.y); cx.rotate(st.rot * Math.PI / 180); cx.scale(sxs, sys); drawSil(fimg, { left: f0.left - c0.x, top: f0.top - c0.y, width: f0.width, height: f0.height }, '255,224,150', .85 * st.charge, 1 + .03 * st.charge); cx.restore(); }
-      if (Math.random() < dt * 40 * st.charge) { const a = R(0, 6.283), d = R(.7, 1.2) * r0.width; emit({ kind: 'ember', x: c.x + Math.cos(a) * d, y: c.y + Math.sin(a) * d, vx: -Math.cos(a) * d * 2.6, vy: -Math.sin(a) * d * 2.6, drag: .9, life: .28, s: 1.4 * s, rgb: '255,210,120' }); }
-    }
+    // (sem brilho nem contorno durante a preparação do golpe: ficava fora de sincronia com a carta; só o movimento dela e, no golpe, o rastro)
     if (st.speed > 0) {
       trail.push(c); if (trail.length > 7) trail.shift();
       for (let i = 1; i < trail.length; i++) { const a = i / trail.length; cx.globalCompositeOperation = 'lighter'; cx.strokeStyle = `rgba(255,236,190,${a * .5})`; cx.lineWidth = rw * .55 * a; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(trail[i - 1].x, trail[i - 1].y); cx.lineTo(trail[i].x, trail[i].y); cx.stroke(); }
