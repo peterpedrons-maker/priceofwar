@@ -4,6 +4,8 @@
 // exportadas no fim são a API do jogo. Todo desenho usa "unidades lógicas" em que a largura de uma casa vale 64
 // (U = largura da casa em pixels / 64), então os números ficam iguais em qualquer tamanho de tela.
 import fxFire from './assets/proj-boom-fire.webp';
+import { getGameSettings } from './gameSettings';
+import { fxImpact } from './cardFx';
 import fxSmoke from './assets/proj-boom-smoke.webp';
 import fxHoly from './assets/proj-holy.webp';
 import fxPuff from './assets/proj-puff.webp';
@@ -435,7 +437,11 @@ export async function fxTactic(kind: 'catapulta' | 'trabuco' | 'balestra' | 'mur
   const T = targets.map(t => ({ ...t, p: pt(env, t.side, t.slot) })).filter(t => t.p);
   if (!T.length) { commit(); return; }
   const tp = tacPoint(env), dirY = side === 'player' ? -1 : 1;
-  const hitNumber = (t: any, d: number) => at(d, () => env.number(t.side, t.slot, t.amount, 'damage'));
+  // every target that takes damage gets the number (with its star) AND the new blow on its own card (rays, cracks, sparks: src/cardFx.ts fxImpact)
+  const hitNumber = (t: any, d: number) => at(d, () => {
+    env.number(t.side, t.slot, t.amount, 'damage');
+    if (getGameSettings().fxNovo) { const r = document.getElementById(`${t.side}-${t.slot}`)?.getBoundingClientRect(); if (r) fxImpact({ left: r.left, top: r.top, width: r.width, height: r.height }, t.slot === 12, t.side === 'npc' ? 1 : -1); }
+  });
   return new Promise<void>(resolve => {
     landTactic(env, () => {
       const from = { x: tp.x, y: tp.y + (env.spot.h / U) * .3 * dirY };

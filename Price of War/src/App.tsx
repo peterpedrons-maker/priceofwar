@@ -1411,8 +1411,8 @@ const FloatNumber = ({ text, kind }: { text: string; kind: keyof typeof NUMBER_K
         <motion.img
           src={burst} alt=""
           initial={{ scale: 0.2, opacity: 0, rotate: -14 }}
-          animate={{ scale: [0.2, 1.1, 1.55], opacity: [0, 1, 0], rotate: [-14, 0, 8] }}
-          transition={{ duration: 0.55, ease: 'easeOut', times: [0, 0.35, 1] }}
+          animate={{ scale: [0.2, 1.15, 1.3, 1.6], opacity: [0, 1, 0.9, 0], rotate: [-14, 0, 3, 8] }}
+          transition={{ duration: 0.95, ease: 'easeOut', times: [0, 0.22, 0.6, 1] }}
           className="absolute pointer-events-none select-none max-w-none"
           style={{ height: h * 2.3, width: h * 2.3, opacity: 0 }}
           draggable={false}
@@ -5556,6 +5556,7 @@ export default function App() {
   const floatingNumberIdRef = useRef(0);
   const spawnFloatingNumber = (x: number, y: number, value: number, kind: 'damage' | 'heal' | 'gold-gain' | 'gold-spend' | 'shield') => {
     if (value === 0) return;
+    if (DEBUG_HOOKS && kind === 'damage') ((window as any).__dmg ??= { ev: 0, sp: 0 }).sp++;
     const id = ++floatingNumberIdRef.current;
     const text = (kind === 'heal' || kind === 'gold-gain') ? `+${value}` : `-${value}`;
     // A little horizontal jitter so two numbers landing on the same spot at once
@@ -6424,6 +6425,7 @@ export default function App() {
           if (e.seat === 1) showToast(`O oponente ativou uma Emboscada: ${e.card.name}!`);
           break;
         case 'damage':
+          if (DEBUG_HOOKS && e.amount > 0) ((window as any).__dmg ??= { ev: 0, sp: 0 }).ev++;
           if (e.amount > 0 && !opts.fxNumbers) spawnFloatingNumberAtId(`${ownerId(e.seat)}-${e.slot}`, e.amount, 'damage');
           break;
         case 'heal':
