@@ -11547,22 +11547,25 @@ const CardSlot = ({
               equip card, until this unit dies (equippedWeapons rides along with it to
               the graveyard then). Rendered before the CardFace below so it sits
               underneath in paint order, each one offset a little further out. */}
-          {/* (rodada 26: o equipamento aparece só por BAIXO e nunca para os lados, senão duas unidades equipadas lado a lado pareciam se sobrepor: a unidade se
-              levanta um pouco, com sombra, e o equipamento espia pela borda de baixo, uns poucos pixels por peça, sem passar da largura da carta) */}
-          {card.equippedWeapons?.slice(0, 3).map((weapon, wi) => (
-            <div
-              key={weapon.id}
-              className="absolute inset-0 rounded-lg pointer-events-none"
-              style={{ transform: `translate(0px, ${4 + wi * 3}px) scale(${0.93 - wi * 0.015})`, transformOrigin: '50% 100%', filter: CARD_THICKNESS_SHADOW }}
-            >
-              <CardFace card={weapon} variant="field" />
-            </div>
-          ))}
+          {/* (rodada 26) O equipamento fica DENTRO da casa da unidade: a unidade encolhe um pouco (presa ao topo, com sombra) e a carta de equipamento espia pela
+              borda de baixo, no espaço que sobrou. Nada passa do tamanho da casa, então uma unidade equipada nunca encosta na vizinha (nem do lado, nem na fileira de
+              trás ou da frente). Até 2 peças aparecem. */}
+          {(() => {
+            const ws = (card.equippedWeapons ?? []).slice(0, 2), n = ws.length, k = n === 0 ? 1 : n === 1 ? 0.93 : 0.9, sliver = n ? (1 - k) / n : 0;
+            return ws.map((weapon, wi) => {
+              const kw = k - 0.015 * (wi + 1), ty = (k - kw) + (wi + 1) * sliver;
+              return (
+                <div key={weapon.id} className="absolute inset-0 rounded-lg pointer-events-none" style={{ transform: `translateY(${(ty * 100).toFixed(2)}%) scale(${kw})`, transformOrigin: '50% 0%', filter: CARD_THICKNESS_SHADOW }}>
+                  <CardFace card={weapon} variant="field" />
+                </div>
+              );
+            });
+          })()}
 
           {/* No more Info button here — tapping the card itself (see the root
               onClick above) now shows the same enlarged preview this used to open
               on its own. */}
-          <div className="absolute inset-0" style={card.equippedWeapons?.length ? { transform: 'translateY(-4px) scale(1.02)', filter: 'drop-shadow(0 4px 3px rgba(0,0,0,.55))' } : undefined}>
+          <div className="absolute inset-0" style={card.equippedWeapons?.length ? { transform: `scale(${card.equippedWeapons.length === 1 ? 0.93 : 0.9})`, transformOrigin: '50% 0%', filter: 'drop-shadow(0 3px 2px rgba(0,0,0,.6))' } : undefined}>
           {card.isFullArt ? <CardFaceFullArtMini card={card} /> : <CardFaceStandardMini card={card} />}
           {(card.block || (card.shield ?? 0) > 0) && <ShieldAura kind={card.block ? 'block' : 'shield'} value={card.block ? undefined : card.shield} />}
           {/* Permanent marks: a card whose ATK or HP is above what is printed on it (equipment, buffs) wears the matching icon over that stat */}
