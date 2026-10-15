@@ -1413,8 +1413,8 @@ const FloatNumber = ({ text, kind }: { text: string; kind: keyof typeof NUMBER_K
         <motion.img
           src={burst} alt=""
           initial={{ scale: 0.2, opacity: 0, rotate: -14 }}
-          animate={{ scale: [0.2, 1.15, 1.3, 1.6], opacity: [0, 1, 0.9, 0], rotate: [-14, 0, 3, 8] }}
-          transition={{ duration: 0.95, ease: 'easeOut', times: [0, 0.22, 0.6, 1] }}
+          animate={{ scale: [0.2, 1.15, 1.25, 1.3, 1.4], opacity: [0, 1, 1, 1, 0], rotate: [-14, 0, 2, 3, 5] }}
+          transition={{ duration: tier.ms / 1000, ease: 'easeOut', times: [0, 0.12, 0.3, 0.72, 1] }}   // same clock as the number: both appear, stay and fade together
           className="absolute pointer-events-none select-none max-w-none"
           style={{ height: h * 2.3, width: h * 2.3, opacity: 0 }}
           draggable={false}
