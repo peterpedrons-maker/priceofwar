@@ -881,13 +881,10 @@ const AbilityReadyGlow = ({ x, y, w, h, onClick, card = null, kind = 'utility' }
   return (
     <div className="fixed pointer-events-none" style={{ left: x - w / 2, top: y - h / 2, width: w, height: h, ['--c1' as string]: col.c1, ['--c2' as string]: col.c2 }}>
       {/* the glow outside the edge follows the silhouette because it is a filter on the masked layers' parent */}
-      <div className="absolute ar-outer" style={box}>
+      <div className="absolute" style={box}>
         <div className="absolute inset-0 ar-fill" style={maskCss(masks[0])}>
-          <div className="absolute inset-0 ar-wash" />
           <div className="absolute inset-0 ar-band ar-band-a" />
-          <div className="absolute inset-0 ar-band ar-band-b" />
         </div>
-        <div className="absolute inset-0 ar-rim" style={maskCss(masks[1])} />
       </div>
       <button
         onClick={(e) => { e.stopPropagation(); onClick(); }}
@@ -9996,7 +9993,7 @@ export default function App() {
             <motion.div
               key="ambush-overlay"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-x-0 bottom-0 z-[268] flex flex-col items-center justify-end gap-3 pb-4 pointer-events-none"
+              data-fx-cover="1" className="fixed inset-x-0 bottom-0 z-[268] flex flex-col items-center justify-end gap-3 pb-4 pointer-events-none"
               style={{ top: topClear, background: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 14%)' }}
             >
             <div className="fixed inset-x-6 z-[269] pointer-events-none" style={{ top: 70 }}>
@@ -10047,7 +10044,7 @@ export default function App() {
           const scale = Math.max(0.42, Math.min(0.7, (windowSize.width - 24 - gap * (perRow - 1)) / (perRow * HAND_CARD_WIDTH)));
           return (
             <motion.div key="upkeep-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-x-0 bottom-0 z-[268] flex flex-col items-center justify-end gap-2 pb-3 pointer-events-none"
+              data-fx-cover="1" className="fixed inset-x-0 bottom-0 z-[268] flex flex-col items-center justify-end gap-2 pb-3 pointer-events-none"
               style={{ top: 120, background: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.62) 18%)' }}>
               <PromptTitle title="Contratos" sub={<>Você tem <b style={{ color: '#ffd36a' }}>{playerMana}</b> de ouro. Quem não for pago vai embora.{upkeepPrompt.discount > 0 ? ` A Relíquia abate ${upkeepPrompt.discount}.` : ''}</>} />
               <div className="flex flex-wrap items-start justify-center overflow-y-auto" style={{ gap, maxWidth: windowSize.width - 12, maxHeight: '58vh' }}>
@@ -10085,7 +10082,7 @@ export default function App() {
           const scale = Math.max(0.5, Math.min(0.78, (windowSize.height - 120 - 56 * relicPrompt.modes.length - 90) / (HAND_CARD_HEIGHT + 34)));
           return (
             <motion.div key="relic-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-x-0 bottom-0 z-[268] flex flex-col items-center justify-end gap-2 pb-3 pointer-events-none"
+              data-fx-cover="1" className="fixed inset-x-0 bottom-0 z-[268] flex flex-col items-center justify-end gap-2 pb-3 pointer-events-none"
               style={{ top: 100, background: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.62) 16%)' }}>
               {rc && (
                 <motion.div initial={{ y: 50, scale: 0.8, opacity: 0 }} animate={{ y: 0, scale: 1, opacity: 1 }} transition={{ duration: 0.3 }}
@@ -10315,7 +10312,7 @@ export default function App() {
       )}
       {/* "You may activate this" prompts — see abilityReadyPrompts above for why
           these moved out of each CardSlot and into this same top-level fixed layer. */}
-      {abilityReadyPrompts.length > 0 && !targetingMode && (
+      {abilityReadyPrompts.length > 0 && !targetingMode && selItems.length === 0 && (
         <div className="fixed inset-0 z-40 pointer-events-none">
           {abilityReadyPrompts.map(p => (
             <AbilityReadyGlow key={p.key} x={p.x} y={p.y} w={p.w} h={p.h} onClick={p.onClick} kind={p.kind} card={p.card} />
@@ -10940,6 +10937,7 @@ export default function App() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.85 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            data-fx-cover="1"
             className="fixed z-[260] pointer-events-none"
             // Plain pixel left/top instead of left:50%+transform:translate(-50%): once
             // this element also animates `scale` through Framer Motion, Motion takes

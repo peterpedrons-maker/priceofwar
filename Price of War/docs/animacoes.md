@@ -515,3 +515,8 @@ Em `public/mockups/equipamento/index.html`, opção **C**: sem barra e 100% dent
 - **No tabuleiro:** a unidade fica do tamanho normal, sem carta atrás (acabou o encolhimento e a carta espiando). Um botão redondo **bem pequeno** (12,5% da largura da carta, ícone a 92% do botão, disco grafite mais claro para o ícone aparecer, `ui-medal-atk.webp` grafite / `ui-medal-hp.webp` vermelho, derivados do botão redondo do jogo `ui-icon-mais`) fica no pé do pergaminho, no meio, 100% dentro da carta, com a espada (dá ATK) ou o coração (dá vida) dentro; equipamento que dá os dois mostra dois botões; sem bônus de número (só "Armada"), a espada (`CardSlot`, bloco `equippedWeapons`).
 - **Na prévia (toque na carta do tabuleiro):** as cartas de equipamento (até 3) saem por trás da carta em leque, à direita; a carta fica 16% menor para o leque caber e perde a sombra grande (ela escurecia as cartas de trás).
 - Mockup e histórico: `public/mockups/equipamento/` (opção C).
+
+### Brilhos legíveis e sempre por baixo das janelas (rodada 26)
+- **Efeito pronto para ativar** (`AbilityReadyGlow`): volta ao visual antigo, só um **brilho dourado que sobe pela carta, de baixo para cima**, repetindo. Sem aro por fora, sem névoa por dentro, sem descida.
+- **Mover/atacar** usa outro sinal: contorno fino azul (carta escolhida) e verde (destinos) por `fxSelection`, mais as setas. Enquanto há seleção de mover/atacar, os brilhos de "efeito pronto" somem, para não se sobrepor.
+- **Nada por cima de carta grande ou janela:** a prévia da carta, a Emboscada, os Contratos e a Relíquia levam `data-fx-cover`; contorno e setas (`cardFx.ts`, `covered()`) não são desenhados enquanto algum desses existe, porque o canvas deles fica acima (z 288).

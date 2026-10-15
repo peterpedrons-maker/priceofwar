@@ -299,7 +299,7 @@ export function fxArrows(list: ArrowSpec[]) {
   arrows = list;
   if (list.length) {
     gsap.to(ast, { a: 1, duration: .18, overwrite: true });
-    if (!arrowItem) { arrowItem = true; add(dt => { ast.t += dt; if (!arrows.length && ast.a <= .01) { arrowItem = false; return false; } arrows.forEach((s, i) => { cx.save(); drawArrow(s, i, ast.a); cx.restore(); }); return true; }); }
+    if (!arrowItem) { arrowItem = true; add(dt => { ast.t += dt; if (!arrows.length && ast.a <= .01) { arrowItem = false; return false; } if (!covered()) arrows.forEach((s, i) => { cx.save(); drawArrow(s, i, ast.a); cx.restore(); }); return true; }); }
   } else gsap.to(ast, { a: 0, duration: .14, overwrite: true });
 }
 
@@ -341,13 +341,14 @@ export function fxMoveFollow(el: HTMLElement, from: { x: number; y: number; w: n
 // ── 9. carta selecionada / casas de destino (no lugar da mira azul que tampava a carta) ───────────────────────────────────────────────────
 // Só um contorno pulsando no formato EXATO da moldura, por fora da carta: nada cobre a arte. `items`: id do slot (`player-3`) + cor.
 export type SelItem = { id: string; rgb: string };
+const covered = () => !!document.querySelector('[data-fx-cover]');   // carta grande/janela aberta por cima: contorno e setas não aparecem por cima dela
 let selItems: SelItem[] = [], selLoop = false; const sel = { a: 0, t: 0 };
 export function fxSelection(items: SelItem[]) {
   selItems = items;
   if (items.length) {
     gsap.to(sel, { a: 1, duration: .15, overwrite: true });
     if (!selLoop) { selLoop = true; add(dt => { sel.t += dt; if (!selItems.length && sel.a <= .01) { selLoop = false; return false; }
-      for (const it of selItems) { const el = document.getElementById(it.id), img = frameImgOf(el); if (!img) continue; const f = img.getBoundingClientRect(); drawSil(img, { left: f.left, top: f.top, width: f.width, height: f.height }, it.rgb, sel.a * (.7 + .3 * Math.sin(sel.t * 5)), 1 + .015 * Math.sin(sel.t * 5)); }
+      if (!covered()) for (const it of selItems) { const el = document.getElementById(it.id), img = frameImgOf(el); if (!img) continue; const f = img.getBoundingClientRect(); drawSil(img, { left: f.left, top: f.top, width: f.width, height: f.height }, it.rgb, sel.a * (.7 + .3 * Math.sin(sel.t * 5)), 1 + .015 * Math.sin(sel.t * 5)); }
       return true; }); }
   } else gsap.to(sel, { a: 0, duration: .12, overwrite: true });
 }
