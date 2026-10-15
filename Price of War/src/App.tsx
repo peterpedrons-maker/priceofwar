@@ -107,6 +107,8 @@ import uiEffectAtkUpStill from './assets/ui-effect-atk-up.webp';
 import uiEffectHpUpStill from './assets/ui-effect-hp-up.webp';
 import uiIconSword from './assets/ui-icon-sword.webp';
 import uiIconHeart from './assets/ui-icon-heart.webp';
+import uiMedalAtk from './assets/ui-medal-atk.webp';   // the game's round gold-rimmed button (ui-icon-mais without the cross), graphite: equipment that gives ATK
+import uiMedalHp from './assets/ui-medal-hp.webp';     // ... and red: equipment that gives life
 import maskGold from './assets/mask-gold.webp';
 import maskGoldRim from './assets/mask-gold-rim.webp';
 import maskHandGold from './assets/mask-hand-gold.webp';
@@ -10929,8 +10931,9 @@ export default function App() {
           requiring an explicit close every time. */}
       <AnimatePresence>
         {detailedCard && (() => {
-          const w = HAND_CARD_WIDTH * BOARD_PREVIEW_SCALE;
-          const h = HAND_CARD_HEIGHT * BOARD_PREVIEW_SCALE;
+          const kEq = detailedCard.equippedWeapons?.length ? 0.84 : 1;   // with equipment behind it the card is a bit smaller so the fan fits on the screen
+          const w = HAND_CARD_WIDTH * BOARD_PREVIEW_SCALE * kEq;
+          const h = HAND_CARD_HEIGHT * BOARD_PREVIEW_SCALE * kEq;
           return (
           <motion.div
             initial={{ opacity: 0, scale: 0.85 }}
@@ -10945,12 +10948,18 @@ export default function App() {
             // here would just get silently discarded (this was the actual cause of a
             // stray build's board-preview landing way off-center).
             style={{
-              left: windowSize.width / 2 - w / 2, top: windowSize.height * PREVIEW_Y_FRACTION - h / 2,
+              left: windowSize.width / 2 - w / 2 - (kEq < 1 ? w * 0.1 : 0), top: windowSize.height * PREVIEW_Y_FRACTION - h / 2,
               width: w, height: h,
             }}
           >
+            {/* Equipamentos presos à unidade: saem por trás da carta, em leque (no tabuleiro só aparece o botãozinho do que eles deram) */}
+            {detailedCard.equippedWeapons?.slice(0, 3).map((wp, i) => (
+              <div key={wp.id} className="absolute pointer-events-none rounded-xl" style={{ left: 0, top: 0, width: w, height: h, transformOrigin: 'top left', transform: `translate(${w * (0.5 + i * 0.1)}px, ${h * (0.04 + i * 0.2)}px) rotate(${8 + i * 6}deg) scale(0.68)`, filter: 'drop-shadow(0 8px 10px rgba(0,0,0,.7))' }}>
+                <div className="relative w-full h-full"><CardFace card={wp} variant="hand" /></div>
+              </div>
+            ))}
             <div
-              className={`relative w-full h-full rounded-xl ${detailedCard.isFullArt ? '' : 'shadow-[0_0_100px_rgba(0,0,0,0.8)]'}`}
+              className={`relative w-full h-full rounded-xl ${detailedCard.isFullArt ? '' : detailedCard.equippedWeapons?.length ? 'shadow-[0_8px_26px_rgba(0,0,0,0.7)]' : 'shadow-[0_0_100px_rgba(0,0,0,0.8)]'}`}   // (com equipamento atrás a sombra grande escureceria as cartas dele)
               style={{ filter: cardGlowFilter(detailedCard, '0 0 40px rgba(0,0,0,0.8)') }}
             >
               <CardFace card={detailedCard} variant="hand" />
@@ -11603,25 +11612,10 @@ const CardSlot = ({
               equip card, until this unit dies (equippedWeapons rides along with it to
               the graveyard then). Rendered before the CardFace below so it sits
               underneath in paint order, each one offset a little further out. */}
-          {/* (rodada 26) O equipamento fica DENTRO da casa da unidade: a unidade encolhe um pouco (presa ao topo, com sombra) e a carta de equipamento espia pela
-              borda de baixo, no espaço que sobrou. Nada passa do tamanho da casa, então uma unidade equipada nunca encosta na vizinha (nem do lado, nem na fileira de
-              trás ou da frente). Até 2 peças aparecem. */}
-          {(() => {
-            const ws = (card.equippedWeapons ?? []).slice(0, 2), n = ws.length, k = n === 0 ? 1 : n === 1 ? 0.93 : 0.9, sliver = n ? (1 - k) / n : 0;
-            return ws.map((weapon, wi) => {
-              const kw = k - 0.015 * (wi + 1), ty = (k - kw) + (wi + 1) * sliver;
-              return (
-                <div key={weapon.id} className="absolute inset-0 rounded-lg pointer-events-none" style={{ transform: `translateY(${(ty * 100).toFixed(2)}%) scale(${kw})`, transformOrigin: '50% 0%', filter: CARD_THICKNESS_SHADOW }}>
-                  <CardFace card={weapon} variant="field" />
-                </div>
-              );
-            });
-          })()}
-
           {/* No more Info button here — tapping the card itself (see the root
               onClick above) now shows the same enlarged preview this used to open
               on its own. */}
-          <div className="absolute inset-0" style={card.equippedWeapons?.length ? { transform: `scale(${card.equippedWeapons.length === 1 ? 0.93 : 0.9})`, transformOrigin: '50% 0%', filter: 'drop-shadow(0 3px 2px rgba(0,0,0,.6))' } : undefined}>
+          <div className="absolute inset-0">
           {card.isFullArt ? <CardFaceFullArtMini card={card} /> : <CardFaceStandardMini card={card} />}
           {(card.block || (card.shield ?? 0) > 0) && <ShieldAura kind={card.block ? 'block' : 'shield'} value={card.block ? undefined : card.shield} />}
           {/* Permanent marks: a card whose ATK or HP is above what is printed on it (equipment, buffs) wears the matching icon over that stat */}
@@ -11634,6 +11628,22 @@ const CardSlot = ({
                 {atkNow > def.atk && <img src={uiEffectAtkUpStill} alt="" aria-hidden draggable={false} className="absolute pointer-events-none select-none" style={{ left: '0%', bottom: '21%', width: '40%', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.85))', zIndex: 6 }} />}
                 {card.hp > def.hp && <img src={uiEffectHpUpStill} alt="" aria-hidden draggable={false} className="absolute pointer-events-none select-none" style={{ right: '0%', bottom: '21%', width: '40%', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.85))', zIndex: 6 }} />}
               </>
+            );
+          })()}
+          {/* Equipamento preso à unidade (rodada 26): nada de carta atrás; um botão redondo bem pequeno no pé do pergaminho, no meio, dentro da carta, com o ícone do que ele
+              deu (espada = ataque, coração = vida; os dois = dois botões). As cartas de equipamento aparecem na prévia ao tocar na carta. */}
+          {card.equippedWeapons && card.equippedWeapons.length > 0 && (() => {
+            const gives = card.equippedWeapons.reduce((acc, w) => { const v = verbsOn(w.name, 'play').find(x => x.kind === 'equip') as { atk?: number; hp?: number } | undefined; return { atk: acc.atk || (v?.atk ?? 0) > 0, hp: acc.hp || (v?.hp ?? 0) > 0 }; }, { atk: false, hp: false });
+            const list = [gives.atk || !gives.hp ? 'atk' : null, gives.hp ? 'hp' : null].filter(Boolean) as ('atk' | 'hp')[];
+            return (
+              <div className="absolute pointer-events-none flex" style={{ left: '50%', bottom: '10%', width: '11%', transform: 'translateX(-50%)', zIndex: 6 }}>
+                {list.map((k, i) => (
+                  <div key={k} className="relative" style={{ width: '100%', aspectRatio: '1', marginLeft: i ? '-8%' : 0, filter: 'drop-shadow(0 1px 1px rgba(0,0,0,.7))' }}>
+                    <img src={k === 'atk' ? uiMedalAtk : uiMedalHp} alt="" aria-hidden draggable={false} className="absolute inset-0 w-full h-full select-none" />
+                    <img src={k === 'atk' ? uiIconSword : uiIconHeart} alt="" aria-hidden draggable={false} className="absolute select-none" style={{ left: '50%', top: '50%', width: '68%', transform: 'translate(-50%,-50%)' }} />
+                  </div>
+                ))}
+              </div>
             );
           })()}
           </div>
