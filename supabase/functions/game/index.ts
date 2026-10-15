@@ -1557,7 +1557,7 @@ var whoMatches = (who, sourceSlot, targetSlot, target) => {
   if (who.armed && armedCount(target) === 0) return false;
   return true;
 };
-var auraTotal = (stat, slot, own, enemy = []) => {
+var auraTotal = (stat, slot, own, enemy = [], hits) => {
   const target = own[slot] ?? null;
   let total = 0;
   const scan = (board, side) => {
@@ -1574,7 +1574,9 @@ var auraTotal = (stat, slot, own, enemy = []) => {
         if (p.who.facingOwn && !(board[slot]?.cardType && p.who.facingOwn.includes(board[slot].cardType))) continue;
         if (p.needs === "armed" && armedCount(source) === 0) continue;
         if (p.needs === "terrain" && !board[11]) continue;
-        total += p[stat] * (p.perEquip ? Math.min(armedCount(source), p.perEquip.cap) : 1);
+        const add = p[stat] * (p.perEquip ? Math.min(armedCount(source), p.perEquip.cap) : 1);
+        total += add;
+        if (hits && add !== 0 && !hits.some((h) => h.side === side && h.slot === src)) hits.push({ side, slot: src });
       }
     }
   };
@@ -1631,18 +1633,18 @@ var canPlaceInSlot = (cardType, slot) => {
   return slot <= 9;
 };
 var isCardDamaged = (card) => card.hp < (getCardDef(card.name)?.hp ?? card.hp);
-var getAuraCombatHpBonus = (slot, own) => auraTotal("combatHp", slot, own);
+var getAuraCombatHpBonus = (slot, own, hits) => auraTotal("combatHp", slot, own, [], hits);
 var blocksAmbush = (board) => boardHasFlag(board, "blocks_ambush");
 var locksGeneralOnDamage = (board) => boardHasFlag(board, "locks_general");
 var getMaxAttacksPerTurn = (card) => 1 + passivesOf(card.name).reduce((n, p) => n + (p.kind === "aura" && p.who.side === "self" && p.attacks ? p.attacks : 0), 0);
-var getEffectiveAtk = (card, ownIndex, own, enemy) => {
+var getEffectiveAtk = (card, ownIndex, own, enemy, hits) => {
   let atk = card.atk + (card.pendingCombatBonus?.atk ?? 0);
   atk += card.formationBuffAtk ?? 0;
-  atk += auraTotal("atk", ownIndex, own, enemy);
+  atk += auraTotal("atk", ownIndex, own, enemy, hits);
   if (upkeepOf(card.name) > 0) atk += relicModeOf(own)?.atk ?? 0;
   return Math.max(0, atk);
 };
-var getIncomingDamageReduction = (ownIndex, own, enemy = []) => auraTotal("reduce", ownIndex, own, enemy) + (own[ownIndex]?.dmgReduction ?? 0);
+var getIncomingDamageReduction = (ownIndex, own, enemy = [], hits) => auraTotal("reduce", ownIndex, own, enemy, hits) + (own[ownIndex]?.dmgReduction ?? 0);
 var getValidAttackTargets = (attackerIndex, attackerBoard, enemyBoard) => {
   const valid = /* @__PURE__ */ new Set();
   const attacker = attackerBoard[attackerIndex];
@@ -2233,7 +2235,9 @@ var runVerb = (c, fx, v, slot) => {
 };
 var runAbilities = (c, seat, card, slot, on) => {
   const fx = { seat, source: card, slot, targets: [] };
-  verbsOn(card.name, on).forEach((v) => runVerb(c, fx, v, void 0));
+  const verbs = verbsOn(card.name, on);
+  if (on === "after_attack" && verbs.length > 0) c.ev.push({ t: "passive", seat, slot, after: true });
+  verbs.forEach((v) => runVerb(c, fx, v, void 0));
 };
 var grantMovedBuff = (c, seat, v) => {
   const board = P(c, seat).board;
@@ -2480,7 +2484,8 @@ var resolveCombat = (c, aSeat, from, to, ambush) => {
   if (cancelled) return;
   const defender = dBoard[target];
   const dead = [];
-  let attackerAtk = getEffectiveAtk(attacker, from, aBoard, dBoard);
+  const hitsA = [], hitsD = [];
+  let attackerAtk = getEffectiveAtk(attacker, from, aBoard, dBoard, hitsA);
   verbsOn(attacker.name, "attack").forEach((v) => {
     if (v.kind !== "attack_bonus") return;
     const foeGeneral = dBoard[GENERAL_SLOT] ? getCardDef(dBoard[GENERAL_SLOT].name) : void 0;
@@ -2488,11 +2493,24 @@ var resolveCombat = (c, aSeat, from, to, ambush) => {
     if (v.ifTarget === "general" && target !== GENERAL_SLOT) return;
     if (!v.ifEnemyGeneral || foeGeneral && foeGeneral.faction !== myGeneral?.faction) attackerAtk += v.amount;
   });
-  const defenderAtk = getEffectiveAtk(defender, target, dBoard, aBoard);
-  const attackerReduction = getIncomingDamageReduction(from, aBoard, dBoard);
-  const defenderReduction = getIncomingDamageReduction(target, dBoard, aBoard);
-  const attackerHpBonus = (attacker.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(from, aBoard);
-  const defenderHpBonus = (defender.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(target, dBoard);
+  const defenderAtk = getEffectiveAtk(defender, target, dBoard, aBoard, hitsD);
+  const redA = [], redD = [];
+  const attackerReduction = getIncomingDamageReduction(from, aBoard, dBoard, redA);
+  const defenderReduction = getIncomingDamageReduction(target, dBoard, aBoard, redD);
+  const attackerHpBonus = (attacker.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(from, aBoard, hitsA);
+  const defenderHpBonus = (defender.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(target, dBoard, hitsD);
+  if (attackerAtk > 0) hitsD.push(...redD);
+  if (defenderAtk > 0) hitsA.push(...redA);
+  const flashed = /* @__PURE__ */ new Set();
+  const flash = (hits, ownSeat, foeSeat) => hits.forEach((h) => {
+    const seat = h.side === "own" ? ownSeat : foeSeat, k = `${seat}:${h.slot}`;
+    if (!flashed.has(k)) {
+      flashed.add(k);
+      c.ev.push({ t: "passive", seat, slot: h.slot });
+    }
+  });
+  flash(hitsA, aSeat, dSeat);
+  flash(hitsD, dSeat, aSeat);
   const damageToDefender = Math.max(0, attackerAtk - defenderReduction);
   const damageToAttacker = Math.max(0, defenderAtk - attackerReduction);
   const defSoak = soak(c, dSeat, target, defender, damageToDefender);
