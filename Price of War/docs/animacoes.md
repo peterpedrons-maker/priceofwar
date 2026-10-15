@@ -481,3 +481,9 @@ O relógio da abertura só comanda a parte automática (queda, rasgo, subida das
 
 ### Mão inicial: os dois compram juntos, uma carta por vez (rodada 26)
 Depois do "BATALHA", a distribuição alterna: uma carta sua sai do seu monte (voo `DrawFlightNovo`) e voa até a sua mão, depois uma do adversário sai do monte dele (carta virada para baixo, `faceDown`) até a mão dele, e assim por diante (`DEAL_STEP` 210 ms entre cartas), cada uma com o som de comprar. Durante a distribuição os voos saem sem a espera extra (`dealingRef`). As compras do adversário durante a partida também voam do monte dele (`npcFlightPendingRef`: cada evento `draw` do assento 1 marca uma carta que vai voar).
+
+### Continuidade: nada anda por cima de um efeito (rodada 26)
+- **Contador de efeitos** (`overlayFxRef`, `flightsOutRef`, `fxPendingRef`, brilhos): todo efeito de sobreposição (`run`/`runCoin` em `cardOverlayFx`: embaralhar, moedas, almas...) e todo voo de carta é contado. `waitFxIdle()` espera tudo acabar (com limite de 15 s).
+- **A IA espera**: antes de cada jogada ela chama `waitFxIdle()`; assim não joga por cima de um embaralhar ou de uma carta voltando do cemitério. O jogador fica sem tocar (camada `z-284`) enquanto há efeito.
+- **Pergunta (busca/descarte) sempre aparece**: `syncView` abre o seletor sempre que o motor espera uma escolha do jogador (antes só abria depois de toques que passavam por `playerAct`; jogar uma carta no tabuleiro, mover ou atacar deixava a escolha pendente sem aparecer e a partida travava). O seletor abre quando os efeitos acabam.
+- **Cemitério → mão**: a carta sai da pilha do cemitério carregada por uma alma (`fxRetornoCarry`, `DrawFlightNovo` com `soul`), de frente o caminho todo; a alma some quando a carta pousa. Para o adversário a carta vai de frente e vira de costas ao chegar na mão dele.

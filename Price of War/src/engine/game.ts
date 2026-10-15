@@ -678,8 +678,11 @@ const playCard = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'play' }>) => {
     if (card.cardType === 'Relíquia' && slot !== 10) fail('A Relíquia vai no slot especial da esquerda do General.');
     if (card.cardType === 'Terreno' && slot !== 11) fail('O Terreno vai no slot especial da direita do General.');
     if (!canPlaceInSlot(card.cardType, slot)) fail('Esse slot não aceita essa carta.');
-    if (p.board[slot]) fail('Esse slot já está ocupado!');
+    // Um Terreno novo substitui o que está em campo (o antigo vai para o cemitério); qualquer outra carta não entra em slot ocupado.
+    const replaced = slot === 11 && card.cardType === 'Terreno' ? p.board[11] : null;
+    if (p.board[slot] && !replaced) fail('Esse slot já está ocupado!');
     commit();
+    if (replaced) { p.board[slot] = null; sendDestroyed(c, seat, [{ slot, card: replaced }]); }
     const modes = getCardDef(card.name)?.modes;
     if (modes?.length && !card.mode) card.mode = modes[0].id;   // a Relíquia com modos entra no primeiro; o dono troca no fim do turno
     p.board[slot] = card;
@@ -763,16 +766,16 @@ const choose = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'choose' }>) => {
   c.s.pending = null;
 
   // Cards taken from the deck / graveyard arrive as fresh copies in the hand.
-  const toHand = (card: Card) => {
+  const toHand = (card: Card, from?: 'graveyard') => {
     const copy = cardFromName(c.s, card.name, 'h');
     p.hand.push(copy);
-    c.ev.push({ t: 'draw', seat, card: copy, reason: 'effect' });
+    c.ev.push({ t: 'draw', seat, card: copy, reason: 'effect', ...(from ? { from } : {}) });
   };
 
   if (pend.mode === 'graveyard_soldier') {
     const chosen = picked[0];
     p.graveyard = p.graveyard.filter(g => g.id !== chosen.id);
-    toHand(chosen);
+    toHand(chosen, 'graveyard');
     log(c, seat, `${chosen.name} voltou para sua mão!`);
   } else if (pend.mode === 'deck_search') {
     takeFromDeck(p, picked[0].name);
@@ -781,7 +784,7 @@ const choose = (c: Ctx, seat: Seat, a: Extract<Action, { type: 'choose' }>) => {
     toHand(picked[0]);
     log(c, seat, `${picked[0].name} adicionada à mão!`, true);
   } else if (pend.mode === 'top_reveal') {
-    picked.forEach(toHand);
+    picked.forEach(x => toHand(x));
     const pickedIds = new Set(picked.map(x => x.id));
     const rest = pend.options.filter(o => !pickedIds.has(o.id));
     if (pend.restTo === 'graveyard') {

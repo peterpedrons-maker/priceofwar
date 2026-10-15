@@ -2269,8 +2269,13 @@ var playCard = (c, seat, a) => {
     if (card.cardType === "Rel\xEDquia" && slot !== 10) fail("A Rel\xEDquia vai no slot especial da esquerda do General.");
     if (card.cardType === "Terreno" && slot !== 11) fail("O Terreno vai no slot especial da direita do General.");
     if (!canPlaceInSlot(card.cardType, slot)) fail("Esse slot n\xE3o aceita essa carta.");
-    if (p.board[slot]) fail("Esse slot j\xE1 est\xE1 ocupado!");
+    const replaced = slot === 11 && card.cardType === "Terreno" ? p.board[11] : null;
+    if (p.board[slot] && !replaced) fail("Esse slot j\xE1 est\xE1 ocupado!");
     commit();
+    if (replaced) {
+      p.board[slot] = null;
+      sendDestroyed(c, seat, [{ slot, card: replaced }]);
+    }
     const modes = getCardDef(card.name)?.modes;
     if (modes?.length && !card.mode) card.mode = modes[0].id;
     p.board[slot] = card;
@@ -2347,15 +2352,15 @@ var choose = (c, seat, a) => {
   const picked = ids.map((id) => pend.options.find((o) => o.id === id) ?? fail("Carta inv\xE1lida para essa escolha."));
   const p = P(c, seat);
   c.s.pending = null;
-  const toHand = (card) => {
+  const toHand = (card, from) => {
     const copy = cardFromName(c.s, card.name, "h");
     p.hand.push(copy);
-    c.ev.push({ t: "draw", seat, card: copy, reason: "effect" });
+    c.ev.push({ t: "draw", seat, card: copy, reason: "effect", ...from ? { from } : {} });
   };
   if (pend.mode === "graveyard_soldier") {
     const chosen = picked[0];
     p.graveyard = p.graveyard.filter((g) => g.id !== chosen.id);
-    toHand(chosen);
+    toHand(chosen, "graveyard");
     log(c, seat, `${chosen.name} voltou para sua m\xE3o!`);
   } else if (pend.mode === "deck_search") {
     takeFromDeck(p, picked[0].name);
@@ -2364,7 +2369,7 @@ var choose = (c, seat, a) => {
     toHand(picked[0]);
     log(c, seat, `${picked[0].name} adicionada \xE0 m\xE3o!`, true);
   } else if (pend.mode === "top_reveal") {
-    picked.forEach(toHand);
+    picked.forEach((x) => toHand(x));
     const pickedIds = new Set(picked.map((x) => x.id));
     const rest = pend.options.filter((o) => !pickedIds.has(o.id));
     if (pend.restTo === "graveyard") {

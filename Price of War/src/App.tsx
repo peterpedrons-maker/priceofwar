@@ -229,7 +229,7 @@ import { Emotes } from './Emotes';
 import { ConfirmDialog, MatchResult, LeagueRing, LigasScreen, RankingScreen, PromotionOverlay, keyOfPoints, type LeagueKey } from './RankedScreens';
 import { triggerOf, triggerKeyOf, pulseCard, usePulse, TRIGGER_GLOW } from './triggers';
 import { playSfx, preloadSfx, dbgMark } from './sfx';
-import { fxTactic, fxHero, fxRanged, fxLanding, fxUpkeep, fxGoldGain, fxRelicSoldo, fxLoot, fxPlaced, fxReformar, fxAmbush, fxCalice, fxHospitalario, fxNobre, fxReforco, fxComandante, fxRetorno, fxAtirador, preloadHolyFx, preloadCombatFx, type FxEnv, type FxRect, type FxSide, type FxTarget } from './combatFx';
+import { fxTactic, fxHero, fxRanged, fxLanding, fxUpkeep, fxGoldGain, fxRelicSoldo, fxLoot, fxPlaced, fxReformar, fxAmbush, fxCalice, fxHospitalario, fxNobre, fxReforco, fxComandante, fxRetorno, fxRetornoCarry, fxAtirador, preloadHolyFx, preloadCombatFx, type FxEnv, type FxRect, type FxSide, type FxTarget } from './combatFx';
 import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettings, subscribeAudio } from './audioSettings';
 import { useGameSettings, setGameSettings, getGameSettings } from './gameSettings';
 import { fxLand, fxImpact, fxBurn, burnMaskSheet, BURN, fxLunge, fxDrop, fxArrows, fxHintFrame, fxDrawFollow, fxMoveFollow, fxSelection, type SelItem, type ArrowSpec } from './cardFx';
@@ -1152,7 +1152,7 @@ if (typeof Image !== 'undefined') { const warm = new Image(); warm.src = fxPunch
 // The real hand card waits hidden (visibility) until the overlay arrives. Trail, glow and sparks follow the overlay (src/cardFx.ts fxDrawFollow).
 // How a drawn card turns (owner's choice, round 26): 'lado' = arc, turning sideways (more stylish); 'puxada' = pulled straight down, turning top to bottom (more realistic).
 const DRAW_STYLE: 'lado' | 'puxada' = 'lado';
-const DrawFlightNovo = ({ card, handEl, deckRect, onDone, faceDown }: { card: CardData; handEl: HTMLElement; deckRect: DOMRect; onDone: () => void; faceDown?: boolean; key?: React.Key }) => {   // faceDown: the opponent's card, which never turns over
+const DrawFlightNovo = ({ card, handEl, deckRect, onDone, faceDown, toBack, soul }: { card: CardData; handEl: HTMLElement; deckRect: DOMRect; onDone: () => void; faceDown?: boolean; toBack?: boolean; soul?: (pos: () => { x: number; y: number; w: number } | null, sec: number) => Promise<void>; key?: React.Key }) => {   // soul: the card comes back from the graveyard carried by a soul (face up the whole way)   // faceDown: the opponent's card, which never turns over
   const ref = useRef<HTMLDivElement>(null), flipRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current, flip = flipRef.current; if (!el || !flip) return;
@@ -1160,7 +1160,7 @@ const DrawFlightNovo = ({ card, handEl, deckRect, onDone, faceDown }: { card: Ca
     const sx0 = deckRect.x + deckRect.width / 2, sy0 = deckRect.y + deckRect.height / 2, s0 = deckRect.width / HAND_CARD_WIDTH;
     const end = () => { const r = handEl.getBoundingClientRect(), m = new DOMMatrixReadOnly(getComputedStyle(handEl).transform), rot = Math.atan2(m.b, m.a), c = Math.abs(Math.cos(rot)), sn = Math.abs(Math.sin(rot)); return { x: r.left + r.width / 2, y: r.top + r.height / 2, s: r.width / (HAND_CARD_WIDTH * c + HAND_CARD_HEIGHT * sn), rot: rot * 180 / Math.PI }; };
     const st = { p: 0 }; let sparked = false;
-    fxDrawFollow(el, deckRect, D);
+    if (soul) void soul(() => { const r = el.getBoundingClientRect(); return r.width < 2 ? null : { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width }; }, D); else fxDrawFollow(el, deckRect, D);
     const place = () => {
       const e = end(), p = st.p, ee = (u: number) => { u = Math.min(1, Math.max(0, u)); return u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; };
       if (DRAW_STYLE === 'lado') {
@@ -1168,7 +1168,7 @@ const DrawFlightNovo = ({ card, handEl, deckRect, onDone, faceDown }: { card: Ca
         const ease = ee(p), x = sx0 + (e.x - sx0) * ease, y = sy0 + (e.y - sy0) * ease - Math.sin(Math.PI * Math.min(1, p)) * Math.min(170, Math.abs(e.y - sy0) * .35 + 60);
         const sc = (s0 + (e.s - s0) * ease) * (1 + .22 * Math.sin(Math.PI * p)), lift = Math.min(1, p / .12), rot = (1 - ease) * (sx0 < e.x ? -16 : 16) * lift + e.rot * ease;
         gsap.set(el, { x: x - HW, y: y - HH, scale: sc, rotation: rot, opacity: Math.min(1, p / .06) });
-        const fp = faceDown ? 0 : Math.min(1, Math.max(0, (p - .28) / .42)); flip.style.transform = `rotateY(${fp * fp * (3 - 2 * fp) * 180}deg)`;
+        const fp = toBack ? 1 - Math.min(1, Math.max(0, (p - .6) / .3)) ** 2 * (3 - 2 * Math.min(1, Math.max(0, (p - .6) / .3))) : faceDown ? 0 : soul ? 1 : Math.min(1, Math.max(0, (p - .28) / .42)); flip.style.transform = `rotateY(${fp * fp * (3 - 2 * fp) * 180}deg)`;
       } else {
         // "puxada": desce reta do monte virando em torno do eixo horizontal, depois desliza até a mão
         const pull = Math.min(1, p / .42), py = 1 - Math.pow(1 - pull, 3), dropY = Math.min(190, Math.max(70, (e.y - sy0) * .7 + 40));
@@ -5762,6 +5762,13 @@ export default function App() {
   const [fxBusy, setFxBusy] = useState(false);
   const fxQueueRef = useRef<Promise<void>>(Promise.resolve());
   const fxPendingRef = useRef(0);
+  // "Nothing moves on while an effect plays": the overlay effects (src/combatFx.ts, src/cardFx.ts: shuffle, coins, souls...) and the card flights are counted here;
+  // the AI waits for them before its next move (waitFxIdle) and a prompt waits for them before it opens.
+  const overlayFxRef = useRef(0);
+  const flightsOutRef = useRef(0);
+  const [overlayBusy, setOverlayBusy] = useState(false);
+  const openPlayerPickRef = useRef<() => void>(() => {});
+  const pickWaitRef = useRef(false);
   const processEventsRef = useRef<(events: GameEvent[], opts?: any) => void>(() => {});
 
   const [isImpacting, setIsImpacting] = useState(false);
@@ -5775,8 +5782,9 @@ export default function App() {
   const blowIsSoaked = (events: GameEvent[], defSeat: Seat, slot: number) =>
     events.some(e => e.t === 'shield_hit' && e.seat === defSeat && e.slot === slot) && !events.some(e => e.t === 'damage' && e.seat === defSeat && e.slot === slot && e.amount > 0);
   // The physical-hit sprite, drawn in a layer above the board over whichever card was hit (see PunchFx).
-  const [drawFlights, setDrawFlights] = useState<{ id: string; card: CardData; handEl: HTMLElement; deckRect: DOMRect; faceDown?: boolean }[]>([]);
-  const npcFlightPendingRef = useRef(0);   // opponent cards that are about to be drawn and should fly from their deck (consumed by the first new card of the opponent's hand)
+  const [drawFlights, setDrawFlights] = useState<{ id: string; card: CardData; handEl: HTMLElement; deckRect: DOMRect; faceDown?: boolean; toBack?: boolean; soul?: (pos: () => { x: number; y: number; w: number } | null, sec: number) => Promise<void> }[]>([]);
+  const npcFlightPendingRef = useRef<{ kind: 'deck' | 'grave'; card?: CardData }[]>([]);   // opponent cards about to be drawn that should fly (from their deck, or back from the graveyard): consumed by the first new cards of the opponent's hand
+  const graveBackRef = useRef<Record<string, true>>({});   // my cards that come back from the graveyard (their flight leaves the pile, carried by a soul)
   const dealingRef = useRef(false);        // the opening hands are being dealt: the flights go out one after another with no extra waiting
   const [landShake, setLandShake] = useState(0);   // the board shudders when a card slams down (new effects only)
   const [punchFx, setPunchFx] = useState<{ key: number; x: number; y: number; w: number; h: number; heavy: boolean } | null>(null);
@@ -6442,6 +6450,8 @@ export default function App() {
     setPlayerGraveyard(me.graveyard.map(toCardData));
     setNpcGraveyard(foe.graveyard.map(toCardData));
     const pend = s.pending;
+    // A pick the engine waits on from the player is always shown, whatever action caused it (a card that lands, a move, an attack...).
+    if (pend && pend.seat === 0 && (pend.kind === 'pick' || pend.kind === 'discard')) queueMicrotask(() => openPlayerPickRef.current());
     setUpkeepPrompt(pend && pend.kind === 'upkeep' && pend.seat === 0 ? { entries: pend.entries, discount: pend.discount } : null);
     setCurrentTurn(mine ? 'player' : 'npc');
     setTurnNumber(s.turn.round);
@@ -6505,11 +6515,15 @@ export default function App() {
           break;
         case 'draw':
           if (e.reason === 'deal') break;
-          if (e.seat === 0) {
-            const origin = computeDrawOrigin(playerDeckRef, handRef.current.length + drawIndex);
-            if (origin) drawOriginsRef.current[e.card.id] = origin;
-            drawIndex += 1;
-          } else npcFlightPendingRef.current += 1;   // the opponent's card flies from its deck too
+          {
+            const fromGrave = e.from === 'graveyard';   // a card brought back from the graveyard, not drawn from the deck
+            if (e.seat === 0) {
+              const origin = computeDrawOrigin(fromGrave ? { current: document.getElementById('player-grave') as HTMLDivElement | null } : playerDeckRef, handRef.current.length + drawIndex);
+              if (origin) drawOriginsRef.current[e.card.id] = origin;
+              if (fromGrave) graveBackRef.current[e.card.id] = true;
+              drawIndex += 1;
+            } else npcFlightPendingRef.current.push(fromGrave ? { kind: 'grave', card: toCardData(e.card) } : { kind: 'deck' });   // the opponent's card flies too
+          }
           playCardDrawSfx();
           break;
         case 'play':
@@ -6675,8 +6689,9 @@ export default function App() {
     const cur = engineRef.current; if (!cur) return;
     const sideOf = (seat: Seat): FxSide => (seat === 0 ? 'player' : 'npc');
     const env = fxEnvFor(() => {});
-    const run = (p: Promise<void>) => { void p.catch(err => console.error('card fx', err)); };
-    const runCoin = (p: Promise<void>) => { coinFxBusyRef.current += 1; void p.catch(err => console.error('card fx', err)).finally(() => { coinFxBusyRef.current = Math.max(0, coinFxBusyRef.current - 1); }); };
+    const track = (p: Promise<void>) => { overlayFxRef.current += 1; setOverlayBusy(true); return p.catch(err => console.error('card fx', err)).finally(() => { overlayFxRef.current = Math.max(0, overlayFxRef.current - 1); if (overlayFxRef.current === 0) setOverlayBusy(false); }); };
+    const run = (p: Promise<void>) => { void track(p); };
+    const runCoin = (p: Promise<void>) => { coinFxBusyRef.current += 1; void track(p).finally(() => { coinFxBusyRef.current = Math.max(0, coinFxBusyRef.current - 1); }); };
     // Manutenção: coins to the cards that were paid, a contract that tears over each one that was dismissed
     const up = events.find(e => e.t === 'upkeep');
     if (up && up.t === 'upkeep' && prev) {
@@ -6755,7 +6770,7 @@ export default function App() {
     // a soldier comes back from the graveyard to the hand: its soul flies there
     if (prev) ([0, 1] as Seat[]).forEach(seat => {
       const nowIds = new Set(cur.players[seat].graveyard.map(g => g.id));
-      if (prev.players[seat].graveyard.some(g => !nowIds.has(g.id)) && events.some(e => e.t === 'draw' && e.seat === seat && e.reason === 'effect')) run(fxRetorno(env, sideOf(seat)));
+      if (prev.players[seat].graveyard.some(g => !nowIds.has(g.id)) && events.some(e => e.t === 'draw' && e.seat === seat && e.reason === 'effect') && !getGameSettings().fxNovo) run(fxRetorno(env, sideOf(seat)));   // (with the new effects the soul carries the card in its flight: see fxRetornoCarry)
     });
     // Emboscadas
     events.forEach(e => {
@@ -7073,6 +7088,15 @@ export default function App() {
     };
     online.timer = window.setTimeout(poll, 600);
   };
+  // True when no effect is playing: overlay effects, queued presentations, card flights, glows (the floating card of an effect is not counted: it waits for a pick that may be the one waiting for this).
+  const fxIdleNow = () => overlayFxRef.current === 0 && fxPendingRef.current === 0 && trigGlowPendingRef.current === 0 && flightsOutRef.current === 0 && coinFxBusyRef.current === 0;
+  const waitFxIdle = async (maxMs = 15000) => {
+    const t0 = Date.now();
+    while (!fxIdleNow() && Date.now() - t0 < maxMs) await sleep(80);
+    await sleep(120);   // a beat after the last effect, so what comes next does not run into it
+    // (an effect that began during that beat gets waited for too)
+    for (let g = 0; g < 20 && !fxIdleNow() && Date.now() - t0 < maxMs; g++) await sleep(80);
+  };
   // The opponent's next action: the AI's decision in a local match, the next step from the server in an online one.
   const nextOpponentAction = async (): Promise<EngineAction | null> => {
     const online = onlineRef.current;
@@ -7111,7 +7135,7 @@ export default function App() {
   const openPlayerPick = () => {
     if (cardPickerRef.current) return;
     // An effect is glowing right now (its card floats): what it asks the player appears once the glow is over.
-    if (trigGlowPendingRef.current > 0) { whenGlowDone(() => { if (!cardPickerRef.current) openPlayerPick(); }); return; }
+    if (!fxIdleNow()) { if (!pickWaitRef.current) { pickWaitRef.current = true; void waitFxIdle().then(() => { pickWaitRef.current = false; if (!cardPickerRef.current) openPlayerPick(); }); } return; }
     const pend = engineRef.current?.pending;
     if (pend && pend.kind === 'discard' && pend.seat === 0) {
       // Over the hand limit at the end of the turn: choose which cards go to the graveyard.
@@ -7134,6 +7158,7 @@ export default function App() {
     });
   };
 
+  openPlayerPickRef.current = openPlayerPick;
   // What the player's own taps use: dispatch, say why when the rules refuse, open any prompt that follows.
   const playerAct = (action: EngineAction, opts: { skip?: { hand?: boolean; boards?: boolean } } = {}): boolean => {
     const r = dispatchAction(0, action, opts);
@@ -7481,7 +7506,7 @@ export default function App() {
     // Both players draw together, one card at a time (yours, then the opponent's, each from its own deck with the draw flight and its sound).
     const DEAL_START = LAND + 400;
     const DEAL_STEP = 210;
-    schedule(() => { dealingRef.current = true; npcFlightPendingRef.current = 0; }, DEAL_START - 10);
+    schedule(() => { dealingRef.current = true; npcFlightPendingRef.current = []; }, DEAL_START - 10);
     for (let i = 0; i < START_HAND; i++) {
       const t = DEAL_START + i * DEAL_STEP * 2;
       schedule(() => {
@@ -7493,7 +7518,7 @@ export default function App() {
       }, t);
       schedule(() => {
         playCardDrawSfx();
-        npcFlightPendingRef.current += 1;
+        npcFlightPendingRef.current.push({ kind: 'deck' });
         setNpcHand(prev => [...prev, toCardData(dealt.players[1].hand[i])]);
       }, t + DEAL_STEP);
     }
@@ -7534,7 +7559,7 @@ export default function App() {
     setMatchReward(null);
     setTurnClock(null);
     matchSelectionRef.current = sel;
-    rarMemoRef.current = new Map(); rarPoolRef.current = new Map();
+    rarMemoRef.current = new Map(); rarPoolRef.current = new Map(); flightsOutRef.current = 0; overlayFxRef.current = 0; setOverlayBusy(false);
     // The opponent's versions only exist online (a person on the other side); the server adds `n` (copies of that card in their deck) to each entry.
     ([[0, sel.rar], [1, sel.npcRar]] as const).forEach(([seat, rarMap]) => Object.entries(rarMap ?? {}).forEach(([name, rc]) => {
       const total = seat === 0 ? (sel.cards[name] ?? 0) : (rc as { n?: number }).n ?? 0, u = Math.min(rc.ultra ?? 0, total), ra = Math.min(rc.rara ?? 0, total - u), pool: Rarity[] = [...Array(u).fill('ultra'), ...Array(ra).fill('rara'), ...Array(Math.max(0, total - u - ra)).fill('comum')];
@@ -7663,6 +7688,7 @@ export default function App() {
       await tutBeat('start');
       for (let guard = 0; guard < 300; guard++) {
         if (!engineRef.current || engineRef.current.winner !== null || engineRef.current.turn.active !== 1) break;
+        await waitFxIdle();   // never plays over an effect that is still on screen (a shuffle, a card coming back from the graveyard...)
         const action = await nextOpponentAction();
         const s = engineRef.current;
         if (!action || !s || s.winner !== null) break;
@@ -8553,7 +8579,7 @@ export default function App() {
     const hit = slotUnder(x, y);
     if (kind === 'place') {
       if (!hit || hit.side !== 'player') { cancel(); return; }
-      if (!canPlaceInSlot(card.cardType, hit.index) || playerSlots[hit.index]) { showToast('Solte a carta numa casa acesa do seu campo.'); cancel(); return; }
+      if (!canPlaceInSlot(card.cardType, hit.index) || (playerSlots[hit.index] && !(hit.index === 11 && card.cardType === 'Terreno'))) { showToast('Solte a carta numa casa acesa do seu campo.'); cancel(); return; }
       const dry = applyAction(engineRef.current!, 0, { type: 'play', cardId: card.id, slot: hit.index });
       if (dry.ok === false) { showToast(dry.error); cancel(); return; }
       noteDragPlay();
@@ -8595,7 +8621,7 @@ export default function App() {
   // its own; an aimed Tática on a valid target (red for damage, green for healing, gold for the rest).
   const dropOk = (card: CardData, hit: { side: 'player' | 'npc'; index: number }): { tone: 'gold' | 'red' | 'green'; color: string } | null => {
     const kind = getCardDropKind(card);
-    if (kind === 'place') return hit.side === 'player' && canPlaceInSlot(card.cardType, hit.index) && !playerSlots[hit.index] ? { tone: 'gold', color: '#ffd36a' } : null;
+    if (kind === 'place') return hit.side === 'player' && canPlaceInSlot(card.cardType, hit.index) && (!playerSlots[hit.index] || (hit.index === 11 && card.cardType === 'Terreno')) ? { tone: 'gold', color: '#ffd36a' } : null;   // (um Terreno novo pode ser solto sobre o que está em campo: o antigo vai para o cemitério)
     if (kind === 'ownTarget' || kind === 'enemyTarget') {
       const spec = targetSpecOf(card.name);
       if (!spec || !specSlots(spec).some(v => v.side === hit.side && v.index === hit.index)) return null;
@@ -8721,7 +8747,7 @@ export default function App() {
       });
       return;
     }
-    if (selectedCardIndex !== null && !playerSlots[slotIndex]) {
+    if (selectedCardIndex !== null && (!playerSlots[slotIndex] || (slotIndex === 11 && hand[selectedCardIndex]?.cardType === 'Terreno'))) {
       const cardToPlay = hand[selectedCardIndex];
 
       // Only a plain creature/Relíquia/Terreno actually gets placed INTO a slot — a targetable Tática has its own
@@ -9024,7 +9050,7 @@ export default function App() {
   const previewTargeting = !targetingMode && previewedCard && targetSpecOf(previewedCard.name) ? tacticTargeting(previewedCard) : null;
   const targetLayer = targetingMode ?? previewTargeting;
   const getPlayerSlotHint = (slotIndex: number): SlotHint | undefined => {
-    if (!previewedCard || playerSlots[slotIndex]) return undefined;
+    if (!previewedCard || (playerSlots[slotIndex] && !(slotIndex === 11 && previewedCard.cardType === 'Terreno'))) return undefined;
     // A targetable Tática (ownTarget/enemyTarget — see getCardDropKind) already has
     // real guidance: the highlighted occupied slot it can actually hit (see
     // isTacticDragTarget/isTacticTargetSlot). Marking every EMPTY slot invalid here
@@ -9642,10 +9668,10 @@ export default function App() {
             ref={(el: HTMLDivElement | null) => {
               // every element is marked the first time it is seen; only the ones that appear while a draw is pending fly from the opponent's deck
               if (!el || el.dataset.fxd) return; el.dataset.fxd = '1';
-              if (npcFlightPendingRef.current <= 0 || !npcDeckRef.current || !getGameSettings().fxNovo) return;
-              npcFlightPendingRef.current -= 1; el.style.visibility = 'hidden';
-              const dr = npcDeckRef.current.getBoundingClientRect(), id = `npcdraw-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`;
-              setTimeout(() => setDrawFlights(f => [...f, { id, card: { id, name: '', atk: 0, hp: 0, cost: 0, art: '', effect: '' }, handEl: el, deckRect: dr, faceDown: true }]), 0);
+              if (npcFlightPendingRef.current.length === 0 || !npcDeckRef.current || !getGameSettings().fxNovo) return;
+              const { kind, card: gcard } = npcFlightPendingRef.current.shift()!; el.style.visibility = 'hidden'; flightsOutRef.current += 1;
+              const dr = (kind === 'grave' ? document.getElementById('npc-grave') ?? npcDeckRef.current : npcDeckRef.current).getBoundingClientRect(), id = `npcdraw-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`;
+              setTimeout(() => setDrawFlights(f => [...f, { id, card: gcard ?? { id, name: '', atk: 0, hp: 0, cost: 0, art: '', effect: '' }, handEl: el, deckRect: dr, faceDown: kind === 'deck', toBack: kind === 'grave', soul: kind === 'grave' ? (pos, sec) => fxRetornoCarry(fxEnvFor(() => {}), 'npc', pos, sec) : undefined }]), 0);
             }}
             className="w-32 h-48 md:w-40 md:h-56 shrink-0 relative"
             style={{
@@ -9734,7 +9760,7 @@ export default function App() {
                 // explicit animate/transition below and causing a visible re-bounce each
                 // time. key alone is enough for React to keep reusing this same DOM node.
                 key={card.id}
-                ref={(el) => { handCardRefs.current[card.id] = el; if (el && drawOriginsRef.current[card.id] && getGameSettings().fxNovo && !el.dataset.fxd && playerDeckRef.current) { el.dataset.fxd = '1'; el.style.visibility = 'hidden'; const dr = playerDeckRef.current.getBoundingClientRect(), cd = card, delay = dealingRef.current ? 0 : (drawFlightDelay.n++) * 0.22; setTimeout(() => setDrawFlights(f => [...f, { id: cd.id, card: cd, handEl: el, deckRect: dr }]), delay * 1000); } }}
+                ref={(el) => { handCardRefs.current[card.id] = el; if (el && drawOriginsRef.current[card.id] && getGameSettings().fxNovo && !el.dataset.fxd && playerDeckRef.current) { el.dataset.fxd = '1'; el.style.visibility = 'hidden'; flightsOutRef.current += 1; const back = graveBackRef.current[card.id], dr = (back ? document.getElementById('player-grave') ?? playerDeckRef.current : playerDeckRef.current).getBoundingClientRect(), cd = card, delay = back || dealingRef.current ? 0 : (drawFlightDelay.n++) * 0.22; delete graveBackRef.current[card.id]; setTimeout(() => setDrawFlights(f => [...f, { id: cd.id, card: cd, handEl: el, deckRect: dr, soul: back ? (pos, sec) => fxRetornoCarry(fxEnvFor(() => {}), 'player', pos, sec) : undefined }]), delay * 1000); } }}
                 data-hand-card
                 data-card-name={card.name}
                 className={`w-56 h-80 shrink-0 cursor-pointer relative group ${viewState === 'field' || coveredBySelected ? 'pointer-events-none' : 'pointer-events-auto'}`}
@@ -10094,7 +10120,7 @@ export default function App() {
         })()}
       </AnimatePresence>
 
-      {drawFlights.map(f => <DrawFlightNovo key={f.id} card={f.card} handEl={f.handEl} deckRect={f.deckRect} faceDown={f.faceDown} onDone={() => { f.handEl.style.visibility = ''; setDrawFlights(l => l.filter(x => x.id !== f.id)); if (!drawFlights.some(x => x.id !== f.id)) drawFlightDelay.n = 0; }} />)}
+      {drawFlights.map(f => <DrawFlightNovo key={f.id} card={f.card} handEl={f.handEl} deckRect={f.deckRect} faceDown={f.faceDown} toBack={f.toBack} soul={f.soul} onDone={() => { f.handEl.style.visibility = ''; flightsOutRef.current = Math.max(0, flightsOutRef.current - 1); setDrawFlights(l => l.filter(x => x.id !== f.id)); if (!drawFlights.some(x => x.id !== f.id)) drawFlightDelay.n = 0; }} />)}
       {equipFx && <EquipFxLayer fx={equipFx} vw={windowSize.width} vh={windowSize.height} />}
       {trigFx && <TriggerFloatLayer fx={trigFx} />}
       {iconPops.map(p => <IconPop key={p.id} x={p.x} y={p.y} icon={p.icon} label={p.label} />)}
@@ -10403,7 +10429,7 @@ export default function App() {
           </div>
         );
       })()}
-      {fxBusy && <div className="fixed inset-0 z-[284]" />}
+      {(fxBusy || overlayBusy) && <div className="fixed inset-0 z-[284]" />}
 
       {/* Match-intro "VS" reveal, portrait stage — see startMatchIntro/matchIntroStage
           above. Both Generals' art (no name/cost/stats — just the painting, see the

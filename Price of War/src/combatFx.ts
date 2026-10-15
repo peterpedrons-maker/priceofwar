@@ -1032,6 +1032,29 @@ export async function fxRetorno(env: FxEnv, side: FxSide): Promise<void> {
   await new Promise<void>(r => at(P0 + FL + .5, r));
 }
 
+// A carta que volta do cemitério: a alma sai da pilha e VEM CARREGANDO a própria carta até a mão (a carta é do jogo, desenhada por cima, e `pos` devolve onde ela está a cada quadro;
+// a alma segue acima dela). Só quando a carta pousa a alma some, com o brilho de chegada.
+export async function fxRetornoCarry(env: FxEnv, side: FxSide, pos: () => { x: number; y: number; w: number } | null, sec: number): Promise<void> {
+  await startHoly(env);
+  const g = toU(env.gravePoint(side)); if (!g) return;
+  dimAt(g.x, g.y, 170, .5, 0, sec + .4);
+  play('magic', 0, .4, .9); whoosh(0, .7, .22, 120, 600);
+  sigilo(g.x, g.y + 20, .66, .42, 0, 1.8, 'azul'); groundGlow(g.x, g.y + 20, 70, 0, 1.6, '200,224,255');
+  at(.05, () => { flash(g.x, g.y, 100, '190,215,255', .6, .55); ding(0, .13, 1100); ring(g.x, g.y, 56, .6, '190,215,255', 3); }); charge(g.x, g.y - 4, 12, 60, 0, .5, 13);
+  let lastX = g.x, last: { x: number; y: number } = { x: g.x, y: g.y };
+  tween(sec, p => {
+    const q = pos(); if (!q) return;
+    const x = q.x / U, y = q.y / U, cw = q.w / U, a = Math.min(1, p * 6) * (1 - ei((p - .9) / .1));
+    const sx = x, sy = y - cw * 1.05, sc = Math.max(.36, Math.min(.8, cw / 70));   // a alma paira sobre a carta e a segura
+    const tilt = Math.max(-.4, Math.min(.4, (x - lastX) * .09)); lastX = x; last = { x, y };
+    almaAt(sx, sy, sc, p * 2, a, tilt);
+    if (Math.random() < .9) add({ dur: .5, draw(r: number) { const fr = Math.min(7, Math.floor(r * 8)); ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .8 * a; ctx.translate(x + R(-6, 6), y + cw * .5 + r * 10); ctx.drawImage(IMG.h_brilhos, fr * 64, 64, 64, 64, -10, -10, 20, 20); ctx.restore(); } });
+    if (p > .2 && Math.random() < .5) twNow(x + R(-12, 12), y + R(-cw * .5, cw * .6), R(6, 11), R(.35, .6), Math.floor(R(0, 4)), R(0, 6), .8);
+  });
+  at(sec, () => { const h = last; ring(h.x, h.y, 62, .5, '190,215,255', 4); ring(h.x, h.y, 40, .4, '255,238,180', 3); flash(h.x, h.y, 120, '210,228,255', .7, .5); ding(0, .17, 1500); ding(.08, .12, 2000); twBurst(h.x, h.y, 16, 56, 0, 14, .7); whiteFlash(.12, 0, .3); });
+  await new Promise<void>(r => at(sec + .5, r));
+}
+
 // Vigia do Último Salmo, Queda: facho de luz, penas brancas caindo e duas cartas voando até a mão.
 export async function fxAtirador(env: FxEnv, side: FxSide, slot: number, draws: number): Promise<void> {
   await startHoly(env);

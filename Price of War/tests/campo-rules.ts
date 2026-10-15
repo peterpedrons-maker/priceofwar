@@ -67,6 +67,17 @@ test('A Forja que Nunca Apaga (Terreno com modos): entra em Muralha; no fim do t
   eq([hp(2), atk(2) - before], [0, 2], 'Afiação troca o bônus');
   eq(atk(3), A('Cabide de Ferro'), 'quem não está Armada fica de fora');
 });
+test('um Terreno novo substitui o que está em campo (o antigo vai para o cemitério); outra carta não entra em slot ocupado', () => {
+  let s = fresh(); const old = put(s, 0, 11, 'A Forja que Nunca Apaga'); s.turn.phase = 'preparacao';
+  const novo = give(s, 0, 'A Forja que Nunca Apaga'); const gold0 = s.players[0].gold;
+  const r = act(s, 0, { type: 'play', cardId: novo.id, slot: 11 }); s = r.s;
+  eq(s.players[0].board[11]!.id, novo.id, 'o novo ocupa o slot');
+  ok(s.players[0].graveyard.some(g => g.id === old.id), 'o antigo foi para o cemitério');
+  ok(r.ev.some(e => e.t === 'destroyed' && e.slot === 11) && r.ev.some(e => e.t === 'place' && e.slot === 11), 'eventos: o antigo cai e o novo entra');
+  ok(s.players[0].gold < gold0, 'paga o custo do novo');
+  const c2 = put(s, 0, 2, 'Cabide de Ferro'); const c3 = give(s, 0, 'Cabide de Ferro');
+  let refused = false; try { act(s, 0, { type: 'play', cardId: c3.id, slot: 2 }); } catch { refused = true; } ok(refused && !!c2, 'uma unidade não entra em slot ocupado');
+});
 test('o modo do Terreno só muda na Movimentação e só entre os modos da carta', () => {
   let s = fresh(); put(s, 0, 11, 'Posto do Fogo-Sinal'); s.players[0].board[11]!.mode = 'trincheira'; s.turn.phase = 'preparacao';
   const r1 = applyAction(s, 0, { type: 'relic_mode', mode: 'saque', slot: 11 }); ok(r1.ok === false, 'fora da Movimentação');

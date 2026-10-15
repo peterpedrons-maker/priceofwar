@@ -341,7 +341,7 @@ export type GameEvent =
   // An automatic phase (Compra / Suprimentos) was skipped by a card effect.
   | { t: 'skip'; seat: Seat; phase: TurnPhase }
   | { t: 'gold'; seat: Seat; delta: number; reason: 'turn' | 'spend' | 'gain' }
-  | { t: 'draw'; seat: Seat; card: Card; reason: 'turn' | 'effect' | 'deal' }
+  | { t: 'draw'; seat: Seat; card: Card; reason: 'turn' | 'effect' | 'deal'; from?: 'graveyard' }   // from: the card came back from the graveyard (not drawn from the deck)
   | { t: 'play'; seat: Seat; card: Card; slot?: number }
   | { t: 'place'; seat: Seat; slot: number; card: Card }
   | { t: 'summon'; seat: Seat; slot: number; card: Card }
