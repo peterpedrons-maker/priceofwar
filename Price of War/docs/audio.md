@@ -31,3 +31,6 @@ Para trocar um som mantendo a sincronia: encontre o instante do golpe forte no a
 (posição ao quadrado): no meio da barra o som parece metade, e não três quartos. Todos os sons passam por `sfxLevel()` / `musicLevel()`:
 os de `<audio>` (`sfxVol`), os de `src/sfx.ts` e os sintetizados (banner de fase, moeda). A música do duelo, com a barra em 100%, fica a 60% do nível
 em que foi entregue (`MUSIC_BASE_GAIN` = 0,114).
+
+## Sons sintetizados (amostra, rodada 26; ainda NÃO ligados ao jogo)
+`tools/audio/gerar-sons.py <pasta>` gera por síntese (numpy) efeitos todos afinados na **Ré menor pentatônica** (D F G A C), com o mesmo reverb curto, em WAV: `impacto-ataque`, `cura`, `comprar-carta` (versões A suave/musical e B seca/percussiva), `carta-pegar`, `carta-arrastando` (laço de 0,5 s), `carta-soltar`, `clique-ui` e o convocar em 3 partes (`convocar-1-voo`, `-2-impacto`, `-3-brilho`; no jogo: voo na subida, impacto em `FLIGHT_HIT_MS`, brilho logo depois). Limite: quem escolhe o gosto é o dono (eu não ouço); o ciclo é ouvir, dizer "mais grave/curto/metálico" e eu ajusto o script.
