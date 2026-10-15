@@ -3,14 +3,18 @@
 // Um único relógio T comanda timeline, partículas, luzes e câmera. Sem som (decisão do dono: os sons virão depois, escolhidos por ele).
 import * as THREE from 'three';
 import gsap from 'gsap';
+import type { Shine, Rarity } from './rarity';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 
-export type OpenCard = { name: string; faceUrl: string | null; label: string; sub: string; tier: 'comum' | 'rara' | 'lendaria'; isNew: boolean };
-export type OpenOpts = { packUrl: string | null; accent: string; backUrl: string; cards: OpenCard[]; onCaption: (a: string, b: string, color: string) => void; hideCaption: () => void; onFinished: () => void };
-const HALO: Record<OpenCard['tier'], number> = { comum: 0xcfd8ff, rara: 0x5ab4ff, lendaria: 0xffc85a };
+// Sem legenda de raridade (decisão do dono): quem diz que a carta é especial é só o efeito dela aparecendo na tela.
+export type OpenCard = { name: string; faceUrl: string | null; rarity: Rarity; isFullArt: boolean; shine: Shine };
+export type OpenOpts = { packUrl: string | null; accent: string; backUrl: string; cards: OpenCard[]; onFinished: () => void };
+const HALO: Record<Rarity, number> = { comum: 0xcfd8ff, rara: 0x5ab4ff, ultra: 0xffc85a, secreta: 0xff7ad9 };
+// retângulos (em uv, v de baixo para cima) da arte e do nome nas imagens de src/assets/card3d
+const ART_RECT = [0.148, 0.469, 0.857, 0.828], NAME_RECT_STD = [0.215, 0.838, 0.685, 0.893], NAME_RECT_FULL = [0.17, 0.86, 0.72, 0.912];
 
 export function playBoosterOpening(host: HTMLElement, o: OpenOpts): { destroy: () => void } {
   const W = host.clientWidth, H = host.clientHeight; let seed = 7, dead = false;
@@ -66,12 +70,18 @@ export function playBoosterOpening(host: HTMLElement, o: OpenOpts): { destroy: (
   const pack = new THREE.Group(); scene.add(pack); const cardsG = new THREE.Group(); scene.add(cardsG);
   let packMat: THREE.MeshPhysicalMaterial, strip: THREE.Mesh, slit: THREE.Mesh; const cards: { g: THREE.Group; fm: THREE.MeshStandardMaterial; sm: THREE.ShaderMaterial; halo: THREE.Mesh; info: OpenCard }[] = [];
   const N = o.cards.length, fan = (i: number) => ({ x: (i - (N - 1) / 2) * Math.min(.56, 2.3 / Math.max(1, N - 1)), y: -.55 - .04 * Math.pow(i - (N - 1) / 2, 2), rz: -(i - (N - 1) / 2) * .075, s: .6 });
-  const sheenMat = (map: THREE.Texture | null, color: number) => new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: { map: { value: map }, t: { value: 0 }, amt: { value: 0 }, tint: { value: new THREE.Color(color) } },
-    vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-    fragmentShader: 'varying vec2 vUv;uniform sampler2D map;uniform float t;uniform float amt;uniform vec3 tint;void main(){vec4 c=texture2D(map,vUv);if(c.a<.5)discard;float d=vUv.x*.8+vUv.y*.6;float band=smoothstep(.0,.5,sin((d-t)*6.2832*1.2)*.5+.5);band=pow(band,3.);vec3 rb=.5+.5*cos(6.2832*(vec3(0.,.33,.67)+d*1.5-t*2.));vec3 col=mix(tint,rb,.65)*band*amt;gl_FragColor=vec4(col*.9,band*amt);}' });
+  const sheenMat = (map: THREE.Texture | null, color: number, info: OpenCard) => {
+    // brilho por raridade: a arte, as letras do nome (só onde o texto difere da placa) ou a carta inteira
+    let plate = .5; const nameRect = info.isFullArt ? NAME_RECT_FULL : NAME_RECT_STD;
+    try { if (map?.image) { const im = map.image as HTMLImageElement, c = document.createElement('canvas'); c.width = 64; c.height = 64; const g = c.getContext('2d', { willReadFrequently: true })!; const W0 = im.width, H0 = im.height; g.drawImage(im, nameRect[0] * W0, (1 - nameRect[3]) * H0, (nameRect[2] - nameRect[0]) * W0, (nameRect[3] - nameRect[1]) * H0, 0, 0, 64, 64); const d = g.getImageData(0, 0, 64, 64).data; const ls: number[] = []; for (let i = 0; i < d.length; i += 4) ls.push(d[i] * .3 + d[i + 1] * .59 + d[i + 2] * .11); ls.sort((a, b) => a - b); plate = ls[Math.floor(ls.length * .7)] / 255; } } catch { /* sem leitura: usa .5 */ }
+    return new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: { map: { value: map }, t: { value: 0 }, amt: { value: 0 }, tint: { value: new THREE.Color(HALO[info.rarity]) }, art: { value: info.shine === 'art' || info.shine === 'art+name' ? 1 : 0 }, name: { value: info.shine === 'name' || info.shine === 'art+name' ? 1 : 0 }, card: { value: info.shine === 'card' ? 1 : 0 }, artRect: { value: new THREE.Vector4(...ART_RECT) }, nameRect: { value: new THREE.Vector4(...nameRect) }, plate: { value: plate }, ultra: { value: info.rarity === 'ultra' || info.rarity === 'secreta' ? 1 : 0 } },
+      vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+      fragmentShader: 'varying vec2 vUv;uniform sampler2D map;uniform float t,amt,art,name,card,plate,ultra;uniform vec3 tint;uniform vec4 artRect,nameRect;float inR(vec2 uv,vec4 r){return step(r.x,uv.x)*step(uv.x,r.z)*step(r.y,uv.y)*step(uv.y,r.w);}void main(){vec4 c=texture2D(map,vUv);if(c.a<.5)discard;float lum=dot(c.rgb,vec3(.3,.59,.11));float letters=inR(vUv,nameRect)*smoothstep(.09,.26,abs(lum-plate));float m=card+art*inR(vUv,artRect)+name*letters;if(m<.01)discard;float d=vUv.x*.8+vUv.y*.6;float band=smoothstep(.0,.5,sin((d-t)*6.2832*1.2)*.5+.5);band=pow(band,3.);vec3 rb=.5+.5*cos(6.2832*(vec3(0.,.33,.67)+d*1.5-t*2.));vec3 col=mix(tint,rb,.25+.5*ultra)*(.2+band*(.6+.3*ultra))*amt*min(m,1.)*(1.-.45*card);gl_FragColor=vec4(col,min(m,1.)*amt*.6);}' });
+  };
   const S = { charge: 0, flash: 0, rays: 0, bloom: .28, shake: 0, camZ: 10, camY: 0, glow: 0, hover: 0 };
   let tl: gsap.core.Timeline, END = 9, lastT = -1, finished = false, raf = 0, ready = false;
-  const lastIdx = N - 1, big = o.cards[lastIdx]?.tier === 'lendaria';
+  const lastIdx = N - 1, big = o.cards[lastIdx]?.rarity === 'ultra' || o.cards[lastIdx]?.rarity === 'secreta';
+  const SHINE_AMT = (r: Rarity) => (r === 'comum' ? 0 : r === 'rara' ? .55 : .9);
   const flashEl = document.createElement('div'); flashEl.style.cssText = 'position:absolute;inset:0;background:#fff8e0;opacity:0;pointer-events:none;mix-blend-mode:screen'; host.appendChild(flashEl);
 
   const build = async () => {
@@ -82,18 +92,17 @@ export function playBoosterOpening(host: HTMLElement, o: OpenOpts): { destroy: (
     const body = new THREE.Mesh(panel(-PH / 2, SEAM, 22, 40, false, true), packMat); strip = new THREE.Mesh(panel(SEAM, PH / 2, 22, 5, true, false), packMat); strip.position.z = .001; pack.add(body, strip);
     slit = new THREE.Mesh(new THREE.PlaneGeometry(PW * .96, .5), additive(haloTex, 0xffe6a0, 0)); slit.position.set(0, SEAM, .2); pack.add(slit);
     faces.forEach((ft, i) => {
-      const CW = 1.5, aspect = ft ? ft.image.height / ft.image.width : 1.343, CH = CW * aspect, g = new THREE.Group(), tier = o.cards[i].tier;
+      const CW = 1.5, aspect = ft ? ft.image.height / ft.image.width : 1.343, CH = CW * aspect, g = new THREE.Group(), tier = o.cards[i].rarity;
       const faceTex = ft ?? back!;
       const fm = new THREE.MeshStandardMaterial({ map: faceTex, roughness: .5, metalness: .08, alphaTest: .4, emissive: 0xffffff, emissiveMap: faceTex, emissiveIntensity: 0 });
       const bm = new THREE.MeshStandardMaterial({ map: back, roughness: .55, metalness: .1, alphaTest: .4 });
       const front = new THREE.Mesh(new THREE.PlaneGeometry(CW, CH), fm); front.position.z = .004;
       const bk = new THREE.Mesh(new THREE.PlaneGeometry(CW, CH), bm); bk.rotation.y = Math.PI; bk.position.z = -.004;
-      const sm = sheenMat(faceTex, HALO[tier]); const sheen = new THREE.Mesh(new THREE.PlaneGeometry(CW, CH), sm); sheen.position.z = .008;
+      const sm = sheenMat(ft, 0, o.cards[i]); const sheen = new THREE.Mesh(new THREE.PlaneGeometry(CW, CH), sm); sheen.position.z = .008;
       const halo = new THREE.Mesh(new THREE.PlaneGeometry(CW * 2.1, CH * 1.8), additive(haloTex, HALO[tier], 0)); halo.position.z = -.05;
       g.add(halo, bk, front, sheen); g.visible = false; cardsG.add(g); cards.push({ g, fm, sm, halo, info: o.cards[i] });
     });
   };
-  const say = (c: OpenCard) => o.onCaption(c.label + (c.isNew ? '  ·  NOVA' : ''), c.name, c.tier === 'lendaria' ? '#ffd264' : c.tier === 'rara' ? '#7cc4ff' : '#e8e0ce');
   const makeTimeline = () => {
     tl = gsap.timeline({ paused: true });
     tl.fromTo(pack.position, { y: 6.5 }, { y: 0, duration: 1.05, ease: 'elastic.out(1,.55)' }, 0);
@@ -124,30 +133,29 @@ export function playBoosterOpening(host: HTMLElement, o: OpenOpts): { destroy: (
     tl.to(S, { rays: .22, duration: 1, ease: 'power1.out' }, T5 + .3);
     cards.forEach((c, i) => { const f = fan(i), d = T5 + .35 + i * .06; tl.to(c.g.position, { x: f.x, y: f.y, z: i * .01, duration: .65, ease: 'power3.inOut' }, d); tl.to(c.g.rotation, { z: f.rz, duration: .65, ease: 'power3.inOut' }, d); tl.to(c.g.scale, { x: f.s, y: f.s, z: f.s, duration: .65, ease: 'power3.inOut' }, d); });
     const T6 = T5 + 1.3, STEP = .6;
-    const reveal = (i: number, at: number) => { const c = cards[i], rare = c.info.tier !== 'comum', f = fan(i), col = HALO[c.info.tier];
+    const reveal = (i: number, at: number) => { const c = cards[i], rare = c.info.rarity !== 'comum', f = fan(i), col = HALO[c.info.rarity];
       tl.to(c.g.position, { x: f.x * .3, y: .1, z: 1.6, duration: .35, ease: 'power2.out' }, at).to(c.g.position, { x: f.x, y: f.y, z: i * .01, duration: .4, ease: 'power2.inOut' }, at + .75);
       tl.to(c.g.scale, { x: .95, y: .95, z: .95, duration: .35, ease: 'power2.out' }, at).to(c.g.scale, { x: f.s, y: f.s, z: f.s, duration: .4, ease: 'power2.inOut' }, at + .75);
       tl.to(c.g.rotation, { z: 0, duration: .35, ease: 'power2.out' }, at).to(c.g.rotation, { z: f.rz, duration: .4, ease: 'power2.inOut' }, at + .75);
       tl.to(c.g.rotation, { y: 0, duration: .55, ease: 'power2.inOut' }, at + .2);
-      tl.call(() => { burst(f.x * .3, .1, 1.7, rare ? 34 : 14, col, rare ? 3.2 : 2, .07, .9, 1.4); if (rare) shock(f.x * .3, .1, 1.5, col, 2.2, .7); say(c.info); }, undefined, at + .5);
+      tl.call(() => { burst(f.x * .3, .1, 1.7, rare ? 34 : 14, col, rare ? 3.2 : 2, .07, .9, 1.4); if (rare) shock(f.x * .3, .1, 1.5, col, 2.2, .7); }, undefined, at + .5);
       tl.fromTo((c.halo.material as THREE.Material), { opacity: 0 }, { opacity: rare ? .85 : .4, duration: .2 }, at + .5).to(c.halo.material, { opacity: rare ? .3 : 0, duration: 1 }, at + .7);
-      if (rare) tl.fromTo(c.sm.uniforms.amt, { value: 0 }, { value: .5, duration: .3 }, at + .55).to(c.sm.uniforms.amt, { value: 0, duration: .9 }, at + 1.3); };
+      if (SHINE_AMT(c.info.rarity) > 0) tl.fromTo(c.sm.uniforms.amt, { value: 0 }, { value: SHINE_AMT(c.info.rarity), duration: .5 }, at + .55); };   // o brilho da raridade fica ligado
     const normal = big ? N - 1 : N;
     for (let i = 0; i < normal; i++) reveal(i, T6 + i * STEP);
     let tEnd = T6 + normal * STEP + .9;
     if (big) {   // a melhor carta, lendária: pausa, aproximação, virada lenta e explosão dourada
       const L = cards[lastIdx], a = tEnd; const lf = fan(lastIdx);
-      tl.call(() => o.hideCaption(), undefined, a);
       tl.to(S, { camZ: 8.6, camY: .15, duration: 1.7, ease: 'power2.inOut' }, a);
       cards.forEach((c, i) => { if (i === lastIdx) return; tl.to(c.g.position, { y: -2.3 - .04 * Math.pow(i - (N - 1) / 2, 2), duration: .7, ease: 'power2.inOut' }, a).to(c.g.scale, { x: .48, y: .48, z: .48, duration: .7, ease: 'power2.inOut' }, a); });
       tl.to(L.g.position, { x: 0, y: .55, z: 1.7, duration: .8, ease: 'power3.inOut' }, a).to(L.g.rotation, { z: 0, duration: .8, ease: 'power3.inOut' }, a).to(L.g.scale, { x: 1.45, y: 1.45, z: 1.45, duration: .8, ease: 'power3.inOut' }, a);
       tl.to(S, { rays: .6, bloom: .55, glow: 1, duration: 1.3, ease: 'power2.in' }, a + .2);
       tl.to(L.g.rotation, { y: Math.PI * .5, duration: .7, ease: 'power2.in' }, a + 1.05).to(L.g.rotation, { y: 0, duration: .55, ease: 'back.out(1.6)' }, a + 1.75);
-      tl.call(() => { burst(0, .55, 1.9, 150, 0xffd870, 7.5, .13, 1.7, 1.2); burst(0, .55, 1.9, 60, 0xffffff, 4.5, .2, .9, 0); shock(0, .55, 1.6, 0xffe6a0, 6.2, 1.1); shock(0, .55, 1.65, 0xffb040, 4.2, .8); S.shake = .08; say(L.info); }, undefined, a + 1.9);
+      tl.call(() => { burst(0, .55, 1.9, 150, 0xffd870, 7.5, .13, 1.7, 1.2); burst(0, .55, 1.9, 60, 0xffffff, 4.5, .2, .9, 0); shock(0, .55, 1.6, 0xffe6a0, 6.2, 1.1); shock(0, .55, 1.65, 0xffb040, 4.2, .8); S.shake = .08; }, undefined, a + 1.9);
       tl.fromTo(S, { flash: 0 }, { flash: .4, duration: .08 }, a + 1.9).to(S, { flash: 0, duration: .6, ease: 'power2.in' }, a + 1.98).to(S, { shake: 0, duration: .6 }, a + 2);
       tl.to(S, { bloom: .85, duration: .1 }, a + 1.9).to(S, { bloom: .4, duration: 1.4 }, a + 2);
       tl.fromTo((L.halo.material as THREE.Material), { opacity: 0 }, { opacity: 1, duration: .15 }, a + 1.9).to(L.halo.material, { opacity: .55, duration: 1.2 }, a + 2.05);
-      tl.fromTo(L.sm.uniforms.amt, { value: 0 }, { value: .55, duration: .4 }, a + 2);
+      tl.fromTo(L.sm.uniforms.amt, { value: 0 }, { value: 1, duration: .4 }, a + 2);
       tl.to(S, { camZ: 9.4, duration: 1.6, ease: 'power1.out' }, a + 2); void lf;
       tEnd = a + 3.4;
     }

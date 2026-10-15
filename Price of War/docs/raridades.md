@@ -20,3 +20,11 @@ O sistema de raridade ainda não existe no jogo. Hoje a abertura de booster usa 
 - O **verso** (backplate) é igual em todas as cartas e **nunca brilha**.
 - **Futuro (só planejado, não fazer agora):** cartas **Secretas** de Full Art: outra Full Art, com outra arte e brilhos ainda melhores. Exigem imagens novas; deixar o campo previsto (`rarity: 'secreta'`) quando o sistema for feito.
 - Onde vai mexer: campo `rarity` na carta (dados, não código por nome), sorteio dos boosters (`rollBooster`), efeito de brilho em `CardFace*` (máscara da arte, máscara do nome), `CardViewer3D` e `src/boosterOpen3d.ts` (cor do halo por raridade).
+
+## Implementado (rodada 26, 2ª parte)
+- `src/rarity.ts`: tipos (`comum`/`rara`/`ultra`/`secreta`), probabilidades por cópia (`RARITY_ODDS`: padrão 72/24/4 %, Full Art 70/22/8 %; **toda carta pode vir em qualquer raridade**), `shineOf` (o que brilha em cada caso) e a numeração de coleção `cardCode(nome, raridade)` = `0032UR` (número = posição no catálogo `CARD_DEFS`; **carta nova entra no FIM da lista**, senão os números mudam; o sufixo é C, R, UR ou S).
+- Booster: `rollBooster` sorteia a raridade de cada cópia; a melhor cópia (raridade, depois Full Art, depois custo) é a última revelada e, se for Ultra rara, tem o momento grande. **Sem legenda**: quem avisa é só o efeito visual.
+- Coleção: `store.rarities[nome] = { rara, ultra, secreta }` conta as cópias não comuns (o total continua em `collection`); fica só neste aparelho, **ainda não sincroniza com a nuvem**.
+- Na carta (`CardFace`, mão e zoom): brilho da arte (`.rar-art-shine`), letras do nome com degradê animado (`.rar-name`) e o número pequeno embaixo no centro. Brilho da carta inteira (Full Art ultra) recortado pela silhueta real. Teste: `?debug&rar=ultra` põe a raridade nas cartas da partida.
+- Na abertura 3D (`boosterOpen3d.ts`): o mesmo brilho em shader (máscara da arte, das letras do nome por contraste com a placa, ou da carta toda), que fica ligado depois da revelação.
+- **Falta (próximo):** mostrar no deck/partida a melhor raridade que o jogador tem de cada carta; sincronizar `rarities` na nuvem; editor de deck por exemplar; os mini-cartões do tabuleiro ainda não brilham; Secretas.

@@ -237,6 +237,9 @@ import gsap from 'gsap';
 import { fxShuffle } from './shuffleFx';
 import { playBoosterOpening, type OpenCard } from './boosterOpen3d';
 import { cardSlug } from './card3d';
+import { type Rarity, type RarityCounts, shineOf, rollRarity, cardCode, RARITY_ORDER } from './rarity';
+import { initFpsMeter } from './fpsMeter';
+initFpsMeter();
 import tutHandSprite from './assets/tut-hand.webp';
 import type { Trigger } from './engine/types';
 import { preloadTerrainFx, syncTerrainFx, clearTerrainFx, type TerrainFxKind } from './terrainFx';
@@ -474,6 +477,8 @@ export type CardData = {
   // makes the whole board react (see triggerFullArtReaction): a stronger camera
   // shake and every other card on the field flinches, like a big finisher landing.
   isFullArt?: boolean;
+  // Raridade deste exemplar (src/rarity.ts); sem o campo = comum.
+  rarity?: Rarity;
   // A one-time "+X ATK/+X HP in its next combat" bonus — currently only granted by
   // Comandante Aurelion's active ability (see grantAurelionBuff) — consumed the
   // next time this exact card instance attacks or defends (see getEffectiveAtk and
@@ -1925,6 +1930,7 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
     // border touch the true edges, exactly like the Padrão frame does. Every
     // child below keeps the plain percentages already measured straight off the
     // frame image's own raw canvas — they don't change, only this wrapper does.
+    <>
     <div className="absolute pointer-events-none" style={{ ...cfg.wrapper, transform: `scale(${FULL_ART_SIZE_FIX})`, transformOrigin: '50% 50%' }}>
       <div className="absolute overflow-hidden" style={{ ...cfg.art }}>
         {card.art ? (
@@ -1985,7 +1991,7 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
         <div className="absolute px-1 flex items-center" style={{ top: '8.5%', left: '9%', width: '62%', height: '5.5%' }}>
           <FitText
             text={card.name}
-            className={`${v.name} font-bold uppercase tracking-tight`}
+            className={`${v.name} font-bold uppercase tracking-tight ${rarNameCls(card, !lightBar)}`}
             style={{ fontFamily: "'Cinzel', serif", ...nameTextStyle(lightBar) }}
           />
         </div>
@@ -2014,9 +2020,11 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
         )}
       </div>
     </div>
+    <RarityCardShine card={card} />
+    <RarityTag card={card} />
+    </>
   );
 };
-
 // Per-type frame/art-window geometry for CardFaceFullArtMini. The Tática and
 // Emboscada frames are separate assets from the creature one (own art,
 // generated independently) so neither their outer bleed margin nor their art
@@ -2198,6 +2206,17 @@ const CardFaceStandardMini = ({ card }: { card: CardData }) => {
   );
 };
 
+// Raridade na carta (src/rarity.ts): o brilho passa só pelo que o plano do dono manda (arte / letras do nome / carta inteira, sempre no formato real) e o número de
+// coleção (0001C, 0001R, 0001UR…) fica bem pequeno embaixo, no centro.
+const rarNameCls = (card: CardData, dark = false) => { const sh = shineOf(card.rarity, !!card.isFullArt); return sh === 'name' ? `rar-name rara${dark ? ' dark' : ''}` : sh === 'art+name' ? `rar-name ultra${dark ? ' dark' : ''}` : ''; };
+const RarityTag = ({ card }: { card: CardData }) => (
+  <div className="absolute inset-x-0 z-20 pointer-events-none text-center" style={{ bottom: '0.7%', fontFamily: "'Cinzel', serif", fontSize: 6.5, letterSpacing: '0.08em', fontWeight: 700, color: card.isFullArt ? '#e9d8a6' : '#3a2408', textShadow: card.isFullArt ? '0 1px 1px #000' : '0 1px 0 rgba(255,243,206,.5)', opacity: 0.85 }}>{cardCode(card.name, card.rarity)}</div>
+);
+const RarityCardShine = ({ card }: { card: CardData }) => {
+  if (shineOf(card.rarity, !!card.isFullArt) !== 'card') return null;
+  const { masks, box } = silhouetteFor(card);
+  return <div className="absolute pointer-events-none" style={box}><div className="absolute inset-0 rar-card-shine" style={{ WebkitMaskImage: `url(${masks[0]})`, maskImage: `url(${masks[0]})`, WebkitMaskSize: '100% 100%', maskSize: '100% 100%', WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat' }} /></div>;
+};
 const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof typeof CARD_FACE_VARIANTS }) => {
   const v = CARD_FACE_VARIANTS[variant];
   const showStats = !NO_STAT_TYPES.has(card.cardType as CardType);
@@ -2219,6 +2238,7 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-900" />
           )}
+          {(shineOf(card.rarity, false) === 'art' || shineOf(card.rarity, false) === 'art+name') && <div className={`absolute inset-0 rar-art-shine ${card.rarity === 'ultra' || card.rarity === 'secreta' ? 'ultra' : ''}`} />}
         </div>
         <img src={templateForType(card.cardType)} alt="" aria-hidden className="absolute inset-0 w-full h-full pointer-events-none select-none" draggable={false} />
       </div>
@@ -2236,7 +2256,7 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
             // The name plate and type ribbon are pale parchment, so the text on them is
             // dark ink, not gold — light-on-light was the reason they were hard to read.
             // The highlight underneath gives it the engraved-into-the-plate look.
-            className={`${v.name} font-bold uppercase tracking-tight`}
+            className={`${v.name} font-bold uppercase tracking-tight ${rarNameCls(card)}`}
             style={{ fontFamily: "'Cinzel', serif", color: '#2a1605', textShadow: '0 1px 0 rgba(255,243,206,0.55)' }}
           />
         </div>
@@ -2297,6 +2317,7 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
           </>
         )}
       </div>
+      <RarityTag card={card} />
     </>
   );
 };
@@ -2516,7 +2537,8 @@ const cardByName = (name: string): CardData | undefined => CARD_INSTANCES_BY_NAM
 const isGeneralName = (name: string) => cardByName(name)?.cardType === 'General';
 
 type DeckSlot = { id: string; name: string; general: string; cards: Record<string, number> };
-type DeckStore = { collection: Record<string, number>; slots: DeckSlot[]; owner?: string };
+// `rarities`: how many copies of each card are not common (the total stays in `collection`); local to this device for now (not synced to the cloud yet).
+type DeckStore = { collection: Record<string, number>; slots: DeckSlot[]; owner?: string; rarities?: Record<string, RarityCounts> };
 // What a match needs from a deck: the draw pool, the General, and which prebuilt deck the AI takes.
 type DeckSelection = { cards: Record<string, number>; general: string; npcDeckId: DeckId; npcGeneral?: string };
 
@@ -2675,7 +2697,9 @@ const sanitizeDeckStore = (raw: any): DeckStore | null => {
       cards,
     };
   });
-  return { collection, slots, owner: typeof raw.owner === 'string' ? raw.owner : undefined };
+  const rarities: Record<string, RarityCounts> = {};
+  Object.entries((raw.rarities ?? {}) as Record<string, RarityCounts>).forEach(([name, c]) => { if (collection[name] && c && typeof c === 'object') { const o: RarityCounts = {}; (['rara', 'ultra', 'secreta'] as const).forEach(k => { const v = Number(c[k]); if (Number.isFinite(v) && v > 0) o[k] = Math.min(Math.floor(v), collection[name]); }); if (Object.keys(o).length) rarities[name] = o; } });
+  return { collection, slots, owner: typeof raw.owner === 'string' ? raw.owner : undefined, rarities };
 };
 const loadDeckStore = (): DeckStore => {
   try {
@@ -4229,7 +4253,7 @@ const rollBooster = (def: BoosterDef): CardData[] => {
   const out: CardData[] = [];
   for (let i = 0; i < def.cards - 1; i++) out.push(draw(pool));
   out.push(draw(strong.length > 0 ? strong : pool));
-  return out;
+  return out.map(c => ({ ...c, rarity: rollRarity(!!c.isFullArt) }));   // every card can come in any rarity
 };
 
 const BoosterArt = ({ def }: { def: BoosterDef }) => {
@@ -4354,12 +4378,13 @@ type PulledCard = { card: CardData; isNew: boolean; strong: boolean };
 const pullBooster = (def: BoosterDef): PulledCard[] => {
   const store = loadDeckStore();
   // Shown from the least to the most rare, so the best card is always the last one revealed.
-  const rarity = (c: CardData) => (c.isFullArt ? 10 : 0) + c.cost;
+  const rarity = (c: CardData) => RARITY_ORDER[c.rarity ?? 'comum'] * 100 + (c.isFullArt ? 10 : 0) + c.cost;
   const rolled = rollBooster(def).sort((a, b) => rarity(a) - rarity(b));
   const cards = rolled.map(card => {
     const isNew = (store.collection[card.name] ?? 0) === 0;
     store.collection[card.name] = (store.collection[card.name] ?? 0) + 1;
-    return { card, isNew, strong: rarity(card) >= 4 };
+    if (card.rarity && card.rarity !== 'comum') { const r = ((store.rarities ??= {})[card.name] ??= {}); r[card.rarity] = (r[card.rarity] ?? 0) + 1; }
+    return { card, isNew, strong: rarity(card) >= 100 };
   });
   saveDeckStore(store);
   return cards;
@@ -4449,34 +4474,36 @@ const CARD3D_FILES = import.meta.glob('./assets/card3d/*.webp', { query: '?url',
 const card3dUrl = async (slug: string): Promise<string | null> => { const f = CARD3D_FILES[`./assets/card3d/${slug}.webp`]; return f ? f() : null; };
 const Booster3DOpening = ({ def, cards, onDone }: { def: BoosterDef; cards: PulledCard[]; onDone: () => void }) => {
   const hostRef = useRef<HTMLDivElement>(null);
-  const [cap, setCap] = useState<{ a: string; b: string; color: string } | null>(null);
+  const [started, setStarted] = useState(false);
   const [finished, setFinished] = useState(false);
   useEffect(() => {
+    if (!started) return;
     const host = hostRef.current; if (!host) return;
     let handle: { destroy: () => void } | null = null, gone = false;
     (async () => {
       const back = (await card3dUrl('_back')) ?? '';
-      const list: OpenCard[] = await Promise.all(cards.map(async pc => ({
-        name: pc.card.name, faceUrl: await card3dUrl(cardSlug(pc.card.name)), isNew: pc.isNew,
-        tier: (pc.card.isFullArt ? 'lendaria' : pc.card.cost >= 3 ? 'rara' : 'comum') as OpenCard['tier'],
-        label: pc.card.isFullArt ? 'Full Art' : pc.card.cost >= 3 ? 'Rara' : 'Comum', sub: '',
-      })));
+      const list: OpenCard[] = await Promise.all(cards.map(async pc => ({ name: pc.card.name, faceUrl: await card3dUrl(cardSlug(pc.card.name)), rarity: pc.card.rarity ?? 'comum', isFullArt: !!pc.card.isFullArt, shine: shineOf(pc.card.rarity, !!pc.card.isFullArt) })));
       if (gone) return;
-      handle = playBoosterOpening(host, { packUrl: SHOP_ART.boosters[def.id] ?? null, accent: def.accent, backUrl: back, cards: list, onCaption: (a, b, color) => setCap({ a, b, color }), hideCaption: () => setCap(null), onFinished: () => setFinished(true) });
+      handle = playBoosterOpening(host, { packUrl: SHOP_ART.boosters[def.id] ?? null, accent: def.accent, backUrl: back, cards: list, onFinished: () => setFinished(true) });
     })();
     return () => { gone = true; handle?.destroy(); };
-  }, []);
+  }, [started]);
   return (
     <div className="fixed inset-0 z-[500] flex items-center justify-center" style={{ background: '#07060a' }}>
       <div ref={hostRef} className="relative h-full w-full overflow-hidden" style={{ maxWidth: 'calc(100dvh * 9 / 16)' }} />
-      {cap && <div className="pointer-events-none absolute inset-x-0 bottom-[10%] text-center" style={{ color: cap.color, fontFamily: "'Cinzel', serif" }}><b className="block text-[clamp(18px,6.4vw,28px)] uppercase tracking-[0.14em]" style={{ textShadow: '0 0 14px currentColor, 0 2px 4px #000' }}>{cap.a}</b><i className="block text-[clamp(11px,3.4vw,14px)] not-italic tracking-[0.2em] opacity-80">{cap.b}</i></div>}
-      <button type="button" onClick={onDone} className="absolute bottom-[1.5%] rounded-lg border border-[#f3e7c6]/50 bg-black/60 px-5 py-2 text-[#f3e7c6] transition-opacity" style={{ fontFamily: "'Cinzel', serif", letterSpacing: '0.18em', opacity: finished ? 1 : 0.55 }}>{finished ? 'Continuar' : 'Pular'}</button>
+      {!started && (
+        // the pack is bought (or taken from the shelf) but stays closed until the player taps it
+        <button type="button" onClick={() => setStarted(true)} className="absolute inset-0 flex flex-col items-center justify-center gap-6" style={{ background: 'radial-gradient(ellipse at 50% 45%, rgba(90,60,20,0.85), rgba(7,6,10,0.98))' }}>
+          <motion.div animate={{ y: [0, -8, 0], rotate: [-1.5, 1.5, -1.5] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} style={{ width: 'min(52vw, 220px)', aspectRatio: String(BOOSTER_ASPECT) }}><BoosterArt def={def} /></motion.div>
+          <span className="text-[#f3e7c6]" style={{ fontFamily: "'Cinzel', serif", letterSpacing: '0.2em', fontSize: 15 }}>TOQUE PARA ABRIR</span>
+        </button>
+      )}
+      {started && <button type="button" onClick={onDone} className="absolute bottom-[1.5%] rounded-lg border border-[#f3e7c6]/50 bg-black/60 px-5 py-2 text-[#f3e7c6] transition-opacity" style={{ fontFamily: "'Cinzel', serif", letterSpacing: '0.18em', opacity: finished ? 1 : 0.55 }}>{finished ? 'Continuar' : 'Pular'}</button>}
     </div>
   );
 };
 const PackOpening = (props: { def: BoosterDef; cards: PulledCard[]; packW: number; cardScale: number; onDone: () => void; key?: React.Key }) => {
-  const { fxNovo } = useGameSettings();
-  return fxNovo ? <Booster3DOpening def={props.def} cards={props.cards} onDone={props.onDone} /> : <PackOpeningOld {...props} />;
+  return <Booster3DOpening def={props.def} cards={props.cards} onDone={props.onDone} />;
 };
 
 // The opening shown from the table in the Sala de Coleção: rolls the pack once, then the same tear / swipe / summary as in the shop.
@@ -4924,7 +4951,7 @@ const OptionsModal = ({ onClose }: { onClose: () => void }) => {
           <div className="w-full flex flex-col gap-3">
             <span className="text-[10px] uppercase tracking-[0.2em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>Efeitos</span>
             <ToggleRow label="Terrenos animados" sub="A muralha da Fortaleza de Pedra sobe, tem tochas e bandeiras que se mexem. Desligado: imagem parada, mais leve para o celular." on={g.terrainFx} onChange={v => setGameSettings({ terrainFx: v })} />
-            <ToggleRow label="Efeitos de carta novos" sub="Carta que cai, leva o golpe e queima com brasas, faíscas e luz. Desligado: os efeitos antigos, se o celular ficar pesado." on={g.fxNovo} onChange={v => setGameSettings({ fxNovo: v })} />
+            <ToggleRow label="Mostrar FPS" sub="Um contador pequeno no canto superior direito, para ver se o jogo está fluido no seu celular." on={g.showFps} onChange={v => setGameSettings({ showFps: v })} />
           </div>
           <div className="w-full flex flex-col gap-3">
             <span className="text-[10px] uppercase tracking-[0.2em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>Som</span>
@@ -6321,6 +6348,7 @@ export default function App() {
     id: c.id, name: c.name, atk: c.atk, hp: c.hp, cost: c.cost, art: ART_BY_NAME[c.name] ?? '', effect: c.effect,
     cardType: c.cardType, isFullArt: c.isFullArt, pendingCombatBonus: c.pendingCombatBonus, dmgReduction: c.dmgReduction,
     formationBuffAtk: c.formationBuffAtk, equippedWeapons: c.equippedWeapons?.map(toCardData), shield: c.shield, block: c.block, mode: c.mode,
+    rarity: DEBUG_HOOKS ? (new URLSearchParams(window.location.search).get('rar') as Rarity | null) ?? undefined : undefined,   // test only (`?debug&rar=ultra`): the cards in play have no rarity yet
   });
   toCardDataRef.current = toCardData;
   // A unit that just died stays on its slot for a moment, flagged destroyed, so its explosion can play

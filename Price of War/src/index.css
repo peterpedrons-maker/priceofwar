@@ -172,3 +172,14 @@
 @keyframes tacKick { 0% { transform: scale(1); } 25% { transform: translateY(8px) scale(.95); } 100% { transform: scale(1); } }
 .tac-leave { animation: tacLeave .7s ease-in forwards; }
 @keyframes tacLeave { from { opacity: 1; filter: brightness(1.6); } to { opacity: 0; filter: brightness(.6) blur(2px); transform: translateY(-14px) scale(.9); } }
+
+/* Raridades (src/rarity.ts): brilho que passa pela arte, pelas letras do nome e pela carta inteira (sempre recortado no formato real) */
+@keyframes rar-sweep { from { background-position: 160% 0; } to { background-position: -60% 0; } }
+.rar-art-shine { background: linear-gradient(115deg, transparent 38%, rgba(255,255,255,.34) 48%, rgba(190,225,255,.22) 54%, transparent 64%); background-size: 260% 100%; mix-blend-mode: screen; animation: rar-sweep 3.4s linear infinite; }
+.rar-art-shine.ultra { background: linear-gradient(115deg, transparent 30%, rgba(255,236,170,.5) 42%, rgba(210,160,255,.4) 50%, rgba(140,230,255,.35) 58%, transparent 70%); animation-duration: 2.6s; }
+.rar-card-shine { background: linear-gradient(115deg, transparent 28%, rgba(255,240,180,.42) 40%, rgba(220,150,255,.38) 49%, rgba(130,230,255,.34) 58%, transparent 70%); background-size: 260% 100%; mix-blend-mode: screen; animation: rar-sweep 2.8s linear infinite; }
+.rar-name { background-size: 260% 100%; -webkit-background-clip: text; background-clip: text; color: transparent !important; -webkit-text-fill-color: transparent; animation: rar-sweep 3s linear infinite; text-shadow: none !important; }
+.rar-name.rara { background-image: linear-gradient(100deg, #46607e 30%, #bfe0ff 46%, #6f9fd6 54%, #46607e 70%); }
+.rar-name.ultra { background-image: linear-gradient(100deg, #7a4a00 26%, #ffd45c 38%, #d58bff 46%, #6fe0ff 54%, #ffd45c 62%, #7a4a00 74%); }
+.rar-name.rara.dark { background-image: linear-gradient(100deg, #cfe6ff 30%, #ffffff 46%, #8fc0f0 54%, #cfe6ff 70%); }
+.rar-name.ultra.dark { background-image: linear-gradient(100deg, #ffe9a0 26%, #ffffff 38%, #f2b6ff 46%, #9bf0ff 54%, #ffe9a0 62%, #ffd45c 74%); }
