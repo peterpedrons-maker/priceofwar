@@ -232,7 +232,7 @@ import { playSfx, preloadSfx, dbgMark } from './sfx';
 import { fxTactic, fxHero, fxRanged, fxLanding, fxUpkeep, fxGoldGain, fxRelicSoldo, fxLoot, fxPlaced, fxReformar, fxAmbush, fxCalice, fxHospitalario, fxNobre, fxReforco, fxComandante, fxRetorno, fxAtirador, preloadHolyFx, preloadCombatFx, type FxEnv, type FxRect, type FxSide, type FxTarget } from './combatFx';
 import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettings, subscribeAudio } from './audioSettings';
 import { useGameSettings, setGameSettings, getGameSettings } from './gameSettings';
-import { fxLand, fxImpact, fxBurn, burnMaskSheet, BURN, fxLunge, fxDrop, fxArrows, fxHintFrame, fxDrawFollow, type ArrowSpec } from './cardFx';
+import { fxLand, fxImpact, fxBurn, burnMaskSheet, BURN, fxLunge, fxDrop, fxArrows, fxHintFrame, fxDrawFollow, fxMoveFollow, type ArrowSpec } from './cardFx';
 import gsap from 'gsap';
 import { fxShuffle } from './shuffleFx';
 import tutHandSprite from './assets/tut-hand.webp';
@@ -1177,6 +1177,34 @@ const DrawFlightNovo = ({ card, handEl, deckRect, onDone }: { card: CardData; ha
           <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden', transform: 'rotateX(180deg)', filter: CARD_THICKNESS_SHADOW }}><CardFace card={card} variant="hand" /></div>
         </div>
       </div>
+    </div>
+  );
+};
+
+// A card changing places (new effects): it is picked up (grows, shadow on the floor), swings across in a low arc leaning into the direction, and sets down with a little squash;
+// in a swap the two cards cross at different heights so they never go through each other. A reinforcement charges straight forward with a trail.
+const RepositionLegNovo = ({ leg, card, isPrimary, reinforce, swapped, onDone }: { leg: { fromX: number; fromY: number; toX: number; toY: number; w: number; h: number }; card: CardData; isPrimary: boolean; reinforce: boolean; swapped: boolean; onDone: () => void; key?: React.Key }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const D = (reinforce ? .34 : .46) * TIME.k, X0 = leg.fromX - leg.w / 2, Y0 = leg.fromY - leg.h / 2, X1 = leg.toX - leg.w / 2, Y1 = leg.toY - leg.h / 2;
+    const dx = leg.toX - leg.fromX, lean = reinforce ? 0 : dx === 0 ? 0 : (dx > 0 ? 7 : -7), arc = reinforce ? 0 : (swapped ? (isPrimary ? 46 : 16) : 30), peak = reinforce ? 1.04 : (swapped && isPrimary ? 1.2 : 1.12);
+    gsap.set(el, { x: X0, y: Y0, scale: 1, rotation: 0 });
+    fxMoveFollow(el, { x: leg.fromX, y: leg.fromY, w: leg.w, h: leg.h }, { x: leg.toX, y: leg.toY, w: leg.w, h: leg.h }, D, reinforce);
+    const st = { p: 0 };
+    const tl = gsap.timeline({ onComplete: onDone });
+    tl.to(st, { p: 1, duration: D, ease: reinforce ? 'power2.in' : 'power2.inOut', onUpdate: () => { const p = st.p; gsap.set(el, { x: X0 + (X1 - X0) * p, y: Y0 + (Y1 - Y0) * p - Math.sin(Math.PI * p) * arc, scale: 1 + (peak - 1) * Math.sin(Math.PI * Math.min(1, p * 1.05)), rotation: lean * Math.sin(Math.PI * p) }); } }, 0);
+    if (!reinforce) { tl.to(el, { scaleX: 1.06, scaleY: .94, duration: .05, ease: 'power2.out' }, D); tl.to(el, { scaleX: 1, scaleY: 1, duration: .1, ease: 'back.out(3)' }, D + .05); }
+    return () => { tl.kill(); };
+  }, []);
+  return (
+    <div ref={ref} className="pointer-events-none rounded-lg flex flex-col p-1" style={{ position: 'fixed', left: 0, top: 0, width: leg.w, height: leg.h, zIndex: 480, filter: CARD_THICKNESS_SHADOW, willChange: 'transform' }}>
+      {card.isFullArt ? <CardFaceFullArtMini card={card} /> : <CardFaceStandardMini card={card} />}
+      {swapped && !reinforce && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div style={{ width: '62%', height: '62%', filter: 'drop-shadow(0 0 8px rgba(120,200,255,0.9)) drop-shadow(0 2px 3px rgba(0,0,0,0.7))' }}><SpriteIcon icon="swap" className="w-full h-full" /></div>
+        </div>
+      )}
     </div>
   );
 };
@@ -9925,7 +9953,24 @@ export default function App() {
           duration (see the `card={...}` ternary at each Vanguarda/Retaguarda map
           above), so this overlay is the only visible copy while it's mid-flight. */}
       <AnimatePresence>
-        {repositionFlight && [
+        {repositionFlight && gameSettings.fxNovo && [
+          { leg: repositionFlight.mover, card: repositionFlight.moverCard, isPrimary: true },
+          ...(repositionFlight.swapped ? [{ leg: repositionFlight.swapped, card: repositionFlight.swappedCard!, isPrimary: false }] : []),
+        ].map(({ leg, card, isPrimary }) => (
+          <RepositionLegNovo key={card.id} leg={leg} card={card} isPrimary={isPrimary} reinforce={!!repositionFlight.reinforce} swapped={!!repositionFlight.swapped}
+            onDone={isPrimary ? () => {
+              if (repositionFlight.reinforce) {
+                const r = document.getElementById(`${repositionFlight.side}-${repositionFlight.destIndex}`)?.getBoundingClientRect();
+                if (r) { playCardPlaySfx(); fireImpactBurst(r.left + r.width / 2, r.top + r.height / 2, false, r.width); }
+                setRepositionFlight(null);
+                if (engineRef.current) syncView(engineRef.current);
+                return;
+              }
+              if (repositionFlight.side === 'player') dispatchAction(0, { type: 'move', from: repositionFlight.originIndex, to: repositionFlight.destIndex });
+              setRepositionFlight(null);
+            } : () => {}} />
+        ))}
+        {repositionFlight && !gameSettings.fxNovo && [
           { leg: repositionFlight.mover, card: repositionFlight.moverCard, isPrimary: true },
           ...(repositionFlight.swapped ? [{ leg: repositionFlight.swapped, card: repositionFlight.swappedCard!, isPrimary: false }] : []),
         ].map(({ leg, card, isPrimary }) => {

@@ -325,3 +325,19 @@ export function fxDrawFollow(el: HTMLElement, deck: CardRect | null, sec: number
     return true;
   });
 }
+
+// ── 8. movimento entre casas ──────────────────────────────────────────────────────────────────────────────────────────
+// Acompanha a carta (el) que se desloca: uma sombra no chão (no ponto de onde ela saiu → casa nova), rastro de luz suave atrás e poeira rasteira na chegada.
+export function fxMoveFollow(el: HTMLElement, from: { x: number; y: number; w: number; h: number }, to: { x: number; y: number; w: number; h: number }, sec: number, reinforce = false) {
+  const st = { t: 0 }; let done = false; const trail: { x: number; y: number }[] = [];
+  gsap.to(st, { t: 1, duration: sec, ease: 'none', onComplete: () => { done = true; for (let i = 0; i < (reinforce ? 14 : 8); i++) { const side = i % 2 ? 1 : -1; emit({ kind: 'dust', x: to.x + side * to.w * R(.15, .45), y: to.y + to.h * .42, vx: side * R(30, 90) * to.w / 56, vy: R(-10, 4), drag: .95, life: R(.35, .65), s: R(6, 11) * to.w / 56, rgb: '150,126,92', a: .5 }); } } });
+  add(() => {
+    if (done) return false; const r = el.getBoundingClientRect(), c = { x: r.left + r.width / 2, y: r.top + r.height / 2 }, k = Math.sin(Math.PI * st.t);
+    // sombra no chão: fica na linha reta entre as casas, mais fraca e maior quando a carta está no alto
+    const sx = from.x + (to.x - from.x) * st.t, sy = from.y + (to.y - from.y) * st.t + to.h * .08;
+    cx.globalCompositeOperation = 'source-over'; cx.save(); cx.translate(sx, sy); cx.scale(1, .78); const g = cx.createRadialGradient(0, 0, 0, 0, 0, to.w * (.62 + .2 * k)); g.addColorStop(0, `rgba(8,4,2,${.34 - .12 * k})`); g.addColorStop(1, 'rgba(8,4,2,0)'); cx.fillStyle = g; cx.beginPath(); cx.arc(0, 0, to.w * (.62 + .2 * k), 0, 7); cx.fill(); cx.restore();
+    trail.push(c); if (trail.length > 8) trail.shift();
+    for (let i = 1; i < trail.length; i++) { const a = i / trail.length; cx.globalCompositeOperation = 'lighter'; cx.strokeStyle = `rgba(255,236,190,${a * a * (reinforce ? .5 : .28)})`; cx.lineWidth = r.width * (reinforce ? .6 : .4) * a; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(trail[i - 1].x, trail[i - 1].y); cx.lineTo(trail[i].x, trail[i].y); cx.stroke(); }
+    return true;
+  });
+}
