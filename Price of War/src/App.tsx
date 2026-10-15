@@ -235,6 +235,7 @@ import { useGameSettings, setGameSettings, getGameSettings } from './gameSetting
 import { fxLand, fxImpact, fxBurn, burnMaskSheet, BURN, fxLunge, fxDrop, fxArrows, fxHintFrame, fxDrawFollow, fxMoveFollow, fxSelection, type SelItem, type ArrowSpec } from './cardFx';
 import gsap from 'gsap';
 import { fxShuffle } from './shuffleFx';
+import { fxAshes } from './ashFx';
 import { playBoosterOpening, type OpenCard } from './boosterOpen3d';
 import { cardSlug } from './card3d';
 import { type Rarity, type RarityCounts, shineOf, rollRarity, cardCode, RARITY_ORDER, FULLART_PACK_CHANCE } from './rarity';
@@ -472,6 +473,7 @@ export type CardData = {
   effect: string;
   cardType?: CardType;
   isDestroyed?: boolean;
+  ashFx?: boolean;   // the card is dissolving into ash on a canvas (src/ashFx.ts): the burning copy on the slot stays invisible
   // A handful of the most iconic cards (the Generals, for now — see DECK_CAPITAO/
   // DECK_CARDEAL) are marked as the "full art, legendary-weight" tier. Playing one
   // makes the whole board react (see triggerFullArtReaction): a stronger camera
@@ -5767,6 +5769,8 @@ export default function App() {
   const overlayFxRef = useRef(0);
   const flightsOutRef = useRef(0);
   const [overlayBusy, setOverlayBusy] = useState(false);
+  const graveHoldRef = useRef<{ player: Set<string>; npc: Set<string> }>({ player: new Set(), npc: new Set() });   // destroyed cards whose ash has not reached the graveyard yet: the pile shows them only when it arrives
+  const trackOverlay = (p: Promise<void>) => { overlayFxRef.current += 1; setOverlayBusy(true); return p.catch(err => console.error('card fx', err)).finally(() => { overlayFxRef.current = Math.max(0, overlayFxRef.current - 1); if (overlayFxRef.current === 0) setOverlayBusy(false); }); };
   const openPlayerPickRef = useRef<() => void>(() => {});
   const pickWaitRef = useRef(false);
   const processEventsRef = useRef<(events: GameEvent[], opts?: any) => void>(() => {});
@@ -6447,8 +6451,8 @@ export default function App() {
       setPlayerSlots(boardView(me.board, ghostsRef.current.player, holdsRef.current.player, foe.board));
       setNpcSlots(boardView(foe.board, ghostsRef.current.npc, holdsRef.current.npc, me.board));
     }
-    setPlayerGraveyard(me.graveyard.map(toCardData));
-    setNpcGraveyard(foe.graveyard.map(toCardData));
+    setPlayerGraveyard(me.graveyard.filter(c => !graveHoldRef.current.player.has(c.id)).map(toCardData));
+    setNpcGraveyard(foe.graveyard.filter(c => !graveHoldRef.current.npc.has(c.id)).map(toCardData));
     const pend = s.pending;
     // A pick the engine waits on from the player is always shown, whatever action caused it (a card that lands, a move, an attack...).
     if (pend && pend.seat === 0 && (pend.kind === 'pick' || pend.kind === 'discard')) queueMicrotask(() => openPlayerPickRef.current());
@@ -6588,7 +6592,18 @@ export default function App() {
         }
         case 'destroyed': {
           const ghosts = e.seat === 0 ? ghostsRef.current.player : ghostsRef.current.npc;
-          ghosts[e.slot] = { ...toCardData(e.card), isDestroyed: true };
+          // A fallen unit (or a replaced Terreno): it burns on the slot and its ash flows to the graveyard (src/ashFx.ts); the pile shows the card when the ash arrives.
+          let ash = false;
+          if (e.slot !== 12 && getGameSettings().fxNovo) {
+            const side = ownerId(e.seat), sl = document.getElementById(`${side}-${e.slot}`)?.getBoundingClientRect(), gr = document.getElementById(`${side}-grave`)?.getBoundingClientRect();
+            if (sl && gr && sl.width > 4 && gr.width > 4) {
+              ash = true; const hold = graveHoldRef.current[side], id = e.card.id, name = e.card.name;
+              hold.add(id);
+              const release = () => { if (hold.delete(id) && engineRef.current) syncView(engineRef.current); };
+              void trackOverlay((async () => { const url = await card3dUrl(cardSlug(name)); await fxAshes({ faceUrl: url, from: { cx: sl.left + sl.width / 2, cy: sl.top + sl.height / 2, w: sl.width, h: sl.height }, to: { cx: gr.left + gr.width / 2, cy: gr.top + gr.height / 2, w: gr.width, h: gr.height }, onArrive: release }); })().finally(release));
+            }
+          }
+          ghosts[e.slot] = { ...toCardData(e.card), isDestroyed: true, ashFx: ash };
           window.setTimeout(() => {
             delete ghosts[e.slot];
             if (engineRef.current) syncView(engineRef.current);
@@ -6689,9 +6704,8 @@ export default function App() {
     const cur = engineRef.current; if (!cur) return;
     const sideOf = (seat: Seat): FxSide => (seat === 0 ? 'player' : 'npc');
     const env = fxEnvFor(() => {});
-    const track = (p: Promise<void>) => { overlayFxRef.current += 1; setOverlayBusy(true); return p.catch(err => console.error('card fx', err)).finally(() => { overlayFxRef.current = Math.max(0, overlayFxRef.current - 1); if (overlayFxRef.current === 0) setOverlayBusy(false); }); };
-    const run = (p: Promise<void>) => { void track(p); };
-    const runCoin = (p: Promise<void>) => { coinFxBusyRef.current += 1; void track(p).finally(() => { coinFxBusyRef.current = Math.max(0, coinFxBusyRef.current - 1); }); };
+    const run = (p: Promise<void>) => { void trackOverlay(p); };
+    const runCoin = (p: Promise<void>) => { coinFxBusyRef.current += 1; void trackOverlay(p).finally(() => { coinFxBusyRef.current = Math.max(0, coinFxBusyRef.current - 1); }); };
     // Manutenção: coins to the cards that were paid, a contract that tears over each one that was dismissed
     const up = events.find(e => e.t === 'upkeep');
     if (up && up.t === 'upkeep' && prev) {
@@ -11565,9 +11579,9 @@ const CardSlot = ({
               card breaking apart instead of a generic dying rectangle, and no
               longer goes blank for cards with no art file yet (see DECK_CAPITAO,
               still art: '' everywhere) since it isn't just an <img> tag anymore. */}
-          <BurningCard>
+          {!card.ashFx && <BurningCard>
             {card.isFullArt ? <CardFaceFullArtMini card={card} /> : <CardFaceStandardMini card={card} />}
-          </BurningCard>
+          </BurningCard>}
         </>
       )}
     </motion.div>
