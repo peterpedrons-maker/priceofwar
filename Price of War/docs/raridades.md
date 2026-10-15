@@ -28,3 +28,7 @@ O sistema de raridade ainda não existe no jogo. Hoje a abertura de booster usa 
 - Na carta (`CardFace`, mão e zoom): brilho da arte (`.rar-art-shine`), letras do nome com degradê animado (`.rar-name`) e o número pequeno embaixo no centro. Brilho da carta inteira (Full Art ultra) recortado pela silhueta real. Teste: `?debug&rar=ultra` põe a raridade nas cartas da partida.
 - Na abertura 3D (`boosterOpen3d.ts`): o mesmo brilho em shader (máscara da arte, das letras do nome por contraste com a placa, ou da carta toda), que fica ligado depois da revelação.
 - **Falta (próximo):** mostrar no deck/partida a melhor raridade que o jogador tem de cada carta; sincronizar `rarities` na nuvem; editor de deck por exemplar; os mini-cartões do tabuleiro ainda não brilham; Secretas.
+
+## Probabilidades (revisadas, nível TCG)
+Pesquisa: Pokémon (Surging Sparks): Ilustração Rara ~1 a cada 13 pacotes, Ultra Rara ~1 a cada 15, Especial ~1 a cada 87, Hiper ~1 a cada 189; uma Especial específica chega a ~1 em mais de mil pacotes (Black Bolt/White Flare). Yu-Gi-Oh: ~4 Ultra e ~2 Secret por caixa de 24 pacotes (Ultra ~1 a cada 6 pacotes, Secret ~1 a cada 12; oficiais não são publicados).
+No jogo (`src/rarity.ts`, por cópia; booster de 5): padrão Rara 3,5 % e Ultra 0,25 %; Full Art Rara 12 % e Ultra 3 %; e só **1 pacote em 8 traz uma Full Art** (antes elas eram sorteadas como qualquer carta). Simulado: Rara ou melhor ≈ 1 pacote em 5, **Ultra rara ≈ 1 pacote em 60**, Full Art ≈ 1 em 8.

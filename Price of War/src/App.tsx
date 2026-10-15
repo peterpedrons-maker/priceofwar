@@ -237,7 +237,7 @@ import gsap from 'gsap';
 import { fxShuffle } from './shuffleFx';
 import { playBoosterOpening, type OpenCard } from './boosterOpen3d';
 import { cardSlug } from './card3d';
-import { type Rarity, type RarityCounts, shineOf, rollRarity, cardCode, RARITY_ORDER } from './rarity';
+import { type Rarity, type RarityCounts, shineOf, rollRarity, cardCode, RARITY_ORDER, FULLART_PACK_CHANCE } from './rarity';
 import { initFpsMeter } from './fpsMeter';
 initFpsMeter();
 import tutHandSprite from './assets/tut-hand.webp';
@@ -4242,17 +4242,18 @@ const SHOP_ART: { counter: string; shelf: string; npc: Record<NpcMood, string>; 
 
 // Cheap cards are common, costly ones rarer; the last card of a pack is always a strong one.
 const rollBooster = (def: BoosterDef): CardData[] => {
-  const pool = BOOSTER_POOLS[def.faction];
+  const all = BOOSTER_POOLS[def.faction], pool = all.filter(c => !c.isFullArt), fullArts = all.filter(c => c.isFullArt);   // Full Art is its own rare event (below), never an ordinary draw
   const weight = (c: CardData) => (c.cost <= 1 ? 6 : c.cost === 2 ? 4 : c.cost === 3 ? 2 : 1);
   const draw = (list: readonly CardData[]) => {
     let roll = Math.random() * list.reduce((sum, c) => sum + weight(c), 0);
     for (const c of list) { roll -= weight(c); if (roll <= 0) return c; }
     return list[list.length - 1];
   };
-  const strong = pool.filter(c => c.cost >= 3 || c.isFullArt);
+  const strong = pool.filter(c => c.cost >= 3);
   const out: CardData[] = [];
   for (let i = 0; i < def.cards - 1; i++) out.push(draw(pool));
   out.push(draw(strong.length > 0 ? strong : pool));
+  if (fullArts.length > 0 && Math.random() < FULLART_PACK_CHANCE) out[Math.floor(Math.random() * (def.cards - 1))] = fullArts[Math.floor(Math.random() * fullArts.length)];   // 1 pack in 8 brings a Full Art
   return out.map(c => ({ ...c, rarity: rollRarity(!!c.isFullArt) }));   // every card can come in any rarity
 };
 

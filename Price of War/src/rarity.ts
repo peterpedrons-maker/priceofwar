@@ -10,11 +10,14 @@ export type Rarity = 'comum' | 'rara' | 'ultra' | 'secreta';
 export const RARITY_CODE: Record<Rarity, string> = { comum: 'C', rara: 'R', ultra: 'UR', secreta: 'S' };
 export const RARITY_NAME: Record<Rarity, string> = { comum: 'Comum', rara: 'Rara', ultra: 'Ultra rara', secreta: 'Secreta' };
 export const RARITY_ORDER: Record<Rarity, number> = { comum: 0, rara: 1, ultra: 2, secreta: 3 };
-// Probabilidade de cada cópia de um booster (por cópia, independente da carta). Ajustável em um lugar só.
-export const RARITY_ODDS = { padrao: { comum: 72, rara: 24, ultra: 4 }, fullart: { comum: 70, rara: 22, ultra: 8 } } as const;
+// Probabilidades de nível TCG (pesquisa da rodada 26: Pokémon ~1 Ilustração Rara a cada 13 pacotes e ~1 Especial a cada 80-90; Yu-Gi-Oh Ultra ~1 a cada 6 e Secret ~1 a cada 12).
+// Por cópia (um booster tem 5), independente da carta: Rara ≈ 1 pacote em 6; Ultra rara ≈ 1 pacote em 80 (quem tira uma teve muita sorte).
+// Uma Full Art também é rara de aparecer: só 1 pacote em 8 traz uma (FULLART_PACK_CHANCE); dentro dela, Rara e Ultra rara são mais prováveis que nas cartas padrão.
+export const RARITY_ODDS = { padrao: { rara: 0.035, ultra: 0.0025 }, fullart: { rara: 0.12, ultra: 0.03 } } as const;
+export const FULLART_PACK_CHANCE = 0.125;
 export const rollRarity = (isFullArt: boolean, rnd: () => number = Math.random): Rarity => {
-  const o = isFullArt ? RARITY_ODDS.fullart : RARITY_ODDS.padrao; let r = rnd() * (o.comum + o.rara + o.ultra);
-  if ((r -= o.comum) < 0) return 'comum'; if ((r -= o.rara) < 0) return 'rara'; return 'ultra';
+  const o = isFullArt ? RARITY_ODDS.fullart : RARITY_ODDS.padrao, r = rnd();
+  return r < o.ultra ? 'ultra' : r < o.ultra + o.rara ? 'rara' : 'comum';
 };
 export type Shine = 'none' | 'art' | 'name' | 'art+name' | 'card';
 export const shineOf = (rarity: Rarity | undefined, isFullArt: boolean): Shine => {
