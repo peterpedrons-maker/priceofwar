@@ -122,3 +122,13 @@ export const fetchRanking = async (limit = 50): Promise<{ rows: RankingRow[]; me
 
 // Pays the Coroas of a finished season (once). `coroas_after` is the new balance, to show at once.
 export const claimSeason = async (season: number): Promise<{ coroas: number; coroas_after: number; profile: RankedView } | null> => { const r = await call({ op: 'claim', season }); return r && r.ok === true && r.status === 'claimed' ? { coroas: r.coroas, coroas_after: r.coroas_after, profile: r.profile } : null; };
+
+// GM mode (only the owner's account): the server answers `forbidden` to everybody else, so a normal player gets null and never sees the panel.
+export interface AdminInfo {
+  accounts: number; newToday: number; newWeek: number; recent: { username: string; created_at: string }[]; online: number;
+  waitingCasual: number; waitingRanked: number; playingCasual: number; playingRanked: number; vsBot: number; matches24h: number;
+  top: { rank: number; name: string; points: number; label: string }[]; season: number; me: { id: string; email: string | null };
+}
+export const fetchAdmin = async (): Promise<AdminInfo | null> => { const r = await call({ op: 'admin' }); return r && r.ok === true && r.status === 'admin' ? (r.admin as AdminInfo) : null; };
+// "I am here": a light mark every ~90 s while the app is open (the GM panel counts the recent ones as online).
+export const pingPresence = () => { void call({ op: 'ping' }); };

@@ -2,7 +2,7 @@
 // apply_match_rewards functions are created by docs/supabase-online.sql and docs/supabase-online-2.sql.
 import type { Seat } from '../src/engine/types';
 import type { RankedProfile } from '../src/engine/ranked';
-import type { Db, EmoteRow, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
+import type { AdminOverview, Db, EmoteRow, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
 
 // Only the tiny part of the supabase-js client this file touches.
 type Client = any;
@@ -20,6 +20,23 @@ const profileFromDb = (r: any): RankedProfile => ({ points: r.points, mmr: r.mmr
 const matchFromDb = (r: any): MatchRow => ({ ...r, turn_deadline: r.turn_deadline === null || r.turn_deadline === undefined ? null : Number(r.turn_deadline), timeouts: r.timeouts ?? [0, 0], ranked: !!r.ranked, ranked_done: !!r.ranked_done });
 
 export const supabaseDb = (c: Client): Db => ({
+  async presenceTouch(userId) {
+    must(await c.from('presence').upsert({ user_id: userId, seen_at: new Date().toISOString() }, { onConflict: 'user_id' }), 'presence');
+  },
+  async adminOverview(nowMs, onlineMs): Promise<AdminOverview> {
+    const iso = (ms: number) => new Date(ms).toISOString(), day = 864e5;
+    const head = (t: string) => c.from(t).select('*', { count: 'exact', head: true });
+    const count = async (q: any, tolerant = false): Promise<number> => { const r = await q; if (r.error) { if (tolerant) return 0; throw new Error(`admin count: ${r.error.message ?? r.error}`); } return r.count ?? 0; };
+    const [accounts, newToday, newWeek, online, waitingCasual, waitingRanked, playingCasual, playingRanked, vsBot, matches24h] = await Promise.all([
+      count(head('profiles')), count(head('profiles').gte('created_at', iso(nowMs - day))), count(head('profiles').gte('created_at', iso(nowMs - 7 * day))),
+      count(head('presence').gte('seen_at', iso(nowMs - onlineMs)), true),   // (0 while the presence table has not been created yet)
+      count(head('queue').eq('ranked', false).gte('created_at', iso(nowMs - 30000))), count(head('queue').eq('ranked', true).gte('created_at', iso(nowMs - 30000))),
+      count(head('matches').eq('status', 'active').eq('ranked', false).is('bot_seat', null)), count(head('matches').eq('status', 'active').eq('ranked', true).is('bot_seat', null)),
+      count(head('matches').eq('status', 'active').not('bot_seat', 'is', null)), count(head('matches').gte('created_at', iso(nowMs - day))),
+    ]);
+    const recent = must(await c.from('profiles').select('username, created_at').order('created_at', { ascending: false }).limit(15), 'recent accounts') as { username: string; created_at: string }[];
+    return { accounts, newToday, newWeek, recent: recent ?? [], online, waitingCasual, waitingRanked, playingCasual, playingRanked, vsBot, matches24h };
+  },
   async collection(userId) {
     const rows = must(await c.from('collection').select('card_name, copies').eq('user_id', userId).limit(5000), 'collection') as { card_name: string; copies: number }[];
     const out: Record<string, number> = {};

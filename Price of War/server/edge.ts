@@ -30,7 +30,9 @@ Deno.serve(async (req) => {
     if (raw.length > 100_000) return json({ ok: false, error: 'Pedido grande demais.' }, 413);
     let body: GameRequest;
     try { body = JSON.parse(raw) as GameRequest; } catch { return json({ ok: false, error: 'Pedido inválido.' }, 400); }
-    return json(await handleGame(supabaseDb(admin), data.user.id, body));
+    const list = (name: string) => (Deno.env.get(name) ?? '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+    const who = { email: data.user.email ?? null, verified: !!data.user.email_confirmed_at, admins: list('ADMIN_EMAILS'), adminIds: list('ADMIN_USER_IDS') };
+    return json(await handleGame(supabaseDb(admin), data.user.id, body, undefined, who));
   } catch (e) {
     console.error('game function error', e);
     return json({ ok: false, error: 'Erro no servidor de partidas. Tente de novo.' }, 500);

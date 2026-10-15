@@ -88,7 +88,17 @@ export interface EmoteRow { id: number; seat: Seat; code: string; at: number }
 // One finished season of one player: the highest league reached and the Coroas it pays (`claimed` once paid).
 export interface SeasonRow { user_id?: string; season: number; peak: number; league: string; coroas: number; claimed: boolean }
 
+// What the GM panel (only the owner's account) is shown: everything is counted by the server, never by the device.
+export interface AdminOverview {
+  accounts: number; newToday: number; newWeek: number; recent: { username: string; created_at: string }[];
+  online: number;                 // seen (a ping every ~90 s) in the last 3 minutes
+  waitingCasual: number; waitingRanked: number; playingCasual: number; playingRanked: number; vsBot: number; matches24h: number;
+}
+
 export interface Db {
+  // A player's "I am here" mark (presence table); the GM panel counts the recent ones as online.
+  presenceTouch(userId: string): Promise<void>;
+  adminOverview(nowMs: number, onlineMs: number): Promise<AdminOverview>;
   collection(userId: string): Promise<Record<string, number>>;
   profile(userId: string): Promise<{ username: string; avatar_id: string; level: number; xp: number; coroas: number } | null>;
   // Atomically removes and returns the oldest waiting entry belonging to someone else.

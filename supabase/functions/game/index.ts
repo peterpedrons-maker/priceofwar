@@ -3802,7 +3802,7 @@ var finishIfStale = async (db, cfg, m) => {
   }
   return m;
 };
-var OPS = /* @__PURE__ */ new Set(["queue", "ranked", "claim", "ranking", "status", "cancel", "act", "tick", "result", "emote", "emotes"]);
+var OPS = /* @__PURE__ */ new Set(["ping", "admin", "queue", "ranked", "claim", "ranking", "status", "cancel", "act", "tick", "result", "emote", "emotes"]);
 var badRequest = (req) => {
   if (!req || typeof req !== "object" || Array.isArray(req)) return "Pedido inv\xE1lido.";
   const r = req;
@@ -3850,10 +3850,25 @@ var cleanRar = (raw, cards, collection) => {
   }
   return Object.keys(out).length ? out : void 0;
 };
-var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
+var isAdmin = (userId, who) => !!who.adminIds?.includes(userId) || !!who.verified && !!who.email && !!who.admins?.includes(who.email.toLowerCase());
+var ONLINE_MS = 3 * 60 * 1e3;
+var handleGame = async (db, userId, req, cfg = defaultConfig(), who = {}) => {
   const invalid = badRequest(req);
   if (invalid) return { ok: false, error: invalid };
   switch (req.op) {
+    case "ping": {
+      try {
+        await db.presenceTouch(userId);
+      } catch {
+      }
+      return { ok: true, status: "none" };
+    }
+    case "admin": {
+      if (!isAdmin(userId, who)) return { ok: false, error: "forbidden" };
+      const overview = await db.adminOverview(cfg.now(), ONLINE_MS), cal = await calendar(db, cfg);
+      const top = (await db.rankedTop(5, cal.number)).map((r, i) => ({ rank: i + 1, name: r.username, points: r.profile.points, label: leagueLabel(r.profile.points, false) }));
+      return { ok: true, status: "admin", admin: { ...overview, top, season: cal.number, me: { id: userId, email: who.email ?? null } } };
+    }
     case "queue": {
       if (!req.cards || typeof req.cards !== "object" || typeof req.general !== "string") return { ok: false, error: "Deck inv\xE1lido." };
       const cards = currentNames(req.cards), general = currentCardName(req.general);
@@ -4018,6 +4033,36 @@ var viewFromDb = (r) => ({ n: r.n, viewer: r.viewer, user: r.viewer_user, actor:
 var profileFromDb = (r) => ({ points: r.points, mmr: r.mmr, games: r.games, wins: r.wins, losses: r.losses, shield: r.shield, peak: r.peak, season: r.season ?? 1, frame: r.frame ?? null });
 var matchFromDb = (r) => ({ ...r, turn_deadline: r.turn_deadline === null || r.turn_deadline === void 0 ? null : Number(r.turn_deadline), timeouts: r.timeouts ?? [0, 0], ranked: !!r.ranked, ranked_done: !!r.ranked_done });
 var supabaseDb = (c) => ({
+  async presenceTouch(userId) {
+    must(await c.from("presence").upsert({ user_id: userId, seen_at: (/* @__PURE__ */ new Date()).toISOString() }, { onConflict: "user_id" }), "presence");
+  },
+  async adminOverview(nowMs, onlineMs) {
+    const iso = (ms) => new Date(ms).toISOString(), day = 864e5;
+    const head = (t) => c.from(t).select("*", { count: "exact", head: true });
+    const count = async (q, tolerant = false) => {
+      const r = await q;
+      if (r.error) {
+        if (tolerant) return 0;
+        throw new Error(`admin count: ${r.error.message ?? r.error}`);
+      }
+      return r.count ?? 0;
+    };
+    const [accounts, newToday, newWeek, online, waitingCasual, waitingRanked, playingCasual, playingRanked, vsBot, matches24h] = await Promise.all([
+      count(head("profiles")),
+      count(head("profiles").gte("created_at", iso(nowMs - day))),
+      count(head("profiles").gte("created_at", iso(nowMs - 7 * day))),
+      count(head("presence").gte("seen_at", iso(nowMs - onlineMs)), true),
+      // (0 while the presence table has not been created yet)
+      count(head("queue").eq("ranked", false).gte("created_at", iso(nowMs - 3e4))),
+      count(head("queue").eq("ranked", true).gte("created_at", iso(nowMs - 3e4))),
+      count(head("matches").eq("status", "active").eq("ranked", false).is("bot_seat", null)),
+      count(head("matches").eq("status", "active").eq("ranked", true).is("bot_seat", null)),
+      count(head("matches").eq("status", "active").not("bot_seat", "is", null)),
+      count(head("matches").gte("created_at", iso(nowMs - day)))
+    ]);
+    const recent = must(await c.from("profiles").select("username, created_at").order("created_at", { ascending: false }).limit(15), "recent accounts");
+    return { accounts, newToday, newWeek, recent: recent ?? [], online, waitingCasual, waitingRanked, playingCasual, playingRanked, vsBot, matches24h };
+  },
   async collection(userId) {
     const rows = must(await c.from("collection").select("card_name, copies").eq("user_id", userId).limit(5e3), "collection");
     const out = {};
@@ -4182,7 +4227,9 @@ Deno.serve(async (req) => {
     } catch {
       return json({ ok: false, error: "Pedido inv\xE1lido." }, 400);
     }
-    return json(await handleGame(supabaseDb(admin), data.user.id, body));
+    const list = (name) => (Deno.env.get(name) ?? "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+    const who = { email: data.user.email ?? null, verified: !!data.user.email_confirmed_at, admins: list("ADMIN_EMAILS"), adminIds: list("ADMIN_USER_IDS") };
+    return json(await handleGame(supabaseDb(admin), data.user.id, body, void 0, who));
   } catch (e) {
     console.error("game function error", e);
     return json({ ok: false, error: "Erro no servidor de partidas. Tente de novo." }, 500);

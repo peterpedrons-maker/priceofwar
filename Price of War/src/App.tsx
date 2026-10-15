@@ -247,7 +247,7 @@ import type { Trigger } from './engine/types';
 import { preloadTerrainFx, syncTerrainFx, clearTerrainFx, type TerrainFxKind } from './terrainFx';
 import { syncCampoLayers, clearCampoLayers, fxForjaPlaced, fxForjaModo, fxFogoPlaced, fxFogoTrincheira, fxFogoSaque, fxNoitePlay, fxNoiteTrail, fxMata, fxArsenalPlaced, fxForjaEquip, fxFogoEquip, fxArsenalEquip } from './campoFx';
 import { DesafiosScreen, type DzDeck, type DzOpponent } from './DesafiosScreen';
-import { cancelQueue, fetchResult, fetchViews, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
+import { cancelQueue, fetchAdmin, fetchResult, fetchViews, pingPresence, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type AdminInfo, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
 import { STEPS as TUT_STEPS, BEATS as TUT_BEATS, COIN_STEP as TUT_COIN_STEP, OUTRO as TUT_OUTRO, CHAPTERS as TUT_CHAPTERS, createTutorialMatch, nextEnemyAction as tutEnemyAction, type Step as TutStep, type Tgt as TutTgt, type Until as TutUntil } from './tutorial/script';
 import { KitWindow, KitTitle, KitButton, KitRow, KitTab, KitToggle, KitRange, KitIconButton, KitPlate, KitCount, KitSearch, KitIcon, KitCoins, KitField, PromptTitle, KIT_ICONS } from './ui/Kit';
@@ -3402,6 +3402,48 @@ const MenuCard = ({ icon, title, bgImage, widthPct, onClick }: {
 // of these screens exist yet, so every one opens ComingSoonModal for now (see
 // MainMenu). Same tap feedback as the cards minus the sparks: it sinks, the plaque
 // flashes gold, the icon glows, and the window opens after the confirm beat.
+const MenuTextButton = ({ text, label, onClick }: { text: string; label: string; onClick: () => void }) => {
+  const { phase, handlers } = useMenuTap(onClick);
+  return (
+    <motion.button {...handlers} animate={{ scale: phase !== 'idle' ? 0.96 : 1 }} transition={{ duration: 0.09 }} className="flex flex-col items-center gap-1">
+      <div className="relative w-14 h-14 drop-shadow-[0_3px_4px_rgba(0,0,0,0.6)]">
+        <img src={uiIconButtonImage} alt="" className="absolute inset-0 w-full h-full select-none" draggable={false} />
+        <span className="absolute inset-0 flex items-center justify-center text-[#ffe9b0] font-black tracking-[0.08em]" style={{ fontFamily: "'Cinzel', serif", fontSize: 17, textShadow: '0 2px 3px #000' }}>{text}</span>
+      </div>
+      <span className="text-[10px] uppercase tracking-[0.14em] text-[#e8d6a8]" style={{ fontFamily: "'Cinzel', serif", textShadow: '0 1px 2px #000' }}>{label}</span>
+    </motion.button>
+  );
+};
+
+// The GM panel (owner's account only, server-checked): who made an account, how many are online and playing right now. Refreshes by itself while open.
+const ago = (iso: string) => { const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000)); return m < 1 ? 'agora' : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.round(m / 60)} h` : `há ${Math.round(m / 1440)} d`; };
+const GmPanel = ({ first, onClose }: { first: AdminInfo; onClose: () => void }) => {
+  const [d, setD] = useState<AdminInfo>(first), [busy, setBusy] = useState(false), [at, setAt] = useState(Date.now());
+  const refresh = async () => { setBusy(true); const r = await fetchAdmin(); if (r) { setD(r); setAt(Date.now()); } setBusy(false); };
+  useEffect(() => { const id = window.setInterval(() => void refresh(), 20000); return () => window.clearInterval(id); }, []);
+  const Row = ({ k, v, strong }: { k: string; v: React.ReactNode; strong?: boolean; key?: React.Key }) => (
+    <div className="flex items-baseline justify-between gap-3 py-[3px] border-b border-[#d4af37]/15"><span className="text-[12px] text-[#cdbd97]">{k}</span><span className={`${strong ? 'text-[18px] text-[#ffe9b0]' : 'text-[13px] text-[#f3e3c3]'} font-black`} style={{ fontFamily: "'Cinzel', serif" }}>{v}</span></div>
+  );
+  const Sec = ({ t, children }: { t: string; children: React.ReactNode }) => (<div className="mt-3"><div className="text-[10px] uppercase tracking-[0.2em] text-[#e8c766] mb-1" style={{ fontFamily: "'Cinzel', serif" }}>{t}</div>{children}</div>);
+  return (
+    <div className="fixed inset-0 z-[700] flex items-center justify-center p-3 bg-black/80" onClick={onClose}>
+      <div className="w-full max-w-[420px] max-h-[88dvh] overflow-y-auto rounded-xl border border-[#d4af37]/60 p-4 text-white" style={{ background: 'linear-gradient(#1c130b,#0d0905)', boxShadow: '0 12px 40px rgba(0,0,0,.8)' }} onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <div className="text-[15px] tracking-[0.2em] text-[#ffe9b0]" style={{ fontFamily: "'Cinzel', serif" }}>PAINEL GM</div>
+          <div className="flex gap-2"><button className="px-3 py-1 text-[11px] rounded border border-[#d4af37]/50 text-[#ffe9b0]" onClick={() => void refresh()}>{busy ? '…' : 'Atualizar'}</button><button className="px-3 py-1 text-[11px] rounded border border-[#d4af37]/50 text-[#ffe9b0]" onClick={onClose}>Fechar</button></div>
+        </div>
+        <div className="text-[10px] text-[#8f8366] mt-1">Atualiza sozinho a cada 20 s · última leitura {new Date(at).toLocaleTimeString('pt-BR')}</div>
+        <Sec t="Agora"><Row k="Jogadores online (últimos 3 min)" v={d.online} strong /><Row k="Na fila (casual / ranqueada)" v={`${d.waitingCasual} / ${d.waitingRanked}`} /><Row k="Jogando contra pessoas (casual / ranqueada)" v={`${d.playingCasual} / ${d.playingRanked}`} /><Row k="Jogando contra a IA" v={d.vsBot} /></Sec>
+        <Sec t="Contas"><Row k="Total de contas" v={d.accounts} strong /><Row k="Criadas nas últimas 24 h" v={d.newToday} /><Row k="Criadas nos últimos 7 dias" v={d.newWeek} />
+          <div className="mt-1 max-h-[170px] overflow-y-auto">{d.recent.map((r, i) => <div key={i} className="flex justify-between text-[12px] py-[2px] text-[#e8d6a8]"><span className="truncate pr-2">{r.username}</span><span className="text-[#8f8366] shrink-0">{ago(r.created_at)}</span></div>)}</div></Sec>
+        <Sec t="Partidas"><Row k="Iniciadas nas últimas 24 h" v={d.matches24h} /></Sec>
+        <Sec t={`Topo do ranking (temporada ${d.season})`}>{d.top.length === 0 ? <div className="text-[12px] text-[#8f8366]">Ninguém pontuou ainda.</div> : d.top.map(r => <Row key={r.rank} k={`${r.rank}. ${r.name}`} v={`${r.label} · ${r.points}`} />)}</Sec>
+        <div className="mt-3 text-[10px] text-[#8f8366] break-all">Conta GM: {d.me.email ?? 'sem e-mail'} · id {d.me.id}</div>
+      </div>
+    </div>
+  );
+};
+
 const MenuIconButton = ({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) => {
   const { phase, handlers } = useMenuTap(onClick);
   const lit = phase !== 'idle';
@@ -3446,6 +3488,11 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
   const [roomOpen, setRoomOpen] = useState(() => new URLSearchParams(window.location.search).has('colecao'));   // the Sala de Coleção: the shop and the deck editor open over it, and closing them leaves you in it
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [soundOpen, setSoundOpen] = useState(false);
+  // GM mode: asked once per login; the server only answers the owner's account, so everybody else simply never sees the button.
+  const [gm, setGm] = useState<AdminInfo | null>(null);
+  const [gmOpen, setGmOpen] = useState(false);
+  useEffect(() => { setGm(null); if (authMode === 'supabase' && session) void fetchAdmin().then(setGm); }, [session?.userId]);
+  useEffect(() => { if (DEBUG_HOOKS && new URLSearchParams(window.location.search).has('gmdemo')) setGm({ accounts: 128, newToday: 6, newWeek: 31, recent: [{ username: 'Aurelia', created_at: new Date(Date.now() - 12 * 60000).toISOString() }, { username: 'Brann77', created_at: new Date(Date.now() - 5 * 3600000).toISOString() }, { username: 'Osric', created_at: new Date(Date.now() - 30 * 3600000).toISOString() }], online: 9, waitingCasual: 1, waitingRanked: 0, playingCasual: 2, playingRanked: 1, vsBot: 3, matches24h: 57, top: [{ rank: 1, name: 'Aurelia', points: 1240, label: 'Ouro II' }], season: 3, me: { id: 'demo', email: 'dono@exemplo.com' } }); }, []);   // (test only: `?debug&gmdemo` shows the panel with made-up numbers)
   const updateProfile = (patch: Partial<PlayerProfile>) => {
     setProfile(prev => {
       const next = { ...prev, ...patch };
@@ -3564,7 +3611,9 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
         <MenuIconButton icon={uiIconTutoriaisImage} label="Tutoriais" onClick={onTutorials} />
         <MenuIconButton icon={uiIconRankingImage} label="Ranking" onClick={() => setRankingOpen(true)} />
         <MenuIconButton icon={uiIconSomImage} label="Opções" onClick={() => setSoundOpen(true)} />
+        {gm && <MenuTextButton text="GM" label="GM" onClick={() => setGmOpen(true)} />}
       </div>
+      {gmOpen && gm && <GmPanel first={gm} onClose={() => setGmOpen(false)} />}
     </motion.div>
   );
 };
@@ -5428,6 +5477,13 @@ export default function App() {
     const off = onSessionChange(sn => { setSession(sn); setAuthReady(true); });
     return () => { alive = false; off(); };
   }, []);
+  // Online agora: while the app is open and visible, a light "I am here" mark every ~90 s (only with an account; the GM panel counts them).
+  useEffect(() => {
+    if (authMode !== 'supabase' || !session) return;
+    const tick = () => { if (document.visibilityState === 'visible') pingPresence(); };
+    tick(); const id = window.setInterval(tick, 90000); document.addEventListener('visibilitychange', tick);
+    return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', tick); };
+  }, [session?.userId]);
   const [gameMode, setGameMode] = useState<string | null>(null);
   // ── Tutorial (see src/tutorial): the director's state ──
   type TutState = { id: string; idx: number; beat: TutStep[] | null; beatIdx: number; beatDone: (() => void) | null; token: number; enemyRound: number; enemyDone: number };

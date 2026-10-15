@@ -84,6 +84,24 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     ok(cheat.ok === false, 'too many copies');
   });
 
+  await test('GM: só a conta do dono (e-mail confirmado ou id) vê o painel; "online" vem do ping', async () => {
+    const db = fresh();
+    const owner = { email: 'Dono@Exemplo.com', verified: true, admins: ['dono@exemplo.com'], adminIds: [] as string[] };
+    const nope = await handleGame(db, 'A', { op: 'admin' }, cfg, { email: 'alice@x.com', verified: true, admins: ['dono@exemplo.com'] });
+    ok(nope.ok === false, 'um jogador comum não entra no painel');
+    const unverified = await handleGame(db, 'A', { op: 'admin' }, cfg, { ...owner, verified: false });
+    ok(unverified.ok === false, 'e-mail não confirmado não vale');
+    const noList = await handleGame(db, 'A', { op: 'admin' }, cfg, { email: 'dono@exemplo.com', verified: true, admins: [] });
+    ok(noList.ok === false, 'sem a lista de admins ninguém entra');
+    await handleGame(db, 'A', { op: 'ping' }, cfg); await handleGame(db, 'B', { op: 'ping' }, cfg);
+    const r = await handleGame(db, 'A', { op: 'admin' }, cfg, owner);
+    ok(r.ok === true && r.status === 'admin', 'o dono entra');
+    if (r.ok === true && r.status === 'admin') { eq([r.admin.accounts, r.admin.online, r.admin.me.email], [2, 2, 'Dono@Exemplo.com'], 'contas, online e quem está logado'); ok(Array.isArray(r.admin.top), 'topo do ranking'); }
+    const byId = await handleGame(db, 'A', { op: 'admin' }, cfg, { adminIds: ['a'] });
+    ok(byId.ok === false, 'id diferente não entra'); const byId2 = await handleGame(db, 'A', { op: 'admin' }, cfg, { adminIds: ['A'.toLowerCase()] });
+    ok(byId2.ok === false, 'o id precisa ser igual ao do login (A ≠ a aqui)');
+    const byId3 = await handleGame(db, 'A', { op: 'admin' }, cfg, { adminIds: ['A'] }); ok(byId3.ok === true, 'o id da lista vale');
+  });
   await test('versões (raridades): o adversário recebe só as versões que a conta tem, com o total de cópias da carta', async () => {
     const db = fresh();
     const d = deckOf('cardeal'), [card] = Object.keys(d.cards), copies = d.cards[card];

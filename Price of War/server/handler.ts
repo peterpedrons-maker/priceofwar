@@ -12,7 +12,7 @@ import type { Action, GameEvent, GameState, Seat } from '../src/engine/types';
 import { otherSeat } from '../src/engine/types';
 import { eventsFor, viewFor } from '../src/engine/view';
 import { LEAGUES, MESTRE_FROM, TOP_LEAGUE_SIZE, applyRankedMatch, closeSeason, leagueLabel, mmrWindow, leagueOf, newRankedProfile, seasonAt, withTopLeague, type RankedProfile } from '../src/engine/ranked';
-import type { Db, DeckJson, DeckRar, EndReason, MatchPatch, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
+import type { AdminOverview, Db, DeckJson, DeckRar, EndReason, MatchPatch, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
 
 export interface GameConfig {
   // A waiting player refreshes their queue entry with every status poll; an entry older than this is a player who left, and is skipped.
@@ -113,7 +113,9 @@ export type GameRequest =
   | { op: 'tick'; matchId: string; since?: number }
   | { op: 'result'; matchId: string }
   | { op: 'emote'; matchId: string; code: string; since?: number }
-  | { op: 'emotes'; matchId: string; since?: number };
+  | { op: 'emotes'; matchId: string; since?: number }
+  | { op: 'ping' }
+  | { op: 'admin' };
 
 export type GameResponse =
   | { ok: true; status: 'waiting' | 'none' }
@@ -123,6 +125,7 @@ export type GameResponse =
   | { ok: true; status: 'ranked'; profile: RankedView }
   | { ok: true; status: 'claimed'; coroas: number; coroas_after: number; profile: RankedView }
   | { ok: true; status: 'ranking'; rows: { rank: number; user: string; name: string; avatarId: string; points: number; label: string; top: boolean; me: boolean }[]; me: RankedView }
+  | { ok: true; status: 'admin'; admin: AdminOverview & { top: { rank: number; name: string; points: number; label: string }[]; season: number; me: { id: string; email: string | null } } }
   | { ok: true; status: 'emotes'; emotes: { id: number; from: 0 | 1; code: string }[] }
   | { ok: false; error: string };
 
@@ -378,7 +381,7 @@ const finishIfStale = async (db: Db, cfg: GameConfig, m: MatchRow | null): Promi
 
 // ── Requests ────────────────────────────────────────────────────────────────
 // A request is untrusted input from a phone: the shape and sizes are checked before anything reads it (the game rules themselves are checked by the engine).
-const OPS = new Set(['queue', 'ranked', 'claim', 'ranking', 'status', 'cancel', 'act', 'tick', 'result', 'emote', 'emotes']);
+const OPS = new Set(['ping', 'admin', 'queue', 'ranked', 'claim', 'ranking', 'status', 'cancel', 'act', 'tick', 'result', 'emote', 'emotes']);
 export const badRequest = (req: unknown): string | null => {
   if (!req || typeof req !== 'object' || Array.isArray(req)) return 'Pedido inválido.';
   const r = req as Record<string, unknown>;
@@ -421,10 +424,26 @@ const cleanRar = (raw: unknown, cards: Record<string, number>, collection: Recor
   return Object.keys(out).length ? out : undefined;
 };
 
-export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: GameConfig = defaultConfig()): Promise<GameResponse> => {
+// Who is asking, as the Edge Function knows it from the verified login: the email counts only when it is confirmed, and `admins` / `adminIds` come from secrets
+// (ADMIN_EMAILS, ADMIN_USER_IDS), never from the code or the request.
+export interface Who { email?: string | null; verified?: boolean; admins?: string[]; adminIds?: string[] }
+const isAdmin = (userId: string, who: Who) => !!who.adminIds?.includes(userId) || (!!who.verified && !!who.email && !!who.admins?.includes(who.email.toLowerCase()));
+const ONLINE_MS = 3 * 60 * 1000;
+
+export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: GameConfig = defaultConfig(), who: Who = {}): Promise<GameResponse> => {
   const invalid = badRequest(req);
   if (invalid) return { ok: false, error: invalid };
   switch (req.op) {
+    case 'ping': {
+      try { await db.presenceTouch(userId); } catch { /* the mark is optional (the table may not exist yet) */ }
+      return { ok: true, status: 'none' };
+    }
+    case 'admin': {
+      if (!isAdmin(userId, who)) return { ok: false, error: 'forbidden' };
+      const overview = await db.adminOverview(cfg.now(), ONLINE_MS), cal = await calendar(db, cfg);
+      const top = (await db.rankedTop(5, cal.number)).map((r, i) => ({ rank: i + 1, name: r.username, points: r.profile.points, label: leagueLabel(r.profile.points, false) }));
+      return { ok: true, status: 'admin', admin: { ...overview, top, season: cal.number, me: { id: userId, email: who.email ?? null } } };
+    }
     case 'queue': {
       if (!req.cards || typeof req.cards !== 'object' || typeof req.general !== 'string') return { ok: false, error: 'Deck inválido.' };
       // saves antigos (decks e coleção) podem ter os nomes que os Mercenários tinham antes da rodada 18

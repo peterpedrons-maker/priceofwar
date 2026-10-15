@@ -1,10 +1,10 @@
 // An in-memory Db: used by the tests and by the local mock server, so the very same handler runs without Supabase.
 import type { Seat } from '../src/engine/types';
 import type { RankedProfile } from '../src/engine/ranked';
-import type { Db, EmoteRow, SeasonRow, MatchPatch, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
+import type { AdminOverview, Db, EmoteRow, SeasonRow, MatchPatch, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
 
 export interface MemoryTables {
-  profiles: { id: string; username: string; avatar_id: string; level?: number; xp?: number; coroas?: number }[];
+  profiles: { id: string; username: string; avatar_id: string; level?: number; xp?: number; coroas?: number; created_at?: string }[];
   collection: { user_id: string; card_name: string; copies: number }[];
 }
 
@@ -28,6 +28,22 @@ export class MemoryDb implements Db {
   async profile(userId: string) {
     const p = this.tables.profiles.find(x => x.id === userId);
     return p ? { username: p.username, avatar_id: p.avatar_id, level: p.level ?? 1, xp: p.xp ?? 0, coroas: p.coroas ?? 150 } : null;
+  }
+  presence = new Map<string, number>();
+  now = () => Date.now();
+  async presenceTouch(userId: string) { this.presence.set(userId, this.now()); }
+  async adminOverview(nowMs: number, onlineMs: number): Promise<AdminOverview> {
+    const day = 864e5, at = (p: { created_at?: string }) => (p.created_at ? Date.parse(p.created_at) : nowMs);
+    const ps = [...this.tables.profiles].sort((a, b) => at(b) - at(a));
+    const active = this.matches.filter(m => m.status === 'active');
+    return {
+      accounts: ps.length, newToday: ps.filter(p => nowMs - at(p) < day).length, newWeek: ps.filter(p => nowMs - at(p) < 7 * day).length,
+      recent: ps.slice(0, 15).map(p => ({ username: p.username, created_at: p.created_at ?? new Date(nowMs).toISOString() })),
+      online: [...this.presence.values()].filter(t => nowMs - t < onlineMs).length,
+      waitingCasual: this.queue.filter(q => !q.ranked).length, waitingRanked: this.queue.filter(q => q.ranked).length,
+      playingCasual: active.filter(m => m.bot_seat === null && !m.ranked).length, playingRanked: active.filter(m => m.bot_seat === null && m.ranked).length,
+      vsBot: active.filter(m => m.bot_seat !== null).length, matches24h: this.matches.filter(m => nowMs - Date.parse(m.created_at) < day).length,
+    };
   }
   rankedRows = new Map<string, RankedProfile>();
   seasonRows: SeasonRow[] = [];
