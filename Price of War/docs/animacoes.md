@@ -520,3 +520,7 @@ Em `public/mockups/equipamento/index.html`, opção **C**: sem barra e 100% dent
 - **Efeito pronto para ativar** (`AbilityReadyGlow`): volta ao visual antigo, só um **brilho dourado que sobe pela carta, de baixo para cima**, repetindo. Sem aro por fora, sem névoa por dentro, sem descida.
 - **Mover/atacar** usa outro sinal: contorno fino azul (carta escolhida) e verde (destinos) por `fxSelection`, mais as setas. Enquanto há seleção de mover/atacar, os brilhos de "efeito pronto" somem, para não se sobrepor.
 - **Nada por cima de carta grande ou janela:** a prévia da carta, a Emboscada, os Contratos e a Relíquia levam `data-fx-cover`; contorno e setas (`cardFx.ts`, `covered()`) não são desenhados enquanto algum desses existe, porque o canvas deles fica acima (z 288).
+
+### Como gravar os efeitos em vídeo (rodada 26)
+`tools/video/`: `gerar-defs.ts` (textos das cartas do catálogo) → `gravar-efeitos.cjs` (abre uma partida de teste com `?debug`, monta 23 cenas com `__powSet`/`__powAct` e grava frames pelo CDP em 2x, com um clarão branco de sincronia; `ONLY=03,19` grava só algumas; `PW=` aponta o módulo do Playwright) → `cortar-clipes.py` (um MP4 por cena). Cuidado: o vídeo nativo do Playwright não serve (mostra o jogo pequeno no canto).
+- O aviso "Fulano ataca X. Ativar Emboscada?" não aparece mais como aviso solto por baixo do pedido grande (era o mesmo texto duplicado).

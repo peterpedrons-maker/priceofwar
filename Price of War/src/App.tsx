@@ -6734,6 +6734,7 @@ export default function App() {
         }
         case 'log':
           if (e.text.includes(' equipado: ')) break;   // the equip scene says it itself
+          if (e.text.includes('ativar Emboscada?')) break;   // the big prompt asks it already; the toast would stack under it
           // The AI's own prompts and its ambush line have their own wording elsewhere.
           if (e.seat === 1 && (e.text.includes('ativar Emboscada?') || e.text.startsWith('Emboscada ativada') || e.text.startsWith('Você tem') || e.text.startsWith('Contrato:'))) break;
           if (e.text.startsWith('Contrato:')) break;   // the prompt itself says it
