@@ -6627,6 +6627,13 @@ export default function App() {
           shieldOverSlot(side, e.slot, 'appear', e.block, afterReinforce ? 1900 : 0);
           break;
         }
+        case 'passive': {
+          // A standing effect (Terreno, Relíquia, an aura) just changed this combat: the card flashes once, for both players to see.
+          if (opts.quietTurn) break;
+          const src = engineRef.current?.players[e.seat].board[e.slot];
+          if (src) burstAt(ownerId(e.seat), e.slot, toCardData(src), 'postura', e.after ? 700 : 0);
+          break;
+        }
         case 'shield_hit': {
           if (opts.quietTurn) break;
           const side = e.seat === 0 ? 'player' : 'npc';

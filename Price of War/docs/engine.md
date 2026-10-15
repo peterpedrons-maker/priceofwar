@@ -109,3 +109,5 @@ O que cada carta faz está no catálogo, descrito por tipos de efeito (sem códi
 `createMatch({ first })` recebe o vencedor da moeda. Localmente (contra a IA) o cliente já cria a partida com a escolha feita. Online, a partida nasce com `first` = vencedor e ele manda `{ type: 'choose_first', goFirst }` antes do `begin`: só vale antes do início e só para quem é `turn.active` (o vencedor); ajusta `turn.first` e `turn.active`. `begin` começa o turno de `turn.first`.
 
 - Evento `draw` tem `from?: 'graveyard'` quando a carta voltou do cemitério (escolha de `graveyard_soldier`): o cliente faz a alma carregá-la até a mão em vez de sair do baralho.
+
+- Evento `passive` (`{ seat, slot, after? }`): um efeito fixo (Terreno, Relíquia, aura) mudou o combate, ou um efeito "depois de atacar" disparou; só para a tela brilhar a carta, uma vez por carta por combate.

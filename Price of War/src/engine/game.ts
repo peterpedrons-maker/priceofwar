@@ -12,7 +12,7 @@ import { pickRandom, seedFrom, shuffled } from './rng';
 import {
   COMBAT_FROM_ROUND, DRAW_PER_TURN, GOLD_FROM_ROUND, GOLD_PER_TURN, HAND_LIMIT, START_GOLD, START_HAND,
   SOLDIER_TYPES, abilityOn, abilityPhases, adjacentSlots, areSlotsAdjacent, auraTotal, blocksAmbush, canPlaceInSlot, canReposition,
-  getAuraCombatHpBonus, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction, getMaxAttacksPerTurn, getMoveRow,
+  getAuraCombatHpBonus, type AuraHit, getCardDropKind, getEffectiveAtk, getIncomingDamageReduction, getMaxAttacksPerTurn, getMoveRow,
   getValidAttackTargets, isBackline, isCardDamaged, isFrontline, isUnitSlot, locksGeneralOnDamage, reinforceShield, canReinforce,
   restingPhasesForTurn, specCandidatesOn, targetSpecsOf, verbsOn, canPlayInPhase, withEquippedWeapons, hasVerb, passivesOf, relicModeOf, terrainModeOf, maxGeneralAbilityUses, upkeepOf, type Board,
 } from './rules';
@@ -633,7 +633,9 @@ const runVerb = (c: Ctx, fx: Fx, v: Verb, slot: number | undefined) => {
 // Runs a card's own automatic abilities of one kind (place, destroyed, healed, turn_start…): no player choice involved.
 const runAbilities = (c: Ctx, seat: Seat, card: Card, slot: number, on: AbilityOn) => {
   const fx: Fx = { seat, source: card, slot, targets: [] };
-  verbsOn(card.name, on).forEach(v => runVerb(c, fx, v, undefined));
+  const verbs = verbsOn(card.name, on);
+  if (on === 'after_attack' && verbs.length > 0) c.ev.push({ t: 'passive', seat, slot, after: true });   // Batedor and friends: the card flashes after the blow, then its effect happens
+  verbs.forEach(v => runVerb(c, fx, v, undefined));
 };
 
 // Aurelion-style bonus: the units that moved this turn (up to `count`) get a one-time combat bonus.
@@ -914,7 +916,8 @@ const resolveCombat = (c: Ctx, aSeat: Seat, from: number, to: number, ambush: Ca
   const defender = dBoard[target]!;
   const dead: { seat: Seat; slot: number; card: Card }[] = [];
 
-  let attackerAtk = getEffectiveAtk(attacker, from, aBoard, dBoard);
+  const hitsA: AuraHit[] = [], hitsD: AuraHit[] = [];   // the standing effects (Terreno, Relíquia, auras) that changed this combat; they flash once each
+  let attackerAtk = getEffectiveAtk(attacker, from, aBoard, dBoard, hitsA);
   // `attack_bonus` (Ofensiva): extra ATK for this attack, possibly only against a General of another faction.
   verbsOn(attacker.name, 'attack').forEach(v => {
     if (v.kind !== 'attack_bonus') return;
@@ -923,11 +926,18 @@ const resolveCombat = (c: Ctx, aSeat: Seat, from: number, to: number, ambush: Ca
     if (v.ifTarget === 'general' && target !== GENERAL_SLOT) return;
     if (!v.ifEnemyGeneral || (foeGeneral && foeGeneral.faction !== myGeneral?.faction)) attackerAtk += v.amount;
   });
-  const defenderAtk = getEffectiveAtk(defender, target, dBoard, aBoard);
-  const attackerReduction = getIncomingDamageReduction(from, aBoard, dBoard);
-  const defenderReduction = getIncomingDamageReduction(target, dBoard, aBoard);
-  const attackerHpBonus = (attacker.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(from, aBoard);
-  const defenderHpBonus = (defender.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(target, dBoard);
+  const defenderAtk = getEffectiveAtk(defender, target, dBoard, aBoard, hitsD);
+  const redA: AuraHit[] = [], redD: AuraHit[] = [];
+  const attackerReduction = getIncomingDamageReduction(from, aBoard, dBoard, redA);
+  const defenderReduction = getIncomingDamageReduction(target, dBoard, aBoard, redD);
+  const attackerHpBonus = (attacker.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(from, aBoard, hitsA);
+  const defenderHpBonus = (defender.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(target, dBoard, hitsD);
+  // Flash each standing effect once per combat (never once per unit hit): a reduction only counts when there was a blow for it to soften.
+  if (attackerAtk > 0) hitsD.push(...redD);
+  if (defenderAtk > 0) hitsA.push(...redA);
+  const flashed = new Set<string>();
+  const flash = (hits: AuraHit[], ownSeat: Seat, foeSeat: Seat) => hits.forEach(h => { const seat = h.side === 'own' ? ownSeat : foeSeat, k = `${seat}:${h.slot}`; if (!flashed.has(k)) { flashed.add(k); c.ev.push({ t: 'passive', seat, slot: h.slot }); } });
+  flash(hitsA, aSeat, dSeat); flash(hitsD, dSeat, aSeat);
   const damageToDefender = Math.max(0, attackerAtk - defenderReduction);
   const damageToAttacker = Math.max(0, defenderAtk - attackerReduction);
 

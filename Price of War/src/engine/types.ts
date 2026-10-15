@@ -359,6 +359,8 @@ export type GameEvent =
   | { t: 'shield'; seat: Seat; slot: number; shield: number; block: boolean }
   // Damage met an Escudo or a Bloqueio: how much it soaked, what is left of the Escudo, and whether each one is gone now.
   | { t: 'shield_hit'; seat: Seat; slot: number; absorbed: number; left: number; broken: boolean; blocked: boolean }
+  // A card's standing effect (Terreno, Relíquia, an aura) changed this combat. One per card per combat, never one per unit: the screen flashes it once.
+  | { t: 'passive'; seat: Seat; slot: number; after?: boolean }
   | { t: 'equip'; seat: Seat; slot: number; card: Card; atk: number; hp: number }
   | { t: 'graveyard'; seat: Seat; card: Card }
   | { t: 'ability'; seat: Seat; slot: number; name: string }

@@ -96,7 +96,9 @@ const whoMatches = (who: Who, sourceSlot: number, targetSlot: number, target: { 
   return true;
 };
 // Sum of one stat over every aura that touches the card standing in `slot` of `own` (auras from its own side and from the enemy's).
-export const auraTotal = (stat: AuraStat, slot: number, own: Board, enemy: Board = []): number => {
+// `hits` (optional) collects which cards gave the bonus (side of the card as seen from `own`), so the screen can flash them once when the bonus actually mattered.
+export type AuraHit = { side: 'own' | 'enemy'; slot: number };
+export const auraTotal = (stat: AuraStat, slot: number, own: Board, enemy: Board = [], hits?: AuraHit[]): number => {
   const target = own[slot] ?? null;
   let total = 0;
   const scan = (board: Board, side: 'own' | 'enemy') => {
@@ -113,7 +115,9 @@ export const auraTotal = (stat: AuraStat, slot: number, own: Board, enemy: Board
         if (p.who.facingOwn && !(board[slot]?.cardType && p.who.facingOwn.includes(board[slot]!.cardType!))) continue;   // `board` é o lado de quem dá a aura
         if (p.needs === 'armed' && armedCount(source) === 0) continue;
         if (p.needs === 'terrain' && !board[11]) continue;
-        total += p[stat]! * (p.perEquip ? Math.min(armedCount(source), p.perEquip.cap) : 1);
+        const add = p[stat]! * (p.perEquip ? Math.min(armedCount(source), p.perEquip.cap) : 1);
+        total += add;
+        if (hits && add !== 0 && !hits.some(h => h.side === side && h.slot === src)) hits.push({ side, slot: src });
       }
     }
   };
@@ -201,7 +205,7 @@ export const isAliveAt = (board: Board, slot: number, name: string) => board[slo
 export const isCardDamaged = (card: Unit): boolean => card.hp < (getCardDef(card.name)?.hp ?? card.hp);
 
 // Extra HP a unit has only during combat (an aura like Marechal do Sol Poente's).
-export const getAuraCombatHpBonus = (slot: number, own: Board): number => auraTotal('combatHp', slot, own);
+export const getAuraCombatHpBonus = (slot: number, own: Board, hits?: AuraHit[]): number => auraTotal('combatHp', slot, own, [], hits);
 // An Emboscada is blocked while the ATTACKER's side has a card that stops them (Confessor Silencioso in its Vanguarda).
 export const blocksAmbush = (board: Board): boolean => boardHasFlag(board, 'blocks_ambush');
 // A card on the board that locks the General's ability when the General takes damage.
@@ -211,16 +215,16 @@ export const getMaxAttacksPerTurn = (card: { name: string }): number =>
   1 + passivesOf(card.name).reduce((n, p) => n + (p.kind === 'aura' && p.who.side === 'self' && p.attacks ? p.attacks : 0), 0);
 
 // A unit's ATK after every static aura that touches it, plus any one-time bonus it holds.
-export const getEffectiveAtk = (card: Unit, ownIndex: number, own: Board, enemy: Board): number => {
+export const getEffectiveAtk = (card: Unit, ownIndex: number, own: Board, enemy: Board, hits?: AuraHit[]): number => {
   let atk = card.atk + (card.pendingCombatBonus?.atk ?? 0);
   atk += card.formationBuffAtk ?? 0;
-  atk += auraTotal('atk', ownIndex, own, enemy);
+  atk += auraTotal('atk', ownIndex, own, enemy, hits);
   if (upkeepOf(card.name) > 0) atk += relicModeOf(own as Board)?.atk ?? 0;
   return Math.max(0, atk);
 };
 
-export const getIncomingDamageReduction = (ownIndex: number, own: Board, enemy: Board = []): number =>
-  auraTotal('reduce', ownIndex, own, enemy) + (own[ownIndex]?.dmgReduction ?? 0);
+export const getIncomingDamageReduction = (ownIndex: number, own: Board, enemy: Board = [], hits?: AuraHit[]): number =>
+  auraTotal('reduce', ownIndex, own, enemy, hits) + (own[ownIndex]?.dmgReduction ?? 0);
 
 // Lane-based targeting: which enemy slots the unit at `attackerIndex` can reach right now.
 export const getValidAttackTargets = (attackerIndex: number, attackerBoard: Board, enemyBoard: Board): Set<number> => {
