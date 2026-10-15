@@ -6,7 +6,7 @@
 import type { Action, GameEvent, GameState, Seat } from '../engine/types';
 import { getClient } from './auth';
 
-export interface DeckJson { general: string; cards: Record<string, number> }
+export interface DeckJson { general: string; cards: Record<string, number>; rar?: Record<string, { rara?: number; ultra?: number; secreta?: number }> }
 
 // One step of the match as this player sees it. `actor`: 0 = I acted, 1 = the opponent (or the bot) acted.
 export interface ViewRow {
@@ -39,6 +39,7 @@ export interface MatchInit {
   mySide?: 'cara' | 'coroa';
   myDeck: DeckJson;
   opponentGeneral: string;
+  opponentRar?: Record<string, { rara?: number; ultra?: number; secreta?: number }>;
   opponent: { name: string; avatarId: string; bot: boolean };
   start: GameState;
   rows: ViewRow[];
@@ -84,7 +85,7 @@ const asActResult = (r: any): ActResult =>
     ? { ok: true, rows: r.rows ?? [], finished: !!r.finished, deadline: r.deadline ?? null, now: r.now ?? Date.now(), reward: r.reward ?? null }
     : { ok: false, error: r?.error ?? 'Resposta inesperada do servidor.', unavailable: r?.unavailable };
 
-export const queueForMatch = (deck: DeckJson, vsBot: boolean, botDeck?: string, ranked = false): Promise<QueueResult> => call({ op: 'queue', cards: deck.cards, general: deck.general, vsBot, botDeck, ranked });
+export const queueForMatch = (deck: DeckJson, vsBot: boolean, botDeck?: string, ranked = false): Promise<QueueResult> => call({ op: 'queue', cards: deck.cards, rar: deck.rar, general: deck.general, vsBot, botDeck, ranked });
 export const queueStatus = (): Promise<QueueResult> => call({ op: 'status' });
 export const cancelQueue = (): Promise<QueueResult> => call({ op: 'cancel' });
 export const sendAction = async (matchId: string, action: Action, since: number): Promise<ActResult> => asActResult(await call({ op: 'act', matchId, action, since }));

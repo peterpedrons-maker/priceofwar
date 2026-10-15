@@ -2537,7 +2537,7 @@ type DeckSlot = { id: string; name: string; general: string; cards: Record<strin
 // `rarities`: how many copies of each card are not common (the total stays in `collection`); local to this device for now (not synced to the cloud yet).
 type DeckStore = { collection: Record<string, number>; slots: DeckSlot[]; owner?: string; rarities?: Record<string, RarityCounts> };
 // What a match needs from a deck: the draw pool, the General, and which prebuilt deck the AI takes.
-type DeckSelection = { cards: Record<string, number>; general: string; npcDeckId: DeckId; npcGeneral?: string; rar?: Record<string, RarityCounts> };   // rar: which copies of the player's deck are special versions (cosmetic only)
+type DeckSelection = { cards: Record<string, number>; general: string; npcDeckId: DeckId; npcGeneral?: string; rar?: Record<string, RarityCounts>; npcRar?: Record<string, RarityCounts> };   // rar: which copies of the player's deck are special versions (cosmetic only)
 let lastDeckRar: Record<string, RarityCounts> | undefined;   // the versions of the deck picked last (the online match is built from what the server echoes back, which has names only)
 
 // An online match, seen from this device. The server holds the real match; this device holds MY VIEW of it (the
@@ -5239,7 +5239,7 @@ const OnlineSearchOverlay = ({ selection, challenge, ranked, onMatched, onCancel
       if (r.ok === false && !r.unavailable) { setStage({ kind: 'error', message: r.error }); return; }
       // The server forgot this entry (the connection dropped for a while): put the player back in the queue.
       if (r.ok === true && r.status === 'none') {
-        const q = await queueForMatch({ general: selection.general, cards: selection.cards }, challenge, challenge ? selection.npcDeckId : undefined, !!ranked);
+        const q = await queueForMatch({ general: selection.general, cards: selection.cards, rar: selection.rar }, challenge, challenge ? selection.npcDeckId : undefined, !!ranked);
         if (cancelled) return;
         if (q.ok === true && q.status === 'matched') return found(q.match);
       }
@@ -5247,7 +5247,7 @@ const OnlineSearchOverlay = ({ selection, challenge, ranked, onMatched, onCancel
     };
     (async () => {
       await flushCloudSync();
-      const r = await queueForMatch({ general: selection.general, cards: selection.cards }, challenge, challenge ? selection.npcDeckId : undefined, !!ranked);
+      const r = await queueForMatch({ general: selection.general, cards: selection.cards, rar: selection.rar }, challenge, challenge ? selection.npcDeckId : undefined, !!ranked);
       if (cancelled) return;
       if (r.ok === false) {
         if (r.unavailable && onUnavailable) { onUnavailable(); return; }
@@ -6386,8 +6386,9 @@ export default function App() {
   const rarPoolRef = useRef<Map<string, Rarity[]>>(new Map());
   const rarityOfCard = (c: EngineCard): Rarity | undefined => {
     const memo = rarMemoRef.current.get(c.id); if (memo) return memo === 'comum' ? undefined : memo;
-    const pool = rarPoolRef.current.get(c.name); if (!pool?.length) return undefined;
-    const me = engineRef.current?.players[0]; if (!me || ![...me.hand, ...me.board, ...me.graveyard].some(x => x && x.id === c.id)) return undefined;
+    const st = engineRef.current; if (!st) return undefined;
+    const seat = [0, 1].find(i => [...st.players[i].hand, ...st.players[i].board, ...st.players[i].graveyard].some(x => x && x.id === c.id)); if (seat === undefined) return undefined;
+    const pool = rarPoolRef.current.get(`${seat}:${c.name}`); if (!pool?.length) return undefined;
     const r = pool.pop()!; rarMemoRef.current.set(c.id, r); return r === 'comum' ? undefined : r;
   };
   const toCardData = (c: EngineCard): CardData => ({
@@ -7528,11 +7529,12 @@ export default function App() {
     setTurnClock(null);
     matchSelectionRef.current = sel;
     rarMemoRef.current = new Map(); rarPoolRef.current = new Map();
-    Object.entries(sel.rar ?? {}).forEach(([name, rc]) => {
-      const total = sel.cards[name] ?? 0, u = Math.min(rc.ultra ?? 0, total), ra = Math.min(rc.rara ?? 0, total - u), pool: Rarity[] = [...Array(u).fill('ultra'), ...Array(ra).fill('rara'), ...Array(Math.max(0, total - u - ra)).fill('comum')];
+    // The opponent's versions only exist online (a person on the other side); the server adds `n` (copies of that card in their deck) to each entry.
+    ([[0, sel.rar], [1, sel.npcRar]] as const).forEach(([seat, rarMap]) => Object.entries(rarMap ?? {}).forEach(([name, rc]) => {
+      const total = seat === 0 ? (sel.cards[name] ?? 0) : (rc as { n?: number }).n ?? 0, u = Math.min(rc.ultra ?? 0, total), ra = Math.min(rc.rara ?? 0, total - u), pool: Rarity[] = [...Array(u).fill('ultra'), ...Array(ra).fill('rara'), ...Array(Math.max(0, total - u - ra)).fill('comum')];
       for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-      rarPoolRef.current.set(name, pool);
-    });
+      rarPoolRef.current.set(`${seat}:${name}`, pool);
+    }));
     ghostsRef.current = { player: {}, npc: {} }; holdsRef.current = { player: {}, npc: {} };
 
     firstSideRef.current = 'player';
@@ -7592,7 +7594,7 @@ export default function App() {
     setOpponentInfo(init.opponent);
     { const mp = loadProfile(); setPlates(init.opponent.bot ? null : { me: { name: mp.name, avatarId: mp.avatarId }, leagues: init.ranked && init.leagues ? init.leagues : null }); }
     setEmoteMatch(init.opponent.bot ? null : { id: init.id, myGeneral: init.myDeck.general, opponentGeneral: init.opponentGeneral });
-    const sel: DeckSelection = { cards: init.myDeck.cards, general: init.myDeck.general, npcDeckId: 'cardeal', npcGeneral: init.opponentGeneral, rar: lastDeckRar };
+    const sel: DeckSelection = { cards: init.myDeck.cards, general: init.myDeck.general, npcDeckId: 'cardeal', npcGeneral: init.opponentGeneral, rar: lastDeckRar, npcRar: init.opponentRar };
     resetGame(sel);
     setGameMode('Quick Match');
     if (init.resumed && init.latest) {

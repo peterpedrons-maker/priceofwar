@@ -4,7 +4,9 @@ import type { DeckSetup } from '../src/engine/game';
 import type { RankedProfile } from '../src/engine/ranked';
 import type { Action, GameEvent, GameState, Seat } from '../src/engine/types';
 
-export interface DeckJson { general: string; cards: Record<string, number> }
+// rar: how many copies of each card are special versions (cosmetic only, the rules never read it); the other player sees them on the cards.
+export type DeckRar = Record<string, { rara?: number; ultra?: number; secreta?: number; n?: number }>;   // n: only in what the opponent is sent
+export interface DeckJson { general: string; cards: Record<string, number>; rar?: DeckRar }
 
 export interface QueueRow {
   user_id: string;

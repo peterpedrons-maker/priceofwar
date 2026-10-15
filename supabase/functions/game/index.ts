@@ -3740,6 +3740,7 @@ var initOf = async (db, m, userId, cfg) => {
     mySide: seat === 0 ? "cara" : "coroa",
     myDeck: m.decks[seat],
     opponentGeneral: m.decks[otherSeat(seat)].general,
+    opponentRar: withTotals(m.decks[otherSeat(seat)]),
     opponent: oppId ? { name: prof?.username ?? "Jogador", avatarId: prof?.avatar_id ?? "batedora", bot: false } : { ...BOT_PROFILE, bot: true },
     start,
     rows: resumed ? [] : rows,
@@ -3808,6 +3809,7 @@ var badRequest = (req) => {
   if (r.code !== void 0 && (typeof r.code !== "string" || r.code.length > 8)) return "Pedido inv\xE1lido.";
   if (r.general !== void 0 && (typeof r.general !== "string" || r.general.length > 80)) return "Deck inv\xE1lido.";
   if (r.botDeck !== void 0 && (typeof r.botDeck !== "string" || r.botDeck.length > 40)) return "Pedido inv\xE1lido.";
+  if (r.rar !== void 0 && (!r.rar || typeof r.rar !== "object" || Array.isArray(r.rar) || JSON.stringify(r.rar).length > 8e3)) return "Deck inv\xE1lido.";
   if (r.cards !== void 0) {
     const c = r.cards;
     if (!c || typeof c !== "object" || Array.isArray(c)) return "Deck inv\xE1lido.";
@@ -3817,6 +3819,31 @@ var badRequest = (req) => {
   }
   if (r.action !== void 0 && (!r.action || typeof r.action !== "object" || Array.isArray(r.action) || JSON.stringify(r.action).length > 2e3)) return "A\xE7\xE3o inv\xE1lida.";
   return null;
+};
+var withTotals = (d) => {
+  if (!d.rar) return void 0;
+  const out = {};
+  for (const [name, c] of Object.entries(d.rar)) out[name] = { ...c, n: d.cards[name] ?? 0 };
+  return out;
+};
+var cleanRar = (raw, cards, collection) => {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return void 0;
+  const out = {};
+  for (const [name, c] of Object.entries(raw)) {
+    const total = cards[name] ?? 0;
+    if (total <= 0 || !c || typeof c !== "object") continue;
+    let left = total;
+    const o = {};
+    for (const k of ["ultra", "rara"]) {
+      const v = Math.min(Math.floor(Number(c[k]) || 0), collection[`${name}#${k}`] ?? 0, left);
+      if (v > 0) {
+        o[k] = v;
+        left -= v;
+      }
+    }
+    if (Object.keys(o).length) out[name] = o;
+  }
+  return Object.keys(out).length ? out : void 0;
 };
 var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
   const invalid = badRequest(req);
@@ -3829,7 +3856,8 @@ var handleGame = async (db, userId, req, cfg = defaultConfig()) => {
       if (resume) return { ok: true, status: "matched", match: await initOf(db, await enforceClock(db, resume, cfg), userId, cfg) };
       const problem = deckProblem(cards, general, currentNames(await db.collection(userId)));
       if (problem) return { ok: false, error: problem };
-      const deck = { general, cards };
+      const rar = cleanRar(req.rar, cards, currentNames(await db.collection(userId)));
+      const deck = rar ? { general, cards, rar } : { general, cards };
       const ranked = req.ranked === true && !req.vsBot;
       await db.queueDelete(userId);
       if (req.vsBot) {

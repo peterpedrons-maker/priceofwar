@@ -12,7 +12,7 @@ import type { Action, GameEvent, GameState, Seat } from '../src/engine/types';
 import { otherSeat } from '../src/engine/types';
 import { eventsFor, viewFor } from '../src/engine/view';
 import { LEAGUES, MESTRE_FROM, TOP_LEAGUE_SIZE, applyRankedMatch, closeSeason, leagueLabel, mmrWindow, leagueOf, newRankedProfile, seasonAt, withTopLeague, type RankedProfile } from '../src/engine/ranked';
-import type { Db, DeckJson, EndReason, MatchPatch, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
+import type { Db, DeckJson, DeckRar, EndReason, MatchPatch, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
 
 export interface GameConfig {
   // A waiting player refreshes their queue entry with every status poll; an entry older than this is a player who left, and is skipped.
@@ -40,6 +40,8 @@ export interface MatchInit {
   mySide: 'cara' | 'coroa';
   myDeck: DeckJson;
   opponentGeneral: string;
+  // The special versions (rarities) the opponent's deck holds, so their cards can be drawn like they own them (cosmetic).
+  opponentRar?: DeckRar;
   opponent: { name: string; avatarId: string; bot: boolean };
   // The match as dealt, before anything happened (hands drawn, Generals placed).
   start: GameState;
@@ -101,7 +103,7 @@ const ladderOf = async (db: Db, cfg: GameConfig, userId: string): Promise<Ranked
 };
 
 export type GameRequest =
-  | { op: 'queue'; cards: Record<string, number>; general: string; vsBot?: boolean; botDeck?: string; ranked?: boolean }
+  | { op: 'queue'; cards: Record<string, number>; rar?: unknown; general: string; vsBot?: boolean; botDeck?: string; ranked?: boolean }
   | { op: 'ranked' }
   | { op: 'claim'; season: number }
   | { op: 'ranking'; limit?: number }
@@ -332,7 +334,7 @@ const initOf = async (db: Db, m: MatchRow, userId: string, cfg: GameConfig): Pro
     leagues = [keys[0], keys[1]];
   }
   return {
-    id: m.id, iGoFirst: m.state.turn.first === seat, iWonToss: m.first === seat, chosen: m.steps_count > 0, mySide: seat === 0 ? 'cara' : 'coroa', myDeck: m.decks[seat], opponentGeneral: m.decks[otherSeat(seat)].general,
+    id: m.id, iGoFirst: m.state.turn.first === seat, iWonToss: m.first === seat, chosen: m.steps_count > 0, mySide: seat === 0 ? 'cara' : 'coroa', myDeck: m.decks[seat], opponentGeneral: m.decks[otherSeat(seat)].general, opponentRar: withTotals(m.decks[otherSeat(seat)]),
     opponent: oppId ? { name: prof?.username ?? 'Jogador', avatarId: prof?.avatar_id ?? 'batedora', bot: false } : { ...BOT_PROFILE, bot: true },
     start, rows: resumed ? [] : rows, latest: resumed ? (rows[rows.length - 1] ?? null) : null,
     status: m.status, winner: m.winner === null ? null : (m.winner === seat ? 0 : 1), resumed, ranked: m.ranked, leagues, deadline: m.turn_deadline, now: cfg.now(),
@@ -388,6 +390,7 @@ export const badRequest = (req: unknown): string | null => {
   if (r.code !== undefined && (typeof r.code !== 'string' || r.code.length > 8)) return 'Pedido inválido.';
   if (r.general !== undefined && (typeof r.general !== 'string' || r.general.length > 80)) return 'Deck inválido.';
   if (r.botDeck !== undefined && (typeof r.botDeck !== 'string' || r.botDeck.length > 40)) return 'Pedido inválido.';
+  if (r.rar !== undefined && (!r.rar || typeof r.rar !== 'object' || Array.isArray(r.rar) || JSON.stringify(r.rar).length > 8000)) return 'Deck inválido.';
   if (r.cards !== undefined) {
     const c = r.cards;
     if (!c || typeof c !== 'object' || Array.isArray(c)) return 'Deck inválido.';
@@ -397,6 +400,25 @@ export const badRequest = (req: unknown): string | null => {
   }
   if (r.action !== undefined && (!r.action || typeof r.action !== 'object' || Array.isArray(r.action) || JSON.stringify(r.action).length > 2000)) return 'Ação inválida.';
   return null;
+};
+
+// What the other player is shown of a deck's versions: the special counts plus how many copies of that card the deck has (so the client can tell which copies are special).
+const withTotals = (d: DeckJson): DeckRar | undefined => {
+  if (!d.rar) return undefined;
+  const out: DeckRar = {}; for (const [name, c] of Object.entries(d.rar)) out[name] = { ...c, n: d.cards[name] ?? 0 };
+  return out;
+};
+// Versions are a claim from the phone: kept only up to what the deck holds and what the account owns of that version (the cloud keeps "<card>#rara" rows).
+const cleanRar = (raw: unknown, cards: Record<string, number>, collection: Record<string, number>): DeckRar | undefined => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const out: DeckRar = {};
+  for (const [name, c] of Object.entries(raw as Record<string, unknown>)) {
+    const total = cards[name] ?? 0; if (total <= 0 || !c || typeof c !== 'object') continue;
+    let left = total; const o: { rara?: number; ultra?: number; secreta?: number } = {};
+    for (const k of ['ultra', 'rara'] as const) { const v = Math.min(Math.floor(Number((c as Record<string, unknown>)[k]) || 0), collection[`${name}#${k}`] ?? 0, left); if (v > 0) { o[k] = v; left -= v; } }
+    if (Object.keys(o).length) out[name] = o;
+  }
+  return Object.keys(out).length ? out : undefined;
 };
 
 export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: GameConfig = defaultConfig()): Promise<GameResponse> => {
@@ -411,7 +433,8 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
       if (resume) return { ok: true, status: 'matched', match: await initOf(db, await enforceClock(db, resume, cfg), userId, cfg) };
       const problem = deckProblem(cards, general, currentNames(await db.collection(userId)));
       if (problem) return { ok: false, error: problem };
-      const deck: DeckJson = { general, cards };
+      const rar = cleanRar(req.rar, cards, currentNames(await db.collection(userId)));
+      const deck: DeckJson = rar ? { general, cards, rar } : { general, cards };
       const ranked = req.ranked === true && !req.vsBot;   // ranked is people only; a challenge against the AI is never ranked
       await db.queueDelete(userId);
       if (req.vsBot) {

@@ -84,6 +84,18 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     ok(cheat.ok === false, 'too many copies');
   });
 
+  await test('versões (raridades): o adversário recebe só as versões que a conta tem, com o total de cópias da carta', async () => {
+    const db = fresh();
+    const d = deckOf('cardeal'), [card] = Object.keys(d.cards), copies = d.cards[card];
+    db.tables.collection.push({ user_id: 'A', card_name: `${card}#rara`, copies: 1 });   // A owns ONE rare of it
+    await handleGame(db, 'A', { op: 'queue', ...d, rar: { [card]: { rara: 3, ultra: 2 }, 'Carta Que Não Existe': { rara: 1 } } }, cfg);
+    const b = matched(await handleGame(db, 'B', { op: 'queue', ...deckOf('capitao') }, cfg));
+    const a = matched(await handleGame(db, 'A', { op: 'status' }, cfg));
+    eq(b.opponentRar, { [card]: { rara: 1, n: copies } }, 'only the rare A owns, capped; no ultra (not owned); nothing for cards outside the deck');
+    ok(a.opponentRar === undefined, 'B sent no versions');
+    const bad = await handleGame(db, 'A', { op: 'queue', ...d, rar: 'x' as any }, cfg);
+    ok(bad.ok === false, 'a malformed rar is refused');
+  });
   await test('queue: two players are matched; each gets only their own view (no seed, no opponent deck or hand)', async () => {
     const db = fresh();
     const { a, b } = await pvp(db, null);

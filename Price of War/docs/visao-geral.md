@@ -100,4 +100,4 @@ Ajuste (dono): símbolos das linhas menores (42 px); linha de Ligas em três col
 
 Planos futuros do dono (economia, boosters, limites de cartas no ranqueado, pontos guiados pelo Elo, nível mínimo para o ranqueado): `docs/planos-economia-e-ranqueado.md` (nada aplicado). Jogo justo: `docs/anti-trapaca.md`.
 
-- **Raridades (plano do dono, rodada 26):** ver `docs/raridades.md` (Comum / Rara / Ultra rara; Full Art; Secretas só no fim do jogo, dependem das artes do dono). Versões aparecem na coleção, no editor de deck e na partida; sincronizam com a nuvem. **Sons:** amostra em `tools/audio/gerar-sons.py`; nada ligado ao jogo até o dono escolher os sons.
+- **Raridades (plano do dono, rodada 26):** ver `docs/raridades.md` (Comum / Rara / Ultra rara; Full Art; Secretas só no fim do jogo, dependem das artes do dono). Versões aparecem na coleção, no editor de deck e na partida (inclusive as do adversário online); sincronizam com a nuvem. **Sons:** amostra em `tools/audio/gerar-sons.py`; nada ligado ao jogo até o dono escolher os sons.
