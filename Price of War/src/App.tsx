@@ -235,6 +235,8 @@ import { useGameSettings, setGameSettings, getGameSettings } from './gameSetting
 import { fxLand, fxImpact, fxBurn, burnMaskSheet, BURN, fxLunge, fxDrop, fxArrows, fxHintFrame, fxDrawFollow, fxMoveFollow, fxSelection, type SelItem, type ArrowSpec } from './cardFx';
 import gsap from 'gsap';
 import { fxShuffle } from './shuffleFx';
+import { playBoosterOpening, type OpenCard } from './boosterOpen3d';
+import { cardSlug } from './card3d';
 import tutHandSprite from './assets/tut-hand.webp';
 import type { Trigger } from './engine/types';
 import { preloadTerrainFx, syncTerrainFx, clearTerrainFx, type TerrainFxKind } from './terrainFx';
@@ -4362,7 +4364,7 @@ const pullBooster = (def: BoosterDef): PulledCard[] => {
   saveDeckStore(store);
   return cards;
 };
-const PackOpening = ({ def, cards, packW, cardScale, onDone }: { def: BoosterDef; cards: PulledCard[]; packW: number; cardScale: number; onDone: () => void; key?: React.Key }) => {
+const PackOpeningOld = ({ def, cards, packW, cardScale, onDone }: { def: BoosterDef; cards: PulledCard[]; packW: number; cardScale: number; onDone: () => void; key?: React.Key }) => {
   const [pull, setPull] = useState<{ cards: PulledCard[]; step: number; phase: 'sealed' | 'stack' | 'summary' }>({ cards, step: 0, phase: 'sealed' });
   const dirs = useRef<Record<number, number>>({}).current;   // which way each opened card was swiped (so it leaves that way)
   return (
@@ -4438,6 +4440,43 @@ const PackOpening = ({ def, cards, packW, cardScale, onDone }: { def: BoosterDef
   )}
 </motion.div>
   );
+};
+
+// New opening (src/boosterOpen3d.ts, Three.js + GSAP; mockup approved by the owner): the pack drops, charges, tears, the cards rise, fan out and are turned one by
+// one (least rare first); the best one gets the big moment when it is a Full Art. No sound yet (the owner will pick the sounds). Falls back to the old tear/swipe
+// opening with "Efeitos de carta novos" off. Rarity labels are provisional (Comum / Rara = cost 3+ / Full Art) until the rarity system exists (docs/raridades.md).
+const CARD3D_FILES = import.meta.glob('./assets/card3d/*.webp', { query: '?url', import: 'default' }) as Record<string, () => Promise<string>>;
+const card3dUrl = async (slug: string): Promise<string | null> => { const f = CARD3D_FILES[`./assets/card3d/${slug}.webp`]; return f ? f() : null; };
+const Booster3DOpening = ({ def, cards, onDone }: { def: BoosterDef; cards: PulledCard[]; onDone: () => void }) => {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [cap, setCap] = useState<{ a: string; b: string; color: string } | null>(null);
+  const [finished, setFinished] = useState(false);
+  useEffect(() => {
+    const host = hostRef.current; if (!host) return;
+    let handle: { destroy: () => void } | null = null, gone = false;
+    (async () => {
+      const back = (await card3dUrl('_back')) ?? '';
+      const list: OpenCard[] = await Promise.all(cards.map(async pc => ({
+        name: pc.card.name, faceUrl: await card3dUrl(cardSlug(pc.card.name)), isNew: pc.isNew,
+        tier: (pc.card.isFullArt ? 'lendaria' : pc.card.cost >= 3 ? 'rara' : 'comum') as OpenCard['tier'],
+        label: pc.card.isFullArt ? 'Full Art' : pc.card.cost >= 3 ? 'Rara' : 'Comum', sub: '',
+      })));
+      if (gone) return;
+      handle = playBoosterOpening(host, { packUrl: SHOP_ART.boosters[def.id] ?? null, accent: def.accent, backUrl: back, cards: list, onCaption: (a, b, color) => setCap({ a, b, color }), hideCaption: () => setCap(null), onFinished: () => setFinished(true) });
+    })();
+    return () => { gone = true; handle?.destroy(); };
+  }, []);
+  return (
+    <div className="fixed inset-0 z-[500] flex items-center justify-center" style={{ background: '#07060a' }}>
+      <div ref={hostRef} className="relative h-full w-full overflow-hidden" style={{ maxWidth: 'calc(100dvh * 9 / 16)' }} />
+      {cap && <div className="pointer-events-none absolute inset-x-0 bottom-[10%] text-center" style={{ color: cap.color, fontFamily: "'Cinzel', serif" }}><b className="block text-[clamp(18px,6.4vw,28px)] uppercase tracking-[0.14em]" style={{ textShadow: '0 0 14px currentColor, 0 2px 4px #000' }}>{cap.a}</b><i className="block text-[clamp(11px,3.4vw,14px)] not-italic tracking-[0.2em] opacity-80">{cap.b}</i></div>}
+      <button type="button" onClick={onDone} className="absolute bottom-[1.5%] rounded-lg border border-[#f3e7c6]/50 bg-black/60 px-5 py-2 text-[#f3e7c6] transition-opacity" style={{ fontFamily: "'Cinzel', serif", letterSpacing: '0.18em', opacity: finished ? 1 : 0.55 }}>{finished ? 'Continuar' : 'Pular'}</button>
+    </div>
+  );
+};
+const PackOpening = (props: { def: BoosterDef; cards: PulledCard[]; packW: number; cardScale: number; onDone: () => void; key?: React.Key }) => {
+  const { fxNovo } = useGameSettings();
+  return fxNovo ? <Booster3DOpening def={props.def} cards={props.cards} onDone={props.onDone} /> : <PackOpeningOld {...props} />;
 };
 
 // The opening shown from the table in the Sala de Coleção: rolls the pack once, then the same tear / swipe / summary as in the shop.

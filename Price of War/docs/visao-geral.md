@@ -99,3 +99,5 @@ Ajuste (dono): símbolos das linhas menores (42 px); linha de Ligas em três col
 **Ranqueado, telas no jogo (rodada 21):** Online → Ranqueado (fila), Ranking, Ligas, resultado com barra de pontos no fim da partida e efeito de subida de liga (`src/RankedScreens.tsx`, detalhes em `docs/ranqueado.md`). Conferido só em página de teste (com servidor de mentira), ainda não numa partida online real entre duas contas. Falta a moldura do retrato no tabuleiro.
 
 Planos futuros do dono (economia, boosters, limites de cartas no ranqueado, pontos guiados pelo Elo, nível mínimo para o ranqueado): `docs/planos-economia-e-ranqueado.md` (nada aplicado). Jogo justo: `docs/anti-trapaca.md`.
+
+- **Raridades (plano do dono, rodada 26):** ver `docs/raridades.md` (Comum / Rara / Ultra rara; Full Art; Secretas no futuro). **Sons:** amostra em `tools/audio/gerar-sons.py`; nada ligado ao jogo até o dono escolher os sons.
