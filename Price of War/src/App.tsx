@@ -11636,11 +11636,11 @@ const CardSlot = ({
             const gives = card.equippedWeapons.reduce((acc, w) => { const v = verbsOn(w.name, 'play').find(x => x.kind === 'equip') as { atk?: number; hp?: number } | undefined; return { atk: acc.atk || (v?.atk ?? 0) > 0, hp: acc.hp || (v?.hp ?? 0) > 0 }; }, { atk: false, hp: false });
             const list = [gives.atk || !gives.hp ? 'atk' : null, gives.hp ? 'hp' : null].filter(Boolean) as ('atk' | 'hp')[];
             return (
-              <div className="absolute pointer-events-none flex" style={{ left: '50%', bottom: '10%', width: '11%', transform: 'translateX(-50%)', zIndex: 6 }}>
+              <div className="absolute pointer-events-none flex" style={{ left: '50%', bottom: '9%', width: '12.5%', transform: 'translateX(-50%)', zIndex: 6 }}>
                 {list.map((k, i) => (
                   <div key={k} className="relative" style={{ width: '100%', aspectRatio: '1', marginLeft: i ? '-8%' : 0, filter: 'drop-shadow(0 1px 1px rgba(0,0,0,.7))' }}>
                     <img src={k === 'atk' ? uiMedalAtk : uiMedalHp} alt="" aria-hidden draggable={false} className="absolute inset-0 w-full h-full select-none" />
-                    <img src={k === 'atk' ? uiIconSword : uiIconHeart} alt="" aria-hidden draggable={false} className="absolute select-none" style={{ left: '50%', top: '50%', width: '68%', transform: 'translate(-50%,-50%)' }} />
+                    <img src={k === 'atk' ? uiIconSword : uiIconHeart} alt="" aria-hidden draggable={false} className="absolute select-none" style={{ left: '50%', top: '50%', width: '92%', transform: 'translate(-50%,-50%)', filter: 'drop-shadow(0 0 0.6px rgba(0,0,0,.9))' }} />
                   </div>
                 ))}
               </div>
