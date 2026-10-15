@@ -460,3 +460,6 @@ Módulo próprio com dois canvas: o de **baixo** (z 30, como o `terrainFx`) guar
 
 ### Movimento entre casas (rodada 26)
 `RepositionLegNovo` (App.tsx) + `fxMoveFollow` (cardFx.ts), no lugar do `motion.div` antigo (que continua com o botão "Efeitos de carta novos" desligado): a carta é erguida (cresce, sombra no chão entre as casas), cruza em arco baixo inclinando para o lado do movimento, rastro suave e assenta com um pequeno amassar e poeira rasteira. Na **troca**, as duas cartas cruzam em alturas diferentes (46 px e 16 px) e em tamanhos diferentes, então nunca se atravessam; o selo de troca anda com elas. **Reforço**: avança reto com rastro mais forte e o impacto da chegada de sempre.
+
+### Seleção sem a mira azul (rodada 26)
+Com "Efeitos de carta novos" ligado: a carta selecionada para atacar/mover não recebe mais a mira azul (`halo-selection`) que tampava a arte; fica só um **contorno fino pulsando no formato exato da moldura** (`fxSelection` em `cardFx.ts`: dourado = atacante, azul-claro = carta a mover, verde = cartas de destino da troca). No ataque as setas já mostram onde dá para bater, então somem as miras vermelhas/inválidas nas cartas do adversário, e tudo some quando o ataque começa. A mira vermelha continua nos **efeitos que pedem alvo** (`TargetingHud`, `halo-valid-target` por cor de efeito: dano, cura...). Desligado, volta o visual antigo.

@@ -232,7 +232,7 @@ import { playSfx, preloadSfx, dbgMark } from './sfx';
 import { fxTactic, fxHero, fxRanged, fxLanding, fxUpkeep, fxGoldGain, fxRelicSoldo, fxLoot, fxPlaced, fxReformar, fxAmbush, fxCalice, fxHospitalario, fxNobre, fxReforco, fxComandante, fxRetorno, fxAtirador, preloadHolyFx, preloadCombatFx, type FxEnv, type FxRect, type FxSide, type FxTarget } from './combatFx';
 import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettings, subscribeAudio } from './audioSettings';
 import { useGameSettings, setGameSettings, getGameSettings } from './gameSettings';
-import { fxLand, fxImpact, fxBurn, burnMaskSheet, BURN, fxLunge, fxDrop, fxArrows, fxHintFrame, fxDrawFollow, fxMoveFollow, type ArrowSpec } from './cardFx';
+import { fxLand, fxImpact, fxBurn, burnMaskSheet, BURN, fxLunge, fxDrop, fxArrows, fxHintFrame, fxDrawFollow, fxMoveFollow, fxSelection, type SelItem, type ArrowSpec } from './cardFx';
 import gsap from 'gsap';
 import { fxShuffle } from './shuffleFx';
 import tutHandSprite from './assets/tut-hand.webp';
@@ -1239,7 +1239,7 @@ const FlyingCardNovo = ({ f, onDone }: { f: { card: CardData; fromX: number; fro
   );
 };
 
-let lastArrowKey = '';
+let lastArrowKey = '', lastSelKey = '';
 const drawFlightDelay = { n: 0 };
 const PunchFx = ({ x, y, w, h, heavy = false }: { x: number; y: number; w: number; h: number; heavy?: boolean }) => {
   const [frame, setFrame] = useState(0);
@@ -8045,7 +8045,11 @@ export default function App() {
   // them to one fixed top-level layer (same trick as the attack lines) sidesteps
   // that entirely.
   const activeHalos: { key: string; x: number; y: number; w: number; h: number; image: string; scale: number; glow: string }[] = [];
-  if (selectedMoverIndex !== null) {
+  const novoSel = gameSettings.fxNovo, selItems: SelItem[] = [];   // new effects: no blue target over the cards; a thin outline in the card's exact shape instead (src/cardFx.ts fxSelection)
+  if (selectedMoverIndex !== null && novoSel) {
+    selItems.push({ id: `player-${selectedMoverIndex}`, rgb: '150,205,255' });
+    validMoveTargets.forEach(i => { if (playerSlots[i]) selItems.push({ id: `player-${i}`, rgb: '130,235,170' }); });
+  } else if (selectedMoverIndex !== null) {
     const selfEl = document.getElementById(`player-${selectedMoverIndex}`);
     if (selfEl) {
       const r = selfEl.getBoundingClientRect();
@@ -8059,7 +8063,9 @@ export default function App() {
       activeHalos.push({ key: `move-${i}`, x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, image: haloValidTargetImage, scale: 1.15, glow: TARGET_STYLE.move.halo });
     });
   }
-  if (selectedAttackerIndex !== null) {
+  if (selectedAttackerIndex !== null && novoSel) {
+    selItems.push({ id: `player-${selectedAttackerIndex}`, rgb: '255,226,160' });   // the arrows already show where the blow can go; no rings on the enemy cards
+  } else if (selectedAttackerIndex !== null) {
     const selfEl = document.getElementById(`player-${selectedAttackerIndex}`);
     if (selfEl) {
       const r = selfEl.getBoundingClientRect();
@@ -8126,6 +8132,8 @@ export default function App() {
   const arrowKey = arrowList.map(a => [a.kind, a.mine, a.x1, a.y1, a.x2, a.y2].map(v => typeof v === 'number' ? Math.round(v) : v).join(',')).join('|');
   // (not a hook: this part of App renders after early returns; the key guard makes the call idempotent)
   if (arrowKey !== lastArrowKey) { lastArrowKey = arrowKey; const snapshot = arrowList; queueMicrotask(() => fxArrows(snapshot)); }
+  const selKey = attackAnim ? '' : selItems.map(i => i.id + i.rgb).join('|');
+  if (selKey !== lastSelKey) { lastSelKey = selKey; const snap = attackAnim ? [] : selItems; queueMicrotask(() => fxSelection(snap)); }
 
   // Shared visual for both attackLines and activeAttackLine above: the user's
   // own reference-sheet arrow art (see the asset imports above — attackArrowRed
