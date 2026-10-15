@@ -1415,7 +1415,7 @@ const FloatNumber = ({ text, kind }: { text: string; kind: keyof typeof NUMBER_K
   const amount = parseInt(text.replace(/\D/g, ''), 10) || 0;
   const tier = NUMBER_TIERS[k === 'damage' ? damageTier(amount) : 0];
   const h = tier.h;
-  const burst = burstUrl(k);
+  const burst = k === 'gold' || k === 'goldspend' ? undefined : burstUrl(k);   // no star behind gold numbers (owner's call, round 26)
   return (
     // the star and the number drift up TOGETHER (one outer element carries the drift), so the number never leaves the star
     <motion.div className="relative flex items-center justify-center" style={{ height: h }}
@@ -5072,6 +5072,9 @@ const playCoinSfx = (kind: 'toss' | 'land') => {
   } catch { /* audio is optional */ }
 };
 
+let lastGoldSfx = 0;
+const playGoldSpendSfx = () => { const n = performance.now(); if (n - lastGoldSfx < 160) return; lastGoldSfx = n; playCoinSfx('toss'); };   // the coin toss's own ting (already in the game), one per spend
+
 // The coin: the two delivered faces (Cara / Coroa) set on either side of a stack of thin gold discs, so
 // when it spins edge-on it has real thickness instead of vanishing into a line.
 const COIN_THICK = 9;
@@ -6518,6 +6521,7 @@ export default function App() {
           break;
         case 'gold':
           spawnFloatingNumberAtId(`${ownerId(e.seat)}-gold-badge`, Math.abs(e.delta), e.delta > 0 ? 'gold-gain' : 'gold-spend');
+          if (e.delta < 0) playGoldSpendSfx();   // the coin's ting when gold is spent
           break;
         case 'draw':
           if (e.reason === 'deal') break;

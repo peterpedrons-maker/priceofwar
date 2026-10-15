@@ -74,14 +74,6 @@ const layers: Layer[] = [];
 let night = { v: 0, tgt: 0 }, stars: { x: number; y: number; r: number; ph: number }[] = [];
 const animated = () => getGameSettings().terrainFx;
 
-function tower(x: number, yb: number, flip: number) {
-  ctx.globalCompositeOperation = 'source-over'; const w = 26, h = 62; ctx.save(); ctx.translate(x, yb); ctx.scale(1, flip);
-  ctx.fillStyle = '#2c2825'; ctx.strokeStyle = '#0c0a08'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-w / 2, 0); ctx.lineTo(-w / 2 + 3, -h); ctx.lineTo(w / 2 - 3, -h); ctx.lineTo(w / 2, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#3a3531'; for (let i = 0; i < 3; i++) ctx.fillRect(-w / 2 + 1 + i * 8, -h - 6, 7, 7);
-  ctx.fillStyle = '#1b1713'; ctx.fillRect(-3, -40, 6, 12);
-  ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 1; for (let r = 1; r < 6; r++) { ctx.beginPath(); ctx.moveTo(-w / 2 + 2, -r * 10); ctx.lineTo(w / 2 - 2, -r * 10); ctx.stroke(); }
-  ctx.restore();
-}
 const armedOf = (s: GameState, seat: 0 | 1) => s.players[seat].board.flatMap((c, i) => (c && i < 10 && (c as any).equippedWeapons?.length ? [i] : []));
 
 // ── silhueta REAL da carta ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -131,8 +123,9 @@ function layerTick(L: Layer, dt: number) {
       if (k < .05) continue; for (let c = dt * 30 * k * AURA; c > 0; c -= 1) { if (Math.random() >= c) continue; const e = edgeOf(r); flame(e.x, e.y, R(8, 13) * (.55 + .45 * k) * e.sz, { vx: e.nx * 10 + R(-5, 5), vy: -R(30, 62) + e.ny * 8, a: (.62 * k + .1) * AURA, life: R(.4, .8), dir: -1, pal, lay: 0 }); }
       if (Math.random() < dt * 5 * k * AURA) ember(r.x + R(-r.w / 3, r.w / 3), r.y - r.h / 2, { lay: 0, vy: -R(40, 90) }); }
   } else if (L.kind === 'fogo') {
-    for (let k = 0; k < 2; k++) { const lit = L.lit[k]; if (lit <= 0) continue; const x = k ? cs[4] + 39 : cs[0] - 39, f2 = rc(L.side, 2), yb = f2 ? f2.y + f2.h / 2 : ey;
-      if (Math.random() < dt * 45 * lit) flame(x + R(-5, 5), yb - 70, R(9, 15), { vy: -R(50, 95), a: .9 * AURA + .1, dir: -1, lay: 0 }); if (Math.random() < dt * 8 * lit) spawn({ kind: 'smoke', x: x + R(-4, 4), y: yb - 90, vx: R(6, 22) * (k ? -1 : 1), vy: R(-30, -50), s: R(10, 16), a: .3 * AURA, life: R(1.6, 2.4), lay: 0 }); if (Math.random() < dt * 12 * lit * AURA) ember(x + R(-5, 5), yb - 72, { lay: 0 }); }
+    // Fogo-Sinal: sem torres no tabuleiro (decisão do dono: não cobrem o resto); só uma chama pequena de cada lado do Terreno
+    for (let k = 0; k < 2; k++) { const lit = L.lit[k]; if (lit <= 0) continue; const r = frameOf(L.side, 11); if (!r) continue; const x = r.x + (k ? 1 : -1) * (r.w / 2 + 4), yb = r.y + r.h * .1;
+      if (Math.random() < dt * 24 * lit) flame(x + R(-2, 2), yb, R(4, 7), { vy: -R(24, 48), a: .8 * AURA + .1, dir: -1, lay: 0 }); if (Math.random() < dt * 5 * lit * AURA) ember(x + R(-3, 3), yb - 4, { lay: 0 }); }
     for (const slot of auraSlots(L)) { const r = frameOf(L.side, slot); if (!r) continue; const k = L.aura[slot] * kI; if (k < .05) continue;
       for (let c = dt * 14 * k * AURA; c > 0; c -= 1) { if (Math.random() >= c) continue; const e = edgeOf(r); flame(e.x, e.y, R(5, 9) * e.sz, { vx: e.nx * 8 + R(-4, 4), vy: -R(24, 46) + e.ny * 6, a: (.5 * k + .1) * AURA, life: R(.4, .7), dir: -1, lay: 0 }); }
       if (Math.random() < dt * 3 * k) { const e = edgeOf(r); spawn({ kind: 'smoke', x: e.x, y: e.y, vx: R(-6, 10), vy: R(-26, -40), s: R(6, 10), a: .22 * AURA, life: R(1, 1.6), lay: 0 }); }
@@ -145,8 +138,7 @@ function layerTick(L: Layer, dt: number) {
 // desenha uma camada (ctx = canvas de baixo)
 function layerDraw(L: Layer) {
   const I = L.I, cs = cols(L.side), ey = edgeY(L.side); if (!cs[0] || I < .02) return; const t = L.age, hs = holderOf(L), kI = Math.min(1, I / .6);
-  if (L.kind === 'fogo') { const f2 = rc(L.side, 2), yb = f2 ? f2.y + f2.h / 2 : ey;
-    for (let k = 0; k < 2; k++) { const x = k ? cs[4] + 39 : cs[0] - 39; tower(x, yb, 1); if (L.lit[k] > 0) glow(x, yb - 70, 56 + 7 * Math.sin(t * 11), '255,150,50', .42 * AURA * L.lit[k]); } }
+  if (L.kind === 'fogo') { const r = frameOf(L.side, 11); if (r) for (let k = 0; k < 2; k++) { const x = r.x + (k ? 1 : -1) * (r.w / 2 + 4); if (L.lit[k] > 0) glow(x, r.y + r.h * .1 - 6, 17 + 3 * Math.sin(t * 11), '255,150,50', .3 * AURA * L.lit[k]); } }
   const white = L.kind === 'forja' && L.mode === 'afiacao', rgb = white ? '255,225,140' : L.kind === 'arsenal' ? '170,220,255' : L.kind === 'fogo' ? '255,95,25' : '255,115,35';
   for (const slot of auraSlots(L)) { const r = frameOf(L.side, slot); if (!r) continue; const k = (L.aura[slot] ?? (slot === hs ? 1 : 0)) * kI; if (k < .03) continue; const fl = .8 + .2 * Math.sin(t * (L.kind === 'arsenal' ? 2 : 9) + r.x * .1);
     drawRing(r, rgb, .9 * AURA * k * fl);
@@ -184,7 +176,7 @@ function step(ts: number) {
   if (onlyPersist && !getGameSettings().terrainFx && !layers.some(l => l.end != null)) { clearAll(); return; }
   setU(); now += dt;
   for (let i = sched.length - 1; i >= 0; i--) if (sched[i].t <= now) { const s = sched.splice(i, 1)[0]; s.fn(); }
-  for (const L of layers) { if (L.ignite) { if (L.age > .25 && L.lit[0] === 0) L.lit[0] = 1; if (L.age > 2.35 && L.lit[1] === 0) L.lit[1] = 1; } layerTick(L, dt); }
+  for (const L of layers) { if (L.ignite) { if (L.age > .25 && L.lit[0] === 0) L.lit[0] = 1; if (L.age > .9 && L.lit[1] === 0) L.lit[1] = 1; } layerTick(L, dt); }
   for (let i = layers.length - 1; i >= 0; i--) if (layers[i].end != null && layers[i].I < .02) layers.splice(i, 1);
   nightTick(dt); stepP(dt);
   cxs.forEach((c, i) => { c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cvs[i].width, cvs[i].height); c.setTransform(RES * U, 0, 0, RES * U, 0, 0); });
@@ -192,6 +184,11 @@ function step(ts: number) {
   ctx = cxs[0]; if (!hide) { nightDraw(); for (const L of layers) { ctx.save(); layerDraw(L); ctx.restore(); } }
   for (const lay of hide ? [1] : [0, 1]) { ctx = cxs[lay]; for (const p of P) if (p.lay === lay) { ctx.save(); drawP(p); ctx.restore(); } }
   for (let i = 0; i < fxs.length; i++) { const f = fxs[i], p = (now - f.t0) / f.dur; if (p >= 1) { f.end && f.end(); fxs.splice(i, 1); i--; continue; } ctx = cxs[f.lay]; ctx.save(); f.draw && f.draw(p, now - f.t0); ctx.restore(); f.tick && f.tick(p, now - f.t0, dt); }
+  // As cartas da mão (a ampliada, a da Emboscada...) ficam por cima do tabuleiro, mas esta camada é do corpo da página: apaga o que cairia sobre elas, para o brilho de um Terreno nunca aparecer dentro de uma carta.
+  { const c0 = cxs[0]; c0.save(); c0.globalCompositeOperation = 'destination-out'; c0.fillStyle = '#000';
+    document.querySelectorAll<HTMLElement>('[data-hand-card],[data-occlude]').forEach(el => { if (el.style.visibility === 'hidden') return; const r = el.getBoundingClientRect(); if (r.width < 4 || r.bottom < 0 || r.top > window.innerHeight) return; const op = parseFloat(getComputedStyle(el).opacity); if (op < .05) return;
+      c0.fillRect(r.left / U - 1, r.top / U - 1, r.width / U + 2, r.height / U + 2); });
+    c0.restore(); }
   cxs.forEach(c => { c.globalCompositeOperation = 'source-over'; });
 }
 function kick() { if (!ready) ensure(); if (inFrame) return; if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); } }
@@ -227,11 +224,11 @@ const prep = () => { ensure(); setU(); };
 
 // A Forja que Nunca Apaga entra em campo: três marteladas e uma onda de fogo pelo chão
 export async function fxForjaPlaced(side: Side): Promise<void> {
-  prep(); const T = rc(side, 11) ?? rc(side, 10); if (!T) return; const d = dirOf(side), ey = edgeY(side), cs = cols(side);
+  // só na carta (decisão do dono: nada atravessando o tabuleiro): três marteladas, poeira, faíscas e um clarão
+  prep(); const T = rc(side, 11) ?? rc(side, 10); if (!T) return;
   [.1, .5, .9].forEach((t, i) => at(t, () => { clang(T.x, T.y + 6, i === 2); if (i === 0) dust(T.x, T.y + T.h / 2, 6); }));
-  at(.15, () => add({ dur: 1.3, draw: (p: number) => glow(lerp(T.x, T.x + (cs[4] - T.x) * 1.1, p), ey + d * -4, 60, '255,150,50', .5 * (1 - p)),
-    tick: (p: number) => { const x = lerp(T.x, T.x + (cs[4] - T.x) * 1.1, p); for (let i = 0; i < 2; i++) flame(x + R(-10, 10), ey, R(12, 20), { vy: d * R(70, 130), dir: d }); if (Math.random() < .5) spawn({ kind: 'spark', x, y: ey, vx: R(-30, 60), vy: d * R(90, 200), g: -d * 300, s: 1.6, life: .6, rgb: '255,220,150' }); } }));
-  await wait(1.6);
+  at(.9, () => { add({ dur: .5, draw: (p: number) => glow(T.x, T.y, 60, '255,150,50', .55 * (1 - p)) }); for (let i = 0; i < 12; i++) spawn({ kind: 'spark', x: T.x + R(-8, 8), y: T.y, vx: R(-70, 70), vy: R(-140, -40), g: 260, s: 1.6, life: .6, rgb: '255,220,150' }); });
+  await wait(1.5);
 }
 // Uma unidade acaba de ser Armada: o Terreno/Relíquia lança uma bola (fogo da forja, brasa do Fogo-Sinal ou estilhaço de gelo do Arsenal) até ela, que passa a ter o contorno aceso
 async function equipTransfer(kind: Layer['kind'], side: Side, slot: number): Promise<void> {
@@ -258,22 +255,18 @@ export async function fxForjaModo(env: Env, side: Side, mode: string, armed: num
 }
 // Posto do Fogo-Sinal entra: a bola de fogo atravessa o campo de ponta a ponta
 export async function fxFogoPlaced(side: Side): Promise<void> {
-  prep(); const cs = cols(side), f2 = rc(side, 2); if (!cs[0] || !f2) return; const xa = cs[0] - 39, xb = cs[4] + 39, ty = f2.y + f2.h / 2 - 70;
-  const burst = (x: number, y: number) => { add({ dur: .5, draw: (p: number) => glow(x, y, 80, '255,200,100', .8 * (1 - p)) }); for (let i = 0; i < 24; i++) flame(x + R(-8, 8), y + R(-6, 8), R(10, 18), { vy: -R(90, 170), vx: R(-30, 30), life: R(.5, 1) }); fan(x, y, 20, -2.6, -.5, 260, { rgb: '255,210,130' }); };
-  at(.25, () => burst(xa, ty));
-  at(.8, () => add({ dur: 1.5, draw: (p: number) => { const x = lerp(xa, xb, eio(p)), y = ty + 20 - Math.sin(p * Math.PI) * 12; glow(x, y, 34, '255,200,90', .9); glow(x, y, 16, '255,255,210', .8); },
-    tick: (p: number) => { const x = lerp(xa, xb, eio(p)), y = ty + 20 - Math.sin(p * Math.PI) * 12; flame(x, y + 2, 11, { vx: R(-10, 10), vy: R(-14, 10), life: .5 }); ember(x + R(-4, 4), y, { vy: R(-10, 20), life: 1.4 }); } }));
-  at(2.35, () => { burst(xb, ty); ring(xb, ty + 20, 6, 60, '255,190,100', 4, .8, .6); });
-  await wait(2.9);
+  // as duas chamas acendem, uma de cada lado do Terreno (nada de torres nem de faísca atravessando o tabuleiro)
+  prep(); const r = frameOf(side, 11); if (!r) return; const xa = r.x - r.w / 2 - 4, xb = r.x + r.w / 2 + 4, ty = r.y + r.h * .1;
+  const burst = (x: number, y: number) => { add({ dur: .45, draw: (p: number) => glow(x, y, 34, '255,200,100', .7 * (1 - p)) }); for (let i = 0; i < 10; i++) flame(x + R(-3, 3), y + R(-2, 3), R(5, 9), { vy: -R(50, 100), vx: R(-16, 16), life: R(.3, .6) }); };
+  at(.25, () => burst(xa, ty)); at(.9, () => burst(xb, ty));
+  await wait(1.5);
 }
 // Modo Trincheira: barrancos de terra sobem à frente das Armadas
 export async function fxFogoTrincheira(side: Side, armed: number[]): Promise<void> {
-  prep(); const cs = cols(side), ey = edgeY(side), d = dirOf(side); if (!cs[0]) return;
-  add({ dur: 1.4, draw: (p: number) => { const u = eo(p / .55), a = p > .8 ? 1 - (p - .8) / .2 : 1; ctx.globalAlpha = a; ctx.globalCompositeOperation = 'source-over';
-    for (const x of cs) { const h = 16 * u, yb = ey + d * 6; ctx.save(); ctx.translate(x, yb); ctx.scale(1, -d); const g = ctx.createLinearGradient(0, -h, 0, 10); g.addColorStop(0, '#6e5538'); g.addColorStop(1, '#2d2318'); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-37, 8); ctx.quadraticCurveTo(-20, -h * 1.6, 0, -h); ctx.quadraticCurveTo(20, -h * 1.6, 37, 8); ctx.closePath(); ctx.fill(); ctx.strokeStyle = 'rgba(10,6,2,.7)'; ctx.lineWidth = 1.2; ctx.stroke(); ctx.restore(); } } });
-  cs.forEach((x, i) => at(i * .06, () => dust(x, ey + d * 6, 3, { rgb: '120,96,66', a: .5 })));
-  armed.forEach((slot, i) => at(.5 + i * .08, () => { const r = rc(side, slot); if (r) ring(r.x, r.y, 12, 52, '255,214,150', 3, .7, .5, .8); }));
-  await wait(1.5);
+  // só nas Armadas e no Terreno (a trincheira não é mais desenhada no tabuleiro)
+  prep(); const T = rc(side, 11); if (T) { add({ dur: .45, draw: (p: number) => glow(T.x, T.y, 70, '255,190,100', .55 * (1 - p)) }); ring(T.x, T.y, 10, 54, '255,200,120', 3, .7, .5, .8); }
+  armed.forEach((slot, i) => at(.4 + i * .08, () => { const r = rc(side, slot); if (r) ring(r.x, r.y, 12, 52, '255,214,150', 3, .7, .5, .8); }));
+  await wait(1.0 + armed.length * .08);
 }
 // Modo Saque (Posto do Fogo-Sinal): a unidade que caiu vira brasa e uma carta voa para a mão
 export async function fxFogoSaque(env: Env, side: Side, victim: { side: Side; slot: number }): Promise<void> {
@@ -322,14 +315,10 @@ function weaponPath(kind: string, x: number, yb: number, h: number) {
   ctx.closePath();
 }
 export async function fxArsenalPlaced(side: Side, armed: number[]): Promise<void> {
-  prep(); const T = rc(side, 10), cs = cols(side), d = dirOf(side), back = rc(side, 7), yb = (back?.y ?? 0) - d * (back?.h ?? 71) / 2; if (!T || !cs[0]) return;
-  add({ dur: .4, draw: (p: number) => glow(T.x, T.y, 100, '170,225,255', .8 * (1 - p)) }); ring(T.x, T.y + T.h / 2 - 4, 8, 70, '190,235,255', 5, .9, .6);
-  for (let i = 0; i < 16; i++) { const a = R(-Math.PI, 0) * -d, v = R(120, 300); spawn({ kind: 'spark', x: T.x, y: T.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 120, s: 2.4, life: .7, rgb: '200,236,255', drag: .98 }); }
-  add({ dur: 1.5, draw: (p: number) => { const x = lerp(T.x + 40, cs[0] - 80, eo(p)); const g = ctx.createRadialGradient(x, midY(), 0, x, midY(), 120); g.addColorStop(0, `rgba(200,236,255,${.5 * (1 - p)})`); g.addColorStop(1, 'rgba(200,236,255,0)'); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(x - 120, midY() - 120, 240, 240); } });
-  const xs = [cs[0] - 25, cs[0] + 35, cs[1] + 25, cs[2], cs[3] - 25, cs[4] - 35, cs[4] + 30];
-  xs.forEach((x, i) => at(.25 + i * .1, () => add({ dur: 2.2, draw: (p: number) => { const u = eo(p / .35), a = p < .7 ? 1 : 1 - (p - .7) / .3, h = (96 + (i % 3) * 22) * u; if (h < 2) return; ctx.globalCompositeOperation = 'lighter'; ctx.save(); ctx.translate(0, yb); ctx.scale(1, d < 0 ? 1 : -1); ctx.translate(0, -yb);
-      const gr = ctx.createLinearGradient(0, yb - h, 0, yb); gr.addColorStop(0, `rgba(240,250,255,${.8 * a})`); gr.addColorStop(1, `rgba(120,185,255,${.18 * a})`); ctx.fillStyle = gr; weaponPath(WEAPONS[i], x, yb, h); ctx.fill(); ctx.strokeStyle = `rgba(255,255,255,${.65 * a})`; ctx.lineWidth = 1.2; ctx.stroke(); ctx.restore(); glow(x, yb - d * -1 * h * .55, 26, '150,210,255', .2 * a); },
-    tick: (p: number) => { if (p < .6 && Math.random() < .3) spawn({ kind: 'glint', x: x + R(-8, 8), y: yb - d * -1 * R(10, 100), s: 8, life: .6, rgb: '230,248,255' }); } })));
-  armed.forEach((slot, i) => at(.9 + i * .1, () => { const r = rc(side, slot); if (r) ring(r.x, r.y, 12, 54, '190,235,255', 3, .8, .5, .8); }));
-  await wait(2.6);
+  // só na carta e nas Armadas (sem névoa nem armas subindo pelo tabuleiro)
+  prep(); const T = rc(side, 10); if (!T) return;
+  add({ dur: .4, draw: (p: number) => glow(T.x, T.y, 90, '170,225,255', .75 * (1 - p)) }); ring(T.x, T.y + T.h / 2 - 4, 8, 64, '190,235,255', 5, .9, .6);
+  for (let i = 0; i < 14; i++) { const a = R(-Math.PI, 0) * -dirOf(side), v = R(110, 260); spawn({ kind: 'spark', x: T.x, y: T.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 120, s: 2.2, life: .7, rgb: '200,236,255', drag: .98 }); }
+  armed.forEach((slot, i) => at(.5 + i * .1, () => { const r = rc(side, slot); if (r) ring(r.x, r.y, 12, 54, '190,235,255', 3, .8, .5, .8); }));
+  await wait(1.2 + armed.length * .1);
 }
