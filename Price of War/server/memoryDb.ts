@@ -1,6 +1,7 @@
 // An in-memory Db: used by the tests and by the local mock server, so the very same handler runs without Supabase.
 import type { Seat } from '../src/engine/types';
 import type { RankedProfile } from '../src/engine/ranked';
+import { buildAdminPlayers } from './types';
 import type { AdminOverview, Db, EmoteRow, SeasonRow, MatchPatch, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
 
 export interface MemoryTables {
@@ -43,6 +44,11 @@ export class MemoryDb implements Db {
       waitingCasual: this.queue.filter(q => !q.ranked).length, waitingRanked: this.queue.filter(q => q.ranked).length,
       playingCasual: active.filter(m => m.bot_seat === null && !m.ranked).length, playingRanked: active.filter(m => m.bot_seat === null && m.ranked).length,
       vsBot: active.filter(m => m.bot_seat !== null).length, matches24h: this.matches.filter(m => nowMs - Date.parse(m.created_at) < day).length,
+      ...buildAdminPlayers(nowMs, onlineMs, this.tables.profiles, this.presence,
+        new Map([...this.rankedRows.entries()].map(([id, r]) => [id, { points: r.points, games: r.games, wins: r.wins, losses: r.losses }])),
+        this.tables.collection.reduce((m, r) => m.set(r.user_id, (m.get(r.user_id) ?? 0) + r.copies), new Map<string, number>()),
+        (() => { const b = new Map<string, 'queue' | 'casual' | 'ranked' | 'bot'>(); this.queue.forEach(q => b.set(q.user_id, 'queue'));
+          active.forEach(m => ([m.seat0, m.seat1] as (string | null)[]).forEach(u => { if (u) b.set(u, m.bot_seat !== null ? 'bot' : m.ranked ? 'ranked' : 'casual'); })); return b; })()),
     };
   }
   rankedRows = new Map<string, RankedProfile>();

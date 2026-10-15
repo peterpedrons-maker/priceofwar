@@ -2,6 +2,7 @@
 // apply_match_rewards functions are created by docs/supabase-online.sql and docs/supabase-online-2.sql.
 import type { Seat } from '../src/engine/types';
 import type { RankedProfile } from '../src/engine/ranked';
+import { buildAdminPlayers } from './types';
 import type { AdminOverview, Db, EmoteRow, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
 
 // Only the tiny part of the supabase-js client this file touches.
@@ -35,7 +36,27 @@ export const supabaseDb = (c: Client): Db => ({
       count(head('matches').eq('status', 'active').not('bot_seat', 'is', null)), count(head('matches').gte('created_at', iso(nowMs - day))),
     ]);
     const recent = must(await c.from('profiles').select('username, created_at').order('created_at', { ascending: false }).limit(15), 'recent accounts') as { username: string; created_at: string }[];
-    return { accounts, newToday, newWeek, recent: recent ?? [], online, waitingCasual, waitingRanked, playingCasual, playingRanked, vsBot, matches24h };
+    // Everybody, with their Coroas, XP, level, ranked record, cards and what they are doing now (tolerant: a table that is missing only leaves its columns empty).
+    const soft = async (q: any): Promise<any[]> => { const r = await q; return r.error ? [] : (r.data ?? []); };
+    const [profiles, pres, rk, act, wait] = await Promise.all([
+      soft(c.from('profiles').select('id, username, avatar_id, level, xp, coroas, created_at').order('created_at', { ascending: false }).limit(1000)),
+      soft(c.from('presence').select('user_id, seen_at').limit(5000)),
+      soft(c.from('ranked_profiles').select('user_id, points, games, wins, losses').limit(5000)),
+      soft(c.from('matches').select('seat0, seat1, bot_seat, ranked').eq('status', 'active').limit(1000)),
+      soft(c.from('queue').select('user_id').gte('created_at', iso(nowMs - 30000)).limit(1000)),
+    ]);
+    const cards = new Map<string, number>();
+    for (let from = 0; from < 30000; from += 1000) {   // the API hands out 1000 rows at a time
+      const page = await soft(c.from('collection').select('user_id, copies').order('user_id').range(from, from + 999));
+      page.forEach((r: any) => cards.set(r.user_id, (cards.get(r.user_id) ?? 0) + (r.copies ?? 0)));
+      if (page.length < 1000) break;
+    }
+    const busy = new Map<string, 'queue' | 'casual' | 'ranked' | 'bot'>();
+    wait.forEach((q: any) => busy.set(q.user_id, 'queue'));
+    act.forEach((m: any) => [m.seat0, m.seat1].forEach(u => { if (u) busy.set(u, m.bot_seat !== null && m.bot_seat !== undefined ? 'bot' : m.ranked ? 'ranked' : 'casual'); }));
+    const built = buildAdminPlayers(nowMs, onlineMs, profiles, new Map(pres.map((r: any) => [r.user_id, Date.parse(r.seen_at)])),
+      new Map(rk.map((r: any) => [r.user_id, { points: r.points, games: r.games, wins: r.wins, losses: r.losses }])), cards, busy);
+    return { accounts, newToday, newWeek, recent: recent ?? [], online, waitingCasual, waitingRanked, playingCasual, playingRanked, vsBot, matches24h, ...built };
   },
   async collection(userId) {
     const rows = must(await c.from('collection').select('card_name, copies').eq('user_id', userId).limit(5000), 'collection') as { card_name: string; copies: number }[];

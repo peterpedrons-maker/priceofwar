@@ -93,6 +93,16 @@ export interface AdminOverview {
   accounts: number; newToday: number; newWeek: number; recent: { username: string; created_at: string }[];
   online: number;                 // seen (a ping every ~90 s) in the last 3 minutes
   waitingCasual: number; waitingRanked: number; playingCasual: number; playingRanked: number; vsBot: number; matches24h: number;
+  // Every account (online first, then the most recently seen), with what the GM wants to know about each one; and the sums over all accounts.
+  players: AdminPlayer[];
+  totals: { coroas: number; xp: number; cards: number };
+}
+export interface AdminPlayer {
+  id: string; username: string; avatar_id: string; level: number; xp: number; coroas: number; created_at: string;
+  seen_at: string | null; online: boolean;                 // seen_at: the last "I am here" ping (null: never, or before the presence table existed)
+  state: 'queue' | 'casual' | 'ranked' | 'bot' | null;      // what the account is doing right now
+  ranked: { points: number; games: number; wins: number; losses: number } | null;
+  cards: number;                                           // copies owned (all versions)
 }
 
 export interface Db {
@@ -139,3 +149,21 @@ export interface Db {
 }
 
 export type { DeckSetup };
+
+// Puts together the GM's player list from the raw rows (shared by the Supabase and the in-memory Db, so both answer the same way).
+export const buildAdminPlayers = (
+  nowMs: number, onlineMs: number,
+  profiles: { id: string; username: string; avatar_id: string; level?: number; xp?: number; coroas?: number; created_at?: string }[],
+  seen: Map<string, number>, ranked: Map<string, { points: number; games: number; wins: number; losses: number }>, cards: Map<string, number>,
+  busy: Map<string, 'queue' | 'casual' | 'ranked' | 'bot'>,
+): { players: AdminPlayer[]; totals: { coroas: number; xp: number; cards: number } } => {
+  const players: AdminPlayer[] = profiles.map(p => {
+    const t = seen.get(p.id);
+    return {
+      id: p.id, username: p.username, avatar_id: p.avatar_id, level: p.level ?? 1, xp: p.xp ?? 0, coroas: p.coroas ?? 0, created_at: p.created_at ?? new Date(nowMs).toISOString(),
+      seen_at: t === undefined ? null : new Date(t).toISOString(), online: t !== undefined && nowMs - t < onlineMs, state: busy.get(p.id) ?? null, ranked: ranked.get(p.id) ?? null, cards: cards.get(p.id) ?? 0,
+    };
+  });
+  players.sort((a, b) => Number(b.online) - Number(a.online) || Date.parse(b.seen_at ?? b.created_at) - Date.parse(a.seen_at ?? a.created_at));
+  return { players, totals: { coroas: players.reduce((n, p) => n + p.coroas, 0), xp: players.reduce((n, p) => n + p.xp, 0), cards: players.reduce((n, p) => n + p.cards, 0) } };
+};

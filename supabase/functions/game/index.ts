@@ -4031,6 +4031,29 @@ var handleGame = async (db, userId, req, cfg = defaultConfig(), who = {}) => {
   }
 };
 
+// server/types.ts
+var buildAdminPlayers = (nowMs, onlineMs, profiles, seen, ranked, cards, busy) => {
+  const players = profiles.map((p) => {
+    const t = seen.get(p.id);
+    return {
+      id: p.id,
+      username: p.username,
+      avatar_id: p.avatar_id,
+      level: p.level ?? 1,
+      xp: p.xp ?? 0,
+      coroas: p.coroas ?? 0,
+      created_at: p.created_at ?? new Date(nowMs).toISOString(),
+      seen_at: t === void 0 ? null : new Date(t).toISOString(),
+      online: t !== void 0 && nowMs - t < onlineMs,
+      state: busy.get(p.id) ?? null,
+      ranked: ranked.get(p.id) ?? null,
+      cards: cards.get(p.id) ?? 0
+    };
+  });
+  players.sort((a, b) => Number(b.online) - Number(a.online) || Date.parse(b.seen_at ?? b.created_at) - Date.parse(a.seen_at ?? a.created_at));
+  return { players, totals: { coroas: players.reduce((n, p) => n + p.coroas, 0), xp: players.reduce((n, p) => n + p.xp, 0), cards: players.reduce((n, p) => n + p.cards, 0) } };
+};
+
 // server/supabaseDb.ts
 var must = (r, what) => {
   if (r.error) throw new Error(`${what}: ${r.error.message ?? r.error}`);
@@ -4079,7 +4102,38 @@ var supabaseDb = (c) => ({
       count(head("matches").gte("created_at", iso(nowMs - day)))
     ]);
     const recent = must(await c.from("profiles").select("username, created_at").order("created_at", { ascending: false }).limit(15), "recent accounts");
-    return { accounts, newToday, newWeek, recent: recent ?? [], online, waitingCasual, waitingRanked, playingCasual, playingRanked, vsBot, matches24h };
+    const soft = async (q) => {
+      const r = await q;
+      return r.error ? [] : r.data ?? [];
+    };
+    const [profiles, pres, rk, act, wait] = await Promise.all([
+      soft(c.from("profiles").select("id, username, avatar_id, level, xp, coroas, created_at").order("created_at", { ascending: false }).limit(1e3)),
+      soft(c.from("presence").select("user_id, seen_at").limit(5e3)),
+      soft(c.from("ranked_profiles").select("user_id, points, games, wins, losses").limit(5e3)),
+      soft(c.from("matches").select("seat0, seat1, bot_seat, ranked").eq("status", "active").limit(1e3)),
+      soft(c.from("queue").select("user_id").gte("created_at", iso(nowMs - 3e4)).limit(1e3))
+    ]);
+    const cards = /* @__PURE__ */ new Map();
+    for (let from = 0; from < 3e4; from += 1e3) {
+      const page = await soft(c.from("collection").select("user_id, copies").order("user_id").range(from, from + 999));
+      page.forEach((r) => cards.set(r.user_id, (cards.get(r.user_id) ?? 0) + (r.copies ?? 0)));
+      if (page.length < 1e3) break;
+    }
+    const busy = /* @__PURE__ */ new Map();
+    wait.forEach((q) => busy.set(q.user_id, "queue"));
+    act.forEach((m) => [m.seat0, m.seat1].forEach((u) => {
+      if (u) busy.set(u, m.bot_seat !== null && m.bot_seat !== void 0 ? "bot" : m.ranked ? "ranked" : "casual");
+    }));
+    const built = buildAdminPlayers(
+      nowMs,
+      onlineMs,
+      profiles,
+      new Map(pres.map((r) => [r.user_id, Date.parse(r.seen_at)])),
+      new Map(rk.map((r) => [r.user_id, { points: r.points, games: r.games, wins: r.wins, losses: r.losses }])),
+      cards,
+      busy
+    );
+    return { accounts, newToday, newWeek, recent: recent ?? [], online, waitingCasual, waitingRanked, playingCasual, playingRanked, vsBot, matches24h, ...built };
   },
   async collection(userId) {
     const rows = must(await c.from("collection").select("card_name, copies").eq("user_id", userId).limit(5e3), "collection");

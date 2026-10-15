@@ -3406,7 +3406,7 @@ const MenuTextButton = ({ text, label, onClick }: { text: string; label: string;
 // The GM panel (owner's account only, server-checked): who made an account, how many are online and playing right now. Refreshes by itself while open.
 const ago = (iso: string) => { const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000)); return m < 1 ? 'agora' : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.round(m / 60)} h` : `há ${Math.round(m / 1440)} d`; };
 const GmPanel = ({ first, onClose }: { first: AdminInfo; onClose: () => void }) => {
-  const [d, setD] = useState<AdminInfo>(first), [busy, setBusy] = useState(false), [at, setAt] = useState(Date.now());
+  const [d, setD] = useState<AdminInfo>(first), [busy, setBusy] = useState(false), [at, setAt] = useState(Date.now()), [only, setOnly] = useState<'online' | 'all'>('online'), [q, setQ] = useState('');
   const refresh = async () => { setBusy(true); const r = await fetchAdmin(); if (r) { setD(r); setAt(Date.now()); } setBusy(false); };
   useEffect(() => { const id = window.setInterval(() => void refresh(), 20000); return () => window.clearInterval(id); }, []);
   const Row = ({ k, v, strong }: { k: string; v: React.ReactNode; strong?: boolean; key?: React.Key }) => (
@@ -3422,6 +3422,28 @@ const GmPanel = ({ first, onClose }: { first: AdminInfo; onClose: () => void }) 
         </div>
         <div className="text-[10px] text-[#8f8366] mt-1">Atualiza sozinho a cada 20 s · última leitura {new Date(at).toLocaleTimeString('pt-BR')}</div>
         <Sec t="Agora"><Row k="Jogadores online (últimos 3 min)" v={d.online} strong /><Row k="Na fila (casual / ranqueada)" v={`${d.waitingCasual} / ${d.waitingRanked}`} /><Row k="Jogando contra pessoas (casual / ranqueada)" v={`${d.playingCasual} / ${d.playingRanked}`} /><Row k="Jogando contra a IA" v={d.vsBot} /></Sec>
+        <Sec t="Jogadores">
+          <div className="flex gap-2 mb-1 items-center">
+            {(['online', 'all'] as const).map(k => <button key={k} className={`px-3 py-1 text-[11px] rounded border ${only === k ? 'border-[#ffe9b0] text-[#1c130b] bg-[#e8c766]' : 'border-[#d4af37]/50 text-[#ffe9b0]'}`} onClick={() => setOnly(k)}>{k === 'online' ? `Online (${d.players.filter(p => p.online).length})` : `Todos (${d.players.length})`}</button>)}
+            <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar nome" className="flex-1 min-w-0 px-2 py-1 text-[12px] rounded bg-black/40 border border-[#d4af37]/30 text-[#f3e3c3] outline-none" />
+          </div>
+          <div className="max-h-[330px] overflow-y-auto">
+            {d.players.filter(p => (only === 'all' || p.online) && p.username.toLowerCase().includes(q.trim().toLowerCase())).map(p => (
+              <div key={p.id} className="py-[5px] border-b border-[#d4af37]/15">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5 min-w-0"><span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: p.online ? '#5fe08a' : '#6b6048' }} /><b className="truncate text-[13px] text-[#ffe9b0]" style={{ fontFamily: "'Cinzel', serif" }}>{p.username}</b></span>
+                  <span className="text-[11px] text-[#8f8366] shrink-0">{p.state ? ({ queue: 'na fila', casual: 'jogando', ranked: 'ranqueada', bot: 'contra a IA' } as const)[p.state] : p.online ? 'no menu' : p.seen_at ? `visto ${ago(p.seen_at)}` : 'nunca visto'}</span>
+                </div>
+                <div className="text-[11px] text-[#cdbd97] mt-[2px] flex flex-wrap gap-x-3">
+                  <span>Nv {p.level}</span><span>{p.xp} XP</span><span>{p.coroas} coroas</span><span>{p.cards} cartas</span>
+                  {p.ranked && <span>Ranq {p.ranked.points} pts · {p.ranked.wins}V/{p.ranked.losses}D</span>}
+                  <span className="text-[#8f8366]">criada {ago(p.created_at)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-1 text-[11px] text-[#cdbd97]">Somando todas as contas: {d.totals.coroas} coroas · {d.totals.xp} XP · {d.totals.cards} cartas</div>
+        </Sec>
         <Sec t="Contas"><Row k="Total de contas" v={d.accounts} strong /><Row k="Criadas nas últimas 24 h" v={d.newToday} /><Row k="Criadas nos últimos 7 dias" v={d.newWeek} />
           <div className="mt-1 max-h-[170px] overflow-y-auto">{d.recent.map((r, i) => <div key={i} className="flex justify-between text-[12px] py-[2px] text-[#e8d6a8]"><span className="truncate pr-2">{r.username}</span><span className="text-[#8f8366] shrink-0">{ago(r.created_at)}</span></div>)}</div></Sec>
         <Sec t="Partidas"><Row k="Iniciadas nas últimas 24 h" v={d.matches24h} /></Sec>
@@ -3480,7 +3502,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
   const [gm, setGm] = useState<AdminInfo | null>(null);
   const [gmOpen, setGmOpen] = useState(false);
   useEffect(() => { setGm(null); if (authMode === 'supabase' && session) void fetchAdmin().then(setGm); }, [session?.userId]);
-  useEffect(() => { if (DEBUG_HOOKS && new URLSearchParams(window.location.search).has('gmdemo')) setGm({ accounts: 128, newToday: 6, newWeek: 31, recent: [{ username: 'Aurelia', created_at: new Date(Date.now() - 12 * 60000).toISOString() }, { username: 'Brann77', created_at: new Date(Date.now() - 5 * 3600000).toISOString() }, { username: 'Osric', created_at: new Date(Date.now() - 30 * 3600000).toISOString() }], online: 9, waitingCasual: 1, waitingRanked: 0, playingCasual: 2, playingRanked: 1, vsBot: 3, matches24h: 57, top: [{ rank: 1, name: 'Aurelia', points: 1240, label: 'Ouro II' }], season: 3, me: { id: 'demo', email: 'dono@exemplo.com' } }); }, []);   // (test only: `?debug&gmdemo` shows the panel with made-up numbers)
+  useEffect(() => { if (DEBUG_HOOKS && new URLSearchParams(window.location.search).has('gmdemo')) setGm({ accounts: 128, newToday: 6, newWeek: 31, recent: [{ username: 'Aurelia', created_at: new Date(Date.now() - 12 * 60000).toISOString() }, { username: 'Brann77', created_at: new Date(Date.now() - 5 * 3600000).toISOString() }, { username: 'Osric', created_at: new Date(Date.now() - 30 * 3600000).toISOString() }], online: 9, waitingCasual: 1, waitingRanked: 0, playingCasual: 2, playingRanked: 1, vsBot: 3, matches24h: 57, top: [{ rank: 1, name: 'Aurelia', points: 1240, label: 'Ouro II' }], season: 3, me: { id: 'demo', email: 'dono@exemplo.com' }, players: [{ id: 'a', username: 'Aurelia', avatar_id: 'batedora', level: 14, xp: 2310, coroas: 840, created_at: new Date(Date.now() - 40 * 86400000).toISOString(), seen_at: new Date(Date.now() - 20000).toISOString(), online: true, state: 'ranked', ranked: { points: 1240, games: 52, wins: 33, losses: 19 }, cards: 211 }, { id: 'b', username: 'Brann77', avatar_id: 'batedora', level: 6, xp: 640, coroas: 150, created_at: new Date(Date.now() - 5 * 3600000).toISOString(), seen_at: new Date(Date.now() - 60000).toISOString(), online: true, state: null, ranked: null, cards: 64 }, { id: 'c', username: 'Osric', avatar_id: 'batedora', level: 9, xp: 1190, coroas: 90, created_at: new Date(Date.now() - 30 * 3600000).toISOString(), seen_at: new Date(Date.now() - 7 * 3600000).toISOString(), online: false, state: null, ranked: { points: 310, games: 9, wins: 4, losses: 5 }, cards: 98 }], totals: { coroas: 1080, xp: 4140, cards: 373 } }); }, []);   // (test only: `?debug&gmdemo` shows the panel with made-up numbers)
   const updateProfile = (patch: Partial<PlayerProfile>) => {
     setProfile(prev => {
       const next = { ...prev, ...patch };

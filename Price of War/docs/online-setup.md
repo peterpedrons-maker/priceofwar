@@ -106,3 +106,6 @@ Um botão **GM** aparece no menu principal **só** para a conta do dono. O paine
 - **SQL:** rode `docs/supabase-online-6.sql` (também no fim de `docs/supabase-tudo.sql`): cria a tabela `presence`. Sem ela o painel funciona, mas "online" fica em 0.
 - **Online agora:** o app manda um aviso leve ("estou aqui") a cada ~90 s enquanto está aberto e visível e o jogador tem conta; conta como online quem foi visto nos últimos 3 minutos.
 - O painel não tem ferramentas de alteração (só leitura). Teste da tela com números inventados: `?debug&gmdemo`.
+
+### Painel GM: lista de jogadores (rodada 26)
+O painel agora tem a seção **Jogadores** (Online / Todos, com busca por nome): para cada conta mostra se está online (ping dos últimos 3 min, bolinha verde), o que faz agora (no menu, na fila, jogando, ranqueada, contra a IA) ou quando foi visto, nível, XP, coroas, cartas (cópias de todas as versões), pontos e vitórias/derrotas do ranking e quando a conta foi criada; embaixo, a soma de coroas, XP e cartas de todas as contas. Tudo é lido pelo servidor (`adminOverview` em `server/supabaseDb.ts`, montado por `buildAdminPlayers` em `server/types.ts`), nunca pelo aparelho; tabelas que ainda não existem só deixam suas colunas vazias. Não precisa de SQL novo (usa `profiles`, `presence`, `ranked_profiles`, `collection`, `matches` e `queue`), só do deploy da função.

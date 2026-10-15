@@ -94,9 +94,14 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     const noList = await handleGame(db, 'A', { op: 'admin' }, cfg, { email: 'dono@exemplo.com', verified: true, admins: [] });
     ok(noList.ok === false, 'sem a lista de admins ninguém entra');
     await handleGame(db, 'A', { op: 'ping' }, cfg); await handleGame(db, 'B', { op: 'ping' }, cfg);
+    Object.assign(db.tables.profiles.find(p => p.id === 'A')!, { coroas: 500, xp: 120, level: 3 });
     const r = await handleGame(db, 'A', { op: 'admin' }, cfg, owner);
     ok(r.ok === true && r.status === 'admin', 'o dono entra');
-    if (r.ok === true && r.status === 'admin') { eq([r.admin.accounts, r.admin.online, r.admin.me.email], [2, 2, 'Dono@Exemplo.com'], 'contas, online e quem está logado'); ok(Array.isArray(r.admin.top), 'topo do ranking'); }
+    if (r.ok === true && r.status === 'admin') { eq([r.admin.accounts, r.admin.online, r.admin.me.email], [2, 2, 'Dono@Exemplo.com'], 'contas, online e quem está logado'); ok(Array.isArray(r.admin.top), 'topo do ranking');
+      const a = r.admin.players.find(p => p.id === 'A'), b = r.admin.players.find(p => p.id === 'B');
+      ok(!!a && !!b && a.online && b.online, 'a lista de jogadores marca quem está online pelo ping');
+      eq([a!.coroas, a!.level, a!.xp], [500, 3, 120], 'coroas, nível e XP de cada conta');
+      ok(a!.cards > 0 && r.admin.totals.cards >= a!.cards && r.admin.totals.coroas >= 500, 'cartas e totais somados'); }
     const byId = await handleGame(db, 'A', { op: 'admin' }, cfg, { adminIds: ['a'] });
     ok(byId.ok === false, 'id diferente não entra'); const byId2 = await handleGame(db, 'A', { op: 'admin' }, cfg, { adminIds: ['A'.toLowerCase()] });
     ok(byId2.ok === false, 'o id precisa ser igual ao do login (A ≠ a aqui)');
