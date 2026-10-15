@@ -1969,7 +1969,8 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
               instead of centering as a block, so the plate's own full width and
               height actually get used — a centered block wastes the space a
               ragged edge would've used for more characters at a readable size. */}
-          <div className="flex-1 w-full min-h-0">
+          <div className="relative flex-1 w-full min-h-0">
+            <RarityTag card={card} />
             <FitEffectText
               text={card.effect}
               lead={trig ? { label: trig.label, icon: trig.icon } : undefined}
@@ -2021,7 +2022,6 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
       </div>
     </div>
     <RarityCardShine card={card} />
-    <RarityTag card={card} />
     </>
   );
 };
@@ -2210,7 +2210,7 @@ const CardFaceStandardMini = ({ card }: { card: CardData }) => {
 // coleção (0001C, 0001R, 0001UR…) fica bem pequeno embaixo, no centro.
 const rarNameCls = (card: CardData, dark = false) => { const sh = shineOf(card.rarity, !!card.isFullArt); return sh === 'name' ? `rar-name rara${dark ? ' dark' : ''}` : sh === 'art+name' ? `rar-name ultra${dark ? ' dark' : ''}` : ''; };
 const RarityTag = ({ card }: { card: CardData }) => (
-  <div className="absolute inset-x-0 z-20 pointer-events-none text-center" style={{ bottom: '0.7%', fontFamily: "'Cinzel', serif", fontSize: 6.5, letterSpacing: '0.08em', fontWeight: 700, color: card.isFullArt ? '#e9d8a6' : '#3a2408', textShadow: card.isFullArt ? '0 1px 1px #000' : '0 1px 0 rgba(255,243,206,.5)', opacity: 0.85 }}>{cardCode(card.name, card.rarity)}</div>
+  <span className="absolute z-20 pointer-events-none" style={{ top: 1, right: 3, fontFamily: "'Cinzel', serif", fontSize: 6, lineHeight: 1, letterSpacing: '0.06em', fontWeight: 800, color: card.isFullArt ? '#e9d8a6' : '#4a3010', textShadow: card.isFullArt ? '0 1px 1px #000' : '0 1px 0 rgba(255,243,206,.55)', opacity: 0.8 }}>{cardCode(card.name, card.rarity)}</span>
 );
 const RarityCardShine = ({ card }: { card: CardData }) => {
   if (shineOf(card.rarity, !!card.isFullArt) !== 'card') return null;
@@ -2296,6 +2296,7 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
             bottom pulled up (10%→13%) so it can't run into the ATK/HP blade
             and heart emblems, whose own box starts around 89% down the card. */}
         <div className="absolute p-1" style={{ top: '64%', bottom: '13%', left: '8%', right: '11%' }}>
+          <RarityTag card={card} />
           <FitEffectText
             text={card.effect}
             lead={trig ? { label: trig.label, icon: trig.icon } : undefined}
@@ -2317,7 +2318,6 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
           </>
         )}
       </div>
-      <RarityTag card={card} />
     </>
   );
 };
@@ -4031,7 +4031,7 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
       {view3d !== null && rows[view3d] && (
         <Suspense fallback={<div className="fixed inset-0 z-[900] flex items-center justify-center bg-[#0d0905] text-[#cdbd97]" style={{ fontFamily: "'Cinzel', serif" }}>Carregando…</div>}>
           <CardViewer3D
-            cards={rows.map(r => ({ name: r.name, type: r.card.cardType, full: !!r.card.isFullArt }))}
+            cards={rows.map(r => ({ name: r.name, type: r.card.cardType, full: !!r.card.isFullArt, code: cardCode(r.name, r.rar) }))}
             index={view3d}
             onIndex={(i) => { setView3d(i); setPicked(rows[i].name); setPickedR(rows[i].rar); }}
             onClose={() => setView3d(null)}
@@ -4502,15 +4502,16 @@ const Booster3DOpening = ({ def, cards, onDone }: { def: BoosterDef; cards: Pull
   const hostRef = useRef<HTMLDivElement>(null);
   const [started, setStarted] = useState(false);
   const [finished, setFinished] = useState(false);
+  const [inspect, setInspect] = useState<number | null>(null);   // at the end: a card tapped to be looked at in 3D
   useEffect(() => {
     if (!started) return;
     const host = hostRef.current; if (!host) return;
     let handle: { destroy: () => void } | null = null, gone = false;
     (async () => {
       const back = (await card3dUrl('_back')) ?? '';
-      const list: OpenCard[] = await Promise.all(cards.map(async pc => ({ name: pc.card.name, faceUrl: await card3dUrl(cardSlug(pc.card.name)), rarity: pc.card.rarity ?? 'comum', isFullArt: !!pc.card.isFullArt, shine: shineOf(pc.card.rarity, !!pc.card.isFullArt) })));
+      const list: OpenCard[] = await Promise.all(cards.map(async pc => ({ name: pc.card.name, code: cardCode(pc.card.name, pc.card.rarity), faceUrl: await card3dUrl(cardSlug(pc.card.name)), rarity: pc.card.rarity ?? 'comum', isFullArt: !!pc.card.isFullArt, shine: shineOf(pc.card.rarity, !!pc.card.isFullArt) })));
       if (gone) return;
-      handle = playBoosterOpening(host, { packUrl: SHOP_ART.boosters[def.id] ?? null, accent: def.accent, backUrl: back, cards: list, onFinished: () => setFinished(true) });
+      handle = playBoosterOpening(host, { packUrl: SHOP_ART.boosters[def.id] ?? null, accent: def.accent, backUrl: back, cards: list, onFinished: () => setFinished(true), onInspect: (i) => setInspect(i) });
     })();
     return () => { gone = true; handle?.destroy(); };
   }, [started]);
@@ -4525,6 +4526,13 @@ const Booster3DOpening = ({ def, cards, onDone }: { def: BoosterDef; cards: Pull
         </button>
       )}
       {started && <button type="button" onClick={onDone} className="absolute bottom-[1.5%] rounded-lg border border-[#f3e7c6]/50 bg-black/60 px-5 py-2 text-[#f3e7c6] transition-opacity" style={{ fontFamily: "'Cinzel', serif", letterSpacing: '0.18em', opacity: finished ? 1 : 0.55 }}>{finished ? 'Continuar' : 'Pular'}</button>}
+      {inspect !== null && (
+        <div className="fixed inset-0 z-[900]">
+          <Suspense fallback={null}>
+            <CardViewer3D cards={cards.map(pc => ({ name: pc.card.name, type: pc.card.cardType, full: !!pc.card.isFullArt, code: cardCode(pc.card.name, pc.card.rarity) }))} index={inspect} onIndex={setInspect} onClose={() => setInspect(null)} />
+          </Suspense>
+        </div>
+      )}
     </div>
   );
 };

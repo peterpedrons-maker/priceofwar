@@ -342,7 +342,8 @@ function Binder({ entries, stock, opening, onOpened, onClose }: { entries: Entry
   const [flyGo, setFlyGo] = useState(false);
   const [viewerReady, setViewerReady] = useState(false);
   const liftCell = useRef<HTMLElement | null>(null);
-  const tapCard = (i: number, pk: HTMLElement) => { if (versionsOf(have[entries[i].name]).length > 1) setSheet({ i, el: pk }); else openCard(i, pk); };
+  const sheetAt = useRef(0);   // the click that follows the tap lands on the sheet that just opened (on a phone): it must not close it
+  const tapCard = (i: number, pk: HTMLElement) => { if (versionsOf(have[entries[i].name]).length > 1) { sheetAt.current = performance.now(); setSheet({ i, el: pk }); } else openCard(i, pk); };
   const openCard = (i: number, pk: HTMLElement) => {
     if (lift) return; const img = pk.querySelector('img') as HTMLImageElement | null; if (!img) return;
     const W = window.innerWidth, H = window.innerHeight, ar = img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 0.679;
@@ -480,14 +481,14 @@ function Binder({ entries, stock, opening, onOpened, onClose }: { entries: Entry
       {sheet && (() => {
         const e = entries[sheet.i], t = thumbOf(e.name), vs = versionsOf(have[e.name]);
         return (
-          <div style={{ position: 'absolute', inset: 0, zIndex: 60 }} onClick={() => setSheet(null)}>
+          <div style={{ position: 'absolute', inset: 0, zIndex: 60 }} onClick={() => { if (performance.now() - sheetAt.current > 450) setSheet(null); }}>
             <div style={{ position: 'absolute', inset: 0, background: 'rgba(5,3,2,.7)' }} />
             <div onClick={ev => ev.stopPropagation()} style={{ position: 'absolute', left: 10, right: 10, bottom: 'max(14px, env(safe-area-inset-bottom))', padding: '14px 12px 12px', borderRadius: 16, background: 'linear-gradient(180deg,#2a1a10,#150d07)', border: '1px solid rgba(217,178,90,.55)', boxShadow: '0 -10px 40px rgba(0,0,0,.7)' }}>
               <div style={{ textAlign: 'center', fontFamily: "'Cinzel',serif", color: '#ffe9b0', fontWeight: 800, fontSize: 13, letterSpacing: '.1em' }}>{e.name.toUpperCase()}</div>
               <div style={{ textAlign: 'center', fontFamily: "'Cinzel',serif", color: 'rgba(255,233,176,.55)', fontSize: 9.5, letterSpacing: '.16em', margin: '3px 0 12px' }}>Nº {cardCode(e.name, 'comum').slice(0, 4)} · TOQUE NUMA VERSÃO PARA VER EM 3D</div>
               <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
                 {vs.map(v => (
-                  <button key={v.r} onClick={() => { const el = sheet.el, i = sheet.i; setSheet(null); openCard(i, el); }} style={{ width: 92, padding: 0, background: 'none', border: 0, textAlign: 'center' }}>
+                  <button key={v.r} onClick={() => { if (performance.now() - sheetAt.current < 450) return; const el = sheet.el, i = sheet.i; setSheet(null); openCard(i, el); }} style={{ width: 92, padding: 0, background: 'none', border: 0, textAlign: 'center' }}>
                     <div style={{ position: 'relative' }}>
                       {t && <img src={t} alt="" draggable={false} style={{ width: '100%', display: 'block', filter: 'drop-shadow(0 3px 5px rgba(0,0,0,.7))' }} />}
                       {t && (e.full || v.r !== 'comum') && <div className="bk-foil" style={{ inset: 0, opacity: v.r === 'comum' ? .34 : FOIL_OP[v.r] + .1, WebkitMaskImage: `url(${t})`, maskImage: `url(${t})` }} />}
@@ -517,7 +518,7 @@ function Binder({ entries, stock, opening, onOpened, onClose }: { entries: Entry
             )}
             <div style={{ position: 'fixed', inset: 0, zIndex: 900, opacity: showViewer ? 1 : 0, pointerEvents: showViewer ? 'auto' : 'none', transition: 'opacity .25s' }}>
               <Suspense fallback={null}>
-                <CardViewer3D cards={entries} index={lift.i} onIndex={() => {}} onClose={closeCard} onReady={() => setViewerReady(true)} hideArrows noIntro />
+                <CardViewer3D cards={entries.map(e => ({ ...e, code: cardCode(e.name, bestOf(have[e.name])?.r ?? 'comum') }))} index={lift.i} onIndex={() => {}} onClose={closeCard} onReady={() => setViewerReady(true)} hideArrows noIntro />
               </Suspense>
             </div>
           </>

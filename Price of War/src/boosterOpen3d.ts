@@ -4,14 +4,15 @@
 import * as THREE from 'three';
 import gsap from 'gsap';
 import type { Shine, Rarity } from './rarity';
+import { stampCode } from './cardCode3d';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 
 // Sem legenda de raridade (decisão do dono): quem diz que a carta é especial é só o efeito dela aparecendo na tela.
-export type OpenCard = { name: string; faceUrl: string | null; rarity: Rarity; isFullArt: boolean; shine: Shine };
-export type OpenOpts = { packUrl: string | null; accent: string; backUrl: string; cards: OpenCard[]; onFinished: () => void };
+export type OpenCard = { name: string; code?: string; faceUrl: string | null; rarity: Rarity; isFullArt: boolean; shine: Shine };
+export type OpenOpts = { packUrl: string | null; accent: string; backUrl: string; cards: OpenCard[]; onFinished: () => void; onInspect?: (index: number) => void };
 const HALO: Record<Rarity, number> = { comum: 0xcfd8ff, rara: 0x5ab4ff, ultra: 0xffc85a, secreta: 0xff7ad9 };
 // retângulos (em uv, v de baixo para cima) da arte e do nome nas imagens de src/assets/card3d
 const ART_RECT = [0.148, 0.469, 0.857, 0.828], NAME_RECT_STD = [0.215, 0.838, 0.685, 0.893], NAME_RECT_FULL = [0.17, 0.86, 0.72, 0.912];
@@ -68,8 +69,14 @@ export function playBoosterOpening(host: HTMLElement, o: OpenOpts): { destroy: (
   };
   const loader = new THREE.TextureLoader(); const tex = (u: string) => new Promise<THREE.Texture | null>(res => loader.load(u, t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; res(t); }, undefined, () => res(null)));
   const pack = new THREE.Group(); scene.add(pack); const cardsG = new THREE.Group(); scene.add(cardsG);
-  let packMat: THREE.MeshPhysicalMaterial, strip: THREE.Mesh, slit: THREE.Mesh; const cards: { g: THREE.Group; fm: THREE.MeshStandardMaterial; sm: THREE.ShaderMaterial; halo: THREE.Mesh; info: OpenCard }[] = [];
-  const N = o.cards.length, fan = (i: number) => ({ x: (i - (N - 1) / 2) * Math.min(.56, 2.3 / Math.max(1, N - 1)), y: -.55 - .04 * Math.pow(i - (N - 1) / 2, 2), rz: -(i - (N - 1) / 2) * .075, s: .6 });
+  let packMat: THREE.MeshPhysicalMaterial, strip: THREE.Mesh, slit: THREE.Mesh; const cards: { g: THREE.Group; fm: THREE.MeshStandardMaterial; sm: THREE.ShaderMaterial; halo: THREE.Mesh; front: THREE.Mesh; info: OpenCard }[] = [];
+  const N = o.cards.length;
+  // Layout of the taps: the closed pile in the middle, the card being shown in front of it, and the cards already seen in a row at the bottom; at the end all of them are lined up.
+  const visW = 2 * Math.tan(16 * Math.PI / 180) * 10 * (W / H), PILE_Y = .5, CARD_W = 1.5;
+  const rowSp = Math.min(.62, (visW - .15) / Math.max(1, N)), rowS = rowSp * .9 / CARD_W;
+  const rowSlot = (i: number) => ({ x: (i - (N - 1) / 2) * rowSp, y: -1.95, s: rowS });
+  const cols = visW < 4.2 ? Math.min(3, N) : N, gridSp = Math.min(.98, (visW - .2) / cols), gridS = gridSp * .92 / CARD_W;
+  const gridSlot = (i: number) => { const r = Math.floor(i / cols), n = Math.min(cols, N - r * cols), rows = Math.ceil(N / cols), gap = CARD_W * 1.343 * gridS * 1.08; return { x: (i % cols - (n - 1) / 2) * gridSp, y: .3 + ((rows - 1) / 2 - r) * gap, s: gridS }; };
   const sheenMat = (map: THREE.Texture | null, color: number, info: OpenCard) => {
     // brilho por raridade: a arte, as letras do nome (só onde o texto difere da placa) ou a carta inteira
     let plate = .5; const nameRect = info.isFullArt ? NAME_RECT_FULL : NAME_RECT_STD;
@@ -78,6 +85,8 @@ export function playBoosterOpening(host: HTMLElement, o: OpenOpts): { destroy: (
       vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
       fragmentShader: 'varying vec2 vUv;uniform sampler2D map;uniform float t,amt,art,name,card,plate,ultra;uniform vec3 tint;uniform vec4 artRect,nameRect;float inR(vec2 uv,vec4 r){return step(r.x,uv.x)*step(uv.x,r.z)*step(r.y,uv.y)*step(uv.y,r.w);}void main(){vec4 c=texture2D(map,vUv);if(c.a<.5)discard;float lum=dot(c.rgb,vec3(.3,.59,.11));float letters=inR(vUv,nameRect)*smoothstep(.09,.26,abs(lum-plate));float m=card+art*inR(vUv,artRect)+name*letters;if(m<.01)discard;float d=vUv.x*.8+vUv.y*.6;float band=smoothstep(.0,.5,sin((d-t)*6.2832*1.2)*.5+.5);band=pow(band,3.);vec3 rb=.5+.5*cos(6.2832*(vec3(0.,.33,.67)+d*1.5-t*2.));vec3 col=mix(tint,rb,.25+.5*ultra)*(.2+band*(.6+.3*ultra))*amt*min(m,1.)*(1.-.45*card);gl_FragColor=vec4(col,min(m,1.)*amt*.6);}' });
   };
+  // The cards come out of the pack's opening: while they are inside it, only what is above its torn top edge is drawn (clipping plane that follows the pack).
+  renderer.localClippingEnabled = true; const clip = new THREE.Plane(new THREE.Vector3(0, 1, 0), -SEAM);
   const S = { charge: 0, flash: 0, rays: 0, bloom: .28, shake: 0, camZ: 10, camY: 0, glow: 0, hover: 0 };
   let tl: gsap.core.Timeline, END = 9, lastT = -1, finished = false, raf = 0, ready = false;
   const lastIdx = N - 1, big = o.cards[lastIdx]?.rarity === 'ultra' || o.cards[lastIdx]?.rarity === 'secreta';
@@ -85,7 +94,7 @@ export function playBoosterOpening(host: HTMLElement, o: OpenOpts): { destroy: (
   const flashEl = document.createElement('div'); flashEl.style.cssText = 'position:absolute;inset:0;background:#fff8e0;opacity:0;pointer-events:none;mix-blend-mode:screen'; host.appendChild(flashEl);
 
   const build = async () => {
-    const [packTex, back, ...faces] = await Promise.all([o.packUrl ? tex(o.packUrl) : Promise.resolve(null), tex(o.backUrl), ...o.cards.map(c => c.faceUrl ? tex(c.faceUrl) : Promise.resolve(null))]);
+    const [packTex, back, ...faces] = await Promise.all([o.packUrl ? tex(o.packUrl) : Promise.resolve(null), tex(o.backUrl), ...o.cards.map(c => c.faceUrl ? tex(c.faceUrl).then(t => (t ? stampCode(t, c.code, c.isFullArt) : t)) : Promise.resolve(null))]);
     if (dead) return;
     const pTex = packTex ?? cv(256, 440, (g, w, h) => { const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, o.accent); gr.addColorStop(1, '#2a1a0c'); g.fillStyle = gr; g.fillRect(0, 0, w, h); g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, 0, w, h * .09); g.fillRect(0, h * .91, w, h * .09); });
     packMat = new THREE.MeshPhysicalMaterial({ map: pTex, roughness: .36, metalness: .28, clearcoat: .85, clearcoatRoughness: .22, side: THREE.DoubleSide, alphaTest: .3, emissive: 0xffcf80, emissiveMap: pTex, emissiveIntensity: 0 });
@@ -94,13 +103,14 @@ export function playBoosterOpening(host: HTMLElement, o: OpenOpts): { destroy: (
     faces.forEach((ft, i) => {
       const CW = 1.5, aspect = ft ? ft.image.height / ft.image.width : 1.343, CH = CW * aspect, g = new THREE.Group(), tier = o.cards[i].rarity;
       const faceTex = ft ?? back!;
-      const fm = new THREE.MeshStandardMaterial({ map: faceTex, roughness: .5, metalness: .08, alphaTest: .4, emissive: 0xffffff, emissiveMap: faceTex, emissiveIntensity: 0 });
-      const bm = new THREE.MeshStandardMaterial({ map: back, roughness: .55, metalness: .1, alphaTest: .4 });
+      const fm = new THREE.MeshStandardMaterial({ map: faceTex, roughness: .5, metalness: .08, alphaTest: .4, emissive: 0xffffff, emissiveMap: faceTex, emissiveIntensity: 0, clippingPlanes: [clip] });
+      const bm = new THREE.MeshStandardMaterial({ map: back, roughness: .55, metalness: .1, alphaTest: .4, clippingPlanes: [clip] });
       const front = new THREE.Mesh(new THREE.PlaneGeometry(CW, CH), fm); front.position.z = .004;
       const bk = new THREE.Mesh(new THREE.PlaneGeometry(CW, CH), bm); bk.rotation.y = Math.PI; bk.position.z = -.004;
       const sm = sheenMat(ft, 0, o.cards[i]); const sheen = new THREE.Mesh(new THREE.PlaneGeometry(CW, CH), sm); sheen.position.z = .008;
       const halo = new THREE.Mesh(new THREE.PlaneGeometry(CW * 2.1, CH * 1.8), additive(haloTex, HALO[tier], 0)); halo.position.z = -.05;
-      g.add(halo, bk, front, sheen); g.visible = false; cardsG.add(g); cards.push({ g, fm, sm, halo, info: o.cards[i] });
+      (halo.material as THREE.Material).clippingPlanes = [clip];
+      g.add(halo, bk, front, sheen); g.visible = false; cardsG.add(g); cards.push({ g, fm, sm, halo, front, info: o.cards[i] });
     });
   };
   const makeTimeline = () => {
@@ -131,39 +141,43 @@ export function playBoosterOpening(host: HTMLElement, o: OpenOpts): { destroy: (
     const T5 = 3.42 + (N - 1) * .1 + .85 + .3;   // as cartas terminaram de subir
     tl.to(pack.position, { y: -7.5, duration: .8, ease: 'power2.in' }, T5).to(pack.rotation, { z: -.5, x: .4, duration: .8, ease: 'power1.in' }, T5);
     tl.to(S, { rays: .22, duration: 1, ease: 'power1.out' }, T5 + .3);
-    cards.forEach((c, i) => { const f = fan(i), d = T5 + .35 + i * .06; tl.to(c.g.position, { x: f.x, y: f.y, z: i * .01, duration: .65, ease: 'power3.inOut' }, d); tl.to(c.g.rotation, { z: f.rz, duration: .65, ease: 'power3.inOut' }, d); tl.to(c.g.scale, { x: f.s, y: f.s, z: f.s, duration: .65, ease: 'power3.inOut' }, d); });
-    const T6 = T5 + 1.3, STEP = .6;
-    const reveal = (i: number, at: number) => { const c = cards[i], rare = c.info.rarity !== 'comum', f = fan(i), col = HALO[c.info.rarity];
-      tl.to(c.g.position, { x: f.x * .3, y: .1, z: 1.6, duration: .35, ease: 'power2.out' }, at).to(c.g.position, { x: f.x, y: f.y, z: i * .01, duration: .4, ease: 'power2.inOut' }, at + .75);
-      tl.to(c.g.scale, { x: .95, y: .95, z: .95, duration: .35, ease: 'power2.out' }, at).to(c.g.scale, { x: f.s, y: f.s, z: f.s, duration: .4, ease: 'power2.inOut' }, at + .75);
-      tl.to(c.g.rotation, { z: 0, duration: .35, ease: 'power2.out' }, at).to(c.g.rotation, { z: f.rz, duration: .4, ease: 'power2.inOut' }, at + .75);
-      tl.to(c.g.rotation, { y: 0, duration: .55, ease: 'power2.inOut' }, at + .2);
-      tl.call(() => { burst(f.x * .3, .1, 1.7, rare ? 34 : 14, col, rare ? 3.2 : 2, .07, .9, 1.4); if (rare) shock(f.x * .3, .1, 1.5, col, 2.2, .7); }, undefined, at + .5);
-      tl.fromTo((c.halo.material as THREE.Material), { opacity: 0 }, { opacity: rare ? .85 : .4, duration: .2 }, at + .5).to(c.halo.material, { opacity: rare ? .3 : 0, duration: 1 }, at + .7);
-      if (SHINE_AMT(c.info.rarity) > 0) tl.fromTo(c.sm.uniforms.amt, { value: 0 }, { value: SHINE_AMT(c.info.rarity), duration: .5 }, at + .55); };   // o brilho da raridade fica ligado
-    const normal = big ? N - 1 : N;
-    for (let i = 0; i < normal; i++) reveal(i, T6 + i * STEP);
-    let tEnd = T6 + normal * STEP + .9;
-    if (big) {   // a melhor carta, lendária: pausa, aproximação, virada lenta e explosão dourada
-      const L = cards[lastIdx], a = tEnd; const lf = fan(lastIdx);
-      tl.to(S, { camZ: 8.6, camY: .15, duration: 1.7, ease: 'power2.inOut' }, a);
-      cards.forEach((c, i) => { if (i === lastIdx) return; tl.to(c.g.position, { y: -2.3 - .04 * Math.pow(i - (N - 1) / 2, 2), duration: .7, ease: 'power2.inOut' }, a).to(c.g.scale, { x: .48, y: .48, z: .48, duration: .7, ease: 'power2.inOut' }, a); });
-      tl.to(L.g.position, { x: 0, y: .55, z: 1.7, duration: .8, ease: 'power3.inOut' }, a).to(L.g.rotation, { z: 0, duration: .8, ease: 'power3.inOut' }, a).to(L.g.scale, { x: 1.45, y: 1.45, z: 1.45, duration: .8, ease: 'power3.inOut' }, a);
-      tl.to(S, { rays: .6, bloom: .55, glow: 1, duration: 1.3, ease: 'power2.in' }, a + .2);
-      tl.to(L.g.rotation, { y: Math.PI * .5, duration: .7, ease: 'power2.in' }, a + 1.05).to(L.g.rotation, { y: 0, duration: .55, ease: 'back.out(1.6)' }, a + 1.75);
-      tl.call(() => { burst(0, .55, 1.9, 150, 0xffd870, 7.5, .13, 1.7, 1.2); burst(0, .55, 1.9, 60, 0xffffff, 4.5, .2, .9, 0); shock(0, .55, 1.6, 0xffe6a0, 6.2, 1.1); shock(0, .55, 1.65, 0xffb040, 4.2, .8); S.shake = .08; }, undefined, a + 1.9);
-      tl.fromTo(S, { flash: 0 }, { flash: .4, duration: .08 }, a + 1.9).to(S, { flash: 0, duration: .6, ease: 'power2.in' }, a + 1.98).to(S, { shake: 0, duration: .6 }, a + 2);
-      tl.to(S, { bloom: .85, duration: .1 }, a + 1.9).to(S, { bloom: .4, duration: 1.4 }, a + 2);
-      tl.fromTo((L.halo.material as THREE.Material), { opacity: 0 }, { opacity: 1, duration: .15 }, a + 1.9).to(L.halo.material, { opacity: .55, duration: 1.2 }, a + 2.05);
-      tl.fromTo(L.sm.uniforms.amt, { value: 0 }, { value: 1, duration: .4 }, a + 2);
-      tl.to(S, { camZ: 9.4, duration: 1.6, ease: 'power1.out' }, a + 2); void lf;
-      tEnd = a + 3.4;
-    }
-    END = tEnd; tl.set({}, {}, END);
+    // the pack is gone: the cards close into one face-down pile (first card to be turned on top)
+    cards.forEach((c, i) => { const d = T5 + .55; tl.to(c.g.position, { x: 0, y: PILE_Y, z: .03 + (N - 1 - i) * .012, duration: .6, ease: 'power3.inOut' }, d); tl.to(c.g.rotation, { z: ((i * 37) % 7 - 3) * .006, duration: .6, ease: 'power3.inOut' }, d); tl.to(c.g.scale, { x: 1, y: 1, z: 1, duration: .6, ease: 'power3.inOut' }, d); });
+    END = T5 + 1.3; tl.set({}, {}, END);
   };
+  // ── from here on the player drives it, one tap per card ──
+  let phase: 'intro' | 'pile' | 'busy' | 'shown' | 'done' = 'intro', next = 0;
+  const hint = document.createElement('div'); hint.style.cssText = "position:absolute;left:0;right:0;top:7%;text-align:center;font-family:'Cinzel',serif;letter-spacing:.2em;font-size:13px;color:#f3e7c6;text-shadow:0 1px 3px #000;pointer-events:none;opacity:0;transition:opacity .4s"; host.appendChild(hint);
+  const setHint = (t: string) => { hint.textContent = t; hint.style.opacity = t ? '1' : '0'; };
+  const toSlot = (i: number, slot: { x: number; y: number; s: number }, dur = .55, z = .01 * i) => { const c = cards[i]; gsap.to(c.g.position, { x: slot.x, y: slot.y, z, duration: dur, ease: 'power3.inOut' }); gsap.to(c.g.scale, { x: slot.s, y: slot.s, z: slot.s, duration: dur, ease: 'power3.inOut' }); gsap.to(c.g.rotation, { x: 0, y: 0, z: 0, duration: dur, ease: 'power3.inOut' }); };
+  const flip = (i: number) => {
+    phase = 'busy'; const c = cards[i], rare = c.info.rarity !== 'comum', col = HALO[c.info.rarity], isBig = big && i === lastIdx, k = isBig ? 1.6 : 1, tt = gsap.timeline({ onComplete: () => { phase = 'shown'; next = i + 1; setHint(i === N - 1 ? 'TOQUE PARA VER TODAS' : 'TOQUE PARA A PRÓXIMA'); } });
+    setHint('');
+    tt.to(c.g.position, { x: 0, y: PILE_Y + .1, z: 1.6, duration: .35 * k, ease: 'power2.out' }, 0).to(c.g.scale, { x: 1.08, y: 1.08, z: 1.08, duration: .35 * k, ease: 'power2.out' }, 0).to(c.g.rotation, { z: 0, duration: .35 * k }, 0);
+    if (isBig) { tt.to(S, { camZ: 8.8, camY: .1, rays: .6, bloom: .55, glow: 1, duration: 1.2, ease: 'power2.inOut' }, 0).to(c.g.rotation, { y: Math.PI * .5, duration: .7, ease: 'power2.in' }, .6).to(c.g.rotation, { y: 0, duration: .55, ease: 'back.out(1.6)' }, 1.3); }
+    else tt.to(c.g.rotation, { y: 0, duration: .6, ease: 'power2.inOut' }, .2);
+    const tb = isBig ? 1.45 : .55;
+    tt.call(() => { burst(0, PILE_Y + .1, 1.8, isBig ? 150 : rare ? 34 : 14, isBig ? 0xffd870 : col, isBig ? 7.5 : rare ? 3.2 : 2, isBig ? .13 : .07, isBig ? 1.7 : .9, 1.4); if (rare || isBig) { shock(0, PILE_Y + .1, 1.6, isBig ? 0xffe6a0 : col, isBig ? 6.2 : 2.4, isBig ? 1.1 : .7); } if (isBig) { burst(0, PILE_Y + .1, 1.9, 60, 0xffffff, 4.5, .2, .9, 0); S.shake = .08; gsap.to(S, { shake: 0, duration: .6 }); gsap.fromTo(S, { flash: 0 }, { flash: .4, duration: .08, onComplete: () => { gsap.to(S, { flash: 0, duration: .6 }); } }); gsap.to(S, { bloom: .4, camZ: 9.4, camY: 0, duration: 1.4 }); } }, undefined, tb);
+    tt.fromTo(c.halo.material as THREE.Material, { opacity: 0 }, { opacity: isBig ? 1 : rare ? .85 : .4, duration: .2 }, tb).to(c.halo.material, { opacity: isBig ? .45 : rare ? .25 : 0, duration: 1.1 }, tb + .25);
+    if (SHINE_AMT(c.info.rarity) > 0) tt.fromTo(c.sm.uniforms.amt, { value: 0 }, { value: SHINE_AMT(c.info.rarity), duration: .5 }, tb + .05);   // the shine stays on
+    tt.set({}, {}, tb + (isBig ? 1.3 : .5));
+  };
+  const finishAll = () => { phase = 'busy'; cards.forEach((_, i) => { const g = gridSlot(i); toSlot(i, g, .8, .01 * i); }); gsap.to(S, { rays: .3, duration: 1 }); setTimeout(() => { if (dead) return; phase = 'done'; setHint('TOQUE NUMA CARTA PARA VER EM 3D'); if (!finished) { finished = true; o.onFinished(); } }, 850); };
+  const onTap = (e: PointerEvent) => {
+    if (phase === 'pile') { flip(next); return; }
+    if (phase === 'shown') { const i = next - 1; if (next < N) { toSlot(i, rowSlot(i)); flip(next); } else { toSlot(i, rowSlot(i), .4); finishAll(); } return; }
+    if (phase === 'done' && o.onInspect) {
+      const r = host.getBoundingClientRect(), ndc = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), rc = new THREE.Raycaster(); rc.setFromCamera(ndc, cam);
+      const hit = rc.intersectObjects(cards.map(c => c.front), false)[0]; if (hit) { const i = cards.findIndex(c => c.front === hit.object); if (i >= 0) o.onInspect(i); }
+    }
+  };
+  let downAt: { x: number; y: number } | null = null;
+  const pd = (e: PointerEvent) => { downAt = { x: e.clientX, y: e.clientY }; }, pu = (e: PointerEvent) => { if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 12) onTap(e); downAt = null; };
+  host.addEventListener('pointerdown', pd); host.addEventListener('pointerup', pu);
   const nz = (t: number, f: number) => Math.sin(t * f * 6.283) * .6 + Math.sin(t * f * 11.1 + 1.3) * .4;
   const frame = (T: number) => {
-    tNow = T; const dt = lastT < 0 ? 0 : Math.max(0, Math.min(.05, T - lastT)); lastT = T; tl.seek(T, false);
+    tNow = T; const dt = lastT < 0 ? 0 : Math.max(0, Math.min(.05, T - lastT)); lastT = T; if (phase === 'intro') { tl.seek(Math.min(T, END), false); if (T >= END) { phase = 'pile'; setHint('TOQUE PARA VIRAR A CARTA'); } }
+    clip.constant = -(pack.position.y + SEAM);
     const spawnN = (rate: number, f: () => void) => { let n = rate * dt; while (n > 0) { if (rnd() < n) f(); n -= 1; } };
     if (T > 1.1 && T < 3.2) { const c = S.charge; spawnN(70 * c + 8, () => { const a = R(0, 6.283), r = R(1.7, 2.8), x = Math.cos(a) * r, y = Math.sin(a) * r * 1.25; emit(1, { x, y, z: R(-.3, .6), vx: -x * 1.5 - y * .9, vy: -y * 1.5 + x * .9, drag: .98, life: R(.5, .9), s: R(.05, .11), c: rnd() < .3 ? 0xffffff : 0xffcf70, a: .9 }); }); }
     if (T > 3.2 && T < 4.9) spawnN(80, () => emit(1, { x: R(-.7, .7), y: SEAM + R(0, .3), z: R(.1, .5), vx: R(-.6, .6), vy: R(.8, 2.6), g: -.2, drag: .985, life: R(.7, 1.3), s: R(.04, .1), c: 0xffe6a0, a: .9 }));
@@ -180,11 +194,10 @@ export function playBoosterOpening(host: HTMLElement, o: OpenOpts): { destroy: (
     cards.forEach((c, i) => { c.sm.uniforms.t.value = T * .35 + i * .13; });
     bloom.strength = S.bloom; flashEl.style.opacity = String(S.flash);
     composer.render();
-    if (T >= END && !finished) { finished = true; o.onFinished(); }
   };
   let t0 = 0, running = false;
-  const loop = (ts: number) => { if (dead) return; if (running) frame(Math.min((ts - t0) / 1000, END + .001)); raf = requestAnimationFrame(loop); };
+  const loop = (ts: number) => { if (dead) return; if (running) frame((ts - t0) / 1000); raf = requestAnimationFrame(loop); };
   build().then(() => { if (dead) return; makeTimeline(); ready = true; frame(0); t0 = performance.now(); running = true; });
   raf = requestAnimationFrame(loop); void ready;
-  return { destroy() { dead = true; cancelAnimationFrame(raf); tl?.kill(); gsap.killTweensOf(S); composer.dispose(); renderer.dispose(); renderer.domElement.remove(); flashEl.remove(); scene.traverse((ob: any) => { ob.geometry?.dispose?.(); const m = ob.material; if (m) (Array.isArray(m) ? m : [m]).forEach((x: any) => x.dispose?.()); }); } };
+  return { destroy() { dead = true; host.removeEventListener('pointerdown', pd); host.removeEventListener('pointerup', pu); hint.remove(); gsap.killTweensOf(cards.flatMap(c => [c.g.position, c.g.scale, c.g.rotation])); cancelAnimationFrame(raf); tl?.kill(); gsap.killTweensOf(S); composer.dispose(); renderer.dispose(); renderer.domElement.remove(); flashEl.remove(); scene.traverse((ob: any) => { ob.geometry?.dispose?.(); const m = ob.material; if (m) (Array.isArray(m) ? m : [m]).forEach((x: any) => x.dispose?.()); }); } };
 }

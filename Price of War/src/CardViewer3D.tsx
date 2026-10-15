@@ -1,11 +1,12 @@
 // The 3D card viewer (collection): a card with a gold edge you turn with a finger. Loaded on demand (React.lazy), so three.js is only
 // downloaded the first time a card is opened in 3D. The faces are the card as the game draws it, rendered ahead of time
 // (tools/card3d) and kept in src/assets/card3d; the back is the game's own card back, cut to its art so it is exactly as large as the front.
+import { stampCode } from './cardCode3d';
 import { useEffect, useRef, type CSSProperties } from 'react';
 import * as THREE from 'three';
 import { cardSlug } from './card3d';
 
-export type Viewer3DCard = { name: string; type?: string; full?: boolean };
+export type Viewer3DCard = { name: string; type?: string; full?: boolean; code?: string };
 
 // Shown inside another page (the collection book): no arrows between cards, and it tells the page when the card is ready to be shown
 const EMBED = typeof location !== 'undefined' && new URLSearchParams(location.search).has('embed');
@@ -98,7 +99,7 @@ export default function CardViewer3D({ cards, index, onIndex, onClose, onReady, 
     apiRef.current = {
       setCard: (c) => {
         const id = ++loadId; const intro = !noIntroRef.current; yaw = intro ? Math.PI * 1.2 : 0; vYaw = 0; vPitch = 0; flipTo = intro ? 0 : null; foilMat.uniforms.uStrength.value = c.full || c.type === 'General' ? 0.95 : 0.35;
-        urlOf(cardSlug(c.name)).then(u => (u ? load(u) : null)).then(tx => { if (!tx || id !== loadId) return; frontMat.map = tx; frontMat.emissiveMap = tx; frontMat.needsUpdate = true; foilMat.uniforms.uMap.value = tx; if (EMBED) parent.postMessage('viewer-ready', '*'); onReadyRef.current?.(); }).catch(() => {});
+        urlOf(cardSlug(c.name)).then(u => (u ? load(u) : null)).then(tx0 => { if (!tx0 || id !== loadId) return; const tx = stampCode(tx0, c.code, !!c.full); frontMat.map = tx; frontMat.emissiveMap = tx; frontMat.needsUpdate = true; foilMat.uniforms.uMap.value = tx; if (EMBED) parent.postMessage('viewer-ready', '*'); onReadyRef.current?.(); }).catch(() => {});
       },
     };
 
