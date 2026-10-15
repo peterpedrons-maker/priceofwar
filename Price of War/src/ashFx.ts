@@ -105,7 +105,7 @@ export async function fxAshes(o: AshOpts): Promise<void> {
       // chegada ao cemitério
       const frac = ashes.length ? ashDone / ashes.length : 1;
       if (!arrived && frac > .15 && frac < 1 && rnd() < .3) for (let i = 0; i < 2; i++) spawn({ x: B.cx + R(-14, 14), y: B.cy + R(-10, 10), vx: R(-20, 20), vy: R(-40, -10), g: -10, drag: .96, life: R(.5, 1), s: R(1, 2), c: [255, R(130, 190), 50] });
-      if (!arrived && (frac > .97 || t > 7)) { arrived = true; tArrive = t; boom(t); o.onArrive?.(); }
+      if (!arrived && (frac > .97 || t > 7)) { arrived = true; tArrive = t; boom(t); console.debug('ash arrive', t.toFixed(2), 'release', ashes.reduce((m, x) => Math.max(m, x.rel), 0).toFixed(2)); o.onArrive?.(); }
       if (!arrived && frac > .1) glow(B.cx, B.cy, B.w * 1.05, '255,150,60', clamp(frac * 1.3, 0, 1) * .45);
       // partículas por cima
       for (const p of P) { const u = p.age / p.life, f = u < .12 ? u / .12 : 1 - (u - .12) / .88, a = clamp(p.a * f, 0, 1); if (a <= .01) continue; g.globalCompositeOperation = p.add ? 'lighter' : 'source-over'; const r = p.s * (p.grow ? 1 + p.grow * u : 1);
