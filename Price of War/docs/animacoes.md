@@ -478,3 +478,6 @@ Com "Efeitos de carta novos" ligado: a carta selecionada para atacar/mover não 
 
 ### Abertura de booster: interativa (rodada 26)
 O relógio da abertura só comanda a parte automática (queda, rasgo, subida das cartas, pacote sai, monte). Depois disso cada toque vira uma carta (`flip`), manda a anterior para a fileira de baixo e, no fim, alinha todas (`finishAll`); toque numa carta = visor 3D. Cartas dentro do pacote são cortadas por um plano na altura da borda rasgada (`clip`).
+
+### Mão inicial: os dois compram juntos, uma carta por vez (rodada 26)
+Depois do "BATALHA", a distribuição alterna: uma carta sua sai do seu monte (voo `DrawFlightNovo`) e voa até a sua mão, depois uma do adversário sai do monte dele (carta virada para baixo, `faceDown`) até a mão dele, e assim por diante (`DEAL_STEP` 210 ms entre cartas), cada uma com o som de comprar. Durante a distribuição os voos saem sem a espera extra (`dealingRef`). As compras do adversário durante a partida também voam do monte dele (`npcFlightPendingRef`: cada evento `draw` do assento 1 marca uma carta que vai voar).

@@ -1152,7 +1152,7 @@ if (typeof Image !== 'undefined') { const warm = new Image(); warm.src = fxPunch
 // The real hand card waits hidden (visibility) until the overlay arrives. Trail, glow and sparks follow the overlay (src/cardFx.ts fxDrawFollow).
 // How a drawn card turns (owner's choice, round 26): 'lado' = arc, turning sideways (more stylish); 'puxada' = pulled straight down, turning top to bottom (more realistic).
 const DRAW_STYLE: 'lado' | 'puxada' = 'lado';
-const DrawFlightNovo = ({ card, handEl, deckRect, onDone }: { card: CardData; handEl: HTMLElement; deckRect: DOMRect; onDone: () => void; key?: React.Key }) => {
+const DrawFlightNovo = ({ card, handEl, deckRect, onDone, faceDown }: { card: CardData; handEl: HTMLElement; deckRect: DOMRect; onDone: () => void; faceDown?: boolean; key?: React.Key }) => {   // faceDown: the opponent's card, which never turns over
   const ref = useRef<HTMLDivElement>(null), flipRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current, flip = flipRef.current; if (!el || !flip) return;
@@ -1168,7 +1168,7 @@ const DrawFlightNovo = ({ card, handEl, deckRect, onDone }: { card: CardData; ha
         const ease = ee(p), x = sx0 + (e.x - sx0) * ease, y = sy0 + (e.y - sy0) * ease - Math.sin(Math.PI * Math.min(1, p)) * Math.min(170, Math.abs(e.y - sy0) * .35 + 60);
         const sc = (s0 + (e.s - s0) * ease) * (1 + .22 * Math.sin(Math.PI * p)), lift = Math.min(1, p / .12), rot = (1 - ease) * (sx0 < e.x ? -16 : 16) * lift + e.rot * ease;
         gsap.set(el, { x: x - HW, y: y - HH, scale: sc, rotation: rot, opacity: Math.min(1, p / .06) });
-        const fp = Math.min(1, Math.max(0, (p - .28) / .42)); flip.style.transform = `rotateY(${fp * fp * (3 - 2 * fp) * 180}deg)`;
+        const fp = faceDown ? 0 : Math.min(1, Math.max(0, (p - .28) / .42)); flip.style.transform = `rotateY(${fp * fp * (3 - 2 * fp) * 180}deg)`;
       } else {
         // "puxada": desce reta do monte virando em torno do eixo horizontal, depois desliza até a mão
         const pull = Math.min(1, p / .42), py = 1 - Math.pow(1 - pull, 3), dropY = Math.min(190, Math.max(70, (e.y - sy0) * .7 + 40));
@@ -1188,7 +1188,7 @@ const DrawFlightNovo = ({ card, handEl, deckRect, onDone }: { card: CardData; ha
       <div className="absolute inset-0" style={{ perspective: 1000 }}>
         <div ref={flipRef} className="relative w-full h-full" style={{ transformStyle: 'preserve-3d' }}>
           <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden' }}><CardBack shadow /></div>
-          <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden', transform: DRAW_STYLE === 'lado' ? 'rotateY(180deg)' : 'rotateX(180deg)', filter: CARD_THICKNESS_SHADOW }}><CardFace card={card} variant="hand" /></div>
+          <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden', transform: DRAW_STYLE === 'lado' ? 'rotateY(180deg)' : 'rotateX(180deg)', filter: CARD_THICKNESS_SHADOW }}>{faceDown ? <CardBack shadow /> : <CardFace card={card} variant="hand" />}</div>
         </div>
       </div>
     </div>
@@ -5775,7 +5775,9 @@ export default function App() {
   const blowIsSoaked = (events: GameEvent[], defSeat: Seat, slot: number) =>
     events.some(e => e.t === 'shield_hit' && e.seat === defSeat && e.slot === slot) && !events.some(e => e.t === 'damage' && e.seat === defSeat && e.slot === slot && e.amount > 0);
   // The physical-hit sprite, drawn in a layer above the board over whichever card was hit (see PunchFx).
-  const [drawFlights, setDrawFlights] = useState<{ id: string; card: CardData; handEl: HTMLElement; deckRect: DOMRect }[]>([]);
+  const [drawFlights, setDrawFlights] = useState<{ id: string; card: CardData; handEl: HTMLElement; deckRect: DOMRect; faceDown?: boolean }[]>([]);
+  const npcFlightPendingRef = useRef(0);   // opponent cards that are about to be drawn and should fly from their deck (consumed by the first new card of the opponent's hand)
+  const dealingRef = useRef(false);        // the opening hands are being dealt: the flights go out one after another with no extra waiting
   const [landShake, setLandShake] = useState(0);   // the board shudders when a card slams down (new effects only)
   const [punchFx, setPunchFx] = useState<{ key: number; x: number; y: number; w: number; h: number; heavy: boolean } | null>(null);
   const [attackAnim, setAttackAnim] = useState<{ attackerIndex: number, targetIndex: number, isPlayerAttacking: boolean } | null>(null);
@@ -6507,7 +6509,7 @@ export default function App() {
             const origin = computeDrawOrigin(playerDeckRef, handRef.current.length + drawIndex);
             if (origin) drawOriginsRef.current[e.card.id] = origin;
             drawIndex += 1;
-          }
+          } else npcFlightPendingRef.current += 1;   // the opponent's card flies from its deck too
           playCardDrawSfx();
           break;
         case 'play':
@@ -7476,10 +7478,12 @@ export default function App() {
     // Both starting hands (START_HAND cards each) are dealt fast, a card every DEAL_STEP ms, so the match
     // starts quickly. Kept comfortably past the viewport-settle window (see viewportSettled) so the deck's
     // on-screen position is already final by the time the first card's flight measures it.
+    // Both players draw together, one card at a time (yours, then the opponent's, each from its own deck with the draw flight and its sound).
     const DEAL_START = LAND + 400;
-    const DEAL_STEP = 230;
+    const DEAL_STEP = 210;
+    schedule(() => { dealingRef.current = true; npcFlightPendingRef.current = 0; }, DEAL_START - 10);
     for (let i = 0; i < START_HAND; i++) {
-      const t = DEAL_START + i * DEAL_STEP;
+      const t = DEAL_START + i * DEAL_STEP * 2;
       schedule(() => {
         const card = toCardData(dealt.players[0].hand[i]);
         const origin = computeDrawOrigin(playerDeckRef, handRef.current.length);
@@ -7489,10 +7493,12 @@ export default function App() {
       }, t);
       schedule(() => {
         playCardDrawSfx();
+        npcFlightPendingRef.current += 1;
         setNpcHand(prev => [...prev, toCardData(dealt.players[1].hand[i])]);
-      }, t + 110);
+      }, t + DEAL_STEP);
     }
-    const DEALT = DEAL_START + START_HAND * DEAL_STEP + DRAW_FLIGHT_MS * 0.6;
+    schedule(() => { dealingRef.current = false; }, DEAL_START + START_HAND * DEAL_STEP * 2 + DRAW_FLIGHT_MS);
+    const DEALT = DEAL_START + START_HAND * DEAL_STEP * 2 + DRAW_FLIGHT_MS * 0.6;
     schedule(() => {
       if (tutRef.current) {
         // Tutorial: nothing starts by itself. The instructor walks through the board and asks for the first draw.
@@ -9633,6 +9639,14 @@ export default function App() {
           return (
           <motion.div
             key={`npc-hand-${i}`}
+            ref={(el: HTMLDivElement | null) => {
+              // every element is marked the first time it is seen; only the ones that appear while a draw is pending fly from the opponent's deck
+              if (!el || el.dataset.fxd) return; el.dataset.fxd = '1';
+              if (npcFlightPendingRef.current <= 0 || !npcDeckRef.current || !getGameSettings().fxNovo) return;
+              npcFlightPendingRef.current -= 1; el.style.visibility = 'hidden';
+              const dr = npcDeckRef.current.getBoundingClientRect(), id = `npcdraw-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`;
+              setTimeout(() => setDrawFlights(f => [...f, { id, card: { id, name: '', atk: 0, hp: 0, cost: 0, art: '', effect: '' }, handEl: el, deckRect: dr, faceDown: true }]), 0);
+            }}
             className="w-32 h-48 md:w-40 md:h-56 shrink-0 relative"
             style={{
               transformOrigin: 'top center',
@@ -9720,7 +9734,7 @@ export default function App() {
                 // explicit animate/transition below and causing a visible re-bounce each
                 // time. key alone is enough for React to keep reusing this same DOM node.
                 key={card.id}
-                ref={(el) => { handCardRefs.current[card.id] = el; if (el && drawOriginsRef.current[card.id] && getGameSettings().fxNovo && !el.dataset.fxd && playerDeckRef.current) { el.dataset.fxd = '1'; el.style.visibility = 'hidden'; const dr = playerDeckRef.current.getBoundingClientRect(), cd = card, delay = (drawFlightDelay.n++) * 0.22; setTimeout(() => setDrawFlights(f => [...f, { id: cd.id, card: cd, handEl: el, deckRect: dr }]), delay * 1000); } }}
+                ref={(el) => { handCardRefs.current[card.id] = el; if (el && drawOriginsRef.current[card.id] && getGameSettings().fxNovo && !el.dataset.fxd && playerDeckRef.current) { el.dataset.fxd = '1'; el.style.visibility = 'hidden'; const dr = playerDeckRef.current.getBoundingClientRect(), cd = card, delay = dealingRef.current ? 0 : (drawFlightDelay.n++) * 0.22; setTimeout(() => setDrawFlights(f => [...f, { id: cd.id, card: cd, handEl: el, deckRect: dr }]), delay * 1000); } }}
                 data-hand-card
                 data-card-name={card.name}
                 className={`w-56 h-80 shrink-0 cursor-pointer relative group ${viewState === 'field' || coveredBySelected ? 'pointer-events-none' : 'pointer-events-auto'}`}
@@ -10080,7 +10094,7 @@ export default function App() {
         })()}
       </AnimatePresence>
 
-      {drawFlights.map(f => <DrawFlightNovo key={f.id} card={f.card} handEl={f.handEl} deckRect={f.deckRect} onDone={() => { f.handEl.style.visibility = ''; setDrawFlights(l => l.filter(x => x.id !== f.id)); if (!drawFlights.some(x => x.id !== f.id)) drawFlightDelay.n = 0; }} />)}
+      {drawFlights.map(f => <DrawFlightNovo key={f.id} card={f.card} handEl={f.handEl} deckRect={f.deckRect} faceDown={f.faceDown} onDone={() => { f.handEl.style.visibility = ''; setDrawFlights(l => l.filter(x => x.id !== f.id)); if (!drawFlights.some(x => x.id !== f.id)) drawFlightDelay.n = 0; }} />)}
       {equipFx && <EquipFxLayer fx={equipFx} vw={windowSize.width} vh={windowSize.height} />}
       {trigFx && <TriggerFloatLayer fx={trigFx} />}
       {iconPops.map(p => <IconPop key={p.id} x={p.x} y={p.y} icon={p.icon} label={p.label} />)}
