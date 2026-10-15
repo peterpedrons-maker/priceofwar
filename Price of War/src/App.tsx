@@ -2536,7 +2536,7 @@ CARD_DEFS.forEach(d => { if (!CARD_INSTANCES_BY_NAME[d.name]) CARD_INSTANCES_BY_
 const cardByName = (name: string): CardData | undefined => CARD_INSTANCES_BY_NAME[name]?.[0];
 const isGeneralName = (name: string) => cardByName(name)?.cardType === 'General';
 
-type DeckSlot = { id: string; name: string; general: string; cards: Record<string, number> };
+type DeckSlot = { id: string; name: string; general: string; cards: Record<string, number>; rar?: Record<string, RarityCounts> };   // rar: how many of the copies in the deck are not common (the rest of cards[name] are common)
 // `rarities`: how many copies of each card are not common (the total stays in `collection`); local to this device for now (not synced to the cloud yet).
 type DeckStore = { collection: Record<string, number>; slots: DeckSlot[]; owner?: string; rarities?: Record<string, RarityCounts> };
 // What a match needs from a deck: the draw pool, the General, and which prebuilt deck the AI takes.
@@ -2695,10 +2695,17 @@ const sanitizeDeckStore = (raw: any): DeckStore | null => {
       name: typeof sl?.name === 'string' && sl.name ? sl.name.slice(0, 24) : `Deck ${i + 1}`,
       general: ownedGenerals.includes(sl?.general) ? sl.general : ownedGenerals[0],
       cards,
+      rar: sl?.rar && typeof sl.rar === 'object' ? sl.rar : undefined,
     };
   });
   const rarities: Record<string, RarityCounts> = {};
   Object.entries((raw.rarities ?? {}) as Record<string, RarityCounts>).forEach(([name, c]) => { if (collection[name] && c && typeof c === 'object') { const o: RarityCounts = {}; (['rara', 'ultra', 'secreta'] as const).forEach(k => { const v = Number(c[k]); if (Number.isFinite(v) && v > 0) o[k] = Math.min(Math.floor(v), collection[name]); }); if (Object.keys(o).length) rarities[name] = o; } });
+  // deck copies per version can never exceed what the deck holds nor what the collection has of that version
+  slots.forEach(sl => {
+    const out: Record<string, RarityCounts> = {};
+    Object.entries(sl.rar ?? {}).forEach(([name, c]) => { if (!sl.cards[name] || !c || typeof c !== 'object') return; const o: RarityCounts = {}; let left = sl.cards[name]; (['ultra', 'rara', 'secreta'] as const).forEach(k => { const v = Math.min(Math.floor(Number(c[k]) || 0), rarities[name]?.[k] ?? 0, left); if (v > 0) { o[k] = v; left -= v; } }); if (Object.keys(o).length) out[name] = o; });
+    sl.rar = Object.keys(out).length ? out : undefined;
+  });
   return { collection, slots, owner: typeof raw.owner === 'string' ? raw.owner : undefined, rarities };
 };
 const loadDeckStore = (): DeckStore => {
@@ -3499,6 +3506,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
         {roomOpen && (
           <Suspense fallback={<div className="fixed inset-0 z-[250] bg-[#0d0905]" />}>
             <CollectionRoom onClose={() => setRoomOpen(false)} onOpenShop={() => setShopOpen(true)} onOpenDeck={() => setDeckEditorOpen(true)} overlayOpen={shopOpen || deckEditorOpen}
+              stock={() => { const st = loadDeckStore(), o: Record<string, Record<Rarity, number>> = {}; Object.entries(st.collection).forEach(([name, total]) => { const r = st.rarities?.[name] ?? {}, ra = r.rara ?? 0, ul = r.ultra ?? 0, se = r.secreta ?? 0; o[name] = { comum: Math.max(0, total - ra - ul - se), rara: ra, ultra: ul, secreta: se }; }); return o; }}
               // TEST BASE: the shelf always has a stack of each kind of booster (Cardeal and Capitão) and they never run out, so opening them can be tried over and over.
               packs={BOOSTERS.map(d => ({ id: d.id, name: d.name, art: <BoosterArt def={d} /> }))}
               renderOpening={(id, onDone) => { const def = BOOSTERS.find(b => b.id === id); return def ? <OpenBoosterFromTable key={id} def={def} onDone={onDone} /> : null; }} />
@@ -3703,17 +3711,21 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
   const inDeck = (name: string) => slot.cards[name] ?? 0;
   const owned = (name: string) => store.collection[name] ?? 0;
   // How many copies can move each way right now.
-  const canAdd = (name: string) => Math.max(0, Math.min(owned(name) - inDeck(name), maxCopiesOf(name) - inDeck(name), DECK_MAX_CARDS - total));
-  const canRemove = (name: string) => inDeck(name);
-  const addReason = (name: string) =>
-    owned(name) - inDeck(name) <= 0 ? 'Sem cópias na reserva'
+  // Versions: each card can be owned in several rarities; common copies are what is left after the special ones (rarities / slot.rar).
+  const sumR = (c?: RarityCounts) => (c?.rara ?? 0) + (c?.ultra ?? 0) + (c?.secreta ?? 0);
+  const ownV = (name: string, r: Rarity) => r === 'comum' ? Math.max(0, owned(name) - sumR(store.rarities?.[name])) : (store.rarities?.[name]?.[r] ?? 0);
+  const inV = (name: string, r: Rarity) => r === 'comum' ? Math.max(0, inDeck(name) - sumR(slot.rar?.[name])) : (slot.rar?.[name]?.[r] ?? 0);
+  const canAdd = (name: string, r: Rarity = 'comum') => Math.max(0, Math.min(ownV(name, r) - inV(name, r), maxCopiesOf(name) - inDeck(name), DECK_MAX_CARDS - total));
+  const canRemove = (name: string, r: Rarity = 'comum') => inV(name, r);
+  const addReason = (name: string, r: Rarity = 'comum') =>
+    ownV(name, r) - inV(name, r) <= 0 ? 'Sem cópias na reserva'
       : inDeck(name) >= maxCopiesOf(name) ? `Limite de ${maxCopiesOf(name)} cópias por carta`
       : total >= DECK_MAX_CARDS ? `Deck cheio (${DECK_MAX_CARDS}/${DECK_MAX_CARDS})` : '';
 
   const rows = (() => {
     const names = Object.keys(store.collection).filter(n => !isGeneralName(n));
     const list = names
-      .map(name => ({ name, card: cardByName(name)!, count: side === 'deck' ? inDeck(name) : owned(name) - inDeck(name) }))
+      .flatMap(name => (['comum', 'rara', 'ultra', 'secreta'] as Rarity[]).map(rar => ({ name, rar, card: { ...cardByName(name)!, rarity: rar } as CardData, count: side === 'deck' ? inV(name, rar) : ownV(name, rar) - inV(name, rar) })))
       .filter(r => r.count > 0)
       .filter(r => typeFilter === 'todas' || r.card.cardType === typeFilter)
       .filter(r => !query.trim() || r.name.toLowerCase().includes(query.trim().toLowerCase()));
@@ -3722,12 +3734,14 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
       sort === 'nome' ? a.name.localeCompare(b.name, 'pt-BR')
       : sort === 'tipo' ? typeRank(a.card.cardType) - typeRank(b.card.cardType) || a.card.cost - b.card.cost || a.name.localeCompare(b.name, 'pt-BR')
       : a.card.cost - b.card.cost || a.name.localeCompare(b.name, 'pt-BR'));
+    list.sort((a, b) => a.name === b.name ? RARITY_ORDER[a.rar] - RARITY_ORDER[b.rar] : 0);   // stable: only reorders the versions of the same card
     return list;
   })();
   const reserveCount = Object.keys(store.collection).filter(n => !isGeneralName(n)).reduce((sum, n) => sum + owned(n) - inDeck(n), 0);
 
-  const openCard = (name: string) => { setPicked(name); setQty(1); };
-  const maxQty = picked ? (side === 'deck' ? canRemove(picked) : canAdd(picked)) : 0;
+  const [pickedR, setPickedR] = useState<Rarity>('comum');
+  const openCard = (name: string, rar: Rarity = 'comum') => { setPicked(name); setPickedR(rar); setQty(1); };
+  const maxQty = picked ? (side === 'deck' ? canRemove(picked, pickedR) : canAdd(picked, pickedR)) : 0;
   const applyMove = () => {
     if (!picked || maxQty < 1) return;
     const n = Math.min(qty, maxQty);
@@ -3735,9 +3749,14 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
       const cards = d.slots[slotIdx].cards;
       const next = (cards[picked] ?? 0) + (side === 'deck' ? -n : n);
       if (next <= 0) delete cards[picked]; else cards[picked] = next;
+      if (pickedR !== 'comum') {
+        const rar = (d.slots[slotIdx].rar ??= {}), c = (rar[picked] ??= {}), k = pickedR as 'rara' | 'ultra' | 'secreta', v = (c[k] ?? 0) + (side === 'deck' ? -n : n);
+        if (v > 0) c[k] = v; else delete c[k];
+        if (!Object.keys(c).length) delete rar[picked];
+      }
     });
     const dest: DeckSide = side === 'deck' ? 'reserve' : 'deck';
-    const card = cardByName(picked);
+    const card = cardByName(picked) && { ...cardByName(picked)!, rarity: pickedR } as CardData;
     const rect = (dest === 'deck' ? deckTabRef : reserveTabRef).current?.getBoundingClientRect();
     const id = Date.now();
     if (card) {
@@ -3776,7 +3795,7 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
   const cellScale = cellW / 246;
   // The frames' points stick out above and below the 320px box too, so rows get extra height.
   const cellH = Math.round(320 * cellScale * 1.12) + 8;
-  const pickedCard = picked ? cardByName(picked) : undefined;
+  const pickedCard = picked ? { ...cardByName(picked)!, rarity: pickedR } as CardData : undefined;
 
   const chip = (active: boolean) =>
     `shrink-0 px-2.5 py-1 rounded-full border text-[10px] uppercase tracking-[0.1em] transition-colors ${active ? 'border-[#e8c766] bg-[#7a5a16]/70 text-[#fff1c9]' : 'border-[#d4af37]/35 text-[#cdbd97]'}`;
@@ -3918,14 +3937,14 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
                     const isUnit = ['Infantaria', 'Cavalaria', 'Arqueiro', 'Artilharia'].includes(r.card.cardType ?? '');
                     return (
                       <button
-                        key={r.name}
-                        onClick={() => { playUiClickSfx(); openCard(r.name); }}
+                        key={`${r.name}|${r.rar}`}
+                        onClick={() => { playUiClickSfx(); openCard(r.name, r.rar); }}
                         className="relative grid w-full shrink-0 text-left active:bg-[#7a5a16]/35 transition-colors"
                         style={{ gridTemplateColumns: LIST_COLS, height: ROW_H }}
                       >
                         <span className="flex items-center justify-center text-[12px] font-black text-[#fff1c9]" style={{ fontFamily: "'Cinzel', serif" }}>{r.card.cost}</span>
                         <span className="flex items-center min-w-0 px-2">
-                          <span className="text-[12px] leading-[1.1] text-[#f3e3c3] line-clamp-2" style={{ fontFamily: "'PT Serif', serif", fontWeight: 700 }}>{r.name}</span>
+                          <span className="text-[12px] leading-[1.1] text-[#f3e3c3] line-clamp-2" style={{ fontFamily: "'PT Serif', serif", fontWeight: 700 }}>{r.name}{r.rar !== 'comum' && <span className="ml-1 text-[9px] font-black" style={{ fontFamily: "'Cinzel', serif", color: r.rar === 'ultra' ? '#ffd45c' : '#bfe0ff' }}>{cardCode(r.name, r.rar).slice(4)}</span>}</span>
                         </span>
                         <span className="flex items-center justify-center text-center text-[7.5px] leading-tight uppercase tracking-[0.04em] text-[#cdbd97]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>
                           {r.card.cardType}
@@ -3950,7 +3969,7 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
               ) : (
                 <div className="grid p-1.5" style={{ gridTemplateColumns: `repeat(${gridCols}, ${cellW}px)`, columnGap: cellGap, rowGap: cellGap, justifyContent: 'center' }}>
                   {rows.map(r => (
-                    <button key={r.name} onClick={() => { playUiClickSfx(); openCard(r.name); }} className="relative active:brightness-125 active:scale-[0.97] transition" style={{ width: cellW, height: cellH }}>
+                    <button key={`${r.name}|${r.rar}`} onClick={() => { playUiClickSfx(); openCard(r.name, r.rar); }} className="relative active:brightness-125 active:scale-[0.97] transition" style={{ width: cellW, height: cellH }}>
                       {/* Every card gets the same cell, so the grid lines up exactly. Full Art
                           frames come out smaller than Padrão ones at the same scale, so they are
                           drawn slightly larger to look the same size. */}
@@ -3981,7 +4000,7 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
             onClick={() => setConfirm({
               title: 'Limpar deck',
               message: total === 0 ? 'O deck já está vazio.' : `Todas as ${total} cartas do ${slot.name} voltam para a reserva. O General continua o mesmo.`,
-              run: () => { if (total > 0) commit(d => { d.slots[slotIdx].cards = {}; }); },
+              run: () => { if (total > 0) commit(d => { d.slots[slotIdx].cards = {}; d.slots[slotIdx].rar = undefined; }); },
             })}
           >
             <KitIcon src={KIT_ICONS.lixo} size={16} className="mr-2" />Limpar deck
@@ -3994,7 +4013,13 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
               setConfirm({
                 title: 'Preencher automático',
                 message: add === 0 ? `Nada para adicionar: o deck já tem ${total} cartas ou a reserva não tem mais cartas que caibam.` : `Vai adicionar ${add} cartas da reserva ao ${slot.name}, até ${DECK_MAX_CARDS}, respeitando o limite de cópias de cada carta.`,
-                run: () => { if (add > 0) commit(d => { Object.entries(plan).forEach(([n, c]) => { d.slots[slotIdx].cards[n] = (d.slots[slotIdx].cards[n] ?? 0) + c; }); }); },
+                run: () => { if (add > 0) commit(d => { Object.entries(plan).forEach(([n, c]) => {
+                  // common copies first, then the special versions
+                  const sl = d.slots[slotIdx], rs = d.rarities?.[n] ?? {}, inR = sl.rar?.[n] ?? {}, comumFree = Math.max(0, (d.collection[n] ?? 0) - sumR(rs) - ((sl.cards[n] ?? 0) - sumR(inR)));
+                  let left = Math.max(0, c - comumFree);
+                  (['rara', 'ultra', 'secreta'] as const).forEach(k => { const take = Math.min(left, (rs[k] ?? 0) - (inR[k] ?? 0)); if (take > 0) { const rar = (sl.rar ??= {}); (rar[n] ??= {})[k] = (inR[k] ?? 0) + take; left -= take; } });
+                  sl.cards[n] = (sl.cards[n] ?? 0) + c;
+                }); }); },
               });
             }}
           >
@@ -4008,7 +4033,7 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
           <CardViewer3D
             cards={rows.map(r => ({ name: r.name, type: r.card.cardType, full: !!r.card.isFullArt }))}
             index={view3d}
-            onIndex={(i) => { setView3d(i); setPicked(rows[i].name); }}
+            onIndex={(i) => { setView3d(i); setPicked(rows[i].name); setPickedR(rows[i].rar); }}
             onClose={() => setView3d(null)}
           />
         </Suspense>
@@ -4041,7 +4066,7 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
               </div>
               <button
                 aria-label="Ver a carta em 3D"
-                onClick={() => { const i = rows.findIndex(r => r.name === picked); if (i >= 0) { playUiClickSfx(); setView3d(i); } }}
+                onClick={() => { const i = rows.findIndex(r => r.name === picked && r.rar === pickedR); if (i >= 0) { playUiClickSfx(); setView3d(i); } }}
                 className="absolute flex items-center justify-center active:brightness-125"
                 style={{ right: -6, bottom: -6, width: 46, height: 46, borderRadius: 12, border: '2px solid #e8c766', background: 'linear-gradient(#3b2a12, #1c1308)', color: '#ffe9b0', fontFamily: "'Cinzel', serif", fontWeight: 900, fontSize: 14, letterSpacing: '0.04em', boxShadow: '0 3px 8px rgba(0,0,0,0.7)' }}
               >3D</button>
@@ -4055,7 +4080,7 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
                 </div>
               )}
               {maxQty === 0 && side === 'reserve' && (
-                <span className="text-[12px] text-[#f0a595] text-center" style={{ fontFamily: "'PT Serif', serif" }}>{addReason(picked)}</span>
+                <span className="text-[12px] text-[#f0a595] text-center" style={{ fontFamily: "'PT Serif', serif" }}>{addReason(picked, pickedR)}</span>
               )}
               <div className="flex gap-3 justify-center">
                 {maxQty > 0 && (

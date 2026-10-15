@@ -4,14 +4,21 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties, type MutableRefObject, type PointerEvent as RPointerEvent, type RefObject } from 'react';
 import { CARD_DEFS } from './engine/catalog';
 import { cardSlug } from './card3d';
+import { cardCode, RARITY_NAME, type Rarity } from './rarity';
 import roomImage from './assets/room-collection.webp';
 import coverImage from './assets/room-book-cover.webp';
 import pageImage from './assets/room-book-page.webp';
 import insideImage from './assets/room-book-inside.webp';
 
 const CardViewer3D = lazy(() => import('./CardViewer3D'));
-const THUMBS = import.meta.glob('./assets/card-thumb/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
-const thumbOf = (name: string): string | undefined => THUMBS[`./assets/card-thumb/${cardSlug(name)}.webp`];
+const THUMBS = import.meta.glob('./assets/card3d/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+const thumbOf = (name: string): string | undefined => THUMBS[`./assets/card3d/${cardSlug(name)}.webp`];
+// What the player owns of each card, per version (rarity): the common ones are the total minus the special ones.
+export type Stock = Record<string, Record<Rarity, number>>;
+const RARS: Rarity[] = ['comum', 'rara', 'ultra', 'secreta'];
+const versionsOf = (st?: Record<Rarity, number>): { r: Rarity; n: number }[] => (st ? RARS.filter(r => (st[r] ?? 0) > 0).map(r => ({ r, n: st[r] })) : []);
+const bestOf = (st?: Record<Rarity, number>) => { const v = versionsOf(st); return v.length ? v[v.length - 1] : null; };
+const FOIL_OP: Record<Rarity, number> = { comum: 0, rara: .3, ultra: .5, secreta: .55 };
 
 const SW = 768, SH = 1376;                         // the stage (the room image's own size)
 const PER = 9;                                     // cards on a page (3 x 3)
@@ -66,7 +73,7 @@ function shelfSlot(t: number, total: number) {
 type Entry = { name: string; type: string; full: boolean };
 
 export type RoomPack = { id: string; name: string; art: ReactNode };
-export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overlayOpen, packs, renderOpening }: { onClose: () => void; onOpenShop: () => void; onOpenDeck: () => void; overlayOpen: boolean; packs: RoomPack[]; renderOpening: (id: string, onDone: () => void) => ReactNode }) {
+export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overlayOpen, packs, renderOpening, stock }: { onClose: () => void; onOpenShop: () => void; onOpenDeck: () => void; overlayOpen: boolean; packs: RoomPack[]; renderOpening: (id: string, onDone: () => void) => ReactNode; stock: () => Stock }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const fitRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -179,7 +186,7 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
             })}
             {shelfMode && packs.map((pk, t) => <div key={`l${pk.id}`} className="room-stack-label" style={{ left: shelfSlot(t, packs.length).cx - 40, top: shelfSlot(t, packs.length).y + 2, width: 80 }}>{pk.name.replace('Booster ', '').toUpperCase()}</div>)}
             {/* the names are written on the things themselves: the book cover, the shop sign, and two little plaques (the shelf, the table) */}
-            <div className="room-title" style={{ left: 164, top: 438 }}><BookTitle size={11.5} count={`${entries.length}/${entries.length}`} /></div>
+            <div className="room-title" style={{ left: 164, top: 438 }}><BookTitle size={11.5} count="" /></div>
             <div className="room-title t-gold" style={{ left: 683, top: 383, fontSize: 27, letterSpacing: '.14em', paddingLeft: '.14em' }}>LOJA</div>
             <Plaque x={204} y={652} w={120} h={25} size={11} spacing=".3em">BOOSTERS</Plaque>
             <Plaque x={592} y={1300} w={134} h={35} size={14.5} spacing=".2em" rot={-1.5}>MEU DECK</Plaque>
@@ -217,7 +224,7 @@ export default function CollectionRoom({ onClose, onOpenShop, onOpenDeck, overla
       )}
       {shelfMode && <div style={{ position: 'absolute', left: 0, right: 0, bottom: 'max(14px, env(safe-area-inset-bottom))', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 10.5, letterSpacing: '0.16em', color: 'rgba(255,233,176,.8)', textShadow: '0 1px 2px #000', pointerEvents: 'none', zIndex: 30 }}>TOQUE NUM PACOTE PARA ABRIR</div>}
       {openingPack && renderOpening(openingPack, () => { setServed(m => ({ ...m, [openingPack]: (m[openingPack] ?? 0) + 1 })); setOpeningPack(null); })}
-      {bookState !== 'closed' && <Binder entries={entries} opening={bookState === 'opening'} onOpened={() => setBookState('open')} onClose={closeBook} />}
+      {bookState !== 'closed' && <Binder entries={entries} stock={stock} opening={bookState === 'opening'} onOpened={() => setBookState('open')} onClose={closeBook} />}
     </div>
   );
 }
@@ -229,7 +236,7 @@ const BEND = 78;              // degrees of bend at the middle of a turn
 type Rect = { x: number; y: number; w: number; h: number };
 type Phase = 'slide' | 'fly' | 'settled' | 'back1' | 'insert';
 
-function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; opening: boolean; onOpened: () => void; onClose: () => void }) {
+function Binder({ entries, stock, opening, onOpened, onClose }: { entries: Entry[]; stock: () => Stock; opening: boolean; onOpened: () => void; onClose: () => void }) {
   const pages = Math.ceil(entries.length / PER);
   const rootRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<HTMLDivElement>(null);
@@ -243,9 +250,14 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
   const drag = useRef<{ x: number; base: number; moved: number; t: number; lx: number; v: number; target: EventTarget | null } | null>(null);
   const [page, setPage] = useState(0);
   const [ui, setUi] = useState(false);
-  const [missing, setMissing] = useState(false);
-  const MISSING = useMemo(() => new Set([4, 7, 13, 19, 22, 28, 33, 38, 41, 45]), []);
-  const owned = (i: number) => !missing || !MISSING.has(i);
+  const [demo, setDemo] = useState(false);          // test button: pretend the whole catalog is owned, in all versions
+  const real = useMemo(() => stock(), []);
+  const have = useMemo<Stock>(() => {
+    if (!demo) return real;
+    const o: Stock = {}; entries.forEach((e, i) => { o[e.name] = { comum: 3, rara: i % 3 === 0 ? 1 : 0, ultra: i % 7 === 0 ? 1 : 0, secreta: 0 }; }); return o;
+  }, [demo, real, entries]);
+  const [sheet, setSheet] = useState<null | { i: number; el: HTMLElement }>(null);   // the versions of one card
+  const owned = (i: number) => !!bestOf(have[entries[i].name]);
   const count = entries.filter((_, i) => owned(i)).length;
 
   const segOf = (i: number) => {
@@ -301,7 +313,7 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
     const step = (n: number) => { const u = clamp((n - s) / ms, 0, 1); fn(from + (to - from) * ease(u)); if (u < 1) requestAnimationFrame(step); else res(); };
     requestAnimationFrame(step);
   });
-  useEffect(() => { layout(); }, [missing, page]);
+  useEffect(() => { layout(); }, [demo, page]);
   useEffect(() => {
     let dead = false;
     (async () => { if (opening) { setCover(0); await wait(200); if (dead) return; await tween(setCover, 0, 1, 950); if (dead) return; setUi(true); onOpened(); } })();
@@ -318,7 +330,7 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
   };
   const up = () => {
     const d = drag.current; if (!d) return; drag.current = null;
-    if (d.moved < 8) { pos.current = d.base; layout(); const pk = (d.target as HTMLElement | null)?.closest?.('[data-card]') as HTMLElement | null; if (pk) openCard(Number(pk.dataset.card), pk); return; }
+    if (d.moved < 8) { pos.current = d.base; layout(); const pk = (d.target as HTMLElement | null)?.closest?.('[data-card]') as HTMLElement | null; if (pk) tapCard(Number(pk.dataset.card), pk); return; }
     let to = Math.round(pos.current); if (Math.abs(d.v) > 0.45) to = d.v < 0 ? Math.floor(d.base) + 1 : Math.ceil(d.base) - 1;
     glide(clamp(to, 0, pages - 1), 620);
   };
@@ -330,6 +342,7 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
   const [flyGo, setFlyGo] = useState(false);
   const [viewerReady, setViewerReady] = useState(false);
   const liftCell = useRef<HTMLElement | null>(null);
+  const tapCard = (i: number, pk: HTMLElement) => { if (versionsOf(have[entries[i].name]).length > 1) setSheet({ i, el: pk }); else openCard(i, pk); };
   const openCard = (i: number, pk: HTMLElement) => {
     if (lift) return; const img = pk.querySelector('img') as HTMLImageElement | null; if (!img) return;
     const W = window.innerWidth, H = window.innerHeight, ar = img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 0.679;
@@ -369,12 +382,16 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
         {Array.from({ length: PER }, (_, k) => {
           const i = p * PER + k, e = entries[i];
           if (!e) return <div key={k} />;
-          if (!owned(i)) return <div key={k} style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ width: '78%', height: '82%', borderRadius: 7, border: '1px solid rgba(232,196,106,.16)', background: 'rgba(0,0,0,.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(232,196,106,.3)', fontSize: 24 }}>?</div></div>;
-          const t = thumbOf(e.name);
+          const t = thumbOf(e.name), best = bestOf(have[e.name]), no = cardCode(e.name, 'comum').slice(0, 4);
+          if (!best) return <div key={k} style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ width: '78%', height: '82%', borderRadius: 7, border: '1px solid rgba(232,196,106,.16)', background: 'rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, color: 'rgba(232,196,106,.3)', fontSize: 24 }}>?<span style={{ fontSize: 8, letterSpacing: '.08em', fontFamily: "'Cinzel',serif" }}>{no}</span></div></div>;
+          const total = RARS.reduce((a, r) => a + (have[e.name]?.[r] ?? 0), 0);
           return (
-            <div key={k} data-card={i} style={{ position: 'relative', padding: '6% 5%' }}>
+            <div key={k} data-card={i} style={{ position: 'relative', padding: '6% 5% 13%' }}>
               {t && <img src={t} alt={e.name} loading="lazy" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.7))' }} />}
-              {t && e.full && <div className="bk-foil" style={{ inset: '6% 5%', WebkitMaskImage: `url(${t})`, maskImage: `url(${t})` }} />}
+              {t && (e.full || best.r !== 'comum') && <div className="bk-foil" style={{ inset: '6% 5% 13%', opacity: best.r === 'comum' ? .34 : FOIL_OP[best.r] + .1, WebkitMaskImage: `url(${t})`, maskImage: `url(${t})` }} />}
+              <div style={{ position: 'absolute', left: '5%', right: '5%', bottom: '1%', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontFamily: "'Cinzel',serif", fontWeight: 800, fontSize: 7.5, letterSpacing: '.04em', color: best.r === 'ultra' ? '#ffd86a' : best.r === 'rara' ? '#bfe0ff' : '#e8d6a8', textShadow: '0 1px 2px #000, 0 0 3px #000' }}>
+                <span>{cardCode(e.name, best.r)}</span><span style={{ color: '#ffe9b0' }}>×{total}</span>
+              </div>
             </div>
           );
         })}
@@ -415,7 +432,7 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
       <div style={{ position: 'absolute', left: 0, right: 0, top: 0, padding: 'max(10px, env(safe-area-inset-top)) 12px 8px', display: 'flex', alignItems: 'center', gap: 8, zIndex: 40, opacity: ui ? 1 : 0, transition: 'opacity .35s', pointerEvents: ui ? 'auto' : 'none' }}>
         <button className="bk-chip" onClick={close}>‹ SALA</button>
         <div style={{ flex: 1, textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.18em', color: '#ffe9b0' }}>COLEÇÃO {count}/{entries.length}</div>
-        <button className="bk-chip" style={{ fontSize: 9.5, background: missing ? 'rgba(232,196,106,.22)' : undefined }} onClick={() => setMissing(m => !m)}>SIMULAR FALTANTES</button>
+        <button className="bk-chip" style={{ fontSize: 9.5, background: demo ? 'rgba(232,196,106,.22)' : undefined }} onClick={() => setDemo(m => !m)}>VER TUDO (TESTE)</button>
       </div>
 
       <div ref={bookRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
@@ -450,7 +467,7 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
         </div>
       </div>
 
-      <div style={{ position: 'absolute', left: 0, right: 0, top: 'calc(50% + 250px)', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.14em', color: 'rgba(255,233,176,.55)', opacity: ui ? 1 : 0, transition: 'opacity .35s', pointerEvents: 'none' }}>DESLIZE PARA VIRAR · TOQUE NA CARTA PARA VER EM 3D</div>
+      <div style={{ position: 'absolute', left: 0, right: 0, top: 'calc(50% + 250px)', textAlign: 'center', fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.14em', color: 'rgba(255,233,176,.55)', opacity: ui ? 1 : 0, transition: 'opacity .35s', pointerEvents: 'none' }}>DESLIZE PARA VIRAR · TOQUE NA CARTA PARA VER</div>
       <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '10px 14px max(14px, env(safe-area-inset-bottom))', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, zIndex: 40, opacity: ui ? 1 : 0, transition: 'opacity .35s', pointerEvents: ui ? 'auto' : 'none' }}>
         <button className="bk-arrow" aria-label="Página anterior" disabled={page < 1} onClick={() => go(-1)}>‹</button>
         <div style={{ textAlign: 'center' }}>
@@ -459,6 +476,31 @@ function Binder({ entries, opening, onOpened, onClose }: { entries: Entry[]; ope
         </div>
         <button className="bk-arrow" aria-label="Próxima página" disabled={page > pages - 2} onClick={() => go(1)}>›</button>
       </div>
+
+      {sheet && (() => {
+        const e = entries[sheet.i], t = thumbOf(e.name), vs = versionsOf(have[e.name]);
+        return (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 60 }} onClick={() => setSheet(null)}>
+            <div style={{ position: 'absolute', inset: 0, background: 'rgba(5,3,2,.7)' }} />
+            <div onClick={ev => ev.stopPropagation()} style={{ position: 'absolute', left: 10, right: 10, bottom: 'max(14px, env(safe-area-inset-bottom))', padding: '14px 12px 12px', borderRadius: 16, background: 'linear-gradient(180deg,#2a1a10,#150d07)', border: '1px solid rgba(217,178,90,.55)', boxShadow: '0 -10px 40px rgba(0,0,0,.7)' }}>
+              <div style={{ textAlign: 'center', fontFamily: "'Cinzel',serif", color: '#ffe9b0', fontWeight: 800, fontSize: 13, letterSpacing: '.1em' }}>{e.name.toUpperCase()}</div>
+              <div style={{ textAlign: 'center', fontFamily: "'Cinzel',serif", color: 'rgba(255,233,176,.55)', fontSize: 9.5, letterSpacing: '.16em', margin: '3px 0 12px' }}>Nº {cardCode(e.name, 'comum').slice(0, 4)} · TOQUE NUMA VERSÃO PARA VER EM 3D</div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                {vs.map(v => (
+                  <button key={v.r} onClick={() => { const el = sheet.el, i = sheet.i; setSheet(null); openCard(i, el); }} style={{ width: 92, padding: 0, background: 'none', border: 0, textAlign: 'center' }}>
+                    <div style={{ position: 'relative' }}>
+                      {t && <img src={t} alt="" draggable={false} style={{ width: '100%', display: 'block', filter: 'drop-shadow(0 3px 5px rgba(0,0,0,.7))' }} />}
+                      {t && (e.full || v.r !== 'comum') && <div className="bk-foil" style={{ inset: 0, opacity: v.r === 'comum' ? .34 : FOIL_OP[v.r] + .1, WebkitMaskImage: `url(${t})`, maskImage: `url(${t})` }} />}
+                    </div>
+                    <div style={{ marginTop: 6, fontFamily: "'Cinzel',serif", fontWeight: 800, fontSize: 11, color: v.r === 'ultra' ? '#ffd86a' : v.r === 'rara' ? '#bfe0ff' : '#e8d6a8' }}>{cardCode(e.name, v.r)}</div>
+                    <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: 'rgba(255,233,176,.7)' }}>{RARITY_NAME[v.r]} · ×{v.n}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {lift && (() => {
         const showCard = lift.phase === 'fly' || lift.phase === 'settled' || lift.phase === 'back1';
