@@ -46,4 +46,8 @@ if __name__ == '__main__':
     out, assets = sys.argv[1], sys.argv[2]; os.makedirs(out, exist_ok=True)
     save(os.path.join(out, 'cinzas-A-fogo-nuvem-chegada.wav'), build(assets, True))
     save(os.path.join(out, 'cinzas-B-fogo-chegada.wav'), build(assets, False))
-    print('ok')
+    # a chegada sozinha, para o jogo (versão B aprovada): pouso abafado + baque grave, na mesma proporção da prévia em relação ao fogo
+    land = lowpass(load(os.path.join(assets, 'sfx-jogar-carta.wav')), 4200) * .85; th = thump() * .55
+    x = np.zeros((int(SR * 1.2), 2)); put(x, 0, land, 1); put(x, 0, th, 1); k = .95 / (np.abs(x).max() or 1)
+    with wave.open(os.path.join(assets, 'sfx-cinzas-chegada.wav'), 'wb') as w: w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes((np.clip(x * k, -1, 1) * 32767).astype('<i2').tobytes())
+    print('ok; no jogo, volume da chegada = 1,1 / k com k =', round(k, 3))

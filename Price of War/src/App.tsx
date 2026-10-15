@@ -210,6 +210,7 @@ import cardLiftSfxUrl from './assets/sfx-levantar-carta.wav';
 import damageSfxUrl from './assets/sfx-dano.wav';
 import generalDamageSfxUrl from './assets/sfx-dano-general.wav';
 import destroySfxUrl from './assets/sfx-destruicao-fogo.wav';
+import ashArriveSfxUrl from './assets/sfx-cinzas-chegada.wav';   // the ash reaches the graveyard: the card lands on the pile (tools/audio/cinzas.py, version B chosen by the owner)
 // Match-intro VS reveal (see startMatchIntro/MatchIntroOverlay further below) — a
 // whoosh for each General's portrait sliding into view, and a metallic stinger for
 // the "BATALHA" banner slam.
@@ -433,6 +434,7 @@ const playGeneralDamageSfx = () => {
 // building at 0.2 s and the burst lands at 0.44 s — frame 7 at 16 fps, the burn animation's brightest frame (BURN_FPS).
 // Started on the frame the card starts burning (CardSlot's isDestroyed effect), it ends with the last of the fire (~1.1 s).
 const playDestroySfx = () => playSfx(destroySfxUrl, 1.1, 'sfx:destroy');
+const playAshArriveSfx = () => playSfx(ashArriveSfxUrl, 1.16, 'sfx:ash-arrive');
 // Match-intro VS reveal (see startMatchIntro/MatchIntroOverlay further below).
 const playRevealGeneralSfx = () => {
   const audio = new Audio(revealGeneralSfxUrl);
@@ -5471,7 +5473,7 @@ export default function App() {
       // loading screen's own image preloading.
       const ctx = duelMusicCtxRef.current ?? (duelMusicCtxRef.current = new AudioContext());
       if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-      [attackSfxUrl, destroySfxUrl, effectSfxUrl].forEach(preloadSfx);   // decoded now, so the first blow / burn starts on time
+      [attackSfxUrl, destroySfxUrl, effectSfxUrl, ashArriveSfxUrl].forEach(preloadSfx);   // decoded now, so the first blow / burn starts on time
       preloadHolyFx();
       void preloadTerrainFx();
       void preloadCombatFx();   // the combat effects (src/combatFx.ts): images and sounds ready before the first Tática
@@ -6600,7 +6602,7 @@ export default function App() {
               ash = true; const hold = graveHoldRef.current[side], id = e.card.id, name = e.card.name;
               hold.add(id);
               const release = () => { if (hold.delete(id) && engineRef.current) syncView(engineRef.current); };
-              void trackOverlay((async () => { const url = await card3dUrl(cardSlug(name)); await fxAshes({ faceUrl: url, from: { cx: sl.left + sl.width / 2, cy: sl.top + sl.height / 2, w: sl.width, h: sl.height }, to: { cx: gr.left + gr.width / 2, cy: gr.top + gr.height / 2, w: gr.width, h: gr.height }, onArrive: release }); })().finally(release));
+              void trackOverlay((async () => { const url = await card3dUrl(cardSlug(name)); await fxAshes({ faceUrl: url, from: { cx: sl.left + sl.width / 2, cy: sl.top + sl.height / 2, w: sl.width, h: sl.height }, to: { cx: gr.left + gr.width / 2, cy: gr.top + gr.height / 2, w: gr.width, h: gr.height }, onArrive: () => { playAshArriveSfx(); release(); } }); })().finally(release));
             }
           }
           ghosts[e.slot] = { ...toCardData(e.card), isDestroyed: true, ashFx: ash };
