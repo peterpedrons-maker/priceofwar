@@ -1,7 +1,6 @@
 // The 3D card viewer (collection): a card with a gold edge you turn with a finger. Loaded on demand (React.lazy), so three.js is only
 // downloaded the first time a card is opened in 3D. The faces are the card as the game draws it, rendered ahead of time
 // (tools/card3d) and kept in src/assets/card3d; the back is the game's own card back, cut to its art so it is exactly as large as the front.
-import { stampCode } from './cardCode3d';
 import { useEffect, useRef, type CSSProperties } from 'react';
 import * as THREE from 'three';
 import { cardSlug } from './card3d';
@@ -99,7 +98,7 @@ export default function CardViewer3D({ cards, index, onIndex, onClose, onReady, 
     apiRef.current = {
       setCard: (c) => {
         const id = ++loadId; const intro = !noIntroRef.current; yaw = intro ? Math.PI * 1.2 : 0; vYaw = 0; vPitch = 0; flipTo = intro ? 0 : null; foilMat.uniforms.uStrength.value = c.full || c.type === 'General' ? 0.95 : 0.35;
-        urlOf(cardSlug(c.name)).then(u => (u ? load(u) : null)).then(tx0 => { if (!tx0 || id !== loadId) return; const tx = stampCode(tx0, c.code, !!c.full); frontMat.map = tx; frontMat.emissiveMap = tx; frontMat.needsUpdate = true; foilMat.uniforms.uMap.value = tx; if (EMBED) parent.postMessage('viewer-ready', '*'); onReadyRef.current?.(); }).catch(() => {});
+        urlOf(cardSlug(c.name)).then(u => (u ? load(u) : null)).then(tx => { if (!tx || id !== loadId) return; frontMat.map = tx; frontMat.emissiveMap = tx; frontMat.needsUpdate = true; foilMat.uniforms.uMap.value = tx; if (EMBED) parent.postMessage('viewer-ready', '*'); onReadyRef.current?.(); }).catch(() => {});
       },
     };
 
@@ -163,6 +162,7 @@ export default function CardViewer3D({ cards, index, onIndex, onClose, onReady, 
       <div style={{ position: 'absolute', left: 0, right: 0, top: 0, padding: 'max(14px, env(safe-area-inset-top)) 56px 0', textAlign: 'center', pointerEvents: 'none', background: 'linear-gradient(#0d0905cc, #0d090500)', fontFamily: "'Cinzel', serif" }}>
         <div style={{ fontSize: 19, fontWeight: 700, marginTop: 4, letterSpacing: '0.04em', color: '#ffe9b0', textShadow: '0 2px 6px #000' }}>{card?.name.split(',')[0]}</div>
         <div style={{ fontSize: 11, letterSpacing: '0.18em', color: '#cdbd97', textTransform: 'uppercase', marginTop: 2 }}>{card?.type ?? ''}</div>
+        {card?.code && <div style={{ fontSize: 10.5, letterSpacing: '0.16em', color: '#e8c46a', marginTop: 3 }}>Nº {card.code.slice(0, 4)} · {({ C: 'COMUM', R: 'RARA', UR: 'ULTRA RARA', S: 'SECRETA' } as Record<string, string>)[card.code.slice(4)] ?? ''}</div>}
       </div>
       <button onClick={onClose} aria-label="Fechar" style={{ position: 'absolute', top: 'max(10px, env(safe-area-inset-top))', right: 10, width: 40, height: 40, borderRadius: 10, border: '1px solid rgba(201,169,90,0.5)', background: 'rgba(14,10,6,0.65)', color: '#ffe9b0', fontSize: 22, lineHeight: 1 }}>×</button>
       {!EMBED && !hideArrows && index > 0 && <button style={arrow(-1)} aria-label="Carta anterior" onClick={() => onIndex(index - 1)}>‹</button>}

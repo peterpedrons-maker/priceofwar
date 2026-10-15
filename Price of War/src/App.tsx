@@ -1970,7 +1970,6 @@ const CardFaceFullArt = ({ card, variant = 'hand' }: { card: CardData, variant?:
               height actually get used — a centered block wastes the space a
               ragged edge would've used for more characters at a readable size. */}
           <div className="relative flex-1 w-full min-h-0">
-            <RarityTag card={card} />
             <FitEffectText
               text={card.effect}
               lead={trig ? { label: trig.label, icon: trig.icon } : undefined}
@@ -2209,9 +2208,6 @@ const CardFaceStandardMini = ({ card }: { card: CardData }) => {
 // Raridade na carta (src/rarity.ts): o brilho passa só pelo que o plano do dono manda (arte / letras do nome / carta inteira, sempre no formato real) e o número de
 // coleção (0001C, 0001R, 0001UR…) fica bem pequeno embaixo, no centro.
 const rarNameCls = (card: CardData, dark = false) => { const sh = shineOf(card.rarity, !!card.isFullArt); return sh === 'name' ? `rar-name rara${dark ? ' dark' : ''}` : sh === 'art+name' ? `rar-name ultra${dark ? ' dark' : ''}` : ''; };
-const RarityTag = ({ card }: { card: CardData }) => (
-  <span className="absolute z-20 pointer-events-none" style={{ top: 1, right: 3, fontFamily: "'Cinzel', serif", fontSize: 6, lineHeight: 1, letterSpacing: '0.06em', fontWeight: 800, color: card.isFullArt ? '#e9d8a6' : '#4a3010', textShadow: card.isFullArt ? '0 1px 1px #000' : '0 1px 0 rgba(255,243,206,.55)', opacity: 0.8 }}>{cardCode(card.name, card.rarity)}</span>
-);
 const RarityCardShine = ({ card }: { card: CardData }) => {
   if (shineOf(card.rarity, !!card.isFullArt) !== 'card') return null;
   const { masks, box } = silhouetteFor(card);
@@ -2296,7 +2292,6 @@ const CardFace = ({ card, variant = 'hand' }: { card: CardData, variant?: keyof 
             bottom pulled up (10%→13%) so it can't run into the ATK/HP blade
             and heart emblems, whose own box starts around 89% down the card. */}
         <div className="absolute p-1" style={{ top: '64%', bottom: '13%', left: '8%', right: '11%' }}>
-          <RarityTag card={card} />
           <FitEffectText
             text={card.effect}
             lead={trig ? { label: trig.label, icon: trig.icon } : undefined}

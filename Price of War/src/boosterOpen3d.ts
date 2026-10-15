@@ -4,7 +4,6 @@
 import * as THREE from 'three';
 import gsap from 'gsap';
 import type { Shine, Rarity } from './rarity';
-import { stampCode } from './cardCode3d';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
@@ -94,7 +93,7 @@ export function playBoosterOpening(host: HTMLElement, o: OpenOpts): { destroy: (
   const flashEl = document.createElement('div'); flashEl.style.cssText = 'position:absolute;inset:0;background:#fff8e0;opacity:0;pointer-events:none;mix-blend-mode:screen'; host.appendChild(flashEl);
 
   const build = async () => {
-    const [packTex, back, ...faces] = await Promise.all([o.packUrl ? tex(o.packUrl) : Promise.resolve(null), tex(o.backUrl), ...o.cards.map(c => c.faceUrl ? tex(c.faceUrl).then(t => (t ? stampCode(t, c.code, c.isFullArt) : t)) : Promise.resolve(null))]);
+    const [packTex, back, ...faces] = await Promise.all([o.packUrl ? tex(o.packUrl) : Promise.resolve(null), tex(o.backUrl), ...o.cards.map(c => c.faceUrl ? tex(c.faceUrl) : Promise.resolve(null))]);
     if (dead) return;
     const pTex = packTex ?? cv(256, 440, (g, w, h) => { const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, o.accent); gr.addColorStop(1, '#2a1a0c'); g.fillStyle = gr; g.fillRect(0, 0, w, h); g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, 0, w, h * .09); g.fillRect(0, h * .91, w, h * .09); });
     packMat = new THREE.MeshPhysicalMaterial({ map: pTex, roughness: .36, metalness: .28, clearcoat: .85, clearcoatRoughness: .22, side: THREE.DoubleSide, alphaTest: .3, emissive: 0xffcf80, emissiveMap: pTex, emissiveIntensity: 0 });
