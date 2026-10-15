@@ -23,11 +23,11 @@
   .band i{width:4px;height:4px;border-radius:50%;background:#2a1a08}
   .band svg{width:7px;height:7px}
   /* C: círculo pequeno embaixo, no meio, com os ícones do jogo (espada+ = ganhou ATK, coração+ = ganhou vida) */
-  .medals{position:absolute;left:50%;bottom:3px;transform:translateX(-50%);display:flex;z-index:3}
-  .medals .medal+.medal{margin-left:-2px}
-  .medal{position:relative;width:11px;height:12.3px;filter:drop-shadow(0 1px 1px #000a)}   /* os mesmos escudos de dourado da carta (ATK preto, vida vermelho), bem pequenos */
+  .medals{position:absolute;left:50%;bottom:9px;transform:translateX(-50%);display:flex;z-index:3}   /* tudo DENTRO da carta: no pé do pergaminho, acima da moldura de baixo */
+  .medals .medal+.medal{margin-left:-1px}
+  .medal{position:relative;width:12px;height:12px;filter:drop-shadow(0 1px 1px #000a)}   /* o botão redondo do jogo (ui-icon-mais, sem a cruz): grafite = ataque, vermelho = vida */
   .medal .sh{position:absolute;inset:0;width:100%;height:100%}
-  .medal .ic{position:absolute;left:50%;top:54%;width:62%;transform:translate(-50%,-50%)}
+  .medal .ic{position:absolute;left:50%;top:50%;width:68%;transform:translate(-50%,-50%)}
   .big{display:flex;justify-content:center;align-items:flex-start;gap:0;margin:10px 0 0;position:relative;height:330px}
   .big .main{position:absolute;left:62px;top:8px;width:230px;z-index:4;filter:drop-shadow(0 10px 14px #000a)}
   .big .main img,.big .eq img{display:block;width:100%}
@@ -37,8 +37,8 @@
 </head>
 <body>
 <div class="page">
-  <h2>C · Escudinho do jogo embaixo, no meio</h2>
-  <p>Sem barra e sem nada fora da carta. Usa os próprios escudinhos dourados do jogo (preto = ataque, vermelho = vida), com a espada ou o coração dentro; se o equipamento dá os dois, dois escudinhos lado a lado. Ficam embaixo no meio, dentro da moldura, sem tapar número nenhum.</p>
+  <h2>C · Botão redondo do jogo embaixo, no meio, dentro da carta</h2>
+  <p>Sem barra e sem nada fora da carta. Usa o botão redondo do jogo (o mesmo de `ui-icon-mais`, com a cruz apagada): grafite = ataque, vermelho = vida, com a espada ou o coração dentro; se o equipamento dá os dois, dois botõezinhos lado a lado. Ficam no pé do pergaminho, no meio, 100% dentro da carta e sem tapar número nenhum.</p>
   <div class="board" id="boardC"></div>
   <h2>A · Selo de arma no canto da arte (anterior)</h2>
   <p>A unidade fica do tamanho normal, sem carta atrás. O selo (arma + quantidade) só aparece quando há equipamento. As cartas de equipamento aparecem na prévia (toque na carta), mais abaixo.</p>
@@ -60,7 +60,7 @@ const layoutC = [['s', ''], ['b', 'a'], ['c', 'h'], ['s', 'ah'], ['b', 'a']], la
 function slot(item, mode) {
   const el = document.createElement('div'); el.className = 'slot'; if (!item) return el;
   const [k, n] = item, c = document.createElement('div'); c.className = 'card'; c.innerHTML = `<img src="${faces[k]}" alt="">`;
-  if (mode === 'C' && n) c.innerHTML += `<div class="medals">${[...n].map(x => `<div class="medal"><img class="sh" src="${x === 'a' ? 'ui-stat-atk.webp' : 'ui-stat-hp.webp'}" alt=""><img class="ic" src="${x === 'a' ? 'ui-icon-sword.webp' : 'ui-icon-heart.webp'}" alt=""></div>`).join('')}</div>`;
+  if (mode === 'C' && n) c.innerHTML += `<div class="medals">${[...n].map(x => `<div class="medal"><img class="sh" src="${x === 'a' ? 'disco-atk.webp' : 'disco-hp.webp'}" alt=""><img class="ic" src="${x === 'a' ? 'ui-icon-sword.webp' : 'ui-icon-heart.webp'}" alt=""></div>`).join('')}</div>`;
   if (n && mode === 'A') c.innerHTML += `<div class="seal">${SWORD}${n > 1 ? `<b>${n}</b>` : ''}</div>`;
   if (n && mode === 'B') c.innerHTML += `<div class="band">${Array.from({ length: n }, () => `<i></i>`).join('')}</div>`;
   el.appendChild(c); return el;
