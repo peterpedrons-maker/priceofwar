@@ -508,5 +508,5 @@ Depois do "BATALHA", a distribuição alterna: uma carta sua sai do seu monte (v
 ### Ícones de bônus padronizados (rodada 26)
 O sinal (+ / −) fica sempre à ESQUERDA do ícone: a espada já era assim, e o coração tinha o sinal à direita. `ui-effect-hp-up.webp`, `ui-effect-hp-down.webp`, `fx-hp-up-sheet.webp` e `fx-hp-down-sheet.webp` foram espelhados (as folhas, quadro a quadro), então valem para o jogo todo (marcas nas cartas, pop-ups de +ATK/+HP, etc.).
 
-### Equipamento, mockup v2: círculo pequeno com ícone do jogo (ainda NÃO ligado ao jogo)
-Em `public/mockups/equipamento/index.html` a opção **C**: sem barra; um círculo de ~14 px embaixo, no meio da carta (entre os escudos), com o ícone espada+ (equipamento que dá ATK) ou coração+ (que dá vida); dá os dois = dois círculos lado a lado. Falta o dono aprovar.
+### Equipamento, mockup v2: escudinho do jogo embaixo, no meio (ainda NÃO ligado ao jogo)
+Em `public/mockups/equipamento/index.html`, opção **C** (v3): sem barra e sem nada fora da carta. Usa os próprios escudos dourados do jogo (`ui-stat-atk.webp` preto = ataque, `ui-stat-hp.webp` vermelho = vida), com o ícone da espada (`ui-icon-sword.webp`) ou do coração (`ui-icon-heart.webp`) dentro; ~11 px de largura, embaixo no meio, dentro da moldura, entre os escudos de ATK/HP; se o equipamento dá os dois, dois escudinhos lado a lado. (A primeira versão usava um círculo feito por código e passava da borda da carta: descartada.) Falta o dono aprovar para ligar ao jogo.
