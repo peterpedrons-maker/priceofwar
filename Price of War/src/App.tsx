@@ -1143,6 +1143,8 @@ if (typeof Image !== 'undefined') { const warm = new Image(); warm.src = fxPunch
 // A card drawn from the deck (new effects): an overlay card that REALLY leaves the deck pile on the board (the pile glows as it lifts off), swings up in an arc,
 // spins and turns face-up on the way, and lands exactly on its place in the hand (it reads that place live, so it still lands right while the hand slides up).
 // The real hand card waits hidden (visibility) until the overlay arrives. Trail, glow and sparks follow the overlay (src/cardFx.ts fxDrawFollow).
+// How a drawn card turns (owner's choice, round 26): 'lado' = arc, turning sideways (more stylish); 'puxada' = pulled straight down, turning top to bottom (more realistic).
+const DRAW_STYLE: 'lado' | 'puxada' = 'lado';
 const DrawFlightNovo = ({ card, handEl, deckRect, onDone }: { card: CardData; handEl: HTMLElement; deckRect: DOMRect; onDone: () => void; key?: React.Key }) => {
   const ref = useRef<HTMLDivElement>(null), flipRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -1153,16 +1155,21 @@ const DrawFlightNovo = ({ card, handEl, deckRect, onDone }: { card: CardData; ha
     const st = { p: 0 }; let sparked = false;
     fxDrawFollow(el, deckRect, D);
     const place = () => {
-      // O jogador PUXA a carta para baixo (como nos desenhos): ela desce reto do monte, virando em torno do eixo horizontal (de cima para baixo), e só depois
-      // acompanha até o lugar na mão. Sem giro lateral.
       const e = end(), p = st.p, ee = (u: number) => { u = Math.min(1, Math.max(0, u)); return u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; };
-      const pull = Math.min(1, p / .42), py = 1 - Math.pow(1 - pull, 3), dropY = Math.min(190, Math.max(70, (e.y - sy0) * .7 + 40));
-      const slide = ee((p - .3) / .7), yBase = sy0 + dropY * py;
-      const x = sx0 + (e.x - sx0) * slide, y = yBase + (e.y - yBase) * slide;
-      const sc = (s0 + (e.s - s0) * ee(p)) * (1 + .2 * Math.sin(Math.PI * Math.min(1, p / .7)));
-      const rot = e.rot * ee((p - .5) / .5);
-      gsap.set(el, { x: x - HW, y: y - HH, scale: sc, rotation: rot, opacity: Math.min(1, p / .05) });
-      const fp = Math.min(1, Math.max(0, (p - .08) / .5)); flip.style.transform = `rotateX(${fp * fp * (3 - 2 * fp) * 180}deg)`;
+      if (DRAW_STYLE === 'lado') {
+        // "de lado" (escolha do dono): arco amplo saindo do monte, a carta gira em torno do eixo vertical (vira de lado) e pousa na mão
+        const ease = ee(p), x = sx0 + (e.x - sx0) * ease, y = sy0 + (e.y - sy0) * ease - Math.sin(Math.PI * Math.min(1, p)) * Math.min(170, Math.abs(e.y - sy0) * .35 + 60);
+        const sc = (s0 + (e.s - s0) * ease) * (1 + .22 * Math.sin(Math.PI * p)), lift = Math.min(1, p / .12), rot = (1 - ease) * (sx0 < e.x ? -16 : 16) * lift + e.rot * ease;
+        gsap.set(el, { x: x - HW, y: y - HH, scale: sc, rotation: rot, opacity: Math.min(1, p / .06) });
+        const fp = Math.min(1, Math.max(0, (p - .28) / .42)); flip.style.transform = `rotateY(${fp * fp * (3 - 2 * fp) * 180}deg)`;
+      } else {
+        // "puxada": desce reta do monte virando em torno do eixo horizontal, depois desliza até a mão
+        const pull = Math.min(1, p / .42), py = 1 - Math.pow(1 - pull, 3), dropY = Math.min(190, Math.max(70, (e.y - sy0) * .7 + 40));
+        const slide = ee((p - .3) / .7), yBase = sy0 + dropY * py, x = sx0 + (e.x - sx0) * slide, y = yBase + (e.y - yBase) * slide;
+        const sc = (s0 + (e.s - s0) * ee(p)) * (1 + .2 * Math.sin(Math.PI * Math.min(1, p / .7))), rot = e.rot * ee((p - .5) / .5);
+        gsap.set(el, { x: x - HW, y: y - HH, scale: sc, rotation: rot, opacity: Math.min(1, p / .05) });
+        const fp = Math.min(1, Math.max(0, (p - .08) / .5)); flip.style.transform = `rotateX(${fp * fp * (3 - 2 * fp) * 180}deg)`;
+      }
       void sparked;
     };
     place();
@@ -1174,7 +1181,7 @@ const DrawFlightNovo = ({ card, handEl, deckRect, onDone }: { card: CardData; ha
       <div className="absolute inset-0" style={{ perspective: 1000 }}>
         <div ref={flipRef} className="relative w-full h-full" style={{ transformStyle: 'preserve-3d' }}>
           <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden' }}><CardBack shadow /></div>
-          <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden', transform: 'rotateX(180deg)', filter: CARD_THICKNESS_SHADOW }}><CardFace card={card} variant="hand" /></div>
+          <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden', transform: DRAW_STYLE === 'lado' ? 'rotateY(180deg)' : 'rotateX(180deg)', filter: CARD_THICKNESS_SHADOW }}><CardFace card={card} variant="hand" /></div>
         </div>
       </div>
     </div>
