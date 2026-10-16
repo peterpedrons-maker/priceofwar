@@ -4920,6 +4920,43 @@ const AuthButton = ({ icon, label, onClick, busy = false, primary = false }: { i
 
 const authFieldClass = 'block w-full bg-transparent px-2 py-1.5 text-[14px] text-[#f3e3c3] placeholder:text-[#8d7f60] outline-none';
 
+// Quem já entrou antes vê esta tela ao abrir o jogo (nunca cai direto no menu): continuar com a conta que já está ligada, ou sair e entrar com outra.
+const WelcomeBack = ({ session, name, avatarId, onContinue, onOther }: { session: Session; name: string; avatarId: string; onContinue: () => void; onOther: () => void }) => {
+  const [asking, setAsking] = useState(false);
+  const how = session.guest ? 'Convidado' : session.provider === 'google' ? 'Google' : session.provider === 'discord' ? 'Discord' : 'E-mail';
+  return (
+    <AuthBackdrop>
+      <div className="flex-1" />
+      <motion.div className="w-full" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.25, ease: 'easeOut' }}>
+        <FramedWindow>
+          <div className="flex flex-col items-center gap-3 px-1 py-1">
+            <WindowTitle>Bem-vindo de volta</WindowTitle>
+            <AvatarBadge avatarId={avatarId} size={72} />
+            <div className="flex flex-col items-center leading-tight">
+              <span className="text-[17px] text-[#ffe9b0]" style={{ fontFamily: "'Cinzel', serif", fontWeight: 700 }}>{name}</span>
+              <span className="text-[11px] text-[#cdbd97]" style={{ fontFamily: "'PT Serif', serif" }}>{how}{session.email ? ` · ${session.email}` : ''}</span>
+            </div>
+            {!asking ? (
+              <>
+                <div className="w-full"><AuthButton primary label={`Continuar como ${name}`} onClick={onContinue} /></div>
+                <button onClick={() => { playUiClickSfx(); if (session.guest) setAsking(true); else onOther(); }} className="text-[12px] text-[#e8c766] underline underline-offset-2" style={{ fontFamily: "'PT Serif', serif" }}>Entrar com outra conta</button>
+              </>
+            ) : (
+              <>
+                <WindowText>Você está como convidado. Sair agora pode fazer você perder este progresso para sempre (só uma conta de Google, Discord ou e-mail guarda o progresso de verdade). Sair mesmo?</WindowText>
+                <div className="flex gap-3">
+                  <WindowButton onClick={() => setAsking(false)}>Voltar</WindowButton>
+                  <WindowButton danger onClick={onOther}>Sair do convidado</WindowButton>
+                </div>
+              </>
+            )}
+          </div>
+        </FramedWindow>
+      </motion.div>
+    </AuthBackdrop>
+  );
+};
+
 const LoginScreen = () => {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -4946,8 +4983,8 @@ const LoginScreen = () => {
         <FramedWindow>
           <div className="flex flex-col gap-2.5 px-1 py-1">
             <WindowTitle>Entrar</WindowTitle>
-            <AuthButton icon={<GoogleMark />} label="Continuar com Google" busy={busy === 'google'} onClick={() => run('google', () => signInOAuth('google'))} />
-            <AuthButton icon={<DiscordMark />} label="Continuar com Discord" busy={busy === 'discord'} onClick={() => run('discord', () => signInOAuth('discord'))} />
+            <AuthButton icon={<GoogleMark />} label="Continuar com Google" busy={busy === 'google'} onClick={() => run('google', () => { try { sessionStorage.setItem('pow.fresh', '1'); } catch { /* no storage */ } return signInOAuth('google'); })} />
+            <AuthButton icon={<DiscordMark />} label="Continuar com Discord" busy={busy === 'discord'} onClick={() => run('discord', () => { try { sessionStorage.setItem('pow.fresh', '1'); } catch { /* no storage */ } return signInOAuth('discord'); })} />
             {!emailOpen ? (
               <AuthButton label="Entrar com e-mail" onClick={() => setEmailOpen(true)} />
             ) : (
@@ -5511,6 +5548,7 @@ export default function App() {
   // screen does not flash for someone who is already signed in.
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [welcome, setWelcome] = useState(false);   // a returning player sees "Bem-vindo de volta" before the menu
   const [profileNamed, setProfileNamed] = useState(() => (authMode === 'local' ? loadProfile().nameSet : false));
   // With real accounts the profile lives in the cloud: wait for it before showing the menu.
   const [profileLoading, setProfileLoading] = useState(authMode === 'supabase');
@@ -5570,7 +5608,13 @@ export default function App() {
   }, [session, profileNamed, profileLoading, profileError]);
   useEffect(() => {
     let alive = true;
-    getSession().then(sn => { if (alive) { setSession(sn); setAuthReady(true); } }).catch(() => { if (alive) setAuthReady(true); });
+    getSession().then(sn => {
+      if (!alive) return;
+      // Opening the game with an account already linked: show the welcome screen first. Not when this open is the return from a Google/Discord login that was just made.
+      let fresh = false; try { fresh = sessionStorage.getItem('pow.fresh') === '1'; sessionStorage.removeItem('pow.fresh'); } catch { /* no storage */ }
+      if (sn && !fresh && !directRoom.current && loadProfile().nameSet) setWelcome(true);
+      setSession(sn); setAuthReady(true);
+    }).catch(() => { if (alive) setAuthReady(true); });
     const off = onSessionChange(sn => { setSession(sn); setAuthReady(true); });
     return () => { alive = false; off(); };
   }, []);
@@ -8076,6 +8120,10 @@ export default function App() {
 
   if (!authReady) return <div className="fixed inset-0 bg-black" />;
   if (!session) return directRoom.current ? <div className="fixed inset-0 bg-black" /> : <LoginScreen />;
+  if (welcome) {
+    const wp = loadProfile();
+    return <WelcomeBack session={session} name={wp.name} avatarId={wp.avatarId} onContinue={() => setWelcome(false)} onOther={() => { setWelcome(false); void signOut(); }} />;
+  }
   if (authMode === 'supabase' && profileLoading) {
     return <div className="fixed inset-0 bg-black flex items-center justify-center text-[#cdbd97] text-[12px] uppercase tracking-[0.2em]" style={{ fontFamily: "'Cinzel', serif" }}>Carregando seu perfil…</div>;
   }
