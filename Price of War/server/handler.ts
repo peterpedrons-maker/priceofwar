@@ -120,7 +120,12 @@ export type GameRequest =
   | { op: 'report'; matchId: string; reason: string; note?: string }
   | { op: 'adminBan'; target: string; reason?: string }
   | { op: 'adminUnban'; target: string }
-  | { op: 'deleteAccount' };
+  | { op: 'deleteAccount' }
+  | { op: 'friendCreate'; cards: Record<string, number>; rar?: unknown; general: string }
+  | { op: 'friendStatus' }
+  | { op: 'friendCancel' }
+  | { op: 'friendPeek'; code: string }
+  | { op: 'friendJoin'; code: string; cards: Record<string, number>; rar?: unknown; general: string };
 
 export type GameResponse =
   | { ok: true; status: 'waiting' | 'none' }
@@ -133,6 +138,8 @@ export type GameResponse =
   | { ok: true; status: 'admin'; admin: AdminOverview & { top: { rank: number; name: string; points: number; label: string }[]; season: number; me: { id: string; email: string | null } } }
   | { ok: true; status: 'reported' }
   | { ok: true; status: 'deleted' }
+  | { ok: true; status: 'room'; code: string; expires: number }
+  | { ok: true; status: 'peek'; host: string }
   | { ok: true; status: 'emotes'; emotes: { id: number; from: 0 | 1; code: string }[] }
   | { ok: false; error: string };
 
@@ -388,7 +395,7 @@ const finishIfStale = async (db: Db, cfg: GameConfig, m: MatchRow | null): Promi
 
 // ── Requests ────────────────────────────────────────────────────────────────
 // A request is untrusted input from a phone: the shape and sizes are checked before anything reads it (the game rules themselves are checked by the engine).
-const OPS = new Set(['ping', 'admin', 'report', 'deleteAccount', 'adminBan', 'adminUnban', 'queue', 'ranked', 'claim', 'ranking', 'status', 'cancel', 'act', 'tick', 'result', 'emote', 'emotes']);
+const OPS = new Set(['ping', 'admin', 'report', 'deleteAccount', 'friendCreate', 'friendStatus', 'friendCancel', 'friendPeek', 'friendJoin', 'adminBan', 'adminUnban', 'queue', 'ranked', 'claim', 'ranking', 'status', 'cancel', 'act', 'tick', 'result', 'emote', 'emotes']);
 export const badRequest = (req: unknown): string | null => {
   if (!req || typeof req !== 'object' || Array.isArray(req)) return 'Pedido inválido.';
   const r = req as Record<string, unknown>;
@@ -398,6 +405,7 @@ export const badRequest = (req: unknown): string | null => {
   if (r.season !== undefined && !(Number.isInteger(r.season) && (r.season as number) >= 0 && (r.season as number) < 1e4)) return 'Pedido inválido.';
   if (r.limit !== undefined && !(typeof r.limit === 'number' && Number.isFinite(r.limit))) return 'Pedido inválido.';
   if (r.code !== undefined && (typeof r.code !== 'string' || r.code.length > 8)) return 'Pedido inválido.';
+  if ((r.op === 'friendPeek' || r.op === 'friendJoin') && !(typeof r.code === 'string' && /^[A-Za-z0-9]{4,8}$/.test(r.code))) return 'Convite inválido.';
   if (r.target !== undefined && (typeof r.target !== 'string' || r.target.length > 64)) return 'Pedido inválido.';
   if (r.reason !== undefined && (typeof r.reason !== 'string' || r.reason.length > 200)) return 'Pedido inválido.';
   if (r.note !== undefined && (typeof r.note !== 'string' || r.note.length > 200)) return 'Pedido inválido.';
@@ -444,7 +452,7 @@ const ONLINE_MS = 3 * 60 * 1000;
 // platform has its own limits on top). [max requests, window in ms] per kind of request; the numbers are far above what a person ever sends.
 const LIMITS: Record<string, [number, number]> = {
   act: [400, 10000], tick: [200, 10000], status: [200, 10000], queue: [20, 30000], cancel: [30, 30000], emote: [20, 30000], emotes: [60, 10000],
-  report: [8, 3600000], deleteAccount: [3, 3600000], admin: [60, 60000], adminBan: [30, 60000], adminUnban: [30, 60000], ping: [20, 60000],
+  report: [8, 3600000], deleteAccount: [3, 3600000], friendCreate: [10, 60000], friendJoin: [15, 60000], friendPeek: [20, 60000], friendStatus: [200, 10000], friendCancel: [30, 60000], admin: [60, 60000], adminBan: [30, 60000], adminUnban: [30, 60000], ping: [20, 60000],
 };
 const DEFAULT_LIMIT: [number, number] = [120, 10000];
 const hits = new Map<string, number[]>();
@@ -458,6 +466,8 @@ export const rateLimited = (userId: string, op: string, now: number): boolean =>
 };
 export const resetRateLimits = () => hits.clear();   // (tests: every test starts with a clean slate)
 export const REPORT_DAILY_MAX = 10;
+const ROOM_MS = 15 * 60 * 1000;   // an invitation lasts 15 minutes
+const ROOM_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';   // no 0/O/1/I/L: easy to read out loud
 
 export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: GameConfig = defaultConfig(), who: Who = {}): Promise<GameResponse> => {
   const invalid = badRequest(req);
@@ -492,6 +502,58 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
       await db.queueDelete(userId);
       await db.deleteAccount(userId);
       return { ok: true, status: 'deleted' };
+    }
+    case 'friendCreate': {
+      if (!req.cards || typeof req.cards !== 'object' || typeof req.general !== 'string') return { ok: false, error: 'Deck inválido.' };
+      const resume = await finishIfStale(db, cfg, await db.activeMatchOf(userId));
+      if (resume) return { ok: true, status: 'matched', match: await initOf(db, await enforceClock(db, resume, cfg), userId, cfg) };
+      const cards = currentNames(req.cards), general = currentCardName(req.general), coll = currentNames(await db.collection(userId));
+      const problem = deckProblem(cards, general, coll);
+      if (problem) return { ok: false, error: problem };
+      const rar = cleanRar(req.rar, cards, coll);
+      await db.queueDelete(userId);
+      let code = '';
+      for (let i = 0; i < 8; i++) {
+        code = Array.from({ length: 6 }, () => ROOM_ALPHABET[Math.floor(cfg.random() * ROOM_ALPHABET.length)]).join('');
+        if (!(await db.roomGet(code))) break;
+      }
+      const created = cfg.now();
+      await db.roomPut({ code, host: userId, deck: rar ? { general, cards, rar } : { general, cards }, created_at: new Date(created).toISOString() });
+      return { ok: true, status: 'room', code, expires: created + ROOM_MS };
+    }
+    case 'friendStatus': {
+      const active = await finishIfStale(db, cfg, await db.activeMatchOf(userId));
+      if (active) { await db.roomDeleteByHost(userId); return { ok: true, status: 'matched', match: await initOf(db, await enforceClock(db, active, cfg), userId, cfg) }; }
+      const room = await db.roomOfHost(userId);
+      if (!room || cfg.now() - Date.parse(room.created_at) > ROOM_MS) { if (room) await db.roomDeleteByHost(userId); return { ok: true, status: 'none' }; }
+      return { ok: true, status: 'room', code: room.code, expires: Date.parse(room.created_at) + ROOM_MS };
+    }
+    case 'friendCancel': { await db.roomDeleteByHost(userId); return { ok: true, status: 'none' }; }
+    case 'friendPeek': {
+      const room = await db.roomGet(req.code.toUpperCase());
+      if (!room || cfg.now() - Date.parse(room.created_at) > ROOM_MS || room.host === userId) return { ok: false, error: room?.host === userId ? 'Esse é o seu próprio convite: mande o link para um amigo.' : 'Esse convite não vale mais (expirou ou já foi usado).' };
+      const host = await db.profile(room.host);
+      return { ok: true, status: 'peek', host: host?.username ?? 'um amigo' };
+    }
+    case 'friendJoin': {
+      if (!req.cards || typeof req.cards !== 'object' || typeof req.general !== 'string') return { ok: false, error: 'Deck inválido.' };
+      const resume = await finishIfStale(db, cfg, await db.activeMatchOf(userId));
+      if (resume) return { ok: true, status: 'matched', match: await initOf(db, await enforceClock(db, resume, cfg), userId, cfg) };
+      const cards = currentNames(req.cards), general = currentCardName(req.general), coll = currentNames(await db.collection(userId));
+      const problem = deckProblem(cards, general, coll);
+      if (problem) return { ok: false, error: problem };
+      const rar = cleanRar(req.rar, cards, coll);
+      const gone = { ok: false as const, error: 'Esse convite não vale mais (expirou ou já foi usado).' };
+      const peek = await db.roomGet(req.code.toUpperCase());
+      if (!peek || cfg.now() - Date.parse(peek.created_at) > ROOM_MS) return gone;
+      if (peek.host === userId) return { ok: false, error: 'Esse é o seu próprio convite: mande o link para um amigo.' };
+      if (await db.isBanned(peek.host)) return gone;
+      if (await finishIfStale(db, cfg, await db.activeMatchOf(peek.host))) return { ok: false, error: 'Seu amigo já está em outra partida. Peça um convite novo.' };
+      const room = await db.roomTake(req.code.toUpperCase());   // only one friend gets it
+      if (!room) return gone;
+      await db.queueDelete(userId);
+      const m = await startMatch(db, cfg, { user: userId, deck: rar ? { general, cards, rar } : { general, cards } }, { user: room.host, deck: room.deck }, false);
+      return { ok: true, status: 'matched', match: await initOf(db, m, userId, cfg) };
     }
     case 'adminBan': {
       if (!isAdmin(userId, who)) return { ok: false, error: 'forbidden' };

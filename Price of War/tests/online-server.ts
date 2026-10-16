@@ -154,6 +154,34 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     for (let i = 0; i < 12; i++) { const r = await handleGame(db, 'A', { op: 'report', matchId: 'x'.repeat(8), reason: 'nome' }, cfg); if (r.ok === false && /Muitos pedidos/.test(r.error)) reps++; }
     ok(reps >= 4, 'denúncias: no máximo 8 por hora (barrou ' + reps + ')'); void id;
   });
+  await test('desafio por link: o anfitrião cria a sala, o amigo entra com o código e a partida é privada (sem ranking); o convite vale uma vez', async () => {
+    const db = fresh();
+    const bad = await handleGame(db, 'A', { op: 'friendCreate', cards: { 'Sentinela do Claustro': 2 }, general: DECK_RECIPES.cardeal.general }, cfg);
+    ok(bad.ok === false, 'deck inválido não cria sala');
+    const room = await handleGame(db, 'A', { op: 'friendCreate', ...deckOf('cardeal') }, cfg);
+    ok(room.ok === true && room.status === 'room' && /^[A-Z2-9]{6}$/.test(room.code), 'sala criada com código legível: ' + JSON.stringify(room));
+    const code = (room as any).code as string;
+    const still = await handleGame(db, 'A', { op: 'friendStatus' }, cfg); ok(still.ok === true && still.status === 'room', 'o anfitrião vê a sala esperando');
+    const peek = await handleGame(db, 'B', { op: 'friendPeek', code: code.toLowerCase() }, cfg);
+    ok(peek.ok === true && peek.status === 'peek' && peek.host === 'Alice', 'o convidado vê quem convidou (código sem diferença de maiúscula)');
+    const own = await handleGame(db, 'A', { op: 'friendJoin', code, ...deckOf('cardeal') }, cfg); ok(own.ok === false, 'ninguém entra no próprio convite');
+    const wrong = await handleGame(db, 'B', { op: 'friendJoin', code: 'ZZZZZZ', ...deckOf('capitao') }, cfg); ok(wrong.ok === false, 'código que não existe');
+    const notOwned = await handleGame(db, 'B', { op: 'friendJoin', code, ...deckOf('cardeal') }, cfg); ok(notOwned.ok === false, 'o deck do convidado também é conferido com a coleção dele');
+    const joined = await handleGame(db, 'B', { op: 'friendJoin', code, ...deckOf('capitao') }, cfg);
+    ok(joined.ok === true && joined.status === 'matched', 'o amigo entra: ' + JSON.stringify(joined).slice(0, 120));
+    eq([db.matches.length, db.matches[0].ranked, db.matches[0].bot_seat], [1, false, null], 'uma partida entre duas pessoas, sem ranking');
+    const host = await handleGame(db, 'A', { op: 'friendStatus' }, cfg); ok(host.ok === true && host.status === 'matched', 'o anfitrião recebe a partida pelo mesmo pedido de espera');
+    const again = await handleGame(db, 'C', { op: 'friendJoin', code, ...deckOf('capitao') }, cfg); ok(again.ok === false, 'o convite vale uma vez só');
+    // cancelar e expirar
+    const db2 = fresh(); const r2 = await handleGame(db2, 'A', { op: 'friendCreate', ...deckOf('cardeal') }, cfg); const c2 = (r2 as any).code as string;
+    await handleGame(db2, 'A', { op: 'friendCancel' }, cfg);
+    const gone = await handleGame(db2, 'B', { op: 'friendPeek', code: c2 }, cfg); ok(gone.ok === false, 'cancelar apaga o convite');
+    const r3 = await handleGame(db2, 'A', { op: 'friendCreate', ...deckOf('cardeal') }, cfg); const c3 = (r3 as any).code as string;
+    clock += 16 * 60 * 1000;
+    const late = await handleGame(db2, 'B', { op: 'friendJoin', code: c3, ...deckOf('capitao') }, cfg); ok(late.ok === false, 'passados 15 minutos o convite expira');
+    const expired = await handleGame(db2, 'A', { op: 'friendStatus' }, cfg); ok(expired.ok === true && expired.status === 'none', 'o anfitrião vê que expirou');
+    const badCode = await handleGame(db2, 'B', { op: 'friendPeek', code: '<script>' }, cfg); ok(badCode.ok === false, 'código com símbolos é recusado');
+  });
   await test('versões (raridades): o adversário recebe só as versões que a conta tem, com o total de cópias da carta', async () => {
     const db = fresh();
     const d = deckOf('cardeal'), [card] = Object.keys(d.cards), copies = d.cards[card];

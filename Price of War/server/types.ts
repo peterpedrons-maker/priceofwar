@@ -8,6 +8,9 @@ import type { Action, GameEvent, GameState, Seat } from '../src/engine/types';
 export type DeckRar = Record<string, { rara?: number; ultra?: number; secreta?: number; n?: number }>;   // n: only in what the opponent is sent
 export interface DeckJson { general: string; cards: Record<string, number>; rar?: DeckRar }
 
+// A private room for challenging a friend by link: the host waits here, the friend joins with the code and the two are matched (never ranked).
+export interface RoomRow { code: string; host: string; deck: DeckJson; created_at: string }
+
 export interface QueueRow {
   user_id: string;
   deck: DeckJson;
@@ -129,6 +132,12 @@ export interface Db {
   unban(userId: string): Promise<void>;
   addReport(r: { reporter: string; reported: string; match_id: string | null; reason: ReportReason; note: string }): Promise<boolean>;   // false: the same player had already reported that match
   reportsBy(reporter: string, sinceMs: number): Promise<number>;
+  // Rooms (SQL 9): one per host. `roomTake` removes and returns it in one step, so only one friend can join.
+  roomPut(row: RoomRow): Promise<void>;
+  roomGet(code: string): Promise<RoomRow | null>;
+  roomOfHost(host: string): Promise<RoomRow | null>;
+  roomTake(code: string): Promise<RoomRow | null>;
+  roomDeleteByHost(host: string): Promise<void>;
   // Deletes the account and everything that belongs to it (the player's own request from Settings). The tables hang from auth.users with `on delete cascade`.
   deleteAccount(userId: string): Promise<void>;
   collection(userId: string): Promise<Record<string, number>>;

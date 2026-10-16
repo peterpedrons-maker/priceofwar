@@ -250,7 +250,7 @@ import type { Trigger } from './engine/types';
 import { preloadTerrainFx, syncTerrainFx, clearTerrainFx, type TerrainFxKind } from './terrainFx';
 import { syncCampoLayers, clearCampoLayers, fxForjaPlaced, fxForjaModo, fxFogoPlaced, fxFogoTrincheira, fxFogoSaque, fxNoitePlay, fxNoiteTrail, fxMata, fxArsenalPlaced, fxForjaEquip, fxFogoEquip, fxArsenalEquip } from './campoFx';
 import { DesafiosScreen, type DzDeck, type DzOpponent } from './DesafiosScreen';
-import { adminBan, adminUnban, cancelQueue, deleteMyAccount, fetchAdmin, fetchResult, reportOpponent, type ReportReason, fetchViews, pingPresence, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type AdminInfo, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
+import { adminBan, adminUnban, cancelQueue, deleteMyAccount, friendCancel, friendCreate, friendJoin, friendLink, friendPeek, friendStatus, fetchAdmin, fetchResult, reportOpponent, type ReportReason, fetchViews, pingPresence, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type AdminInfo, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
 import { STEPS as TUT_STEPS, BEATS as TUT_BEATS, COIN_STEP as TUT_COIN_STEP, OUTRO as TUT_OUTRO, CHAPTERS as TUT_CHAPTERS, createTutorialMatch, nextEnemyAction as tutEnemyAction, type Step as TutStep, type Tgt as TutTgt, type Until as TutUntil } from './tutorial/script';
 import { KitWindow, KitTitle, KitButton, KitRow, KitTab, KitToggle, KitRange, KitIconButton, KitPlate, KitCount, KitSearch, KitIcon, KitCoins, KitField, PromptTitle, KIT_ICONS } from './ui/Kit';
@@ -3259,11 +3259,12 @@ const ComingSoonModal = ({ title, message, onClose }: { title: string; message: 
 // (accounts/matchmaking are the future Supabase work), so choosing one hands off to
 // ComingSoonModal with its own message — but the choice itself is the real UI.
 // Drawn with the shared FramedWindow, with the bronze plaque behind each option's icon.
-const ONLINE_MODES: { id: 'casual' | 'ranked'; title: string; desc: string; icon: string }[] = [
+const ONLINE_MODES: { id: 'casual' | 'ranked' | 'friend'; title: string; desc: string; icon: string }[] = [
   { id: 'casual', title: 'Casual', desc: 'Partidas amistosas, sem pontos em jogo.', icon: uiIconDesafiosImage },
   { id: 'ranked', title: 'Ranqueado', desc: 'Suba de rank e ganhe recompensas.', icon: uiIconRankingImage },
+  { id: 'friend', title: 'Desafiar amigo', desc: 'Mande um link e jogue uma partida privada contra um amigo.', icon: uiIconDesafiosImage },
 ];
-const OnlineModeModal = ({ onPick, onClose }: { onPick: (mode: 'casual' | 'ranked') => void; onClose: () => void }) => (
+const OnlineModeModal = ({ onPick, onClose }: { onPick: (mode: 'casual' | 'ranked' | 'friend') => void; onClose: () => void }) => (
   <WindowOverlay onClose={onClose}>
     <FramedWindow>
       <div className="flex flex-col gap-3 px-1 py-1">
@@ -3616,6 +3617,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
             onPick={(mode) => {
               setOnlineOpen(false);
               if (mode === 'casual') { onSelectMode('OnlineCasual'); return; }
+              if (mode === 'friend') { onSelectMode('OnlineFriend'); return; }
               onSelectMode('OnlineRanked');
             }}
           />
@@ -5413,10 +5415,11 @@ const MatchSearchOverlay = ({ onReady, onCancel, challenge }: { onReady: () => v
 // The real queue: "Procurando adversário" while the server looks for another player (or hands the chair to the AI
 // after a short wait), then "Adversário encontrado" with who it is. `challenge` is a match against the AI that still
 // goes through the same server (Desafios).
-const OnlineSearchOverlay = ({ selection, challenge, ranked, onMatched, onCancel, onUnavailable }: {
-  selection: DeckSelection; challenge: boolean; ranked?: boolean; onMatched: (init: MatchInit) => void; onCancel: () => void; onUnavailable?: () => void; key?: React.Key;
+const OnlineSearchOverlay = ({ selection, challenge, ranked, friend, onMatched, onCancel, onUnavailable }: {
+  selection: DeckSelection; challenge: boolean; ranked?: boolean; friend?: { mode: 'host' } | { mode: 'join'; code: string }; onMatched: (init: MatchInit) => void; onCancel: () => void; onUnavailable?: () => void; key?: React.Key;
 }) => {
-  const [stage, setStage] = useState<{ kind: 'searching' } | { kind: 'found'; init: MatchInit } | { kind: 'error'; message: string }>({ kind: 'searching' });
+  const [stage, setStage] = useState<{ kind: 'searching' } | { kind: 'room'; code: string } | { kind: 'found'; init: MatchInit } | { kind: 'error'; message: string }>({ kind: 'searching' });
+  const [copied, setCopied] = useState(false);
   useEffect(() => {
     let cancelled = false;
     let timer: number | undefined;
@@ -5435,6 +5438,36 @@ const OnlineSearchOverlay = ({ selection, challenge, ranked, onMatched, onCancel
       }
       timer = window.setTimeout(poll, 1200);
     };
+    // Challenge a friend by link: the host makes a room and waits for the friend; the friend joins with the code from the link.
+    if (friend) {
+      const deck = { general: selection.general, cards: selection.cards, rar: selection.rar };
+      const pollRoom = async () => {
+        if (cancelled) return;
+        const r = await friendStatus();
+        if (cancelled) return;
+        if (r.ok === true && r.status === 'matched') return found(r.match);
+        if (r.ok === true && r.status === 'none') { setStage({ kind: 'error', message: 'O convite expirou. Crie outro e mande de novo.' }); return; }
+        if (r.ok === false && !r.unavailable) { setStage({ kind: 'error', message: r.error }); return; }
+        timer = window.setTimeout(pollRoom, 1500);
+      };
+      (async () => {
+        await flushCloudSync();
+        if (friend.mode === 'host') {
+          const r = await friendCreate(deck);
+          if (cancelled) return;
+          if (r.ok === false) { setStage({ kind: 'error', message: r.error }); return; }
+          if (r.status === 'matched') return found(r.match);
+          if (r.status === 'room') { setStage({ kind: 'room', code: r.code }); timer = window.setTimeout(pollRoom, 1500); }
+        } else {
+          const r = await friendJoin(friend.code, deck);
+          if (cancelled) return;
+          if (r.ok === false) { setStage({ kind: 'error', message: r.error }); return; }
+          if (r.status === 'matched') return found(r.match);
+          setStage({ kind: 'error', message: 'Não foi possível entrar agora. Tente de novo.' });
+        }
+      })();
+      return () => { cancelled = true; window.clearTimeout(timer); };
+    }
     (async () => {
       await flushCloudSync();
       const r = await queueForMatch({ general: selection.general, cards: selection.cards, rar: selection.rar }, challenge, challenge ? selection.npcDeckId : undefined, !!ranked);
@@ -5454,15 +5487,36 @@ const OnlineSearchOverlay = ({ selection, challenge, ranked, onMatched, onCancel
     const t = window.setTimeout(() => onMatched(stage.init), 1700);
     return () => window.clearTimeout(t);
   }, [stage]);
-  const cancel = () => { void cancelQueue(); onCancel(); };
+  const cancel = () => { if (friend?.mode === 'host') void friendCancel(); else if (!friend) void cancelQueue(); onCancel(); };
+  const shareRoom = async (code: string) => {
+    const url = friendLink(code);
+    try { if (navigator.share) { await navigator.share({ title: 'Price of War', text: 'Te desafio para uma partida de Price of War!', url }); return; } } catch { /* cancelled: falls back to copying */ }
+    try { await navigator.clipboard.writeText(url); setCopied(true); window.setTimeout(() => setCopied(false), 2500); } catch { window.prompt('Copie o link:', url); }
+  };
+  const copyRoom = async (code: string) => { const url = friendLink(code); try { await navigator.clipboard.writeText(url); setCopied(true); window.setTimeout(() => setCopied(false), 2500); } catch { window.prompt('Copie o link:', url); } };
   return (
     <motion.div className="fixed inset-0 z-[600] flex flex-col items-center justify-center gap-5 bg-black/85" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       {stage.kind === 'searching' && (
         <>
           <motion.div className="w-14 h-14 rounded-full border-4 border-[#d4af37]/30 border-t-[#e8c766]" animate={{ rotate: 360 }} transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }} />
-          <span className="text-[16px] uppercase tracking-[0.16em] text-[#fff1c9]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700 }}>{challenge ? 'Preparando o desafio…' : ranked ? 'Procurando adversário ranqueado…' : 'Procurando adversário…'}</span>
+          <span className="text-[16px] uppercase tracking-[0.16em] text-[#fff1c9]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700 }}>{friend ? (friend.mode === 'join' ? 'Entrando na sala…' : 'Criando o convite…') : challenge ? 'Preparando o desafio…' : ranked ? 'Procurando adversário ranqueado…' : 'Procurando adversário…'}</span>
           {!challenge && <span className="text-[11px] text-[#a89a78] text-center px-8" style={{ fontFamily: "'PT Serif', serif" }}>Aguardando outro jogador. Para jogar contra a IA, use os Desafios.</span>}
           <WindowButton onClick={cancel}>Cancelar</WindowButton>
+        </>
+      )}
+      {stage.kind === 'room' && (
+        <>
+          <span className="text-[18px] uppercase tracking-[0.16em] text-[#fff1c9]" style={{ fontFamily: WINDOW_FONT_DECO, fontWeight: 700 }}>Convide seu amigo</span>
+          <span className="text-[12px] text-[#dccfae] text-center px-8" style={{ fontFamily: "'PT Serif', serif" }}>Mande o link. Quando ele abrir e escolher um deck, a partida começa. O convite vale por 15 minutos.</span>
+          <div className="px-6 py-2 rounded-lg border border-[#d4af37]/60 bg-black/50 text-[34px] tracking-[0.3em] text-[#ffe9b0] select-all" style={{ fontFamily: "'Cinzel', serif", fontWeight: 800 }}>{stage.code}</div>
+          <div className="flex gap-3">
+            <WindowButton primary onClick={() => void shareRoom(stage.code)}>Compartilhar link</WindowButton>
+            <WindowButton onClick={() => void copyRoom(stage.code)}>{copied ? 'Copiado!' : 'Copiar link'}</WindowButton>
+          </div>
+          <div className="flex items-center gap-2 text-[11px] text-[#a89a78]" style={{ fontFamily: "'PT Serif', serif" }}>
+            <motion.div className="w-3.5 h-3.5 rounded-full border-2 border-[#d4af37]/30 border-t-[#e8c766]" animate={{ rotate: 360 }} transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }} />Esperando seu amigo entrar…
+          </div>
+          <WindowButton onClick={cancel}>Cancelar convite</WindowButton>
         </>
       )}
       {stage.kind === 'found' && (
@@ -5625,6 +5679,12 @@ export default function App() {
     tick(); const id = window.setInterval(tick, 90000); document.addEventListener('visibilitychange', tick);
     return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', tick); };
   }, [session?.userId]);
+  useEffect(() => {
+    const code = pendingRoom.current;
+    if (!code || authMode !== 'supabase' || !session || !profileNamed || profileLoading || profileError || welcome || gameMode) return;
+    pendingRoom.current = null; try { sessionStorage.removeItem('pow.sala'); } catch { /* no storage */ }
+    friendPeek(code).then(r => setInvite(r.ok === true ? { code, host: r.host } : { code, error: r.error }));
+  }, [session?.userId, profileNamed, profileLoading, profileError, welcome]);
   const [gameMode, setGameMode] = useState<string | null>(null);
   // ── Tutorial (see src/tutorial): the director's state ──
   type TutState = { id: string; idx: number; beat: TutStep[] | null; beatIdx: number; beatDone: (() => void) | null; token: number; enemyRound: number; enemyDone: number };
@@ -5642,11 +5702,21 @@ export default function App() {
   // see DECKS above and the DeckPickerModal rendered in the !gameMode branch.
   const [deckPickerOpen, setDeckPickerOpen] = useState(false);
   // Online Casual: which deck was chosen while the "searching for an opponent" screen is up.
-  const [deckPickerFor, setDeckPickerFor] = useState<'desafios' | 'casual' | 'ranked'>('desafios');
+  const [deckPickerFor, setDeckPickerFor] = useState<'desafios' | 'casual' | 'ranked' | 'friend' | 'friendjoin'>('desafios');
   // Desafios: the deck editor opened over the opponent map (and a counter so the saved decks are re-read when it closes).
   const [dzEditorOpen, setDzEditorOpen] = useState(false);
   const [dzVersion, setDzVersion] = useState(0);
-  const [searching, setSearching] = useState<{ sel: DeckSelection; challenge: boolean; ranked?: boolean } | null>(null);
+  // Invitation link (`?sala=CODE`): the code is kept for the whole login, so it survives the Google/Discord redirect, and the player is asked once the menu is up.
+  const pendingRoom = useRef<string | null>((() => {
+    try {
+      const u = new URL(window.location.href), c = u.searchParams.get('sala');
+      if (c && /^[A-Za-z0-9]{4,8}$/.test(c)) { sessionStorage.setItem('pow.sala', c.toUpperCase()); u.searchParams.delete('sala'); window.history.replaceState(null, '', u.pathname + u.search + u.hash); }
+      return sessionStorage.getItem('pow.sala');
+    } catch { return null; }
+  })());
+  const [invite, setInvite] = useState<{ code: string; host?: string; error?: string } | null>(null);
+  const inviteCode = invite?.code ?? null;
+  const [searching, setSearching] = useState<{ sel: DeckSelection; challenge: boolean; ranked?: boolean; friend?: { mode: 'host' } | { mode: 'join'; code: string } } | null>(null);
 
   // Duel background music: decoded once into a raw AudioBuffer and looped through
   // the Web Audio API — NOT a plain <audio loop> element. A looping <audio> element
@@ -8198,8 +8268,30 @@ export default function App() {
           if (mode === 'Campaign') { setDeckPickerFor('desafios'); setDeckPickerOpen(true); }
           else if (mode === 'OnlineCasual') { setDeckPickerFor('casual'); setDeckPickerOpen(true); }
           else if (mode === 'OnlineRanked') { setDeckPickerFor('ranked'); setDeckPickerOpen(true); }
+          else if (mode === 'OnlineFriend') { setDeckPickerFor('friend'); setDeckPickerOpen(true); }
           else startGame(mode);
         }} />
+        <AnimatePresence>
+          {invite && !deckPickerOpen && !searching && (
+            <WindowOverlay onClose={() => setInvite(null)}>
+              <FramedWindow>
+                <div className="flex flex-col items-center gap-3 px-2 py-2 w-[min(82vw,330px)]">
+                  <WindowTitle>{invite.error ? 'Convite' : 'Você foi desafiado!'}</WindowTitle>
+                  {invite.error ? (<>
+                    <WindowText>{invite.error}</WindowText>
+                    <WindowButton primary onClick={() => setInvite(null)}>Ok</WindowButton>
+                  </>) : (<>
+                    <WindowText><b>{invite.host}</b> te chamou para uma partida privada de Price of War. Escolha um deck para entrar.</WindowText>
+                    <div className="flex gap-3">
+                      <WindowButton onClick={() => setInvite(null)}>Agora não</WindowButton>
+                      <WindowButton primary onClick={() => { setDeckPickerFor('friendjoin'); setDeckPickerOpen(true); }}>Escolher deck</WindowButton>
+                    </div>
+                  </>)}
+                </div>
+              </FramedWindow>
+            </WindowOverlay>
+          )}
+        </AnimatePresence>
         <AnimatePresence>
           {tutListOpen && <TutorialList key="tut-list" onClose={() => setTutListOpen(false)} onPlay={startTutorial} />}
           {tutIntro && <TutorialIntro key="tut-intro" onStart={tutLaunchDuel} onClose={tutExit} />}
@@ -8217,6 +8309,20 @@ export default function App() {
               store={loadDeckStore()}
               onSelect={(sel) => { setDeckPickerOpen(false); setSearching({ sel, challenge: false, ranked: true }); }}
               onClose={() => setDeckPickerOpen(false)}
+            />
+          )}
+          {deckPickerOpen && deckPickerFor === 'friend' && (
+            <DeckPickerModal
+              store={loadDeckStore()}
+              onSelect={(sel) => { setDeckPickerOpen(false); setSearching({ sel, challenge: false, friend: { mode: 'host' } }); }}
+              onClose={() => setDeckPickerOpen(false)}
+            />
+          )}
+          {deckPickerOpen && deckPickerFor === 'friendjoin' && (
+            <DeckPickerModal
+              store={loadDeckStore()}
+              onSelect={(sel) => { setDeckPickerOpen(false); if (inviteCode) setSearching({ sel, challenge: false, friend: { mode: 'join', code: inviteCode } }); setInvite(null); }}
+              onClose={() => { setDeckPickerOpen(false); setInvite(null); }}
             />
           )}
           {deckPickerOpen && deckPickerFor === 'desafios' && (
@@ -8246,6 +8352,7 @@ export default function App() {
               selection={searching.sel}
               challenge={searching.challenge}
               ranked={!!searching.ranked}
+              friend={searching.friend}
               onCancel={() => setSearching(null)}
               onMatched={(init) => { setSearching(null); startOnlineMatch(init); }}
               // The server is not reachable (not deployed yet, no connection): a challenge still plays locally.

@@ -125,6 +125,20 @@ export const fetchRanking = async (limit = 50): Promise<{ rows: RankingRow[]; me
 // Pays the Coroas of a finished season (once). `coroas_after` is the new balance, to show at once.
 export const claimSeason = async (season: number): Promise<{ coroas: number; coroas_after: number; profile: RankedView } | null> => { const r = await call({ op: 'claim', season }); return r && r.ok === true && r.status === 'claimed' ? { coroas: r.coroas, coroas_after: r.coroas_after, profile: r.profile } : null; };
 
+// Challenge a friend by link: the host makes a private room and shares the link; the friend opens it, picks a deck and the match starts (never ranked).
+export type FriendRoom = { ok: true; status: 'room'; code: string; expires: number };
+export type FriendResult = FriendRoom | { ok: true; status: 'none' } | { ok: true; status: 'matched'; match: MatchInit } | { ok: false; error: string; unavailable?: boolean };
+export const friendCreate = (deck: DeckJson): Promise<FriendResult> => call({ op: 'friendCreate', cards: deck.cards, rar: deck.rar, general: deck.general });
+export const friendStatus = (): Promise<FriendResult> => call({ op: 'friendStatus' });
+export const friendCancel = (): Promise<unknown> => call({ op: 'friendCancel' });
+export const friendJoin = (code: string, deck: DeckJson): Promise<FriendResult> => call({ op: 'friendJoin', code, cards: deck.cards, rar: deck.rar, general: deck.general });
+export const friendPeek = async (code: string): Promise<{ ok: true; host: string } | { ok: false; error: string }> => {
+  const r = await call({ op: 'friendPeek', code });
+  return r && r.ok === true && r.status === 'peek' ? { ok: true, host: r.host } : { ok: false, error: r?.error ?? 'Não foi possível abrir o convite agora.' };
+};
+// The link to send: the game's own address plus the room code (the page reads `?sala=` when it opens).
+export const friendLink = (code: string) => `${window.location.origin}${import.meta.env.BASE_URL}?sala=${code}`;
+
 // Report the opponent of a match I was in (the server picks the reported player from the match: the device never names them).
 export type ReportReason = 'nome' | 'comportamento' | 'trapaca' | 'outro';
 export const reportOpponent = async (matchId: string, reason: ReportReason, note: string): Promise<{ ok: true } | { ok: false; error: string }> => {

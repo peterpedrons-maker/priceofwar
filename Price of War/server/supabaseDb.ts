@@ -3,7 +3,7 @@
 import type { Seat } from '../src/engine/types';
 import type { RankedProfile } from '../src/engine/ranked';
 import { buildAdminPlayers, buildAdminReports, dayKey, lastDays, windowsOf } from './types';
-import type { ReportReason } from './types';
+import type { ReportReason, RoomRow } from './types';
 import type { AdminOverview, Db, EmoteRow, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
 
 // Only the tiny part of the supabase-js client this file touches.
@@ -126,6 +126,17 @@ export const supabaseDb = (c: Client): Db => ({
     if (r.error && row.ranked && /since/i.test(r.error.message)) must(await c.from('queue').upsert(base), 'queue put');
     else must(r, 'queue put');
   },
+  async roomPut(row) {
+    must(await c.from('rooms').delete().eq('host', row.host), 'room replace');
+    must(await c.from('rooms').insert({ code: row.code, host: row.host, deck: row.deck, created_at: row.created_at }), 'room put');
+  },
+  async roomGet(code) { return (must(await c.from('rooms').select('*').eq('code', code).maybeSingle(), 'room get') as RoomRow | null) ?? null; },
+  async roomOfHost(host) { return (must(await c.from('rooms').select('*').eq('host', host).maybeSingle(), 'room of host') as RoomRow | null) ?? null; },
+  async roomTake(code) {
+    const rows = must(await c.from('rooms').delete().eq('code', code).select('*'), 'room take') as RoomRow[];
+    return rows && rows.length ? rows[0] : null;
+  },
+  async roomDeleteByHost(host) { must(await c.from('rooms').delete().eq('host', host), 'room delete'); },
   async queueDelete(userId) {
     must(await c.from('queue').delete().eq('user_id', userId), 'queue delete');
   },

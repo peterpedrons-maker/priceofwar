@@ -3869,7 +3869,7 @@ var finishIfStale = async (db, cfg, m) => {
   }
   return m;
 };
-var OPS = /* @__PURE__ */ new Set(["ping", "admin", "report", "deleteAccount", "adminBan", "adminUnban", "queue", "ranked", "claim", "ranking", "status", "cancel", "act", "tick", "result", "emote", "emotes"]);
+var OPS = /* @__PURE__ */ new Set(["ping", "admin", "report", "deleteAccount", "friendCreate", "friendStatus", "friendCancel", "friendPeek", "friendJoin", "adminBan", "adminUnban", "queue", "ranked", "claim", "ranking", "status", "cancel", "act", "tick", "result", "emote", "emotes"]);
 var badRequest = (req) => {
   if (!req || typeof req !== "object" || Array.isArray(req)) return "Pedido inv\xE1lido.";
   const r = req;
@@ -3879,6 +3879,7 @@ var badRequest = (req) => {
   if (r.season !== void 0 && !(Number.isInteger(r.season) && r.season >= 0 && r.season < 1e4)) return "Pedido inv\xE1lido.";
   if (r.limit !== void 0 && !(typeof r.limit === "number" && Number.isFinite(r.limit))) return "Pedido inv\xE1lido.";
   if (r.code !== void 0 && (typeof r.code !== "string" || r.code.length > 8)) return "Pedido inv\xE1lido.";
+  if ((r.op === "friendPeek" || r.op === "friendJoin") && !(typeof r.code === "string" && /^[A-Za-z0-9]{4,8}$/.test(r.code))) return "Convite inv\xE1lido.";
   if (r.target !== void 0 && (typeof r.target !== "string" || r.target.length > 64)) return "Pedido inv\xE1lido.";
   if (r.reason !== void 0 && (typeof r.reason !== "string" || r.reason.length > 200)) return "Pedido inv\xE1lido.";
   if (r.note !== void 0 && (typeof r.note !== "string" || r.note.length > 200)) return "Pedido inv\xE1lido.";
@@ -3932,6 +3933,11 @@ var LIMITS = {
   emotes: [60, 1e4],
   report: [8, 36e5],
   deleteAccount: [3, 36e5],
+  friendCreate: [10, 6e4],
+  friendJoin: [15, 6e4],
+  friendPeek: [20, 6e4],
+  friendStatus: [200, 1e4],
+  friendCancel: [30, 6e4],
   admin: [60, 6e4],
   adminBan: [30, 6e4],
   adminUnban: [30, 6e4],
@@ -3954,6 +3960,8 @@ var rateLimited = (userId, op, now) => {
   return false;
 };
 var REPORT_DAILY_MAX = 10;
+var ROOM_MS = 15 * 60 * 1e3;
+var ROOM_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 var handleGame = async (db, userId, req, cfg = defaultConfig(), who = {}) => {
   const invalid = badRequest(req);
   if (invalid) return { ok: false, error: invalid };
@@ -3988,6 +3996,67 @@ var handleGame = async (db, userId, req, cfg = defaultConfig(), who = {}) => {
       await db.queueDelete(userId);
       await db.deleteAccount(userId);
       return { ok: true, status: "deleted" };
+    }
+    case "friendCreate": {
+      if (!req.cards || typeof req.cards !== "object" || typeof req.general !== "string") return { ok: false, error: "Deck inv\xE1lido." };
+      const resume = await finishIfStale(db, cfg, await db.activeMatchOf(userId));
+      if (resume) return { ok: true, status: "matched", match: await initOf(db, await enforceClock(db, resume, cfg), userId, cfg) };
+      const cards = currentNames(req.cards), general = currentCardName(req.general), coll = currentNames(await db.collection(userId));
+      const problem = deckProblem(cards, general, coll);
+      if (problem) return { ok: false, error: problem };
+      const rar = cleanRar(req.rar, cards, coll);
+      await db.queueDelete(userId);
+      let code = "";
+      for (let i = 0; i < 8; i++) {
+        code = Array.from({ length: 6 }, () => ROOM_ALPHABET[Math.floor(cfg.random() * ROOM_ALPHABET.length)]).join("");
+        if (!await db.roomGet(code)) break;
+      }
+      const created = cfg.now();
+      await db.roomPut({ code, host: userId, deck: rar ? { general, cards, rar } : { general, cards }, created_at: new Date(created).toISOString() });
+      return { ok: true, status: "room", code, expires: created + ROOM_MS };
+    }
+    case "friendStatus": {
+      const active = await finishIfStale(db, cfg, await db.activeMatchOf(userId));
+      if (active) {
+        await db.roomDeleteByHost(userId);
+        return { ok: true, status: "matched", match: await initOf(db, await enforceClock(db, active, cfg), userId, cfg) };
+      }
+      const room = await db.roomOfHost(userId);
+      if (!room || cfg.now() - Date.parse(room.created_at) > ROOM_MS) {
+        if (room) await db.roomDeleteByHost(userId);
+        return { ok: true, status: "none" };
+      }
+      return { ok: true, status: "room", code: room.code, expires: Date.parse(room.created_at) + ROOM_MS };
+    }
+    case "friendCancel": {
+      await db.roomDeleteByHost(userId);
+      return { ok: true, status: "none" };
+    }
+    case "friendPeek": {
+      const room = await db.roomGet(req.code.toUpperCase());
+      if (!room || cfg.now() - Date.parse(room.created_at) > ROOM_MS || room.host === userId) return { ok: false, error: room?.host === userId ? "Esse \xE9 o seu pr\xF3prio convite: mande o link para um amigo." : "Esse convite n\xE3o vale mais (expirou ou j\xE1 foi usado)." };
+      const host = await db.profile(room.host);
+      return { ok: true, status: "peek", host: host?.username ?? "um amigo" };
+    }
+    case "friendJoin": {
+      if (!req.cards || typeof req.cards !== "object" || typeof req.general !== "string") return { ok: false, error: "Deck inv\xE1lido." };
+      const resume = await finishIfStale(db, cfg, await db.activeMatchOf(userId));
+      if (resume) return { ok: true, status: "matched", match: await initOf(db, await enforceClock(db, resume, cfg), userId, cfg) };
+      const cards = currentNames(req.cards), general = currentCardName(req.general), coll = currentNames(await db.collection(userId));
+      const problem = deckProblem(cards, general, coll);
+      if (problem) return { ok: false, error: problem };
+      const rar = cleanRar(req.rar, cards, coll);
+      const gone = { ok: false, error: "Esse convite n\xE3o vale mais (expirou ou j\xE1 foi usado)." };
+      const peek = await db.roomGet(req.code.toUpperCase());
+      if (!peek || cfg.now() - Date.parse(peek.created_at) > ROOM_MS) return gone;
+      if (peek.host === userId) return { ok: false, error: "Esse \xE9 o seu pr\xF3prio convite: mande o link para um amigo." };
+      if (await db.isBanned(peek.host)) return gone;
+      if (await finishIfStale(db, cfg, await db.activeMatchOf(peek.host))) return { ok: false, error: "Seu amigo j\xE1 est\xE1 em outra partida. Pe\xE7a um convite novo." };
+      const room = await db.roomTake(req.code.toUpperCase());
+      if (!room) return gone;
+      await db.queueDelete(userId);
+      const m = await startMatch(db, cfg, { user: userId, deck: rar ? { general, cards, rar } : { general, cards } }, { user: room.host, deck: room.deck }, false);
+      return { ok: true, status: "matched", match: await initOf(db, m, userId, cfg) };
     }
     case "adminBan": {
       if (!isAdmin(userId, who)) return { ok: false, error: "forbidden" };
@@ -4297,6 +4366,23 @@ var supabaseDb = (c) => ({
     const r = await c.from("queue").upsert(row.ranked ? { ...base, since: row.since ?? row.created_at } : base);
     if (r.error && row.ranked && /since/i.test(r.error.message)) must(await c.from("queue").upsert(base), "queue put");
     else must(r, "queue put");
+  },
+  async roomPut(row) {
+    must(await c.from("rooms").delete().eq("host", row.host), "room replace");
+    must(await c.from("rooms").insert({ code: row.code, host: row.host, deck: row.deck, created_at: row.created_at }), "room put");
+  },
+  async roomGet(code) {
+    return must(await c.from("rooms").select("*").eq("code", code).maybeSingle(), "room get") ?? null;
+  },
+  async roomOfHost(host) {
+    return must(await c.from("rooms").select("*").eq("host", host).maybeSingle(), "room of host") ?? null;
+  },
+  async roomTake(code) {
+    const rows = must(await c.from("rooms").delete().eq("code", code).select("*"), "room take");
+    return rows && rows.length ? rows[0] : null;
+  },
+  async roomDeleteByHost(host) {
+    must(await c.from("rooms").delete().eq("host", host), "room delete");
   },
   async queueDelete(userId) {
     must(await c.from("queue").delete().eq("user_id", userId), "queue delete");

@@ -2,7 +2,7 @@
 import type { Seat } from '../src/engine/types';
 import type { RankedProfile } from '../src/engine/ranked';
 import { buildAdminPlayers, buildAdminReports, dayKey, lastDays, windowsOf } from './types';
-import type { ReportReason, ReportRow } from './types';
+import type { ReportReason, ReportRow, RoomRow } from './types';
 import type { AdminOverview, Db, EmoteRow, SeasonRow, MatchPatch, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
 
 export interface MemoryTables {
@@ -33,6 +33,12 @@ export class MemoryDb implements Db {
   }
   presence = new Map<string, number>();
   now = () => Date.now();
+  rooms: RoomRow[] = [];
+  async roomPut(row: RoomRow) { this.rooms = this.rooms.filter(r => r.host !== row.host && r.code !== row.code); this.rooms.push(clone(row)); }
+  async roomGet(code: string) { const r = this.rooms.find(x => x.code === code); return r ? clone(r) : null; }
+  async roomOfHost(host: string) { const r = this.rooms.find(x => x.host === host); return r ? clone(r) : null; }
+  async roomTake(code: string) { const i = this.rooms.findIndex(x => x.code === code); return i === -1 ? null : this.rooms.splice(i, 1)[0]; }
+  async roomDeleteByHost(host: string) { this.rooms = this.rooms.filter(r => r.host !== host); }
   bans = new Map<string, { reason: string; banned_at: string }>();
   reports: ReportRow[] = [];
   async isBanned(userId: string) { return this.bans.has(userId); }
@@ -45,7 +51,7 @@ export class MemoryDb implements Db {
   async deleteAccount(userId: string) {
     const t = this.tables;
     t.profiles = t.profiles.filter(p => p.id !== userId); t.collection = t.collection.filter(r => r.user_id !== userId);
-    this.queue = this.queue.filter(q => q.user_id !== userId); this.presence.delete(userId); this.bans.delete(userId); this.rankedRows.delete(userId);
+    this.queue = this.queue.filter(q => q.user_id !== userId); this.rooms = this.rooms.filter(r => r.host !== userId); this.presence.delete(userId); this.bans.delete(userId); this.rankedRows.delete(userId);
     this.reports = this.reports.filter(r => r.reporter !== userId && r.reported !== userId);
     this.matches.forEach(m => { if (m.seat0 === userId) m.seat0 = null; if (m.seat1 === userId) m.seat1 = null; });
   }

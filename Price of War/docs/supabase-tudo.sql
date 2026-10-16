@@ -548,3 +548,13 @@ create index if not exists reports_reporter_idx on public.reports (reporter, cre
 create unique index if not exists reports_once_per_match on public.reports (reporter, match_id) where match_id is not null;
 alter table public.reports enable row level security;
 revoke all on public.reports from anon, authenticated;
+
+-- ============ parte 9: desafio por link (salas privadas) ============
+create table if not exists public.rooms (
+  code       text primary key,
+  host       uuid not null unique references auth.users(id) on delete cascade,
+  deck       jsonb not null,
+  created_at timestamptz not null default now()
+);
+alter table public.rooms enable row level security;
+revoke all on public.rooms from anon, authenticated;
