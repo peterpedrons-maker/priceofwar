@@ -2,7 +2,8 @@
 // apply_match_rewards functions are created by docs/supabase-online.sql and docs/supabase-online-2.sql.
 import type { Seat } from '../src/engine/types';
 import type { RankedProfile } from '../src/engine/ranked';
-import { buildAdminPlayers, dayKey, lastDays, windowsOf } from './types';
+import { buildAdminPlayers, buildAdminReports, dayKey, lastDays, windowsOf } from './types';
+import type { ReportReason } from './types';
 import type { AdminOverview, Db, EmoteRow, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
 
 // Only the tiny part of the supabase-js client this file touches.
@@ -26,6 +27,28 @@ export const supabaseDb = (c: Client): Db => ({
     // One row per player per day (SQL 7), for the GM's day-by-day flow; a database that has not run it yet simply skips this.
     await c.from('presence_days').upsert({ user_id: userId, day: dayKey(Date.now()) }, { onConflict: 'user_id,day', ignoreDuplicates: true });
   },
+  async isBanned(userId) {
+    const r = await c.from('bans').select('user_id').eq('user_id', userId).maybeSingle();
+    return !r.error && !!r.data;   // (a database that has not run SQL 8 yet bans nobody)
+  },
+  async ban(userId, reason) {
+    must(await c.from('bans').upsert({ user_id: userId, reason, banned_at: new Date().toISOString() }, { onConflict: 'user_id' }), 'ban');
+    await c.from('queue').delete().eq('user_id', userId);
+  },
+  async unban(userId) { must(await c.from('bans').delete().eq('user_id', userId), 'unban'); },
+  async addReport(r) {
+    const res = await c.from('reports').insert({ reporter: r.reporter, reported: r.reported, match_id: r.match_id, reason: r.reason as ReportReason, note: r.note });
+    if (res.error) { if (res.error.code === '23505') return false; throw new Error(`report: ${res.error.message ?? res.error}`); }
+    return true;
+  },
+  async deleteAccount(userId) {
+    const r = await c.auth.admin.deleteUser(userId);
+    if (r.error) throw new Error(`delete account: ${r.error.message ?? r.error}`);
+  },
+  async reportsBy(reporter, sinceMs) {
+    const r = await c.from('reports').select('*', { count: 'exact', head: true }).eq('reporter', reporter).gte('created_at', new Date(sinceMs).toISOString());
+    return r.error ? 0 : r.count ?? 0;
+  },
   async adminOverview(nowMs, onlineMs): Promise<AdminOverview> {
     const iso = (ms: number) => new Date(ms).toISOString(), day = 864e5;
     const head = (t: string) => c.from(t).select('*', { count: 'exact', head: true });
@@ -47,6 +70,7 @@ export const supabaseDb = (c: Client): Db => ({
       soft(c.from('matches').select('seat0, seat1, bot_seat, ranked').eq('status', 'active').limit(1000)),
       soft(c.from('queue').select('user_id').gte('created_at', iso(nowMs - 30000)).limit(1000)),
     ]);
+    const banRows = await soft(c.from('bans').select('user_id, reason, banned_at').limit(1000));
     const cards = new Map<string, number>();
     for (let from = 0; from < 30000; from += 1000) {   // the API hands out 1000 rows at a time
       const page = await soft(c.from('collection').select('user_id, copies').order('user_id').range(from, from + 999));
@@ -57,7 +81,10 @@ export const supabaseDb = (c: Client): Db => ({
     wait.forEach((q: any) => busy.set(q.user_id, 'queue'));
     act.forEach((m: any) => [m.seat0, m.seat1].forEach(u => { if (u) busy.set(u, m.bot_seat !== null && m.bot_seat !== undefined ? 'bot' : m.ranked ? 'ranked' : 'casual'); }));
     const built = buildAdminPlayers(nowMs, onlineMs, profiles, new Map(pres.map((r: any) => [r.user_id, Date.parse(r.seen_at)])),
-      new Map(rk.map((r: any) => [r.user_id, { points: r.points, games: r.games, wins: r.wins, losses: r.losses }])), cards, busy);
+      new Map(rk.map((r: any) => [r.user_id, { points: r.points, games: r.games, wins: r.wins, losses: r.losses }])), cards, busy, new Set(banRows.map((b: any) => b.user_id)));
+    const repRows = await soft(c.from('reports').select('*').order('created_at', { ascending: false }).limit(400));
+    const nameOf = (id: string) => profiles.find((p: any) => p.id === id)?.username ?? '?';
+    const moderation = buildAdminReports(repRows, banRows, nameOf);
     // The flow of the last 14 days: different players seen per day, new accounts per day, matches per day.
     const days = lastDays(nowMs), dayStart = (d: string) => Date.parse(d + 'T03:00:00Z');   // 00:00 in Brasília is 03:00 UTC
     const tracked = !(await c.from('presence_days').select('user_id', { head: true, count: 'exact' }).limit(1)).error;
@@ -66,7 +93,7 @@ export const supabaseDb = (c: Client): Db => ({
       Promise.all(days.map(d => count(head('matches').gte('created_at', iso(dayStart(d))).lt('created_at', iso(dayStart(d) + day)), true))),
     ]);
     const daily = days.map((d, i) => ({ day: d, active: active[i], newAccounts: profiles.filter((p: any) => p.created_at && dayKey(Date.parse(p.created_at)) === d).length, matches: matchesPer[i] }));
-    return { accounts, newToday, newWeek, recent: recent ?? [], online, waitingCasual, waitingRanked, playingCasual, playingRanked, vsBot, matches24h, ...built, windows: windowsOf(nowMs, pres.map((r: any) => Date.parse(r.seen_at))), daily, dailyTracked: tracked };
+    return { accounts, newToday, newWeek, recent: recent ?? [], online, waitingCasual, waitingRanked, playingCasual, playingRanked, vsBot, matches24h, ...built, ...moderation, windows: windowsOf(nowMs, pres.map((r: any) => Date.parse(r.seen_at))), daily, dailyTracked: tracked };
   },
   async collection(userId) {
     const rows = must(await c.from('collection').select('card_name, copies').eq('user_id', userId).limit(5000), 'collection') as { card_name: string; copies: number }[];

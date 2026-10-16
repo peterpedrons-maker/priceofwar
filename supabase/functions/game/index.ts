@@ -1557,7 +1557,7 @@ var whoMatches = (who, sourceSlot, targetSlot, target) => {
   if (who.armed && armedCount(target) === 0) return false;
   return true;
 };
-var auraTotal = (stat, slot, own, enemy = [], hits) => {
+var auraTotal = (stat, slot, own, enemy = [], hits2) => {
   const target = own[slot] ?? null;
   let total = 0;
   const scan = (board, side) => {
@@ -1576,7 +1576,7 @@ var auraTotal = (stat, slot, own, enemy = [], hits) => {
         if (p.needs === "terrain" && !board[11]) continue;
         const add = p[stat] * (p.perEquip ? Math.min(armedCount(source), p.perEquip.cap) : 1);
         total += add;
-        if (hits && add !== 0 && !hits.some((h) => h.side === side && h.slot === src)) hits.push({ side, slot: src });
+        if (hits2 && add !== 0 && !hits2.some((h) => h.side === side && h.slot === src)) hits2.push({ side, slot: src });
       }
     }
   };
@@ -1633,18 +1633,18 @@ var canPlaceInSlot = (cardType, slot) => {
   return slot <= 9;
 };
 var isCardDamaged = (card) => card.hp < (getCardDef(card.name)?.hp ?? card.hp);
-var getAuraCombatHpBonus = (slot, own, hits) => auraTotal("combatHp", slot, own, [], hits);
+var getAuraCombatHpBonus = (slot, own, hits2) => auraTotal("combatHp", slot, own, [], hits2);
 var blocksAmbush = (board) => boardHasFlag(board, "blocks_ambush");
 var locksGeneralOnDamage = (board) => boardHasFlag(board, "locks_general");
 var getMaxAttacksPerTurn = (card) => 1 + passivesOf(card.name).reduce((n, p) => n + (p.kind === "aura" && p.who.side === "self" && p.attacks ? p.attacks : 0), 0);
-var getEffectiveAtk = (card, ownIndex, own, enemy, hits) => {
+var getEffectiveAtk = (card, ownIndex, own, enemy, hits2) => {
   let atk = card.atk + (card.pendingCombatBonus?.atk ?? 0);
   atk += card.formationBuffAtk ?? 0;
-  atk += auraTotal("atk", ownIndex, own, enemy, hits);
+  atk += auraTotal("atk", ownIndex, own, enemy, hits2);
   if (upkeepOf(card.name) > 0) atk += relicModeOf(own)?.atk ?? 0;
   return Math.max(0, atk);
 };
-var getIncomingDamageReduction = (ownIndex, own, enemy = [], hits) => auraTotal("reduce", ownIndex, own, enemy, hits) + (own[ownIndex]?.dmgReduction ?? 0);
+var getIncomingDamageReduction = (ownIndex, own, enemy = [], hits2) => auraTotal("reduce", ownIndex, own, enemy, hits2) + (own[ownIndex]?.dmgReduction ?? 0);
 var getValidAttackTargets = (attackerIndex, attackerBoard, enemyBoard) => {
   const valid = /* @__PURE__ */ new Set();
   const attacker = attackerBoard[attackerIndex];
@@ -2502,7 +2502,7 @@ var resolveCombat = (c, aSeat, from, to, ambush) => {
   if (attackerAtk > 0) hitsD.push(...redD);
   if (defenderAtk > 0) hitsA.push(...redA);
   const flashed = /* @__PURE__ */ new Set();
-  const flash = (hits, ownSeat, foeSeat) => hits.forEach((h) => {
+  const flash = (hits2, ownSeat, foeSeat) => hits2.forEach((h) => {
     const seat = h.side === "own" ? ownSeat : foeSeat, k = `${seat}:${h.slot}`;
     if (!flashed.has(k)) {
       flashed.add(k);
@@ -3521,6 +3521,55 @@ var closeSeason = (p, newSeason, top) => {
   return { league, coroas: SEASON_COROAS[league], next: { points, mmr: p.mmr, games: 0, wins: 0, losses: 0, shield: false, peak: points, season: newSeason, frame } };
 };
 
+// server/types.ts
+var REPORT_REASONS = ["nome", "comportamento", "trapaca", "outro"];
+var buildAdminPlayers = (nowMs, onlineMs, profiles, seen, ranked, cards, busy, banned = /* @__PURE__ */ new Set()) => {
+  const players = profiles.map((p) => {
+    const t = seen.get(p.id);
+    return {
+      id: p.id,
+      username: p.username,
+      avatar_id: p.avatar_id,
+      level: p.level ?? 1,
+      xp: p.xp ?? 0,
+      coroas: p.coroas ?? 0,
+      created_at: p.created_at ?? new Date(nowMs).toISOString(),
+      seen_at: t === void 0 ? null : new Date(t).toISOString(),
+      online: t !== void 0 && nowMs - t < onlineMs,
+      state: busy.get(p.id) ?? null,
+      ranked: ranked.get(p.id) ?? null,
+      cards: cards.get(p.id) ?? 0,
+      banned: banned.has(p.id)
+    };
+  });
+  players.sort((a, b) => Number(b.online) - Number(a.online) || Date.parse(b.seen_at ?? b.created_at) - Date.parse(a.seen_at ?? a.created_at));
+  return { players, totals: { coroas: players.reduce((n, p) => n + p.coroas, 0), xp: players.reduce((n, p) => n + p.xp, 0), cards: players.reduce((n, p) => n + p.cards, 0) } };
+};
+var dayKey = (ms) => new Date(ms - 3 * 36e5).toISOString().slice(0, 10);
+var lastDays = (nowMs, n = 14) => Array.from({ length: n }, (_, i) => dayKey(nowMs - (n - 1 - i) * 864e5));
+var windowsOf = (nowMs, seen) => ({
+  h1: seen.filter((t) => nowMs - t < 36e5).length,
+  h24: seen.filter((t) => nowMs - t < 864e5).length,
+  d7: seen.filter((t) => nowMs - t < 7 * 864e5).length,
+  d30: seen.filter((t) => nowMs - t < 30 * 864e5).length
+});
+var buildAdminReports = (reports, bans, nameOf) => {
+  const count = /* @__PURE__ */ new Map();
+  reports.forEach((r) => count.set(r.reported, (count.get(r.reported) ?? 0) + 1));
+  const banned = new Set(bans.map((b) => b.user_id));
+  return {
+    reports: [...reports].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 40).map((r) => ({
+      id: r.id,
+      created_at: r.created_at,
+      reason: r.reason,
+      note: r.note,
+      reporter: { id: r.reporter, name: nameOf(r.reporter) },
+      reported: { id: r.reported, name: nameOf(r.reported), count: count.get(r.reported) ?? 1, banned: banned.has(r.reported) }
+    })),
+    bans: bans.map((b) => ({ id: b.user_id, name: nameOf(b.user_id), reason: b.reason, banned_at: b.banned_at }))
+  };
+};
+
 // server/handler.ts
 var defaultConfig = () => ({ queueStaleMs: 2e4, turnMs: 15e4, promptMs: 6e4, maxTimeouts: 2, now: () => Date.now(), random: Math.random });
 var EMOTE_CODE = /^[pe][1-6]$/;
@@ -3820,7 +3869,7 @@ var finishIfStale = async (db, cfg, m) => {
   }
   return m;
 };
-var OPS = /* @__PURE__ */ new Set(["ping", "admin", "queue", "ranked", "claim", "ranking", "status", "cancel", "act", "tick", "result", "emote", "emotes"]);
+var OPS = /* @__PURE__ */ new Set(["ping", "admin", "report", "deleteAccount", "adminBan", "adminUnban", "queue", "ranked", "claim", "ranking", "status", "cancel", "act", "tick", "result", "emote", "emotes"]);
 var badRequest = (req) => {
   if (!req || typeof req !== "object" || Array.isArray(req)) return "Pedido inv\xE1lido.";
   const r = req;
@@ -3830,6 +3879,9 @@ var badRequest = (req) => {
   if (r.season !== void 0 && !(Number.isInteger(r.season) && r.season >= 0 && r.season < 1e4)) return "Pedido inv\xE1lido.";
   if (r.limit !== void 0 && !(typeof r.limit === "number" && Number.isFinite(r.limit))) return "Pedido inv\xE1lido.";
   if (r.code !== void 0 && (typeof r.code !== "string" || r.code.length > 8)) return "Pedido inv\xE1lido.";
+  if (r.target !== void 0 && (typeof r.target !== "string" || r.target.length > 64)) return "Pedido inv\xE1lido.";
+  if (r.reason !== void 0 && (typeof r.reason !== "string" || r.reason.length > 200)) return "Pedido inv\xE1lido.";
+  if (r.note !== void 0 && (typeof r.note !== "string" || r.note.length > 200)) return "Pedido inv\xE1lido.";
   if (r.general !== void 0 && (typeof r.general !== "string" || r.general.length > 80)) return "Deck inv\xE1lido.";
   if (r.botDeck !== void 0 && (typeof r.botDeck !== "string" || r.botDeck.length > 40)) return "Pedido inv\xE1lido.";
   if (r.rar !== void 0 && (!r.rar || typeof r.rar !== "object" || Array.isArray(r.rar) || JSON.stringify(r.rar).length > 8e3)) return "Deck inv\xE1lido.";
@@ -3870,9 +3922,43 @@ var cleanRar = (raw, cards, collection) => {
 };
 var isAdmin = (userId, who) => !!who.adminIds?.includes(userId) || !!who.verified && !!who.email && !!who.admins?.includes(who.email.toLowerCase());
 var ONLINE_MS = 3 * 60 * 1e3;
+var LIMITS = {
+  act: [400, 1e4],
+  tick: [200, 1e4],
+  status: [200, 1e4],
+  queue: [20, 3e4],
+  cancel: [30, 3e4],
+  emote: [20, 3e4],
+  emotes: [60, 1e4],
+  report: [8, 36e5],
+  deleteAccount: [3, 36e5],
+  admin: [60, 6e4],
+  adminBan: [30, 6e4],
+  adminUnban: [30, 6e4],
+  ping: [20, 6e4]
+};
+var DEFAULT_LIMIT = [120, 1e4];
+var hits = /* @__PURE__ */ new Map();
+var rateLimited = (userId, op, now) => {
+  const [max, win] = LIMITS[op] ?? DEFAULT_LIMIT, key = `${userId}|${op}`;
+  const list = (hits.get(key) ?? []).filter((t) => now - t < win);
+  if (list.length >= max) {
+    hits.set(key, list);
+    return true;
+  }
+  list.push(now);
+  hits.set(key, list);
+  if (hits.size > 2e4) {
+    for (const [k, v] of hits) if (!v.length || now - v[v.length - 1] > 36e5) hits.delete(k);
+  }
+  return false;
+};
+var REPORT_DAILY_MAX = 10;
 var handleGame = async (db, userId, req, cfg = defaultConfig(), who = {}) => {
   const invalid = badRequest(req);
   if (invalid) return { ok: false, error: invalid };
+  if (rateLimited(userId, req.op, cfg.now())) return { ok: false, error: "Muitos pedidos em pouco tempo. Espere alguns segundos." };
+  if (req.op !== "ping" && req.op !== "admin" && req.op !== "adminBan" && req.op !== "adminUnban" && !isAdmin(userId, who) && await db.isBanned(userId)) return { ok: false, error: "banned" };
   switch (req.op) {
     case "ping": {
       try {
@@ -3886,6 +3972,34 @@ var handleGame = async (db, userId, req, cfg = defaultConfig(), who = {}) => {
       const overview = await db.adminOverview(cfg.now(), ONLINE_MS), cal = await calendar(db, cfg);
       const top = (await db.rankedTop(5, cal.number)).map((r, i) => ({ rank: i + 1, name: r.username, points: r.profile.points, label: leagueLabel(r.profile.points, false) }));
       return { ok: true, status: "admin", admin: { ...overview, top, season: cal.number, me: { id: userId, email: who.email ?? null } } };
+    }
+    case "report": {
+      if (!REPORT_REASONS.includes(req.reason)) return { ok: false, error: "Motivo inv\xE1lido." };
+      const m = await db.getMatch(req.matchId), seat = m ? playerOf(m, userId) : null;
+      if (!m || seat === null) return { ok: false, error: "Partida n\xE3o encontrada." };
+      const target = seat === 0 ? m.seat1 : m.seat0;
+      if (!target || m.bot_seat !== null) return { ok: false, error: "S\xF3 d\xE1 para denunciar outra pessoa." };
+      if (await db.reportsBy(userId, cfg.now() - 864e5) >= REPORT_DAILY_MAX) return { ok: false, error: "Voc\xEA j\xE1 enviou den\xFAncias demais hoje. Obrigado, vamos analisar." };
+      await db.addReport({ reporter: userId, reported: target, match_id: m.id, reason: req.reason, note: (req.note ?? "").trim().slice(0, 200) });
+      return { ok: true, status: "reported" };
+    }
+    case "deleteAccount": {
+      if (await db.activeMatchOf(userId)) return { ok: false, error: "Termine ou abandone a partida em andamento antes de excluir a conta." };
+      await db.queueDelete(userId);
+      await db.deleteAccount(userId);
+      return { ok: true, status: "deleted" };
+    }
+    case "adminBan": {
+      if (!isAdmin(userId, who)) return { ok: false, error: "forbidden" };
+      if (req.target === userId) return { ok: false, error: "Voc\xEA n\xE3o pode banir a si mesmo." };
+      await db.ban(req.target, (req.reason ?? "").trim().slice(0, 200));
+      await db.queueDelete(req.target);
+      return { ok: true, status: "none" };
+    }
+    case "adminUnban": {
+      if (!isAdmin(userId, who)) return { ok: false, error: "forbidden" };
+      await db.unban(req.target);
+      return { ok: true, status: "none" };
     }
     case "queue": {
       if (!req.cards || typeof req.cards !== "object" || typeof req.general !== "string") return { ok: false, error: "Deck inv\xE1lido." };
@@ -4031,37 +4145,6 @@ var handleGame = async (db, userId, req, cfg = defaultConfig(), who = {}) => {
   }
 };
 
-// server/types.ts
-var buildAdminPlayers = (nowMs, onlineMs, profiles, seen, ranked, cards, busy) => {
-  const players = profiles.map((p) => {
-    const t = seen.get(p.id);
-    return {
-      id: p.id,
-      username: p.username,
-      avatar_id: p.avatar_id,
-      level: p.level ?? 1,
-      xp: p.xp ?? 0,
-      coroas: p.coroas ?? 0,
-      created_at: p.created_at ?? new Date(nowMs).toISOString(),
-      seen_at: t === void 0 ? null : new Date(t).toISOString(),
-      online: t !== void 0 && nowMs - t < onlineMs,
-      state: busy.get(p.id) ?? null,
-      ranked: ranked.get(p.id) ?? null,
-      cards: cards.get(p.id) ?? 0
-    };
-  });
-  players.sort((a, b) => Number(b.online) - Number(a.online) || Date.parse(b.seen_at ?? b.created_at) - Date.parse(a.seen_at ?? a.created_at));
-  return { players, totals: { coroas: players.reduce((n, p) => n + p.coroas, 0), xp: players.reduce((n, p) => n + p.xp, 0), cards: players.reduce((n, p) => n + p.cards, 0) } };
-};
-var dayKey = (ms) => new Date(ms - 3 * 36e5).toISOString().slice(0, 10);
-var lastDays = (nowMs, n = 14) => Array.from({ length: n }, (_, i) => dayKey(nowMs - (n - 1 - i) * 864e5));
-var windowsOf = (nowMs, seen) => ({
-  h1: seen.filter((t) => nowMs - t < 36e5).length,
-  h24: seen.filter((t) => nowMs - t < 864e5).length,
-  d7: seen.filter((t) => nowMs - t < 7 * 864e5).length,
-  d30: seen.filter((t) => nowMs - t < 30 * 864e5).length
-});
-
 // server/supabaseDb.ts
 var must = (r, what) => {
   if (r.error) throw new Error(`${what}: ${r.error.message ?? r.error}`);
@@ -4085,6 +4168,33 @@ var supabaseDb = (c) => ({
   async presenceTouch(userId) {
     must(await c.from("presence").upsert({ user_id: userId, seen_at: (/* @__PURE__ */ new Date()).toISOString() }, { onConflict: "user_id" }), "presence");
     await c.from("presence_days").upsert({ user_id: userId, day: dayKey(Date.now()) }, { onConflict: "user_id,day", ignoreDuplicates: true });
+  },
+  async isBanned(userId) {
+    const r = await c.from("bans").select("user_id").eq("user_id", userId).maybeSingle();
+    return !r.error && !!r.data;
+  },
+  async ban(userId, reason) {
+    must(await c.from("bans").upsert({ user_id: userId, reason, banned_at: (/* @__PURE__ */ new Date()).toISOString() }, { onConflict: "user_id" }), "ban");
+    await c.from("queue").delete().eq("user_id", userId);
+  },
+  async unban(userId) {
+    must(await c.from("bans").delete().eq("user_id", userId), "unban");
+  },
+  async addReport(r) {
+    const res = await c.from("reports").insert({ reporter: r.reporter, reported: r.reported, match_id: r.match_id, reason: r.reason, note: r.note });
+    if (res.error) {
+      if (res.error.code === "23505") return false;
+      throw new Error(`report: ${res.error.message ?? res.error}`);
+    }
+    return true;
+  },
+  async deleteAccount(userId) {
+    const r = await c.auth.admin.deleteUser(userId);
+    if (r.error) throw new Error(`delete account: ${r.error.message ?? r.error}`);
+  },
+  async reportsBy(reporter, sinceMs) {
+    const r = await c.from("reports").select("*", { count: "exact", head: true }).eq("reporter", reporter).gte("created_at", new Date(sinceMs).toISOString());
+    return r.error ? 0 : r.count ?? 0;
   },
   async adminOverview(nowMs, onlineMs) {
     const iso = (ms) => new Date(ms).toISOString(), day = 864e5;
@@ -4122,6 +4232,7 @@ var supabaseDb = (c) => ({
       soft(c.from("matches").select("seat0, seat1, bot_seat, ranked").eq("status", "active").limit(1e3)),
       soft(c.from("queue").select("user_id").gte("created_at", iso(nowMs - 3e4)).limit(1e3))
     ]);
+    const banRows = await soft(c.from("bans").select("user_id, reason, banned_at").limit(1e3));
     const cards = /* @__PURE__ */ new Map();
     for (let from = 0; from < 3e4; from += 1e3) {
       const page = await soft(c.from("collection").select("user_id, copies").order("user_id").range(from, from + 999));
@@ -4140,8 +4251,12 @@ var supabaseDb = (c) => ({
       new Map(pres.map((r) => [r.user_id, Date.parse(r.seen_at)])),
       new Map(rk.map((r) => [r.user_id, { points: r.points, games: r.games, wins: r.wins, losses: r.losses }])),
       cards,
-      busy
+      busy,
+      new Set(banRows.map((b) => b.user_id))
     );
+    const repRows = await soft(c.from("reports").select("*").order("created_at", { ascending: false }).limit(400));
+    const nameOf = (id) => profiles.find((p) => p.id === id)?.username ?? "?";
+    const moderation = buildAdminReports(repRows, banRows, nameOf);
     const days = lastDays(nowMs), dayStart = (d) => Date.parse(d + "T03:00:00Z");
     const tracked = !(await c.from("presence_days").select("user_id", { head: true, count: "exact" }).limit(1)).error;
     const [active, matchesPer] = await Promise.all([
@@ -4149,7 +4264,7 @@ var supabaseDb = (c) => ({
       Promise.all(days.map((d) => count(head("matches").gte("created_at", iso(dayStart(d))).lt("created_at", iso(dayStart(d) + day)), true)))
     ]);
     const daily = days.map((d, i) => ({ day: d, active: active[i], newAccounts: profiles.filter((p) => p.created_at && dayKey(Date.parse(p.created_at)) === d).length, matches: matchesPer[i] }));
-    return { accounts, newToday, newWeek, recent: recent ?? [], online, waitingCasual, waitingRanked, playingCasual, playingRanked, vsBot, matches24h, ...built, windows: windowsOf(nowMs, pres.map((r) => Date.parse(r.seen_at))), daily, dailyTracked: tracked };
+    return { accounts, newToday, newWeek, recent: recent ?? [], online, waitingCasual, waitingRanked, playingCasual, playingRanked, vsBot, matches24h, ...built, ...moderation, windows: windowsOf(nowMs, pres.map((r) => Date.parse(r.seen_at))), daily, dailyTracked: tracked };
   },
   async collection(userId) {
     const rows = must(await c.from("collection").select("card_name, copies").eq("user_id", userId).limit(5e3), "collection");

@@ -112,3 +112,6 @@ O painel agora tem a seção **Jogadores** (Online / Todos, com busca por nome):
 
 ### Painel GM: fluxo de jogadores (rodada 26)
 Seção **Fluxo de jogadores**: jogadores diferentes vistos na última hora, em 24 h, 7 e 30 dias (pelo último ping de cada conta, tabela `presence`) e três gráficos de barras dos últimos 14 dias (horário de Brasília): jogadores diferentes por dia, contas novas por dia e partidas por dia. A lista de jogadores ganhou o filtro **24 h**. O gráfico de jogadores por dia precisa do **SQL parte 7** (`docs/supabase-online-7.sql`, tabela `presence_days`, uma linha por jogador por dia, gravada a cada ping); sem ele o gráfico aparece apagado, avisando, e o resto funciona. O histórico só começa a contar depois que o SQL é rodado.
+
+### Denúncias, banimentos e exclusão de conta (rodada 26)
+Rode o **SQL parte 8** (`docs/supabase-online-8.sql`; também dentro de `docs/supabase-tudo.sql`): cria o filtro de nomes no banco, as tabelas `bans` e `reports`. Depois o GitHub republica a função (`deploy-game-server.yml`). Sem o SQL 8 o jogo continua funcionando (ninguém é banido, denúncia não grava) e o filtro roda só no aparelho. No painel GM: seção **Denúncias**, **Banidos** e botão Banir nas listas. Detalhes e limites em `docs/anti-trapaca.md` ("Antes de divulgar o jogo") e `docs/lancamento.md`.

@@ -12,6 +12,7 @@ const fail = (error: any): { ok: false; reason: 'taken' | 'invalid' | 'missing-d
   const msg = String(error?.message ?? error ?? '');
   console.error('cloud error', error);
   if (code === '23505') return { ok: false, reason: 'taken', message: 'Esse nome já está em uso. Escolha outro.' };
+  if (/name_not_allowed/.test(msg)) return { ok: false, reason: 'invalid', message: 'Esse nome não é permitido. Escolha outro.' };
   if (code === '23514') return { ok: false, reason: 'invalid', message: 'Nome inválido: use de 3 a 16 letras, números, espaço, _ . ou -' };
   if (code === '42P01' || code === 'PGRST205' || /schema cache|does not exist/i.test(msg)) return { ok: false, reason: 'missing-db', message: 'O banco de dados ainda não foi preparado (rode o SQL do guia).' };
   if (/failed to fetch|network/i.test(msg)) return { ok: false, reason: 'network', message: 'Sem conexão com o servidor. Verifique sua internet.' };

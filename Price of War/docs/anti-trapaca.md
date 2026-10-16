@@ -24,3 +24,15 @@ Não existe anti-cheat de verdade num jogo no navegador: quem controla o aparelh
 4. **Abandono para não perder pontos:** sair e deixar o relógio acabar já conta como derrota com −6 a mais; fechar o app também vira derrota pelo relógio.
 5. **Denúncia e banimento:** ainda não existe. Passo simples: tabela `reports` e uma lista de contas banidas que o servidor consulta ao entrar na fila.
 6. **Excesso de pedidos (spam de requisições):** o servidor valida o formato, mas ainda não limita a quantidade por segundo. O Supabase tem limites próprios; um limite por conta pode vir depois.
+
+## Antes de divulgar o jogo (rodada 26)
+Feito:
+- **Filtro de nomes ofensivos** (`src/nameFilter.ts`, português e inglês, com troca de letras por números, acento e letras repetidas): barra na criação do perfil e na troca de nome (mensagem na tela) **e no banco** (gatilho `profiles_name_guard`, SQL parte 8, gerado da mesma lista por `tools/gerar-filtro-sql.ts`), então não dá para burlar escrevendo direto na API. O SQL foi testado num Postgres local (PGlite) com as mesmas frases do filtro do cliente. É a primeira barreira, não a única: nomes que passam são tratados por denúncia.
+- **Denúncia:** Opções → "Denunciar adversário" (só partida online contra pessoa). O servidor descobre quem é o denunciado pelo número da partida (o aparelho nunca diz quem), aceita no máximo uma denúncia por jogador e partida, 8 por hora e 10 por dia. Tabela `reports`.
+- **Banimento:** o painel GM lista as denúncias (com a contagem por jogador), tem botão Banir/Desbanir (com confirmação) nas denúncias, na lista de jogadores e na lista de banidos, e marca "nome suspeito" nas contas cujo nome o filtro barraria hoje. Conta banida recebe "Sua conta foi suspensa do jogo online" ao tentar jogar (tabela `bans`; o ping continua para o painel ver a conta; o GM não bane a si mesmo e nunca é barrado).
+- **Limite de pedidos por conta** (`rateLimited` em `server/handler.ts`): fila 20 por 30 s, denúncia 8 por hora, ação 400 por 10 s, os demais 120 por 10 s; muito acima do que uma pessoa faz. Fica na memória da instância do servidor (basta para barrar um script martelando; o Supabase tem os limites dele por cima). Testes "limite de pedidos" e "denúncia e banimento".
+- **Excluir minha conta:** Configurações → "Excluir minha conta" (confirmação em dois passos; recusa no meio de uma partida). Apaga perfil, coleção, decks, pontos e histórico (as tabelas penduram em `auth.users` com `on delete cascade`).
+- **Página de privacidade e regras** (`public/privacidade.html`), ligada na tela de login e em Configurações. É um resumo honesto do que o jogo faz hoje, não parecer jurídico.
+- **Manter o Supabase acordado:** `.github/workflows/keepalive-supabase.yml` faz um acesso a cada 3 dias (o plano grátis pausa o projeto depois de cerca de uma semana sem acesso).
+
+Continua sendo risco: coleção escrita pelo aparelho (ver acima); contas extras; ajuda externa; contas banidas voltam criando outra conta (o limite de cadastro é o do Supabase; ver `docs/lancamento.md`).

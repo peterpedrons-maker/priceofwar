@@ -1,7 +1,8 @@
 // An in-memory Db: used by the tests and by the local mock server, so the very same handler runs without Supabase.
 import type { Seat } from '../src/engine/types';
 import type { RankedProfile } from '../src/engine/ranked';
-import { buildAdminPlayers, dayKey, lastDays, windowsOf } from './types';
+import { buildAdminPlayers, buildAdminReports, dayKey, lastDays, windowsOf } from './types';
+import type { ReportReason, ReportRow } from './types';
 import type { AdminOverview, Db, EmoteRow, SeasonRow, MatchPatch, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
 
 export interface MemoryTables {
@@ -32,6 +33,23 @@ export class MemoryDb implements Db {
   }
   presence = new Map<string, number>();
   now = () => Date.now();
+  bans = new Map<string, { reason: string; banned_at: string }>();
+  reports: ReportRow[] = [];
+  async isBanned(userId: string) { return this.bans.has(userId); }
+  async ban(userId: string, reason: string) { this.bans.set(userId, { reason, banned_at: new Date(this.now()).toISOString() }); this.queue = this.queue.filter(q => q.user_id !== userId); }
+  async unban(userId: string) { this.bans.delete(userId); }
+  async addReport(r: { reporter: string; reported: string; match_id: string | null; reason: ReportReason; note: string }) {
+    if (r.match_id && this.reports.some(x => x.reporter === r.reporter && x.match_id === r.match_id)) return false;
+    this.reports.push({ ...r, id: this.reports.length + 1, created_at: new Date(this.now()).toISOString() }); return true;
+  }
+  async deleteAccount(userId: string) {
+    const t = this.tables;
+    t.profiles = t.profiles.filter(p => p.id !== userId); t.collection = t.collection.filter(r => r.user_id !== userId);
+    this.queue = this.queue.filter(q => q.user_id !== userId); this.presence.delete(userId); this.bans.delete(userId); this.rankedRows.delete(userId);
+    this.reports = this.reports.filter(r => r.reporter !== userId && r.reported !== userId);
+    this.matches.forEach(m => { if (m.seat0 === userId) m.seat0 = null; if (m.seat1 === userId) m.seat1 = null; });
+  }
+  async reportsBy(reporter: string, sinceMs: number) { return this.reports.filter(r => r.reporter === reporter && Date.parse(r.created_at) >= sinceMs).length; }
   presenceDays = new Set<string>();   // `${user}|${day}`
   async presenceTouch(userId: string) { this.presence.set(userId, this.now()); this.presenceDays.add(`${userId}|${dayKey(this.now())}`); }
   async adminOverview(nowMs: number, onlineMs: number): Promise<AdminOverview> {
@@ -52,7 +70,8 @@ export class MemoryDb implements Db {
         new Map([...this.rankedRows.entries()].map(([id, r]) => [id, { points: r.points, games: r.games, wins: r.wins, losses: r.losses }])),
         this.tables.collection.reduce((m, r) => m.set(r.user_id, (m.get(r.user_id) ?? 0) + r.copies), new Map<string, number>()),
         (() => { const b = new Map<string, 'queue' | 'casual' | 'ranked' | 'bot'>(); this.queue.forEach(q => b.set(q.user_id, 'queue'));
-          active.forEach(m => ([m.seat0, m.seat1] as (string | null)[]).forEach(u => { if (u) b.set(u, m.bot_seat !== null ? 'bot' : m.ranked ? 'ranked' : 'casual'); })); return b; })()),
+          active.forEach(m => ([m.seat0, m.seat1] as (string | null)[]).forEach(u => { if (u) b.set(u, m.bot_seat !== null ? 'bot' : m.ranked ? 'ranked' : 'casual'); })); return b; })(), new Set(this.bans.keys())),
+      ...buildAdminReports(this.reports, [...this.bans.entries()].map(([user_id, v]) => ({ user_id, ...v })), id => this.tables.profiles.find(p => p.id === id)?.username ?? '?'),
     };
   }
   rankedRows = new Map<string, RankedProfile>();

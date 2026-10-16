@@ -12,7 +12,8 @@ import type { Action, GameEvent, GameState, Seat } from '../src/engine/types';
 import { otherSeat } from '../src/engine/types';
 import { eventsFor, viewFor } from '../src/engine/view';
 import { LEAGUES, MESTRE_FROM, TOP_LEAGUE_SIZE, applyRankedMatch, closeSeason, leagueLabel, mmrWindow, leagueOf, newRankedProfile, seasonAt, withTopLeague, type RankedProfile } from '../src/engine/ranked';
-import type { AdminOverview, Db, DeckJson, DeckRar, EndReason, MatchPatch, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
+import type { AdminOverview, Db, DeckJson, DeckRar, EndReason, MatchPatch, MatchRow, QueueRow, ReportReason, RewardRow, StepRow, ViewRow } from './types';
+import { REPORT_REASONS } from './types';
 
 export interface GameConfig {
   // A waiting player refreshes their queue entry with every status poll; an entry older than this is a player who left, and is skipped.
@@ -115,7 +116,11 @@ export type GameRequest =
   | { op: 'emote'; matchId: string; code: string; since?: number }
   | { op: 'emotes'; matchId: string; since?: number }
   | { op: 'ping' }
-  | { op: 'admin' };
+  | { op: 'admin' }
+  | { op: 'report'; matchId: string; reason: string; note?: string }
+  | { op: 'adminBan'; target: string; reason?: string }
+  | { op: 'adminUnban'; target: string }
+  | { op: 'deleteAccount' };
 
 export type GameResponse =
   | { ok: true; status: 'waiting' | 'none' }
@@ -126,6 +131,8 @@ export type GameResponse =
   | { ok: true; status: 'claimed'; coroas: number; coroas_after: number; profile: RankedView }
   | { ok: true; status: 'ranking'; rows: { rank: number; user: string; name: string; avatarId: string; points: number; label: string; top: boolean; me: boolean }[]; me: RankedView }
   | { ok: true; status: 'admin'; admin: AdminOverview & { top: { rank: number; name: string; points: number; label: string }[]; season: number; me: { id: string; email: string | null } } }
+  | { ok: true; status: 'reported' }
+  | { ok: true; status: 'deleted' }
   | { ok: true; status: 'emotes'; emotes: { id: number; from: 0 | 1; code: string }[] }
   | { ok: false; error: string };
 
@@ -381,7 +388,7 @@ const finishIfStale = async (db: Db, cfg: GameConfig, m: MatchRow | null): Promi
 
 // ── Requests ────────────────────────────────────────────────────────────────
 // A request is untrusted input from a phone: the shape and sizes are checked before anything reads it (the game rules themselves are checked by the engine).
-const OPS = new Set(['ping', 'admin', 'queue', 'ranked', 'claim', 'ranking', 'status', 'cancel', 'act', 'tick', 'result', 'emote', 'emotes']);
+const OPS = new Set(['ping', 'admin', 'report', 'deleteAccount', 'adminBan', 'adminUnban', 'queue', 'ranked', 'claim', 'ranking', 'status', 'cancel', 'act', 'tick', 'result', 'emote', 'emotes']);
 export const badRequest = (req: unknown): string | null => {
   if (!req || typeof req !== 'object' || Array.isArray(req)) return 'Pedido inválido.';
   const r = req as Record<string, unknown>;
@@ -391,6 +398,9 @@ export const badRequest = (req: unknown): string | null => {
   if (r.season !== undefined && !(Number.isInteger(r.season) && (r.season as number) >= 0 && (r.season as number) < 1e4)) return 'Pedido inválido.';
   if (r.limit !== undefined && !(typeof r.limit === 'number' && Number.isFinite(r.limit))) return 'Pedido inválido.';
   if (r.code !== undefined && (typeof r.code !== 'string' || r.code.length > 8)) return 'Pedido inválido.';
+  if (r.target !== undefined && (typeof r.target !== 'string' || r.target.length > 64)) return 'Pedido inválido.';
+  if (r.reason !== undefined && (typeof r.reason !== 'string' || r.reason.length > 200)) return 'Pedido inválido.';
+  if (r.note !== undefined && (typeof r.note !== 'string' || r.note.length > 200)) return 'Pedido inválido.';
   if (r.general !== undefined && (typeof r.general !== 'string' || r.general.length > 80)) return 'Deck inválido.';
   if (r.botDeck !== undefined && (typeof r.botDeck !== 'string' || r.botDeck.length > 40)) return 'Pedido inválido.';
   if (r.rar !== undefined && (!r.rar || typeof r.rar !== 'object' || Array.isArray(r.rar) || JSON.stringify(r.rar).length > 8000)) return 'Deck inválido.';
@@ -430,9 +440,31 @@ export interface Who { email?: string | null; verified?: boolean; admins?: strin
 const isAdmin = (userId: string, who: Who) => !!who.adminIds?.includes(userId) || (!!who.verified && !!who.email && !!who.admins?.includes(who.email.toLowerCase()));
 const ONLINE_MS = 3 * 60 * 1000;
 
+// Per-account request limit (best effort: it lives in the memory of the running instance, which is enough to stop a script hammering the server; the
+// platform has its own limits on top). [max requests, window in ms] per kind of request; the numbers are far above what a person ever sends.
+const LIMITS: Record<string, [number, number]> = {
+  act: [400, 10000], tick: [200, 10000], status: [200, 10000], queue: [20, 30000], cancel: [30, 30000], emote: [20, 30000], emotes: [60, 10000],
+  report: [8, 3600000], deleteAccount: [3, 3600000], admin: [60, 60000], adminBan: [30, 60000], adminUnban: [30, 60000], ping: [20, 60000],
+};
+const DEFAULT_LIMIT: [number, number] = [120, 10000];
+const hits = new Map<string, number[]>();
+export const rateLimited = (userId: string, op: string, now: number): boolean => {
+  const [max, win] = LIMITS[op] ?? DEFAULT_LIMIT, key = `${userId}|${op}`;
+  const list = (hits.get(key) ?? []).filter(t => now - t < win);
+  if (list.length >= max) { hits.set(key, list); return true; }
+  list.push(now); hits.set(key, list);
+  if (hits.size > 20000) for (const [k, v] of hits) if (!v.length || now - v[v.length - 1] > 3600000) hits.delete(k);
+  return false;
+};
+export const resetRateLimits = () => hits.clear();   // (tests: every test starts with a clean slate)
+export const REPORT_DAILY_MAX = 10;
+
 export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: GameConfig = defaultConfig(), who: Who = {}): Promise<GameResponse> => {
   const invalid = badRequest(req);
   if (invalid) return { ok: false, error: invalid };
+  if (rateLimited(userId, req.op, cfg.now())) return { ok: false, error: 'Muitos pedidos em pouco tempo. Espere alguns segundos.' };
+  // A banned account cannot do anything online (the GM panel is the only way in or out of the list; the owner's account is never refused).
+  if (req.op !== 'ping' && req.op !== 'admin' && req.op !== 'adminBan' && req.op !== 'adminUnban' && !isAdmin(userId, who) && await db.isBanned(userId)) return { ok: false, error: 'banned' };
   switch (req.op) {
     case 'ping': {
       try { await db.presenceTouch(userId); } catch { /* the mark is optional (the table may not exist yet) */ }
@@ -443,6 +475,34 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
       const overview = await db.adminOverview(cfg.now(), ONLINE_MS), cal = await calendar(db, cfg);
       const top = (await db.rankedTop(5, cal.number)).map((r, i) => ({ rank: i + 1, name: r.username, points: r.profile.points, label: leagueLabel(r.profile.points, false) }));
       return { ok: true, status: 'admin', admin: { ...overview, top, season: cal.number, me: { id: userId, email: who.email ?? null } } };
+    }
+    case 'report': {
+      if (!REPORT_REASONS.includes(req.reason as ReportReason)) return { ok: false, error: 'Motivo inválido.' };
+      const m = await db.getMatch(req.matchId), seat = m ? playerOf(m, userId) : null;
+      if (!m || seat === null) return { ok: false, error: 'Partida não encontrada.' };
+      const target = seat === 0 ? m.seat1 : m.seat0;
+      if (!target || m.bot_seat !== null) return { ok: false, error: 'Só dá para denunciar outra pessoa.' };
+      if ((await db.reportsBy(userId, cfg.now() - 864e5)) >= REPORT_DAILY_MAX) return { ok: false, error: 'Você já enviou denúncias demais hoje. Obrigado, vamos analisar.' };
+      await db.addReport({ reporter: userId, reported: target, match_id: m.id, reason: req.reason as ReportReason, note: (req.note ?? '').trim().slice(0, 200) });
+      return { ok: true, status: 'reported' };   // (a second report of the same match is accepted silently: nothing more to do)
+    }
+    case 'deleteAccount': {
+      // The player's own request (Settings). Not while a match is running: the opponent would be left hanging.
+      if (await db.activeMatchOf(userId)) return { ok: false, error: 'Termine ou abandone a partida em andamento antes de excluir a conta.' };
+      await db.queueDelete(userId);
+      await db.deleteAccount(userId);
+      return { ok: true, status: 'deleted' };
+    }
+    case 'adminBan': {
+      if (!isAdmin(userId, who)) return { ok: false, error: 'forbidden' };
+      if (req.target === userId) return { ok: false, error: 'Você não pode banir a si mesmo.' };
+      await db.ban(req.target, (req.reason ?? '').trim().slice(0, 200)); await db.queueDelete(req.target);
+      return { ok: true, status: 'none' };
+    }
+    case 'adminUnban': {
+      if (!isAdmin(userId, who)) return { ok: false, error: 'forbidden' };
+      await db.unban(req.target);
+      return { ok: true, status: 'none' };
     }
     case 'queue': {
       if (!req.cards || typeof req.cards !== 'object' || typeof req.general !== 'string') return { ok: false, error: 'Deck inválido.' };

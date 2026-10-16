@@ -235,6 +235,7 @@ import { playSfx, preloadSfx, dbgMark } from './sfx';
 import { fxTactic, fxHero, fxRanged, fxLanding, fxUpkeep, fxGoldGain, fxRelicSoldo, fxLoot, fxPlaced, fxReformar, fxAmbush, fxCalice, fxHospitalario, fxNobre, fxReforco, fxComandante, fxRetorno, fxRetornoCarry, fxAtirador, preloadHolyFx, preloadCombatFx, type FxEnv, type FxRect, type FxSide, type FxTarget } from './combatFx';
 import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettings, subscribeAudio } from './audioSettings';
 import { useGameSettings, setGameSettings, getGameSettings } from './gameSettings';
+import { isNameAllowed, NAME_REFUSED } from './nameFilter';
 import { fxLand, fxImpact, fxBurn, burnMaskSheet, BURN, fxLunge, fxDrop, fxArrows, fxHintFrame, fxDrawFollow, fxMoveFollow, fxSelection, type SelItem, type ArrowSpec } from './cardFx';
 import gsap from 'gsap';
 import { fxShuffle } from './shuffleFx';
@@ -249,7 +250,7 @@ import type { Trigger } from './engine/types';
 import { preloadTerrainFx, syncTerrainFx, clearTerrainFx, type TerrainFxKind } from './terrainFx';
 import { syncCampoLayers, clearCampoLayers, fxForjaPlaced, fxForjaModo, fxFogoPlaced, fxFogoTrincheira, fxFogoSaque, fxNoitePlay, fxNoiteTrail, fxMata, fxArsenalPlaced, fxForjaEquip, fxFogoEquip, fxArsenalEquip } from './campoFx';
 import { DesafiosScreen, type DzDeck, type DzOpponent } from './DesafiosScreen';
-import { cancelQueue, fetchAdmin, fetchResult, fetchViews, pingPresence, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type AdminInfo, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
+import { adminBan, adminUnban, cancelQueue, deleteMyAccount, fetchAdmin, fetchResult, reportOpponent, type ReportReason, fetchViews, pingPresence, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type AdminInfo, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
 import { STEPS as TUT_STEPS, BEATS as TUT_BEATS, COIN_STEP as TUT_COIN_STEP, OUTRO as TUT_OUTRO, CHAPTERS as TUT_CHAPTERS, createTutorialMatch, nextEnemyAction as tutEnemyAction, type Step as TutStep, type Tgt as TutTgt, type Until as TutUntil } from './tutorial/script';
 import { KitWindow, KitTitle, KitButton, KitRow, KitTab, KitToggle, KitRange, KitIconButton, KitPlate, KitCount, KitSearch, KitIcon, KitCoins, KitField, PromptTitle, KIT_ICONS } from './ui/Kit';
@@ -3406,7 +3407,14 @@ const MenuTextButton = ({ text, label, onClick }: { text: string; label: string;
 // The GM panel (owner's account only, server-checked): who made an account, how many are online and playing right now. Refreshes by itself while open.
 const ago = (iso: string) => { const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000)); return m < 1 ? 'agora' : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.round(m / 60)} h` : `há ${Math.round(m / 1440)} d`; };
 const GmPanel = ({ first, onClose }: { first: AdminInfo; onClose: () => void }) => {
-  const [d, setD] = useState<AdminInfo>(first), [busy, setBusy] = useState(false), [at, setAt] = useState(Date.now()), [only, setOnly] = useState<'online' | 'day' | 'all'>('online'), [q, setQ] = useState('');
+  const [d, setD] = useState<AdminInfo>(first), [busy, setBusy] = useState(false), [at, setAt] = useState(Date.now()), [only, setOnly] = useState<'online' | 'day' | 'all'>('online'), [q, setQ] = useState(''), [askBan, setAskBan] = useState<string | null>(null);
+  const doBan = async (id: string, reason: string) => { setAskBan(null); await adminBan(id, reason); await refresh(); };
+  const doUnban = async (id: string) => { await adminUnban(id); await refresh(); };
+  const BanBtn = ({ id, name, reason, banned }: { id: string; name: string; reason: string; banned: boolean }) => banned
+    ? <button className="px-2 py-[2px] text-[10px] rounded border border-[#5fe08a]/60 text-[#9af0b4]" onClick={() => void doUnban(id)}>Desbanir</button>
+    : askBan === id
+      ? <span className="flex gap-1"><button className="px-2 py-[2px] text-[10px] rounded border border-[#ff6a5a] bg-[#5a1410] text-[#ffd0c8]" onClick={() => void doBan(id, reason)}>Confirmar banir {name}</button><button className="px-2 py-[2px] text-[10px] rounded border border-[#d4af37]/40 text-[#e8d6a8]" onClick={() => setAskBan(null)}>Não</button></span>
+      : <button className="px-2 py-[2px] text-[10px] rounded border border-[#ff6a5a]/60 text-[#ff9a8a]" onClick={() => setAskBan(id)}>Banir</button>;
   const refresh = async () => { setBusy(true); const r = await fetchAdmin(); if (r) { setD(r); setAt(Date.now()); } setBusy(false); };
   useEffect(() => { const id = window.setInterval(() => void refresh(), 20000); return () => window.clearInterval(id); }, []);
   const Row = ({ k, v, strong }: { k: string; v: React.ReactNode; strong?: boolean; key?: React.Key }) => (
@@ -3436,6 +3444,17 @@ const GmPanel = ({ first, onClose }: { first: AdminInfo; onClose: () => void }) 
             </>);
           })()}
         </Sec>
+        <Sec t={`Denúncias (${d.reports.length})`}>
+          {d.reports.length === 0 ? <div className="text-[12px] text-[#8f8366]">Nenhuma denúncia.</div> : (
+            <div className="max-h-[260px] overflow-y-auto">{d.reports.map(r => (
+              <div key={r.id} className="py-[6px] border-b border-[#d4af37]/15">
+                <div className="flex items-center justify-between gap-2"><b className="truncate text-[13px] text-[#ffe9b0]" style={{ fontFamily: "'Cinzel', serif" }}>{r.reported.name}{r.reported.count > 1 ? ` · ${r.reported.count} denúncias` : ''}</b><BanBtn id={r.reported.id} name={r.reported.name} reason={`denúncia: ${REPORT_REASON_LABELS[r.reason]}`} banned={r.reported.banned} /></div>
+                <div className="text-[11px] text-[#cdbd97]">{REPORT_REASON_LABELS[r.reason]} · por {r.reporter.name} · {ago(r.created_at)}</div>
+                {r.note && <div className="text-[11px] text-[#e8d6a8] italic">“{r.note}”</div>}
+              </div>))}</div>)}
+        </Sec>
+        {d.bans.length > 0 && <Sec t={`Banidos (${d.bans.length})`}>{d.bans.map(b => (
+          <div key={b.id} className="flex items-center justify-between gap-2 py-[4px] border-b border-[#d4af37]/15"><span className="min-w-0"><b className="text-[13px] text-[#ffb4a8]">{b.name}</b><span className="block text-[10px] text-[#8f8366] truncate">{b.reason || 'sem motivo'} · {ago(b.banned_at)}</span></span><BanBtn id={b.id} name={b.name} reason="" banned /></div>))}</Sec>}
         <Sec t="Jogadores">
           <div className="flex flex-wrap gap-2 mb-1 items-center">
             {(['online', 'day', 'all'] as const).map(k => <button key={k} className={`px-3 py-1 text-[11px] rounded border ${only === k ? 'border-[#ffe9b0] text-[#1c130b] bg-[#e8c766]' : 'border-[#d4af37]/50 text-[#ffe9b0]'}`} onClick={() => setOnly(k)}>{k === 'online' ? `Online (${d.players.filter(p => p.online).length})` : k === 'day' ? `24 h (${d.windows.h24})` : `Todos (${d.players.length})`}</button>)}
@@ -3445,8 +3464,8 @@ const GmPanel = ({ first, onClose }: { first: AdminInfo; onClose: () => void }) 
             {d.players.filter(p => (only === 'all' || (only === 'day' ? !!p.seen_at && Date.now() - Date.parse(p.seen_at) < 864e5 : p.online)) && p.username.toLowerCase().includes(q.trim().toLowerCase())).map(p => (
               <div key={p.id} className="py-[5px] border-b border-[#d4af37]/15">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-1.5 min-w-0"><span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: p.online ? '#5fe08a' : '#6b6048' }} /><b className="truncate text-[13px] text-[#ffe9b0]" style={{ fontFamily: "'Cinzel', serif" }}>{p.username}</b></span>
-                  <span className="text-[11px] text-[#8f8366] shrink-0">{p.state ? ({ queue: 'na fila', casual: 'jogando', ranked: 'ranqueada', bot: 'contra a IA' } as const)[p.state] : p.online ? 'no menu' : p.seen_at ? `visto ${ago(p.seen_at)}` : 'nunca visto'}</span>
+                  <span className="flex items-center gap-1.5 min-w-0"><span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: p.online ? '#5fe08a' : '#6b6048' }} /><b className="truncate text-[13px]" style={{ fontFamily: "'Cinzel', serif", color: p.banned || !isNameAllowed(p.username) ? '#ff9a8a' : '#ffe9b0' }}>{p.username}</b>{!isNameAllowed(p.username) && <span className="text-[9px] text-[#ff9a8a] shrink-0">nome suspeito</span>}{p.banned && <span className="text-[9px] text-[#ff9a8a] shrink-0">banido</span>}</span>
+                  <span className="flex items-center gap-2 shrink-0"><span className="text-[11px] text-[#8f8366]">{p.state ? ({ queue: 'na fila', casual: 'jogando', ranked: 'ranqueada', bot: 'contra a IA' } as const)[p.state] : p.online ? 'no menu' : p.seen_at ? `visto ${ago(p.seen_at)}` : 'nunca visto'}</span><BanBtn id={p.id} name={p.username} reason={!isNameAllowed(p.username) ? 'nome ofensivo' : ''} banned={p.banned} /></span>
                 </div>
                 <div className="text-[11px] text-[#cdbd97] mt-[2px] flex flex-wrap gap-x-3">
                   <span>Nv {p.level}</span><span>{p.xp} XP</span><span>{p.coroas} coroas</span><span>{p.cards} cartas</span>
@@ -3516,7 +3535,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
   const [gm, setGm] = useState<AdminInfo | null>(null);
   const [gmOpen, setGmOpen] = useState(false);
   useEffect(() => { setGm(null); if (authMode === 'supabase' && session) void fetchAdmin().then(setGm); }, [session?.userId]);
-  useEffect(() => { if (DEBUG_HOOKS && new URLSearchParams(window.location.search).has('gmdemo')) setGm({ accounts: 128, newToday: 6, newWeek: 31, recent: [{ username: 'Aurelia', created_at: new Date(Date.now() - 12 * 60000).toISOString() }, { username: 'Brann77', created_at: new Date(Date.now() - 5 * 3600000).toISOString() }, { username: 'Osric', created_at: new Date(Date.now() - 30 * 3600000).toISOString() }], online: 9, waitingCasual: 1, waitingRanked: 0, playingCasual: 2, playingRanked: 1, vsBot: 3, matches24h: 57, top: [{ rank: 1, name: 'Aurelia', points: 1240, label: 'Ouro II' }], season: 3, me: { id: 'demo', email: 'dono@exemplo.com' }, players: [{ id: 'a', username: 'Aurelia', avatar_id: 'batedora', level: 14, xp: 2310, coroas: 840, created_at: new Date(Date.now() - 40 * 86400000).toISOString(), seen_at: new Date(Date.now() - 20000).toISOString(), online: true, state: 'ranked', ranked: { points: 1240, games: 52, wins: 33, losses: 19 }, cards: 211 }, { id: 'b', username: 'Brann77', avatar_id: 'batedora', level: 6, xp: 640, coroas: 150, created_at: new Date(Date.now() - 5 * 3600000).toISOString(), seen_at: new Date(Date.now() - 60000).toISOString(), online: true, state: null, ranked: null, cards: 64 }, { id: 'c', username: 'Osric', avatar_id: 'batedora', level: 9, xp: 1190, coroas: 90, created_at: new Date(Date.now() - 30 * 3600000).toISOString(), seen_at: new Date(Date.now() - 7 * 3600000).toISOString(), online: false, state: null, ranked: { points: 310, games: 9, wins: 4, losses: 5 }, cards: 98 }], totals: { coroas: 1080, xp: 4140, cards: 373 }, windows: { h1: 5, h24: 14, d7: 41, d30: 77 }, dailyTracked: true, daily: Array.from({ length: 14 }, (_, i) => ({ day: new Date(Date.now() - (13 - i) * 864e5 - 3 * 3600e3).toISOString().slice(0, 10), active: [2, 3, 3, 5, 4, 8, 12, 9, 7, 15, 22, 18, 14, 9][i], newAccounts: [1, 1, 0, 2, 1, 3, 5, 2, 2, 6, 9, 7, 4, 3][i], matches: [3, 5, 4, 9, 7, 14, 25, 17, 12, 30, 44, 36, 28, 17][i] })) }); }, []);   // (test only: `?debug&gmdemo` shows the panel with made-up numbers)
+  useEffect(() => { if (DEBUG_HOOKS && new URLSearchParams(window.location.search).has('gmdemo')) setGm({ accounts: 128, newToday: 6, newWeek: 31, recent: [{ username: 'Aurelia', created_at: new Date(Date.now() - 12 * 60000).toISOString() }, { username: 'Brann77', created_at: new Date(Date.now() - 5 * 3600000).toISOString() }, { username: 'Osric', created_at: new Date(Date.now() - 30 * 3600000).toISOString() }], online: 9, waitingCasual: 1, waitingRanked: 0, playingCasual: 2, playingRanked: 1, vsBot: 3, matches24h: 57, top: [{ rank: 1, name: 'Aurelia', points: 1240, label: 'Ouro II' }], season: 3, me: { id: 'demo', email: 'dono@exemplo.com' }, players: [{ id: 'a', username: 'Aurelia', avatar_id: 'batedora', level: 14, xp: 2310, coroas: 840, created_at: new Date(Date.now() - 40 * 86400000).toISOString(), seen_at: new Date(Date.now() - 20000).toISOString(), online: true, state: 'ranked', ranked: { points: 1240, games: 52, wins: 33, losses: 19 }, cards: 211 }, { id: 'b', username: 'Brann77', avatar_id: 'batedora', level: 6, xp: 640, coroas: 150, created_at: new Date(Date.now() - 5 * 3600000).toISOString(), seen_at: new Date(Date.now() - 60000).toISOString(), online: true, state: null, ranked: null, cards: 64 }, { id: 'c', username: 'Osric', avatar_id: 'batedora', level: 9, xp: 1190, coroas: 90, created_at: new Date(Date.now() - 30 * 3600000).toISOString(), seen_at: new Date(Date.now() - 7 * 3600000).toISOString(), online: false, state: null, ranked: { points: 310, games: 9, wins: 4, losses: 5 }, cards: 98 }], totals: { coroas: 1080, xp: 4140, cards: 373 }, windows: { h1: 5, h24: 14, d7: 41, d30: 77 }, dailyTracked: true, bans: [{ id: 'z', name: 'Troll99', reason: 'denúncia: Comportamento', banned_at: new Date(Date.now() - 3 * 3600000).toISOString() }], reports: [{ id: 2, created_at: new Date(Date.now() - 20 * 60000).toISOString(), reason: 'nome', note: 'nome ofensivo', reporter: { id: 'a', name: 'Aurelia' }, reported: { id: 'c', name: 'Osric', count: 2, banned: false } }, { id: 1, created_at: new Date(Date.now() - 5 * 3600000).toISOString(), reason: 'comportamento', note: '', reporter: { id: 'b', name: 'Brann77' }, reported: { id: 'z', name: 'Troll99', count: 1, banned: true } }], daily: Array.from({ length: 14 }, (_, i) => ({ day: new Date(Date.now() - (13 - i) * 864e5 - 3 * 3600e3).toISOString().slice(0, 10), active: [2, 3, 3, 5, 4, 8, 12, 9, 7, 15, 22, 18, 14, 9][i], newAccounts: [1, 1, 0, 2, 1, 3, 5, 2, 2, 6, 9, 7, 4, 3][i], matches: [3, 5, 4, 9, 7, 14, 25, 17, 12, 30, 44, 36, 28, 17][i] })) }); }, []);   // (test only: `?debug&gmdemo` shows the panel with made-up numbers)
   const updateProfile = (patch: Partial<PlayerProfile>) => {
     setProfile(prev => {
       const next = { ...prev, ...patch };
@@ -3530,6 +3549,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
   const renameProfile = async (raw: string) => {
     const name = raw.trim().replace(/\s+/g, ' ');
     if (!NAME_RULE.test(name)) { setComingSoon({ title: 'Nome inválido', message: 'Use de 3 a 16 letras, números, espaço, _ . ou -' }); return; }
+    if (!isNameAllowed(name)) { setComingSoon({ title: 'Nome não permitido', message: NAME_REFUSED }); return; }
     if (name === profile.name) return;
     if (authMode === 'supabase' && session) {
       const r = await updateProfileFields(session.userId, { username: name });
@@ -4949,6 +4969,9 @@ const LoginScreen = () => {
             {note && <p className="text-center text-[12px] text-[#8fe0a4]" style={{ fontFamily: "'PT Serif', serif" }}>{note}</p>}
             <div className="flex items-center gap-2 px-2 pt-0.5"><div className="flex-1 h-px bg-[#d4af37]/30" /><span className="text-[10px] uppercase tracking-[0.2em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>ou</span><div className="flex-1 h-px bg-[#d4af37]/30" /></div>
             <AuthButton label="Jogar como convidado" busy={busy === 'guest'} onClick={() => run('guest', signInGuest)} />
+            <p className="text-center text-[10.5px] leading-snug text-[#a89a78]" style={{ fontFamily: "'PT Serif', serif" }}>
+              Ao entrar você concorda com as <a href={`${import.meta.env.BASE_URL}privacidade.html`} target="_blank" rel="noreferrer" className="text-[#e8c766] underline">regras e a política de privacidade</a>.
+            </p>
             {authMode === 'local' && (
               <p className="text-center text-[10.5px] leading-snug text-[#a89a78]" style={{ fontFamily: "'PT Serif', serif" }}>
                 Versão de teste: as contas online ainda não foram configuradas, então só o modo convidado funciona por enquanto.
@@ -4961,7 +4984,7 @@ const LoginScreen = () => {
   );
 };
 
-const NAME_RULE = /^[\p{L}\p{N} _.\-]{3,16}$/u;
+const NAME_RULE = /^[\p{L}\p{N} _.\-]{3,16}$/u;   // (the offensive-name filter is in src/nameFilter.ts)
 // `onSubmit` resolves to an error message (name taken, no connection...) or null on success.
 const ProfileSetupScreen = ({ initialName, initialAvatar, onSubmit }: { initialName: string; initialAvatar: string; onSubmit: (name: string, avatarId: string) => Promise<string | null> }) => {
   const [name, setName] = useState(initialName === DEFAULT_PROFILE.name ? '' : initialName);
@@ -4971,7 +4994,8 @@ const ProfileSetupScreen = ({ initialName, initialAvatar, onSubmit }: { initialN
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const trimmed = name.trim().replace(/\s+/g, ' ');
-  const valid = NAME_RULE.test(trimmed);
+  const rude = NAME_RULE.test(trimmed) && !isNameAllowed(trimmed);
+  const valid = NAME_RULE.test(trimmed) && !rude;
   // With real accounts the name must be unique: ask the server (after a short pause in typing).
   useEffect(() => {
     setTaken(false);
@@ -4986,7 +5010,7 @@ const ProfileSetupScreen = ({ initialName, initialAvatar, onSubmit }: { initialN
     }, 450);
     return () => { alive = false; window.clearTimeout(t); };
   }, [trimmed, valid]);
-  const hint = trimmed.length === 0 ? 'Escolha um nome de 3 a 16 caracteres.' : trimmed.length < 3 ? 'Muito curto: use pelo menos 3 caracteres.' : !valid ? 'Use só letras, números, espaço, _ . ou -' : taken ? 'Esse nome já está em uso.' : '';
+  const hint = trimmed.length === 0 ? 'Escolha um nome de 3 a 16 caracteres.' : trimmed.length < 3 ? 'Muito curto: use pelo menos 3 caracteres.' : rude ? NAME_REFUSED : !valid ? 'Use só letras, números, espaço, _ . ou -' : taken ? 'Esse nome já está em uso.' : '';
   const canGo = valid && !taken && !checking && !saving;
   const go = async () => {
     if (!canGo) return;
@@ -5047,8 +5071,41 @@ const ToggleRow = ({ label, sub, on, onChange }: { label: string; sub: string; o
     <KitToggle on={on} />
   </button>
 );
+// Denunciar o adversário (só em partida online contra uma pessoa): o servidor descobre quem é pelo número da partida.
+const REPORT_REASON_LABELS: Record<ReportReason, string> = { nome: 'Nome ofensivo', comportamento: 'Comportamento (xingamento, abuso)', trapaca: 'Trapaça', outro: 'Outro motivo' };
+const ReportModal = ({ matchId, opponentName, onClose }: { matchId: string; opponentName: string; onClose: () => void }) => {
+  const [reason, setReason] = useState<ReportReason | null>(null), [note, setNote] = useState(''), [busy, setBusy] = useState(false), [done, setDone] = useState(false), [err, setErr] = useState('');
+  const send = async () => { if (!reason || busy) return; setBusy(true); setErr(''); const r = await reportOpponent(matchId, reason, note.trim()); setBusy(false); if (r.ok === true) setDone(true); else setErr(r.error); };
+  return (
+    <WindowOverlay onClose={onClose}>
+      <FramedWindow>
+        <div className="flex flex-col items-center gap-3 px-2 py-2 w-[min(82vw,330px)]">
+          <WindowTitle>Denunciar</WindowTitle>
+          {done ? (<>
+            <WindowText>Denúncia enviada. Obrigado por avisar: vamos analisar.</WindowText>
+            <WindowButton primary onClick={onClose}>Fechar</WindowButton>
+          </>) : (<>
+            <WindowText>Qual foi o problema com <b>{opponentName}</b>?</WindowText>
+            <div className="w-full flex flex-col gap-2">
+              {(Object.keys(REPORT_REASON_LABELS) as ReportReason[]).map(k => (
+                <button key={k} onClick={() => { playUiClickSfx(); setReason(k); }} className="w-full text-left px-3 py-2 rounded border text-[13px]"
+                  style={{ fontFamily: "'PT Serif', serif", color: '#f3e3c3', borderColor: reason === k ? '#ffe9b0' : 'rgba(212,175,55,.35)', background: reason === k ? 'rgba(232,199,102,.22)' : 'rgba(0,0,0,.3)' }}>{REPORT_REASON_LABELS[k]}</button>
+              ))}
+            </div>
+            <input value={note} maxLength={120} onChange={e => setNote(e.target.value)} placeholder="Quer explicar? (opcional)" className="w-full px-3 py-2 rounded text-[13px] bg-black/40 border border-[#d4af37]/30 text-[#f3e3c3] outline-none" />
+            {err && <div className="text-[12px] text-[#ff9a8a] text-center">{err}</div>}
+            <div className="flex gap-3">
+              <WindowButton primary onClick={() => void send()}>{busy ? 'Enviando…' : 'Enviar'}</WindowButton>
+              <WindowButton onClick={onClose}>Cancelar</WindowButton>
+            </div>
+          </>)}
+        </div>
+      </FramedWindow>
+    </WindowOverlay>
+  );
+};
 // Opções: the optional on-screen hints and the sound (overall, music, effects, mute). Reachable from the menu and during a match.
-const OptionsModal = ({ onClose }: { onClose: () => void }) => {
+const OptionsModal = ({ onClose, onReport }: { onClose: () => void; onReport?: () => void }) => {
   const a = useAudioSettings();
   const g = useGameSettings();
   return (
@@ -5076,6 +5133,7 @@ const OptionsModal = ({ onClose }: { onClose: () => void }) => {
             <WindowButton primary={a.muted} onClick={() => setAudioSettings({ muted: !a.muted })}>{a.muted ? 'Ativar som' : 'Mudo'}</WindowButton>
             <WindowButton onClick={onClose}>Fechar</WindowButton>
           </div>
+          {onReport && <WindowButton danger onClick={() => { onClose(); onReport(); }}>Denunciar adversário</WindowButton>}
         </div>
       </FramedWindow>
     </WindowOverlay>
@@ -5083,7 +5141,7 @@ const OptionsModal = ({ onClose }: { onClose: () => void }) => {
 };
 
 const SettingsModal = ({ session, profileName, onClose }: { session: Session | null; profileName: string; onClose: () => void }) => {
-  const [confirming, setConfirming] = useState(false);
+  const [confirming, setConfirming] = useState(false), [deleting, setDeleting] = useState(false), [delBusy, setDelBusy] = useState(false), [delErr, setDelErr] = useState('');
   const how = !session ? '' : session.guest ? 'Convidado' : session.provider === 'google' ? 'Google' : session.provider === 'discord' ? 'Discord' : 'E-mail';
   return (
     <WindowOverlay onClose={onClose}>
@@ -5098,10 +5156,25 @@ const SettingsModal = ({ session, profileName, onClose }: { session: Session | n
           {session?.guest && (
             <WindowText>Como convidado, seu progresso existe só neste aparelho. Ligue uma conta para não perdê-lo.</WindowText>
           )}
-          {!confirming ? (
-            <div className="flex gap-3">
-              <WindowButton onClick={onClose}>Fechar</WindowButton>
-              <WindowButton danger onClick={() => setConfirming(true)}>Sair da conta</WindowButton>
+          {deleting ? (
+            <>
+              <WindowText>Excluir a conta apaga <b>para sempre</b> o perfil, as cartas, os decks, os pontos de ranking e o histórico. Não dá para desfazer. Excluir mesmo?</WindowText>
+              {delErr && <div className="text-[12px] text-[#ff9a8a] text-center">{delErr}</div>}
+              <div className="flex gap-3">
+                <WindowButton onClick={() => { setDeleting(false); setDelErr(''); }}>Cancelar</WindowButton>
+                <WindowButton danger onClick={async () => { if (delBusy) return; setDelBusy(true); setDelErr(''); const r = await deleteMyAccount(); setDelBusy(false); if (r.ok === true) { void signOut(); onClose(); } else setDelErr(r.error); }}>{delBusy ? 'Excluindo…' : 'Excluir tudo'}</WindowButton>
+              </div>
+            </>
+          ) : !confirming ? (
+            <div className="flex flex-col items-center gap-3">
+              <div className="flex gap-3">
+                <WindowButton onClick={onClose}>Fechar</WindowButton>
+                <WindowButton danger onClick={() => setConfirming(true)}>Sair da conta</WindowButton>
+              </div>
+              <div className="flex gap-4 text-[11px]" style={{ fontFamily: "'PT Serif', serif" }}>
+                <a href={`${import.meta.env.BASE_URL}privacidade.html`} target="_blank" rel="noreferrer" className="text-[#cdbd97] underline">Privacidade</a>
+                {authMode === 'supabase' && session && <button className="text-[#ff9a8a] underline" onClick={() => setDeleting(true)}>Excluir minha conta</button>}
+              </div>
             </div>
           ) : (
             <>
@@ -6162,7 +6235,7 @@ export default function App() {
   const [inspectId, setInspectId] = useState<string | null>(null);
   // How many cards the player has already played by dragging: the "arraste" hints show only until the first card is played.
   const gameSettings = useGameSettings();
-  const [optionsOpen, setOptionsOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false), [reportOpen, setReportOpen] = useState(false);
   const [dragLessons, setDragLessons] = useState<number>(() => { try { return Number(localStorage.getItem('pow.drags') || 0); } catch { return 0; } });
   const DRAG_LESSONS = 2;   // the drag hints (finger, banner) show until the player has dragged twice, and never while an effect is playing
   const noteDragPlay = () => setDragLessons(n => { const v = n + 1; try { localStorage.setItem('pow.drags', String(v)); } catch { /* no storage */ } return v; });
@@ -10440,7 +10513,8 @@ export default function App() {
       {gameMode && matchIntroStage === null && !tutOn && !(selectedCardIndex !== null && viewState === 'field' && !targetingMode) && (
         <GameButton className="fixed top-3 left-3 z-[205]" size={10} onClick={() => setOptionsOpen(true)}>Opções</GameButton>
       )}
-      <AnimatePresence>{optionsOpen && <OptionsModal onClose={() => setOptionsOpen(false)} />}</AnimatePresence>
+      <AnimatePresence>{optionsOpen && <OptionsModal onClose={() => setOptionsOpen(false)} onReport={gameMode && onlineRef.current && !onlineRef.current.init.opponent.bot ? () => setReportOpen(true) : undefined} />}</AnimatePresence>
+      <AnimatePresence>{reportOpen && onlineRef.current && <ReportModal matchId={onlineRef.current.init.id} opponentName={onlineRef.current.init.opponent.name} onClose={() => setReportOpen(false)} />}</AnimatePresence>
 
       {/* Online: whose turn it is to move, and how long they have left. */}
       {turnClock && onlineRef.current && !gameOverWinner && matchIntroStage === null && engineRef.current && (() => {

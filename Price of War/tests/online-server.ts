@@ -7,7 +7,7 @@ import { applyReward, rewardFor } from '../src/engine/rewards';
 import type { Action, Seat } from '../src/engine/types';
 import { viewFor } from '../src/engine/view';
 import { SEASON_ONE_START } from '../src/engine/ranked';
-import { handleGame, type GameConfig, type GameResponse, type MatchInit } from '../server/handler';
+import { handleGame, resetRateLimits, type GameConfig, type GameResponse, type MatchInit } from '../server/handler';
 import { MemoryDb } from '../server/memoryDb';
 
 let passed = 0, failed = 0;
@@ -26,6 +26,7 @@ const cfg: GameConfig = {
 
 const fresh = () => {
   const db = new MemoryDb();
+  resetRateLimits();
   db.now = () => clock;   // the same clock as the server's, so "seen" times and days line up
   const addUser = (id: string, name: string, deck: 'cardeal' | 'capitao' = 'cardeal') => {
     db.tables.profiles.push({ id, username: name, avatar_id: 'batedora' });
@@ -110,6 +111,48 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     ok(byId.ok === false, 'id diferente não entra'); const byId2 = await handleGame(db, 'A', { op: 'admin' }, cfg, { adminIds: ['A'.toLowerCase()] });
     ok(byId2.ok === false, 'o id precisa ser igual ao do login (A ≠ a aqui)');
     const byId3 = await handleGame(db, 'A', { op: 'admin' }, cfg, { adminIds: ['A'] }); ok(byId3.ok === true, 'o id da lista vale');
+  });
+  await test('denúncia e banimento: só denuncia o adversário de uma partida sua; o GM bane e desbane; banido não joga', async () => {
+    const db = fresh(); const { id } = await pvp(db);
+    db.tables.profiles.push({ id: 'OWNER', username: 'Dono', avatar_id: 'batedora' });
+    const owner = { email: 'dono@exemplo.com', verified: true, admins: ['dono@exemplo.com'] };
+    const bad = await handleGame(db, 'A', { op: 'report', matchId: id, reason: 'xingar' }, cfg);
+    ok(bad.ok === false, 'motivo desconhecido é recusado');
+    const stranger = await handleGame(db, 'C', { op: 'report', matchId: id, reason: 'nome' }, cfg);
+    ok(stranger.ok === false, 'quem não estava na partida não denuncia');
+    const r1 = await handleGame(db, 'A', { op: 'report', matchId: id, reason: 'nome', note: 'nome ofensivo' }, cfg);
+    ok(r1.ok === true && r1.status === 'reported', 'denúncia aceita');
+    const r2 = await handleGame(db, 'A', { op: 'report', matchId: id, reason: 'comportamento' }, cfg);
+    ok(r2.ok === true, 'a segunda denúncia da mesma partida é aceita sem duplicar');
+    eq(db.reports.length, 1, 'uma denúncia só por jogador e partida');
+    eq([db.reports[0].reporter, db.reports[0].reported], ['A', 'B'], 'o denunciado é o adversário, escolhido pelo servidor');
+    const bot = await handleGame(db, 'A', { op: 'ban' as any, target: 'B' } as any, cfg, owner);
+    ok(bot.ok === false, 'op desconhecida');
+    const notGm = await handleGame(db, 'A', { op: 'adminBan', target: 'B' }, cfg, { email: 'alice@x.com', verified: true, admins: ['dono@exemplo.com'] });
+    ok(notGm.ok === false, 'jogador comum não bane');
+    const self = await handleGame(db, 'OWNER', { op: 'adminBan', target: 'OWNER' }, cfg, { ...owner, adminIds: ['OWNER'] });
+    ok(self.ok === false, 'o GM não bane a si mesmo');
+    const ban = await handleGame(db, 'OWNER', { op: 'adminBan', target: 'B', reason: 'nome ofensivo' }, cfg, owner);
+    ok(ban.ok === true, 'o GM bane');
+    const refused = await handleGame(db, 'B', { op: 'queue', ...deckOf('capitao') }, cfg);
+    ok(refused.ok === false && refused.error === 'banned', 'banido não entra na fila: ' + JSON.stringify(refused));
+    const ping = await handleGame(db, 'B', { op: 'ping' }, cfg); ok(ping.ok === true, 'o ping continua (o painel mostra que a conta existe)');
+    const panel = await handleGame(db, 'OWNER', { op: 'admin' }, cfg, owner);
+    ok(panel.ok === true && panel.status === 'admin' && panel.admin.reports.length === 1 && panel.admin.reports[0].reported.banned && panel.admin.bans.length === 1, 'o painel mostra a denúncia e o banido');
+    if (panel.ok === true && panel.status === 'admin') eq([panel.admin.reports[0].reported.name, panel.admin.reports[0].reporter.name, panel.admin.reports[0].reason], ['Bruno', 'Alice', 'nome'], 'nomes e motivo');
+    await handleGame(db, 'OWNER', { op: 'adminUnban', target: 'B' }, cfg, owner);
+    const back = await handleGame(db, 'B', { op: 'queue', ...deckOf('capitao') }, cfg); ok(back.ok === true, 'desbanido volta a jogar');
+  });
+  await test('limite de pedidos por conta: um script martelando é barrado; uma pessoa nunca chega perto; a janela anda', async () => {
+    const db = fresh();
+    let blocked = 0; for (let i = 0; i < 30; i++) { const r = await handleGame(db, 'A', { op: 'queue', ...deckOf('cardeal') }, cfg); if (r.ok === false && /Muitos pedidos/.test(r.error)) blocked++; }
+    ok(blocked >= 8, 'fila: acima de 20 pedidos em 30 s é barrado (barrou ' + blocked + ')');
+    const other = await handleGame(db, 'B', { op: 'ping' }, cfg); ok(other.ok === true, 'o limite é por conta: outra conta não é afetada');
+    clock += 31000;
+    const again = await handleGame(db, 'A', { op: 'status' }, cfg); ok(again.ok === true || !/Muitos pedidos/.test((again as any).error ?? ''), 'passada a janela, volta a responder');
+    let reps = 0; const { id } = await pvp(fresh());
+    for (let i = 0; i < 12; i++) { const r = await handleGame(db, 'A', { op: 'report', matchId: 'x'.repeat(8), reason: 'nome' }, cfg); if (r.ok === false && /Muitos pedidos/.test(r.error)) reps++; }
+    ok(reps >= 4, 'denúncias: no máximo 8 por hora (barrou ' + reps + ')'); void id;
   });
   await test('versões (raridades): o adversário recebe só as versões que a conta tem, com o total de cópias da carta', async () => {
     const db = fresh();

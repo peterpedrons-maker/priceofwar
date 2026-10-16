@@ -100,6 +100,15 @@ export interface AdminOverview {
   windows: { h1: number; h24: number; d7: number; d30: number };
   daily: { day: string; active: number; newAccounts: number; matches: number }[];
   dailyTracked: boolean;   // false while the presence_days table (SQL 7) does not exist: `active` is then 0
+  reports: AdminReport[];  // the latest reports (newest first)
+  bans: { id: string; name: string; reason: string; banned_at: string }[];
+}
+export type ReportReason = 'nome' | 'comportamento' | 'trapaca' | 'outro';
+export const REPORT_REASONS: ReportReason[] = ['nome', 'comportamento', 'trapaca', 'outro'];
+export interface ReportRow { id: number; reporter: string; reported: string; match_id: string | null; reason: ReportReason; note: string; created_at: string }
+export interface AdminReport {
+  id: number; created_at: string; reason: ReportReason; note: string;
+  reporter: { id: string; name: string }; reported: { id: string; name: string; count: number; banned: boolean };   // count: how many reports this player has received in all
 }
 export interface AdminPlayer {
   id: string; username: string; avatar_id: string; level: number; xp: number; coroas: number; created_at: string;
@@ -107,12 +116,21 @@ export interface AdminPlayer {
   state: 'queue' | 'casual' | 'ranked' | 'bot' | null;      // what the account is doing right now
   ranked: { points: number; games: number; wins: number; losses: number } | null;
   cards: number;                                           // copies owned (all versions)
+  banned: boolean;
 }
 
 export interface Db {
   // A player's "I am here" mark (presence table); the GM panel counts the recent ones as online.
   presenceTouch(userId: string): Promise<void>;
   adminOverview(nowMs: number, onlineMs: number): Promise<AdminOverview>;
+  // Bans (a banned account cannot play online) and reports (a player reports the opponent of a match they were in). Both tables come from SQL 8.
+  isBanned(userId: string): Promise<boolean>;
+  ban(userId: string, reason: string): Promise<void>;
+  unban(userId: string): Promise<void>;
+  addReport(r: { reporter: string; reported: string; match_id: string | null; reason: ReportReason; note: string }): Promise<boolean>;   // false: the same player had already reported that match
+  reportsBy(reporter: string, sinceMs: number): Promise<number>;
+  // Deletes the account and everything that belongs to it (the player's own request from Settings). The tables hang from auth.users with `on delete cascade`.
+  deleteAccount(userId: string): Promise<void>;
   collection(userId: string): Promise<Record<string, number>>;
   profile(userId: string): Promise<{ username: string; avatar_id: string; level: number; xp: number; coroas: number } | null>;
   // Atomically removes and returns the oldest waiting entry belonging to someone else.
@@ -159,13 +177,13 @@ export const buildAdminPlayers = (
   nowMs: number, onlineMs: number,
   profiles: { id: string; username: string; avatar_id: string; level?: number; xp?: number; coroas?: number; created_at?: string }[],
   seen: Map<string, number>, ranked: Map<string, { points: number; games: number; wins: number; losses: number }>, cards: Map<string, number>,
-  busy: Map<string, 'queue' | 'casual' | 'ranked' | 'bot'>,
+  busy: Map<string, 'queue' | 'casual' | 'ranked' | 'bot'>, banned: Set<string> = new Set(),
 ): { players: AdminPlayer[]; totals: { coroas: number; xp: number; cards: number } } => {
   const players: AdminPlayer[] = profiles.map(p => {
     const t = seen.get(p.id);
     return {
       id: p.id, username: p.username, avatar_id: p.avatar_id, level: p.level ?? 1, xp: p.xp ?? 0, coroas: p.coroas ?? 0, created_at: p.created_at ?? new Date(nowMs).toISOString(),
-      seen_at: t === undefined ? null : new Date(t).toISOString(), online: t !== undefined && nowMs - t < onlineMs, state: busy.get(p.id) ?? null, ranked: ranked.get(p.id) ?? null, cards: cards.get(p.id) ?? 0,
+      seen_at: t === undefined ? null : new Date(t).toISOString(), online: t !== undefined && nowMs - t < onlineMs, state: busy.get(p.id) ?? null, ranked: ranked.get(p.id) ?? null, cards: cards.get(p.id) ?? 0, banned: banned.has(p.id),
     };
   });
   players.sort((a, b) => Number(b.online) - Number(a.online) || Date.parse(b.seen_at ?? b.created_at) - Date.parse(a.seen_at ?? a.created_at));
@@ -179,3 +197,18 @@ export const windowsOf = (nowMs: number, seen: number[]) => ({
   h1: seen.filter(t => nowMs - t < 36e5).length, h24: seen.filter(t => nowMs - t < 864e5).length,
   d7: seen.filter(t => nowMs - t < 7 * 864e5).length, d30: seen.filter(t => nowMs - t < 30 * 864e5).length,
 });
+
+// The GM's view of reports and bans, with names (shared by the Supabase and the in-memory Db).
+export const buildAdminReports = (
+  reports: ReportRow[], bans: { user_id: string; reason: string; banned_at: string }[], nameOf: (id: string) => string,
+): { reports: AdminReport[]; bans: AdminOverview['bans'] } => {
+  const count = new Map<string, number>(); reports.forEach(r => count.set(r.reported, (count.get(r.reported) ?? 0) + 1));
+  const banned = new Set(bans.map(b => b.user_id));
+  return {
+    reports: [...reports].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 40).map(r => ({
+      id: r.id, created_at: r.created_at, reason: r.reason, note: r.note, reporter: { id: r.reporter, name: nameOf(r.reporter) },
+      reported: { id: r.reported, name: nameOf(r.reported), count: count.get(r.reported) ?? 1, banned: banned.has(r.reported) },
+    })),
+    bans: bans.map(b => ({ id: b.user_id, name: nameOf(b.user_id), reason: b.reason, banned_at: b.banned_at })),
+  };
+};

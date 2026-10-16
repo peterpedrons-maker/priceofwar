@@ -62,6 +62,7 @@ export type ActResult =
   | { ok: true; rows: ViewRow[]; finished: boolean; deadline: number | null; now: number; reward: RewardInfo | null }
   | { ok: false; error: string; unavailable?: boolean };
 
+const friendly = (e: string) => (e === 'banned' ? 'Sua conta foi suspensa do jogo online. Se acha que foi engano, fale com o criador do jogo.' : e);
 // Calls the function. A missing/unreachable function is reported as `unavailable` so the caller can fall back.
 const call = async (body: Record<string, unknown>): Promise<any> => {
   try {
@@ -70,10 +71,11 @@ const call = async (body: Record<string, unknown>): Promise<any> => {
       // supabase-js hides the JSON body of non-2xx answers inside error.context
       let detail: any = null;
       try { detail = await (error as any).context?.json?.(); } catch { /* not JSON */ }
-      if (detail && typeof detail.error === 'string') return { ok: false, error: detail.error };
+      if (detail && typeof detail.error === 'string') return { ok: false, error: friendly(detail.error) };
       const status = (error as any).context?.status;
       return { ok: false, error: 'Servidor de partidas indisponível.', unavailable: status === 404 || status === undefined || status >= 500 };
     }
+    if (data && data.ok === false && typeof data.error === 'string') data.error = friendly(data.error);
     return data;
   } catch {
     return { ok: false, error: 'Sem conexão com o servidor de partidas.', unavailable: true };
@@ -123,13 +125,30 @@ export const fetchRanking = async (limit = 50): Promise<{ rows: RankingRow[]; me
 // Pays the Coroas of a finished season (once). `coroas_after` is the new balance, to show at once.
 export const claimSeason = async (season: number): Promise<{ coroas: number; coroas_after: number; profile: RankedView } | null> => { const r = await call({ op: 'claim', season }); return r && r.ok === true && r.status === 'claimed' ? { coroas: r.coroas, coroas_after: r.coroas_after, profile: r.profile } : null; };
 
+// Report the opponent of a match I was in (the server picks the reported player from the match: the device never names them).
+export type ReportReason = 'nome' | 'comportamento' | 'trapaca' | 'outro';
+export const reportOpponent = async (matchId: string, reason: ReportReason, note: string): Promise<{ ok: true } | { ok: false; error: string }> => {
+  const r = await call({ op: 'report', matchId, reason, note });
+  return r && r.ok === true && r.status === 'reported' ? { ok: true } : { ok: false, error: r?.error ?? 'Não foi possível enviar a denúncia.' };
+};
+// Deletes my own account and all its data (Settings). The server refuses while a match is running.
+export const deleteMyAccount = async (): Promise<{ ok: true } | { ok: false; error: string }> => {
+  const r = await call({ op: 'deleteAccount' });
+  return r && r.ok === true && r.status === 'deleted' ? { ok: true } : { ok: false, error: r?.error ?? 'Não foi possível excluir a conta agora. Tente de novo.' };
+};
+// GM only: ban / unban an account.
+export const adminBan = async (target: string, reason: string): Promise<boolean> => { const r = await call({ op: 'adminBan', target, reason }); return !!r && r.ok === true; };
+export const adminUnban = async (target: string): Promise<boolean> => { const r = await call({ op: 'adminUnban', target }); return !!r && r.ok === true; };
+
 // GM mode (only the owner's account): the server answers `forbidden` to everybody else, so a normal player gets null and never sees the panel.
 export interface AdminInfo {
   accounts: number; newToday: number; newWeek: number; recent: { username: string; created_at: string }[]; online: number;
   waitingCasual: number; waitingRanked: number; playingCasual: number; playingRanked: number; vsBot: number; matches24h: number;
   top: { rank: number; name: string; points: number; label: string }[]; season: number; me: { id: string; email: string | null };
   players: { id: string; username: string; avatar_id: string; level: number; xp: number; coroas: number; created_at: string; seen_at: string | null; online: boolean;
-    state: 'queue' | 'casual' | 'ranked' | 'bot' | null; ranked: { points: number; games: number; wins: number; losses: number } | null; cards: number }[];
+    state: 'queue' | 'casual' | 'ranked' | 'bot' | null; ranked: { points: number; games: number; wins: number; losses: number } | null; cards: number; banned: boolean }[];
+  reports: { id: number; created_at: string; reason: ReportReason; note: string; reporter: { id: string; name: string }; reported: { id: string; name: string; count: number; banned: boolean } }[];
+  bans: { id: string; name: string; reason: string; banned_at: string }[];
   totals: { coroas: number; xp: number; cards: number };
   windows: { h1: number; h24: number; d7: number; d30: number };
   daily: { day: string; active: number; newAccounts: number; matches: number }[]; dailyTracked: boolean;
