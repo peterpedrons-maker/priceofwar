@@ -96,6 +96,10 @@ export interface AdminOverview {
   // Every account (online first, then the most recently seen), with what the GM wants to know about each one; and the sums over all accounts.
   players: AdminPlayer[];
   totals: { coroas: number; xp: number; cards: number };
+  // How many different players were seen in the last hour / day / week / month, and a day-by-day flow of the last 14 days (oldest first, days in Brasília time).
+  windows: { h1: number; h24: number; d7: number; d30: number };
+  daily: { day: string; active: number; newAccounts: number; matches: number }[];
+  dailyTracked: boolean;   // false while the presence_days table (SQL 7) does not exist: `active` is then 0
 }
 export interface AdminPlayer {
   id: string; username: string; avatar_id: string; level: number; xp: number; coroas: number; created_at: string;
@@ -167,3 +171,11 @@ export const buildAdminPlayers = (
   players.sort((a, b) => Number(b.online) - Number(a.online) || Date.parse(b.seen_at ?? b.created_at) - Date.parse(a.seen_at ?? a.created_at));
   return { players, totals: { coroas: players.reduce((n, p) => n + p.coroas, 0), xp: players.reduce((n, p) => n + p.xp, 0), cards: players.reduce((n, p) => n + p.cards, 0) } };
 };
+
+// A day key in Brasília time (UTC-3): the GM reads "today" the way the owner lives it.
+export const dayKey = (ms: number) => new Date(ms - 3 * 3600e3).toISOString().slice(0, 10);
+export const lastDays = (nowMs: number, n = 14): string[] => Array.from({ length: n }, (_, i) => dayKey(nowMs - (n - 1 - i) * 864e5));
+export const windowsOf = (nowMs: number, seen: number[]) => ({
+  h1: seen.filter(t => nowMs - t < 36e5).length, h24: seen.filter(t => nowMs - t < 864e5).length,
+  d7: seen.filter(t => nowMs - t < 7 * 864e5).length, d30: seen.filter(t => nowMs - t < 30 * 864e5).length,
+});

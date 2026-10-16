@@ -131,6 +131,8 @@ export interface AdminInfo {
   players: { id: string; username: string; avatar_id: string; level: number; xp: number; coroas: number; created_at: string; seen_at: string | null; online: boolean;
     state: 'queue' | 'casual' | 'ranked' | 'bot' | null; ranked: { points: number; games: number; wins: number; losses: number } | null; cards: number }[];
   totals: { coroas: number; xp: number; cards: number };
+  windows: { h1: number; h24: number; d7: number; d30: number };
+  daily: { day: string; active: number; newAccounts: number; matches: number }[]; dailyTracked: boolean;
 }
 export const fetchAdmin = async (): Promise<AdminInfo | null> => { const r = await call({ op: 'admin' }); return r && r.ok === true && r.status === 'admin' ? (r.admin as AdminInfo) : null; };
 // "I am here": a light mark every ~90 s while the app is open (the GM panel counts the recent ones as online).

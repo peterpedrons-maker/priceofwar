@@ -4053,6 +4053,14 @@ var buildAdminPlayers = (nowMs, onlineMs, profiles, seen, ranked, cards, busy) =
   players.sort((a, b) => Number(b.online) - Number(a.online) || Date.parse(b.seen_at ?? b.created_at) - Date.parse(a.seen_at ?? a.created_at));
   return { players, totals: { coroas: players.reduce((n, p) => n + p.coroas, 0), xp: players.reduce((n, p) => n + p.xp, 0), cards: players.reduce((n, p) => n + p.cards, 0) } };
 };
+var dayKey = (ms) => new Date(ms - 3 * 36e5).toISOString().slice(0, 10);
+var lastDays = (nowMs, n = 14) => Array.from({ length: n }, (_, i) => dayKey(nowMs - (n - 1 - i) * 864e5));
+var windowsOf = (nowMs, seen) => ({
+  h1: seen.filter((t) => nowMs - t < 36e5).length,
+  h24: seen.filter((t) => nowMs - t < 864e5).length,
+  d7: seen.filter((t) => nowMs - t < 7 * 864e5).length,
+  d30: seen.filter((t) => nowMs - t < 30 * 864e5).length
+});
 
 // server/supabaseDb.ts
 var must = (r, what) => {
@@ -4076,6 +4084,7 @@ var matchFromDb = (r) => ({ ...r, turn_deadline: r.turn_deadline === null || r.t
 var supabaseDb = (c) => ({
   async presenceTouch(userId) {
     must(await c.from("presence").upsert({ user_id: userId, seen_at: (/* @__PURE__ */ new Date()).toISOString() }, { onConflict: "user_id" }), "presence");
+    await c.from("presence_days").upsert({ user_id: userId, day: dayKey(Date.now()) }, { onConflict: "user_id,day", ignoreDuplicates: true });
   },
   async adminOverview(nowMs, onlineMs) {
     const iso = (ms) => new Date(ms).toISOString(), day = 864e5;
@@ -4133,7 +4142,14 @@ var supabaseDb = (c) => ({
       cards,
       busy
     );
-    return { accounts, newToday, newWeek, recent: recent ?? [], online, waitingCasual, waitingRanked, playingCasual, playingRanked, vsBot, matches24h, ...built };
+    const days = lastDays(nowMs), dayStart = (d) => Date.parse(d + "T03:00:00Z");
+    const tracked = !(await c.from("presence_days").select("user_id", { head: true, count: "exact" }).limit(1)).error;
+    const [active, matchesPer] = await Promise.all([
+      Promise.all(days.map((d) => tracked ? count(head("presence_days").eq("day", d), true) : Promise.resolve(0))),
+      Promise.all(days.map((d) => count(head("matches").gte("created_at", iso(dayStart(d))).lt("created_at", iso(dayStart(d) + day)), true)))
+    ]);
+    const daily = days.map((d, i) => ({ day: d, active: active[i], newAccounts: profiles.filter((p) => p.created_at && dayKey(Date.parse(p.created_at)) === d).length, matches: matchesPer[i] }));
+    return { accounts, newToday, newWeek, recent: recent ?? [], online, waitingCasual, waitingRanked, playingCasual, playingRanked, vsBot, matches24h, ...built, windows: windowsOf(nowMs, pres.map((r) => Date.parse(r.seen_at))), daily, dailyTracked: tracked };
   },
   async collection(userId) {
     const rows = must(await c.from("collection").select("card_name, copies").eq("user_id", userId).limit(5e3), "collection");

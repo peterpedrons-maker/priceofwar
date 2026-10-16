@@ -26,6 +26,7 @@ const cfg: GameConfig = {
 
 const fresh = () => {
   const db = new MemoryDb();
+  db.now = () => clock;   // the same clock as the server's, so "seen" times and days line up
   const addUser = (id: string, name: string, deck: 'cardeal' | 'capitao' = 'cardeal') => {
     db.tables.profiles.push({ id, username: name, avatar_id: 'batedora' });
     Object.entries(DECK_RECIPES[deck].cards).forEach(([card, copies]) => db.tables.collection.push({ user_id: id, card_name: card, copies }));
@@ -101,7 +102,10 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
       const a = r.admin.players.find(p => p.id === 'A'), b = r.admin.players.find(p => p.id === 'B');
       ok(!!a && !!b && a.online && b.online, 'a lista de jogadores marca quem está online pelo ping');
       eq([a!.coroas, a!.level, a!.xp], [500, 3, 120], 'coroas, nível e XP de cada conta');
-      ok(a!.cards > 0 && r.admin.totals.cards >= a!.cards && r.admin.totals.coroas >= 500, 'cartas e totais somados'); }
+      ok(a!.cards > 0 && r.admin.totals.cards >= a!.cards && r.admin.totals.coroas >= 500, 'cartas e totais somados');
+      eq([r.admin.windows.h1, r.admin.windows.h24, r.admin.windows.d30], [2, 2, 2], 'vistos na última hora, em 24 h e em 30 dias');
+      const today = r.admin.daily[r.admin.daily.length - 1];
+      eq([r.admin.daily.length, today.active], [14, 2], '14 dias de histórico, 2 jogadores ativos hoje'); }
     const byId = await handleGame(db, 'A', { op: 'admin' }, cfg, { adminIds: ['a'] });
     ok(byId.ok === false, 'id diferente não entra'); const byId2 = await handleGame(db, 'A', { op: 'admin' }, cfg, { adminIds: ['A'.toLowerCase()] });
     ok(byId2.ok === false, 'o id precisa ser igual ao do login (A ≠ a aqui)');

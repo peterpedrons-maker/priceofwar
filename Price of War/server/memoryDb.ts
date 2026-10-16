@@ -1,7 +1,7 @@
 // An in-memory Db: used by the tests and by the local mock server, so the very same handler runs without Supabase.
 import type { Seat } from '../src/engine/types';
 import type { RankedProfile } from '../src/engine/ranked';
-import { buildAdminPlayers } from './types';
+import { buildAdminPlayers, dayKey, lastDays, windowsOf } from './types';
 import type { AdminOverview, Db, EmoteRow, SeasonRow, MatchPatch, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
 
 export interface MemoryTables {
@@ -32,7 +32,8 @@ export class MemoryDb implements Db {
   }
   presence = new Map<string, number>();
   now = () => Date.now();
-  async presenceTouch(userId: string) { this.presence.set(userId, this.now()); }
+  presenceDays = new Set<string>();   // `${user}|${day}`
+  async presenceTouch(userId: string) { this.presence.set(userId, this.now()); this.presenceDays.add(`${userId}|${dayKey(this.now())}`); }
   async adminOverview(nowMs: number, onlineMs: number): Promise<AdminOverview> {
     const day = 864e5, at = (p: { created_at?: string }) => (p.created_at ? Date.parse(p.created_at) : nowMs);
     const ps = [...this.tables.profiles].sort((a, b) => at(b) - at(a));
@@ -44,6 +45,9 @@ export class MemoryDb implements Db {
       waitingCasual: this.queue.filter(q => !q.ranked).length, waitingRanked: this.queue.filter(q => q.ranked).length,
       playingCasual: active.filter(m => m.bot_seat === null && !m.ranked).length, playingRanked: active.filter(m => m.bot_seat === null && m.ranked).length,
       vsBot: active.filter(m => m.bot_seat !== null).length, matches24h: this.matches.filter(m => nowMs - Date.parse(m.created_at) < day).length,
+      windows: windowsOf(nowMs, [...this.presence.values()]), dailyTracked: true,
+      daily: lastDays(nowMs).map(day => ({ day, active: [...this.presenceDays].filter(k => k.endsWith('|' + day)).length,
+        newAccounts: ps.filter(p => dayKey(at(p)) === day).length, matches: this.matches.filter(m => dayKey(Date.parse(m.created_at)) === day).length })),
       ...buildAdminPlayers(nowMs, onlineMs, this.tables.profiles, this.presence,
         new Map([...this.rankedRows.entries()].map(([id, r]) => [id, { points: r.points, games: r.games, wins: r.wins, losses: r.losses }])),
         this.tables.collection.reduce((m, r) => m.set(r.user_id, (m.get(r.user_id) ?? 0) + r.copies), new Map<string, number>()),

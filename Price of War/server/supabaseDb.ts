@@ -2,7 +2,7 @@
 // apply_match_rewards functions are created by docs/supabase-online.sql and docs/supabase-online-2.sql.
 import type { Seat } from '../src/engine/types';
 import type { RankedProfile } from '../src/engine/ranked';
-import { buildAdminPlayers } from './types';
+import { buildAdminPlayers, dayKey, lastDays, windowsOf } from './types';
 import type { AdminOverview, Db, EmoteRow, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
 
 // Only the tiny part of the supabase-js client this file touches.
@@ -23,6 +23,8 @@ const matchFromDb = (r: any): MatchRow => ({ ...r, turn_deadline: r.turn_deadlin
 export const supabaseDb = (c: Client): Db => ({
   async presenceTouch(userId) {
     must(await c.from('presence').upsert({ user_id: userId, seen_at: new Date().toISOString() }, { onConflict: 'user_id' }), 'presence');
+    // One row per player per day (SQL 7), for the GM's day-by-day flow; a database that has not run it yet simply skips this.
+    await c.from('presence_days').upsert({ user_id: userId, day: dayKey(Date.now()) }, { onConflict: 'user_id,day', ignoreDuplicates: true });
   },
   async adminOverview(nowMs, onlineMs): Promise<AdminOverview> {
     const iso = (ms: number) => new Date(ms).toISOString(), day = 864e5;
@@ -56,7 +58,15 @@ export const supabaseDb = (c: Client): Db => ({
     act.forEach((m: any) => [m.seat0, m.seat1].forEach(u => { if (u) busy.set(u, m.bot_seat !== null && m.bot_seat !== undefined ? 'bot' : m.ranked ? 'ranked' : 'casual'); }));
     const built = buildAdminPlayers(nowMs, onlineMs, profiles, new Map(pres.map((r: any) => [r.user_id, Date.parse(r.seen_at)])),
       new Map(rk.map((r: any) => [r.user_id, { points: r.points, games: r.games, wins: r.wins, losses: r.losses }])), cards, busy);
-    return { accounts, newToday, newWeek, recent: recent ?? [], online, waitingCasual, waitingRanked, playingCasual, playingRanked, vsBot, matches24h, ...built };
+    // The flow of the last 14 days: different players seen per day, new accounts per day, matches per day.
+    const days = lastDays(nowMs), dayStart = (d: string) => Date.parse(d + 'T03:00:00Z');   // 00:00 in Brasília is 03:00 UTC
+    const tracked = !(await c.from('presence_days').select('user_id', { head: true, count: 'exact' }).limit(1)).error;
+    const [active, matchesPer] = await Promise.all([
+      Promise.all(days.map(d => tracked ? count(head('presence_days').eq('day', d), true) : Promise.resolve(0))),
+      Promise.all(days.map(d => count(head('matches').gte('created_at', iso(dayStart(d))).lt('created_at', iso(dayStart(d) + day)), true))),
+    ]);
+    const daily = days.map((d, i) => ({ day: d, active: active[i], newAccounts: profiles.filter((p: any) => p.created_at && dayKey(Date.parse(p.created_at)) === d).length, matches: matchesPer[i] }));
+    return { accounts, newToday, newWeek, recent: recent ?? [], online, waitingCasual, waitingRanked, playingCasual, playingRanked, vsBot, matches24h, ...built, windows: windowsOf(nowMs, pres.map((r: any) => Date.parse(r.seen_at))), daily, dailyTracked: tracked };
   },
   async collection(userId) {
     const rows = must(await c.from('collection').select('card_name, copies').eq('user_id', userId).limit(5000), 'collection') as { card_name: string; copies: number }[];
