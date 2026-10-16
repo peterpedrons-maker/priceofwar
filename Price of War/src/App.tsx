@@ -10004,7 +10004,6 @@ export default function App() {
               const isAmbushCandidate = ambushPrompt?.options.some(o => o.id === card.id) ?? false;
               const isFocused = selectedCardIndex === i || isAmbushCandidate;
               const dimmed = !tutOn && matchIntroStage === null && viewState === 'hand' && !isAmbushCandidate && card.cardType !== 'Emboscada' && !canPlayNow(card);   // cannot be played right now: shown darker (an Emboscada waits in the hand on purpose, so it stays bright)
-              const costState: 'ok' | 'short' | 'idle' = currentTurn !== 'player' ? 'idle' : card.cost > playerMana ? 'short' : 'ok';
               // The card the player tapped, in the hand view: it steps up out of the fan (see HAND_SELECT_SCALE).
               const isHeld = held?.id === card.id;   // being dragged: its place in the hand stays, dimmed
               const tapSelected = tutOn && viewState === 'hand' && selectedCardIndex === i && !isAmbushCandidate;
@@ -10144,15 +10143,6 @@ export default function App() {
                     </motion.div>
                   </motion.div>
                 </div>
-                {/* The card's cost, on the part of the card that stays visible in the fan (the real coin is under the next card). Gold: you can pay it; red: you are short of gold. */}
-                {!isFocused && !isHeld && viewState === 'hand' && !tutOn && matchIntroStage === null && (
-                  <div className="absolute pointer-events-none flex items-center justify-center font-black tabular-nums" style={{
-                    left: '5%', top: '3.5%', width: 38, height: 38, borderRadius: '50%', zIndex: 6, fontFamily: "'Cinzel', serif", fontSize: 21, lineHeight: 1,
-                    color: costState === 'short' ? '#ffe3dc' : '#2a1a05',
-                    background: costState === 'short' ? 'radial-gradient(circle at 35% 30%, #e0584a, #7d1a12)' : costState === 'idle' ? 'radial-gradient(circle at 35% 30%, #d8cba8, #8a7c5a)' : 'radial-gradient(circle at 35% 30%, #fff1b8, #e0b44a 60%, #8a5c12)',
-                    boxShadow: '0 2px 4px rgba(0,0,0,.75), inset 0 0 0 2px rgba(60,38,6,.55)',
-                  }}>{card.cost}</div>
-                )}
               </motion.div>
               );
             })}
