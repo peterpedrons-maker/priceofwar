@@ -7445,6 +7445,25 @@ export default function App() {
   // "Encerrar turno": every phase still to come (Combate, Movimentação) is passed in one go, so the player never has to tap
   // through them one by one. The engine does the rest (Aurelion's bonus, the swaps, the discard prompt if the hand is over
   // the limit, the opponent's turn). It stops at anything the player still has to answer.
+  // What the player can do right now, in plain numbers (hand dimming, the line under the phase bar and the end-turn warning all read it).
+  const canPlayNow = (c: CardData) => currentTurn === 'player' && turnPhase !== 'compra' && turnPhase !== 'suprimentos' && canPlayInPhase(c, turnPhase) && getCardDropKind(c) !== 'blocked' && c.cost <= playerMana;
+  const readyAttackers = () => { let n = 0; for (let i = 0; i < 10; i++) if (attackMarkFor('player', i) === 'ready') n++; return n; };
+  const END_WARN_MAX = 3;   // the end-turn warning is for beginners: shown at most this many times
+  const [endAsk, setEndAsk] = useState<string | null>(null);
+  const endTurnWarning = (): string | null => {
+    if (turnPhase === 'preparacao') {
+      const n = hand.filter(canPlayNow).length;
+      return n > 0 ? `Você ainda tem ${playerMana} de ouro e ${n} ${n === 1 ? 'carta que pode jogar' : 'cartas que pode jogar'}.` : null;
+    }
+    if (turnPhase === 'combate') { const n = readyAttackers(); return n > 0 ? `${n === 1 ? 'Uma carta sua ainda pode' : `${n} cartas suas ainda podem`} atacar.` : null; }
+    return null;
+  };
+  const askEndTurn = () => {
+    if (tutOn || currentTurn !== 'player') { endTurnNow(); return; }
+    const w = endTurnWarning(); let seen = 0; try { seen = Number(localStorage.getItem('pow.endwarn') || 0); } catch { /* no storage */ }
+    if (w && seen < END_WARN_MAX) { try { localStorage.setItem('pow.endwarn', String(seen + 1)); } catch { /* no storage */ } playUiClickSfx(); setEndAsk(w); return; }
+    endTurnNow();
+  };
   const endTurnNow = () => {
     if (currentTurn !== 'player' || phaseTransitionLock || autoPhase || tutOn || !engineRef.current) return;
     playUiClickSfx();
@@ -8772,6 +8791,8 @@ export default function App() {
       return turnPhase === 'movimentacao' ? 'Na Movimentação só dá pra jogar Táticas!' : 'Jogar cartas só nas fases de Preparação e Movimentação!';
     }
     if (getCardDropKind(card) === 'blocked') return card.cardType === 'Emboscada' ? 'Emboscadas ativam sozinhas quando você é atacado — mantenha na mão.' : 'Esta carta não pode ser jogada agora.';
+    if (currentTurn !== 'player') return 'Espere a sua vez.';
+    if (card.cost > playerMana) return `Faltam ${card.cost - playerMana} de ouro para jogar esta carta.`;
     return null;
   };
   const tapHandCard = (index: number) => {
@@ -9839,7 +9860,7 @@ export default function App() {
                 name={isPlayerTurn ? undefined : 'TURNO DO ADVERSÁRIO'}
                 tappable={isPlayerTurn && (!automatic || tutTracker !== null)}
                 action={isPlayerTurn && !automatic && !tutOn && !phaseBanner && matchIntroStage === null && !!engineRef.current && bannerDoneKey === `${engineRef.current.turn.round}-${engineRef.current.turn.active}-${shownPhase}` && !phaseTransitionLock && autoPhase === null && (shownPhase === 'preparacao' || shownPhase === 'combate' || shownPhase === 'movimentacao') ? `ENCERRAR ${TRACKER_NAMES[shownPhase]}` : undefined}
-                onEnd={endTurnNow}
+                onEnd={askEndTurn}
                 endReady={isPlayerTurn && !automatic && !phaseTransitionLock && !tutOn && autoPhase === null}
               />
             );
@@ -9982,6 +10003,8 @@ export default function App() {
               // separate screen replacing the hand.
               const isAmbushCandidate = ambushPrompt?.options.some(o => o.id === card.id) ?? false;
               const isFocused = selectedCardIndex === i || isAmbushCandidate;
+              const dimmed = !tutOn && matchIntroStage === null && viewState === 'hand' && !isAmbushCandidate && card.cardType !== 'Emboscada' && !canPlayNow(card);   // cannot be played right now: shown darker (an Emboscada waits in the hand on purpose, so it stays bright)
+              const costState: 'ok' | 'short' | 'idle' = currentTurn !== 'player' ? 'idle' : card.cost > playerMana ? 'short' : 'ok';
               // The card the player tapped, in the hand view: it steps up out of the fan (see HAND_SELECT_SCALE).
               const isHeld = held?.id === card.id;   // being dragged: its place in the hand stays, dimmed
               const tapSelected = tutOn && viewState === 'hand' && selectedCardIndex === i && !isAmbushCandidate;
@@ -10111,7 +10134,7 @@ export default function App() {
                           ? `${CARD_THICKNESS_SHADOW} drop-shadow(0 0 12px rgba(239,68,68,0.9))`
                           : tapSelected
                             ? `${CARD_THICKNESS_SHADOW} drop-shadow(0 0 10px rgba(212,175,55,0.85))`
-                            : cardGlowFilter(card, isFocused ? '0 0 22px rgba(212,175,55,0.95)' : '0 0 0 transparent'),
+                            : `${cardGlowFilter(card, isFocused ? '0 0 22px rgba(212,175,55,0.95)' : '0 0 0 transparent')}${dimmed ? ' brightness(0.55) saturate(0.7)' : ''}`,
                       }}
                     >
                   {/* The tapped card steps up in the hand (see tapSelected / the Jogar-Cancelar bar further down). */}
@@ -10121,6 +10144,15 @@ export default function App() {
                     </motion.div>
                   </motion.div>
                 </div>
+                {/* The card's cost, on the part of the card that stays visible in the fan (the real coin is under the next card). Gold: you can pay it; red: you are short of gold. */}
+                {!isFocused && !isHeld && viewState === 'hand' && !tutOn && matchIntroStage === null && (
+                  <div className="absolute pointer-events-none flex items-center justify-center font-black tabular-nums" style={{
+                    left: '5%', top: '3.5%', width: 38, height: 38, borderRadius: '50%', zIndex: 6, fontFamily: "'Cinzel', serif", fontSize: 21, lineHeight: 1,
+                    color: costState === 'short' ? '#ffe3dc' : '#2a1a05',
+                    background: costState === 'short' ? 'radial-gradient(circle at 35% 30%, #e0584a, #7d1a12)' : costState === 'idle' ? 'radial-gradient(circle at 35% 30%, #d8cba8, #8a7c5a)' : 'radial-gradient(circle at 35% 30%, #fff1b8, #e0b44a 60%, #8a5c12)',
+                    boxShadow: '0 2px 4px rgba(0,0,0,.75), inset 0 0 0 2px rgba(60,38,6,.55)',
+                  }}>{card.cost}</div>
+                )}
               </motion.div>
               );
             })}
@@ -10595,6 +10627,13 @@ export default function App() {
           {onlineRef.current ? 'Desistir' : 'Sair'}
         </GameButton>
       )}
+      <AnimatePresence>
+        {endAsk && gameMode && !gameOverWinner && (
+          <ConfirmDialog key="endturn" title="Encerrar?" text={<>{endAsk} Se encerrar agora, <b style={{ color: '#ffe08a' }}>isso fica para depois</b>.</>}
+            cancelLabel="Voltar" confirmLabel="Encerrar"
+            onCancel={() => { playUiClickSfx(); setEndAsk(null); }} onConfirm={() => { setEndAsk(null); endTurnNow(); }} />
+        )}
+      </AnimatePresence>
       <AnimatePresence>
         {leaveAsk && gameMode && !gameOverWinner && (
           <ConfirmDialog key="leave" title={onlineRef.current ? 'Desistir?' : 'Sair?'}
@@ -11198,6 +11237,23 @@ export default function App() {
 
       {/* Online, against a person: ready-made phrases and emojis (never free text). */}
       {emoteMatch && gameMode && !tutOn && gameOverWinner === null && <Emotes matchId={emoteMatch.id} enabled myGeneral={emoteMatch.myGeneral} opponentGeneral={emoteMatch.opponentGeneral} />}
+
+      {/* A permanent one-line "what can I do now?" above the hand (the phase banner only flashes by). Steps aside for the beginner's drag hint, which sits in the same place. */}
+      {(() => {
+        const learning = !tutOn && gameSettings.hintsDrag && dragLessons < DRAG_LESSONS;
+        if (!gameMode || tutOn || learning || matchIntroStage !== null || gameOverWinner || currentTurn !== 'player' || viewState !== 'hand' || held || inspectId || fxBusy || overlayBusy
+          || ambushPrompt || targetingMode || pendingAbility || flyingCard || preZoomSlot || selectedCardIndex !== null || !engineRef.current) return null;
+        let text = '';
+        if (turnPhase === 'preparacao') { const n = hand.filter(canPlayNow).length; text = n > 0 ? `Preparação · ${playerMana} de ouro · ${n} ${n === 1 ? 'carta pode' : 'cartas podem'} ser jogada${n === 1 ? '' : 's'}` : `Preparação · ${playerMana} de ouro · nada para jogar agora`; }
+        else if (turnPhase === 'combate') { const n = readyAttackers(); text = n > 0 ? 'Combate · toque numa carta com espadas para atacar' : 'Combate · ninguém pode atacar agora'; }
+        else if (turnPhase === 'movimentacao') text = 'Movimentação · toque numa carta, depois na casa';
+        if (!text) return null;
+        return (
+          <div className="fixed left-1/2 -translate-x-1/2 pointer-events-none" style={{ bottom: 132, zIndex: 213, maxWidth: windowSize.width - 16 }}>
+            <GameBox px={10}><span className="block px-2 py-[3px] text-center whitespace-nowrap" style={{ color: '#f0e0bb', fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 10.5, letterSpacing: '0.03em' }}>{text}</span></GameBox>
+          </div>
+        );
+      })()}
 
       {/* While the player has not yet learned the gesture: a finger sliding from the hand up to the board, above the hand. */}
       <AnimatePresence>
