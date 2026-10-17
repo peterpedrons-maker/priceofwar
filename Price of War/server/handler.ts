@@ -9,6 +9,8 @@ import { applyAction, createMatch } from '../src/engine/game';
 import { nextRandom, seedFrom } from '../src/engine/rng';
 import { applyReward, rewardFor, withDaily } from '../src/engine/rewards';
 import { dayKey } from './types';
+import { RANKED_MISSIONS_ON } from '../src/engine/missions';
+import { board as missionsBoard, claim as missionClaim, countMatch, reroll as missionReroll, type MissionsBoard } from './missions';
 import type { Action, GameEvent, GameState, Seat } from '../src/engine/types';
 import { otherSeat } from '../src/engine/types';
 import { eventsFor, viewFor } from '../src/engine/view';
@@ -123,6 +125,9 @@ export type GameRequest =
   | { op: 'adminBan'; target: string; reason?: string }
   | { op: 'adminUnban'; target: string }
   | { op: 'deleteAccount' }
+  | { op: 'missions' }
+  | { op: 'missionClaim'; key: string; mission: string }
+  | { op: 'missionReroll'; mission: string }
   | { op: 'feedback'; kind: string; text: string; matchId?: string; ctx?: string }
   | { op: 'adminFeedbackDone'; id: number }
   | { op: 'friendCreate'; cards: Record<string, number>; rar?: unknown; general: string }
@@ -140,6 +145,7 @@ export type GameResponse =
   | { ok: true; status: 'claimed'; coroas: number; coroas_after: number; profile: RankedView }
   | { ok: true; status: 'ranking'; rows: { rank: number; user: string; name: string; avatarId: string; points: number; label: string; top: boolean; me: boolean }[]; me: RankedView }
   | { ok: true; status: 'admin'; admin: AdminOverview & { top: { rank: number; name: string; points: number; label: string }[]; season: number; me: { id: string; email: string | null } } }
+  | ({ ok: true; status: 'missions'; now: number; paid?: number; coroas_after?: number } & MissionsBoard)
   | { ok: true; status: 'reported' }
   | { ok: true; status: 'deleted' }
   | { ok: true; status: 'feedback' }
@@ -272,6 +278,7 @@ const ensureRewards = async (db: Db, cfg: GameConfig, m: MatchRow): Promise<Rewa
     if (made.length === 0) return null;
     const applied = await db.applyRewards(m.id, made);
     rows = applied ? made : (await db.getMatch(m.id))?.rewards ?? null;
+    if (applied) await countMissions(db, cfg, m, made);
   }
   // The ladder points are applied once, even if the call that paid the rewards died before it got here.
   if (rows && m.ranked && !m.ranked_done) {
@@ -279,6 +286,25 @@ const ensureRewards = async (db: Db, cfg: GameConfig, m: MatchRow): Promise<Rewa
     if (items.length) await db.rankedSettle(m.id, items);
   }
   return rows;
+};
+
+// Conta a partida nas missões de cada jogador (uma vez só: roda na chamada que pagou o prêmio). Partida curta demais ou abandonada não conta; falha aqui nunca derruba o prêmio.
+const UNIT_TYPES = ['Infantaria', 'Cavalaria', 'Arqueiro', 'Artilharia'];
+const countMissions = async (db: Db, cfg: GameConfig, m: MatchRow, rows: RewardRow[]) => {
+  try {
+    const season = (await calendar(db, cfg)).number;
+    for (const r of rows) {
+      if (r.reason === 'too_short' || r.reason === 'abandoned') continue;
+      let tactic = 0, summon = 0, equip = 0;
+      for (const v of await db.views(m.id, r.seat, 0)) for (const e of v.events) {
+        if (e.seat !== r.seat) continue;
+        if (e.t === 'play' && e.card.cardType === 'Tática') tactic++;
+        else if (e.t === 'play' && UNIT_TYPES.includes(e.card.cardType)) summon++;   // "convocar" = jogar uma unidade da mão
+        else if (e.t === 'equip') equip++;
+      }
+      await countMatch(db, r.user_id, cfg.now(), season, { vsBot: m.bot_seat !== null, ranked: !!m.ranked, won: m.winner === r.seat, general: m.decks[r.seat].general, tactic, summon, equip }, RANKED_MISSIONS_ON);
+    }
+  } catch { /* missões são um extra: sem a tabela (SQL 12) o jogo segue normal */ }
 };
 
 // What a device may see of its reward: the hidden Elo (and how much it moved) is stripped from the ladder part.
@@ -404,7 +430,7 @@ const finishIfStale = async (db: Db, cfg: GameConfig, m: MatchRow | null): Promi
 
 // ── Requests ────────────────────────────────────────────────────────────────
 // A request is untrusted input from a phone: the shape and sizes are checked before anything reads it (the game rules themselves are checked by the engine).
-const OPS = new Set(['ping', 'admin', 'feedback', 'adminFeedbackDone', 'report', 'deleteAccount', 'friendCreate', 'friendStatus', 'friendCancel', 'friendPeek', 'friendJoin', 'adminBan', 'adminUnban', 'queue', 'ranked', 'claim', 'ranking', 'status', 'cancel', 'act', 'tick', 'result', 'emote', 'emotes']);
+const OPS = new Set(['missions', 'missionClaim', 'missionReroll', 'ping', 'admin', 'feedback', 'adminFeedbackDone', 'report', 'deleteAccount', 'friendCreate', 'friendStatus', 'friendCancel', 'friendPeek', 'friendJoin', 'adminBan', 'adminUnban', 'queue', 'ranked', 'claim', 'ranking', 'status', 'cancel', 'act', 'tick', 'result', 'emote', 'emotes']);
 export const badRequest = (req: unknown): string | null => {
   if (!req || typeof req !== 'object' || Array.isArray(req)) return 'Pedido inválido.';
   const r = req as Record<string, unknown>;
@@ -415,6 +441,8 @@ export const badRequest = (req: unknown): string | null => {
   if (r.limit !== undefined && !(typeof r.limit === 'number' && Number.isFinite(r.limit))) return 'Pedido inválido.';
   if (r.code !== undefined && (typeof r.code !== 'string' || r.code.length > 8)) return 'Pedido inválido.';
   if ((r.op === 'friendPeek' || r.op === 'friendJoin') && !(typeof r.code === 'string' && /^[A-Za-z0-9]{4,8}$/.test(r.code))) return 'Convite inválido.';
+  if (r.key !== undefined && (typeof r.key !== 'string' || r.key.length > 24)) return 'Pedido inválido.';
+  if (r.mission !== undefined && (typeof r.mission !== 'string' || r.mission.length > 40)) return 'Pedido inválido.';
   if (r.target !== undefined && (typeof r.target !== 'string' || r.target.length > 64)) return 'Pedido inválido.';
   if (r.reason !== undefined && (typeof r.reason !== 'string' || r.reason.length > 200)) return 'Pedido inválido.';
   if (r.note !== undefined && (typeof r.note !== 'string' || r.note.length > 200)) return 'Pedido inválido.';
@@ -508,6 +536,24 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
       if ((await db.reportsBy(userId, cfg.now() - 864e5)) >= REPORT_DAILY_MAX) return { ok: false, error: 'Você já enviou denúncias demais hoje. Obrigado, vamos analisar.' };
       await db.addReport({ reporter: userId, reported: target, match_id: m.id, reason: req.reason as ReportReason, note: (req.note ?? '').trim().slice(0, 200) });
       return { ok: true, status: 'reported' };   // (a second report of the same match is accepted silently: nothing more to do)
+    }
+    case 'missions':
+    case 'missionClaim':
+    case 'missionReroll': {
+      const season = (await calendar(db, cfg)).number, now = cfg.now();
+      try {
+        let extra: { paid?: number; coroas_after?: number } = {};
+        if (req.op === 'missionClaim') {
+          const r = await missionClaim(db, userId, now, season, req.key, req.mission, RANKED_MISSIONS_ON);
+          if (typeof r === 'string') return { ok: false, error: r };
+          extra = r;
+        } else if (req.op === 'missionReroll') {
+          const err = await missionReroll(db, userId, now, season, req.mission, RANKED_MISSIONS_ON);
+          if (err) return { ok: false, error: err };
+        }
+        const peak = RANKED_MISSIONS_ON ? Math.max((await ladderOf(db, cfg, userId)).peak, 0) : 0;
+        return { ok: true, status: 'missions', now, ...extra, ...(await missionsBoard(db, userId, now, season, peak, RANKED_MISSIONS_ON)) };
+      } catch { return { ok: false, error: 'As missões não estão disponíveis agora.' }; }
     }
     case 'deleteAccount': {
       // The player's own request (Settings). Not while a match is running: the opponent would be left hanging.

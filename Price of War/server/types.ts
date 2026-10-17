@@ -128,6 +128,8 @@ export interface AdminPlayer {
   banned: boolean;
 }
 
+export interface MissionStateRow { items: { id: string; progress: number; claimed: boolean; gens?: string[] }[]; rerolls: number }
+
 export interface Db {
   // A player's "I am here" mark (presence table); the GM panel counts the recent ones as online.
   presenceTouch(userId: string): Promise<void>;
@@ -151,6 +153,11 @@ export interface Db {
   // The day's tally of coroas won from the AI and whether the first-win bonus was paid (SQL 11). null: the table does not exist yet (then the daily bonus and cap are skipped).
   dailyGet(userId: string, day: string): Promise<{ bot_coroas: number; first_win: boolean } | null>;
   dailyPut(userId: string, day: string, d: { bot_coroas: number; first_win: boolean }): Promise<void>;
+  // Missões (SQL 12): o estado de um período (`d:` dia, `w:` semana, `s:` temporada) como JSON com versão. `missionsPut` só grava se a versão ainda é a lida (0 = linha nova): false quando outra requisição mudou antes ou a tabela não existe.
+  missionsGet(userId: string, key: string): Promise<{ data: MissionStateRow; version: number } | null>;
+  missionsPut(userId: string, key: string, data: MissionStateRow, expectedVersion: number): Promise<boolean>;
+  // Soma coroas ao saldo de forma atômica; devolve o novo saldo (null: perfil não encontrado).
+  grantCoroas(userId: string, amount: number): Promise<number | null>;
   // Deletes the account and everything that belongs to it (the player's own request from Settings). The tables hang from auth.users with `on delete cascade`.
   deleteAccount(userId: string): Promise<void>;
   collection(userId: string): Promise<Record<string, number>>;

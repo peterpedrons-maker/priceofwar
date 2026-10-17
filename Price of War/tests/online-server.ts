@@ -718,6 +718,53 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     ok(top.ok === true && top.status === 'ranking' && top.rows.length === 2 && top.rows[0].me === false && top.rows[1].me === true, 'ranking lists both, me flagged: ' + JSON.stringify(top));
   });
 
+  await test('missões: sorteio estável, contagem pela partida, coleta paga uma vez, troca 1 por dia, virada do dia', async () => {
+    const db = fresh();
+    const get = async () => { const r = await handleGame(db, 'A', { op: 'missions' }, cfg); if (r.ok !== true || r.status !== 'missions') throw new Error('missions: ' + JSON.stringify(r)); return r; };
+    const b0 = await get();
+    eq([b0.daily.length, b0.weekly.length, b0.season.length], [5, 3, 0], 'vagas: 5 diárias, 3 semanais, sem temporada (ranqueadas desligadas)');
+    eq(b0.daily.filter(m => m.mode === 'ia').length, 2, '2 diárias contra a IA');
+    ok(b0.daily.every(m => m.mode !== 'ranked') && b0.weekly.every(m => m.mode !== 'ranked'), 'nenhuma ranqueada');
+    eq((await get()).daily.map(m => m.id), b0.daily.map(m => m.id), 'o quadro do dia não muda ao pedir de novo');
+    eq([b0.rerollsLeft, b0.claimable], [1, 0]);
+    // uma partida contra a IA vira progresso (unidades convocadas e partida jogada)
+    const { id } = await botMatch(db);
+    await drive(db, id, () => false, 4000);
+    ok(db.matches[0].status === 'finished', 'a partida terminou');
+    const b1 = await get();
+    const summon = b1.daily.find(m => m.id === 'd-free-summon8')!;
+    ok(summon.progress > 0, 'convocar unidades contou: ' + JSON.stringify(summon));
+    const iaPlay = b1.daily.find(m => m.id === 'd-ia-play3');
+    if (iaPlay) eq(iaPlay.progress, 1, 'partida contra a IA contou como 1 partida');
+    await handleGame(db, 'A', { op: 'result', matchId: id }, cfg);   // pedir o resultado de novo não conta duas vezes
+    eq((await get()).daily.find(m => m.id === 'd-free-summon8')!.progress, summon.progress, 'não conta duas vezes');
+    // coleta: só com a missão cumprida, uma vez, e paga as coroas
+    const key = b1.daily[0].key, first = b1.daily[0];
+    const early = await handleGame(db, 'A', { op: 'missionClaim', key, mission: first.id }, cfg);
+    ok(early.ok === false, 'não coleta missão incompleta');
+    const row = db.missionRows.get(`A|${key}`)!; const item = row.data.items.find(x => x.id === first.id)!; item.progress = first.target;
+    const before = db.tables.profiles.find(x => x.id === 'A')!.coroas ?? 150;
+    const c1 = await handleGame(db, 'A', { op: 'missionClaim', key, mission: first.id }, cfg);
+    ok(c1.ok === true && c1.status === 'missions' && c1.paid === first.reward && c1.coroas_after === before + first.reward, 'pagou: ' + JSON.stringify(c1));
+    const c2 = await handleGame(db, 'A', { op: 'missionClaim', key, mission: first.id }, cfg);
+    ok(c2.ok === false, 'não paga duas vezes');
+    eq(db.tables.profiles.find(x => x.id === 'A')!.coroas, before + first.reward);
+    ok((await handleGame(db, 'A', { op: 'missionClaim', key: 'd:2001-01-01', mission: first.id }, cfg)).ok === false, 'período velho não coleta');
+    // troca: 1 por dia, só de missão não cumprida, e a nova não repete
+    const target = (await get()).daily.find(m => m.reroll)!;
+    const rr = await handleGame(db, 'A', { op: 'missionReroll', mission: target.id }, cfg);
+    ok(rr.ok === true && rr.status === 'missions' && rr.rerollsLeft === 0 && !rr.daily.some(m => m.id === target.id) && new Set(rr.daily.map(m => m.id)).size === 5, 'trocou: ' + JSON.stringify(rr));
+    ok((await handleGame(db, 'A', { op: 'missionReroll', mission: (rr as any).daily[1].id }, cfg)).ok === false, 'só 1 troca por dia');
+    // outro jogador tem o próprio quadro
+    const other = await handleGame(db, 'B', { op: 'missions' }, cfg);
+    ok(other.ok === true && other.status === 'missions' && other.daily.every(m => m.progress === 0), 'o quadro do outro jogador é separado');
+    // virada do dia: novas missões, as de ontem somem
+    const keep = clock; clock += 24 * 3600e3;
+    const next = await get();
+    ok(next.daily[0].key !== key && next.daily.every(m => m.progress === 0) && next.rerollsLeft === 1, 'novo dia, quadro novo');
+    clock = keep;
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);
 })();

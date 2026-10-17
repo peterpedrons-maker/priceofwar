@@ -3,7 +3,7 @@ import type { Seat } from '../src/engine/types';
 import type { RankedProfile } from '../src/engine/ranked';
 import { buildAdminFeedback, buildAdminPlayers, buildAdminReports, dayKey, lastDays, windowsOf } from './types';
 import type { FeedbackKind, FeedbackRow, ReportReason, ReportRow, RoomRow } from './types';
-import type { AdminOverview, Db, EmoteRow, SeasonRow, MatchPatch, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
+import type { AdminOverview, Db, MissionStateRow, EmoteRow, SeasonRow, MatchPatch, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
 
 export interface MemoryTables {
   profiles: { id: string; username: string; avatar_id: string; level?: number; xp?: number; coroas?: number; created_at?: string }[];
@@ -40,6 +40,17 @@ export class MemoryDb implements Db {
   dailyRows = new Map<string, { bot_coroas: number; first_win: boolean }>();
   async dailyGet(userId: string, day: string) { return { ...(this.dailyRows.get(`${userId}|${day}`) ?? { bot_coroas: 0, first_win: false }) }; }
   async dailyPut(userId: string, day: string, d: { bot_coroas: number; first_win: boolean }) { this.dailyRows.set(`${userId}|${day}`, { ...d }); }
+  missionRows = new Map<string, { data: MissionStateRow; version: number }>();
+  async missionsGet(userId: string, key: string) { const r = this.missionRows.get(`${userId}|${key}`); return r ? clone(r) : null; }
+  async missionsPut(userId: string, key: string, data: MissionStateRow, expectedVersion: number) {
+    const k = `${userId}|${key}`, cur = this.missionRows.get(k);
+    if ((cur?.version ?? 0) !== expectedVersion) return false;
+    this.missionRows.set(k, { data: clone(data), version: expectedVersion + 1 }); return true;
+  }
+  async grantCoroas(userId: string, amount: number) {
+    const p = this.tables.profiles.find(x => x.id === userId); if (!p) return null;
+    p.coroas = (p.coroas ?? 150) + amount; return p.coroas;
+  }
   rooms: RoomRow[] = [];
   async roomPut(row: RoomRow) { this.rooms = this.rooms.filter(r => r.host !== row.host && r.code !== row.code); this.rooms.push(clone(row)); }
   async roomGet(code: string) { const r = this.rooms.find(x => x.code === code); return r ? clone(r) : null; }

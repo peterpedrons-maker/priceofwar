@@ -142,6 +142,21 @@ export const supabaseDb = (c: Client): Db => ({
   async dailyPut(userId, day, d) {
     await c.from('daily').upsert({ user_id: userId, day, bot_coroas: d.bot_coroas, first_win: d.first_win }, { onConflict: 'user_id,day' });
   },
+  async missionsGet(userId, key) {
+    const r = await c.from('missions').select('data, version').eq('user_id', userId).eq('key', key).maybeSingle();
+    return r.error || !r.data ? null : { data: r.data.data as any, version: Number(r.data.version) };
+  },
+  async missionsPut(userId, key, data, expectedVersion) {
+    if (expectedVersion === 0) { const r = await c.from('missions').insert({ user_id: userId, key, data, version: 1 }); return !r.error; }
+    const r = await c.from('missions').update({ data, version: expectedVersion + 1 }).eq('user_id', userId).eq('key', key).eq('version', expectedVersion).select('version');
+    return !r.error && (r.data?.length ?? 0) === 1;
+  },
+  async grantCoroas(userId, amount) {
+    const r = await c.rpc('grant_coroas', { p_user: userId, p_amount: amount });
+    if (r.error) return null;
+    const n = Array.isArray(r.data) ? r.data[0] : r.data;
+    return typeof n === 'number' ? n : null;
+  },
   async roomPut(row) {
     must(await c.from('rooms').delete().eq('host', row.host), 'room replace');
     must(await c.from('rooms').insert({ code: row.code, host: row.host, deck: row.deck, created_at: row.created_at }), 'room put');

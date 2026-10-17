@@ -1525,9 +1525,9 @@ var verbsOn = (name, on) => abilitiesOf(name).filter((a) => a.on === on).flatMap
 var hasVerb = (name, kind) => abilitiesOf(name).some((a) => a.do.some((v) => v.kind === kind));
 var abilityPhases = (cardName) => abilityOn(cardName, "ability")?.phases ?? ["preparacao"];
 var specCandidatesOn = (spec, own, enemy, moved) => {
-  const board = spec.side === "own" ? own : enemy;
+  const board2 = spec.side === "own" ? own : enemy;
   return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter((i) => {
-    const u = board[i];
+    const u = board2[i];
     if (!u) return false;
     if (spec.where === "front" && !isFrontline(i)) return false;
     if (spec.where === "back" && !isBackline(i)) return false;
@@ -1560,20 +1560,20 @@ var whoMatches = (who, sourceSlot, targetSlot, target) => {
 var auraTotal = (stat, slot, own, enemy = [], hits2) => {
   const target = own[slot] ?? null;
   let total = 0;
-  const scan = (board, side) => {
+  const scan = (board2, side) => {
     for (let src = 0; src <= 12; src++) {
-      const source = board[src];
+      const source = board2[src];
       if (!source) continue;
-      const mode = src === 10 || src === 11 ? modeAt(board, src) : null;
+      const mode = src === 10 || src === 11 ? modeAt(board2, src) : null;
       for (const p of [...passivesOf(source.name), ...mode?.passives ?? []]) {
         if (p.kind !== "aura" || p[stat] === void 0) continue;
         if (p.who.side === "enemy" ? side !== "enemy" : side !== "own") continue;
         if (!rowOk(p.from, src)) continue;
         if (p.when && getLaneCol(slot) !== p.when.col) continue;
         if (!whoMatches(p.who, src, slot, target)) continue;
-        if (p.who.facingOwn && !(board[slot]?.cardType && p.who.facingOwn.includes(board[slot].cardType))) continue;
+        if (p.who.facingOwn && !(board2[slot]?.cardType && p.who.facingOwn.includes(board2[slot].cardType))) continue;
         if (p.needs === "armed" && armedCount(source) === 0) continue;
-        if (p.needs === "terrain" && !board[11]) continue;
+        if (p.needs === "terrain" && !board2[11]) continue;
         const add = p[stat] * (p.perEquip ? Math.min(armedCount(source), p.perEquip.cap) : 1);
         total += add;
         if (hits2 && add !== 0 && !hits2.some((h) => h.side === side && h.slot === src)) hits2.push({ side, slot: src });
@@ -1584,16 +1584,16 @@ var auraTotal = (stat, slot, own, enemy = [], hits2) => {
   scan(enemy, "enemy");
   return total;
 };
-var maxGeneralAbilityUses = (board) => 1 + auraTotal("abilityUses", 12, board);
-var boardHasFlag = (board, flag) => board.some((c, i) => !!c && passivesOf(c.name).some((p) => p.kind === "flag" && p.flag === flag && rowOk(p.from, i)));
+var maxGeneralAbilityUses = (board2) => 1 + auraTotal("abilityUses", 12, board2);
+var boardHasFlag = (board2, flag) => board2.some((c, i) => !!c && passivesOf(c.name).some((p) => p.kind === "flag" && p.flag === flag && rowOk(p.from, i)));
 var upkeepOf = (name) => getCardDef(name)?.upkeep ?? 0;
-var modeAt = (board, slot) => {
-  const card = board[slot];
+var modeAt = (board2, slot) => {
+  const card = board2[slot];
   if (!card?.mode) return null;
   return getCardDef(card.name)?.modes?.find((m) => m.id === card.mode) ?? null;
 };
-var relicModeOf = (board) => modeAt(board, 10);
-var terrainModeOf = (board) => modeAt(board, 11);
+var relicModeOf = (board2) => modeAt(board2, 10);
+var terrainModeOf = (board2) => modeAt(board2, 11);
 var canPlayInPhase = (card, phase) => phase === "preparacao" || phase === "movimentacao" && card.cardType === "T\xE1tica";
 var isFrontline = (slot) => slot >= 0 && slot <= 4;
 var isBackline = (slot) => slot >= 5 && slot <= 9;
@@ -1634,8 +1634,8 @@ var canPlaceInSlot = (cardType, slot) => {
 };
 var isCardDamaged = (card) => card.hp < (getCardDef(card.name)?.hp ?? card.hp);
 var getAuraCombatHpBonus = (slot, own, hits2) => auraTotal("combatHp", slot, own, [], hits2);
-var blocksAmbush = (board) => boardHasFlag(board, "blocks_ambush");
-var locksGeneralOnDamage = (board) => boardHasFlag(board, "locks_general");
+var blocksAmbush = (board2) => boardHasFlag(board2, "blocks_ambush");
+var locksGeneralOnDamage = (board2) => boardHasFlag(board2, "locks_general");
 var getMaxAttacksPerTurn = (card) => 1 + passivesOf(card.name).reduce((n, p) => n + (p.kind === "aura" && p.who.side === "self" && p.attacks ? p.attacks : 0), 0);
 var getEffectiveAtk = (card, ownIndex, own, enemy, hits2) => {
   let atk = card.atk + (card.pendingCombatBonus?.atk ?? 0);
@@ -1807,15 +1807,15 @@ var sendDestroyed = (c, seat, entries) => {
 };
 var reinforceFrom = (c, seat, fallenSlots) => {
   if (c.s.winner !== null) return;
-  const board = P(c, seat).board;
+  const board2 = P(c, seat).board;
   [...fallenSlots].sort((a, b) => a - b).forEach((slot) => {
-    if (slot < 0 || slot > 4 || board[slot]) return;
-    const behind = board[slot + 5];
+    if (slot < 0 || slot > 4 || board2[slot]) return;
+    const behind = board2[slot + 5];
     if (!canReinforce(behind)) return;
     const shield = reinforceShield(behind);
     const moved = { ...behind };
-    board[slot] = moved;
-    board[slot + 5] = null;
+    board2[slot] = moved;
+    board2[slot + 5] = null;
     c.ev.push({ t: "reinforce", seat, from: slot + 5, to: slot, card: moved });
     grantShield(c, seat, slot, shield);
     log(c, seat, `Refor\xE7o! ${moved.name} avan\xE7ou para a Vanguarda com Escudo ${shield}.`);
@@ -1838,41 +1838,41 @@ var soak = (c, seat, slot, card, amount) => {
   return { card: { ...card, shield: left > 0 ? left : void 0 }, through: amount - absorbed };
 };
 var grantShield = (c, seat, slot, amount) => {
-  const board = P(c, seat).board;
-  const card = board[slot];
+  const board2 = P(c, seat).board;
+  const card = board2[slot];
   if (!card || amount <= 0) return;
-  board[slot] = { ...card, shield: (card.shield ?? 0) + amount };
+  board2[slot] = { ...card, shield: (card.shield ?? 0) + amount };
   c.ev.push({ t: "shield", seat, slot, shield: amount, block: false });
 };
 var grantBlock = (c, seat, slot) => {
-  const board = P(c, seat).board;
-  const card = board[slot];
+  const board2 = P(c, seat).board;
+  const card = board2[slot];
   if (!card || card.block) return;
-  board[slot] = { ...card, block: true };
+  board2[slot] = { ...card, block: true };
   c.ev.push({ t: "shield", seat, slot, shield: 0, block: true });
 };
 var damageSlot = (c, seat, slot, amount) => {
-  const board = P(c, seat).board;
-  const card = board[slot];
+  const board2 = P(c, seat).board;
+  const card = board2[slot];
   if (!card) return null;
   const soaked = soak(c, seat, slot, card, amount);
   if (soaked.through > 0 || amount === 0) c.ev.push({ t: "damage", seat, slot, amount: soaked.through });
   const hp = soaked.card.hp - soaked.through;
   if (hp <= 0) {
-    board[slot] = null;
+    board2[slot] = null;
     return { slot, card: { ...soaked.card, hp } };
   }
-  board[slot] = { ...soaked.card, hp };
+  board2[slot] = { ...soaked.card, hp };
   return null;
 };
 var healSlot = (c, seat, slot, amount) => {
-  const board = P(c, seat).board;
-  const card = board[slot];
-  board[slot] = { ...card, hp: card.hp + amount };
+  const board2 = P(c, seat).board;
+  const card = board2[slot];
+  board2[slot] = { ...card, hp: card.hp + amount };
   c.ev.push({ t: "heal", seat, slot, amount });
-  runAbilities(c, seat, board[slot], slot, "healed");
+  runAbilities(c, seat, board2[slot], slot, "healed");
   adjacentSlots(slot).forEach((j) => {
-    if (board[j]) runAbilities(c, seat, board[j], j, "ally_healed");
+    if (board2[j]) runAbilities(c, seat, board2[j], j, "ally_healed");
   });
 };
 var startTurn = (c, seat) => {
@@ -1981,20 +1981,20 @@ var setRelicMode = (c, seat, a) => {
   c.ev.push({ t: "relic_mode", seat, mode: a.mode, slot });
 };
 var runTurnEnd = (c, seat) => {
-  const board = P(c, seat).board;
+  const board2 = P(c, seat).board;
   [12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9].forEach((slot) => {
-    const card = board[slot];
+    const card = board2[slot];
     if (card) verbsOn(card.name, "turn_end").forEach((v) => {
       if (v.kind === "buff_moved") grantMovedBuff(c, seat, v);
     });
   });
   const settled = /* @__PURE__ */ new Set();
   for (let i = 0; i <= 9; i++) {
-    const card = board[i];
+    const card = board2[i];
     if (settled.has(i) || !card || !verbsOn(card.name, "turn_end").some((v) => v.kind === "swap_adjacent")) continue;
-    const partner = [i - 1, i + 1, i - 5, i + 5].find((j) => areSlotsAdjacent(i, j) && board[j] && !settled.has(j));
+    const partner = [i - 1, i + 1, i - 5, i + 5].find((j) => areSlotsAdjacent(i, j) && board2[j] && !settled.has(j));
     if (partner !== void 0) {
-      [board[i], board[partner]] = [board[partner], board[i]];
+      [board2[i], board2[partner]] = [board2[partner], board2[i]];
       settled.add(i);
       settled.add(partner);
       c.ev.push({ t: "move", seat, from: i, to: partner, swapped: true });
@@ -2030,14 +2030,14 @@ var checkTarget = (c, seat, spec, slot) => {
     if (slot === void 0 || slot < 0 || slot > 9) fail(`Escolha uma fileira ${own ? "sua" : "inimiga"} (Vanguarda ou Retaguarda).`);
     return;
   }
-  const board = own ? P(c, seat).board : P(c, otherSeat(seat)).board;
+  const board2 = own ? P(c, seat).board : P(c, otherSeat(seat)).board;
   const row = spec.where === "front" ? own ? " na Vanguarda" : " na Vanguarda" : spec.where === "back" ? " na Retaguarda" : " no campo";
   const generic = own ? `Escolha uma unidade sua${row}.` : spec.where ? `Escolha um inimigo${row}.` : "Escolha uma unidade inimiga no campo.";
-  if (slot === void 0 || slot < 0 || slot > 9 || !board[slot]) return fail(generic);
+  if (slot === void 0 || slot < 0 || slot > 9 || !board2[slot]) return fail(generic);
   if (spec.where === "front" && !isFrontline(slot)) return fail(generic);
   if (spec.where === "back" && !isBackline(slot)) return fail(generic);
-  if (spec.types && !spec.types.includes(board[slot].cardType)) return fail(`Escolha uma unidade do tipo certo: ${spec.types.join(" ou ")}.`);
-  if (spec.needs === "damaged" && !isCardDamaged(board[slot])) return fail("Escolha um aliado ferido no campo.");
+  if (spec.types && !spec.types.includes(board2[slot].cardType)) return fail(`Escolha uma unidade do tipo certo: ${spec.types.join(" ou ")}.`);
+  if (spec.needs === "damaged" && !isCardDamaged(board2[slot])) return fail("Escolha um aliado ferido no campo.");
   if (spec.needs === "moved" && own && !c.s.turn.moved.includes(slot)) return fail("Essa unidade n\xE3o se moveu neste turno.");
 };
 var activeTargets = (c, seat, verbs) => targetSpecsOf(verbs).map((spec, index) => ({ spec, index, skipped: !!spec.optional && specCandidates(c, seat, spec).length === 0 }));
@@ -2240,10 +2240,10 @@ var runAbilities = (c, seat, card, slot, on) => {
   verbs.forEach((v) => runVerb(c, fx, v, void 0));
 };
 var grantMovedBuff = (c, seat, v) => {
-  const board = P(c, seat).board;
+  const board2 = P(c, seat).board;
   if (c.s.turn.moved.length === 0) return;
-  c.s.turn.moved.filter((i) => board[i]).slice(0, v.count).forEach((i) => {
-    board[i] = { ...board[i], pendingCombatBonus: { atk: v.atk, hp: v.hp } };
+  c.s.turn.moved.filter((i) => board2[i]).slice(0, v.count).forEach((i) => {
+    board2[i] = { ...board2[i], pendingCombatBonus: { atk: v.atk, hp: v.hp } };
     c.ev.push({ t: "buff", seat, slot: i, atk: v.atk, hp: v.hp });
   });
 };
@@ -2549,8 +2549,8 @@ var move = (c, seat, a) => {
   const free = t.batedorFree !== null && t.phase === "combate";
   if (!(t.phase === "movimentacao" || free)) fail("S\xF3 d\xE1 pra reposicionar na fase de Movimenta\xE7\xE3o!");
   if (a.from > 9 || a.to > 9 || a.from < 0 || a.to < 0) fail("Essa carta n\xE3o pode ser reposicionada.");
-  const board = P(c, seat).board;
-  const mover = board[a.from];
+  const board2 = P(c, seat).board;
+  const mover = board2[a.from];
   if (!mover) return fail("N\xE3o h\xE1 unidade nesse slot.");
   if (free) {
     if (a.from !== t.batedorFree) fail("S\xF3 d\xE1 pra mover o Batedor que acabou de atacar.");
@@ -2559,9 +2559,9 @@ var move = (c, seat, a) => {
   }
   if (!canReposition(mover, a.from, a.to)) fail("S\xF3 d\xE1 pra reposicionar para um slot adjacente!");
   const wasAlreadyMoved = t.moved.includes(a.from);
-  const occupant = board[a.to];
-  board[a.from] = occupant;
-  board[a.to] = mover;
+  const occupant = board2[a.to];
+  board2[a.from] = occupant;
+  board2[a.to] = mover;
   c.ev.push({ t: "move", seat, from: a.from, to: a.to, swapped: !!occupant });
   runAbilities(c, seat, mover, a.to, "move");
   if (free) {
@@ -2669,7 +2669,7 @@ var applyAction = (state, seat, action) => {
 
 // src/engine/ai.ts
 var randomOf = (rand, items) => items[Math.floor(rand() * items.length)];
-var weakest = (board, slots) => slots.reduce((a, b) => board[a].hp <= board[b].hp ? a : b);
+var weakest = (board2, slots) => slots.reduce((a, b) => board2[a].hp <= board2[b].hp ? a : b);
 var UNIT_SLOTS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 var isSoldier = (c) => SOLDIER_TYPES.includes(c.cardType);
 var cardValue = (c) => {
@@ -2712,8 +2712,8 @@ var boardScore = (me, foe) => {
   }
   return score;
 };
-var swapped = (board, a, b) => {
-  const next = [...board];
+var swapped = (board2, a, b) => {
+  const next = [...board2];
   [next[a], next[b]] = [next[b], next[a]];
   return next;
 };
@@ -3158,8 +3158,8 @@ var candidates = (s, seat, rand) => {
       }
       const options = specs.map((spec) => {
         const cands = specCandidatesOn(spec, me.board, foe.board, t.moved);
-        const board = spec.side === "own" ? me.board : foe.board;
-        const picks = sortedDesc(cands, (i) => spec.side === "own" ? 10 - board[i].hp : unitWorth(board[i])).slice(0, 2);
+        const board2 = spec.side === "own" ? me.board : foe.board;
+        const picks = sortedDesc(cands, (i) => spec.side === "own" ? 10 - board2[i].hp : unitWorth(board2[i])).slice(0, 2);
         if (spec.optional || picks.length === 0) picks.push(void 0);
         return picks;
       });
@@ -3194,10 +3194,10 @@ var candidates = (s, seat, rand) => {
           [0, 5].forEach((r) => out.push({ type: "play", cardId: card.id, target: r }));
           continue;
         }
-        const board = spec.side === "own" ? me.board : foe.board;
+        const board2 = spec.side === "own" ? me.board : foe.board;
         const cands = specCandidatesOn(spec, me.board, foe.board, t.moved);
-        const picks = new Set(sortedDesc(cands, (i) => unitWorth(board[i])).slice(0, 3));
-        if (cands.length) picks.add(cands.reduce((a, b) => board[a].hp <= board[b].hp ? a : b));
+        const picks = new Set(sortedDesc(cands, (i) => unitWorth(board2[i])).slice(0, 3));
+        if (cands.length) picks.add(cands.reduce((a, b) => board2[a].hp <= board2[b].hp ? a : b));
         picks.forEach((i) => out.push({ type: "play", cardId: card.id, target: i }));
       }
     }
@@ -3223,7 +3223,7 @@ var fingerprint = (s, seat) => {
   const me = s.players[seat];
   const foe = s.players[otherSeat(seat)];
   const t = s.turn;
-  const b = (board) => board.map((c) => c ? `${c.id}.${c.atk}.${c.hp}.${c.shield ?? 0}${c.block ? "b" : ""}.${c.formationBuffAtk ?? 0}.${c.dmgReduction ?? 0}.${c.pendingCombatBonus ? 1 : 0}.${(c.equippedWeapons ?? []).length}` : "-").join(",");
+  const b = (board2) => board2.map((c) => c ? `${c.id}.${c.atk}.${c.hp}.${c.shield ?? 0}${c.block ? "b" : ""}.${c.formationBuffAtk ?? 0}.${c.dmgReduction ?? 0}.${c.pendingCombatBonus ? 1 : 0}.${(c.equippedWeapons ?? []).length}` : "-").join(",");
   return [
     t.round,
     t.active,
@@ -3451,43 +3451,42 @@ var buildAdminReports = (reports, bans, nameOf) => {
 };
 var buildAdminFeedback = (rows, nameOf) => rows.filter((r) => !r.done).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 40).map((r) => ({ id: r.id, created_at: r.created_at, kind: r.kind, text: r.text, matchId: r.match_id, ctx: r.ctx, user: { id: r.user_id, name: nameOf(r.user_id) } }));
 
-// src/engine/view.ts
-var hiddenCard = (id) => ({ id, name: "", cardType: "T\xE1tica", atk: 0, hp: 0, cost: 0, effect: "", hidden: true });
-var redactPlayer = (p) => ({
-  ...p,
-  hand: p.hand.map((c) => hiddenCard(c.id)),
-  // Nothing about the deck's contents or order is revealed; only how many cards remain in the queue.
-  deckList: [],
-  drawPile: p.drawPile.map(() => "")
-});
-var redactFor = (state, seat) => {
-  const other = seat === 0 ? 1 : 0;
-  const players = [state.players[0], state.players[1]];
-  players[other] = redactPlayer(players[other]);
-  players[seat] = { ...players[seat], drawPile: players[seat].drawPile.map(() => "") };
-  let pending = state.pending;
-  if (pending && pending.kind === "pick" && pending.seat !== seat) pending = { ...pending, options: pending.options.map((o) => hiddenCard(o.id)) };
-  if (pending && pending.kind === "ambush" && pending.seat !== seat) pending = { ...pending, options: [] };
-  return { ...state, rng: 0, players, pending };
+// src/engine/missions.ts
+var RANKED_MISSIONS_ON = false;
+var MISSIONS = [
+  // ── Diárias (renovam à meia-noite de Brasília) ─────────────────────────────
+  { id: "d-ia-win1", kind: "daily", mode: "ia", metric: "win", target: 1, reward: 10, title: "Primeira vit\xF3ria", desc: "Ven\xE7a 1 partida nos Desafios." },
+  { id: "d-ia-win3", kind: "daily", mode: "ia", metric: "win", target: 3, reward: 15, title: "Em sequ\xEAncia", desc: "Ven\xE7a 3 partidas nos Desafios." },
+  { id: "d-ia-play3", kind: "daily", mode: "ia", metric: "play", target: 3, reward: 10, title: "Treino do dia", desc: "Jogue 3 partidas nos Desafios." },
+  { id: "d-free-tactic5", kind: "daily", mode: "free", metric: "tactic", target: 5, reward: 20, title: "M\xE3o de T\xE1tica", desc: "Jogue 5 cartas T\xE1ticas." },
+  { id: "d-free-summon8", kind: "daily", mode: "free", metric: "summon", target: 8, reward: 20, title: "Ex\xE9rcito em campo", desc: "Convoque 8 unidades." },
+  { id: "d-free-equip3", kind: "daily", mode: "free", metric: "equip", target: 3, reward: 20, title: "Bem armados", desc: "Equipe 3 cartas com armas." },
+  { id: "d-rk-win1", kind: "daily", mode: "ranked", metric: "win", target: 1, reward: 25, title: "Subir na vida", desc: "Ven\xE7a 1 partida ranqueada." },
+  { id: "d-rk-win3", kind: "daily", mode: "ranked", metric: "win", target: 3, reward: 35, title: "Dia de gl\xF3ria", desc: "Ven\xE7a 3 partidas ranqueadas." },
+  // ── Semanais (renovam na segunda-feira) ────────────────────────────────────
+  { id: "w-ia-win10", kind: "weekly", mode: "ia", metric: "win", target: 10, reward: 60, title: "Semana de guerra", desc: "Ven\xE7a 10 partidas nos Desafios." },
+  { id: "w-ia-generals", kind: "weekly", mode: "ia", metric: "win_generals", target: 3, reward: 80, title: "Tr\xEAs bandeiras", desc: "Ven\xE7a com cada um dos 3 Generais." },
+  { id: "w-free-equip10", kind: "weekly", mode: "free", metric: "equip", target: 10, reward: 60, title: "Arsenal", desc: "Equipe 10 cartas com armas." },
+  { id: "w-free-tactic20", kind: "weekly", mode: "free", metric: "tactic", target: 20, reward: 60, title: "Estrat\xE9gia", desc: "Jogue 20 cartas T\xE1ticas." },
+  { id: "w-rk-win10", kind: "weekly", mode: "ranked", metric: "win", target: 10, reward: 100, title: "Escalada", desc: "Ven\xE7a 10 partidas ranqueadas." },
+  // ── De temporada (renovam com o ranqueado, 60 dias; o prêmio some e volta a cada temporada) ──
+  { id: "s-ouro", kind: "season", mode: "ranked", metric: "reach_league", target: 1, reward: 50, league: "ouro", title: "Chegue ao Ouro", desc: "Alcance a liga Ouro." },
+  { id: "s-diamante", kind: "season", mode: "ranked", metric: "reach_league", target: 1, reward: 100, league: "diamante", title: "Chegue ao Diamante", desc: "Alcance a liga Diamante." },
+  { id: "s-senhor", kind: "season", mode: "ranked", metric: "reach_league", target: 1, reward: 200, league: "senhor-da-guerra", title: "Senhor da Guerra", desc: "Alcance a liga de topo." },
+  { id: "s-veterano", kind: "season", mode: "ranked", metric: "play", target: 30, reward: 40, title: "Veterano", desc: "Jogue 30 partidas ranqueadas." }
+];
+var DAILY_SLOTS = { ia: 2, free: 2, ranked: 1 };
+var WEEKLY_SLOTS = { ia: 1, free: 1, ranked: 1 };
+var REROLLS_PER_DAY = 1;
+var missionsOf = (kind, rankedOn = RANKED_MISSIONS_ON) => MISSIONS.filter((m) => m.kind === kind && (m.mode !== "ranked" || rankedOn));
+var slotsFor = (kind, rankedOn = RANKED_MISSIONS_ON) => {
+  const s = { ...kind === "daily" ? DAILY_SLOTS : WEEKLY_SLOTS };
+  if (!rankedOn) {
+    s.free += s.ranked;
+    s.ranked = 0;
+  }
+  return s;
 };
-var redactEvents = (events, seat) => events.filter((e) => !(e.t === "log" && e.private && e.seat !== seat)).map((e) => {
-  if (e.t === "draw" && e.seat !== seat) return { ...e, card: hiddenCard(e.card.id) };
-  return e;
-});
-var mirrorSeats = (state) => {
-  const flip = (s) => s === 0 ? 1 : 0;
-  const pending = state.pending ? state.pending.kind === "ambush" ? { ...state.pending, seat: flip(state.pending.seat), attacker: flip(state.pending.attacker) } : { ...state.pending, seat: flip(state.pending.seat) } : null;
-  return {
-    ...state,
-    players: [state.players[1], state.players[0]],
-    turn: { ...state.turn, active: flip(state.turn.active), first: flip(state.turn.first) },
-    pending,
-    winner: state.winner === null ? null : flip(state.winner)
-  };
-};
-var mirrorEvents = (events) => events.map((e) => "seat" in e ? { ...e, seat: e.seat === 0 ? 1 : 0 } : e);
-var viewFor = (state, seat) => seat === 1 ? mirrorSeats(redactFor(state, seat)) : redactFor(state, seat);
-var eventsFor = (events, seat) => seat === 1 ? mirrorEvents(redactEvents(events, seat)) : redactEvents(events, seat);
 
 // src/engine/ranked.ts
 var LEAGUES = ["ferro", "bronze", "prata", "ouro", "platina", "diamante", "mestre"];
@@ -3586,6 +3585,200 @@ var closeSeason = (p, newSeason, top) => {
   const points = Math.floor(p.points / (2 * POINTS_PER_DIVISION)) * POINTS_PER_DIVISION;
   return { league, coroas: SEASON_COROAS[league], next: { points, mmr: p.mmr, games: 0, wins: 0, losses: 0, shield: false, peak: points, season: newSeason, frame } };
 };
+
+// server/missions.ts
+var BR = 3 * 36e5;
+var weekStart = (ms) => {
+  const d = new Date(ms - BR);
+  d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7);
+  return d.toISOString().slice(0, 10);
+};
+var dayEndsAt = (ms) => Date.parse(`${dayKey(ms)}T00:00:00Z`) + 864e5 + BR;
+var weekEndsAt = (ms) => Date.parse(`${weekStart(ms)}T00:00:00Z`) + 7 * 864e5 + BR;
+var seedOf = (s) => {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+};
+var rngOf = (seed) => () => {
+  seed = seed + 1831565813 >>> 0;
+  let t = seed;
+  t = Math.imul(t ^ t >>> 15, t | 1);
+  t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+  return ((t ^ t >>> 14) >>> 0) / 4294967296;
+};
+var shuffled2 = (a, rand) => {
+  const r = [...a];
+  for (let i = r.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [r[i], r[j]] = [r[j], r[i]];
+  }
+  return r;
+};
+var drawMissions = (kind, userId, key, rankedOn) => {
+  if (kind === "season") return missionsOf("season", rankedOn).map((m) => ({ id: m.id, progress: 0, claimed: false }));
+  const rand = rngOf(seedOf(`${userId}|${key}`)), slots = slotsFor(kind, rankedOn), out = [];
+  for (const mode of ["ia", "free", "ranked"]) {
+    const pool = shuffled2(missionsOf(kind, rankedOn).filter((m) => m.mode === mode), rand);
+    pool.slice(0, slots[mode]).forEach((m) => out.push({ id: m.id, progress: 0, claimed: false }));
+  }
+  return out;
+};
+var defOf = (id) => MISSIONS.find((m) => m.id === id);
+var kindOfKey = (key) => key.startsWith("d:") ? "daily" : key.startsWith("w:") ? "weekly" : key.startsWith("s:") ? "season" : null;
+var load = async (db, userId, key, rankedOn) => {
+  const kind = kindOfKey(key);
+  let row = await db.missionsGet(userId, key);
+  if (!row) {
+    await db.missionsPut(userId, key, { items: drawMissions(kind, userId, key, rankedOn), rerolls: 0 }, 0);
+    row = await db.missionsGet(userId, key);
+    if (!row) throw new Error("missions unavailable");
+  }
+  return row;
+};
+var mutate = async (db, userId, key, rankedOn, fn) => {
+  for (let i = 0; i < 4; i++) {
+    const row = await load(db, userId, key, rankedOn), s = JSON.parse(JSON.stringify(row.data));
+    const err = fn(s);
+    if (err) return err;
+    if (await db.missionsPut(userId, key, s, row.version)) return null;
+  }
+  return "Tente de novo.";
+};
+var keysAt = (now, season) => ({ daily: `d:${dayKey(now)}`, weekly: `w:${weekStart(now)}`, season: `s:${season}` });
+var countMatch = async (db, userId, now, season, f, rankedOn) => {
+  const keys = keysAt(now, season);
+  for (const key of [keys.daily, keys.weekly, ...rankedOn ? [keys.season] : []]) {
+    await mutate(db, userId, key, rankedOn, (s) => {
+      for (const it of s.items) {
+        const d = defOf(it.id);
+        if (!d || it.claimed || it.progress >= d.target) continue;
+        if (d.mode === "ia" && !f.vsBot || d.mode === "ranked" && !f.ranked) continue;
+        if (d.metric === "win") it.progress += f.won ? 1 : 0;
+        else if (d.metric === "play") it.progress += 1;
+        else if (d.metric === "tactic") it.progress += f.tactic;
+        else if (d.metric === "summon") it.progress += f.summon;
+        else if (d.metric === "equip") it.progress += f.equip;
+        else if (d.metric === "win_generals" && f.won) {
+          it.gens = it.gens ?? [];
+          if (!it.gens.includes(f.general)) it.gens.push(f.general);
+          it.progress = it.gens.length;
+        }
+        it.progress = Math.min(it.progress, d.target);
+      }
+      return null;
+    }).catch(() => null);
+  }
+};
+var viewOf = (key, it, canReroll) => {
+  const d = defOf(it.id);
+  if (!d) return null;
+  return { key, id: d.id, title: d.title, desc: d.desc, reward: d.reward, target: d.target, progress: it.progress, claimed: it.claimed, mode: d.mode, reroll: canReroll && !it.claimed && it.progress < d.target };
+};
+var syncSeason = async (db, userId, key, peakPoints, rankedOn) => {
+  if (!rankedOn) return;
+  const have = leagueIndex(peakPoints);
+  await mutate(db, userId, key, rankedOn, (s) => {
+    let changed = false;
+    for (const it of s.items) {
+      const d = defOf(it.id);
+      if (d?.metric === "reach_league" && !it.claimed && it.progress < 1) {
+        const want = d.league === "senhor-da-guerra" ? LEAGUES.length - 1 : LEAGUES.indexOf(d.league);
+        if (have >= want) {
+          it.progress = 1;
+          changed = true;
+        }
+      }
+    }
+    return changed ? null : "sem mudan\xE7a";
+  });
+};
+var board = async (db, userId, now, season, peakPoints, rankedOn) => {
+  const keys = keysAt(now, season);
+  if (rankedOn) await syncSeason(db, userId, keys.season, peakPoints, rankedOn);
+  const d = await load(db, userId, keys.daily, rankedOn), w = await load(db, userId, keys.weekly, rankedOn);
+  const s = rankedOn ? await load(db, userId, keys.season, rankedOn) : null;
+  const left = Math.max(0, REROLLS_PER_DAY - d.data.rerolls);
+  const daily = d.data.items.map((i) => viewOf(keys.daily, i, left > 0)).filter((x) => !!x);
+  const weekly = w.data.items.map((i) => viewOf(keys.weekly, i, false)).filter((x) => !!x);
+  const season_ = (s?.data.items ?? []).map((i) => viewOf(keys.season, i, false)).filter((x) => !!x);
+  const claimable = [...daily, ...weekly, ...season_].filter((m) => !m.claimed && m.progress >= m.target).length;
+  return { daily, weekly, season: season_, rerollsLeft: left, dayEndsAt: dayEndsAt(now), weekEndsAt: weekEndsAt(now), claimable };
+};
+var claim = async (db, userId, now, season, key, id, rankedOn) => {
+  const keys = keysAt(now, season);
+  if (![keys.daily, keys.weekly, keys.season].includes(key)) return "Essa miss\xE3o j\xE1 expirou.";
+  let paid = 0;
+  const err = await mutate(db, userId, key, rankedOn, (s) => {
+    const it = s.items.find((x) => x.id === id), d = defOf(id);
+    if (!it || !d) return "Miss\xE3o n\xE3o encontrada.";
+    if (it.claimed) return "Essa miss\xE3o j\xE1 foi coletada.";
+    if (it.progress < d.target) return "Essa miss\xE3o ainda n\xE3o foi cumprida.";
+    it.claimed = true;
+    paid = d.reward;
+    return null;
+  });
+  if (err) return err;
+  const after = await db.grantCoroas(userId, paid);
+  if (after === null) return "N\xE3o foi poss\xEDvel pagar agora.";
+  return { paid, coroas_after: after };
+};
+var reroll = async (db, userId, now, season, id, rankedOn) => {
+  const key = keysAt(now, season).daily;
+  return mutate(db, userId, key, rankedOn, (s) => {
+    if (s.rerolls >= REROLLS_PER_DAY) return "Voc\xEA j\xE1 trocou uma miss\xE3o hoje.";
+    const i = s.items.findIndex((x) => x.id === id), old = i >= 0 ? defOf(id) : void 0;
+    if (i < 0 || !old) return "Miss\xE3o n\xE3o encontrada.";
+    if (s.items[i].claimed || s.items[i].progress >= old.target) return "S\xF3 d\xE1 para trocar miss\xF5es ainda n\xE3o cumpridas.";
+    const have = new Set(s.items.map((x) => x.id));
+    const pool = shuffled2(missionsOf("daily", rankedOn).filter((m) => m.mode === old.mode && !have.has(m.id)), rngOf(seedOf(`${userId}|${key}|${s.rerolls}`)));
+    if (!pool.length) return "N\xE3o h\xE1 outra miss\xE3o desse tipo para trocar.";
+    s.items[i] = { id: pool[0].id, progress: 0, claimed: false };
+    s.rerolls += 1;
+    return null;
+  });
+};
+
+// src/engine/view.ts
+var hiddenCard = (id) => ({ id, name: "", cardType: "T\xE1tica", atk: 0, hp: 0, cost: 0, effect: "", hidden: true });
+var redactPlayer = (p) => ({
+  ...p,
+  hand: p.hand.map((c) => hiddenCard(c.id)),
+  // Nothing about the deck's contents or order is revealed; only how many cards remain in the queue.
+  deckList: [],
+  drawPile: p.drawPile.map(() => "")
+});
+var redactFor = (state, seat) => {
+  const other = seat === 0 ? 1 : 0;
+  const players = [state.players[0], state.players[1]];
+  players[other] = redactPlayer(players[other]);
+  players[seat] = { ...players[seat], drawPile: players[seat].drawPile.map(() => "") };
+  let pending = state.pending;
+  if (pending && pending.kind === "pick" && pending.seat !== seat) pending = { ...pending, options: pending.options.map((o) => hiddenCard(o.id)) };
+  if (pending && pending.kind === "ambush" && pending.seat !== seat) pending = { ...pending, options: [] };
+  return { ...state, rng: 0, players, pending };
+};
+var redactEvents = (events, seat) => events.filter((e) => !(e.t === "log" && e.private && e.seat !== seat)).map((e) => {
+  if (e.t === "draw" && e.seat !== seat) return { ...e, card: hiddenCard(e.card.id) };
+  return e;
+});
+var mirrorSeats = (state) => {
+  const flip = (s) => s === 0 ? 1 : 0;
+  const pending = state.pending ? state.pending.kind === "ambush" ? { ...state.pending, seat: flip(state.pending.seat), attacker: flip(state.pending.attacker) } : { ...state.pending, seat: flip(state.pending.seat) } : null;
+  return {
+    ...state,
+    players: [state.players[1], state.players[0]],
+    turn: { ...state.turn, active: flip(state.turn.active), first: flip(state.turn.first) },
+    pending,
+    winner: state.winner === null ? null : flip(state.winner)
+  };
+};
+var mirrorEvents = (events) => events.map((e) => "seat" in e ? { ...e, seat: e.seat === 0 ? 1 : 0 } : e);
+var viewFor = (state, seat) => seat === 1 ? mirrorSeats(redactFor(state, seat)) : redactFor(state, seat);
+var eventsFor = (events, seat) => seat === 1 ? mirrorEvents(redactEvents(events, seat)) : redactEvents(events, seat);
 
 // server/handler.ts
 var defaultConfig = () => ({ queueStaleMs: 2e4, turnMs: 15e4, promptMs: 6e4, maxTimeouts: 2, now: () => Date.now(), random: Math.random });
@@ -3755,12 +3948,31 @@ var ensureRewards = async (db, cfg, m) => {
     if (made.length === 0) return null;
     const applied = await db.applyRewards(m.id, made);
     rows = applied ? made : (await db.getMatch(m.id))?.rewards ?? null;
+    if (applied) await countMissions(db, cfg, m, made);
   }
   if (rows && m.ranked && !m.ranked_done) {
     const items = rows.filter((r) => r.ranked).map((r) => ({ user_id: r.user_id, profile: r.ranked.profile }));
     if (items.length) await db.rankedSettle(m.id, items);
   }
   return rows;
+};
+var UNIT_TYPES = ["Infantaria", "Cavalaria", "Arqueiro", "Artilharia"];
+var countMissions = async (db, cfg, m, rows) => {
+  try {
+    const season = (await calendar(db, cfg)).number;
+    for (const r of rows) {
+      if (r.reason === "too_short" || r.reason === "abandoned") continue;
+      let tactic = 0, summon = 0, equip2 = 0;
+      for (const v of await db.views(m.id, r.seat, 0)) for (const e of v.events) {
+        if (e.seat !== r.seat) continue;
+        if (e.t === "play" && e.card.cardType === "T\xE1tica") tactic++;
+        else if (e.t === "play" && UNIT_TYPES.includes(e.card.cardType)) summon++;
+        else if (e.t === "equip") equip2++;
+      }
+      await countMatch(db, r.user_id, cfg.now(), season, { vsBot: m.bot_seat !== null, ranked: !!m.ranked, won: m.winner === r.seat, general: m.decks[r.seat].general, tactic, summon, equip: equip2 }, RANKED_MISSIONS_ON);
+    }
+  } catch {
+  }
 };
 var publicReward = (r) => {
   if (!r || !r.ranked) return r;
@@ -3893,7 +4105,7 @@ var finishIfStale = async (db, cfg, m) => {
   }
   return m;
 };
-var OPS = /* @__PURE__ */ new Set(["ping", "admin", "feedback", "adminFeedbackDone", "report", "deleteAccount", "friendCreate", "friendStatus", "friendCancel", "friendPeek", "friendJoin", "adminBan", "adminUnban", "queue", "ranked", "claim", "ranking", "status", "cancel", "act", "tick", "result", "emote", "emotes"]);
+var OPS = /* @__PURE__ */ new Set(["missions", "missionClaim", "missionReroll", "ping", "admin", "feedback", "adminFeedbackDone", "report", "deleteAccount", "friendCreate", "friendStatus", "friendCancel", "friendPeek", "friendJoin", "adminBan", "adminUnban", "queue", "ranked", "claim", "ranking", "status", "cancel", "act", "tick", "result", "emote", "emotes"]);
 var badRequest = (req) => {
   if (!req || typeof req !== "object" || Array.isArray(req)) return "Pedido inv\xE1lido.";
   const r = req;
@@ -3904,6 +4116,8 @@ var badRequest = (req) => {
   if (r.limit !== void 0 && !(typeof r.limit === "number" && Number.isFinite(r.limit))) return "Pedido inv\xE1lido.";
   if (r.code !== void 0 && (typeof r.code !== "string" || r.code.length > 8)) return "Pedido inv\xE1lido.";
   if ((r.op === "friendPeek" || r.op === "friendJoin") && !(typeof r.code === "string" && /^[A-Za-z0-9]{4,8}$/.test(r.code))) return "Convite inv\xE1lido.";
+  if (r.key !== void 0 && (typeof r.key !== "string" || r.key.length > 24)) return "Pedido inv\xE1lido.";
+  if (r.mission !== void 0 && (typeof r.mission !== "string" || r.mission.length > 40)) return "Pedido inv\xE1lido.";
   if (r.target !== void 0 && (typeof r.target !== "string" || r.target.length > 64)) return "Pedido inv\xE1lido.";
   if (r.reason !== void 0 && (typeof r.reason !== "string" || r.reason.length > 200)) return "Pedido inv\xE1lido.";
   if (r.note !== void 0 && (typeof r.note !== "string" || r.note.length > 200)) return "Pedido inv\xE1lido.";
@@ -4020,6 +4234,26 @@ var handleGame = async (db, userId, req, cfg = defaultConfig(), who = {}) => {
       if (await db.reportsBy(userId, cfg.now() - 864e5) >= REPORT_DAILY_MAX) return { ok: false, error: "Voc\xEA j\xE1 enviou den\xFAncias demais hoje. Obrigado, vamos analisar." };
       await db.addReport({ reporter: userId, reported: target, match_id: m.id, reason: req.reason, note: (req.note ?? "").trim().slice(0, 200) });
       return { ok: true, status: "reported" };
+    }
+    case "missions":
+    case "missionClaim":
+    case "missionReroll": {
+      const season = (await calendar(db, cfg)).number, now = cfg.now();
+      try {
+        let extra = {};
+        if (req.op === "missionClaim") {
+          const r = await claim(db, userId, now, season, req.key, req.mission, RANKED_MISSIONS_ON);
+          if (typeof r === "string") return { ok: false, error: r };
+          extra = r;
+        } else if (req.op === "missionReroll") {
+          const err = await reroll(db, userId, now, season, req.mission, RANKED_MISSIONS_ON);
+          if (err) return { ok: false, error: err };
+        }
+        const peak = RANKED_MISSIONS_ON ? Math.max((await ladderOf(db, cfg, userId)).peak, 0) : 0;
+        return { ok: true, status: "missions", now, ...extra, ...await board(db, userId, now, season, peak, RANKED_MISSIONS_ON) };
+      } catch {
+        return { ok: false, error: "As miss\xF5es n\xE3o est\xE3o dispon\xEDveis agora." };
+      }
     }
     case "deleteAccount": {
       if (await db.activeMatchOf(userId)) return { ok: false, error: "Termine ou abandone a partida em andamento antes de excluir a conta." };
@@ -4428,6 +4662,24 @@ var supabaseDb = (c) => ({
   },
   async dailyPut(userId, day, d) {
     await c.from("daily").upsert({ user_id: userId, day, bot_coroas: d.bot_coroas, first_win: d.first_win }, { onConflict: "user_id,day" });
+  },
+  async missionsGet(userId, key) {
+    const r = await c.from("missions").select("data, version").eq("user_id", userId).eq("key", key).maybeSingle();
+    return r.error || !r.data ? null : { data: r.data.data, version: Number(r.data.version) };
+  },
+  async missionsPut(userId, key, data, expectedVersion) {
+    if (expectedVersion === 0) {
+      const r2 = await c.from("missions").insert({ user_id: userId, key, data, version: 1 });
+      return !r2.error;
+    }
+    const r = await c.from("missions").update({ data, version: expectedVersion + 1 }).eq("user_id", userId).eq("key", key).eq("version", expectedVersion).select("version");
+    return !r.error && (r.data?.length ?? 0) === 1;
+  },
+  async grantCoroas(userId, amount) {
+    const r = await c.rpc("grant_coroas", { p_user: userId, p_amount: amount });
+    if (r.error) return null;
+    const n = Array.isArray(r.data) ? r.data[0] : r.data;
+    return typeof n === "number" ? n : null;
   },
   async roomPut(row) {
     must(await c.from("rooms").delete().eq("host", row.host), "room replace");
