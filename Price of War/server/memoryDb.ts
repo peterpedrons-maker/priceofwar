@@ -1,8 +1,8 @@
 // An in-memory Db: used by the tests and by the local mock server, so the very same handler runs without Supabase.
 import type { Seat } from '../src/engine/types';
 import type { RankedProfile } from '../src/engine/ranked';
-import { buildAdminPlayers, buildAdminReports, dayKey, lastDays, windowsOf } from './types';
-import type { ReportReason, ReportRow, RoomRow } from './types';
+import { buildAdminFeedback, buildAdminPlayers, buildAdminReports, dayKey, lastDays, windowsOf } from './types';
+import type { FeedbackKind, FeedbackRow, ReportReason, ReportRow, RoomRow } from './types';
 import type { AdminOverview, Db, EmoteRow, SeasonRow, MatchPatch, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
 
 export interface MemoryTables {
@@ -33,6 +33,10 @@ export class MemoryDb implements Db {
   }
   presence = new Map<string, number>();
   now = () => Date.now();
+  feedbackRows: FeedbackRow[] = [];
+  async addFeedback(r: { user_id: string; kind: FeedbackKind; text: string; match_id: string | null; ctx: string }) { this.feedbackRows.push({ ...r, id: this.feedbackRows.length + 1, created_at: new Date(this.now()).toISOString(), done: false }); }
+  async feedbackBy(userId: string, sinceMs: number) { return this.feedbackRows.filter(r => r.user_id === userId && Date.parse(r.created_at) >= sinceMs).length; }
+  async feedbackDone(id: number) { const r = this.feedbackRows.find(x => x.id === id); if (r) r.done = true; }
   rooms: RoomRow[] = [];
   async roomPut(row: RoomRow) { this.rooms = this.rooms.filter(r => r.host !== row.host && r.code !== row.code); this.rooms.push(clone(row)); }
   async roomGet(code: string) { const r = this.rooms.find(x => x.code === code); return r ? clone(r) : null; }
@@ -77,6 +81,7 @@ export class MemoryDb implements Db {
         this.tables.collection.reduce((m, r) => m.set(r.user_id, (m.get(r.user_id) ?? 0) + r.copies), new Map<string, number>()),
         (() => { const b = new Map<string, 'queue' | 'casual' | 'ranked' | 'bot'>(); this.queue.forEach(q => b.set(q.user_id, 'queue'));
           active.forEach(m => ([m.seat0, m.seat1] as (string | null)[]).forEach(u => { if (u) b.set(u, m.bot_seat !== null ? 'bot' : m.ranked ? 'ranked' : 'casual'); })); return b; })(), new Set(this.bans.keys())),
+      feedback: buildAdminFeedback(this.feedbackRows, id => this.tables.profiles.find(p => p.id === id)?.username ?? '?'),
       ...buildAdminReports(this.reports, [...this.bans.entries()].map(([user_id, v]) => ({ user_id, ...v })), id => this.tables.profiles.find(p => p.id === id)?.username ?? '?'),
     };
   }

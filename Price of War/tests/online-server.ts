@@ -182,6 +182,25 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     const expired = await handleGame(db2, 'A', { op: 'friendStatus' }, cfg); ok(expired.ok === true && expired.status === 'none', 'o anfitrião vê que expirou');
     const badCode = await handleGame(db2, 'B', { op: 'friendPeek', code: '<script>' }, cfg); ok(badCode.ok === false, 'código com símbolos é recusado');
   });
+  await test('reportar problema: texto curto, tipo válido, só guarda partida que é do jogador, limite por hora; só o GM lê e resolve', async () => {
+    const db = fresh(); const { id } = await pvp(db);
+    db.tables.profiles.push({ id: 'OWNER', username: 'Dono', avatar_id: 'batedora' });
+    const owner = { email: 'dono@exemplo.com', verified: true, admins: ['dono@exemplo.com'] };
+    ok((await handleGame(db, 'A', { op: 'feedback', kind: 'xingar', text: 'algo errado aqui' }, cfg)).ok === false, 'tipo desconhecido');
+    ok((await handleGame(db, 'A', { op: 'feedback', kind: 'bug', text: 'ab' }, cfg)).ok === false, 'texto curto demais');
+    const r1 = await handleGame(db, 'A', { op: 'feedback', kind: 'bug', text: 'A carta sumiu da mão depois de jogar', matchId: id, ctx: 'build=x; tela=partida' }, cfg);
+    ok(r1.ok === true && r1.status === 'feedback', 'aviso aceito');
+    await handleGame(db, 'C', { op: 'feedback', kind: 'ideia', text: 'Queria um modo treino', matchId: id }, cfg);
+    eq([db.feedbackRows.length, db.feedbackRows[0].match_id, db.feedbackRows[1].match_id], [2, id, null], 'a partida só fica no aviso de quem estava nela');
+    ok((await handleGame(db, 'A', { op: 'adminFeedbackDone', id: 1 }, cfg, { email: 'alice@x.com', verified: true, admins: ['dono@exemplo.com'] })).ok === false, 'jogador comum não resolve');
+    const panel = await handleGame(db, 'OWNER', { op: 'admin' }, cfg, owner);
+    ok(panel.ok === true && panel.status === 'admin' && panel.admin.feedback.length === 2, 'o painel lista os avisos');
+    if (panel.ok === true && panel.status === 'admin') { const fa = panel.admin.feedback.find(x => x.user.id === 'A')!; eq([fa.user.name, fa.kind, fa.matchId], ['Alice', 'bug', id], 'quem mandou, tipo e partida'); }
+    await handleGame(db, 'OWNER', { op: 'adminFeedbackDone', id: 1 }, cfg, owner);
+    const after = await handleGame(db, 'OWNER', { op: 'admin' }, cfg, owner); ok(after.ok === true && after.status === 'admin' && after.admin.feedback.length === 1, 'resolvido sai da lista');
+    let blocked = 0; for (let i = 0; i < 9; i++) { const r = await handleGame(db, 'A', { op: 'feedback', kind: 'outro', text: 'mais um aviso de teste ' + i }, cfg); if (r.ok === false) blocked++; }
+    ok(blocked >= 3, 'no máximo 6 avisos por hora (barrou ' + blocked + ')');
+  });
   await test('versões (raridades): o adversário recebe só as versões que a conta tem, com o total de cópias da carta', async () => {
     const db = fresh();
     const d = deckOf('cardeal'), [card] = Object.keys(d.cards), copies = d.cards[card];

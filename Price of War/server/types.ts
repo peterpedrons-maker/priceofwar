@@ -105,7 +105,12 @@ export interface AdminOverview {
   dailyTracked: boolean;   // false while the presence_days table (SQL 7) does not exist: `active` is then 0
   reports: AdminReport[];  // the latest reports (newest first)
   bans: { id: string; name: string; reason: string; banned_at: string }[];
+  feedback: AdminFeedback[];   // problems players reported from inside the game, not yet marked as solved (newest first)
 }
+export type FeedbackKind = 'bug' | 'confuso' | 'ideia' | 'outro';
+export const FEEDBACK_KINDS: FeedbackKind[] = ['bug', 'confuso', 'ideia', 'outro'];
+export interface FeedbackRow { id: number; user_id: string; kind: FeedbackKind; text: string; match_id: string | null; ctx: string; created_at: string; done: boolean }
+export interface AdminFeedback { id: number; created_at: string; kind: FeedbackKind; text: string; matchId: string | null; ctx: string; user: { id: string; name: string } }
 export type ReportReason = 'nome' | 'comportamento' | 'trapaca' | 'outro';
 export const REPORT_REASONS: ReportReason[] = ['nome', 'comportamento', 'trapaca', 'outro'];
 export interface ReportRow { id: number; reporter: string; reported: string; match_id: string | null; reason: ReportReason; note: string; created_at: string }
@@ -138,6 +143,10 @@ export interface Db {
   roomOfHost(host: string): Promise<RoomRow | null>;
   roomTake(code: string): Promise<RoomRow | null>;
   roomDeleteByHost(host: string): Promise<void>;
+  // "Reportar um problema" (SQL 10): what a player wrote plus the context the game attached.
+  addFeedback(r: { user_id: string; kind: FeedbackKind; text: string; match_id: string | null; ctx: string }): Promise<void>;
+  feedbackBy(userId: string, sinceMs: number): Promise<number>;
+  feedbackDone(id: number): Promise<void>;
   // Deletes the account and everything that belongs to it (the player's own request from Settings). The tables hang from auth.users with `on delete cascade`.
   deleteAccount(userId: string): Promise<void>;
   collection(userId: string): Promise<Record<string, number>>;
@@ -221,3 +230,7 @@ export const buildAdminReports = (
     bans: bans.map(b => ({ id: b.user_id, name: nameOf(b.user_id), reason: b.reason, banned_at: b.banned_at })),
   };
 };
+
+export const buildAdminFeedback = (rows: FeedbackRow[], nameOf: (id: string) => string): AdminFeedback[] =>
+  rows.filter(r => !r.done).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 40)
+    .map(r => ({ id: r.id, created_at: r.created_at, kind: r.kind, text: r.text, matchId: r.match_id, ctx: r.ctx, user: { id: r.user_id, name: nameOf(r.user_id) } }));

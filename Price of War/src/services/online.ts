@@ -150,6 +150,13 @@ export const deleteMyAccount = async (): Promise<{ ok: true } | { ok: false; err
   const r = await call({ op: 'deleteAccount' });
   return r && r.ok === true && r.status === 'deleted' ? { ok: true } : { ok: false, error: r?.error ?? 'Não foi possível excluir a conta agora. Tente de novo.' };
 };
+// "Reportar um problema": what the player wrote plus the context the game attached (screen, match, recent errors).
+export type FeedbackKind = 'bug' | 'confuso' | 'ideia' | 'outro';
+export const sendFeedback = async (kind: FeedbackKind, text: string, matchId: string | null, ctx: string): Promise<{ ok: true } | { ok: false; error: string }> => {
+  const r = await call({ op: 'feedback', kind, text, ...(matchId ? { matchId } : {}), ctx });
+  return r && r.ok === true && r.status === 'feedback' ? { ok: true } : { ok: false, error: r?.error ?? 'Não foi possível enviar agora. Tente de novo.' };
+};
+export const adminFeedbackDone = async (id: number): Promise<boolean> => { const r = await call({ op: 'adminFeedbackDone', id }); return !!r && r.ok === true; };
 // GM only: ban / unban an account.
 export const adminBan = async (target: string, reason: string): Promise<boolean> => { const r = await call({ op: 'adminBan', target, reason }); return !!r && r.ok === true; };
 export const adminUnban = async (target: string): Promise<boolean> => { const r = await call({ op: 'adminUnban', target }); return !!r && r.ok === true; };
@@ -163,6 +170,7 @@ export interface AdminInfo {
     state: 'queue' | 'casual' | 'ranked' | 'bot' | null; ranked: { points: number; games: number; wins: number; losses: number } | null; cards: number; banned: boolean }[];
   reports: { id: number; created_at: string; reason: ReportReason; note: string; reporter: { id: string; name: string }; reported: { id: string; name: string; count: number; banned: boolean } }[];
   bans: { id: string; name: string; reason: string; banned_at: string }[];
+  feedback: { id: number; created_at: string; kind: FeedbackKind; text: string; matchId: string | null; ctx: string; user: { id: string; name: string } }[];
   totals: { coroas: number; xp: number; cards: number };
   windows: { h1: number; h24: number; d7: number; d30: number };
   daily: { day: string; active: number; newAccounts: number; matches: number }[]; dailyTracked: boolean;

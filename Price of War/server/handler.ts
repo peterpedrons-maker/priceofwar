@@ -13,7 +13,8 @@ import { otherSeat } from '../src/engine/types';
 import { eventsFor, viewFor } from '../src/engine/view';
 import { LEAGUES, MESTRE_FROM, TOP_LEAGUE_SIZE, applyRankedMatch, closeSeason, leagueLabel, mmrWindow, leagueOf, newRankedProfile, seasonAt, withTopLeague, type RankedProfile } from '../src/engine/ranked';
 import type { AdminOverview, Db, DeckJson, DeckRar, EndReason, MatchPatch, MatchRow, QueueRow, ReportReason, RewardRow, StepRow, ViewRow } from './types';
-import { REPORT_REASONS } from './types';
+import { FEEDBACK_KINDS, REPORT_REASONS } from './types';
+import type { FeedbackKind } from './types';
 
 export interface GameConfig {
   // A waiting player refreshes their queue entry with every status poll; an entry older than this is a player who left, and is skipped.
@@ -121,6 +122,8 @@ export type GameRequest =
   | { op: 'adminBan'; target: string; reason?: string }
   | { op: 'adminUnban'; target: string }
   | { op: 'deleteAccount' }
+  | { op: 'feedback'; kind: string; text: string; matchId?: string; ctx?: string }
+  | { op: 'adminFeedbackDone'; id: number }
   | { op: 'friendCreate'; cards: Record<string, number>; rar?: unknown; general: string }
   | { op: 'friendStatus' }
   | { op: 'friendCancel' }
@@ -138,6 +141,7 @@ export type GameResponse =
   | { ok: true; status: 'admin'; admin: AdminOverview & { top: { rank: number; name: string; points: number; label: string }[]; season: number; me: { id: string; email: string | null } } }
   | { ok: true; status: 'reported' }
   | { ok: true; status: 'deleted' }
+  | { ok: true; status: 'feedback' }
   | { ok: true; status: 'room'; code: string; expires: number }
   | { ok: true; status: 'peek'; host: string }
   | { ok: true; status: 'emotes'; emotes: { id: number; from: 0 | 1; code: string }[] }
@@ -395,7 +399,7 @@ const finishIfStale = async (db: Db, cfg: GameConfig, m: MatchRow | null): Promi
 
 // ── Requests ────────────────────────────────────────────────────────────────
 // A request is untrusted input from a phone: the shape and sizes are checked before anything reads it (the game rules themselves are checked by the engine).
-const OPS = new Set(['ping', 'admin', 'report', 'deleteAccount', 'friendCreate', 'friendStatus', 'friendCancel', 'friendPeek', 'friendJoin', 'adminBan', 'adminUnban', 'queue', 'ranked', 'claim', 'ranking', 'status', 'cancel', 'act', 'tick', 'result', 'emote', 'emotes']);
+const OPS = new Set(['ping', 'admin', 'feedback', 'adminFeedbackDone', 'report', 'deleteAccount', 'friendCreate', 'friendStatus', 'friendCancel', 'friendPeek', 'friendJoin', 'adminBan', 'adminUnban', 'queue', 'ranked', 'claim', 'ranking', 'status', 'cancel', 'act', 'tick', 'result', 'emote', 'emotes']);
 export const badRequest = (req: unknown): string | null => {
   if (!req || typeof req !== 'object' || Array.isArray(req)) return 'Pedido inválido.';
   const r = req as Record<string, unknown>;
@@ -409,6 +413,10 @@ export const badRequest = (req: unknown): string | null => {
   if (r.target !== undefined && (typeof r.target !== 'string' || r.target.length > 64)) return 'Pedido inválido.';
   if (r.reason !== undefined && (typeof r.reason !== 'string' || r.reason.length > 200)) return 'Pedido inválido.';
   if (r.note !== undefined && (typeof r.note !== 'string' || r.note.length > 200)) return 'Pedido inválido.';
+  if (r.kind !== undefined && (typeof r.kind !== 'string' || r.kind.length > 16)) return 'Pedido inválido.';
+  if (r.text !== undefined && (typeof r.text !== 'string' || r.text.length > 800)) return 'Pedido inválido.';
+  if (r.ctx !== undefined && (typeof r.ctx !== 'string' || r.ctx.length > 1800)) return 'Pedido inválido.';
+  if (r.id !== undefined && !(Number.isInteger(r.id) && (r.id as number) > 0 && (r.id as number) < 1e9)) return 'Pedido inválido.';
   if (r.general !== undefined && (typeof r.general !== 'string' || r.general.length > 80)) return 'Deck inválido.';
   if (r.botDeck !== undefined && (typeof r.botDeck !== 'string' || r.botDeck.length > 40)) return 'Pedido inválido.';
   if (r.rar !== undefined && (!r.rar || typeof r.rar !== 'object' || Array.isArray(r.rar) || JSON.stringify(r.rar).length > 8000)) return 'Deck inválido.';
@@ -452,7 +460,7 @@ const ONLINE_MS = 3 * 60 * 1000;
 // platform has its own limits on top). [max requests, window in ms] per kind of request; the numbers are far above what a person ever sends.
 const LIMITS: Record<string, [number, number]> = {
   act: [400, 10000], tick: [200, 10000], status: [200, 10000], queue: [20, 30000], cancel: [30, 30000], emote: [20, 30000], emotes: [60, 10000],
-  report: [8, 3600000], deleteAccount: [3, 3600000], friendCreate: [10, 60000], friendJoin: [15, 60000], friendPeek: [20, 60000], friendStatus: [200, 10000], friendCancel: [30, 60000], admin: [60, 60000], adminBan: [30, 60000], adminUnban: [30, 60000], ping: [20, 60000],
+  report: [8, 3600000], feedback: [6, 3600000], adminFeedbackDone: [60, 60000], deleteAccount: [3, 3600000], friendCreate: [10, 60000], friendJoin: [15, 60000], friendPeek: [20, 60000], friendStatus: [200, 10000], friendCancel: [30, 60000], admin: [60, 60000], adminBan: [30, 60000], adminUnban: [30, 60000], ping: [20, 60000],
 };
 const DEFAULT_LIMIT: [number, number] = [120, 10000];
 const hits = new Map<string, number[]>();
@@ -554,6 +562,21 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
       await db.queueDelete(userId);
       const m = await startMatch(db, cfg, { user: userId, deck: rar ? { general, cards, rar } : { general, cards } }, { user: room.host, deck: room.deck }, false);
       return { ok: true, status: 'matched', match: await initOf(db, m, userId, cfg) };
+    }
+    case 'feedback': {
+      const text = (req.text ?? '').trim();
+      if (!FEEDBACK_KINDS.includes(req.kind as FeedbackKind)) return { ok: false, error: 'Tipo inválido.' };
+      if (text.length < 5) return { ok: false, error: 'Conte um pouco mais (pelo menos uma frase curta).' };
+      if ((await db.feedbackBy(userId, cfg.now() - 36e5)) >= 6) return { ok: false, error: 'Você já mandou vários avisos agora há pouco. Obrigado, vamos ler.' };
+      // The match id is kept only when it really is a match of this player (a made-up id would just waste the owner's time).
+      const m = req.matchId ? await db.getMatch(req.matchId) : null;
+      await db.addFeedback({ user_id: userId, kind: req.kind as FeedbackKind, text: text.slice(0, 800), match_id: m && playerOf(m, userId) !== null ? m.id : null, ctx: (req.ctx ?? '').slice(0, 1800) });
+      return { ok: true, status: 'feedback' };
+    }
+    case 'adminFeedbackDone': {
+      if (!isAdmin(userId, who)) return { ok: false, error: 'forbidden' };
+      await db.feedbackDone(req.id);
+      return { ok: true, status: 'none' };
     }
     case 'adminBan': {
       if (!isAdmin(userId, who)) return { ok: false, error: 'forbidden' };

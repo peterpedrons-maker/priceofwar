@@ -236,6 +236,7 @@ import { fxTactic, fxHero, fxRanged, fxLanding, fxUpkeep, fxGoldGain, fxRelicSol
 import { sfxLevel, musicLevel, MUSIC_BASE_GAIN, useAudioSettings, setAudioSettings, subscribeAudio } from './audioSettings';
 import { useGameSettings, setGameSettings, getGameSettings } from './gameSettings';
 import { isNameAllowed, NAME_REFUSED } from './nameFilter';
+import { BUILD_ID, recentErrors } from './diag';
 import { fxLand, fxImpact, fxBurn, burnMaskSheet, BURN, fxLunge, fxDrop, fxArrows, fxHintFrame, fxDrawFollow, fxMoveFollow, fxSelection, type SelItem, type ArrowSpec } from './cardFx';
 import gsap from 'gsap';
 import { fxShuffle } from './shuffleFx';
@@ -250,7 +251,7 @@ import type { Trigger } from './engine/types';
 import { preloadTerrainFx, syncTerrainFx, clearTerrainFx, type TerrainFxKind } from './terrainFx';
 import { syncCampoLayers, clearCampoLayers, fxForjaPlaced, fxForjaModo, fxFogoPlaced, fxFogoTrincheira, fxFogoSaque, fxNoitePlay, fxNoiteTrail, fxMata, fxArsenalPlaced, fxForjaEquip, fxFogoEquip, fxArsenalEquip } from './campoFx';
 import { DesafiosScreen, type DzDeck, type DzOpponent } from './DesafiosScreen';
-import { adminBan, adminUnban, cancelQueue, deleteMyAccount, friendCancel, friendCreate, friendJoin, friendLink, friendPeek, friendStatus, fetchAdmin, fetchResult, reportOpponent, type ReportReason, fetchViews, pingPresence, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type AdminInfo, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
+import { adminBan, adminUnban, cancelQueue, deleteMyAccount, friendCancel, friendCreate, friendJoin, friendLink, friendPeek, friendStatus, sendFeedback, adminFeedbackDone, type FeedbackKind, fetchAdmin, fetchResult, reportOpponent, type ReportReason, fetchViews, pingPresence, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type AdminInfo, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
 import { STEPS as TUT_STEPS, BEATS as TUT_BEATS, COIN_STEP as TUT_COIN_STEP, OUTRO as TUT_OUTRO, CHAPTERS as TUT_CHAPTERS, createTutorialMatch, nextEnemyAction as tutEnemyAction, type Step as TutStep, type Tgt as TutTgt, type Until as TutUntil } from './tutorial/script';
 import { KitWindow, KitTitle, KitButton, KitRow, KitTab, KitToggle, KitRange, KitIconButton, KitPlate, KitCount, KitSearch, KitIcon, KitCoins, KitField, PromptTitle, KIT_ICONS } from './ui/Kit';
@@ -3445,6 +3446,16 @@ const GmPanel = ({ first, onClose }: { first: AdminInfo; onClose: () => void }) 
             </>);
           })()}
         </Sec>
+        <Sec t={`Problemas reportados (${d.feedback.length})`}>
+          {d.feedback.length === 0 ? <div className="text-[12px] text-[#8f8366]">Nenhum aviso aberto.</div> : (
+            <div className="max-h-[300px] overflow-y-auto">{d.feedback.map(f => (
+              <div key={f.id} className="py-[6px] border-b border-[#d4af37]/15">
+                <div className="flex items-center justify-between gap-2"><b className="truncate text-[12px] text-[#ffe9b0]" style={{ fontFamily: "'Cinzel', serif" }}>{FEEDBACK_LABELS[f.kind]} · {f.user.name}</b><button className="px-2 py-[2px] text-[10px] rounded border border-[#5fe08a]/60 text-[#9af0b4] shrink-0" onClick={async () => { await adminFeedbackDone(f.id); await refresh(); }}>Resolvido</button></div>
+                <div className="text-[12px] text-[#f3e3c3] mt-[2px]">{f.text}</div>
+                <div className="text-[10px] text-[#8f8366] break-words">{ago(f.created_at)}{f.matchId ? ` · partida ${f.matchId}` : ''}</div>
+                {f.ctx && <details className="text-[10px] text-[#8f8366]"><summary>resumo técnico</summary><div className="break-words" style={{ fontFamily: 'monospace' }}>{f.ctx}</div></details>}
+              </div>))}</div>)}
+        </Sec>
         <Sec t={`Denúncias (${d.reports.length})`}>
           {d.reports.length === 0 ? <div className="text-[12px] text-[#8f8366]">Nenhuma denúncia.</div> : (
             <div className="max-h-[260px] overflow-y-auto">{d.reports.map(r => (
@@ -3529,6 +3540,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
   const [ligasOpen, setLigasOpen] = useState(false);
   const [deckEditorOpen, setDeckEditorOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
+  const [feedbackMenuOpen, setFeedbackMenuOpen] = useState(false);
   const [roomOpen, setRoomOpen] = useState(() => new URLSearchParams(window.location.search).has('colecao'));   // the Sala de Coleção: the shop and the deck editor open over it, and closing them leaves you in it
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [soundOpen, setSoundOpen] = useState(false);
@@ -3536,7 +3548,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
   const [gm, setGm] = useState<AdminInfo | null>(null);
   const [gmOpen, setGmOpen] = useState(false);
   useEffect(() => { setGm(null); if (authMode === 'supabase' && session) void fetchAdmin().then(setGm); }, [session?.userId]);
-  useEffect(() => { if (DEBUG_HOOKS && new URLSearchParams(window.location.search).has('gmdemo')) setGm({ accounts: 128, newToday: 6, newWeek: 31, recent: [{ username: 'Aurelia', created_at: new Date(Date.now() - 12 * 60000).toISOString() }, { username: 'Brann77', created_at: new Date(Date.now() - 5 * 3600000).toISOString() }, { username: 'Osric', created_at: new Date(Date.now() - 30 * 3600000).toISOString() }], online: 9, waitingCasual: 1, waitingRanked: 0, playingCasual: 2, playingRanked: 1, vsBot: 3, matches24h: 57, top: [{ rank: 1, name: 'Aurelia', points: 1240, label: 'Ouro II' }], season: 3, me: { id: 'demo', email: 'dono@exemplo.com' }, players: [{ id: 'a', username: 'Aurelia', avatar_id: 'batedora', level: 14, xp: 2310, coroas: 840, created_at: new Date(Date.now() - 40 * 86400000).toISOString(), seen_at: new Date(Date.now() - 20000).toISOString(), online: true, state: 'ranked', ranked: { points: 1240, games: 52, wins: 33, losses: 19 }, cards: 211 }, { id: 'b', username: 'Brann77', avatar_id: 'batedora', level: 6, xp: 640, coroas: 150, created_at: new Date(Date.now() - 5 * 3600000).toISOString(), seen_at: new Date(Date.now() - 60000).toISOString(), online: true, state: null, ranked: null, cards: 64 }, { id: 'c', username: 'Osric', avatar_id: 'batedora', level: 9, xp: 1190, coroas: 90, created_at: new Date(Date.now() - 30 * 3600000).toISOString(), seen_at: new Date(Date.now() - 7 * 3600000).toISOString(), online: false, state: null, ranked: { points: 310, games: 9, wins: 4, losses: 5 }, cards: 98 }], totals: { coroas: 1080, xp: 4140, cards: 373 }, windows: { h1: 5, h24: 14, d7: 41, d30: 77 }, dailyTracked: true, bans: [{ id: 'z', name: 'Troll99', reason: 'denúncia: Comportamento', banned_at: new Date(Date.now() - 3 * 3600000).toISOString() }], reports: [{ id: 2, created_at: new Date(Date.now() - 20 * 60000).toISOString(), reason: 'nome', note: 'nome ofensivo', reporter: { id: 'a', name: 'Aurelia' }, reported: { id: 'c', name: 'Osric', count: 2, banned: false } }, { id: 1, created_at: new Date(Date.now() - 5 * 3600000).toISOString(), reason: 'comportamento', note: '', reporter: { id: 'b', name: 'Brann77' }, reported: { id: 'z', name: 'Troll99', count: 1, banned: true } }], daily: Array.from({ length: 14 }, (_, i) => ({ day: new Date(Date.now() - (13 - i) * 864e5 - 3 * 3600e3).toISOString().slice(0, 10), active: [2, 3, 3, 5, 4, 8, 12, 9, 7, 15, 22, 18, 14, 9][i], newAccounts: [1, 1, 0, 2, 1, 3, 5, 2, 2, 6, 9, 7, 4, 3][i], matches: [3, 5, 4, 9, 7, 14, 25, 17, 12, 30, 44, 36, 28, 17][i] })) }); }, []);   // (test only: `?debug&gmdemo` shows the panel with made-up numbers)
+  useEffect(() => { if (DEBUG_HOOKS && new URLSearchParams(window.location.search).has('gmdemo')) setGm({ accounts: 128, newToday: 6, newWeek: 31, recent: [{ username: 'Aurelia', created_at: new Date(Date.now() - 12 * 60000).toISOString() }, { username: 'Brann77', created_at: new Date(Date.now() - 5 * 3600000).toISOString() }, { username: 'Osric', created_at: new Date(Date.now() - 30 * 3600000).toISOString() }], online: 9, waitingCasual: 1, waitingRanked: 0, playingCasual: 2, playingRanked: 1, vsBot: 3, matches24h: 57, top: [{ rank: 1, name: 'Aurelia', points: 1240, label: 'Ouro II' }], season: 3, me: { id: 'demo', email: 'dono@exemplo.com' }, players: [{ id: 'a', username: 'Aurelia', avatar_id: 'batedora', level: 14, xp: 2310, coroas: 840, created_at: new Date(Date.now() - 40 * 86400000).toISOString(), seen_at: new Date(Date.now() - 20000).toISOString(), online: true, state: 'ranked', ranked: { points: 1240, games: 52, wins: 33, losses: 19 }, cards: 211 }, { id: 'b', username: 'Brann77', avatar_id: 'batedora', level: 6, xp: 640, coroas: 150, created_at: new Date(Date.now() - 5 * 3600000).toISOString(), seen_at: new Date(Date.now() - 60000).toISOString(), online: true, state: null, ranked: null, cards: 64 }, { id: 'c', username: 'Osric', avatar_id: 'batedora', level: 9, xp: 1190, coroas: 90, created_at: new Date(Date.now() - 30 * 3600000).toISOString(), seen_at: new Date(Date.now() - 7 * 3600000).toISOString(), online: false, state: null, ranked: { points: 310, games: 9, wins: 4, losses: 5 }, cards: 98 }], totals: { coroas: 1080, xp: 4140, cards: 373 }, windows: { h1: 5, h24: 14, d7: 41, d30: 77 }, dailyTracked: true, feedback: [{ id: 1, created_at: new Date(Date.now() - 40 * 60000).toISOString(), kind: 'bug', text: 'Joguei uma carta e ela sumiu da mão, mas não apareceu no campo.', matchId: 'match-demo', ctx: 'build=2026-10-16 09:00; tela=partida; rodada=3 fase=preparacao vez=eu ouro=4 mao=5 pendente=nao; erros=[]', user: { id: 'a', name: 'Aurelia' } }], bans: [{ id: 'z', name: 'Troll99', reason: 'denúncia: Comportamento', banned_at: new Date(Date.now() - 3 * 3600000).toISOString() }], reports: [{ id: 2, created_at: new Date(Date.now() - 20 * 60000).toISOString(), reason: 'nome', note: 'nome ofensivo', reporter: { id: 'a', name: 'Aurelia' }, reported: { id: 'c', name: 'Osric', count: 2, banned: false } }, { id: 1, created_at: new Date(Date.now() - 5 * 3600000).toISOString(), reason: 'comportamento', note: '', reporter: { id: 'b', name: 'Brann77' }, reported: { id: 'z', name: 'Troll99', count: 1, banned: true } }], daily: Array.from({ length: 14 }, (_, i) => ({ day: new Date(Date.now() - (13 - i) * 864e5 - 3 * 3600e3).toISOString().slice(0, 10), active: [2, 3, 3, 5, 4, 8, 12, 9, 7, 15, 22, 18, 14, 9][i], newAccounts: [1, 1, 0, 2, 1, 3, 5, 2, 2, 6, 9, 7, 4, 3][i], matches: [3, 5, 4, 9, 7, 14, 25, 17, 12, 30, 44, 36, 28, 17][i] })) }); }, []);   // (test only: `?debug&gmdemo` shows the panel with made-up numbers)
   const updateProfile = (patch: Partial<PlayerProfile>) => {
     setProfile(prev => {
       const next = { ...prev, ...patch };
@@ -3600,7 +3612,8 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
         )}
         {deckEditorOpen && <DeckEditor onClose={() => setDeckEditorOpen(false)} overRoom={roomOpen} />}
         {settingsOpen && <SettingsModal session={session} profileName={profile.name} onClose={() => setSettingsOpen(false)} />}
-        {soundOpen && <OptionsModal onClose={() => setSoundOpen(false)} />}
+        {soundOpen && <OptionsModal onClose={() => setSoundOpen(false)} onFeedback={authMode === 'supabase' && session ? () => setFeedbackMenuOpen(true) : undefined} />}
+        {feedbackMenuOpen && <FeedbackModal matchId={null} context={() => makeFeedbackContext(roomOpen ? 'colecao' : shopOpen ? 'loja' : 'menu')} onClose={() => setFeedbackMenuOpen(false)} />}
         {roomOpen && (
           <Suspense fallback={<div className="fixed inset-0 z-[250] bg-[#0d0905]" />}>
             <CollectionRoom onClose={() => setRoomOpen(false)} onOpenShop={() => setShopOpen(true)} onOpenDeck={() => setDeckEditorOpen(true)} overlayOpen={shopOpen || deckEditorOpen}
@@ -5143,8 +5156,48 @@ const ReportModal = ({ matchId, opponentName, onClose }: { matchId: string; oppo
     </WindowOverlay>
   );
 };
+// The technical summary that goes along with a problem report (no password, no e-mail).
+const makeFeedbackContext = (where: string, e?: GameState | null, mode?: string | null): string => {
+  const bits = [`build=${BUILD_ID}`, `tela=${where}`, mode ? `modo=${mode}` : '', e ? `rodada=${e.turn.round} fase=${e.turn.phase} vez=${e.turn.active === 0 ? 'eu' : 'rival'} ouro=${e.players[0].gold} mao=${e.players[0].hand.length} pendente=${e.pending ? e.pending.kind : 'nao'}` : '',
+    `janela=${window.innerWidth}x${window.innerHeight}@${window.devicePixelRatio}`, `erros=${JSON.stringify(recentErrors())}`, `ua=${navigator.userAgent.slice(0, 110)}`];
+  return bits.filter(Boolean).join('; ').slice(0, 1700);
+};
+// Reportar um problema: o que o jogador escreveu + um resumo técnico que o jogo anexa sozinho (tela, partida, erros recentes), para o dono achar o erro.
+const FEEDBACK_LABELS: Record<FeedbackKind, string> = { bug: 'Algo deu errado (bug)', confuso: 'Algo ficou confuso', ideia: 'Tenho uma ideia', outro: 'Outro assunto' };
+const FeedbackModal = ({ context, matchId, onClose }: { context: () => string; matchId: string | null; onClose: () => void }) => {
+  const [kind, setKind] = useState<FeedbackKind>('bug'), [text, setText] = useState(''), [busy, setBusy] = useState(false), [done, setDone] = useState(false), [err, setErr] = useState('');
+  const send = async () => { if (busy) return; setBusy(true); setErr(''); const r = await sendFeedback(kind, text.trim(), matchId, context()); setBusy(false); if (r.ok === true) setDone(true); else setErr(r.error); };
+  return (
+    <WindowOverlay onClose={onClose}>
+      <FramedWindow>
+        <div className="flex flex-col items-center gap-3 px-2 py-2 w-[min(86vw,340px)]">
+          <WindowTitle>Problema</WindowTitle>
+          {done ? (<>
+            <WindowText>Recebido, obrigado! Vamos ler com carinho.</WindowText>
+            <WindowButton primary onClick={onClose}>Fechar</WindowButton>
+          </>) : (<>
+            <div className="w-full grid grid-cols-2 gap-2">
+              {(Object.keys(FEEDBACK_LABELS) as FeedbackKind[]).map(k => (
+                <button key={k} onClick={() => { playUiClickSfx(); setKind(k); }} className="px-2 py-2 rounded border text-[12px] leading-tight text-center"
+                  style={{ fontFamily: "'PT Serif', serif", color: '#f3e3c3', borderColor: kind === k ? '#ffe9b0' : 'rgba(212,175,55,.35)', background: kind === k ? 'rgba(232,199,102,.22)' : 'rgba(0,0,0,.3)' }}>{FEEDBACK_LABELS[k]}</button>
+              ))}
+            </div>
+            <textarea value={text} maxLength={500} onChange={e => setText(e.target.value)} rows={5} placeholder="Conte o que aconteceu, o que você esperava e em que momento do jogo."
+              className="w-full px-3 py-2 rounded text-[13px] bg-black/40 border border-[#d4af37]/30 text-[#f3e3c3] outline-none resize-none" style={{ fontFamily: "'PT Serif', serif" }} />
+            <span className="text-[10px] text-[#a89a78] text-center" style={{ fontFamily: "'PT Serif', serif" }}>Junto vai um resumo técnico (tela, partida em andamento e erros recentes) para ajudar a achar o problema. Nada de senha ou e-mail.</span>
+            {err && <div className="text-[12px] text-[#ff9a8a] text-center">{err}</div>}
+            <div className="flex gap-3">
+              <WindowButton primary onClick={() => void send()}>{busy ? 'Enviando…' : 'Enviar'}</WindowButton>
+              <WindowButton onClick={onClose}>Cancelar</WindowButton>
+            </div>
+          </>)}
+        </div>
+      </FramedWindow>
+    </WindowOverlay>
+  );
+};
 // Opções: the optional on-screen hints and the sound (overall, music, effects, mute). Reachable from the menu and during a match.
-const OptionsModal = ({ onClose, onReport }: { onClose: () => void; onReport?: () => void }) => {
+const OptionsModal = ({ onClose, onReport, onFeedback }: { onClose: () => void; onReport?: () => void; onFeedback?: () => void }) => {
   const a = useAudioSettings();
   const g = useGameSettings();
   return (
@@ -5172,6 +5225,7 @@ const OptionsModal = ({ onClose, onReport }: { onClose: () => void; onReport?: (
             <WindowButton primary={a.muted} onClick={() => setAudioSettings({ muted: !a.muted })}>{a.muted ? 'Ativar som' : 'Mudo'}</WindowButton>
             <WindowButton onClick={onClose}>Fechar</WindowButton>
           </div>
+          {onFeedback && <WindowButton onClick={() => { onClose(); onFeedback(); }}>Reportar problema</WindowButton>}
           {onReport && <WindowButton danger onClick={() => { onClose(); onReport(); }}>Denunciar adversário</WindowButton>}
         </div>
       </FramedWindow>
@@ -6349,7 +6403,7 @@ export default function App() {
   const [inspectId, setInspectId] = useState<string | null>(null);
   // How many cards the player has already played by dragging: the "arraste" hints show only until the first card is played.
   const gameSettings = useGameSettings();
-  const [optionsOpen, setOptionsOpen] = useState(false), [reportOpen, setReportOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false), [reportOpen, setReportOpen] = useState(false), [feedbackOpen, setFeedbackOpen] = useState(false);
   const [dragLessons, setDragLessons] = useState<number>(() => { try { return Number(localStorage.getItem('pow.drags') || 0); } catch { return 0; } });
   const DRAG_LESSONS = 2;   // the drag hints (finger, banner) show until the player has dragged twice, and never while an effect is playing
   const noteDragPlay = () => setDragLessons(n => { const v = n + 1; try { localStorage.setItem('pow.drags', String(v)); } catch { /* no storage */ } return v; });
@@ -10690,7 +10744,8 @@ export default function App() {
       {gameMode && matchIntroStage === null && !tutOn && !(selectedCardIndex !== null && viewState === 'field' && !targetingMode) && (
         <GameButton className="fixed top-3 left-3 z-[205]" size={10} onClick={() => setOptionsOpen(true)}>Opções</GameButton>
       )}
-      <AnimatePresence>{optionsOpen && <OptionsModal onClose={() => setOptionsOpen(false)} onReport={gameMode && onlineRef.current && !onlineRef.current.init.opponent.bot ? () => setReportOpen(true) : undefined} />}</AnimatePresence>
+      <AnimatePresence>{optionsOpen && <OptionsModal onClose={() => setOptionsOpen(false)} onFeedback={authMode === 'supabase' && session ? () => setFeedbackOpen(true) : undefined} onReport={gameMode && onlineRef.current && !onlineRef.current.init.opponent.bot ? () => setReportOpen(true) : undefined} />}</AnimatePresence>
+      <AnimatePresence>{feedbackOpen && <FeedbackModal matchId={onlineRef.current?.init.id ?? null} context={() => makeFeedbackContext('partida', engineRef.current, gameMode ? `${gameMode}${onlineRef.current ? ' online' : ''}` : null)} onClose={() => setFeedbackOpen(false)} />}</AnimatePresence>
       <AnimatePresence>{reportOpen && onlineRef.current && <ReportModal matchId={onlineRef.current.init.id} opponentName={onlineRef.current.init.opponent.name} onClose={() => setReportOpen(false)} />}</AnimatePresence>
 
       {/* Online: whose turn it is to move, and how long they have left. */}

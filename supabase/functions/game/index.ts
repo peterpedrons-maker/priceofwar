@@ -3522,6 +3522,7 @@ var closeSeason = (p, newSeason, top) => {
 };
 
 // server/types.ts
+var FEEDBACK_KINDS = ["bug", "confuso", "ideia", "outro"];
 var REPORT_REASONS = ["nome", "comportamento", "trapaca", "outro"];
 var buildAdminPlayers = (nowMs, onlineMs, profiles, seen, ranked, cards, busy, banned = /* @__PURE__ */ new Set()) => {
   const players = profiles.map((p) => {
@@ -3569,6 +3570,7 @@ var buildAdminReports = (reports, bans, nameOf) => {
     bans: bans.map((b) => ({ id: b.user_id, name: nameOf(b.user_id), reason: b.reason, banned_at: b.banned_at }))
   };
 };
+var buildAdminFeedback = (rows, nameOf) => rows.filter((r) => !r.done).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 40).map((r) => ({ id: r.id, created_at: r.created_at, kind: r.kind, text: r.text, matchId: r.match_id, ctx: r.ctx, user: { id: r.user_id, name: nameOf(r.user_id) } }));
 
 // server/handler.ts
 var defaultConfig = () => ({ queueStaleMs: 2e4, turnMs: 15e4, promptMs: 6e4, maxTimeouts: 2, now: () => Date.now(), random: Math.random });
@@ -3869,7 +3871,7 @@ var finishIfStale = async (db, cfg, m) => {
   }
   return m;
 };
-var OPS = /* @__PURE__ */ new Set(["ping", "admin", "report", "deleteAccount", "friendCreate", "friendStatus", "friendCancel", "friendPeek", "friendJoin", "adminBan", "adminUnban", "queue", "ranked", "claim", "ranking", "status", "cancel", "act", "tick", "result", "emote", "emotes"]);
+var OPS = /* @__PURE__ */ new Set(["ping", "admin", "feedback", "adminFeedbackDone", "report", "deleteAccount", "friendCreate", "friendStatus", "friendCancel", "friendPeek", "friendJoin", "adminBan", "adminUnban", "queue", "ranked", "claim", "ranking", "status", "cancel", "act", "tick", "result", "emote", "emotes"]);
 var badRequest = (req) => {
   if (!req || typeof req !== "object" || Array.isArray(req)) return "Pedido inv\xE1lido.";
   const r = req;
@@ -3883,6 +3885,10 @@ var badRequest = (req) => {
   if (r.target !== void 0 && (typeof r.target !== "string" || r.target.length > 64)) return "Pedido inv\xE1lido.";
   if (r.reason !== void 0 && (typeof r.reason !== "string" || r.reason.length > 200)) return "Pedido inv\xE1lido.";
   if (r.note !== void 0 && (typeof r.note !== "string" || r.note.length > 200)) return "Pedido inv\xE1lido.";
+  if (r.kind !== void 0 && (typeof r.kind !== "string" || r.kind.length > 16)) return "Pedido inv\xE1lido.";
+  if (r.text !== void 0 && (typeof r.text !== "string" || r.text.length > 800)) return "Pedido inv\xE1lido.";
+  if (r.ctx !== void 0 && (typeof r.ctx !== "string" || r.ctx.length > 1800)) return "Pedido inv\xE1lido.";
+  if (r.id !== void 0 && !(Number.isInteger(r.id) && r.id > 0 && r.id < 1e9)) return "Pedido inv\xE1lido.";
   if (r.general !== void 0 && (typeof r.general !== "string" || r.general.length > 80)) return "Deck inv\xE1lido.";
   if (r.botDeck !== void 0 && (typeof r.botDeck !== "string" || r.botDeck.length > 40)) return "Pedido inv\xE1lido.";
   if (r.rar !== void 0 && (!r.rar || typeof r.rar !== "object" || Array.isArray(r.rar) || JSON.stringify(r.rar).length > 8e3)) return "Deck inv\xE1lido.";
@@ -3932,6 +3938,8 @@ var LIMITS = {
   emote: [20, 3e4],
   emotes: [60, 1e4],
   report: [8, 36e5],
+  feedback: [6, 36e5],
+  adminFeedbackDone: [60, 6e4],
   deleteAccount: [3, 36e5],
   friendCreate: [10, 6e4],
   friendJoin: [15, 6e4],
@@ -4057,6 +4065,20 @@ var handleGame = async (db, userId, req, cfg = defaultConfig(), who = {}) => {
       await db.queueDelete(userId);
       const m = await startMatch(db, cfg, { user: userId, deck: rar ? { general, cards, rar } : { general, cards } }, { user: room.host, deck: room.deck }, false);
       return { ok: true, status: "matched", match: await initOf(db, m, userId, cfg) };
+    }
+    case "feedback": {
+      const text = (req.text ?? "").trim();
+      if (!FEEDBACK_KINDS.includes(req.kind)) return { ok: false, error: "Tipo inv\xE1lido." };
+      if (text.length < 5) return { ok: false, error: "Conte um pouco mais (pelo menos uma frase curta)." };
+      if (await db.feedbackBy(userId, cfg.now() - 36e5) >= 6) return { ok: false, error: "Voc\xEA j\xE1 mandou v\xE1rios avisos agora h\xE1 pouco. Obrigado, vamos ler." };
+      const m = req.matchId ? await db.getMatch(req.matchId) : null;
+      await db.addFeedback({ user_id: userId, kind: req.kind, text: text.slice(0, 800), match_id: m && playerOf(m, userId) !== null ? m.id : null, ctx: (req.ctx ?? "").slice(0, 1800) });
+      return { ok: true, status: "feedback" };
+    }
+    case "adminFeedbackDone": {
+      if (!isAdmin(userId, who)) return { ok: false, error: "forbidden" };
+      await db.feedbackDone(req.id);
+      return { ok: true, status: "none" };
     }
     case "adminBan": {
       if (!isAdmin(userId, who)) return { ok: false, error: "forbidden" };
@@ -4325,7 +4347,7 @@ var supabaseDb = (c) => ({
     );
     const repRows = await soft(c.from("reports").select("*").order("created_at", { ascending: false }).limit(400));
     const nameOf = (id) => profiles.find((p) => p.id === id)?.username ?? "?";
-    const moderation = buildAdminReports(repRows, banRows, nameOf);
+    const moderation = { ...buildAdminReports(repRows, banRows, nameOf), feedback: buildAdminFeedback(await soft(c.from("feedback").select("*").eq("done", false).order("created_at", { ascending: false }).limit(60)), nameOf) };
     const days = lastDays(nowMs), dayStart = (d) => Date.parse(d + "T03:00:00Z");
     const tracked = !(await c.from("presence_days").select("user_id", { head: true, count: "exact" }).limit(1)).error;
     const [active, matchesPer] = await Promise.all([
@@ -4366,6 +4388,16 @@ var supabaseDb = (c) => ({
     const r = await c.from("queue").upsert(row.ranked ? { ...base, since: row.since ?? row.created_at } : base);
     if (r.error && row.ranked && /since/i.test(r.error.message)) must(await c.from("queue").upsert(base), "queue put");
     else must(r, "queue put");
+  },
+  async addFeedback(r) {
+    must(await c.from("feedback").insert({ user_id: r.user_id, kind: r.kind, text: r.text, match_id: r.match_id, ctx: r.ctx }), "feedback");
+  },
+  async feedbackBy(userId, sinceMs) {
+    const r = await c.from("feedback").select("*", { count: "exact", head: true }).eq("user_id", userId).gte("created_at", new Date(sinceMs).toISOString());
+    return r.error ? 0 : r.count ?? 0;
+  },
+  async feedbackDone(id) {
+    must(await c.from("feedback").update({ done: true }).eq("id", id), "feedback done");
   },
   async roomPut(row) {
     must(await c.from("rooms").delete().eq("host", row.host), "room replace");

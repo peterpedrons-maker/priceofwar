@@ -2,8 +2,8 @@
 // apply_match_rewards functions are created by docs/supabase-online.sql and docs/supabase-online-2.sql.
 import type { Seat } from '../src/engine/types';
 import type { RankedProfile } from '../src/engine/ranked';
-import { buildAdminPlayers, buildAdminReports, dayKey, lastDays, windowsOf } from './types';
-import type { ReportReason, RoomRow } from './types';
+import { buildAdminFeedback, buildAdminPlayers, buildAdminReports, dayKey, lastDays, windowsOf } from './types';
+import type { FeedbackKind, ReportReason, RoomRow } from './types';
 import type { AdminOverview, Db, EmoteRow, MatchRow, QueueRow, RewardRow, StepRow, ViewRow } from './types';
 
 // Only the tiny part of the supabase-js client this file touches.
@@ -84,7 +84,7 @@ export const supabaseDb = (c: Client): Db => ({
       new Map(rk.map((r: any) => [r.user_id, { points: r.points, games: r.games, wins: r.wins, losses: r.losses }])), cards, busy, new Set(banRows.map((b: any) => b.user_id)));
     const repRows = await soft(c.from('reports').select('*').order('created_at', { ascending: false }).limit(400));
     const nameOf = (id: string) => profiles.find((p: any) => p.id === id)?.username ?? '?';
-    const moderation = buildAdminReports(repRows, banRows, nameOf);
+    const moderation = { ...buildAdminReports(repRows, banRows, nameOf), feedback: buildAdminFeedback(await soft(c.from('feedback').select('*').eq('done', false).order('created_at', { ascending: false }).limit(60)), nameOf) };
     // The flow of the last 14 days: different players seen per day, new accounts per day, matches per day.
     const days = lastDays(nowMs), dayStart = (d: string) => Date.parse(d + 'T03:00:00Z');   // 00:00 in Brasília is 03:00 UTC
     const tracked = !(await c.from('presence_days').select('user_id', { head: true, count: 'exact' }).limit(1)).error;
@@ -126,6 +126,14 @@ export const supabaseDb = (c: Client): Db => ({
     if (r.error && row.ranked && /since/i.test(r.error.message)) must(await c.from('queue').upsert(base), 'queue put');
     else must(r, 'queue put');
   },
+  async addFeedback(r) {
+    must(await c.from('feedback').insert({ user_id: r.user_id, kind: r.kind as FeedbackKind, text: r.text, match_id: r.match_id, ctx: r.ctx }), 'feedback');
+  },
+  async feedbackBy(userId, sinceMs) {
+    const r = await c.from('feedback').select('*', { count: 'exact', head: true }).eq('user_id', userId).gte('created_at', new Date(sinceMs).toISOString());
+    return r.error ? 0 : r.count ?? 0;
+  },
+  async feedbackDone(id) { must(await c.from('feedback').update({ done: true }).eq('id', id), 'feedback done'); },
   async roomPut(row) {
     must(await c.from('rooms').delete().eq('host', row.host), 'room replace');
     must(await c.from('rooms').insert({ code: row.code, host: row.host, deck: row.deck, created_at: row.created_at }), 'room put');
