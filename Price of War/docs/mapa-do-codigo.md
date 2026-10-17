@@ -97,6 +97,11 @@ O motor: createMatch e applyAction (jogar, atacar, mover, habilidades, emboscada
 
 DeckSetup:25 · deckSetupFromRecipe:31 · expandCards:36 · MatchOptions:41 · cardFromName:49 · createMatch:58 · Ctx:85 · RuleError:88 · fail:89 · log:91 · P:92 · combatOpen:94 · activePhases:95 · addGold:98 · removeOne:107 · takeFromDeck:108 · drawCards:110 · removeFromHand:123 · discard:130 · sendDestroyed:137 · reinforceFrom:166 · setWinner:183 · soak:192 · grantShield:204 · grantBlock:210 · damageSlot:218 · healSlot:234 · startTurn:244 · enterPreparation:302 · payUpkeep:309 · setRelicMode:342 · runTurnEnd:356 · endTurn:376 · assertCanAct:386 · Fx:397 · uniqueByName:404 · matchesFilter:405 · filterLabel:412 · specCandidates:415 · checkTarget:419 · activeTargets:437 · validateTargets:441 · checkVerb:448 · checkVerbTarget:462 · openPick:466 · runVerb:475 · runAbilities:634 · grantMovedBuff:642 · playCard:652 · useAbility:719 · choose:759 · attack:817 · respondAmbush:843 · resolveAmbushEffect:860 · resolveCombat:896 · move:983 · advance:1016 · discardExcess:1038 · clone:1055 · applyAction:1057 · MatchLog:1099 · newMatchLog:1106 · replayMatch:1109
 
+## src/engine/missions.ts  (55 linhas)
+(sem descrição ainda: acrescente em FILE_NOTES)
+
+MissionKind:4 · MissionMode:5 · MissionMetric:7 · MissionDef:8 · RANKED_MISSIONS_ON:15 · MISSIONS:17 · DAILY_SLOTS:41 · WEEKLY_SLOTS:42 · REROLLS_PER_DAY:43 · DIVISION_BONUS:45 · missionsOf:48 · slotsFor:50
+
 ## src/engine/ranked.ts  (128 linhas)
 (sem descrição ainda: acrescente em FILE_NOTES)
 
@@ -349,6 +354,11 @@ failures:13 · usage:14 · tactics:15 · discards:16 · check:17 · allCards:19 
 (sem descrição ainda: acrescente em FILE_NOTES)
 
 Turn:15 · Game:16 · blank:25 · SOLD:26 · material:27 · count:28 · SLOT:29 · play:31 · avg:86 · f:87 · main:89
+
+## tests/missions.ts  (21 linhas)
+(sem descrição ainda: acrescente em FILE_NOTES)
+
+fails:3 · off:9 · best:12 · dailyMax:13 · perDay:15 · onMax:17
 
 ## tests/mock-supabase.ts  (119 linhas)
 Supabase falso para os testes online.

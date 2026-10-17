@@ -51,3 +51,10 @@ Exemplos: "Vença 1 partida", "Jogue 5 cartas Táticas", "Destrua 3 unidades ini
 6. Testes no servidor (preço, sorteio, teto, anti-fazenda) e simulação do ritmo (casual × dedicado).
 
 Pontos que dependem do dono: o preço do booster, os valores diários, se haverá troca de repetidas e quais missões. Os decks, boosters e raridades já existem (`docs/raridades.md`).
+
+## Missões: desenho combinado (rodada 26) e dados prontos
+- **Modos:** missões `ia` (vitória/partidas nos Desafios), `free` (qualquer modo: Táticas jogadas, unidades convocadas, armas equipadas) e `ranked` (vitórias e ligas no ranqueado). Decisão do dono: as de vitória valem contra a IA e as **ranqueadas existem nos dados mas ficam desligadas** pela chave `RANKED_MISSIONS_ON` em `src/engine/missions.ts` (poucos jogadores no começo: missão ranqueada seria impossível). Desligadas, a vaga ranqueada do dia vira vaga "livre".
+- **Dados:** `src/engine/missions.ts` (catálogo com prêmio, alvo e modo; vagas por dia e por semana; 1 troca por dia; bônus de +10 por divisão nova). Teste: `tests/missions.ts` (ids únicos, ranqueadas desligadas, ritmo: diárias ≤ 100, total ≤ 150 coroas por dia).
+- **Prêmios:** diárias IA 10 a 15, livres 20, ranqueadas 25 e 35; semanais 60 a 100; temporada 50 (Ouro), 100 (Diamante), 200 (Senhor da Guerra), 40 (30 partidas). Ritmo medido no teste: diárias 85 + semanais 200/7 = ~114 coroas por dia no máximo (com as ranqueadas ligadas ~134).
+- **Onde aparece:** botão **Missões** no menu principal (com bolinha vermelha com as que já podem ser coletadas); **dentro da partida não precisa**. Mockup: `public/mockups/missoes/` (`?v=menu|diarias|semanais|temporada`), feito com o kit do ranqueado (`janela`, `fita-coroa`, abas, linhas, barra, chips, botões).
+- **Ainda falta (servidor + tela):** sorteio por dia/semana/temporada, contagem pelos eventos da partida, coleta e troca, tabela de missões (SQL), quadro no menu, e o servidor abrir os boosters.
