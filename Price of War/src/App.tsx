@@ -1,3 +1,4 @@
+import { VillageScene } from './VillageScene';
 import React, { useState, useEffect, useLayoutEffect, useRef, lazy, Suspense } from 'react';
 import { fetchProfile, usernameAvailable, createProfile, updateProfileFields, fetchStore, pushStore, type CloudDeck } from './services/cloud';
 import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authErrorDetail, authMode, type Session } from './services/auth';
@@ -3582,15 +3583,17 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
       style={{ paddingTop: 'calc(max(10px, env(safe-area-inset-top)) + 78px)' }}
       className="flex flex-col items-center justify-start w-full h-full bg-zinc-950 text-white relative overflow-hidden"
     >
-      {/* Background — "A guerra dos dois Generais" (art-prompts/README.md 4ab), a still picture (no parallax or drift) cropped to the screen with object-cover,
-          and a bottom-heavy dark gradient so the menu plaques stay legible. */}
-      <img
-        src={menuBgImage}
-        alt=""
-        className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none select-none"
-        draggable={false}
-      />
-      <div className="absolute inset-0 z-0 bg-gradient-to-b from-black/10 via-black/40 to-black/85" />
+      {/* Menu em vila (docs/menu-vila.md): arte única com prédios tocáveis e animação por código. Degradês escurecem o topo (perfil/logo) e o rodapé (ícones). */}
+      <VillageScene onPick={(id) => {
+        if (id === 'quartel') onSelectMode('Campaign');
+        else if (id === 'arena') setOnlineOpen(true);
+        else if (id === 'biblioteca') setRoomOpen(true);
+        else if (id === 'forja') setDeckEditorOpen(true);
+        else if (id === 'mercado') setShopOpen(true);
+        else if (id === 'academia') onTutorials();
+        else setComingSoon({ title: 'Missões', message: 'O quadro de avisos com as missões diárias e semanais chega em breve.' });
+      }} />
+      <div className="absolute inset-x-0 top-0 h-[22%] z-[1] pointer-events-none bg-gradient-to-b from-black/80 to-transparent" />
       {/* The logo hangs in the sky between the two armies, under the profile bar and the crowns. */}
       <img src={logoImage} alt="Price of War" draggable={false} className="absolute left-1/2 z-10 -translate-x-1/2 pointer-events-none select-none"
         style={{ top: 'calc(max(10px, env(safe-area-inset-top)) + 74px)', width: 'clamp(150px, 46vw, 200px)', filter: 'drop-shadow(0 3px 8px rgba(0,0,0,0.7))' }} />
@@ -3648,26 +3651,13 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
         )}
       </AnimatePresence>
 
-      {/* The buttons: gold plaques coming out of the left edge, smallest on top (Loja) and longest at the bottom (Desafios, the main one, closest to the
-          thumb), touching each other. Desafios starts a match against the AI (the only mode whose opponent plays), Online opens the Casual/Ranqueado picker
-          (OnlineModeModal), Meu Deck the deck editor, Coleção the Sala de Coleção, Loja the shop. The mode identifiers ('Campaign' etc.) stay in English;
-          only the label shown is translated. */}
-      <div className="absolute left-0 z-10 flex w-full max-w-[460px] flex-col items-start" style={{ bottom: 104, containerType: 'inline-size' }}>
-        <MenuCard widthPct={46} icon={uiIconLojaImage} title="Loja" bgImage={menuCardLojaImage} onClick={() => setShopOpen(true)} />
-        <MenuCard widthPct={52} icon={uiIconCardImage} title="Coleção" bgImage={menuCardEditarDeckImage} onClick={() => setRoomOpen(true)} />
-        <MenuCard widthPct={58} icon={uiIconEditarDeckImage} title={MODE_LABELS_PT['My Deck']} bgImage={menuCardEditarDeckImage} onClick={() => setDeckEditorOpen(true)} />
-        <MenuCard widthPct={64} icon={uiIconOnlineImage} title={MODE_LABELS_PT['Multiplayer']} bgImage={menuCardOnlineImage} onClick={() => setOnlineOpen(true)} />
-        <MenuCard widthPct={70} icon={uiIconDesafiosImage} title={MODE_LABELS_PT['Campaign']} bgImage={menuCardDesafiosImage} onClick={() => onSelectMode('Campaign')} />
-      </div>
-
       {/* Secondary destinations — none of these screens exist yet (see
           ComingSoonModal), just the slots the reference mockup reserves for them. */}
       <div
         className="absolute bottom-0 inset-x-0 z-20 flex items-center justify-center gap-6 pt-3"
-        style={{ paddingBottom: 'max(14px, env(safe-area-inset-bottom))', background: 'linear-gradient(to top, rgba(0,0,0,0.75), transparent)' }}
+        style={{ paddingBottom: 'max(14px, env(safe-area-inset-bottom))', background: 'linear-gradient(to top, rgba(0,0,0,0.85), transparent)' }}
       >
         <MenuIconButton icon={uiIconConfigImage} label="Config." onClick={() => setSettingsOpen(true)} />
-        <MenuIconButton icon={uiIconTutoriaisImage} label="Tutoriais" onClick={onTutorials} />
         <MenuIconButton icon={uiIconRankingImage} label="Ranking" onClick={() => setRankingOpen(true)} />
         <MenuIconButton icon={uiIconSomImage} label="Opções" onClick={() => setSoundOpen(true)} />
         {gm && <MenuTextButton text="GM" label="GM" onClick={() => setGmOpen(true)} />}
