@@ -16,3 +16,10 @@ VERTICAL PORTRAIT IMAGE, aspect ratio 9:19.5 (very tall, like a modern phone scr
 
 ## Como ligar
 Salvar em `src/assets/menu-vila.webp`; hotspots por porcentagem em `docs/menu-vila.md` (ajustar depois da arte real).
+
+## Edição da vila já aprovada: placas em branco nos prédios (rodada 26f)
+Problema: texto solto sobre a pintura não "gruda" no prédio. Solução: placas/faixas penduradas pintadas na própria arte, vazias; o jogo escreve o nome em cima (e pode piscar/ter badge). Usar com a imagem atual anexada (edição de imagem), para manter a composição, e depois reposicionar toque/brilhos se algo mudar.
+```
+Edit the attached image. Keep EVERYTHING exactly the same: same composition, same buildings, same road, same colors, same lighting, same smoke, same tiny people and horses, same framing and size. Only add eight small, EMPTY, completely blank hanging signs, one for each landmark, painted in the same painterly style and warm torch lighting, each clearly readable at phone size and about the same size as the others: a blank carved wooden plank sign hung from an iron bracket on the front of the small training house at the top left; a blank wooden plank sign hanging from the front eave of the tall library tower; a blank iron-and-wood hanging sign on the post already in front of the blacksmith forge; a blank wooden plank sign tied between two poles at the front of the market stalls; a blank wooden plaque on top of the existing notice board; a blank wooden sign hanging over the arena gate; a blank cloth banner hanging from the front wall of the stone barracks fortress; and a larger blank cloth banner on a pole planted on the road in front of the distant castle. Every sign and banner must be totally blank: smooth flat surface, no letters, no symbols, no drawings, no numbers, no text. Do not add anything else and do not change anything else. ARTWORK ONLY, no frame, no border, no title, no text, no watermark, no user interface.
+```
+Depois: me mandar a imagem nova; eu coloco o texto em cima de cada placa (na posição exata) e deixo o toque no prédio inteiro.
