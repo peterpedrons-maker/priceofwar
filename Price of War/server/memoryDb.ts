@@ -37,6 +37,9 @@ export class MemoryDb implements Db {
   async addFeedback(r: { user_id: string; kind: FeedbackKind; text: string; match_id: string | null; ctx: string }) { this.feedbackRows.push({ ...r, id: this.feedbackRows.length + 1, created_at: new Date(this.now()).toISOString(), done: false }); }
   async feedbackBy(userId: string, sinceMs: number) { return this.feedbackRows.filter(r => r.user_id === userId && Date.parse(r.created_at) >= sinceMs).length; }
   async feedbackDone(id: number) { const r = this.feedbackRows.find(x => x.id === id); if (r) r.done = true; }
+  dailyRows = new Map<string, { bot_coroas: number; first_win: boolean }>();
+  async dailyGet(userId: string, day: string) { return { ...(this.dailyRows.get(`${userId}|${day}`) ?? { bot_coroas: 0, first_win: false }) }; }
+  async dailyPut(userId: string, day: string, d: { bot_coroas: number; first_win: boolean }) { this.dailyRows.set(`${userId}|${day}`, { ...d }); }
   rooms: RoomRow[] = [];
   async roomPut(row: RoomRow) { this.rooms = this.rooms.filter(r => r.host !== row.host && r.code !== row.code); this.rooms.push(clone(row)); }
   async roomGet(code: string) { const r = this.rooms.find(x => x.code === code); return r ? clone(r) : null; }

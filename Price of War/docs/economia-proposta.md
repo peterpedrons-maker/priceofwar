@@ -1,4 +1,22 @@
-# Economia: proposta de números (rodada 26, aguardando aprovação do dono)
+# Economia (rodada 26)
+
+## DECISÕES DO DONO (valem mais que a tabela de proposta mais abaixo)
+- **Booster: 150 coroas** (ainda não ligado: precisa da abertura no servidor, etapas 1 e 2 abaixo).
+- **Partida online contra pessoa não paga coroas** (só XP e ranking, como no Hearthstone). Coroas vêm de: IA (pouco), **primeira vitória do dia** e missões.
+- **Repetidas viram coroas: comum 5, rara 15, ultra 50** (ainda não ligado).
+
+## FEITO (etapa 3, no servidor): `src/engine/rewards.ts` + `server/handler.ts`
+- Vitória contra pessoa: 60 XP, 0 coroas; derrota: 25 XP, 0 coroas.
+- Vitória contra a IA: 35 XP, **5 coroas**; derrota 12 XP, 2 coroas; **teto de 30 coroas por dia vindo da IA** (`BOT_DAILY_CAP`).
+- **Primeira vitória do dia: +30 coroas** em qualquer modo (`FIRST_WIN_COROAS`); aparece na tela de fim de partida. Partida curta ou abandonada não conta.
+- O dia é o de Brasília. O contador fica na tabela `daily` (**SQL parte 11**, `docs/supabase-online-11.sql`); sem a tabela, o servidor paga só os valores base (sem bônus nem teto).
+- Limite conhecido: duas contas do mesmo dono podem tirar 30 coroas por dia cada uma combinando partida; custo baixo, e o limite de "mesmo adversário" só vale hoje para pontos de ranking.
+
+## Ritmo com essas regras
+- Casual (1 vitória por dia, de qualquer modo): 30 + 5 = ~35 coroas/dia, um booster (150) a cada ~4 dias; com 1 missão de 25, ~3 dias.
+- Dedicado (todas as missões + IA no teto): 30 + 30 + 2 missões de 25 = ~110/dia, um booster a cada ~1,4 dia.
+
+## Proposta original (superada pelas decisões acima onde divergir)
 
 Nada disto está no código. Hoje: boosters grátis e infinitos (`TEST_FREE_BOOSTERS`), preço de vitrine 100, jogador começa com 150 coroas, vitória online paga 25 (derrota 8), vitória contra a IA 12 (derrota 4), partida com menos de 3 rodadas não paga (`src/engine/rewards.ts`). A coleção ainda é escrita pelo aparelho (`docs/anti-trapaca.md`).
 

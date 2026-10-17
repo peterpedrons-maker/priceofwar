@@ -3368,9 +3368,24 @@ var REWARD_MIN_ROUNDS = 3;
 var REWARD_MIN_STEPS = 14;
 var rewardFor = (r) => {
   if (r.rounds < REWARD_MIN_ROUNDS || r.steps < REWARD_MIN_STEPS) return { xp: 0, coroas: 0, reason: "too_short" };
-  if (r.won) return r.vsBot ? { xp: 35, coroas: 12, reason: "win" } : { xp: 60, coroas: 25, reason: "win" };
+  if (r.won) return r.vsBot ? { xp: 35, coroas: 5, reason: "win" } : { xp: 60, coroas: 0, reason: "win" };
   if (r.ending !== "general") return { xp: 0, coroas: 0, reason: "abandoned" };
-  return r.vsBot ? { xp: 12, coroas: 4, reason: "loss" } : { xp: 25, coroas: 8, reason: "loss" };
+  return r.vsBot ? { xp: 12, coroas: 2, reason: "loss" } : { xp: 25, coroas: 0, reason: "loss" };
+};
+var BOT_DAILY_CAP = 30;
+var FIRST_WIN_COROAS = 30;
+var withDaily = (reward, r, daily) => {
+  let coroas = reward.coroas, firstWin = 0;
+  const next = { ...daily };
+  if (r.vsBot) {
+    coroas = Math.max(0, Math.min(coroas, BOT_DAILY_CAP - daily.bot_coroas));
+    next.bot_coroas += coroas;
+  }
+  if (r.won && reward.reason === "win" && !daily.first_win) {
+    firstWin = FIRST_WIN_COROAS;
+    next.first_win = true;
+  }
+  return { reward: { ...reward, coroas: coroas + firstWin, ...firstWin ? { first_win: firstWin } : {} }, daily: next };
 };
 var xpToNext = (level) => 100 + 50 * (Math.max(1, level) - 1);
 var applyReward = (p, gain) => {
@@ -3384,6 +3399,57 @@ var applyReward = (p, gain) => {
   }
   return { level, xp, coroas: p.coroas + gain.coroas, levelsGained };
 };
+
+// server/types.ts
+var FEEDBACK_KINDS = ["bug", "confuso", "ideia", "outro"];
+var REPORT_REASONS = ["nome", "comportamento", "trapaca", "outro"];
+var buildAdminPlayers = (nowMs, onlineMs, profiles, seen, ranked, cards, busy, banned = /* @__PURE__ */ new Set()) => {
+  const players = profiles.map((p) => {
+    const t = seen.get(p.id);
+    return {
+      id: p.id,
+      username: p.username,
+      avatar_id: p.avatar_id,
+      level: p.level ?? 1,
+      xp: p.xp ?? 0,
+      coroas: p.coroas ?? 0,
+      created_at: p.created_at ?? new Date(nowMs).toISOString(),
+      seen_at: t === void 0 ? null : new Date(t).toISOString(),
+      online: t !== void 0 && nowMs - t < onlineMs,
+      state: busy.get(p.id) ?? null,
+      ranked: ranked.get(p.id) ?? null,
+      cards: cards.get(p.id) ?? 0,
+      banned: banned.has(p.id)
+    };
+  });
+  players.sort((a, b) => Number(b.online) - Number(a.online) || Date.parse(b.seen_at ?? b.created_at) - Date.parse(a.seen_at ?? a.created_at));
+  return { players, totals: { coroas: players.reduce((n, p) => n + p.coroas, 0), xp: players.reduce((n, p) => n + p.xp, 0), cards: players.reduce((n, p) => n + p.cards, 0) } };
+};
+var dayKey = (ms) => new Date(ms - 3 * 36e5).toISOString().slice(0, 10);
+var lastDays = (nowMs, n = 14) => Array.from({ length: n }, (_, i) => dayKey(nowMs - (n - 1 - i) * 864e5));
+var windowsOf = (nowMs, seen) => ({
+  h1: seen.filter((t) => nowMs - t < 36e5).length,
+  h24: seen.filter((t) => nowMs - t < 864e5).length,
+  d7: seen.filter((t) => nowMs - t < 7 * 864e5).length,
+  d30: seen.filter((t) => nowMs - t < 30 * 864e5).length
+});
+var buildAdminReports = (reports, bans, nameOf) => {
+  const count = /* @__PURE__ */ new Map();
+  reports.forEach((r) => count.set(r.reported, (count.get(r.reported) ?? 0) + 1));
+  const banned = new Set(bans.map((b) => b.user_id));
+  return {
+    reports: [...reports].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 40).map((r) => ({
+      id: r.id,
+      created_at: r.created_at,
+      reason: r.reason,
+      note: r.note,
+      reporter: { id: r.reporter, name: nameOf(r.reporter) },
+      reported: { id: r.reported, name: nameOf(r.reported), count: count.get(r.reported) ?? 1, banned: banned.has(r.reported) }
+    })),
+    bans: bans.map((b) => ({ id: b.user_id, name: nameOf(b.user_id), reason: b.reason, banned_at: b.banned_at }))
+  };
+};
+var buildAdminFeedback = (rows, nameOf) => rows.filter((r) => !r.done).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 40).map((r) => ({ id: r.id, created_at: r.created_at, kind: r.kind, text: r.text, matchId: r.match_id, ctx: r.ctx, user: { id: r.user_id, name: nameOf(r.user_id) } }));
 
 // src/engine/view.ts
 var hiddenCard = (id) => ({ id, name: "", cardType: "T\xE1tica", atk: 0, hp: 0, cost: 0, effect: "", hidden: true });
@@ -3520,57 +3586,6 @@ var closeSeason = (p, newSeason, top) => {
   const points = Math.floor(p.points / (2 * POINTS_PER_DIVISION)) * POINTS_PER_DIVISION;
   return { league, coroas: SEASON_COROAS[league], next: { points, mmr: p.mmr, games: 0, wins: 0, losses: 0, shield: false, peak: points, season: newSeason, frame } };
 };
-
-// server/types.ts
-var FEEDBACK_KINDS = ["bug", "confuso", "ideia", "outro"];
-var REPORT_REASONS = ["nome", "comportamento", "trapaca", "outro"];
-var buildAdminPlayers = (nowMs, onlineMs, profiles, seen, ranked, cards, busy, banned = /* @__PURE__ */ new Set()) => {
-  const players = profiles.map((p) => {
-    const t = seen.get(p.id);
-    return {
-      id: p.id,
-      username: p.username,
-      avatar_id: p.avatar_id,
-      level: p.level ?? 1,
-      xp: p.xp ?? 0,
-      coroas: p.coroas ?? 0,
-      created_at: p.created_at ?? new Date(nowMs).toISOString(),
-      seen_at: t === void 0 ? null : new Date(t).toISOString(),
-      online: t !== void 0 && nowMs - t < onlineMs,
-      state: busy.get(p.id) ?? null,
-      ranked: ranked.get(p.id) ?? null,
-      cards: cards.get(p.id) ?? 0,
-      banned: banned.has(p.id)
-    };
-  });
-  players.sort((a, b) => Number(b.online) - Number(a.online) || Date.parse(b.seen_at ?? b.created_at) - Date.parse(a.seen_at ?? a.created_at));
-  return { players, totals: { coroas: players.reduce((n, p) => n + p.coroas, 0), xp: players.reduce((n, p) => n + p.xp, 0), cards: players.reduce((n, p) => n + p.cards, 0) } };
-};
-var dayKey = (ms) => new Date(ms - 3 * 36e5).toISOString().slice(0, 10);
-var lastDays = (nowMs, n = 14) => Array.from({ length: n }, (_, i) => dayKey(nowMs - (n - 1 - i) * 864e5));
-var windowsOf = (nowMs, seen) => ({
-  h1: seen.filter((t) => nowMs - t < 36e5).length,
-  h24: seen.filter((t) => nowMs - t < 864e5).length,
-  d7: seen.filter((t) => nowMs - t < 7 * 864e5).length,
-  d30: seen.filter((t) => nowMs - t < 30 * 864e5).length
-});
-var buildAdminReports = (reports, bans, nameOf) => {
-  const count = /* @__PURE__ */ new Map();
-  reports.forEach((r) => count.set(r.reported, (count.get(r.reported) ?? 0) + 1));
-  const banned = new Set(bans.map((b) => b.user_id));
-  return {
-    reports: [...reports].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 40).map((r) => ({
-      id: r.id,
-      created_at: r.created_at,
-      reason: r.reason,
-      note: r.note,
-      reporter: { id: r.reporter, name: nameOf(r.reporter) },
-      reported: { id: r.reported, name: nameOf(r.reported), count: count.get(r.reported) ?? 1, banned: banned.has(r.reported) }
-    })),
-    bans: bans.map((b) => ({ id: b.user_id, name: nameOf(b.user_id), reason: b.reason, banned_at: b.banned_at }))
-  };
-};
-var buildAdminFeedback = (rows, nameOf) => rows.filter((r) => !r.done).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 40).map((r) => ({ id: r.id, created_at: r.created_at, kind: r.kind, text: r.text, matchId: r.match_id, ctx: r.ctx, user: { id: r.user_id, name: nameOf(r.user_id) } }));
 
 // server/handler.ts
 var defaultConfig = () => ({ queueStaleMs: 2e4, turnMs: 15e4, promptMs: 6e4, maxTimeouts: 2, now: () => Date.now(), random: Math.random });
@@ -3720,9 +3735,16 @@ var ensureRewards = async (db, cfg, m) => {
       if (!prof) continue;
       const won = m.winner === seat;
       const ending = won ? "general" : m.end_reason ?? "general";
-      const reward = rewardFor({ won, vsBot: m.bot_seat !== null, ending, rounds: m.state.turn.round, steps: m.steps_count });
+      const vsBot = m.bot_seat !== null;
+      let reward = rewardFor({ won, vsBot, ending, rounds: m.state.turn.round, steps: m.steps_count });
+      const day = dayKey(cfg.now()), daily = reward.reason === "too_short" || reward.reason === "abandoned" ? null : await db.dailyGet(user, day);
+      if (daily) {
+        const d = withDaily(reward, { won, vsBot }, daily);
+        reward = d.reward;
+        await db.dailyPut(user, day, d.daily);
+      }
       const after = applyReward({ level: prof.level, xp: prof.xp, coroas: prof.coroas }, reward);
-      const row = { user_id: user, seat, reason: reward.reason, xp: reward.xp, coroas: reward.coroas, level: after.level, xp_after: after.xp, coroas_after: after.coroas, levels_gained: after.levelsGained };
+      const row = { user_id: user, seat, reason: reward.reason, xp: reward.xp, coroas: reward.coroas, ...reward.first_win ? { first_win: reward.first_win } : {}, level: after.level, xp_after: after.xp, coroas_after: after.coroas, levels_gained: after.levelsGained };
       const me = ladder[seat], foe = ladder[otherSeat(seat)];
       if (m.ranked && me && foe) {
         const r = applyRankedMatch({ me, opponentMmr: foe.mmr, won, ending, counts: reward.reason !== "too_short" && !repeat });
@@ -4398,6 +4420,14 @@ var supabaseDb = (c) => ({
   },
   async feedbackDone(id) {
     must(await c.from("feedback").update({ done: true }).eq("id", id), "feedback done");
+  },
+  async dailyGet(userId, day) {
+    const r = await c.from("daily").select("bot_coroas, first_win").eq("user_id", userId).eq("day", day).maybeSingle();
+    if (r.error) return null;
+    return r.data ? { bot_coroas: r.data.bot_coroas ?? 0, first_win: !!r.data.first_win } : { bot_coroas: 0, first_win: false };
+  },
+  async dailyPut(userId, day, d) {
+    await c.from("daily").upsert({ user_id: userId, day, bot_coroas: d.bot_coroas, first_win: d.first_win }, { onConflict: "user_id,day" });
   },
   async roomPut(row) {
     must(await c.from("rooms").delete().eq("host", row.host), "room replace");

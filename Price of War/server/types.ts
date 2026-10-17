@@ -47,7 +47,8 @@ export interface RewardRow {
   seat: Seat;
   reason: 'win' | 'loss' | 'too_short' | 'abandoned';
   xp: number;
-  coroas: number;
+  coroas: number;         // already includes `first_win`
+  first_win?: number;     // the first-win-of-the-day bonus, when it was paid in this match
   level: number;          // after the reward
   xp_after: number;       // progress inside the level, after the reward
   coroas_after: number;
@@ -147,6 +148,9 @@ export interface Db {
   addFeedback(r: { user_id: string; kind: FeedbackKind; text: string; match_id: string | null; ctx: string }): Promise<void>;
   feedbackBy(userId: string, sinceMs: number): Promise<number>;
   feedbackDone(id: number): Promise<void>;
+  // The day's tally of coroas won from the AI and whether the first-win bonus was paid (SQL 11). null: the table does not exist yet (then the daily bonus and cap are skipped).
+  dailyGet(userId: string, day: string): Promise<{ bot_coroas: number; first_win: boolean } | null>;
+  dailyPut(userId: string, day: string, d: { bot_coroas: number; first_win: boolean }): Promise<void>;
   // Deletes the account and everything that belongs to it (the player's own request from Settings). The tables hang from auth.users with `on delete cascade`.
   deleteAccount(userId: string): Promise<void>;
   collection(userId: string): Promise<Record<string, number>>;

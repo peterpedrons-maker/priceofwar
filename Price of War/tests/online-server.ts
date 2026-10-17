@@ -7,6 +7,7 @@ import { applyReward, rewardFor } from '../src/engine/rewards';
 import type { Action, Seat } from '../src/engine/types';
 import { viewFor } from '../src/engine/view';
 import { SEASON_ONE_START } from '../src/engine/ranked';
+import { FIRST_WIN_COROAS } from '../src/engine/rewards';
 import { handleGame, resetRateLimits, type GameConfig, type GameResponse, type MatchInit } from '../server/handler';
 import { MemoryDb } from '../server/memoryDb';
 
@@ -490,7 +491,7 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     ok(m.status === 'finished' && m.rewards !== null && m.rewards.length === 2, 'rewards were stored for both players');
     const winnerUser = userOf(db, m.winner as Seat);
     const loserUser = userOf(db, (m.winner === 0 ? 1 : 0) as Seat);
-    const expectWin = rewardFor({ won: true, vsBot: false, ending: 'general', rounds: m.state.turn.round, steps: m.steps_count });
+    const expectWin = { ...rewardFor({ won: true, vsBot: false, ending: 'general', rounds: m.state.turn.round, steps: m.steps_count }), coroas: FIRST_WIN_COROAS };   // pessoa x pessoa não paga coroas, só a 1ª vitória do dia
     const expectLoss = rewardFor({ won: false, vsBot: false, ending: 'general', rounds: m.state.turn.round, steps: m.steps_count });
     const w = m.rewards!.find(r => r.user_id === winnerUser)!;
     const l = m.rewards!.find(r => r.user_id === loserUser)!;

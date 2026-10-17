@@ -358,8 +358,9 @@ export const MatchResult = ({ won, reward, onMenu }: { won: boolean; reward: Rew
               <>
                 <div className="flex items-center justify-center" style={{ gap: 8 }}>
                   <Chip>+{reward.xp} XP</Chip>
-                  <Chip><img src={iconeCoroa} alt="" draggable={false} style={{ width: 18, height: 18, objectFit: 'contain' }} />+{reward.coroas}</Chip>
+                  {reward.coroas > 0 && <Chip><img src={iconeCoroa} alt="" draggable={false} style={{ width: 18, height: 18, objectFit: 'contain' }} />+{reward.coroas}</Chip>}
                 </div>
+                {!!reward.first_win && <div style={{ fontFamily: CINZEL, fontWeight: 800, fontSize: 11, letterSpacing: '0.14em', color: '#ffe08a', textTransform: 'uppercase' }}>Primeira vitória do dia · +{reward.first_win} coroas</div>}
                 {reward.levels_gained > 0 && <div style={{ fontFamily: CINZEL, fontWeight: 900, fontSize: 13, letterSpacing: '0.16em', color: '#ffe08a', textShadow: '0 0 12px rgba(255,205,90,.6)', textTransform: 'uppercase' }}>★ Subiu para o nível {reward.level}! ★</div>}
               </>
             )}

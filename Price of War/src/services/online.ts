@@ -24,6 +24,7 @@ export interface RewardInfo {
   ranked?: { repeat?: boolean; delta: number; placement: boolean; promoted: boolean; demoted: boolean; shield_used: boolean; league_before: string; league_after: string; profile: { points: number; games: number; wins: number; losses: number; shield: boolean; peak: number } };
   xp: number;
   coroas: number;
+  first_win?: number;   // the first-win-of-the-day bonus included in `coroas`
   level: number;
   xp_after: number;
   coroas_after: number;

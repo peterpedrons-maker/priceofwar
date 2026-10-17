@@ -574,3 +574,14 @@ create index if not exists feedback_open_idx on public.feedback (done, created_a
 create index if not exists feedback_user_idx on public.feedback (user_id, created_at desc);
 alter table public.feedback enable row level security;
 revoke all on public.feedback from anon, authenticated;
+
+-- ============ parte 11: economia (limite diário e 1ª vitória do dia) ============
+create table if not exists public.daily (
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  day        date not null,
+  bot_coroas int  not null default 0,
+  first_win  boolean not null default false,
+  primary key (user_id, day)
+);
+alter table public.daily enable row level security;
+revoke all on public.daily from anon, authenticated;

@@ -16,10 +16,23 @@ export interface Reward { xp: number; coroas: number; reason: 'win' | 'loss' | '
 
 export const rewardFor = (r: RewardInput): Reward => {
   if (r.rounds < REWARD_MIN_ROUNDS || r.steps < REWARD_MIN_STEPS) return { xp: 0, coroas: 0, reason: 'too_short' };
-  if (r.won) return r.vsBot ? { xp: 35, coroas: 12, reason: 'win' } : { xp: 60, coroas: 25, reason: 'win' };
+  // Decisão do dono (rodada 26): partida online contra pessoa NÃO paga coroas (só XP e ranking, como no Hearthstone); coroas vêm da IA (pouco), da 1ª vitória do dia e das missões.
+  if (r.won) return r.vsBot ? { xp: 35, coroas: 5, reason: 'win' } : { xp: 60, coroas: 0, reason: 'win' };
   // Giving up (or leaving the clock to run out) is not rewarded.
   if (r.ending !== 'general') return { xp: 0, coroas: 0, reason: 'abandoned' };
-  return r.vsBot ? { xp: 12, coroas: 4, reason: 'loss' } : { xp: 25, coroas: 8, reason: 'loss' };
+  return r.vsBot ? { xp: 12, coroas: 2, reason: 'loss' } : { xp: 25, coroas: 0, reason: 'loss' };
+};
+
+// Daily limits (the server keeps one small row per player per day, Brasília time): coroas from the AI are capped, and the first win of the day pays a bonus in any mode.
+export const BOT_DAILY_CAP = 30;
+export const FIRST_WIN_COROAS = 30;
+export interface DailyState { bot_coroas: number; first_win: boolean }
+export const withDaily = (reward: Reward, r: { won: boolean; vsBot: boolean }, daily: DailyState): { reward: Reward & { first_win?: number }; daily: DailyState } => {
+  let coroas = reward.coroas, firstWin = 0;
+  const next = { ...daily };
+  if (r.vsBot) { coroas = Math.max(0, Math.min(coroas, BOT_DAILY_CAP - daily.bot_coroas)); next.bot_coroas += coroas; }
+  if (r.won && reward.reason === 'win' && !daily.first_win) { firstWin = FIRST_WIN_COROAS; next.first_win = true; }
+  return { reward: { ...reward, coroas: coroas + firstWin, ...(firstWin ? { first_win: firstWin } : {}) }, daily: next };
 };
 
 // XP needed to go from `level` to the next one.

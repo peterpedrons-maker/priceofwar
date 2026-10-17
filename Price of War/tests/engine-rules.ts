@@ -3,7 +3,7 @@ import './raw-stats';
 import { CARD_DEFS, getCardDef, requireCardDef, registerCardDefs, LEGACY_CARD_NAMES, currentCardName, currentNames } from '../src/engine/catalog';
 import { aiNextAction } from '../src/engine/ai';
 import { mirrorEvents, mirrorSeats } from '../src/engine/view';
-import { applyReward, rewardFor, xpToNext } from '../src/engine/rewards';
+import { applyReward, rewardFor, withDaily, BOT_DAILY_CAP, FIRST_WIN_COROAS, xpToNext } from '../src/engine/rewards';
 import { applyAction, combatOpen, createMatch, deckSetupFromRecipe, newMatchLog, replayMatch } from '../src/engine/game';
 import { HAND_LIMIT, getAuraCombatHpBonus, getEffectiveAtk, getIncomingDamageReduction, hasVerb, reinforceShield, START_HAND, targetSpecsOf, verbsOn } from '../src/engine/rules';
 import { TRIGGER_LABEL, type Action, type Card, type GameEvent, type GameState, type Seat } from '../src/engine/types';
@@ -880,11 +880,27 @@ test('mirroring swaps the chairs and is its own inverse', () => {
   eq(JSON.stringify(mirrorSeats(a2.s).turn), JSON.stringify(a1.s.turn));
   eq(JSON.stringify(mirrorEvents(a2.ev).map((e: any) => e.t)), JSON.stringify(a1.ev.map((e: any) => e.t)));
 });
+test('rewards: limite diário contra a IA e primeira vitória do dia', () => {
+  const base = { vsBot: true, ending: 'general' as const, rounds: 6, steps: 60 };
+  const win = rewardFor({ ...base, won: true });
+  const a = withDaily(win, { won: true, vsBot: true }, { bot_coroas: 0, first_win: false });
+  eq([a.reward.coroas, a.reward.first_win, a.daily.first_win, a.daily.bot_coroas], [5 + FIRST_WIN_COROAS, FIRST_WIN_COROAS, true, 5], 'a 1ª vitória do dia paga o bônus');
+  const b = withDaily(win, { won: true, vsBot: true }, a.daily);
+  eq([b.reward.coroas, b.reward.first_win], [5, undefined], 'a segunda vitória do dia não paga o bônus');
+  const c = withDaily(win, { won: true, vsBot: true }, { bot_coroas: BOT_DAILY_CAP - 3, first_win: true });
+  eq(c.reward.coroas, 3, 'o teto de coroas da IA corta o que passa de ' + BOT_DAILY_CAP);
+  eq(withDaily(win, { won: true, vsBot: true }, { bot_coroas: BOT_DAILY_CAP, first_win: true }).reward.coroas, 0, 'no teto não paga mais coroas da IA');
+  const loss = rewardFor({ ...base, won: false });
+  eq(withDaily(loss, { won: false, vsBot: true }, { bot_coroas: 0, first_win: false }).reward.first_win, undefined, 'derrota não paga o bônus');
+  const pvp = rewardFor({ vsBot: false, ending: 'general', rounds: 6, steps: 60, won: true });
+  const pv = withDaily(pvp, { won: true, vsBot: false }, { bot_coroas: BOT_DAILY_CAP, first_win: false });
+  eq([pv.reward.coroas, pv.daily.bot_coroas], [FIRST_WIN_COROAS, BOT_DAILY_CAP], 'contra pessoa: só o bônus da 1ª vitória; o teto da IA não é tocado');
+});
 test('rewards: wins, losses, too-short matches, giving up, and level-ups', () => {
   const base = { vsBot: false, ending: 'general' as const, rounds: 6, steps: 60 };
-  eq(rewardFor({ ...base, won: true }), { xp: 60, coroas: 25, reason: 'win' });
-  eq(rewardFor({ ...base, won: false }), { xp: 25, coroas: 8, reason: 'loss' });
-  eq(rewardFor({ ...base, won: true, vsBot: true }), { xp: 35, coroas: 12, reason: 'win' });
+  eq(rewardFor({ ...base, won: true }), { xp: 60, coroas: 0, reason: 'win' });        // contra pessoa: sem coroas (decisão do dono)
+  eq(rewardFor({ ...base, won: false }), { xp: 25, coroas: 0, reason: 'loss' });
+  eq(rewardFor({ ...base, won: true, vsBot: true }), { xp: 35, coroas: 5, reason: 'win' });
   eq(rewardFor({ ...base, won: false, ending: 'concede' }), { xp: 0, coroas: 0, reason: 'abandoned' });
   eq(rewardFor({ ...base, won: false, ending: 'timeout' }).reason, 'abandoned');
   eq(rewardFor({ ...base, won: true, ending: 'timeout' }).reason, 'win');          // the player who stayed is still rewarded

@@ -134,6 +134,14 @@ export const supabaseDb = (c: Client): Db => ({
     return r.error ? 0 : r.count ?? 0;
   },
   async feedbackDone(id) { must(await c.from('feedback').update({ done: true }).eq('id', id), 'feedback done'); },
+  async dailyGet(userId, day) {
+    const r = await c.from('daily').select('bot_coroas, first_win').eq('user_id', userId).eq('day', day).maybeSingle();
+    if (r.error) return null;
+    return r.data ? { bot_coroas: r.data.bot_coroas ?? 0, first_win: !!r.data.first_win } : { bot_coroas: 0, first_win: false };
+  },
+  async dailyPut(userId, day, d) {
+    await c.from('daily').upsert({ user_id: userId, day, bot_coroas: d.bot_coroas, first_win: d.first_win }, { onConflict: 'user_id,day' });
+  },
   async roomPut(row) {
     must(await c.from('rooms').delete().eq('host', row.host), 'room replace');
     must(await c.from('rooms').insert({ code: row.code, host: row.host, deck: row.deck, created_at: row.created_at }), 'room put');

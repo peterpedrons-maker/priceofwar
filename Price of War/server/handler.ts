@@ -7,7 +7,8 @@ import { DECK_RECIPES, currentCardName, currentNames, type DeckId } from '../src
 import { deckProblem } from '../src/engine/deck';
 import { applyAction, createMatch } from '../src/engine/game';
 import { nextRandom, seedFrom } from '../src/engine/rng';
-import { applyReward, rewardFor } from '../src/engine/rewards';
+import { applyReward, rewardFor, withDaily } from '../src/engine/rewards';
+import { dayKey } from './types';
 import type { Action, GameEvent, GameState, Seat } from '../src/engine/types';
 import { otherSeat } from '../src/engine/types';
 import { eventsFor, viewFor } from '../src/engine/view';
@@ -254,9 +255,13 @@ const ensureRewards = async (db: Db, cfg: GameConfig, m: MatchRow): Promise<Rewa
       if (!prof) continue;
       const won = m.winner === seat;
       const ending = won ? 'general' : (m.end_reason ?? 'general');
-      const reward = rewardFor({ won, vsBot: m.bot_seat !== null, ending, rounds: m.state.turn.round, steps: m.steps_count });
+      const vsBot = m.bot_seat !== null;
+      let reward: ReturnType<typeof withDaily>['reward'] = rewardFor({ won, vsBot, ending, rounds: m.state.turn.round, steps: m.steps_count });
+      // Daily rules (first win of the day, cap on coroas from the AI). Without the `daily` table (SQL 11) only the base values are paid.
+      const day = dayKey(cfg.now()), daily = reward.reason === 'too_short' || reward.reason === 'abandoned' ? null : await db.dailyGet(user, day);
+      if (daily) { const d = withDaily(reward, { won, vsBot }, daily); reward = d.reward; await db.dailyPut(user, day, d.daily); }
       const after = applyReward({ level: prof.level, xp: prof.xp, coroas: prof.coroas }, reward);
-      const row: RewardRow = { user_id: user, seat, reason: reward.reason, xp: reward.xp, coroas: reward.coroas, level: after.level, xp_after: after.xp, coroas_after: after.coroas, levels_gained: after.levelsGained };
+      const row: RewardRow = { user_id: user, seat, reason: reward.reason, xp: reward.xp, coroas: reward.coroas, ...(reward.first_win ? { first_win: reward.first_win } : {}), level: after.level, xp_after: after.xp, coroas_after: after.coroas, levels_gained: after.levelsGained };
       const me = ladder[seat], foe = ladder[otherSeat(seat)];
       if (m.ranked && me && foe) {
         const r = applyRankedMatch({ me, opponentMmr: foe.mmr, won, ending, counts: reward.reason !== 'too_short' && !repeat });
