@@ -1,31 +1,45 @@
 <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vila</title><style>
-html,body{margin:0;height:100%;background:#0b0710;font-family:Georgia,serif;color:#f4e3b5}
-#app{position:relative;width:100vw;height:100vh;max-width:430px;margin:0 auto;overflow:hidden;background:#150d1c url(menu-bg.webp) center/cover}
-#app:before{content:"";position:absolute;inset:0;background:linear-gradient(#0b0710cc 0,#0000 18%,#0000 72%,#0b0710ee 100%)}
-.top{position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:center;font-size:14px}
+html,body{margin:0;height:100%;background:#0b0710;font-family:Georgia,serif;color:#f4e3b5;overflow:hidden}
+#app{position:relative;width:100vw;height:100vh;max-width:430px;margin:0 auto;overflow:hidden}
+#w{position:absolute;left:0;top:0;width:704px;height:1520px;transform-origin:0 0;background:url(vila-bg.webp)}
+#fx{position:absolute;inset:0}
+.glow{position:absolute;border-radius:50%;mix-blend-mode:screen;transform:translate(-50%,-50%);animation:f 1.3s infinite alternate ease-in-out}
+@keyframes f{0%{opacity:.55;scale:.9}100%{opacity:1;scale:1.12}}
+.b{position:absolute;transform:translate(-50%,-50%);width:150px;text-align:center;background:none;border:0;color:inherit;font:inherit;padding:0}
+.b .zone{height:120px;border-radius:20px}
+.b .n{display:block;font-size:22px;font-weight:bold;text-shadow:0 2px 4px #000,0 0 8px #000;background:#150d1cd0;border:1px solid #c9a35a88;border-radius:12px;padding:2px 8px}
+.badge{position:absolute;top:-2px;right:4px;background:#d12b2b;border:3px solid #fff;border-radius:50%;min-width:34px;height:34px;font:bold 20px/34px sans-serif;color:#fff;animation:bd 1.6s infinite}
+@keyframes bd{50%{transform:scale(1.18)}}
+#ui{position:absolute;inset:0;pointer-events:none;background:linear-gradient(#0b0710cc 0,#0000 12%,#0000 80%,#0b0710ee 100%)}
+.top{position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;font-size:14px}
 .chip{background:#1b1220cc;border:1px solid #c9a35a;border-radius:20px;padding:5px 12px;display:flex;gap:6px;align-items:center}
 .chip img{width:20px}
-.b{position:absolute;transform:translate(-50%,-50%);width:92px;text-align:center;background:none;border:0;color:inherit;font:inherit;padding:0}
-.b .zone{height:74px;border:2px dashed #ffd36a88;border-radius:14px;background:#ffd36a18;display:flex;align-items:center;justify-content:center;font-size:26px;animation:p 2.4s infinite}
-@keyframes p{50%{background:#ffd36a38}}
-.b span.n{display:block;margin-top:3px;font-size:12px;font-weight:bold;text-shadow:0 1px 3px #000,0 0 6px #000;background:#150d1ccc;border-radius:8px;padding:1px 4px}
-.badge{position:absolute;top:-6px;right:-4px;background:#d12b2b;border:2px solid #fff;border-radius:50%;min-width:20px;height:20px;font:bold 12px/20px sans-serif;color:#fff}
 .play{position:absolute;left:50%;bottom:92px;transform:translateX(-50%);width:76%;height:62px;border-radius:14px;border:2px solid #ffe08a;background:linear-gradient(#e0a93a,#8e5a14);color:#2a1604;font:bold 24px Georgia;box-shadow:0 0 18px #ffb43a99}
 .corner{position:absolute;bottom:26px;width:44px;height:44px;border-radius:50%;background:#1b1220cc;border:1px solid #c9a35a;display:flex;align-items:center;justify-content:center}
 .corner img{width:26px}
-.note{position:absolute;top:52px;left:0;right:0;text-align:center;font-size:11px;color:#ffd36a}
-</style></head><body><div id="app">
+</style></head><body><div id="app"><div id="w"><canvas id="fx" width="704" height="1520"></canvas></div><div id="ui">
 <div class="top"><div class="chip">Peter · Nv 7</div><div class="chip"><img src="ui-icon-coroa.webp">1.250</div></div>
-<div class="note">MOCKUP · fundo provisório; as caixas tracejadas marcam onde ficam os prédios da arte nova</div>
-<button class="b" style="left:30%;top:24%"><div class="zone">🏰</div><span class="n">Quartel</span></button>
-<button class="b" style="left:74%;top:31%"><div class="zone">⚔️</div><span class="n">Arena</span></button>
-<button class="b" style="left:27%;top:40%"><div class="zone">📚</div><span class="n">Biblioteca</span></button>
-<button class="b" style="left:72%;top:49%"><div class="zone">🔨</div><span class="n">Forja</span></button>
-<button class="b" style="left:30%;top:57%"><div class="zone">🛒</div><span class="n">Mercado</span><i class="badge">!</i></button>
-<button class="b" style="left:70%;top:66%"><div class="zone">📜</div><span class="n">Missões</span><i class="badge">3</i></button>
-<button class="b" style="left:30%;top:72%"><div class="zone">🎓</div><span class="n">Academia</span></button>
-<div class="corner" style="left:14px"><img src="ui-icon-config.webp"></div>
-<div class="corner" style="right:14px;font-size:20px">⚙️</div>
-<button class="play">Jogar</button>
-</div></body></html>
+<button class="play" style="pointer-events:auto">Jogar</button>
+<div class="corner" style="left:14px"><img src="ui-icon-config.webp"></div><div class="corner" style="right:14px;font-size:20px">⚙️</div></div></div>
+<script>
+const W=document.getElementById('w'),app=document.getElementById('app');
+function fit(){const s=Math.max(app.clientWidth/704,app.clientHeight/1520);W.style.transform=`translate(${(app.clientWidth-704*s)/2}px,${(app.clientHeight-1520*s)/2}px) scale(${s})`}
+fit();addEventListener('resize',fit);
+// prédios (coordenadas na imagem 704x1520)
+const B=[['Academia',90,470,0],['Biblioteca',130,700,0],['Forja',340,640,0],['Mercado',570,590,'!'],['Missões',560,830,3],['Arena',140,990,0],['Quartel',510,1110,0]];
+for(const [n,x,y,bd] of B){const e=document.createElement('button');e.className='b';e.style.left=x+'px';e.style.top=y+'px';e.innerHTML=`<div class="zone"></div><span class="n">${n}</span>${bd?`<i class="badge">${bd}</i>`:''}`;W.appendChild(e)}
+// brilhos tremeluzentes (fornalha, tochas, lanternas, janelas)
+const G=[[410,688,120,'#ff8a2a'],[275,775,36,'#ffa040'],[463,825,36,'#ffa040'],[220,520,30,'#ffa040'],[520,460,28,'#ffa040'],[275,1055,36,'#ffa040'],[182,1100,36,'#ffa040'],[383,1140,36,'#ffa040'],[108,665,44,'#ffc060'],[165,665,44,'#ffc060'],[70,420,90,'#ff6a1a'],[440,570,34,'#ffc060'],[540,545,34,'#ffc060'],[630,607,34,'#ffc060'],[200,1065,46,'#ff9a40']];
+G.forEach(([x,y,r,c],i)=>{const g=document.createElement('div');g.className='glow';g.style.cssText=`left:${x}px;top:${y}px;width:${r*2}px;height:${r*2}px;background:radial-gradient(${c}cc,${c}00 70%);animation-delay:${-(i*.37)%1.3}s;animation-duration:${.9+(i%4)*.25}s`;W.insertBefore(g,document.getElementById('fx'))});
+// partículas: fumaça e brasas
+const cv=document.getElementById('fx'),c=cv.getContext('2d');const P=[];
+const src=[[388,548,'smoke',.35],[150,330,'smoke',.5],[690,230,'smoke',.25],[330,470,'smoke',.15],[70,420,'ember',.5],[410,680,'ember',.6],[600,520,'ember',.15],[300,300,'ember',.2]];
+function spawn(){for(const [x,y,t,r] of src)if(Math.random()<r*.3){P.push(t=='smoke'?{t,x:x+Math.random()*16-8,y,vx:.25+Math.random()*.3,vy:-.5-Math.random()*.3,l:0,m:200,r:10}:{t,x:x+Math.random()*40-20,y:y-10,vx:Math.random()-.3,vy:-.8-Math.random()*1.2,l:0,m:110,r:2})}}
+function loop(){c.clearRect(0,0,704,1520);spawn();
+for(let i=P.length-1;i>=0;i--){const p=P[i];p.l++;p.x+=p.vx+(p.t=='ember'?Math.sin(p.l/9)*.5:0);p.y+=p.vy;const k=p.l/p.m;if(k>=1){P.splice(i,1);continue}
+ if(p.t=='smoke'){c.globalCompositeOperation='source-over';const r=p.r+k*46;const g=c.createRadialGradient(p.x,p.y,0,p.x,p.y,r);g.addColorStop(0,`rgba(50,45,58,${.34*(1-k)})`);g.addColorStop(1,'rgba(50,45,58,0)');c.fillStyle=g;c.fillRect(p.x-r,p.y-r,r*2,r*2)}
+ else{c.globalCompositeOperation='lighter';c.fillStyle=`rgba(255,${150+Math.random()*60|0},60,${1-k})`;c.beginPath();c.arc(p.x,p.y,p.r*(1-k*.5),0,7);c.fill()}}
+requestAnimationFrame(loop)}
+loop();
+</script></body></html>
