@@ -3594,10 +3594,6 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
         else setComingSoon({ title: 'Missões', message: 'O quadro de avisos com as missões diárias e semanais chega em breve.' });
       }} />
       <div className="absolute inset-x-0 top-0 h-[22%] z-[1] pointer-events-none bg-gradient-to-b from-black/80 to-transparent" />
-      {/* The logo hangs in the sky between the two armies, under the profile bar and the crowns. */}
-      <img src={logoImage} alt="Price of War" draggable={false} className="absolute left-1/2 z-10 -translate-x-1/2 pointer-events-none select-none"
-        style={{ top: 'calc(max(10px, env(safe-area-inset-top)) + 74px)', width: 'clamp(150px, 46vw, 200px)', filter: 'drop-shadow(0 3px 8px rgba(0,0,0,0.7))' }} />
-
       <ProfileBar
         profile={profile}
         onChange={updateProfile}
