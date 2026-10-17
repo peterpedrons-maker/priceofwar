@@ -5,16 +5,17 @@ import villaImage from './assets/menu-vila.webp';
 // Coordenadas em px da imagem; o palco escala por "cover" (corta as bordas, os prédios ficam na faixa central).
 const IW = 704, IH = 1520;
 export type VillageId = 'castelo' | 'academia' | 'biblioteca' | 'forja' | 'mercado' | 'missoes' | 'arena' | 'quartel';
-// x,y = centro do prédio na imagem; o nome (só texto) aparece logo abaixo. Nomes pela função, para o jogo se explicar sozinho.
-const BUILDINGS: { id: VillageId; name: string; x: number; y: number; dy?: number }[] = [
-  { id: 'castelo', name: 'Desafios', x: 570, y: 290, dy: 100 },
-  { id: 'academia', name: 'Tutoriais', x: 90, y: 470 },
-  { id: 'biblioteca', name: 'Coleção', x: 130, y: 735 },
-  { id: 'forja', name: 'Meu Deck', x: 300, y: 610 },
-  { id: 'mercado', name: 'Loja', x: 590, y: 590 },
-  { id: 'missoes', name: 'Missões', x: 560, y: 830 },
-  { id: 'arena', name: 'Online', x: 140, y: 990 },
-  { id: 'quartel', name: 'Ranking', x: 510, y: 1110 },
+// x,y,w,h = área tocável (centro e tamanho, em px da imagem); lx,ly = onde fica o nome (só texto), sempre em chão livre ao lado do prédio, nunca em cima dele.
+// Nomes pela função, para o jogo se explicar sozinho.
+const BUILDINGS: { id: VillageId; name: string; x: number; y: number; w: number; h: number; lx: number; ly: number }[] = [
+  { id: 'castelo', name: 'Desafios', x: 545, y: 285, w: 300, h: 180, lx: 610, ly: 410 },
+  { id: 'academia', name: 'Tutoriais', x: 85, y: 450, w: 170, h: 130, lx: 95, ly: 368 },
+  { id: 'biblioteca', name: 'Coleção', x: 135, y: 690, w: 150, h: 300, lx: 115, ly: 518 },
+  { id: 'forja', name: 'Meu Deck', x: 340, y: 650, w: 190, h: 210, lx: 365, ly: 782 },
+  { id: 'mercado', name: 'Loja', x: 570, y: 610, w: 270, h: 170, lx: 620, ly: 492 },
+  { id: 'missoes', name: 'Missões', x: 580, y: 820, w: 200, h: 170, lx: 590, ly: 928 },
+  { id: 'arena', name: 'Online', x: 140, y: 990, w: 290, h: 260, lx: 170, ly: 1178 },
+  { id: 'quartel', name: 'Ranking', x: 555, y: 1125, w: 300, h: 320, lx: 545, ly: 1322 },
 ];
 const GLOWS: [number, number, number, string][] = [[410, 688, 120, '#ff8a2a'], [275, 775, 36, '#ffa040'], [463, 825, 36, '#ffa040'], [220, 520, 30, '#ffa040'], [520, 460, 28, '#ffa040'], [275, 1055, 36, '#ffa040'], [182, 1100, 36, '#ffa040'], [383, 1140, 36, '#ffa040'], [108, 665, 44, '#ffc060'], [165, 665, 44, '#ffc060'], [70, 420, 90, '#ff6a1a'], [440, 570, 34, '#ffc060'], [540, 545, 34, '#ffc060'], [630, 607, 34, '#ffc060'], [200, 1065, 46, '#ff9a40']];
 const SOURCES: [number, number, 'smoke' | 'ember', number][] = [[388, 548, 'smoke', .35], [150, 330, 'smoke', .5], [690, 230, 'smoke', .25], [330, 470, 'smoke', .15], [70, 420, 'ember', .5], [410, 680, 'ember', .6], [600, 520, 'ember', .15], [300, 300, 'ember', .2]];
@@ -63,15 +64,16 @@ export const VillageScene = ({ onPick, badges }: { onPick: (id: VillageId) => vo
         <canvas ref={cv} width={IW} height={IH} className="absolute inset-0 pointer-events-none" />
       </div>
       {BUILDINGS.map(b => {
-        const half = b.name.length * 7.6 + 10, left = Math.min(Math.max(view.ox + b.x * view.s, half), (box.current?.clientWidth ?? 390) - half), top = view.oy + b.y * view.s, bd = badges?.[b.id];
+        const W = box.current?.clientWidth ?? 390, half = b.name.length * 7.6 + 10;
+        const cx = view.ox + b.x * view.s, cy = view.oy + b.y * view.s, bd = badges?.[b.id];
+        const lx = Math.min(Math.max(view.ox + b.lx * view.s, half), W - half), ly = view.oy + b.ly * view.s, on = pressed === b.id;
         return (
           <button key={b.id} type="button" aria-label={b.name}
             onPointerDown={() => setPressed(b.id)} onPointerUp={() => setPressed(null)} onPointerLeave={() => setPressed(null)} onPointerCancel={() => setPressed(null)}
             onClick={() => onPick(b.id)}
-            className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center bg-transparent border-0 p-0 text-[#f4e3b5]"
-            style={{ left, top, width: 150 * view.s + 30, touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
-            <span className="block w-full" style={{ height: (b.dy ?? 100) * view.s + 10, borderRadius: 18, background: pressed === b.id ? 'rgba(255,211,106,.28)' : 'transparent', boxShadow: pressed === b.id ? '0 0 22px 6px rgba(255,190,80,.55)' : 'none', transition: 'all .12s' }} />
-            <span className="mt-0.5 block whitespace-nowrap uppercase" style={{ fontFamily: "'Cinzel Decorative','Cinzel',serif", fontWeight: 800, fontSize: b.id === 'castelo' ? 19 : 15, letterSpacing: '0.08em', color: pressed === b.id ? '#fff6cf' : '#ffe39a', WebkitTextStroke: '3.5px #1a0d04', paintOrder: 'stroke fill', textShadow: '0 2px 5px #000, 0 0 12px rgba(0,0,0,.9)', transform: pressed === b.id ? 'scale(1.08)' : 'scale(1)', transition: 'transform .1s' }}>{b.name}</span>
+            className="absolute -translate-x-1/2 -translate-y-1/2 bg-transparent border-0 p-0"
+            style={{ left: cx, top: cy, width: b.w * view.s, height: b.h * view.s, touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', borderRadius: 18, background: on ? 'rgba(255,211,106,.16)' : 'transparent', boxShadow: on ? '0 0 22px 4px rgba(255,190,80,.5)' : 'none', transition: 'all .12s' }}>
+            <span className="absolute whitespace-nowrap uppercase pointer-events-none" style={{ left: lx - cx + b.w * view.s / 2, top: ly - cy + b.h * view.s / 2, fontFamily: "'Cinzel Decorative','Cinzel',serif", fontWeight: 800, fontSize: b.id === 'castelo' ? 19 : 15, letterSpacing: '0.08em', color: on ? '#fff6cf' : '#ffe39a', WebkitTextStroke: '3.5px #1a0d04', paintOrder: 'stroke fill', textShadow: '0 2px 5px #000, 0 0 12px rgba(0,0,0,.9)', transform: `translate(-50%,-50%) scale(${on ? 1.08 : 1})`, transition: 'transform .1s' }}>{b.name}</span>
             {bd ? <i className="absolute -top-1 right-1 min-w-[22px] h-[22px] rounded-full border-2 border-white bg-[#d12b2b] text-white text-[12px] font-bold not-italic leading-[18px] text-center" style={{ animation: 'vilaBadge 1.6s infinite' }}>{bd}</i> : null}
           </button>
         );
