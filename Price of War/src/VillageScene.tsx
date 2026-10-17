@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import villaImage from './assets/menu-vila.webp';
+import iDesafios from './assets/ui-icon-desafios.webp';
+import iOnline from './assets/ui-icon-online.webp';
+import iCard from './assets/ui-icon-card.webp';
+import iDeck from './assets/ui-icon-editar-deck.webp';
+import iLoja from './assets/ui-icon-loja.webp';
+import iCoroa from './assets/ui-icon-coroa.webp';
+import iTut from './assets/ui-icon-tutoriais.webp';
+import iRank from './assets/ui-icon-ranking.webp';
+const ICONS: Record<string, string> = { castelo: iDesafios, academia: iTut, biblioteca: iCard, forja: iDeck, mercado: iLoja, missoes: iCoroa, arena: iOnline, quartel: iRank };
 
 // Menu inicial em vila (docs/menu-vila.md): a arte 704x1520 com prédios tocáveis e animação por código (fumaça, brasas, brilhos).
 // Coordenadas em px da imagem; o palco escala por "cover" (corta as bordas, os prédios ficam na faixa central).
@@ -8,11 +17,11 @@ export type VillageId = 'castelo' | 'academia' | 'biblioteca' | 'forja' | 'merca
 // x,y,w,h = área tocável (centro e tamanho, em px da imagem); lx,ly = onde fica o nome (só texto), sempre em chão livre ao lado do prédio, nunca em cima dele.
 // Nomes pela função, para o jogo se explicar sozinho.
 const BUILDINGS: { id: VillageId; name: string; x: number; y: number; w: number; h: number; lx: number; ly: number }[] = [
-  { id: 'castelo', name: 'Desafios', x: 545, y: 285, w: 300, h: 180, lx: 610, ly: 410 },
+  { id: 'castelo', name: 'Desafios', x: 545, y: 285, w: 300, h: 180, lx: 600, ly: 392 },
   { id: 'academia', name: 'Tutoriais', x: 85, y: 450, w: 170, h: 130, lx: 95, ly: 368 },
   { id: 'biblioteca', name: 'Coleção', x: 135, y: 690, w: 150, h: 300, lx: 115, ly: 518 },
   { id: 'forja', name: 'Meu Deck', x: 340, y: 650, w: 190, h: 210, lx: 365, ly: 782 },
-  { id: 'mercado', name: 'Loja', x: 570, y: 610, w: 270, h: 170, lx: 620, ly: 492 },
+  { id: 'mercado', name: 'Loja', x: 570, y: 610, w: 270, h: 170, lx: 625, ly: 522 },
   { id: 'missoes', name: 'Missões', x: 580, y: 820, w: 200, h: 170, lx: 590, ly: 928 },
   { id: 'arena', name: 'Online', x: 140, y: 990, w: 290, h: 260, lx: 170, ly: 1178 },
   { id: 'quartel', name: 'Ranking', x: 555, y: 1125, w: 300, h: 320, lx: 545, ly: 1322 },
@@ -73,8 +82,15 @@ export const VillageScene = ({ onPick, badges }: { onPick: (id: VillageId) => vo
             onClick={() => onPick(b.id)}
             className="absolute -translate-x-1/2 -translate-y-1/2 bg-transparent border-0 p-0"
             style={{ left: cx, top: cy, width: b.w * view.s, height: b.h * view.s, touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', borderRadius: 18, background: on ? 'rgba(255,211,106,.16)' : 'transparent', boxShadow: on ? '0 0 22px 4px rgba(255,190,80,.5)' : 'none', transition: 'all .12s' }}>
-            <span className="absolute whitespace-nowrap uppercase pointer-events-none" style={{ left: lx - cx + b.w * view.s / 2, top: ly - cy + b.h * view.s / 2, fontFamily: "'Cinzel Decorative','Cinzel',serif", fontWeight: 800, fontSize: b.id === 'castelo' ? 19 : 15, letterSpacing: '0.08em', color: on ? '#fff6cf' : '#ffe39a', WebkitTextStroke: '3.5px #1a0d04', paintOrder: 'stroke fill', textShadow: '0 2px 5px #000, 0 0 12px rgba(0,0,0,.9)', transform: `translate(-50%,-50%) scale(${on ? 1.08 : 1})`, transition: 'transform .1s' }}>{b.name}</span>
-            {bd ? <i className="absolute -top-1 right-1 min-w-[22px] h-[22px] rounded-full border-2 border-white bg-[#d12b2b] text-white text-[12px] font-bold not-italic leading-[18px] text-center" style={{ animation: 'vilaBadge 1.6s infinite' }}>{bd}</i> : null}
+            <span className="absolute flex flex-col items-center pointer-events-none" style={{ left: lx - cx + b.w * view.s / 2, top: ly - cy + b.h * view.s / 2, transform: `translate(-50%,-50%) scale(${on ? 1.1 : 1})`, transition: 'transform .1s', filter: 'drop-shadow(0 1px 2px #000) drop-shadow(0 0 4px rgba(0,0,0,.8))' }}>
+              <span className="relative flex items-center justify-center rounded-full" style={{ width: 26, height: 26, background: 'radial-gradient(circle at 35% 30%,#3a2a18,#120b06)', border: '1.5px solid #d9b25a', boxShadow: on ? '0 0 10px 2px rgba(255,200,90,.9)' : '0 0 0 1px #000' }}>
+                <img src={ICONS[b.id]} alt="" draggable={false} className="h-[17px] w-[17px] object-contain" />
+                {bd ? <i className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] rounded-full border border-white bg-[#d12b2b] text-white text-[10px] font-bold not-italic leading-[14px] text-center" style={{ animation: 'vilaBadge 1.6s infinite' }}>{bd}</i> : null}
+              </span>
+              <span className="mt-0.5 whitespace-nowrap font-extrabold text-white" style={{ fontFamily: "'Cinzel','PT Serif',serif", fontSize: b.id === 'castelo' ? 14 : 11.5, letterSpacing: '0.04em', textShadow: '0 1px 0 #000, 1px 0 0 #000, -1px 0 0 #000, 0 -1px 0 #000' }}>{b.name}</span>
+              <span className="block h-px" style={{ width: '120%', minWidth: 56, background: 'linear-gradient(to right, transparent, #e8c766, transparent)' }} />
+              <span className="block" style={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '5px solid #e8c766' }} />
+            </span>
           </button>
         );
       })}
