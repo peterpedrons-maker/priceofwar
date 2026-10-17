@@ -14,3 +14,4 @@ Prédios (x,y na imagem): Academia 90,470 · Biblioteca 130,700 · Forja 340,640
 `src/VillageScene.tsx` (arte `menu-vila.webp`, hotspots, brilhos e canvas de fumaça/brasas; respeita "reduzir movimento") substitui o fundo e as placas do `MainMenu`. Sem botão "Jogar" (decisão do dono): o Quartel (Desafios) é o atalho. Toques: Quartel→Desafios, Arena→Online (Casual/Ranqueado/Amigo), Biblioteca→Coleção, Forja→Meu Deck, Mercado→Loja, Academia→Tutoriais, Missões→aviso "em breve" (sem tela ainda). Rodapé: Config., Ranking, Opções (+GM). Badges: prop `badges` pronta, ainda sem uso.
 
 Rodada 26b: logo removido do menu; nomes dos prédios viraram plaquetas douradas com medalhão e ícone (clampadas para não sair da tela).
+Rodada 26c: plaquetas reusam a moldura de ouro do menu antigo (menu-plaque-*), com pontas nos dois lados, nome + subtítulo do destino (Quartel = Desafios/batalhas, Arena = partidas online).
