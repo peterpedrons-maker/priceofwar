@@ -21,3 +21,5 @@ Rodada 26d (substitui o mapeamento anterior): só texto dourado com contorno esc
 Rodada 26e: nome (só texto) fica em chão livre ao lado do prédio, separado da área tocável (`BUILDINGS`: x,y,w,h = toque; lx,ly = nome). Ao trocar a arte, reposicione os dois.
 
 Rodada 26g (referência do dono: menu de vila de outro jogo): nome pequeno, branco em negrito com contorno fino, linha dourada e setinha embaixo, medalhão com ícone em cima (badge no medalhão), tudo em chão calmo ao lado do prédio. A ideia das placas em branco (prompt acima) fica como plano B.
+
+Rodada 26h: rótulos (medalhão + nome + linha) agora ficam sobre o corpo de cada prédio, como na referência.
