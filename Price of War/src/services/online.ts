@@ -179,3 +179,16 @@ export interface AdminInfo {
 export const fetchAdmin = async (): Promise<AdminInfo | null> => { const r = await call({ op: 'admin' }); return r && r.ok === true && r.status === 'admin' ? (r.admin as AdminInfo) : null; };
 // "I am here": a light mark every ~90 s while the app is open (the GM panel counts the recent ones as online).
 export const pingPresence = () => { void call({ op: 'ping' }); };
+
+// Missões (diárias, semanais e de temporada): o quadro vem pronto do servidor; coletar e trocar devolvem o quadro novo.
+export interface MissionView { key: string; id: string; title: string; desc: string; reward: number; target: number; progress: number; claimed: boolean; mode: 'ia' | 'free' | 'ranked'; metric: string; reroll: boolean }
+export interface MissionsBoard { daily: MissionView[]; weekly: MissionView[]; season: MissionView[]; rerollsLeft: number; dayEndsAt: number; weekEndsAt: number; claimable: number; now: number; paid?: number; coroas_after?: number }
+export type MissionsResult = { ok: true; board: MissionsBoard } | { ok: false; error: string };
+const missionsCall = async (body: Record<string, unknown>): Promise<MissionsResult> => {
+  const r = await call(body);
+  if (r && r.ok === true && r.status === 'missions') return { ok: true, board: r as MissionsBoard };
+  return { ok: false, error: r && typeof r.error === 'string' ? r.error : 'As missões não estão disponíveis agora.' };
+};
+export const fetchMissions = (): Promise<MissionsResult> => missionsCall({ op: 'missions' });
+export const claimMission = (key: string, mission: string): Promise<MissionsResult> => missionsCall({ op: 'missionClaim', key, mission });
+export const rerollMission = (mission: string): Promise<MissionsResult> => missionsCall({ op: 'missionReroll', mission });

@@ -116,3 +116,4 @@ Planos futuros do dono (economia, boosters, limites de cartas no ranqueado, pont
 - **Missões (rodada 26):** catálogo de dados pronto em `src/engine/missions.ts` (diárias, semanais e de temporada; as ranqueadas estão **desligadas** por `RANKED_MISSIONS_ON`); mockup do quadro em `public/mockups/missoes/`; servidor e tela ainda não feitos. Ver `docs/economia-proposta.md`.
 - **Arte das Missões:** prompts do ícone (folha com 3 opções) e do fundo do botão (banner 4:1) em `art-prompts/missoes.md`; o mockup usa a coroa como ícone provisório.
 - Menu em vila: prompt `art-prompts/vila.md`, mockup `public/mockups/vila/`, doc `docs/menu-vila.md` (aguardando arte do dono).
+- Missões: servidor + tela prontos (`server/missions.ts`, `src/MissionsScreen.tsx`); o dono precisa rodar o SQL 12 no Supabase (`docs/supabase-online-12.sql`). Ver `docs/economia-proposta.md`.

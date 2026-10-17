@@ -60,7 +60,7 @@ const CINZEL = "'Cinzel', serif";
 const SERIF = "'Crimson Pro', Georgia, serif";
 
 // ── Pieces ──────────────────────────────────────────────────────────────────
-const Win = ({ title, children, footer, onClose }: { title: string; children: ReactNode; footer?: ReactNode; onClose: () => void }) => (
+export const Win = ({ title, children, footer, onClose }: { title: string; children: ReactNode; footer?: ReactNode; onClose: () => void }) => (
   <motion.div className="fixed inset-0 z-[620]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.22 }}
     style={{ background: 'rgba(6,4,2,0.9)', backdropFilter: 'blur(4px)' }} onClick={onClose}>
     <div className="absolute inset-x-2 top-2 bottom-2 mx-auto max-w-[460px]" onClick={e => e.stopPropagation()}

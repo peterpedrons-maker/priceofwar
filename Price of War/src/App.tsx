@@ -1,4 +1,6 @@
 import { VillageScene } from './VillageScene';
+import { MissionsHost } from './MissionsScreen';
+import { fetchMissions } from './services/online';
 import React, { useState, useEffect, useLayoutEffect, useRef, lazy, Suspense } from 'react';
 import { fetchProfile, usernameAvailable, createProfile, updateProfileFields, fetchStore, pushStore, type CloudDeck } from './services/cloud';
 import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authErrorDetail, authMode, type Session } from './services/auth';
@@ -3548,6 +3550,9 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
   // GM mode: asked once per login; the server only answers the owner's account, so everybody else simply never sees the button.
   const [gm, setGm] = useState<AdminInfo | null>(null);
   const [gmOpen, setGmOpen] = useState(false);
+  const [missionsOpen, setMissionsOpen] = useState(false);
+  const [missionBadge, setMissionBadge] = useState(0);   // quantas missões já podem ser coletadas (bolinha no quadro de avisos)
+  useEffect(() => { if (authMode === 'supabase' && session) void fetchMissions().then(r => setMissionBadge(r.ok === true ? r.board.claimable : 0)); }, [session?.userId]);
   useEffect(() => { setGm(null); if (authMode === 'supabase' && session) void fetchAdmin().then(setGm); }, [session?.userId]);
   useEffect(() => { if (DEBUG_HOOKS && new URLSearchParams(window.location.search).has('gmdemo')) setGm({ accounts: 128, newToday: 6, newWeek: 31, recent: [{ username: 'Aurelia', created_at: new Date(Date.now() - 12 * 60000).toISOString() }, { username: 'Brann77', created_at: new Date(Date.now() - 5 * 3600000).toISOString() }, { username: 'Osric', created_at: new Date(Date.now() - 30 * 3600000).toISOString() }], online: 9, waitingCasual: 1, waitingRanked: 0, playingCasual: 2, playingRanked: 1, vsBot: 3, matches24h: 57, top: [{ rank: 1, name: 'Aurelia', points: 1240, label: 'Ouro II' }], season: 3, me: { id: 'demo', email: 'dono@exemplo.com' }, players: [{ id: 'a', username: 'Aurelia', avatar_id: 'batedora', level: 14, xp: 2310, coroas: 840, created_at: new Date(Date.now() - 40 * 86400000).toISOString(), seen_at: new Date(Date.now() - 20000).toISOString(), online: true, state: 'ranked', ranked: { points: 1240, games: 52, wins: 33, losses: 19 }, cards: 211 }, { id: 'b', username: 'Brann77', avatar_id: 'batedora', level: 6, xp: 640, coroas: 150, created_at: new Date(Date.now() - 5 * 3600000).toISOString(), seen_at: new Date(Date.now() - 60000).toISOString(), online: true, state: null, ranked: null, cards: 64 }, { id: 'c', username: 'Osric', avatar_id: 'batedora', level: 9, xp: 1190, coroas: 90, created_at: new Date(Date.now() - 30 * 3600000).toISOString(), seen_at: new Date(Date.now() - 7 * 3600000).toISOString(), online: false, state: null, ranked: { points: 310, games: 9, wins: 4, losses: 5 }, cards: 98 }], totals: { coroas: 1080, xp: 4140, cards: 373 }, windows: { h1: 5, h24: 14, d7: 41, d30: 77 }, dailyTracked: true, feedback: [{ id: 1, created_at: new Date(Date.now() - 40 * 60000).toISOString(), kind: 'bug', text: 'Joguei uma carta e ela sumiu da mão, mas não apareceu no campo.', matchId: 'match-demo', ctx: 'build=2026-10-16 09:00; tela=partida; rodada=3 fase=preparacao vez=eu ouro=4 mao=5 pendente=nao; erros=[]', user: { id: 'a', name: 'Aurelia' } }], bans: [{ id: 'z', name: 'Troll99', reason: 'denúncia: Comportamento', banned_at: new Date(Date.now() - 3 * 3600000).toISOString() }], reports: [{ id: 2, created_at: new Date(Date.now() - 20 * 60000).toISOString(), reason: 'nome', note: 'nome ofensivo', reporter: { id: 'a', name: 'Aurelia' }, reported: { id: 'c', name: 'Osric', count: 2, banned: false } }, { id: 1, created_at: new Date(Date.now() - 5 * 3600000).toISOString(), reason: 'comportamento', note: '', reporter: { id: 'b', name: 'Brann77' }, reported: { id: 'z', name: 'Troll99', count: 1, banned: true } }], daily: Array.from({ length: 14 }, (_, i) => ({ day: new Date(Date.now() - (13 - i) * 864e5 - 3 * 3600e3).toISOString().slice(0, 10), active: [2, 3, 3, 5, 4, 8, 12, 9, 7, 15, 22, 18, 14, 9][i], newAccounts: [1, 1, 0, 2, 1, 3, 5, 2, 2, 6, 9, 7, 4, 3][i], matches: [3, 5, 4, 9, 7, 14, 25, 17, 12, 30, 44, 36, 28, 17][i] })) }); }, []);   // (test only: `?debug&gmdemo` shows the panel with made-up numbers)
   const updateProfile = (patch: Partial<PlayerProfile>) => {
@@ -3584,7 +3589,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
       className="flex flex-col items-center justify-start w-full h-full bg-zinc-950 text-white relative overflow-hidden"
     >
       {/* Menu em vila (docs/menu-vila.md): arte única com prédios tocáveis e animação por código. Degradês escurecem o topo (perfil/logo) e o rodapé (ícones). */}
-      <VillageScene onPick={(id) => {
+      <VillageScene badges={missionBadge > 0 ? { missoes: missionBadge } : undefined} onPick={(id) => {
         if (id === 'castelo') onSelectMode('Campaign');
         else if (id === 'quartel') setRankingOpen(true);
         else if (id === 'arena') setOnlineOpen(true);
@@ -3592,7 +3597,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
         else if (id === 'forja') setDeckEditorOpen(true);
         else if (id === 'mercado') setShopOpen(true);
         else if (id === 'academia') onTutorials();
-        else setComingSoon({ title: 'Missões', message: 'O quadro de avisos com as missões diárias e semanais chega em breve.' });
+        else setMissionsOpen(true);
       }} />
       <div className="absolute inset-x-0 top-0 h-[22%] z-[1] pointer-events-none bg-gradient-to-b from-black/80 to-transparent" />
       <ProfileBar
@@ -3658,6 +3663,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
         <MenuIconButton icon={uiIconSomImage} label="Opções" onClick={() => setSoundOpen(true)} />
         {gm && <MenuTextButton text="GM" label="GM" onClick={() => setGmOpen(true)} />}
       </div>
+      <MissionsHost open={missionsOpen} onClose={() => setMissionsOpen(false)} onCoroas={(n) => updateProfile({ coroas: n })} onBoard={setMissionBadge} />
       {gmOpen && gm && <GmPanel first={gm} onClose={() => setGmOpen(false)} />}
     </motion.div>
   );

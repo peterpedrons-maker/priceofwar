@@ -7,7 +7,7 @@ import type { Db } from './types';
 
 export interface MissionItem { id: string; progress: number; claimed: boolean; gens?: string[] }
 export interface MissionState { items: MissionItem[]; rerolls: number }
-export interface MissionView { key: string; id: string; title: string; desc: string; reward: number; target: number; progress: number; claimed: boolean; mode: MissionMode; reroll: boolean }
+export interface MissionView { key: string; id: string; title: string; desc: string; reward: number; target: number; progress: number; claimed: boolean; mode: MissionMode; metric: string; reroll: boolean }
 export interface MissionsBoard {
   daily: MissionView[]; weekly: MissionView[]; season: MissionView[];
   rerollsLeft: number; dayEndsAt: number; weekEndsAt: number; claimable: number;
@@ -84,7 +84,7 @@ export const countMatch = async (db: Db, userId: string, now: number, season: nu
 
 const viewOf = (key: string, it: MissionItem, canReroll: boolean): MissionView | null => {
   const d = defOf(it.id); if (!d) return null;
-  return { key, id: d.id, title: d.title, desc: d.desc, reward: d.reward, target: d.target, progress: it.progress, claimed: it.claimed, mode: d.mode, reroll: canReroll && !it.claimed && it.progress < d.target };
+  return { key, id: d.id, title: d.title, desc: d.desc, reward: d.reward, target: d.target, progress: it.progress, claimed: it.claimed, mode: d.mode, metric: d.metric, reroll: canReroll && !it.claimed && it.progress < d.target };
 };
 
 // A liga mais alta da temporada vale para as missões "chegue à liga X".
