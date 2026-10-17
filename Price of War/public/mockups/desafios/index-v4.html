@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Desafios: lista de adversários sobre o mapa (mockup)</title>
+<style>
+  @font-face { font-family:'Cinzel'; font-weight:400 900; font-display:swap; src:url(fonts/cinzel-regular.woff2) format('woff2'); }
+  @font-face { font-family:'Cinzel Decorative'; font-weight:700; font-display:swap; src:url(fonts/cinzel-decorative-700.woff2) format('woff2'); }
+  @font-face { font-family:'Crimson Pro'; font-weight:600; font-display:swap; src:url(fonts/crimson-pro-600.woff2) format('woff2'); }
+  :root { --gold:#e6c36a; --gold2:#f6e3a3; --ivory:#f3e8cc; --muted:#b9a77a; --serif:'Crimson Pro',Georgia,serif; --cin:'Cinzel',Georgia,serif; --dec:'Cinzel Decorative','Cinzel',Georgia,serif; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  html,body { margin:0; height:100%; background:#050403; color:var(--ivory); font-family:var(--cin); overflow:hidden; }
+  #app { position:relative; width:100%; max-width:430px; height:100dvh; margin:0 auto; overflow:hidden; background:#0a0705; display:flex; flex-direction:column; }
+  /* ── mapa: a câmera desliza até a região do adversário ── */
+  #stage { position:relative; flex:1 1 auto; min-height:260px; overflow:hidden; }
+  #fx { position:absolute; inset:0; transform-origin:195px 215px; }
+  #map { position:absolute; left:0; top:0; width:1150px; height:1150px; transform-origin:0 0; background:url(map.webp) 0 0/100% 100% no-repeat; transition:transform 1.4s cubic-bezier(.45,.05,.2,1); will-change:transform; filter:saturate(.92) brightness(.92) contrast(1.04); }
+  #map .mk { position:absolute; width:0; height:0; opacity:0; transition:opacity .6s; cursor:pointer; }
+  #map.over .mk { opacity:1; }
+  #map .mk svg { position:absolute; left:-17px; top:-52px; width:34px; height:52px; transform-origin:17px 52px; transform:scale(var(--inv,1)); filter:drop-shadow(0 3px 5px rgba(0,0,0,.85)) drop-shadow(0 0 7px rgba(240,200,100,.45)); }
+  #map .mk.lock svg { filter:grayscale(1) brightness(.7) drop-shadow(0 3px 5px rgba(0,0,0,.85)); }
+  #map .mk::after { content:''; position:absolute; left:-30px; top:-30px; width:60px; height:60px; transform:scale(var(--inv,1)); transform-origin:30px 30px; }
+  #fx.hop { animation:hop 1.4s cubic-bezier(.45,.05,.2,1); }
+  @keyframes hop { 0%{transform:scale(1)} 38%{transform:scale(.8)} 100%{transform:scale(1)} }
+  #shade { position:absolute; inset:0; pointer-events:none; background:
+      linear-gradient(rgba(5,3,2,.9), rgba(5,3,2,0) 28%),
+      linear-gradient(rgba(5,3,2,0) 50%, rgba(5,3,2,.94) 100%),
+      radial-gradient(ellipse at 50% 42%, rgba(0,0,0,0) 38%, rgba(0,0,0,.62) 100%); }
+  #tint { position:absolute; inset:0; pointer-events:none; mix-blend-mode:soft-light; transition:background .8s; }
+  #dust { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; mix-blend-mode:screen; }
+  /* pino (fixo na tela; o mapa se move por baixo) */
+  #pin { position:absolute; left:195px; top:215px; width:0; height:0; pointer-events:none; transition:opacity .5s; }
+  #pin.hide, #place.hide { opacity:0; }
+  #pin svg { position:absolute; left:-17px; top:-50px; width:34px; height:52px; filter:drop-shadow(0 4px 6px rgba(0,0,0,.8)) drop-shadow(0 0 10px rgba(255,214,110,.55)); animation:bob 2.2s ease-in-out infinite; }
+  #pin .pulse { position:absolute; left:-26px; top:-8px; width:52px; height:16px; border-radius:50%; border:2px solid rgba(246,227,163,.8); animation:pulse 2s ease-out infinite; }
+  #pin .pulse.b { animation-delay:1s; }
+  @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+  @keyframes pulse { 0%{transform:scale(.3); opacity:.9} 100%{transform:scale(1.7); opacity:0} }
+  #pin.locked svg { filter:grayscale(1) brightness(.7) drop-shadow(0 4px 6px rgba(0,0,0,.8)); }
+  /* topo */
+  header { position:absolute; left:0; right:0; top:0; padding:calc(env(safe-area-inset-top) + 10px) 10px 0 12px; display:flex; align-items:flex-start; justify-content:space-between; z-index:5; pointer-events:none; }
+  header > * { pointer-events:auto; }
+  .iconbtn { width:46px; height:46px; background:url(ui/icon-btn.png) center/contain no-repeat; display:flex; align-items:center; justify-content:center; color:var(--gold2); font-size:26px; padding-bottom:3px; cursor:pointer; filter:drop-shadow(0 3px 4px rgba(0,0,0,.6)); }
+  .iconbtn:active { background-image:url(ui/icon-btn-dark.png); }
+  .title { position:absolute; left:50%; top:calc(env(safe-area-inset-top) + 9px); transform:translateX(-50%); text-align:center; pointer-events:none; }
+  .title h1 { margin:0; font:700 21px/1 var(--dec); letter-spacing:.15em; padding-left:.15em; background:linear-gradient(#fff7d6,#ecca74 48%,#a8792a); -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(0 2px 1px rgba(0,0,0,.95)) drop-shadow(0 0 10px rgba(230,180,70,.35)); }
+  .title i { display:block; width:150px; height:10px; margin:7px auto 0; background:url(ui/divider.png) center/100% 100% no-repeat; opacity:.95; }
+  .deckchip { flex:none; width:110px; height:46px; border-style:solid; border-width:8px 22px; border-image:url(ui/btn-secondary.png) 20 56 20 56 fill stretch; display:flex; align-items:center; gap:5px; padding:0; overflow:hidden; cursor:pointer; filter:drop-shadow(0 3px 4px rgba(0,0,0,.6)); }
+  .deckchip .dthumb { flex:none; width:22px; height:22px; border-radius:4px; background-size:cover; background-position:50% 12%; box-shadow:0 0 0 1px #6f5324, 0 0 0 2px rgba(0,0,0,.6); }
+  .deckchip .dtxt { flex:none; width:39px; line-height:1.05; }
+  .deckchip small { display:block; font-size:7px; letter-spacing:.1em; opacity:.8; text-transform:uppercase; color:var(--gold2); white-space:nowrap; }
+  .deckchip b { display:block; font-size:11.5px; color:var(--gold2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:.02em; }
+  .deckchip:active { border-image-source:url(ui/btn-secondary-pressed.png); }
+  /* nome da região sobre o mapa */
+  #place { transition:opacity .5s; position:absolute; left:0; right:0; top:236px; display:flex; flex-direction:column; align-items:center; gap:5px; pointer-events:none; }
+  .plaque { border-style:solid; border-width:12px 34px; border-image:url(ui/chip.png) 22 62 22 62 fill stretch; height:46px; display:flex; align-items:center; font:700 14px var(--cin); letter-spacing:.14em; color:var(--gold2); white-space:nowrap; text-transform:uppercase; text-shadow:0 1px 2px #000; filter:drop-shadow(0 4px 6px rgba(0,0,0,.7)); }
+  #place .sub { font:600 10px var(--cin); letter-spacing:.2em; color:#d6c48e; text-transform:uppercase; text-shadow:0 1px 3px #000, 0 0 8px #000; }
+  #info { position:absolute; left:18px; right:18px; bottom:10px; text-align:center; z-index:3; }
+  #info .one { font:600 15px var(--serif); color:#f0e4c4; text-shadow:0 1px 3px #000, 0 0 8px #000; font-style:italic; }
+  #hint { position:absolute; left:0; right:0; bottom:16px; text-align:center; font:600 11.5px var(--cin); letter-spacing:.26em; text-transform:uppercase; color:#ecd9a0; text-shadow:0 1px 4px #000, 0 0 10px #000; transition:opacity .5s; pointer-events:none; animation:breathe 2.6s ease-in-out infinite; }
+  #hint.hide { opacity:0; animation:none; }
+  @keyframes breathe { 0%,100%{opacity:.65} 50%{opacity:1} }
+  /* painel de baixo */
+  #sheet { position:relative; flex:0 0 auto; padding:16px 12px calc(env(safe-area-inset-bottom) + 14px); background:linear-gradient(#17100a,#0c0804 60%); border-top:2px solid #6f5324; box-shadow:0 -12px 26px rgba(0,0,0,.75), inset 0 1px 0 rgba(246,227,163,.28); z-index:4; }
+  #sheet::before { content:''; position:absolute; left:50%; top:-9px; width:150px; height:14px; margin-left:-75px; background:url(ui/divider.png) center/100% 100% no-repeat; }
+  #list { max-height:calc(100dvh - 500px); min-height:150px; overflow-y:auto; margin:0 -4px; padding:2px 4px; scrollbar-width:none; }
+  #list::-webkit-scrollbar { display:none; }
+  .row { position:relative; height:62px; margin-bottom:6px; border-style:solid; border-width:11px 11px 11px 58px; border-image:url(ui/panel-row.png) 22 22 22 112 fill stretch; display:flex; align-items:center; justify-content:space-between; padding:0 0 0 8px; cursor:pointer; transition:transform .12s, filter .3s; animation:rowin .5s both; animation-delay:calc(var(--i,0) * 70ms + 80ms); }
+  .row:active { transform:scale(.985); }
+  .row.sel { border-image-source:url(ui/row-selected.png); filter:drop-shadow(0 0 7px rgba(240,200,100,.5)); animation:rowin .5s both, glow 2.6s ease-in-out infinite; animation-delay:calc(var(--i,0) * 70ms + 80ms), 0s; }
+  .row.locked { border-image-source:url(ui/row-locked.png); }
+  .row.bad { filter:drop-shadow(0 0 6px rgba(224,100,70,.65)); }
+  @keyframes rowin { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  @keyframes glow { 0%,100% { filter:drop-shadow(0 0 5px rgba(240,200,100,.35)); } 50% { filter:drop-shadow(0 0 11px rgba(255,220,130,.75)); } }
+  .row .face { position:absolute; left:-52px; top:-5px; width:44px; height:44px; border-radius:5px; background-size:cover; background-position:50% 12%; box-shadow:0 0 0 1px rgba(0,0,0,.8); }
+  .row.locked .face { display:none; }
+  .row .t { min-width:0; }
+  .row h3 { margin:0; font:700 14.5px var(--cin); letter-spacing:.05em; color:var(--gold2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 1px 2px #000; }
+  .row p { margin:2px 0 0; font:600 10px var(--cin); letter-spacing:.1em; color:var(--muted); text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row.locked h3 { color:#aaa49a; } .row.locked p { color:#8e887c; }
+  .stars { display:flex; gap:2px; flex:none; margin-right:2px; } .stars i { width:17px; height:17px; background:url(ui/star-on.png) center/contain no-repeat; } .stars i.off { background-image:url(ui/star-off.png); }
+  .drawer { margin:-4px 3px 8px; padding:11px 13px 11px; border:1px solid #6f5324; border-top:none; border-radius:0 0 8px 8px; background:linear-gradient(#1b130b,#120c07); box-shadow:inset 0 6px 8px -6px #000; animation:drawer .35s ease-out; }
+  @keyframes drawer { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:none; } }
+  .drawer p { margin:0 0 9px; font:600 15px/1.3 var(--serif); color:#ece0bf; }
+  .chips { display:flex; gap:7px; flex-wrap:wrap; }
+  .chip { border-style:solid; border-width:8px 16px; border-image:url(ui/chip.png) 22 62 22 62 fill stretch; font:600 10.5px var(--cin); color:#f0dca0; white-space:nowrap; letter-spacing:.05em; display:flex; align-items:center; height:32px; }
+  /* botões */
+  .fight { all:unset; position:relative; display:flex; align-items:center; justify-content:center; width:100%; height:66px; margin-top:6px; cursor:pointer; border-style:solid; border-width:14px 56px; border-image:url(ui/btn-primary.png) 20 80 20 80 fill stretch; font:900 21px var(--cin); letter-spacing:.3em; padding-left:.3em; color:#2a1604; text-shadow:0 1px 0 rgba(255,255,255,.55); text-transform:uppercase; box-sizing:border-box; transition:filter .1s, transform .1s; filter:drop-shadow(0 6px 8px rgba(0,0,0,.6)); }
+  .fight::after { content:''; position:absolute; inset:-2px -44px; background:linear-gradient(100deg, transparent 38%, rgba(255,255,255,.62) 50%, transparent 62%); background-size:260% 100%; background-position:150% 0; animation:shine 3.8s ease-in-out infinite; mix-blend-mode:soft-light; pointer-events:none; }
+  @keyframes shine { 0%,55% { background-position:150% 0; } 100% { background-position:-60% 0; } }
+  .fight:active { filter:brightness(.8) drop-shadow(0 2px 3px rgba(0,0,0,.6)); transform:translateY(3px); }
+  .fight.off { border-image-source:url(ui/btn-primary-off.png); color:#3b3a37; text-shadow:0 1px 0 rgba(255,255,255,.25); font-size:17px; pointer-events:none; filter:none; }
+  .fight.off::after { display:none; }
+  .btn2 { all:unset; box-sizing:border-box; cursor:pointer; width:100%; height:46px; margin-top:8px; display:flex; align-items:center; justify-content:center; gap:9px; border-style:solid; border-width:9px 26px; border-image:url(ui/btn-secondary.png) 20 56 20 56 fill stretch; font:700 12.5px var(--cin); letter-spacing:.2em; color:var(--gold2); text-transform:uppercase; text-shadow:0 1px 2px #000; }
+  .btn2 svg { width:17px; height:17px; flex:none; filter:drop-shadow(0 1px 1px #000); }
+  .btn2:active { border-image-source:url(ui/btn-secondary-pressed.png); }
+  /* janela "Seus decks" */
+  #modal { position:absolute; inset:0; z-index:30; display:flex; align-items:center; justify-content:center; padding:20px 14px; background:radial-gradient(ellipse at 50% 45%, rgba(20,12,6,.7), rgba(2,1,0,.88)); backdrop-filter:blur(3px); opacity:0; pointer-events:none; transition:opacity .25s; }
+  #modal.on { opacity:1; pointer-events:auto; }
+  .win { position:relative; width:100%; max-width:372px; max-height:100%; display:flex; flex-direction:column; border-style:solid; border-width:22px; border-image:url(ui/modal-frame.png) 34 34 34 34 fill stretch; padding:6px 0 2px; transform:translateY(14px) scale(.96); transition:transform .3s cubic-bezier(.2,.9,.3,1.2); filter:drop-shadow(0 12px 24px rgba(0,0,0,.8)); }
+  #modal.on .win { transform:none; }
+  .wtitle { text-align:center; margin:2px 0 12px; }
+  .wtitle h2 { margin:0; font:700 22px/1 var(--dec); letter-spacing:.15em; padding-left:.15em; background:linear-gradient(#fff7d6,#ecca74 48%,#a8792a); -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(0 2px 1px rgba(0,0,0,.95)) drop-shadow(0 0 10px rgba(230,180,70,.3)); }
+  .wtitle i { display:block; width:200px; height:10px; margin:8px auto 0; background:url(ui/divider.png) center/100% 100% no-repeat; }
+  .win .x { position:absolute; right:-18px; top:-18px; width:40px; height:40px; background:url(ui/icon-btn.png) center/contain no-repeat; color:var(--gold2); font-size:23px; display:flex; align-items:center; justify-content:center; padding-bottom:2px; cursor:pointer; filter:drop-shadow(0 3px 4px rgba(0,0,0,.7)); }
+  .win .lead { margin:0 10px 12px; text-align:center; font:600 15px/1.3 var(--serif); color:#e6d9b5; }
+  .win .lead b { color:var(--gold2); }
+  .win .decks { overflow-y:auto; padding:2px 6px 0; margin:0; scrollbar-width:none; }
+  .win .decks::-webkit-scrollbar { display:none; }
+  .win .row { margin-bottom:8px; }
+  .win .row.empty { border-image-source:url(ui/row-locked.png); }
+  .win .row h3 { display:flex; align-items:center; gap:6px; }
+  .tag { font:700 8px/1 var(--cin); letter-spacing:.12em; padding:3px 6px 2px; border-radius:8px; background:linear-gradient(#f0d68a,#b88b2c); color:#2a1a05; text-transform:uppercase; text-shadow:none; flex:none; }
+  .tag.n { background:rgba(0,0,0,.35); color:#d9c487; box-shadow:inset 0 0 0 1px rgba(230,195,106,.45); }
+  .tag.n.bad { color:#ffb199; box-shadow:inset 0 0 0 1px rgba(224,138,106,.75); }
+  .sync { flex:none; text-align:center; font:600 8px var(--cin); letter-spacing:.08em; text-transform:uppercase; color:#bfae80; line-height:1.15; margin-right:2px; width:54px; }
+  .sync b { display:block; font-size:17px; line-height:1; margin-bottom:1px; filter:saturate(.7); }
+  #note { margin:4px 10px 10px; padding-top:10px; min-height:62px; font:600 13px/1.4 var(--serif); color:#bfae80; text-align:center; background:url(ui/divider.png) center top/80% 8px no-repeat; transition:color .25s; }
+  #note b { color:var(--gold2); }
+  #note.warn { color:#ffb9a2; } #note.warn b { color:#ffd9c9; }
+  .win .btns { padding:0 8px 8px; }
+  .win .fight { margin-top:0; }
+  #toast { position:absolute; left:50%; bottom:90px; transform:translateX(-50%); z-index:40; padding:9px 16px; border-radius:16px; background:rgba(18,12,8,.96); border:1px solid #6f5324; font:600 11.5px var(--cin); letter-spacing:.06em; color:var(--gold2); opacity:0; transition:opacity .3s; pointer-events:none; white-space:nowrap; }
+  #toast.on { opacity:1; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <div id="fx"><div id="map" class="over"></div></div>
+    <div id="tint"></div><div id="shade"></div><canvas id="dust"></canvas>
+    <div id="pin"><div class="pulse"></div><div class="pulse b"></div>
+      <svg viewBox="0 0 34 52"><defs><linearGradient id="pg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0b8"/><stop offset=".5" stop-color="#e0b04a"/><stop offset="1" stop-color="#8a5f14"/></linearGradient></defs>
+        <path d="M17 51 C5 33 1 26 1 17 A16 16 0 0 1 33 17 C33 26 29 33 17 51Z" fill="url(#pg)" stroke="#3a2406" stroke-width="2"/><circle cx="17" cy="17" r="7" fill="#1a0f06" stroke="#3a2406" stroke-width="1.5"/><circle cx="17" cy="17" r="3.2" fill="#ffe9a6"/></svg></div>
+    <header><div class="iconbtn">‹</div><div class="title"><h1>Desafios</h1><i></i></div><div class="deckchip" id="deckchip"><i class="dthumb" id="dthumb"></i><span class="dtxt"><small>Seu deck</small><b id="deckname">Deck 1</b></span></div></header>
+    <div id="place"><div class="plaque" id="region">Marca de Aurelion</div><div class="sub" id="regsub">Capitão</div></div>
+    <div id="info"></div><div id="hint">Escolha um adversário</div>
+  </div>
+  <div id="modal"><div class="win" id="win"><div class="x" id="mclose">×</div>
+    <div class="wtitle"><h2>Seus decks</h2><i></i></div>
+    <p class="lead">Toque no deck com que vai lutar. Aqui estão os decks que você <b>salvou</b>.</p>
+    <div class="decks" id="decks"></div>
+    <div id="note"></div>
+    <div class="btns"><button class="fight" id="useDeck">Continuar</button>
+      <button class="btn2" id="editDecks"><svg viewBox="0 0 24 24" fill="none" stroke="#f6e3a3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg>Editar decks</button></div></div></div>
+  <div id="toast"></div>
+  <div id="sheet">
+    <div id="list"></div>
+    <button class="fight" id="fight">Lutar</button>
+  </div>
+</div>
+<script>
+'use strict';
+const MODE = new URLSearchParams(location.search).get('texto') || 'gaveta';
+const OPP = [
+  { id:'capitao', gen:'Comandante Aurelion', epi:'Mestre da Formação', region:'Marca de Aurelion', img:'portraits/capitao.webp', px:158, py:488, short:'Movimento e formação', desc:'Movimento e formação: cada manobra dá bônus aos vizinhos. Joga rápido e bate forte.', tip:'Cuidado com combinações de movimento.', diff:3, stars:2, reward:'Booster de Capitão', tint:'rgba(200,70,40,.5)' },
+  { id:'cardeal', gen:'Cardeal Pedro', epi:'Voz da Fé', region:'Sé de Pedro', img:'portraits/cardeal.webp', px:676, py:500, short:'Fé, cura e convocações', desc:'Fé e ferro: cura, convocações e emboscadas sagradas. Aguenta e vira o jogo.', tip:'Dano em área quebra as convocações.', diff:2, stars:3, reward:'Booster de Cardeal', tint:'rgba(240,200,90,.55)' },
+  { id:'mercenarios', gen:'Brann Meia-Coroa', epi:'Comprador de Guerras', region:'Porto das Meias-Coroas', img:'portraits/mercenarios.webp', px:790, py:745, short:'Ouro e tropas alugadas', desc:'Ouro e manutenção: tropas alugadas com ataque alto. Paga caro e bate duro.', tip:'Quem não paga, perde a tropa.', diff:3, stars:1, reward:'Booster de Mercenários', tint:'rgba(120,150,60,.5)' },
+  { id:'bardos', gen:'Aldric Língua-de-Prata', epi:'Menestrel do Rei', region:'Vila do Javali Dourado', img:'', px:432, py:705, locked:true, short:'Em breve', desc:'Em breve: cantores que se dão bônus entre si; em grupo ficam difíceis de abater.', tip:'', diff:0, stars:0, reward:'', tint:'rgba(150,80,170,.45)' },
+  { id:'muralha', gen:'Capitão da Torre', epi:'Defensor do Castelo', region:'Muralha do Norte', img:'', px:786, py:192, locked:true, short:'Em breve', desc:'Em breve: fortificações, escudos e trabucos. Vence pelo desgaste.', tip:'', diff:0, stars:0, reward:'', tint:'rgba(100,120,150,.45)' },
+];
+const STATES = new URLSearchParams(location.search).get('decks') === 'estados';
+const DECKS = [
+  { slot:'Deck 1', gen:'Comandante Aurelion', img:'portraits/capitao.webp', cards:60, cloud:true },
+  { slot:'Deck 2', gen:'Cardeal Pedro', img:'portraits/cardeal.webp', cards:STATES ? 47 : 60, cloud:true },
+  { slot:'Deck 3', gen:'Brann Meia-Coroa', img:'portraits/mercenarios.webp', cards:STATES ? 0 : 60, cloud:false, empty:STATES },
+];
+const $ = s => document.querySelector(s), MAPPX = 1150, ZOOM = MAPPX / 1024, PIN = { x:195, y:215 };
+let cur = -1, usedDeck = 0, pendingDeck = 0;
+const PINSVG = '<svg viewBox="0 0 34 52"><path d="M17 51 C5 33 1 26 1 17 A16 16 0 0 1 33 17 C33 26 29 33 17 51Z" fill="#e0b04a" stroke="#3a2406" stroke-width="2"/><circle cx="17" cy="17" r="7" fill="#1a0f06" stroke="#3a2406" stroke-width="1.5"/><circle cx="17" cy="17" r="3.2" fill="#ffe9a6"/></svg>';
+const stars = (n, locked) => locked ? '' : '<span class="stars">' + [0, 1, 2].map(i => `<i class="${i < n ? '' : 'off'}"></i>`).join('') + '</span>';
+$('#list').innerHTML = OPP.map((o, i) => `<div class="row${o.locked ? ' locked' : ''}" data-i="${i}" style="--i:${i}">${o.locked ? '' : `<div class="face" style="background-image:url('${o.img}')"></div>`}<div class="t"><h3>${o.gen}</h3><p>${o.locked ? 'Em breve' : o.epi}</p></div>${stars(o.stars, o.locked)}</div>`).join('');
+document.querySelectorAll('#list .row').forEach(r => r.onclick = () => select(+r.dataset.i));
+OPP.forEach((o, i) => { const m = document.createElement('div'); m.className = 'mk' + (o.locked ? ' lock' : ''); m.style.left = o.px * ZOOM + 'px'; m.style.top = o.py * ZOOM + 'px'; m.innerHTML = PINSVG; m.onclick = () => select(i); $('#map').appendChild(m); });
+function overview() {
+  const r = $('#stage').getBoundingClientRect(), s = Math.min(r.width, r.height - 8) / MAPPX, tx = (r.width - MAPPX * s) / 2, ty = (r.height - MAPPX * s) / 2 + 22;
+  const map = $('#map'); map.classList.add('over'); map.style.setProperty('--inv', (.5 / s).toFixed(2)); map.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`;
+  $('#pin').classList.add('hide'); $('#place').classList.add('hide'); $('#info').innerHTML = ''; $('#hint').classList.remove('hide'); $('#tint').style.background = 'transparent';
+}
+function select(i) {
+  document.querySelectorAll('.drawer').forEach(d => d.remove());
+  if (i === cur) { cur = -1; document.querySelectorAll('#list .row').forEach(r => r.classList.remove('sel')); overview(); fightState(); return; }
+  const fromOverview = cur < 0; cur = i; const o = OPP[i];
+  const tx = Math.min(0, Math.max(390 - MAPPX, PIN.x - o.px * ZOOM)), ty = Math.min(0, Math.max(560 - MAPPX, PIN.y - o.py * ZOOM));
+  const map = $('#map'); map.classList.remove('over'); map.style.transform = `translate(${tx}px, ${ty}px) scale(1)`;
+  if (!fromOverview) { const fx = $('#fx'); fx.classList.remove('hop'); void fx.offsetWidth; fx.classList.add('hop'); }
+  $('#tint').style.background = o.tint; $('#pin').classList.toggle('locked', !!o.locked); $('#pin').classList.remove('hide'); $('#place').classList.remove('hide'); $('#hint').classList.add('hide');
+  $('#region').textContent = o.region; $('#regsub').textContent = o.locked ? 'Região ainda inexplorada' : o.gen + ' · ' + o.epi;
+  document.querySelectorAll('#list .row').forEach((r, k) => r.classList.toggle('sel', k === i));
+  const chips = o.locked ? '<span class="chip">🔒 Ainda não disponível</span>' : `<span class="chip">Dificuldade ${'●'.repeat(o.diff)}${'○'.repeat(3 - o.diff)}</span><span class="chip">🎁 1ª vitória: ${o.reward}</span>`;
+  const row = document.querySelector(`#list .row[data-i="${i}"]`);
+  if (MODE === 'curto') $('#info').innerHTML = `<div class="one">${o.short}</div>`;
+  else { $('#info').innerHTML = ''; const d = document.createElement('div'); d.className = 'drawer'; d.innerHTML = `<p>${o.desc}${o.tip ? ' <i style="opacity:.8">Dica: ' + o.tip + '</i>' : ''}</p><div class="chips">${chips}</div>`; row.after(d); }
+  fightState(); row.scrollIntoView({ block:'nearest', behavior:'smooth' });
+}
+function fightState() { const f = $('#fight'), o = OPP[cur]; f.classList.toggle('off', cur < 0 || !!(o && o.locked)); f.textContent = o && o.locked ? 'Em breve' : 'Lutar'; }
+addEventListener('keydown', e => { if (e.key === 'ArrowDown') select(Math.min(OPP.length - 1, cur + 1)); if (e.key === 'ArrowUp') select(Math.max(0, cur - 1)); if (e.key === 'Escape') closeDecks(); });
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 1800); }
+// ── janela "Seus decks" ──
+const deckOk = d => !d.empty && d.cards >= 60;
+const LEGEND = '☁ <b>Nuvem</b>: salvo na sua conta. &nbsp; 📱 <b>Aparelho</b>: só neste celular.<br>Para montar ou mudar um deck, use o Editor de Decks.';
+function paintChip() { const d = DECKS[usedDeck]; $('#deckname').textContent = d.slot; $('#dthumb').style.backgroundImage = `url('${d.img}')`; }
+function paintDecks() {
+  $('#decks').innerHTML = DECKS.map((d, i) => {
+    const ok = deckOk(d), picked = i === pendingDeck;
+    const cls = (d.empty ? ' empty' : !ok ? ' locked' : '') + (picked && ok ? ' sel' : '') + (picked && !ok ? ' bad' : '');
+    const sub = d.empty ? 'Vazio · monte no Editor de Decks' : d.gen;
+    const count = d.empty ? '' : `<span class="tag n${ok ? '' : ' bad'}">${d.cards}/60</span>`;
+    const tag = (i === usedDeck && ok ? '<span class="tag">Em uso</span>' : '') + count;
+    const sync = d.empty ? '' : `<div class="sync"><b>${d.cloud ? '☁' : '📱'}</b>${d.cloud ? 'Nuvem' : 'Aparelho'}</div>`;
+    return `<div class="row${cls}" data-d="${i}" style="--i:${i}">${ok ? `<div class="face" style="background-image:url('${d.img}')"></div>` : ''}<div class="t"><h3>${d.slot} ${tag}</h3><p>${sub}</p></div>${sync}</div>`;
+  }).join('');
+  document.querySelectorAll('#decks .row').forEach(r => r.onclick = () => { pendingDeck = +r.dataset.d; paintDecks(); });
+  const d = DECKS[pendingDeck], ok = deckOk(d), note = $('#note');
+  note.className = ok ? '' : 'warn';
+  note.innerHTML = ok ? LEGEND : d.empty ? `<b>${d.slot}</b> está vazio. Monte um deck de 60 cartas no Editor de Decks para poder usá-lo.` : `<b>${d.slot}</b> está incompleto: tem ${d.cards} de 60 cartas. Complete no Editor de Decks para poder usá-lo.`;
+  $('#useDeck').classList.toggle('off', !ok);
+}
+function openDecks() { pendingDeck = usedDeck; paintDecks(); $('#modal').classList.add('on'); }
+function closeDecks() { $('#modal').classList.remove('on'); }
+$('#deckchip').onclick = openDecks; $('#mclose').onclick = closeDecks; $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeDecks(); });
+$('#useDeck').onclick = () => { if (!deckOk(DECKS[pendingDeck])) return; if (pendingDeck !== usedDeck) { usedDeck = pendingDeck; paintChip(); toast(DECKS[usedDeck].slot + ' · ' + DECKS[usedDeck].gen + ' em uso'); } closeDecks(); };
+$('#editDecks').onclick = () => { closeDecks(); toast('Abriria o Editor de Decks'); };
+$('#fight').onclick = () => { const o = OPP[cur]; if (o && !o.locked) { const b = $('#fight'); b.textContent = 'Preparando…'; setTimeout(() => { b.textContent = 'Lutar'; }, 1100); } };
+addEventListener('resize', () => { if (cur < 0) overview(); });
+// ── poeira dourada no ar (atmosfera) ──
+(() => { const cv = $('#dust'), cx = cv.getContext('2d'); let W = 0, H = 0, P = [];
+  const fit = () => { const r = cv.getBoundingClientRect(), d = Math.min(2, devicePixelRatio || 1); W = cv.width = r.width * d; H = cv.height = r.height * d; cx.setTransform(d, 0, 0, d, 0, 0); W /= d; H /= d; }; fit(); addEventListener('resize', fit);
+  for (let i = 0; i < 38; i++) P.push({ x:Math.random(), y:Math.random(), r:Math.random() * 1.6 + .5, v:Math.random() * .012 + .004, ph:Math.random() * 6.28 });
+  (function loop(t) { cx.clearRect(0, 0, W, H);
+    P.forEach(p => { p.y -= p.v * .016; p.x += Math.sin(t / 2600 + p.ph) * .0004; if (p.y < -.02) { p.y = 1.02; p.x = Math.random(); } const a = (.25 + .35 * Math.sin(t / 900 + p.ph)) * Math.min(1, p.y * 6) ;
+      cx.fillStyle = `rgba(255,226,150,${Math.max(0, a)})`; cx.beginPath(); cx.arc(p.x * W, p.y * H, p.r, 0, 7); cx.fill(); });
+    requestAnimationFrame(loop); })(0); })();
+paintChip(); overview(); fightState();
+window.__select = select;
+</script>
+</body>
+</html>

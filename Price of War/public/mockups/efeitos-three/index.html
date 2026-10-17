@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Efeitos em Three.js: entrada de Terreno e destruição de carta (mockup)</title>
+<style>
+  html,body{margin:0;height:100%;background:#07060a;overflow:hidden;font-family:Georgia,'Times New Roman',serif;color:#f3e7c6}
+  #stage{position:relative;width:100vw;height:100dvh;max-width:calc(100dvh*9/16);margin:0 auto;overflow:hidden}
+  canvas{display:block;width:100%;height:100%}
+  #flash{position:absolute;inset:0;background:#fff4d8;opacity:0;pointer-events:none;mix-blend-mode:screen}
+  #cap{position:absolute;left:0;right:0;top:5%;text-align:center;pointer-events:none;font-size:clamp(12px,3.6vw,15px);letter-spacing:.22em;text-transform:uppercase;opacity:.85;text-shadow:0 2px 6px #000}
+  #bar{position:absolute;left:0;right:0;bottom:0;display:flex;gap:8px;padding:10px;justify-content:center}
+  #bar button{background:#000a;color:#f3e7c6;border:1px solid #f3e7c655;border-radius:6px;padding:10px 14px;font:13px Georgia,serif}
+  #bar button.on{background:#a8321d;border-color:#ff9a6a}
+  body.manual #bar{display:none}
+</style>
+</head>
+<body>
+<div id="stage"><div id="flash"></div><div id="cap"></div><div id="bar"><button data-c="terreno" type="button">Entrada de Terreno</button><button data-c="destruicao" type="button">Destruição de carta</button></div></div>
+<script src="lib/gsap.min.js"></script>
+<script type="importmap">{"imports":{"three":"./lib/three.module.min.js","three/addons/":"./lib/addons/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const q = new URLSearchParams(location.search), MANUAL = q.has('manual'); let CENA = q.get('cena') || 'terreno';
+if (MANUAL) document.body.classList.add('manual');
+const stage = document.getElementById('stage'), flashEl = document.getElementById('flash'), capEl = document.getElementById('cap');
+let seed = 11; const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const R = (a, b) => a + (b - a) * rnd();
+
+const W0 = stage.clientWidth, H0 = stage.clientHeight;
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(MANUAL ? 1 : Math.min(devicePixelRatio, 2)); renderer.setSize(W0, H0); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
+stage.insertBefore(renderer.domElement, stage.firstChild);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x07060a);
+const cam = new THREE.PerspectiveCamera(30, W0 / H0, .1, 60); cam.position.set(0, 0, 10.5);
+const composer = new EffectComposer(renderer); composer.setSize(W0, H0); composer.addPass(new RenderPass(scene, cam));
+const bloom = new UnrealBloomPass(new THREE.Vector2(W0, H0), .4, .7, .8); composer.addPass(bloom); composer.addPass(new OutputPass());
+
+const cv = (w, h, fn, srgb = true) => { const c = document.createElement('canvas'); c.width = w; c.height = h; fn(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t; };
+const haloTex = cv(256, 256, (g, w, h) => { const r = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(.25, 'rgba(255,255,255,.45)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, w, h); });
+const additive = (tex, color, opacity = 1) => new THREE.MeshBasicMaterial({ map: tex, color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+const slotTex = cv(128, 180, (g, w, h) => { g.fillStyle = 'rgba(0,0,0,.35)'; g.strokeStyle = 'rgba(214,170,90,.5)'; g.lineWidth = 3; const r = 12; g.beginPath(); g.roundRect(5, 5, w - 10, h - 10, r); g.fill(); g.stroke(); });
+const scorchTex = cv(256, 256, (g, w, h) => { const r = g.createRadialGradient(w / 2, h / 2, 6, w / 2, h / 2, w / 2); r.addColorStop(0, 'rgba(8,4,2,.95)'); r.addColorStop(.55, 'rgba(10,6,3,.65)'); r.addColorStop(1, 'rgba(10,6,3,0)'); g.fillStyle = r; g.fillRect(0, 0, w, h); });
+
+// ── ruído do dissolver (a CPU e a placa de vídeo leem o mesmo) ─────────────────────────────────────────────────────────
+const NS = 128, noise = new Float32Array(NS * NS);
+{ const octs = [[8, .5], [16, .3], [32, .2]]; const grids = octs.map(([n]) => Array.from({ length: n * n }, () => rnd()));
+  for (let y = 0; y < NS; y++) for (let x = 0; x < NS; x++) { let v = 0; octs.forEach(([n, a], k) => { const fx = x / NS * n, fy = y / NS * n, x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0, G = (i, j) => grids[k][((j % n) * n) + (i % n)], s = t => t * t * (3 - 2 * t); const a1 = G(x0, y0) * (1 - s(tx)) + G(x0 + 1, y0) * s(tx), b1 = G(x0, y0 + 1) * (1 - s(tx)) + G(x0 + 1, y0 + 1) * s(tx); v += (a1 * (1 - s(ty)) + b1 * s(ty)) * a; }); noise[y * NS + x] = v; } }
+const noiseTex = cv(NS, NS, (g) => { const im = g.createImageData(NS, NS); for (let i = 0; i < NS * NS; i++) { const v = Math.round(noise[i] * 255); im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = v; im.data[i * 4 + 3] = 255; } g.putImageData(im, 0, 0); }, false);
+noiseTex.wrapS = noiseTex.wrapT = THREE.RepeatWrapping; noiseTex.minFilter = noiseTex.magFilter = THREE.LinearFilter;
+const noiseAt = (u, v) => { const x = ((u * NS) % NS + NS) % NS, y = ((v * NS) % NS + NS) % NS, x0 = Math.floor(x), y0 = Math.floor(y), tx = x - x0, ty = y - y0, G = (i, j) => noise[(j % NS) * NS + (i % NS)]; return (G(x0, y0) * (1 - tx) + G(x0 + 1, y0) * tx) * (1 - ty) + (G(x0, y0 + 1) * (1 - tx) + G(x0 + 1, y0 + 1) * tx) * ty; };
+const burnF = (u, v) => noiseAt(u * 1.5, (1 - v) * 1.5) * .42 + (1 - (1 - v)) * 0 + (1 - v) * .58;   // v: 0 embaixo, 1 em cima -> queima de baixo para cima
+
+// ── mesa inclinada ─────────────────────────────────────────────────────────────────────────────────────────────────────
+const TILT = q.has('inclinado') ? .62 : 0, UP = [0, Math.cos(TILT), Math.sin(TILT)];   // padrão: câmera de frente, plana, como o jogo (2D)   // "para cima" na tela, em coordenadas da mesa
+const board = new THREE.Group(); board.rotation.x = -TILT; board.position.set(0, -.15, 0); board.scale.setScalar(1.32); scene.add(board);
+const loader = new THREE.TextureLoader(); const tex = u => new Promise(res => loader.load(u, t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; res(t); }));
+scene.add(new THREE.AmbientLight(0xffe9cf, .8)); const key = new THREE.DirectionalLight(0xfff0d8, 1.6); key.position.set(-3, 5, 6); scene.add(key);
+const fireLight = new THREE.PointLight(0xff7a24, 0, 7, 1.5); fireLight.position.set(0, 0, 1.2); board.add(fireLight);
+
+// ── partículas: brilho (aditivo) e fumaça (normal) ──────────────────────────────────────────────────────────────────────
+function makePS(max, blending) {
+  const P = [], g = new THREE.BufferGeometry(), pos = new Float32Array(max * 3), col = new Float32Array(max * 3), size = new Float32Array(max), al = new Float32Array(max);
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('size', new THREE.BufferAttribute(size, 1)); g.setAttribute('alpha', new THREE.BufferAttribute(al, 1));
+  const add = blending === THREE.AdditiveBlending;
+  const m = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: false, blending, uniforms: { k: { value: H0 / 2 } },
+    vertexShader: 'attribute float size;attribute float alpha;attribute vec3 color;varying float vA;varying vec3 vC;uniform float k;void main(){vA=alpha;vC=color;vec4 mv=modelViewMatrix*vec4(position,1.);gl_PointSize=size*k/-mv.z;gl_Position=projectionMatrix*mv;}',
+    fragmentShader: 'varying float vA;varying vec3 vC;void main(){float d=length(gl_PointCoord-.5)*2.;float a=exp(-d*d*' + (add ? '3.2' : '2.2') + ')*vA;if(a<.01)discard;' + (add ? 'gl_FragColor=vec4(vC*a*1.6,a);' : 'gl_FragColor=vec4(vC,a);') + '}' });
+  const pts = new THREE.Points(g, m); pts.frustumCulled = false; pts.renderOrder = add ? 50 : 40; board.add(pts);
+  const c = new THREE.Color();
+  return { P, pts,
+    emit(n, o) { for (let i = 0; i < n && P.length < max; i++) { const p = typeof o === 'function' ? o() : o; c.set(p.c ?? 0xffd890); P.push({ x: p.x, y: p.y, z: p.z ?? 0, vx: p.vx ?? 0, vy: p.vy ?? 0, vz: p.vz ?? 0, g: p.g ?? 0, drag: p.drag ?? .98, life: p.life ?? 1, age: 0, s: p.s ?? .1, r: c.r, gg: c.g, b: c.b, a: p.a ?? 1, grow: p.grow ?? 0 }); } },
+    sim(dt) { for (let i = P.length - 1; i >= 0; i--) { const p = P[i]; p.age += dt; if (p.age >= p.life) { P.splice(i, 1); continue; } const k = Math.pow(p.drag, dt * 60); p.vx *= k; p.vy *= k; p.vz *= k; p.vz -= p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; } },
+    upload() { let i = 0; for (const p of P) { const u = p.age / p.life, f = u < .1 ? u / .1 : 1 - (u - .1) / .9; pos[i * 3] = p.x; pos[i * 3 + 1] = p.y; pos[i * 3 + 2] = p.z; col[i * 3] = p.r; col[i * 3 + 1] = p.gg; col[i * 3 + 2] = p.b; size[i] = p.s * (1 + p.grow * u); al[i] = p.a * Math.max(0, f); i++; } for (; i < max; i++) al[i] = 0; for (const a of ['position', 'color', 'size', 'alpha']) g.attributes[a].needsUpdate = true; },
+    clear() { P.length = 0; } };
+}
+const glow = makePS(2200, THREE.AdditiveBlending), smoke = makePS(500, THREE.NormalBlending);
+const upv = (s) => [UP[0] * s, UP[1] * s, UP[2] * s];
+const rise = (x, y, z, o = {}) => { const s = o.sp ?? 1, u = upv(s); glow.emit(1, { x, y, z, vx: R(-.25, .25) * s, vy: u[1] * R(.5, 1.6), vz: u[2] * R(.5, 1.6), drag: .985, life: R(.9, 2), s: R(.025, .06) * (o.size ?? 1), c: o.c ?? (rnd() < .5 ? 0xff9a3a : 0xffd070), a: o.a ?? 1, ...o.extra }); };
+const sparks = (x, y, z, n, c = 0xffe6a0, sp = 4, size = .06, life = .8) => glow.emit(n, () => { const a = R(0, 6.283), v = R(sp * .3, sp); return { x, y, z, vx: Math.cos(a) * v, vy: Math.sin(a) * v * .7, vz: R(.5, 2.4) * (sp / 4), g: 4.5, drag: .96, life: R(life * .5, life), s: R(size * .5, size), c, a: 1 }; });
+
+const CW = .62; let CH = .833;
+const SLOT = (i) => [(i - 2) * .72, 0];     // fileira da frente
+const cardsT = {}, faces = {};
+const files = ['a-forja-que-nunca-apaga', 'aldric-mil-armas-campeao-das-marcas', 'arqueiro-do-ultimo-sol', 'cabide-de-ferro', 'cavaleiro-rompe-escudos', 'vigia-da-torre-mofada'];
+function mkCard(name, x, y) { const t = faces[name]; CH = CW * t.image.height / t.image.width; const m = new THREE.MeshStandardMaterial({ map: t, roughness: .5, metalness: .08, alphaTest: .4, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0 }); const g = new THREE.Group(), mesh = new THREE.Mesh(new THREE.PlaneGeometry(CW, CH), m); g.add(mesh); g.position.set(x, y, .02); board.add(g); return { g, mesh, m }; }
+const dissolveMat = (map) => new THREE.ShaderMaterial({ transparent: true, side: THREE.DoubleSide, uniforms: { map: { value: map }, noise: { value: noiseTex }, thr: { value: -.2 }, heat: { value: 0 } },
+  vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+  fragmentShader: 'varying vec2 vUv;uniform sampler2D map;uniform sampler2D noise;uniform float thr;uniform float heat;void main(){vec4 c=texture2D(map,vUv);if(c.a<.4)discard;float f=texture2D(noise,vec2(vUv.x,1.-vUv.y)*1.5).r*.42+(1.-vUv.y)*.58;if(f<thr)discard;float e=f-thr;vec3 col=c.rgb;col=mix(col,col*vec3(1.35,.7,.55),heat);float char=smoothstep(.26,.05,e);col=mix(col,col*.18+vec3(.02,.008,0.),char*step(.001,thr+.2));float hot=smoothstep(.1,.0,e);vec3 fire=mix(vec3(1.,.28,.04),vec3(1.,.82,.4),smoothstep(.07,.0,e))*3.2;col=mix(col,fire,hot*step(.001,thr+.2));gl_FragColor=vec4(col,1.);}' });
+
+// ── estado e legenda ───────────────────────────────────────────────────────────────────────────────────────────────────
+const S = { shake: 0, flash: 0, bloom: .4, camZ: 10.5, camX: 0, light: 0, glow: 0, thr: -.2, wave: 0, scorch: 0 };
+let tNow = 0, lastT = -1, END = 6.2, tl, T0 = {}, decor = [];
+const clearScene = () => { board.children.slice().forEach(o => { if (o !== glow.pts && o !== smoke.pts && o !== fireLight) board.remove(o); }); glow.clear(); smoke.clear(); decor = []; };
+
+async function loadAll() { const ts = await Promise.all(files.map(f => tex(`cards/${f}.webp`))); files.forEach((f, i) => faces[f] = ts[i]); const bgT = await tex('board.webp'); const floor = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 7.2 * bgT.image.height / bgT.image.width), new THREE.MeshStandardMaterial({ map: bgT, roughness: .9, color: 0x9a9088 })); floor.position.z = -.01; floor.name = 'floor'; floor.userData.keep = true; board.add(floor); }
+
+function buildScene(c) {
+  board.children.slice().forEach(o => { if (!o.userData.keep && o !== glow.pts && o !== smoke.pts && o !== fireLight) board.remove(o); });
+  glow.clear(); smoke.clear(); seed = 11; S.thr = -.2;
+  const slotM = new THREE.MeshBasicMaterial({ map: slotTex, transparent: true, depthWrite: false });
+  const slot = (x, y) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(CW * 1.08, .86 * 1.08), slotM); m.position.set(x, y, .005); board.add(m); return m; };
+  for (let i = 1; i < 4; i++) { slot(...SLOT(i)); slot((i - 2) * .72, .98); }
+  const units = ['cabide-de-ferro', 'vigia-da-torre-mofada', 'aldric-mil-armas-campeao-das-marcas', 'cavaleiro-rompe-escudos', 'arqueiro-do-ultimo-sol'].slice(1, 4); units[0] = 'cabide-de-ferro'; units[1] = c === 'terreno' ? 'vigia-da-torre-mofada' : null; units[2] = 'cavaleiro-rompe-escudos';
+  T0 = {};
+  if (c === 'terreno') {
+    slot(-.72, -1.05); T0.units = units.map((n, i) => n ? mkCard(n, SLOT(i + 1)[0], SLOT(i + 1)[1]) : null).filter(Boolean);
+    const t = mkCard('a-forja-que-nunca-apaga', -.72, -1.05); T0.card = t; t.g.position.z = 5;
+    const halo = new THREE.Mesh(new THREE.PlaneGeometry(CW * 2.6, CH * 2.2), additive(haloTex, 0xff7a24, 0)); halo.position.set(-.72, -1.05, .03); board.add(halo); T0.halo = halo;
+    const band = new THREE.Mesh(new THREE.PlaneGeometry(1, .7), additive(haloTex, 0xff6a18, 0)); band.position.set(0, 0, .015); board.add(band); T0.band = band;
+    const trail = new THREE.Mesh(new THREE.PlaneGeometry(CW * 1.2, CH * 4), additive(haloTex, 0xffc070, 0)); trail.position.set(-.72, -1.05 + CH * 1.2, .5); board.add(trail); T0.trail = trail;
+    capEl.textContent = 'A Forja que Nunca Apaga';
+  } else {
+    T0.units = units.map((n, i) => n ? mkCard(n, SLOT(i + 1)[0], SLOT(i + 1)[1]) : null).filter(Boolean);
+    const target = mkCard('aldric-mil-armas-campeao-das-marcas', SLOT(2)[0], SLOT(2)[1]); T0.target = target; target.mesh.material.dispose(); target.mesh.material = dissolveMat(faces['aldric-mil-armas-campeao-das-marcas']);
+    const flashC = new THREE.Mesh(new THREE.PlaneGeometry(CW, CH), additive(haloTex, 0xffffff, 0)); flashC.position.z = .04; target.g.add(flashC); T0.flashC = flashC;
+    const sc = new THREE.Mesh(new THREE.PlaneGeometry(CW * 1.7, CH * 1.5), new THREE.MeshBasicMaterial({ map: scorchTex, transparent: true, opacity: 0, depthWrite: false })); sc.position.set(SLOT(2)[0], SLOT(2)[1], .012); board.add(sc); T0.scorch = sc;
+    const emb = new THREE.Mesh(new THREE.PlaneGeometry(CW * 1.5, CH * 1.3), additive(haloTex, 0xff5a10, 0)); emb.position.set(SLOT(2)[0], SLOT(2)[1], .014); board.add(emb); T0.emb = emb;
+    capEl.textContent = 'Carta destruída';
+  }
+}
+
+function timeline(c) {
+  tl = gsap.timeline({ paused: true });
+  if (c === 'terreno') {
+    const t = T0.card, X0 = -.72, Y0 = -1.05;
+    END = 6.4;
+    tl.fromTo(t.g.position, { z: 5, x: X0 + .5, y: Y0 + 1.2 }, { z: .02, x: X0, y: Y0, duration: .55, ease: 'power3.in' }, 0);
+    tl.fromTo(t.g.rotation, { z: .4, x: .5 }, { z: 0, x: 0, duration: .55, ease: 'power3.in' }, 0);
+    tl.fromTo(t.g.scale, { x: 1.6, y: 1.6, z: 1 }, { x: 1, y: 1, z: 1, duration: .55, ease: 'power3.in' }, 0);
+    tl.fromTo(T0.trail.material, { opacity: .55 }, { opacity: 0, duration: .5 }, .05);
+    // três marteladas: cada uma mais forte que a anterior
+    [[.55, .6, 18], [1.05, .8, 26], [1.55, 1.0, 40]].forEach(([at, k, n], i) => {
+      tl.call(() => { sparks(X0, Y0 + .1, .15, n, 0xffe6a0, 3.2 + i, .06 + i * .015, .8); sparks(X0, Y0 + .1, .15, n >> 1, 0xff8a30, 2.2, .05, .9); S.shake = .05 + i * .035; for (let j = 0; j < 4 + i * 3; j++) smoke.emit(1, { x: X0 + R(-.3, .3), y: Y0 - .3 + R(0, .2), z: .1, vx: R(-.35, .35), vy: R(.1, .4), vz: R(.15, .4), drag: .97, life: R(.8, 1.4), s: R(.2, .35), grow: 2.2, c: 0x6e655c, a: .5 }); }, null, at);
+      tl.fromTo(S, { flash: 0 }, { flash: .05 + i * .05, duration: .05 }, at).to(S, { flash: 0, duration: .25 }, at + .05);
+      tl.fromTo(t.m, { emissiveIntensity: 0 }, { emissiveIntensity: .35 + i * .15, duration: .06 }, at).to(t.m, { emissiveIntensity: .0, duration: .4 }, at + .06);
+      tl.fromTo(t.g.scale, { x: 1, y: 1 }, { x: 1.06 + i * .02, y: .94 - i * .02, duration: .06, ease: 'power2.out' }, at).to(t.g.scale, { x: 1, y: 1, duration: .25, ease: 'back.out(3)' }, at + .06);
+      tl.to(S, { shake: 0, duration: .35 }, at + .05);
+      tl.fromTo(S, { bloom: .4 }, { bloom: .7 + i * .12, duration: .06 }, at).to(S, { bloom: .5, duration: .5 }, at + .06);
+    });
+    // onda de fogo pela fileira da frente + luz que acompanha
+    tl.fromTo(S, { wave: 0 }, { wave: 1, duration: 1.6, ease: 'power1.inOut' }, 1.6);
+    tl.fromTo(S, { light: 0 }, { light: 1, duration: .25 }, 1.55).to(S, { light: .0, duration: 1.2 }, 3.4);
+    tl.to(S, { camZ: 8.6, duration: 1.2, ease: 'power2.inOut' }, 1.3).to(S, { camZ: 10.5, duration: 2.2, ease: 'power2.inOut' }, 3.4);
+    tl.fromTo(S, { camX: -.5 }, { camX: .5, duration: 1.6, ease: 'power1.inOut' }, 1.6).to(S, { camX: 0, duration: 1.6, ease: 'power2.inOut' }, 3.4);
+    tl.fromTo(T0.halo.material, { opacity: 0 }, { opacity: .85, duration: .3 }, 1.6).to(T0.halo.material, { opacity: .34, duration: 1.4 }, 1.95);
+    tl.fromTo(T0.band.material, { opacity: 0 }, { opacity: .9, duration: .3 }, 1.7).to(T0.band.material, { opacity: 0, duration: 1.4 }, 3.0);
+    tl.fromTo(S, { glow: 0 }, { glow: 1, duration: 1.2 }, 2.0);
+    tl.set({}, {}, END);
+  } else {
+    END = 6.6;
+    const tg = T0.target, X = SLOT(2)[0], Y = SLOT(2)[1];
+    tl.fromTo(S, { camZ: 10.5 }, { camZ: 7.4, duration: 1.0, ease: 'power2.inOut' }, 0).to(S, { camZ: 9.6, duration: 2.6, ease: 'power1.inOut' }, 3.4);
+    // golpe
+    tl.call(() => { sparks(X, Y, .15, 60, 0xfff0c0, 5, .07, .7); sparks(X, Y, .15, 30, 0xff7a30, 3, .06, .9); S.shake = .09; }, null, .8);
+    tl.fromTo(S, { flash: 0 }, { flash: .2, duration: .05 }, .8).to(S, { flash: 0, duration: .3 }, .85);
+    tl.fromTo(T0.flashC.material, { opacity: 0 }, { opacity: 1, duration: .05 }, .8).to(T0.flashC.material, { opacity: 0, duration: .25 }, .85);
+    tl.to(S, { shake: 0, duration: .45 }, .85);
+    tl.fromTo(tg.g.scale, { x: 1, y: 1 }, { x: 1.1, y: .9, duration: .06 }, .8).to(tg.g.scale, { x: 1, y: 1, duration: .3, ease: 'back.out(3)' }, .86);
+    tl.fromTo(tg.g.rotation, { z: 0 }, { z: -.07, duration: .1 }, .8).to(tg.g.rotation, { z: .05, duration: 1.8, ease: 'sine.inOut' }, .95).to(tg.g.rotation, { z: -.1, duration: 1.2 }, 2.75);
+    tl.fromTo(tg.mesh.material.uniforms.heat, { value: 0 }, { value: 1, duration: .5 }, .85);
+    // queima de baixo para cima
+    tl.fromTo(S, { thr: -.2 }, { thr: 1.12, duration: 3.0, ease: 'power1.in' }, 1.0);
+    tl.fromTo(S, { light: 0 }, { light: 1, duration: .5 }, 1.0).to(S, { light: 0, duration: 1.3 }, 3.0);
+    tl.fromTo(tg.g.position, { z: .02 }, { z: .3, duration: 2.5, ease: 'sine.inOut' }, 1.0).to(tg.g.position, { z: .02, duration: .1 }, 3.6);
+    tl.to(S, { bloom: .9, duration: .4 }, 1.0).to(S, { bloom: .5, duration: 1.6 }, 3.3);
+    tl.fromTo(T0.emb.material, { opacity: 0 }, { opacity: .8, duration: 1.4, ease: 'power1.in' }, 2.4).to(T0.emb.material, { opacity: 0, duration: 2.2 }, 3.9);
+    tl.fromTo(T0.scorch.material, { opacity: 0 }, { opacity: .9, duration: 1.8 }, 2.4);
+    tl.set({}, {}, END);
+  }
+}
+
+// ── laço ───────────────────────────────────────────────────────────────────────────────────────────────────────────────
+const nz = (t, f) => Math.sin(t * f * 6.283) * .6 + Math.sin(t * f * 11.1 + 1.3) * .4;
+function frame(T) {
+  tNow = T; const dt = lastT < 0 ? 0 : Math.max(0, T - lastT);
+  if (T < lastT) { buildScene(CENA); timeline(CENA); seed = 11; }
+  lastT = T; tl.seek(T, false);
+  const spawnN = (rate, f) => { let n = rate * dt; while (n > 0) { if (rnd() < n) f(); n -= 1; } };
+  if (CENA === 'terreno') {
+    const X0 = -.72, Y0 = -1.05;
+    if (T > 1.6 && T < 3.25) { const hx = X0 + .3 + (1.5 - X0) * S.wave; spawnN(280, () => { glow.emit(1, { x: hx + R(-.15, .15), y: R(-.34, .34), z: R(.02, .16), vx: R(-.1, .2), vy: R(-.1, .1), vz: R(.6, 1.7), drag: .97, life: R(.4, .9), s: R(.18, .34), c: rnd() < .6 ? 0xff6a1a : 0xffb040, a: .9 }); }); spawnN(40, () => smoke.emit(1, { x: hx - R(0, .5), y: R(-.25, .25), z: .1, vx: R(-.1, .1), vy: R(.1, .3), vz: R(.3, .7), drag: .98, life: R(1, 1.8), s: R(.2, .34), grow: 2.5, c: 0x4a423b, a: .35 })); spawnN(30, () => sparks(hx, R(-.3, .3), .12, 1, 0xffd890, 2.5, .04, .7)); }
+    if (T > 2.2) spawnN(34 * S.glow, () => { const side = rnd() < .5; rise(X0 + (side ? -1 : 1) * R(.15, .3), Y0 + R(-.4, .4), .05, { sp: .8, size: 1 }); });
+    if (T > 2.2) spawnN(10 * S.glow, () => rise(X0 + R(-.3, .3), Y0 + R(-.2, .35), .05, { sp: 1.2, size: 1.3, c: 0xffe0a0 }));
+  } else {
+    const X = SLOT(2)[0], Y = SLOT(2)[1], u = i => i;
+    if (T > 1.0 && T < 3.9) {
+      const thr = S.thr; spawnN(260, () => { for (let k = 0; k < 6; k++) { const px = R(0, 1), py = R(0, 1), f = noiseAt(px * 1.5, (1 - py) * 1.5) * .42 + (1 - py) * .58; if (Math.abs(f - thr - .04) < .06) { const o = rnd() < .5 ? 0xff7a1c : 0xffc060; glow.emit(1, { x: X + (px - .5) * CW, y: Y + (py - .5) * CH, z: .3 + R(0, .06), vx: R(-.25, .25), vy: UP[1] * R(.4, 1.5), vz: UP[2] * R(.6, 1.9), drag: .985, life: R(.7, 1.7), s: R(.03, .075), c: o, a: 1 }); if (rnd() < .22) smoke.emit(1, { x: X + (px - .5) * CW, y: Y + (py - .5) * CH, z: .32, vx: R(-.15, .15), vy: UP[1] * R(.3, .7), vz: UP[2] * R(.5, 1.0), drag: .985, life: R(1.1, 2.2), s: R(.17, .28), grow: 2.8, c: rnd() < .5 ? 0x3a332d : 0x5c534a, a: .5 }); break; } } });
+    }
+    if (T > 2.6 && T < 5.4) spawnN(14, () => glow.emit(1, { x: X + R(-.3, .3), y: Y + R(-.4, .4), z: .1, vx: R(-.1, .1), vy: UP[1] * R(.2, .6), vz: UP[2] * R(.3, .8), drag: .99, life: R(1.4, 2.6), s: R(.02, .04), c: 0xff8a30, a: .85 }));
+    if (T > 2.4 && T < 5.2) spawnN(26, () => smoke.emit(1, { x: X + R(-.3, .3), y: Y + R(-.35, .35), z: .15, vx: R(-.1, .15), vy: UP[1] * R(.2, .5), vz: UP[2] * R(.4, .9), drag: .985, life: R(1.6, 2.8), s: R(.16, .26), grow: 3, c: 0x50483f, a: .28 * Math.max(0, 1 - (T - 2.4) / 3) }));
+  }
+  let r = dt; while (r > 1e-6) { const h = Math.min(r, 1 / 60); glow.sim(h); smoke.sim(h); r -= h; }
+  glow.upload(); smoke.upload();
+  // aplica
+  const sx = S.shake * nz(T, 9), sy = S.shake * nz(T + .37, 11); cam.position.set(S.camX + sx, sy, S.camZ); cam.lookAt(0, 0, 0);
+  if (CENA === 'terreno') {
+    const X0 = -.72, hx = X0 + .3 + (1.5 - X0) * S.wave; fireLight.position.set(T < 1.6 ? X0 : hx, T < 1.6 ? -1.05 : 0, 1.0); fireLight.intensity = (T < 1.6 ? 0 : S.light) * 6 + (T >= 3.4 ? S.glow * 1.1 * (.85 + .15 * Math.sin(T * 11)) : 0);
+    if (T < 1.6) fireLight.intensity = 0; T0.band.position.x = (X0 + hx) / 2 + .1; T0.band.scale.set(Math.max(.01, (hx - X0 + .8)), 1, 1);
+    if (T > 3.4) { fireLight.position.set(X0, -1.05, 1.0); }
+  } else {
+    fireLight.position.set(SLOT(2)[0], SLOT(2)[1], .9); fireLight.intensity = S.light * 4.5 * (.85 + .15 * Math.sin(T * 17));
+    T0.target.mesh.material.uniforms.thr.value = S.thr; T0.target.g.visible = S.thr < 1.1;
+  }
+  bloom.strength = S.bloom; flashEl.style.opacity = S.flash;
+  composer.render();
+}
+
+// ── execução ───────────────────────────────────────────────────────────────────────────────────────────────────────────
+await loadAll();
+let t0 = 0, run = false;
+function select(c) { CENA = c; buildScene(c); timeline(c); lastT = -1; document.querySelectorAll('#bar button').forEach(b => b.classList.toggle('on', b.dataset.c === c)); if (!MANUAL) { t0 = performance.now(); run = true; } }
+window.__select = select; window.__frame = frame; window.__end = () => END; window.__ready = true;
+select(CENA); frame(0);
+if (!MANUAL) { const loop = ts => { if (run) { const T = (ts - t0) / 1000; frame(Math.min(T, END)); if (T > END + 1.2) { t0 = ts; lastT = -1; buildScene(CENA); timeline(CENA); } } requestAnimationFrame(loop); }; document.querySelectorAll('#bar button').forEach(b => b.onclick = () => select(b.dataset.c)); requestAnimationFrame(loop); }
+</script>
+</body>
+</html>
