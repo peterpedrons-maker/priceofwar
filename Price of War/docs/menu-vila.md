@@ -15,3 +15,5 @@ Prédios (x,y na imagem): Academia 90,470 · Biblioteca 130,700 · Forja 340,640
 
 Rodada 26b: logo removido do menu; nomes dos prédios viraram plaquetas douradas com medalhão e ícone (clampadas para não sair da tela).
 Rodada 26c: plaquetas reusam a moldura de ouro do menu antigo (menu-plaque-*), com pontas nos dois lados, nome + subtítulo do destino (Quartel = Desafios/batalhas, Arena = partidas online).
+
+Rodada 26d (substitui o mapeamento anterior): só texto dourado com contorno escuro, sem contêiner, nomes pela função. **Castelo do horizonte (fumaça/combate) = Desafios**; Arena = Online; Quartel (fortaleza com mesa de mapa) = Ranking; Biblioteca = Coleção; Forja = Meu Deck; Mercado = Loja; Quadro = Missões (em breve); Academia = Tutoriais. Rodapé só com Config. e Opções (+GM).

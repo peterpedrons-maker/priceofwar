@@ -3585,7 +3585,8 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
     >
       {/* Menu em vila (docs/menu-vila.md): arte única com prédios tocáveis e animação por código. Degradês escurecem o topo (perfil/logo) e o rodapé (ícones). */}
       <VillageScene onPick={(id) => {
-        if (id === 'quartel') onSelectMode('Campaign');
+        if (id === 'castelo') onSelectMode('Campaign');
+        else if (id === 'quartel') setRankingOpen(true);
         else if (id === 'arena') setOnlineOpen(true);
         else if (id === 'biblioteca') setRoomOpen(true);
         else if (id === 'forja') setDeckEditorOpen(true);
@@ -3654,7 +3655,6 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
         style={{ paddingBottom: 'max(14px, env(safe-area-inset-bottom))', background: 'linear-gradient(to top, rgba(0,0,0,0.85), transparent)' }}
       >
         <MenuIconButton icon={uiIconConfigImage} label="Config." onClick={() => setSettingsOpen(true)} />
-        <MenuIconButton icon={uiIconRankingImage} label="Ranking" onClick={() => setRankingOpen(true)} />
         <MenuIconButton icon={uiIconSomImage} label="Opções" onClick={() => setSoundOpen(true)} />
         {gm && <MenuTextButton text="GM" label="GM" onClick={() => setGmOpen(true)} />}
       </div>
