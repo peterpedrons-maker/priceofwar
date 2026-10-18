@@ -47,6 +47,11 @@ http.createServer(async (req, res) => {
   }
   if (path.startsWith('/auth/v1/')) return send(res, 200, {});
 
+  // (só no mock, para testar a coleta na tela) completa todas as missões já sorteadas
+  if (path === '/__debug/complete-missions') {
+    let n = 0; for (const row of (memory as any).missionRows.values()) for (const it of row.data.items) { it.progress = 99; n++; }
+    return send(res, 200, { completed: n });
+  }
   const uid = uidFrom(req);
 
   // ── the game server ──

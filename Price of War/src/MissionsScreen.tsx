@@ -55,7 +55,7 @@ const MissionRow = ({ m, busy, onClaim, onReroll }: { m: MissionView; busy: bool
         <div className="flex items-center" style={{ gap: 3, backgroundImage: `url(${chipNeutro})`, backgroundSize: '100% 100%', padding: '0 12px 0 8px', height: 26, fontFamily: CINZEL, fontWeight: 900, fontSize: 14, color: '#ffe9b0' }}>
           <img src={iconeCoroa} alt="" draggable={false} style={{ width: 17, height: 17, objectFit: 'contain' }} />+{m.reward}
         </div>
-        {m.claimed ? <div style={{ fontFamily: CINZEL, fontWeight: 700, fontSize: 10, letterSpacing: '0.12em', color: '#8fe0a4', textTransform: 'uppercase' }}>✓ Coletado</div>
+        {m.claimed ? <div style={{ fontFamily: CINZEL, fontWeight: 700, fontSize: 9, letterSpacing: '0.08em', color: '#8fe0a4', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>✓ Coletado</div>
           : <button onClick={onClaim} disabled={!ready || busy} style={{ width: 78, height: 30, backgroundImage: `url(${ready ? botaoPrimario : botaoSecundario})`, backgroundSize: '100% 100%', border: 'none', fontFamily: CINZEL, fontWeight: 900, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: ready ? '#2a1a05' : '#a89a78', opacity: busy ? 0.6 : 1 }}>{ready ? 'Coletar' : 'Em curso'}</button>}
       </div>
     </div>
@@ -74,7 +74,7 @@ export const MissionsScreen = ({ onClose, onCoroas, onBoard }: { onClose: () => 
   }, [onBoard, onCoroas]);
   useEffect(() => { let on = true; fetchMissions().then(r => { if (on) apply(r); }); return () => { on = false; }; }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   const tabs: { id: Tab; label: string }[] = [{ id: 'daily', label: 'Diárias' }, { id: 'weekly', label: 'Semanais' }, ...(board && board.season.length ? [{ id: 'season' as Tab, label: 'Temporada' }] : [])];
-  const list = board ? board[tab] : [];
+  const list = board ? [...board[tab]].sort((a, b) => Number(a.claimed) - Number(b.claimed)) : [];   // as já coletadas descem para o fim
   const ready = (t: Tab) => board ? board[t].filter(m => !m.claimed && m.progress >= m.target).length : 0;
   const claim = async (m: MissionView) => { setBusy(true); apply(await claimMission(m.key, m.id)); setBusy(false); };
   const reroll = async (m: MissionView) => { setRerolling(true); apply(await rerollMission(m.id)); setRerolling(false); };
