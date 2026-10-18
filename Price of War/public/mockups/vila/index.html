@@ -2,7 +2,7 @@
 <title>Vila</title><style>
 html,body{margin:0;height:100%;background:#0b0710;font-family:Georgia,serif;color:#f4e3b5;overflow:hidden}
 #app{position:relative;width:100vw;height:100vh;max-width:430px;margin:0 auto;overflow:hidden}
-#w{position:absolute;left:0;top:0;width:704px;height:1520px;transform-origin:0 0;background:url(vila-bg.webp)}
+#w{position:absolute;left:0;top:0;width:704px;height:1520px;transform-origin:0 0;background:url(vila-bg-limpo.webp)}
 #fx{position:absolute;inset:0}
 .glow{position:absolute;border-radius:50%;mix-blend-mode:screen;transform:translate(-50%,-50%);animation:f 1.3s infinite alternate ease-in-out}
 @keyframes f{0%{opacity:.55;scale:.9}100%{opacity:1;scale:1.12}}
@@ -52,103 +52,37 @@ function drawClouds(){cc.clearRect(0,0,704,1520);
   cc.save();cc.translate(c.x,c.y);cc.scale(1,c.h/c.w);
   for(const [dx,r,al] of [[-.35,.55,.7],[0,.7,1],[.38,.5,.7]]){const g=cc.createRadialGradient(dx*c.w,0,0,dx*c.w,0,r*c.w);g.addColorStop(0,`rgba(38,30,52,${c.a*al*fade})`);g.addColorStop(1,'rgba(38,30,52,0)');cc.fillStyle=g;cc.beginPath();cc.arc(dx*c.w,0,r*c.w,0,7);cc.fill()}
   cc.restore()}}
-// ── gente e cavaleiros na estrada (silhuetas desenhadas por código, no mesmo tom escuro da pintura) ──
+// ── gente e cavaleiros: recortes das próprias figuras pintadas na vila (spr-*.png), então o estilo é o mesmo da arte ──
 const ac=document.getElementById('ac'),ax=ac.getContext('2d');
 const ROAD=[[110,1430],[200,1300],[290,1190],[345,1100],[392,1020],[415,945],[395,890],[345,845],[318,795]];
 const seg=[];let tot=0;for(let i=1;i<ROAD.length;i++){const l=Math.hypot(ROAD[i][0]-ROAD[i-1][0],ROAD[i][1]-ROAD[i-1][1]);seg.push(l);tot+=l}
-const at=d=>{d=Math.min(Math.max(d,0),tot-.01);let i=0;while(d>seg[i]){d-=seg[i];i++}const k=d/seg[i],a=ROAD[i],b=ROAD[i+1];return{x:a[0]+(b[0]-a[0])*k,y:a[1]+(b[1]-a[1])*k,dx:b[0]-a[0]}};
-const actors=[
- {t:'soldado',pos:0.05,v:20,dir:1},{t:'batedor',pos:0.92*tot,v:17,dir:-1},
- {t:'guarda',pos:.30*tot,v:11,dir:1},{t:'campones',pos:.62*tot,v:8,dir:-1},{t:'lanceiro',pos:.78*tot,v:10,dir:1},{t:'monge',pos:.45*tot,v:7,dir:-1}];
-// ── sprites pintados por código: desenhados em alta resolução com curvas, luz de contorno quente, sombra fria e textura de pincel; depois reduzidos (suaviza como a pintura) ──
-const K=4,SW=64,SH=84,FR=8;   // 4x de resolução; moldura de 64x84 unidades; 8 quadros por ciclo
-const rnd=(()=>{let a=12345;return()=>{a=(a*1664525+1013904223)>>>0;return a/4294967296}})();
-function brush(c,w,h){c.save();c.globalCompositeOperation='source-atop';for(let i=0;i<w*h/6;i++){const x=rnd()*w,y=rnd()*h,l=2+rnd()*6;c.strokeStyle=rnd()<.5?'rgba(255,205,150,.06)':'rgba(0,0,0,.10)';c.lineWidth=.7+rnd()*1.2;c.beginPath();c.moveTo(x,y);c.lineTo(x+l,y-l*.4);c.stroke()}c.restore()}
-function mk(draw,ph,v){const cv=document.createElement('canvas');cv.width=SW*K;cv.height=SH*K;const c=cv.getContext('2d');c.scale(K,K);c.translate(SW*.42,SH-6);c.lineJoin='round';c.lineCap='round';draw(c,ph,v);c.setTransform(1,0,0,1,0,0);brush(c,cv.width,cv.height);return cv}
-const grad=(c,x0,y0,x1,y1,stops)=>{const g=c.createLinearGradient(x0,y0,x1,y1);stops.forEach(([o,col])=>g.addColorStop(o,col));return g};
-const rim=(c,path,col='rgba(255,176,96,.7)',w=1)=>{c.save();c.strokeStyle=col;c.lineWidth=w;c.stroke(path);c.restore()};
-const PA=(d)=>new Path2D(d);
-// perna articulada: coxa e canela; ph = fase do passo
-const leg=(c,hx,hy,ph,len,col,w)=>{const a=Math.sin(ph)*.5,lift=Math.max(0,Math.cos(ph)),kx=hx+Math.sin(a)*len*.5,ky=hy+Math.cos(a)*len*.5,b=a-lift*.9,fx=kx+Math.sin(b)*len*.5,fy=Math.min(0,ky+Math.cos(b)*len*.5-lift*1.2);
- c.strokeStyle=col;c.lineWidth=w;c.beginPath();c.moveTo(hx,hy);c.lineTo(kx,ky);c.lineTo(fx,fy);c.stroke();c.fillStyle='#0c0705';c.beginPath();c.ellipse(fx+.6,fy-.2,w*.55,w*.4,0,0,7);c.fill()};
-const COATS={soldado:['#6a4630','#3a2417','#150c08'],batedor:['#4d4f58','#2a2c34','#101117']};
-function drawRider(c,ph,v){
- const [hi,mid,lo]=COATS[v.horse],bob=Math.sin(ph*2)*.7;
- // sombra no chão
- c.fillStyle='rgba(0,0,0,.35)';c.beginPath();c.ellipse(2,0,17,2.6,0,0,7);c.fill();
- // pernas de trás (mais escuras)
- leg(c,-10,-13,ph+Math.PI*.5,13,lo,2.6);leg(c,6,-13,ph+Math.PI*1.5,13,lo,2.6);
- c.save();c.translate(0,bob);
- // cauda
- c.fillStyle=lo;c.beginPath();c.moveTo(-14,-22);c.bezierCurveTo(-20,-22,-22,-12+Math.sin(ph)*2,-19,-6);c.bezierCurveTo(-18,-12,-16,-17,-13,-17);c.fill();
- // corpo
- const body=PA('M-15,-17 C-16,-27 -4,-28 5,-26 C10,-25 13,-23 13,-18 C13,-11 7,-9 0,-10 C-8,-9 -15,-10 -15,-17Z');
- c.fillStyle=grad(c,0,-28,0,-9,[[0,hi],[.45,mid],[1,lo]]);c.fill(body);
- // pescoço e cabeça
- const neck=PA('M7,-26 C11,-31 13,-35 16,-38 L21,-35 C20,-30 17,-25 14,-17Z');c.fillStyle=grad(c,8,-38,16,-17,[[0,hi],[1,mid]]);c.fill(neck);
- const head=PA('M16,-39 C21,-41 27,-37 29,-32 L26.5,-30 C23,-31 20,-32 17,-34Z');c.fillStyle=mid;c.fill(head);
- c.fillStyle=lo;c.beginPath();c.moveTo(17,-40);c.lineTo(19,-44);c.lineTo(20,-39.5);c.fill();
- c.strokeStyle=lo;c.lineWidth=2;c.beginPath();c.moveTo(8,-27);c.bezierCurveTo(10,-32,12,-35,15,-39);c.stroke();   // crina
- c.restore();
- // pernas da frente
- leg(c,-8,-13,ph,13,mid,2.8);leg(c,8,-13,ph+Math.PI,13,mid,2.8);
- c.save();c.translate(0,bob);
- // luz de contorno nas costas
- rim(c,PA('M-14,-24 C-10,-28 0,-28 6,-26 C10,-25 12,-23 13,-20'),'rgba(255,178,100,.75)',1.1);rim(c,PA('M8,-27 C12,-32 14,-35 17,-38'),'rgba(255,178,100,.6)',.9);
- // manta da sela
- c.fillStyle=v.horse==='soldado'?'#6b2a2a':'#4a3a26';c.beginPath();c.moveTo(-5,-26);c.lineTo(5,-26);c.lineTo(6,-17);c.lineTo(-6,-17);c.fill();
- // cavaleiro: capa ao vento, tronco, cabeça, braço
- c.fillStyle=v.horse==='soldado'?'#7a2f2a':'#4e3a26';c.beginPath();c.moveTo(-2,-40);c.bezierCurveTo(-10,-38,-15+Math.sin(ph)*2,-30,-16,-24+Math.sin(ph+1));c.bezierCurveTo(-9,-27,-5,-27,0,-28);c.fill();
- c.fillStyle=grad(c,-3,-42,3,-27,[[0,v.horse==='soldado'?'#8b97a8':'#6b5a43'],[1,v.horse==='soldado'?'#3a4250':'#2b2118']]);c.beginPath();c.roundRect(-3.2,-42,6.4,15,2.2);c.fill();
- c.fillStyle=v.horse==='soldado'?'#7f8aa0':'#3c2d20';c.beginPath();c.arc(0,-46,3.6,0,7);c.fill();
- if(v.horse==='soldado'){c.fillStyle='#aab4c4';c.beginPath();c.moveTo(-3.6,-47);c.quadraticCurveTo(0,-53,3.6,-47);c.fill();c.fillStyle='#2a1a1a';c.fillRect(1.2,-47,2.4,1.3)}
- else{c.fillStyle='#4a3626';c.beginPath();c.moveTo(-4,-45);c.quadraticCurveTo(-1,-54,4,-46);c.lineTo(2,-43);c.fill()}
- rim(c,PA('M3,-42 L3,-28'),'rgba(255,176,96,.6)',.8);
- c.strokeStyle='#241710';c.lineWidth=1.6;c.beginPath();c.moveTo(3,-38);c.lineTo(9,-33);c.stroke();
- if(v.spear){c.strokeStyle='#3a2a1a';c.lineWidth=1.1;c.beginPath();c.moveTo(9,-26);c.lineTo(9,-70);c.stroke();c.fillStyle='#c8ced8';c.beginPath();c.moveTo(9,-74);c.lineTo(10.4,-69);c.lineTo(7.6,-69);c.fill();
-  c.fillStyle='#5a2f78';c.beginPath();c.moveTo(9,-69);c.bezierCurveTo(14,-68+Math.sin(ph*1.5)*1.5,17,-65,22+Math.sin(ph*1.5)*2,-65);c.bezierCurveTo(17,-63,13,-62,9,-62);c.fill()}
- if(v.torch){c.strokeStyle='#3a2a1a';c.lineWidth=1.3;c.beginPath();c.moveTo(9,-35);c.lineTo(13,-58);c.stroke();c.fillStyle='#ff9a3a';c.beginPath();c.ellipse(13.3,-60,2.1,3.2,.15,0,7);c.fill();c.fillStyle='#ffe08a';c.beginPath();c.ellipse(13.3,-59.4,1,1.7,.15,0,7);c.fill()}
- c.restore();
-}
-function drawWalker(c,ph,v){
- const bob=Math.abs(Math.sin(ph))*-.9;
- c.fillStyle='rgba(0,0,0,.35)';c.beginPath();c.ellipse(0,0,7,1.7,0,0,7);c.fill();
- const robe=v.kind==='monge'||v.kind==='campones';
- if(!robe){leg(c,-1.2,-14,ph,13,'#1b120d',2.4);leg(c,1.2,-14,ph+Math.PI,13,'#2a1b13',2.6)}
- c.save();c.translate(0,bob);
- if(robe){const sway=Math.sin(ph)*1.4;c.fillStyle=grad(c,0,-34,0,0,[[0,v.hi],[1,v.lo]]);c.beginPath();c.moveTo(-4,-30);c.bezierCurveTo(-6,-20,-8+sway,-8,-8+sway,-1);c.lineTo(7+sway,-1);c.bezierCurveTo(7,-8,5,-20,4,-30);c.closePath();c.fill();
-  c.fillStyle='#120b08';c.beginPath();c.ellipse(-3+sway,-.6,2.2,1.1,0,0,7);c.ellipse(4+sway,-.6,2.2,1.1,0,0,7);c.fill()}
- else{ // tronco com armadura/couro
-  c.fillStyle=grad(c,-4,-33,4,-14,[[0,v.hi],[1,v.lo]]);c.beginPath();c.roundRect(-3.8,-33,7.6,19,2.6);c.fill();
-  if(v.cape){c.fillStyle=v.cape;c.beginPath();c.moveTo(-2,-32);c.bezierCurveTo(-9,-28,-10+Math.sin(ph)*2,-18,-8,-12);c.bezierCurveTo(-5,-16,-3,-20,-1,-22);c.fill()}}
- // cabeça
- c.fillStyle=v.skin||'#8a6a50';c.beginPath();c.arc(0,-37,3.3,0,7);c.fill();
- if(v.hood){c.fillStyle=v.hi;c.beginPath();c.moveTo(-4,-36);c.quadraticCurveTo(-2,-44,3.4,-37);c.lineTo(1.5,-34);c.quadraticCurveTo(-1,-35,-4,-36);c.fill()}
- else if(v.helm){c.fillStyle='#8f9bb0';c.beginPath();c.moveTo(-3.6,-37);c.quadraticCurveTo(0,-43.5,3.6,-37);c.fill()}
- rim(c,PA('M3.4,-34 L3.4,-16'),'rgba(255,176,96,.6)',.8);
- // braços e objetos
- c.strokeStyle='#241710';c.lineWidth=1.7;c.beginPath();c.moveTo(1,-29);c.lineTo(5.5+Math.sin(ph)*1,-21);c.stroke();
- if(v.kind==='guarda'||v.kind==='monge'){const lx=6,ly=-21;if(v.kind==='guarda'){c.strokeStyle='#3a2a1a';c.lineWidth=1.3;c.beginPath();c.moveTo(lx,ly);c.lineTo(lx+2,ly-17);c.stroke();c.fillStyle='#ff9a3a';c.beginPath();c.ellipse(lx+2.2,ly-19,2,3.1,.15,0,7);c.fill();c.fillStyle='#ffe08a';c.beginPath();c.ellipse(lx+2.2,ly-18.5,.9,1.6,.15,0,7);c.fill()}
-  else{c.fillStyle='#2a2018';c.fillRect(lx-1.6,ly-.5,3.2,4.4);c.fillStyle='#ffc766';c.fillRect(lx-1.1,ly+.3,2.2,2.8)}}
- if(v.kind==='campones'){c.fillStyle='#8a6a3a';c.beginPath();c.ellipse(6,-19,4.2,3.2,0,0,7);c.fill();c.strokeStyle='#5a4220';c.lineWidth=.7;c.beginPath();c.arc(6,-21,3.8,Math.PI,0);c.stroke()}
- if(v.kind==='lanceiro'){c.strokeStyle='#3a2a1a';c.lineWidth=1.2;c.beginPath();c.moveTo(-8,-6);c.lineTo(13,-47);c.stroke();c.fillStyle='#c8ced8';c.beginPath();c.moveTo(13.8,-49);c.lineTo(14.6,-44);c.lineTo(11.4,-45.5);c.fill()}
- c.restore();
-}
-const VAR={
- soldado:{kind:'rider',horse:'soldado',spear:true,torch:false},batedor:{kind:'rider',horse:'batedor',spear:false,torch:true},
- guarda:{kind:'guarda',hi:'#6d7788',lo:'#2a2f3b',cape:'#6a2a2a',helm:true,glowY:-40},
- campones:{kind:'campones',hi:'#7a5a3a',lo:'#34261a',hood:true},
- lanceiro:{kind:'lanceiro',hi:'#8a6f50',lo:'#3b2c20',cape:'#7a2f2a',helm:true},
- monge:{kind:'monge',hi:'#6a6d74',lo:'#2c2e34',hood:true,glowY:-18}};
-const SPR={};for(const [k,v] of Object.entries(VAR)){SPR[k]=Array.from({length:FR},(_,i)=>mk(v.kind==='rider'?drawRider:drawWalker,i/FR*Math.PI*2,v))}
-const glowAt=(x,y,r,f)=>{const g=ax.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,`rgba(255,170,70,${.6*f})`);g.addColorStop(1,'rgba(255,170,70,0)');ax.globalCompositeOperation='lighter';ax.fillStyle=g;ax.fillRect(x-r,y-r,r*2,r*2);ax.globalCompositeOperation='source-over'};
+const at=d=>{d=Math.min(Math.max(d,0),tot-.01);let i=0;while(d>seg[i]){d-=seg[i];i++}const k=d/seg[i],a=ROAD[i],b=ROAD[i+1],dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy);return{x:a[0]+dx*k,y:a[1]+dy*k,dx,nx:-dy/L,ny:dx/L}};
+const META={"rider_a":{"w":70,"h":70,"fx":35,"fy":68},"p_azul":{"w":25,"h":51,"fx":12.5,"fy":49},"p_capuz":{"w":27,"h":62,"fx":13.5,"fy":60},"p_ferreiro":{"w":28,"h":57,"fx":14,"fy":55},"p_guarda":{"w":20,"h":40,"fx":10,"fy":38}};
+const IMG={};for(const k in META){const i=new Image();i.src='spr-'+k+'.png';IMG[k]=i}
+// sentido +1 sobe a estrada (para a direita/cima); -1 desce (para a câmera). Pessoas olham para a câmera: só descem e voltam ao topo. Cavaleiros olham para a direita: sobem, ou descem espelhados.
+const mk=(t,pos,v,dir,rider)=>({t,pos,v,dir,rider,w:META[t].w,wait:0});
+const actors=[mk('rider_a',60,22,1,1),mk('rider_a',tot*.7,18,-1,1),
+ mk('p_azul',tot*.9,9,-1,0),mk('p_capuz',tot*.55,8,-1,0),mk('p_ferreiro',tot*.38,10,-1,0),mk('p_guarda',tot*.2,9,-1,0)];
+const LANE=40;   // faixas separadas: quem sobe anda pela direita da estrada, quem desce pela esquerda
 let T0=performance.now();
-function drawActors(now){const dt=Math.min(.05,(now-T0)/1000);T0=now;const t=now/1000;ax.clearRect(0,0,704,1520);
- const list=actors.map(a=>{a.pos+=a.dir*a.v*dt;if(a.pos>tot){a.pos=tot;a.dir=-1}if(a.pos<0){a.pos=0;a.dir=1}return{a,p:at(a.pos)}}).sort((u,v)=>u.p.y-v.p.y);
- for(const {a,p} of list){const s=.55+Math.min(1,Math.max(0,(p.y-400)/1000))*.75,fx=a.dir>0?(p.dx>=0?1:-1):(p.dx>=0?-1:1),v=VAR[a.t],fr=Math.floor(((a.pos/(v.kind==='rider'?9:6))%1+1)%1*FR)%FR;
-  const br=Math.max(.35,.82-Math.max(0,(p.y-1150)/380)*.45);ax.save();ax.filter=`brightness(${br.toFixed(2)}) saturate(.85)`;ax.translate(p.x,p.y);ax.scale(s*fx,s);ax.drawImage(SPR[a.t][fr],-SW*.42,-(SH-6),SW,SH);ax.filter='none';
-  const fl=.75+Math.random()*.25;if(a.t==='soldado'){}else if(a.t==='batedor')glowAt(13,-60,22,fl);else if(a.t==='guarda')glowAt(8,-40,18,fl);else if(a.t==='monge')glowAt(6,-19,13,fl);
-  ax.restore()}}
+function drawActors(now){const dt=Math.min(.05,(now-T0)/1000);T0=now;ax.clearRect(0,0,704,1520);
+ // evita atravessar: quem anda no mesmo sentido e na mesma faixa não passa de quem está à frente (mantém distância); sentidos opostos usam faixas diferentes
+ for(const a of actors){let v=a.v;
+  for(const o of actors){if(o===a||o.dir!==a.dir)continue;const gap=(o.pos-a.pos)*a.dir,need=(a.w+o.w)*.5+26;if(gap>0&&gap<need)v=Math.min(v,o.v*Math.max(.2,(gap-need*.55)/(need*.45)))}
+  a.pos+=a.dir*v*dt;a.cur=v;
+  if(a.dir<0&&a.pos<0){a.pos=tot-1;a.wait=0}   // pessoas: chegaram embaixo, voltam ao topo
+  if(a.dir>0&&a.pos>tot){a.dir=-1;a.pos=tot-1}
+  if(a.dir<0&&a.rider&&a.pos<0){a.dir=1;a.pos=0}}
+ const list=actors.map(a=>{const p=at(a.pos),lane=a.rider?(a.dir>0?LANE:-LANE):-4;return{a,p,x:p.x+p.nx*lane,y:p.y+p.ny*lane}}).sort((u,v)=>u.y-v.y);
+ const t=now/1000;
+ for(const {a,p,x,y} of list){const m=META[a.t],img=IMG[a.t];if(!img.complete)continue;
+  const s=.5+(y-400)/1200,fx=a.rider?(a.dir>0?1:-1):1,edge=Math.min(a.pos,tot-a.pos),alpha=Math.max(0,Math.min(1,edge/70));
+  const stride=a.rider?26:15,ph=a.pos/stride*Math.PI,bob=Math.abs(Math.sin(ph))*(a.rider?1.4:2.0),sway=Math.sin(ph)*(a.rider?.025:.03);
+  ax.save();ax.globalAlpha=alpha;ax.translate(x,y);
+  ax.fillStyle='rgba(0,0,0,.30)';ax.beginPath();ax.ellipse(0,0,m.w*s*.34,m.w*s*.09,0,0,7);ax.fill();   // sombra no chão
+  ax.translate(0,-bob*s);ax.rotate(sway);ax.scale(s*fx,s);
+  const br=Math.max(.45,.95-Math.max(0,(y-1180)/320)*.5);ax.filter=`brightness(${br.toFixed(2)})`;
+  ax.drawImage(img,-m.fx,-m.fy,m.w,m.h);ax.restore();ax.filter='none'}}
 if(location.search.includes('debug')){const d=document.createElement('canvas');d.width=704;d.height=1520;d.style.cssText='position:absolute;inset:0;pointer-events:none';const x=d.getContext('2d');x.strokeStyle='#0f0';x.lineWidth=3;x.beginPath();ROAD.forEach(([a,b],i)=>i?x.lineTo(a,b):x.moveTo(a,b));x.stroke();W.appendChild(d)}
 function frame(now){drawClouds();drawActors(now);requestAnimationFrame(frame)}requestAnimationFrame(frame);
 </script></body></html>
