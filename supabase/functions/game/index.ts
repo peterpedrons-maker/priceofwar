@@ -1403,6 +1403,38 @@ if (!globalThis.__POW_RAW_STATS__) {
     def.cost += d.cost ?? 0;
   });
 }
+var BOOSTER_EXTRA = {
+  capitao: { "Brigadeiro Voss, Quebra-Linhas": 1, "Mapa de Campanha": 1, "Tenente de Marcha": 1, "Revista de Tropas": 2, "Escolta Montada": 2, "Guarda de Fileira": 2, "Fortaleza de Pedra": 1, "Reposicionamento R\xE1pido": 2 },
+  cardeal: {},
+  mercenarios: {},
+  campo: {}
+};
+var LEGACY_STARTERS = {
+  // O Campo nasceu depois dos ajustes: só tem a lista atual (a mesma da receita).
+  campo: [],
+  // O Mercenários nasceu depois dos ajustes: só tem a lista atual (a mesma da receita).
+  mercenarios: [
+    // rodada 24: antes de trocar o Besteiro Dedo-Ligeiro (arte parecida com o Atirador de Aluguel) por mais cópias de outras cartas
+    { "Lanceiro P\xE9s-de-Lama": 2, "Besteiro Dedo-Ligeiro": 3, "Capa-Rota": 3, "Rato da Muralha": 2, "Capit\xE3o Barba-de-Corvo": 3, "Cavaleiro do Escudo Raspado": 2, "Florete de Aposta": 3, "Boca-de-Fogo": 3, "Vigia da \xDAltima Brasa": 2, "Quillon Contamoedas": 2, "C\xF3dice das Mil D\xEDvidas": 2, "Escriba do C\xF3dice": 2, "Chuva de Ferro Barato": 2, "Pacto do Punhal Vermelho": 2, "O Dia em que a Muralha Caiu": 1, "Peitoral de Muitos Donos": 2, "Espada de Mil M\xE3os": 2, "Tambor do Soldo F\xE1cil": 1, "Ningu\xE9m Fica na Lama": 2, "Os Dois do Beco": 1, "O Peso da Bolsa": 2, "Sentinela de Aluguel": 2, "Atirador de Aluguel": 2, "Carta Branca": 2 },
+    { "Lanceiro P\xE9s-de-Lama": 4, "Besteiro Dedo-Ligeiro": 4, "Capa-Rota": 4, "Rato da Muralha": 4, "Capit\xE3o Barba-de-Corvo": 3, "Cavaleiro do Escudo Raspado": 3, "Florete de Aposta": 4, "Boca-de-Fogo": 4, "Vigia da \xDAltima Brasa": 4, "Quillon Contamoedas": 4, "C\xF3dice das Mil D\xEDvidas": 3, "Escriba do C\xF3dice": 3, "Chuva de Ferro Barato": 2, "Pacto do Punhal Vermelho": 2, "O Dia em que a Muralha Caiu": 1, "Peitoral de Muitos Donos": 3, "Espada de Mil M\xE3os": 2, "Tambor do Soldo F\xE1cil": 1, "Ningu\xE9m Fica na Lama": 2, "Os Dois do Beco": 1, "O Peso da Bolsa": 2 },
+    { "Lanceiro P\xE9s-de-Lama": 3, "Besteiro Dedo-Ligeiro": 3, "Capa-Rota": 3, "Rato da Muralha": 3, "Capit\xE3o Barba-de-Corvo": 3, "Cavaleiro do Escudo Raspado": 2, "Florete de Aposta": 3, "Boca-de-Fogo": 3, "Vigia da \xDAltima Brasa": 3, "Quillon Contamoedas": 3, "C\xF3dice das Mil D\xEDvidas": 2, "Escriba do C\xF3dice": 3, "Chuva de Ferro Barato": 2, "Pacto do Punhal Vermelho": 2, "O Dia em que a Muralha Caiu": 1, "Peitoral de Muitos Donos": 3, "Espada de Mil M\xE3os": 2, "Tambor do Soldo F\xE1cil": 1, "Ningu\xE9m Fica na Lama": 2, "Os Dois do Beco": 1, "O Peso da Bolsa": 2 }
+  ],
+  // The first list of each deck is also the faction's own set of cards (what its boosters can hold).
+  capitao: [
+    { "Soldado T\xE1tico": 4, "Escudeiro de Linha": 4, "Capit\xE3o de Forma\xE7\xE3o": 4, "Batedor": 4, "Lanceiro de Controle": 4, "Cavaleiro T\xE1tico": 4, "Veterano de Guerra": 3, "Reformar Linhas": 3, "Avan\xE7o Coordenado": 4, "Reposicionamento R\xE1pido": 3, "Linha Fechada": 4, "Ordem de Retirada": 4, "Bloqueio Instant\xE2neo": 4, "Contra-Manobra": 4, "Forma\xE7\xE3o Quebrada": 4, "Estandarte da Legi\xE3o": 1, "Fortaleza de Pedra": 1, "P\xE2ntano Maldito": 1 },
+    // the version of the first balance pass (borrowed tactics, Veterano x4), before the effect changes
+    { "Soldado T\xE1tico": 4, "Escudeiro de Linha": 4, "Capit\xE3o de Forma\xE7\xE3o": 4, "Batedor": 4, "Lanceiro de Controle": 4, "Cavaleiro T\xE1tico": 4, "Veterano de Guerra": 4, "Reformar Linhas": 1, "Avan\xE7o Coordenado": 4, "Reposicionamento R\xE1pido": 2, "Ordem de Retirada": 2, "Bloqueio Instant\xE2neo": 2, "Contra-Manobra": 1, "Forma\xE7\xE3o Quebrada": 2, "Estandarte da Legi\xE3o": 1, "P\xE2ntano Maldito": 1, "Catapulta do Dil\xFAvio de Pedra": 4, "Balestra da Penit\xEAncia": 4, "Coura\xE7a do M\xE1rtir": 4, "Trabuco da Trombeta Final": 2, "Alistamento do P\xFAlpito": 2 },
+    // rodada 22 e antes: 60 cartas com até 4 cópias, e a primeira lista de 50 cartas
+    { "Soldado T\xE1tico": 4, "Escudeiro de Linha": 4, "Capit\xE3o de Forma\xE7\xE3o": 4, "Batedor": 4, "Lanceiro de Controle": 4, "Cavaleiro T\xE1tico": 4, "Veterano de Guerra": 4, "Reformar Linhas": 3, "Avan\xE7o Coordenado": 4, "Reposicionamento R\xE1pido": 1, "Linha Fechada": 4, "Ordem de Retirada": 4, "Catapulta do Dil\xFAvio de Pedra": 2, "Balestra da Penit\xEAncia": 2, "Trabuco da Trombeta Final": 1, "Bloqueio Instant\xE2neo": 4, "Contra-Manobra": 2, "Forma\xE7\xE3o Quebrada": 2, "Estandarte da Legi\xE3o": 1, "Fortaleza de Pedra": 1, "P\xE2ntano Maldito": 1 },
+    { "Soldado T\xE1tico": 3, "Escudeiro de Linha": 3, "Capit\xE3o de Forma\xE7\xE3o": 3, "Batedor": 3, "Lanceiro de Controle": 3, "Cavaleiro T\xE1tico": 3, "Veterano de Guerra": 3, "Reformar Linhas": 3, "Avan\xE7o Coordenado": 3, "Linha Fechada": 3, "Ordem de Retirada": 3, "Catapulta do Dil\xFAvio de Pedra": 2, "Balestra da Penit\xEAncia": 2, "Trabuco da Trombeta Final": 1, "Bloqueio Instant\xE2neo": 3, "Contra-Manobra": 3, "Forma\xE7\xE3o Quebrada": 3, "Estandarte da Legi\xE3o": 1, "Fortaleza de Pedra": 1, "P\xE2ntano Maldito": 1 }
+  ],
+  cardeal: [
+    { "C\xE1lice das Duas B\xEAn\xE7\xE3os": 1, "Penitente de Pedra": 4, "Cambista do D\xEDzimo": 2, "Confessor Silencioso": 1, "Zeloso da Pira": 1, "Novi\xE7o Renascido": 2, "Despenseiro do Mosteiro": 2, "Sentinela do Claustro": 2, "Jorge, Lan\xE7a Sagrada": 3, "Samaritano de A\xE7o": 2, "Bar\xE3o da Prociss\xE3o": 2, "Paladino do Alvorecer": 4, "Marechal do Sol Poente": 1, "Arqueiro de Dois Sinos": 2, "Vigia do \xDAltimo Salmo": 2, "Trabuco da Trombeta Final": 2, "Catapulta do Dil\xFAvio de Pedra": 3, "Balestra da Penit\xEAncia": 1, "Coura\xE7a do M\xE1rtir": 2, "Gib\xE3o Bento": 2, "Setas de Cicuta": 1, "L\xE2mina do Juramento": 2, "Preces na Sombra": 2, "Chamado do T\xFAmulo Santo": 1, "Peregrina\xE7\xE3o ao Graal": 1, "Serm\xE3o da Estrat\xE9gia": 2, "Alistamento do P\xFAlpito": 2, "Convoca\xE7\xE3o dos Veteranos de F\xE9": 2, "D\xEDzimo de Guerra": 2, "Toque dos Sinos de Guerra": 2 },
+    // rodada 22 e antes: 60 cartas com até 4 cópias, e a primeira lista de 50 cartas
+    { "C\xE1lice das Duas B\xEAn\xE7\xE3os": 1, "Penitente de Pedra": 4, "Cambista do D\xEDzimo": 1, "Confessor Silencioso": 1, "Zeloso da Pira": 1, "Novi\xE7o Renascido": 4, "Despenseiro do Mosteiro": 3, "Sentinela do Claustro": 4, "Jorge, Lan\xE7a Sagrada": 2, "Samaritano de A\xE7o": 3, "Bar\xE3o da Prociss\xE3o": 2, "Paladino do Alvorecer": 3, "Marechal do Sol Poente": 1, "Arqueiro de Dois Sinos": 3, "Vigia do \xDAltimo Salmo": 3, "Trabuco da Trombeta Final": 1, "Catapulta do Dil\xFAvio de Pedra": 1, "Balestra da Penit\xEAncia": 1, "Coura\xE7a do M\xE1rtir": 2, "Gib\xE3o Bento": 2, "Setas de Cicuta": 1, "L\xE2mina do Juramento": 2, "Preces na Sombra": 2, "Chamado do T\xFAmulo Santo": 1, "Peregrina\xE7\xE3o ao Graal": 1, "Serm\xE3o da Estrat\xE9gia": 3, "Alistamento do P\xFAlpito": 2, "Convoca\xE7\xE3o dos Veteranos de F\xE9": 1, "D\xEDzimo de Guerra": 2, "Toque dos Sinos de Guerra": 2 },
+    { "C\xE1lice das Duas B\xEAn\xE7\xE3os": 1, "Penitente de Pedra": 3, "Cambista do D\xEDzimo": 1, "Confessor Silencioso": 1, "Zeloso da Pira": 1, "Novi\xE7o Renascido": 3, "Despenseiro do Mosteiro": 1, "Sentinela do Claustro": 3, "Jorge, Lan\xE7a Sagrada": 2, "Samaritano de A\xE7o": 3, "Bar\xE3o da Prociss\xE3o": 2, "Paladino do Alvorecer": 2, "Marechal do Sol Poente": 1, "Arqueiro de Dois Sinos": 2, "Vigia do \xDAltimo Salmo": 1, "Trabuco da Trombeta Final": 1, "Catapulta do Dil\xFAvio de Pedra": 1, "Balestra da Penit\xEAncia": 1, "Coura\xE7a do M\xE1rtir": 3, "Gib\xE3o Bento": 2, "Setas de Cicuta": 1, "L\xE2mina do Juramento": 3, "Preces na Sombra": 2, "Chamado do T\xFAmulo Santo": 1, "Peregrina\xE7\xE3o ao Graal": 1, "Serm\xE3o da Estrat\xE9gia": 1, "Alistamento do P\xFAlpito": 2, "Convoca\xE7\xE3o dos Veteranos de F\xE9": 1, "D\xEDzimo de Guerra": 1, "Toque dos Sinos de Guerra": 2 }
+  ]
+};
 var BY_NAME = {};
 CARD_DEFS.forEach((c) => {
   BY_NAME[c.name] = c;
@@ -3351,6 +3383,83 @@ var deckProblem = (cards, general, collection) => {
   return null;
 };
 
+// src/rarity.ts
+var RARITY_ODDS = { padrao: { rara: 0.035, ultra: 25e-4 }, fullart: { rara: 0.12, ultra: 0.03 } };
+var FULLART_PACK_CHANCE = 0.125;
+var rollRarity = (isFullArt, rnd = Math.random) => {
+  const o = isFullArt ? RARITY_ODDS.fullart : RARITY_ODDS.padrao, r = rnd();
+  return r < o.ultra ? "ultra" : r < o.ultra + o.rara ? "rara" : "comum";
+};
+var NUMBERS = /* @__PURE__ */ new Map();
+CARD_DEFS.forEach((d, i) => {
+  if (!NUMBERS.has(d.name)) NUMBERS.set(d.name, NUMBERS.size + 1);
+  void i;
+});
+
+// src/engine/boosters.ts
+var BOOSTER_PRICE = 150;
+var BOOSTER_CARDS = 5;
+var BOOSTER_IDS = ["cardeal", "capitao", "mercenarios", "campo"];
+var DUP_COROAS = { comum: 5, rara: 15, ultra: 50, secreta: 50 };
+var NEW_CARD_BOOST = 3;
+var boosterPool = (id) => {
+  const count = { ...LEGACY_STARTERS[id][0] };
+  [DECK_RECIPES[id].cards, BOOSTER_EXTRA[id] ?? {}].forEach((list) => Object.entries(list).forEach(([name, n]) => {
+    count[name] = Math.max(count[name] ?? 0, n);
+  }));
+  return Object.entries(count).map(([name, n]) => {
+    const def = getCardDef(name);
+    return { name, cost: def.cost, fullArt: !!def.isFullArt, weight: n };
+  });
+};
+var rollBooster = (id, owned = {}, rnd = Math.random) => {
+  const all = boosterPool(id), pool = all.filter((c) => !c.fullArt), fullArts = all.filter((c) => c.fullArt);
+  const weight = (c) => c.weight * (c.cost <= 1 ? 6 : c.cost === 2 ? 4 : c.cost === 3 ? 2 : 1) * ((owned[c.name] ?? 0) === 0 ? NEW_CARD_BOOST : 1);
+  const draw = (list) => {
+    let roll = rnd() * list.reduce((s, c) => s + weight(c), 0);
+    for (const c of list) {
+      roll -= weight(c);
+      if (roll <= 0) return c;
+    }
+    return list[list.length - 1];
+  };
+  const strong = pool.filter((c) => c.cost >= 3);
+  const out = [];
+  for (let i = 0; i < BOOSTER_CARDS - 1; i++) out.push(draw(pool));
+  out.push(draw(strong.length ? strong : pool));
+  if (fullArts.length && rnd() < FULLART_PACK_CHANCE) out[Math.floor(rnd() * (BOOSTER_CARDS - 1))] = fullArts[Math.floor(rnd() * fullArts.length)];
+  return out.map((c) => ({ name: c.name, rarity: rollRarity(c.fullArt, rnd) }));
+};
+var settleBooster = (owned, pulls) => {
+  const have = { ...owned }, adds = {}, cards = [];
+  let refund = 0;
+  const add = (k) => {
+    have[k] = (have[k] ?? 0) + 1;
+    adds[k] = (adds[k] ?? 0) + 1;
+  };
+  for (const p of pulls) {
+    const total = have[p.name] ?? 0, special = ["rara", "ultra", "secreta"].reduce((s, r) => s + (have[`${p.name}#${r}`] ?? 0), 0);
+    const mark = () => {
+      if (p.rarity !== "comum") add(`${p.name}#${p.rarity}`);
+    };
+    if (total < maxCopiesOf(p.name)) {
+      add(p.name);
+      mark();
+      cards.push({ ...p, isNew: total === 0, dup: "no", coroas: 0 });
+      continue;
+    }
+    if (p.rarity !== "comum" && total - special > 0) {
+      mark();
+      refund += DUP_COROAS.comum;
+      cards.push({ ...p, isNew: false, dup: "upgrade", coroas: DUP_COROAS.comum });
+      continue;
+    }
+    refund += DUP_COROAS[p.rarity];
+    cards.push({ ...p, isNew: false, dup: "coroas", coroas: DUP_COROAS[p.rarity] });
+  }
+  return { cards, adds, refund };
+};
+
 // src/engine/rewards.ts
 var REWARD_MIN_ROUNDS = 3;
 var REWARD_MIN_STEPS = 14;
@@ -4093,7 +4202,7 @@ var finishIfStale = async (db, cfg, m) => {
   }
   return m;
 };
-var OPS = /* @__PURE__ */ new Set(["missions", "missionClaim", "missionReroll", "ping", "admin", "feedback", "adminFeedbackDone", "report", "deleteAccount", "friendCreate", "friendStatus", "friendCancel", "friendPeek", "friendJoin", "adminBan", "adminUnban", "queue", "ranked", "claim", "ranking", "status", "cancel", "act", "tick", "result", "emote", "emotes"]);
+var OPS = /* @__PURE__ */ new Set(["openBooster", "missions", "missionClaim", "missionReroll", "ping", "admin", "feedback", "adminFeedbackDone", "report", "deleteAccount", "friendCreate", "friendStatus", "friendCancel", "friendPeek", "friendJoin", "adminBan", "adminUnban", "queue", "ranked", "claim", "ranking", "status", "cancel", "act", "tick", "result", "emote", "emotes"]);
 var badRequest = (req) => {
   if (!req || typeof req !== "object" || Array.isArray(req)) return "Pedido inv\xE1lido.";
   const r = req;
@@ -4105,6 +4214,7 @@ var badRequest = (req) => {
   if (r.code !== void 0 && (typeof r.code !== "string" || r.code.length > 8)) return "Pedido inv\xE1lido.";
   if ((r.op === "friendPeek" || r.op === "friendJoin") && !(typeof r.code === "string" && /^[A-Za-z0-9]{4,8}$/.test(r.code))) return "Convite inv\xE1lido.";
   if (r.key !== void 0 && (typeof r.key !== "string" || r.key.length > 24)) return "Pedido inv\xE1lido.";
+  if (r.booster !== void 0 && (typeof r.booster !== "string" || r.booster.length > 24)) return "Pedido inv\xE1lido.";
   if (r.mission !== void 0 && (typeof r.mission !== "string" || r.mission.length > 40)) return "Pedido inv\xE1lido.";
   if (r.target !== void 0 && (typeof r.target !== "string" || r.target.length > 64)) return "Pedido inv\xE1lido.";
   if (r.reason !== void 0 && (typeof r.reason !== "string" || r.reason.length > 200)) return "Pedido inv\xE1lido.";
@@ -4242,6 +4352,18 @@ var handleGame = async (db, userId, req, cfg = defaultConfig(), who = {}) => {
       } catch {
         return { ok: false, error: "As miss\xF5es n\xE3o est\xE3o dispon\xEDveis agora." };
       }
+    }
+    case "openBooster": {
+      if (!BOOSTER_IDS.includes(req.booster)) return { ok: false, error: "Booster desconhecido." };
+      const prof = await db.profile(userId);
+      if (!prof) return { ok: false, error: "Perfil n\xE3o encontrado." };
+      if (prof.coroas < BOOSTER_PRICE) return { ok: false, error: "Coroas insuficientes." };
+      const owned = currentNames(await db.collection(userId));
+      const { cards, adds, refund } = settleBooster(owned, rollBooster(req.booster, owned));
+      const after = await db.openBooster(userId, BOOSTER_PRICE, refund, adds);
+      if (after === null) return { ok: false, error: "A loja n\xE3o est\xE1 dispon\xEDvel agora." };
+      if (after < 0) return { ok: false, error: "Coroas insuficientes." };
+      return { ok: true, status: "booster", cards, adds, spent: BOOSTER_PRICE, refund, coroas_after: after };
     }
     case "deleteAccount": {
       if (await db.activeMatchOf(userId)) return { ok: false, error: "Termine ou abandone a partida em andamento antes de excluir a conta." };
@@ -4665,6 +4787,12 @@ var supabaseDb = (c) => ({
   },
   async grantCoroas(userId, amount) {
     const r = await c.rpc("grant_coroas", { p_user: userId, p_amount: amount });
+    if (r.error) return null;
+    const n = Array.isArray(r.data) ? r.data[0] : r.data;
+    return typeof n === "number" ? n : null;
+  },
+  async openBooster(userId, price, refund, adds) {
+    const r = await c.rpc("open_booster", { p_user: userId, p_price: price, p_refund: refund, p_adds: adds });
     if (r.error) return null;
     const n = Array.isArray(r.data) ? r.data[0] : r.data;
     return typeof n === "number" ? n : null;
