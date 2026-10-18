@@ -199,7 +199,7 @@ import duelMusicUrl from './assets/music-duelo.mp3';
 // for the card-play thud, picked and approved by the user over a few rounds (see git
 // history) rather than a first guess. No attribution is legally required for CC0, but
 // noting the source here for anyone maintaining this later.
-import cardPlaySfxUrl from './assets/sfx-convocar.mp3';
+import cardPlaySfxUrl from './assets/sfx-convocar-pedra.mp3';   // "tum" de algo pesado (rocha) caindo no chão; gerado por tools/audio/gerar-thud.py
 import attackSfxUrl from './assets/sfx-combate-explosao.wav';
 import tacticSfxUrl from './assets/sfx-tatica.wav';
 import effectSfxUrl from './assets/sfx-efeito-magico.mp3';
@@ -333,7 +333,7 @@ const playCardDrawSfx = () => {
 // the thing that just happened on screen.
 const playCardPlaySfx = () => {
   const audio = new Audio(cardPlaySfxUrl);
-  audio.volume = sfxVol(0.32);
+  audio.volume = sfxVol(0.42);
   audio.play().catch(() => {});
 };
 // The blow: sfx-combate-explosao.wav has its loud hit 42 ms in, so it is started just before the 40 ms hit-stop (HIT_STOP_MS)
@@ -341,6 +341,8 @@ const playCardPlaySfx = () => {
 const playAttackSfx = () => playSfx(attackSfxUrl, 0.48, 'sfx:attack');
 // A card's effect fires (its float + glow are timed to this clip: swell ~0.2 s, main hit ~0.73 s, ~1.9 s long).
 const playEffectSfx = () => playSfx(effectSfxUrl, 0.7, 'sfx:effect');
+let lastEffectSfxAt = 0;
+const playEffectSfxOnce = () => { const n = performance.now(); if (n - lastEffectSfxAt < 220) return; lastEffectSfxAt = n; playEffectSfx(); };   // várias cartas ao mesmo tempo = um som só
 const playTacticSfx = () => {
   const audio = new Audio(tacticSfxUrl);
   audio.volume = sfxVol(0.6);
@@ -861,7 +863,7 @@ const TriggerBurst = ({ x, y, w, h, card }: { x: number; y: number; w: number; h
 // The card whose effect fires floats up off its slot (the real one is held empty meanwhile, holdsRef), glows in time with the
 // sound, and stays up for as long as someone still has to decide — the player to use it or not, later the opponent to block it —
 // then sets back down. Same lift pose as the equip scene (EquipFxLayer). Under the pick / target prompts (z 220), over the board.
-const TriggerFloatLayer = ({ fx }: { fx: { id: number; card: CardData; rect: { x: number; y: number; w: number; h: number }; stage: 'up' | 'down' } }) => {
+const TriggerFloatLayer = ({ fx }: { fx: { id: number; card: CardData; rect: { x: number; y: number; w: number; h: number }; stage: 'up' | 'down' }; key?: React.Key }) => {
   const { rect, stage, card } = fx;
   const up = stage === 'up';
   const base: React.CSSProperties = { position: 'fixed', left: rect.x - rect.w / 2, top: rect.y - rect.h / 2, width: rect.w, height: rect.h };
@@ -1050,14 +1052,15 @@ const SpriteIcon = ({ icon, delay = 0, className = '' }: { icon: EffectIcon; del
 };
 // A small icon that pops above a card when something happens to it (a heal, a bonus, a reinforcement, a swap) and fades.
 const IconPop = ({ x, y, size = 92, icon, label }: { x: number; y: number; size?: number; icon: EffectIcon; label?: string; key?: React.Key }) => {
+  // (x, y) é o CENTRO da carta: o ícone nasce e fica centrado nela (antes subia para fora da carta); o texto vai por cima da parte de baixo do ícone.
   const d = EFFECT_ICONS[icon];
   return (
-    <motion.div className="fixed pointer-events-none flex flex-col items-center" style={{ left: x - size / 2, top: y - size, width: size, zIndex: 495 }}
-      initial={{ opacity: 0, y: 10, scale: 0.7 }} animate={{ opacity: [0, 1, 1, 0], y: [10, 0, -6, -22], scale: [0.7, 1.05, 1, 1] }} transition={{ duration: 1.9, times: [0, 0.12, 0.7, 1], ease: 'easeOut' }}>
+    <motion.div className="fixed pointer-events-none" style={{ left: x - size / 2, top: y - size / 2, width: size, height: size, zIndex: 495 }}
+      initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: [0, 1, 1, 0], scale: [0.6, 1.1, 1, 1], y: [0, 0, -4, -10] }} transition={{ duration: 1.5, times: [0, 0.14, 0.72, 1], ease: 'easeOut' }}>
       <div style={{ width: size, height: size, filter: `drop-shadow(0 0 8px ${d.color}aa) drop-shadow(0 2px 4px rgba(0,0,0,0.7))` }}>
         <SpriteIcon icon={icon} className="w-full h-full" />
       </div>
-      {label && <span className="font-black -mt-1 whitespace-nowrap" style={{ fontFamily: "'Cinzel', serif", fontSize: 16, color: '#fff7e0', textShadow: `0 2px 0 #000, 0 0 10px ${d.color}` }}>{label}</span>}
+      {label && <span className="absolute left-0 right-0 text-center font-black whitespace-nowrap" style={{ top: '50%', transform: 'translateY(-50%)', fontFamily: "'Cinzel', serif", fontSize: 17, color: '#fff7e0', textShadow: `0 2px 0 #000, 0 0 10px ${d.color}, 0 0 3px #000` }}>{label}</span>}
     </motion.div>
   );
 };
@@ -1222,7 +1225,7 @@ const RepositionLegNovo = ({ leg, card, isPrimary, reinforce, swapped, onDone }:
 };
 
 const FlyingCardNovo = ({ f, onDone }: { f: { card: CardData; fromX: number; fromY: number; fromW: number; fromRot?: number; fromRx?: number; fromRy?: number; toX: number; toY: number; toW: number; toH: number }; onDone: () => void; key?: React.Key }) => {
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDivElement>(null), handRef = useRef<HTMLDivElement>(null), miniRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current; if (!el) return;
     const HW = HAND_CARD_WIDTH / 2, HH = HAND_CARD_HEIGHT / 2, k = TIME.k;
@@ -1241,12 +1244,20 @@ const FlyingCardNovo = ({ f, onDone }: { f: { card: CardData; fromX: number; fro
     // peso no toque: a carta amassa um instante (achata e alarga) e volta ao tamanho exato da casa antes de ser trocada pela carta de verdade
     tl.to(el, { scaleX: s1 * 1.07, scaleY: s1y * .91, duration: .05 * k, ease: 'power2.out' }, .8 * k);
     tl.to(el, { scaleX: s1, scaleY: s1y, duration: .12 * k, ease: 'back.out(3)' }, .85 * k);
+    // A carta de voo é a carta grande da mão; a que fica no tabuleiro é a miniatura. Trocar de uma para a outra no instante do toque dava um "pulo" (texto e moldura mudam de uma vez):
+    // então a miniatura aparece POR CIMA durante a queda e a carta grande some, e quando o voo termina a carta de verdade já é idêntica ao que se vê.
+    tl.fromTo(miniRef.current, { opacity: 0 }, { opacity: 1, duration: .16 * k, ease: 'power1.inOut' }, .64 * k);
+    tl.to(handRef.current, { opacity: 0, duration: .14 * k, ease: 'power1.in' }, .72 * k);
     tl.to({}, { duration: .03 * k }, .97 * k);                                                                                     // segura até o fim do voo
     return () => { tl.kill(); };
   }, []);
   return (
     <div ref={ref} className="pointer-events-none rounded-xl flex flex-col p-2 relative" style={{ position: 'fixed', left: 0, top: 0, width: HAND_CARD_WIDTH, height: HAND_CARD_HEIGHT, zIndex: 500, willChange: 'transform', boxShadow: cardBoxShadow(f.card, 'inset 0 0 0 1px rgba(212,175,55,0.45), 0 0 40px rgba(212,175,55,0.6)') }}>
-      <CardFace card={f.card} variant="hand" />
+      <div ref={handRef} className="absolute inset-0 flex flex-col p-2"><CardFace card={f.card} variant="hand" /></div>
+      {/* a miniatura, do tamanho exato da casa, contra-escalada para ficar nítida quando a carta chega ao tamanho final */}
+      <div ref={miniRef} className="absolute left-0 top-0 flex flex-col p-1 rounded-lg" style={{ width: f.toW, height: f.toH, transformOrigin: '0 0', transform: `scale(${HAND_CARD_WIDTH / f.toW}, ${HAND_CARD_HEIGHT / f.toH})`, opacity: 0 }}>
+        {f.card.isFullArt ? <CardFaceFullArtMini card={f.card} /> : <CardFaceStandardMini card={f.card} />}
+      </div>
     </div>
   );
 };
@@ -6232,7 +6243,7 @@ export default function App() {
   }>(null);
   const equipFxIdRef = useRef(0);
   // Small effect icons floating over cards for a moment (see IconPop).
-  const [iconPops, setIconPops] = useState<{ id: number; x: number; y: number; icon: EffectIcon; label?: string }[]>([]);
+  const [iconPops, setIconPops] = useState<{ id: number; x: number; y: number; icon: EffectIcon; label?: string; size?: number }[]>([]);
   const popIdRef = useRef(0);
   const [shieldFx, setShieldFx] = useState<{ id: number; x: number; y: number; w: number; h: number; mode: 'appear' | 'hit' | 'break'; gold: boolean }[]>([]);
   const shieldOverSlot = (side: 'player' | 'npc', slot: number, mode: 'appear' | 'hit' | 'break', gold = false, delay = 0) => {
@@ -6244,13 +6255,29 @@ export default function App() {
       window.setTimeout(() => setShieldFx(f => f.filter(q => q.id !== id)), 900);
     }, delay);
   };
+  // Ícone de bônus/cura/troca SOBRE a carta (centrado). Vários no mesmo instante saem JUNTOS (uma rajada de 90 ms) e o mesmo ícone na mesma carta soma o número em vez de repetir.
+  const popBatchRef = useRef<Map<string, { side: 'player' | 'npc'; slot: number; icon: EffectIcon; total: number; text: string; timer: number }>>(new Map());
+  const popRecentRef = useRef<Map<string, { id: number; at: number; total: number }>>(new Map());
   const popOverSlot = (side: 'player' | 'npc', slot: number, icon: EffectIcon, label?: string, delay = 0) => {
     window.setTimeout(() => {
-      const r = document.getElementById(`${side}-${slot}`)?.getBoundingClientRect();
-      if (!r) return;
-      const id = ++popIdRef.current;
-      setIconPops(p => [...p, { id, x: r.left + r.width / 2, y: r.top + r.height * 0.35, icon, label }]);
-      window.setTimeout(() => setIconPops(p => p.filter(q => q.id !== id)), 2000);
+      const key = `${side}-${slot}-${icon}`, n = label && /^\+(\d+)$/.test(label) ? parseInt(label.slice(1), 10) : 0;
+      const b = popBatchRef.current.get(key);
+      if (b) { b.total += n; return; }                                  // já tem uma saindo nesta rajada: só soma
+      const item = { side, slot, icon, total: n, text: label ?? '', timer: 0 };
+      item.timer = window.setTimeout(() => {
+        popBatchRef.current.delete(key);
+        const r = document.getElementById(`${side}-${slot}`)?.getBoundingClientRect();
+        if (!r) return;
+        const recent = popRecentRef.current.get(key), now = Date.now();
+        if (recent && now - recent.at < 450) return;                    // o mesmo ícone acabou de aparecer nesta carta
+        const id = ++popIdRef.current;
+        popRecentRef.current.set(key, { id, at: now, total: item.total });
+        const text = n ? `+${item.total}` : item.text;
+        const size = Math.round(Math.min(78, Math.max(52, r.width * 1.1)));
+        setIconPops(p => [...p, { id, x: r.left + r.width / 2, y: r.top + r.height / 2, icon, label: text || undefined, size }]);
+        window.setTimeout(() => setIconPops(p => p.filter(q => q.id !== id)), 1600);
+      }, 90);
+      popBatchRef.current.set(key, item);
     }, delay);
   };
   // A card's effect fires (gatilho): its colour glows over the card's exact silhouette and its type-line icon pulses.
@@ -6259,17 +6286,23 @@ export default function App() {
   const startTriggerFxRef = useRef<(side: 'player' | 'npc', slot: number, card: CardData, trig: Trigger, hold?: () => boolean, ms?: number) => void>(() => {});
   // Fires a card's trigger burst (set by burstAt) — a ref so the test hook can reach it.
   const burstFnRef = useRef<(side: 'player' | 'npc', slot: number, card: CardData, trig: Trigger, delay?: number) => void>(() => {});
-  const burstAt = (side: 'player' | 'npc', slot: number, card: CardData, trig: Trigger, delay = 0) => {
+  const burstRecentRef = useRef<Map<string, number>>(new Map());
+  const burstAt = (side: 'player' | 'npc', slot: number, card: CardData, trig: Trigger, delay = 0, quiet = false) => {
     window.setTimeout(() => {
       const r = document.getElementById(`${side}-${slot}`)?.getBoundingClientRect();
       if (!r) return;
+      const key = `${side}-${slot}-${card.id}`, now = Date.now(), last = burstRecentRef.current.get(key) ?? 0;
+      if (now - last < 600) return;                                    // o mesmo brilho na mesma carta nunca se repete em sequência
+      burstRecentRef.current.set(key, now);
       const id = ++burstIdRef.current;
       setTriggerBursts(b => [...b, { id, x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, card, trig }]);
       pulseCard(card.id, trig, 2000);
-      playEffectSfx();
+      if (!quiet) playEffectSfxOnce();
       window.setTimeout(() => setTriggerBursts(b => b.filter(q => q.id !== id)), 1700);
     }, delay);
   };
+  // Cartas que RECEBEM um efeito (bônus, cura) brilham todas no mesmo instante (sem som extra): é o "uma jogada, várias cartas acesas de uma vez".
+  const glowTarget = (seat: Seat, slot: number) => { const c = engineRef.current?.players[seat].board[slot]; if (c && slot <= 9) burstAt(seat === 0 ? 'player' : 'npc', slot, toCardDataRef.current(c), 'comando', 0, true); };
   burstFnRef.current = burstAt;
 
   // The full flow of an effect firing: the card floats up off its slot, glows in time with the sound, and STAYS up while
@@ -6278,9 +6311,13 @@ export default function App() {
   // Queda (the card is burning) and Ofensiva (the card is mid-attack) only glow in place (burstAt). The sound and glow are
   // timed together (src/index.css, tb-*): swell ~0.2 s, main hit ~0.73 s.
   const TRIG_GLOW_MS = 1500;
-  const [trigFx, setTrigFx] = useState<{ id: number; side: 'player' | 'npc'; slot: number; card: CardData; rect: { x: number; y: number; w: number; h: number }; stage: 'up' | 'down' } | null>(null);
-  const trigChainRef = useRef<Promise<void>>(Promise.resolve());
-  const trigActiveIdRef = useRef<string | null>(null);
+  // Todas as cartas de um mesmo efeito sobem, brilham e descem JUNTAS (owner, rodada 26: "as quatro cartas precisam brilhar de uma vez"): uma lista, sem fila.
+  type TrigFxItem = { id: number; side: 'player' | 'npc'; slot: number; card: CardData; rect: { x: number; y: number; w: number; h: number }; stage: 'up' | 'down' };
+  const [trigFxList, setTrigFxList] = useState<TrigFxItem[]>([]);
+  const trigFx: TrigFxItem | null = trigFxList[0] ?? null;           // (as telas de alvo olham a primeira; ver trigFxAt)
+  const trigFxAt = (side: 'player' | 'npc', slot: number) => trigFxList.find(f => f.side === side && f.slot === slot) ?? null;
+  const trigActiveIdsRef = useRef<Set<string>>(new Set());
+
   // Glows still playing: whatever the effect asks the player (a pick, a target) waits for them to end (whenGlowDone).
   const trigGlowPendingRef = useRef(0);
   const trigGlowWaitersRef = useRef<(() => void)[]>([]);
@@ -6290,31 +6327,31 @@ export default function App() {
     if (trigGlowPendingRef.current === 0) { const w = trigGlowWaitersRef.current; trigGlowWaitersRef.current = []; w.forEach(f => f()); }
   };
   const startTriggerFx = (side: 'player' | 'npc', slot: number, card: CardData, trig: Trigger, hold?: () => boolean, ms = TRIG_GLOW_MS) => {
-    if (trigActiveIdRef.current === card.id) return;           // this card is already up: one float per effect
-    trigActiveIdRef.current = card.id;
+    if (trigActiveIdsRef.current.has(card.id)) return;         // this card is already up: one float per effect
+    trigActiveIdsRef.current.add(card.id);
     trigGlowPendingRef.current += 1;
-    trigChainRef.current = trigChainRef.current.then(async () => {
+    void (async () => {
       const el = document.getElementById(`${side}-${slot}`);
-      if (!el) { trigActiveIdRef.current = null; endGlow(); return; }
+      if (!el) { trigActiveIdsRef.current.delete(card.id); endGlow(); return; }
       const r = el.getBoundingClientRect();
       const id = ++burstIdRef.current;
       const holds = holdsRef.current[side];
       holds[slot] = null;                                       // the real card waits, hidden, while its copy floats
       if (engineRef.current) syncViewRef.current(engineRef.current);
-      setTrigFx({ id, side, slot, card, rect: { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height }, stage: 'up' });
+      setTrigFxList(l => [...l, { id, side, slot, card, rect: { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height }, stage: 'up' }]);
       pulseCard(card.id, trig, 2600);
-      playEffectSfx();
+      playEffectSfxOnce();
       await sleep(ms);
       endGlow();
       await sleep(80);                                          // let whatever the glow's end opens (a pick, a target) register
       for (let g = 0; hold && hold() && g < 1200; g++) await sleep(100);
-      setTrigFx(f => (f?.id === id ? { ...f, stage: 'down' } : f));
+      setTrigFxList(l => l.map(f => (f.id === id ? { ...f, stage: 'down' as const } : f)));
       await sleep(380);
       delete holds[slot];
-      setTrigFx(f => (f?.id === id ? null : f));
-      trigActiveIdRef.current = null;
+      setTrigFxList(l => l.filter(f => f.id !== id));
+      trigActiveIdsRef.current.delete(card.id);
       if (engineRef.current) syncViewRef.current(engineRef.current);
-    });
+    })();
   };
   startTriggerFxRef.current = startTriggerFx;
   const holdForSeat = (seat: Seat) => () => {
@@ -6504,6 +6541,8 @@ export default function App() {
     (window as any).__powMatchLog = () => matchLogRef.current;
     // Lets a test set up a situation (give a card, move a unit…) and have the screen follow.
     // Test hook: play the trigger burst of the card standing on a slot (or force a given trigger).
+    (window as any).__powPop = (side: 'player' | 'npc', slot: number, icon: EffectIcon = 'atk-up', label = '+1') => popOverSlot(side, slot, icon, label);   // test hook: bonus icon over a slot
+    (window as any).__powGlowAll = (list: { side: 'player' | 'npc'; slot: number }[]) => list.forEach(x => { const c = engineRef.current?.players[x.side === 'player' ? 0 : 1].board[x.slot]; if (c) startTriggerFxRef.current(x.side, x.slot, toCardDataRef.current(c), 'comando', () => Date.now() < Date.now() + 0); });   // test hook: several cards at once
     (window as any).__powNum = (side: 'player' | 'npc', slot: number, value: number, kind: 'damage' | 'heal' | 'shield' = 'damage') => spawnFloatingNumberAtId(`${side}-${slot}`, value, kind);   // test hook: floating number over a slot
     (window as any).__powBurst = (side: 'player' | 'npc', slot: number, trig?: Trigger) => {
       const c = engineRef.current?.players[side === 'player' ? 0 : 1].board[slot];
@@ -6520,7 +6559,7 @@ export default function App() {
       return true;
     };
     // Test hook: the client-side flow state (what is pending, which effect floats, how many glows are still playing).
-    (window as any).__powFlow = () => ({ ability: pendingAbilityRef.current, floating: trigActiveIdRef.current, glows: trigGlowPendingRef.current });
+    (window as any).__powFlow = () => ({ ability: pendingAbilityRef.current, floating: [...trigActiveIdsRef.current], glows: trigGlowPendingRef.current });
     (window as any).__cardFx = { fxLand, fxHintFrame, shuffle: (side: 'player' | 'npc') => fxShuffle(side === 'player' ? playerDeckRef.current : npcDeckRef.current) };   // teste (`?debug`)
     (window as any).__campoFx = { fxForjaEquip, fxFogoEquip, fxArsenalEquip, fxMata, fxForjaPlaced, fxFogoPlaced, fxArsenalPlaced, fxNoiteTrail };   // teste: dispara um efeito do Campo direto (`?debug`)
     (window as any).__powAct = (seat: Seat, action: EngineAction) => { const r = dispatchActionRef.current(seat, action); return r.ok ? { ok: true } : r; };
@@ -6876,7 +6915,7 @@ export default function App() {
           break;
         case 'heal':
           if (!opts.fxNumbers) spawnFloatingNumberAtId(`${ownerId(e.seat)}-${e.slot}`, e.amount, 'heal');
-          if (!opts.quietTurn) popOverSlot(e.seat === 0 ? 'player' : 'npc', e.slot, 'hp-up', `+${e.amount}`);
+          if (!opts.quietTurn) { popOverSlot(e.seat === 0 ? 'player' : 'npc', e.slot, 'hp-up', `+${e.amount}`); glowTarget(e.seat, e.slot); }
           break;
         case 'shield': {
           if (opts.quietTurn) break;
@@ -6909,8 +6948,8 @@ export default function App() {
         case 'buff': {
           // Reforço announces itself (its own icon); anything else that adds ATK / HP gets the matching icon.
           if (opts.quietTurn || events.some(x => x.t === 'reinforce' && x.seat === e.seat && x.to === e.slot)) break;
-          if (e.atk > 0) popOverSlot(e.seat === 0 ? 'player' : 'npc', e.slot, 'atk-up', `+${e.atk}`);
-          else if (e.hp > 0) popOverSlot(e.seat === 0 ? 'player' : 'npc', e.slot, 'hp-up', `+${e.hp}`);
+          if (e.atk > 0) { popOverSlot(e.seat === 0 ? 'player' : 'npc', e.slot, 'atk-up', `+${e.atk}`); glowTarget(e.seat, e.slot); }
+          else if (e.hp > 0) { popOverSlot(e.seat === 0 ? 'player' : 'npc', e.slot, 'hp-up', `+${e.hp}`); glowTarget(e.seat, e.slot); }
           break;
         }
         case 'destroyed': {
@@ -8869,7 +8908,7 @@ export default function App() {
     // A card whose effect is playing floats off its slot and the slot is held empty on screen (trigFx, equipFx): for the
     // rules it is still there, so it stays a valid target — dropping a Tática on it works while the animation runs.
     const solid = (list: (CardData | null)[], who: 'player' | 'npc') => list.map((c, i) =>
-      c ?? (trigFx && trigFx.side === who && trigFx.slot === i ? trigFx.card : equipFx && equipFx.side === who && equipFx.slot === i ? equipFx.unitAfter : null));
+      c ?? (trigFxAt(who, i)?.card ?? (equipFx && equipFx.side === who && equipFx.slot === i ? equipFx.unitAfter : null)));
     const ownSolid = solid(playerSlots, 'player'), foeSolid = solid(npcSlots, 'npc');
     const slots = spec.area === 'row'
       ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => (spec.side === 'own' ? ownSolid : foeSolid)[i])
@@ -8883,7 +8922,7 @@ export default function App() {
     return { source: card, kind: effectTargetKind(verb), title: card.name, hint: spec?.prompt ?? 'Escolha um alvo no campo.', amount, valid: specSlots(spec) };
   };
   // While an effect's card floats, its slot is held empty on screen: the card that is asking for a target is still that one.
-  const sourceAt = (slot: number): CardData | null => playerSlots[slot] ?? (trigFx && trigFx.side === 'player' && trigFx.slot === slot ? trigFx.card : null);
+  const sourceAt = (slot: number): CardData | null => playerSlots[slot] ?? trigFxAt('player', slot)?.card ?? null;
   const targetingMode: TargetingMode | null = (() => {
     if (pendingAbility && sourceAt(pendingAbility.slot)) {
       const source = sourceAt(pendingAbility.slot)!;
@@ -10523,8 +10562,8 @@ export default function App() {
 
       {drawFlights.map(f => <DrawFlightNovo key={f.id} card={f.card} handEl={f.handEl} deckRect={f.deckRect} faceDown={f.faceDown} toBack={f.toBack} soul={f.soul} onDone={() => { f.handEl.style.visibility = ''; flightsOutRef.current = Math.max(0, flightsOutRef.current - 1); setDrawFlights(l => l.filter(x => x.id !== f.id)); if (!drawFlights.some(x => x.id !== f.id)) drawFlightDelay.n = 0; }} />)}
       {equipFx && <EquipFxLayer fx={equipFx} vw={windowSize.width} vh={windowSize.height} />}
-      {trigFx && <TriggerFloatLayer fx={trigFx} />}
-      {iconPops.map(p => <IconPop key={p.id} x={p.x} y={p.y} icon={p.icon} label={p.label} />)}
+      {trigFxList.map(f => <TriggerFloatLayer key={f.id} fx={f} />)}
+      {iconPops.map(p => <IconPop key={p.id} x={p.x} y={p.y} icon={p.icon} label={p.label} size={p.size} />)}
       {shieldFx.map(f => <ShieldFxOnce key={f.id} x={f.x} y={f.y} w={f.w} h={f.h} mode={f.mode} gold={f.gold} />)}
 
       {/* Reposition flight (see repositionFlight's own comment) — a low, quick slide
