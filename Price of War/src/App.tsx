@@ -1390,7 +1390,7 @@ const AtkBadge = ({ value, className = "" }: { value: number, className?: string
 );
 
 // One floating number: a SMALL burst star pops behind it, the digits (image glyphs) pop in and STAY STILL, then fade. Every amount has the same size (owner, rodada 26:
-// the big ones covered the whole card); a big damage just gets one or two "!" after it (5-8 "!", 9+ "!!") and a quick shake. Positioned by its wrapper (centre = where it appears).
+// the big ones covered the whole card); a big damage just gets one or two "!" after it (5-8 "!", 9+ "!!") and slanted (italic) digits; nothing shakes (owner: it was hard to read). Positioned by its wrapper (centre = where it appears).
 const NUMBER_KIND_OF: Record<'damage' | 'heal' | 'gold-gain' | 'gold-spend' | 'shield', NumberKind> = {
   damage: 'damage', heal: 'heal', 'gold-gain': 'gold', 'gold-spend': 'goldspend', shield: 'shield',
 };
@@ -1418,10 +1418,10 @@ const FloatNumber = ({ text, kind }: { text: string; kind: keyof typeof NUMBER_K
       )}
       <motion.div
         initial={{ scale: 0.4, opacity: 0 }}
-        animate={{ scale: [0.4, 1.18, 1, 1], opacity: [0, 1, 1, 0], x: big ? [0, -3, 3, -2, 2, 0, 0] : 0 }}
-        transition={{ duration: ms / 1000, ease: 'easeOut', times, x: { duration: 0.35, ease: 'easeOut' } }}
+        animate={{ scale: [0.4, 1.18, 1, 1], opacity: [0, 1, 1, 0] }}
+        transition={{ duration: ms / 1000, ease: 'easeOut', times }}
         className="relative flex items-center"
-        style={{ filter: `drop-shadow(0 2px 2px rgba(0,0,0,0.7)) drop-shadow(0 0 7px ${NUMBER_GLOW[k]})` }}
+        style={{ skewX: big ? -11 : 0, filter: `drop-shadow(0 2px 2px rgba(0,0,0,0.7)) drop-shadow(0 0 7px ${NUMBER_GLOW[k]})` }}   // big damage: slanted (italic) digits + "!", never shaking
       >
         {text.split('').map((ch, i) => {
           const url = glyphUrl(k, ch);
