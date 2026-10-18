@@ -24,7 +24,7 @@ const cell=(img,kind,text,lab,big)=>`<div class="cell"><div class="card" style="
  ${burst[kind]?`<img class="star" src="${burst[kind]}">`:''}<div class="dig">${text.split('').map(c=>`<img class="g" src="${g(kind,c)}">`).join('')}</div></div></div><div class="lab">${lab}</div></div>`;
 const bang=n=>n>=9?'!!':n>=5?'!':'';
 const dm=(n,img)=>cell(img,'damage','-'+n+bang(n),'dano '+n,n>=5);
-let html='<h3>Dano (tamanho fixo, parado; 5+ itálico com !)</h3><div class="row">'+[[1,'card1.webp'],[3,'card2.webp'],[5,'card3.webp'],[8,'card4.webp'],[12,'card1.webp']].map(([n,i])=>dm(n,i)).join('')+'</div>';
+let html='<h3>Dano (fixo e parado; 5+ itálico com !)</h3><div class="row">'+[[1,'card1.webp'],[3,'card2.webp'],[5,'card3.webp'],[8,'card4.webp'],[12,'card1.webp']].map(([n,i])=>dm(n,i)).join('')+'</div>';
 html+='<h3>Cura e escudo</h3><div class="row">'+cell('card2.webp','heal','+3','cura 3')+cell('card3.webp','shield','-2','escudo 2')+cell('card4.webp','heal','+11','cura 11')+'</div>';
 html+='<h3 style="color:#c98">Antes (tamanho crescia e subia)</h3><div class="row old">'+[[2,'card1.webp'],[8,'card4.webp']].map(([n,i])=>cell(i,'damage','-'+n,'dano '+n)).join('')+'</div>';
 document.getElementById('app').innerHTML=html;
