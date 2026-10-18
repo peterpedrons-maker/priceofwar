@@ -37,3 +37,5 @@ Rodada 26l (ideia do dono, substitui a de andar pela estrada): as figuras **fica
 Rodada 26m: no jogo (`VillageScene.tsx`): figuras paradas respirando (mais movimento: respiração 3–4,5%, balanço ~1,4°, deslocamento ~1,4 px), nuvens, fumaça, brasas e luzes; `src/assets/menu-vila.webp` agora é a vila **sem** as figuras animadas (original da IA no histórico do git/`public/mockups/vila/vila-bg.webp`), sprites em `src/assets/vila/`. "Reduzir movimento": desenha as figuras paradas, sem nuvens nem respiração.
 
 Rodada 26n: nomes reposicionados à mão na base/ao lado de cada prédio (Desafios à esquerda do castelo; Coleção ao lado da torre, Meu Deck na estrada, etc.) para não cobrir a arquitetura.
+
+Rodada 26o: nomes de volta sobre o PÉ de cada prédio (base/fundação), perto da construção, sem cobrir o centro nem os detalhes principais (janelas da torre, fornalha, portão da arena, castelo).

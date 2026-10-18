@@ -19,17 +19,17 @@ const ICONS: Record<string, string> = { castelo: iDesafios, academia: iTut, bibl
 // Coordenadas em px da imagem; o palco escala por "cover" (corta as bordas, os prédios ficam na faixa central).
 const IW = 704, IH = 1520;
 export type VillageId = 'castelo' | 'academia' | 'biblioteca' | 'forja' | 'mercado' | 'missoes' | 'arena' | 'quartel';
-// x,y,w,h = área tocável (centro e tamanho, em px da imagem); lx,ly = onde fica o nome (só texto), sempre na base ou ao lado do prédio, em chão calmo, sem cobrir a construção (cada um ajustado à mão).
+// x,y,w,h = área tocável (centro e tamanho, em px da imagem); lx,ly = onde fica o nome (só texto), sempre sobre a base do prédio (pé da construção), sem cobrir o centro nem os detalhes principais (cada um ajustado à mão).
 // Nomes pela função, para o jogo se explicar sozinho.
 const BUILDINGS: { id: VillageId; name: string; x: number; y: number; w: number; h: number; lx: number; ly: number }[] = [
-  { id: 'castelo', name: 'Desafios', x: 545, y: 285, w: 300, h: 180, lx: 300, ly: 380 },
-  { id: 'academia', name: 'Tutoriais', x: 85, y: 450, w: 170, h: 130, lx: 95, ly: 352 },
-  { id: 'biblioteca', name: 'Coleção', x: 135, y: 690, w: 150, h: 300, lx: 255, ly: 858 },
-  { id: 'forja', name: 'Meu Deck', x: 340, y: 650, w: 190, h: 210, lx: 405, ly: 822 },
-  { id: 'mercado', name: 'Loja', x: 570, y: 610, w: 270, h: 170, lx: 620, ly: 480 },
-  { id: 'missoes', name: 'Missões', x: 580, y: 820, w: 200, h: 170, lx: 600, ly: 935 },
-  { id: 'arena', name: 'Online', x: 140, y: 990, w: 290, h: 260, lx: 175, ly: 1190 },
-  { id: 'quartel', name: 'Ranking', x: 555, y: 1125, w: 300, h: 320, lx: 560, ly: 1320 },
+  { id: 'castelo', name: 'Desafios', x: 545, y: 285, w: 300, h: 180, lx: 555, ly: 395 },
+  { id: 'academia', name: 'Tutoriais', x: 85, y: 450, w: 170, h: 130, lx: 68, ly: 515 },
+  { id: 'biblioteca', name: 'Coleção', x: 135, y: 690, w: 150, h: 300, lx: 130, ly: 822 },
+  { id: 'forja', name: 'Meu Deck', x: 340, y: 650, w: 190, h: 210, lx: 322, ly: 745 },
+  { id: 'mercado', name: 'Loja', x: 570, y: 610, w: 270, h: 170, lx: 575, ly: 695 },
+  { id: 'missoes', name: 'Missões', x: 580, y: 820, w: 200, h: 170, lx: 545, ly: 905 },
+  { id: 'arena', name: 'Online', x: 140, y: 990, w: 290, h: 260, lx: 95, ly: 1122 },
+  { id: 'quartel', name: 'Ranking', x: 555, y: 1125, w: 300, h: 320, lx: 625, ly: 1275 },
 ];
 const GLOWS: [number, number, number, string][] = [[410, 688, 120, '#ff8a2a'], [275, 775, 36, '#ffa040'], [463, 825, 36, '#ffa040'], [220, 520, 30, '#ffa040'], [520, 460, 28, '#ffa040'], [275, 1055, 36, '#ffa040'], [182, 1100, 36, '#ffa040'], [383, 1140, 36, '#ffa040'], [108, 665, 44, '#ffc060'], [165, 665, 44, '#ffc060'], [70, 420, 90, '#ff6a1a'], [440, 570, 34, '#ffc060'], [540, 545, 34, '#ffc060'], [630, 607, 34, '#ffc060'], [200, 1065, 46, '#ff9a40']];
 const SOURCES: [number, number, 'smoke' | 'ember', number][] = [[388, 548, 'smoke', .35], [150, 330, 'smoke', .5], [690, 230, 'smoke', .25], [330, 470, 'smoke', .15], [70, 420, 'ember', .5], [410, 680, 'ember', .6], [600, 520, 'ember', .15], [300, 300, 'ember', .2]];
