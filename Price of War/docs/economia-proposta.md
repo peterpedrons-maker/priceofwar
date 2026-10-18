@@ -65,3 +65,4 @@ Pontos que dependem do dono: o preço do booster, os valores diários, se haver�
 - **Falta:** booster aberto pelo servidor (preço 150), repetidas → coroas, bônus por divisão, missão "vença 1 partida" no lugar do bônus de primeira vitória.
 
 Teste de ponta a ponta (rodada 26q): com o mock (`/__debug/complete-missions`) completei as missões, a tela mostrou Coletar, coletou (saldo e bolinha da aba atualizados) e as coletadas descem para o fim da lista.
+- **Transições na tela de Missões** (rodada 26): coletar dispara primeiro o efeito (brilho dourado na linha, moedas saltando, "+N" subindo, "✓ Pago!" no lugar do botão) e só depois chega o quadro novo, com a linha descendo até o fim da lista deslizando (`layout` do motion). Um aviso "+N coroas" aparece no topo (soma se coletar várias seguidas) e o botão **Coletar tudo +X** (aparece com 2 ou mais prontas) coleta uma por vez com o mesmo efeito.

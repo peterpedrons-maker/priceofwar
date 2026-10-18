@@ -2,7 +2,7 @@ import type React from 'react';
 // Tela de Missões (quadro de avisos da vila): diárias, semanais e, com o ranqueado ligado, de temporada. O servidor sorteia, conta e paga (server/missions.ts); aqui só se mostra,
 // coleta e troca. Mockup aprovado: public/mockups/missoes/. Kit de arte: src/assets/kit-rank.
 import { useCallback, useEffect, useState } from 'react';
-import { AnimatePresence } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Win, KitButton } from './RankedScreens';
 import { claimMission, fetchMissions, rerollMission, type MissionsBoard, type MissionView } from './services/online';
 import abaAtiva from './assets/kit-rank/aba-ativa.png';
@@ -25,10 +25,29 @@ const TAG: Record<MissionView['mode'], { label: string; bg: string; fg: string }
 type Tab = 'daily' | 'weekly' | 'season';
 const left = (ms: number, now: number) => { const h = Math.max(0, ms - now) / 3600e3; return h < 1 ? '< 1 h' : h < 48 ? `${Math.ceil(h)} h` : `${Math.ceil(h / 24)} dias`; };
 
-const MissionRow = ({ m, busy, onClaim, onReroll }: { m: MissionView; busy: boolean; onClaim: () => void; onReroll?: () => void }) => {
+// Moedas que saltam do botão quando a missão é coletada (posições sorteadas uma vez por linha)
+const COINS = Array.from({ length: 9 }, (_, i) => ({ dx: (i - 4) * 14 + (i % 2 ? 6 : -6), dy: -50 - (i * 37 % 40), rot: (i * 53) % 360, delay: (i % 3) * 0.04 }));
+const CollectFx = ({ reward }: { reward: number }) => (
+  <>
+    <motion.div className="absolute inset-0 pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: [0, 0.9, 0] }} transition={{ duration: 0.7 }}
+      style={{ borderRadius: 10, background: 'radial-gradient(ellipse at 85% 50%, rgba(255,226,140,0.95), rgba(255,190,70,0.35) 45%, rgba(255,190,70,0) 75%)' }} />
+    <div className="absolute pointer-events-none" style={{ right: 50, top: '50%', width: 0, height: 0, zIndex: 6 }}>
+      {COINS.map((c, i) => (
+        <motion.img key={i} src={iconeCoroa} alt="" draggable={false} className="absolute" style={{ width: 18, height: 18, left: -9, top: -9, objectFit: 'contain', filter: 'drop-shadow(0 0 5px rgba(255,200,80,0.9))' }}
+          initial={{ x: 0, y: 0, opacity: 0, scale: 0.4, rotate: 0 }} animate={{ x: c.dx, y: [0, c.dy, c.dy + 38], opacity: [0, 1, 1, 0], scale: [0.4, 1.1, 0.9], rotate: c.rot }}
+          transition={{ duration: 0.85, delay: c.delay, ease: 'easeOut', times: [0, 0.45, 1] }} />
+      ))}
+      <motion.b className="absolute" style={{ left: -26, top: -14, fontFamily: CINZEL, fontWeight: 900, fontSize: 20, color: '#ffe9a0', textShadow: '0 2px 4px #000, 0 0 10px rgba(255,200,80,0.9)', whiteSpace: 'nowrap' }}
+        initial={{ y: 0, opacity: 0, scale: 0.6 }} animate={{ y: [0, -16, -34], opacity: [0, 1, 0], scale: [0.6, 1.2, 1] }} transition={{ duration: 0.9, ease: 'easeOut', times: [0, 0.3, 1] }}>+{reward}</motion.b>
+    </div>
+  </>
+);
+
+const MissionRow = ({ m, busy, onClaim, onReroll, collecting }: { m: MissionView; busy: boolean; onClaim: () => void; onReroll?: () => void; collecting?: boolean }) => {
   const done = m.progress >= m.target, ready = done && !m.claimed, tag = TAG[m.mode];
   return (
-    <div className="relative" style={{ height: 96, marginBottom: 4, opacity: m.claimed ? 0.78 : 1 }}>
+    <motion.div className="relative" animate={collecting ? { scale: [1, 1.035, 1] } : { scale: 1 }} transition={{ duration: 0.45 }} style={{ height: 96, marginBottom: 4, opacity: m.claimed ? 0.78 : 1 }}>
+      {collecting && <CollectFx reward={m.reward} />}
       <div className="absolute inset-0" style={{ border: '18px solid transparent', borderImage: `url(${ready ? linhaAtual : linhaNormal}) 38 fill / 18px stretch` }} />
       <div className="absolute grid place-items-center" style={{ left: 14, top: '50%', transform: 'translateY(-50%)', width: 44, height: 44, backgroundImage: `url(${ready ? slotBrilhando : slotNormal})`, backgroundSize: '100% 100%' }}>
         <img src={iconeMissoes} alt="" draggable={false} style={{ width: 30, height: 30, objectFit: 'contain' }} />
@@ -51,10 +70,11 @@ const MissionRow = ({ m, busy, onClaim, onReroll }: { m: MissionView; busy: bool
         <div className="flex items-center" style={{ gap: 3, backgroundImage: `url(${chipNeutro})`, backgroundSize: '100% 100%', padding: '0 12px 0 8px', height: 26, fontFamily: CINZEL, fontWeight: 900, fontSize: 14, color: '#ffe9b0' }}>
           <img src={iconeCoroa} alt="" draggable={false} style={{ width: 17, height: 17, objectFit: 'contain' }} />+{m.reward}
         </div>
-        {m.claimed ? <div style={{ fontFamily: CINZEL, fontWeight: 700, fontSize: 9, letterSpacing: '0.08em', color: '#8fe0a4', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>✓ Coletado</div>
+        {collecting ? <div style={{ fontFamily: CINZEL, fontWeight: 900, fontSize: 10, letterSpacing: '0.1em', color: '#ffe9a0', textTransform: 'uppercase' }}>✓ Pago!</div>
+          : m.claimed ? <div style={{ fontFamily: CINZEL, fontWeight: 700, fontSize: 9, letterSpacing: '0.08em', color: '#8fe0a4', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>✓ Coletado</div>
           : <button onClick={onClaim} disabled={!ready || busy} style={{ width: 78, height: 30, backgroundImage: `url(${ready ? botaoPrimario : botaoSecundario})`, backgroundSize: '100% 100%', border: 'none', fontFamily: CINZEL, fontWeight: 900, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: ready ? '#2a1a05' : '#a89a78', opacity: busy ? 0.6 : 1 }}>{ready ? 'Coletar' : 'Em curso'}</button>}
       </div>
-    </div>
+    </motion.div>
   );
 };
 
@@ -72,12 +92,36 @@ export const MissionsScreen = ({ onClose, onCoroas, onBoard }: { onClose: () => 
   const tabs: { id: Tab; label: string }[] = [{ id: 'daily', label: 'Diárias' }, { id: 'weekly', label: 'Semanais' }, ...(board && board.season.length ? [{ id: 'season' as Tab, label: 'Temporada' }] : [])];
   const list = board ? [...board[tab]].sort((a, b) => Number(a.claimed) - Number(b.claimed)) : [];   // as já coletadas descem para o fim
   const ready = (t: Tab) => board ? board[t].filter(m => !m.claimed && m.progress >= m.target).length : 0;
-  const claim = async (m: MissionView) => { setBusy(true); apply(await claimMission(m.key, m.id)); setBusy(false); };
+  const [fx, setFx] = useState<string | null>(null);                    // missão que está recebendo o efeito de coleta
+  const [toast, setToast] = useState<{ n: number; k: number } | null>(null);   // "+N coroas" que sobe e some
+  const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+  // Coletar: primeiro o efeito (brilho, moedas, "+N", "Pago!"), SÓ DEPOIS o quadro novo chega e a linha desce até o fim da lista deslizando.
+  const collect = async (m: MissionView, wait = 850) => {
+    setFx(m.id);
+    const t0 = Date.now(), r = await claimMission(m.key, m.id);
+    await sleep(Math.max(0, wait - (Date.now() - t0)));
+    if (r.ok === true) setToast(t => ({ n: (t && Date.now() - t.k < 1800 ? t.n : 0) + m.reward, k: Date.now() }));
+    apply(r); setFx(null);
+  };
+  const claim = async (m: MissionView) => { setBusy(true); await collect(m); setBusy(false); };
+  const claimAll = async () => { setBusy(true); for (const m of list.filter(x => !x.claimed && x.progress >= x.target)) await collect(m, 600); setBusy(false); };
+  useEffect(() => { if (!toast) return; const id = setTimeout(() => setToast(null), 1900); return () => clearTimeout(id); }, [toast]);
   const reroll = async (m: MissionView) => { setRerolling(true); apply(await rerollMission(m.id)); setRerolling(false); };
   const now = board?.now ?? Date.now();
+  const readyList = list.filter(x => !x.claimed && x.progress >= x.target);
   return (
-    <Win title="Missões" onClose={onClose} footer={<KitButton onClick={onClose}>Voltar</KitButton>}>
+    <Win title="Missões" onClose={onClose} footer={<div className="flex w-full justify-center" style={{ gap: 4 }}>
+      {readyList.length >= 2 && <KitButton primary onClick={claimAll} width={190}>{busy ? '…' : `Coletar tudo +${readyList.reduce((n, m) => n + m.reward, 0)}`}</KitButton>}
+      <KitButton onClick={onClose} width={readyList.length >= 2 ? 120 : 210}>Voltar</KitButton></div>}>
       <div style={{ padding: '0 4px' }}>
+        <div className="sticky pointer-events-none" style={{ top: 2, height: 0, zIndex: 30 }}>
+          <AnimatePresence>{toast && (
+            <motion.div key={toast.k} className="mx-auto grid place-items-center" initial={{ y: 8, opacity: 0, scale: 0.8 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: -14, opacity: 0 }} transition={{ duration: 0.25 }}
+              style={{ width: 'fit-content', padding: '5px 16px 5px 10px', borderRadius: 20, background: 'linear-gradient(#5a3b10,#2a1805)', border: '1.5px solid #e8c766', boxShadow: '0 4px 14px rgba(0,0,0,0.7), 0 0 14px rgba(255,200,80,0.55)' }}>
+              <span className="flex items-center" style={{ gap: 6, fontFamily: CINZEL, fontWeight: 900, fontSize: 15, color: '#ffe9b0' }}><img src={iconeCoroa} alt="" style={{ width: 20, height: 20, objectFit: 'contain' }} />+{toast.n} coroas</span>
+            </motion.div>)}
+          </AnimatePresence>
+        </div>
         {board === undefined && <div style={{ textAlign: 'center', color: '#cdbd97', fontFamily: SERIF, padding: 30 }}>Carregando…</div>}
         {board === null && <div style={{ textAlign: 'center', color: '#f0a595', fontFamily: SERIF, padding: 30 }}>{error || 'Não foi possível carregar as missões.'} Entre com uma conta e tente de novo.</div>}
         {board && (<>
@@ -95,9 +139,9 @@ export const MissionsScreen = ({ onClose, onCoroas, onBoard }: { onClose: () => 
           </div>
           {error && <div style={{ textAlign: 'center', color: '#f0a595', fontFamily: SERIF, fontSize: 12, padding: '0 10px 6px' }}>{error}</div>}
           {list.map(m => (
-            <div key={m.id}>
-              <MissionRow m={m} busy={busy || rerolling} onClaim={() => claim(m)} onReroll={tab === 'daily' && m.reroll ? () => reroll(m) : undefined} />
-            </div>
+            <motion.div key={m.id} layout="position" transition={{ type: 'spring', stiffness: 380, damping: 34 }}>
+              <MissionRow m={m} busy={busy || rerolling} collecting={fx === m.id} onClaim={() => claim(m)} onReroll={tab === 'daily' && m.reroll ? () => reroll(m) : undefined} />
+            </motion.div>
           ))}
           {list.length === 0 && <div style={{ textAlign: 'center', color: '#cdbd97', fontFamily: SERIF, padding: 30 }}>Nenhuma missão aqui por enquanto.</div>}
         </>)}

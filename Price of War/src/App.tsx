@@ -1,5 +1,6 @@
 import { VillageScene } from './VillageScene';
 import { MissionsHost } from './MissionsScreen';
+import { startMenuMusic, stopMenuMusic } from './menuMusic';
 import { fetchMissions } from './services/online';
 import React, { useState, useEffect, useLayoutEffect, useRef, lazy, Suspense } from 'react';
 import { fetchProfile, usernameAvailable, createProfile, updateProfileFields, fetchStore, pushStore, type CloudDeck } from './services/cloud';
@@ -1388,53 +1389,39 @@ const AtkBadge = ({ value, className = "" }: { value: number, className?: string
   </div>
 );
 
-// One floating number: a burst star pops behind it, the digits (image glyphs) swell, shake a little, drift up and fade.
-// The size grows with the amount for damage. Positioned by its wrapper (centre = where the number starts).
+// One floating number: a SMALL burst star pops behind it, the digits (image glyphs) pop in and STAY STILL, then fade. Every amount has the same size (owner, rodada 26:
+// the big ones covered the whole card); a big damage just gets one or two "!" after it (5-8 "!", 9+ "!!") and a quick shake. Positioned by its wrapper (centre = where it appears).
 const NUMBER_KIND_OF: Record<'damage' | 'heal' | 'gold-gain' | 'gold-spend' | 'shield', NumberKind> = {
   damage: 'damage', heal: 'heal', 'gold-gain': 'gold', 'gold-spend': 'goldspend', shield: 'shield',
 };
-// Damage reads by size: 1-2 small, 3-4 medium, 5-7 big, 8+ huge (held longer, shakes), with no burst behind it. Heals, gold and
-// shield absorption always use the small one. `ms` is how long the number lives (the spawner removes it after that).
-const NUMBER_TIERS = [
-  { h: 40, peak: 1.45, ms: 1300, rings: 1, shake: 0 },
-  { h: 54, peak: 1.55, ms: 1450, rings: 1, shake: 0 },
-  { h: 70, peak: 1.65, ms: 1700, rings: 0, shake: 4 },
-  { h: 88, peak: 1.7, ms: 2000, rings: 0, shake: 8 },
-];
-const damageTier = (amount: number) => (amount >= 8 ? 3 : amount >= 5 ? 2 : amount >= 3 ? 1 : 0);
-const floatLife = (kind: keyof typeof NUMBER_KIND_OF, amount: number) => (kind === 'damage' ? NUMBER_TIERS[damageTier(amount)].ms : NUMBER_TIERS[0].ms) + 150;
+const NUM_H = 26;   // height of the digits, always
+const bangsOf = (amount: number) => (amount >= 9 ? '!!' : amount >= 5 ? '!' : '');
+const floatLife = (kind: keyof typeof NUMBER_KIND_OF, amount: number) => (kind === 'damage' && amount >= 5 ? 1250 : 1050) + 150;
 const FloatNumber = ({ text, kind }: { text: string; kind: keyof typeof NUMBER_KIND_OF }) => {
   const k = NUMBER_KIND_OF[kind];
   const amount = parseInt(text.replace(/\D/g, ''), 10) || 0;
-  const tier = NUMBER_TIERS[k === 'damage' ? damageTier(amount) : 0];
-  const h = tier.h;
+  const big = k === 'damage' && amount >= 5, ms = floatLife(kind, amount) - 150, h = NUM_H;
   const burst = k === 'gold' || k === 'goldspend' ? undefined : burstUrl(k);   // no star behind gold numbers (owner's call, round 26)
+  const times = [0, 0.14, 0.7, 1];
   return (
-    // the star and the number drift up TOGETHER (one outer element carries the drift), so the number never leaves the star
-    <motion.div className="relative flex items-center justify-center" style={{ height: h }}
-      initial={{ y: 0 }} animate={{ y: [0, -6, -20, -46, -80] }} transition={{ duration: tier.ms / 1000, ease: 'easeOut', times: [0, 0.12, 0.3, 0.72, 1] }}>
+    <motion.div className="relative flex items-center justify-center" style={{ height: h }}>
       {burst && (
         <motion.img
           src={burst} alt=""
-          initial={{ scale: 0.2, opacity: 0, rotate: -14 }}
-          animate={{ scale: [0.2, 1.15, 1.25, 1.3, 1.4], opacity: [0, 1, 1, 1, 0], rotate: [-14, 0, 2, 3, 5] }}
-          transition={{ duration: tier.ms / 1000, ease: 'easeOut', times: [0, 0.12, 0.3, 0.72, 1] }}   // same clock as the number: both appear, stay and fade together
+          initial={{ scale: 0.3, opacity: 0 }}
+          animate={{ scale: [0.3, 1.1, 1, 1], opacity: [0, 1, 1, 0] }}
+          transition={{ duration: ms / 1000, ease: 'easeOut', times }}
           className="absolute pointer-events-none select-none max-w-none"
-          style={{ height: h * 2.3, width: h * 2.3, opacity: 0 }}
+          style={{ height: h * 1.9, width: h * 1.9, opacity: 0 }}
           draggable={false}
         />
       )}
       <motion.div
-        initial={{ scale: 0.3, opacity: 0, rotate: -6 }}
-        animate={{
-          scale: [0.3, tier.peak, tier.peak * 0.76, tier.peak * 0.76, tier.peak * 0.62],
-          opacity: [0, 1, 1, 1, 0],
-          rotate: [-6, 5, -2, 0, 0],
-          x: tier.shake ? [0, -tier.shake, tier.shake, -tier.shake * 0.6, tier.shake * 0.6, 0, 0] : 0,
-        }}
-        transition={{ duration: tier.ms / 1000, ease: 'easeOut', times: [0, 0.12, 0.3, 0.72, 1], x: { duration: 0.5, ease: 'easeOut' } }}
+        initial={{ scale: 0.4, opacity: 0 }}
+        animate={{ scale: [0.4, 1.18, 1, 1], opacity: [0, 1, 1, 0], x: big ? [0, -3, 3, -2, 2, 0, 0] : 0 }}
+        transition={{ duration: ms / 1000, ease: 'easeOut', times, x: { duration: 0.35, ease: 'easeOut' } }}
         className="relative flex items-center"
-        style={{ filter: `drop-shadow(0 3px 3px rgba(0,0,0,0.7)) drop-shadow(0 0 10px ${NUMBER_GLOW[k]})` }}
+        style={{ filter: `drop-shadow(0 2px 2px rgba(0,0,0,0.7)) drop-shadow(0 0 7px ${NUMBER_GLOW[k]})` }}
       >
         {text.split('').map((ch, i) => {
           const url = glyphUrl(k, ch);
@@ -3550,6 +3537,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
   // GM mode: asked once per login; the server only answers the owner's account, so everybody else simply never sees the button.
   const [gm, setGm] = useState<AdminInfo | null>(null);
   const [gmOpen, setGmOpen] = useState(false);
+  useEffect(() => { startMenuMusic(); return () => stopMenuMusic(); }, []);   // música da vila enquanto o menu está na tela
   const [missionsOpen, setMissionsOpen] = useState(false);
   const [missionBadge, setMissionBadge] = useState(0);   // quantas missões já podem ser coletadas (bolinha no quadro de avisos)
   useEffect(() => { if (authMode === 'supabase' && session) void fetchMissions().then(r => setMissionBadge(r.ok === true ? r.board.claimable : 0)); }, [session?.userId]);
@@ -5983,7 +5971,7 @@ export default function App() {
     if (value === 0) return;
     if (DEBUG_HOOKS && kind === 'damage') ((window as any).__dmg ??= { ev: 0, sp: 0 }).sp++;
     const id = ++floatingNumberIdRef.current;
-    const text = (kind === 'heal' || kind === 'gold-gain') ? `+${value}` : `-${value}`;
+    const text = (kind === 'heal' || kind === 'gold-gain') ? `+${value}` : `-${value}${kind === 'damage' ? bangsOf(value) : ''}`;
     // A little horizontal jitter so two numbers landing on the same spot at once
     // (e.g. an attacker and defender trading damage right next to each other, or
     // Trabuco da Trombeta Final's AOE hitting a whole row at once) don't render as one
@@ -6516,6 +6504,7 @@ export default function App() {
     (window as any).__powMatchLog = () => matchLogRef.current;
     // Lets a test set up a situation (give a card, move a unit…) and have the screen follow.
     // Test hook: play the trigger burst of the card standing on a slot (or force a given trigger).
+    (window as any).__powNum = (side: 'player' | 'npc', slot: number, value: number, kind: 'damage' | 'heal' | 'shield' = 'damage') => spawnFloatingNumberAtId(`${side}-${slot}`, value, kind);   // test hook: floating number over a slot
     (window as any).__powBurst = (side: 'player' | 'npc', slot: number, trig?: Trigger) => {
       const c = engineRef.current?.players[side === 'player' ? 0 : 1].board[slot];
       if (!c) return false;

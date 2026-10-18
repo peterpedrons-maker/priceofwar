@@ -3,7 +3,7 @@
 export type NumberKind = 'damage' | 'heal' | 'gold' | 'goldspend' | 'shield';
 
 const files = (import.meta as any).glob('./assets/num/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
-const NAME: Record<string, string> = { '-': 'minus', '+': 'plus' };
+const NAME: Record<string, string> = { '-': 'minus', '+': 'plus', '!': 'bang' };   // '!' só existe para dano (damage-bang)
 
 export const glyphUrl = (kind: NumberKind, ch: string): string | undefined => files[`./assets/num/${kind}-${NAME[ch] ?? ch}.webp`];
 export const burstUrl = (kind: NumberKind): string | undefined => files[`./assets/num/burst-${kind === 'goldspend' ? 'damage' : kind}.webp`];

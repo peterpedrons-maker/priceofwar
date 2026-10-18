@@ -932,12 +932,9 @@ const resolveCombat = (c: Ctx, aSeat: Seat, from: number, to: number, ambush: Ca
   const defenderReduction = getIncomingDamageReduction(target, dBoard, aBoard, redD);
   const attackerHpBonus = (attacker.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(from, aBoard, hitsA);
   const defenderHpBonus = (defender.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(target, dBoard, hitsD);
-  // Flash each standing effect once per combat (never once per unit hit): a reduction only counts when there was a blow for it to soften.
-  if (attackerAtk > 0) hitsD.push(...redD);
-  if (defenderAtk > 0) hitsA.push(...redA);
-  const flashed = new Set<string>();
-  const flash = (hits: AuraHit[], ownSeat: Seat, foeSeat: Seat) => hits.forEach(h => { const seat = h.side === 'own' ? ownSeat : foeSeat, k = `${seat}:${h.slot}`; if (!flashed.has(k)) { flashed.add(k); c.ev.push({ t: 'passive', seat, slot: h.slot }); } });
-  flash(hitsA, aSeat, dSeat); flash(hitsD, dSeat, aSeat);
+  // Standing effects (Terreno, Relíquia, General auras, equipment) never flash or lift: they are always on and cannot be "used", so announcing them every combat only
+  // confused the player (owner, rodada 26: in equipment mirror matches the Relíquia and the General lifted on every attack). Only effects that HAPPEN (an ability, a trigger such as
+  // Batedor after the blow) get the lift and glow.
   const damageToDefender = Math.max(0, attackerAtk - defenderReduction);
   const damageToAttacker = Math.max(0, defenderAtk - attackerReduction);
 
