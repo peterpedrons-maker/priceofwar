@@ -8,6 +8,11 @@ import iLoja from './assets/ui-icon-loja.webp';
 import iCoroa from './assets/ui-icon-coroa.webp';
 import iTut from './assets/ui-icon-tutoriais.webp';
 import iRank from './assets/ui-icon-ranking.webp';
+import spr_rider_a from './assets/vila/spr-rider_a.png';
+import spr_p_azul from './assets/vila/spr-p_azul.png';
+import spr_p_capuz from './assets/vila/spr-p_capuz.png';
+import spr_p_ferreiro from './assets/vila/spr-p_ferreiro.png';
+import spr_p_guarda from './assets/vila/spr-p_guarda.png';
 const ICONS: Record<string, string> = { castelo: iDesafios, academia: iTut, biblioteca: iCard, forja: iDeck, mercado: iLoja, missoes: iCoroa, arena: iOnline, quartel: iRank };
 
 // Menu inicial em vila (docs/menu-vila.md): a arte 704x1520 com prédios tocáveis e animação por código (fumaça, brasas, brilhos).
@@ -28,11 +33,15 @@ const BUILDINGS: { id: VillageId; name: string; x: number; y: number; w: number;
 ];
 const GLOWS: [number, number, number, string][] = [[410, 688, 120, '#ff8a2a'], [275, 775, 36, '#ffa040'], [463, 825, 36, '#ffa040'], [220, 520, 30, '#ffa040'], [520, 460, 28, '#ffa040'], [275, 1055, 36, '#ffa040'], [182, 1100, 36, '#ffa040'], [383, 1140, 36, '#ffa040'], [108, 665, 44, '#ffc060'], [165, 665, 44, '#ffc060'], [70, 420, 90, '#ff6a1a'], [440, 570, 34, '#ffc060'], [540, 545, 34, '#ffc060'], [630, 607, 34, '#ffc060'], [200, 1065, 46, '#ff9a40']];
 const SOURCES: [number, number, 'smoke' | 'ember', number][] = [[388, 548, 'smoke', .35], [150, 330, 'smoke', .5], [690, 230, 'smoke', .25], [330, 470, 'smoke', .15], [70, 420, 'ember', .5], [410, 680, 'ember', .6], [600, 520, 'ember', .15], [300, 300, 'ember', .2]];
+// Figuras pintadas da vila recortadas da própria arte (tools/vila): ficam paradas no ponto do pé (x,y na imagem) e só respiram. `menu-vila.webp` já vem sem elas.
+const SPR_META: Record<string, { w: number; h: number; fx: number; fy: number; x: number; y: number }> = {"rider_a": {"w": 72, "h": 82, "fx": 36.0, "fy": 80.0, "x": 74.0, "y": 1224.0}, "p_azul": {"w": 25, "h": 51, "fx": 12.5, "fy": 49.0, "x": 240.5, "y": 851.0}, "p_capuz": {"w": 27, "h": 62, "fx": 13.5, "fy": 60.0, "x": 490.5, "y": 902.0}, "p_ferreiro": {"w": 28, "h": 57, "fx": 14.0, "fy": 55.0, "x": 436.0, "y": 1286.0}, "p_guarda": {"w": 20, "h": 40, "fx": 10.0, "fy": 38.0, "x": 448.0, "y": 713.0}};
+const SPR_SRC: Record<string, string> = { rider_a: spr_rider_a, p_azul: spr_p_azul, p_capuz: spr_p_capuz, p_ferreiro: spr_p_ferreiro, p_guarda: spr_p_guarda };
 type Particle = { t: 'smoke' | 'ember'; x: number; y: number; vx: number; vy: number; l: number; m: number; r: number };
 
 export const VillageScene = ({ onPick, badges }: { onPick: (id: VillageId) => void; badges?: Partial<Record<VillageId, number | string>> }) => {
   const box = useRef<HTMLDivElement>(null);
   const cv = useRef<HTMLCanvasElement>(null);
+  const life = useRef<HTMLCanvasElement>(null);
   const [view, setView] = useState({ s: 1, ox: 0, oy: 0 });
   const [pressed, setPressed] = useState<VillageId | null>(null);
 
@@ -63,6 +72,38 @@ export const VillageScene = ({ onPick, badges }: { onPick: (id: VillageId) => vo
     return () => cancelAnimationFrame(raf);
   }, []);
 
+
+  // Nuvens escuras atravessando o céu e as figuras pintadas respirando (movimento mínimo, fases próprias). Com "reduzir movimento" desenha um quadro só (as figuras precisam aparecer).
+  useEffect(() => {
+    const c = life.current?.getContext('2d'); if (!c) return;
+    const reduced = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const imgs: Record<string, HTMLImageElement> = {};
+    const idle = Object.keys(SPR_META).map((k, i) => { const im = new Image(); im.src = SPR_SRC[k]; imgs[k] = im; const rider = k.startsWith('rider'); return { k, ph: i * 1.9 + .7, rider, tilt: rider ? .014 : .025, breath: rider ? .03 : .045, rate: rider ? 1.1 : 1.5 + i * .12 }; });
+    const clouds = Array.from({ length: 7 }, (_, i) => ({ x: Math.random() * 900 - 100, y: 40 + i * 52 + Math.random() * 30, w: 200 + Math.random() * 180, h: 34 + Math.random() * 26, v: .12 + Math.random() * .16, a: .22 + Math.random() * .16 }));
+    const draw = (t: number) => {
+      c.clearRect(0, 0, IW, IH);
+      if (!reduced) for (const cl of clouds) {
+        cl.x += cl.v; if (cl.x - cl.w > IW) cl.x = -cl.w;
+        const fade = Math.max(0, 1 - Math.max(0, cl.y - 250) / 160);
+        c.save(); c.translate(cl.x, cl.y); c.scale(1, cl.h / cl.w);
+        for (const [dx, r, al] of [[-.35, .55, .7], [0, .7, 1], [.38, .5, .7]]) { const g = c.createRadialGradient(dx * cl.w, 0, 0, dx * cl.w, 0, r * cl.w); g.addColorStop(0, `rgba(38,30,52,${cl.a * al * fade})`); g.addColorStop(1, 'rgba(38,30,52,0)'); c.fillStyle = g; c.beginPath(); c.arc(dx * cl.w, 0, r * cl.w, 0, 7); c.fill(); }
+        c.restore();
+      }
+      for (const a of idle) {
+        const m = SPR_META[a.k], im = imgs[a.k]; if (!im.complete || !im.naturalWidth) continue;
+        const w1 = reduced ? 0 : Math.sin(t * a.rate + a.ph), w2 = reduced ? 0 : Math.sin(t * a.rate * .43 + a.ph * 1.7);
+        c.save(); c.translate(m.x + w2 * 1.4 * (a.rider ? .5 : 1), m.y);
+        c.fillStyle = 'rgba(0,0,0,.26)'; c.beginPath(); c.ellipse(0, 0, m.w * .36, m.w * .085, 0, 0, 7); c.fill();
+        c.rotate(a.tilt * w2); c.scale(1 - a.breath * w1 * .18, 1 + a.breath * w1 * .5); c.drawImage(im, -m.fx, -m.fy, m.w, m.h); c.restore();
+      }
+    };
+    let raf = 0;
+    if (reduced) { draw(0); const timers = [200, 800, 2000].map(ms => window.setTimeout(() => draw(0), ms)); return () => timers.forEach(clearTimeout); }
+    const loop = (now: number) => { draw(now / 1000); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
   return (
     <div ref={box} className="absolute inset-0 z-0 overflow-hidden select-none">
       <style>{`@keyframes vilaGlow{0%{opacity:.55;scale:.9}100%{opacity:1;scale:1.12}}@keyframes vilaBadge{50%{transform:scale(1.18)}}`}</style>
@@ -70,6 +111,7 @@ export const VillageScene = ({ onPick, badges }: { onPick: (id: VillageId) => vo
         {GLOWS.map(([x, y, r, col], i) => (
           <div key={i} className="absolute pointer-events-none" style={{ left: x - r, top: y - r, width: r * 2, height: r * 2, borderRadius: '50%', mixBlendMode: 'screen', background: `radial-gradient(${col}cc,${col}00 70%)`, animation: `vilaGlow ${.9 + (i % 4) * .25}s ${-(i * .37) % 1.3}s infinite alternate ease-in-out` }} />
         ))}
+        <canvas ref={life} width={IW} height={IH} className="absolute inset-0 pointer-events-none" />
         <canvas ref={cv} width={IW} height={IH} className="absolute inset-0 pointer-events-none" />
       </div>
       {BUILDINGS.map(b => {

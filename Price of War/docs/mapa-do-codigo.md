@@ -232,10 +232,10 @@ Moldura fina reutilizável.
 
 ThinFrame:16 · GameBox:38 · TONE_ART:53 · TONE_TEXT:54 · GameButtonTone:55 · GameButton:57
 
-## src/VillageScene.tsx  (100 linhas)
+## src/VillageScene.tsx  (142 linhas)
 (sem descrição ainda: acrescente em FILE_NOTES)
 
-ICONS:11 · IW:15 · VillageId:16 · BUILDINGS:19 · GLOWS:29 · SOURCES:30 · Particle:31 · VillageScene:33
+ICONS:16 · IW:20 · VillageId:21 · BUILDINGS:24 · GLOWS:34 · SOURCES:35 · SPR_META:37 · SPR_SRC:38 · Particle:39 · VillageScene:41
 
 ## server/edge.ts  (41 linhas)
 Entrada da Edge Function (gerada em supabase/functions/game).

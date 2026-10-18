@@ -57,12 +57,12 @@ const ac=document.getElementById('ac'),ax=ac.getContext('2d');
 const META={"rider_a": {"w": 72, "h": 82, "fx": 36.0, "fy": 80.0, "x": 74.0, "y": 1224.0}, "p_azul": {"w": 25, "h": 51, "fx": 12.5, "fy": 49.0, "x": 240.5, "y": 851.0}, "p_capuz": {"w": 27, "h": 62, "fx": 13.5, "fy": 60.0, "x": 490.5, "y": 902.0}, "p_ferreiro": {"w": 28, "h": 57, "fx": 14.0, "fy": 55.0, "x": 436.0, "y": 1286.0}, "p_guarda": {"w": 20, "h": 40, "fx": 10.0, "fy": 38.0, "x": 448.0, "y": 713.0}};
 const IMG={};for(const k in META){const i=new Image();i.src='spr-'+k+'.png';IMG[k]=i}
 // cada figura ganha fases próprias para não se mexerem juntas
-const IDLE=Object.keys(META).map((k,i)=>({k,ph:i*1.9+.7,rider:k.startsWith('rider'),tilt:k.startsWith('rider')?.006:.011,breath:k.startsWith('rider')?.012:.016,rate:k.startsWith('rider')?1.1:1.5+i*.12}));
+const IDLE=Object.keys(META).map((k,i)=>({k,ph:i*1.9+.7,rider:k.startsWith('rider'),tilt:k.startsWith('rider')?.014:.025,breath:k.startsWith('rider')?.03:.045,rate:k.startsWith('rider')?1.1:1.5+i*.12}));
 function drawActors(now){const t=now/1000;ax.clearRect(0,0,704,1520);
  for(const a of IDLE){const m=META[a.k],img=IMG[a.k];if(!img.complete)continue;
   const w1=Math.sin(t*a.rate+a.ph),w2=Math.sin(t*a.rate*.43+a.ph*1.7);
   // respira (estica e encolhe um fio, preso aos pés), balança o peso de um pé para o outro e, de vez em quando, desloca o corpo 1 px
-  const sy=1+a.breath*w1*.5,sx=1-a.breath*w1*.18,rot=a.tilt*w2,dx=w2*.7*(a.rider?.5:1);
+  const sy=1+a.breath*w1*.5,sx=1-a.breath*w1*.18,rot=a.tilt*w2,dx=w2*1.4*(a.rider?.5:1);
   ax.save();ax.translate(m.x+dx,m.y);
   ax.fillStyle='rgba(0,0,0,.26)';ax.beginPath();ax.ellipse(0,0,m.w*.36,m.w*.085,0,0,7);ax.fill();
   ax.rotate(rot);ax.scale(sx,sy);ax.drawImage(img,-m.fx,-m.fy,m.w,m.h);ax.restore()}}
