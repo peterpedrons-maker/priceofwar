@@ -27,7 +27,7 @@ const TAG: Record<MissionView['mode'], { label: string; bg: string; fg: string }
 type Tab = 'daily' | 'weekly' | 'season';
 const left = (ms: number, now: number) => { const h = Math.max(0, ms - now) / 3600e3; return h < 1 ? '< 1 h' : h < 48 ? `${Math.ceil(h)} h` : `${Math.ceil(h / 24)} dias`; };
 
-// Efeito de coleta (a recompensa tem que ser sentida): brilho dourado na linha, onda de choque e raios a partir da recompensa, faíscas, moedas saltando, o selo "CUMPRIDA" carimbando com impacto.
+// Efeito de coleta (a recompensa tem que ser sentida): brilho dourado na linha, onda de choque e raios a partir da recompensa, faíscas, moedas saltando, o selo "COMPLETA" carimbando com impacto.
 const COINS = Array.from({ length: 9 }, (_, i) => ({ dx: (i - 4) * 14 + (i % 2 ? 6 : -6), dy: -50 - (i * 37 % 40), rot: (i * 53) % 360, delay: (i % 3) * 0.04 }));
 const SPARKS = Array.from({ length: 14 }, (_, i) => { const a = (i / 14) * Math.PI * 2 + (i % 3) * 0.2, r = 40 + (i * 29 % 46); return { x: Math.cos(a) * r, y: Math.sin(a) * r * 0.8, s: 0.6 + (i % 4) * 0.25, d: (i % 5) * 0.03 }; });
 const Spark = ({ size }: { size: number }) => <svg width={size} height={size} viewBox="0 0 20 20"><path d="M10 0 L12 8 L20 10 L12 12 L10 20 L8 12 L0 10 L8 8Z" fill="#fff4c2" /></svg>;
@@ -52,14 +52,14 @@ const CollectFx = ({ reward }: { reward: number }) => (
       <motion.b className="absolute" style={{ left: -26, top: -14, fontFamily: CINZEL, fontWeight: 900, fontSize: 20, color: '#ffe9a0', textShadow: '0 2px 4px #000, 0 0 10px rgba(255,200,80,0.9)', whiteSpace: 'nowrap' }}
         initial={{ y: 0, opacity: 0, scale: 0.6 }} animate={{ y: [0, -16, -34], opacity: [0, 1, 0], scale: [0.6, 1.2, 1] }} transition={{ duration: 0.9, ease: 'easeOut', times: [0, 0.3, 1] }}>+{reward}</motion.b>
     </div>
-    {/* selo "CUMPRIDA" carimbando no meio da linha, com clarão de impacto */}
+    {/* selo "COMPLETA" carimbando no meio da linha, com clarão de impacto */}
     <motion.div className="absolute pointer-events-none" style={{ left: 36, top: '50%', width: 0, height: 0, zIndex: 7 }}>
       <motion.div className="absolute" style={{ left: -60, top: -60, width: 120, height: 120, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,244,200,0.95), rgba(255,200,80,0) 65%)' }}
         initial={{ opacity: 0, scale: 0.4 }} animate={{ opacity: [0, 0, 1, 0], scale: [0.4, 0.4, 1.4, 1.8] }} transition={{ duration: 0.55, delay: 0.1, times: [0, 0.3, 0.5, 1] }} />
       <motion.div className="absolute flex flex-col items-center justify-center" style={{ left: -33, top: -33, width: 66, height: 66, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #ffe08a, #c98a1a 60%, #6a3f08)', border: '3px double #fff1b8', boxShadow: '0 4px 12px rgba(0,0,0,0.75), 0 0 18px rgba(255,200,80,0.8)', transform: 'rotate(-12deg)' }}
         initial={{ scale: 3, opacity: 0, rotate: -34 }} animate={{ scale: [3, 0.88, 1, 1], opacity: [0, 1, 1, 1], rotate: [-34, -12, -12, -12] }} transition={{ duration: 0.5, delay: 0.1, times: [0, 0.55, 0.75, 1], ease: 'easeOut' }}>
         <svg width="30" height="24" viewBox="0 0 30 24" style={{ marginBottom: 1, filter: 'drop-shadow(0 1px 0 rgba(255,240,180,0.7))' }}><path d="M3 13 L11 21 L27 3" fill="none" stroke="#3a2005" strokeWidth="5.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        <span style={{ fontFamily: CINZEL, fontWeight: 900, fontSize: 8, letterSpacing: '0.04em', color: '#3a2005', textShadow: '0 1px 0 rgba(255,240,180,0.7)', lineHeight: 1, marginTop: -2 }}>CUMPRIDA</span>
+        <span style={{ fontFamily: CINZEL, fontWeight: 900, fontSize: 8, letterSpacing: '0.04em', color: '#3a2005', textShadow: '0 1px 0 rgba(255,240,180,0.7)', lineHeight: 1, marginTop: -2 }}>COMPLETA</span>
       </motion.div>
     </motion.div>
   </>
@@ -94,8 +94,8 @@ const MissionRow = ({ m, busy, onClaim, onReroll, collecting }: { m: MissionView
         <div className="flex items-center" style={{ gap: 3, backgroundImage: `url(${chipNeutro})`, backgroundSize: '100% 100%', padding: '0 12px 0 8px', height: 26, fontFamily: CINZEL, fontWeight: 900, fontSize: 14, color: '#ffe9b0' }}>
           <img src={iconeCoroa} alt="" draggable={false} style={{ width: 17, height: 17, objectFit: 'contain' }} />+{m.reward}
         </div>
-        {collecting ? <div style={{ fontFamily: CINZEL, fontWeight: 900, fontSize: 9, letterSpacing: '0.04em', color: '#ffe9a0', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>✓ Cumprida!</div>
-          : m.claimed ? <div style={{ fontFamily: CINZEL, fontWeight: 700, fontSize: 9, letterSpacing: '0.04em', color: '#8fe0a4', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>✓ Cumprida</div>
+        {collecting ? <div style={{ fontFamily: CINZEL, fontWeight: 900, fontSize: 9, letterSpacing: '0.04em', color: '#ffe9a0', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>✓ Completa!</div>
+          : m.claimed ? <div style={{ fontFamily: CINZEL, fontWeight: 700, fontSize: 9, letterSpacing: '0.04em', color: '#8fe0a4', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>✓ Completa</div>
           : <button data-claim={m.id} onClick={onClaim} disabled={!ready || busy} style={{ width: 78, height: 30, backgroundImage: `url(${ready ? botaoPrimario : botaoSecundario})`, backgroundSize: '100% 100%', border: 'none', fontFamily: CINZEL, fontWeight: 900, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: ready ? '#2a1a05' : '#a89a78', opacity: busy ? 0.6 : 1 }}>{ready ? 'Coletar' : 'Em curso'}</button>}
       </div>
     </motion.div>
@@ -130,7 +130,7 @@ export const MissionsScreen = ({ onClose, onCoroas, onBoard, coroas }: { onClose
     const arr = Array.from({ length: 8 }, (_, i) => ({ id: ++flightId.current, x0: b.left + b.width / 2, y0: b.top + b.height / 2, x1: c.left + c.width / 2, y1: c.top + c.height / 2, d: i * 0.06 }));
     setFlights(f => [...f, ...arr]); setTimeout(() => setFlights(f => f.filter(x => !arr.some(a => a.id === x.id))), 1500);
   };
-  // Coletar: o efeito começa NO TOQUE (brilho, onda, raios, faíscas, selo CUMPRIDA, som, vibração, moedas voando até o saldo); o saldo conta para cima quando as moedas chegam;
+  // Coletar: o efeito começa NO TOQUE (brilho, onda, raios, faíscas, selo COMPLETA, som, vibração, moedas voando até o saldo); o saldo conta para cima quando as moedas chegam;
   // SÓ DEPOIS o quadro novo chega e a linha desce até o fim da lista deslizando.
   const collect = async (m: MissionView, wait = 1250, big = false) => {
     setFx(m.id); fly(m.id); playRewardSfx(big);
@@ -167,7 +167,7 @@ export const MissionsScreen = ({ onClose, onCoroas, onBoard, coroas }: { onClose
               <motion.div className="absolute" style={{ left: '50%', top: '45%', width: 420, height: 420, marginLeft: -210, marginTop: -210, borderRadius: '50%', background: 'repeating-conic-gradient(from 0deg, rgba(255,226,140,0.7) 0deg 6deg, rgba(255,226,140,0) 6deg 18deg)', WebkitMaskImage: 'radial-gradient(circle, #000 0%, rgba(0,0,0,0.5) 40%, transparent 70%)', maskImage: 'radial-gradient(circle, #000 0%, rgba(0,0,0,0.5) 40%, transparent 70%)' }}
                 initial={{ opacity: 0, scale: 0.4, rotate: 0 }} animate={{ opacity: [0, 0.9, 0], scale: [0.4, 1.1, 1.4], rotate: 50 }} transition={{ duration: 1.6, ease: 'easeOut' }} />
               <motion.div className="absolute text-center" style={{ left: 0, right: 0, top: '41%', fontFamily: CINZEL, fontWeight: 900, fontSize: 26, letterSpacing: '0.12em', color: '#fff0b8', textTransform: 'uppercase', textShadow: '0 3px 6px #000, 0 0 22px rgba(255,200,80,0.95)' }}
-                initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: [0.4, 1.25, 1], opacity: [0, 1, 1] }} transition={{ duration: 0.5, ease: 'easeOut' }}>Missões cumpridas!</motion.div>
+                initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: [0.4, 1.25, 1], opacity: [0, 1, 1] }} transition={{ duration: 0.5, ease: 'easeOut' }}>Missões completas!</motion.div>
             </motion.div>)}
           </AnimatePresence></>, document.body)}
         {board === undefined && <div style={{ textAlign: 'center', color: '#cdbd97', fontFamily: SERIF, padding: 30 }}>Carregando…</div>}
