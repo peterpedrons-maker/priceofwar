@@ -52,6 +52,10 @@ http.createServer(async (req, res) => {
     let n = 0; for (const row of (memory as any).missionRows.values()) for (const it of row.data.items) { it.progress = 99; n++; }
     return send(res, 200, { completed: n });
   }
+  if (path === '/__debug/complete-some') {   // só as 2 primeiras de cada quadro (para ver os estados juntos)
+    let n = 0; for (const row of (memory as any).missionRows.values()) row.data.items.slice(0, 2).forEach((it: any) => { it.progress = 99; n++; });
+    return send(res, 200, { completed: n });
+  }
   const uid = uidFrom(req);
 
   // ── the game server ──

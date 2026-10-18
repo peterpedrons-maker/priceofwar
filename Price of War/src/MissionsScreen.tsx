@@ -17,13 +17,12 @@ import slotNormal from './assets/kit-rank/slot-normal.png';
 import slotBrilhando from './assets/kit-rank/slot-brilhando.png';
 import chipNeutro from './assets/kit-rank/chip-neutro.png';
 import botaoPrimario from './assets/kit-rank/botao-primario.png';
-import botaoSecundario from './assets/kit-rank/botao-secundario.png';
 import iconeCoroa from './assets/ui-icon-coroa.webp';
 import iconeMissoes from './assets/ui-icon-missoes.webp';
 
 const CINZEL = "'Cinzel', serif";
 const SERIF = "'Crimson Pro', Georgia, serif";
-const TAG: Record<MissionView['mode'], { label: string; bg: string; fg: string }> = { ia: { label: 'IA', bg: '#3b5a3a', fg: '#d4f3cf' }, free: { label: 'LIVRE', bg: '#4a4636', fg: '#ecdfb0' }, ranked: { label: 'RANQUEADA', bg: '#5a2a2a', fg: '#ffd0c8' } };
+const TAG: Record<MissionView['mode'], { label: string; bg: string; fg: string }> = { ia: { label: 'IA', bg: '#2f7a46', fg: '#eafff0' }, free: { label: 'LIVRE', bg: '#8a6a1c', fg: '#fff3cf' }, ranked: { label: 'RANQUEADA', bg: '#a03434', fg: '#ffe6e0' } };
 type Tab = 'daily' | 'weekly' | 'season';
 const left = (ms: number, now: number) => { const h = Math.max(0, ms - now) / 3600e3; return h < 1 ? '< 1 h' : h < 48 ? `${Math.ceil(h)} h` : `${Math.ceil(h / 24)} dias`; };
 
@@ -72,13 +71,13 @@ const MissionRow = ({ m, busy, onClaim, onReroll, collecting }: { m: MissionView
       {collecting && <CollectFx reward={m.reward} />}
       <div className="absolute inset-0" style={{ border: '18px solid transparent', borderImage: `url(${ready ? linhaAtual : linhaNormal}) 38 fill / 18px stretch` }} />
       {/* fundo escuro por dentro da moldura: o texto claro lê bem (o cinza do painel era claro demais para a letra clara) */}
-      <div className="absolute pointer-events-none" style={{ inset: 13, borderRadius: 8, background: ready ? 'linear-gradient(rgba(70,44,8,0.86), rgba(30,17,4,0.92))' : m.claimed ? 'linear-gradient(rgba(12,26,16,0.88), rgba(6,14,9,0.94))' : 'linear-gradient(rgba(16,10,6,0.86), rgba(8,5,3,0.92))', boxShadow: 'inset 0 0 14px rgba(0,0,0,0.6)' }} />
+      <div className="absolute pointer-events-none" style={{ inset: 13, borderRadius: 8, background: ready ? 'linear-gradient(rgba(96,60,10,0.94), rgba(44,24,4,0.96))' : m.claimed ? 'linear-gradient(rgba(14,44,28,0.95), rgba(6,24,14,0.97))' : 'linear-gradient(rgba(26,32,52,0.95), rgba(12,15,28,0.97))', boxShadow: 'inset 0 0 16px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08)' }} />
       <div className="absolute grid place-items-center" style={{ left: 14, top: '50%', transform: 'translateY(-50%)', width: 44, height: 44, backgroundImage: `url(${ready ? slotBrilhando : slotNormal})`, backgroundSize: '100% 100%' }}>
         <img src={iconeMissoes} alt="" draggable={false} style={{ width: 30, height: 30, objectFit: 'contain' }} />
       </div>
       <div className="absolute flex flex-col justify-center" style={{ left: 68, right: 92, top: 12, bottom: 12, gap: 2 }}>
-        <div style={{ fontFamily: CINZEL, fontWeight: 800, fontSize: 13, lineHeight: 1.1, color: m.claimed ? '#bfe8c9' : '#fff3d4', textShadow: '0 1px 2px #000', whiteSpace: 'nowrap' }}>{m.title}</div>
-        <div style={{ fontFamily: SERIF, fontSize: 12.5, lineHeight: 1.15, color: '#ecdfbf', textShadow: '0 1px 2px #000' }}>
+        <div style={{ fontFamily: CINZEL, fontWeight: 800, fontSize: 13, lineHeight: 1.1, color: m.claimed ? '#c9f2d4' : ready ? '#ffe9a8' : '#f6efe0', textShadow: '0 1px 2px #000', whiteSpace: 'nowrap' }}>{m.title}</div>
+        <div style={{ fontFamily: SERIF, fontSize: 12.5, lineHeight: 1.15, color: m.claimed ? '#bfe0c9' : '#e4e1d6', textShadow: '0 1px 2px #000' }}>
           <span style={{ display: 'inline-block', fontFamily: CINZEL, fontWeight: 700, fontSize: 8, letterSpacing: '0.14em', padding: '1px 5px', borderRadius: 4, marginRight: 4, verticalAlign: 1, background: tag.bg, color: tag.fg }}>{tag.label}</span>{m.desc}
         </div>
         <div className="relative" style={{ height: 17, width: '100%', marginTop: 2 }}>
@@ -96,7 +95,7 @@ const MissionRow = ({ m, busy, onClaim, onReroll, collecting }: { m: MissionView
         </div>
         {collecting ? <div style={{ fontFamily: CINZEL, fontWeight: 900, fontSize: 9, letterSpacing: '0.04em', color: '#ffe9a0', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>✓ Completa!</div>
           : m.claimed ? <div style={{ fontFamily: CINZEL, fontWeight: 700, fontSize: 9, letterSpacing: '0.04em', color: '#8fe0a4', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>✓ Completa</div>
-          : <button data-claim={m.id} onClick={onClaim} disabled={!ready || busy} style={{ width: 78, height: 30, backgroundImage: `url(${ready ? botaoPrimario : botaoSecundario})`, backgroundSize: '100% 100%', border: 'none', fontFamily: CINZEL, fontWeight: 900, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: ready ? '#2a1a05' : '#a89a78', opacity: busy ? 0.6 : 1 }}>{ready ? 'Coletar' : 'Em curso'}</button>}
+          : <button data-claim={m.id} onClick={onClaim} disabled={!ready || busy} style={{ width: 78, height: 30, ...(ready ? { backgroundImage: `url(${botaoPrimario})`, backgroundSize: '100% 100%', border: 'none' } : { background: 'linear-gradient(#323a58,#1b2036)', border: '1.5px solid #6a7396', borderRadius: 6, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)' }), fontFamily: CINZEL, fontWeight: 900, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: ready ? '#2a1a05' : '#d4dcf4', opacity: busy ? 0.6 : 1 }}>{ready ? 'Coletar' : 'Em curso'}</button>}
       </div>
     </motion.div>
   );
@@ -151,7 +150,7 @@ export const MissionsScreen = ({ onClose, onCoroas, onBoard, coroas }: { onClose
   const now = board?.now ?? Date.now();
   const readyList = list.filter(x => !x.claimed && x.progress >= x.target);
   return (
-    <Win title="Missões" dark onClose={onClose} footer={<div className="flex w-full justify-center" style={{ gap: 4 }}>
+    <Win title="Missões" onClose={onClose} footer={<div className="flex w-full justify-center" style={{ gap: 4 }}>
       {readyList.length >= 2 && <KitButton primary onClick={claimAll} width={190}>{busy ? '…' : `Coletar tudo +${readyList.reduce((n, m) => n + m.reward, 0)}`}</KitButton>}
       <KitButton onClick={onClose} width={readyList.length >= 2 ? 120 : 210}>Voltar</KitButton></div>}>
       <div style={{ padding: '4px 4px 6px', minHeight: '100%' }}>
