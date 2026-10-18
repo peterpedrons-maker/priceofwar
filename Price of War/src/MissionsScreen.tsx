@@ -17,17 +17,13 @@ import chipNeutro from './assets/kit-rank/chip-neutro.png';
 import botaoPrimario from './assets/kit-rank/botao-primario.png';
 import botaoSecundario from './assets/kit-rank/botao-secundario.png';
 import iconeCoroa from './assets/ui-icon-coroa.webp';
-import iconeDesafios from './assets/ui-icon-desafios.webp';
-import iconeSword from './assets/ui-icon-sword.webp';
-import iconeCard from './assets/ui-icon-card.webp';
-import iconeRanking from './assets/ui-icon-ranking.webp';
+import iconeMissoes from './assets/ui-icon-missoes.webp';
 
 const CINZEL = "'Cinzel', serif";
 const SERIF = "'Crimson Pro', Georgia, serif";
 const TAG: Record<MissionView['mode'], { label: string; bg: string; fg: string }> = { ia: { label: 'IA', bg: '#3b5a3a', fg: '#d4f3cf' }, free: { label: 'LIVRE', bg: '#4a4636', fg: '#ecdfb0' }, ranked: { label: 'RANQUEADA', bg: '#5a2a2a', fg: '#ffd0c8' } };
-const iconOf = (m: MissionView) => m.metric === 'reach_league' ? iconeRanking : m.metric === 'win' ? iconeDesafios : m.metric === 'play' ? iconeSword : iconeCard;
 type Tab = 'daily' | 'weekly' | 'season';
-const left = (ms: number, now: number) => { const h = Math.max(0, ms - now) / 3600e3; return h < 1 ? 'menos de 1 h' : h < 48 ? `${Math.ceil(h)} h` : `${Math.ceil(h / 24)} dias`; };
+const left = (ms: number, now: number) => { const h = Math.max(0, ms - now) / 3600e3; return h < 1 ? '< 1 h' : h < 48 ? `${Math.ceil(h)} h` : `${Math.ceil(h / 24)} dias`; };
 
 const MissionRow = ({ m, busy, onClaim, onReroll }: { m: MissionView; busy: boolean; onClaim: () => void; onReroll?: () => void }) => {
   const done = m.progress >= m.target, ready = done && !m.claimed, tag = TAG[m.mode];
@@ -35,7 +31,7 @@ const MissionRow = ({ m, busy, onClaim, onReroll }: { m: MissionView; busy: bool
     <div className="relative" style={{ height: 96, marginBottom: 4, opacity: m.claimed ? 0.78 : 1 }}>
       <div className="absolute inset-0" style={{ border: '18px solid transparent', borderImage: `url(${ready ? linhaAtual : linhaNormal}) 38 fill / 18px stretch` }} />
       <div className="absolute grid place-items-center" style={{ left: 14, top: '50%', transform: 'translateY(-50%)', width: 44, height: 44, backgroundImage: `url(${ready ? slotBrilhando : slotNormal})`, backgroundSize: '100% 100%' }}>
-        <img src={iconOf(m)} alt="" draggable={false} style={{ width: 26, height: 26, objectFit: 'contain' }} />
+        <img src={iconeMissoes} alt="" draggable={false} style={{ width: 30, height: 30, objectFit: 'contain' }} />
       </div>
       <div className="absolute flex flex-col justify-center" style={{ left: 68, right: 92, top: 12, bottom: 12, gap: 2 }}>
         <div style={{ fontFamily: CINZEL, fontWeight: 700, fontSize: 12, lineHeight: 1.1, color: '#f3e3c3', whiteSpace: 'nowrap' }}>{m.title}</div>
@@ -89,13 +85,13 @@ export const MissionsScreen = ({ onClose, onCoroas, onBoard }: { onClose: () => 
             {tabs.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)} className="relative" style={{ width: 104, height: 44, backgroundImage: `url(${tab === t.id ? abaAtiva : abaInativa})`, backgroundSize: '100% 100%', border: 'none', paddingTop: 3, fontFamily: CINZEL, fontWeight: tab === t.id ? 900 : 700, fontSize: 10, letterSpacing: '0.04em', textTransform: 'uppercase', color: tab === t.id ? '#2a1a05' : '#a89a78' }}>
                 {t.label}
-                {ready(t.id) > 0 && <span className="absolute grid place-items-center" style={{ right: -3, top: -4, zIndex: 3, minWidth: 17, height: 17, borderRadius: 9, background: '#c93a2a', border: '1.5px solid #ffd9d0', color: '#fff', fontFamily: CINZEL, fontWeight: 900, fontSize: 10, boxShadow: '0 1px 3px #000' }}>{ready(t.id)}</span>}
+                {ready(t.id) > 0 && <span className="absolute grid place-items-center" style={{ right: 5, top: 2, zIndex: 3, minWidth: 15, height: 15, borderRadius: 8, background: '#c93a2a', border: '1.5px solid #ffd9d0', color: '#fff', fontFamily: CINZEL, fontWeight: 900, fontSize: 9, boxShadow: '0 1px 3px #000' }}>{ready(t.id)}</span>}
               </button>
             ))}
           </div>
           <div className="flex justify-between items-center" style={{ margin: '2px 12px 6px', fontFamily: SERIF, fontWeight: 600, fontSize: 12, color: '#cdbd97' }}>
-            <b style={{ fontFamily: CINZEL, fontWeight: 700, fontSize: 11, letterSpacing: '0.14em', color: '#e8c766', textTransform: 'uppercase' }}>{tab === 'daily' ? `Renovam em ${left(board.dayEndsAt, now)}` : tab === 'weekly' ? `Renovam em ${left(board.weekEndsAt, now)}` : 'Valem nesta temporada'}</b>
-            {tab === 'daily' && <span>{board.rerollsLeft > 0 ? 'Troque 1 por dia' : 'Troca de hoje usada'}</span>}
+            <b style={{ fontFamily: CINZEL, fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', color: '#e8c766', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{tab === 'daily' ? `Renovam em ${left(board.dayEndsAt, now)}` : tab === 'weekly' ? `Renovam em ${left(board.weekEndsAt, now)}` : 'Valem nesta temporada'}</b>
+            {tab === 'daily' && <span style={{ whiteSpace: 'nowrap' }}>{board.rerollsLeft > 0 ? '1 troca por dia' : 'Troca de hoje usada'}</span>}
           </div>
           {error && <div style={{ textAlign: 'center', color: '#f0a595', fontFamily: SERIF, fontSize: 12, padding: '0 10px 6px' }}>{error}</div>}
           {list.map(m => (
