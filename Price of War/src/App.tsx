@@ -1412,7 +1412,7 @@ const FloatNumber = ({ text, kind }: { text: string; kind: keyof typeof NUMBER_K
           animate={{ scale: [0.3, 1.1, 1, 1], opacity: [0, 1, 1, 0] }}
           transition={{ duration: ms / 1000, ease: 'easeOut', times }}
           className="absolute pointer-events-none select-none max-w-none"
-          style={{ height: h * 1.9, width: h * 1.9, opacity: 0 }}
+          style={{ height: h * 2.3, width: h * 2.3, opacity: 0 }}
           draggable={false}
         />
       )}
