@@ -152,10 +152,10 @@ CardViewer3D:10 · Viewer3DPage:11 · only3d:16
 
 ctx:6 · buffer:7 · loading:8 · source:9 · gain:10 · wanted:11 · unsub:12 · FADE_IN:13 · level:15 · begin:16 · unlock:24 · startMenuMusic:26 · stopMenuMusic:39
 
-## src/MissionsScreen.tsx  (153 linhas)
+## src/MissionsScreen.tsx  (207 linhas)
 (sem descrição ainda: acrescente em FILE_NOTES)
 
-CINZEL:22 · SERIF:23 · TAG:24 · Tab:25 · left:26 · COINS:29 · CollectFx:30 · MissionRow:46 · MissionsScreen:81 · MissionsHost:152
+CINZEL:24 · SERIF:25 · TAG:26 · Tab:27 · left:28 · COINS:31 · SPARKS:32 · Spark:33 · CollectFx:34 · MissionRow:67 · MissionsScreen:104 · MissionsHost:206
 
 ## src/nameFilter.ts  (31 linhas)
 (sem descrição ainda: acrescente em FILE_NOTES)
@@ -176,6 +176,11 @@ LeagueKey:44 · EMBLEM:45 · RING:46 · LeagueRing:48 · LEAGUE_COLOR:53 · RANG
 (sem descrição ainda: acrescente em FILE_NOTES)
 
 Rarity:9 · RARITY_CODE:10 · RARITY_NAME:11 · RARITY_ORDER:12 · RARITY_ODDS:16 · FULLART_PACK_CHANCE:17 · rollRarity:18 · Shine:22 · shineOf:23 · NUMBERS:29 · cardNumber:30 · cardCode:31 · RarityCounts:32
+
+## src/rewardSfx.ts  (26 linhas)
+(sem descrição ainda: acrescente em FILE_NOTES)
+
+ctx:3 · ac:4 · tone:5 · playRewardSfx:11
 
 ## src/services/auth.ts  (130 linhas)
 Login (convidado, Google, Discord, e-mail) via Supabase.

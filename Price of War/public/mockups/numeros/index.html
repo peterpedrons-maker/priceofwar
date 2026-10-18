@@ -8,11 +8,11 @@ h3{margin:8px 4px 6px;font-size:13px;letter-spacing:.12em;color:#e8c766;text-tra
 .card{position:relative;width:68px;height:96px;border-radius:6px;overflow:hidden;background:#000 center/cover;box-shadow:0 3px 8px #000}
 .lab{margin-top:3px;color:#cdbd97}
 .fn{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);height:26px;display:flex;align-items:center;justify-content:center}
-.fn .star{position:absolute;height:60px;width:60px;max-width:none;opacity:0;animation:star 1.2s ease-out infinite}
+.fn .star{position:absolute;height:60px;width:60px;max-width:none;opacity:0;filter:saturate(.82) brightness(.94);animation:star 1.2s ease-out infinite}
 .fn .dig{position:relative;display:flex;align-items:center;filter:drop-shadow(0 2px 2px rgba(0,0,0,.7));opacity:0;animation:pop 1.2s ease-out infinite}
 .fn.big .dig{animation:pop 1.2s ease-out infinite}.fn.big .dig img.g{transform:skewX(-11deg)}
 .fn img.g{height:26px;margin-left:-4px;display:block}.fn img.g:first-child{margin-left:0}
-@keyframes star{0%{transform:scale(.3);opacity:0}14%{transform:scale(1.1);opacity:1}70%{transform:scale(1);opacity:1}100%{transform:scale(1);opacity:0}}
+@keyframes star{0%{transform:scale(.3);opacity:0}14%{transform:scale(1.1);opacity:.78}70%{transform:scale(1);opacity:.78}100%{transform:scale(1);opacity:0}}
 @keyframes pop{0%{transform:scale(.4);opacity:0}14%{transform:scale(1.18);opacity:1}30%{transform:scale(1);opacity:1}70%{opacity:1}100%{opacity:0}}
 .old .fn img.g{height:70px}.old .fn .star{height:160px;width:160px}
 </style></head><body><div class="phone" id="app"></div>

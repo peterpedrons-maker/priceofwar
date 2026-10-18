@@ -1409,10 +1409,10 @@ const FloatNumber = ({ text, kind }: { text: string; kind: keyof typeof NUMBER_K
         <motion.img
           src={burst} alt=""
           initial={{ scale: 0.3, opacity: 0 }}
-          animate={{ scale: [0.3, 1.1, 1, 1], opacity: [0, 1, 1, 0] }}
+          animate={{ scale: [0.3, 1.1, 1, 1], opacity: [0, 0.78, 0.78, 0] }}
           transition={{ duration: ms / 1000, ease: 'easeOut', times }}
           className="absolute pointer-events-none select-none max-w-none"
-          style={{ height: h * 2.3, width: h * 2.3, opacity: 0 }}
+          style={{ height: h * 2.3, width: h * 2.3, opacity: 0, filter: 'saturate(0.82) brightness(0.94)' }}
           draggable={false}
         />
       )}
@@ -3651,7 +3651,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
         <MenuIconButton icon={uiIconSomImage} label="Opções" onClick={() => setSoundOpen(true)} />
         {gm && <MenuTextButton text="GM" label="GM" onClick={() => setGmOpen(true)} />}
       </div>
-      <MissionsHost open={missionsOpen} onClose={() => setMissionsOpen(false)} onCoroas={(n) => updateProfile({ coroas: n })} onBoard={setMissionBadge} />
+      <MissionsHost open={missionsOpen} coroas={profile.coroas} onClose={() => setMissionsOpen(false)} onCoroas={(n) => updateProfile({ coroas: n })} onBoard={setMissionBadge} />
       {gmOpen && gm && <GmPanel first={gm} onClose={() => setGmOpen(false)} />}
     </motion.div>
   );

@@ -1,9 +1,11 @@
 import type React from 'react';
 // Tela de Missões (quadro de avisos da vila): diárias, semanais e, com o ranqueado ligado, de temporada. O servidor sorteia, conta e paga (server/missions.ts); aqui só se mostra,
 // coleta e troca. Mockup aprovado: public/mockups/missoes/. Kit de arte: src/assets/kit-rank.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { Win, KitButton } from './RankedScreens';
+import { playRewardSfx } from './rewardSfx';
 import { claimMission, fetchMissions, rerollMission, type MissionsBoard, type MissionView } from './services/online';
 import abaAtiva from './assets/kit-rank/aba-ativa.png';
 import abaInativa from './assets/kit-rank/aba-inativa.png';
@@ -25,13 +27,23 @@ const TAG: Record<MissionView['mode'], { label: string; bg: string; fg: string }
 type Tab = 'daily' | 'weekly' | 'season';
 const left = (ms: number, now: number) => { const h = Math.max(0, ms - now) / 3600e3; return h < 1 ? '< 1 h' : h < 48 ? `${Math.ceil(h)} h` : `${Math.ceil(h / 24)} dias`; };
 
-// Moedas que saltam do botão quando a missão é coletada (posições sorteadas uma vez por linha)
+// Efeito de coleta (a recompensa tem que ser sentida): brilho dourado na linha, onda de choque e raios a partir da recompensa, faíscas, moedas saltando, o selo "PAGO" carimbando com impacto.
 const COINS = Array.from({ length: 9 }, (_, i) => ({ dx: (i - 4) * 14 + (i % 2 ? 6 : -6), dy: -50 - (i * 37 % 40), rot: (i * 53) % 360, delay: (i % 3) * 0.04 }));
+const SPARKS = Array.from({ length: 14 }, (_, i) => { const a = (i / 14) * Math.PI * 2 + (i % 3) * 0.2, r = 40 + (i * 29 % 46); return { x: Math.cos(a) * r, y: Math.sin(a) * r * 0.8, s: 0.6 + (i % 4) * 0.25, d: (i % 5) * 0.03 }; });
+const Spark = ({ size }: { size: number }) => <svg width={size} height={size} viewBox="0 0 20 20"><path d="M10 0 L12 8 L20 10 L12 12 L10 20 L8 12 L0 10 L8 8Z" fill="#fff4c2" /></svg>;
 const CollectFx = ({ reward }: { reward: number }) => (
   <>
-    <motion.div className="absolute inset-0 pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: [0, 0.9, 0] }} transition={{ duration: 0.7 }}
-      style={{ borderRadius: 10, background: 'radial-gradient(ellipse at 85% 50%, rgba(255,226,140,0.95), rgba(255,190,70,0.35) 45%, rgba(255,190,70,0) 75%)' }} />
+    <motion.div className="absolute inset-0 pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: [0, 1, 0.55, 0] }} transition={{ duration: 1.0, times: [0, 0.12, 0.5, 1] }}
+      style={{ borderRadius: 12, boxShadow: '0 0 0 2px rgba(255,226,140,0.95), 0 0 26px 6px rgba(255,200,80,0.85), inset 0 0 30px rgba(255,214,120,0.55)' }} />
     <div className="absolute pointer-events-none" style={{ right: 50, top: '50%', width: 0, height: 0, zIndex: 6 }}>
+      <motion.div className="absolute" style={{ left: -90, top: -90, width: 180, height: 180, borderRadius: '50%', background: 'repeating-conic-gradient(from 0deg, rgba(255,226,140,0.85) 0deg 7deg, rgba(255,226,140,0) 7deg 20deg)', WebkitMaskImage: 'radial-gradient(circle, #000 0%, rgba(0,0,0,0.6) 40%, transparent 70%)', maskImage: 'radial-gradient(circle, #000 0%, rgba(0,0,0,0.6) 40%, transparent 70%)' }}
+        initial={{ opacity: 0, scale: 0.3, rotate: 0 }} animate={{ opacity: [0, 0.95, 0], scale: [0.3, 1.2, 1.5], rotate: 40 }} transition={{ duration: 0.95, ease: 'easeOut' }} />
+      <motion.div className="absolute" style={{ left: -22, top: -22, width: 44, height: 44, borderRadius: '50%', border: '3px solid rgba(255,230,150,0.95)', boxShadow: '0 0 14px rgba(255,200,80,0.9)' }}
+        initial={{ scale: 0.2, opacity: 0.95 }} animate={{ scale: [0.2, 4.2], opacity: [0.95, 0] }} transition={{ duration: 0.65, ease: 'easeOut' }} />
+      {SPARKS.map((p, i) => (
+        <motion.div key={'s' + i} className="absolute" style={{ left: -6, top: -6, filter: 'drop-shadow(0 0 5px rgba(255,210,100,0.95))' }}
+          initial={{ x: 0, y: 0, opacity: 0, scale: 0.2, rotate: 0 }} animate={{ x: p.x, y: p.y, opacity: [0, 1, 0], scale: [0.2, p.s, 0], rotate: 90 }} transition={{ duration: 0.8, delay: 0.05 + p.d, ease: 'easeOut' }}><Spark size={12} /></motion.div>
+      ))}
       {COINS.map((c, i) => (
         <motion.img key={i} src={iconeCoroa} alt="" draggable={false} className="absolute" style={{ width: 18, height: 18, left: -9, top: -9, objectFit: 'contain', filter: 'drop-shadow(0 0 5px rgba(255,200,80,0.9))' }}
           initial={{ x: 0, y: 0, opacity: 0, scale: 0.4, rotate: 0 }} animate={{ x: c.dx, y: [0, c.dy, c.dy + 38], opacity: [0, 1, 1, 0], scale: [0.4, 1.1, 0.9], rotate: c.rot }}
@@ -40,21 +52,32 @@ const CollectFx = ({ reward }: { reward: number }) => (
       <motion.b className="absolute" style={{ left: -26, top: -14, fontFamily: CINZEL, fontWeight: 900, fontSize: 20, color: '#ffe9a0', textShadow: '0 2px 4px #000, 0 0 10px rgba(255,200,80,0.9)', whiteSpace: 'nowrap' }}
         initial={{ y: 0, opacity: 0, scale: 0.6 }} animate={{ y: [0, -16, -34], opacity: [0, 1, 0], scale: [0.6, 1.2, 1] }} transition={{ duration: 0.9, ease: 'easeOut', times: [0, 0.3, 1] }}>+{reward}</motion.b>
     </div>
+    {/* selo "PAGO" carimbando no meio da linha, com clarão de impacto */}
+    <motion.div className="absolute pointer-events-none" style={{ left: 36, top: '50%', width: 0, height: 0, zIndex: 7 }}>
+      <motion.div className="absolute" style={{ left: -60, top: -60, width: 120, height: 120, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,244,200,0.95), rgba(255,200,80,0) 65%)' }}
+        initial={{ opacity: 0, scale: 0.4 }} animate={{ opacity: [0, 0, 1, 0], scale: [0.4, 0.4, 1.4, 1.8] }} transition={{ duration: 0.55, delay: 0.1, times: [0, 0.3, 0.5, 1] }} />
+      <motion.div className="absolute grid place-items-center" style={{ left: -31, top: -31, width: 62, height: 62, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #ffe08a, #c98a1a 60%, #6a3f08)', border: '3px double #fff1b8', boxShadow: '0 4px 12px rgba(0,0,0,0.75), 0 0 18px rgba(255,200,80,0.8)', transform: 'rotate(-12deg)' }}
+        initial={{ scale: 3, opacity: 0, rotate: -34 }} animate={{ scale: [3, 0.88, 1, 1], opacity: [0, 1, 1, 1], rotate: [-34, -12, -12, -12] }} transition={{ duration: 0.5, delay: 0.1, times: [0, 0.55, 0.75, 1], ease: 'easeOut' }}>
+        <span style={{ fontFamily: CINZEL, fontWeight: 900, fontSize: 13, letterSpacing: '0.08em', color: '#3a2005', textShadow: '0 1px 0 rgba(255,240,180,0.7)', lineHeight: 1 }}>PAGO</span>
+      </motion.div>
+    </motion.div>
   </>
 );
 
 const MissionRow = ({ m, busy, onClaim, onReroll, collecting }: { m: MissionView; busy: boolean; onClaim: () => void; onReroll?: () => void; collecting?: boolean }) => {
   const done = m.progress >= m.target, ready = done && !m.claimed, tag = TAG[m.mode];
   return (
-    <motion.div className="relative" animate={collecting ? { scale: [1, 1.035, 1] } : { scale: 1 }} transition={{ duration: 0.45 }} style={{ height: 96, marginBottom: 4, opacity: m.claimed ? 0.78 : 1 }}>
+    <motion.div className="relative" animate={collecting ? { scale: [1, 1.05, 1.0] } : { scale: 1 }} transition={{ duration: 0.5 }} style={{ height: 96, marginBottom: 4 }}>
       {collecting && <CollectFx reward={m.reward} />}
       <div className="absolute inset-0" style={{ border: '18px solid transparent', borderImage: `url(${ready ? linhaAtual : linhaNormal}) 38 fill / 18px stretch` }} />
+      {/* fundo escuro por dentro da moldura: o texto claro lê bem (o cinza do painel era claro demais para a letra clara) */}
+      <div className="absolute pointer-events-none" style={{ inset: 13, borderRadius: 8, background: ready ? 'linear-gradient(rgba(70,44,8,0.86), rgba(30,17,4,0.92))' : m.claimed ? 'linear-gradient(rgba(12,26,16,0.88), rgba(6,14,9,0.94))' : 'linear-gradient(rgba(16,10,6,0.86), rgba(8,5,3,0.92))', boxShadow: 'inset 0 0 14px rgba(0,0,0,0.6)' }} />
       <div className="absolute grid place-items-center" style={{ left: 14, top: '50%', transform: 'translateY(-50%)', width: 44, height: 44, backgroundImage: `url(${ready ? slotBrilhando : slotNormal})`, backgroundSize: '100% 100%' }}>
         <img src={iconeMissoes} alt="" draggable={false} style={{ width: 30, height: 30, objectFit: 'contain' }} />
       </div>
       <div className="absolute flex flex-col justify-center" style={{ left: 68, right: 92, top: 12, bottom: 12, gap: 2 }}>
-        <div style={{ fontFamily: CINZEL, fontWeight: 700, fontSize: 12, lineHeight: 1.1, color: '#f3e3c3', whiteSpace: 'nowrap' }}>{m.title}</div>
-        <div style={{ fontFamily: SERIF, fontSize: 12, lineHeight: 1.15, color: '#cdbd97' }}>
+        <div style={{ fontFamily: CINZEL, fontWeight: 800, fontSize: 13, lineHeight: 1.1, color: m.claimed ? '#bfe8c9' : '#fff3d4', textShadow: '0 1px 2px #000', whiteSpace: 'nowrap' }}>{m.title}</div>
+        <div style={{ fontFamily: SERIF, fontSize: 12.5, lineHeight: 1.15, color: '#ecdfbf', textShadow: '0 1px 2px #000' }}>
           <span style={{ display: 'inline-block', fontFamily: CINZEL, fontWeight: 700, fontSize: 8, letterSpacing: '0.14em', padding: '1px 5px', borderRadius: 4, marginRight: 4, verticalAlign: 1, background: tag.bg, color: tag.fg }}>{tag.label}</span>{m.desc}
         </div>
         <div className="relative" style={{ height: 17, width: '100%', marginTop: 2 }}>
@@ -72,13 +95,13 @@ const MissionRow = ({ m, busy, onClaim, onReroll, collecting }: { m: MissionView
         </div>
         {collecting ? <div style={{ fontFamily: CINZEL, fontWeight: 900, fontSize: 10, letterSpacing: '0.1em', color: '#ffe9a0', textTransform: 'uppercase' }}>✓ Pago!</div>
           : m.claimed ? <div style={{ fontFamily: CINZEL, fontWeight: 700, fontSize: 9, letterSpacing: '0.08em', color: '#8fe0a4', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>✓ Coletado</div>
-          : <button onClick={onClaim} disabled={!ready || busy} style={{ width: 78, height: 30, backgroundImage: `url(${ready ? botaoPrimario : botaoSecundario})`, backgroundSize: '100% 100%', border: 'none', fontFamily: CINZEL, fontWeight: 900, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: ready ? '#2a1a05' : '#a89a78', opacity: busy ? 0.6 : 1 }}>{ready ? 'Coletar' : 'Em curso'}</button>}
+          : <button data-claim={m.id} onClick={onClaim} disabled={!ready || busy} style={{ width: 78, height: 30, backgroundImage: `url(${ready ? botaoPrimario : botaoSecundario})`, backgroundSize: '100% 100%', border: 'none', fontFamily: CINZEL, fontWeight: 900, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: ready ? '#2a1a05' : '#a89a78', opacity: busy ? 0.6 : 1 }}>{ready ? 'Coletar' : 'Em curso'}</button>}
       </div>
     </motion.div>
   );
 };
 
-export const MissionsScreen = ({ onClose, onCoroas, onBoard }: { onClose: () => void; onCoroas: (balance: number) => void; onBoard?: (claimable: number) => void; key?: React.Key }) => {
+export const MissionsScreen = ({ onClose, onCoroas, onBoard, coroas }: { onClose: () => void; onCoroas: (balance: number) => void; onBoard?: (claimable: number) => void; coroas: number; key?: React.Key }) => {
   const [board, setBoard] = useState<MissionsBoard | null | undefined>(undefined);
   const [error, setError] = useState('');
   const [tab, setTab] = useState<Tab>('daily');
@@ -94,18 +117,35 @@ export const MissionsScreen = ({ onClose, onCoroas, onBoard }: { onClose: () => 
   const ready = (t: Tab) => board ? board[t].filter(m => !m.claimed && m.progress >= m.target).length : 0;
   const [fx, setFx] = useState<string | null>(null);                    // missão que está recebendo o efeito de coleta
   const [toast, setToast] = useState<{ n: number; k: number } | null>(null);   // "+N coroas" que sobe e some
+  const [bal, setBal] = useState(coroas); const [bump, setBump] = useState(0);   // saldo mostrado (conta subindo) e pulso quando as moedas chegam
+  const [flights, setFlights] = useState<{ id: number; x0: number; y0: number; x1: number; y1: number; d: number }[]>([]);
+  const [finale, setFinale] = useState(false);
+  const balRef = useRef<HTMLDivElement>(null); const flightId = useRef(0); const balNow = useRef(coroas);
   const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-  // Coletar: primeiro o efeito (brilho, moedas, "+N", "Pago!"), SÓ DEPOIS o quadro novo chega e a linha desce até o fim da lista deslizando.
-  const collect = async (m: MissionView, wait = 850) => {
-    setFx(m.id);
+  const countTo = (to: number) => { const from = balNow.current, t0 = performance.now(); balNow.current = to; const step = (t: number) => { const k = Math.min(1, (t - t0) / 550); setBal(Math.round(from + (to - from) * (1 - Math.pow(1 - k, 3)))); if (k < 1) requestAnimationFrame(step); }; requestAnimationFrame(step); };
+  // Moedas voam do botão até o saldo lá em cima (portal no body: o painel tem filtro, que prenderia um "fixed")
+  const fly = (id: string) => {
+    const b = document.querySelector(`[data-claim="${id}"]`)?.getBoundingClientRect(), c = balRef.current?.getBoundingClientRect(); if (!b || !c) return;
+    const arr = Array.from({ length: 8 }, (_, i) => ({ id: ++flightId.current, x0: b.left + b.width / 2, y0: b.top + b.height / 2, x1: c.left + c.width / 2, y1: c.top + c.height / 2, d: i * 0.06 }));
+    setFlights(f => [...f, ...arr]); setTimeout(() => setFlights(f => f.filter(x => !arr.some(a => a.id === x.id))), 1500);
+  };
+  // Coletar: o efeito começa NO TOQUE (brilho, onda, raios, faíscas, selo PAGO, som, vibração, moedas voando até o saldo); o saldo conta para cima quando as moedas chegam;
+  // SÓ DEPOIS o quadro novo chega e a linha desce até o fim da lista deslizando.
+  const collect = async (m: MissionView, wait = 1250, big = false) => {
+    setFx(m.id); fly(m.id); playRewardSfx(big);
     const t0 = Date.now(), r = await claimMission(m.key, m.id);
-    await sleep(Math.max(0, wait - (Date.now() - t0)));
-    if (r.ok === true) setToast(t => ({ n: (t && Date.now() - t.k < 1800 ? t.n : 0) + m.reward, k: Date.now() }));
+    await sleep(Math.max(0, 700 - (Date.now() - t0)));
+    if (r.ok === true) { countTo(r.board.coroas_after ?? balNow.current + m.reward); setBump(b => b + 1); setToast(t => ({ n: (t && Date.now() - t.k < 2200 ? t.n : 0) + m.reward, k: Date.now() })); }
+    await sleep(Math.max(0, wait - 700));
     apply(r); setFx(null);
   };
   const claim = async (m: MissionView) => { setBusy(true); await collect(m); setBusy(false); };
-  const claimAll = async () => { setBusy(true); for (const m of list.filter(x => !x.claimed && x.progress >= x.target)) await collect(m, 600); setBusy(false); };
-  useEffect(() => { if (!toast) return; const id = setTimeout(() => setToast(null), 1900); return () => clearTimeout(id); }, [toast]);
+  const claimAll = async () => {
+    setBusy(true); const todo = list.filter(x => !x.claimed && x.progress >= x.target);
+    for (const m of todo) await collect(m, 900);
+    setFinale(true); playRewardSfx(true); setTimeout(() => setFinale(false), 1900); setBusy(false);
+  };
+  useEffect(() => { if (!toast) return; const id = setTimeout(() => setToast(null), 2300); return () => clearTimeout(id); }, [toast]);
   const reroll = async (m: MissionView) => { setRerolling(true); apply(await rerollMission(m.id)); setRerolling(false); };
   const now = board?.now ?? Date.now();
   const readyList = list.filter(x => !x.claimed && x.progress >= x.target);
@@ -113,18 +153,32 @@ export const MissionsScreen = ({ onClose, onCoroas, onBoard }: { onClose: () => 
     <Win title="Missões" onClose={onClose} footer={<div className="flex w-full justify-center" style={{ gap: 4 }}>
       {readyList.length >= 2 && <KitButton primary onClick={claimAll} width={190}>{busy ? '…' : `Coletar tudo +${readyList.reduce((n, m) => n + m.reward, 0)}`}</KitButton>}
       <KitButton onClick={onClose} width={readyList.length >= 2 ? 120 : 210}>Voltar</KitButton></div>}>
-      <div style={{ padding: '0 4px' }}>
-        <div className="sticky pointer-events-none" style={{ top: 2, height: 0, zIndex: 30 }}>
-          <AnimatePresence>{toast && (
-            <motion.div key={toast.k} className="mx-auto grid place-items-center" initial={{ y: 8, opacity: 0, scale: 0.8 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: -14, opacity: 0 }} transition={{ duration: 0.25 }}
-              style={{ width: 'fit-content', padding: '5px 16px 5px 10px', borderRadius: 20, background: 'linear-gradient(#5a3b10,#2a1805)', border: '1.5px solid #e8c766', boxShadow: '0 4px 14px rgba(0,0,0,0.7), 0 0 14px rgba(255,200,80,0.55)' }}>
-              <span className="flex items-center" style={{ gap: 6, fontFamily: CINZEL, fontWeight: 900, fontSize: 15, color: '#ffe9b0' }}><img src={iconeCoroa} alt="" style={{ width: 20, height: 20, objectFit: 'contain' }} />+{toast.n} coroas</span>
+      <div style={{ padding: '4px 4px 6px', minHeight: '100%', borderRadius: 8, background: 'linear-gradient(rgba(10,6,3,0.58), rgba(10,6,3,0.72))' }}>
+        {createPortal(<>
+          {flights.map(f => (
+            <motion.img key={f.id} src={iconeCoroa} alt="" draggable={false} style={{ position: 'fixed', left: -11, top: -11, width: 22, height: 22, objectFit: 'contain', zIndex: 900, pointerEvents: 'none', filter: 'drop-shadow(0 0 7px rgba(255,205,90,0.95))' }}
+              initial={{ x: f.x0, y: f.y0, opacity: 0, scale: 0.5 }} animate={{ x: [f.x0, (f.x0 + f.x1) / 2 + (f.id % 3 - 1) * 40, f.x1], y: [f.y0, Math.min(f.y0, f.y1) - 60 - (f.id % 4) * 14, f.y1], opacity: [0, 1, 1, 0], scale: [0.5, 1.2, 0.8] }}
+              transition={{ duration: 0.75, delay: 0.08 + f.d, ease: 'easeInOut', times: [0, 0.5, 1] }} />
+          ))}
+          <AnimatePresence>{finale && (
+            <motion.div key="finale" className="fixed inset-0" style={{ zIndex: 910, pointerEvents: 'none' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+              <motion.div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 50% 45%, rgba(255,220,120,0.55), rgba(255,180,60,0.18) 40%, rgba(0,0,0,0) 70%)' }} initial={{ opacity: 0 }} animate={{ opacity: [0, 1, 0.5] }} transition={{ duration: 1.2 }} />
+              <motion.div className="absolute" style={{ left: '50%', top: '45%', width: 420, height: 420, marginLeft: -210, marginTop: -210, borderRadius: '50%', background: 'repeating-conic-gradient(from 0deg, rgba(255,226,140,0.7) 0deg 6deg, rgba(255,226,140,0) 6deg 18deg)', WebkitMaskImage: 'radial-gradient(circle, #000 0%, rgba(0,0,0,0.5) 40%, transparent 70%)', maskImage: 'radial-gradient(circle, #000 0%, rgba(0,0,0,0.5) 40%, transparent 70%)' }}
+                initial={{ opacity: 0, scale: 0.4, rotate: 0 }} animate={{ opacity: [0, 0.9, 0], scale: [0.4, 1.1, 1.4], rotate: 50 }} transition={{ duration: 1.6, ease: 'easeOut' }} />
+              <motion.div className="absolute text-center" style={{ left: 0, right: 0, top: '41%', fontFamily: CINZEL, fontWeight: 900, fontSize: 26, letterSpacing: '0.12em', color: '#fff0b8', textTransform: 'uppercase', textShadow: '0 3px 6px #000, 0 0 22px rgba(255,200,80,0.95)' }}
+                initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: [0.4, 1.25, 1], opacity: [0, 1, 1] }} transition={{ duration: 0.5, ease: 'easeOut' }}>Missões cumpridas!</motion.div>
             </motion.div>)}
-          </AnimatePresence>
-        </div>
+          </AnimatePresence></>, document.body)}
         {board === undefined && <div style={{ textAlign: 'center', color: '#cdbd97', fontFamily: SERIF, padding: 30 }}>Carregando…</div>}
         {board === null && <div style={{ textAlign: 'center', color: '#f0a595', fontFamily: SERIF, padding: 30 }}>{error || 'Não foi possível carregar as missões.'} Entre com uma conta e tente de novo.</div>}
         {board && (<>
+          <div className="flex justify-between items-center" style={{ margin: '0 8px 6px' }}>
+            <span style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 13, color: '#ecdfbf', textShadow: '0 1px 2px #000' }}>Hoje: <b style={{ color: '#ffe9a0' }}>{board.daily.filter(x => x.claimed).length}/{board.daily.length}</b> coletadas</span>
+            <motion.div ref={balRef} key={bump} className="flex items-center" style={{ gap: 5, padding: '2px 12px 2px 6px', borderRadius: 16, background: 'linear-gradient(#4a300c,#22140a)', border: '1.5px solid #d9b25a', boxShadow: '0 2px 6px rgba(0,0,0,0.7)', fontFamily: CINZEL, fontWeight: 900, fontSize: 15, color: '#fff0c0' }}
+              initial={bump ? { scale: 1.3, boxShadow: '0 0 22px rgba(255,210,100,0.95)' } : false} animate={{ scale: 1, boxShadow: '0 2px 6px rgba(0,0,0,0.7)' }} transition={{ duration: 0.5 }}>
+              <img src={iconeCoroa} alt="" draggable={false} style={{ width: 20, height: 20, objectFit: 'contain' }} />{bal}
+            </motion.div>
+          </div>
           <div className="flex justify-center" style={{ margin: '0 0 6px' }}>
             {tabs.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)} className="relative" style={{ width: 104, height: 44, backgroundImage: `url(${tab === t.id ? abaAtiva : abaInativa})`, backgroundSize: '100% 100%', border: 'none', paddingTop: 3, fontFamily: CINZEL, fontWeight: tab === t.id ? 900 : 700, fontSize: 10, letterSpacing: '0.04em', textTransform: 'uppercase', color: tab === t.id ? '#2a1a05' : '#a89a78' }}>
@@ -133,8 +187,8 @@ export const MissionsScreen = ({ onClose, onCoroas, onBoard }: { onClose: () => 
               </button>
             ))}
           </div>
-          <div className="flex justify-between items-center" style={{ margin: '2px 12px 6px', fontFamily: SERIF, fontWeight: 600, fontSize: 12, color: '#cdbd97' }}>
-            <b style={{ fontFamily: CINZEL, fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', color: '#e8c766', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{tab === 'daily' ? `Renovam em ${left(board.dayEndsAt, now)}` : tab === 'weekly' ? `Renovam em ${left(board.weekEndsAt, now)}` : 'Valem nesta temporada'}</b>
+          <div className="flex justify-between items-center" style={{ margin: '2px 12px 6px', fontFamily: SERIF, fontWeight: 600, fontSize: 12.5, color: '#ecdfbf', textShadow: '0 1px 2px #000' }}>
+            <b style={{ fontFamily: CINZEL, fontWeight: 800, fontSize: 11, letterSpacing: '0.1em', color: '#ffd978', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{tab === 'daily' ? `Renovam em ${left(board.dayEndsAt, now)}` : tab === 'weekly' ? `Renovam em ${left(board.weekEndsAt, now)}` : 'Valem nesta temporada'}</b>
             {tab === 'daily' && <span style={{ whiteSpace: 'nowrap' }}>{board.rerollsLeft > 0 ? '1 troca por dia' : 'Troca de hoje usada'}</span>}
           </div>
           {error && <div style={{ textAlign: 'center', color: '#f0a595', fontFamily: SERIF, fontSize: 12, padding: '0 10px 6px' }}>{error}</div>}
@@ -149,4 +203,4 @@ export const MissionsScreen = ({ onClose, onCoroas, onBoard }: { onClose: () => 
     </Win>
   );
 };
-export const MissionsHost = ({ open, ...p }: { open: boolean; onClose: () => void; onCoroas: (balance: number) => void; onBoard?: (claimable: number) => void }) => <AnimatePresence>{open && <MissionsScreen key="missions" {...p} />}</AnimatePresence>;
+export const MissionsHost = ({ open, ...p }: { open: boolean; onClose: () => void; onCoroas: (balance: number) => void; onBoard?: (claimable: number) => void; coroas: number }) => <AnimatePresence>{open && <MissionsScreen key="missions" {...p} />}</AnimatePresence>;
