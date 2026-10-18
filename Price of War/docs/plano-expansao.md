@@ -1,5 +1,7 @@
 # Plano de expansão: facções, mecânicas, cartas e boosters (diagnóstico, rodada 26; NADA implementado)
 
+> **Decisão do dono (rodada 26): nada de fantasia por enquanto** (mortos-vivos, criaturas, magia). O jogo fica num **medieval mais realista** e a fantasia fica para mais tarde. **Legião dos Mortos fora do plano atual** (guardada para a fase de fantasia). Ordem revista: Floresta primeiro; depois Bardos, Cavalaria (se ganhar regra própria), Engenheiros ou Sombras (espiões) conforme os testes. A mecânica "morte e retorno" sai da lista de curto prazo.
+
 Pedido do dono: analisar o código antes de qualquer carta nova, a partir de uma proposta de 10 facções feita por outra IA. **[Fato]** = confirmado no código/medições; **[Inferência]** = leitura minha; **[Proposta]** = o que eu faria. Nenhum código foi alterado.
 
 ## 1. Estado atual (fatos)
