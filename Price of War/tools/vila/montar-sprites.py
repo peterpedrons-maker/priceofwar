@@ -25,9 +25,8 @@ for k,name in use.items():
     msk=np.clip((msk-.15)/.7,0,1)
     rgba=np.dstack([cv2.cvtColor(sub,cv2.COLOR_BGR2RGB),(msk*255).astype(np.uint8)])
     Image.fromarray(rgba).save(f'spr-{name}.png')
-    meta[name]={'w':int(sx1-sx0),'h':int(sy1-sy0),'fx':float((bx0+bx1)/2-sx0),'fy':float(by1-sy0)}   # pé = base do recorte, centro
+    meta[name]={'w':int(sx1-sx0),'h':int(sy1-sy0),'fx':float((bx0+bx1)/2-sx0),'fy':float(by1-sy0),'x':float(X0+(bx0+bx1)/2),'y':float(Y0+by1)}   # pé = base do recorte, centro
 # remove os originais da pintura (inpaint) para não duplicar
-extra=np.zeros((H,W),np.uint8); extra[956:1032,306:380]=1; extra[992:1040,352:380]=0; union=union|extra
 hole=cv2.dilate(union,cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(7,7)))*255
 bg=cv2.inpaint(im,hole,6,cv2.INPAINT_TELEA)
 Image.fromarray(cv2.cvtColor(bg,cv2.COLOR_BGR2RGB)).save('vila-bg-limpo.webp',quality=90)
