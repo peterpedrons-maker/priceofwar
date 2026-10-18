@@ -25,3 +25,5 @@ Rodada 26g (referência do dono: menu de vila de outro jogo): nome pequeno, bran
 Rodada 26h: rótulos (medalhão + nome + linha) agora ficam sobre o corpo de cada prédio, como na referência.
 
 Rodada 26i: teste (`public/mockups/vila/index.html?clean`, vídeo `vila-vivo.mp4`) com nuvens escuras atravessando o céu e 2 cavaleiros + 3 pessoas (2 com tocha) andando pela estrada em silhuetas desenhadas por código (escala por profundidade, viram ao inverter o sentido). Bandeiras do forte ficaram de fora: pedem camada recortada. Se aprovado, portar para `VillageScene.tsx`.
+
+Rodada 26j: personagens da estrada redesenhados por código com técnica de pintura (curvas, gradiente, luz de contorno quente, sombra fria, textura de pincel, render em 4x e redução, escurecimento por profundidade): 2 cavaleiros (soldado com lança e pendão, batedor com tocha) e 4 pessoas (guarda com tocha, camponês com cesta, lanceiro, monge com lanterna), 8 quadros de passo. Protótipo em `public/mockups/vila/index.html?clean` (vídeo `vila-vivo.mp4`). Os prompts de sprites pintados pela IA (`art-prompts/vila-personagens.md`) ficam como opção de qualidade maior.
