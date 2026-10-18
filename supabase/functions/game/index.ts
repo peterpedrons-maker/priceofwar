@@ -2499,18 +2499,6 @@ var resolveCombat = (c, aSeat, from, to, ambush) => {
   const defenderReduction = getIncomingDamageReduction(target, dBoard, aBoard, redD);
   const attackerHpBonus = (attacker.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(from, aBoard, hitsA);
   const defenderHpBonus = (defender.pendingCombatBonus?.hp ?? 0) + getAuraCombatHpBonus(target, dBoard, hitsD);
-  if (attackerAtk > 0) hitsD.push(...redD);
-  if (defenderAtk > 0) hitsA.push(...redA);
-  const flashed = /* @__PURE__ */ new Set();
-  const flash = (hits2, ownSeat, foeSeat) => hits2.forEach((h) => {
-    const seat = h.side === "own" ? ownSeat : foeSeat, k = `${seat}:${h.slot}`;
-    if (!flashed.has(k)) {
-      flashed.add(k);
-      c.ev.push({ t: "passive", seat, slot: h.slot });
-    }
-  });
-  flash(hitsA, aSeat, dSeat);
-  flash(hitsD, dSeat, aSeat);
   const damageToDefender = Math.max(0, attackerAtk - defenderReduction);
   const damageToAttacker = Math.max(0, defenderAtk - attackerReduction);
   const defSoak = soak(c, dSeat, target, defender, damageToDefender);
@@ -3676,7 +3664,7 @@ var countMatch = async (db, userId, now, season, f, rankedOn) => {
 var viewOf = (key, it, canReroll) => {
   const d = defOf(it.id);
   if (!d) return null;
-  return { key, id: d.id, title: d.title, desc: d.desc, reward: d.reward, target: d.target, progress: it.progress, claimed: it.claimed, mode: d.mode, reroll: canReroll && !it.claimed && it.progress < d.target };
+  return { key, id: d.id, title: d.title, desc: d.desc, reward: d.reward, target: d.target, progress: it.progress, claimed: it.claimed, mode: d.mode, metric: d.metric, reroll: canReroll && !it.claimed && it.progress < d.target };
 };
 var syncSeason = async (db, userId, key, peakPoints, rankedOn) => {
   if (!rankedOn) return;
