@@ -18,12 +18,12 @@ html,body{margin:0;height:100%;background:#0b0710;font-family:Georgia,serif;colo
 .play{position:absolute;left:50%;bottom:92px;transform:translateX(-50%);width:76%;height:62px;border-radius:14px;border:2px solid #ffe08a;background:linear-gradient(#e0a93a,#8e5a14);color:#2a1604;font:bold 24px Georgia;box-shadow:0 0 18px #ffb43a99}
 .corner{position:absolute;bottom:26px;width:44px;height:44px;border-radius:50%;background:#1b1220cc;border:1px solid #c9a35a;display:flex;align-items:center;justify-content:center}
 .corner img{width:26px}
-</style></head><body><div id="app"><div id="w"><canvas id="fx" width="704" height="1520"></canvas></div><div id="ui">
+body.clean .b,body.clean .play,body.clean .corner{display:none}</style></head><body><div id="app"><div id="w"><canvas id="cl" width="704" height="1520" style="position:absolute;inset:0"></canvas><canvas id="fx" width="704" height="1520"></canvas><canvas id="ac" width="704" height="1520" style="position:absolute;inset:0;pointer-events:none"></canvas></div><div id="ui">
 <div class="top"><div class="chip">Peter · Nv 7</div><div class="chip"><img src="ui-icon-coroa.webp">1.250</div></div>
 <button class="play" style="pointer-events:auto">Jogar</button>
 <div class="corner" style="left:14px"><img src="ui-icon-config.webp"></div><div class="corner" style="right:14px;font-size:20px">⚙️</div></div></div>
 <script>
-const W=document.getElementById('w'),app=document.getElementById('app');
+if(location.search.includes('clean'))document.body.classList.add('clean');const W=document.getElementById('w'),app=document.getElementById('app');
 function fit(){const s=Math.max(app.clientWidth/704,app.clientHeight/1520);W.style.transform=`translate(${(app.clientWidth-704*s)/2}px,${(app.clientHeight-1520*s)/2}px) scale(${s})`}
 fit();addEventListener('resize',fit);
 // prédios (coordenadas na imagem 704x1520)
@@ -42,4 +42,51 @@ for(let i=P.length-1;i>=0;i--){const p=P[i];p.l++;p.x+=p.vx+(p.t=='ember'?Math.s
  else{c.globalCompositeOperation='lighter';c.fillStyle=`rgba(255,${150+Math.random()*60|0},60,${1-k})`;c.beginPath();c.arc(p.x,p.y,p.r*(1-k*.5),0,7);c.fill()}}
 requestAnimationFrame(loop)}
 loop();
+
+// ── nuvens: elipses escuras e suaves que atravessam o céu bem devagar ──
+const cl=document.getElementById('cl'),cc=cl.getContext('2d');
+const clouds=Array.from({length:7},(_,i)=>({x:Math.random()*900-100,y:40+i*52+Math.random()*30,w:200+Math.random()*180,h:34+Math.random()*26,v:.12+Math.random()*.16,a:.22+Math.random()*.16}));
+function drawClouds(){cc.clearRect(0,0,704,1520);
+ for(const c of clouds){c.x+=c.v;if(c.x-c.w>704)c.x=-c.w;
+  const fade=Math.max(0,1-Math.max(0,c.y-250)/160);
+  cc.save();cc.translate(c.x,c.y);cc.scale(1,c.h/c.w);
+  for(const [dx,r,al] of [[-.35,.55,.7],[0,.7,1],[.38,.5,.7]]){const g=cc.createRadialGradient(dx*c.w,0,0,dx*c.w,0,r*c.w);g.addColorStop(0,`rgba(38,30,52,${c.a*al*fade})`);g.addColorStop(1,'rgba(38,30,52,0)');cc.fillStyle=g;cc.beginPath();cc.arc(dx*c.w,0,r*c.w,0,7);cc.fill()}
+  cc.restore()}}
+// ── gente e cavaleiros na estrada (silhuetas desenhadas por código, no mesmo tom escuro da pintura) ──
+const ac=document.getElementById('ac'),ax=ac.getContext('2d');
+const ROAD=[[110,1430],[200,1300],[290,1190],[345,1100],[392,1020],[415,945],[395,890],[345,845],[318,795]];
+const seg=[];let tot=0;for(let i=1;i<ROAD.length;i++){const l=Math.hypot(ROAD[i][0]-ROAD[i-1][0],ROAD[i][1]-ROAD[i-1][1]);seg.push(l);tot+=l}
+const at=d=>{d=Math.min(Math.max(d,0),tot-.01);let i=0;while(d>seg[i]){d-=seg[i];i++}const k=d/seg[i],a=ROAD[i],b=ROAD[i+1];return{x:a[0]+(b[0]-a[0])*k,y:a[1]+(b[1]-a[1])*k,dx:b[0]-a[0]}};
+const actors=[
+ {kind:'rider',pos:0.05,v:22,dir:1,torch:true},{kind:'rider',pos:0.9*tot,v:18,dir:-1,torch:false},
+ {kind:'walker',pos:.30*tot,v:11,dir:1,torch:true},{kind:'walker',pos:.62*tot,v:9,dir:-1,torch:false},{kind:'walker',pos:.8*tot,v:10,dir:1,torch:false}];
+const DARK='#150e09',RIM='rgba(255,170,90,.45)';
+function horse(t,torch){const ph=t*5;
+ ax.fillStyle=DARK;ax.strokeStyle=DARK;ax.lineCap='round';ax.lineWidth=2.4;
+ const legs=[[8,0],[5,Math.PI],[-6,Math.PI*.5],[-9,Math.PI*1.5]];
+ for(const [hx,o] of legs){const sw=Math.sin(ph+o)*4,lift=Math.max(0,Math.cos(ph+o))*2;ax.beginPath();ax.moveTo(hx,-11);ax.lineTo(hx+sw*.5,-6-lift*.5);ax.lineTo(hx+sw,-lift);ax.stroke()}
+ ax.beginPath();ax.ellipse(0,-14,12,6,0,0,7);ax.fill();
+ ax.beginPath();ax.moveTo(8,-17);ax.lineTo(14,-31);ax.lineTo(19,-29);ax.lineTo(13,-12);ax.fill();
+ ax.beginPath();ax.ellipse(19,-29,5,2.6,.5,0,7);ax.fill();
+ ax.beginPath();ax.moveTo(-11,-17);ax.quadraticCurveTo(-18,-14,-17+Math.sin(ph)*1.5,-5);ax.lineWidth=2.2;ax.stroke();
+ ax.lineWidth=1;ax.strokeStyle=RIM;ax.beginPath();ax.ellipse(0,-14,12,6,0,Math.PI*1.1,Math.PI*1.9);ax.stroke();
+ // cavaleiro
+ ax.fillStyle=DARK;ax.fillRect(-2.5,-33,5,14);ax.beginPath();ax.arc(0,-37,3.3,0,7);ax.fill();
+ ax.strokeStyle=DARK;ax.lineWidth=1.3;ax.beginPath();ax.moveTo(4,-30);ax.lineTo(4,-62);ax.stroke();
+ ax.fillStyle='#4a2a58';ax.beginPath();ax.moveTo(4,-62);ax.lineTo(13+Math.sin(ph*1.3)*2,-59);ax.lineTo(4,-55);ax.fill();
+ if(torch){const f=.7+Math.random()*.3;const g=ax.createRadialGradient(4,-63,0,4,-63,22);g.addColorStop(0,`rgba(255,170,70,${.55*f})`);g.addColorStop(1,'rgba(255,170,70,0)');ax.globalCompositeOperation='lighter';ax.fillStyle=g;ax.fillRect(-20,-90,48,48);ax.globalCompositeOperation='source-over'}}
+function walker(t,torch){const ph=t*4.5;
+ ax.strokeStyle=DARK;ax.fillStyle=DARK;ax.lineCap='round';ax.lineWidth=2.4;
+ for(const o of [0,Math.PI]){ax.beginPath();ax.moveTo(0,-13);ax.lineTo(Math.sin(ph+o)*3.5,0);ax.stroke()}
+ ax.fillRect(-2.6,-27,5.2,15);ax.beginPath();ax.arc(0,-31,3.2,0,7);ax.fill();
+ ax.lineWidth=1.4;ax.beginPath();ax.moveTo(3,-24);ax.lineTo(6,-20+Math.sin(ph)*1);ax.stroke();
+ if(torch){ax.lineWidth=1.6;ax.beginPath();ax.moveTo(6,-20);ax.lineTo(8,-36);ax.stroke();const f=.7+Math.random()*.3;const g=ax.createRadialGradient(8,-38,0,8,-38,20);g.addColorStop(0,`rgba(255,175,80,${.6*f})`);g.addColorStop(1,'rgba(255,175,80,0)');ax.globalCompositeOperation='lighter';ax.fillStyle=g;ax.fillRect(-14,-60,44,44);ax.globalCompositeOperation='source-over'}}
+let T0=performance.now();
+function drawActors(now){const dt=Math.min(.05,(now-T0)/1000);T0=now;const t=now/1000;ax.clearRect(0,0,704,1520);
+ const list=actors.map(a=>{a.pos+=a.dir*a.v*dt;if(a.pos>tot){a.pos=tot;a.dir=-1}if(a.pos<0){a.pos=0;a.dir=1}return{a,p:at(a.pos)}}).sort((u,v)=>u.p.y-v.p.y);
+ for(const {a,p} of list){const s=.62+Math.min(1,Math.max(0,(p.y-400)/1000))*.95,face=(a.dir*(p.dx>=0?1:-1)>=0)?1:-1;
+  const fx=a.dir>0?(p.dx>=0?1:-1):(p.dx>=0?-1:1);
+  ax.save();ax.translate(p.x,p.y);ax.scale(s*fx,s);if(a.kind==='rider')horse(t+a.pos/50,a.torch);else walker(t+a.pos/40,a.torch);ax.restore()}}
+if(location.search.includes('debug')){const d=document.createElement('canvas');d.width=704;d.height=1520;d.style.cssText='position:absolute;inset:0;pointer-events:none';const x=d.getContext('2d');x.strokeStyle='#0f0';x.lineWidth=3;x.beginPath();ROAD.forEach(([a,b],i)=>i?x.lineTo(a,b):x.moveTo(a,b));x.stroke();W.appendChild(d)}
+function frame(now){drawClouds();drawActors(now);requestAnimationFrame(frame)}requestAnimationFrame(frame);
 </script></body></html>

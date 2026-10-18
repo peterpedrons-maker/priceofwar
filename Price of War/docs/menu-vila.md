@@ -23,3 +23,5 @@ Rodada 26e: nome (só texto) fica em chão livre ao lado do prédio, separado da
 Rodada 26g (referência do dono: menu de vila de outro jogo): nome pequeno, branco em negrito com contorno fino, linha dourada e setinha embaixo, medalhão com ícone em cima (badge no medalhão), tudo em chão calmo ao lado do prédio. A ideia das placas em branco (prompt acima) fica como plano B.
 
 Rodada 26h: rótulos (medalhão + nome + linha) agora ficam sobre o corpo de cada prédio, como na referência.
+
+Rodada 26i: teste (`public/mockups/vila/index.html?clean`, vídeo `vila-vivo.mp4`) com nuvens escuras atravessando o céu e 2 cavaleiros + 3 pessoas (2 com tocha) andando pela estrada em silhuetas desenhadas por código (escala por profundidade, viram ao inverter o sentido). Bandeiras do forte ficaram de fora: pedem camada recortada. Se aprovado, portar para `VillageScene.tsx`.
