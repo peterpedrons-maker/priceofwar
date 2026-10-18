@@ -9,7 +9,6 @@ import { playRewardSfx } from './rewardSfx';
 import { claimMission, fetchMissions, rerollMission, type MissionsBoard, type MissionView } from './services/online';
 import abaAtiva from './assets/kit-rank/aba-ativa.png';
 import abaInativa from './assets/kit-rank/aba-inativa.png';
-import linhaNormal from './assets/kit-rank/linha-normal-livre.png';
 import linhaAtual from './assets/kit-rank/linha-atual-livre.png';
 import barraMoldura from './assets/kit-rank/barra-moldura.png';
 import encOuro from './assets/kit-rank/enchimento-ouro.png';
@@ -22,7 +21,7 @@ import iconeMissoes from './assets/ui-icon-missoes.webp';
 
 const CINZEL = "'Cinzel', serif";
 const SERIF = "'Crimson Pro', Georgia, serif";
-const TAG: Record<MissionView['mode'], { label: string; bg: string; fg: string }> = { ia: { label: 'IA', bg: '#2f7a46', fg: '#eafff0' }, free: { label: 'LIVRE', bg: '#8a6a1c', fg: '#fff3cf' }, ranked: { label: 'RANQUEADA', bg: '#a03434', fg: '#ffe6e0' } };
+const TAG: Record<MissionView['mode'], { label: string; bg: string; fg: string }> = { ia: { label: 'IA', bg: '#256a3a', fg: '#eafff0' }, free: { label: 'LIVRE', bg: '#3a2608', fg: '#ffe6a0' }, ranked: { label: 'RANQUEADA', bg: '#7a2424', fg: '#ffe6e0' } };
 type Tab = 'daily' | 'weekly' | 'season';
 const left = (ms: number, now: number) => { const h = Math.max(0, ms - now) / 3600e3; return h < 1 ? '< 1 h' : h < 48 ? `${Math.ceil(h)} h` : `${Math.ceil(h / 24)} dias`; };
 
@@ -69,15 +68,15 @@ const MissionRow = ({ m, busy, onClaim, onReroll, collecting }: { m: MissionView
   return (
     <motion.div className="relative" animate={collecting ? { scale: [1, 1.05, 1.0] } : { scale: 1 }} transition={{ duration: 0.5 }} style={{ height: 96, marginBottom: 4 }}>
       {collecting && <CollectFx reward={m.reward} />}
-      <div className="absolute inset-0" style={{ border: '18px solid transparent', borderImage: `url(${ready ? linhaAtual : linhaNormal}) 38 fill / 18px stretch` }} />
+      <div className="absolute inset-0" style={{ border: '18px solid transparent', borderImage: `url(${linhaAtual}) 38 fill / 18px stretch` }} />
       {/* fundo escuro por dentro da moldura: o texto claro lê bem (o cinza do painel era claro demais para a letra clara) */}
-      <div className="absolute pointer-events-none" style={{ inset: 13, borderRadius: 8, background: ready ? 'linear-gradient(rgba(96,60,10,0.94), rgba(44,24,4,0.96))' : m.claimed ? 'linear-gradient(rgba(14,44,28,0.95), rgba(6,24,14,0.97))' : 'linear-gradient(rgba(26,32,52,0.95), rgba(12,15,28,0.97))', boxShadow: 'inset 0 0 16px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08)' }} />
+      <div className="absolute pointer-events-none" style={{ inset: 11, borderRadius: 9, background: ready ? 'linear-gradient(#a86a10, #5c3406)' : m.claimed ? 'linear-gradient(#6a4a14, #35210a)' : 'linear-gradient(#8a5a10, #46290a)', boxShadow: 'inset 0 0 14px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,236,170,0.25)' }} />
       <div className="absolute grid place-items-center" style={{ left: 14, top: '50%', transform: 'translateY(-50%)', width: 44, height: 44, backgroundImage: `url(${ready ? slotBrilhando : slotNormal})`, backgroundSize: '100% 100%' }}>
         <img src={iconeMissoes} alt="" draggable={false} style={{ width: 30, height: 30, objectFit: 'contain' }} />
       </div>
       <div className="absolute flex flex-col justify-center" style={{ left: 68, right: 92, top: 12, bottom: 12, gap: 2 }}>
-        <div style={{ fontFamily: CINZEL, fontWeight: 800, fontSize: 13, lineHeight: 1.1, color: m.claimed ? '#c9f2d4' : ready ? '#ffe9a8' : '#f6efe0', textShadow: '0 1px 2px #000', whiteSpace: 'nowrap' }}>{m.title}</div>
-        <div style={{ fontFamily: SERIF, fontSize: 12.5, lineHeight: 1.15, color: m.claimed ? '#bfe0c9' : '#e4e1d6', textShadow: '0 1px 2px #000' }}>
+        <div style={{ fontFamily: CINZEL, fontWeight: 800, fontSize: 13, lineHeight: 1.1, color: '#fff4d2', textShadow: '0 1px 2px #000', whiteSpace: 'nowrap' }}>{m.title}</div>
+        <div style={{ fontFamily: SERIF, fontSize: 12.5, lineHeight: 1.15, color: '#f3e6c4', textShadow: '0 1px 2px #000' }}>
           <span style={{ display: 'inline-block', fontFamily: CINZEL, fontWeight: 700, fontSize: 8, letterSpacing: '0.14em', padding: '1px 5px', borderRadius: 4, marginRight: 4, verticalAlign: 1, background: tag.bg, color: tag.fg }}>{tag.label}</span>{m.desc}
         </div>
         <div className="relative" style={{ height: 17, width: '100%', marginTop: 2 }}>
@@ -88,14 +87,14 @@ const MissionRow = ({ m, busy, onClaim, onReroll, collecting }: { m: MissionView
           <div className="absolute inset-0 grid place-items-center" style={{ fontFamily: CINZEL, fontWeight: 900, fontSize: 9, color: '#fff3cf', textShadow: '0 1px 2px #000' }}>{m.progress}/{m.target}</div>
         </div>
       </div>
-      {onReroll && <button onClick={onReroll} disabled={busy} className="absolute" style={{ right: 14, top: 3, zIndex: 2, fontFamily: CINZEL, fontWeight: 700, fontSize: 8, letterSpacing: '0.1em', color: '#e8c766', textTransform: 'uppercase', background: 'none', border: 'none', padding: 2, opacity: 0.9 }}>↻ Trocar</button>}
+      {onReroll && <button onClick={onReroll} disabled={busy} className="absolute" style={{ right: 14, top: 3, zIndex: 2, fontFamily: CINZEL, fontWeight: 700, fontSize: 8, letterSpacing: '0.1em', color: '#fff4d2', textShadow: '0 1px 2px #000, 0 0 4px #000', textTransform: 'uppercase', background: 'none', border: 'none', padding: 2 }}>↻ Trocar</button>}
       <div className="absolute flex flex-col items-center justify-center" style={{ right: 12, top: 0, bottom: 0, width: 78, gap: 5 }}>
         <div className="flex items-center" style={{ gap: 3, backgroundImage: `url(${chipNeutro})`, backgroundSize: '100% 100%', padding: '0 12px 0 8px', height: 26, fontFamily: CINZEL, fontWeight: 900, fontSize: 14, color: '#ffe9b0' }}>
           <img src={iconeCoroa} alt="" draggable={false} style={{ width: 17, height: 17, objectFit: 'contain' }} />+{m.reward}
         </div>
         {collecting ? <div style={{ fontFamily: CINZEL, fontWeight: 900, fontSize: 9, letterSpacing: '0.04em', color: '#ffe9a0', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>✓ Completa!</div>
-          : m.claimed ? <div style={{ fontFamily: CINZEL, fontWeight: 700, fontSize: 9, letterSpacing: '0.04em', color: '#8fe0a4', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>✓ Completa</div>
-          : <button data-claim={m.id} onClick={onClaim} disabled={!ready || busy} style={{ width: 78, height: 30, ...(ready ? { backgroundImage: `url(${botaoPrimario})`, backgroundSize: '100% 100%', border: 'none' } : { background: 'linear-gradient(#323a58,#1b2036)', border: '1.5px solid #6a7396', borderRadius: 6, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)' }), fontFamily: CINZEL, fontWeight: 900, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: ready ? '#2a1a05' : '#d4dcf4', opacity: busy ? 0.6 : 1 }}>{ready ? 'Coletar' : 'Em curso'}</button>}
+          : m.claimed ? <div style={{ fontFamily: CINZEL, fontWeight: 700, fontSize: 9, letterSpacing: '0.04em', color: '#d8ffdf', textShadow: '0 1px 2px #000, 0 0 5px #000', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>✓ Completa</div>
+          : <button data-claim={m.id} onClick={onClaim} disabled={!ready || busy} style={{ width: 78, height: 30, backgroundImage: `url(${botaoPrimario})`, backgroundSize: '100% 100%', border: 'none', filter: ready ? 'none' : 'saturate(0.8) brightness(0.9)', fontFamily: CINZEL, fontWeight: 900, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#2a1a05', opacity: busy ? 0.6 : 1 }}>{ready ? 'Coletar' : 'Em curso'}</button>}
       </div>
     </motion.div>
   );
