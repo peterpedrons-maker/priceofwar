@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import villaImage from './assets/menu-vila.webp';
 import iDesafios from './assets/ui-icon-desafios.webp';
 import iOnline from './assets/ui-icon-online.webp';
-import iCard from './assets/ui-icon-card.webp';
 import iDeck from './assets/ui-icon-editar-deck.webp';
 import iLoja from './assets/ui-icon-loja.webp';
-import iCoroa from './assets/ui-icon-coroa.webp';
+import iMissoes from './assets/ui-icon-missoes.webp';
+import iColecao from './assets/ui-icon-colecao.webp';
 import iTut from './assets/ui-icon-tutoriais.webp';
 import iRank from './assets/ui-icon-ranking.webp';
 import spr_rider_a from './assets/vila/spr-rider_a.png';
@@ -13,7 +13,7 @@ import spr_p_azul from './assets/vila/spr-p_azul.png';
 import spr_p_capuz from './assets/vila/spr-p_capuz.png';
 import spr_p_ferreiro from './assets/vila/spr-p_ferreiro.png';
 import spr_p_guarda from './assets/vila/spr-p_guarda.png';
-const ICONS: Record<string, string> = { castelo: iDesafios, academia: iTut, biblioteca: iCard, forja: iDeck, mercado: iLoja, missoes: iCoroa, arena: iOnline, quartel: iRank };
+const ICONS: Record<string, string> = { castelo: iDesafios, academia: iTut, biblioteca: iColecao, forja: iDeck, mercado: iLoja, missoes: iMissoes, arena: iOnline, quartel: iRank };
 
 // Menu inicial em vila (docs/menu-vila.md): a arte 704x1520 com prédios tocáveis e animação por código (fumaça, brasas, brilhos).
 // Coordenadas em px da imagem; o palco escala por "cover" (corta as bordas, os prédios ficam na faixa central).
