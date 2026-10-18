@@ -19,17 +19,17 @@ const ICONS: Record<string, string> = { castelo: iDesafios, academia: iTut, bibl
 // Coordenadas em px da imagem; o palco escala por "cover" (corta as bordas, os prédios ficam na faixa central).
 const IW = 704, IH = 1520;
 export type VillageId = 'castelo' | 'academia' | 'biblioteca' | 'forja' | 'mercado' | 'missoes' | 'arena' | 'quartel';
-// x,y,w,h = área tocável (centro e tamanho, em px da imagem); lx,ly = onde fica o nome (só texto), sempre sobre a base do prédio (pé da construção), sem cobrir o centro nem os detalhes principais (cada um ajustado à mão).
+// x,y,w,h = área tocável (centro e tamanho, em px da imagem); lx,ly = onde fica o nome (só texto), sempre posição marcada pelo dono (rodada 26p) sobre um print: lx,ly é o centro do conjunto; o NOME fica ~20 px da imagem abaixo de ly.
 // Nomes pela função, para o jogo se explicar sozinho.
 const BUILDINGS: { id: VillageId; name: string; x: number; y: number; w: number; h: number; lx: number; ly: number }[] = [
   { id: 'castelo', name: 'Desafios', x: 545, y: 285, w: 300, h: 180, lx: 555, ly: 395 },
-  { id: 'academia', name: 'Tutoriais', x: 85, y: 450, w: 170, h: 130, lx: 68, ly: 515 },
-  { id: 'biblioteca', name: 'Coleção', x: 135, y: 690, w: 150, h: 300, lx: 130, ly: 822 },
-  { id: 'forja', name: 'Meu Deck', x: 340, y: 650, w: 190, h: 210, lx: 322, ly: 745 },
-  { id: 'mercado', name: 'Loja', x: 570, y: 610, w: 270, h: 170, lx: 575, ly: 695 },
-  { id: 'missoes', name: 'Missões', x: 580, y: 820, w: 200, h: 170, lx: 545, ly: 905 },
-  { id: 'arena', name: 'Online', x: 140, y: 990, w: 290, h: 260, lx: 95, ly: 1122 },
-  { id: 'quartel', name: 'Ranking', x: 555, y: 1125, w: 300, h: 320, lx: 625, ly: 1275 },
+  { id: 'academia', name: 'Tutoriais', x: 85, y: 450, w: 170, h: 130, lx: 140, ly: 515 },
+  { id: 'biblioteca', name: 'Coleção', x: 135, y: 690, w: 150, h: 300, lx: 46, ly: 783 },
+  { id: 'forja', name: 'Meu Deck', x: 340, y: 650, w: 190, h: 210, lx: 385, ly: 687 },
+  { id: 'mercado', name: 'Loja', x: 570, y: 610, w: 270, h: 170, lx: 622, ly: 611 },
+  { id: 'missoes', name: 'Missões', x: 580, y: 820, w: 200, h: 170, lx: 651, ly: 864 },
+  { id: 'arena', name: 'Online', x: 140, y: 990, w: 290, h: 260, lx: 163, ly: 1071 },
+  { id: 'quartel', name: 'Ranking', x: 555, y: 1125, w: 300, h: 320, lx: 427, ly: 1158 },
 ];
 const GLOWS: [number, number, number, string][] = [[410, 688, 120, '#ff8a2a'], [275, 775, 36, '#ffa040'], [463, 825, 36, '#ffa040'], [220, 520, 30, '#ffa040'], [520, 460, 28, '#ffa040'], [275, 1055, 36, '#ffa040'], [182, 1100, 36, '#ffa040'], [383, 1140, 36, '#ffa040'], [108, 665, 44, '#ffc060'], [165, 665, 44, '#ffc060'], [70, 420, 90, '#ff6a1a'], [440, 570, 34, '#ffc060'], [540, 545, 34, '#ffc060'], [630, 607, 34, '#ffc060'], [200, 1065, 46, '#ff9a40']];
 const SOURCES: [number, number, 'smoke' | 'ember', number][] = [[388, 548, 'smoke', .35], [150, 330, 'smoke', .5], [690, 230, 'smoke', .25], [330, 470, 'smoke', .15], [70, 420, 'ember', .5], [410, 680, 'ember', .6], [600, 520, 'ember', .15], [300, 300, 'ember', .2]];
@@ -115,7 +115,7 @@ export const VillageScene = ({ onPick, badges }: { onPick: (id: VillageId) => vo
         <canvas ref={cv} width={IW} height={IH} className="absolute inset-0 pointer-events-none" />
       </div>
       {BUILDINGS.map(b => {
-        const W = box.current?.clientWidth ?? 390, half = b.name.length * 7.6 + 10;
+        const W = box.current?.clientWidth ?? 390, half = b.name.length * 4.3 + 2;
         const cx = view.ox + b.x * view.s, cy = view.oy + b.y * view.s, bd = badges?.[b.id];
         const lx = Math.min(Math.max(view.ox + b.lx * view.s, half), W - half), ly = view.oy + b.ly * view.s, on = pressed === b.id;
         return (

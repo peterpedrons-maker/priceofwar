@@ -39,3 +39,5 @@ Rodada 26m: no jogo (`VillageScene.tsx`): figuras paradas respirando (mais movim
 Rodada 26n: nomes reposicionados à mão na base/ao lado de cada prédio (Desafios à esquerda do castelo; Coleção ao lado da torre, Meu Deck na estrada, etc.) para não cobrir a arquitetura.
 
 Rodada 26o: nomes de volta sobre o PÉ de cada prédio (base/fundação), perto da construção, sem cobrir o centro nem os detalhes principais (janelas da torre, fornalha, portão da arena, castelo).
+
+Rodada 26p: o dono marcou com bolinhas vermelhas num print onde ficar o centro do nome de Loja, Meu Deck, Coleção, Missões, Online e Ranking (Tutoriais e Desafios ficaram como estavam); posições convertidas de pixel do print para a imagem (print 879 px de largura de tela = 390 css; escala 0,5553).
