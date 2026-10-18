@@ -60,7 +60,7 @@ const CINZEL = "'Cinzel', serif";
 const SERIF = "'Crimson Pro', Georgia, serif";
 
 // ── Pieces ──────────────────────────────────────────────────────────────────
-export const Win = ({ title, children, footer, onClose }: { title: string; children: ReactNode; footer?: ReactNode; onClose: () => void }) => (
+export const Win = ({ title, children, footer, onClose, dark }: { title: string; children: ReactNode; footer?: ReactNode; onClose: () => void; dark?: boolean }) => (
   <motion.div className="fixed inset-0 z-[620]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.22 }}
     style={{ background: 'rgba(6,4,2,0.9)', backdropFilter: 'blur(4px)' }} onClick={onClose}>
     <div className="absolute inset-x-2 top-2 bottom-2 mx-auto max-w-[460px]" onClick={e => e.stopPropagation()}
@@ -68,6 +68,7 @@ export const Win = ({ title, children, footer, onClose }: { title: string; child
       <div className="absolute left-1/2 z-10" style={{ top: -62, transform: 'translateX(-50%)', width: 236, height: 73, backgroundImage: `url(${fitaCoroa})`, backgroundSize: '100% 100%', display: 'grid', placeItems: 'center' }}>
         <span style={{ fontFamily: CINZEL, fontWeight: 900, fontSize: title.length > 9 ? 14 : 17, letterSpacing: title.length > 9 ? '0.12em' : '0.2em', paddingLeft: title.length > 9 ? '0.12em' : '0.2em', color: '#2a1a05', textShadow: '0 1px 0 rgba(255,240,180,.7)', textTransform: 'uppercase' }}>{title}</span>
       </div>
+      {dark && <div className="absolute pointer-events-none" style={{ inset: 0, background: 'linear-gradient(rgba(10,6,3,0.66), rgba(10,6,3,0.78))' }} />}   {/* janela inteira escura (Missões): a letra clara lê bem em qualquer ponto */}
       <div className="absolute inset-0 flex flex-col" style={{ padding: '30px 2px 0' }}>
         <div className="flex-1 min-h-0 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>{children}</div>
         {footer && <div className="shrink-0 flex justify-center" style={{ padding: '8px 0 2px' }}>{footer}</div>}

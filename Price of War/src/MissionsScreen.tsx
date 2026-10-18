@@ -151,10 +151,10 @@ export const MissionsScreen = ({ onClose, onCoroas, onBoard, coroas }: { onClose
   const now = board?.now ?? Date.now();
   const readyList = list.filter(x => !x.claimed && x.progress >= x.target);
   return (
-    <Win title="Missões" onClose={onClose} footer={<div className="flex w-full justify-center" style={{ gap: 4 }}>
+    <Win title="Missões" dark onClose={onClose} footer={<div className="flex w-full justify-center" style={{ gap: 4 }}>
       {readyList.length >= 2 && <KitButton primary onClick={claimAll} width={190}>{busy ? '…' : `Coletar tudo +${readyList.reduce((n, m) => n + m.reward, 0)}`}</KitButton>}
       <KitButton onClick={onClose} width={readyList.length >= 2 ? 120 : 210}>Voltar</KitButton></div>}>
-      <div style={{ padding: '4px 4px 6px', minHeight: '100%', borderRadius: 8, background: 'linear-gradient(rgba(10,6,3,0.58), rgba(10,6,3,0.72))' }}>
+      <div style={{ padding: '4px 4px 6px', minHeight: '100%' }}>
         {createPortal(<>
           {flights.map(f => (
             <motion.img key={f.id} src={iconeCoroa} alt="" draggable={false} style={{ position: 'fixed', left: -11, top: -11, width: 22, height: 22, objectFit: 'contain', zIndex: 900, pointerEvents: 'none', filter: 'drop-shadow(0 0 7px rgba(255,205,90,0.95))' }}
