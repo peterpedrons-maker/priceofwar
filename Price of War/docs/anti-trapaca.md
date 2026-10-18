@@ -17,6 +17,8 @@ Não existe anti-cheat de verdade num jogo no navegador: quem controla o aparelh
 - **Mesmo adversário demais (combinar resultado / duas contas do mesmo dono):** depois de 3 partidas ranqueadas em 24 horas entre as mesmas duas contas, a próxima **não move pontos** (a tela de fim de partida avisa). Valor em `REPEAT_LIMIT`. Teste "fair play".
 - **Pareamento por Elo:** quem tem Elo muito diferente não é pareado de cara (a janela começa em 100 e abre 50 a cada 5 s de espera), o que também dificulta "jogar contra o amigo de propósito": a fila escolhe o mais próximo.
 
+- **Booster aberto no servidor (rodada 27):** preço, sorteio, repetidas e gravação na coleção acontecem numa função do banco (`open_booster`, SQL 13), não no aparelho. A escrita direta da tabela `collection` ainda não foi fechada (etapa 2 em `docs/economia-proposta.md`).
+
 ## O que ainda é risco (e o que fazer)
 1. **Coleção escrita pelo aparelho (maior risco quando as coroas valerem de verdade).** Hoje os boosters são grátis e abertos no aparelho (`TEST_FREE_BOOSTERS`), então a coleção é escrita direto pelo jogador e quem souber chamar a API pode se dar qualquer carta. Enquanto os boosters forem grátis isso não muda o equilíbrio (qualquer um abre quantos quiser), mas **antes de cobrar coroas** é preciso: tirar as permissões de escrita da tabela `collection` e abrir o booster por uma função no servidor (sorteia e debita as coroas no servidor).
 2. **Ajuda externa (calculadora de jogadas, IA fazendo as jogadas):** não dá para impedir. Mitigações possíveis: tempo por turno curto no ranqueado (já há relógio), e olhar jogadas suspeitas depois (o servidor guarda todas as ações de cada partida em `match_steps`, dá para auditar).

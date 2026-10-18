@@ -157,6 +157,12 @@ export const supabaseDb = (c: Client): Db => ({
     const n = Array.isArray(r.data) ? r.data[0] : r.data;
     return typeof n === 'number' ? n : null;
   },
+  async openBooster(userId, price, refund, adds) {
+    const r = await c.rpc('open_booster', { p_user: userId, p_price: price, p_refund: refund, p_adds: adds });
+    if (r.error) return null;
+    const n = Array.isArray(r.data) ? r.data[0] : r.data;
+    return typeof n === 'number' ? n : null;
+  },
   async roomPut(row) {
     must(await c.from('rooms').delete().eq('host', row.host), 'room replace');
     must(await c.from('rooms').insert({ code: row.code, host: row.host, deck: row.deck, created_at: row.created_at }), 'room put');

@@ -5,6 +5,7 @@
 import { aiNextAction } from '../src/engine/ai';
 import { DECK_RECIPES, currentCardName, currentNames, type DeckId } from '../src/engine/catalog';
 import { deckProblem } from '../src/engine/deck';
+import { BOOSTER_IDS, BOOSTER_PRICE, rollBooster, settleBooster, type Settled } from '../src/engine/boosters';
 import { applyAction, createMatch } from '../src/engine/game';
 import { nextRandom, seedFrom } from '../src/engine/rng';
 import { applyReward, rewardFor, withDaily } from '../src/engine/rewards';
@@ -128,6 +129,7 @@ export type GameRequest =
   | { op: 'missions' }
   | { op: 'missionClaim'; key: string; mission: string }
   | { op: 'missionReroll'; mission: string }
+  | { op: 'openBooster'; booster: string }
   | { op: 'feedback'; kind: string; text: string; matchId?: string; ctx?: string }
   | { op: 'adminFeedbackDone'; id: number }
   | { op: 'friendCreate'; cards: Record<string, number>; rar?: unknown; general: string }
@@ -146,6 +148,7 @@ export type GameResponse =
   | { ok: true; status: 'ranking'; rows: { rank: number; user: string; name: string; avatarId: string; points: number; label: string; top: boolean; me: boolean }[]; me: RankedView }
   | { ok: true; status: 'admin'; admin: AdminOverview & { top: { rank: number; name: string; points: number; label: string }[]; season: number; me: { id: string; email: string | null } } }
   | ({ ok: true; status: 'missions'; now: number; paid?: number; coroas_after?: number } & MissionsBoard)
+  | { ok: true; status: 'booster'; cards: Settled[]; adds: Record<string, number>; spent: number; refund: number; coroas_after: number }
   | { ok: true; status: 'reported' }
   | { ok: true; status: 'deleted' }
   | { ok: true; status: 'feedback' }
@@ -430,7 +433,7 @@ const finishIfStale = async (db: Db, cfg: GameConfig, m: MatchRow | null): Promi
 
 // ── Requests ────────────────────────────────────────────────────────────────
 // A request is untrusted input from a phone: the shape and sizes are checked before anything reads it (the game rules themselves are checked by the engine).
-const OPS = new Set(['missions', 'missionClaim', 'missionReroll', 'ping', 'admin', 'feedback', 'adminFeedbackDone', 'report', 'deleteAccount', 'friendCreate', 'friendStatus', 'friendCancel', 'friendPeek', 'friendJoin', 'adminBan', 'adminUnban', 'queue', 'ranked', 'claim', 'ranking', 'status', 'cancel', 'act', 'tick', 'result', 'emote', 'emotes']);
+const OPS = new Set(['openBooster', 'missions', 'missionClaim', 'missionReroll', 'ping', 'admin', 'feedback', 'adminFeedbackDone', 'report', 'deleteAccount', 'friendCreate', 'friendStatus', 'friendCancel', 'friendPeek', 'friendJoin', 'adminBan', 'adminUnban', 'queue', 'ranked', 'claim', 'ranking', 'status', 'cancel', 'act', 'tick', 'result', 'emote', 'emotes']);
 export const badRequest = (req: unknown): string | null => {
   if (!req || typeof req !== 'object' || Array.isArray(req)) return 'Pedido inválido.';
   const r = req as Record<string, unknown>;
@@ -442,6 +445,7 @@ export const badRequest = (req: unknown): string | null => {
   if (r.code !== undefined && (typeof r.code !== 'string' || r.code.length > 8)) return 'Pedido inválido.';
   if ((r.op === 'friendPeek' || r.op === 'friendJoin') && !(typeof r.code === 'string' && /^[A-Za-z0-9]{4,8}$/.test(r.code))) return 'Convite inválido.';
   if (r.key !== undefined && (typeof r.key !== 'string' || r.key.length > 24)) return 'Pedido inválido.';
+  if (r.booster !== undefined && (typeof r.booster !== 'string' || r.booster.length > 24)) return 'Pedido inválido.';
   if (r.mission !== undefined && (typeof r.mission !== 'string' || r.mission.length > 40)) return 'Pedido inválido.';
   if (r.target !== undefined && (typeof r.target !== 'string' || r.target.length > 64)) return 'Pedido inválido.';
   if (r.reason !== undefined && (typeof r.reason !== 'string' || r.reason.length > 200)) return 'Pedido inválido.';
@@ -554,6 +558,19 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
         const peak = RANKED_MISSIONS_ON ? Math.max((await ladderOf(db, cfg, userId)).peak, 0) : 0;
         return { ok: true, status: 'missions', now, ...extra, ...(await missionsBoard(db, userId, now, season, peak, RANKED_MISSIONS_ON)) };
       } catch { return { ok: false, error: 'As missões não estão disponíveis agora.' }; }
+    }
+    case 'openBooster': {
+      // O servidor cobra, sorteia e grava; o aparelho só mostra. Repetidas viram coroas (settleBooster).
+      if (!(BOOSTER_IDS as string[]).includes(req.booster)) return { ok: false, error: 'Booster desconhecido.' };
+      const prof = await db.profile(userId);
+      if (!prof) return { ok: false, error: 'Perfil não encontrado.' };
+      if (prof.coroas < BOOSTER_PRICE) return { ok: false, error: 'Coroas insuficientes.' };
+      const owned = currentNames(await db.collection(userId));
+      const { cards, adds, refund } = settleBooster(owned, rollBooster(req.booster as DeckId, owned));
+      const after = await db.openBooster(userId, BOOSTER_PRICE, refund, adds);
+      if (after === null) return { ok: false, error: 'A loja não está disponível agora.' };
+      if (after < 0) return { ok: false, error: 'Coroas insuficientes.' };
+      return { ok: true, status: 'booster', cards, adds, spent: BOOSTER_PRICE, refund, coroas_after: after };
     }
     case 'deleteAccount': {
       // The player's own request (Settings). Not while a match is running: the opponent would be left hanging.

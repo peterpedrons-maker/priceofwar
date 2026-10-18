@@ -2,6 +2,8 @@
 // on an in-memory database:   npx tsx tests/online-server.ts
 import { aiNextAction } from '../src/engine/ai';
 import { DECK_RECIPES } from '../src/engine/catalog';
+import { BOOSTER_PRICE, boosterPool, rollBooster, settleBooster } from '../src/engine/boosters';
+import { maxCopiesOf } from '../src/engine/deck';
 import { applyAction, createMatch } from '../src/engine/game';
 import { applyReward, rewardFor } from '../src/engine/rewards';
 import type { Action, Seat } from '../src/engine/types';
@@ -763,6 +765,46 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     const next = await get();
     ok(next.daily[0].key !== key && next.daily.every(m => m.progress === 0) && next.rerollsLeft === 1, 'novo dia, quadro novo');
     clock = keep;
+  });
+
+  await test('booster: servidor cobra 150, sorteia 5, grava na coleção; repetidas viram coroas; sem coroas recusa', async () => {
+    const db = fresh();
+    const prof = () => db.tables.profiles.find(x => x.id === 'A')!;
+    const total = () => db.tables.collection.filter(r => r.user_id === 'A' && !r.card_name.includes('#')).reduce((n, r) => n + r.copies, 0);
+    const before = total();
+    ok((await handleGame(db, 'A', { op: 'openBooster', booster: 'nada' }, cfg)).ok === false, 'booster desconhecido recusado');
+    const r = await handleGame(db, 'A', { op: 'openBooster', booster: 'campo' }, cfg);
+    if (r.ok !== true || r.status !== 'booster') throw new Error('booster: ' + JSON.stringify(r));
+    eq(r.cards.length, 5, '5 cartas');
+    eq(r.spent, BOOSTER_PRICE);
+    eq(prof().coroas, 150 - BOOSTER_PRICE + r.refund, 'saldo = 150 - preço + repetidas');
+    eq(r.coroas_after, prof().coroas);
+    const gained = r.cards.filter(c => c.dup === 'no').length;
+    eq(total() - before, gained, 'só as cartas que não eram repetidas entram na coleção');
+    eq(r.refund, r.cards.reduce((n, c) => n + c.coroas, 0), 'o reembolso é a soma das repetidas');
+    // sem coroas: recusa e não muda nada
+    prof().coroas = 100;
+    const snap = JSON.stringify(db.tables.collection);
+    const no = await handleGame(db, 'A', { op: 'openBooster', booster: 'cardeal' }, cfg);
+    ok(no.ok === false && prof().coroas === 100 && JSON.stringify(db.tables.collection) === snap, 'sem coroas nada muda');
+    // repetidas: quem tem tudo no máximo recebe coroas pelas cartas (5 a comum)
+    prof().coroas = 1000;
+    for (const e of boosterPool('cardeal')) { const n = maxCopiesOf(e.name); const row = db.tables.collection.find(x => x.user_id === 'A' && x.card_name === e.name); if (row) row.copies = n; else db.tables.collection.push({ user_id: 'A', card_name: e.name, copies: n }); }
+    const dup = await handleGame(db, 'A', { op: 'openBooster', booster: 'cardeal' }, cfg);
+    if (dup.ok !== true || dup.status !== 'booster') throw new Error('dup: ' + JSON.stringify(dup));
+    ok(dup.cards.every(c => c.dup !== 'no' && !c.isNew) && dup.refund >= 25, 'tudo repetido rende coroas: ' + JSON.stringify(dup.cards));
+    eq(prof().coroas, 1000 - BOOSTER_PRICE + dup.refund);
+    // settleBooster: rara sobre 3 comuns vira melhoria (a comum rende 5), ultra sobre 3 ultras rende 50
+    const s1 = settleBooster({ 'Cavalaria': 3 }, [{ name: 'Cavalaria', rarity: 'rara' }]);
+    eq([s1.cards[0].dup, s1.refund, s1.adds], ['upgrade', 5, { 'Cavalaria#rara': 1 }], 'melhoria');
+    const s2 = settleBooster({ 'Cavalaria': 3, 'Cavalaria#ultra': 3 }, [{ name: 'Cavalaria', rarity: 'ultra' }]);
+    eq([s2.cards[0].dup, s2.refund], ['coroas', 50], 'ultra repetida');
+    // proteção de sorte: carta nova pesa mais (média de cartas novas por pacote sobe)
+    let plain = 0, boosted = 0;
+    const own: Record<string, number> = {}; boosterPool('capitao').forEach((e, i) => { if (i % 2) own[e.name] = 3; });
+    let st = 1; const rnd = () => { st = (st * 1103515245 + 12345) & 0x7fffffff; return st / 0x7fffffff; };
+    for (let i = 0; i < 400; i++) { plain += rollBooster('capitao', Object.fromEntries(boosterPool('capitao').map(e => [e.name, 3])), rnd).filter(c => !own[c.name]).length; boosted += rollBooster('capitao', own, rnd).filter(c => !own[c.name]).length; }
+    ok(boosted > plain, 'carta nova sai mais quando falta na coleção: ' + boosted + ' x ' + plain);
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);

@@ -247,7 +247,7 @@ import { fxShuffle } from './shuffleFx';
 import { fxAshes } from './ashFx';
 import { playBoosterOpening, type OpenCard } from './boosterOpen3d';
 import { cardSlug } from './card3d';
-import { type Rarity, type RarityCounts, shineOf, rollRarity, cardCode, RARITY_ORDER, FULLART_PACK_CHANCE } from './rarity';
+import { type Rarity, type RarityCounts, shineOf, cardCode, RARITY_ORDER } from './rarity';
 import { initFpsMeter } from './fpsMeter';
 initFpsMeter();
 import tutHandSprite from './assets/tut-hand.webp';
@@ -255,6 +255,8 @@ import type { Trigger } from './engine/types';
 import { preloadTerrainFx, syncTerrainFx, clearTerrainFx, type TerrainFxKind } from './terrainFx';
 import { syncCampoLayers, clearCampoLayers, fxForjaPlaced, fxForjaModo, fxFogoPlaced, fxFogoTrincheira, fxFogoSaque, fxNoitePlay, fxNoiteTrail, fxMata, fxArsenalPlaced, fxForjaEquip, fxFogoEquip, fxArsenalEquip } from './campoFx';
 import { DesafiosScreen, type DzDeck, type DzOpponent } from './DesafiosScreen';
+import { openBoosterOnServer } from './services/online';
+import { BOOSTER_PRICE, rollBooster as rollBoosterNames, settleBooster } from './engine/boosters';
 import { adminBan, adminUnban, cancelQueue, deleteMyAccount, friendCancel, friendCreate, friendJoin, friendLink, friendPeek, friendStatus, sendFeedback, adminFeedbackDone, type FeedbackKind, fetchAdmin, fetchResult, reportOpponent, type ReportReason, fetchViews, pingPresence, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type AdminInfo, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
 import { STEPS as TUT_STEPS, BEATS as TUT_BEATS, COIN_STEP as TUT_COIN_STEP, OUTRO as TUT_OUTRO, CHAPTERS as TUT_CHAPTERS, createTutorialMatch, nextEnemyAction as tutEnemyAction, type Step as TutStep, type Tgt as TutTgt, type Until as TutUntil } from './tutorial/script';
@@ -2494,17 +2496,6 @@ const DECKS = {
 } as const;
 const ALL_DECK_IDS: DeckId[] = ['cardeal', 'capitao', 'mercenarios', 'campo'];
 
-// What a booster of each faction can hold: the faction's own cards (the lists from before the balance pass), not the tactics a deck borrows.
-const BOOSTER_POOLS: Record<DeckId, CardData[]> = { capitao: [], cardeal: [], mercenarios: [], campo: [] };
-// (the old first list plus today's deck, taking the larger count of each card: the cards added since then are in boosters too)
-ALL_DECK_IDS.forEach(id => {
-  const pool: Record<string, number> = { ...LEGACY_STARTERS[id][0] };
-  [DECK_RECIPES[id].cards, BOOSTER_EXTRA[id]].forEach(list => Object.entries(list).forEach(([name, n]) => { pool[name] = Math.max(pool[name] ?? 0, n); }));
-  Object.entries(pool).forEach(([name, n]) => {
-    for (let i = 0; i < n; i++) BOOSTER_POOLS[id].push(cardDataFromName(name, `pool_${id}_${name}_${i}`));
-  });
-});
-
 // ── Collection and saved decks (local-only for now) ─────────────────────────
 // What the deck editor edits. The player owns a COLLECTION (card name -> copies) and builds
 // DECKS out of it; whatever is owned but not in the deck is the reserve (never stored on
@@ -3624,10 +3615,10 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
               stock={() => { const st = loadDeckStore(), o: Record<string, Record<Rarity, number>> = {}; Object.entries(st.collection).forEach(([name, total]) => { const r = st.rarities?.[name] ?? {}, ra = r.rara ?? 0, ul = r.ultra ?? 0, se = r.secreta ?? 0; o[name] = { comum: Math.max(0, total - ra - ul - se), rara: ra, ultra: ul, secreta: se }; }); return o; }}
               // TEST BASE: the shelf always has a stack of each kind of booster (Cardeal and Capitão) and they never run out, so opening them can be tried over and over.
               packs={BOOSTERS.map(d => ({ id: d.id, name: d.name, art: <BoosterArt def={d} /> }))}
-              renderOpening={(id, onDone) => { const def = BOOSTERS.find(b => b.id === id); return def ? <OpenBoosterFromTable key={id} def={def} onDone={onDone} /> : null; }} />
+              renderOpening={(id, onDone) => { const def = BOOSTERS.find(b => b.id === id); return def ? <OpenBoosterFromTable key={id} def={def} online={authMode === 'supabase' && !!session} coroas={profile.coroas} onCoroas={(n) => updateProfile({ coroas: n })} onDone={onDone} /> : null; }} />
           </Suspense>
         )}
-        {shopOpen && <ShopScreen coroas={profile.coroas} onSpend={(n) => updateProfile({ coroas: Math.max(0, profile.coroas - n) })} onClose={() => setShopOpen(false)} />}
+        {shopOpen && <ShopScreen coroas={profile.coroas} online={authMode === 'supabase' && !!session} onCoroas={(n) => updateProfile({ coroas: n })} onClose={() => setShopOpen(false)} />}
         {onlineOpen && (
           <OnlineModeModal
             onClose={() => setOnlineOpen(false)}
@@ -4333,15 +4324,15 @@ type NpcMood = 'greet' | 'show' | 'happy' | 'sorry';
 type BoosterDef = { id: string; name: string; description: string; faction: DeckId; price: number; cards: number; accent: string };
 
 const BOOSTERS: BoosterDef[] = [
-  { id: 'cardeal', name: 'Booster Cardeal', description: '5 cartas do baralho do Cardeal Anselmo, Voz da Fé. Uma delas é sempre de custo 3 ou mais.', faction: 'cardeal', price: 100, cards: 5, accent: '#d9cfae' },
-  { id: 'capitao', name: 'Booster Capitão', description: '5 cartas do baralho do Capitão. Uma delas é sempre de custo 3 ou mais.', faction: 'capitao', price: 100, cards: 5, accent: '#b8402c' },
-  { id: 'mercenarios', name: 'Booster Mercenários', description: '5 cartas do baralho dos Mercenários. Uma delas é sempre de custo 3 ou mais.', faction: 'mercenarios', price: 100, cards: 5, accent: '#c8923a' },
-  { id: 'campo', name: 'Booster Campo', description: '5 cartas do baralho do Campo, de Margrave Osric. Uma delas é sempre de custo 3 ou mais.', faction: 'campo', price: 100, cards: 5, accent: '#6f8a4a' },
+  { id: 'cardeal', name: 'Booster Cardeal', description: '5 cartas do baralho do Cardeal Anselmo, Voz da Fé. Uma delas é sempre de custo 3 ou mais.', faction: 'cardeal', price: BOOSTER_PRICE, cards: 5, accent: '#d9cfae' },
+  { id: 'capitao', name: 'Booster Capitão', description: '5 cartas do baralho do Capitão. Uma delas é sempre de custo 3 ou mais.', faction: 'capitao', price: BOOSTER_PRICE, cards: 5, accent: '#b8402c' },
+  { id: 'mercenarios', name: 'Booster Mercenários', description: '5 cartas do baralho dos Mercenários. Uma delas é sempre de custo 3 ou mais.', faction: 'mercenarios', price: BOOSTER_PRICE, cards: 5, accent: '#c8923a' },
+  { id: 'campo', name: 'Booster Campo', description: '5 cartas do baralho do Campo, de Margrave Osric. Uma delas é sempre de custo 3 ou mais.', faction: 'campo', price: BOOSTER_PRICE, cards: 5, accent: '#6f8a4a' },
 ];
 // Room for 50 boosters: 5 shelves of up to 10. A booster's slot is its index in BOOSTERS.
 // TEST BUILD: boosters cost nothing so the opening flow can be tried over and over. Set to false
 // when accounts exist and Coroas are real; BoosterDef.price is what will be charged then.
-const TEST_FREE_BOOSTERS = true;
+const TEST_FREE_BOOSTERS = false;
 const SHELF_ROWS = 5;
 const SHELF_COLS = 10;
 const BOOSTER_ASPECT = 512 / 882;
@@ -4368,23 +4359,6 @@ const SHOP_ART: { counter: string; shelf: string; npc: Record<NpcMood, string>; 
   shelf: shopShelfImage,
   npc: { greet: shopNpcGreetImage, show: shopNpcShowImage, happy: shopNpcHappyImage, sorry: shopNpcSorryImage },
   boosters: { cardeal: boosterCardealImage },
-};
-
-// Cheap cards are common, costly ones rarer; the last card of a pack is always a strong one.
-const rollBooster = (def: BoosterDef): CardData[] => {
-  const all = BOOSTER_POOLS[def.faction], pool = all.filter(c => !c.isFullArt), fullArts = all.filter(c => c.isFullArt);   // Full Art is its own rare event (below), never an ordinary draw
-  const weight = (c: CardData) => (c.cost <= 1 ? 6 : c.cost === 2 ? 4 : c.cost === 3 ? 2 : 1);
-  const draw = (list: readonly CardData[]) => {
-    let roll = Math.random() * list.reduce((sum, c) => sum + weight(c), 0);
-    for (const c of list) { roll -= weight(c); if (roll <= 0) return c; }
-    return list[list.length - 1];
-  };
-  const strong = pool.filter(c => c.cost >= 3);
-  const out: CardData[] = [];
-  for (let i = 0; i < def.cards - 1; i++) out.push(draw(pool));
-  out.push(draw(strong.length > 0 ? strong : pool));
-  if (fullArts.length > 0 && Math.random() < FULLART_PACK_CHANCE) out[Math.floor(Math.random() * (def.cards - 1))] = fullArts[Math.floor(Math.random() * fullArts.length)];   // 1 pack in 8 brings a Full Art
-  return out.map(c => ({ ...c, rarity: rollRarity(!!c.isFullArt) }));   // every card can come in any rarity
 };
 
 const BoosterArt = ({ def }: { def: BoosterDef }) => {
@@ -4505,20 +4479,41 @@ const PackTear = ({ def, width, height, onTorn }: { def: BoosterDef; width: numb
 
 // Opening a booster: swipe to tear the pack, then the cards come out stacked and the player swipes each one aside to see the next (least rare
 // first, best last), then a summary. Used by the shop and by the table in the Sala de Coleção. `cards` were already rolled and saved by pullBooster.
-type PulledCard = { card: CardData; isNew: boolean; strong: boolean };
-const pullBooster = (def: BoosterDef): PulledCard[] => {
-  const store = loadDeckStore();
-  // Shown from the least to the most rare, so the best card is always the last one revealed.
-  const rarity = (c: CardData) => RARITY_ORDER[c.rarity ?? 'comum'] * 100 + (c.isFullArt ? 10 : 0) + c.cost;
-  const rolled = rollBooster(def).sort((a, b) => rarity(a) - rarity(b));
-  const cards = rolled.map(card => {
-    const isNew = (store.collection[card.name] ?? 0) === 0;
-    store.collection[card.name] = (store.collection[card.name] ?? 0) + 1;
-    if (card.rarity && card.rarity !== 'comum') { const r = ((store.rarities ??= {})[card.name] ??= {}); r[card.rarity] = (r[card.rarity] ?? 0) + 1; }
-    return { card, isNew, strong: rarity(card) >= 100 };
+type PulledCard = { card: CardData; isNew: boolean; strong: boolean; dup?: 'no' | 'upgrade' | 'coroas'; coroas?: number };
+// The collection as the server keeps it: "<card>" and "<card>#rara|ultra|secreta" (see src/engine/boosters.ts).
+const ownedOf = (store: DeckStore): Record<string, number> => {
+  const o: Record<string, number> = { ...store.collection };
+  Object.entries(store.rarities ?? {}).forEach(([name, c]) => (['rara', 'ultra', 'secreta'] as const).forEach(r => { if (c?.[r]) o[`${name}#${r}`] = c[r]!; }));
+  return o;
+};
+const applyAdds = (store: DeckStore, adds: Record<string, number>) => {
+  Object.entries(adds).forEach(([k, n]) => {
+    const i = k.indexOf('#');
+    if (i < 0) store.collection[k] = (store.collection[k] ?? 0) + n;
+    else { const r = k.slice(i + 1) as 'rara' | 'ultra' | 'secreta', c = ((store.rarities ??= {})[k.slice(0, i)] ??= {}); c[r] = (c[r] ?? 0) + n; }
   });
-  saveDeckStore(store);
-  return cards;
+};
+// Shown from the least to the most rare, so the best card is always the last one revealed.
+const toPulled = (cards: { name: string; rarity: Rarity; isNew: boolean; dup: 'no' | 'upgrade' | 'coroas'; coroas: number }[]): PulledCard[] => {
+  const rank = (c: CardData) => RARITY_ORDER[c.rarity ?? 'comum'] * 100 + (c.isFullArt ? 10 : 0) + c.cost;
+  return cards.map((p, i) => ({ card: { ...cardDataFromName(p.name, `pull_${i}_${p.name}`), rarity: p.rarity } as CardData, isNew: p.isNew, dup: p.dup, coroas: p.coroas, strong: false }))
+    .sort((a, b) => rank(a.card) - rank(b.card)).map(pc => ({ ...pc, strong: rank(pc.card) >= 100 }));
+};
+// Opens a booster. Signed in: the server charges, rolls and saves (the phone only shows it). Without a server (local mode): the same rules run here.
+type OpenResult = { ok: true; cards: PulledCard[]; coroasAfter: number } | { ok: false; error: string };
+const openBoosterFlow = async (def: BoosterDef, online: boolean, coroas: number): Promise<OpenResult> => {
+  if (coroas < def.price) return { ok: false, error: 'Coroas insuficientes.' };
+  const store = loadDeckStore();
+  if (online) {
+    const r = await openBoosterOnServer(def.id);
+    if (r.ok === false) return r;
+    applyAdds(store, r.adds); saveDeckStore(store);
+    return { ok: true, cards: toPulled(r.cards), coroasAfter: r.coroas_after };
+  }
+  const owned = ownedOf(store);
+  const { cards, adds, refund } = settleBooster(owned, rollBoosterNames(def.faction, owned));
+  applyAdds(store, adds); saveDeckStore(store);
+  return { ok: true, cards: toPulled(cards), coroasAfter: coroas - def.price + refund };
 };
 const PackOpeningOld = ({ def, cards, packW, cardScale, onDone }: { def: BoosterDef; cards: PulledCard[]; packW: number; cardScale: number; onDone: () => void; key?: React.Key }) => {
   const [pull, setPull] = useState<{ cards: PulledCard[]; step: number; phase: 'sealed' | 'stack' | 'summary' }>({ cards, step: 0, phase: 'sealed' });
@@ -4630,6 +4625,12 @@ const Booster3DOpening = ({ def, cards, onDone }: { def: BoosterDef; cards: Pull
           <span className="text-[#f3e7c6]" style={{ fontFamily: "'Cinzel', serif", letterSpacing: '0.2em', fontSize: 15 }}>TOQUE PARA ABRIR</span>
         </button>
       )}
+      {finished && cards.some(pc => (pc.coroas ?? 0) > 0) && (
+        <div className="absolute bottom-[9%] left-0 right-0 flex flex-col items-center gap-0.5 pointer-events-none" style={{ fontFamily: "'Cinzel', serif", textShadow: '0 1px 4px #000' }}>
+          <span className="text-[14px] font-black text-[#e8c766]">+{cards.reduce((n, pc) => n + (pc.coroas ?? 0), 0)} coroas pelas repetidas</span>
+          <span className="text-[11px] text-[#d8cba8]">{cards.filter(pc => (pc.coroas ?? 0) > 0).length} {cards.filter(pc => (pc.coroas ?? 0) > 0).length === 1 ? 'carta já estava no limite de cópias' : 'cartas já estavam no limite de cópias'}</span>
+        </div>
+      )}
       {started && <button type="button" onClick={onDone} className="absolute bottom-[1.5%] rounded-lg border border-[#f3e7c6]/50 bg-black/60 px-5 py-2 text-[#f3e7c6] transition-opacity" style={{ fontFamily: "'Cinzel', serif", letterSpacing: '0.18em', opacity: finished ? 1 : 0.55 }}>{finished ? 'Continuar' : 'Pular'}</button>}
       {inspect !== null && (
         <div className="fixed inset-0 z-[900]">
@@ -4646,13 +4647,24 @@ const PackOpening = (props: { def: BoosterDef; cards: PulledCard[]; packW: numbe
 };
 
 // The opening shown from the table in the Sala de Coleção: rolls the pack once, then the same tear / swipe / summary as in the shop.
-const OpenBoosterFromTable = ({ def, onDone }: { def: BoosterDef; onDone: () => void; key?: React.Key }) => {
-  const [cards] = useState(() => pullBooster(def));
+const OpenBoosterFromTable = ({ def, online, coroas, onCoroas, onDone }: { def: BoosterDef; online: boolean; coroas: number; onCoroas: (n: number) => void; onDone: () => void; key?: React.Key }) => {
+  const [res, setRes] = useState<OpenResult | null>(null);
+  const started = useRef(false);   // (StrictMode runs effects twice: the booster is charged once)
+  useEffect(() => { if (started.current) return; started.current = true; void openBoosterFlow(def, online, coroas).then(r => { if (r.ok) onCoroas(r.coroasAfter); setRes(r); }); }, []);
   const stageW = Math.min(window.innerWidth, 480);
-  return <PackOpening def={def} cards={cards} packW={Math.min(stageW * 0.5, 200)} cardScale={Math.min(1.3, (stageW * 0.72) / 224)} onDone={onDone} />;
+  if (!res) return <div className="fixed inset-0 z-[500] bg-black/90 flex items-center justify-center text-[#f3e7c6]" style={{ fontFamily: "'Cinzel', serif", letterSpacing: '0.2em' }}>ABRINDO…</div>;
+  if (res.ok === false) return (
+    <div className="fixed inset-0 z-[500] bg-black/90 flex flex-col items-center justify-center gap-5 text-[#f3e7c6]" style={{ fontFamily: "'Cinzel', serif" }}>
+      <span className="px-8 text-center">{res.error === 'Coroas insuficientes.' ? `Faltam coroas: cada booster custa ${def.price}.` : res.error}</span>
+      <button type="button" onClick={onDone} className="rounded-lg border border-[#f3e7c6]/50 bg-black/60 px-5 py-2" style={{ letterSpacing: '0.18em' }}>Voltar</button>
+    </div>
+  );
+  return <PackOpening def={def} cards={res.cards} packW={Math.min(stageW * 0.5, 200)} cardScale={Math.min(1.3, (stageW * 0.72) / 224)} onDone={onDone} />;
 };
 
-const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n: number) => void; onClose: () => void }) => {
+const ShopScreen = ({ coroas, online, onCoroas, onClose }: { coroas: number; online: boolean; onCoroas: (n: number) => void; onClose: () => void }) => {
+  const [buying, setBuying] = useState(false);
+  const [shopMsg, setShopMsg] = useState('');
   const [phase, setPhase] = useState<ShopPhase>('front');
   const [mood, setMood] = useState<NpcMood>('greet');
   const [zoomed, setZoomed] = useState(false);
@@ -4704,16 +4716,17 @@ const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n:
     setSelected({ def, rect: { left: r.left, top: r.top, width: r.width, height: r.height } });
     setPhase('detail');
   };
-  const buy = () => {
-    if (!selected) return;
+  const buy = async () => {
+    if (!selected || buying) return;
     const { def } = selected;
-    if (!TEST_FREE_BOOSTERS) {
-      if (coroas < def.price) { setMood('sorry'); return; }
-      onSpend(def.price);
-    }
-    const cards = pullBooster(def);
+    if (coroas < def.price) { setMood('sorry'); setShopMsg(''); return; }
+    setBuying(true); setShopMsg('');
+    const r = await openBoosterFlow(def, online, coroas);
+    setBuying(false);
+    if (r.ok === false) { setMood('sorry'); setShopMsg(r.error); return; }
+    onCoroas(r.coroasAfter);
     setMood('happy');
-    setPull({ cards, step: 0, phase: 'sealed' });
+    setPull({ cards: r.cards, step: 0, phase: 'sealed' });
     setPhase('opening');
   };
   const finishOpening = () => { setPull(null); setSelected(null); setMood('show'); setPhase('shelf'); };
@@ -4862,7 +4875,7 @@ const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n:
                 <FramedWindow>
                   <div className="flex flex-col items-center gap-2 px-1 py-1">
                     <WindowTitle>{selected.def.name}</WindowTitle>
-                    <WindowText>{mood === 'sorry' ? NPC_LINES.sorry : selected.def.description}</WindowText>
+                    <WindowText>{mood === 'sorry' ? (shopMsg && shopMsg !== 'Coroas insuficientes.' ? shopMsg : NPC_LINES.sorry) : selected.def.description}</WindowText>
                     <span className="text-[15px] font-black text-[#e8c766]" style={{ fontFamily: "'Cinzel', serif" }}>
                       {TEST_FREE_BOOSTERS
                         ? <>Grátis <span className="text-[11px] font-normal text-[#a89a78]">(versão de teste)</span></>
@@ -4870,7 +4883,7 @@ const ShopScreen = ({ coroas, onSpend, onClose }: { coroas: number; onSpend: (n:
                     </span>
                     <div className="flex gap-3">
                       <WindowButton onClick={() => { setPhase('shelf'); setSelected(null); setMood('show'); }}>Voltar</WindowButton>
-                      <WindowButton primary onClick={buy}>Comprar</WindowButton>
+                      <WindowButton primary onClick={buy}>{buying ? 'Abrindo…' : 'Comprar'}</WindowButton>
                     </div>
                   </div>
                 </FramedWindow>

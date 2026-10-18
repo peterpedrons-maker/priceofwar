@@ -51,6 +51,16 @@ export class MemoryDb implements Db {
     const p = this.tables.profiles.find(x => x.id === userId); if (!p) return null;
     p.coroas = (p.coroas ?? 150) + amount; return p.coroas;
   }
+  async openBooster(userId: string, price: number, refund: number, adds: Record<string, number>) {
+    const p = this.tables.profiles.find(x => x.id === userId); if (!p) return null;
+    if ((p.coroas ?? 150) < price) return -1;
+    p.coroas = (p.coroas ?? 150) - price + refund;
+    for (const [name, n] of Object.entries(adds)) {
+      const row = this.tables.collection.find(r => r.user_id === userId && r.card_name === name);
+      if (row) row.copies += n; else this.tables.collection.push({ user_id: userId, card_name: name, copies: n });
+    }
+    return p.coroas;
+  }
   rooms: RoomRow[] = [];
   async roomPut(row: RoomRow) { this.rooms = this.rooms.filter(r => r.host !== row.host && r.code !== row.code); this.rooms.push(clone(row)); }
   async roomGet(code: string) { const r = this.rooms.find(x => x.code === code); return r ? clone(r) : null; }

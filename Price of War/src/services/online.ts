@@ -192,3 +192,12 @@ const missionsCall = async (body: Record<string, unknown>): Promise<MissionsResu
 export const fetchMissions = (): Promise<MissionsResult> => missionsCall({ op: 'missions' });
 export const claimMission = (key: string, mission: string): Promise<MissionsResult> => missionsCall({ op: 'missionClaim', key, mission });
 export const rerollMission = (mission: string): Promise<MissionsResult> => missionsCall({ op: 'missionReroll', mission });
+
+// Booster: o servidor cobra, sorteia, grava na coleção e devolve as cartas (com o que cada repetida rendeu) e o saldo novo.
+export interface BoosterCard { name: string; rarity: 'comum' | 'rara' | 'ultra' | 'secreta'; isNew: boolean; dup: 'no' | 'upgrade' | 'coroas'; coroas: number }
+export type BoosterResult = { ok: true; cards: BoosterCard[]; adds: Record<string, number>; spent: number; refund: number; coroas_after: number } | { ok: false; error: string };
+export const openBoosterOnServer = async (booster: string): Promise<BoosterResult> => {
+  const r = await call({ op: 'openBooster', booster });
+  if (r && r.ok === true && r.status === 'booster') return r as BoosterResult;
+  return { ok: false, error: r && typeof r.error === 'string' ? r.error : 'A loja não está disponível agora.' };
+};

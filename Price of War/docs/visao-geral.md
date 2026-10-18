@@ -117,3 +117,5 @@ Planos futuros do dono (economia, boosters, limites de cartas no ranqueado, pont
 - **Arte das Missões:** prompts do ícone (folha com 3 opções) e do fundo do botão (banner 4:1) em `art-prompts/missoes.md`; o mockup usa a coroa como ícone provisório.
 - Menu em vila: prompt `art-prompts/vila.md`, mockup `public/mockups/vila/`, doc `docs/menu-vila.md` (aguardando arte do dono).
 - Missões: servidor + tela prontos (`server/missions.ts`, `src/MissionsScreen.tsx`); o dono precisa rodar o SQL 12 no Supabase (`docs/supabase-online-12.sql`). Ver `docs/economia-proposta.md`.
+
+- **Boosters (rodada 27):** abertos pelo servidor, 150 coroas, repetidas viram coroas (5/15/50), sorte suave para cartas novas (`src/engine/boosters.ts`, SQL 13). Falta fechar a escrita direta da coleção e o bônus por divisão. Ver `docs/economia-proposta.md`.

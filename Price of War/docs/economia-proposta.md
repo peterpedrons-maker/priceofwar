@@ -1,9 +1,9 @@
 # Economia (rodada 26)
 
 ## DECISÕES DO DONO (valem mais que a tabela de proposta mais abaixo)
-- **Booster: 150 coroas** (ainda não ligado: precisa da abertura no servidor, etapas 1 e 2 abaixo).
+- **Booster: 150 coroas** (LIGADO, rodada 27: o servidor cobra e sorteia; ver "Boosters no servidor" abaixo).
 - **Partida online contra pessoa não paga coroas** (só XP e ranking, como no Hearthstone). Coroas vêm de: IA (pouco), **primeira vitória do dia** e missões.
-- **Repetidas viram coroas: comum 5, rara 15, ultra 50** (ainda não ligado).
+- **Repetidas viram coroas: comum 5, rara 15, ultra 50** (LIGADO, rodada 27).
 
 ## FEITO (etapa 3, no servidor): `src/engine/rewards.ts` + `server/handler.ts`
 - Vitória contra pessoa: 60 XP, 0 coroas; derrota: 25 XP, 0 coroas.
@@ -69,3 +69,13 @@ Teste de ponta a ponta (rodada 26q): com o mock (`/__debug/complete-missions`) c
 - **Recompensa mais "sentida" (rodada 26b)**: ao coletar, no toque: brilho dourado na linha, raios girando e onda de choque saindo da recompensa, faíscas, moedas saltando, o selo dourado **COMPLETA** (com um visto) carimbando por cima do ícone (com clarão de impacto), som (`src/rewardSfx.ts`: batida grave do selo, arpejo de sinos em Ré, moedas) e vibração curta; **moedas voam do botão até o saldo** no topo da janela (portal no body), o saldo conta para cima e pulsa quando elas chegam; só então a linha desce. **Coletar tudo** termina com o painel "Missões completas!" (raios, clarão e acorde de Ré). O cabeçalho mostra "Hoje: X/Y coletadas" e o saldo de coroas.
 - **Painel legível**: fundo escuro por dentro da moldura de cada linha (dourado-escuro quando pronta, verde-escuro quando coletada), painel geral escurecido, título #fff3d4 em 13 px com sombra e descrição #ecdfbf em 12,5 px (antes: letra clara sobre cinza claro).
 - **Moldura padrão; tudo dourado (rodada 26d):** o dono quer todas as linhas no dourado: fundo dourado-escuro preenchendo toda a linha (mais claro quando pronta, mais fosco em curso e completa), moldura dourada brilhante em todas, botão dourado (o mesmo da "Coletar", um pouco mais apagado em "Em curso"), "↻ Trocar" e "✓ Completa" em letra clara com contorno escuro. Moldura da janela é a padrão (`kit-rank/janela.png`). Teste no mock: `/__debug/complete-some`.
+
+## Boosters no servidor (rodada 27)
+- **Op `openBooster`** (`server/handler.ts`, regras em `src/engine/boosters.ts`): confere o saldo (150), sorteia 5 cartas (mesmo sorteio de antes: baratas saem mais, a última é de custo 3+, 1 pacote em 8 traz Full Art, raridade por cópia em `src/rarity.ts`), calcula o que entra na coleção e chama `open_booster` (**SQL 13**, `docs/supabase-online-13.sql`), que debita, devolve as coroas das repetidas e soma as cartas **tudo ou nada**. O aparelho só mostra o que veio (`openBoosterOnServer` em `src/services/online.ts`; `openBoosterFlow` em `src/App.tsx`).
+- **Repetida** = a cópia que passaria do limite de cópias da carta (`maxCopiesOf`: 3, ou 2/1 nas cartas fortes/únicas). Vira coroas pela raridade (`DUP_COROAS`: comum 5, rara 15, ultra e secreta 50). **Melhoria:** se o jogador já tem o máximo mas ainda tem uma cópia comum e sai uma Rara/Ultra, a comum vira a versão nova (e rende 5 coroas), então raridade nunca é jogada fora.
+- **Sorte suave para cartas novas:** carta que o jogador ainda não tem pesa o triplo no sorteio (`NEW_CARD_BOOST`); não é garantia. Teste: sai mais carta nova quando falta coleção.
+- **Sem conta (modo local):** as mesmas funções rodam no aparelho (`authMode !== 'supabase'`). Com conta, a Loja e a mesa da Sala de Coleção passam pelo servidor e cobram 150; `TEST_FREE_BOOSTERS` está `false`.
+- **Resumo:** a tela final do booster mostra "+N coroas pelas repetidas". O saldo vem do servidor (`coroas_after`).
+- **Falta (etapa 2):** fechar a escrita direta da tabela `collection` pelo aparelho (SQL 14 + o servidor entrega a coleção inicial) e a mesa da Sala de Coleção ainda não tem estoque (cada abertura lá também cobra 150).
+- **Falta:** bônus de +10 coroas por divisão nova (missões de temporada).
+- **Para publicar:** rodar o SQL 13 no Supabase e republicar a Edge Function `game` (`supabase/functions/game/index.ts`). Sem o SQL 13 a loja responde "A loja não está disponível agora".
