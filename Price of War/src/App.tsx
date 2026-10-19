@@ -1,6 +1,6 @@
 import { VillageScene } from './VillageScene';
 import { MissionsHost } from './MissionsScreen';
-import { startMenuMusic, stopMenuMusic } from './menuMusic';
+import { startMenuMusic, stopMenuMusic, menuMusicState } from './menuMusic';
 import { fetchMissions } from './services/online';
 import React, { useState, useEffect, useLayoutEffect, useRef, lazy, Suspense } from 'react';
 import { fetchProfile, usernameAvailable, createProfile, updateProfileFields, fetchStore, pushStore, type CloudDeck } from './services/cloud';
@@ -3539,7 +3539,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
   // GM mode: asked once per login; the server only answers the owner's account, so everybody else simply never sees the button.
   const [gm, setGm] = useState<AdminInfo | null>(null);
   const [gmOpen, setGmOpen] = useState(false);
-  useEffect(() => { startMenuMusic(); return () => stopMenuMusic(); }, []);   // música da vila enquanto o menu está na tela
+  useEffect(() => { if (DEBUG_HOOKS) (window as any).__powMusic = menuMusicState; }, []);   // (a música da vila é ligada no App, fora das partidas)
   const [missionsOpen, setMissionsOpen] = useState(false);
   const [missionBadge, setMissionBadge] = useState(0);   // quantas missões já podem ser coletadas (bolinha no quadro de avisos)
   useEffect(() => { if (authMode === 'supabase' && session) void fetchMissions().then(r => setMissionBadge(r.ok === true ? r.board.claimable : 0)); }, [session?.userId]);
@@ -8289,6 +8289,10 @@ export default function App() {
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, [held?.id]);
+
+  // Música da vila: toca em tudo que não é partida (entrada, perfil, menu e todas as telas dele: loja, coleção, deck, missões, desafios...) e sai com fade quando a partida começa.
+  const inMatch = gameMode !== null;
+  useEffect(() => { if (inMatch) return; startMenuMusic(); return () => stopMenuMusic(); }, [inMatch]);
 
   if (!assetsReady) {
     return <LoadingScreen onDone={() => setAssetsReady(true)} />;

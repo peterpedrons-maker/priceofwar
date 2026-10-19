@@ -44,3 +44,4 @@ export const stopMenuMusic = () => {
   g.gain.cancelScheduledValues(c.currentTime); g.gain.setValueAtTime(g.gain.value, c.currentTime); g.gain.linearRampToValueAtTime(0, c.currentTime + FADE_OUT);
   window.setTimeout(() => { try { s.stop(); } catch { /* já parou */ } }, FADE_OUT * 1000 + 100);
 };
+export const menuMusicState = () => ({ wanted, playing: !!source, gain: gain ? Number(gain.gain.value.toFixed(3)) : null, ctx: ctx?.state ?? null });
