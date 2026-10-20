@@ -5,7 +5,7 @@
 import { aiNextAction } from '../src/engine/ai';
 import { DECK_RECIPES, currentCardName, currentNames, type DeckId } from '../src/engine/catalog';
 import { deckProblem } from '../src/engine/deck';
-import { BOOSTER_IDS, BOOSTER_PRICE, rollBooster, settleBooster, type Settled } from '../src/engine/boosters';
+import { BOOSTER_IDS, BOOSTER_PRICE, rollBooster, settleBooster, starterCollection, type Settled } from '../src/engine/boosters';
 import { applyAction, createMatch } from '../src/engine/game';
 import { nextRandom, seedFrom } from '../src/engine/rng';
 import { applyReward, rewardFor, withDaily } from '../src/engine/rewards';
@@ -130,6 +130,7 @@ export type GameRequest =
   | { op: 'missionClaim'; key: string; mission: string }
   | { op: 'missionReroll'; mission: string }
   | { op: 'openBooster'; booster: string }
+  | { op: 'collectionEnsure' }
   | { op: 'feedback'; kind: string; text: string; matchId?: string; ctx?: string }
   | { op: 'adminFeedbackDone'; id: number }
   | { op: 'friendCreate'; cards: Record<string, number>; rar?: unknown; general: string }
@@ -149,6 +150,7 @@ export type GameResponse =
   | { ok: true; status: 'admin'; admin: AdminOverview & { top: { rank: number; name: string; points: number; label: string }[]; season: number; me: { id: string; email: string | null } } }
   | ({ ok: true; status: 'missions'; now: number; paid?: number; coroas_after?: number } & MissionsBoard)
   | { ok: true; status: 'booster'; cards: Settled[]; adds: Record<string, number>; spent: number; refund: number; coroas_after: number }
+  | { ok: true; status: 'collection' }
   | { ok: true; status: 'reported' }
   | { ok: true; status: 'deleted' }
   | { ok: true; status: 'feedback' }
@@ -433,7 +435,7 @@ const finishIfStale = async (db: Db, cfg: GameConfig, m: MatchRow | null): Promi
 
 // ── Requests ────────────────────────────────────────────────────────────────
 // A request is untrusted input from a phone: the shape and sizes are checked before anything reads it (the game rules themselves are checked by the engine).
-const OPS = new Set(['openBooster', 'missions', 'missionClaim', 'missionReroll', 'ping', 'admin', 'feedback', 'adminFeedbackDone', 'report', 'deleteAccount', 'friendCreate', 'friendStatus', 'friendCancel', 'friendPeek', 'friendJoin', 'adminBan', 'adminUnban', 'queue', 'ranked', 'claim', 'ranking', 'status', 'cancel', 'act', 'tick', 'result', 'emote', 'emotes']);
+const OPS = new Set(['collectionEnsure', 'openBooster', 'missions', 'missionClaim', 'missionReroll', 'ping', 'admin', 'feedback', 'adminFeedbackDone', 'report', 'deleteAccount', 'friendCreate', 'friendStatus', 'friendCancel', 'friendPeek', 'friendJoin', 'adminBan', 'adminUnban', 'queue', 'ranked', 'claim', 'ranking', 'status', 'cancel', 'act', 'tick', 'result', 'emote', 'emotes']);
 export const badRequest = (req: unknown): string | null => {
   if (!req || typeof req !== 'object' || Array.isArray(req)) return 'Pedido inválido.';
   const r = req as Record<string, unknown>;
@@ -558,6 +560,11 @@ export const handleGame = async (db: Db, userId: string, req: GameRequest, cfg: 
         const peak = RANKED_MISSIONS_ON ? Math.max((await ladderOf(db, cfg, userId)).peak, 0) : 0;
         return { ok: true, status: 'missions', now, ...extra, ...(await missionsBoard(db, userId, now, season, peak, RANKED_MISSIONS_ON)) };
       } catch { return { ok: false, error: 'As missões não estão disponíveis agora.' }; }
+    }
+    case 'collectionEnsure': {
+      // Conta nova (ou lista inicial que cresceu num ajuste): o servidor completa a coleção inicial. O aparelho não escreve na coleção.
+      if (!(await db.ensureCollection(userId, starterCollection()))) return { ok: false, error: 'A coleção não está disponível agora.' };
+      return { ok: true, status: 'collection' };
     }
     case 'openBooster': {
       // O servidor cobra, sorteia e grava; o aparelho só mostra. Repetidas viram coroas (settleBooster).

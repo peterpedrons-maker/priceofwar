@@ -2,6 +2,7 @@ import { VillageScene } from './VillageScene';
 import { MissionsHost } from './MissionsScreen';
 import { startMenuMusic, stopMenuMusic, menuMusicState } from './menuMusic';
 import { fetchMissions } from './services/online';
+import { mountMissionBanner, noteMissions, checkMissionBanners } from './missionBanner';
 import React, { useState, useEffect, useLayoutEffect, useRef, lazy, Suspense } from 'react';
 import { fetchProfile, usernameAvailable, createProfile, updateProfileFields, fetchStore, pushStore, type CloudDeck } from './services/cloud';
 import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authErrorDetail, authMode, type Session } from './services/auth';
@@ -212,6 +213,8 @@ import selectSfxUrl from './assets/sfx-selecionar.wav';
 // harder hit specifically when a General is the one hurt, or a card dying.
 import uiClickSfxUrl from './assets/sfx-clique-ui.wav';
 import warHornSfxUrl from './assets/sfx-corneta-guerra.mp3';
+import victorySfxUrl from './assets/sfx-vitoria.mp3';
+import defeatSfxUrl from './assets/sfx-derrota.mp3';
 import cardLiftSfxUrl from './assets/sfx-levantar-carta.wav';
 import damageSfxUrl from './assets/sfx-dano.wav';
 import generalDamageSfxUrl from './assets/sfx-dano-general.wav';
@@ -255,7 +258,7 @@ import type { Trigger } from './engine/types';
 import { preloadTerrainFx, syncTerrainFx, clearTerrainFx, type TerrainFxKind } from './terrainFx';
 import { syncCampoLayers, clearCampoLayers, fxForjaPlaced, fxForjaModo, fxFogoPlaced, fxFogoTrincheira, fxFogoSaque, fxNoitePlay, fxNoiteTrail, fxMata, fxArsenalPlaced, fxForjaEquip, fxFogoEquip, fxArsenalEquip } from './campoFx';
 import { DesafiosScreen, type DzDeck, type DzOpponent } from './DesafiosScreen';
-import { openBoosterOnServer } from './services/online';
+import { openBoosterOnServer, ensureCollectionOnServer } from './services/online';
 import { BOOSTER_PRICE, rollBooster as rollBoosterNames, settleBooster } from './engine/boosters';
 import { adminBan, adminUnban, cancelQueue, deleteMyAccount, friendCancel, friendCreate, friendJoin, friendLink, friendPeek, friendStatus, sendFeedback, adminFeedbackDone, type FeedbackKind, fetchAdmin, fetchResult, reportOpponent, type ReportReason, fetchViews, pingPresence, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type AdminInfo, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
 import { xpToNext } from './engine/rewards';
@@ -457,6 +460,12 @@ const playRevealGeneralSfx = () => {
 const playWarHornSfx = () => {
   const audio = new Audio(warHornSfxUrl);
   audio.volume = sfxVol(0.8);
+  audio.play().catch(() => {});
+};
+// Fim de partida: fanfarra de metais na vitória, metais graves e tímpano surdo na derrota (tools/audio/gerar-vitoria-derrota.py).
+const playMatchEndSfx = (won: boolean) => {
+  const audio = new Audio(won ? victorySfxUrl : defeatSfxUrl);
+  audio.volume = sfxVol(won ? 0.7 : 0.65);
   audio.play().catch(() => {});
 };
 const playBatalhaBannerSfx = () => {
@@ -2717,7 +2726,7 @@ const runPush = async () => {
   pushing = true;
   try {
     const store = loadDeckStore();
-    const r = await pushStore(cloudUserId, { collection: store.collection, decks: toCloudDecks(store), rarities: store.rarities });
+    const r = await pushStore(cloudUserId, { decks: toCloudDecks(store) });
     if (r.ok === false) { console.error('cloud save failed', r.message); window.clearTimeout(pushTimer); pushTimer = window.setTimeout(runPush, 8000); }
   } finally {
     pushing = false;
@@ -2743,6 +2752,7 @@ const flushCloudSync = async (): Promise<void> => {
 // takes this device's store if nobody has claimed it yet (so what you built before accounts moves up),
 // otherwise it starts from a fresh starter store. Resolves to an error message, or null.
 const syncDeckStoreWithCloud = async (userId: string): Promise<string | null> => {
+  await ensureCollectionOnServer();   // conta nova ou lista inicial maior: o servidor completa a coleção (o aparelho não escreve nela)
   const r = await fetchStore(userId);
   if (r.ok === false) return r.message;
   const { collection, decks, rarities } = r.data;
@@ -2751,15 +2761,12 @@ const syncDeckStoreWithCloud = async (userId: string): Promise<string | null> =>
       const d = decks.find(x => x.slot === n);
       return { id: `slot${n}`, name: d?.name || `Deck ${n}`, general: d?.general || '', cards: d?.cards ?? {}, rar: d?.rar };
     });
-    // an account that existed before rarities were synced: the versions opened on this device are kept (and sent up below)
-    let fromDevice = false;
-    if (Object.keys(rarities).length === 0) { try { const loc = JSON.parse(localStorage.getItem(DECK_STORE_KEY) ?? 'null'); if (loc?.owner === userId && loc.rarities && Object.keys(loc.rarities).length) { Object.assign(rarities, loc.rarities); fromDevice = true; } } catch { /* ignore */ } }
     const merged = sanitizeDeckStore({ collection, slots, rarities, owner: userId });
     if (merged) {
-      const grew = ensureStarterDecks(merged) || lastSanitizeMigrated || fromDevice;
+      const grew = ensureStarterDecks(merged) || lastSanitizeMigrated;
       try { localStorage.setItem(DECK_STORE_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
       cloudUserId = userId;
-      if (grew) { const up = await pushStore(userId, { collection: merged.collection, decks: toCloudDecks(merged), rarities: merged.rarities }); if (up.ok === false) return up.message; }
+      if (grew) { const up = await pushStore(userId, { decks: toCloudDecks(merged) }); if (up.ok === false) return up.message; }
       return null;
     }
   }
@@ -2767,7 +2774,8 @@ const syncDeckStoreWithCloud = async (userId: string): Promise<string | null> =>
   const base: DeckStore = local.owner === undefined || local.owner === userId ? local : buildStarterStore();
   base.owner = userId;
   try { localStorage.setItem(DECK_STORE_KEY, JSON.stringify(base)); } catch { /* ignore */ }
-  const up = await pushStore(userId, { collection: base.collection, decks: toCloudDecks(base), rarities: base.rarities });
+  // (only when the server could not give the starter collection: an old function without `collectionEnsure`; the device then uploads it as before)
+  const up = await pushStore(userId, { collection: base.collection, decks: toCloudDecks(base), rarities: base.rarities }, true);
   if (up.ok === false) return up.message;
   cloudUserId = userId;
   return null;
@@ -3539,10 +3547,22 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
   // GM mode: asked once per login; the server only answers the owner's account, so everybody else simply never sees the button.
   const [gm, setGm] = useState<AdminInfo | null>(null);
   const [gmOpen, setGmOpen] = useState(false);
-  useEffect(() => { if (DEBUG_HOOKS) (window as any).__powMusic = menuMusicState; }, []);   // (a música da vila é ligada no App, fora das partidas)
+  useEffect(() => { if (DEBUG_HOOKS) { (window as any).__powMusic = menuMusicState; (window as any).__powCheckMissions = checkMissionBanners; } }, []);   // (a música da vila é ligada no App, fora das partidas)
   const [missionsOpen, setMissionsOpen] = useState(false);
-  const [missionBadge, setMissionBadge] = useState(0);   // quantas missões já podem ser coletadas (bolinha no quadro de avisos)
-  useEffect(() => { if (authMode === 'supabase' && session) void fetchMissions().then(r => setMissionBadge(r.ok === true ? r.board.claimable : 0)); }, [session?.userId]);
+  // Bolinhas de aviso na vila: Loja = quantos boosters as coroas pagam; Coleção = cartas novas desde a última vez que abriu a Sala de Coleção.
+  const SEEN_CARDS_KEY = 'pow.seenCards';
+  const totalCards = () => Object.values(loadDeckStore().collection).reduce((a, b) => a + b, 0);
+  const [newCards, setNewCards] = useState(0);
+  useEffect(() => {
+    try {
+      const total = totalCards(), raw = localStorage.getItem(SEEN_CARDS_KEY);
+      if (roomOpen || raw === null) { localStorage.setItem(SEEN_CARDS_KEY, String(total)); setNewCards(0); }
+      else setNewCards(Math.max(0, total - Number(raw)));
+    } catch { setNewCards(0); }
+  }, [roomOpen, shopOpen, deckEditorOpen]);
+  const [missionBadge, setMissionBadge] = useState(0);
+  useEffect(() => { const on = (e: Event) => setMissionBadge(Number((e as CustomEvent).detail) || 0); window.addEventListener('pow-missions-claimable', on); return () => window.removeEventListener('pow-missions-claimable', on); }, []);   // quantas missões já podem ser coletadas (bolinha no quadro de avisos)
+  useEffect(() => { if (authMode === 'supabase' && session) { mountMissionBanner(); void fetchMissions().then(r => { if (r.ok === true) noteMissions(r.board, false); setMissionBadge(r.ok === true ? r.board.claimable : 0); }); } }, [session?.userId]);
   useEffect(() => { setGm(null); if (authMode === 'supabase' && session) void fetchAdmin().then(setGm); }, [session?.userId]);
   useEffect(() => { if (DEBUG_HOOKS && new URLSearchParams(window.location.search).has('gmdemo')) setGm({ accounts: 128, newToday: 6, newWeek: 31, recent: [{ username: 'Aurelia', created_at: new Date(Date.now() - 12 * 60000).toISOString() }, { username: 'Brann77', created_at: new Date(Date.now() - 5 * 3600000).toISOString() }, { username: 'Osric', created_at: new Date(Date.now() - 30 * 3600000).toISOString() }], online: 9, waitingCasual: 1, waitingRanked: 0, playingCasual: 2, playingRanked: 1, vsBot: 3, matches24h: 57, top: [{ rank: 1, name: 'Aurelia', points: 1240, label: 'Ouro II' }], season: 3, me: { id: 'demo', email: 'dono@exemplo.com' }, players: [{ id: 'a', username: 'Aurelia', avatar_id: 'batedora', level: 14, xp: 2310, coroas: 840, created_at: new Date(Date.now() - 40 * 86400000).toISOString(), seen_at: new Date(Date.now() - 20000).toISOString(), online: true, state: 'ranked', ranked: { points: 1240, games: 52, wins: 33, losses: 19 }, cards: 211 }, { id: 'b', username: 'Brann77', avatar_id: 'batedora', level: 6, xp: 640, coroas: 150, created_at: new Date(Date.now() - 5 * 3600000).toISOString(), seen_at: new Date(Date.now() - 60000).toISOString(), online: true, state: null, ranked: null, cards: 64 }, { id: 'c', username: 'Osric', avatar_id: 'batedora', level: 9, xp: 1190, coroas: 90, created_at: new Date(Date.now() - 30 * 3600000).toISOString(), seen_at: new Date(Date.now() - 7 * 3600000).toISOString(), online: false, state: null, ranked: { points: 310, games: 9, wins: 4, losses: 5 }, cards: 98 }], totals: { coroas: 1080, xp: 4140, cards: 373 }, windows: { h1: 5, h24: 14, d7: 41, d30: 77 }, dailyTracked: true, feedback: [{ id: 1, created_at: new Date(Date.now() - 40 * 60000).toISOString(), kind: 'bug', text: 'Joguei uma carta e ela sumiu da mão, mas não apareceu no campo.', matchId: 'match-demo', ctx: 'build=2026-10-16 09:00; tela=partida; rodada=3 fase=preparacao vez=eu ouro=4 mao=5 pendente=nao; erros=[]', user: { id: 'a', name: 'Aurelia' } }], bans: [{ id: 'z', name: 'Troll99', reason: 'denúncia: Comportamento', banned_at: new Date(Date.now() - 3 * 3600000).toISOString() }], reports: [{ id: 2, created_at: new Date(Date.now() - 20 * 60000).toISOString(), reason: 'nome', note: 'nome ofensivo', reporter: { id: 'a', name: 'Aurelia' }, reported: { id: 'c', name: 'Osric', count: 2, banned: false } }, { id: 1, created_at: new Date(Date.now() - 5 * 3600000).toISOString(), reason: 'comportamento', note: '', reporter: { id: 'b', name: 'Brann77' }, reported: { id: 'z', name: 'Troll99', count: 1, banned: true } }], daily: Array.from({ length: 14 }, (_, i) => ({ day: new Date(Date.now() - (13 - i) * 864e5 - 3 * 3600e3).toISOString().slice(0, 10), active: [2, 3, 3, 5, 4, 8, 12, 9, 7, 15, 22, 18, 14, 9][i], newAccounts: [1, 1, 0, 2, 1, 3, 5, 2, 2, 6, 9, 7, 4, 3][i], matches: [3, 5, 4, 9, 7, 14, 25, 17, 12, 30, 44, 36, 28, 17][i] })) }); }, []);   // (test only: `?debug&gmdemo` shows the panel with made-up numbers)
   const updateProfile = (patch: Partial<PlayerProfile>) => {
@@ -3579,7 +3599,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
       className="flex flex-col items-center justify-start w-full h-full bg-zinc-950 text-white relative overflow-hidden"
     >
       {/* Menu em vila (docs/menu-vila.md): arte única com prédios tocáveis e animação por código. Degradês escurecem o topo (perfil/logo) e o rodapé (ícones). */}
-      <VillageScene badges={missionBadge > 0 ? { missoes: missionBadge } : undefined} onPick={(id) => {
+      <VillageScene badges={{ ...(missionBadge > 0 ? { missoes: missionBadge } : {}), ...(profile.coroas >= BOOSTER_PRICE ? { mercado: Math.min(9, Math.floor(profile.coroas / BOOSTER_PRICE)) } : {}), ...(newCards > 0 ? { biblioteca: Math.min(99, newCards) } : {}) }} onPick={(id) => {
         if (id === 'castelo') onSelectMode('Campaign');
         else if (id === 'quartel') setRankingOpen(true);
         else if (id === 'arena') setOnlineOpen(true);
@@ -6606,6 +6626,7 @@ export default function App() {
   // Ranked online only: my name/avatar and each player's league (mine first), for the portrait plates beside the turn panel.
   const [leaveAsk, setLeaveAsk] = useState(false);
   useEffect(() => { setLeaveAsk(false); }, [gameMode, gameOverWinner]);
+  useEffect(() => { if (gameOverWinner) playMatchEndSfx(gameOverWinner === 'player'); }, [gameOverWinner]);
   const [plates, setPlates] = useState<{ me: { name: string; avatarId: string }; leagues: [string, string] | null } | null>(null);
   // Online person-vs-person match: the id the quick messages (src/Emotes.tsx) go through, and both Generals (the first phrase is the deck's own).
   const [emoteMatch, setEmoteMatch] = useState<{ id: string; myGeneral: string; opponentGeneral: string } | null>(null);
@@ -7518,6 +7539,7 @@ export default function App() {
   const applyRewardToProfile = (r: RewardInfo) => {
     const p = loadProfile();
     saveProfile({ ...p, level: r.level, xp: r.xp_after, coroas: r.coroas_after, xpToNext: xpToNext(r.level) });
+    checkMissionBanners();   // a partida pode ter completado missões: aviso no topo
   };
 
   // A pick prompt the engine is waiting on from the player (a search, a reveal): show it, then send the answer.

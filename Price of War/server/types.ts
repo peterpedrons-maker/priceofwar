@@ -160,6 +160,8 @@ export interface Db {
   grantCoroas(userId: string, amount: number): Promise<number | null>;
   // Abre um booster de forma atômica (SQL 13): debita `price`, devolve `refund` (repetidas) e soma `adds` à coleção, tudo ou nada. Devolve o novo saldo; -1 se faltam coroas; null se a função não existe ainda.
   openBooster(userId: string, price: number, refund: number, adds: Record<string, number>): Promise<number | null>;
+  // Completa a coleção até `cards` (nunca diminui: fica o maior entre o que a conta tem e o pedido). Só o servidor escreve na coleção (SQL 14). false: a função do banco não existe ainda.
+  ensureCollection(userId: string, cards: Record<string, number>): Promise<boolean>;
   // Deletes the account and everything that belongs to it (the player's own request from Settings). The tables hang from auth.users with `on delete cascade`.
   deleteAccount(userId: string): Promise<void>;
   collection(userId: string): Promise<Record<string, number>>;

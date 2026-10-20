@@ -90,16 +90,15 @@ export const fetchStore = async (userId: string): Promise<CloudResult<CloudStore
   } catch (e) { return fail(e); }
 };
 
-// Writes the whole local store (the collection only grows for now, so nothing is ever deleted).
-export const pushStore = async (userId: string, store: { collection: Record<string, number>; decks: CloudDeck[]; rarities?: RarityMap }): Promise<CloudResult<null>> => {
+// Writes the decks. The collection is NOT written from the device any more (SQL 14 takes the permission away): only the server adds cards
+// (boosters and the starter collection), so `collection` and `rarities` here are ignored and kept only so callers need not change.
+export const pushStore = async (userId: string, store: { collection?: Record<string, number>; decks: CloudDeck[]; rarities?: RarityMap }, withCollection = false): Promise<CloudResult<null>> => {
   try {
     const c = await getClient();
-    const rows = Object.entries(joinRar(store.collection, store.rarities))
-      .filter(([, n]) => n > 0)
-      .map(([card_name, copies]) => ({ user_id: userId, card_name, copies: Math.min(Math.floor(copies), 999) }));
-    for (let i = 0; i < rows.length; i += 300) {
-      const { error } = await c.from('collection').upsert(rows.slice(i, i + 300), { onConflict: 'user_id,card_name' });
-      if (error) return fail(error);
+    // Only for a server that does not have `collectionEnsure` yet (before SQL 14 the table still accepts it); never in normal use.
+    if (withCollection && store.collection) {
+      const rows = Object.entries(joinRar(store.collection, store.rarities)).filter(([, n]) => n > 0).map(([card_name, copies]) => ({ user_id: userId, card_name, copies: Math.min(Math.floor(copies), 999) }));
+      for (let i = 0; i < rows.length; i += 300) { const { error } = await c.from('collection').upsert(rows.slice(i, i + 300), { onConflict: 'user_id,card_name' }); if (error) return fail(error); }
     }
     if (store.decks.length > 0) {
       const { error } = await c.from('decks').upsert(

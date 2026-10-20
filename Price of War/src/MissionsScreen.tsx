@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { Win, KitButton } from './RankedScreens';
 import { playRewardSfx } from './rewardSfx';
+import { noteMissions } from './missionBanner';
 import { claimMission, fetchMissions, rerollMission, type MissionsBoard, type MissionView } from './services/online';
 import abaAtiva from './assets/kit-rank/aba-ativa.png';
 import abaInativa from './assets/kit-rank/aba-inativa.png';
@@ -107,7 +108,7 @@ export const MissionsScreen = ({ onClose, onCoroas, onBoard, coroas }: { onClose
   const [busy, setBusy] = useState(false);
   const [rerolling, setRerolling] = useState(false);
   const apply = useCallback((r: Awaited<ReturnType<typeof fetchMissions>>) => {
-    if (r.ok === true) { setBoard(r.board); setError(''); onBoard?.(r.board.claimable); if (r.board.coroas_after !== undefined) onCoroas(r.board.coroas_after); }
+    if (r.ok === true) { noteMissions(r.board, false); setBoard(r.board); setError(''); onBoard?.(r.board.claimable); if (r.board.coroas_after !== undefined) onCoroas(r.board.coroas_after); }
     else { setError(r.error); setBoard(b => b ?? null); }
   }, [onBoard, onCoroas]);
   useEffect(() => { let on = true; fetchMissions().then(r => { if (on) apply(r); }); return () => { on = false; }; }, []);   // eslint-disable-line react-hooks/exhaustive-deps

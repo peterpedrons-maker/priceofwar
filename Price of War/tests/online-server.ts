@@ -2,7 +2,7 @@
 // on an in-memory database:   npx tsx tests/online-server.ts
 import { aiNextAction } from '../src/engine/ai';
 import { DECK_RECIPES } from '../src/engine/catalog';
-import { BOOSTER_PRICE, boosterPool, rollBooster, settleBooster } from '../src/engine/boosters';
+import { BOOSTER_PRICE, boosterPool, rollBooster, settleBooster, starterCollection } from '../src/engine/boosters';
 import { maxCopiesOf } from '../src/engine/deck';
 import { applyAction, createMatch } from '../src/engine/game';
 import { applyReward, rewardFor } from '../src/engine/rewards';
@@ -805,6 +805,18 @@ const drive = async (db: MemoryDb, id: string, stop: (m: ReturnType<MemoryDb['ma
     let st = 1; const rnd = () => { st = (st * 1103515245 + 12345) & 0x7fffffff; return st / 0x7fffffff; };
     for (let i = 0; i < 400; i++) { plain += rollBooster('capitao', Object.fromEntries(boosterPool('capitao').map(e => [e.name, 3])), rnd).filter(c => !own[c.name]).length; boosted += rollBooster('capitao', own, rnd).filter(c => !own[c.name]).length; }
     ok(boosted > plain, 'carta nova sai mais quando falta na coleção: ' + boosted + ' x ' + plain);
+  });
+
+  await test('coleção inicial: o servidor cria e completa, nunca diminui', async () => {
+    const db = new MemoryDb(); resetRateLimits(); db.now = () => clock;
+    db.tables.profiles.push({ id: 'N', username: 'Novo', avatar_id: 'batedora' });
+    ok((await handleGame(db, 'N', { op: 'collectionEnsure' }, cfg)).ok === true, 'ensure ok');
+    const coll = await db.collection('N'), start = starterCollection();
+    ok(Object.keys(start).length > 60 && Object.entries(start).every(([n, c]) => coll[n] === c), 'tem toda a coleção inicial');
+    ok(['cardeal', 'capitao', 'mercenarios', 'campo'].every(id => coll[DECK_RECIPES[id as 'cardeal'].general] === 1), 'os 4 Generais');
+    const any = Object.keys(start)[0]; db.tables.collection.find(r => r.user_id === 'N' && r.card_name === any)!.copies = 9;
+    await handleGame(db, 'N', { op: 'collectionEnsure' }, cfg);
+    eq((await db.collection('N'))[any], 9, 'não diminui o que o jogador já tem');
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);

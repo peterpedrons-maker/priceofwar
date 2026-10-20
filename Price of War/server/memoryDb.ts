@@ -61,6 +61,13 @@ export class MemoryDb implements Db {
     }
     return p.coroas;
   }
+  async ensureCollection(userId: string, cards: Record<string, number>) {
+    for (const [name, n] of Object.entries(cards)) {
+      const row = this.tables.collection.find(r => r.user_id === userId && r.card_name === name);
+      if (row) row.copies = Math.max(row.copies, n); else this.tables.collection.push({ user_id: userId, card_name: name, copies: n });
+    }
+    return true;
+  }
   rooms: RoomRow[] = [];
   async roomPut(row: RoomRow) { this.rooms = this.rooms.filter(r => r.host !== row.host && r.code !== row.code); this.rooms.push(clone(row)); }
   async roomGet(code: string) { const r = this.rooms.find(x => x.code === code); return r ? clone(r) : null; }

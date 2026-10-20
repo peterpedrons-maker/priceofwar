@@ -3459,6 +3459,16 @@ var settleBooster = (owned, pulls) => {
   }
   return { cards, adds, refund };
 };
+var starterCollection = () => {
+  const out = {};
+  BOOSTER_IDS.forEach((id) => {
+    [DECK_RECIPES[id].cards, ...LEGACY_STARTERS[id]].forEach((list) => Object.entries(list).forEach(([name, n]) => {
+      out[name] = Math.max(out[name] ?? 0, n);
+    }));
+    out[DECK_RECIPES[id].general] = 1;
+  });
+  return out;
+};
 
 // src/engine/rewards.ts
 var REWARD_MIN_ROUNDS = 3;
@@ -4202,7 +4212,7 @@ var finishIfStale = async (db, cfg, m) => {
   }
   return m;
 };
-var OPS = /* @__PURE__ */ new Set(["openBooster", "missions", "missionClaim", "missionReroll", "ping", "admin", "feedback", "adminFeedbackDone", "report", "deleteAccount", "friendCreate", "friendStatus", "friendCancel", "friendPeek", "friendJoin", "adminBan", "adminUnban", "queue", "ranked", "claim", "ranking", "status", "cancel", "act", "tick", "result", "emote", "emotes"]);
+var OPS = /* @__PURE__ */ new Set(["collectionEnsure", "openBooster", "missions", "missionClaim", "missionReroll", "ping", "admin", "feedback", "adminFeedbackDone", "report", "deleteAccount", "friendCreate", "friendStatus", "friendCancel", "friendPeek", "friendJoin", "adminBan", "adminUnban", "queue", "ranked", "claim", "ranking", "status", "cancel", "act", "tick", "result", "emote", "emotes"]);
 var badRequest = (req) => {
   if (!req || typeof req !== "object" || Array.isArray(req)) return "Pedido inv\xE1lido.";
   const r = req;
@@ -4352,6 +4362,10 @@ var handleGame = async (db, userId, req, cfg = defaultConfig(), who = {}) => {
       } catch {
         return { ok: false, error: "As miss\xF5es n\xE3o est\xE3o dispon\xEDveis agora." };
       }
+    }
+    case "collectionEnsure": {
+      if (!await db.ensureCollection(userId, starterCollection())) return { ok: false, error: "A cole\xE7\xE3o n\xE3o est\xE1 dispon\xEDvel agora." };
+      return { ok: true, status: "collection" };
     }
     case "openBooster": {
       if (!BOOSTER_IDS.includes(req.booster)) return { ok: false, error: "Booster desconhecido." };
@@ -4796,6 +4810,10 @@ var supabaseDb = (c) => ({
     if (r.error) return null;
     const n = Array.isArray(r.data) ? r.data[0] : r.data;
     return typeof n === "number" ? n : null;
+  },
+  async ensureCollection(userId, cards) {
+    const r = await c.rpc("ensure_collection", { p_user: userId, p_cards: cards });
+    return !r.error;
   },
   async roomPut(row) {
     must(await c.from("rooms").delete().eq("host", row.host), "room replace");

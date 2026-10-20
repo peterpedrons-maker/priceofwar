@@ -24,6 +24,8 @@ Outros sons (jogar carta, comprar, selecionar, tática, banner etc.) continuam c
 Para trocar um som mantendo a sincronia: encontre o instante do golpe forte no arquivo, corte o silêncio inicial para que ele caia no instante da imagem
 (ataque: 40 ms; queima: 0,44 s) e ajuste o volume pelo nível médio dos outros sons.
 
+| Fim de partida | `sfx-vitoria.mp3` (0,7) / `sfx-derrota.mp3` (0,65), `playMatchEndSfx` | Sintetizados (rodada 27, `tools/audio/gerar-vitoria-derrota.py`): vitória = fanfarra de metais em Ré maior (arpejo subindo, acorde aberto, tímpano, prato e sinos); derrota = metais graves e abafados em Ré menor descendo, tímpano surdo e pulso fúnebre. Tocam quando o banner de Vitória/Derrota aparece. Nível ~ -14 dB (igual à corneta). Se o gosto pedir ajuste: mudar o script e converter com ffmpeg. |
+
 ## Ajustes de som do jogador (botão Opções, no menu e durante a partida)
 
 `src/audioSettings.ts`: volume **Geral**, **Música** e **Efeitos** (uma barra cada, de 0 a 100%) e um botão **Mudo**, salvos neste aparelho

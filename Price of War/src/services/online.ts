@@ -201,3 +201,6 @@ export const openBoosterOnServer = async (booster: string): Promise<BoosterResul
   if (r && r.ok === true && r.status === 'booster') return r as BoosterResult;
   return { ok: false, error: r && typeof r.error === 'string' ? r.error : 'A loja não está disponível agora.' };
 };
+
+// Coleção inicial: o servidor cria/completa (o aparelho não pode escrever na tabela). Falha em silêncio: sem a função nova publicada, o login segue como antes.
+export const ensureCollectionOnServer = async (): Promise<boolean> => { const r = await call({ op: 'collectionEnsure' }); return !!r && r.ok === true; };

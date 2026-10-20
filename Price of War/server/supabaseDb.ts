@@ -163,6 +163,10 @@ export const supabaseDb = (c: Client): Db => ({
     const n = Array.isArray(r.data) ? r.data[0] : r.data;
     return typeof n === 'number' ? n : null;
   },
+  async ensureCollection(userId, cards) {
+    const r = await c.rpc('ensure_collection', { p_user: userId, p_cards: cards });
+    return !r.error;
+  },
   async roomPut(row) {
     must(await c.from('rooms').delete().eq('host', row.host), 'room replace');
     must(await c.from('rooms').insert({ code: row.code, host: row.host, deck: row.deck, created_at: row.created_at }), 'room put');

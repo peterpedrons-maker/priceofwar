@@ -61,3 +61,14 @@ export const settleBooster = (owned: Record<string, number>, pulls: Pull[]): { c
   }
   return { cards, adds, refund };
 };
+
+// A coleção com que toda conta começa: as cartas de todos os baralhos de partida (a maior quantidade de cada carta entre a receita de hoje e as listas antigas) e os 4 Generais.
+// O servidor entrega e completa isto (op `collectionEnsure`); o aparelho não escreve na coleção.
+export const starterCollection = (): Record<string, number> => {
+  const out: Record<string, number> = {};
+  BOOSTER_IDS.forEach(id => {
+    [DECK_RECIPES[id].cards, ...LEGACY_STARTERS[id]].forEach(list => Object.entries(list).forEach(([name, n]) => { out[name] = Math.max(out[name] ?? 0, n); }));
+    out[DECK_RECIPES[id].general] = 1;
+  });
+  return out;
+};
