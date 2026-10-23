@@ -120,3 +120,5 @@ Planos futuros do dono (economia, boosters, limites de cartas no ranqueado, pont
 
 - **Boosters (rodada 27):** abertos pelo servidor, 150 coroas, repetidas viram coroas (5/15/50), sorte suave para cartas novas (`src/engine/boosters.ts`, SQL 13). Falta fechar a escrita direta da coleção e o bônus por divisão. Ver `docs/economia-proposta.md`.
 - **Avisos (rodada 27):** bolinhas na vila (Loja = quantos boosters as coroas pagam; Coleção = cartas novas desde a última visita; Missões = prontas para coletar) e banner dourado "Missão completa" no topo ao terminar uma partida que completou missões (`src/missionBanner.tsx`, raiz própria, aparece em qualquer tela). Sons de vitória e derrota novos. Coleção fechada para escrita do aparelho (SQL 14, publicar depois da função).
+
+- **Idiomas (rodada 27):** português e inglês, escolha na primeira abertura e em Opções; dicionário `src/i18n/en.json` + tradutor de tela, cartas com texturas por idioma (`docs/idiomas.md`). **Comunidade** (amigos, chat, guilda, replay): desenho e mockup em `docs/comunidade.md`; código de deck (`POW1-…`) já está no editor de deck.

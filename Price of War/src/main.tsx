@@ -3,6 +3,8 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import { lazy, Suspense, useState } from 'react';
 import { CARD_DEFS } from './engine/catalog';
+import { LanguageGate } from './i18n/LanguageGate';
+import { getLang, hasChosenLang, setLang, startTranslator } from './i18n';
 import './index.css';
 import './fonts.css';
 
@@ -14,10 +16,17 @@ const Viewer3DPage = () => {
   return <Suspense fallback={null}><CardViewer3D cards={cards} index={i} onIndex={setI} onClose={() => { if (new URLSearchParams(location.search).has('embed')) parent.postMessage('close3d', '*'); else location.href = location.pathname; }} /></Suspense>;
 };
 const only3d = new URLSearchParams(location.search).has('3d');
+// Inglês: o tradutor de tela liga antes de o jogo aparecer. A primeira abertura pergunta o idioma.
+if (getLang() === 'en') startTranslator();
+const Root = () => {
+  const [chosen, setChosen] = useState(() => hasChosenLang() || only3d);
+  if (!chosen) return <LanguageGate onPick={l => { setLang(l); if (l === 'en') startTranslator(); setChosen(true); }} />;
+  return only3d ? <Viewer3DPage /> : <App />;
+};
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {only3d ? <Viewer3DPage /> : <App />}
+    <Root />
   </StrictMode>,
 );
 

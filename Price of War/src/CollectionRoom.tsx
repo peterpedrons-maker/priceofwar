@@ -1,6 +1,7 @@
 // The Sala de Coleção: one painted room (a single image) with things to tap. Each one zooms the camera into it and opens what it stands for:
 // the book (the whole collection, in a binder with clear plastic sheets over the pages), the door (the shop), the war table (the deck editor).
 // The room is drawn on a 768 x 1376 stage that is fitted to the screen's height; dragging (or tilting the phone) looks around a little.
+import { faceThumb } from './i18n/cardFaces';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties, type MutableRefObject, type PointerEvent as RPointerEvent, type RefObject } from 'react';
 import { CARD_DEFS } from './engine/catalog';
 import { cardSlug } from './card3d';
@@ -11,8 +12,7 @@ import pageImage from './assets/room-book-page.webp';
 import insideImage from './assets/room-book-inside.webp';
 
 const CardViewer3D = lazy(() => import('./CardViewer3D'));
-const THUMBS = import.meta.glob('./assets/card3d/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
-const thumbOf = (name: string): string | undefined => THUMBS[`./assets/card3d/${cardSlug(name)}.webp`];
+const thumbOf = (name: string): string | undefined => faceThumb(cardSlug(name));
 // What the player owns of each card, per version (rarity): the common ones are the total minus the special ones.
 export type Stock = Record<string, Record<Rarity, number>>;
 const RARS: Rarity[] = ['comum', 'rara', 'ultra', 'secreta'];

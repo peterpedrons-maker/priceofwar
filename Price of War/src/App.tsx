@@ -3,7 +3,7 @@ import { MissionsHost } from './MissionsScreen';
 import { startMenuMusic, stopMenuMusic, menuMusicState } from './menuMusic';
 import { fetchMissions } from './services/online';
 import { mountMissionBanner, noteMissions, checkMissionBanners } from './missionBanner';
-import React, { useState, useEffect, useLayoutEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { fetchProfile, usernameAvailable, createProfile, updateProfileFields, fetchStore, pushStore, type CloudDeck } from './services/cloud';
 import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authErrorDetail, authMode, type Session } from './services/auth';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate, type MotionValue } from 'motion/react';
@@ -258,6 +258,10 @@ import type { Trigger } from './engine/types';
 import { preloadTerrainFx, syncTerrainFx, clearTerrainFx, type TerrainFxKind } from './terrainFx';
 import { syncCampoLayers, clearCampoLayers, fxForjaPlaced, fxForjaModo, fxFogoPlaced, fxFogoTrincheira, fxFogoSaque, fxNoitePlay, fxNoiteTrail, fxMata, fxArsenalPlaced, fxForjaEquip, fxFogoEquip, fxArsenalEquip } from './campoFx';
 import { DesafiosScreen, type DzDeck, type DzOpponent } from './DesafiosScreen';
+import { getLang, changeLang, tEffect } from './i18n';
+import { bannerSrc } from './i18n/banners';
+import { faceUrl } from './i18n/cardFaces';
+import { encodeDeck, decodeDeck } from './deckCode';
 import { openBoosterOnServer, ensureCollectionOnServer } from './services/online';
 import { BOOSTER_PRICE, rollBooster as rollBoosterNames, settleBooster } from './engine/boosters';
 import { adminBan, adminUnban, cancelQueue, deleteMyAccount, friendCancel, friendCreate, friendJoin, friendLink, friendPeek, friendStatus, sendFeedback, adminFeedbackDone, type FeedbackKind, fetchAdmin, fetchResult, reportOpponent, type ReportReason, fetchViews, pingPresence, queueForMatch, queueStatus, sendAction, tickMatch, type ActResult, type AdminInfo, type MatchInit, type RewardInfo, type ViewRow } from './services/online';
@@ -1771,7 +1775,7 @@ const KeywordPill = ({ label, icon, compact }: { label: string; icon?: string; c
 // heart, "3 de dano" → the damage burst with the 3 inside. "+1/+1" becomes both. A reduction ("-1 de dano") stays words. The sizes
 // are in em, so the symbols shrink with the text when it is fitted; they are a little under two lines' worth so that symbols on
 // neighbouring lines never touch.
-const STAT_TOKEN = /A unidade equipada fica \*\*Armada\*\*|\*\*[^*]+\*\*|[+-]\d+\/[+-]\d+|[+-]\d+ (?:ATK|HP)\b|\d+ de dano|[+-]?\d+ de ouro/g;
+const STAT_TOKEN = /A unidade equipada fica \*\*Armada\*\*|The equipped unit becomes \*\*Armed\*\*|\*\*[^*]+\*\*|[+-]\d+\/[+-]\d+|[+-]\d+ (?:ATK|HP)\b|\d+ (?:de dano|damage)\b|[+-]?\d+ (?:de ouro|gold)\b/g;
 const STAT_NUMBER_STYLE: React.CSSProperties = { fontFamily: "'Cinzel', serif", fontWeight: 900, fontSize: '1.3em', lineHeight: 1, verticalAlign: 'middle', textShadow: '0 1px 0 #000, 0 -1px 0 #000, 1px 0 0 #000, -1px 0 0 #000, 0 0 3px #000' };
 const StatSymbol = ({ amount, kind }: { amount: string; kind: 'atk' | 'hp'; key?: React.Key }) => (
   <span style={{ display: 'inline-block', whiteSpace: 'nowrap', margin: '0 0.12em' }}>
@@ -1810,30 +1814,30 @@ const renderEffectText = (text: string, afterLead = false): React.ReactNode[] =>
   while ((m = STAT_TOKEN.exec(text))) {
     const t = m[0], at = m.index;
     const prev = text[at - 1];
-    const damage = t.endsWith(' de dano');
+    const damage = t.endsWith(' de dano') || t.endsWith(' damage');
     if (damage && prev && /[-\d]/.test(prev)) continue;                  // "-1 de dano": a reduction, left as words
     if (damage && text.startsWith(' a menos', at + t.length)) continue;   // "1 de dano a menos": também é redução, fica em palavras
-    if (t.endsWith(' de ouro') && /^\d/.test(t) && prev && /\d/.test(prev)) continue;
+    if ((t.endsWith(' de ouro') || t.endsWith(' gold')) && /^\d/.test(t) && prev && /\d/.test(prev)) continue;
     if (at > last) out.push(text.slice(last, at));
-    if (t.startsWith('A unidade equipada')) {   // equipamento: a explicação "fica Armada" vai em linha própria e em itálico (itálico = explicação)
+    if (t.startsWith('A unidade equipada') || t.startsWith('The equipped unit')) {   // equipamento: a explicação "fica Armada" vai em linha própria e em itálico (itálico = explicação)
       while (typeof out[out.length - 1] === 'string' && !(out[out.length - 1] as string).trim()) out.pop();
       if (out.length) out.push(<br key={`br${key++}`} />);
-      out.push(<i key={key++}>A unidade equipada fica Armada</i>);
+      out.push(<i key={key++}>{t.startsWith('The') ? 'The equipped unit becomes Armed' : 'A unidade equipada fica Armada'}</i>);
       last = at + t.length; continue;
     }
     if (t.startsWith('**')) {
       const word = t.slice(2, -2);
-      const up = /^Contrato (\d+)\.?$/.exec(word);
+      const up = /^(?:Contrato|Contract) (\d+)\.?$/.exec(word);
       const lineBreak = () => { while (typeof out[out.length - 1] === 'string' && !(out[out.length - 1] as string).trim()) out.pop(); if (out.length && !(React.isValidElement(out[out.length - 1]) && (out[out.length - 1] as React.ReactElement).type === 'br')) out.push(<br key={`br${key++}`} />); };
       if (up) {   // "Manutenção" na etiqueta e o custo: Manutenção: 3 (moeda); sempre na própria linha
         lineBreak();
         out.push(<KeywordPill key={key++} label="Contrato" compact />, ':', <GoldSymbol key={key++} amount={up[1]} />, <i key={`pt${key++}`} style={{ fontSize: '0.82em', whiteSpace: 'nowrap' }}> por turno</i>);   // o itálico fica para explicações
         if (text.slice(at + t.length).trim()) out.push(<br key={`br${key++}`} />);
-      } else if (/^Armadas?:?$/.test(word)) out.push(<b key={key++} style={RULE_WORD_STYLE}>{word}</b>, ' ');   // nome de regra (como Rescisão): negrito, não etiqueta
-      else if (/^Rescisão:?$/.test(word)) { lineBreak(); out.push(<b key={key++} style={RULE_WORD_STYLE}>Rescisão:</b>); }   // própria linha, só em negrito (o itálico fica para explicações), sem etiqueta
+      } else if (/^(?:Armadas?|Armed):?$/.test(word)) out.push(<b key={key++} style={RULE_WORD_STYLE}>{word}</b>, ' ');   // nome de regra (como Rescisão): negrito, não etiqueta
+      else if (/^(?:Rescisão|Termination):?$/.test(word)) { lineBreak(); out.push(<b key={key++} style={RULE_WORD_STYLE}>Rescisão:</b>); }   // própria linha, só em negrito (o itálico fica para explicações), sem etiqueta
       else out.push(<KeywordPill key={key++} label={word} />);
     }
-    else if (t.endsWith(' de ouro')) out.push(<GoldSymbol key={key++} amount={t.split(' ')[0]} />);
+    else if (t.endsWith(' de ouro') || t.endsWith(' gold')) out.push(<GoldSymbol key={key++} amount={t.split(' ')[0]} />);
     else if (damage) out.push(<DamageSymbol key={key++} amount={t.split(' ')[0]} />);
     else if (t.includes('/')) { const [a, h] = t.split('/'); out.push(<StatSymbol key={key++} amount={a} kind="atk" />, <StatSymbol key={key++} amount={h} kind="hp" />); }
     else out.push(<StatSymbol key={key++} amount={t.split(' ')[0]} kind={t.endsWith('ATK') ? 'atk' : 'hp'} />);
@@ -1842,7 +1846,8 @@ const renderEffectText = (text: string, afterLead = false): React.ReactNode[] =>
   if (last < text.length) out.push(text.slice(last));
   return out;
 };
-const FitEffectText = ({ text, className, style, align = 'center', lead }: { text: string, className?: string, style?: React.CSSProperties, align?: 'center' | 'start', lead?: { label: string, icon?: string } }) => {
+const FitEffectText = ({ text: textIn, className, style, align = 'center', lead }: { text: string, className?: string, style?: React.CSSProperties, align?: 'center' | 'start', lead?: { label: string, icon?: string } }) => {
+  const text = tEffect(textIn);   // inglês: o efeito já vem traduzido, com as mesmas palavras de regra marcadas
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLParagraphElement>(null);
 
@@ -3627,7 +3632,7 @@ const MainMenu = ({ onSelectMode, onTutorials, session }: { onSelectMode: (mode:
         )}
         {deckEditorOpen && <DeckEditor onClose={() => setDeckEditorOpen(false)} overRoom={roomOpen} />}
         {settingsOpen && <SettingsModal session={session} profileName={profile.name} onClose={() => setSettingsOpen(false)} />}
-        {soundOpen && <OptionsModal onClose={() => setSoundOpen(false)} onFeedback={authMode === 'supabase' && session ? () => setFeedbackMenuOpen(true) : undefined} />}
+        {soundOpen && <OptionsModal showLang onClose={() => setSoundOpen(false)} onFeedback={authMode === 'supabase' && session ? () => setFeedbackMenuOpen(true) : undefined} />}
         {feedbackMenuOpen && <FeedbackModal matchId={null} context={() => makeFeedbackContext(roomOpen ? 'colecao' : shopOpen ? 'loja' : 'menu')} onClose={() => setFeedbackMenuOpen(false)} />}
         {roomOpen && (
           <Suspense fallback={<div className="fixed inset-0 z-[250] bg-[#0d0905]" />}>
@@ -3759,6 +3764,60 @@ const LIST_COLS = '40px minmax(0,1fr) 70px 34px 34px 38px';
 const ROW_H = 42;
 const FULL_ART_TILE_SCALE = 1; // Full Art sizing is fixed inside CardFaceFullArt (FULL_ART_SIZE_FIX)
 
+// Compartilhar / importar deck por código (src/deckCode.ts). Importar só traz as cartas que o jogador tem; o resto aparece como "faltam".
+const DeckCodeModal = ({ mode, general, cards, owned, onClose, onImport }: { mode: 'share' | 'import'; general: string; cards: Record<string, number>; owned: Record<string, number>; onClose: () => void; onImport: (general: string, cards: Record<string, number>) => void }) => {
+  const code = useMemo(() => encodeDeck(general, cards), [general, cards]);
+  const [msg, setMsg] = useState('');
+  const [text, setText] = useState('');
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(code); setMsg('Código copiado!'); }
+    catch { taRef.current?.focus(); taRef.current?.select(); setMsg('Toque em copiar no menu do texto selecionado.'); }
+  };
+  const share = async () => { try { await navigator.share({ title: 'Price of War', text: `Meu deck de Price of War: ${code}` }); } catch { /* cancelou */ } };
+  const parsed = useMemo(() => (mode === 'import' && text.trim() ? decodeDeck(text) : null), [mode, text]);
+  const plan = useMemo(() => {
+    if (!parsed || 'error' in parsed) return null;
+    const give: Record<string, number> = {}; let missing = 0, total = 0; const lack: string[] = [];
+    (Object.entries(parsed.cards) as [string, number][]).forEach(([n, c]) => { const g = Math.min(c, owned[n] ?? 0, maxCopiesOf(n)); total += c; if (g > 0) give[n] = g; if (g < c) { missing += c - g; lack.push(`${c - g}× ${n}`); } });
+    return { give, missing, total, lack, hasGeneral: (owned[parsed.general] ?? 0) > 0 };
+  }, [parsed, owned]);
+  return (
+    <WindowOverlay onClose={onClose}>
+      <FramedWindow>
+        <div className="flex flex-col items-center gap-3 px-2 py-2 w-[min(88vw,360px)]">
+          <WindowTitle>{mode === 'share' ? 'Compartilhar deck' : 'Importar deck'}</WindowTitle>
+          {mode === 'share' ? (<>
+            <WindowText>Mande este código para um amigo. Ele cola em Importar deck e monta o mesmo deck com as cartas que tiver.</WindowText>
+            <textarea ref={taRef} readOnly value={code} onFocus={e => e.currentTarget.select()} data-no-i18n className="w-full h-24 rounded-lg bg-black/50 border border-[#e8c766]/50 text-[#f3e3c3] p-2 text-[12px] break-all" style={{ fontFamily: 'ui-monospace, monospace' }} />
+            <div className="flex gap-3 flex-wrap justify-center">
+              <WindowButton primary onClick={copy}>Copiar código</WindowButton>
+              {typeof navigator !== 'undefined' && 'share' in navigator && <WindowButton onClick={share}>Enviar</WindowButton>}
+            </div>
+            {msg && <span className="text-[12px] text-[#9fe0a8]">{msg}</span>}
+          </>) : (<>
+            <WindowText>Cole o código de deck que um amigo mandou.</WindowText>
+            <textarea value={text} onChange={e => setText(e.target.value)} placeholder="POW1-…" data-no-i18n className="w-full h-20 rounded-lg bg-black/50 border border-[#e8c766]/50 text-[#f3e3c3] p-2 text-[12px] break-all" style={{ fontFamily: 'ui-monospace, monospace' }} />
+            {parsed && 'error' in parsed && <span className="text-[12px] text-[#ff9c8f] text-center">{parsed.error}</span>}
+            {parsed && !('error' in parsed) && plan && (
+              <div className="w-full text-[12px] text-[#f3e3c3] flex flex-col gap-1">
+                <span><b>General:</b> {parsed.general}{plan.hasGeneral ? '' : ' (você ainda não tem)'}</span>
+                <span>{plan.total - plan.missing} de {plan.total} cartas você já tem.</span>
+                {plan.missing > 0 && <span className="text-[#ffcf8f]">Faltam {plan.missing} cartas: {plan.lack.slice(0, 6).join(', ')}{plan.lack.length > 6 ? '…' : ''}</span>}
+              </div>
+            )}
+            <div className="flex gap-3">
+              <WindowButton onClick={onClose}>Cancelar</WindowButton>
+              <WindowButton primary onClick={() => { if (parsed && !('error' in parsed) && plan?.hasGeneral) { onImport(parsed.general, plan.give); onClose(); } else setMsg(parsed && !('error' in parsed) ? 'Você precisa ter o General desse deck.' : 'Cole um código válido.'); }}>Importar</WindowButton>
+            </div>
+            {msg && <span className="text-[12px] text-[#ff9c8f]">{msg}</span>}
+          </>)}
+        </div>
+      </FramedWindow>
+    </WindowOverlay>
+  );
+};
+
 const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boolean }) => {   // overRoom: opened from the Sala de Coleção, so the dimmed room shows through behind it
   // `store` is the draft the player is editing; `saved` is what is on disk. Nothing reaches the
   // game (or storage) until Salvar copies the draft over.
@@ -3780,6 +3839,7 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
   const [view3d, setView3d] = useState<number | null>(null);        // 3D viewer: index into the list below (the rows as filtered and sorted)
   const [qty, setQty] = useState(1);
   const [confirm, setConfirm] = useState<{ title: string; message: string; run: () => void } | null>(null);
+  const [codeModal, setCodeModal] = useState<null | 'share' | 'import'>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [draft, setDraft] = useState<{ type: CardType | 'todas'; sort: EditorSort }>({ type: 'todas', sort: 'custo' });
   // Visual confirmation of a move: a ghost of the card flies to the tab it went to, and a
@@ -4142,7 +4202,13 @@ const DeckEditor = ({ onClose, overRoom }: { onClose: () => void; overRoom?: boo
             Preencher automático
           </WindowButton>
         </div>
+        <div className="grid grid-cols-2 gap-2">
+          <WindowButton className="w-full" onClick={() => setCodeModal('share')}>Compartilhar deck</WindowButton>
+          <WindowButton className="w-full" onClick={() => setCodeModal('import')}>Importar deck</WindowButton>
+        </div>
       </div>
+
+      {codeModal && <DeckCodeModal mode={codeModal} general={slot.general} cards={slot.cards} owned={store.collection} onClose={() => setCodeModal(null)} onImport={(general, cards) => commit(d => { d.slots[slotIdx].general = general; d.slots[slotIdx].cards = { ...cards }; d.slots[slotIdx].rar = undefined; })} />}
 
       {view3d !== null && rows[view3d] && (
         <Suspense fallback={<div className="fixed inset-0 z-[900] flex items-center justify-center bg-[#0d0905] text-[#cdbd97]" style={{ fontFamily: "'Cinzel', serif" }}>Carregando…</div>}>
@@ -4616,8 +4682,7 @@ const PackOpeningOld = ({ def, cards, packW, cardScale, onDone }: { def: Booster
 // New opening (src/boosterOpen3d.ts, Three.js + GSAP; mockup approved by the owner): the pack drops, charges, tears, the cards rise, fan out and are turned one by
 // one (least rare first); the best one gets the big moment when it is a Full Art. No sound yet (the owner will pick the sounds). Falls back to the old tear/swipe
 // opening with "Efeitos de carta novos" off. Rarity labels are provisional (Comum / Rara = cost 3+ / Full Art) until the rarity system exists (docs/raridades.md).
-const CARD3D_FILES = import.meta.glob('./assets/card3d/*.webp', { query: '?url', import: 'default' }) as Record<string, () => Promise<string>>;
-const card3dUrl = async (slug: string): Promise<string | null> => { const f = CARD3D_FILES[`./assets/card3d/${slug}.webp`]; return f ? f() : null; };
+const card3dUrl = faceUrl;
 const Booster3DOpening = ({ def, cards, onDone }: { def: BoosterDef; cards: PulledCard[]; onDone: () => void }) => {
   const hostRef = useRef<HTMLDivElement>(null);
   const [started, setStarted] = useState(false);
@@ -5046,7 +5111,7 @@ const LoginScreen = () => {
             <div className="flex items-center gap-2 px-2 pt-0.5"><div className="flex-1 h-px bg-[#d4af37]/30" /><span className="text-[10px] uppercase tracking-[0.2em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>ou</span><div className="flex-1 h-px bg-[#d4af37]/30" /></div>
             <AuthButton label="Jogar como convidado" busy={busy === 'guest'} onClick={() => run('guest', signInGuest)} />
             <p className="text-center text-[10.5px] leading-snug text-[#a89a78]" style={{ fontFamily: "'PT Serif', serif" }}>
-              Ao entrar você concorda com as <a href={`${import.meta.env.BASE_URL}privacidade.html`} target="_blank" rel="noreferrer" className="text-[#e8c766] underline">regras e a política de privacidade</a>.
+              Ao entrar você concorda com as <a href={`${import.meta.env.BASE_URL}${getLang() === 'en' ? 'privacy-en.html' : 'privacidade.html'}`} target="_blank" rel="noreferrer" className="text-[#e8c766] underline">regras e a política de privacidade</a>.
             </p>
             {authMode === 'local' && (
               <p className="text-center text-[10.5px] leading-snug text-[#a89a78]" style={{ fontFamily: "'PT Serif', serif" }}>
@@ -5221,7 +5286,7 @@ const FeedbackModal = ({ context, matchId, onClose }: { context: () => string; m
   );
 };
 // Opções: the optional on-screen hints and the sound (overall, music, effects, mute). Reachable from the menu and during a match.
-const OptionsModal = ({ onClose, onReport, onFeedback }: { onClose: () => void; onReport?: () => void; onFeedback?: () => void }) => {
+const OptionsModal = ({ onClose, onReport, onFeedback, showLang }: { onClose: () => void; onReport?: () => void; onFeedback?: () => void; showLang?: boolean }) => {
   const a = useAudioSettings();
   const g = useGameSettings();
   return (
@@ -5229,6 +5294,15 @@ const OptionsModal = ({ onClose, onReport, onFeedback }: { onClose: () => void; 
       <FramedWindow>
         <div className="flex flex-col items-center gap-4 px-2 py-2 w-[min(82vw,330px)]">
           <WindowTitle>Opções</WindowTitle>
+          {showLang && (
+            <div className="w-full flex flex-col gap-3" data-no-i18n>
+              <span className="text-[10px] uppercase tracking-[0.2em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>Idioma / Language</span>
+              <div className="flex gap-3 justify-center">
+                <WindowButton primary={getLang() === 'pt'} onClick={() => { if (getLang() !== 'pt') changeLang('pt'); }}>Português</WindowButton>
+                <WindowButton primary={getLang() === 'en'} onClick={() => { if (getLang() !== 'en') changeLang('en'); }}>English</WindowButton>
+              </div>
+            </div>
+          )}
           <div className="w-full flex flex-col gap-3">
             <span className="text-[10px] uppercase tracking-[0.2em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>Avisos na tela</span>
             <ToggleRow label="Dicas de arrastar" sub="Dedo sobre a mão, “segure e arraste” e “solte aqui”." on={g.hintsDrag} onChange={v => setGameSettings({ hintsDrag: v })} />
@@ -5289,7 +5363,7 @@ const SettingsModal = ({ session, profileName, onClose }: { session: Session | n
                 <WindowButton danger onClick={() => setConfirming(true)}>Sair da conta</WindowButton>
               </div>
               <div className="flex gap-4 text-[11px]" style={{ fontFamily: "'PT Serif', serif" }}>
-                <a href={`${import.meta.env.BASE_URL}privacidade.html`} target="_blank" rel="noreferrer" className="text-[#cdbd97] underline">Privacidade</a>
+                <a href={`${import.meta.env.BASE_URL}${getLang() === 'en' ? 'privacy-en.html' : 'privacidade.html'}`} target="_blank" rel="noreferrer" className="text-[#cdbd97] underline">Privacidade</a>
                 {authMode === 'supabase' && session && <button className="text-[#ff9a8a] underline" onClick={() => setDeleting(true)}>Excluir minha conta</button>}
               </div>
             </div>
@@ -11060,7 +11134,7 @@ export default function App() {
               }}
             >
               <img
-                src={bannerBatalhaImage}
+                src={bannerSrc('batalha', bannerBatalhaImage)}
                 alt="Batalha!"
                 draggable={false}
                 className="block w-[92vw] max-w-3xl h-auto drop-shadow-[0_22px_40px_rgba(0,0,0,0.9)]"
@@ -11105,7 +11179,7 @@ export default function App() {
                   transition={{ duration: 1.1, times: [0, 0.6, 1], ease: 'easeOut' }}
                 />
                 <motion.img
-                  src={bannerVitoriaImage}
+                  src={bannerSrc('vitoria', bannerVitoriaImage)}
                   alt="Vitória!"
                   draggable={false}
                   className="relative w-full h-auto"
@@ -11118,7 +11192,7 @@ export default function App() {
             ) : (
               <div className="relative flex items-center justify-center w-[85vw] max-w-lg">
                 <motion.img
-                  src={bannerDerrotaImage}
+                  src={bannerSrc('derrota', bannerDerrotaImage)}
                   alt="Derrota"
                   draggable={false}
                   className="relative w-full h-auto"

@@ -58,3 +58,7 @@ Regra completa em `art-prompts/README.md` ("Variedade de estilo pictórico") e l
 - **Tipos que rendem mais:** Terreno e Relíquia (efeito permanente no chão ou nas cartas), Tática de ação, Emboscada (surpresa), General (ativação), cartas únicas. Soldados comuns só quando a ação deles é espetacular.
 - **Fluxo:** ideia de uma linha (no documento do deck) → mockup em `public/mockups/efeitos-<deck>/` para o dono aprovar → ligar ao jogo pelo campo `fx` da carta (`docs/animacoes.md`, `src/combatFx.ts`).
 - Equipamento já tem uma animação comum a todos (`EquipFxLayer`: a unidade levanta, a carta entra por baixo, clarão e anéis); o efeito próprio de cada equipamento vem por cima dela.
+
+
+## Inglês (obrigatório para carta nova)
+Todo nome e efeito de carta precisa de tradução em `src/i18n/en.json` (o teste `npx tsx tests/i18n.ts` falha se faltar). Use o vocabulário em inglês de `docs/idiomas.md` e as mesmas palavras de regra marcadas com `**…**` (Armed, Contract N, Termination:…). Depois gere as texturas 3D em inglês (`LANG_UI=en node tools/card3d/render-faces.cjs <pasta> <url> <slug>` e `DST=src/assets/card3d-en python3 tools/card3d/to-webp.py <pasta>`).

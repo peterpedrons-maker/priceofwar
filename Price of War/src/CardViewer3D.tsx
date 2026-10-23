@@ -1,6 +1,7 @@
 // The 3D card viewer (collection): a card with a gold edge you turn with a finger. Loaded on demand (React.lazy), so three.js is only
 // downloaded the first time a card is opened in 3D. The faces are the card as the game draws it, rendered ahead of time
 // (tools/card3d) and kept in src/assets/card3d; the back is the game's own card back, cut to its art so it is exactly as large as the front.
+import { faceUrl } from './i18n/cardFaces';
 import { useEffect, useRef, type CSSProperties } from 'react';
 import * as THREE from 'three';
 import { cardSlug } from './card3d';
@@ -9,8 +10,7 @@ export type Viewer3DCard = { name: string; type?: string; full?: boolean; code?:
 
 // Shown inside another page (the collection book): no arrows between cards, and it tells the page when the card is ready to be shown
 const EMBED = typeof location !== 'undefined' && new URLSearchParams(location.search).has('embed');
-const FILES = import.meta.glob('./assets/card3d/*.webp', { query: '?url', import: 'default' }) as Record<string, () => Promise<string>>;
-const urlOf = async (slug: string): Promise<string | null> => { const f = FILES[`./assets/card3d/${slug}.webp`]; return f ? f() : null; };
+const urlOf = faceUrl;
 
 // size of the card body (2.24 x 3.2 = the 224 x 320 card box at 1/100); the captured face adds the wings of the frame and a margin around it
 const W = 2.24, H = 3.2, DEPTH = 0.045, RAD = 0.15, FACE_W = W * 1.32, FACE_H = H * 1.24;

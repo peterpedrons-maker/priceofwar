@@ -10,6 +10,7 @@ Jogo de cartas digital em React + TypeScript; o app fica em `Price of War/` (há
 
 ## Depois de mexer
 - Atualize o documento do assunto no mesmo commit (regra, carta ou decisão nova) e, se mudou a estrutura do código, rode `npm run map` (regera `docs/mapa-do-codigo.md`). Se mudou o estado do jogo ou as pendências, atualize `docs/visao-geral.md`.
+- **Texto novo de jogador (tela, carta, mensagem do servidor, tutorial):** escreva em português e traduza em `Price of War/src/i18n/en.json` (`npx tsx tests/i18n.ts` lista o que falta; regras em `Price of War/docs/idiomas.md`). Carta nova: nome e efeito.
 - Nunca ponha identificador de modelo em arquivos do repositório.
 
 ## Comandos (dentro de `Price of War/`)
