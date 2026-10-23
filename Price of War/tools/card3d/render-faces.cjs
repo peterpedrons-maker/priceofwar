@@ -1,0 +1,52 @@
+// Renders every card of the catalog the way the game draws it (enlarged, with the wings of its frame and a margin, transparent
+// background) so the 3D viewer can wrap it around a card. The game must be running (default http://localhost:4513/priceofwar/?debug).
+//   node tools/card3d/render-faces.cjs [outDir] [url] [onlySlug,...]     then:  python3 tools/card3d/to-webp.py [outDir]
+const fs = require('fs'); const path = require('path');
+let chromium; try { ({ chromium } = require('playwright')); } catch { ({ chromium } = require('/opt/node22/lib/node_modules/playwright')); }
+const out = path.resolve(process.argv[2] || 'tools/card3d/png'); const url = process.argv[3] || 'http://localhost:4513/priceofwar/?debug';
+const only = (process.argv[4] || '').split(',').filter(Boolean);
+const LANG = process.env.LANG_UI === 'en' ? 'en' : 'pt';   // LANG_UI=en: renders the English faces (then: DST=src/assets/card3d-en python3 tools/card3d/to-webp.py <outDir>)
+const cards = JSON.parse(fs.readFileSync(path.join(__dirname, 'cards.json'), 'utf8')).filter(c => !only.length || only.includes(c.slug));
+(async () => {
+  fs.mkdirSync(out, { recursive: true });
+  const b = await chromium.launch();
+  const page = await (await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, hasTouch: true, isMobile: true })).newPage();
+  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.evaluate(() => localStorage.clear()); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(2500);
+  await page.getByText(LANG === 'en' ? 'English' : 'Português', { exact: true }).tap(); await page.waitForTimeout(2000);
+  await page.getByText(/Play as guest|Jogar como convidado/).tap(); await page.waitForTimeout(800);
+  await page.getByPlaceholder(/Commander name|Nome do comandante/).fill('Cartas'); await page.getByText(/^(Start|Começar)$/).tap(); await page.waitForTimeout(1500);
+  await page.getByLabel(/^(Challenges|Desafios)$/).first().tap(); await page.waitForSelector('.dz-map'); await page.waitForTimeout(2000);
+  const mk = await page.locator('.dz-map .dz-mk').nth(0).boundingBox(); await page.touchscreen.tap(mk.x + mk.width / 2, mk.y + mk.height / 2); await page.waitForTimeout(2500);
+  await page.locator('.dz-decks .dz-dk').nth(0).tap(); await page.waitForTimeout(300); await page.locator('.dz-fight').tap();
+  for (let i = 0; i < 30 && !(await page.evaluate(() => window.__powEngine && window.__powEngine() && window.__powEngine().turn.started)); i++) { const bt = page.getByText(/^(Start|Começar)$/); if (await bt.count()) await bt.first().tap().catch(() => {}); await page.waitForTimeout(1200); }
+  await page.waitForFunction(() => window.__powEngine && window.__powEngine() && window.__powEngine().turn.started, null, { timeout: 60000 });
+  for (let i = 0; i < 4; i++) { const cf = page.getByText(/CONFIRM|Confirmar/i); if (await cf.count()) { await cf.first().click({ force: true }).catch(() => {}); await page.waitForTimeout(1500); } }   // the opening "look at the top cards" choice
+  for (const c of cards) {
+    await page.evaluate((c) => window.__powSet(st => {
+      st.turn.round = 3; st.turn.phase = 'preparacao'; st.turn.active = 0; st.players[0].gold = 15; st.players[1].hand = [];
+      for (let i = 0; i < 10; i++) { st.players[0].board[i] = null; st.players[1].board[i] = null; }
+      const h = { id: 'h1', name: c.name, cardType: c.type, atk: c.atk, hp: c.hp, cost: c.cost, effect: c.effect || '' }; if (c.full) h.isFullArt = true;
+      st.players[0].hand = [h];
+    }), c);
+    await page.waitForTimeout(1300);
+    const el = await page.$('[data-hand-card]'); const bb = await el.boundingBox();
+    await page.mouse.click(bb.x + bb.width / 2, bb.y + bb.height * 0.3); await page.waitForTimeout(1100);
+    const r = await page.evaluate(() => {
+      const g = document.querySelector('.inspect-glow'); const holder = g && g.parentElement; if (!holder) return null;
+      const face = [...holder.querySelectorAll('div')].find(d => d.style.width === '224px' && d.style.height === '320px'); if (!face) return null;
+      face.classList.add('__face');
+      const st = document.createElement('style'); st.id = '__iso';
+      st.textContent = 'html,body,#root{background:transparent !important} body *{visibility:hidden !important} .__face,.__face *{visibility:visible !important}';
+      document.head.appendChild(st);
+      const b = face.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height };
+    });
+    if (!r) { console.log('SKIP (no inspect)', c.slug); continue; }
+    const mx = r.w * 0.16, my = r.h * 0.12; await page.waitForTimeout(200);
+    await page.screenshot({ path: path.join(out, c.slug + '.png'), clip: { x: Math.max(0, r.x - mx), y: Math.max(0, r.y - my), width: Math.min(390 - Math.max(0, r.x - mx), r.w + 2 * mx), height: r.h + 2 * my }, omitBackground: true });
+    await page.evaluate(() => { document.getElementById('__iso')?.remove(); document.querySelectorAll('.__face').forEach(e => e.classList.remove('__face')); });
+    await page.mouse.click(195, 120); await page.waitForTimeout(400);
+    console.log('ok', c.slug);
+  }
+  await b.close();
+})().catch(e => { console.log('SCRIPT ERROR', e.message); process.exit(1); });

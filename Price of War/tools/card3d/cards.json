@@ -1,0 +1,1152 @@
+[
+ {
+  "slug": "comandante-aurelion-mestre-da-formacao",
+  "name": "Comandante Aurelion, Mestre da Formação",
+  "type": "General",
+  "atk": 0,
+  "hp": 30,
+  "cost": 0,
+  "effect": "**Fim do turno** Até 2 unidades que se moveram ganham +2/+1 no próximo combate. **Passiva** Sua Relíquia recebe 1 de dano a menos por ataque.",
+  "full": true
+ },
+ {
+  "slug": "soldado-tatico",
+  "name": "Soldado Tático",
+  "type": "Infantaria",
+  "atk": 3,
+  "hp": 4,
+  "cost": 2,
+  "effect": "No fim do turno, troca de lugar com um aliado ao lado.",
+  "full": false
+ },
+ {
+  "slug": "escudeiro-de-linha",
+  "name": "Escudeiro de Linha",
+  "type": "Infantaria",
+  "atk": 2,
+  "hp": 4,
+  "cost": 2,
+  "effect": "Recebe 1 de dano a menos por ataque. Na Vanguarda, a carta atrás também.",
+  "full": false
+ },
+ {
+  "slug": "capitao-de-formacao",
+  "name": "Capitão de Formação",
+  "type": "Infantaria",
+  "atk": 3,
+  "hp": 4,
+  "cost": 3,
+  "effect": "Aliados ao lado ganham +2 ATK até o próximo turno.",
+  "full": true
+ },
+ {
+  "slug": "batedor",
+  "name": "Batedor",
+  "type": "Infantaria",
+  "atk": 1,
+  "hp": 3,
+  "cost": 1,
+  "effect": "Depois de atacar, move-se 1 casa de graça e ganha +1 ATK para sempre.",
+  "full": false
+ },
+ {
+  "slug": "lanceiro-de-controle",
+  "name": "Lanceiro de Controle",
+  "type": "Infantaria",
+  "atk": 3,
+  "hp": 3,
+  "cost": 2,
+  "effect": "O inimigo à frente tem -2 ATK.",
+  "full": false
+ },
+ {
+  "slug": "cavaleiro-tatico",
+  "name": "Cavaleiro Tático",
+  "type": "Cavalaria",
+  "atk": 4,
+  "hp": 4,
+  "cost": 3,
+  "effect": "Troca de lugar com qualquer aliado da fileira. Ao se mover, aliados ao lado ganham +1 ATK até o próximo turno.",
+  "full": true
+ },
+ {
+  "slug": "veterano-de-guerra",
+  "name": "Veterano de Guerra",
+  "type": "Infantaria",
+  "atk": 4,
+  "hp": 3,
+  "cost": 3,
+  "effect": "Coluna central: +2 ATK. Vanguarda: +1 ATK.",
+  "full": true
+ },
+ {
+  "slug": "reformar-linhas",
+  "name": "Reformar Linhas",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "3 movimentos extras neste turno. Compre 1 carta.",
+  "full": true
+ },
+ {
+  "slug": "avanco-coordenado",
+  "name": "Avanço Coordenado",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "+3 ATK a uma unidade que se moveu neste turno.",
+  "full": false
+ },
+ {
+  "slug": "reposicionamento-rapido",
+  "name": "Reposicionamento Rápido",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Mova um inimigo para um espaço livre ao lado.",
+  "full": false
+ },
+ {
+  "slug": "linha-fechada",
+  "name": "Linha Fechada",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Aliados ao lado da unidade escolhida recebem 2 de dano a menos por ataque, para sempre.",
+  "full": false
+ },
+ {
+  "slug": "ordem-de-retirada",
+  "name": "Ordem de Retirada",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Mova uma unidade da Vanguarda para a Retaguarda: +2 HP.",
+  "full": false
+ },
+ {
+  "slug": "bloqueio-instantaneo",
+  "name": "Bloqueio Instantâneo",
+  "type": "Emboscada",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Cancela um ataque a uma unidade com aliado ao lado.",
+  "full": false
+ },
+ {
+  "slug": "contra-manobra",
+  "name": "Contra-Manobra",
+  "type": "Emboscada",
+  "atk": 0,
+  "hp": 0,
+  "cost": 3,
+  "effect": "Troca a unidade atacada com um aliado ao lado, que recebe o golpe.",
+  "full": true
+ },
+ {
+  "slug": "formacao-quebrada",
+  "name": "Formação Quebrada",
+  "type": "Emboscada",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Move o atacante para um espaço livre aleatório. O ataque falha.",
+  "full": false
+ },
+ {
+  "slug": "estandarte-da-legiao",
+  "name": "Estandarte da Legião",
+  "type": "Relíquia",
+  "atk": 0,
+  "hp": 5,
+  "cost": 3,
+  "effect": "Suas cartas em campo: +1/+1 em combate.",
+  "full": true
+ },
+ {
+  "slug": "fortaleza-de-pedra",
+  "name": "Fortaleza de Pedra",
+  "type": "Terreno",
+  "atk": 0,
+  "hp": 0,
+  "cost": 3,
+  "effect": "Suas unidades na Retaguarda recebem 1 de dano a menos por ataque.",
+  "full": true
+ },
+ {
+  "slug": "pantano-maldito",
+  "name": "Pântano Maldito",
+  "type": "Terreno",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Inimigos na Vanguarda: -1 ATK.",
+  "full": false
+ },
+ {
+  "slug": "corneteiro-da-coluna",
+  "name": "Corneteiro da Coluna",
+  "type": "Infantaria",
+  "atk": 1,
+  "hp": 2,
+  "cost": 2,
+  "effect": "Compre 1 carta.",
+  "full": false
+ },
+ {
+  "slug": "tenente-de-marcha",
+  "name": "Tenente de Marcha",
+  "type": "Infantaria",
+  "atk": 2,
+  "hp": 3,
+  "cost": 3,
+  "effect": "Ao se mover, compre 1 carta.",
+  "full": false
+ },
+ {
+  "slug": "escolta-montada",
+  "name": "Escolta Montada",
+  "type": "Cavalaria",
+  "atk": 3,
+  "hp": 3,
+  "cost": 2,
+  "effect": "Depois de atacar e sobreviver, move-se 1 casa de graça.",
+  "full": false
+ },
+ {
+  "slug": "guarda-de-fileira",
+  "name": "Guarda de Fileira",
+  "type": "Infantaria",
+  "atk": 2,
+  "hp": 5,
+  "cost": 3,
+  "effect": "Suas unidades na Retaguarda: +1 HP em combate.",
+  "full": false
+ },
+ {
+  "slug": "brigadeiro-voss-quebra-linhas",
+  "name": "Brigadeiro Voss, Quebra-Linhas",
+  "type": "Infantaria",
+  "atk": 4,
+  "hp": 5,
+  "cost": 4,
+  "effect": "Ao atacar o General: +3 ATK.",
+  "full": false
+ },
+ {
+  "slug": "passo-cadenciado",
+  "name": "Passo Cadenciado",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "2 movimentos extras neste turno.",
+  "full": false
+ },
+ {
+  "slug": "revista-de-tropas",
+  "name": "Revista de Tropas",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Compre 1 carta. Uma unidade sua que se moveu neste turno ganha +1 ATK para sempre.",
+  "full": false
+ },
+ {
+  "slug": "resposta-disciplinada",
+  "name": "Resposta Disciplinada",
+  "type": "Emboscada",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "A unidade atacada ganha +2 ATK e +2 HP até o fim do turno.",
+  "full": false
+ },
+ {
+  "slug": "campo-de-treino",
+  "name": "Campo de Treino",
+  "type": "Terreno",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Suas Infantarias na Vanguarda: +1 HP em combate.",
+  "full": false
+ },
+ {
+  "slug": "mapa-de-campanha",
+  "name": "Mapa de Campanha",
+  "type": "Relíquia",
+  "atk": 0,
+  "hp": 5,
+  "cost": 2,
+  "effect": "No início do seu turno: 1 movimento extra.",
+  "full": false
+ },
+ {
+  "slug": "cardeal-anselmo-voz-da-fe",
+  "name": "Cardeal Anselmo, Voz da Fé",
+  "type": "General",
+  "atk": 0,
+  "hp": 30,
+  "cost": 0,
+  "effect": "+1 HP a uma unidade aliada.",
+  "full": true
+ },
+ {
+  "slug": "calice-das-duas-bencaos",
+  "name": "Cálice das Duas Bênçãos",
+  "type": "Relíquia",
+  "atk": 0,
+  "hp": 6,
+  "cost": 3,
+  "effect": "Seu General pode curar 2 vezes por turno.",
+  "full": true
+ },
+ {
+  "slug": "penitente-de-pedra",
+  "name": "Penitente de Pedra",
+  "type": "Infantaria",
+  "atk": 0,
+  "hp": 4,
+  "cost": 1,
+  "effect": "",
+  "full": false
+ },
+ {
+  "slug": "cambista-do-dizimo",
+  "name": "Cambista do Dízimo",
+  "type": "Infantaria",
+  "atk": 1,
+  "hp": 2,
+  "cost": 1,
+  "effect": "Pague 1 de ouro: veja 2 cartas do topo do baralho, fique com 1 e mande a outra para o cemitério.",
+  "full": false
+ },
+ {
+  "slug": "confessor-silencioso",
+  "name": "Confessor Silencioso",
+  "type": "Infantaria",
+  "atk": 1,
+  "hp": 3,
+  "cost": 1,
+  "effect": "Na Vanguarda, Emboscadas inimigas não ativam. Se seu General sofrer dano, ele fica sem habilidade no próximo turno.",
+  "full": false
+ },
+ {
+  "slug": "zeloso-da-pira",
+  "name": "Zeloso da Pira",
+  "type": "Infantaria",
+  "atk": 1,
+  "hp": 3,
+  "cost": 1,
+  "effect": "+2 ATK contra General de facção oposta.",
+  "full": false
+ },
+ {
+  "slug": "novico-renascido",
+  "name": "Noviço Renascido",
+  "type": "Infantaria",
+  "atk": 0,
+  "hp": 3,
+  "cost": 1,
+  "effect": "Quando é curado: +1 ATK para sempre.",
+  "full": false
+ },
+ {
+  "slug": "despenseiro-do-mosteiro",
+  "name": "Despenseiro do Mosteiro",
+  "type": "Infantaria",
+  "atk": 2,
+  "hp": 4,
+  "cost": 3,
+  "effect": "No início do turno, compre até ter 2 cartas na mão.",
+  "full": false
+ },
+ {
+  "slug": "sentinela-do-claustro",
+  "name": "Sentinela do Claustro",
+  "type": "Infantaria",
+  "atk": 2,
+  "hp": 5,
+  "cost": 3,
+  "effect": "Se a da frente cair, desce e ganha Escudo 2.",
+  "full": false
+ },
+ {
+  "slug": "jorge-lanca-sagrada",
+  "name": "Jorge, Lança Sagrada",
+  "type": "Cavalaria",
+  "atk": 3,
+  "hp": 6,
+  "cost": 4,
+  "effect": "Ao atacar a Vanguarda, 2 de dano à carta atrás.",
+  "full": true
+ },
+ {
+  "slug": "samaritano-de-aco",
+  "name": "Samaritano de Aço",
+  "type": "Cavalaria",
+  "atk": 2,
+  "hp": 5,
+  "cost": 3,
+  "effect": "+2 HP a um aliado ferido e 1 de dano a um inimigo da Vanguarda.",
+  "full": false
+ },
+ {
+  "slug": "barao-da-procissao",
+  "name": "Barão da Procissão",
+  "type": "Cavalaria",
+  "atk": 3,
+  "hp": 5,
+  "cost": 4,
+  "effect": "Acólitos Leais (1/2) nos espaços livres ao lado.",
+  "full": true
+ },
+ {
+  "slug": "paladino-do-alvorecer",
+  "name": "Paladino do Alvorecer",
+  "type": "Cavalaria",
+  "atk": 3,
+  "hp": 5,
+  "cost": 4,
+  "effect": "Quando uma unidade ao lado é curada: +1 ATK até o seu próximo turno.",
+  "full": true
+ },
+ {
+  "slug": "marechal-do-sol-poente",
+  "name": "Marechal do Sol Poente",
+  "type": "Cavalaria",
+  "atk": 4,
+  "hp": 5,
+  "cost": 4,
+  "effect": "Na Vanguarda, seus Infantaria e Arqueiros têm +1/+1 em combate.",
+  "full": true
+ },
+ {
+  "slug": "arqueiro-de-dois-sinos",
+  "name": "Arqueiro de Dois Sinos",
+  "type": "Arqueiro",
+  "atk": 1,
+  "hp": 4,
+  "cost": 3,
+  "effect": "Ataca 2 vezes por rodada.",
+  "full": false
+ },
+ {
+  "slug": "vigia-do-ultimo-salmo",
+  "name": "Vigia do Último Salmo",
+  "type": "Arqueiro",
+  "atk": 1,
+  "hp": 4,
+  "cost": 3,
+  "effect": "Compre 2 cartas.",
+  "full": false
+ },
+ {
+  "slug": "trabuco-da-trombeta-final",
+  "name": "Trabuco da Trombeta Final",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 3,
+  "effect": "2 de dano a todas as unidades inimigas e ao General.",
+  "full": true
+ },
+ {
+  "slug": "catapulta-do-diluvio-de-pedra",
+  "name": "Catapulta do Dilúvio de Pedra",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "2 de dano a todas as unidades de uma fileira inimiga.",
+  "full": false
+ },
+ {
+  "slug": "balestra-da-penitencia",
+  "name": "Balestra da Penitência",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "3 de dano a uma unidade inimiga.",
+  "full": false
+ },
+ {
+  "slug": "couraca-do-martir",
+  "name": "Couraça do Mártir",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Equipe uma Infantaria: +2 HP e Guarda (absorve o primeiro golpe inteiro). A unidade equipada fica **Armada**",
+  "full": false
+ },
+ {
+  "slug": "gibao-bento",
+  "name": "Gibão Bento",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Equipe uma Infantaria ou Arqueiro: +2 HP. A unidade equipada fica **Armada**",
+  "full": false
+ },
+ {
+  "slug": "setas-de-cicuta",
+  "name": "Setas de Cicuta",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Equipe um Arqueiro: +1 ATK. A unidade equipada fica **Armada**",
+  "full": false
+ },
+ {
+  "slug": "lamina-do-juramento",
+  "name": "Lâmina do Juramento",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Equipe uma Infantaria ou Cavalaria: +2 ATK. A unidade equipada fica **Armada**",
+  "full": false
+ },
+ {
+  "slug": "preces-na-sombra",
+  "name": "Preces na Sombra",
+  "type": "Emboscada",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "A unidade atacada ganha +1 ATK e +3 HP até o fim do turno.",
+  "full": false
+ },
+ {
+  "slug": "chamado-do-tumulo-santo",
+  "name": "Chamado do Túmulo Santo",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Leve 1 soldado do cemitério para a mão.",
+  "full": true
+ },
+ {
+  "slug": "peregrinacao-ao-graal",
+  "name": "Peregrinação ao Graal",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Leve 1 Terreno ou Relíquia do baralho para a mão.",
+  "full": false
+ },
+ {
+  "slug": "sermao-da-estrategia",
+  "name": "Sermão da Estratégia",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Leve 1 Tática do baralho para a mão.",
+  "full": false
+ },
+ {
+  "slug": "alistamento-do-pulpito",
+  "name": "Alistamento do Púlpito",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Leve 1 soldado do baralho para a mão.",
+  "full": false
+ },
+ {
+  "slug": "convocacao-dos-veteranos-de-fe",
+  "name": "Convocação dos Veteranos de Fé",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Veja 4 cartas do topo: fique com 1 ou 2, o resto vai para o fundo.",
+  "full": false
+ },
+ {
+  "slug": "dizimo-de-guerra",
+  "name": "Dízimo de Guerra",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 0,
+  "effect": "+1 de ouro neste turno.",
+  "full": false
+ },
+ {
+  "slug": "toque-dos-sinos-de-guerra",
+  "name": "Toque dos Sinos de Guerra",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Convoque até 2 soldados de 0 ATK do baralho para a Vanguarda. Embaralhe.",
+  "full": false
+ },
+ {
+  "slug": "brann-meia-coroa-comprador-de-guerras",
+  "name": "Brann Meia-Coroa, Comprador de Guerras",
+  "type": "General",
+  "atk": 0,
+  "hp": 30,
+  "cost": 0,
+  "effect": "Pague 3 de ouro: compre 1 carta.",
+  "full": true
+ },
+ {
+  "slug": "lanceiro-pes-de-lama",
+  "name": "Lanceiro Pés-de-Lama",
+  "type": "Infantaria",
+  "atk": 2,
+  "hp": 2,
+  "cost": 1,
+  "effect": "**Contrato 1.**",
+  "full": false
+ },
+ {
+  "slug": "besteiro-dedo-ligeiro",
+  "name": "Besteiro Dedo-Ligeiro",
+  "type": "Arqueiro",
+  "atk": 2,
+  "hp": 2,
+  "cost": 2,
+  "effect": "**Contrato 1.**",
+  "full": false
+ },
+ {
+  "slug": "capa-rota",
+  "name": "Capa-Rota",
+  "type": "Infantaria",
+  "atk": 4,
+  "hp": 4,
+  "cost": 1,
+  "effect": "**Contrato 3.** **Rescisão:** -3 de ouro.",
+  "full": false
+ },
+ {
+  "slug": "rato-da-muralha",
+  "name": "Rato da Muralha",
+  "type": "Infantaria",
+  "atk": 2,
+  "hp": 2,
+  "cost": 1,
+  "effect": "**Contrato 1.** **Rescisão:** compre 1 carta.",
+  "full": false
+ },
+ {
+  "slug": "capitao-barba-de-corvo",
+  "name": "Capitão Barba-de-Corvo",
+  "type": "Infantaria",
+  "atk": 4,
+  "hp": 5,
+  "cost": 3,
+  "effect": "Na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK. **Contrato 2.** **Rescisão:** 2 de dano ao seu General.",
+  "full": true
+ },
+ {
+  "slug": "cavaleiro-do-escudo-raspado",
+  "name": "Cavaleiro do Escudo Raspado",
+  "type": "Cavalaria",
+  "atk": 5,
+  "hp": 5,
+  "cost": 2,
+  "effect": "**Contrato 2.** **Rescisão:** 2 de dano ao seu General.",
+  "full": true
+ },
+ {
+  "slug": "florete-de-aposta",
+  "name": "Florete de Aposta",
+  "type": "Infantaria",
+  "atk": 5,
+  "hp": 3,
+  "cost": 2,
+  "effect": "**Contrato 3.** **Rescisão:** -3 de ouro.",
+  "full": false
+ },
+ {
+  "slug": "boca-de-fogo",
+  "name": "Boca-de-Fogo",
+  "type": "Artilharia",
+  "atk": 4,
+  "hp": 3,
+  "cost": 2,
+  "effect": "Ataca à distância. **Contrato 2.** **Rescisão:** -2 de ouro.",
+  "full": false
+ },
+ {
+  "slug": "sentinela-de-aluguel",
+  "name": "Sentinela de Aluguel",
+  "type": "Infantaria",
+  "atk": 1,
+  "hp": 5,
+  "cost": 2,
+  "effect": "Recebe 1 de dano a menos por ataque. **Contrato 1.** **Rescisão:** compre 1 carta.",
+  "full": false
+ },
+ {
+  "slug": "atirador-de-aluguel",
+  "name": "Atirador de Aluguel",
+  "type": "Arqueiro",
+  "atk": 3,
+  "hp": 2,
+  "cost": 2,
+  "effect": "**Contrato 2.** **Rescisão:** -1 de ouro.",
+  "full": false
+ },
+ {
+  "slug": "carta-branca",
+  "name": "Carta Branca",
+  "type": "Emboscada",
+  "atk": 0,
+  "hp": 0,
+  "cost": 3,
+  "effect": "Cancela um ataque a uma de suas unidades. Compre 1 carta.",
+  "full": false
+ },
+ {
+  "slug": "vigia-da-ultima-brasa",
+  "name": "Vigia da Última Brasa",
+  "type": "Infantaria",
+  "atk": 2,
+  "hp": 4,
+  "cost": 2,
+  "effect": "",
+  "full": false
+ },
+ {
+  "slug": "quillon-contamoedas",
+  "name": "Quillon Contamoedas",
+  "type": "Infantaria",
+  "atk": 1,
+  "hp": 3,
+  "cost": 2,
+  "effect": "No início do turno, +1 de ouro.",
+  "full": false
+ },
+ {
+  "slug": "escriba-do-codice",
+  "name": "Escriba do Códice",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Leve 1 Relíquia do baralho para a mão.",
+  "full": false
+ },
+ {
+  "slug": "tambor-do-soldo-facil",
+  "name": "Tambor do Soldo Fácil",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Leve 1 soldado do baralho para a mão.",
+  "full": false
+ },
+ {
+  "slug": "ninguem-fica-na-lama",
+  "name": "Ninguém Fica na Lama",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Leve 1 soldado do cemitério para a mão.",
+  "full": false
+ },
+ {
+  "slug": "os-dois-do-beco",
+  "name": "Os Dois do Beco",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 3,
+  "effect": "Compre 2 cartas.",
+  "full": false
+ },
+ {
+  "slug": "chuva-de-ferro-barato",
+  "name": "Chuva de Ferro Barato",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "2 de dano a todas as unidades de uma fileira inimiga.",
+  "full": false
+ },
+ {
+  "slug": "pacto-do-punhal-vermelho",
+  "name": "Pacto do Punhal Vermelho",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "3 de dano a uma unidade inimiga.",
+  "full": false
+ },
+ {
+  "slug": "o-dia-em-que-a-muralha-caiu",
+  "name": "O Dia em que a Muralha Caiu",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 3,
+  "effect": "2 de dano a todas as unidades inimigas e ao General.",
+  "full": true
+ },
+ {
+  "slug": "peitoral-de-muitos-donos",
+  "name": "Peitoral de Muitos Donos",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Equipe uma Infantaria: +2 HP. A unidade equipada fica **Armada**",
+  "full": false
+ },
+ {
+  "slug": "espada-de-mil-maos",
+  "name": "Espada de Mil Mãos",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Equipe uma Infantaria ou Cavalaria: +2 ATK. A unidade equipada fica **Armada**",
+  "full": false
+ },
+ {
+  "slug": "o-peso-da-bolsa",
+  "name": "O Peso da Bolsa",
+  "type": "Emboscada",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Cancela um ataque a uma de suas unidades.",
+  "full": false
+ },
+ {
+  "slug": "codice-das-mil-dividas",
+  "name": "Códice das Mil Dívidas",
+  "type": "Relíquia",
+  "atk": 0,
+  "hp": 5,
+  "cost": 3,
+  "effect": "Escolha 1 modo no fim do seu turno. Soldo em Dobro: cartas com contrato têm +2 ATK. Saque: ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo). Quitação: o contrato de cada carta custa 1 a menos (mínimo 1).",
+  "full": true
+ },
+ {
+  "slug": "margrave-osric-senhor-das-marcas",
+  "name": "Margrave Osric, Senhor das Marcas",
+  "type": "General",
+  "atk": 0,
+  "hp": 30,
+  "cost": 0,
+  "effect": "Pague 2 de ouro: leve 1 Equipamento do cemitério para a mão. **Passiva** Suas Armadas e a Relíquia recebem 1 de dano a menos por ataque.",
+  "full": true
+ },
+ {
+  "slug": "cabide-de-ferro",
+  "name": "Cabide de Ferro",
+  "type": "Infantaria",
+  "atk": 2,
+  "hp": 4,
+  "cost": 2,
+  "effect": "+1 ATK por equipamento preso (máx. +2).",
+  "full": false
+ },
+ {
+  "slug": "cavaleiro-do-pinhal-cinzento",
+  "name": "Cavaleiro do Pinhal Cinzento",
+  "type": "Cavalaria",
+  "atk": 3,
+  "hp": 4,
+  "cost": 3,
+  "effect": "**Armada:** +1 ATK.",
+  "full": false
+ },
+ {
+  "slug": "vigia-da-torre-mofada",
+  "name": "Vigia da Torre Mofada",
+  "type": "Infantaria",
+  "atk": 2,
+  "hp": 4,
+  "cost": 3,
+  "effect": "**Armada:** +1 HP em combate.",
+  "full": false
+ },
+ {
+  "slug": "cavaleiro-rompe-escudos",
+  "name": "Cavaleiro Rompe-Escudos",
+  "type": "Cavalaria",
+  "atk": 3,
+  "hp": 4,
+  "cost": 3,
+  "effect": "**Armada:** 2 de dano à carta atrás.",
+  "full": false
+ },
+ {
+  "slug": "arqueiro-do-ultimo-sol",
+  "name": "Arqueiro do Último Sol",
+  "type": "Arqueiro",
+  "atk": 2,
+  "hp": 3,
+  "cost": 3,
+  "effect": "Na Retaguarda, +1 ATK por equipamento preso (máx. +2).",
+  "full": false
+ },
+ {
+  "slug": "olho-de-nevoa",
+  "name": "Olho-de-Névoa",
+  "type": "Arqueiro",
+  "atk": 1,
+  "hp": 3,
+  "cost": 2,
+  "effect": "Leve 1 Equipamento do baralho para a mão.",
+  "full": false
+ },
+ {
+  "slug": "bigorna-andarilha",
+  "name": "Bigorna Andarilha",
+  "type": "Infantaria",
+  "atk": 1,
+  "hp": 4,
+  "cost": 2,
+  "effect": "Leve 1 Equipamento do cemitério para a mão.",
+  "full": false
+ },
+ {
+  "slug": "recolhe-espadas",
+  "name": "Recolhe-Espadas",
+  "type": "Infantaria",
+  "atk": 2,
+  "hp": 4,
+  "cost": 3,
+  "effect": "O equipamento preso volta para a sua mão.",
+  "full": false
+ },
+ {
+  "slug": "traca-vales",
+  "name": "Traça-Vales",
+  "type": "Arqueiro",
+  "atk": 1,
+  "hp": 3,
+  "cost": 1,
+  "effect": "Leve 1 Terreno do baralho para a mão.",
+  "full": false
+ },
+ {
+  "slug": "grita-passo",
+  "name": "Grita-Passo",
+  "type": "Infantaria",
+  "atk": 2,
+  "hp": 3,
+  "cost": 3,
+  "effect": "Compre 1 carta.",
+  "full": false
+ },
+ {
+  "slug": "o-contador-de-lancas",
+  "name": "O Contador de Lanças",
+  "type": "Infantaria",
+  "atk": 2,
+  "hp": 3,
+  "cost": 3,
+  "effect": "Pague 1 de ouro: compre 1 carta.",
+  "full": false
+ },
+ {
+  "slug": "redea-de-vento",
+  "name": "Rédea-de-Vento",
+  "type": "Cavalaria",
+  "atk": 2,
+  "hp": 3,
+  "cost": 2,
+  "effect": "+1 ATK até o próximo turno.",
+  "full": false
+ },
+ {
+  "slug": "aldric-mil-armas-campeao-das-marcas",
+  "name": "Aldric Mil-Armas, Campeão das Marcas",
+  "type": "Cavalaria",
+  "atk": 3,
+  "hp": 5,
+  "cost": 4,
+  "effect": "+1/+1 em combate por equipamento preso (máx. +3).",
+  "full": false
+ },
+ {
+  "slug": "mestre-pedra-de-amolar",
+  "name": "Mestre Pedra-de-Amolar",
+  "type": "Infantaria",
+  "atk": 2,
+  "hp": 4,
+  "cost": 3,
+  "effect": "Suas **Armadas:** +1 ATK.",
+  "full": false
+ },
+ {
+  "slug": "cota-de-mil-remendos",
+  "name": "Cota de Mil Remendos",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Equipe uma unidade: +1 ATK e +2 HP. A unidade equipada fica **Armada**",
+  "full": false
+ },
+ {
+  "slug": "escudo-porco-espinho",
+  "name": "Escudo Porco-Espinho",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Equipe uma unidade: Guarda (absorve o primeiro golpe inteiro). A unidade equipada fica **Armada**",
+  "full": false
+ },
+ {
+  "slug": "espada-do-posto-esquecido",
+  "name": "Espada do Posto Esquecido",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Equipe uma unidade: +2 ATK. A unidade equipada fica **Armada**",
+  "full": false
+ },
+ {
+  "slug": "elmo-das-tres-rendicoes",
+  "name": "Elmo das Três Rendições",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Equipe uma unidade: +3 HP. A unidade equipada fica **Armada**",
+  "full": false
+ },
+ {
+  "slug": "machado-racha-tronco",
+  "name": "Machado Racha-Tronco",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Equipe uma unidade: +3 ATK. A unidade equipada fica **Armada**",
+  "full": false
+ },
+ {
+  "slug": "casca-de-aco",
+  "name": "Casca de Aço",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Equipe uma unidade: +2 ATK e +1 HP. A unidade equipada fica **Armada**",
+  "full": false
+ },
+ {
+  "slug": "a-forja-que-nunca-apaga",
+  "name": "A Forja que Nunca Apaga",
+  "type": "Terreno",
+  "atk": 0,
+  "hp": 0,
+  "cost": 3,
+  "effect": "Escolha 1 modo no fim do seu turno. Muralha: suas Armadas têm +2 HP em combate. Afiação: suas Armadas têm +2 ATK.",
+  "full": false
+ },
+ {
+  "slug": "posto-do-fogo-sinal",
+  "name": "Posto do Fogo-Sinal",
+  "type": "Terreno",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Escolha 1 modo no fim do seu turno. Trincheira: suas Armadas recebem 1 de dano a menos por ataque. Saque: ao destruir uma unidade inimiga, compre 1 carta (máx. 1 por ciclo).",
+  "full": false
+ },
+ {
+  "slug": "caixotes-de-palha-e-aco",
+  "name": "Caixotes de Palha e Aço",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "Leve 1 Equipamento do baralho para a mão.",
+  "full": false
+ },
+ {
+  "slug": "dois-olhos-na-crista",
+  "name": "Dois Olhos na Crista",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Leve 1 Equipamento ou Terreno do baralho para a mão.",
+  "full": false
+ },
+ {
+  "slug": "a-coluna-do-amanhecer",
+  "name": "A Coluna do Amanhecer",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "Leve 1 soldado do baralho para a mão.",
+  "full": false
+ },
+ {
+  "slug": "noite-sem-parar",
+  "name": "Noite Sem Parar",
+  "type": "Tática",
+  "atk": 0,
+  "hp": 0,
+  "cost": 1,
+  "effect": "2 movimentos extras neste turno.",
+  "full": false
+ },
+ {
+  "slug": "a-mata-devolve",
+  "name": "A Mata Devolve",
+  "type": "Emboscada",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "**Armada:** a unidade atacada ganha +2 ATK e +1 HP até o fim do turno.",
+  "full": false
+ },
+ {
+  "slug": "dentes-da-cerca",
+  "name": "Dentes da Cerca",
+  "type": "Emboscada",
+  "atk": 0,
+  "hp": 0,
+  "cost": 2,
+  "effect": "A unidade atacada ganha +3 HP até o fim do turno.",
+  "full": false
+ },
+ {
+  "slug": "arsenal-dos-mil-invernos",
+  "name": "Arsenal dos Mil Invernos",
+  "type": "Relíquia",
+  "atk": 0,
+  "hp": 5,
+  "cost": 3,
+  "effect": "Suas **Armadas** recebem 2 de dano a menos por ataque.",
+  "full": false
+ }
+]

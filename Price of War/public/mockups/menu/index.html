@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Menu em cascata · mockup</title>
+<style>
+@font-face { font-family:'Cinzel Decorative'; font-weight:700; src:url('a/cinzel-decorative-700.woff2') format('woff2'); }
+* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body { margin:0; height:100%; background:#050302; }
+/* the phone: a real screenshot of the current menu with the five buttons taken out (profile, crowns, castle, bottom icons stay) */
+#phone { position:relative; width:412px; height:860px; margin:0 auto; overflow:hidden; background:#0d0905 url('a/menu-vazio.png') center/100% 100% no-repeat; }
+#stack { position:absolute; bottom:104px; width:100%; display:flex; flex-direction:column; }
+body.esq #stack { left:0; align-items:flex-start; }
+body.dir #stack { right:0; align-items:flex-end; }
+.btn { position:relative; display:block; border:0; padding:0; margin:0 0 -3px; background:none; text-align:left; aspect-ratio:810/183; container-type:inline-size; filter:drop-shadow(0 4px 6px rgba(0,0,0,.6)); transition:transform .09s, filter .09s; }
+.btn:active { transform:scale(.985); filter:drop-shadow(0 4px 6px rgba(0,0,0,.6)) brightness(1.2); }
+.btn .art, .btn .frame { position:absolute; inset:0; width:100%; height:100%; }
+.btn .art { object-fit:cover; }
+.btn .shade { position:absolute; inset:0; background:linear-gradient(to right, rgba(0,0,0,.78), rgba(0,0,0,.4) 45%, transparent 75%); }
+.btn .row { position:absolute; inset:0; display:flex; align-items:center; gap:2.5cqw; padding:0 5% 0 7%; }
+.btn .ico { width:10.5cqw; height:10.5cqw; object-fit:contain; flex:none; filter:drop-shadow(0 2px 3px rgba(0,0,0,.7)); }
+.btn .t { font-family:'Cinzel Decorative','Cinzel',serif; font-weight:700; color:#f3e3c3; text-transform:uppercase; letter-spacing:.09em; line-height:1.1; font-size:clamp(11px,5cqw,15px); text-shadow:0 1px 3px rgba(0,0,0,.95),0 0 6px rgba(0,0,0,.7); }
+#sw { position:absolute; top:118px; left:50%; transform:translateX(-50%); display:flex; gap:6px; z-index:5; }
+#sw button { font:700 10px 'Cinzel',serif; letter-spacing:.12em; color:#ffe9b0; background:rgba(14,10,6,.7); border:1px solid rgba(217,178,90,.55); border-radius:9px; padding:6px 10px; }
+body.esq #sw .e, body.dir #sw .d { background:#7a5a22; }
+</style>
+</head>
+<body class="esq">
+<div id="phone">
+  <div id="sw"><button class="e" onclick="document.body.className='esq'">ESQUERDA</button><button class="d" onclick="document.body.className='dir'">DIREITA</button></div>
+  <div id="stack">
+    <!-- smallest on top; the biggest one, with the main action, sits at the bottom, under the thumb -->
+    <button class="btn" style="width:56%"><img class="art" src="a/menu-card-loja.webp" alt=""><div class="shade"></div><img class="frame" src="a/ui-frame-menu-card.webp" alt=""><div class="row"><img class="ico" src="a/ui-icon-loja.webp" alt=""><span class="t">Loja</span></div></button>
+    <button class="btn" style="width:64%"><img class="art" src="a/menu-card-editar-deck.webp" alt=""><div class="shade"></div><img class="frame" src="a/ui-frame-menu-card.webp" alt=""><div class="row"><img class="ico" src="a/ui-icon-card.webp" alt=""><span class="t">Coleção</span></div></button>
+    <button class="btn" style="width:72%"><img class="art" src="a/menu-card-editar-deck.webp" alt=""><div class="shade"></div><img class="frame" src="a/ui-frame-menu-card.webp" alt=""><div class="row"><img class="ico" src="a/ui-icon-editar-deck.webp" alt=""><span class="t">Meu deck</span></div></button>
+    <button class="btn" style="width:80%"><img class="art" src="a/menu-card-online.webp" alt=""><div class="shade"></div><img class="frame" src="a/ui-frame-menu-card.webp" alt=""><div class="row"><img class="ico" src="a/ui-icon-online.webp" alt=""><span class="t">Online</span></div></button>
+    <button class="btn" style="width:88%"><img class="art" src="a/menu-card-desafios.webp" alt=""><div class="shade"></div><img class="frame" src="a/ui-frame-menu-card.webp" alt=""><div class="row"><img class="ico" src="a/ui-icon-desafios.webp" alt=""><span class="t">Desafios</span></div></button>
+  </div>
+</div>
+<script>if (location.hash === '#dir') document.body.className = 'dir';</script>
+</body>
+</html>

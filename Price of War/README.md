@@ -1,20 +1,11 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Price of War
 
-# Run and deploy your AI Studio app
+Jogo de cartas digital em português, para celular. Publicado em https://peterpedrons-maker.github.io/priceofwar/
 
-This contains everything you need to run your app locally.
+- Visão geral do jogo, regras e pendências: [`docs/visao-geral.md`](docs/visao-geral.md)
+- Onde fica cada coisa no código: [`docs/mapa-do-codigo.md`](docs/mapa-do-codigo.md) (gerado por `npm run map`)
+- Guia para quem trabalha no projeto (inclusive a IA): [`../CLAUDE.md`](../CLAUDE.md)
 
-View your app in AI Studio: https://ai.studio/apps/504c979e-1ab3-4462-a99f-90f286739996
-
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Rodar localmente
+Requisitos: Node.js. `npm install`, depois `npm run dev` (porta 3000). Testes: `npm test`.
+Para o modo online e o login é preciso configurar o Supabase (`docs/supabase-setup.md`, `docs/online-setup.md`).

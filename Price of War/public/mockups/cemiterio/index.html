@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Carta incinerada vai para o cemitério (mockup)</title>
+<style>
+  html,body{margin:0;height:100%;background:#07060a;overflow:hidden;font-family:Georgia,'Times New Roman',serif;color:#f3e7c6}
+  #stage{position:relative;width:100vw;height:100dvh;max-width:calc(100dvh*390/800);margin:0 auto;overflow:hidden}
+  canvas{display:block;width:100%;height:100%}
+  #cap{position:absolute;left:0;right:0;top:3.5%;text-align:center;pointer-events:none;font-size:clamp(12px,3.6vw,15px);letter-spacing:.2em;text-transform:uppercase;opacity:.9;text-shadow:0 2px 6px #000}
+  #bar{position:absolute;left:0;right:0;bottom:0;display:flex;gap:8px;padding:10px;justify-content:center}
+  #bar button{background:#000a;color:#f3e7c6;border:1px solid #f3e7c655;border-radius:6px;padding:10px 12px;font:13px Georgia,serif}
+  #bar button.on{background:#a8321d;border-color:#ff9a6a}
+  body.manual #bar{display:none}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c"></canvas><div id="cap"></div><div id="bar"><button data-v="a" type="button">A · Bola de fogo</button><button data-v="b" type="button">B · Nuvem de cinzas</button></div></div>
+<script src="lib/gsap.min.js"></script>
+<script>
+// Mockup (rodada 26): a carta destruída em combate é incinerada no próprio lugar, vira uma bola de fogo (A) ou uma nuvem de cinzas e brasas (B) que viaja até o
+// cemitério, e só quando chega a carta aparece na pilha. Tela plana (mesma câmera do jogo), canvas 2D + GSAP. Tamanho de carta = o da casa do jogo.
+const q = new URLSearchParams(location.search), MANUAL = q.has('manual'); let V = q.get('v') || 'a';
+if (MANUAL) document.body.classList.add('manual');
+const stage = document.getElementById('stage'), cap = document.getElementById('cap'), cv = document.getElementById('c'), g = cv.getContext('2d');
+const DW = 390, DH = 800, DPR = Math.min(window.devicePixelRatio || 1, 2) * (stage.clientWidth / DW || 1);
+cv.width = Math.round(DW * DPR); cv.height = Math.round(DH * DPR);
+let seed = 5; const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const R = (a, b) => a + (b - a) * rnd(), clamp = (v, a, b) => Math.max(a, Math.min(b, v)), lerp = (a, b, t) => a + (b - a) * t;
+const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2, easeOut = t => 1 - Math.pow(1 - t, 3), easeIn = t => t * t * t;
+
+// ── ruído (value noise) ──
+const NS = 64, nz = new Float32Array(NS * NS).map(() => rnd());
+const noise = (u, v) => { const x = ((u * NS) % NS + NS) % NS, y = ((v * NS) % NS + NS) % NS, x0 = Math.floor(x), y0 = Math.floor(y), tx = x - x0, ty = y - y0, G = (i, j) => nz[(j % NS) * NS + (i % NS)], sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty); return lerp(lerp(G(x0, y0), G(x0 + 1, y0), sx), lerp(G(x0, y0 + 1), G(x0 + 1, y0 + 1), sx), sy); };
+const fbm = (u, v) => noise(u * 2, v * 2) * .55 + noise(u * 5, v * 5) * .3 + noise(u * 11, v * 11) * .15;
+
+// ── cena: tamanhos de uma casa do jogo ──
+const SW = 66, SH = 88, GAP = 5, COLS = 5, X0 = (DW - (COLS * SW + (COLS - 1) * GAP)) / 2;
+const slotXY = (c, r) => ({ x: X0 + c * (SW + GAP) + SW / 2, y: 250 + r * (SH + GAP) + SH / 2 });
+const TARGET = slotXY(3, 0), GRAVE = { x: 56, y: 600 };
+const img = (u) => new Promise(res => { const i = new Image(); i.onload = () => res(i); i.src = u; });
+let board, face, back;
+
+// carta em tamanho de casa (com as asas, como o jogo mostra): pixels para dissolver
+const CW = 144, CH = Math.round(CW * 484 / 360);   // 2x o tamanho em tela, desenhado a 0.5 depois
+let cardPix, cardSrc;
+function prep() {
+  cardSrc = document.createElement('canvas'); cardSrc.width = CW; cardSrc.height = CH; const c = cardSrc.getContext('2d'); c.drawImage(face, 0, 0, CW, CH);
+  cardPix = c.getImageData(0, 0, CW, CH);
+}
+const outC = document.createElement('canvas'), edgeC = document.createElement('canvas'); outC.width = edgeC.width = CW; outC.height = edgeC.height = CH;
+const outG = outC.getContext('2d'), edgeG = edgeC.getContext('2d');
+const HIT = { u: .5, v: .55 };   // onde a pancada pegou
+const burnAt = (u, v) => Math.hypot((u - HIT.u) * .9, (v - HIT.v) * .7) * 1.05 + (fbm(u, v) - .5) * .5;   // queima de dentro para fora
+function dissolve(t) {   // t: 0..1.25
+  const out = outG.createImageData(CW, CH), edge = edgeG.createImageData(CW, CH), s = cardPix.data, o = out.data, e = edge.data;
+  for (let y = 0; y < CH; y++) for (let x = 0; x < CW; x++) {
+    const i = (y * CW + x) * 4, a = s[i + 3]; if (a < 8) continue;
+    const b = burnAt(x / CW, y / CH) - t * .75 + .1, d = b;   // d < 0: já virou cinza e caiu
+    if (d < -.02) continue;
+    if (d < .03) { const k = 1 - (d + .02) / .05; o[i] = 255; o[i + 1] = 170 + 80 * k; o[i + 2] = 40 + 90 * k * k; o[i + 3] = a; e[i] = 255; e[i + 1] = 150 + 90 * k; e[i + 2] = 40; e[i + 3] = a * k; continue; }
+    if (d < .16) { const k = (d - .03) / .13, dk = .18 + .82 * k; o[i] = s[i] * dk + 70 * (1 - k); o[i + 1] = s[i + 1] * dk * .85 + 18 * (1 - k); o[i + 2] = s[i + 2] * dk * .7; o[i + 3] = a; if (k < .5) { e[i] = 255; e[i + 1] = 90; e[i + 2] = 20; e[i + 3] = a * (1 - k * 2) * .6; } continue; }
+    o[i] = s[i]; o[i + 1] = s[i + 1]; o[i + 2] = s[i + 2]; o[i + 3] = a;
+  }
+  outG.putImageData(out, 0, 0); edgeG.putImageData(edge, 0, 0);
+}
+
+// ── partículas (brasas / cinza / fumaça) ──
+const P = [];
+const spawn = (p) => { P.push(Object.assign({ x: 0, y: 0, vx: 0, vy: 0, g: 0, drag: .98, age: 0, life: 1, s: 2, c: [255, 170, 60], a: 1, kind: 'ember', add: true }, p)); };
+function stepP(dt) { for (let i = P.length - 1; i >= 0; i--) { const p = P[i]; p.age += dt; if (p.age >= p.life) { P.splice(i, 1); continue; } const k = Math.pow(p.drag, dt * 60); p.vx *= k; p.vy *= k; p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.upd) p.upd(p, dt); } }
+function drawP() { for (const p of P) { const u = p.age / p.life, f = u < .12 ? u / .12 : 1 - (u - .12) / .88, a = clamp(p.a * f, 0, 1); if (a <= .01) continue; g.globalCompositeOperation = p.add ? 'lighter' : 'source-over'; const r = p.s * (p.grow ? 1 + p.grow * u : 1);
+  if (p.kind === 'smoke') { const gr = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, r); gr.addColorStop(0, `rgba(${p.c[0]},${p.c[1]},${p.c[2]},${a})`); gr.addColorStop(1, `rgba(${p.c[0]},${p.c[1]},${p.c[2]},0)`); g.fillStyle = gr; g.fillRect(p.x - r, p.y - r, r * 2, r * 2); }
+  else { g.fillStyle = `rgba(${p.c[0]},${p.c[1]},${p.c[2]},${a})`; g.beginPath(); g.arc(p.x, p.y, r, 0, 6.283); g.fill(); if (p.add && r > 1.2) { g.fillStyle = `rgba(${p.c[0]},${p.c[1]},${p.c[2]},${a * .25})`; g.beginPath(); g.arc(p.x, p.y, r * 2.4, 0, 6.283); g.fill(); } } } g.globalCompositeOperation = 'source-over'; }
+const glow = (x, y, r, rgb, a) => { g.globalCompositeOperation = 'lighter'; const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(${rgb},${a})`); gr.addColorStop(.4, `rgba(${rgb},${a * .35})`); gr.addColorStop(1, `rgba(${rgb},0)`); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); g.globalCompositeOperation = 'source-over'; };
+const ring = (x, y, r, a, rgb = '255,200,120') => { g.globalCompositeOperation = 'lighter'; g.strokeStyle = `rgba(${rgb},${a})`; g.lineWidth = 3 * a + 1; g.beginPath(); g.arc(x, y, r, 0, 6.283); g.stroke(); g.globalCompositeOperation = 'source-over'; };
+
+// ── estado da cena ──
+const S = { t: 0, burn: 0, cardA: 1, shake: 0, flash: 0, scorch: 0, ball: 0, bx: TARGET.x, by: TARGET.y, bs: 0, pileCount: 3, pop: 0, topShown: 0, arrive: 0, ashDone: 0, rings: [], bf: 0 };
+let ashes = [], lastNow = 0, tl;
+function reset() { P.length = 0; Object.assign(S, { burn: 0, cardA: 1, shake: 0, flash: 0, scorch: 0, ball: 0, bx: TARGET.x, by: TARGET.y, bs: 0, pileCount: 3, pop: 0, topShown: 0, arrive: 0, ashDone: 0, rings: [], bf: 0 }); ashes = []; seed = 5; }
+
+// A: a bola de fogo (ponto, arco) ----------------------------------------------------------------------------------------------------
+function buildA() {
+  tl = gsap.timeline({ repeat: -1, repeatDelay: .8, onRepeat: reset, onStart: reset });
+  tl.call(() => { cap.textContent = 'A · a carta recebe o golpe final'; }, null, 0);
+  tl.to(S, { shake: 1, duration: .12, yoyo: true, repeat: 1 }, .3).set(S, { flash: .9 }, .3).to(S, { flash: 0, duration: .35 }, .32);
+  tl.call(() => { cap.textContent = 'A · incinera de dentro para fora'; }, null, .6);
+  tl.to(S, { burn: 1.25, duration: 1.15, ease: 'none' }, .6);
+  tl.to(S, { scorch: 1, duration: 1 }, .8);
+  tl.call(() => { cap.textContent = 'A · vira uma bola de fogo'; }, null, 1.5);
+  tl.to(S, { bs: 1, duration: .55, ease: 'back.out(1.8)' }, 1.45);
+  tl.to(S, { ball: 1, duration: 1.1, ease: 'power2.inOut' }, 2.05);
+  tl.call(() => { cap.textContent = 'A · viaja até o cemitério'; }, null, 2.05);
+  tl.call(() => { cap.textContent = 'A · só agora a carta aparece na pilha'; boom(S.bx, S.by); }, null, 3.15);
+  tl.to(S, { bs: 0, duration: .12 }, 3.15).to(S, { topShown: 1, duration: .01 }, 3.15).set(S, { pileCount: 4 }, 3.15).fromTo(S, { pop: 1 }, { pop: 0, duration: .55, ease: 'power2.out' }, 3.15);
+  tl.set({}, {}, 4.4);
+}
+const arc = (u) => { const a = { x: TARGET.x, y: TARGET.y }, b = { x: GRAVE.x, y: GRAVE.y }, c = { x: (a.x + b.x) / 2 + 80, y: Math.min(a.y, b.y) - 90 }, k = 1 - u; return { x: k * k * a.x + 2 * k * u * c.x + u * u * b.x, y: k * k * a.y + 2 * k * u * c.y + u * u * b.y }; };
+function boom(x, y) {
+  S.rings.push({ x, y, t0: S.t, dur: .7, r: 46 }, { x, y, t0: S.t, dur: .5, r: 28 });
+  for (let i = 0; i < 38; i++) { const a = R(0, 6.283), v = R(30, 150); spawn({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 20, g: 140, drag: .95, life: R(.5, 1.1), s: R(1, 2.6), c: [255, R(120, 210), 40] }); }
+  for (let i = 0; i < 8; i++) spawn({ x: x + R(-8, 8), y: y + R(-6, 6), vx: R(-14, 14), vy: R(-30, -8), g: -6, drag: .97, life: R(.9, 1.6), s: R(10, 18), grow: 1.4, c: [120, 100, 92], a: .35, kind: 'smoke', add: false });
+  S.flash = .35; gsap.to(S, { flash: 0, duration: .35 });
+}
+// B: a nuvem de cinzas ------------------------------------------------------------------------------------------------------------------
+function makeAshes() {
+  ashes = []; const s = cardPix.data;
+  for (let n = 0; n < 1100; n++) {
+    const x = Math.floor(R(0, CW)), y = Math.floor(R(0, CH)), i = (y * CW + x) * 4; if (s[i + 3] < 120) { n--; continue; }
+    const u = x / CW, v = y / CH, b = (burnAt(u, v) + .1) / .75;   // instante (em "burn") em que a frente de fogo passa
+    ashes.push({ u, v, col: [s[i], s[i + 1], s[i + 2]], tb: .6 + b * 1.15 * .8, dur: R(1.0, 1.7), arcH: R(40, 150), side: R(-70, 90), off: R(-14, 14), sz: R(.9, 2.2), done: false, released: false });
+  }
+}
+function buildB() {
+  tl = gsap.timeline({ repeat: -1, repeatDelay: .8, onRepeat: () => { reset(); makeAshes(); }, onStart: () => { reset(); makeAshes(); } });
+  tl.call(() => { cap.textContent = 'B · a carta recebe o golpe final'; }, null, 0);
+  tl.to(S, { shake: 1, duration: .12, yoyo: true, repeat: 1 }, .3).set(S, { flash: .9 }, .3).to(S, { flash: 0, duration: .35 }, .32);
+  tl.call(() => { cap.textContent = 'B · desfaz-se em brasas e cinzas'; }, null, .6);
+  tl.to(S, { burn: 1.25, duration: 1.15, ease: 'none' }, .6);
+  tl.to(S, { scorch: 1, duration: 1 }, .8);
+  tl.call(() => { cap.textContent = 'B · a nuvem escorre até o cemitério'; }, null, 1.5);
+  tl.call(() => { cap.textContent = 'B · só quando ela chega a carta aparece'; }, null, 3.0);
+  tl.set({}, {}, 5.0);
+}
+function stepAshes() {
+  const t = S.t;
+  for (const a of ashes) {
+    if (!a.released && t >= a.tb) { a.released = true; a.x0 = TARGET.x + (a.u - .5) * 66 * .95; a.y0 = TARGET.y + (a.v - .5) * 88 * 1.05; a.rel = t; }
+    if (!a.released || a.done) continue;
+    const u = clamp((t - a.rel) / a.dur, 0, 1), e = u < .25 ? .5 * Math.pow(u / .25, 2) * .25 : ease((u - .125) / .875) * .9 + .1 * .25, uu = clamp(e, 0, 1);
+    const A = { x: a.x0, y: a.y0 }, B = { x: GRAVE.x + a.off, y: GRAVE.y + a.off * .5 }, C = { x: (A.x + B.x) / 2 + a.side, y: Math.min(A.y, B.y) - a.arcH }, k = 1 - uu;
+    a.px = k * k * A.x + 2 * k * uu * C.x + uu * uu * B.x + Math.sin(t * 6 + a.u * 20) * 3 * (1 - uu); a.py = k * k * A.y + 2 * k * uu * C.y + uu * uu * B.y + Math.cos(t * 5 + a.v * 20) * 3 * (1 - uu);
+    a.hot = clamp(1 - (t - a.rel) / .5, 0, 1);
+    if (u >= 1 && !a.done) { a.done = true; S.ashDone++; }
+  }
+}
+function drawAshes() {
+  g.globalCompositeOperation = 'source-over';
+  for (const a of ashes) {
+    if (!a.released || a.done) continue; const u = clamp((S.t - a.rel) / a.dur, 0, 1), fade = u > .88 ? 1 - (u - .88) / .12 : 1;
+    const gray = lerp(1, .0, clamp((S.t - a.rel) / .45, 0, 1)), r = a.col[0] * (1 - gray) + 150 * gray, gg = a.col[1] * (1 - gray) + 136 * gray, b = a.col[2] * (1 - gray) + 124 * gray;
+    g.fillStyle = `rgba(${r | 0},${gg | 0},${b | 0},${.85 * fade})`; g.beginPath(); g.arc(a.px, a.py, a.sz * (1 - u * .35), 0, 6.283); g.fill();
+    if (a.hot > 0) { g.globalCompositeOperation = 'lighter'; g.fillStyle = `rgba(255,${120 + 90 * a.hot | 0},40,${a.hot * .8})`; g.beginPath(); g.arc(a.px, a.py, a.sz * 1.8, 0, 6.283); g.fill(); g.globalCompositeOperation = 'source-over'; }
+    if (rnd() < .035) spawn({ x: a.px, y: a.py, vx: R(-8, 8), vy: R(-14, 4), g: -4, drag: .96, life: R(.5, 1), s: R(5, 10), grow: 1.2, c: [118, 108, 100], a: .18, kind: 'smoke', add: false });
+    if (a.hot > .6 && rnd() < .1) spawn({ x: a.px, y: a.py, vx: R(-20, 20), vy: R(-50, -15), g: -30, drag: .97, life: R(.4, .9), s: R(.8, 1.6), c: [255, R(130, 200), 40] });
+  }
+}
+
+// ── desenho ──
+function drawBoard() {
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); g.fillStyle = '#0b0806'; g.fillRect(0, 0, DW, DH);
+  const sc = DH / board.height, w = board.width * sc; g.globalAlpha = .75; g.drawImage(board, (DW - w) / 2, 0, w, DH); g.globalAlpha = 1; g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, 0, DW, DH);
+  for (let r = 0; r < 2; r++) for (let c = 0; c < COLS; c++) { const p = slotXY(c, r); g.fillStyle = 'rgba(0,0,0,.35)'; g.strokeStyle = 'rgba(214,170,90,.4)'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(p.x - SW / 2, p.y - SH / 2, SW, SH, 6); g.fill(); g.stroke(); }
+  // outras cartas do campo, para dar contexto
+  for (const [c, r] of [[0, 1], [2, 1], [4, 1], [1, 0]]) { const p = slotXY(c, r); g.save(); g.globalAlpha = .9; g.drawImage(other, p.x - SW * .62, p.y - SH * .64, SW * 1.24, SH * 1.28); g.restore(); }
+  // a mancha de queimado na casa
+  if (S.scorch > 0) { const gr = g.createRadialGradient(TARGET.x, TARGET.y, 4, TARGET.x, TARGET.y, 46); gr.addColorStop(0, `rgba(6,3,2,${.7 * S.scorch})`); gr.addColorStop(1, 'rgba(6,3,2,0)'); g.fillStyle = gr; g.fillRect(TARGET.x - 48, TARGET.y - 48, 96, 96); }
+}
+function drawGrave() {
+  const x = GRAVE.x, y = GRAVE.y, w = SW, h = SH;
+  g.fillStyle = 'rgba(0,0,0,.45)'; g.strokeStyle = 'rgba(160,170,210,.45)'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(x - w / 2 - 3, y - h / 2 - 3, w + 6, h + 6, 7); g.fill(); g.stroke();
+  for (let i = 0; i < 3; i++) { g.save(); g.translate(x + (i - 1) * 1.6, y - i * 1.8 + 2); g.rotate((i - 1) * .04); g.globalAlpha = .85; g.drawImage(back, -w / 2 * .92, -h / 2 * .92, w * .92, h * .92); g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(-w / 2 * .92, -h / 2 * .92, w * .92, h * .92); g.restore(); }
+  if (S.topShown) { const sc = 1 + .16 * S.pop; g.save(); g.translate(x, y - 5); g.scale(sc, sc); g.rotate(.03); g.drawImage(cardSrc, -w / 2 * 1.05, -h / 2 * 1.08, w * 1.05, h * 1.08); g.fillStyle = 'rgba(18,8,4,.42)'; g.globalCompositeOperation = 'source-atop'; g.fillRect(-w, -h, w * 2, h * 2); g.restore(); }
+  // brilho de quem recebe
+  if (S.arrive > 0) glow(x, y, 70, '255,150,60', S.arrive * .45);
+  g.font = 'bold 15px Georgia'; g.textAlign = 'center'; g.fillStyle = '#ffe9b0'; g.strokeStyle = '#000'; g.lineWidth = 3; const cs = 1 + .5 * S.pop, tx = x, ty = y + h / 2 + 18; g.save(); g.translate(tx, ty); g.scale(cs, cs); g.strokeText(String(S.pileCount), 0, 0); g.fillText(String(S.pileCount), 0, 0); g.restore();
+}
+function drawCard() {
+  const sx = S.shake * Math.sin(S.t * 90) * 2.2;
+  if (S.burn < 1.25) {
+    dissolve(S.burn);
+    g.save(); g.translate(TARGET.x + sx, TARGET.y); g.drawImage(outC, -SW * .62, -SH * .64, SW * 1.24, SH * 1.28);
+    // brilho das bordas em chamas
+    g.globalCompositeOperation = 'lighter'; g.filter = 'blur(2.5px)'; g.drawImage(edgeC, -SW * .62, -SH * .64, SW * 1.24, SH * 1.28); g.filter = 'none'; g.globalAlpha = .5; g.drawImage(edgeC, -SW * .62, -SH * .64, SW * 1.24, SH * 1.28); g.restore();
+    if (S.burn > .02 && S.burn < 1.2) {   // chamas e brasas saindo da carta
+      const n = 3;
+      for (let i = 0; i < n; i++) { const u = R(-.5, .5), v = R(-.5, .5); if (burnAt(.5 + u * .9, .5 + v * .9) - S.burn * .75 + .1 < .05) spawn({ x: TARGET.x + u * SW, y: TARGET.y + v * SH, vx: R(-12, 12), vy: R(-70, -25), g: -40, drag: .96, life: R(.5, 1.1), s: R(.9, 2.2), c: [255, R(110, 200), 40] }); }
+      if (rnd() < .5) spawn({ x: TARGET.x + R(-.4, .4) * SW, y: TARGET.y + R(-.3, .2) * SH, vx: R(-8, 8), vy: R(-30, -12), g: -8, drag: .97, life: R(.8, 1.5), s: R(8, 15), grow: 1.5, c: [96, 88, 82], a: .22, kind: 'smoke', add: false });
+      glow(TARGET.x, TARGET.y, 54, '255,120,40', .35 * Math.sin(Math.PI * clamp(S.burn / 1.25, 0, 1)));
+    }
+  }
+}
+function drawBall() {
+  if (S.bs <= 0.01) return;
+  let x = S.bx, y = S.by; if (S.ball > 0) { const p = arc(ease(S.ball)); x = p.x; y = p.y; } S.bx = x; S.by = y;
+  const flick = 1 + Math.sin(S.t * 40) * .08 + Math.sin(S.t * 23) * .06, r = 15 * S.bs * flick;
+  if (S.ball > 0 && S.ball < 1) for (let i = 0; i < 4; i++) spawn({ x: x + R(-3, 3), y: y + R(-3, 3), vx: R(-20, 20), vy: R(-20, 20), g: -20, drag: .95, life: R(.35, .8), s: R(1.4, 3.4), c: [255, R(90, 190), 30] });
+  if (S.ball > 0 && S.ball < 1 && rnd() < .6) spawn({ x, y, vx: R(-10, 10), vy: R(-10, 10), g: -6, drag: .96, life: R(.7, 1.2), s: R(8, 14), grow: 1.3, c: [74, 60, 54], a: .3, kind: 'smoke', add: false });
+  glow(x, y, r * 3.4, '255,90,30', .55); glow(x, y, r * 2, '255,170,60', .8); glow(x, y, r * 1.1, '255,236,170', 1);
+  g.globalCompositeOperation = 'lighter'; for (let i = 0; i < 5; i++) { const a = S.t * 7 + i * 1.26; g.fillStyle = 'rgba(255,140,40,.5)'; g.beginPath(); g.ellipse(x + Math.cos(a) * r * .5, y + Math.sin(a) * r * .5 - r * .35, r * .42, r * .7, Math.sin(a) * .5, 0, 6.283); g.fill(); } g.globalCompositeOperation = 'source-over';
+}
+function drawRings() { S.rings = S.rings.filter(r => { const u = (S.t - r.t0) / r.dur; if (u >= 1) return false; ring(r.x, r.y, 6 + r.r * easeOut(u), (1 - u) * (1 - u)); return true; }); }
+
+let other;
+function frame(now) {
+  const dt = Math.min(.05, (now - lastNow) / 1000 || 0); lastNow = now; S.t = tl ? tl.time() : 0;
+  if (tl) { stepP(dt); if (V === 'b') { stepAshes(); const frac = ashes.length ? S.ashDone / ashes.length : 0; S.arrive = clamp(frac * 1.3, 0, 1) * (S.topShown ? 0 : 1) + (S.topShown ? S.pop * .6 : 0); if (!S.topShown && frac > .97) { S.topShown = 1; S.pileCount = 4; S.pop = 1; gsap.to(S, { pop: 0, duration: .55, ease: 'power2.out' }); boom(GRAVE.x, GRAVE.y); cap.textContent = 'B · só agora a carta aparece na pilha'; } else if (!S.topShown && frac > .15 && rnd() < .3) { for (let i = 0; i < 2; i++) spawn({ x: GRAVE.x + R(-14, 14), y: GRAVE.y + R(-10, 10), vx: R(-20, 20), vy: R(-40, -10), g: -10, drag: .96, life: R(.5, 1), s: R(1, 2), c: [255, R(130, 190), 50] }); } } else { S.arrive = S.ball >= 1 ? Math.max(0, S.pop) : (S.ball > .7 ? (S.ball - .7) / .3 * .6 : 0); } }
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); drawBoard(); drawGrave(); drawCard(); if (V === 'a') drawBall(); else drawAshes(); drawP(); drawRings();
+  if (S.flash > 0) { g.fillStyle = `rgba(255,236,200,${S.flash * .35})`; g.fillRect(0, 0, DW, DH); }
+  requestAnimationFrame(frame);
+}
+function start(v) { V = v; if (tl) tl.kill(); document.querySelectorAll('#bar button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); reset(); if (v === 'b') makeAshes(); (v === 'a' ? buildA : buildB)(); tl.play(0); }
+document.querySelectorAll('#bar button').forEach(b => b.onclick = () => start(b.dataset.v));
+Promise.all([img('board.webp'), img('cards/arqueiro-do-ultimo-sol.webp'), img('cards/back.webp'), img('cards/cavaleiro-rompe-escudos.webp')]).then(([b, f, bk, o]) => { board = b; face = f; back = bk; other = o; prep(); start(V); requestAnimationFrame(frame); });
+</script>
+</body>
+</html>

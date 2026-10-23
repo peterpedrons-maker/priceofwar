@@ -1,0 +1,71 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vila</title><style>
+html,body{margin:0;height:100%;background:#0b0710;font-family:Georgia,serif;color:#f4e3b5;overflow:hidden}
+#app{position:relative;width:100vw;height:100vh;max-width:430px;margin:0 auto;overflow:hidden}
+#w{position:absolute;left:0;top:0;width:704px;height:1520px;transform-origin:0 0;background:url(vila-bg-limpo.webp)}
+#fx{position:absolute;inset:0}
+.glow{position:absolute;border-radius:50%;mix-blend-mode:screen;transform:translate(-50%,-50%);animation:f 1.3s infinite alternate ease-in-out}
+@keyframes f{0%{opacity:.55;scale:.9}100%{opacity:1;scale:1.12}}
+.b{position:absolute;transform:translate(-50%,-50%);width:150px;text-align:center;background:none;border:0;color:inherit;font:inherit;padding:0}
+.b .zone{height:120px;border-radius:20px}
+.b .n{display:block;font-size:22px;font-weight:bold;text-shadow:0 2px 4px #000,0 0 8px #000;background:#150d1cd0;border:1px solid #c9a35a88;border-radius:12px;padding:2px 8px}
+.badge{position:absolute;top:-2px;right:4px;background:#d12b2b;border:3px solid #fff;border-radius:50%;min-width:34px;height:34px;font:bold 20px/34px sans-serif;color:#fff;animation:bd 1.6s infinite}
+@keyframes bd{50%{transform:scale(1.18)}}
+#ui{position:absolute;inset:0;pointer-events:none;background:linear-gradient(#0b0710cc 0,#0000 12%,#0000 80%,#0b0710ee 100%)}
+.top{position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;font-size:14px}
+.chip{background:#1b1220cc;border:1px solid #c9a35a;border-radius:20px;padding:5px 12px;display:flex;gap:6px;align-items:center}
+.chip img{width:20px}
+.play{position:absolute;left:50%;bottom:92px;transform:translateX(-50%);width:76%;height:62px;border-radius:14px;border:2px solid #ffe08a;background:linear-gradient(#e0a93a,#8e5a14);color:#2a1604;font:bold 24px Georgia;box-shadow:0 0 18px #ffb43a99}
+.corner{position:absolute;bottom:26px;width:44px;height:44px;border-radius:50%;background:#1b1220cc;border:1px solid #c9a35a;display:flex;align-items:center;justify-content:center}
+.corner img{width:26px}
+body.clean .b,body.clean .play,body.clean .corner{display:none}</style></head><body><div id="app"><div id="w"><canvas id="cl" width="704" height="1520" style="position:absolute;inset:0"></canvas><canvas id="fx" width="704" height="1520"></canvas><canvas id="ac" width="704" height="1520" style="position:absolute;inset:0;pointer-events:none"></canvas></div><div id="ui">
+<div class="top"><div class="chip">Peter · Nv 7</div><div class="chip"><img src="ui-icon-coroa.webp">1.250</div></div>
+<button class="play" style="pointer-events:auto">Jogar</button>
+<div class="corner" style="left:14px"><img src="ui-icon-config.webp"></div><div class="corner" style="right:14px;font-size:20px">⚙️</div></div></div>
+<script>
+if(location.search.includes('clean'))document.body.classList.add('clean');const W=document.getElementById('w'),app=document.getElementById('app');
+function fit(){const s=Math.max(app.clientWidth/704,app.clientHeight/1520);W.style.transform=`translate(${(app.clientWidth-704*s)/2}px,${(app.clientHeight-1520*s)/2}px) scale(${s})`}
+fit();addEventListener('resize',fit);
+// prédios (coordenadas na imagem 704x1520)
+const B=[['Academia',90,470,0],['Biblioteca',130,700,0],['Forja',340,640,0],['Mercado',570,590,'!'],['Missões',560,830,3],['Arena',140,990,0],['Quartel',510,1110,0]];
+for(const [n,x,y,bd] of B){const e=document.createElement('button');e.className='b';e.style.left=x+'px';e.style.top=y+'px';e.innerHTML=`<div class="zone"></div><span class="n">${n}</span>${bd?`<i class="badge">${bd}</i>`:''}`;W.appendChild(e)}
+// brilhos tremeluzentes (fornalha, tochas, lanternas, janelas)
+const G=[[410,688,120,'#ff8a2a'],[275,775,36,'#ffa040'],[463,825,36,'#ffa040'],[220,520,30,'#ffa040'],[520,460,28,'#ffa040'],[275,1055,36,'#ffa040'],[182,1100,36,'#ffa040'],[383,1140,36,'#ffa040'],[108,665,44,'#ffc060'],[165,665,44,'#ffc060'],[70,420,90,'#ff6a1a'],[440,570,34,'#ffc060'],[540,545,34,'#ffc060'],[630,607,34,'#ffc060'],[200,1065,46,'#ff9a40']];
+G.forEach(([x,y,r,c],i)=>{const g=document.createElement('div');g.className='glow';g.style.cssText=`left:${x}px;top:${y}px;width:${r*2}px;height:${r*2}px;background:radial-gradient(${c}cc,${c}00 70%);animation-delay:${-(i*.37)%1.3}s;animation-duration:${.9+(i%4)*.25}s`;W.insertBefore(g,document.getElementById('fx'))});
+// partículas: fumaça e brasas
+const cv=document.getElementById('fx'),c=cv.getContext('2d');const P=[];
+const src=[[388,548,'smoke',.35],[150,330,'smoke',.5],[690,230,'smoke',.25],[330,470,'smoke',.15],[70,420,'ember',.5],[410,680,'ember',.6],[600,520,'ember',.15],[300,300,'ember',.2]];
+function spawn(){for(const [x,y,t,r] of src)if(Math.random()<r*.3){P.push(t=='smoke'?{t,x:x+Math.random()*16-8,y,vx:.25+Math.random()*.3,vy:-.5-Math.random()*.3,l:0,m:200,r:10}:{t,x:x+Math.random()*40-20,y:y-10,vx:Math.random()-.3,vy:-.8-Math.random()*1.2,l:0,m:110,r:2})}}
+function loop(){c.clearRect(0,0,704,1520);spawn();
+for(let i=P.length-1;i>=0;i--){const p=P[i];p.l++;p.x+=p.vx+(p.t=='ember'?Math.sin(p.l/9)*.5:0);p.y+=p.vy;const k=p.l/p.m;if(k>=1){P.splice(i,1);continue}
+ if(p.t=='smoke'){c.globalCompositeOperation='source-over';const r=p.r+k*46;const g=c.createRadialGradient(p.x,p.y,0,p.x,p.y,r);g.addColorStop(0,`rgba(50,45,58,${.34*(1-k)})`);g.addColorStop(1,'rgba(50,45,58,0)');c.fillStyle=g;c.fillRect(p.x-r,p.y-r,r*2,r*2)}
+ else{c.globalCompositeOperation='lighter';c.fillStyle=`rgba(255,${150+Math.random()*60|0},60,${1-k})`;c.beginPath();c.arc(p.x,p.y,p.r*(1-k*.5),0,7);c.fill()}}
+requestAnimationFrame(loop)}
+loop();
+
+// ── nuvens: elipses escuras e suaves que atravessam o céu bem devagar ──
+const cl=document.getElementById('cl'),cc=cl.getContext('2d');
+const clouds=Array.from({length:7},(_,i)=>({x:Math.random()*900-100,y:40+i*52+Math.random()*30,w:200+Math.random()*180,h:34+Math.random()*26,v:.12+Math.random()*.16,a:.22+Math.random()*.16}));
+function drawClouds(){cc.clearRect(0,0,704,1520);
+ for(const c of clouds){c.x+=c.v;if(c.x-c.w>704)c.x=-c.w;
+  const fade=Math.max(0,1-Math.max(0,c.y-250)/160);
+  cc.save();cc.translate(c.x,c.y);cc.scale(1,c.h/c.w);
+  for(const [dx,r,al] of [[-.35,.55,.7],[0,.7,1],[.38,.5,.7]]){const g=cc.createRadialGradient(dx*c.w,0,0,dx*c.w,0,r*c.w);g.addColorStop(0,`rgba(38,30,52,${c.a*al*fade})`);g.addColorStop(1,'rgba(38,30,52,0)');cc.fillStyle=g;cc.beginPath();cc.arc(dx*c.w,0,r*c.w,0,7);cc.fill()}
+  cc.restore()}}
+// ── gente e cavaleiros PARADOS no lugar onde foram pintados, só com movimento mínimo de quem respira e se apoia (recortes das figuras da própria vila, spr-*.png) ──
+const ac=document.getElementById('ac'),ax=ac.getContext('2d');
+const META={"rider_a": {"w": 72, "h": 82, "fx": 36.0, "fy": 80.0, "x": 74.0, "y": 1224.0}, "p_azul": {"w": 25, "h": 51, "fx": 12.5, "fy": 49.0, "x": 240.5, "y": 851.0}, "p_capuz": {"w": 27, "h": 62, "fx": 13.5, "fy": 60.0, "x": 490.5, "y": 902.0}, "p_ferreiro": {"w": 28, "h": 57, "fx": 14.0, "fy": 55.0, "x": 436.0, "y": 1286.0}, "p_guarda": {"w": 20, "h": 40, "fx": 10.0, "fy": 38.0, "x": 448.0, "y": 713.0}};
+const IMG={};for(const k in META){const i=new Image();i.src='spr-'+k+'.png';IMG[k]=i}
+// cada figura ganha fases próprias para não se mexerem juntas
+const IDLE=Object.keys(META).map((k,i)=>({k,ph:i*1.9+.7,rider:k.startsWith('rider'),tilt:k.startsWith('rider')?.014:.025,breath:k.startsWith('rider')?.03:.045,rate:k.startsWith('rider')?1.1:1.5+i*.12}));
+function drawActors(now){const t=now/1000;ax.clearRect(0,0,704,1520);
+ for(const a of IDLE){const m=META[a.k],img=IMG[a.k];if(!img.complete)continue;
+  const w1=Math.sin(t*a.rate+a.ph),w2=Math.sin(t*a.rate*.43+a.ph*1.7);
+  // respira (estica e encolhe um fio, preso aos pés), balança o peso de um pé para o outro e, de vez em quando, desloca o corpo 1 px
+  const sy=1+a.breath*w1*.5,sx=1-a.breath*w1*.18,rot=a.tilt*w2,dx=w2*1.4*(a.rider?.5:1);
+  ax.save();ax.translate(m.x+dx,m.y);
+  ax.fillStyle='rgba(0,0,0,.26)';ax.beginPath();ax.ellipse(0,0,m.w*.36,m.w*.085,0,0,7);ax.fill();
+  ax.rotate(rot);ax.scale(sx,sy);ax.drawImage(img,-m.fx,-m.fy,m.w,m.h);ax.restore()}}
+if(location.search.includes('debug')){const d=document.createElement('canvas');d.width=704;d.height=1520;d.style.cssText='position:absolute;inset:0;pointer-events:none';const x=d.getContext('2d');x.strokeStyle='#0f0';x.lineWidth=3;x.beginPath();ROAD.forEach(([a,b],i)=>i?x.lineTo(a,b):x.moveTo(a,b));x.stroke();W.appendChild(d)}
+function frame(now){drawClouds();drawActors(now);requestAnimationFrame(frame)}requestAnimationFrame(frame);
+</script></body></html>

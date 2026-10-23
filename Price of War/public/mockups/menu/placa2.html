@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Menu em cascata, placas com arte · mockup</title>
+<style>
+@font-face { font-family:'Cinzel Decorative'; font-weight:700; src:url('a/cinzel-decorative-700.woff2') format('woff2'); }
+* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body { margin:0; height:100%; background:#050302; }
+#phone { position:relative; width:412px; height:860px; margin:0 auto; overflow:hidden; background:#0d0905 url('a/menu-vazio.png') center/100% 100% no-repeat; }
+/* the gold plaque comes out of the screen edge: that end is cut off, only the pointed end shows */
+#stack { position:absolute; bottom:104px; width:100%; display:flex; flex-direction:column; }
+body.esq #stack { left:0; align-items:flex-start; }
+body.dir #stack { right:0; align-items:flex-end; }
+.btn { position:relative; display:block; border:0; padding:0; margin:0 0 -4px; background:none; aspect-ratio:831/177; container-type:inline-size; filter:drop-shadow(0 5px 6px rgba(0,0,0,.65)); transition:transform .09s, filter .09s; }
+body.esq .btn { margin-left:-14px; }          /* the left end goes into the wall */
+body.dir .btn { margin-right:-14px; }
+.btn:active { transform:scale(.985); filter:drop-shadow(0 5px 6px rgba(0,0,0,.65)) brightness(1.12); }
+.bg { position:absolute; inset:0; }
+body.dir .bg { transform:scaleX(-1); }
+/* the window: the button picture, cut to the shape of the plaque opening (mask = the opening of the frame), under the gold frame */
+.win { position:absolute; inset:0; background:#150e07;
+  -webkit-mask-image:url(a/hole-cap.png),url(a/hole-body.png); mask-image:url(a/hole-cap.png),url(a/hole-body.png);
+  -webkit-mask-size:22.98cqw 100%, calc(100% - 22.98cqw) 100%; mask-size:22.98cqw 100%, calc(100% - 22.98cqw) 100%;
+  -webkit-mask-position:right top,left top; mask-position:right top,left top; -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat; }
+.win img { position:absolute; right:0; top:0; height:100%; width:74%; object-fit:cover; object-position:right center;
+  -webkit-mask-image:linear-gradient(to right,transparent,#000 45%); mask-image:linear-gradient(to right,transparent,#000 45%); }
+.frame { position:absolute; inset:0; display:flex; }
+.frame .body { flex:1; min-width:0; height:100%; object-fit:fill; }
+.frame .cap { height:100%; width:22.98cqw; flex:none; }
+.wall { position:absolute; inset:0; pointer-events:none; }
+body.esq .wall { background:linear-gradient(to right, rgba(40,20,0,.6), rgba(40,20,0,0) 14%); }
+body.dir .wall { background:linear-gradient(to left, rgba(40,20,0,.6), rgba(40,20,0,0) 14%); }
+.row { position:absolute; inset:0; display:flex; align-items:center; gap:3cqw; }
+body.esq .row { padding:0 16% 0 11%; }
+body.dir .row { padding:0 11% 0 16%; justify-content:flex-end; }
+.ico { height:46%; width:auto; max-width:10.5cqw; object-fit:contain; flex:none; filter:drop-shadow(0 2px 3px rgba(0,0,0,.8)); }
+.t { font-family:'Cinzel Decorative','Cinzel',serif; font-weight:700; color:#f3e3c3; text-transform:uppercase; letter-spacing:.09em; line-height:1.1; font-size:clamp(11px,5.2cqw,16px); text-shadow:0 1px 3px rgba(0,0,0,.95),0 0 7px rgba(0,0,0,.8); }
+#sw { position:absolute; top:118px; left:50%; transform:translateX(-50%); display:flex; gap:6px; z-index:5; }
+#sw button { font:700 10px 'Cinzel',serif; letter-spacing:.12em; color:#ffe9b0; background:rgba(14,10,6,.7); border:1px solid rgba(217,178,90,.55); border-radius:9px; padding:6px 10px; }
+body.esq #sw .e, body.dir #sw .d { background:#7a5a22; }
+</style>
+</head>
+<body class="esq">
+<div id="phone">
+  <div id="sw"><button class="e" onclick="document.body.className='esq'">ESQUERDA</button><button class="d" onclick="document.body.className='dir'">DIREITA</button></div>
+  <div id="stack">
+    <button class="btn" style="width:58%"><div class="bg"><div class="win"><img src="a/menu-card-loja.webp" alt=""></div><div class="frame"><img class="body" src="a/frame-body.png" alt=""><img class="cap" src="a/frame-cap.png" alt=""></div></div><div class="wall"></div><div class="row"><img class="ico" src="a/ui-icon-loja.webp" alt=""><span class="t">Loja</span></div></button>
+    <button class="btn" style="width:66%"><div class="bg"><div class="win"><img src="a/menu-card-editar-deck.webp" alt=""></div><div class="frame"><img class="body" src="a/frame-body.png" alt=""><img class="cap" src="a/frame-cap.png" alt=""></div></div><div class="wall"></div><div class="row"><img class="ico" src="a/ui-icon-card.webp" alt=""><span class="t">Coleção</span></div></button>
+    <button class="btn" style="width:74%"><div class="bg"><div class="win"><img src="a/menu-card-editar-deck.webp" alt=""></div><div class="frame"><img class="body" src="a/frame-body.png" alt=""><img class="cap" src="a/frame-cap.png" alt=""></div></div><div class="wall"></div><div class="row"><img class="ico" src="a/ui-icon-editar-deck.webp" alt=""><span class="t">Meu deck</span></div></button>
+    <button class="btn" style="width:82%"><div class="bg"><div class="win"><img src="a/menu-card-online.webp" alt=""></div><div class="frame"><img class="body" src="a/frame-body.png" alt=""><img class="cap" src="a/frame-cap.png" alt=""></div></div><div class="wall"></div><div class="row"><img class="ico" src="a/ui-icon-online.webp" alt=""><span class="t">Online</span></div></button>
+    <button class="btn" style="width:90%"><div class="bg"><div class="win"><img src="a/menu-card-desafios.webp" alt=""></div><div class="frame"><img class="body" src="a/frame-body.png" alt=""><img class="cap" src="a/frame-cap.png" alt=""></div></div><div class="wall"></div><div class="row"><img class="ico" src="a/ui-icon-desafios.webp" alt=""><span class="t">Desafios</span></div></button>
+  </div>
+</div>
+</body>
+</html>
