@@ -16,6 +16,24 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Rede de segurança: se o jogo não aparecer (erro ao carregar um arquivo, por exemplo), mostra o motivo em vez de tela preta.
+      (function () {
+        var errs = [];
+        window.addEventListener('error', function (e) { errs.push((e.message || 'erro') + (e.filename ? ' @ ' + e.filename.split('/').pop() + ':' + e.lineno : '')); });
+        window.addEventListener('unhandledrejection', function (e) { errs.push('promessa: ' + (e.reason && e.reason.message || e.reason)); });
+        setTimeout(function () {
+          var r = document.getElementById('root');
+          if (r && !r.innerText.trim() && !r.querySelector('img,canvas,button,svg')) {
+            var d = document.createElement('div');
+            d.style.cssText = 'position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;background:#0c0906;color:#f3e7c6;font-family:Georgia,serif;text-align:center;z-index:99999';
+            d.innerHTML = '<div style="font-size:20px;font-weight:700">O jogo não carregou · The game did not load</div><pre style="max-width:92vw;max-height:40vh;overflow:auto;font-size:11px;text-align:left;white-space:pre-wrap;background:rgba(0,0,0,.5);border:1px solid #6b5420;border-radius:8px;padding:10px"></pre><button style="padding:12px 20px;border-radius:10px;border:2px solid #e8c766;background:#b98a2c;color:#2a1a06;font-weight:900" onclick="location.reload()">Recarregar · Reload</button>';
+            d.querySelector('pre').textContent = errs.length ? errs.slice(0, 6).join('\n') : 'Sem erro registrado. Verifique a internet e recarregue.';
+            document.body.appendChild(d);
+          }
+        }, 8000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
