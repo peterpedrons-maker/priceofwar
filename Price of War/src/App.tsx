@@ -5822,7 +5822,9 @@ export default function App() {
       setSession(sn); setAuthReady(true);
     }).catch(() => { if (alive) setAuthReady(true); });
     const off = onSessionChange(sn => { setSession(sn); setAuthReady(true); });
-    return () => { alive = false; off(); };
+    // Servidor de login sem resposta (projeto pausado, sem internet): depois de 6 s a tela de entrada aparece em vez de ficar preto.
+    const giveUp = window.setTimeout(() => { if (alive) setAuthReady(true); }, 6000);
+    return () => { alive = false; window.clearTimeout(giveUp); off(); };
   }, []);
   // Online agora: while the app is open and visible, a light "I am here" mark every ~90 s (only with an account; the GM panel counts them).
   useEffect(() => {
@@ -8394,7 +8396,7 @@ export default function App() {
     return <LoadingScreen onDone={() => setAssetsReady(true)} />;
   }
 
-  if (!authReady) return <div className="fixed inset-0 bg-black" />;
+  if (!authReady) return <div className="fixed inset-0 bg-black flex items-center justify-center text-[#cdbd97] text-[12px] uppercase tracking-[0.2em]" style={{ fontFamily: "'Cinzel', serif" }}>Conectando ao servidor…</div>;
   if (!session) return directRoom.current ? <div className="fixed inset-0 bg-black" /> : <LoginScreen />;
   if (welcome) {
     const wp = loadProfile();
