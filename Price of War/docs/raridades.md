@@ -1,0 +1,46 @@
+# Raridades das cartas (PLANO do dono, rodada 26; ainda NÃO implementado)
+
+O sistema de raridade ainda não existe no jogo. Hoje a abertura de booster usa rótulos provisórios (Comum / Rara = custo 3 ou mais / Full Art), só para a legenda.
+
+## Cartas padrão (moldura amarela dos soldados, prata das Táticas/equipamentos, champanhe das Emboscadas: as cores se mantêm)
+| Raridade | Efeito visual |
+|---|---|
+| **Comum** | chapada, sem brilho nenhum |
+| **Rara** | só a **arte** (o miolo) brilha um pouco; bordas e nome não |
+| **Ultra rara** | brilha a arte **e as letras do nome** (cor diferenciada só nas letras, não no container; como no Yu-Gi-Oh) |
+
+## Cartas Full Art
+| Raridade | Efeito visual |
+|---|---|
+| **Comum** | a Full Art normal, sem brilho |
+| **Rara** | como a arte cobre a carta inteira, brilham **só as letras do nome** |
+| **Ultra rara** | a carta inteira brilha (holográfico na frente, como no visualizador 3D) |
+
+## Regras gerais
+- O **verso** (backplate) é igual em todas as cartas e **nunca brilha**.
+- **Futuro (só planejado, não fazer agora):** cartas **Secretas** de Full Art: outra Full Art, com outra arte e brilhos ainda melhores. Exigem imagens novas; deixar o campo previsto (`rarity: 'secreta'`) quando o sistema for feito.
+- Onde vai mexer: campo `rarity` na carta (dados, não código por nome), sorteio dos boosters (`rollBooster`), efeito de brilho em `CardFace*` (máscara da arte, máscara do nome), `CardViewer3D` e `src/boosterOpen3d.ts` (cor do halo por raridade).
+
+## Implementado (rodada 26, 2ª parte)
+- `src/rarity.ts`: tipos (`comum`/`rara`/`ultra`/`secreta`), probabilidades por cópia (`RARITY_ODDS`: padrão 72/24/4 %, Full Art 70/22/8 %; **toda carta pode vir em qualquer raridade**), `shineOf` (o que brilha em cada caso) e a numeração de coleção `cardCode(nome, raridade)` = `0032UR` (número = posição no catálogo `CARD_DEFS`; **carta nova entra no FIM da lista**, senão os números mudam; o sufixo é C, R, UR ou S).
+- Booster: `rollBooster` sorteia a raridade de cada cópia; a melhor cópia (raridade, depois Full Art, depois custo) é a última revelada e, se for Ultra rara, tem o momento grande. **Sem legenda**: quem avisa é só o efeito visual.
+- Coleção: `store.rarities[nome] = { rara, ultra, secreta }` conta as cópias não comuns (o total continua em `collection`); fica só neste aparelho, **ainda não sincroniza com a nuvem**.
+- Na carta (`CardFace`, mão e zoom): brilho da arte (`.rar-art-shine`), letras do nome com degradê animado (`.rar-name`) e o número pequeno embaixo no centro. Brilho da carta inteira (Full Art ultra) recortado pela silhueta real. Teste: `?debug&rar=ultra` põe a raridade nas cartas da partida.
+- Na abertura 3D (`boosterOpen3d.ts`): o mesmo brilho em shader (máscara da arte, das letras do nome por contraste com a placa, ou da carta toda), que fica ligado depois da revelação.
+- **Livro de coleção (rodada 26):** agrupa por número (0001…). O slot mostra a MAIOR raridade que o jogador tem, com o código (`0005UR`) e o total de cópias (×N); carta que não tem fica como `?` + número. Se tem mais de uma versão, o toque abre a folha "versões" (cada versão com código, raridade e quantidade) e dali vai ao 3D. `CollectionRoom` recebe `stock()` (lido de `loadDeckStore`: comum = total − rara − ultra − secreta). O botão "VER TUDO (TESTE)" finge a coleção completa em todas as versões.
+- **Editor de deck por versão:** na Reserva e no Deck, cada versão é um grupo próprio (3 Trabucos comuns agrupados ×3; o raro aparece à parte ×1). `slot.rar[nome] = { rara, ultra, secreta }` guarda quantas cópias do deck não são comuns (o resto de `slot.cards[nome]` são comuns; o motor e a nuvem só veem os totais). "Preencher automático" usa as comuns primeiro. A raridade ainda não chega à partida (só o editor mostra).
+- **Falta (próximo):** Secretas (fim do jogo, dependem das artes do dono).
+
+## Probabilidades (revisadas, nível TCG)
+Pesquisa: Pokémon (Surging Sparks): Ilustração Rara ~1 a cada 13 pacotes, Ultra Rara ~1 a cada 15, Especial ~1 a cada 87, Hiper ~1 a cada 189; uma Especial específica chega a ~1 em mais de mil pacotes (Black Bolt/White Flare). Yu-Gi-Oh: ~4 Ultra e ~2 Secret por caixa de 24 pacotes (Ultra ~1 a cada 6 pacotes, Secret ~1 a cada 12; oficiais não são publicados).
+No jogo (`src/rarity.ts`, por cópia; booster de 5): padrão Rara 3,5 % e Ultra 0,25 %; Full Art Rara 12 % e Ultra 3 %; e só **1 pacote em 8 traz uma Full Art** (antes elas eram sorteadas como qualquer carta). Simulado: Rara ou melhor ≈ 1 pacote em 5, **Ultra rara ≈ 1 pacote em 60**, Full Art ≈ 1 em 8.
+
+## Rodada 26 (ajustes do dono): número na carta, abertura toque-a-toque, folha de versões
+- **Número na carta (decisão final do dono):** o código (`0002C`, `0002UR`…) NÃO é impresso na face da carta. Aparece só no livro de coleção, nas linhas/folha de versões e como legenda do app (`Nº 0002 · Ultra rara`, abaixo do tipo) no visor 3D (`CardViewer3D`, campo `code`), inclusive na inspeção ao fim da abertura do booster.
+- **Abertura de booster (`src/boosterOpen3d.ts`):** as cartas só aparecem acima da borda rasgada do pacote (plano de corte que acompanha o pacote), depois formam um monte virado para baixo. O jogador toca para virar uma por vez (a carta vira no lugar, sem cobrir as outras); no próximo toque ela vai para a fileira de baixo e a seguinte vira. A melhor carta, se for ultra, mantém o momento dramático. No fim, as cartas ficam alinhadas e tocar numa abre o visor 3D (`onInspect`).
+- **Livro:** o toque que abre a folha de versões não fecha mais a própria folha (o clique fantasma do celular a fechava e causava o pisca-pisca).
+
+## Versões na partida e na nuvem (rodada 26)
+- **Na partida (só visual):** o deck escolhido leva `slot.rar` (`DeckSelection.rar`). Ao começar a partida, cada nome com versões ganha um monte (ultras + raras + comuns, embaralhado); a primeira vez que uma cópia aparece na mão/tabuleiro/cemitério do jogador ela recebe uma versão do monte (`rarityOfCard` em `toCardData`). O motor não sabe de raridade; cópias geradas por efeitos viram comuns. O brilho aparece na mão e na prévia (carta cheia) e agora também nas cartas pequenas do tabuleiro (arte, nome ou carta inteira). Online, o pedido `queue` leva `rar`; o servidor (`cleanRar` em `server/handler.ts`) só aceita as versões que a conta tem de verdade (linhas `<carta>#rara` da coleção na nuvem) e até o total do deck, guarda em `DeckJson.rar` e manda ao adversário em `MatchInit.opponentRar` (contagens + `n` = cópias dessa carta no deck dele, para saber quais cópias são especiais). O cliente monta um monte por assento (`rarPoolRef`, chave `assento:nome`), então as cartas do adversário aparecem com a versão que ele escolheu. É só visual; o motor nunca lê. Para o jogo online usa-se `lastDeckRar` (versões do último deck escolhido). **Precisa reimplantar a função `game` no Supabase** (`npm run build:edge` já gerou `supabase/functions/game/index.ts`).
+- **Nuvem (sem mexer no banco):** `src/services/cloud.ts` grava cada contagem de versão como linha da tabela `collection` com nome `"<carta>#rara"` / `"#ultra"` / `"#secreta"` e, nos decks, como chave dentro de `decks.cards` com o mesmo formato. `fetchStore` separa de volta (`splitRar`) em `rarities` e `deck.rar`; o servidor e versões antigas do jogo ignoram esses nomes (só consultam por nome de carta). Conta antiga sem versões na nuvem mantém as do aparelho (e envia). Teste: `tests/cloud-rarity.ts`.
+- **Secretas:** continuam só planejadas (o dono vai criar as artes; fica para o fim do jogo). Nada sorteia `secreta`.

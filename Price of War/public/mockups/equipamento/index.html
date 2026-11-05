@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Equipamento como selo na carta (mockup)</title>
+<style>
+  html,body{margin:0;background:#0b0806;color:#f3e7c6;font-family:Georgia,'Times New Roman',serif}
+  .page{width:390px;margin:0 auto;padding:10px 0 30px}
+  h2{margin:14px 12px 2px;font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:#e8c766;font-weight:700}
+  p{margin:0 12px 8px;font-size:11.5px;color:#cdbd97;line-height:1.35}
+  .board{position:relative;margin:0 10px;padding:8px;border-radius:10px;background:linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,.55)),url(board.webp) center 40%/cover;border:1px solid #3a2a14}
+  .rowl{display:grid;grid-template-columns:repeat(5,66px);gap:5px;justify-content:center;margin-bottom:5px}
+  .slot{position:relative;width:66px;height:88px;border-radius:6px;background:rgba(0,0,0,.35);border:1px solid rgba(214,170,90,.35);box-sizing:border-box}
+  .card{position:absolute;left:50%;top:50%;width:72px;transform:translate(-50%,-50%)}   /* a imagem inclui as asas */
+  .card img{display:block;width:100%}
+  /* A: selo de arma no canto de cima da arte (dentro da moldura) */
+  .seal{position:absolute;left:2px;top:17px;width:17px;height:17px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff1b8,#e0b44a 55%,#7a5412);box-shadow:0 1px 2px #000,0 0 0 1px #3a2408 inset;display:flex;align-items:center;justify-content:center;z-index:3}
+  .seal svg{width:11px;height:11px}
+  .seal b{position:absolute;right:-5px;bottom:-4px;min-width:9px;height:9px;padding:0 1px;border-radius:5px;background:#2a1a08;color:#ffe9b0;border:1px solid #e0b44a;font:700 7px/9px Georgia,serif;text-align:center}
+  /* B: faixa fina de armas, acima dos escudos de ATK/HP */
+  .band{position:absolute;left:19%;right:19%;bottom:13px;height:6px;border-radius:4px;background:linear-gradient(#f3d98a,#a67a22);box-shadow:0 1px 2px #000;display:flex;align-items:center;justify-content:center;gap:2px;z-index:3}
+  .band i{width:4px;height:4px;border-radius:50%;background:#2a1a08}
+  .band svg{width:7px;height:7px}
+  /* C: círculo pequeno embaixo, no meio, com os ícones do jogo (espada+ = ganhou ATK, coração+ = ganhou vida) */
+  .medals{position:absolute;left:50%;bottom:9px;transform:translateX(-50%);display:flex;z-index:3}   /* tudo DENTRO da carta: no pé do pergaminho, acima da moldura de baixo */
+  .medals .medal+.medal{margin-left:-1px}
+  .medal{position:relative;width:12px;height:12px;filter:drop-shadow(0 1px 1px #000a)}   /* o botão redondo do jogo (ui-icon-mais, sem a cruz): grafite = ataque, vermelho = vida */
+  .medal .sh{position:absolute;inset:0;width:100%;height:100%}
+  .medal .ic{position:absolute;left:50%;top:50%;width:68%;transform:translate(-50%,-50%)}
+  .big{display:flex;justify-content:center;align-items:flex-start;gap:0;margin:10px 0 0;position:relative;height:330px}
+  .big .main{position:absolute;left:62px;top:8px;width:230px;z-index:4;filter:drop-shadow(0 10px 14px #000a)}
+  .big .main img,.big .eq img{display:block;width:100%}
+  .big .eq{position:absolute;width:150px;filter:drop-shadow(0 6px 8px #0009)}
+  .tag{position:absolute;z-index:5;font:700 10px Georgia,serif;letter-spacing:.12em;text-transform:uppercase;color:#ffe9b0;background:#000b;border:1px solid #e0b44a88;padding:2px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+<div class="page">
+  <h2>C · Botão redondo do jogo embaixo, no meio, dentro da carta</h2>
+  <p>Sem barra e sem nada fora da carta. Usa o botão redondo do jogo (o mesmo de `ui-icon-mais`, com a cruz apagada): grafite = ataque, vermelho = vida, com a espada ou o coração dentro; se o equipamento dá os dois, dois botõezinhos lado a lado. Ficam no pé do pergaminho, no meio, 100% dentro da carta e sem tapar número nenhum.</p>
+  <div class="board" id="boardC"></div>
+  <h2>A · Selo de arma no canto da arte (anterior)</h2>
+  <p>A unidade fica do tamanho normal, sem carta atrás. O selo (arma + quantidade) só aparece quando há equipamento. As cartas de equipamento aparecem na prévia (toque na carta), mais abaixo.</p>
+  <div class="board" id="boardA"></div>
+  <h2>B · Faixa fina acima dos escudos (anterior, cobria números)</h2>
+  <p>Uma barrinha dourada dentro da moldura, com um pontinho por arma. Mais discreta, mas também cobre menos.</p>
+  <div class="board" id="boardB"></div>
+  <h2>Prévia ao tocar na carta (vale para A e B)</h2>
+  <p>A carta ampliada, com os equipamentos saindo por trás, em leque, e o nome de cada um.</p>
+  <div class="big" id="big"></div>
+</div>
+<script>
+const SWORD = '<svg viewBox="0 0 24 24"><path d="M14.5 3.5l6 .0.0 6-9.2 9.2-2.3-.6-.6-2.3z" fill="#3a2408"/><path d="M5 15l4 4-2.2 2.2c-.6.6-1.6.6-2.2 0l-1.8-1.8c-.6-.6-.6-1.6 0-2.2z" fill="#3a2408"/><path d="M9 17l-2-2 1.2-1.2 2 2z" fill="#3a2408"/></svg>';
+const SWORD_W = SWORD.replace(/#3a2408/g, '#2a1a08');
+const faces = { s: 'cards/sentinela-do-claustro.webp', b: 'cards/batedor.webp', c: 'cards/capitao-de-formacao.webp' };
+const layout = [['s', 0], ['b', 1], ['c', 2], ['s', 1], null];
+// C: o que cada carta ganhou com o equipamento: 'a' = ataque, 'h' = vida, 'ah' = os dois
+const layoutC = [['s', ''], ['b', 'a'], ['c', 'h'], ['s', 'ah'], ['b', 'a']], layoutC2 = [['c', 'ah'], null, ['s', 'h'], ['b', ''], ['c', 'a']];
+function slot(item, mode) {
+  const el = document.createElement('div'); el.className = 'slot'; if (!item) return el;
+  const [k, n] = item, c = document.createElement('div'); c.className = 'card'; c.innerHTML = `<img src="${faces[k]}" alt="">`;
+  if (mode === 'C' && n) c.innerHTML += `<div class="medals">${[...n].map(x => `<div class="medal"><img class="sh" src="${x === 'a' ? 'disco-atk.webp' : 'disco-hp.webp'}" alt=""><img class="ic" src="${x === 'a' ? 'ui-icon-sword.webp' : 'ui-icon-heart.webp'}" alt=""></div>`).join('')}</div>`;
+  if (n && mode === 'A') c.innerHTML += `<div class="seal">${SWORD}${n > 1 ? `<b>${n}</b>` : ''}</div>`;
+  if (n && mode === 'B') c.innerHTML += `<div class="band">${Array.from({ length: n }, () => `<i></i>`).join('')}</div>`;
+  el.appendChild(c); return el;
+}
+function board(id, mode) {
+  const b = document.getElementById(id);
+  for (let r = 0; r < 2; r++) { const row = document.createElement('div'); row.className = 'rowl'; (r ? [['b', 1], null, ['s', 2], ['c', 0], ['b', 1]] : layout).forEach(it => row.appendChild(slot(it, mode))); b.appendChild(row); }
+}
+board('boardA', 'A'); board('boardB', 'B');
+(() => { const b = document.getElementById('boardC'); [layoutC, layoutC2].forEach(L => { const row = document.createElement('div'); row.className = 'rowl'; L.forEach(it => row.appendChild(slot(it, 'C'))); b.appendChild(row); }); })();
+const big = document.getElementById('big');
+big.innerHTML = `<div class="eq" style="left:170px;top:0;transform:rotate(9deg)"><img src="cards/cota-de-mil-remendos.webp" alt=""></div>
+  <div class="eq" style="left:210px;top:56px;transform:rotate(15deg)"><img src="cards/cota-de-mil-remendos.webp" alt=""></div>
+  <div class="main"><img src="cards/batedor.webp" alt=""></div>
+  <div class="tag" style="left:236px;top:6px">Armadura</div><div class="tag" style="left:262px;top:176px">Armadura</div>`;
+</script>
+</body>
+</html>

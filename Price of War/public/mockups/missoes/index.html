@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Missões (mockup)</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cinzel+Decorative:wght@700&family=Crimson+Pro:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{--deco:'Cinzel Decorative','Cinzel',serif;--cz:'Cinzel',serif;--ser:'Crimson Pro',Georgia,serif}
+  html,body{margin:0;background:#050302;color:#f3e3c3}
+  .phone{position:relative;width:390px;height:844px;overflow:hidden;margin:0 auto;background:#000}
+  .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .dim{position:absolute;inset:0;background:rgba(6,4,2,.9)}
+  /* janela do kit */
+  .win{position:absolute;left:8px;right:8px;top:62px;bottom:10px;border:34px solid transparent;border-image:url(kit/janela.png) 95 fill/34px stretch;filter:drop-shadow(0 8px 24px #000)}
+  .ribbon{position:absolute;left:50%;top:-62px;transform:translateX(-50%);width:236px;height:73px;background:url(kit/fita-coroa.png) 100% 100%/100% 100%;display:grid;place-items:center;z-index:5}
+  .ribbon span{font:900 17px var(--cz);letter-spacing:.2em;padding-left:.2em;color:#2a1a05;text-shadow:0 1px 0 rgba(255,240,180,.6)}
+  .inner{position:absolute;inset:0;display:flex;flex-direction:column;padding:26px 2px 0}
+  .tabs{display:flex;justify-content:center;gap:0;margin:0 0 6px}
+  .tab{width:104px;height:44px;background:url(kit/aba-inativa.png) 100% 100%/100% 100%;display:grid;place-items:center;font:700 10px var(--cz);letter-spacing:.04em;color:#a89a78;text-transform:uppercase;position:relative;padding-top:3px;box-sizing:border-box}
+  .tab.on{background-image:url(kit/aba-ativa.png);color:#2a1a05;font-weight:900}
+  .dot{position:absolute;right:-3px;top:-4px;z-index:3;min-width:17px;height:17px;border-radius:9px;background:#c93a2a;border:1.5px solid #ffd9d0;color:#fff;font:900 10px/14px var(--cz);text-align:center;box-shadow:0 1px 3px #000}
+  .timer{display:flex;justify-content:space-between;align-items:center;margin:2px 12px 6px;font:600 12px var(--ser);color:#cdbd97}
+  .timer b{font:700 11px var(--cz);letter-spacing:.14em;color:#e8c766;text-transform:uppercase}
+  .list{flex:1;overflow-y:auto;scrollbar-width:none;padding:0 4px 4px}
+  /* linha de missão */
+  .m{position:relative;height:96px;margin-bottom:4px}
+  .m .frame{position:absolute;inset:0;border:18px solid transparent;border-image:url(kit/linha-normal-livre.png) 38 fill/18px stretch}
+  .m.done .frame{border-image-source:url(kit/linha-atual-livre.png)}
+  .m.locked .frame{filter:grayscale(.85) brightness(.75)}
+  .m .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:44px;height:44px;display:grid;place-items:center;background:url(kit/slot-normal.png) 100% 100%/100% 100%}
+  .m.done .ico{background-image:url(kit/slot-brilhando.png)}
+  .m .ico img{width:26px;height:26px;object-fit:contain}
+  .m .txt{position:absolute;left:68px;right:92px;top:12px;bottom:12px;display:flex;flex-direction:column;justify-content:center;gap:2px}
+  .m .t{font:700 12px/1.1 var(--cz);letter-spacing:.02em;color:#f3e3c3;white-space:nowrap}
+  .m .d{font:400 12px/1.15 var(--ser);color:#cdbd97}
+  .tag{display:inline-block;font:700 8px var(--cz);letter-spacing:.14em;padding:1px 5px;border-radius:4px;margin-right:4px;vertical-align:1px}
+  .tag.ia{background:#3b5a3a;color:#d4f3cf}.tag.livre{background:#4a4636;color:#ecdfb0}.tag.rk{background:#5a2a2a;color:#ffd0c8}
+  .bar{position:relative;height:17px;width:100%;margin-top:2px}
+  .bar .mold{position:absolute;inset:0;width:100%;height:100%}
+  .bar .fill{position:absolute;left:12.3%;right:12.1%;top:17%;bottom:22%;overflow:hidden;border-radius:6px}
+  .bar .fill img{position:absolute;left:0;top:0;height:100%}
+  .bar .n{position:absolute;inset:0;display:grid;place-items:center;font:900 9px var(--cz);color:#fff3cf;text-shadow:0 1px 2px #000;z-index:2}
+  .m .rw{position:absolute;right:12px;top:0;bottom:0;width:78px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
+  .chip{display:flex;align-items:center;gap:3px;background:url(kit/chip-neutro.png) 100% 100%/100% 100%;padding:0 12px 0 8px;height:26px;font:900 14px var(--cz);color:#ffe9b0}
+  .chip img{width:17px;height:17px;object-fit:contain}
+  .btn{width:78px;height:30px;background:url(kit/botao-primario.png) 100% 100%/100% 100%;display:grid;place-items:center;font:900 10px var(--cz);letter-spacing:.1em;color:#2a1a05;text-transform:uppercase}
+  .btn.off{background-image:url(kit/botao-secundario.png);color:#a89a78}
+  .got{font:700 10px var(--cz);letter-spacing:.12em;color:#8fe0a4;text-transform:uppercase}
+  .lock{font:600 10px/1.1 var(--ser);color:#a89a78;text-align:center}
+  .foot{padding:6px 14px 0;display:flex;justify-content:space-between;align-items:center;font:600 12px var(--ser);color:#cdbd97}
+  .foot b{color:#ffe9b0}
+  .reroll{font:700 10px var(--cz);letter-spacing:.1em;color:#e8c766;text-decoration:underline;text-transform:uppercase}
+  /* temporada */
+  .season{position:relative;margin:2px 6px 6px;height:76px;padding-top:12px;box-sizing:border-box;background:url(kit/faixa-temporada.png) 100% 100%/100% 100%;display:grid;place-items:center;text-align:center}
+  .season b{display:block;font:700 13px var(--deco);margin-top:8px;color:#2a1a05;letter-spacing:.05em}
+  .season span{font:600 11px var(--ser);color:#4a3210;display:block;margin-top:-1px}
+  /* menu */
+  .menu .menuimg{position:absolute;inset:0;width:100%;height:100%}
+  .newplq{position:absolute;left:0;width:166px;height:36px;overflow:hidden}
+  .newplq .clone{position:absolute;inset:0;background:url(menu-atual.png) 0 -515px/390px 844px no-repeat}
+  .newplq .cover{position:absolute;left:0;top:3px;bottom:3px;width:150px;background:linear-gradient(#1c120b,#100905);}
+  .newplq .ic{position:absolute;left:10px;top:7px;width:22px;height:22px;object-fit:contain}
+  .newplq .lb{position:absolute;left:42px;top:0;height:36px;display:flex;align-items:center;font:700 14px var(--deco);letter-spacing:.06em;color:#f3e3c3;text-transform:uppercase}
+  .badge{position:absolute;left:118px;top:3px;min-width:20px;height:20px;border-radius:10px;background:#c93a2a;border:1.5px solid #ffd9d0;color:#fff;font:900 12px/17px var(--cz);text-align:center;box-shadow:0 1px 3px #000}
+  .note{position:absolute;left:174px;top:3px;width:200px;font:600 10px/1.2 var(--ser);color:#ffe9b0;background:rgba(0,0,0,.6);border:1px solid rgba(232,199,102,.5);border-radius:6px;padding:3px 6px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const Q = new URLSearchParams(location.search), V = Q.get('v') || 'diarias';
+const coroa = '<img src="ui-icon-coroa.webp" alt="">';
+const IC = { sword: 'ui-icon-sword.webp', card: 'ui-icon-card.webp', ia: 'ui-icon-desafios.webp', rk: 'ui-icon-ranking.webp', loja: 'ui-icon-loja.webp', online: 'ui-icon-online.webp', ouro: 'ui-icon-ouro.webp' };
+const bar = (v, m) => `<div class="bar"><img class="mold" src="kit/barra-moldura.png" alt=""><div class="fill"><img src="kit/enchimento-ouro.png" style="width:${Math.min(100, v / m * 100)}%"></div><div class="n">${v}/${m}</div></div>`;
+const row = (o) => `<div class="m ${o.cls || ''}"><div class="frame"></div><div class="ico"><img src="${IC[o.ic]}" alt=""></div>
+  <div class="txt"><div class="t">${o.t}</div><div class="d"><span class="tag ${o.tag}">${{ ia: 'IA', livre: 'LIVRE', rk: 'RANQUEADA' }[o.tag]}</span>${o.d}</div>${o.lock ? '' : bar(o.v, o.m)}</div>
+  <div class="rw">${o.lock ? `<div class="lock">${o.lock}</div>` : `<div class="chip">${coroa}+${o.r}</div>` + (o.v >= o.m ? (o.got ? '<div class="got">✓ Coletado</div>' : '<div class="btn">Coletar</div>') : '<div class="btn off">Em curso</div>')}</div></div>`;
+const win = (title, tabs, body, foot) => `<div class="phone"><img class="bg" src="menu-bg.webp" alt=""><div class="dim"></div>
+  <div class="win"><div class="ribbon"><span>${title}</span></div><div class="inner"><div class="tabs">${tabs}</div>${body}${foot || ''}</div></div></div>`;
+const tabs = (on, d) => ['Diárias', 'Semanais', 'Temporada'].map((t, i) => `<div class="tab ${i === on ? 'on' : ''}">${t}${d[i] ? `<span class="dot">${d[i]}</span>` : ''}</div>`).join('');
+let html = '';
+if (V === 'menu') {
+  html = `<div class="phone menu"><img class="menuimg" src="menu-atual.png" alt="">
+    <div class="newplq" style="top:477px"><div class="clone"></div><div class="cover"></div><img class="ic" src="ui-icon-coroa.webp" alt=""><div class="lb">Missões</div><div class="badge">3</div></div>
+    <div class="note" style="top:480px">Novo botão. A bolinha vermelha mostra quantas missões já podem ser coletadas.</div></div>`;
+} else if (V === 'diarias') {
+  html = win('MISSÕES', tabs(0, [2, 0, 0]), `<div class="timer"><b>Renovam em 6 h</b><span>Troque 1 por dia</span></div><div class="list">
+    ${row({ t: 'Primeira vitória', d: 'Vença 1 partida nos Desafios.', ic: 'ia', tag: 'ia', v: 1, m: 1, r: 10, cls: 'done' })}
+    ${row({ t: 'Em sequência', d: 'Vença 3 partidas nos Desafios.', ic: 'sword', tag: 'ia', v: 2, m: 3, r: 15 })}
+    ${row({ t: 'Mão de Tática', d: 'Jogue 5 cartas Táticas.', ic: 'card', tag: 'livre', v: 5, m: 5, r: 20, cls: 'done' })}
+    ${row({ t: 'Exército em campo', d: 'Convoque 8 unidades.', ic: 'card', tag: 'livre', v: 3, m: 8, r: 20 })}
+    ${row({ t: 'Subir na vida', d: 'Vença 1 partida ranqueada.', ic: 'rk', tag: 'rk', v: 0, m: 1, r: 25, cls: 'locked', lock: 'Libera com o ranqueado' })}
+  </div>`, `<div class="foot"><span>Hoje: <b>+10 coroas</b> coletadas</span><span class="reroll">Trocar missão</span></div>`);
+} else if (V === 'semanais') {
+  html = win('MISSÕES', tabs(1, [2, 1, 0]), `<div class="timer"><b>Renovam na segunda</b><span>Troque 1 por dia</span></div><div class="list">
+    ${row({ t: 'Semana de guerra', d: 'Vença 10 partidas nos Desafios.', ic: 'ia', tag: 'ia', v: 7, m: 10, r: 60 })}
+    ${row({ t: 'Três bandeiras', d: 'Vença com cada um dos 3 Generais.', ic: 'sword', tag: 'ia', v: 3, m: 3, r: 80, cls: 'done' })}
+    ${row({ t: 'Arsenal', d: 'Equipe 10 cartas com armas.', ic: 'card', tag: 'livre', v: 4, m: 10, r: 60 })}
+    ${row({ t: 'Escalada', d: 'Vença 10 partidas ranqueadas.', ic: 'rk', tag: 'rk', v: 0, m: 10, r: 100, cls: 'locked', lock: 'Libera com o ranqueado' })}
+  </div>`, `<div class="foot"><span>Semana: <b>+80 coroas</b> a coletar</span><span></span></div>`);
+} else if (V === 'temporada') {
+  html = win('MISSÕES', tabs(2, [2, 1, 1]), `<div class="season"><div><b>TEMPORADA 1</b><span>termina em 41 dias</span></div></div><div class="list">
+    ${row({ t: 'Chegue ao Ouro', d: 'Alcance a liga Ouro.', ic: 'ouro', tag: 'rk', v: 1, m: 1, r: 50, cls: 'done' })}
+    ${row({ t: 'Chegue ao Diamante', d: 'Alcance a liga Diamante.', ic: 'rk', tag: 'rk', v: 0, m: 1, r: 100 })}
+    ${row({ t: 'Senhor da Guerra', d: 'Alcance a liga de topo.', ic: 'rk', tag: 'rk', v: 0, m: 1, r: 200 })}
+    ${row({ t: 'Veterano', d: 'Jogue 30 partidas ranqueadas.', ic: 'online', tag: 'rk', v: 12, m: 30, r: 40 })}
+  </div>`, `<div class="foot"><span>Bônus de <b>+10</b> por divisão nova na temporada</span></div>`);
+}
+document.getElementById('app').innerHTML = html;
+</script>
+</body>
+</html>

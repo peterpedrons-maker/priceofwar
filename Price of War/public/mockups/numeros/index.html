@@ -1,0 +1,32 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Números de dano</title>
+<style>
+html,body{margin:0;background:#0b0710;font-family:Georgia,serif;color:#f4e3b5}
+.phone{position:relative;width:390px;margin:0 auto;background:#1a120b url(board-clean.jpg) center/cover;padding:14px 10px 18px;box-sizing:border-box}
+h3{margin:8px 4px 6px;font-size:13px;letter-spacing:.12em;color:#e8c766;text-transform:uppercase}
+.row{display:flex;gap:8px;justify-content:center;margin-bottom:6px}
+.cell{width:68px;text-align:center;font-size:11px}
+.card{position:relative;width:68px;height:96px;border-radius:6px;overflow:hidden;background:#000 center/cover;box-shadow:0 3px 8px #000}
+.lab{margin-top:3px;color:#cdbd97}
+.fn{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);height:26px;display:flex;align-items:center;justify-content:center}
+.fn .star{position:absolute;height:60px;width:60px;max-width:none;opacity:0;filter:saturate(.82) brightness(.94);animation:star 1.2s ease-out infinite}
+.fn .dig{position:relative;display:flex;align-items:center;filter:drop-shadow(0 2px 2px rgba(0,0,0,.7));opacity:0;animation:pop 1.2s ease-out infinite}
+.fn.big .dig{animation:pop 1.2s ease-out infinite}.fn.big .dig img.g{transform:skewX(-11deg)}
+.fn img.g{height:26px;margin-left:-4px;display:block}.fn img.g:first-child{margin-left:0}
+@keyframes star{0%{transform:scale(.3);opacity:0}14%{transform:scale(1.1);opacity:.78}70%{transform:scale(1);opacity:.78}100%{transform:scale(1);opacity:0}}
+@keyframes pop{0%{transform:scale(.4);opacity:0}14%{transform:scale(1.18);opacity:1}30%{transform:scale(1);opacity:1}70%{opacity:1}100%{opacity:0}}
+.old .fn img.g{height:70px}.old .fn .star{height:160px;width:160px}
+</style></head><body><div class="phone" id="app"></div>
+<script>
+const Q=new URLSearchParams(location.search);const STILL=Q.get('t');   // ?t=0.35 congela no instante (s)
+const burst={damage:'num/burst-damage.webp',heal:'num/burst-heal.webp',shield:'num/burst-shield.webp'};
+const g=(k,ch)=>`num/${k}-${({'-':'minus','+':'plus','!':'bang'})[ch]||ch}.webp`;
+const cell=(img,kind,text,lab,big)=>`<div class="cell"><div class="card" style="background-image:url(${img})"><div class="fn ${big?'big':''}">
+ ${burst[kind]?`<img class="star" src="${burst[kind]}">`:''}<div class="dig">${text.split('').map(c=>`<img class="g" src="${g(kind,c)}">`).join('')}</div></div></div><div class="lab">${lab}</div></div>`;
+const bang=n=>n>=9?'!!':n>=5?'!':'';
+const dm=(n,img)=>cell(img,'damage','-'+n+bang(n),'dano '+n,n>=5);
+let html='<h3>Dano (fixo e parado; 5+ itálico com !)</h3><div class="row">'+[[1,'card1.webp'],[3,'card2.webp'],[5,'card3.webp'],[8,'card4.webp'],[12,'card1.webp']].map(([n,i])=>dm(n,i)).join('')+'</div>';
+html+='<h3>Cura e escudo</h3><div class="row">'+cell('card2.webp','heal','+3','cura 3')+cell('card3.webp','shield','-2','escudo 2')+cell('card4.webp','heal','+11','cura 11')+'</div>';
+html+='<h3 style="color:#c98">Antes (tamanho crescia e subia)</h3><div class="row old">'+[[2,'card1.webp'],[8,'card4.webp']].map(([n,i])=>cell(i,'damage','-'+n,'dano '+n)).join('')+'</div>';
+document.getElementById('app').innerHTML=html;
+if(STILL!==null){document.querySelectorAll('.fn .star,.fn .dig').forEach(e=>{e.style.animationPlayState='paused';e.style.animationDelay='-'+STILL+'s'})}
+</script></body></html>

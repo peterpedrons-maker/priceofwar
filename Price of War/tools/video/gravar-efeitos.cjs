@@ -1,0 +1,69 @@
+const { chromium } = require(process.env.PW || 'playwright');
+const fs = require('fs'); const S = __dirname;
+const ONLY = (process.env.ONLY || '').split(',').filter(Boolean);
+(async () => {
+  const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 }); const page = await ctx.newPage();
+  const marks = []; const mark = n => marks.push([n, Date.now() / 1000]);
+  const FR = S + '/frames'; fs.mkdirSync(FR, { recursive: true }); for (const f of fs.readdirSync(FR)) fs.unlinkSync(FR + '/' + f);
+  const cdp = await ctx.newCDPSession(page); let fi = 0; const flist = [];
+  cdp.on('Page.screencastFrame', async (e) => { const p = `${FR}/f${String(fi++).padStart(6, '0')}.jpg`; fs.writeFile(p, Buffer.from(e.data, 'base64'), () => {}); flist.push([e.metadata.timestamp, p]); cdp.send('Page.screencastFrameAck', { sessionId: e.sessionId }).catch(() => {}); });
+  await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 82, maxWidth: 780, maxHeight: 1688, everyNthFrame: 1 });
+  const errs = []; page.on('pageerror', e => errs.push(String(e)));
+  await page.goto('http://localhost:4513/priceofwar/?debug'); await page.waitForTimeout(2500);
+  await page.getByText('Jogar como convidado').click(); await page.waitForTimeout(800);
+  await page.getByPlaceholder('Nome do comandante').fill('Peter'); await page.getByText('Começar').click(); await page.waitForTimeout(2500);
+  await page.getByText('Desafios', { exact: true }).first().click(); await page.waitForSelector('.dz-map'); await page.waitForTimeout(2000);
+  const bb = await page.locator('.dz-map .dz-mk').nth(0).boundingBox(); await page.mouse.click(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.waitForTimeout(2500);
+  await page.locator('.dz-decks .dz-dk').nth(0).click(); await page.waitForTimeout(300); await page.click('.dz-fight');
+  for (let i = 0; i < 40 && !(await page.evaluate(() => window.__powEngine && window.__powEngine())); i++) { const bt = page.getByText('Começar', { exact: true }); if (await bt.count()) await bt.first().click().catch(() => {}); await page.waitForTimeout(1000); }
+  await page.waitForFunction(() => /ENCERRAR PREPARA/i.test(document.body.innerText), null, { timeout: 120000 }).catch(() => {}); await page.waitForTimeout(1500);
+  const wait = ms => page.waitForTimeout(ms);
+  mark('sync'); await page.evaluate(() => { const d = document.createElement('div'); d.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:99999'; document.body.appendChild(d); setTimeout(() => d.remove(), 400); }); await wait(900);
+  // monta um cenário: me = {slot:[nome,atk,hp,tipo,extra]}, foe idem, hand = [nomes], fase
+  const DEFS = JSON.parse(fs.readFileSync(S + '/defs.json', 'utf8'));
+  const setup = (cfg) => page.evaluate(([cfg, DEFS]) => window.__powSet(st => {
+    let n = 5000 + Math.floor(Math.random() * 1000); const mk = (name, atk, hp, cost, type, ex = {}) => { const d = DEFS[name] || {}; return { id: 'z' + (n++), name, atk, hp, cost: cost ?? 1, cardType: type, effect: d.effect || '', isFullArt: d.isFullArt, faction: d.faction, ...(d.trigger ? { trigger: d.trigger } : {}), ...ex }; };
+    st.turn.round = 3; st.turn.phase = cfg.phase || 'preparacao'; st.turn.active = cfg.active ?? 0; st.pending = null; st.turn.attackCounts = {}; st.turn.moved = cfg.moved || []; st.turn.activated = []; st.turn.bonusRepositions = 0;
+    st.players[0].gold = 12; st.players[1].gold = 8;
+    for (let i = 0; i < 12; i++) { st.players[0].board[i] = null; st.players[1].board[i] = null; }
+    for (const [s, v] of Object.entries(cfg.me || {})) st.players[0].board[+s] = mk(...v);
+    for (const [s, v] of Object.entries(cfg.foe || {})) st.players[1].board[+s] = mk(...v);
+    st.players[0].hand = (cfg.hand || []).map(v => mk(...v)); st.players[1].hand = [];
+    if (cfg.gen0) st.players[0].board[12].hp = cfg.gen0; if (cfg.gen1) st.players[1].board[12].hp = cfg.gen1;
+  }), [cfg, DEFS]);
+  const handId = (name) => page.evaluate((nm) => (window.__powEngine().players[0].hand.find(c => c.name === nm) || {}).id, name);
+  const act = async (seat, a) => { const r = await page.evaluate(([s, a]) => window.__powAct(s, a), [seat, a]); if (!r || !r.ok) console.log('  ACT FALHOU', JSON.stringify(a).slice(0, 80), JSON.stringify(r).slice(0, 160)); return r; };
+  const play = async (name, slot, target) => { const id = await handId(name); if (!id) console.log('  SEM CARTA NA MAO', name); return act(0, { type: 'play', cardId: id, slot, target }); };
+  const resolvePending = async () => { for (let i = 0; i < 3; i++) { const p = await page.evaluate(() => window.__powEngine().pending); if (!p) return; if (p.kind === 'pick') await act(0, { type: 'choose', cardIds: p.options.slice(0, Math.max(p.min, 1)).map(c => c.id) }); else if (p.kind === 'discard') await act(0, { type: 'discard', cardIds: p.cards?.slice(0, p.count).map(c => c.id) ?? [] }); await wait(1500); } };
+  const scenes = {};
+  const sc = (k, f) => { scenes[k] = f; };
+  const U = (nm, a, h, t, c = 1, ex = {}) => [nm, a, h, c, t, ex];
+
+  sc('01-jogar-unidade', async () => { await setup({ me: { 1: U('Capa-Rota', 5, 3, 'Infantaria') }, foe: { 2: U('Rato da Muralha', 2, 2, 'Infantaria') }, hand: [U('Batedor', 1, 2, 'Infantaria'), U('Soldado Tático', 2, 3, 'Infantaria', 2)] }); await wait(2500); mark('01-jogar-unidade'); await play('Batedor', 3); await wait(3500); await play('Soldado Tático', 6); await wait(3500); });
+  sc('02-mover-carta', async () => { await setup({ phase: 'movimentacao', me: { 1: U('Capa-Rota', 5, 3, 'Infantaria'), 2: U('Batedor', 1, 2, 'Infantaria') }, foe: { 2: U('Rato da Muralha', 2, 2, 'Infantaria') } }); await wait(2500); mark('02-mover-carta'); await act(0, { type: 'move', from: 1, to: 6 }); await wait(3000); await act(0, { type: 'move', from: 2, to: 7 }); await wait(3000); });
+  sc('03-ataque-normal', async () => { await setup({ phase: 'combate', me: { 2: U('Capa-Rota', 5, 6, 'Infantaria') }, foe: { 2: U('Florete de Aposta', 2, 8, 'Infantaria', 2) } }); await wait(2500); mark('03-ataque-normal'); await act(0, { type: 'attack', from: 2, to: 2 }); await wait(4500); });
+  sc('04-ataque-destroi-cinzas', async () => { await setup({ phase: 'combate', me: { 2: U('Capa-Rota', 6, 6, 'Infantaria') }, foe: { 2: U('Rato da Muralha', 2, 2, 'Infantaria') } }); await wait(2500); mark('04-ataque-destroi-cinzas'); await act(0, { type: 'attack', from: 2, to: 2 }); await wait(6500); });
+  sc('05-ataque-ao-general', async () => { await setup({ phase: 'combate', me: { 2: U('Capa-Rota', 5, 6, 'Infantaria') }, foe: {} }); await wait(2500); mark('05-ataque-ao-general'); await act(0, { type: 'attack', from: 2, to: 12 }); await wait(4500); });
+  sc('06-tatica-dano-uma', async () => { await setup({ me: {}, foe: { 2: U('Capa-Rota', 5, 5, 'Infantaria') }, hand: [U('Balestra da Penitência', 0, 0, 'Tática', 2)] }); await wait(2500); mark('06-tatica-dano-uma'); await play('Balestra da Penitência', undefined, 2); await wait(5500); });
+  sc('07-tatica-dano-fileira', async () => { await setup({ foe: { 1: U('Capa-Rota', 5, 5, 'Infantaria'), 2: U('Rato da Muralha', 2, 5, 'Infantaria'), 3: U('Florete de Aposta', 6, 5, 'Infantaria') }, hand: [U('Catapulta do Dilúvio de Pedra', 0, 0, 'Tática', 2)] }); await wait(2500); mark('07-tatica-dano-fileira'); await play('Catapulta do Dilúvio de Pedra', undefined, 2); await wait(6000); });
+  sc('08-tatica-dano-todos', async () => { await setup({ foe: { 1: U('Capa-Rota', 5, 5, 'Infantaria'), 2: U('Rato da Muralha', 2, 5, 'Infantaria'), 6: U('Besteiro Dedo-Ligeiro', 2, 5, 'Arqueiro') }, hand: [U('Trabuco da Trombeta Final', 0, 0, 'Tática', 3)] }); await wait(2500); mark('08-tatica-dano-todos'); await play('Trabuco da Trombeta Final'); await wait(7000); });
+  sc('09-cura-general', async () => { await setup({ me: { 2: U('Capa-Rota', 5, 1, 'Infantaria') }, foe: {} }); await wait(2500); mark('09-cura-general'); await act(0, { type: 'ability', slot: 12, target: 2 }); await wait(4500); });
+  sc('10-efeito-disparado-comando', async () => { await setup({ me: { 1: U('Capa-Rota', 5, 3, 'Infantaria'), 3: U('Rato da Muralha', 2, 2, 'Infantaria') }, foe: {}, hand: [U('Capitão de Formação', 2, 4, 'Infantaria', 3)] }); await wait(2500); mark('10-efeito-disparado-comando'); await play('Capitão de Formação', 2); await wait(5500); });
+  sc('11-comprar-cartas', async () => { await setup({ me: {}, foe: {}, hand: [U('Corneteiro da Coluna', 1, 2, 'Infantaria', 2)] }); await wait(2500); mark('11-comprar-cartas'); await play('Corneteiro da Coluna', 2); await wait(6000); });
+  sc('12-embaralhar-convocar', async () => { await setup({ me: {}, foe: {} }); await wait(2500); mark('12-embaralhar-convocar'); await page.evaluate(() => window.__cardFx.shuffle('player')); await wait(3500); await page.evaluate(() => window.__cardFx.shuffle('npc')); await wait(3500); });
+  sc('13-equipar-arma', async () => { await setup({ me: { 2: U('Capa-Rota', 5, 3, 'Infantaria') }, foe: {}, hand: [U('Lâmina do Juramento', 0, 0, 'Tática', 1), U('Gibão Bento', 0, 0, 'Tática', 1)] }); await wait(2500); mark('13-equipar-arma'); await play('Lâmina do Juramento', undefined, 2); await wait(5000); await play('Gibão Bento', undefined, 2); await wait(5000); });
+  sc('14-escudo-sentinela', async () => { await setup({ phase: 'combate', me: { 1: U('Capa-Rota', 5, 2, 'Infantaria'), 6: U('Sentinela do Claustro', 2, 4, 'Infantaria', 3) }, foe: { 1: U('Florete de Aposta', 6, 5, 'Infantaria', 2) }, active: 1 }); await wait(2500); mark('14-escudo-sentinela'); await act(1, { type: 'attack', from: 1, to: 1 }); await wait(7000); });
+  sc('15-reliquia-modo', async () => { await setup({ phase: 'movimentacao', me: { 2: U('Capa-Rota', 5, 3, 'Infantaria', 1, { mode: undefined }), 10: U('Códice das Mil Dívidas', 0, 5, 'Relíquia', 3, { isFullArt: true }) }, foe: {} }); await wait(2500); mark('15-reliquia-modo'); await act(0, { type: 'relic_mode', mode: 'soldo', slot: 10 }); await wait(5000); });
+  sc('16-terreno-forja', async () => { await setup({ me: { 2: U('Capa-Rota', 5, 3, 'Infantaria') }, foe: {}, hand: [U('A Forja que Nunca Apaga', 0, 0, 'Terreno', 3), U('Lâmina do Juramento', 0, 0, 'Tática', 1)] }); await wait(2500); mark('16-terreno-forja'); await play('A Forja que Nunca Apaga', 11); await wait(5000); await play('Lâmina do Juramento', undefined, 2); await wait(6000); });
+  sc('17-terreno-fogo-sinal', async () => { await setup({ me: { 2: U('Capa-Rota', 5, 3, 'Infantaria') }, foe: {}, hand: [U('Posto do Fogo-Sinal', 0, 0, 'Terreno', 2)] }); await wait(2500); mark('17-terreno-fogo-sinal'); await play('Posto do Fogo-Sinal', 11); await wait(6000); });
+  sc('18-reliquia-arsenal', async () => { await setup({ me: { 2: U('Capa-Rota', 5, 3, 'Infantaria') }, foe: {}, hand: [U('Arsenal dos Mil Invernos', 0, 0, 'Relíquia', 3), U('Espada de Mil Mãos', 0, 0, 'Tática', 1)] }); await wait(2500); mark('18-reliquia-arsenal'); await play('Arsenal dos Mil Invernos', 10); await wait(5000); await play('Espada de Mil Mãos', undefined, 2); await wait(6000); });
+  sc('19-emboscada', async () => { await setup({ phase: 'combate', active: 1, me: { 2: U('Zeloso da Pira', 0, 4, 'Infantaria') }, foe: { 2: U('Cambista do Dízimo', 7, 9, 'Infantaria') }, hand: [U('Dentes da Cerca', 0, 0, 'Emboscada', 2)] }); await wait(1500); mark('19-emboscada'); await page.getByText('Ativar', { exact: true }).first().waitFor({ timeout: 40000 }).catch(() => console.log('  SEM PROMPT DE EMBOSCADA')); await wait(2500); await page.getByText('Ativar', { exact: true }).first().click().catch(() => {}); await wait(6000); });
+  sc('20-reforco-e-destruicao', async () => { await setup({ phase: 'combate', me: { 2: U('Capa-Rota', 9, 5, 'Infantaria'), 7: U('Rato da Muralha', 2, 2, 'Infantaria') }, foe: { 2: U('Florete de Aposta', 2, 3, 'Infantaria', 2), 7: U('Besteiro Dedo-Ligeiro', 2, 3, 'Arqueiro', 2) } }); await wait(2500); mark('20-reforco-e-destruicao'); await act(0, { type: 'attack', from: 2, to: 2 }); await wait(8000); });
+  sc('21-golpe-final', async () => { await setup({ phase: 'combate', me: { 2: U('Capa-Rota', 9, 5, 'Infantaria') }, foe: {}, gen1: 3 }); await wait(2500); mark('21-golpe-final'); await act(0, { type: 'attack', from: 2, to: 12 }); await wait(9000); });
+  sc('22-previa-carta-sem-brilho-por-cima', async () => { const W = [{ id: 'w1', name: 'Lâmina do Juramento', cardType: 'Tática', atk: 0, hp: 0, cost: 1, effect: 'Equipe uma Infantaria ou Cavalaria: +2 ATK. A unidade equipada fica **Armada**' }]; await setup({ phase: 'preparacao', me: { 2: U('Capa-Rota', 5, 1, 'Infantaria') }, foe: { 2: U('Capitão de Formação', 2, 4, 'Infantaria', 3, { equippedWeapons: W }), 3: U('Batedor', 1, 2, 'Infantaria') } }); await wait(2500); mark('22-previa-carta-sem-brilho-por-cima'); const r = await page.evaluate(() => { const e = document.getElementById('npc-2').getBoundingClientRect(); return [e.x + e.width / 2, e.y + e.height / 2]; }); await page.mouse.click(r[0], r[1]); await wait(3500); await page.mouse.click(30, 700); await wait(1500); });
+  sc('23-efeito-pronto-ativar', async () => { await setup({ me: { 2: U('Capa-Rota', 5, 1, 'Infantaria'), 3: U('Batedor', 1, 2, 'Infantaria') }, foe: {}, phase: 'preparacao' }); await wait(2500); mark('23-efeito-pronto-ativar'); await wait(5500); });
+
+  for (const k of Object.keys(scenes).sort()) { if (ONLY.length && !ONLY.some(o => k.startsWith(o))) continue; try { await scenes[k](); await resolvePending(); } catch (e) { console.log('ERRO', k, String(e).slice(0, 200)); } }
+  mark('fim'); await cdp.send('Page.stopScreencast').catch(() => {}); await page.waitForTimeout(500); await ctx.close(); await b.close();
+  fs.writeFileSync(S + '/rec-marks.json', JSON.stringify(marks)); fs.writeFileSync(S + '/rec-frames.json', JSON.stringify(flist)); console.log(JSON.stringify(marks).slice(0, 200), errs, flist.length);
+})();

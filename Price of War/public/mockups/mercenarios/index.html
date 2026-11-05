@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mercenários — mesa de teste</title>
+<style>
+  :root { --bg:#17110c; --panel:#241a12; --panel2:#2e2217; --line:#5b4426; --gold:#e9bf5a; --gold2:#b88a2c; --text:#f0e4cc; --mut:#a8957a; --red:#d4604a; --green:#6cc27a; --blue:#79a8d8; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; padding:12px 12px 90px; max-width:640px; margin-inline:auto; }
+  h1 { font-size:18px; margin:4px 0 2px; color:var(--gold); letter-spacing:.04em; }
+  .sub { color:var(--mut); font-size:13px; margin-bottom:10px; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:10px; }
+  .hud { display:flex; gap:8px; align-items:stretch; }
+  .hud > div { flex:1; background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:6px 8px; text-align:center; }
+  .hud b { display:block; font-size:22px; color:var(--gold); line-height:1.1; }
+  .hud small { color:var(--mut); font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.1em; color:var(--mut); margin:0 0 8px; font-weight:700; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
+  .card { background:linear-gradient(160deg,#3a2b1b,#271c12); border:1px solid var(--line); border-radius:10px; padding:8px; position:relative; min-height:112px; display:flex; flex-direction:column; gap:3px; }
+  .card.relic { border-color:var(--gold2); background:linear-gradient(160deg,#4a3818,#2b2010); }
+  .card.free { border-style:dashed; }
+  .card .nm { font-weight:700; font-size:13px; line-height:1.15; padding-right:26px; }
+  .card .ty { color:var(--mut); font-size:11px; }
+  .card .st { font-size:12px; color:var(--text); }
+  .card .tx { font-size:11.5px; color:#d6c7a8; flex:1; }
+  .cost { position:absolute; top:6px; right:6px; width:22px; height:22px; border-radius:50%; background:var(--gold); color:#2a1d08; font-weight:800; font-size:12px; display:grid; place-items:center; }
+  .up { display:inline-block; font-size:11px; font-weight:700; padding:1px 6px; border-radius:6px; background:#5a2c22; color:#ffb4a3; }
+  .up.none { background:#25402b; color:#a8e6b3; }
+  .tag { display:inline-block; font-size:10.5px; padding:1px 6px; border-radius:6px; background:#1f3347; color:#a9cdf0; margin-right:4px; }
+  button { font:inherit; color:var(--text); background:#3a2b1b; border:1px solid var(--line); border-radius:10px; padding:9px 12px; cursor:pointer; }
+  button.primary { background:linear-gradient(#e9bf5a,#b88a2c); color:#2a1d08; font-weight:800; border-color:#e9bf5a; }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; }
+  .row > button { flex:1; min-width:120px; }
+  .modes { display:grid; gap:6px; margin-top:8px; }
+  .mode { text-align:left; display:block; width:100%; }
+  .mode.on { border-color:var(--gold); background:#4a3818; }
+  .mode small { display:block; color:var(--mut); font-size:12px; }
+  .board .unit { display:flex; align-items:center; gap:8px; padding:7px 8px; background:var(--panel2); border:1px solid var(--line); border-radius:9px; margin-bottom:6px; font-size:13px; }
+  .board .unit .grow { flex:1; }
+  .board .unit small { color:var(--mut); }
+  .empty { color:var(--mut); font-size:13px; padding:4px 2px; }
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.72); display:flex; align-items:flex-end; justify-content:center; z-index:10; }
+  .modal .sheet { background:var(--panel); border:1px solid var(--gold2); border-radius:16px 16px 0 0; padding:14px; width:100%; max-width:640px; max-height:88vh; overflow:auto; }
+  .modal h3 { margin:0 0 4px; color:var(--gold); font-size:16px; }
+  .pay { display:flex; align-items:center; gap:8px; padding:8px; background:var(--panel2); border:1px solid var(--line); border-radius:9px; margin-bottom:6px; }
+  .pay .grow { flex:1; font-size:13px; }
+  .pay small { display:block; color:var(--mut); font-size:11.5px; }
+  .sw { width:92px; padding:7px 4px; font-size:12.5px; font-weight:700; }
+  .sw.pay-on { background:#25402b; border-color:var(--green); color:#c8f1d0; }
+  .sw.pay-off { background:#4a2018; border-color:var(--red); color:#ffc2b4; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th, td { padding:4px 3px; text-align:center; border-bottom:1px solid #3a2b1b; }
+  th { color:var(--mut); font-weight:600; font-size:10.5px; text-transform:uppercase; }
+  .log { font-size:12.5px; color:#d6c7a8; max-height:150px; overflow:auto; }
+  .log div { padding:2px 0; border-bottom:1px solid #2c2014; }
+  .note { font-size:12px; color:var(--mut); }
+  .pos { color:var(--green); } .neg { color:var(--red); }
+  .bar { position:fixed; left:0; right:0; bottom:0; background:rgba(23,17,12,.96); border-top:1px solid var(--line); padding:10px 12px calc(10px + env(safe-area-inset-bottom)); display:flex; gap:8px; max-width:640px; margin-inline:auto; }
+  .bar button { flex:1; }
+</style>
+</head>
+<body>
+<h1>MERCENÁRIOS — MESA DE TESTE</h1>
+<div class="sub">Só a economia: ouro, manutenção e a relíquia de modos. Não é o jogo (não há combate): você diz quando destruiu uma carta inimiga. Os números são <b>suposições</b> para sentir a ideia.</div>
+<div id="app"></div>
+
+<script>
+// ---- Cartas de exemplo (propostas) -------------------------------------------------------------------------------
+// up = manutenção por turno (ouro). back = ao dispensar, volta para a mão (senão vai ao cemitério).
+const CARDS = {
+  lanceiro:  { name:'Lanceiro Pés-de-Lama',   type:'Infantaria', atk:3, hp:3, cost:1, up:1, text:'' },
+  besteiro:  { name:'Besteiro Dedo-Ligeiro',   type:'Arqueiro',   atk:2, hp:2, cost:1, up:1, text:'Ataque à distância.' },
+  espadachim:{ name:'Capa-Rota',   type:'Infantaria', atk:4, hp:4, cost:2, up:1, text:'' },
+  desertor:  { name:'Rato da Muralha',              type:'Infantaria', atk:2, hp:2, cost:1, up:1, text:'Rescisão: compre 1 carta.', rescisao:'compre 1 carta' },
+  capitao:   { name:'Capitão Barba-de-Corvo',  type:'Infantaria', atk:3, hp:5, cost:2, up:2, text:'Na Vanguarda, seus Infantaria e Arqueiros têm +1 ATK.' },
+  errante:   { name:'Cavaleiro do Escudo Raspado',     type:'Cavalaria',  atk:4, hp:5, cost:3, up:1, text:'Se dispensado, volta para a mão.', back:true },
+  duelista:  { name:'Florete de Aposta',        type:'Infantaria', atk:5, hp:3, cost:2, up:1, text:'Se dispensado, volta para a mão.', back:true },
+  bombardeiro:{ name:'Boca-de-Fogo', type:'Artilharia', atk:3, hp:2, cost:2, up:1, text:'Ataca à distância.' },
+  sentinela: { name:'Vigia da Última Brasa',        type:'Infantaria', atk:2, hp:4, cost:2, up:0, text:'Sem manutenção.' },
+  tesoureiro:{ name:'Quillon Contamoedas', type:'Infantaria', atk:1, hp:3, cost:2, up:0, text:'Início do turno: ganhe 1 de ouro.', income:1 },
+  livro:     { name:'Códice das Mil Dívidas',    type:'Relíquia',   atk:0, hp:5, cost:3, up:0, relic:true, text:'Escolha 1 modo no fim do seu turno; vale até o fim do próximo.' },
+};
+const COPIES = { lanceiro:4, besteiro:4, espadachim:4, desertor:4, capitao:2, errante:3, duelista:4, bombardeiro:3, sentinela:4, tesoureiro:3, livro:3 };
+const MODES = {
+  cofre:   { name:'Cofre de Guerra',  desc:'A manutenção total do turno cai 2.' },
+  extorsao:{ name:'Extorsão',         desc:'+1 de ouro por unidade inimiga destruída (máx. 2 por ciclo).' },
+  soldo:   { name:'Soldo em Dobro',   desc:'Cartas com manutenção têm +1 ATK. (Aqui só aparece; sem combate para medir.)' },
+};
+const START_GOLD = 15, INCOME = 5, HAND = 7, LOOT_CAP = 2, MAX_BOARD = 10;
+
+let S;
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function newGame(){
+  const deck=[]; for(const id in COPIES) for(let i=0;i<COPIES[id];i++) deck.push(id);
+  shuffle(deck);
+  S = { round:1, gold:START_GOLD, deck, hand:deck.splice(0,HAND), board:[], grave:[], relic:false,
+        mode:null, pendingMode:null, phase:'prep', looted:0, hist:[], cur:null, log:[], modal:null };
+  S.cur = { start:START_GOLD, income:0, upkeep:0, spent:0, loot:0 };
+  log('Começou. 15 de ouro, 7 cartas. Nesta mesa a rodada 1 já é a sua vez.');
+}
+function log(t){ S.log.unshift(t); S.log=S.log.slice(0,40); }
+const upOf = id => CARDS[id].up || 0;
+const flat = () => (S.relic && S.mode==='cofre') ? 2 : 0;
+const totalUp = ids => Math.max(0, ids.reduce((a,id)=>a+upOf(id),0) - flat());
+const modeActive = () => S.relic ? S.mode : null;
+
+function play(i){
+  const id=S.hand[i], c=CARDS[id];
+  if (S.phase!=='prep') return;
+  if (c.cost>S.gold){ log('Ouro insuficiente para '+c.name+'.'); return render(); }
+  if (c.relic){
+    if (S.relic){ log('A casa da Relíquia já está ocupada.'); return render(); }
+    S.relic=true; S.mode = S.mode || 'cofre'; S.pendingMode=null;
+    log('Relíquia em campo: '+c.name+' (modo inicial: '+MODES[S.mode].name+').');
+  } else {
+    if (S.board.length>=MAX_BOARD){ log('Campo cheio.'); return render(); }
+    S.board.push(id);
+    log('Convocou '+c.name+' (−'+c.cost+').');
+  }
+  S.hand.splice(i,1); S.gold-=c.cost; S.cur.spent+=c.cost; render();
+}
+function destroyOwn(i){
+  const id=S.board[i]; S.board.splice(i,1); S.grave.push(id);
+  log(CARDS[id].name+' foi destruído (some a manutenção dele).'); render();
+}
+function enemyDestroyed(){
+  if (S.phase!=='combate') return;
+  if (modeActive()==='extorsao'){
+    if (S.looted>=LOOT_CAP){ log('Carta inimiga destruída: teto de '+LOOT_CAP+' ouro por turno já atingido.'); }
+    else { S.looted++; S.gold++; S.cur.loot++; log('Carta inimiga destruída: +1 de ouro (Extorsão).'); }
+  } else log('Carta inimiga destruída (sem ouro: modo '+(modeActive()?MODES[modeActive()].name:'—')+').');
+  render();
+}
+function toCombat(){ S.phase='combate'; render(); }
+function endTurn(){
+  if (S.relic){ S.modal={ kind:'mode', pick:S.mode }; } else nextRound();
+  render();
+}
+function nextRound(){
+  if (S.modal && S.modal.kind==='mode') S.mode=S.modal.pick;
+  S.modal=null; S.hist.push({ r:S.round, ...S.cur, end:S.gold });
+  S.round++; S.phase='prep'; S.looted=0;
+  const start=S.gold; S.gold+=INCOME; S.cur={ start, income:INCOME, upkeep:0, spent:0, loot:0 };
+  const tes = S.board.filter(id=>CARDS[id].income).length;
+  if (tes){ S.gold+=tes; S.cur.income+=tes; }
+  if (S.deck.length){ S.hand.push(S.deck.shift()); }
+  log('— Rodada '+S.round+': +'+INCOME+(tes?' +'+tes+' (Tesoureiro)':'')+' de ouro, comprou 1 carta. Modo da relíquia: '+(modeActive()?MODES[modeActive()].name:'sem relíquia')+'.');
+  const units=S.board.map((id,i)=>({id,i,pay:true})).filter(u=>upOf(u.id)>0);
+  if (units.length && totalUp(units.map(u=>u.id))>0) S.modal={ kind:'upkeep', units };
+}
+function totalPay(){ return totalUp(S.modal.units.filter(u=>u.pay).map(u=>u.id)); }
+function confirmUpkeep(){
+  const m=S.modal, pay=totalPay();
+  if (pay>S.gold) return;
+  S.gold-=pay; S.cur.upkeep+=pay;
+  const gone=m.units.filter(u=>!u.pay).sort((a,b)=>b.i-a.i);
+  for (const u of gone){
+    const c=CARDS[u.id]; S.board.splice(u.i,1);
+    if (c.back){ S.hand.push(u.id); log(c.name+' foi dispensado e voltou para a mão.'); }
+    else { S.grave.push(u.id); log(c.name+' foi dispensado (cemitério).'+(c.rescisao?' Rescisão: '+c.rescisao+'.':'')); }
+  }
+  if (pay) log('Manutenção paga: −'+pay+' de ouro.');
+  S.modal=null; render();
+}
+
+// ---- Interface ---------------------------------------------------------------------------------------------------
+const $ = s => document.querySelector(s);
+function cardHTML(id, extra=''){
+  const c=CARDS[id];
+  const stats = c.relic ? 'Relíquia · '+c.hp+' de vida' : c.type+' · '+c.atk+'/'+c.hp;
+  const up = c.relic ? '' : (c.up ? '<span class="up">Manutenção '+c.up+'</span>' : '<span class="up none">Sem manutenção</span>');
+  return '<div class="card'+(c.relic?' relic':'')+(c.up===0&&!c.relic?' free':'')+'" '+extra+'><div class="cost">'+c.cost+'</div><div class="nm">'+c.name+'</div><div class="st">'+stats+'</div><div class="tx">'+(c.text||'&nbsp;')+'</div><div>'+up+'</div></div>';
+}
+function render(){
+  const upk = totalUp(S.board);
+  let h = '';
+  h += '<div class="panel"><div class="hud">'
+    + '<div><small>Rodada</small><b>'+S.round+'</b></div>'
+    + '<div><small>Ouro</small><b>'+S.gold+'</b></div>'
+    + '<div><small>Manutenção/turno</small><b>'+upk+'</b></div>'
+    + '<div><small>Fase</small><b style="font-size:15px;padding-top:5px">'+(S.phase==='prep'?'Preparação':'Combate')+'</b></div></div></div>';
+
+  h += '<div class="panel"><h2>Relíquia</h2>';
+  if (!S.relic) h += '<div class="empty">Nenhuma em campo. Jogue o Códice das Mil Dívidas (custo 3).</div>';
+  else h += '<div><b>'+CARDS.livro.name+'</b> — modo ativo: <span style="color:var(--gold)"><b>'+MODES[S.mode].name+'</b></span><div class="note">'+MODES[S.mode].desc+' Para trocar, só no fim do turno; vale até o fim do turno seguinte.</div></div>';
+  h += '</div>';
+
+  h += '<div class="panel board"><h2>Seu campo ('+S.board.length+'/'+MAX_BOARD+')</h2>';
+  if (!S.board.length) h += '<div class="empty">Vazio.</div>';
+  S.board.forEach((id,i)=>{ const c=CARDS[id]; const u=upOf(id);
+    h += '<div class="unit"><div class="grow"><b>'+c.name+'</b> <small>'+c.atk+'/'+c.hp+(S.mode==='soldo'&&S.relic&&c.up?' (+1 ATK)':'')+'</small><br><small>'+(c.up?'manutenção '+u:'sem manutenção')+'</small></div><button data-act="destroy" data-i="'+i+'">foi destruído</button></div>'; });
+  h += '</div>';
+
+  h += '<div class="panel"><h2>Sua mão ('+S.hand.length+') — toque para jogar</h2><div class="cards">';
+  S.hand.forEach((id,i)=>{ h += cardHTML(id,'data-act="play" data-i="'+i+'" style="cursor:pointer;'+(CARDS[id].cost>S.gold||S.phase!=='prep'?'opacity:.5':'')+'"'); });
+  if (!S.hand.length) h += '<div class="empty">Sem cartas.</div>';
+  h += '</div><div class="note" style="margin-top:6px">Baralho: '+S.deck.length+' · Cemitério: '+S.grave.length+'</div></div>';
+
+  if (S.phase==='combate'){
+    h += '<div class="panel"><h2>Combate</h2><button class="primary" style="width:100%" data-act="kill">Destruí uma carta inimiga'+(modeActive()==='extorsao'?' (+1 ouro, '+S.looted+'/'+LOOT_CAP+')':'')+'</button></div>';
+  }
+
+  h += '<div class="panel"><h2>Histórico de ouro por turno</h2>';
+  if (!S.hist.length && !S.cur) h+='';
+  h += '<table><tr><th>Rod.</th><th>Início</th><th>Renda</th><th>Gasto</th><th>Manut.</th><th>Saque</th><th>Fim</th></tr>';
+  S.hist.forEach(r=>{ h+='<tr><td>'+r.r+'</td><td>'+r.start+'</td><td class="pos">+'+r.income+'</td><td class="neg">−'+r.spent+'</td><td class="neg">−'+r.upkeep+'</td><td class="pos">+'+r.loot+'</td><td><b>'+r.end+'</b></td></tr>'; });
+  h += '<tr><td>'+S.round+'*</td><td>'+S.cur.start+'</td><td class="pos">+'+S.cur.income+'</td><td class="neg">−'+S.cur.spent+'</td><td class="neg">−'+S.cur.upkeep+'</td><td class="pos">+'+S.cur.loot+'</td><td><b>'+S.gold+'</b></td></tr></table><div class="note">* turno em andamento. Renda: +5 por rodada (a partir da 2ª) e Tesoureiros.</div></div>';
+
+  h += '<div class="panel"><h2>Registro</h2><div class="log">'+S.log.map(l=>'<div>'+l+'</div>').join('')+'</div></div>';
+
+  h += '<div class="panel"><h2>Todas as cartas do teste</h2><div class="cards">'+Object.keys(CARDS).map(id=>cardHTML(id)).join('')+'</div>'
+     + '<div class="note" style="margin-top:6px">Regra de bolso: mercenário custa 1 a menos para convocar do que uma carta normal de mesmo tamanho e cobra manutenção por turno. Capitão paga 2 por ter efeito.</div></div>';
+
+  h += '<div class="bar">'
+     + (S.phase==='prep' ? '<button data-act="combat">Ir para o Combate</button>' : '<button data-act="back">Voltar à Preparação</button>')
+     + '<button class="primary" data-act="end">Encerrar turno</button><button data-act="reset">Reiniciar</button></div>';
+
+  if (S.modal){
+    if (S.modal.kind==='upkeep'){
+      const pay=totalPay(), ok=pay<=S.gold;
+      h += '<div class="modal"><div class="sheet"><h3>Suprimentos — manutenção</h3><div class="note" style="margin-bottom:8px">Você tem <b>'+S.gold+'</b> de ouro.'+(flat()?' O Cofre de Guerra abate '+flat()+' do total.':'')+' Quem não for pago vai embora.</div>';
+      S.modal.units.forEach((u,k)=>{ const c=CARDS[u.id], cost=upOf(u.id);
+        h += '<div class="pay"><div class="grow"><b>'+c.name+'</b> <small>'+c.atk+'/'+c.hp+' · manutenção '+cost+'</small><small>'+(u.pay?'fica no campo':(c.back?'dispensado: volta para a mão':'dispensado: vai ao cemitério'+(c.rescisao?' · Rescisão: '+c.rescisao:'')))+'</small></div><button class="sw '+(u.pay?'pay-on':'pay-off')+'" data-act="toggle" data-k="'+k+'">'+(u.pay?'Pagar '+cost:'Dispensar')+'</button></div>'; });
+      h += '<div class="row" style="margin-top:10px"><button data-act="allpay">Pagar tudo que der</button><button class="primary" data-act="confirm" '+(ok?'':'disabled')+'>Confirmar (−'+pay+')</button></div>'+(ok?'':'<div class="note neg" style="margin-top:6px">Falta ouro: dispense alguém.</div>')+'</div></div>';
+    } else if (S.modal.kind==='mode'){
+      h += '<div class="modal"><div class="sheet"><h3>Fim do turno — modo da relíquia</h3><div class="note">Escolha o modo para o <b>próximo turno</b>. Ele fica travado até o fim do turno seguinte.</div><div class="modes">'
+        + Object.keys(MODES).map(k=>'<button class="mode'+(S.modal.pick===k?' on':'')+'" data-act="pick" data-k="'+k+'"><b>'+MODES[k].name+'</b><small>'+MODES[k].desc+'</small></button>').join('')
+        + '</div><div class="row" style="margin-top:10px"><button class="primary" data-act="next">Confirmar e passar a vez</button></div></div></div>';
+    }
+  }
+  $('#app').innerHTML = h;
+}
+document.addEventListener('click', e=>{
+  const t=e.target.closest('[data-act]'); if(!t) return;
+  const a=t.dataset.act, i=+t.dataset.i, k=t.dataset.k;
+  if (a==='play') play(i);
+  else if (a==='destroy') destroyOwn(i);
+  else if (a==='kill') enemyDestroyed();
+  else if (a==='combat') toCombat();
+  else if (a==='back'){ S.phase='prep'; render(); }
+  else if (a==='end') endTurn();
+  else if (a==='reset'){ newGame(); render(); }
+  else if (a==='pick'){ S.modal.pick=k; render(); }
+  else if (a==='next'){ nextRound(); render(); }
+  else if (a==='toggle'){ S.modal.units[+k].pay=!S.modal.units[+k].pay; render(); }
+  else if (a==='allpay'){ S.modal.units.forEach(u=>u.pay=false); [...S.modal.units].sort((a,b)=>upOf(a.id)-upOf(b.id)).forEach(u=>{ u.pay=true; if (totalPay()>S.gold) u.pay=false; }); render(); }
+  else if (a==='confirm') confirmUpkeep();
+});
+newGame(); render();
+</script>
+</body>
+</html>

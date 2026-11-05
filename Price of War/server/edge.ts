@@ -1,0 +1,40 @@
+// Supabase Edge Function entry (Deno). Built into supabase/functions/game/index.ts by `npm run build:edge` —
+// that single file is what gets deployed (CLI or pasted in the dashboard).
+// @ts-ignore Deno resolves this specifier at runtime
+import { createClient } from 'npm:@supabase/supabase-js@2';
+import { handleGame, type GameRequest } from './handler';
+import { supabaseDb } from './supabaseDb';
+
+declare const Deno: { env: { get(name: string): string | undefined }; serve(handler: (req: Request) => Promise<Response> | Response): void };
+
+const cors = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
+  'access-control-allow-methods': 'POST, OPTIONS',
+};
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'content-type': 'application/json' } });
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+  if (req.method !== 'POST') return json({ ok: false, error: 'Método não permitido.' }, 405);
+  try {
+    const url = Deno.env.get('SUPABASE_URL')!;
+    const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const admin = createClient(url, service, { auth: { persistSession: false, autoRefreshToken: false } });
+    const token = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
+    const { data, error } = await admin.auth.getUser(token);
+    if (error || !data?.user) return json({ ok: false, error: 'Entre na sua conta para jogar online.' }, 401);
+    // The body is a small JSON object (a deck is the biggest thing a phone sends): anything bigger is refused unread.
+    if (Number(req.headers.get('content-length') ?? 0) > 100_000) return json({ ok: false, error: 'Pedido grande demais.' }, 413);
+    const raw = await req.text();
+    if (raw.length > 100_000) return json({ ok: false, error: 'Pedido grande demais.' }, 413);
+    let body: GameRequest;
+    try { body = JSON.parse(raw) as GameRequest; } catch { return json({ ok: false, error: 'Pedido inválido.' }, 400); }
+    const list = (name: string) => (Deno.env.get(name) ?? '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+    const who = { email: data.user.email ?? null, verified: !!data.user.email_confirmed_at, admins: list('ADMIN_EMAILS'), adminIds: list('ADMIN_USER_IDS') };
+    return json(await handleGame(supabaseDb(admin), data.user.id, body, undefined, who));
+  } catch (e) {
+    console.error('game function error', e);
+    return json({ ok: false, error: 'Erro no servidor de partidas. Tente de novo.' }, 500);
+  }
+});
