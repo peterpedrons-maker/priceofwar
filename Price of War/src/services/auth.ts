@@ -12,7 +12,12 @@ export type OAuthProvider = 'google' | 'discord';
 
 const URL = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined;
 const KEY = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined;
-export const authMode: 'supabase' | 'local' = URL && KEY ? 'supabase' : 'local';
+// Modo offline (escolha do jogador, para quando o servidor está fora do ar): usa a conta local, sem Supabase. Trocar recarrega a página.
+const OFFLINE_KEY = 'pow.offline';
+export const onlineConfigured = !!(URL && KEY);
+export const isOfflineMode = (): boolean => { try { return localStorage.getItem(OFFLINE_KEY) === '1'; } catch { return false; } };
+export const setOfflineMode = (on: boolean) => { try { if (on) localStorage.setItem(OFFLINE_KEY, '1'); else localStorage.removeItem(OFFLINE_KEY); } catch { /* sem armazenamento */ } window.location.reload(); };
+export const authMode: 'supabase' | 'local' = URL && KEY && !isOfflineMode() ? 'supabase' : 'local';
 
 const LOCAL_SESSION_KEY = 'pow_session_v1';
 

@@ -5,7 +5,7 @@ import { fetchMissions } from './services/online';
 import { mountMissionBanner, noteMissions, checkMissionBanners } from './missionBanner';
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { fetchProfile, usernameAvailable, createProfile, updateProfileFields, fetchStore, pushStore, type CloudDeck } from './services/cloud';
-import { getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authErrorDetail, authMode, type Session } from './services/auth';
+import { isOfflineMode, onlineConfigured, setOfflineMode, getSession, onSessionChange, signInOAuth, signInEmail, signInGuest, signOut, authErrorText, authErrorDetail, authMode, type Session } from './services/auth';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate as motionAnimate, type MotionValue } from 'motion/react';
 import { X, ArrowUp, ArrowDown } from 'lucide-react';
 import { TurnTracker, TRACKER_NAMES } from './TurnTracker';
@@ -5110,13 +5110,22 @@ const LoginScreen = () => {
             {note && <p className="text-center text-[12px] text-[#8fe0a4]" style={{ fontFamily: "'PT Serif', serif" }}>{note}</p>}
             <div className="flex items-center gap-2 px-2 pt-0.5"><div className="flex-1 h-px bg-[#d4af37]/30" /><span className="text-[10px] uppercase tracking-[0.2em] text-[#a89a78]" style={{ fontFamily: "'Cinzel', serif" }}>ou</span><div className="flex-1 h-px bg-[#d4af37]/30" /></div>
             <AuthButton label="Jogar como convidado" busy={busy === 'guest'} onClick={() => run('guest', signInGuest)} />
+            {authMode === 'supabase' && <button type="button" onClick={() => setOfflineMode(true)} className="text-center text-[11px] underline text-[#cdbd97]" style={{ fontFamily: "'PT Serif', serif" }}>Servidor fora do ar? Jogar offline (sem conta)</button>}
             <p className="text-center text-[10.5px] leading-snug text-[#a89a78]" style={{ fontFamily: "'PT Serif', serif" }}>
               Ao entrar você concorda com as <a href={`${import.meta.env.BASE_URL}${getLang() === 'en' ? 'privacy-en.html' : 'privacidade.html'}`} target="_blank" rel="noreferrer" className="text-[#e8c766] underline">regras e a política de privacidade</a>.
             </p>
-            {authMode === 'local' && (
+            {authMode === 'local' && !onlineConfigured && (
               <p className="text-center text-[10.5px] leading-snug text-[#a89a78]" style={{ fontFamily: "'PT Serif', serif" }}>
                 Versão de teste: as contas online ainda não foram configuradas, então só o modo convidado funciona por enquanto.
               </p>
+            )}
+            {authMode === 'local' && onlineConfigured && (
+              <>
+                <p className="text-center text-[10.5px] leading-snug text-[#a89a78]" style={{ fontFamily: "'PT Serif', serif" }}>
+                  Modo offline: sem conta, o progresso fica só neste aparelho. Dá para jogar os Desafios contra a IA.
+                </p>
+                <button type="button" onClick={() => setOfflineMode(false)} className="text-center text-[11px] underline text-[#cdbd97]" style={{ fontFamily: "'PT Serif', serif" }}>Voltar ao modo online</button>
+              </>
             )}
           </div>
         </FramedWindow>
@@ -5362,6 +5371,7 @@ const SettingsModal = ({ session, profileName, onClose }: { session: Session | n
                 <WindowButton onClick={onClose}>Fechar</WindowButton>
                 <WindowButton danger onClick={() => setConfirming(true)}>Sair da conta</WindowButton>
               </div>
+              {isOfflineMode() && onlineConfigured && <WindowButton onClick={() => setOfflineMode(false)}>Voltar ao modo online</WindowButton>}
               <div className="flex gap-4 text-[11px]" style={{ fontFamily: "'PT Serif', serif" }}>
                 <a href={`${import.meta.env.BASE_URL}${getLang() === 'en' ? 'privacy-en.html' : 'privacidade.html'}`} target="_blank" rel="noreferrer" className="text-[#cdbd97] underline">Privacidade</a>
                 {authMode === 'supabase' && session && <button className="text-[#ff9a8a] underline" onClick={() => setDeleting(true)}>Excluir minha conta</button>}
